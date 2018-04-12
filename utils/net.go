@@ -1,10 +1,10 @@
 package utils
 
 import (
-	"net"
 	"errors"
-	"math/rand"
 	"fmt"
+	"math/rand"
+	"net"
 )
 
 var (

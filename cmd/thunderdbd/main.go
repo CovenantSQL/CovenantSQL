@@ -3,14 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"runtime"
+	"runtime/pprof"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-	"runtime/pprof"
 	"github.com/thunderdb/ThunderDB/utils"
-	"math/rand"
-	"time"
+	"github.com/thunderdb/ThunderDB/server"
+	"strings"
+	"os/signal"
 )
 
 const logo = `
@@ -23,10 +26,9 @@ const logo = `
 `
 
 var (
-	version   = "1"
-	commit    = "unknown"
-	branch    = "unknown"
-	buildtime = "unknown"
+	version = "1"
+	commit  = "unknown"
+	branch  = "unknown"
 )
 
 var (
@@ -47,6 +49,10 @@ var (
 	raftOpenTimeout      time.Duration
 	raftSnapThreshold    uint64
 	initPeers            string
+
+	// api
+	publishPeersTimeout time.Duration
+	publishPeersDelay   time.Duration
 
 	// profile
 	cpuProfile string
@@ -74,6 +80,8 @@ func init() {
 	flag.DurationVar(&raftApplyTimeout, "raft-apply-timeout", time.Second*10, "Raft apply timeout")
 	flag.DurationVar(&raftOpenTimeout, "raft-open-timeout", time.Second*120, "Time for initial Raft logs to be applied. Use 0s duration to skip wait")
 	flag.Uint64Var(&raftSnapThreshold, "raft-snap", 8192, "Number of outstanding log entries that trigger snapshot")
+	flag.DurationVar(&publishPeersTimeout, "publish-peers-timeout", time.Second*30, "Timeout for peers to publish")
+	flag.DurationVar(&publishPeersDelay, "publish-peers-delay", time.Second, "Interval for peers publishing retry")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
@@ -150,7 +158,61 @@ func main() {
 	// init db
 	dataPath := flag.Arg(0)
 
-	fmt.Println(apiPort, raftPort, dataPath)
+	// peers to join
+	var peerAddrs []string
+
+	if initPeers != "" {
+		peerAddrs = strings.Split(initPeers, ",")
+	}
+
+	s, err := server.NewService(&server.ServiceConfig{
+		BindAddr:              bindAddr,
+		PublicAddr:            publicAddr,
+		ApiPort:               apiPort,
+		RaftPort:              raftPort,
+		InitPeers:             peerAddrs,
+		DataPath:              dataPath,
+		DSN:                   dsn,
+		OnDisk:                onDisk,
+		RaftSnapshotThreshold: raftSnapThreshold,
+		RaftHeartbeatTimeout:  raftHeartbeatTimeout,
+		RaftApplyTimeout:      raftApplyTimeout,
+		RaftOpenTimeout:       raftOpenTimeout,
+		PublishPeersTimeout:   publishPeersTimeout,
+		PublishPeersDelay:     publishPeersDelay,
+		EnablePprof:           pprofEnabled,
+		Expvar:                expvar,
+		BuildInfo: map[string]interface{}{
+			"version": version,
+			"commit":  commit,
+			"branch":  branch,
+		},
+	})
+
+	if err != nil {
+		log.Fatalf("init service failed: %s", err.Error())
+		os.Exit(4)
+	}
+
+	log.Info("server initialized")
+
+	if err = s.Serve(); err != nil {
+		log.Fatalf("start service failed: %s", err.Error())
+		os.Exit(5)
+	}
+
+	log.Info("server started")
+
+	terminate := make(chan os.Signal, 1)
+	signal.Notify(terminate, os.Interrupt)
+	<-terminate
+
+	if err := s.Close(); err != nil {
+		log.Fatalf("stop service failed: %s", err.Error())
+		os.Exit(6)
+	}
+
+	log.Info("server stopped")
 }
 
 var prof struct {

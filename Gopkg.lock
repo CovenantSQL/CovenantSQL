@@ -64,8 +64,7 @@
     "store",
     "tcp"
   ]
-  revision = "77e345b97c5597c1ef86e75e690539de369b8dd3"
-  version = "v4.3.0"
+  revision = "4188c50"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -91,6 +90,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "41cf2f8bdbacc225ac55d4f0f8a30cfa056590f616393c2be94351d9b2e1774a"
+  inputs-digest = "139f5133d3d8739a153c3215b677b2bcb3a298f22f8f883c19783b5506851ebf"
   solver-name = "gps-cdcl"
   solver-version = 1

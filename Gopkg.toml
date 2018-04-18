@@ -24,6 +24,9 @@
 #   go-tests = true
 #   unused-packages = true
 
+[[constraint]]
+  name = "github.com/rqlite/rqlite"
+  revision = "4188c50"
 
 [prune]
   go-tests = true

@@ -22,13 +22,13 @@ package consistent
 
 import (
 	"errors"
-	"hash/crc32"
 	"sort"
 	"strconv"
 	"sync"
+	"hash/fnv"
 )
 
-type uints []uint32
+type uints []uint64
 
 // Len returns the length of the uints array.
 func (x uints) Len() int { return len(x) }
@@ -44,7 +44,7 @@ var ErrEmptyCircle = errors.New("empty circle")
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
-	circle           map[uint32]string
+	circle           map[uint64]string
 	members          map[string]bool
 	sortedHashes     uints
 	NumberOfReplicas int
@@ -59,7 +59,7 @@ type Consistent struct {
 func New() *Consistent {
 	c := new(Consistent)
 	c.NumberOfReplicas = 20
-	c.circle = make(map[uint32]string)
+	c.circle = make(map[uint64]string)
 	c.members = make(map[string]bool)
 	return c
 }
@@ -152,7 +152,7 @@ func (c *Consistent) Get(name string) (string, error) {
 	return c.circle[c.sortedHashes[i]], nil
 }
 
-func (c *Consistent) search(key uint32) (i int) {
+func (c *Consistent) search(key uint64) (i int) {
 	f := func(x int) bool {
 		return c.sortedHashes[x] > key
 	}
@@ -235,13 +235,15 @@ func (c *Consistent) GetN(name string, n int) ([]string, error) {
 	return res, nil
 }
 
-func (c *Consistent) hashKey(key string) uint32 {
+func (c *Consistent) hashKey(key string) uint64 {
+	h := fnv.New64a()
 	if len(key) < 64 {
 		var scratch [64]byte
 		copy(scratch[:], key)
-		return crc32.ChecksumIEEE(scratch[:len(key)])
+		h.Write(scratch[:len(key)])
 	}
-	return crc32.ChecksumIEEE([]byte(key))
+	h.Write([]byte(key))
+	return h.Sum64()
 }
 
 func (c *Consistent) updateSortedHashes() {

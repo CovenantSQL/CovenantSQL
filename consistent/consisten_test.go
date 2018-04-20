@@ -96,9 +96,9 @@ type gtest struct {
 }
 
 var gmtests = []gtest{
-	{"ggg", "abcdefg"},
+	{"iiii", "abcdefg"},
 	{"hhh", "opqrstu"},
-	{"iiiii", "hijklmn"},
+	{"ggg", "hijklmn"},
 }
 
 func TestGetMultiple(t *testing.T) {
@@ -137,15 +137,15 @@ func TestGetMultipleQuick(t *testing.T) {
 }
 
 var rtestsBefore = []gtest{
-	{"ggg", "abcdefg"},
+	{"iiii", "abcdefg"},
 	{"hhh", "opqrstu"},
-	{"iiiii", "hijklmn"},
+	{"ggg", "hijklmn"},
 }
 
 var rtestsAfter = []gtest{
-	{"ggg", "abcdefg"},
+	{"iiii", "abcdefg"},
 	{"hhh", "opqrstu"},
-	{"iiiii", "opqrstu"},
+	{"ggg", "abcdefg"},
 }
 
 func TestGetMultipleRemove(t *testing.T) {
@@ -206,10 +206,10 @@ func TestGetTwo(t *testing.T) {
 	if a == b {
 		t.Errorf("a shouldn't equal b")
 	}
-	if a != "abcdefg" {
+	if a != "hijklmn" {
 		t.Errorf("wrong a: %q", a)
 	}
-	if b != "hijklmn" {
+	if b != "abcdefg" {
 		t.Errorf("wrong b: %q", b)
 	}
 }
@@ -328,10 +328,10 @@ func TestGetNLess(t *testing.T) {
 	if len(members) != 2 {
 		t.Errorf("expected 2 members instead of %d", len(members))
 	}
-	if members[0] != "abcdefg" {
+	if members[0] != "hijklmn" {
 		t.Errorf("wrong members[0]: %q", members[0])
 	}
-	if members[1] != "hijklmn" {
+	if members[1] != "abcdefg" {
 		t.Errorf("wrong members[1]: %q", members[1])
 	}
 }
@@ -683,7 +683,7 @@ func TestCollisionsCRC(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	found := make(map[uint32]string)
+	found := make(map[uint64]string)
 	scanner := bufio.NewScanner(f)
 	count := 0
 	for scanner.Scan() {
@@ -730,7 +730,7 @@ func TestConcurrentGetSet(t *testing.T) {
 				if err != nil {
 					t.Error(err)
 				}
-				if a != "def" && a != "vwx" {
+				if a != "pqr" && a != "jkl" {
 					t.Errorf("got %s, expected abc", a)
 				}
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)

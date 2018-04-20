@@ -28,25 +28,36 @@ import (
 	"hash/fnv"
 )
 
-type uints []uint64
+type NodeKeys []NodeKey
 
 // Len returns the length of the uints array.
-func (x uints) Len() int { return len(x) }
+func (x NodeKeys) Len() int { return len(x) }
 
-// Less returns true if element i is less than element j.
-func (x uints) Less(i, j int) bool { return x[i] < x[j] }
+// Less returns true if node i is less than node j.
+func (x NodeKeys) Less(i, j int) bool { return x[i] < x[j] }
 
-// Swap exchanges elements i and j.
-func (x uints) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+// Swap exchanges nodes i and j.
+func (x NodeKeys) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 
-// ErrEmptyCircle is the error returned when trying to get an element when nothing has been added to hash.
+// ErrEmptyCircle is the error returned when trying to get an node when nothing has been added to hash.
 var ErrEmptyCircle = errors.New("empty circle")
+
+type NodeId 	string
+type NodeKey	uint64
+
+type Node struct {
+	Name      string
+	Port      uint16
+	Protocol  string
+	Id        NodeId
+	PublicKey string
+}
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
-	circle           map[uint64]string
-	members          map[string]bool
-	sortedHashes     uints
+	circle           map[NodeKey]Node
+	members          map[NodeId]Node
+	sortedHashes     NodeKeys
 	NumberOfReplicas int
 	count            int64
 	scratch          [64]byte
@@ -59,60 +70,60 @@ type Consistent struct {
 func New() *Consistent {
 	c := new(Consistent)
 	c.NumberOfReplicas = 20
-	c.circle = make(map[uint64]string)
-	c.members = make(map[string]bool)
+	c.circle = make(map[NodeKey]Node)
+	c.members = make(map[NodeId]Node)
 	return c
 }
 
-// eltKey generates a string key for an element with an index.
-func (c *Consistent) eltKey(elt string, idx int) string {
-	// return elt + "|" + strconv.Itoa(idx)
-	return strconv.Itoa(idx) + elt
+// nodeKey generates a string key for an node with an index.
+func (c *Consistent) nodeKey(node_id NodeId, idx int) string {
+	// return node + "|" + strconv.Itoa(idx)
+	return strconv.Itoa(idx) + string(node_id)
 }
 
-// Add inserts a string element in the consistent hash.
-func (c *Consistent) Add(elt string) {
+// Add inserts a string node in the consistent hash.
+func (c *Consistent) Add(node Node) {
 	c.Lock()
 	defer c.Unlock()
-	c.add(elt)
+	c.add(node)
 }
 
 // need c.Lock() before calling
-func (c *Consistent) add(elt string) {
+func (c *Consistent) add(node Node) {
 	for i := 0; i < c.NumberOfReplicas; i++ {
-		c.circle[c.hashKey(c.eltKey(elt, i))] = elt
+		c.circle[c.hashKey(c.nodeKey(node.Id, i))] = node
 	}
-	c.members[elt] = true
+	c.members[node.Id] = node
 	c.updateSortedHashes()
 	c.count++
 }
 
-// Remove removes an element from the hash.
-func (c *Consistent) Remove(elt string) {
+// Remove removes an node from the hash.
+func (c *Consistent) Remove(node Node) {
 	c.Lock()
 	defer c.Unlock()
-	c.remove(elt)
+	c.remove(node.Id)
 }
 
 // need c.Lock() before calling
-func (c *Consistent) remove(elt string) {
+func (c *Consistent) remove(node_id NodeId) {
 	for i := 0; i < c.NumberOfReplicas; i++ {
-		delete(c.circle, c.hashKey(c.eltKey(elt, i)))
+		delete(c.circle, c.hashKey(c.nodeKey(node_id, i)))
 	}
-	delete(c.members, elt)
+	delete(c.members, node_id)
 	c.updateSortedHashes()
 	c.count--
 }
 
-// Set sets all the elements in the hash.  If there are existing elements not
-// present in elts, they will be removed.
-func (c *Consistent) Set(elts []string) {
+// Set sets all the nodes in the hash.  If there are existing nodes not
+// present in nodes, they will be removed.
+func (c *Consistent) Set(nodes []Node) {
 	c.Lock()
 	defer c.Unlock()
 	for k := range c.members {
 		found := false
-		for _, v := range elts {
-			if k == v {
+		for _, v := range nodes {
+			if k == v.Id {
 				found = true
 				break
 			}
@@ -121,8 +132,8 @@ func (c *Consistent) Set(elts []string) {
 			c.remove(k)
 		}
 	}
-	for _, v := range elts {
-		_, exists := c.members[v]
+	for _, v := range nodes {
+		_, exists := c.members[v.Id]
 		if exists {
 			continue
 		}
@@ -130,29 +141,29 @@ func (c *Consistent) Set(elts []string) {
 	}
 }
 
-func (c *Consistent) Members() []string {
+func (c *Consistent) Members() []Node {
 	c.RLock()
 	defer c.RUnlock()
-	var m []string
-	for k := range c.members {
-		m = append(m, k)
+	var m []Node
+	for _, v := range c.members {
+		m = append(m, v)
 	}
 	return m
 }
 
-// Get returns an element close to where name hashes to in the circle.
-func (c *Consistent) Get(name string) (string, error) {
+// Get returns an node close to where name hashes to in the circle.
+func (c *Consistent) Get(name string) (Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
-		return "", ErrEmptyCircle
+		return Node{}, ErrEmptyCircle
 	}
 	key := c.hashKey(name)
 	i := c.search(key)
 	return c.circle[c.sortedHashes[i]], nil
 }
 
-func (c *Consistent) search(key uint64) (i int) {
+func (c *Consistent) search(key NodeKey) (i int) {
 	f := func(x int) bool {
 		return c.sortedHashes[x] > key
 	}
@@ -163,23 +174,23 @@ func (c *Consistent) search(key uint64) (i int) {
 	return
 }
 
-// GetTwo returns the two closest distinct elements to the name input in the circle.
-func (c *Consistent) GetTwo(name string) (string, string, error) {
+// GetTwo returns the two closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetTwo(name string) (Node, Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
-		return "", "", ErrEmptyCircle
+		return Node{}, Node{}, ErrEmptyCircle
 	}
 	key := c.hashKey(name)
 	i := c.search(key)
 	a := c.circle[c.sortedHashes[i]]
 
 	if c.count == 1 {
-		return a, "", nil
+		return a, Node{}, nil
 	}
 
 	start := i
-	var b string
+	var b Node
 	for i = start + 1; i != start; i++ {
 		if i >= len(c.sortedHashes) {
 			i = 0
@@ -192,8 +203,8 @@ func (c *Consistent) GetTwo(name string) (string, string, error) {
 	return a, b, nil
 }
 
-// GetN returns the N closest distinct elements to the name input in the circle.
-func (c *Consistent) GetN(name string, n int) ([]string, error) {
+// GetN returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetN(name string, n int) ([]Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -209,7 +220,7 @@ func (c *Consistent) GetN(name string, n int) ([]string, error) {
 		key   = c.hashKey(name)
 		i     = c.search(key)
 		start = i
-		res   = make([]string, 0, n)
+		res   = make([]Node, 0, n)
 		elem  = c.circle[c.sortedHashes[i]]
 	)
 
@@ -235,7 +246,7 @@ func (c *Consistent) GetN(name string, n int) ([]string, error) {
 	return res, nil
 }
 
-func (c *Consistent) hashKey(key string) uint64 {
+func (c *Consistent) hashKey(key string) NodeKey {
 	h := fnv.New64a()
 	if len(key) < 64 {
 		var scratch [64]byte
@@ -243,7 +254,7 @@ func (c *Consistent) hashKey(key string) uint64 {
 		h.Write(scratch[:len(key)])
 	}
 	h.Write([]byte(key))
-	return h.Sum64()
+	return NodeKey(h.Sum64())
 }
 
 func (c *Consistent) updateSortedHashes() {
@@ -259,9 +270,9 @@ func (c *Consistent) updateSortedHashes() {
 	c.sortedHashes = hashes
 }
 
-func sliceContainsMember(set []string, member string) bool {
+func sliceContainsMember(set []Node, member Node) bool {
 	for _, m := range set {
-		if m == member {
+		if m.Id == member.Id {
 			return true
 		}
 	}

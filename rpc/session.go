@@ -12,11 +12,10 @@ type Session struct {
 
 func NewSession(conn net.Conn) *Session {
 	return &Session{
-		Client:     rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn)),
+		Client: rpc.NewClientWithCodec(jsonrpc.NewClientCodec(conn)),
 	}
 }
 
 func (s *Session) Close() {
 	s.Client.Close()
 }
-

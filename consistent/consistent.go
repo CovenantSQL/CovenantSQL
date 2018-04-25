@@ -22,10 +22,10 @@ package consistent
 
 import (
 	"errors"
+	"hash/fnv"
 	"sort"
 	"strconv"
 	"sync"
-	"hash/fnv"
 
 	. "github.com/thunderdb/ThunderDB/proto"
 )

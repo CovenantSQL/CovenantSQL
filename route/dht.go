@@ -1,9 +1,9 @@
 package route
 
 import (
-	"net"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/rpc"
+	"net"
 )
 
 func InitDhtServer(l net.Listener) (server *rpc.Server, err error) {

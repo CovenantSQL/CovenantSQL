@@ -1,20 +1,20 @@
 package route
 
 import (
-	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/consistent"
-	"github.com/opentracing/opentracing-go/log"
 	"fmt"
+	"github.com/opentracing/opentracing-go/log"
+	"github.com/thunderdb/ThunderDB/consistent"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 type DhtService struct {
-	thisNode   proto.Node
-	hashRing   *consistent.Consistent
+	thisNode proto.Node
+	hashRing *consistent.Consistent
 }
 
 func NewDhtService() *DhtService {
 	return &DhtService{
-		hashRing:   consistent.New(),
+		hashRing: consistent.New(),
 	}
 }
 
@@ -26,7 +26,7 @@ type GetNeighborsReq struct {
 
 type GetNeighborsResp struct {
 	Nodes   []proto.Node
-	ErrMsg	string
+	ErrMsg  string
 	Version string
 }
 
@@ -40,12 +40,12 @@ func (dht *DhtService) GetNeighbors(req *GetNeighborsReq, resp *GetNeighborsResp
 }
 
 type AddNodeReq struct {
-	Node  proto.Node
+	Node    proto.Node
 	Version string
 }
 
 type AddNodeResp struct {
-	ErrMsg	string
+	ErrMsg  string
 	Version string
 }
 

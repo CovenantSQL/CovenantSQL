@@ -1,9 +1,7 @@
 package proto
 
-
-
-type NodeId 	string
-type NodeKey	uint64
+type NodeId string
+type NodeKey uint64
 
 type Node struct {
 	Name      string
@@ -12,4 +10,3 @@ type Node struct {
 	Id        NodeId
 	PublicKey string
 }
-

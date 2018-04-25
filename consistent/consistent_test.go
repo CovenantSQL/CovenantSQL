@@ -16,12 +16,12 @@ import (
 	"testing/quick"
 	"time"
 
-	"github.com/thunderdb/ThunderDB/utils"
 	. "github.com/thunderdb/ThunderDB/proto"
+	"github.com/thunderdb/ThunderDB/utils"
 )
 
 func NewNodeFromId(id string) Node {
-	return Node{Id:NodeId(id)}
+	return Node{Id: NodeId(id)}
 }
 
 func TestNew(t *testing.T) {
@@ -467,7 +467,7 @@ func TestSet(t *testing.T) {
 	x.Add(NewNodeFromId("abc"))
 	x.Add(NewNodeFromId("def"))
 	x.Add(NewNodeFromId("ghi"))
-	x.Set([]Node{Node{Id:"jkl"}, Node{Id:"mno"}})
+	x.Set([]Node{Node{Id: "jkl"}, Node{Id: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -484,7 +484,7 @@ func TestSet(t *testing.T) {
 	if a == b {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{Id:"pqr"}, Node{Id:"mno"}})
+	x.Set([]Node{Node{Id: "pqr"}, Node{Id: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -501,7 +501,7 @@ func TestSet(t *testing.T) {
 	if a == b {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{Id:"pqr"}, Node{Id:"mno"}})
+	x.Set([]Node{Node{Id: "pqr"}, Node{Id: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -707,16 +707,16 @@ func TestCollisionsCRC(t *testing.T) {
 
 func TestConcurrentGetSet(t *testing.T) {
 	x := New()
-	x.Set([]Node{Node{Id:"abc"}, Node{Id:"def"}, Node{Id:"ghi"}, Node{Id:"jkl"}, Node{Id:"mno"}})
+	x.Set([]Node{Node{Id: "abc"}, Node{Id: "def"}, Node{Id: "ghi"}, Node{Id: "jkl"}, Node{Id: "mno"}})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 1000; i++ {
-				x.Set([]Node{Node{Id:"abc"}, Node{Id:"def"}, Node{Id:"ghi"}, Node{Id:"jkl"}, Node{Id:"mno"}})
+				x.Set([]Node{Node{Id: "abc"}, Node{Id: "def"}, Node{Id: "ghi"}, Node{Id: "jkl"}, Node{Id: "mno"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-				x.Set([]Node{Node{Id:"pqr"}, Node{Id:"stu"}, Node{Id:"vwx"}})
+				x.Set([]Node{Node{Id: "pqr"}, Node{Id: "stu"}, Node{Id: "vwx"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}
 			wg.Done()

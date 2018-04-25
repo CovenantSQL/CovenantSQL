@@ -1,10 +1,10 @@
 package rpc
 
 import (
-	"testing"
-	"net"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/utils"
+	"net"
+	"testing"
 )
 
 type TestService struct {

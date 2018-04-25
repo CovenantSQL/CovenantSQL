@@ -13,4 +13,3 @@ func CheckStr(str, expected string, t *testing.T) {
 		t.Errorf("got %v, expected %v", str, expected)
 	}
 }
-

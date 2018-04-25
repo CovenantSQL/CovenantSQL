@@ -1,14 +1,13 @@
 package route
 
 import (
-	"testing"
-	"net"
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/utils"
-	"github.com/thunderdb/ThunderDB/rpc"
 	"github.com/thunderdb/ThunderDB/proto"
+	"github.com/thunderdb/ThunderDB/rpc"
+	"github.com/thunderdb/ThunderDB/utils"
+	"net"
+	"testing"
 )
-
 
 func TestGetNeighbors(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
@@ -44,7 +43,7 @@ func TestGetNeighbors(t *testing.T) {
 
 	req := &GetNeighborsReq{
 		NodeId: "123",
-		Count: 2,
+		Count:  2,
 	}
 	resp := new(GetNeighborsResp)
 	err = client.Call("Dht.GetNeighbors", req, resp)
@@ -57,4 +56,3 @@ func TestGetNeighbors(t *testing.T) {
 	client.Close()
 	dhtServer.Close()
 }
-

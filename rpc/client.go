@@ -1,10 +1,10 @@
 package rpc
 
 import (
-	"net"
-	"net/rpc"
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
+	"net"
+	"net/rpc"
 	"net/rpc/jsonrpc"
 )
 
@@ -23,9 +23,8 @@ func InitClient(addr string) (client *Client, err error) {
 	}
 	client = NewClient()
 	client.start(conn)
-	return client,nil
+	return client, nil
 }
-
 
 func (c *Client) start(conn net.Conn) {
 	sess, err := yamux.Client(conn, nil)

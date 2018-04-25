@@ -1,12 +1,12 @@
 package rpc
 
 import (
+	"github.com/hashicorp/yamux"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"sync"
-	log "github.com/sirupsen/logrus"
-	"github.com/hashicorp/yamux"
 
 	"github.com/thunderdb/ThunderDB/proto"
 )

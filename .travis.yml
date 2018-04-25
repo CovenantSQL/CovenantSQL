@@ -1,14 +1,29 @@
-sudo: false
+env:
+  global:
+  - secure: Ne/Bn/yh1bbAeStspQRNH13s5hdeN3fjkdePx3FfF/fbNpZPdfdov/czS7zkKoPTWUMzIw2/DIdZdAfOwvqwD6OhH/3AgA1ND3t8E/VqJhHCqwutWFcoF7Jr9e/rx1sayqC7bkTizp28rUXtzJAMQ3lyjIudFGvl7YzUjyNxSmAXXgfq1EHcvLqIa+yQxij+JjUadM3D8mO34C/EbgJ2rCLf1BYwcGGPNP9kWkxyYpXSTFWkbUlklmnDmIU7ccHGUWWWbIYb+Kqr0VnzQpq+sqzy3L/gZx1L3+ndoYWBU64XpyeLSg/07NAhSIg8rXxW71wlUFo8M/lgEmLzUwfL3Egy1omO6x57esQklrlwGlHj+5bmcVAQUXaUskhsspVLG7yiD9D9tDoxddYcHidlLyW4r7lUO9hPAI521dSAxHhvI0rpdX2u4KTDCEBKxajQTfGONP0gqsXofKWK8k35ub19zdy9xWL2tjXifNbEmDy/T7mO5wK+agAD6/lidhpX+MzpZlb0ZCbakQvpcvVZMsnY/rsYA2YFIn+6IKrBRhm9x39G/QA6odtUKwkemcJuSh3icxG59aWDtB3iOx/zPWvcu8CRkG25NNleRhUWv7Z2h7iqVFO83cIx7LBx8e1fdx1eTiLlxassZp/M6JBUeSsvtJsaY8Le01ocWzI7kgA=
+  - REVIEWDOG_VERSION=0.9.8
 language: go
 go:
-  - "1.10"
-  - "tip"
+  - '1.10'
+  - tip
 matrix:
   allow_failures:
     - go: tip
   fast_finish: true
 install:
-  -
+  - dep ensure
+  - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
+  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+before_script:
+  - echo $TRAVIS
+  - echo $TRAVIS_PULL_REQUEST
+  - echo $TRAVIS_PULL_REQUEST_BRANCH
+  - echo $TRAVIS_COMMIT
+  - echo $TRAVIS_PULL_REQUEST_SHA
+  - echo $TRAVIS_REPO_SLUG
+  - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - bash build.sh
-  - diff -u <(echo -n) <(gofmt -d *.go)
+  - go test -v -race $(go list ./... | grep -v "/vendor/")
+  - goverage -coverprofile=coverage.txt ./...
+  - golint ./... | reviewdog -f=golint -ci=travis

@@ -30,6 +30,6 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
 #  - bash build.sh
-#  - go test -v -race $(go list ./... | grep -v "/vendor/")
-#  - goverage -coverprofile=coverage.txt ./...
+  - go test -v -race $(go list ./... | grep -v "/vendor/")
+  - goverage -coverprofile=coverage.txt ./...
   - golint ./... | reviewdog -f=golint -ci=travis

@@ -10,5 +10,5 @@ matrix:
 install:
   -
 script:
-  - go get
+  - bash build.sh
   - diff -u <(echo -n) <(gofmt -d *.go)

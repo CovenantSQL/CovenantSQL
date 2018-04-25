@@ -15,16 +15,13 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/thunderdb/ThunderDB/utils"
+	. "github.com/thunderdb/ThunderDB/proto"
 )
 
 func NewNodeFromId(id string) Node {
 	return Node{Id:NodeId(id)}
-}
-
-func checkNum(num, expected int, t *testing.T) {
-	if num != expected {
-		t.Errorf("got %d, expected %d", num, expected)
-	}
 }
 
 func TestNew(t *testing.T) {
@@ -32,20 +29,20 @@ func TestNew(t *testing.T) {
 	if x == nil {
 		t.Errorf("expected obj")
 	}
-	checkNum(x.NumberOfReplicas, 20, t)
+	utils.CheckNum(x.NumberOfReplicas, 20, t)
 }
 
 func TestAdd(t *testing.T) {
 	x := New()
 	x.Add(NewNodeFromId("abcdefg"))
-	checkNum(len(x.circle), 20, t)
-	checkNum(len(x.sortedHashes), 20, t)
+	utils.CheckNum(len(x.circle), 20, t)
+	utils.CheckNum(len(x.sortedHashes), 20, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
 	x.Add(NewNodeFromId(("qwer")))
-	checkNum(len(x.circle), 40, t)
-	checkNum(len(x.sortedHashes), 40, t)
+	utils.CheckNum(len(x.circle), 40, t)
+	utils.CheckNum(len(x.sortedHashes), 40, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
@@ -55,15 +52,15 @@ func TestRemove(t *testing.T) {
 	x := New()
 	x.Add(NewNodeFromId("abcdefg"))
 	x.Remove(NewNodeFromId("abcdefg"))
-	checkNum(len(x.circle), 0, t)
-	checkNum(len(x.sortedHashes), 0, t)
+	utils.CheckNum(len(x.circle), 0, t)
+	utils.CheckNum(len(x.sortedHashes), 0, t)
 }
 
 func TestRemoveNonExisting(t *testing.T) {
 	x := New()
 	x.Add(NewNodeFromId("abcdefg"))
 	x.Remove(NewNodeFromId("abcdefghijk"))
-	checkNum(len(x.circle), 20, t)
+	utils.CheckNum(len(x.circle), 20, t)
 }
 
 func TestGetEmpty(t *testing.T) {

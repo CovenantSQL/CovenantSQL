@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"sync"
 	"hash/fnv"
+
+	. "github.com/thunderdb/ThunderDB/proto"
 )
 
 type NodeKeys []NodeKey
@@ -41,17 +43,6 @@ func (x NodeKeys) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 
 // ErrEmptyCircle is the error returned when trying to get an node when nothing has been added to hash.
 var ErrEmptyCircle = errors.New("empty circle")
-
-type NodeId 	string
-type NodeKey	uint64
-
-type Node struct {
-	Name      string
-	Port      uint16
-	Protocol  string
-	Id        NodeId
-	PublicKey string
-}
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {

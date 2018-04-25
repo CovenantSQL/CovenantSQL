@@ -29,7 +29,7 @@ before_script:
   - echo $TRAVIS_REPO_SLUG
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
-#  - bash build.sh
-  - go test -v -race $(go list ./... | grep -v "/vendor/")
-  - goverage -coverprofile=coverage.txt ./...
+  # - bash build.sh
+  # - go test -v -race $(go list ./... | grep -v "/vendor/")
+  # - goverage -coverprofile=coverage.txt ./...
   - golint ./... | reviewdog -f=golint -ci=travis

@@ -19,6 +19,7 @@ type Server struct {
 	rpcServer  *rpc.Server
 	stopCh     chan interface{}
 	serviceMap ServiceMap
+	listener   net.Listener
 }
 
 func NewServer() *Server {
@@ -42,7 +43,12 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 	return server, nil
 }
 
-func (s *Server) serveRpc(sess *yamux.Session) {
+func (s *Server) SetListener(l net.Listener) {
+	s.listener = l
+	return
+}
+
+func (s *Server) serveRPC(sess *yamux.Session) {
 	conn, err := sess.Accept()
 	if err != nil {
 		log.Error(err)
@@ -60,7 +66,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
-	s.serveRpc(sess)
+	s.serveRPC(sess)
 	log.Debugf("%s closed connection", conn.RemoteAddr())
 }
 
@@ -68,7 +74,7 @@ func (s *Server) RegisterService(name string, service interface{}) error {
 	return s.rpcServer.RegisterName(name, service)
 }
 
-func (s *Server) Serve(l net.Listener) {
+func (s *Server) Serve() {
 serverLoop:
 	for {
 		select {
@@ -76,7 +82,7 @@ serverLoop:
 			log.Info("Stopping Server Loop")
 			break serverLoop
 		default:
-			conn, err := l.Accept()
+			conn, err := s.listener.Accept()
 			if err != nil {
 				log.Debug(err)
 				continue

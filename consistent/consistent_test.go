@@ -20,8 +20,8 @@ import (
 	"github.com/thunderdb/ThunderDB/utils"
 )
 
-func NewNodeFromId(id string) Node {
-	return Node{Id: NodeId(id)}
+func NewNodeFromID(id string) Node {
+	return Node{ID: NodeID(id)}
 }
 
 func TestNew(t *testing.T) {
@@ -34,13 +34,13 @@ func TestNew(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
+	x.Add(NewNodeFromID("abcdefg"))
 	utils.CheckNum(len(x.circle), 20, t)
 	utils.CheckNum(len(x.sortedHashes), 20, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
-	x.Add(NewNodeFromId(("qwer")))
+	x.Add(NewNodeFromID(("qwer")))
 	utils.CheckNum(len(x.circle), 40, t)
 	utils.CheckNum(len(x.sortedHashes), 40, t)
 	if sort.IsSorted(x.sortedHashes) == false {
@@ -50,16 +50,16 @@ func TestAdd(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Remove(NewNodeFromId("abcdefg"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Remove(NewNodeFromID("abcdefg"))
 	utils.CheckNum(len(x.circle), 0, t)
 	utils.CheckNum(len(x.sortedHashes), 0, t)
 }
 
 func TestRemoveNonExisting(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Remove(NewNodeFromId("abcdefghijk"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Remove(NewNodeFromID("abcdefghijk"))
 	utils.CheckNum(len(x.circle), 20, t)
 }
 
@@ -76,7 +76,7 @@ func TestGetEmpty(t *testing.T) {
 
 func TestGetSingle(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
+	x.Add(NewNodeFromID("abcdefg"))
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
@@ -84,7 +84,7 @@ func TestGetSingle(t *testing.T) {
 			return false
 		}
 		t.Logf("s = %q, y = %q", s, y)
-		return y.Id == "abcdefg"
+		return y.ID == "abcdefg"
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Fatal(err)
@@ -104,15 +104,15 @@ var gmtests = []gtest{
 
 func TestGetMultiple(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	for i, v := range gmtests {
 		result, err := x.Get(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(result.Id) != v.out {
+		if string(result.ID) != v.out {
 			t.Errorf("%d. got %q, expected %q", i, result, v.out)
 		}
 	}
@@ -120,9 +120,9 @@ func TestGetMultiple(t *testing.T) {
 
 func TestGetMultipleQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
@@ -130,7 +130,7 @@ func TestGetMultipleQuick(t *testing.T) {
 			return false
 		}
 		t.Logf("s = %q, y = %q", s, y)
-		return y.Id == "abcdefg" || y.Id == "hijklmn" || y.Id == "opqrstu"
+		return y.ID == "abcdefg" || y.ID == "hijklmn" || y.ID == "opqrstu"
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Fatal(err)
@@ -151,25 +151,25 @@ var rtestsAfter = []gtest{
 
 func TestGetMultipleRemove(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	for i, v := range rtestsBefore {
 		result, err := x.Get(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(result.Id) != v.out {
+		if string(result.ID) != v.out {
 			t.Errorf("%d. got %q, expected %q before rm", i, result, v.out)
 		}
 	}
-	x.Remove(NewNodeFromId("hijklmn"))
+	x.Remove(NewNodeFromID("hijklmn"))
 	for i, v := range rtestsAfter {
 		result, err := x.Get(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(result.Id) != v.out {
+		if string(result.ID) != v.out {
 			t.Errorf("%d. got %q, expected %q after rm", i, result, v.out)
 		}
 	}
@@ -177,10 +177,10 @@ func TestGetMultipleRemove(t *testing.T) {
 
 func TestGetMultipleRemoveQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
-	x.Remove(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
+	x.Remove(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
@@ -188,7 +188,7 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 			return false
 		}
 		t.Logf("s = %q, y = %q", s, y)
-		return y.Id == "abcdefg" || y.Id == "hijklmn"
+		return y.ID == "abcdefg" || y.ID == "hijklmn"
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Fatal(err)
@@ -197,9 +197,9 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 
 func TestGetTwo(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	a, b, err := x.GetTwo("99999999")
 	if err != nil {
 		t.Fatal(err)
@@ -207,19 +207,19 @@ func TestGetTwo(t *testing.T) {
 	if a == b {
 		t.Errorf("a shouldn't equal b")
 	}
-	if a.Id != "hijklmn" {
+	if a.ID != "hijklmn" {
 		t.Errorf("wrong a: %q", a)
 	}
-	if b.Id != "abcdefg" {
+	if b.ID != "abcdefg" {
 		t.Errorf("wrong b: %q", b)
 	}
 }
 
 func TestGetTwoQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
 		a, b, err := x.GetTwo(s)
 		if err != nil {
@@ -230,12 +230,12 @@ func TestGetTwoQuick(t *testing.T) {
 			t.Logf("a == b")
 			return false
 		}
-		if a.Id != "abcdefg" && a.Id != "hijklmn" && a.Id != "opqrstu" {
+		if a.ID != "abcdefg" && a.ID != "hijklmn" && a.ID != "opqrstu" {
 			t.Logf("invalid a: %q", a)
 			return false
 		}
 
-		if b.Id != "abcdefg" && b.Id != "hijklmn" && b.Id != "opqrstu" {
+		if b.ID != "abcdefg" && b.ID != "hijklmn" && b.ID != "opqrstu" {
 			t.Logf("invalid b: %q", b)
 			return false
 		}
@@ -248,8 +248,8 @@ func TestGetTwoQuick(t *testing.T) {
 
 func TestGetTwoOnlyTwoQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
 	f := func(s string) bool {
 		a, b, err := x.GetTwo(s)
 		if err != nil {
@@ -260,12 +260,12 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 			t.Logf("a == b")
 			return false
 		}
-		if a.Id != "abcdefg" && a.Id != "hijklmn" {
+		if a.ID != "abcdefg" && a.ID != "hijklmn" {
 			t.Logf("invalid a: %q", a)
 			return false
 		}
 
-		if b.Id != "abcdefg" && b.Id != "hijklmn" {
+		if b.ID != "abcdefg" && b.ID != "hijklmn" {
 			t.Logf("invalid b: %q", b)
 			return false
 		}
@@ -278,7 +278,7 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 
 func TestGetTwoOnlyOneInCircle(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
+	x.Add(NewNodeFromID("abcdefg"))
 	a, b, err := x.GetTwo("99999999")
 	if err != nil {
 		t.Fatal(err)
@@ -286,19 +286,19 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 	if a == b {
 		t.Errorf("a shouldn't equal b")
 	}
-	if a.Id != "abcdefg" {
+	if a.ID != "abcdefg" {
 		t.Errorf("wrong a: %q", a)
 	}
-	if b.Id != "" {
+	if b.ID != "" {
 		t.Errorf("wrong b: %q", b)
 	}
 }
 
 func TestGetN(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	members, err := x.GetN("9999999", 3)
 	if err != nil {
 		t.Fatal(err)
@@ -306,22 +306,22 @@ func TestGetN(t *testing.T) {
 	if len(members) != 3 {
 		t.Errorf("expected 3 members instead of %d", len(members))
 	}
-	if members[0].Id != "opqrstu" {
+	if members[0].ID != "opqrstu" {
 		t.Errorf("wrong members[0]: %q", members[0])
 	}
-	if members[1].Id != "abcdefg" {
+	if members[1].ID != "abcdefg" {
 		t.Errorf("wrong members[1]: %q", members[1])
 	}
-	if members[2].Id != "hijklmn" {
+	if members[2].ID != "hijklmn" {
 		t.Errorf("wrong members[2]: %q", members[2])
 	}
 }
 
 func TestGetNLess(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	members, err := x.GetN("99999999", 2)
 	if err != nil {
 		t.Fatal(err)
@@ -329,19 +329,19 @@ func TestGetNLess(t *testing.T) {
 	if len(members) != 2 {
 		t.Errorf("expected 2 members instead of %d", len(members))
 	}
-	if members[0].Id != "hijklmn" {
+	if members[0].ID != "hijklmn" {
 		t.Errorf("wrong members[0]: %q", members[0])
 	}
-	if members[1].Id != "abcdefg" {
+	if members[1].ID != "abcdefg" {
 		t.Errorf("wrong members[1]: %q", members[1])
 	}
 }
 
 func TestGetNMore(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	members, err := x.GetN("9999999", 5)
 	if err != nil {
 		t.Fatal(err)
@@ -349,22 +349,22 @@ func TestGetNMore(t *testing.T) {
 	if len(members) != 3 {
 		t.Errorf("expected 3 members instead of %d", len(members))
 	}
-	if members[0].Id != "opqrstu" {
+	if members[0].ID != "opqrstu" {
 		t.Errorf("wrong members[0]: %q", members[0])
 	}
-	if members[1].Id != "abcdefg" {
+	if members[1].ID != "abcdefg" {
 		t.Errorf("wrong members[1]: %q", members[1])
 	}
-	if members[2].Id != "hijklmn" {
+	if members[2].ID != "hijklmn" {
 		t.Errorf("wrong members[2]: %q", members[2])
 	}
 }
 
 func TestGetNQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
 		members, err := x.GetN(s, 3)
 		if err != nil {
@@ -375,14 +375,14 @@ func TestGetNQuick(t *testing.T) {
 			t.Logf("expected 3 members instead of %d", len(members))
 			return false
 		}
-		set := make(map[NodeId]Node, 4)
+		set := make(map[NodeID]Node, 4)
 		for _, member := range members {
-			if set[member.Id].Id != "" {
+			if set[member.ID].ID != "" {
 				t.Logf("duplicate error")
 				return false
 			}
-			set[member.Id] = Node{}
-			if member.Id != "abcdefg" && member.Id != "hijklmn" && member.Id != "opqrstu" {
+			set[member.ID] = Node{}
+			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
 				t.Logf("invalid member: %q", member)
 				return false
 			}
@@ -396,9 +396,9 @@ func TestGetNQuick(t *testing.T) {
 
 func TestGetNLessQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
 		members, err := x.GetN(s, 2)
 		if err != nil {
@@ -409,14 +409,14 @@ func TestGetNLessQuick(t *testing.T) {
 			t.Logf("expected 2 members instead of %d", len(members))
 			return false
 		}
-		set := make(map[NodeId]Node, 4)
+		set := make(map[NodeID]Node, 4)
 		for _, member := range members {
-			if set[member.Id].Id != "" {
+			if set[member.ID].ID != "" {
 				t.Logf("duplicate error")
 				return false
 			}
-			set[member.Id] = Node{}
-			if member.Id != "abcdefg" && member.Id != "hijklmn" && member.Id != "opqrstu" {
+			set[member.ID] = Node{}
+			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
 				t.Logf("invalid member: %q", member)
 				return false
 			}
@@ -430,9 +430,9 @@ func TestGetNLessQuick(t *testing.T) {
 
 func TestGetNMoreQuick(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abcdefg"))
-	x.Add(NewNodeFromId("hijklmn"))
-	x.Add(NewNodeFromId("opqrstu"))
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
 		members, err := x.GetN(s, 5)
 		if err != nil {
@@ -443,14 +443,14 @@ func TestGetNMoreQuick(t *testing.T) {
 			t.Logf("expected 3 members instead of %d", len(members))
 			return false
 		}
-		set := make(map[NodeId]Node, 4)
+		set := make(map[NodeID]Node, 4)
 		for _, member := range members {
-			if set[member.Id].Id != "" {
+			if set[member.ID].ID != "" {
 				t.Logf("duplicate error")
 				return false
 			}
-			set[member.Id] = Node{}
-			if member.Id != "abcdefg" && member.Id != "hijklmn" && member.Id != "opqrstu" {
+			set[member.ID] = Node{}
+			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
 				t.Logf("invalid member: %q", member)
 				return false
 			}
@@ -464,10 +464,10 @@ func TestGetNMoreQuick(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	x := New()
-	x.Add(NewNodeFromId("abc"))
-	x.Add(NewNodeFromId("def"))
-	x.Add(NewNodeFromId("ghi"))
-	x.Set([]Node{Node{Id: "jkl"}, Node{Id: "mno"}})
+	x.Add(NewNodeFromID("abc"))
+	x.Add(NewNodeFromID("def"))
+	x.Add(NewNodeFromID("ghi"))
+	x.Set([]Node{Node{ID: "jkl"}, Node{ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -475,16 +475,16 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Id != "jkl" && a.Id != "mno" {
+	if a.ID != "jkl" && a.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", a)
 	}
-	if b.Id != "jkl" && b.Id != "mno" {
+	if b.ID != "jkl" && b.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", b)
 	}
 	if a == b {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{Id: "pqr"}, Node{Id: "mno"}})
+	x.Set([]Node{Node{ID: "pqr"}, Node{ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -492,16 +492,16 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Id != "pqr" && a.Id != "mno" {
+	if a.ID != "pqr" && a.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", a)
 	}
-	if b.Id != "pqr" && b.Id != "mno" {
+	if b.ID != "pqr" && b.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", b)
 	}
 	if a == b {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{Id: "pqr"}, Node{Id: "mno"}})
+	x.Set([]Node{Node{ID: "pqr"}, Node{ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -509,10 +509,10 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Id != "pqr" && a.Id != "mno" {
+	if a.ID != "pqr" && a.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", a)
 	}
-	if b.Id != "pqr" && b.Id != "mno" {
+	if b.ID != "pqr" && b.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", b)
 	}
 	if a == b {
@@ -541,12 +541,12 @@ func mallocNum(f func()) uint64 {
 
 func BenchmarkAllocations(b *testing.B) {
 	x := New()
-	x.Add(NewNodeFromId("stays"))
+	x.Add(NewNodeFromID("stays"))
 	b.ResetTimer()
 	allocSize := allocBytes(func() {
 		for i := 0; i < b.N; i++ {
-			x.Add(NewNodeFromId("Foo"))
-			x.Remove(NewNodeFromId("Foo"))
+			x.Add(NewNodeFromID("Foo"))
+			x.Remove(NewNodeFromID("Foo"))
 		}
 	})
 	b.Logf("%d: Allocated %d bytes (%.2fx)", b.N, allocSize, float64(allocSize)/float64(b.N))
@@ -554,12 +554,12 @@ func BenchmarkAllocations(b *testing.B) {
 
 func BenchmarkMalloc(b *testing.B) {
 	x := New()
-	x.Add(NewNodeFromId("stays"))
+	x.Add(NewNodeFromID("stays"))
 	b.ResetTimer()
 	mallocs := mallocNum(func() {
 		for i := 0; i < b.N; i++ {
-			x.Add(NewNodeFromId("Foo"))
-			x.Remove(NewNodeFromId("Foo"))
+			x.Add(NewNodeFromID("Foo"))
+			x.Remove(NewNodeFromID("Foo"))
 		}
 	})
 	b.Logf("%d: Mallocd %d times (%.2fx)", b.N, mallocs, float64(mallocs)/float64(b.N))
@@ -567,29 +567,29 @@ func BenchmarkMalloc(b *testing.B) {
 
 func BenchmarkCycle(b *testing.B) {
 	x := New()
-	x.Add(NewNodeFromId("nothing"))
+	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Add(NewNodeFromId("foo" + strconv.Itoa(i)))
-		x.Remove(NewNodeFromId("foo" + strconv.Itoa(i)))
+		x.Add(NewNodeFromID("foo" + strconv.Itoa(i)))
+		x.Remove(NewNodeFromID("foo" + strconv.Itoa(i)))
 	}
 }
 
 func BenchmarkCycleLarge(b *testing.B) {
 	x := New()
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromId("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Add(NewNodeFromId("foo" + strconv.Itoa(i)))
-		x.Remove(NewNodeFromId("foo" + strconv.Itoa(i)))
+		x.Add(NewNodeFromID("foo" + strconv.Itoa(i)))
+		x.Remove(NewNodeFromID("foo" + strconv.Itoa(i)))
 	}
 }
 
 func BenchmarkGet(b *testing.B) {
 	x := New()
-	x.Add(NewNodeFromId("nothing"))
+	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.Get("nothing")
@@ -599,7 +599,7 @@ func BenchmarkGet(b *testing.B) {
 func BenchmarkGetLarge(b *testing.B) {
 	x := New()
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromId("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -609,7 +609,7 @@ func BenchmarkGetLarge(b *testing.B) {
 
 func BenchmarkGetN(b *testing.B) {
 	x := New()
-	x.Add(NewNodeFromId("nothing"))
+	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.GetN("nothing", 3)
@@ -619,7 +619,7 @@ func BenchmarkGetN(b *testing.B) {
 func BenchmarkGetNLarge(b *testing.B) {
 	x := New()
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromId("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -629,7 +629,7 @@ func BenchmarkGetNLarge(b *testing.B) {
 
 func BenchmarkGetTwo(b *testing.B) {
 	x := New()
-	x.Add(NewNodeFromId("nothing"))
+	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.GetTwo("nothing")
@@ -639,7 +639,7 @@ func BenchmarkGetTwo(b *testing.B) {
 func BenchmarkGetTwoLarge(b *testing.B) {
 	x := New()
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromId("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -654,8 +654,8 @@ func TestAddCollision(t *testing.T) {
 	const s1 = "abear"
 	const s2 = "solidiform"
 	x := New()
-	x.Add(NewNodeFromId(s1))
-	x.Add(NewNodeFromId(s2))
+	x.Add(NewNodeFromID(s1))
+	x.Add(NewNodeFromID(s2))
 	elt1, err := x.Get("abear")
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -663,8 +663,8 @@ func TestAddCollision(t *testing.T) {
 
 	y := New()
 	// add elements in opposite order
-	y.Add(NewNodeFromId(s2))
-	y.Add(NewNodeFromId(s1))
+	y.Add(NewNodeFromID(s2))
+	y.Add(NewNodeFromID(s1))
 	elt2, err := y.Get(s1)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -690,7 +690,7 @@ func TestCollisionsCRC(t *testing.T) {
 	for scanner.Scan() {
 		word := scanner.Text()
 		for i := 0; i < c.NumberOfReplicas; i++ {
-			ekey := c.nodeKey(NodeId(word), i)
+			ekey := c.nodeKey(NodeID(word), i)
 			// ekey := word + "|" + strconv.Itoa(i)
 			k := c.hashKey(ekey)
 			exist, ok := found[k]
@@ -707,16 +707,16 @@ func TestCollisionsCRC(t *testing.T) {
 
 func TestConcurrentGetSet(t *testing.T) {
 	x := New()
-	x.Set([]Node{Node{Id: "abc"}, Node{Id: "def"}, Node{Id: "ghi"}, Node{Id: "jkl"}, Node{Id: "mno"}})
+	x.Set([]Node{Node{ID: "abc"}, Node{ID: "def"}, Node{ID: "ghi"}, Node{ID: "jkl"}, Node{ID: "mno"}})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 1000; i++ {
-				x.Set([]Node{Node{Id: "abc"}, Node{Id: "def"}, Node{Id: "ghi"}, Node{Id: "jkl"}, Node{Id: "mno"}})
+				x.Set([]Node{Node{ID: "abc"}, Node{ID: "def"}, Node{ID: "ghi"}, Node{ID: "jkl"}, Node{ID: "mno"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-				x.Set([]Node{Node{Id: "pqr"}, Node{Id: "stu"}, Node{Id: "vwx"}})
+				x.Set([]Node{Node{ID: "pqr"}, Node{ID: "stu"}, Node{ID: "vwx"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}
 			wg.Done()
@@ -731,7 +731,7 @@ func TestConcurrentGetSet(t *testing.T) {
 				if err != nil {
 					t.Error(err)
 				}
-				if a.Id != "pqr" && a.Id != "jkl" {
+				if a.ID != "pqr" && a.ID != "jkl" {
 					t.Errorf("got %v, expected abc", a)
 				}
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)

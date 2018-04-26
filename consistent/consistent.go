@@ -27,10 +27,11 @@ import (
 	"strconv"
 	"sync"
 
-	. "github.com/thunderdb/ThunderDB/proto"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
-type NodeKeys []NodeKey
+// NodeKeys is NodeKey array
+type NodeKeys []proto.NodeKey
 
 // Len returns the length of the uints array.
 func (x NodeKeys) Len() int { return len(x) }
@@ -46,8 +47,8 @@ var ErrEmptyCircle = errors.New("empty circle")
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
-	circle           map[NodeKey]Node
-	members          map[NodeId]Node
+	circle           map[proto.NodeKey]proto.Node
+	members          map[proto.NodeID]proto.Node
 	sortedHashes     NodeKeys
 	NumberOfReplicas int
 	count            int64
@@ -61,60 +62,60 @@ type Consistent struct {
 func New() *Consistent {
 	c := new(Consistent)
 	c.NumberOfReplicas = 20
-	c.circle = make(map[NodeKey]Node)
-	c.members = make(map[NodeId]Node)
+	c.circle = make(map[proto.NodeKey]proto.Node)
+	c.members = make(map[proto.NodeID]proto.Node)
 	return c
 }
 
 // nodeKey generates a string key for an node with an index.
-func (c *Consistent) nodeKey(node_id NodeId, idx int) string {
+func (c *Consistent) nodeKey(nodeID proto.NodeID, idx int) string {
 	// return node + "|" + strconv.Itoa(idx)
-	return strconv.Itoa(idx) + string(node_id)
+	return strconv.Itoa(idx) + string(nodeID)
 }
 
 // Add inserts a string node in the consistent hash.
-func (c *Consistent) Add(node Node) {
+func (c *Consistent) Add(node proto.Node) {
 	c.Lock()
 	defer c.Unlock()
 	c.add(node)
 }
 
 // need c.Lock() before calling
-func (c *Consistent) add(node Node) {
+func (c *Consistent) add(node proto.Node) {
 	for i := 0; i < c.NumberOfReplicas; i++ {
-		c.circle[c.hashKey(c.nodeKey(node.Id, i))] = node
+		c.circle[c.hashKey(c.nodeKey(node.ID, i))] = node
 	}
-	c.members[node.Id] = node
+	c.members[node.ID] = node
 	c.updateSortedHashes()
 	c.count++
 }
 
 // Remove removes an node from the hash.
-func (c *Consistent) Remove(node Node) {
+func (c *Consistent) Remove(node proto.Node) {
 	c.Lock()
 	defer c.Unlock()
-	c.remove(node.Id)
+	c.remove(node.ID)
 }
 
 // need c.Lock() before calling
-func (c *Consistent) remove(node_id NodeId) {
+func (c *Consistent) remove(nodeID proto.NodeID) {
 	for i := 0; i < c.NumberOfReplicas; i++ {
-		delete(c.circle, c.hashKey(c.nodeKey(node_id, i)))
+		delete(c.circle, c.hashKey(c.nodeKey(nodeID, i)))
 	}
-	delete(c.members, node_id)
+	delete(c.members, nodeID)
 	c.updateSortedHashes()
 	c.count--
 }
 
 // Set sets all the nodes in the hash.  If there are existing nodes not
 // present in nodes, they will be removed.
-func (c *Consistent) Set(nodes []Node) {
+func (c *Consistent) Set(nodes []proto.Node) {
 	c.Lock()
 	defer c.Unlock()
 	for k := range c.members {
 		found := false
 		for _, v := range nodes {
-			if k == v.Id {
+			if k == v.ID {
 				found = true
 				break
 			}
@@ -124,7 +125,7 @@ func (c *Consistent) Set(nodes []Node) {
 		}
 	}
 	for _, v := range nodes {
-		_, exists := c.members[v.Id]
+		_, exists := c.members[v.ID]
 		if exists {
 			continue
 		}
@@ -132,10 +133,11 @@ func (c *Consistent) Set(nodes []Node) {
 	}
 }
 
-func (c *Consistent) Members() []Node {
+// Members get all Node inserted by Set/Add
+func (c *Consistent) Members() []proto.Node {
 	c.RLock()
 	defer c.RUnlock()
-	var m []Node
+	var m []proto.Node
 	for _, v := range c.members {
 		m = append(m, v)
 	}
@@ -143,18 +145,18 @@ func (c *Consistent) Members() []Node {
 }
 
 // Get returns an node close to where name hashes to in the circle.
-func (c *Consistent) Get(name string) (Node, error) {
+func (c *Consistent) Get(name string) (proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
-		return Node{}, ErrEmptyCircle
+		return proto.Node{}, ErrEmptyCircle
 	}
 	key := c.hashKey(name)
 	i := c.search(key)
 	return c.circle[c.sortedHashes[i]], nil
 }
 
-func (c *Consistent) search(key NodeKey) (i int) {
+func (c *Consistent) search(key proto.NodeKey) (i int) {
 	f := func(x int) bool {
 		return c.sortedHashes[x] > key
 	}
@@ -166,22 +168,22 @@ func (c *Consistent) search(key NodeKey) (i int) {
 }
 
 // GetTwo returns the two closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetTwo(name string) (Node, Node, error) {
+func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
-		return Node{}, Node{}, ErrEmptyCircle
+		return proto.Node{}, proto.Node{}, ErrEmptyCircle
 	}
 	key := c.hashKey(name)
 	i := c.search(key)
 	a := c.circle[c.sortedHashes[i]]
 
 	if c.count == 1 {
-		return a, Node{}, nil
+		return a, proto.Node{}, nil
 	}
 
 	start := i
-	var b Node
+	var b proto.Node
 	for i = start + 1; i != start; i++ {
 		if i >= len(c.sortedHashes) {
 			i = 0
@@ -195,7 +197,7 @@ func (c *Consistent) GetTwo(name string) (Node, Node, error) {
 }
 
 // GetN returns the N closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetN(name string, n int) ([]Node, error) {
+func (c *Consistent) GetN(name string, n int) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -211,7 +213,7 @@ func (c *Consistent) GetN(name string, n int) ([]Node, error) {
 		key   = c.hashKey(name)
 		i     = c.search(key)
 		start = i
-		res   = make([]Node, 0, n)
+		res   = make([]proto.Node, 0, n)
 		elem  = c.circle[c.sortedHashes[i]]
 	)
 
@@ -237,7 +239,7 @@ func (c *Consistent) GetN(name string, n int) ([]Node, error) {
 	return res, nil
 }
 
-func (c *Consistent) hashKey(key string) NodeKey {
+func (c *Consistent) hashKey(key string) proto.NodeKey {
 	h := fnv.New64a()
 	if len(key) < 64 {
 		var scratch [64]byte
@@ -245,7 +247,7 @@ func (c *Consistent) hashKey(key string) NodeKey {
 		h.Write(scratch[:len(key)])
 	}
 	h.Write([]byte(key))
-	return NodeKey(h.Sum64())
+	return proto.NodeKey(h.Sum64())
 }
 
 func (c *Consistent) updateSortedHashes() {
@@ -261,9 +263,9 @@ func (c *Consistent) updateSortedHashes() {
 	c.sortedHashes = hashes
 }
 
-func sliceContainsMember(set []Node, member Node) bool {
+func sliceContainsMember(set []proto.Node, member proto.Node) bool {
 	for _, m := range set {
-		if m.Id == member.Id {
+		if m.ID == member.ID {
 			return true
 		}
 	}

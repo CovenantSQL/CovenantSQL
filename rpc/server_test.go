@@ -48,7 +48,8 @@ func TestIncCounter(t *testing.T) {
 	}
 
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
-	go server.Serve(l)
+	server.SetListener(l)
+	go server.Serve()
 
 	rep := new(TestRep)
 	client, err := InitClient(l.Addr().String())
@@ -88,7 +89,8 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 	}
 
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
-	go server.Serve(l)
+	server.SetListener(l)
+	go server.Serve()
 
 	client, err := InitClient(l.Addr().String())
 	if err != nil {
@@ -120,7 +122,8 @@ func TestServer_Close(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go server.Serve(l)
+	server.SetListener(l)
+	go server.Serve()
 
 	server.Close()
 }

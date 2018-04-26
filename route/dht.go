@@ -6,12 +6,14 @@ import (
 	"net"
 )
 
-func InitDhtServer(l net.Listener) (server *rpc.Server, err error) {
-	server, err = rpc.NewServerWithService(rpc.ServiceMap{"Dht": NewDhtService()})
+// InitDHTserver
+func InitDHTserver(l net.Listener) (server *rpc.Server, err error) {
+	server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": NewDHTService()})
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+	server.SetListener(l)
 
 	return
 }

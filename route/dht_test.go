@@ -17,12 +17,12 @@ func TestGetNeighbors(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	dhtServer, err := InitDhtServer(l)
+	dhtServer, err := InitDHTserver(l)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	go dhtServer.Serve(l)
+	go dhtServer.Serve()
 
 	client, err := rpc.InitClient(l.Addr().String())
 	if err != nil {
@@ -31,27 +31,27 @@ func TestGetNeighbors(t *testing.T) {
 
 	reqA := &AddNodeReq{
 		Node: proto.Node{
-			Id: "node1",
+			ID: "node1",
 		},
 	}
 	respA := new(AddNodeResp)
-	err = client.Call("Dht.AddNode", reqA, respA)
+	err = client.Call("DHT.AddNode", reqA, respA)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Debugf("respA: %v", respA)
 
 	req := &GetNeighborsReq{
-		NodeId: "123",
+		nodeID: "123",
 		Count:  2,
 	}
 	resp := new(GetNeighborsResp)
-	err = client.Call("Dht.GetNeighbors", req, resp)
+	err = client.Call("DHT.GetNeighbors", req, resp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Debugf("resp: %v", resp)
-	utils.CheckStr(string(resp.Nodes[0].Id), "node1", t)
+	utils.CheckStr(string(resp.Nodes[0].ID), "node1", t)
 
 	client.Close()
 	dhtServer.Close()

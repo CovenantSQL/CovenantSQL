@@ -31,4 +31,5 @@ script:
   - bash build.sh
   - go test -v -race $(go list ./... | grep -v "/vendor/")
   - goverage -coverprofile=coverage.txt ./...
-  - golint ./... | reviewdog -f=golint -ci=travis
+  - >-
+    golint ./... | reviewdog -f=golint -ci=travis

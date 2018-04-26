@@ -1,3 +1,5 @@
+coverage.txt
+
 # Binaries for programs and plugins
 *.exe
 *.dll
@@ -6,6 +8,8 @@
 
 # Test binary, build with `go test -c`
 *.test
+bin/*
+Gopkg.lock
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out

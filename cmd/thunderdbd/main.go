@@ -10,10 +10,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/utils"
 	"github.com/thunderdb/ThunderDB/server"
-	"strings"
+	"github.com/thunderdb/ThunderDB/utils"
 	"os/signal"
+	"strings"
 )
 
 const logo = `

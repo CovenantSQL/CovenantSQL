@@ -9,7 +9,7 @@ func CheckNum(num, expected int, t *testing.T) {
 	}
 }
 
-// ChechStr make string assertion
+// CheckStr make string assertion
 func CheckStr(str, expected string, t *testing.T) {
 	if str != expected {
 		t.Errorf("got %v, expected %v", str, expected)

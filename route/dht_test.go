@@ -54,5 +54,5 @@ func TestGetNeighbors(t *testing.T) {
 	utils.CheckStr(string(resp.Nodes[0].ID), "node1", t)
 
 	client.Close()
-	dhtServer.Close()
+	dhtServer.Stop()
 }

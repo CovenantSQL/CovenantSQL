@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-// InitDHTserver
+// InitDHTserver install DHTService payload to RPC server, also set listener
 func InitDHTserver(l net.Listener) (server *rpc.Server, err error) {
 	server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": NewDHTService()})
 	if err != nil {

@@ -11,8 +11,10 @@ import (
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
+// ServiceMap map service name to service instance
 type ServiceMap map[string]interface{}
 
+// Server is the RPC server struct
 type Server struct {
 	node       *proto.Node
 	sessions   sync.Map // map[id]*Session
@@ -22,6 +24,7 @@ type Server struct {
 	listener   net.Listener
 }
 
+// NewServer return a new Server
 func NewServer() *Server {
 	return &Server{
 		rpcServer:  rpc.NewServer(),
@@ -30,6 +33,7 @@ func NewServer() *Server {
 	}
 }
 
+// NewServerWithService also return a new Server, and also register the Server.ServiceMap
 func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 
 	server = NewServer()
@@ -43,37 +47,13 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 	return server, nil
 }
 
+// SetListener set the service loop listener, used by func Serve main loop
 func (s *Server) SetListener(l net.Listener) {
 	s.listener = l
 	return
 }
 
-func (s *Server) serveRPC(sess *yamux.Session) {
-	conn, err := sess.Accept()
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	s.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
-}
-
-func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
-
-	sess, err := yamux.Server(conn, nil)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	s.serveRPC(sess)
-	log.Debugf("%s closed connection", conn.RemoteAddr())
-}
-
-func (s *Server) RegisterService(name string, service interface{}) error {
-	return s.rpcServer.RegisterName(name, service)
-}
-
+// Serve start the Server main loop,
 func (s *Server) Serve() {
 serverLoop:
 	for {
@@ -92,6 +72,36 @@ serverLoop:
 	}
 }
 
-func (s *Server) Close() {
+// handleConn do all the work
+func (s *Server) handleConn(conn net.Conn) {
+	defer conn.Close()
+
+	sess, err := yamux.Server(conn, nil)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	s.serveRPC(sess)
+	log.Debugf("%s closed connection", conn.RemoteAddr())
+}
+
+// serveRPC install the JSON RPC codec
+func (s *Server) serveRPC(sess *yamux.Session) {
+	conn, err := sess.Accept()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	s.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+}
+
+// RegisterService with a Service name, used by Client RPC
+func (s *Server) RegisterService(name string, service interface{}) error {
+	return s.rpcServer.RegisterName(name, service)
+}
+
+// Stop Server main loop
+func (s *Server) Stop() {
 	close(s.stopCh)
 }

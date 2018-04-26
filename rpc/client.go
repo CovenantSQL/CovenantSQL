@@ -8,14 +8,17 @@ import (
 	"net/rpc/jsonrpc"
 )
 
+// Client is RPC client
 type Client struct {
 	*rpc.Client
 }
 
+// NewClient return a RPC client
 func NewClient() *Client {
 	return &Client{}
 }
 
+// InitClient init client with connection to given addr
 func InitClient(addr string) (client *Client, err error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -26,6 +29,7 @@ func InitClient(addr string) (client *Client, err error) {
 	return client, nil
 }
 
+// start init session and set RPC codec
 func (c *Client) start(conn net.Conn) {
 	sess, err := yamux.Client(conn, nil)
 	if err != nil {
@@ -40,6 +44,7 @@ func (c *Client) start(conn net.Conn) {
 	c.Client = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(clientConn))
 }
 
+// Close the client RPC connection
 func (c *Client) Close() {
 	c.Client.Close()
 }

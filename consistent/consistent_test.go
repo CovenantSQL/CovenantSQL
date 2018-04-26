@@ -83,7 +83,7 @@ func TestGetSingle(t *testing.T) {
 			t.Logf("error: %q", err)
 			return false
 		}
-		t.Logf("s = %q, y = %q", s, y)
+		//t.Logf("s = %q, y = %q", s, y)
 		return y.ID == "abcdefg"
 	}
 	if err := quick.Check(f, nil); err != nil {
@@ -129,7 +129,7 @@ func TestGetMultipleQuick(t *testing.T) {
 			t.Logf("error: %q", err)
 			return false
 		}
-		t.Logf("s = %q, y = %q", s, y)
+		//t.Logf("s = %q, y = %q", s, y)
 		return y.ID == "abcdefg" || y.ID == "hijklmn" || y.ID == "opqrstu"
 	}
 	if err := quick.Check(f, nil); err != nil {
@@ -187,7 +187,7 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 			t.Logf("error: %q", err)
 			return false
 		}
-		t.Logf("s = %q, y = %q", s, y)
+		//t.Logf("s = %q, y = %q", s, y)
 		return y.ID == "abcdefg" || y.ID == "hijklmn"
 	}
 	if err := quick.Check(f, nil); err != nil {

@@ -77,7 +77,7 @@ func TestIncCounter(t *testing.T) {
 	utils.CheckNum(*repSimple, 30, t)
 
 	client.Close()
-	server.Close()
+	server.Stop()
 }
 
 func TestIncCounterSimpleArgs(t *testing.T) {
@@ -105,7 +105,7 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 	utils.CheckNum(*repSimple, 10, t)
 
 	client.Close()
-	server.Close()
+	server.Stop()
 }
 
 func TestServer_Close(t *testing.T) {
@@ -125,5 +125,5 @@ func TestServer_Close(t *testing.T) {
 	server.SetListener(l)
 	go server.Serve()
 
-	server.Close()
+	server.Stop()
 }

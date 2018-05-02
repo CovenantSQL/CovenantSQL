@@ -1,6 +1,8 @@
 coverage.txt
+analysisVendor.png
 
 # Binaries for programs and plugins
+bin/
 *.exe
 *.dll
 *.so

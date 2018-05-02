@@ -5,9 +5,7 @@
 package consistent
 
 import (
-	"bufio"
 	"math/rand"
-	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -54,6 +52,15 @@ func TestRemove(t *testing.T) {
 	x.Remove(NewNodeFromID("abcdefg"))
 	utils.CheckNum(len(x.circle), 0, t)
 	utils.CheckNum(len(x.sortedHashes), 0, t)
+}
+
+func TestMembers(t *testing.T) {
+	x := New()
+	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromID("abcdefghi"))
+	x.Remove(NewNodeFromID("abcdefg"))
+	utils.CheckNum(len(x.Members()), 1, t)
+	utils.CheckStr(string(x.Members()[0].ID), "abcdefghi", t)
 }
 
 func TestRemoveNonExisting(t *testing.T) {
@@ -215,6 +222,14 @@ func TestGetTwo(t *testing.T) {
 	}
 }
 
+func TestGetTwoEmpty(t *testing.T) {
+	x := New()
+	_, _, err := x.GetTwo("9999999")
+	if err != ErrEmptyCircle {
+		t.Fatal(err)
+	}
+}
+
 func TestGetTwoQuick(t *testing.T) {
 	x := New()
 	x.Add(NewNodeFromID("abcdefg"))
@@ -357,6 +372,17 @@ func TestGetNMore(t *testing.T) {
 	}
 	if members[2].ID != "hijklmn" {
 		t.Errorf("wrong members[2]: %q", members[2])
+	}
+}
+
+func TestGetNEmpty(t *testing.T) {
+	x := New()
+	members, err := x.GetN("9999999", 5)
+	if err != ErrEmptyCircle {
+		t.Fatal(err)
+	}
+	if len(members) != 0 {
+		t.Errorf("expected 3 members instead of %d", len(members))
 	}
 }
 
@@ -675,35 +701,35 @@ func TestAddCollision(t *testing.T) {
 	}
 }
 
-// inspired by @or-else on github
-func TestCollisionsCRC(t *testing.T) {
-	t.SkipNow()
-	c := New()
-	f, err := os.Open("/usr/share/dict/words")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	found := make(map[NodeKey]string)
-	scanner := bufio.NewScanner(f)
-	count := 0
-	for scanner.Scan() {
-		word := scanner.Text()
-		for i := 0; i < c.NumberOfReplicas; i++ {
-			ekey := c.nodeKey(NodeID(word), i)
-			// ekey := word + "|" + strconv.Itoa(i)
-			k := c.hashKey(ekey)
-			exist, ok := found[k]
-			if ok {
-				t.Logf("found collision: %v, %v", ekey, exist)
-				count++
-			} else {
-				found[k] = ekey
-			}
-		}
-	}
-	t.Logf("number of collisions: %d", count)
-}
+//// inspired by @or-else on github
+//func TestCollisionsCRC(t *testing.T) {
+//	t.SkipNow()
+//	c := New()
+//	f, err := os.Open("/usr/share/dict/words")
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	defer f.Close()
+//	found := make(map[NodeKey]string)
+//	scanner := bufio.NewScanner(f)
+//	count := 0
+//	for scanner.Scan() {
+//		word := scanner.Text()
+//		for i := 0; i < c.NumberOfReplicas; i++ {
+//			ekey := c.nodeKey(NodeID(word), i)
+//			// ekey := word + "|" + strconv.Itoa(i)
+//			k := c.hashKey(ekey)
+//			exist, ok := found[k]
+//			if ok {
+//				t.Logf("found collision: %v, %v", ekey, exist)
+//				count++
+//			} else {
+//				found[k] = ekey
+//			}
+//		}
+//	}
+//	t.Logf("number of collisions: %d", count)
+//}
 
 func TestConcurrentGetSet(t *testing.T) {
 	x := New()

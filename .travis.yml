@@ -32,4 +32,4 @@ script:
   - go test -v -race $(go list ./... | grep -v "/vendor/")
   - goverage -coverprofile=coverage.txt ./...
   - >-
-    golint ./... | reviewdog -f=golint -ci=travis
+    golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -ci=travis

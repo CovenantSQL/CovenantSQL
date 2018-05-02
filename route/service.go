@@ -2,7 +2,7 @@ package route
 
 import (
 	"fmt"
-	"github.com/opentracing/opentracing-go/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/consistent"
 	"github.com/thunderdb/ThunderDB/proto"
 )
@@ -20,44 +20,20 @@ func NewDHTService() *DHTService {
 	}
 }
 
-// GetNeighborsReq is GetNeighbors RPC request
-type GetNeighborsReq struct {
-	nodeID  proto.NodeID
-	Count   int
-	Version string
-}
-
-// GetNeighborsResp is GetNeighbors RPC response
-type GetNeighborsResp struct {
-	Nodes   []proto.Node
-	ErrMsg  string
-	Version string
-}
-
-// GetNeighbors RPC returns GetNeighborsReq.Count closest node from consistent hash ring
-func (DHT *DHTService) GetNeighbors(req *GetNeighborsReq, resp *GetNeighborsResp) (err error) {
-	resp.Nodes, err = DHT.hashRing.GetN(string(req.nodeID), req.Count)
+// FindValue RPC returns FindValueReq.Count closest node from DHT
+func (DHT *DHTService) FindValue(req *proto.FindValueReq, resp *proto.FindValueResp) (err error) {
+	resp.Nodes, err = DHT.hashRing.GetN(string(req.NodeID), req.Count)
 	if err != nil {
 		log.Error(err)
-		resp.ErrMsg = fmt.Sprint(err)
+		resp.Msg = fmt.Sprint(err)
 	}
 	return
 }
 
-// AddNodeReq is AddNode RPC request
-type AddNodeReq struct {
-	Node    proto.Node
-	Version string
-}
-
-// AddNodeResp is AddNode RPC response
-type AddNodeResp struct {
-	ErrMsg  string
-	Version string
-}
-
-// AddNode RPC add AddNodeReq.Node to consistent hash ring
-func (DHT *DHTService) AddNode(req *AddNodeReq, resp *AddNodeResp) (err error) {
+// Ping RPC add PingReq.Node to DHT
+func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	DHT.hashRing.Add(req.Node)
+	resp = new(proto.PingResp)
+	resp.Msg = "Pong"
 	return
 }

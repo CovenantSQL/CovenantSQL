@@ -1,3 +1,4 @@
 #!/bin/sh
 
-dep status -dot | dot -Tpng -o foo.png && open foo.png
+dep ensure
+dep status -dot | dot -Tpng -o analysisVendor.png && open analysisVendor.png

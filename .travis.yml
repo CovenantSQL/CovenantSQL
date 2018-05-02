@@ -1,0 +1,35 @@
+env:
+  global:
+    - secure: "dld6R6RF3Mtjs94cBj94eg1phi/34objqKlZI64A+mI68J5yXTxoLRJJMZrzM63YQ8wbvvF+W68KDyjXvYaQXTFES/p+igx5UsQ3SQ7GtRuqjXkCWI0hVqRphFWeeWPWEactFmwIK/hap2dvcBIP0sIU100EE/Cx6Lo0FFkmMb664wA+by4ELFo0l3h7pPfklyVAAWY+GYp9jeLT8/7VT7aDqASUh+3znd7NBgokXkCAwOVNTKI5H0eHIyW5aM9vBKJvTuTTpZ51rAA7tUUMOvihh2Hltmxy6rBfyApUCfMDWTrdKnhttXKDuHvL2vh+GzTD1cl6HAo+owYP6YkGPuA40FfmgBB8DtoAIvCY0jU0hwkkZAh2uXHjthNUFDOGY26ZkuL+l/T5TxQEqe3WgIG2MoVUCrc9L+XqsmTuM3ERS3gdusmjSc/WwQDpy3DLkc5W2zokcgmolmGnaFkxqwifsCTK3Ifzr8yKsSWZHXQadRRI43dmxua3b4WNFAY/lsF6yrbRyWY9LtWwTjbdheoMOIH6mE1daHIXKN1T5xPwPK4EW99Y1jDdJHdpWc2zYHnkEm8H9CJ9+KuAMADB9813XDBkcXRtvLtJckhdGPmkKrqJ3WHnMGT/D4ErMWPAY6+oawruizReDmvi3KA3Emp2VDfleAe0pCsyDwwqCKw="
+    - REVIEWDOG_VERSION=0.9.8
+language: go
+go:
+  - '1.10'
+matrix:
+  allow_failures:
+    - go: tip
+  fast_finish: true
+install:
+  # Setup dependency management tool
+  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
+  - chmod +x $GOPATH/bin/dep
+  - go get github.com/mattn/goveralls
+  - go get github.com/haya14busa/goverage
+  - go get github.com/golang/lint/golint
+  - dep ensure
+  - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
+  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+before_script:
+  - echo $TRAVIS
+  - echo $TRAVIS_PULL_REQUEST
+  - echo $TRAVIS_PULL_REQUEST_BRANCH
+  - echo $TRAVIS_COMMIT
+  - echo $TRAVIS_PULL_REQUEST_SHA
+  - echo $TRAVIS_REPO_SLUG
+  - echo $TRAVIS_SECURE_ENV_VARS
+script:
+  - bash build.sh
+  - go test -v -race $(go list ./... | grep -v "/vendor/")
+  - goverage -coverprofile=coverage.txt ./...
+  - >-
+    golint ./... | reviewdog -f=golint -ci=travis

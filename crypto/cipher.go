@@ -29,7 +29,7 @@ func RemovePKCSPadding(src []byte) ([]byte, error) {
 	return src[:length-padLength], nil
 }
 
-// EncryptAndSign(inputPublicKey, inData) MAIN PROCEDURE:
+// EncryptAndSign (inputPublicKey, inData) MAIN PROCEDURE:
 //	1. newPrivateKey, newPubKey := genSecp256k1Keypair()
 //	2. encKey, HMACKey := SHA512(ECDH(newPrivateKey, inputPublicKey))
 //	3. PaddedIn := PKCSPadding(in)
@@ -38,7 +38,7 @@ func EncryptAndSign(inputPublicKey *btcec.PublicKey, inData []byte) ([]byte, err
 	return btcec.Encrypt(inputPublicKey, inData)
 }
 
-// DecryptAndCheck(inputPrivateKey, inData) MAIN PROCEDURE:
+// DecryptAndCheck (inputPrivateKey, inData) MAIN PROCEDURE:
 //	1. Decrypt the inData
 //  2. Verify the HMAC
 func DecryptAndCheck(inputPrivateKey *btcec.PrivateKey, inData []byte) ([]byte, error) {

@@ -30,6 +30,8 @@ import (
 
 	"time"
 
+	"sync"
+
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
@@ -52,10 +54,14 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 	var (
 		err error
 	)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		err = miner.CalculateBlockNonce(block, *big.NewInt(0), diffWanted)
+		wg.Done()
 	}()
 	nonceFromCh := <-nonceCh
+	wg.Wait()
 
 	hash := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if err != nil || nonceFromCh.Difficulty < diffWanted || hash.Difficulty() < diffWanted {

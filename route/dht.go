@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+// Package route provides DHT routing functions
 package route
 
 import (

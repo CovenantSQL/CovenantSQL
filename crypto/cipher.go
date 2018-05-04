@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+// Package crypto implements Asymmetric, Symmetric Encryption and Hash function
 package crypto
 
 import (

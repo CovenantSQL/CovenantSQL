@@ -68,7 +68,7 @@ func (miner *CPUMiner) HashBlock(data []byte, nonce big.Int) hash.Hash {
 	return hash.DoubleHashH(append(data, nonce.Bytes()...))
 }
 
-// CalclateBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
+// CalculateBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
 // if interrupted or stopped highest difficulty nonce will be sent to the NonceCh
 func (miner *CPUMiner) CalculateBlockNonce(
 	block MiningBlock,

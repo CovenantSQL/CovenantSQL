@@ -101,7 +101,7 @@ func (hash *Hash) Difficulty() (difficulty int) {
 		return -1
 	}
 
-	for i, _ := range *hash {
+	for i := range *hash {
 		v := (*hash)[HashSize-i-1]
 		if v != byte(0) {
 			difficulty = 8 * i

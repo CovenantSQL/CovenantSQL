@@ -32,6 +32,7 @@ package hash
 import (
 	"encoding/hex"
 	"fmt"
+	"math/bits"
 )
 
 // HashSize of array used to store hashes.  See Hash.
@@ -91,6 +92,24 @@ func (hash *Hash) IsEqual(target *Hash) bool {
 		return false
 	}
 	return *hash == *target
+}
+
+// Difficulty returns the leading Zero **bit** count of Hash in binary.
+//  return -1 indicate the Hash pointer is nil
+func (hash *Hash) Difficulty() (difficulty int) {
+	if hash == nil {
+		return -1
+	}
+
+	for i, _ := range *hash {
+		v := (*hash)[HashSize-i-1]
+		if v != byte(0) {
+			difficulty = 8 * i
+			difficulty += bits.LeadingZeros8(v)
+			return
+		}
+	}
+	return HashSize * 8
 }
 
 // NewHash returns a new Hash from a byte slice.  An error is returned if

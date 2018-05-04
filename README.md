@@ -5,11 +5,10 @@
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/thunderdb/ThunderDB)
 
 # ThunderDB
-ThunderDB is a Distributed Database Service running on Blockchain for ĐApp and Traditional App.
+ThunderDB is a Distributed Database Service running on BlockChain for ĐApp and Traditional App.
 
-Still Under Heavy Construction 
+### Still Under Heavy Construction 
 
 🚧🚧🚧🚧👷👷👷👷👷🚧🚧🚧🚧
 
 
-https://godoc.org/github.com/thunderdb/ThunderDB

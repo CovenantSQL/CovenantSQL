@@ -27,5 +27,5 @@ const (
 // Address is a ThunderDB node address.
 type Address [AddressLength]byte
 
-// UUID is a unique identity which may be used as a Raft transaction ID.
+// UUID is a unique identity which may be used as a database transaction ID.
 type UUID [UUIDLength]byte

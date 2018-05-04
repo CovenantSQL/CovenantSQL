@@ -1,5 +1,5 @@
 ## CopyRight
- Hash Lib ported from [btcd](https://github.com/btcsuite/btcd/chaincfg/chainhash)
+Hash Lib ported from [btcd](https://github.com/btcsuite/btcd/chaincfg/chainhash)
 
 ## GPG Verification Key
 
@@ -22,6 +22,9 @@ verify the signature perform the following:
   ```
 
 ## License
+
+Package hash is licensed under the MIT
+License.
 
 Package chainhash is licensed under the [copyfree](http://copyfree.org) ISC
 License.

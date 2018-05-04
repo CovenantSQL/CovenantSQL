@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+// Package proto contains DHT RPC protocol struct
 package proto
 
 import (

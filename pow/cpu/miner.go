@@ -22,5 +22,5 @@
  * SOFTWARE.
  */
 
-// Package CPU implements CPU based PoW functions
+// Package cpu implements CPU based PoW functions
 package cpu

@@ -31,6 +31,7 @@ package hash
 import (
 	"fmt"
 	"testing"
+	"bytes"
 )
 
 // TestHashFuncs ensures the hash functions which perform hash(b) work as
@@ -157,4 +158,46 @@ func TestDoubleHashFuncs(t *testing.T) {
 			continue
 		}
 	}
+}
+
+func TestFNVHash32B(t *testing.T) {
+	tests := []struct {
+		out []byte
+		in string
+	} {
+		{[]byte{0x81, 0x1c, 0x9d, 0xc5}, ""},
+		{[]byte{0x05, 0x0c, 0x5d, 0x7e}, "a"},
+		{[]byte{0x70, 0x77, 0x2d, 0x38}, "ab"},
+		{[]byte{0x43, 0x9c, 0x2f, 0x4b}, "abc"},
+	}
+
+	for _, test := range tests {
+		hash := FNVHash32B([]byte(test.in))
+		if bytes.Compare(hash, test.out) != 0 {
+			t.Errorf("FNVHash32B(%q) = %s, want %s", test.in, hash,
+				test.out)
+			continue
+		}
+	}
+}
+
+func TestFNVHash32uint(t *testing.T) {
+	tests := []struct {
+		out uint32
+		in string
+	} {
+		{2166136261, ""},
+		{84696446, "a"},
+		{1886858552, "ab"},
+		{1134309195, "abc"},
+	}
+	for _, test := range tests {
+		i := FNVHash32uint([]byte(test.in))
+		if i != test.out {
+			t.Errorf("FNVHash32uint(%q) = %d, want %d", test.in, i,
+				test.out)
+			continue
+		}
+	}
+
 }

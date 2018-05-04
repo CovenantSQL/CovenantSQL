@@ -25,29 +25,30 @@
 package sqlchain
 
 import (
-	"testing"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"reflect"
 	"strings"
+	"testing"
+
+	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 var (
-	currentNode Node
-	voidNode Node
-	answers []Answer
-	voidAnswer []Answer
-	previousBlock Block
-	currentBlock Block
-	voidBlock Block
+	currentNode   Node
+	voidNode      Node
+	answers       []Answer
+	voidAnswer    []Answer
+	previousBlock StorageProofBlock
+	currentBlock  StorageProofBlock
+	voidBlock     StorageProofBlock
 )
 
 func TestNewAnswer(t *testing.T) {
 	wantedAnswer := Answer{
-		PreviousBlockID:"aaa",
-		NodeID:"bbb",
-		Answer:hash.HashH([]byte{1,2,3,4,5}),
+		PreviousBlockID: "aaa",
+		NodeID:          "bbb",
+		Answer:          hash.HashH([]byte{1, 2, 3, 4, 5}),
 	}
-	answer := NewAnswer("aaa", "bbb", hash.HashH([]byte{1,2,3,4,5}))
+	answer := NewAnswer("aaa", "bbb", hash.HashH([]byte{1, 2, 3, 4, 5}))
 
 	if !reflect.DeepEqual(*answer, wantedAnswer) {
 		t.Errorf("The answer is %+v, should be %+v", answer, wantedAnswer)
@@ -67,7 +68,7 @@ func TestGetNextPuzzle(t *testing.T) {
 	wantedIndex += int32(hash.FNVHash32uint([]byte(previousBlock.ID)))
 	wantedIndex %= totalRecordsInSQLChain
 	if index != wantedIndex {
-		t.Errorf("The next sql index is %+v, should be %+v. " +
+		t.Errorf("The next sql index is %+v, should be %+v. "+
 			"Answers are %+v, and the previous block is %+v",
 			index, wantedIndex, answers, previousBlock)
 	}
@@ -121,7 +122,7 @@ func TestCheckValid(t *testing.T) {
 }
 
 func TestGenerateAnswer(t *testing.T) {
-	answer, err := GenerateAnswer(answers, previousBlock,  currentNode)
+	answer, err := GenerateAnswer(answers, previousBlock, currentNode)
 	if err != nil {
 		t.Error(err)
 	}
@@ -158,38 +159,38 @@ func TestGenerateAnswer(t *testing.T) {
 
 func init() {
 	currentNode = Node{"123456"}
-	currentBlock = Block{
-		ID:"def",
-		Nodes:[]Node{Node{"a"}, Node{"b"}, Node{"c"}, Node{"d"}, Node{"e"}},
+	currentBlock = StorageProofBlock{
+		ID:    "def",
+		Nodes: []Node{Node{"a"}, Node{"b"}, Node{"c"}, Node{"d"}, Node{"e"}},
 	}
-	previousBlock = Block {
-		ID:"abc",
-		Nodes:[]Node{Node{"a"}, Node{"b"}, Node{"c"}, Node{"d"}},
+	previousBlock = StorageProofBlock{
+		ID:    "abc",
+		Nodes: []Node{Node{"a"}, Node{"b"}, Node{"c"}, Node{"d"}},
 	}
-	voidBlock = Block{
-		ID:"",
-		Nodes:nil,
+	voidBlock = StorageProofBlock{
+		ID:    "",
+		Nodes: nil,
 	}
 	answers = []Answer{
 		Answer{
-			PreviousBlockID:previousBlock.ID,
-			NodeID:currentNode.ID,
-			Answer:hash.HashH([]byte{1}),
+			PreviousBlockID: previousBlock.ID,
+			NodeID:          currentNode.ID,
+			Answer:          hash.HashH([]byte{1}),
 		},
 		Answer{
-			PreviousBlockID:previousBlock.ID,
-			NodeID:currentNode.ID,
-			Answer:hash.HashH([]byte{2}),
+			PreviousBlockID: previousBlock.ID,
+			NodeID:          currentNode.ID,
+			Answer:          hash.HashH([]byte{2}),
 		},
 		Answer{
-			PreviousBlockID:previousBlock.ID,
-			NodeID:currentNode.ID,
-			Answer:hash.HashH([]byte{3}),
+			PreviousBlockID: previousBlock.ID,
+			NodeID:          currentNode.ID,
+			Answer:          hash.HashH([]byte{3}),
 		},
 		Answer{
-			PreviousBlockID:previousBlock.ID,
-			NodeID:currentNode.ID,
-			Answer:hash.HashH([]byte{4}),
+			PreviousBlockID: previousBlock.ID,
+			NodeID:          currentNode.ID,
+			Answer:          hash.HashH([]byte{4}),
 		},
 	}
 	voidAnswer = nil

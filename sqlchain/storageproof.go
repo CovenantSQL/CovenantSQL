@@ -27,7 +27,7 @@ func NewAnswer(previousBlockID BlockID, nodeID NodeID, answer hash.Hash) *Answer
 
 // getNextPuzzle generate new puzzle which ask other nodes to get a specified record in database.
 // The index of next SQL (puzzle) is determined by the previous answer and previous block hash
-func getNextPuzzle(answers []Answer, previousBlock Block) (int32, error) {
+func getNextPuzzle(answers []Answer, previousBlock StorageProofBlock) (int32, error) {
 	var totalRecordsInSQLChain int32 = 10
 	var sum int32
 	if !CheckValid(answers) {
@@ -52,7 +52,7 @@ func getNextPuzzle(answers []Answer, previousBlock Block) (int32, error) {
 
 // getNExtVerifier returns the id of next verifier.
 // Id is determined by the hash of previous block.
-func getNextVerifier(previousBlock, currentBlock Block) (int32, error) {
+func getNextVerifier(previousBlock, currentBlock StorageProofBlock) (int32, error) {
 	// check if block is valid
 	if len(previousBlock.ID) <= 0 {
 		return -1, errors.New("invalid previous block")
@@ -81,7 +81,7 @@ func CheckValid(answers []Answer) bool {
 // GenerateAnswer will select specified record for proving.
 // In order to generate a unique answer which is different with other nodes' answer,
 // we hash(record + nodeID) as the answer
-func GenerateAnswer(answers []Answer, previousBlock Block, node Node) (*Answer, error) {
+func GenerateAnswer(answers []Answer, previousBlock StorageProofBlock, node Node) (*Answer, error) {
 	sqlIndex, err := getNextPuzzle(answers, previousBlock)
 	if err != nil {
 		return nil, err

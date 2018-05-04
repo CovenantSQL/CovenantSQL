@@ -35,8 +35,8 @@ type Node struct {
 	ID NodeID
 }
 
-// Block status
-type Block struct {
+// StorageProofBlock records block's status
+type StorageProofBlock struct {
 	// Block id
 	ID BlockID
 	// Nodes with index in the SQL chain.

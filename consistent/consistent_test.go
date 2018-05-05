@@ -505,7 +505,7 @@ func TestSet(t *testing.T) {
 	x.Add(NewNodeFromID("abc"))
 	x.Add(NewNodeFromID("def"))
 	x.Add(NewNodeFromID("ghi"))
-	x.Set([]Node{Node{ID: "jkl"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "jkl"}, {ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -522,7 +522,7 @@ func TestSet(t *testing.T) {
 	if a == b {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{ID: "pqr"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "pqr"}, {ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -539,7 +539,7 @@ func TestSet(t *testing.T) {
 	if a == b {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{ID: "pqr"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "pqr"}, {ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -745,16 +745,16 @@ func TestAddCollision(t *testing.T) {
 
 func TestConcurrentGetSet(t *testing.T) {
 	x := New()
-	x.Set([]Node{Node{ID: "abc"}, Node{ID: "def"}, Node{ID: "ghi"}, Node{ID: "jkl"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 1000; i++ {
-				x.Set([]Node{Node{ID: "abc"}, Node{ID: "def"}, Node{ID: "ghi"}, Node{ID: "jkl"}, Node{ID: "mno"}})
+				x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-				x.Set([]Node{Node{ID: "pqr"}, Node{ID: "stu"}, Node{ID: "vwx"}})
+				x.Set([]Node{{ID: "pqr"}, {ID: "stu"}, {ID: "vwx"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}
 			wg.Done()

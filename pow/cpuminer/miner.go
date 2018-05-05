@@ -67,6 +67,7 @@ func (miner *CPUMiner) CalculateBlockNonce(
 	startNonce big.Int,
 	difficulty int,
 ) (err error) {
+
 	var (
 		bestNonce Nonce
 	)

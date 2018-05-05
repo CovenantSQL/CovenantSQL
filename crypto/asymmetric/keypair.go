@@ -17,12 +17,20 @@
 package asymmetric
 
 import (
+	"math/big"
+	"time"
+
 	"github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
+	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // GenSecp256k1Keypair generate Secp256k1(used by Bitcoin) key pair
-func GenSecp256k1Keypair() (privateKey *btcec.PrivateKey, publicKey *btcec.PublicKey, err error) {
+func GenSecp256k1Keypair() (
+	privateKey *btcec.PrivateKey,
+	publicKey *btcec.PublicKey,
+	err error) {
+
 	privateKey, err = btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
 		log.Errorf("private key generation error: %s", err)
@@ -30,4 +38,31 @@ func GenSecp256k1Keypair() (privateKey *btcec.PrivateKey, publicKey *btcec.Publi
 	}
 	publicKey = privateKey.PubKey()
 	return
+}
+
+// GetPubKeyNonce will make his best effort to find a difficult enough
+// nonce.
+func GetPubKeyNonce(
+	publicKey *btcec.PublicKey,
+	difficulty int,
+	timeThreshold time.Duration) (nonce mine.Nonce) {
+
+	miner := mine.NewCPUMiner(nil)
+	nonceCh := make(chan mine.Nonce)
+	// if miner finished his work before timeThreshold
+	// make sure writing to the Stop chan non-blocking.
+	stop := make(chan struct{}, 1)
+	block := mine.MiningBlock{
+		Data:      publicKey.SerializeCompressed(),
+		NonceChan: nonceCh,
+		Stop:      stop,
+	}
+
+	go miner.CalculateBlockNonce(block, *big.NewInt(0), difficulty)
+
+	time.Sleep(timeThreshold)
+	// stop miner
+	block.Stop <- struct{}{}
+
+	return <-block.NonceChan
 }

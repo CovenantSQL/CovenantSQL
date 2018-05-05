@@ -14,5 +14,18 @@
  * limitations under the License.
  */
 
-// Package utils provides useful standalone function for test and network, etc.
 package utils
+
+import "testing"
+
+func TestCheckNum(t *testing.T) {
+	var mock_t testing.T
+	CheckNum(1, 1, &mock_t)
+	CheckNum(0, 1, &mock_t)
+}
+
+func TestCheckStr(t *testing.T) {
+	var mock_t testing.T
+	CheckStr("", "", &mock_t)
+	CheckStr("", "1", &mock_t)
+}

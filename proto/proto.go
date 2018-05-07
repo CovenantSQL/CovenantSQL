@@ -19,6 +19,10 @@ package proto
 
 import (
 	"time"
+
+	ec "github.com/btcsuite/btcd/btcec"
+
+	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // NodeID is node name, will be generated from Hash(nodePublicKey)
@@ -31,9 +35,12 @@ type NodeKey uint64
 type Node struct {
 	Name      string
 	Port      uint16
-	Protocol  string
+	Addr      string
 	ID        NodeID
-	PublicKey string
+	PublicKey *ec.PublicKey
+	Nonce     cpuminer.Nonce
+	// make privateKey non-public!
+	privateKey *ec.PrivateKey
 }
 
 // Envelope is the protocol

@@ -201,7 +201,7 @@ func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
 			i = 0
 		}
 		b = c.circle[c.sortedHashes[i]]
-		if b != a {
+		if b.ID != a.ID {
 			break
 		}
 	}

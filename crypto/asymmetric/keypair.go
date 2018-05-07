@@ -20,18 +20,18 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
+	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // GenSecp256k1Keypair generate Secp256k1(used by Bitcoin) key pair
 func GenSecp256k1Keypair() (
-	privateKey *btcec.PrivateKey,
-	publicKey *btcec.PublicKey,
+	privateKey *ec.PrivateKey,
+	publicKey *ec.PublicKey,
 	err error) {
 
-	privateKey, err = btcec.NewPrivateKey(btcec.S256())
+	privateKey, err = ec.NewPrivateKey(ec.S256())
 	if err != nil {
 		log.Errorf("private key generation error: %s", err)
 		return nil, nil, err
@@ -43,7 +43,7 @@ func GenSecp256k1Keypair() (
 // GetPubKeyNonce will make his best effort to find a difficult enough
 // nonce.
 func GetPubKeyNonce(
-	publicKey *btcec.PublicKey,
+	publicKey *ec.PublicKey,
 	difficulty int,
 	timeThreshold time.Duration) (nonce mine.Nonce) {
 

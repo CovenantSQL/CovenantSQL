@@ -23,6 +23,11 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 )
 
+var (
+	NewNodeIDDifficulty        = 40
+	NewNodeIDDifficultyTimeout = 60 * time.Second
+)
+
 // NewNode just return a new node struct
 func NewNode() *Node {
 	return &Node{}
@@ -36,7 +41,7 @@ func (node *Node) InitNodeCryptoInfo() (err error) {
 		log.Error("Failed to generate key pair")
 	}
 
-	node.Nonce = asymmetric.GetPubKeyNonce(node.PublicKey, 30, 1000*time.Millisecond)
+	node.Nonce = asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, NewNodeIDDifficultyTimeout)
 	node.ID = NodeID(node.Nonce.Hash.String())
 	log.Debugf("Node: %v", node)
 	return

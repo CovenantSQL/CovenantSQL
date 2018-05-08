@@ -27,7 +27,16 @@
 [[override]]
   name = "github.com/rqlite/rqlite"
   source = "https://github.com/thunderdb/rqlite.git"
-  revision = "4188c50"
+  branch = "master"
+#  revision = "4188c50"
+
+[[override]]
+  name = "github.com/thunderdb/rqlite"
+  branch = "master"
+
+[[override]]
+  name = "github.com/hashicorp/raft"
+  branch = "master"
 
 [prune]
   go-tests = true

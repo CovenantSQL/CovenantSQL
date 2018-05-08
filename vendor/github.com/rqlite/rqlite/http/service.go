@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	sql "github.com/rqlite/rqlite/db"
 	"github.com/rqlite/rqlite/store"
 )
 
@@ -30,31 +29,35 @@ type Store interface {
 	// to return rows. If timings is true, then timing information will
 	// be return. If tx is true, then either all queries will be executed
 	// successfully or it will as though none executed.
-	Execute(er *store.ExecuteRequest) ([]*sql.Result, error)
+	Execute(er *store.ExecuteRequest) (*store.ExecuteResponse, error)
+
+	// ExecuteOrAbort performs the same function as Execute(), but ensures
+	// any transactions are aborted in case of any error.
+	ExecuteOrAbort(er *store.ExecuteRequest) (*store.ExecuteResponse, error)
 
 	// Query executes a slice of queries, each of which returns rows. If
 	// timings is true, then timing information will be returned. If tx
 	// is true, then all queries will take place while a read transaction
 	// is held on the database.
-	Query(qr *store.QueryRequest) ([]*sql.Rows, error)
+	Query(qr *store.QueryRequest) (*store.QueryResponse, error)
 
 	// Join joins the node with the given ID, reachable at addr, to this node.
-	Join(id, addr string) error
+	Join(id, addr string, metadata map[string]string) error
 
-	// Remove removes the node, specified by addr, from the cluster.
-	Remove(addr string) error
+	// Remove removes the node, specified by id, from the cluster.
+	Remove(id string) error
 
-	// Leader returns the Raft leader of the cluster.
-	Leader() string
+	// Metadata returns the value for the given node ID, for the given key.
+	Metadata(id, key string) string
 
-	// Peer returns the API peer for the given address
-	Peer(addr string) string
+	// Leader returns the Raft address of the leader of the cluster.
+	LeaderID() (string, error)
 
 	// Stats returns stats on the Store.
 	Stats() (map[string]interface{}, error)
 
 	// Backup returns a byte slice representing a backup of the node state.
-	Backup(leader bool) ([]byte, error)
+	Backup(leader bool, f store.BackupFormat) ([]byte, error)
 }
 
 // CredentialStore is the interface credential stores must support.
@@ -73,12 +76,10 @@ type Statuser interface {
 
 // Response represents a response from the HTTP service.
 type Response struct {
-	Results interface{} `json:"results,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	Time    float64     `json:"time,omitempty"`
-
-	start time.Time
-	end   time.Time
+	Results interface{}         `json:"results,omitempty"`
+	Error   string              `json:"error,omitempty"`
+	Time    float64             `json:"time,omitempty"`
+	Raft    *store.RaftResponse `json:"raft,omitempty"`
 }
 
 // stats captures stats for the HTTP service.
@@ -116,19 +117,6 @@ func init() {
 	stats.Add(numExecutions, 0)
 	stats.Add(numQueries, 0)
 	stats.Add(numBackups, 0)
-}
-
-// SetTime sets the Time attribute of the response. This way it will be present
-// in the serialized JSON version.
-func (r *Response) SetTime() {
-	r.Time = r.end.Sub(r.start).Seconds()
-}
-
-// NewResponse returns a new instance of response.
-func NewResponse() *Response {
-	return &Response{
-		start: time.Now(),
-	}
 }
 
 // Service provides HTTP service.
@@ -283,26 +271,33 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	m := map[string]string{}
-	if err := json.Unmarshal(b, &m); err != nil {
+	md := map[string]interface{}{}
+	if err := json.Unmarshal(b, &md); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	remoteID, ok := m["id"]
+	remoteID, ok := md["id"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	remoteAddr, ok := m["addr"]
+	remoteAddr, ok := md["addr"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+	var m map[string]string
+	if _, ok := md["meta"].(map[string]interface{}); ok {
+		m = make(map[string]string)
+		for k, v := range md["meta"].(map[string]interface{}) {
+			m[k] = v.(string)
+		}
 	}
 
-	if err := s.store.Join(remoteID, remoteAddr); err != nil {
+	if err := s.store.Join(remoteID.(string), remoteAddr.(string), m); err != nil {
 		if err == store.ErrNotLeader {
-			leader := s.store.Peer(s.store.Leader())
+			leader := s.leaderAPIAddr()
 			if leader == "" {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
@@ -348,15 +343,15 @@ func (s *Service) handleRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteAddr, ok := m["addr"]
+	remoteID, ok := m["id"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if err := s.store.Remove(remoteAddr); err != nil {
+	if err := s.store.Remove(remoteID); err != nil {
 		if err == store.ErrNotLeader {
-			leader := s.store.Peer(s.store.Leader())
+			leader := s.leaderAPIAddr()
 			if leader == "" {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
@@ -374,8 +369,6 @@ func (s *Service) handleRemove(w http.ResponseWriter, r *http.Request) {
 
 // handleBackup returns the consistent database snapshot.
 func (s *Service) handleBackup(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/octet-stream")
-
 	if !s.CheckRequestPerm(r, PermBackup) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -392,9 +385,15 @@ func (s *Service) handleBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := s.store.Backup(!noLeader)
+	bf, err := backupFormat(w, r)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b, err := s.store.Backup(!noLeader, bf)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -418,8 +417,6 @@ func (s *Service) handleLoad(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := NewResponse()
-
 	timings, err := timings(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -433,11 +430,12 @@ func (s *Service) handleLoad(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body.Close()
 
+	var resp Response
 	queries := []string{string(b)}
-	results, err := s.store.Execute(&store.ExecuteRequest{queries, timings, false})
+	results, err := s.store.ExecuteOrAbort(&store.ExecuteRequest{queries, timings, false})
 	if err != nil {
 		if err == store.ErrNotLeader {
-			leader := s.store.Peer(s.store.Leader())
+			leader := s.leaderAPIAddr()
 			if leader == "" {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
@@ -449,10 +447,13 @@ func (s *Service) handleLoad(w http.ResponseWriter, r *http.Request) {
 		}
 		resp.Error = err.Error()
 	} else {
-		resp.Results = results
+		resp.Results = results.Results
+		if timings {
+			resp.Time = results.Time
+		}
+		resp.Raft = &results.Raft
 	}
-	resp.end = time.Now()
-	writeResponse(w, r, resp)
+	writeResponse(w, r, &resp)
 }
 
 // handleStatus returns status on the system.
@@ -476,18 +477,18 @@ func (s *Service) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rt := map[string]interface{}{
-		"GOARCH":       runtime.GOARCH,
-		"GOOS":         runtime.GOOS,
-		"GOMAXPROCS":   runtime.GOMAXPROCS(0),
-		"numCPU":       runtime.NumCPU(),
-		"numGoroutine": runtime.NumGoroutine(),
-		"version":      runtime.Version(),
+		"GOARCH":        runtime.GOARCH,
+		"GOOS":          runtime.GOOS,
+		"GOMAXPROCS":    runtime.GOMAXPROCS(0),
+		"num_cpu":       runtime.NumCPU(),
+		"num_goroutine": runtime.NumGoroutine(),
+		"version":       runtime.Version(),
 	}
 
 	httpStatus := map[string]interface{}{
 		"addr":     s.Addr().String(),
 		"auth":     prettyEnabled(s.credentialStore != nil),
-		"redirect": s.store.Peer(s.store.Leader()),
+		"redirect": s.leaderAPIAddr(),
 	}
 
 	nodeStatus := map[string]interface{}{
@@ -503,7 +504,7 @@ func (s *Service) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"node":    nodeStatus,
 	}
 	if !s.lastBackup.IsZero() {
-		status["last_backup"] = s.lastBackup
+		status["last_backup_time"] = s.lastBackup
 	}
 	if s.BuildInfo != nil {
 		status["build"] = s.BuildInfo
@@ -554,8 +555,6 @@ func (s *Service) handleExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := NewResponse()
-
 	isTx, err := isTx(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -581,10 +580,11 @@ func (s *Service) handleExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var resp Response
 	results, err := s.store.Execute(&store.ExecuteRequest{queries, timings, isTx})
 	if err != nil {
 		if err == store.ErrNotLeader {
-			leader := s.store.Peer(s.store.Leader())
+			leader := s.leaderAPIAddr()
 			if leader == "" {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
@@ -596,10 +596,13 @@ func (s *Service) handleExecute(w http.ResponseWriter, r *http.Request) {
 		}
 		resp.Error = err.Error()
 	} else {
-		resp.Results = results
+		resp.Results = results.Results
+		if timings {
+			resp.Time = results.Time
+		}
+		resp.Raft = &results.Raft
 	}
-	resp.end = time.Now()
-	writeResponse(w, r, resp)
+	writeResponse(w, r, &resp)
 }
 
 // handleQuery handles queries that do not modify the database.
@@ -615,8 +618,6 @@ func (s *Service) handleQuery(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-
-	resp := NewResponse()
 
 	isTx, err := isTx(r)
 	if err != nil {
@@ -643,10 +644,11 @@ func (s *Service) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var resp Response
 	results, err := s.store.Query(&store.QueryRequest{queries, timings, isTx, lvl})
 	if err != nil {
 		if err == store.ErrNotLeader {
-			leader := s.store.Peer(s.store.Leader())
+			leader := s.leaderAPIAddr()
 			if leader == "" {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
@@ -658,10 +660,13 @@ func (s *Service) handleQuery(w http.ResponseWriter, r *http.Request) {
 		}
 		resp.Error = err.Error()
 	} else {
-		resp.Results = results
+		resp.Results = results.Rows
+		if timings {
+			resp.Time = results.Time
+		}
+		resp.Raft = results.Raft
 	}
-	resp.end = time.Now()
-	writeResponse(w, r, resp)
+	writeResponse(w, r, &resp)
 }
 
 // handleExpvar serves registered expvar information over HTTP.
@@ -735,6 +740,14 @@ func (s *Service) CheckRequestPerm(r *http.Request, perm string) bool {
 	return s.credentialStore.HasPerm(username, PermAll) || s.credentialStore.HasPerm(username, perm)
 }
 
+func (s *Service) leaderAPIAddr() string {
+	id, err := s.store.LeaderID()
+	if err != nil {
+		return ""
+	}
+	return s.store.Metadata(id, "api_addr")
+}
+
 // addBuildVersion adds the build version to the HTTP response.
 func (s *Service) addBuildVersion(w http.ResponseWriter) {
 	// Add version header to every response, if available.
@@ -774,11 +787,6 @@ func writeResponse(w http.ResponseWriter, r *http.Request, j *Response) {
 	var b []byte
 	var err error
 	pretty, _ := isPretty(r)
-	timings, _ := timings(r)
-
-	if timings {
-		j.SetTime()
-	}
 
 	if pretty {
 		b, err = json.MarshalIndent(j, "", "    ")
@@ -823,8 +831,13 @@ func queryParam(req *http.Request, param string) (bool, error) {
 // stmtParam returns the value for URL param 'q', if present.
 func stmtParam(req *http.Request) (string, error) {
 	q := req.URL.Query()
-	stmt := strings.TrimSpace(q.Get("q"))
-	return stmt, nil
+	return strings.TrimSpace(q.Get("q")), nil
+}
+
+// fmtParam returns the value for URL param 'fmt', if present.
+func fmtParam(req *http.Request) (string, error) {
+	q := req.URL.Query()
+	return strings.TrimSpace(q.Get("fmt")), nil
 }
 
 // isPretty returns whether the HTTP response body should be pretty-printed.
@@ -862,6 +875,21 @@ func level(req *http.Request) (store.ConsistencyLevel, error) {
 	default:
 		return store.Weak, nil
 	}
+}
+
+// backuFormat returns the request backup format, setting the response header
+// accordingly.
+func backupFormat(w http.ResponseWriter, r *http.Request) (store.BackupFormat, error) {
+	fmt, err := fmtParam(r)
+	if err != nil {
+		return store.BackupBinary, err
+	}
+	if fmt == "sql" {
+		w.Header().Set("Content-Type", "application/sql")
+		return store.BackupSQL, nil
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	return store.BackupBinary, nil
 }
 
 func prettyEnabled(e bool) string {

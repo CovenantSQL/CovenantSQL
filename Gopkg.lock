@@ -44,10 +44,10 @@
   revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/hashicorp/raft"
   packages = ["."]
-  revision = "6d14f0c70869faabd9e60ba7ed88a6cbbd6a661f"
-  version = "v1.0.0"
+  revision = "a3fb4581fb07b16ecf1c3361580d4bdb17de9d98"
 
 [[projects]]
   branch = "master"
@@ -80,13 +80,14 @@
   version = "v0.8.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/rqlite/rqlite"
   packages = [
     "db",
     "http",
     "store"
   ]
-  revision = "4188c50"
+  revision = "a0d93fcff4b7e4e30b0b69ddb686a5d8ec16f395"
   source = "https://github.com/thunderdb/rqlite.git"
 
 [[projects]]
@@ -116,6 +117,7 @@
   version = "1.6.3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/thunderdb/rqlite"
   packages = [
     "cluster",
@@ -123,8 +125,7 @@
     "store",
     "tcp"
   ]
-  revision = "77e345b97c5597c1ef86e75e690539de369b8dd3"
-  version = "v4.3.0"
+  revision = "a0d93fcff4b7e4e30b0b69ddb686a5d8ec16f395"
 
 [[projects]]
   branch = "master"
@@ -144,6 +145,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4bdee396c1067fbe5c65375afa092df7e901a46b9a3b4e83c4023526b16f1c58"
+  inputs-digest = "b442c5b5a46abca52518148f257f266ce2b4b886bc0f4d4cca8ab6d71c483bd1"
   solver-name = "gps-cdcl"
   solver-version = 1

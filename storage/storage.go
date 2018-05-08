@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-// Package storage implements simple key-value storage interfaces based on sqlite3
+// Package storage implements simple key-value storage interfaces based on sqlite3.
+//
 // Although DB should be safe for concurrent use according to
 // https://golang.org/pkg/database/sql/#OpenDB, there are some issue with go-sqlite3 implementation.
 // See https://github.com/mattn/go-sqlite3/issues/148 for details.
+//
 // As a result, concurrent use in this package is not recommended for now.
 package storage
 
@@ -58,7 +60,7 @@ func openDB(dsn string) (db *sql.DB, err error) {
 	return db, err
 }
 
-// Storage represents a key-value storage
+// Storage represents a key-value storage.
 type Storage struct {
 	dsn   string
 	table string
@@ -88,7 +90,7 @@ func OpenStorage(dsn string, table string) (st *Storage, err error) {
 	return st, err
 }
 
-// SetValue sets or replace the value to key
+// SetValue sets or replace the value to key.
 func (s *Storage) SetValue(key string, value []byte) (err error) {
 	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
 	_, err = s.db.Exec(stmt, key, value)
@@ -96,7 +98,7 @@ func (s *Storage) SetValue(key string, value []byte) (err error) {
 	return err
 }
 
-// SetValueIfNotExist sets the value to key if it doesn't exist
+// SetValueIfNotExist sets the value to key if it doesn't exist.
 func (s *Storage) SetValueIfNotExist(key string, value []byte) (err error) {
 	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
 	_, err = s.db.Exec(stmt, key, value)
@@ -104,7 +106,7 @@ func (s *Storage) SetValueIfNotExist(key string, value []byte) (err error) {
 	return err
 }
 
-// DelValue deletes the value of key
+// DelValue deletes the value of key.
 func (s *Storage) DelValue(key string) (err error) {
 	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
 	_, err = s.db.Exec(stmt, key)
@@ -112,7 +114,7 @@ func (s *Storage) DelValue(key string) (err error) {
 	return err
 }
 
-// GetValue fetches the value of key
+// GetValue fetches the value of key.
 func (s *Storage) GetValue(key string) (value []byte, err error) {
 	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
 	err = s.db.QueryRow(stmt, key).Scan(&value)

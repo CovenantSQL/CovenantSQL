@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rqlite/rqlite/cluster"
-	httpd "github.com/rqlite/rqlite/http"
-	"github.com/rqlite/rqlite/store"
-	"github.com/rqlite/rqlite/tcp"
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/rqlite/cluster"
+	httpd "github.com/thunderdb/rqlite/http"
+	"github.com/thunderdb/rqlite/store"
+	"github.com/thunderdb/rqlite/tcp"
 )
 
 const (

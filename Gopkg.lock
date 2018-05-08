@@ -82,11 +82,9 @@
 [[projects]]
   name = "github.com/rqlite/rqlite"
   packages = [
-    "cluster",
     "db",
     "http",
-    "store",
-    "tcp"
+    "store"
   ]
   revision = "4188c50"
   source = "https://github.com/thunderdb/rqlite.git"
@@ -118,6 +116,17 @@
   version = "1.6.3"
 
 [[projects]]
+  name = "github.com/thunderdb/rqlite"
+  packages = [
+    "cluster",
+    "http",
+    "store",
+    "tcp"
+  ]
+  revision = "77e345b97c5597c1ef86e75e690539de369b8dd3"
+  version = "v4.3.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -135,6 +144,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0194850197f33a8445b2772993b994dbc10a5d6f664af292518165762a73f757"
+  inputs-digest = "4bdee396c1067fbe5c65375afa092df7e901a46b9a3b4e83c4023526b16f1c58"
   solver-name = "gps-cdcl"
   solver-version = 1

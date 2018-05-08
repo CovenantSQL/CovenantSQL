@@ -89,6 +89,7 @@
     "tcp"
   ]
   revision = "4188c50"
+  source = "https://github.com/thunderdb/rqlite.git"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -134,6 +135,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "740ed8f0d6f73a7b1d675cece7cc752bd20a9ebc320ec2614ed2bc59218fcd63"
+  inputs-digest = "0194850197f33a8445b2772993b994dbc10a5d6f664af292518165762a73f757"
   solver-name = "gps-cdcl"
   solver-version = 1

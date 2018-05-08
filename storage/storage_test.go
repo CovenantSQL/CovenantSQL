@@ -70,6 +70,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestBadDSN(t *testing.T) {
+	// Use bad DSN to open storage
+	_, err := OpenStorage(os.TempDir(), "test-bad-dsn")
+
+	if err == nil {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+}
+
 func TestOpenStorage(t *testing.T) {
 	// Open storage
 	fl, err := ioutil.TempFile("", "db")

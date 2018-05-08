@@ -114,7 +114,7 @@ func (s *Storage) DelValue(key string) (err error) {
 
 // GetValue fetches the value of key
 func (s *Storage) GetValue(key string) (value []byte, err error) {
-	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE key = ?", s.table)
+	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
 	err = s.db.QueryRow(stmt, key).Scan(&value)
 
 	if err == sql.ErrNoRows {

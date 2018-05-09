@@ -620,7 +620,7 @@ func TestDBError(t *testing.T) {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
 
-	st, err := OpenStorage(fl.Name(), "test-del-values-tx")
+	st, err := OpenStorage(fl.Name(), "test-db-error")
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())

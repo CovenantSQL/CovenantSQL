@@ -859,70 +859,23 @@ func randomSleep() {
 	time.Sleep(time.Duration(r) * time.Millisecond)
 }
 
-func setValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
+func randomGetValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
 	defer wg.Done()
-	num := len(sampleTexts)
 
 	for i := 0; i < 1000; i++ {
 		randomSleep()
-		row := &sampleTexts[rand.Intn(num)]
-		t.Logf("set value: %v\n", row)
+		key := keysOfSampleTexts[rand.Intn(len(keysOfSampleTexts))]
+		value := replacedSampleTexts[key]
 
-		if err := st.SetValue(row.Key, row.Value); err != nil {
+		if ov, err := st.GetValue(key); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
+		} else if !reflect.DeepEqual(value, ov) {
+			t.Fatalf("Unexpected output result: input = %v, output = %v", value, ov)
 		}
 	}
 }
 
-func setValueIfNotExist(wg *sync.WaitGroup, st *Storage, t *testing.T) {
-	defer wg.Done()
-	num := len(sampleTexts)
-
-	for i := 0; i < 1000; i++ {
-		randomSleep()
-		row := &sampleTexts[rand.Intn(num)]
-		t.Logf("set value if not exist: %v\n", row)
-
-		if err := st.SetValueIfNotExist(row.Key, row.Value); err != nil {
-			t.Fatalf("Error occurred: %s", err.Error())
-		}
-	}
-}
-
-func getValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
-	defer wg.Done()
-	num := len(sampleTexts)
-
-	for i := 0; i < 1000; i++ {
-		randomSleep()
-		row := &sampleTexts[rand.Intn(num)]
-		t.Logf("get value: %v\n", row)
-
-		if _, err := st.GetValue(row.Key); err != nil {
-			t.Fatalf("Error occurred: %s", err.Error())
-		}
-	}
-}
-
-func delValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
-	defer wg.Done()
-	num := len(sampleTexts)
-
-	for i := 0; i < 1000; i++ {
-		randomSleep()
-		row := &sampleTexts[rand.Intn(num)]
-		t.Logf("del value: %v\n", row)
-
-		if err := st.DelValue(row.Key); err != nil {
-			t.Fatalf("Error occurred: %s", err.Error())
-		}
-	}
-
-	wg.Done()
-}
-
-// FIXME(leventeliu): due to a concurrency issue in go-sqlite3, we can't pass this test yet.
-func testConcurrency(t *testing.T) {
+func TestConcurrency(t *testing.T) {
 	// Open storage
 	fl, err := ioutil.TempFile("", "db")
 
@@ -936,27 +889,17 @@ func testConcurrency(t *testing.T) {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
 
-	// Run concurrency test
+	// Set values
+	if err = st.SetValuesTx(sampleTexts); err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	// Run concurrent GetValue
 	var wg sync.WaitGroup
 
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go setValue(&wg, st, t)
-	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go setValueIfNotExist(&wg, st, t)
-	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go getValue(&wg, st, t)
-	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go delValue(&wg, st, t)
+		go randomGetValue(&wg, st, t)
 	}
 
 	wg.Wait()

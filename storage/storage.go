@@ -16,11 +16,15 @@
 
 // Package storage implements simple key-value storage interfaces based on sqlite3.
 //
-// Although DB should be safe for concurrent use according to
-// https://golang.org/pkg/database/sql/#OpenDB, there are some issues with go-sqlite3
-// implementation. See https://github.com/mattn/go-sqlite3/issues/148 for details.
+// Although a sql.DB should be safe for concurrent use according to
+// https://golang.org/pkg/database/sql/#OpenDB, the go-sqlite3 implementation only guarantees
+// the safty of concurrent readers. See https://github.com/mattn/go-sqlite3/issues/148 for details.
 //
-// As a result, concurrent use of this package is not recommended for now.
+// As a result, here are some suggestions:
+// 1. Perform as many concurrent GetValue(s) operations as you like;
+// 2. Use only one gotoutine to perform SetValue(s)/DelValue(s) operations;
+// 3. Or implement a simple busy waiting yourself on a go-sqlite3.ErrLocked error if you must use
+//    concurrent writers.
 package storage
 
 import (
@@ -113,7 +117,7 @@ func (s *Storage) SetValueIfNotExist(key string, value []byte) (err error) {
 
 // DelValue deletes the value of key.
 func (s *Storage) DelValue(key string) (err error) {
-	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
+	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE `key` = ?", s.table)
 	_, err = s.db.Exec(stmt, key)
 
 	return err
@@ -181,7 +185,7 @@ func (s *Storage) SetValuesIfNotExist(kvs []KV) (err error) {
 // Note that this is not a transaction. We use a prepared statement to send these queries. Each
 // call may fail while part of the queries succeed.
 func (s *Storage) DelValues(keys []string) (err error) {
-	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
+	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE `key` = ?", s.table)
 	pStmt, err := s.db.Prepare(stmt)
 
 	if err != nil {
@@ -319,7 +323,7 @@ func (s *Storage) DelValuesTx(keys []string) (err error) {
 	}()
 
 	// Prepare statement
-	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
+	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE `key` = ?", s.table)
 	pStmt, err := tx.Prepare(stmt)
 
 	if err != nil {

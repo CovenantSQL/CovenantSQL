@@ -3,18 +3,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/armon/go-metrics"
-  packages = ["."]
-  revision = "783273d703149aaeb9897cf58613d5af48861c25"
-
-[[projects]]
-  name = "github.com/boltdb/bolt"
-  packages = ["."]
-  revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
-  version = "v1.3.1"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   revision = "675abc5df3c5531bc741b56a765e35623459da6d"
@@ -27,36 +15,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/hashicorp/go-immutable-radix"
-  packages = ["."]
-  revision = "7f3cd4390caab3250a57f30efdb2a65dd7649ecf"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/go-msgpack"
-  packages = ["codec"]
-  revision = "fa3f63826f7c23912c15263591e65d54d080b458"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/golang-lru"
-  packages = ["simplelru"]
-  revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/raft"
-  packages = ["."]
-  revision = "a3fb4581fb07b16ecf1c3361580d4bdb17de9d98"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/raft-boltdb"
-  packages = ["."]
-  revision = "6e5ba93211eaf8d9a2ad7e41ffad8c6f160f9fe3"
-
-[[projects]]
-  branch = "master"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   revision = "2658be15c5f05e76244154714161f17e3e77de2e"
@@ -66,29 +24,6 @@
   packages = ["."]
   revision = "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
   version = "v4.2.1"
-
-[[projects]]
-  name = "github.com/mattn/go-sqlite3"
-  packages = ["."]
-  revision = "6c771bb9887719704b210e87e934f08be014bdb1"
-  version = "v1.6.0"
-
-[[projects]]
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/rqlite/rqlite"
-  packages = [
-    "db",
-    "http",
-    "store"
-  ]
-  revision = "a0d93fcff4b7e4e30b0b69ddb686a5d8ec16f395"
-  source = "https://github.com/thunderdb/rqlite.git"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -118,17 +53,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/thunderdb/rqlite"
-  packages = [
-    "cluster",
-    "http",
-    "store",
-    "tcp"
-  ]
-  revision = "a0d93fcff4b7e4e30b0b69ddb686a5d8ec16f395"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   revision = "1f94bef427e370e425e55b172f3b5e300ef38304"
@@ -145,6 +69,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b442c5b5a46abca52518148f257f266ce2b4b886bc0f4d4cca8ab6d71c483bd1"
+  inputs-digest = "87839b9beab040aebf21759cebea68540993dfc0f54cd6553654b3518e222b21"
   solver-name = "gps-cdcl"
   solver-version = 1

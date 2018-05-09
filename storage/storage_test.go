@@ -54,8 +54,8 @@ func buildReplacedMapFromKVs(kvs []KV) (kvsmap map[string][]byte) {
 	kvsmap = make(map[string][]byte)
 
 	for _, row := range kvs {
-		if row.value != nil {
-			kvsmap[row.key] = row.value
+		if row.Value != nil {
+			kvsmap[row.Key] = row.Value
 		}
 	}
 
@@ -66,8 +66,8 @@ func buildIgnoredMapFromKVs(kvs []KV) (kvsmap map[string][]byte) {
 	kvsmap = make(map[string][]byte)
 
 	for _, row := range kvs {
-		if _, ok := kvsmap[row.key]; !ok && row.value != nil {
-			kvsmap[row.key] = row.value
+		if _, ok := kvsmap[row.Key]; !ok && row.Value != nil {
+			kvsmap[row.Key] = row.Value
 		}
 	}
 
@@ -166,7 +166,7 @@ func TestSetValue(t *testing.T) {
 
 	// Set values
 	for _, row := range sampleTexts {
-		if err = st.SetValue(row.key, row.value); err != nil {
+		if err = st.SetValue(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -201,7 +201,7 @@ func TestSetValueIfNotExist(t *testing.T) {
 
 	// Set values
 	for _, row := range sampleTexts {
-		if err = st.SetValueIfNotExist(row.key, row.value); err != nil {
+		if err = st.SetValueIfNotExist(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -236,7 +236,7 @@ func TestGetValue(t *testing.T) {
 
 	// Set values
 	for _, row := range sampleTexts {
-		if err = st.SetValue(row.key, row.value); err != nil {
+		if err = st.SetValue(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -283,7 +283,7 @@ func TestDelValue(t *testing.T) {
 
 	// Set values
 	for _, row := range sampleTexts {
-		if err = st.SetValue(row.key, row.value); err != nil {
+		if err = st.SetValue(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -809,7 +809,7 @@ func TestDataPersistence(t *testing.T) {
 
 	// Set values
 	for _, row := range sampleTexts {
-		if err = st.SetValue(row.key, row.value); err != nil {
+		if err = st.SetValue(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -868,7 +868,7 @@ func setValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
 		row := &sampleTexts[rand.Intn(num)]
 		t.Logf("set value: %v\n", row)
 
-		if err := st.SetValue(row.key, row.value); err != nil {
+		if err := st.SetValue(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -883,7 +883,7 @@ func setValueIfNotExist(wg *sync.WaitGroup, st *Storage, t *testing.T) {
 		row := &sampleTexts[rand.Intn(num)]
 		t.Logf("set value if not exist: %v\n", row)
 
-		if err := st.SetValueIfNotExist(row.key, row.value); err != nil {
+		if err := st.SetValueIfNotExist(row.Key, row.Value); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -898,7 +898,7 @@ func getValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
 		row := &sampleTexts[rand.Intn(num)]
 		t.Logf("get value: %v\n", row)
 
-		if _, err := st.GetValue(row.key); err != nil {
+		if _, err := st.GetValue(row.Key); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}
@@ -913,7 +913,7 @@ func delValue(wg *sync.WaitGroup, st *Storage, t *testing.T) {
 		row := &sampleTexts[rand.Intn(num)]
 		t.Logf("del value: %v\n", row)
 
-		if err := st.DelValue(row.key); err != nil {
+		if err := st.DelValue(row.Key); err != nil {
 			t.Fatalf("Error occurred: %s", err.Error())
 		}
 	}

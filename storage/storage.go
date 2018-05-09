@@ -69,8 +69,8 @@ type Storage struct {
 
 // KV represents a key-value pair.
 type KV struct {
-	key   string
-	value []byte
+	Key   string
+	Value []byte
 }
 
 // OpenStorage opens a database using the specified DSN and ensures that the specified table exists.
@@ -145,7 +145,7 @@ func (s *Storage) SetValues(kvs []KV) (err error) {
 	defer pStmt.Close()
 
 	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
 			return err
 		}
 	}
@@ -168,7 +168,7 @@ func (s *Storage) SetValuesIfNotExist(kvs []KV) (err error) {
 	defer pStmt.Close()
 
 	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
 			return err
 		}
 	}
@@ -217,9 +217,9 @@ func (s *Storage) GetValues(keys []string) (kvs []KV, err error) {
 	kvs = make([]KV, len(keys))
 
 	for index, key := range keys {
-		kvs[index].key = key
+		kvs[index].Key = key
 
-		if err = pStmt.QueryRow(key).Scan(&kvs[index].value); err != nil && err != sql.ErrNoRows {
+		if err = pStmt.QueryRow(key).Scan(&kvs[index].Value); err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
 	}
@@ -256,7 +256,7 @@ func (s *Storage) SetValuesTx(kvs []KV) (err error) {
 
 	// Execute queries
 	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
 			return err
 		}
 	}
@@ -293,7 +293,7 @@ func (s *Storage) SetValuesIfNotExistTx(kvs []KV) (err error) {
 
 	// Execute queries
 	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
 			return err
 		}
 	}
@@ -369,8 +369,8 @@ func (s *Storage) GetValuesTx(keys []string) (kvs []KV, err error) {
 	kvs = make([]KV, len(keys))
 
 	for index, key := range keys {
-		kvs[index].key = key
-		err = pStmt.QueryRow(key).Scan(&kvs[index].value)
+		kvs[index].Key = key
+		err = pStmt.QueryRow(key).Scan(&kvs[index].Value)
 
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err

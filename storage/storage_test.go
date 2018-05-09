@@ -128,10 +128,10 @@ func TestMain(m *testing.M) {
 
 func TestBadDSN(t *testing.T) {
 	// Use bad DSN to open storage
-	_, err := OpenStorage(os.TempDir(), "test-bad-dsn")
-
-	if err == nil {
+	if _, err := OpenStorage(os.TempDir(), "test-bad-dsn"); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
+	} else {
+		t.Logf("Error occurred as expected: %s", err.Error())
 	}
 }
 

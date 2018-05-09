@@ -25,11 +25,7 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"os/signal"
-	"strings"
-
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/server"
 	"github.com/thunderdb/ThunderDB/utils"
 )
 
@@ -168,66 +164,6 @@ func main() {
 	// init profile
 	startProfile(cpuProfile, memProfile)
 	defer stopProfile()
-
-	// random ports
-	apiPort, raftPort := initPorts()
-
-	// init db
-	dataPath := flag.Arg(0)
-
-	// peers to join
-	var peerAddrs []string
-
-	if initPeers != "" {
-		peerAddrs = strings.Split(initPeers, ",")
-	}
-
-	s, err := server.NewService(&server.ServiceConfig{
-		BindAddr:              bindAddr,
-		PublicAddr:            publicAddr,
-		ApiPort:               apiPort,
-		RaftPort:              raftPort,
-		InitPeers:             peerAddrs,
-		DataPath:              dataPath,
-		DSN:                   dsn,
-		OnDisk:                onDisk,
-		RaftSnapshotThreshold: raftSnapThreshold,
-		RaftHeartbeatTimeout:  raftHeartbeatTimeout,
-		RaftApplyTimeout:      raftApplyTimeout,
-		RaftOpenTimeout:       raftOpenTimeout,
-		PublishPeersTimeout:   publishPeersTimeout,
-		PublishPeersDelay:     publishPeersDelay,
-		EnablePprof:           pprofEnabled,
-		Expvar:                expvar,
-		BuildInfo: map[string]interface{}{
-			"version": version,
-			"commit":  commit,
-			"branch":  branch,
-		},
-	})
-
-	if err != nil {
-		log.Fatalf("init service failed: %s", err.Error())
-		os.Exit(4)
-	}
-
-	log.Info("server initialized")
-
-	if err = s.Serve(); err != nil {
-		log.Fatalf("start service failed: %s", err.Error())
-		os.Exit(5)
-	}
-
-	log.Info("server started")
-
-	terminate := make(chan os.Signal, 1)
-	signal.Notify(terminate, os.Interrupt)
-	<-terminate
-
-	if err := s.Close(); err != nil {
-		log.Fatalf("stop service failed: %s", err.Error())
-		os.Exit(6)
-	}
 
 	log.Info("server stopped")
 }

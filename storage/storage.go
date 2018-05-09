@@ -20,7 +20,7 @@
 // https://golang.org/pkg/database/sql/#OpenDB, there are some issues with go-sqlite3
 // implementation. See https://github.com/mattn/go-sqlite3/issues/148 for details.
 //
-// As a result, concurrent use in this package is not recommended for now.
+// As a result, concurrent use of this package is not recommended for now.
 package storage
 
 import (
@@ -28,7 +28,7 @@ import (
 	"fmt"
 	"sync"
 
-	// Register go-sqlite3 engine
+	// Register go-sqlite3 engine.
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -67,7 +67,7 @@ type Storage struct {
 	db    *sql.DB
 }
 
-// KV represents a key-value pair
+// KV represents a key-value pair.
 type KV struct {
 	key   string
 	value []byte

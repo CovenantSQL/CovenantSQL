@@ -20,6 +20,9 @@ import (
 	"bytes"
 	"testing"
 
+	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto"
 )
 
@@ -44,4 +47,19 @@ func TestGenSecp256k1Keypair(t *testing.T) {
 	if !bytes.Equal(in, dec) {
 		t.Error("decrypted data doesn't match original")
 	}
+}
+
+func TestGetPubKeyNonce(t *testing.T) {
+	Convey("translate key error", t, func() {
+		_, publicKey, err := GenSecp256k1Keypair()
+		if err != nil {
+			t.Fatal("failed to generate private key")
+		}
+
+		nonce := GetPubKeyNonce(publicKey, 10, 200*time.Millisecond)
+
+		// sometimes nonce difficulty can be little bit higher than expected
+		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 20)
+	})
+
 }

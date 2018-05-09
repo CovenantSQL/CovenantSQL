@@ -29,6 +29,7 @@ import (
 type Nonce struct {
 	Nonce      big.Int
 	Difficulty int
+	Hash       hash.Hash
 }
 
 // MiningBlock contains Data tobe mined
@@ -62,11 +63,13 @@ func (miner *CPUMiner) HashBlock(data []byte, nonce big.Int) hash.Hash {
 
 // CalculateBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
 // if interrupted or stopped highest difficulty nonce will be sent to the NonceCh
+//  todo: make calculation parallel
 func (miner *CPUMiner) CalculateBlockNonce(
 	block MiningBlock,
 	startNonce big.Int,
 	difficulty int,
 ) (err error) {
+
 	var (
 		bestNonce Nonce
 	)
@@ -86,12 +89,14 @@ func (miner *CPUMiner) CalculateBlockNonce(
 			if currentDifficulty >= difficulty {
 				bestNonce.Difficulty = currentDifficulty
 				bestNonce.Nonce.Set(&i)
+				bestNonce.Hash.SetBytes(currentHash[:])
 				block.NonceChan <- bestNonce
 				return
 			}
 			if currentDifficulty > bestNonce.Difficulty {
 				bestNonce.Difficulty = currentDifficulty
 				bestNonce.Nonce.Set(&i)
+				bestNonce.Hash.SetBytes(currentHash[:])
 			}
 		}
 	}

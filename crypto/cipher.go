@@ -22,7 +22,7 @@ import (
 	"crypto/aes"
 	"errors"
 
-	"github.com/btcsuite/btcd/btcec"
+	ec "github.com/btcsuite/btcd/btcec"
 )
 
 var errInvalidPadding = errors.New("invalid PKCS#7 padding")
@@ -52,13 +52,13 @@ func RemovePKCSPadding(src []byte) ([]byte, error) {
 //	2. encKey, HMACKey := SHA512(ECDH(newPrivateKey, inputPublicKey))
 //	3. PaddedIn := PKCSPadding(in)
 //	4. OutBytes := IV + newPubKey + AES-256-CBC(encKey, PaddedIn) + HMAC-SHA-256(HMACKey)
-func EncryptAndSign(inputPublicKey *btcec.PublicKey, inData []byte) ([]byte, error) {
-	return btcec.Encrypt(inputPublicKey, inData)
+func EncryptAndSign(inputPublicKey *ec.PublicKey, inData []byte) ([]byte, error) {
+	return ec.Encrypt(inputPublicKey, inData)
 }
 
 // DecryptAndCheck (inputPrivateKey, inData) MAIN PROCEDURE:
 //	1. Decrypt the inData
 //  2. Verify the HMAC
-func DecryptAndCheck(inputPrivateKey *btcec.PrivateKey, inData []byte) ([]byte, error) {
-	return btcec.Decrypt(inputPrivateKey, inData)
+func DecryptAndCheck(inputPrivateKey *ec.PrivateKey, inData []byte) ([]byte, error) {
+	return ec.Decrypt(inputPrivateKey, inData)
 }

@@ -24,7 +24,9 @@ import (
 )
 
 var (
-	NewNodeIDDifficulty        = 40
+	// NewNodeIDDifficulty is simply exposed for easy testing
+	NewNodeIDDifficulty = 40
+	// NewNodeIDDifficultyTimeout is simply exposed for easy testing
 	NewNodeIDDifficultyTimeout = 60 * time.Second
 )
 

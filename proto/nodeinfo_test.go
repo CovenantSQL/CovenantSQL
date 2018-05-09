@@ -30,13 +30,13 @@ func TestNode_InitNodeCryptoInfo(t *testing.T) {
 	Convey("InitNodeCryptoInfo", t, func() {
 		node := NewNode()
 		err := node.InitNodeCryptoInfo()
-		hash_tmp := hash.DoubleHashH(append(node.PublicKey.SerializeCompressed(),
+		hashTmp := hash.DoubleHashH(append(node.PublicKey.SerializeCompressed(),
 			node.Nonce.Nonce.Bytes()...))
 		t.Logf("CalculateBlockNonce got %v, difficulty %d, nonce %s, hash %s",
-			err, node.Nonce.Difficulty, node.Nonce.Nonce.String(), hash_tmp.String())
+			err, node.Nonce.Difficulty, node.Nonce.Nonce.String(), hashTmp.String())
 
 		So(node.Nonce.Difficulty, ShouldBeGreaterThan, 1)
-		So(hash_tmp.Difficulty(), ShouldEqual, node.Nonce.Difficulty)
+		So(hashTmp.Difficulty(), ShouldEqual, node.Nonce.Difficulty)
 	})
 
 }

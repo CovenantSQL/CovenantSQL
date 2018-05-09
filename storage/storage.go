@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-// Package storage implements simple key-value storage interfaces based on sqlite3
+// Package storage implements simple key-value storage interfaces based on sqlite3.
+//
 // Although DB should be safe for concurrent use according to
-// https://golang.org/pkg/database/sql/#OpenDB, there are some issue with go-sqlite3 implementation.
-// See https://github.com/mattn/go-sqlite3/issues/148 for details.
-// As a result, concurrent use in this package is not recommended for now.
+// https://golang.org/pkg/database/sql/#OpenDB, there are some issues with go-sqlite3
+// implementation. See https://github.com/mattn/go-sqlite3/issues/148 for details.
+//
+// As a result, concurrent use of this package is not recommended for now.
 package storage
 
 import (
@@ -26,7 +28,7 @@ import (
 	"fmt"
 	"sync"
 
-	// Register go-sqlite3 engine
+	// Register go-sqlite3 engine.
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -58,11 +60,17 @@ func openDB(dsn string) (db *sql.DB, err error) {
 	return db, err
 }
 
-// Storage represents a key-value storage
+// Storage represents a key-value storage.
 type Storage struct {
 	dsn   string
 	table string
 	db    *sql.DB
+}
+
+// KV represents a key-value pair.
+type KV struct {
+	key   string
+	value []byte
 }
 
 // OpenStorage opens a database using the specified DSN and ensures that the specified table exists.
@@ -78,9 +86,8 @@ func OpenStorage(dsn string, table string) (st *Storage, err error) {
 	// Ensure table
 	stmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` (`key` TEXT PRIMARY KEY, `value` BLOB)",
 		table)
-	_, err = db.Exec(stmt)
 
-	if err != nil {
+	if _, err = db.Exec(stmt); err != nil {
 		return st, err
 	}
 
@@ -88,7 +95,7 @@ func OpenStorage(dsn string, table string) (st *Storage, err error) {
 	return st, err
 }
 
-// SetValue sets or replace the value to key
+// SetValue sets or replace the value to key.
 func (s *Storage) SetValue(key string, value []byte) (err error) {
 	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
 	_, err = s.db.Exec(stmt, key, value)
@@ -96,7 +103,7 @@ func (s *Storage) SetValue(key string, value []byte) (err error) {
 	return err
 }
 
-// SetValueIfNotExist sets the value to key if it doesn't exist
+// SetValueIfNotExist sets the value to key if it doesn't exist.
 func (s *Storage) SetValueIfNotExist(key string, value []byte) (err error) {
 	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
 	_, err = s.db.Exec(stmt, key, value)
@@ -104,7 +111,7 @@ func (s *Storage) SetValueIfNotExist(key string, value []byte) (err error) {
 	return err
 }
 
-// DelValue deletes the value of key
+// DelValue deletes the value of key.
 func (s *Storage) DelValue(key string) (err error) {
 	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
 	_, err = s.db.Exec(stmt, key)
@@ -112,14 +119,263 @@ func (s *Storage) DelValue(key string) (err error) {
 	return err
 }
 
-// GetValue fetches the value of key
+// GetValue fetches the value of key.
 func (s *Storage) GetValue(key string) (value []byte, err error) {
 	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
-	err = s.db.QueryRow(stmt, key).Scan(&value)
 
-	if err == sql.ErrNoRows {
+	if err = s.db.QueryRow(stmt, key).Scan(&value); err == sql.ErrNoRows {
 		err = nil
 	}
 
 	return value, err
+}
+
+// SetValues sets or replaces the key-value pairs in kvs.
+//
+// Note that this is not a transaction. We use a prepared statement to send these queries. Each
+// call may fail while part of the queries succeed.
+func (s *Storage) SetValues(kvs []KV) (err error) {
+	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
+	pStmt, err := s.db.Prepare(stmt)
+
+	if err != nil {
+		return err
+	}
+
+	defer pStmt.Close()
+
+	for _, row := range kvs {
+		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SetValuesIfNotExist sets the key-value pairs in kvs if the key doesn't exist.
+//
+// Note that this is not a transaction. We use a prepared statement to send these queries. Each
+// call may fail while part of the queries succeed.
+func (s *Storage) SetValuesIfNotExist(kvs []KV) (err error) {
+	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
+	pStmt, err := s.db.Prepare(stmt)
+
+	if err != nil {
+		return err
+	}
+
+	defer pStmt.Close()
+
+	for _, row := range kvs {
+		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DelValues deletes the values of the keys.
+//
+// Note that this is not a transaction. We use a prepared statement to send these queries. Each
+// call may fail while part of the queries succeed.
+func (s *Storage) DelValues(keys []string) (err error) {
+	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
+	pStmt, err := s.db.Prepare(stmt)
+
+	if err != nil {
+		return err
+	}
+
+	defer pStmt.Close()
+
+	for _, key := range keys {
+		if _, err = pStmt.Exec(key); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// GetValues fetches the values of keys.
+//
+// Note that this is not a transaction. We use a prepared statement to send these queries. Each
+// call may fail while part of the queries succeed and some values may be altered during the
+// queries. But the results will be returned only if all the queries succeed.
+func (s *Storage) GetValues(keys []string) (kvs []KV, err error) {
+	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
+	pStmt, err := s.db.Prepare(stmt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer pStmt.Close()
+
+	kvs = make([]KV, len(keys))
+
+	for index, key := range keys {
+		kvs[index].key = key
+
+		if err = pStmt.QueryRow(key).Scan(&kvs[index].value); err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+	}
+
+	return kvs, nil
+}
+
+// SetValuesTx sets or replaces the key-value pairs in kvs as a transaction.
+func (s *Storage) SetValuesTx(kvs []KV) (err error) {
+	// Begin transaction
+	tx, err := s.db.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	// Prepare statement
+	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
+	pStmt, err := tx.Prepare(stmt)
+
+	if err != nil {
+		return err
+	}
+
+	defer pStmt.Close()
+
+	// Execute queries
+	for _, row := range kvs {
+		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SetValuesIfNotExistTx sets the key-value pairs in kvs if the key doesn't exist as a transaction.
+func (s *Storage) SetValuesIfNotExistTx(kvs []KV) (err error) {
+	// Begin transaction
+	tx, err := s.db.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	// Prepare statement
+	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
+	pStmt, err := tx.Prepare(stmt)
+
+	if err != nil {
+		return err
+	}
+
+	defer pStmt.Close()
+
+	// Execute queries
+	for _, row := range kvs {
+		if _, err = pStmt.Exec(row.key, row.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DelValuesTx deletes the values of the keys as a transaction.
+func (s *Storage) DelValuesTx(keys []string) (err error) {
+	// Begin transaction
+	tx, err := s.db.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	// Prepare statement
+	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE key = ?", s.table)
+	pStmt, err := tx.Prepare(stmt)
+
+	if err != nil {
+		return err
+	}
+
+	defer pStmt.Close()
+
+	// Execute queries
+	for _, key := range keys {
+		if _, err = pStmt.Exec(key); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// GetValuesTx fetches the values of keys as a transaction.
+func (s *Storage) GetValuesTx(keys []string) (kvs []KV, err error) {
+	// Begin transaction
+	tx, err := s.db.Begin()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	// Prepare statement
+	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
+	pStmt, err := tx.Prepare(stmt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer pStmt.Close()
+
+	// Execute queries
+	kvs = make([]KV, len(keys))
+
+	for index, key := range keys {
+		kvs[index].key = key
+		err = pStmt.QueryRow(key).Scan(&kvs[index].value)
+
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+	}
+
+	return kvs, nil
 }

@@ -18,11 +18,11 @@
 //
 // Although a sql.DB should be safe for concurrent use according to
 // https://golang.org/pkg/database/sql/#OpenDB, the go-sqlite3 implementation only guarantees
-// the safty of concurrent readers. See https://github.com/mattn/go-sqlite3/issues/148 for details.
+// the safety of concurrent readers. See https://github.com/mattn/go-sqlite3/issues/148 for details.
 //
 // As a result, here are some suggestions:
 // 1. Perform as many concurrent GetValue(s) operations as you like;
-// 2. Use only one gotoutine to perform SetValue(s)/DelValue(s) operations;
+// 2. Use only one goroutine to perform SetValue(s)/DelValue(s) operations;
 // 3. Or implement a simple busy waiting yourself on a go-sqlite3.ErrLocked error if you must use
 //    concurrent writers.
 package storage

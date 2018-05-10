@@ -24,9 +24,19 @@
 #   go-tests = true
 #   unused-packages = true
 
-[[constraint]]
+[[override]]
   name = "github.com/rqlite/rqlite"
-  revision = "4188c50"
+  source = "https://github.com/thunderdb/rqlite.git"
+  branch = "master"
+#  revision = "4188c50"
+
+[[override]]
+  name = "github.com/thunderdb/rqlite"
+  branch = "master"
+
+[[override]]
+  name = "github.com/hashicorp/raft"
+  branch = "master"
 
 [prune]
   go-tests = true

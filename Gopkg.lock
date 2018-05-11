@@ -26,6 +26,12 @@
   version = "v4.2.1"
 
 [[projects]]
+  name = "github.com/mattn/go-sqlite3"
+  packages = ["."]
+  revision = "6c771bb9887719704b210e87e934f08be014bdb1"
+  version = "v1.6.0"
+
+[[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
@@ -52,6 +58,12 @@
   version = "1.6.3"
 
 [[projects]]
+  name = "github.com/tchap/go-patricia"
+  packages = ["patricia"]
+  revision = "666120de432aea38ab06bd5c818f04f4129882c9"
+  version = "v2.2.6"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -69,6 +81,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "87839b9beab040aebf21759cebea68540993dfc0f54cd6553654b3518e222b21"
+  inputs-digest = "70222b431040762f7bf94f6382a0dd65eef5e56e50e6dda39eae48e5795d35a5"
   solver-name = "gps-cdcl"
   solver-version = 1

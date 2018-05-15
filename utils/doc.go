@@ -14,23 +14,5 @@
  * limitations under the License.
  */
 
-// Package route provides DHT routing functions
-package route
-
-import (
-	"net"
-
-	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/rpc"
-)
-
-// InitDHTserver install DHTService payload to RPC server, also set listener
-func InitDHTserver(l net.Listener) (server *rpc.Server, err error) {
-	server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": NewDHTService()})
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	server.SetListener(l)
-	return
-}
+// Package utils provides useful standalone function for test and network, etc.
+package utils

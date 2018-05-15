@@ -1,25 +1,17 @@
 /*
- * MIT License
+ * Copyright 2018 The ThunderDB Authors.
  *
- * Copyright (c) 2016-2018. ThunderDB
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package consistent
@@ -107,10 +99,10 @@ func TestGetSingle(t *testing.T) {
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
-		//t.Logf("s = %q, y = %q", s, y)
+		//t.Logf("s = %v, y = %v", s, y)
 		return y.ID == "abcdefg"
 	}
 	if err := quick.Check(f, nil); err != nil {
@@ -140,7 +132,7 @@ func TestGetMultiple(t *testing.T) {
 			t.Fatal(err)
 		}
 		if string(result.ID) != v.out {
-			t.Errorf("%d. got %q, expected %q", i, result, v.out)
+			t.Errorf("%d. got %v, expected %v", i, result, v.out)
 		}
 	}
 }
@@ -153,10 +145,10 @@ func TestGetMultipleQuick(t *testing.T) {
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
-		//t.Logf("s = %q, y = %q", s, y)
+		//t.Logf("s = %v, y = %v", s, y)
 		return y.ID == "abcdefg" || y.ID == "hijklmn" || y.ID == "opqrstu"
 	}
 	if err := quick.Check(f, nil); err != nil {
@@ -187,7 +179,7 @@ func TestGetMultipleRemove(t *testing.T) {
 			t.Fatal(err)
 		}
 		if string(result.ID) != v.out {
-			t.Errorf("%d. got %q, expected %q before rm", i, result, v.out)
+			t.Errorf("%d. got %v, expected %v before rm", i, result, v.out)
 		}
 	}
 	x.Remove(NewNodeFromID("hijklmn"))
@@ -197,7 +189,7 @@ func TestGetMultipleRemove(t *testing.T) {
 			t.Fatal(err)
 		}
 		if string(result.ID) != v.out {
-			t.Errorf("%d. got %q, expected %q after rm", i, result, v.out)
+			t.Errorf("%d. got %v, expected %v after rm", i, result, v.out)
 		}
 	}
 }
@@ -211,10 +203,10 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
-		//t.Logf("s = %q, y = %q", s, y)
+		//t.Logf("s = %v, y = %v", s, y)
 		return y.ID == "abcdefg" || y.ID == "hijklmn"
 	}
 	if err := quick.Check(f, nil); err != nil {
@@ -231,14 +223,14 @@ func TestGetTwo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a == b {
+	if a.ID == b.ID {
 		t.Errorf("a shouldn't equal b")
 	}
 	if a.ID != "hijklmn" {
-		t.Errorf("wrong a: %q", a)
+		t.Errorf("wrong a: %v", a)
 	}
 	if b.ID != "abcdefg" {
-		t.Errorf("wrong b: %q", b)
+		t.Errorf("wrong b: %v", b)
 	}
 }
 
@@ -258,20 +250,20 @@ func TestGetTwoQuick(t *testing.T) {
 	f := func(s string) bool {
 		a, b, err := x.GetTwo(s)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
-		if a == b {
-			t.Logf("a == b")
+		if a.ID == b.ID {
+			t.Logf("a.ID == b.ID")
 			return false
 		}
 		if a.ID != "abcdefg" && a.ID != "hijklmn" && a.ID != "opqrstu" {
-			t.Logf("invalid a: %q", a)
+			t.Logf("invalid a: %v", a)
 			return false
 		}
 
 		if b.ID != "abcdefg" && b.ID != "hijklmn" && b.ID != "opqrstu" {
-			t.Logf("invalid b: %q", b)
+			t.Logf("invalid b: %v", b)
 			return false
 		}
 		return true
@@ -288,20 +280,20 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 	f := func(s string) bool {
 		a, b, err := x.GetTwo(s)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
-		if a == b {
-			t.Logf("a == b")
+		if a.ID == b.ID {
+			t.Logf("a.ID == b.ID")
 			return false
 		}
 		if a.ID != "abcdefg" && a.ID != "hijklmn" {
-			t.Logf("invalid a: %q", a)
+			t.Logf("invalid a: %v", a)
 			return false
 		}
 
 		if b.ID != "abcdefg" && b.ID != "hijklmn" {
-			t.Logf("invalid b: %q", b)
+			t.Logf("invalid b: %v", b)
 			return false
 		}
 		return true
@@ -318,14 +310,14 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a == b {
+	if a.ID == b.ID {
 		t.Errorf("a shouldn't equal b")
 	}
 	if a.ID != "abcdefg" {
-		t.Errorf("wrong a: %q", a)
+		t.Errorf("wrong a: %v", a)
 	}
 	if b.ID != "" {
-		t.Errorf("wrong b: %q", b)
+		t.Errorf("wrong b: %v", b)
 	}
 }
 
@@ -342,13 +334,13 @@ func TestGetN(t *testing.T) {
 		t.Errorf("expected 3 members instead of %d", len(members))
 	}
 	if members[0].ID != "opqrstu" {
-		t.Errorf("wrong members[0]: %q", members[0])
+		t.Errorf("wrong members[0]: %v", members[0])
 	}
 	if members[1].ID != "abcdefg" {
-		t.Errorf("wrong members[1]: %q", members[1])
+		t.Errorf("wrong members[1]: %v", members[1])
 	}
 	if members[2].ID != "hijklmn" {
-		t.Errorf("wrong members[2]: %q", members[2])
+		t.Errorf("wrong members[2]: %v", members[2])
 	}
 }
 
@@ -365,10 +357,10 @@ func TestGetNLess(t *testing.T) {
 		t.Errorf("expected 2 members instead of %d", len(members))
 	}
 	if members[0].ID != "hijklmn" {
-		t.Errorf("wrong members[0]: %q", members[0])
+		t.Errorf("wrong members[0]: %v", members[0])
 	}
 	if members[1].ID != "abcdefg" {
-		t.Errorf("wrong members[1]: %q", members[1])
+		t.Errorf("wrong members[1]: %v", members[1])
 	}
 }
 
@@ -385,13 +377,13 @@ func TestGetNMore(t *testing.T) {
 		t.Errorf("expected 3 members instead of %d", len(members))
 	}
 	if members[0].ID != "opqrstu" {
-		t.Errorf("wrong members[0]: %q", members[0])
+		t.Errorf("wrong members[0]: %v", members[0])
 	}
 	if members[1].ID != "abcdefg" {
-		t.Errorf("wrong members[1]: %q", members[1])
+		t.Errorf("wrong members[1]: %v", members[1])
 	}
 	if members[2].ID != "hijklmn" {
-		t.Errorf("wrong members[2]: %q", members[2])
+		t.Errorf("wrong members[2]: %v", members[2])
 	}
 }
 
@@ -414,7 +406,7 @@ func TestGetNQuick(t *testing.T) {
 	f := func(s string) bool {
 		members, err := x.GetN(s, 3)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
 		if len(members) != 3 {
@@ -429,7 +421,7 @@ func TestGetNQuick(t *testing.T) {
 			}
 			set[member.ID] = Node{}
 			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
-				t.Logf("invalid member: %q", member)
+				t.Logf("invalid member: %v", member)
 				return false
 			}
 		}
@@ -448,7 +440,7 @@ func TestGetNLessQuick(t *testing.T) {
 	f := func(s string) bool {
 		members, err := x.GetN(s, 2)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
 		if len(members) != 2 {
@@ -463,7 +455,7 @@ func TestGetNLessQuick(t *testing.T) {
 			}
 			set[member.ID] = Node{}
 			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
-				t.Logf("invalid member: %q", member)
+				t.Logf("invalid member: %v", member)
 				return false
 			}
 		}
@@ -482,7 +474,7 @@ func TestGetNMoreQuick(t *testing.T) {
 	f := func(s string) bool {
 		members, err := x.GetN(s, 5)
 		if err != nil {
-			t.Logf("error: %q", err)
+			t.Logf("error: %v", err)
 			return false
 		}
 		if len(members) != 3 {
@@ -497,7 +489,7 @@ func TestGetNMoreQuick(t *testing.T) {
 			}
 			set[member.ID] = Node{}
 			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
-				t.Logf("invalid member: %q", member)
+				t.Logf("invalid member: %v", member)
 				return false
 			}
 		}
@@ -513,7 +505,7 @@ func TestSet(t *testing.T) {
 	x.Add(NewNodeFromID("abc"))
 	x.Add(NewNodeFromID("def"))
 	x.Add(NewNodeFromID("ghi"))
-	x.Set([]Node{Node{ID: "jkl"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "jkl"}, {ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -527,10 +519,10 @@ func TestSet(t *testing.T) {
 	if b.ID != "jkl" && b.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", b)
 	}
-	if a == b {
+	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{ID: "pqr"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "pqr"}, {ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -544,10 +536,10 @@ func TestSet(t *testing.T) {
 	if b.ID != "pqr" && b.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", b)
 	}
-	if a == b {
+	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{Node{ID: "pqr"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "pqr"}, {ID: "mno"}})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -561,7 +553,7 @@ func TestSet(t *testing.T) {
 	if b.ID != "pqr" && b.ID != "mno" {
 		t.Errorf("expected jkl or mno, got %v", b)
 	}
-	if a == b {
+	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
 }
@@ -716,7 +708,7 @@ func TestAddCollision(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	if elt1 != elt2 {
+	if elt1.ID != elt2.ID {
 		t.Error(elt1, "and", elt2, "should be equal")
 	}
 }
@@ -753,16 +745,16 @@ func TestAddCollision(t *testing.T) {
 
 func TestConcurrentGetSet(t *testing.T) {
 	x := New()
-	x.Set([]Node{Node{ID: "abc"}, Node{ID: "def"}, Node{ID: "ghi"}, Node{ID: "jkl"}, Node{ID: "mno"}})
+	x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
-			for i := 0; i < 1000; i++ {
-				x.Set([]Node{Node{ID: "abc"}, Node{ID: "def"}, Node{ID: "ghi"}, Node{ID: "jkl"}, Node{ID: "mno"}})
+			for i := 0; i < 100; i++ {
+				x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-				x.Set([]Node{Node{ID: "pqr"}, Node{ID: "stu"}, Node{ID: "vwx"}})
+				x.Set([]Node{{ID: "pqr"}, {ID: "stu"}, {ID: "vwx"}})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}
 			wg.Done()
@@ -772,7 +764,7 @@ func TestConcurrentGetSet(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 100; i++ {
 				a, err := x.Get("xxxxxxx")
 				if err != nil {
 					t.Error(err)

@@ -23,6 +23,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
+// Trie is a patricia trie
 type Trie struct {
 	trie *patricia.Trie
 }
@@ -42,6 +43,7 @@ func (trie *Trie) Insert(key []byte, value []byte) (inserted bool) {
 	return
 }
 
+// Get returns the value according to the key
 func (trie *Trie) Get(key []byte) ([]byte, error) {
 	hashedKey := hash.HashB(key)
 

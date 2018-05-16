@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/boltdb/bolt"
+  packages = ["."]
+  revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
+  version = "v1.3.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
@@ -81,6 +87,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "70222b431040762f7bf94f6382a0dd65eef5e56e50e6dda39eae48e5795d35a5"
+  inputs-digest = "83a148ba6e0035f45dcba450e662f6926b610cf4d497ff5c73937b72e3f1caf3"
   solver-name = "gps-cdcl"
   solver-version = 1

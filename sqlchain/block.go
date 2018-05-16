@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// Package sqlchain provides a blockchain implementation for database state tracking.
 package sqlchain
 
 import (
@@ -27,7 +26,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/sign"
 )
 
-// Header is a block header
+// Header is a block header.
 type Header struct {
 	Version    int32
 	Producer   common.Address
@@ -37,7 +36,7 @@ type Header struct {
 	TimeStamp  time.Time
 }
 
-// SignedHeader is block header along with its producer signature
+// SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
 
@@ -46,16 +45,16 @@ type SignedHeader struct {
 	Signature *sign.Signature
 }
 
-// Block is a node of blockchain
+// Block is a node of blockchain.
 type Block struct {
 	SignedHeader *SignedHeader
 	Queries      []*Query
 }
 
-// Blocks is Block (reference) array
+// Blocks is Block (reference) array.
 type Blocks []*Block
 
-// SignHeader generates the signature for the Block from the given PrivateKey
+// SignHeader generates the signature for the Block from the given PrivateKey.
 func (b *Block) SignHeader(signer *sign.PrivateKey) (err error) {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
@@ -71,7 +70,7 @@ func (b *Block) SignHeader(signer *sign.PrivateKey) (err error) {
 	return err
 }
 
-// VerifyHeader verifies the signature of the Block
+// VerifyHeader verifies the signature of the Block.
 func (b *Block) VerifyHeader() bool {
 	return b.SignedHeader.Signature.Verify(b.SignedHeader.BlockHash[:], b.SignedHeader.Signee)
 }

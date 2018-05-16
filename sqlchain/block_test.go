@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// Package sqlchain provides a blockchain implementation for database state tracking.
 package sqlchain
 
 import (

@@ -16,25 +16,7 @@
 
 package sqlchain
 
-import (
-	"github.com/thunderdb/ThunderDB/common"
-)
-
-// QueryType enumerates the basic types of SQL query, i.e., ReadQuery or WriteQuery.
-// XXX(leventeliu): this may be defined in database implementation modules later.
-type QueryType int
-
-const (
-	// ReadQuery represents a read query like SELECT
-	ReadQuery QueryType = iota
-	// WriteQuery represents a write query like UPDATE/DELETE
-	WriteQuery
-)
-
-// Query represents a SQL query log
-type Query struct {
-	TxnID common.UUID
+// Config represents a sql-chain config
+type Config struct {
+	DataDir string
 }
-
-// Queries is a Query (reference) array
-type Queries []*Query

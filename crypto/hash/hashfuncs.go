@@ -16,7 +16,11 @@
 
 package hash
 
-import "crypto/sha256"
+import (
+	"crypto/sha256"
+	"hash/fnv"
+	"encoding/binary"
+)
 
 // HashB calculates hash(b) and returns the resulting bytes.
 func HashB(b []byte) []byte {
@@ -27,6 +31,18 @@ func HashB(b []byte) []byte {
 // HashH calculates hash(b) and returns the resulting bytes as a Hash.
 func HashH(b []byte) Hash {
 	return Hash(sha256.Sum256(b))
+}
+
+// FNVHash32B calculates hash(b) into [0, 2^64] and returns the resulting bytes.
+func FNVHash32B(b []byte) []byte {
+	hash := fnv.New32()
+	hash.Write(b)
+	return hash.Sum(nil)
+}
+
+// FNVHash32uint return the uint32 value of fnv hash 32 of b
+func FNVHash32uint(b []byte) uint32 {
+	return binary.BigEndian.Uint32(FNVHash32B(b))
 }
 
 // DoubleHashB calculates hash(hash(b)) and returns the resulting bytes.
@@ -42,3 +58,4 @@ func DoubleHashH(b []byte) Hash {
 	first := sha256.Sum256(b)
 	return Hash(sha256.Sum256(first[:]))
 }
+

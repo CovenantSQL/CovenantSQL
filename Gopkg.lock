@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/boltdb/bolt"
+  packages = ["."]
+  revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
+  version = "v1.3.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
@@ -24,6 +30,12 @@
   packages = ["."]
   revision = "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
   version = "v4.2.1"
+
+[[projects]]
+  name = "github.com/mattn/go-sqlite3"
+  packages = ["."]
+  revision = "6c771bb9887719704b210e87e934f08be014bdb1"
+  version = "v1.6.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -52,6 +64,12 @@
   version = "1.6.3"
 
 [[projects]]
+  name = "github.com/tchap/go-patricia"
+  packages = ["patricia"]
+  revision = "666120de432aea38ab06bd5c818f04f4129882c9"
+  version = "v2.2.6"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -69,6 +87,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "87839b9beab040aebf21759cebea68540993dfc0f54cd6553654b3518e222b21"
+  inputs-digest = "83a148ba6e0035f45dcba450e662f6926b610cf4d497ff5c73937b72e3f1caf3"
   solver-name = "gps-cdcl"
   solver-version = 1

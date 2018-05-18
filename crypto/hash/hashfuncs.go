@@ -18,8 +18,8 @@ package hash
 
 import (
 	"crypto/sha256"
-	"hash/fnv"
 	"encoding/binary"
+	"hash/fnv"
 )
 
 // HashB calculates hash(b) and returns the resulting bytes.
@@ -58,4 +58,3 @@ func DoubleHashH(b []byte) Hash {
 	first := sha256.Sum256(b)
 	return Hash(sha256.Sum256(first[:]))
 }
-

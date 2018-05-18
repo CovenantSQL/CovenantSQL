@@ -17,9 +17,9 @@
 package hash
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
-	"bytes"
 )
 
 // TestHashFuncs ensures the hash functions which perform hash(b) work as
@@ -151,8 +151,8 @@ func TestDoubleHashFuncs(t *testing.T) {
 func TestFNVHash32B(t *testing.T) {
 	tests := []struct {
 		out []byte
-		in string
-	} {
+		in  string
+	}{
 		{[]byte{0x81, 0x1c, 0x9d, 0xc5}, ""},
 		{[]byte{0x05, 0x0c, 0x5d, 0x7e}, "a"},
 		{[]byte{0x70, 0x77, 0x2d, 0x38}, "ab"},
@@ -172,8 +172,8 @@ func TestFNVHash32B(t *testing.T) {
 func TestFNVHash32uint(t *testing.T) {
 	tests := []struct {
 		out uint32
-		in string
-	} {
+		in  string
+	}{
 		{2166136261, ""},
 		{84696446, "a"},
 		{1886858552, "ab"},

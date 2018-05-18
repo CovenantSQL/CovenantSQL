@@ -26,7 +26,7 @@ import (
 )
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {
-	NewNodeIDDifficultyTimeout = 60000 * time.Millisecond
+	NewNodeIDDifficultyTimeout = 6000 * time.Millisecond
 	Convey("InitNodeCryptoInfo", t, func() {
 		node := NewNode()
 		err := node.InitNodeCryptoInfo()

@@ -1,3 +1,5 @@
+.gitignore
+.travis.yml
 coverage.txt
 analysisVendor.png
 

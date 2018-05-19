@@ -50,37 +50,41 @@ func evpBytesToKey(password string, keyLen int) (key []byte) {
 	return m[:keyLen]
 }
 
-// DecOrEnc is a flag to decide Decrypt or Encrypt
-type DecOrEnc int
-
-const (
-	decrypt DecOrEnc = iota
-	encrypt
-)
-
-func newStream(block cipher.Block, err error, key, iv []byte,
-	doe DecOrEnc) (cipher.Stream, error) {
+func newDecStream(block cipher.Block, err error, key, iv []byte) (cipher.Stream, error) {
 	if err != nil {
 		return nil, err
-	}
-	if doe == encrypt {
-		return cipher.NewCFBEncrypter(block, iv), nil
 	}
 	return cipher.NewCFBDecrypter(block, iv), nil
 }
 
-func newAESCFBStream(key, iv []byte, doe DecOrEnc) (cipher.Stream, error) {
+func newEncStream(block cipher.Block, err error, key, iv []byte) (cipher.Stream, error) {
+	if err != nil {
+		return nil, err
+	}
+	return cipher.NewCFBEncrypter(block, iv), nil
+}
+
+func newAESCFBEncStream(key, iv []byte) (cipher.Stream, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	return newStream(block, err, key, iv, doe)
+	return newEncStream(block, err, key, iv)
+}
+
+func newAESCFBDecStream(key, iv []byte) (cipher.Stream, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	return newDecStream(block, err, key, iv)
 }
 
 type cipherInfo struct {
-	keyLen    int
-	ivLen     int
-	newStream func(key, iv []byte, doe DecOrEnc) (cipher.Stream, error)
+	keyLen       int
+	ivLen        int
+	newDecStream func(key, iv []byte) (cipher.Stream, error)
+	newEncStream func(key, iv []byte) (cipher.Stream, error)
 }
 
 // Cipher struct keep cipher mode, key, iv
@@ -94,7 +98,12 @@ type Cipher struct {
 
 // NewCipher creates a cipher that can be used in Dial(), Listen() etc.
 func NewCipher(password string) (c *Cipher) {
-	mi := &cipherInfo{32, 16, newAESCFBStream}
+	mi := &cipherInfo{
+		32,
+		16,
+		newAESCFBDecStream,
+		newAESCFBEncStream,
+	}
 	key := evpBytesToKey(password, mi.keyLen)
 	c = &Cipher{key: key, info: mi}
 
@@ -112,12 +121,12 @@ func (c *Cipher) initEncrypt() (iv []byte, err error) {
 	} else {
 		iv = c.iv
 	}
-	c.enc, err = c.info.newStream(c.key, iv, encrypt)
+	c.enc, err = c.info.newEncStream(c.key, iv)
 	return
 }
 
 func (c *Cipher) initDecrypt(iv []byte) (err error) {
-	c.dec, err = c.info.newStream(c.key, iv, decrypt)
+	c.dec, err = c.info.newDecStream(c.key, iv)
 	return
 }
 

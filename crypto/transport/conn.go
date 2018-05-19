@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Package transport implement Secure Transport Layer
+// example can be found in test case
 package transport
 
 import (

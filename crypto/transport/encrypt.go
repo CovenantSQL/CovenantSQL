@@ -19,48 +19,41 @@ package transport
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/md5"
 	"crypto/rand"
 	"io"
+
+	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-func md5sum(d []byte) []byte {
-	h := md5.New()
-	h.Write(d)
-	return h.Sum(nil)
-}
+// KeyDerivation, according to ANSI X9.63 we should do a key derivation before using
+// it as a symmetric key, there is not really a common standard KDF(Key Derivation Func).
+// But as SSL/TLS/DTLS did it described in "RFC 4492 TLS ECC", we prefer a Double
+// SHA3-256 with it.
+func KeyDerivation(rawKey []byte, keyLen int, hSuite *hash.HashSuite) (key []byte) {
+	hashLen := hSuite.HashLen
 
-func evpBytesToKey(password string, keyLen int) (key []byte) {
-	const md5Len = 16
+	cnt := (keyLen-1)/hashLen + 1
+	m := make([]byte, cnt*hashLen)
+	copy(m, hSuite.HashFunc(rawKey))
 
-	cnt := (keyLen-1)/md5Len + 1
-	m := make([]byte, cnt*md5Len)
-	copy(m, md5sum([]byte(password)))
-
-	// Repeatedly call md5 until bytes generated is enough.
-	// Each call to md5 uses data: prev md5 sum + password.
-	d := make([]byte, md5Len+len(password))
+	// Repeatedly call HashFunc until bytes generated is enough.
+	// Each call to HashFunc uses data: prev hash + rawKey.
+	d := make([]byte, hashLen+len(rawKey))
 	start := 0
 	for i := 1; i < cnt; i++ {
-		start += md5Len
-		copy(d, m[start-md5Len:start])
-		copy(d[md5Len:], password)
-		copy(m[start:], md5sum(d))
+		start += hashLen
+		copy(d, m[start-hashLen:start])
+		copy(d[hashLen:], rawKey)
+		copy(m[start:], hSuite.HashFunc(d))
 	}
 	return m[:keyLen]
 }
 
-func newDecStream(block cipher.Block, err error, key, iv []byte) (cipher.Stream, error) {
-	if err != nil {
-		return nil, err
-	}
+func newDecStream(block cipher.Block, iv []byte) (cipher.Stream, error) {
 	return cipher.NewCFBDecrypter(block, iv), nil
 }
 
-func newEncStream(block cipher.Block, err error, key, iv []byte) (cipher.Stream, error) {
-	if err != nil {
-		return nil, err
-	}
+func newEncStream(block cipher.Block, iv []byte) (cipher.Stream, error) {
 	return cipher.NewCFBEncrypter(block, iv), nil
 }
 
@@ -69,7 +62,7 @@ func newAESCFBEncStream(key, iv []byte) (cipher.Stream, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newEncStream(block, err, key, iv)
+	return newEncStream(block, iv)
 }
 
 func newAESCFBDecStream(key, iv []byte) (cipher.Stream, error) {
@@ -77,7 +70,7 @@ func newAESCFBDecStream(key, iv []byte) (cipher.Stream, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newDecStream(block, err, key, iv)
+	return newDecStream(block, iv)
 }
 
 type cipherInfo struct {
@@ -97,14 +90,18 @@ type Cipher struct {
 }
 
 // NewCipher creates a cipher that can be used in Dial(), Listen() etc.
-func NewCipher(password string) (c *Cipher) {
+func NewCipher(rawKey []byte) (c *Cipher) {
 	mi := &cipherInfo{
 		32,
 		16,
 		newAESCFBDecStream,
 		newAESCFBEncStream,
 	}
-	key := evpBytesToKey(password, mi.keyLen)
+	hSuite := &hash.HashSuite{
+		HashLen:  32,
+		HashFunc: hash.DoubleHashB,
+	}
+	key := KeyDerivation(rawKey, mi.keyLen, hSuite)
 	c = &Cipher{key: key, info: mi}
 
 	return c

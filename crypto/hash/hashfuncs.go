@@ -22,6 +22,11 @@ import (
 	"hash/fnv"
 )
 
+type HashSuite struct {
+	HashLen  int
+	HashFunc func([]byte) []byte
+}
+
 // HashB calculates hash(b) and returns the resulting bytes.
 func HashB(b []byte) []byte {
 	hash := sha256.Sum256(b)

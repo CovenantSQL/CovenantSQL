@@ -45,7 +45,7 @@ func (l *CryptoListener) Accept() (net.Conn, error) {
 		log.Error(err)
 		return nil, err
 	}
-	cipher := NewCipher(l.testPass)
+	cipher := NewCipher([]byte(l.testPass))
 
 	return NewConn(c, cipher), nil
 }

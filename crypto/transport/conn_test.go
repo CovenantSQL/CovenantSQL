@@ -71,7 +71,7 @@ func server(pass string) *CryptoListener {
 
 func client(pass string) (ret int, err error) {
 
-	cipher := NewCipher(pass)
+	cipher := NewCipher([]byte(pass))
 
 	conn, err := Dial("tcp", service, cipher)
 	//conn, err := net.Dial("tcp", service)

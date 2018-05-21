@@ -20,14 +20,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/etls"
 	"github.com/thunderdb/ThunderDB/route"
+	"github.com/thunderdb/ThunderDB/rpc"
 )
 
-func startRPCServer() {
-
-}
-
-func startDHT() {
-	addr := "127.0.0.1:0"
+func startRPCServer(addr string, server *rpc.Server) {
 	pass := "12345"
 
 	l, err := etls.NewCryptoListener("tcp", addr, pass)
@@ -35,13 +31,10 @@ func startDHT() {
 		log.Fatal(err)
 	}
 
-	dhtServer, err := route.InitDHTServer(l)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Register service by a name
+	server.RegisterService("DHT", route.NewDHTService())
 
-	go dhtServer.Serve()
+	server.SetListener(l)
 
-	dhtServer.Stop()
-
+	go server.Serve()
 }

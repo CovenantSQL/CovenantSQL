@@ -30,11 +30,12 @@ var prof struct {
 }
 
 // StartProfile initializes the CPU and memory profile, if specified.
-func StartProfile(cpuprofile, memprofile string) {
+func StartProfile(cpuprofile, memprofile string) error {
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
 		if err != nil {
-			log.Fatalf("failed to create CPU profile file at %s: %s", cpuprofile, err.Error())
+			log.Errorf("failed to create CPU profile file at %s: %s", cpuprofile, err.Error())
+			return err
 		}
 		log.Infof("writing CPU profile to: %s\n", cpuprofile)
 		prof.cpu = f
@@ -44,12 +45,14 @@ func StartProfile(cpuprofile, memprofile string) {
 	if memprofile != "" {
 		f, err := os.Create(memprofile)
 		if err != nil {
-			log.Fatalf("failed to create memory profile file at %s: %s", cpuprofile, err.Error())
+			log.Errorf("failed to create memory profile file at %s: %s", cpuprofile, err.Error())
+			return err
 		}
 		log.Infof("writing memory profile to: %s\n", memprofile)
 		prof.mem = f
 		runtime.MemProfileRate = 4096
 	}
+	return nil
 }
 
 // StopProfile closes the CPU and memory profiles if they are running.

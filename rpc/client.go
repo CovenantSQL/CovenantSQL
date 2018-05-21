@@ -31,12 +31,12 @@ type Client struct {
 	*rpc.Client
 }
 
-// NewClient return a RPC client
+// NewClient returns a RPC client
 func NewClient() *Client {
 	return &Client{}
 }
 
-// InitClient init client with connection to given addr
+// InitClient inits client with connection to given addr
 func InitClient(addr string) (client *Client, err error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -45,14 +45,14 @@ func InitClient(addr string) (client *Client, err error) {
 	return InitClientConn(conn)
 }
 
-// InitClientConn init client with connection to given addr
+// InitClientConn inits client with connection to given addr
 func InitClientConn(conn net.Conn) (client *Client, err error) {
 	client = NewClient()
 	client.start(conn)
 	return client, nil
 }
 
-// start init session and set RPC codec
+// start inits session and set RPC codec
 func (c *Client) start(conn net.Conn) {
 	sess, err := yamux.Client(conn, nil)
 	if err != nil {

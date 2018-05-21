@@ -12,9 +12,12 @@ function getversion() {
 cd `dirname $0`
 
 version=`getversion`
-pkgpath="github.com/thunderdb/ThunderDB/cmd/thunderdbd"
 
-go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd ${pkgpath}
+thunderdbd_pkgpath="github.com/thunderdb/ThunderDB/cmd/thunderdbd"
+go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd ${thunderdbd_pkgpath}
+
+miner_pkgpath="github.com/thunderdb/ThunderDB/cmd/miner"
+go build -ldflags "-X main.version=${version}"  -o bin/thunderminerd ${miner_pkgpath}
 
 #echo "build thunderdbd-linux"
 #GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd-linux ${pkgpath}

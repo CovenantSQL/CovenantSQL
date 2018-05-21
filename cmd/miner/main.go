@@ -30,12 +30,21 @@ import (
 )
 
 const logo = `
- _____ _                     _           ____  ____
-|_   _| |__  _   _ _ __   __| | ___ _ __|  _ \| __ )
-  | | | '_ \| | | | '_ \ / _' |/ _ \ '__| | | |  _ \
-  | | | | | | |_| | | | | (_| |  __/ |  | |_| | |_) |
-  |_| |_| |_|\__,_|_| |_|\__,_|\___|_|  |____/|____/
+ _______ _                     _           _____  ____  
+|__   __| |                   | |         |  __ \|  _ \ 
+   | |  | |__  _   _ _ __   __| | ___ _ __| |  | | |_) |
+   | |  | '_ \| | | | '_ \ / _| |/ _ \ '__| |  | |  _ <
+   | |  | | | | |_| | | | | (_| |  __/ |  | |__| | |_) |
+   |_|  |_| |_|\__,_|_| |_|\__,_|\___|_|  |_____/|____/
 
+  _____ ______   ___  ________   _______   ________     
+  |\   _ \  _   \|\  \|\   ___  \|\  ___ \ |\   __  \    
+  \ \  \\\__\ \  \ \  \ \  \\ \  \ \   __/|\ \  \|\  \   
+   \ \  \\|__| \  \ \  \ \  \\ \  \ \  \_|/_\ \   _  _\  
+    \ \  \    \ \  \ \  \ \  \\ \  \ \  \_|\ \ \  \\  \| 
+     \ \__\    \ \__\ \__\ \__\\ \__\ \_______\ \__\\ _\ 
+      \|__|     \|__|\|__|\|__| \|__|\|_______|\|__|\|__|
+                                                       
 `
 
 var (
@@ -45,6 +54,16 @@ var (
 )
 
 var (
+	// database
+	minPort      int
+	maxPort      int
+	bindAddr     string
+	publicAddr   string
+	expvar       bool
+	pprofEnabled bool
+	dsn          string
+	onDisk       bool
+
 	// raft
 	raftHeartbeatTimeout time.Duration
 	raftApplyTimeout     time.Duration
@@ -73,6 +92,14 @@ const desc = `ThunderDB is a database`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
+	flag.IntVar(&minPort, "min-port", 10000, "Minimum port to allocate")
+	flag.IntVar(&maxPort, "max-port", 20000, "Maximum port to allocate")
+	flag.StringVar(&bindAddr, "bind-addr", "0.0.0.0", "Addr to bind in local interfaces")
+	flag.StringVar(&publicAddr, "public-addr", "", "Addr to be accessed by internet")
+	flag.BoolVar(&expvar, "expvar", true, "Serve expvar data on api server")
+	flag.BoolVar(&pprofEnabled, "pprof", true, "Serve pprof data on api server")
+	flag.StringVar(&dsn, "dsn", "", `SQLite DSN parameters. E.g. "cache=shared&mode=memory"`)
+	flag.BoolVar(&onDisk, "on-disk", false, "Use an on-disk SQLite database")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.DurationVar(&raftHeartbeatTimeout, "raft-timeout", time.Second, "Raft heartbeat timeout")
 	flag.DurationVar(&raftApplyTimeout, "raft-apply-timeout", time.Second*10, "Raft apply timeout")
@@ -120,15 +147,21 @@ func main() {
 		fmt.Print(logo)
 	}
 
+	// validate args
+	if minPort >= maxPort {
+		log.Fatal("a valid port range is required")
+		os.Exit(2)
+	} else if maxPort-minPort < 1 {
+		log.Fatal("at least two port in random port range is required")
+		os.Exit(2)
+	}
+
 	// set random
 	rand.Seed(time.Now().UnixNano())
 
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
-
-	// start RPC server
-	startRPCServer("0.0.0.0:2120", rpcServer)
 
 	log.Info("server stopped")
 }

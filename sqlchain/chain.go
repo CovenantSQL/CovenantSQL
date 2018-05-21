@@ -22,8 +22,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/boltdb/bolt"
 	"github.com/btcsuite/btcd/btcec"
+	bolt "github.com/coreos/bbolt"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 

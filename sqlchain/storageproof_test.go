@@ -22,11 +22,12 @@ import (
 	"testing"
 
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 var (
-	currentNode   Node
-	voidNode      Node
+	currentNode   proto.Node
+	voidNode      proto.Node
 	answers       []Answer
 	voidAnswer    []Answer
 	previousBlock StorageProofBlock
@@ -150,41 +151,41 @@ func TestGenerateAnswer(t *testing.T) {
 }
 
 func init() {
-	currentNode = Node{"123456"}
+	currentNode = proto.Node{ID: "123456"}
 	currentBlock = StorageProofBlock{
 		ID:    "def",
-		Nodes: []Node{Node{"a"}, Node{"b"}, Node{"c"}, Node{"d"}, Node{"e"}},
+		Nodes: []proto.Node{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}, {ID: "e"}},
 	}
 	previousBlock = StorageProofBlock{
 		ID:    "abc",
-		Nodes: []Node{Node{"a"}, Node{"b"}, Node{"c"}, Node{"d"}},
+		Nodes: []proto.Node{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
 	}
 	voidBlock = StorageProofBlock{
 		ID:    "",
 		Nodes: nil,
 	}
 	answers = []Answer{
-		Answer{
+		{
 			PreviousBlockID: previousBlock.ID,
 			NodeID:          currentNode.ID,
 			Answer:          hash.HashH([]byte{1}),
 		},
-		Answer{
+		{
 			PreviousBlockID: previousBlock.ID,
 			NodeID:          currentNode.ID,
 			Answer:          hash.HashH([]byte{2}),
 		},
-		Answer{
+		{
 			PreviousBlockID: previousBlock.ID,
 			NodeID:          currentNode.ID,
 			Answer:          hash.HashH([]byte{3}),
 		},
-		Answer{
+		{
 			PreviousBlockID: previousBlock.ID,
 			NodeID:          currentNode.ID,
 			Answer:          hash.HashH([]byte{4}),
 		},
 	}
 	voidAnswer = nil
-	voidNode = Node{""}
+	voidNode = proto.Node{Name: ""}
 }

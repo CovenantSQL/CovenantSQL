@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
+	bolt "github.com/coreos/bbolt"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )

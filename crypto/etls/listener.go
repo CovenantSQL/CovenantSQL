@@ -22,14 +22,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// CryptoListener implement net.Listener
+// CryptoListener implements net.Listener
 // testPass is used for JUST test
 type CryptoListener struct {
 	listener net.Listener
 	testPass string
 }
 
-// NewCryptoListener return a new CryptoListener
+// NewCryptoListener returns a new CryptoListener
 func NewCryptoListener(network, addr, pass string) (*CryptoListener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {

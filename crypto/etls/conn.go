@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Package etls implement "Enhanced Transport Layer Security", but more efficient
+// Package etls implements "Enhanced Transport Layer Security", but more efficient
 // than TLS used in https.
 // example can be found in test case
 package etls
@@ -27,13 +27,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// CryptoConn implement net.Conn and Cipher interface
+// CryptoConn implements net.Conn and Cipher interface
 type CryptoConn struct {
 	conn net.Conn
 	*Cipher
 }
 
-// NewConn return a new CryptoConn
+// NewConn returns a new CryptoConn
 func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 	return &CryptoConn{
 		conn:   c,
@@ -41,7 +41,7 @@ func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 	}
 }
 
-// Dial connect to a address with a Cipher
+// Dial connects to a address with a Cipher
 // address should be in the form of host:port
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	conn, err := net.Dial(network, address)

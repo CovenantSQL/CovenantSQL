@@ -26,7 +26,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// KeyDerivation according to ANSI X9.63 we should do a key derivation before using
+// KeyDerivation .according to ANSI X9.63 we should do a key derivation before using
 // it as a symmetric key, there is not really a common standard KDF(Key Derivation Func).
 // But as SSL/TLS/DTLS did it described in "RFC 4492 TLS ECC", we prefer a Double
 // SHA3-256 with it.
@@ -81,7 +81,7 @@ type cipherInfo struct {
 	newEncStream func(key, iv []byte) (cipher.Stream, error)
 }
 
-// Cipher struct keep cipher mode, key, iv
+// Cipher struct keeps cipher mode, key, iv
 type Cipher struct {
 	encStream  cipher.Stream
 	decStream  cipher.Stream

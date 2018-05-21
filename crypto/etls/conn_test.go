@@ -19,10 +19,8 @@ package etls
 import (
 	"net"
 	"net/rpc"
-	"testing"
-
 	"strings"
-
+	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"

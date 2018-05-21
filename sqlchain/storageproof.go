@@ -20,6 +20,7 @@ import (
 	"errors"
 
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 // Answer is responded by node to confirm other nodes that the node stores data correctly
@@ -27,13 +28,13 @@ type Answer struct {
 	// The block id that the question belongs to
 	PreviousBlockID BlockID
 	// The node id that provides this answer
-	NodeID NodeID
+	NodeID proto.NodeID
 	// The answer for the question
 	Answer hash.Hash
 }
 
 // NewAnswer generates an answer for storage proof
-func NewAnswer(previousBlockID BlockID, nodeID NodeID, answer hash.Hash) *Answer {
+func NewAnswer(previousBlockID BlockID, nodeID proto.NodeID, answer hash.Hash) *Answer {
 	return &Answer{
 		PreviousBlockID: previousBlockID,
 		NodeID:          nodeID,
@@ -97,7 +98,7 @@ func CheckValid(answers []Answer) bool {
 // GenerateAnswer will select specified record for proving.
 // In order to generate a unique answer which is different with other nodes' answer,
 // we hash(record + nodeID) as the answer
-func GenerateAnswer(answers []Answer, previousBlock StorageProofBlock, node Node) (*Answer, error) {
+func GenerateAnswer(answers []Answer, previousBlock StorageProofBlock, node proto.Node) (*Answer, error) {
 	sqlIndex, err := getNextPuzzle(answers, previousBlock)
 	if err != nil {
 		return nil, err

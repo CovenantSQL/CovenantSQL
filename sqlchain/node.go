@@ -16,21 +16,15 @@
 
 package sqlchain
 
-// NodeID is node name, will be generated from Hash(nodePublicKey)
-type NodeID string
+import "github.com/thunderdb/ThunderDB/proto"
 
 // BlockID is the hash of block content
 type BlockID string
-
-// Node stores the information of node
-type Node struct {
-	ID NodeID
-}
 
 // StorageProofBlock records block's status
 type StorageProofBlock struct {
 	// Block id
 	ID BlockID
 	// Nodes with index in the SQL chain.
-	Nodes []Node
+	Nodes []proto.Node
 }

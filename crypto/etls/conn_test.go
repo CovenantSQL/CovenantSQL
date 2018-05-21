@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package transport
+package etls
 
 import (
 	"net"
@@ -43,6 +43,7 @@ func (f *Foo) Bar(args *string, res *Result) error {
 }
 
 const service = "127.0.0.1:28000"
+const contentLength = 9999
 
 func server(pass string) *CryptoListener {
 	if err := rpc.Register(new(Foo)); err != nil {
@@ -87,7 +88,7 @@ func client(pass string) (ret int, err error) {
 	log.Println("client: connected to: ", conn.RemoteAddr())
 	rpcClient := rpc.NewClient(conn)
 	res := new(Result)
-	args := strings.Repeat("a", 9999)
+	args := strings.Repeat("a", contentLength)
 	if err := rpcClient.Call("Foo.Bar", args, &res); err != nil {
 		log.Error("Failed to call RPC", err)
 		return 0, err
@@ -111,7 +112,7 @@ func TestConn(t *testing.T) {
 	})
 	Convey("server client OK", t, func() {
 		ret, err := client(pass)
-		So(ret, ShouldEqual, 9999)
+		So(ret, ShouldEqual, contentLength)
 		So(err, ShouldBeNil)
 	})
 	Convey("pass not match", t, func() {

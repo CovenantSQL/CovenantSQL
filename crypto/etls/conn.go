@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-// Package transport implement Secure Transport Layer
+// Package etls implement "Enhanced Transport Layer Security", but more efficient
+// than TLS used in https.
 // example can be found in test case
-package transport
+package etls
 
 import (
 	"io"
 	"net"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // CryptoConn implement net.Conn and Cipher interface
@@ -42,6 +45,10 @@ func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 // address should be in the form of host:port
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
+	if err != nil {
+		log.Errorf("Connect to %s failed: %v", address, err)
+		return
+	}
 	c = NewConn(conn, cipher)
 	c.conn = conn
 	return
@@ -49,9 +56,10 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 
 // Read iv and Encrypted data
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
-	if c.dec == nil {
+	if c.decStream == nil {
 		iv := make([]byte, c.info.ivLen)
 		if _, err = io.ReadFull(c.conn, iv); err != nil {
+			log.Error(err)
 			return
 		}
 		if err = c.initDecrypt(iv); err != nil {
@@ -65,6 +73,10 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	cipherData := make([]byte, len(b))
 
 	n, err = c.conn.Read(cipherData)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	if n > 0 {
 		c.decrypt(b[0:n], cipherData[0:n])
 	}
@@ -74,7 +86,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 // Write iv and Encrypted data
 func (c *CryptoConn) Write(b []byte) (n int, err error) {
 	var iv []byte
-	if c.enc == nil {
+	if c.encStream == nil {
 		iv, err = c.initEncrypt()
 		if err != nil {
 			return

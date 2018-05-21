@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package transport
+package etls
 
 import (
 	"crypto/aes"
@@ -22,6 +22,7 @@ import (
 	"crypto/rand"
 	"io"
 
+	ec "github.com/btcsuite/btcd/btcec"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
@@ -82,11 +83,13 @@ type cipherInfo struct {
 
 // Cipher struct keep cipher mode, key, iv
 type Cipher struct {
-	enc  cipher.Stream
-	dec  cipher.Stream
-	key  []byte
-	info *cipherInfo
-	iv   []byte
+	encStream  cipher.Stream
+	decStream  cipher.Stream
+	publicKey  ec.PublicKey
+	privateKey ec.PrivateKey
+	key        []byte
+	info       *cipherInfo
+	iv         []byte
 }
 
 // NewCipher creates a cipher that can be used in Dial(), Listen() etc.
@@ -118,19 +121,19 @@ func (c *Cipher) initEncrypt() (iv []byte, err error) {
 	} else {
 		iv = c.iv
 	}
-	c.enc, err = c.info.newEncStream(c.key, iv)
+	c.encStream, err = c.info.newEncStream(c.key, iv)
 	return
 }
 
 func (c *Cipher) initDecrypt(iv []byte) (err error) {
-	c.dec, err = c.info.newDecStream(c.key, iv)
+	c.decStream, err = c.info.newDecStream(c.key, iv)
 	return
 }
 
 func (c *Cipher) encrypt(dst, src []byte) {
-	c.enc.XORKeyStream(dst, src)
+	c.encStream.XORKeyStream(dst, src)
 }
 
 func (c *Cipher) decrypt(dst, src []byte) {
-	c.dec.XORKeyStream(dst, src)
+	c.decStream.XORKeyStream(dst, src)
 }

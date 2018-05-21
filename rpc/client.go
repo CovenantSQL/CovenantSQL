@@ -42,6 +42,11 @@ func InitClient(addr string) (client *Client, err error) {
 	if err != nil {
 		return nil, err
 	}
+	return InitClientConn(conn)
+}
+
+// InitClientConn init client with connection to given addr
+func InitClientConn(conn net.Conn) (client *Client, err error) {
 	client = NewClient()
 	client.start(conn)
 	return client, nil

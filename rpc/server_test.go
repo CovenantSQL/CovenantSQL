@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/etls"
 	"github.com/thunderdb/ThunderDB/utils"
 )
 
@@ -110,6 +111,46 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 	go server.Serve()
 
 	client, err := InitClient(l.Addr().String())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	repSimple := new(int)
+	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
+	if err != nil {
+		log.Fatal(err)
+	}
+	utils.CheckNum(*repSimple, 10, t)
+
+	client.Close()
+	server.Stop()
+}
+
+func TestEncryptIncCounterSimpleArgs(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	addr := "127.0.0.1:0"
+	pass := "12345"
+
+	l, err := etls.NewCryptoListener("tcp", addr, pass)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server.SetListener(l)
+	go server.Serve()
+
+	cipher := etls.NewCipher([]byte(pass))
+	conn, err := etls.Dial("tcp", l.Addr().String(), cipher)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client, err := InitClientConn(conn)
 	if err != nil {
 		log.Fatal(err)
 	}

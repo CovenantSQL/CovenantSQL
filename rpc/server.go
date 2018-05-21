@@ -28,7 +28,7 @@ import (
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
-// ServiceMap map service name to service instance
+// ServiceMap maps service name to service instance
 type ServiceMap map[string]interface{}
 
 // Server is the RPC server struct

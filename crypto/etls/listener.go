@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package transport
+package etls
 
 import (
 	"net"
@@ -22,14 +22,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// CryptoListener implement net.Listener
+// CryptoListener implements net.Listener
 // testPass is used for JUST test
 type CryptoListener struct {
 	listener net.Listener
 	testPass string
 }
 
-// NewCryptoListener return a new CryptoListener
+// NewCryptoListener returns a new CryptoListener
 func NewCryptoListener(network, addr, pass string) (*CryptoListener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
@@ -45,7 +45,7 @@ func (l *CryptoListener) Accept() (net.Conn, error) {
 		log.Error(err)
 		return nil, err
 	}
-	cipher := NewCipher(l.testPass)
+	cipher := NewCipher([]byte(l.testPass))
 
 	return NewConn(c, cipher), nil
 }

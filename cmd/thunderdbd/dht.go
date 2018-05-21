@@ -14,23 +14,34 @@
  * limitations under the License.
  */
 
-// Package route provides DHT routing functions
-package route
+package main
 
 import (
-	"net"
-
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/rpc"
+	"github.com/thunderdb/ThunderDB/crypto/etls"
+	"github.com/thunderdb/ThunderDB/route"
 )
 
-// InitDHTServer install DHTService payload to RPC server, also set listener
-func InitDHTServer(l net.Listener) (server *rpc.Server, err error) {
-	server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": NewDHTService()})
+func startRPCServer() {
+
+}
+
+func startDHT() {
+	addr := "127.0.0.1:0"
+	pass := "12345"
+
+	l, err := etls.NewCryptoListener("tcp", addr, pass)
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
-	server.SetListener(l)
-	return
+
+	dhtServer, err := route.InitDHTServer(l)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go dhtServer.Serve()
+
+	dhtServer.Stop()
+
 }

@@ -49,6 +49,23 @@ func TestGenSecp256k1Keypair(t *testing.T) {
 	}
 }
 
+func TestGenECDHSharedSecret(t *testing.T) {
+	privateKey1, publicKey1, _ := GenSecp256k1Keypair()
+	privateKey2, publicKey2, _ := GenSecp256k1Keypair()
+	shared1 := GenECDHSharedSecret(privateKey1, publicKey2)
+	shared2 := GenECDHSharedSecret(privateKey2, publicKey1)
+	if len(shared1) <= 0 {
+		t.Errorf("shared length should not be %d", len(shared1))
+	}
+
+	for i, b := range shared1 {
+		if b != shared2[i] {
+			t.Error("shared1 and shared2 should be equel")
+		}
+	}
+	//t.Log(shared1)
+}
+
 func TestGetPubKeyNonce(t *testing.T) {
 	Convey("translate key error", t, func() {
 		_, publicKey, err := GenSecp256k1Keypair()

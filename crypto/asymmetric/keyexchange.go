@@ -14,23 +14,16 @@
  * limitations under the License.
  */
 
-// Package route provides DHT routing functions
-package route
+package asymmetric
 
-import (
-	"net"
+import ec "github.com/btcsuite/btcd/btcec"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/rpc"
-)
-
-// InitDHTServer install DHTService payload to RPC server, also set listener
-func InitDHTServer(l net.Listener) (server *rpc.Server, err error) {
-	server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": NewDHTService()})
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	server.SetListener(l)
-	return
+// GenECDHSharedSecret is just a wrapper of ec.GenerateSharedSecret which
+// generates a shared secret based on a private key and a
+// public key using Diffie-Hellman key exchange (ECDH) (RFC 4753).
+// RFC5903 Section 9 states we should only return x.
+// Key Feature:
+// 		GenECDHSharedSecret(BPub, APriv) == GenECDHSharedSecret(APub, BPriv)
+func GenECDHSharedSecret(privateKey *ec.PrivateKey, publicKey *ec.PublicKey) []byte {
+	return ec.GenerateSharedSecret(privateKey, publicKey)
 }

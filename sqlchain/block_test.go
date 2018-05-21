@@ -23,7 +23,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/sign"
+	"github.com/thunderdb/ThunderDB/crypto/signature"
 )
 
 func TestSign(t *testing.T) {
@@ -43,7 +43,7 @@ func TestSign(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		priv, pub := sign.PrivKeyFromBytes(btcec.S256(), test.key)
+		priv, pub := signature.PrivKeyFromBytes(btcec.S256(), test.key)
 		header := Header{
 			Version: int32(0x01000000),
 			Producer: common.Address{

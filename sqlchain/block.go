@@ -23,7 +23,7 @@ import (
 
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/sign"
+	"github.com/thunderdb/ThunderDB/crypto/signature"
 )
 
 // Header is a block header.
@@ -41,8 +41,8 @@ type SignedHeader struct {
 	Header
 
 	BlockHash hash.Hash
-	Signee    *sign.PublicKey
-	Signature *sign.Signature
+	Signee    *signature.PublicKey
+	Signature *signature.Signature
 }
 
 // Block is a node of blockchain.
@@ -55,7 +55,7 @@ type Block struct {
 type Blocks []*Block
 
 // SignHeader generates the signature for the Block from the given PrivateKey.
-func (b *Block) SignHeader(signer *sign.PrivateKey) (err error) {
+func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
 	err = enc.Encode(b.SignedHeader.Header)

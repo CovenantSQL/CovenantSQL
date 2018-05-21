@@ -25,7 +25,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/sign"
+	"github.com/thunderdb/ThunderDB/crypto/signature"
 )
 
 var (
@@ -55,7 +55,7 @@ func produceTestBlocks() (err error) {
 		},
 	}
 
-	priv, pub := sign.PrivKeyFromBytes(btcec.S256(), keyStore.key)
+	priv, pub := signature.PrivKeyFromBytes(btcec.S256(), keyStore.key)
 	prev := genesisHash
 
 	for index := 0; index < blockNum; index++ {

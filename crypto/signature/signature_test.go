@@ -16,7 +16,7 @@
 
 // Package sign is a wrapper of btcsuite's signature package, except that it only exports types and
 // functions which will be used by ThunderDB.
-package sign
+package signature
 
 import (
 	"bytes"

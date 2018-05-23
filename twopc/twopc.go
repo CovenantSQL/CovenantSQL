@@ -37,7 +37,7 @@ type Worker interface {
 	Rollback(ctx context.Context, wb WriteBatch) error
 }
 
-// WriteBatch is a empty interface which will be passed to Worker methods.
+// WriteBatch is an empty interface which will be passed to Worker methods.
 type WriteBatch interface{}
 
 // Coordinator is a 2PC coordinator.

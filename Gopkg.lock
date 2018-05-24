@@ -38,6 +38,13 @@
   version = "v1.6.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/rqlite/rqlite"
+  packages = ["db"]
+  revision = "22a29c2e1b6de108edfd439294751c1a5a124034"
+  source = "https://github.com/thunderdb/rqlite.git"
+
+[[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
@@ -87,6 +94,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "65f1c9218cec9e2b3584704912292214a1aeef6b7b7868c5b7b42b149c248879"
+  inputs-digest = "253222c4acc24ccfbc14b83b4477d4b78653741af80ed8ff21479574700b5b21"
   solver-name = "gps-cdcl"
   solver-version = 1

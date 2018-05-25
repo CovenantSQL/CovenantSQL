@@ -14,6 +14,12 @@
   version = "v1.3.0"
 
 [[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
@@ -87,6 +93,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "65f1c9218cec9e2b3584704912292214a1aeef6b7b7868c5b7b42b149c248879"
+  inputs-digest = "de4eab1b931bd57ffe7a25927537abb997d1449c6da5246ba3383d10735e1563"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -1,6 +1,8 @@
 package sqlchain
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -28,7 +30,7 @@ func TestUtxoEntry(t *testing.T) {
 		},
 	}
 	utxo := &Utxo{
-		UtxoHeader: &utxoHeader,
+		UtxoHeader: utxoHeader,
 		Spent:      true,
 		Amount:     1222,
 	}
@@ -37,7 +39,7 @@ func TestUtxoEntry(t *testing.T) {
 		FromMainChain: false,
 		BlockHeight:   1222,
 		SparseOutputs: map[uint32]*Utxo{
-			1: &utxo,
+			1: utxo,
 		},
 	}
 
@@ -57,7 +59,7 @@ func TestUtxoEntry(t *testing.T) {
 	if !utxo.GetSpent() {
 		t.Errorf("Spent should be true, but get false")
 	}
-	if !utxo.GetAmount() != 1222 {
+	if utxo.GetAmount() != 1222 {
 		t.Errorf("Amount should be 1222, but get %d", utxo.Amount)
 	}
 
@@ -83,10 +85,10 @@ func TestUtxoEntry(t *testing.T) {
 	}
 	R := "122718002921"
 	S := "192890180857"
-	if strings.compare(R, utxoHeader.GetSignature().GetR()) != 0 {
+	if strings.Compare(R, utxoHeader.GetSignature().GetR()) != 0 {
 		t.Errorf("R should be %s, but get %s", R, utxoHeader.GetSignature().GetR())
 	}
-	if strings.compare(S, utxoHeader.GetSignature().GetS()) != 0 {
+	if strings.Compare(S, utxoHeader.GetSignature().GetS()) != 0 {
 		t.Errorf("S should be %s, but get %s", S, utxoHeader.GetSignature().GetS())
 	}
 }

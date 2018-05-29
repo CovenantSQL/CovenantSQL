@@ -14,6 +14,18 @@
   version = "v1.3.0"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
@@ -36,6 +48,12 @@
   packages = ["."]
   revision = "6c771bb9887719704b210e87e934f08be014bdb1"
   version = "v1.6.0"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -64,6 +82,12 @@
   version = "1.6.3"
 
 [[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
+
+[[projects]]
   name = "github.com/tchap/go-patricia"
   packages = ["patricia"]
   revision = "666120de432aea38ab06bd5c818f04f4129882c9"
@@ -87,6 +111,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "65f1c9218cec9e2b3584704912292214a1aeef6b7b7868c5b7b42b149c248879"
+  inputs-digest = "0581962575d60ba0fd711ee1aafb9c95210c37b04cd7c4f75534a7b7974249a6"
   solver-name = "gps-cdcl"
   solver-version = 1

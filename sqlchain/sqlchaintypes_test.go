@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUtxoEntry(t *testing.T) {
@@ -100,6 +102,24 @@ func TestUtxoEntry(t *testing.T) {
 	_ = utxoEntry.XXX_Unmarshal(b)
 	utxoEntry.XXX_DiscardUnknown()
 	utxoEntry.Reset()
+
+	_ = utxoHeader.String()
+	utxoHeader.ProtoMessage()
+	_, _ = utxoHeader.Descriptor()
+	b = make([]byte, utxoHeader.XXX_Size())
+	b, _ = utxoHeader.XXX_Marshal(b, true)
+	_ = utxoHeader.XXX_Unmarshal(b)
+	utxoHeader.XXX_DiscardUnknown()
+	utxoHeader.Reset()
+
+	_ = utxo.String()
+	utxo.ProtoMessage()
+	_, _ = utxo.Descriptor()
+	b = make([]byte, utxo.XXX_Size())
+	b, _ = utxo.XXX_Marshal(b, true)
+	_ = utxo.XXX_Unmarshal(b)
+	utxo.XXX_DiscardUnknown()
+	utxo.Reset()
 }
 
 func TestTxType(t *testing.T) {
@@ -110,7 +130,12 @@ func TestTxType(t *testing.T) {
 }
 
 func TestSignature(t *testing.T) {
-	sig := Signature{
+	var sig *Signature
+	sig = nil
+	assert.Equal(t, "", sig.GetR())
+	assert.Equal(t, "", sig.GetS())
+
+	sig = &Signature{
 		R: "122718002921",
 		S: "192890180857",
 	}
@@ -126,7 +151,10 @@ func TestSignature(t *testing.T) {
 }
 
 func TestPublicKey(t *testing.T) {
-	pk := PublicKey{
+	var pk *PublicKey
+	pk = nil
+	assert.Nil(t, pk)
+	pk = &PublicKey{
 		PublicKey: []byte{
 			0x04, 0x11, 0xdb, 0x93, 0xe1, 0xdc, 0xdb, 0x8a,
 			0x01, 0x6b, 0x49, 0x84, 0x0f, 0x8c, 0x53, 0xbc, 0x1e,
@@ -150,7 +178,10 @@ func TestPublicKey(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	h := Hash{
+	var h *Hash
+	h = nil
+	assert.Nil(t, h.GetHash())
+	h = &Hash{
 		Hash: []byte{0x10, 0x38, 0xa1, 0x22},
 	}
 

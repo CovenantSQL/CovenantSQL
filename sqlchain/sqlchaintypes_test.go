@@ -194,3 +194,33 @@ func TestHash(t *testing.T) {
 	h.XXX_DiscardUnknown()
 	h.Reset()
 }
+
+func TestTx(t *testing.T) {
+	var tx *Tx
+	tx = nil
+	assert.Nil(t, tx.GetUtxoIn())
+	assert.Nil(t, tx.GetUtxoOut())
+	assert.Equal(t, TxType_QUERY, tx.GetType())
+	assert.Equal(t, "", tx.GetContent())
+
+	tx = &Tx{
+		UtxoIn:  []*Utxo{nil},
+		UtxoOut: []*Utxo{nil},
+		Type:    TxType_STORAGE,
+		Content: "aaa",
+	}
+
+	assert.Equal(t, []*Utxo{nil}, tx.GetUtxoIn())
+	assert.Equal(t, []*Utxo{nil}, tx.GetUtxoOut())
+	assert.Equal(t, TxType_STORAGE, tx.GetType())
+	assert.Equal(t, "aaa", tx.GetContent())
+
+	_ = tx.String()
+	tx.ProtoMessage()
+	_, _ = tx.Descriptor()
+	b := make([]byte, tx.XXX_Size())
+	b, _ = tx.XXX_Marshal(b, true)
+	_ = tx.XXX_Unmarshal(b)
+	tx.XXX_DiscardUnknown()
+	tx.Reset()
+}

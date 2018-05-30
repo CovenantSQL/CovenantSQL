@@ -1,5 +1,5 @@
 syntax = "proto3";
-package sqlchain;
+package pbtypes;
 
 message Signature {
         string R = 1;

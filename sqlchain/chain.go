@@ -17,14 +17,13 @@
 package sqlchain
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcec"
 	bolt "github.com/coreos/bbolt"
+	"github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
 )
 
 var (
@@ -36,8 +35,34 @@ var (
 // State represents a snapshot of current best chain.
 type State struct {
 	node   *blockNode
-	Head   [32]byte
+	Head   hash.Hash
 	Height int32
+}
+
+func (s *State) marshal() ([]byte, error) {
+	return proto.Marshal(&pbtypes.State{
+		Head:   &pbtypes.Hash{Hash: s.Head[:]},
+		Height: s.Height,
+	})
+}
+
+func (s *State) unmarshal(buffer []byte) (err error) {
+	pbState := &pbtypes.State{}
+	err = proto.Unmarshal(buffer, pbState)
+
+	if err != nil {
+		return err
+	}
+
+	if len(pbState.GetHead().Hash) != hash.HashSize {
+		return fmt.Errorf("sqlchain: unexpected hash length")
+	}
+
+	s.node = nil
+	copy(s.Head[:], pbState.GetHead().Hash)
+	s.Height = s.Height
+
+	return err
 }
 
 // Chain represents a sql-chain.
@@ -47,10 +72,6 @@ type Chain struct {
 	index        *blockIndex
 	pendingBlock *Block
 	state        *State
-}
-
-func init() {
-	gob.Register(btcec.KoblitzCurve{})
 }
 
 // NewChain creates a new sql-chain struct.
@@ -114,9 +135,7 @@ func (c *Chain) InitChain() (err error) {
 	return c.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		bucket := tx.Bucket(metaBucket[:])
-		buffer := bytes.NewBuffer(bucket.Get(metaStateKey))
-		dec := gob.NewDecoder(buffer)
-		err = dec.Decode(c.state)
+		err = c.state.unmarshal(bucket.Get(metaStateKey))
 
 		if err != nil {
 			return err
@@ -138,14 +157,13 @@ func (c *Chain) InitChain() (err error) {
 
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 			header := SignedHeader{}
-			buffer := bytes.NewBuffer(v)
-			dec := gob.NewDecoder(buffer)
-			err := dec.Decode(&header)
-			parent := (*blockNode)(nil)
+			err := header.unmarshal(v)
 
 			if err != nil {
 				return err
 			}
+
+			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
 				if !verifyGenesis() {
@@ -191,29 +209,26 @@ func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 
 	// Write to db
 	return c.db.Update(func(tx *bolt.Tx) (err error) {
-		var buffer bytes.Buffer
-		enc := gob.NewEncoder(&buffer)
-		err = enc.Encode(block)
+		buffer, err := block.marshal()
 
 		if err != nil {
 			return err
 		}
 
 		key := blockIndexKey(&block.BlockHash, uint32(c.state.Height))
-		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(key, buffer.Bytes())
+		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(key, buffer)
 
 		if err != nil {
 			return err
 		}
 
-		buffer.Reset()
-		err = enc.Encode(c.state)
+		buffer, err = c.state.marshal()
 
 		if err != nil {
 			return err
 		}
 
-		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, buffer.Bytes())
+		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, buffer)
 
 		return nil
 	})

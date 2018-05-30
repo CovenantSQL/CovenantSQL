@@ -73,7 +73,7 @@ func produceTestBlocks() (err error) {
 				0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
 				0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
 			},
-			TimeStamp: time.Now().Add(time.Duration(index) * time.Hour),
+			Timestamp: time.Now().Add(time.Duration(index) * time.Hour),
 		}
 
 		signedHeader := SignedHeader{

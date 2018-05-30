@@ -147,8 +147,10 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())
 	copy(s.BlockHash[:], pbSignedHeader.GetBlockHash().GetHash())
 	s.Timestamp = t
-	s.Signature.R = pr
-	s.Signature.S = ps
+	s.Signature = &signature.Signature{
+		R: pr,
+		S: ps,
+	}
 	s.Signee = pk
 
 	return err

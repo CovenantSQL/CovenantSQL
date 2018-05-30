@@ -22,6 +22,7 @@ import (
 	"hash/fnv"
 )
 
+// HashSuite contains the hash length and the func handler
 type HashSuite struct {
 	HashLen  int
 	HashFunc func([]byte) []byte

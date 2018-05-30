@@ -19,11 +19,16 @@ package kms
 import (
 	"io/ioutil"
 
+	"errors"
+
 	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 )
 
+// ErrNotKeyFile indicates specified key file is empty
+var ErrNotKeyFile = errors.New("master key file empty")
 
+// LoadMasterKey loads master key from keyFilePath
 func LoadMasterKey(keyFilePath string) (key *ec.PrivateKey, err error) {
 	fileContent, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
@@ -31,8 +36,22 @@ func LoadMasterKey(keyFilePath string) (key *ec.PrivateKey, err error) {
 		return
 	}
 
+	if len(fileContent) != ec.PrivKeyBytesLen {
+		log.Errorf("master key file size should be %d bytes", ec.PrivKeyBytesLen)
+		return nil, ErrNotKeyFile
+	}
+
 	key, _ = ec.PrivKeyFromBytes(ec.S256(), fileContent)
 	return
 }
 
-func Save
+// SaveMasterKey saves master key to keyFilePath, default perm is 0600
+func SaveMasterKey(keyFilePath string, key *ec.PrivateKey) (err error) {
+	serializedKey := key.Serialize()
+	return ioutil.WriteFile(keyFilePath, serializedKey, 0600)
+}
+
+// GenerateMasterKey generates a new EC private key
+func GenerateMasterKey() (key *ec.PrivateKey, err error) {
+	return ec.NewPrivateKey(ec.S256())
+}

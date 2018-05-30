@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// Package symmetric implements Symmetric Encryption methods
 package symmetric
 
 import (
@@ -33,14 +34,18 @@ const (
 )
 
 var (
+	// ErrInputSize indicates cipher data size is not expected,
+	// maybe data is not encrypted by EncryptWithPassword in this package
 	ErrInputSize = errors.New("cipher data size not match")
 )
 
-// keyDerivation do sha256 twice
+// keyDerivation does sha256 twice
 func keyDerivation(password []byte) (out []byte) {
 	return hash.DoubleHashB(append(password, keySalt...))
 }
 
+// EncryptWithPassword encrypts data with given password, iv will be placed
+// at head of cipher data
 func EncryptWithPassword(in, password []byte) (out []byte, err error) {
 	// keyE will be 256 bits, so aes.NewCipher(keyE) will return
 	// AES-256 Cipher.
@@ -65,6 +70,7 @@ func EncryptWithPassword(in, password []byte) (out []byte, err error) {
 	return out, nil
 }
 
+// DecryptWithPassword decrypts data with given password
 func DecryptWithPassword(in, password []byte) (out []byte, err error) {
 	keyE := keyDerivation(password)
 	// IV + padded cipher data == (n + 1 + 1) * aes.BlockSize

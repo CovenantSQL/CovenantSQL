@@ -1,4 +1,4 @@
-package sqlchain
+package pbtypes
 
 import (
 	"bytes"

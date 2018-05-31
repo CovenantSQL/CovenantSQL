@@ -100,5 +100,19 @@ func TestSign(t *testing.T) {
 			t.Errorf("%s could not verify header: %v", test.name, err)
 			continue
 		}
+
+		// Test marshal/unmarshal
+		buffer, err := signedHeader.marshal()
+
+		if err != nil {
+			t.Errorf("Error occurred: %s", err.Error())
+		}
+
+		parsed := &SignedHeader{}
+		err = parsed.unmarshal(buffer)
+
+		if err != nil {
+			t.Errorf("Error occurred: %s", err.Error())
+		}
 	}
 }

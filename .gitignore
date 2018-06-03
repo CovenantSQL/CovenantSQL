@@ -1,3 +1,4 @@
+private.key
 .gitignore
 .travis.yml
 coverage.txt

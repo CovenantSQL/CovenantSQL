@@ -35,7 +35,7 @@ func TestPingFindValue(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	dhtServer, err := InitDHTServer(l)
+	dhtServer, err := rpc.InitDHTServer(l)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestEncPingFindValue(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	dhtServer, err := InitDHTServer(l)
+	dhtServer, err := rpc.InitDHTServer(l)
 	if err != nil {
 		log.Fatal(err)
 	}

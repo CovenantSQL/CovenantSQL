@@ -24,8 +24,13 @@ import (
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
-// kmsBucketName is the boltdb bucket name
-const kmsBucketName = "kms"
+const (
+	// kmsBucketName is the boltdb bucket name
+	kmsBucketName = "kms"
+	// BPPublicKey is the public key of Block Producer
+	BPPublicKey = "02c1db96f2ba7e1cb4e9822d12de0f63f" +
+		"b666feb828c7f509e81fab9bd7a34039c"
+)
 
 // PublicKeyStore holds db and bucket name
 type PublicKeyStore struct {
@@ -74,12 +79,12 @@ func (ks *PublicKeyStore) GetPublicKey(id proto.NodeID) (publicKey *ec.PublicKey
 		if bucket == nil {
 			return ErrBucketNotInitialized
 		}
-		byteval := bucket.Get([]byte(id))
-		if byteval == nil {
+		byteVal := bucket.Get([]byte(id))
+		if byteVal == nil {
 			return ErrKeyNotFound
 		}
 
-		publicKey, err = ec.ParsePubKey(byteval, ec.S256())
+		publicKey, err = ec.ParsePubKey(byteVal, ec.S256())
 		if err != nil {
 			return err
 		}

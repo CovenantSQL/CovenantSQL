@@ -22,6 +22,8 @@ import (
 	"hash/fnv"
 )
 
+const HashBSize = sha256.Size
+
 // HashSuite contains the hash length and the func handler
 type HashSuite struct {
 	HashLen  int

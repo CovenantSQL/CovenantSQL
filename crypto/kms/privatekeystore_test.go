@@ -21,39 +21,64 @@ import (
 
 	"os"
 
+	"io/ioutil"
+
+	"bytes"
+
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/symmetric"
 )
 
-const masterKeyPath = "./.testmasterkey"
+const (
+	privateKeyPath = "./.testprivatekey"
+	password       = "auxten"
+)
 
-func TestLoadMasterKey(t *testing.T) {
+func TestLoadPrivateKey(t *testing.T) {
 	Convey("save and load", t, func() {
-		mk, err := GenerateMasterKey()
+		mk, err := GeneratePrivateKey()
 		So(mk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
-		err = SaveMasterKey(masterKeyPath, mk)
+		err = SavePrivateKey(privateKeyPath, mk, []byte(password))
 		So(err, ShouldBeNil)
 
-		lk, err := LoadMasterKey(masterKeyPath)
+		lk, err := LoadPrivateKey(privateKeyPath, []byte(password))
 		So(err, ShouldBeNil)
 		So(string(mk.Serialize()), ShouldEqual, string(lk.Serialize()))
-		os.Remove(masterKeyPath)
+		os.Remove(privateKeyPath)
 	})
 	Convey("load error", t, func() {
-		lk, err := LoadMasterKey("/path/not/exist")
+		lk, err := LoadPrivateKey("/path/not/exist", []byte(password))
 		So(err, ShouldNotBeNil)
 		So(lk, ShouldBeNil)
 	})
 	Convey("empty key file", t, func() {
 		os.Create("./.empty")
-		lk, err := LoadMasterKey("./.empty")
-		So(err, ShouldEqual, ErrNotKeyFile)
+		lk, err := LoadPrivateKey("./.empty", []byte(password))
+		So(err, ShouldEqual, symmetric.ErrInputSize)
 		So(lk, ShouldBeNil)
 		os.Remove("./.empty")
 	})
-	Convey("not key file", t, func() {
-		lk, err := LoadMasterKey("doc.go")
-		So(err, ShouldEqual, ErrNotKeyFile)
+	Convey("not key file1", t, func() {
+		lk, err := LoadPrivateKey("doc.go", []byte(password))
+		So(err, ShouldEqual, symmetric.ErrInputSize)
 		So(lk, ShouldBeNil)
 	})
+	Convey("not key file2", t, func() {
+		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password))
+		ioutil.WriteFile("./.notkey", enc, 0600)
+		lk, err := LoadPrivateKey("./.notkey", []byte(password))
+		So(err, ShouldEqual, ErrNotKeyFile)
+		So(lk, ShouldBeNil)
+		os.Remove("./.notkey")
+	})
+	Convey("hash not match", t, func() {
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
+		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
+		lk, err := LoadPrivateKey("./.HashNotMatch", []byte(password))
+		So(err, ShouldEqual, ErrHashNotMatch)
+		So(lk, ShouldBeNil)
+		os.Remove("./.HashNotMatch")
+	})
+
 }

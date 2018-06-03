@@ -21,37 +21,65 @@ import (
 
 	"errors"
 
+	"bytes"
+
 	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/crypto/symmetric"
 )
 
 // ErrNotKeyFile indicates specified key file is empty
-var ErrNotKeyFile = errors.New("master key file empty")
+var ErrNotKeyFile = errors.New("private key file empty")
 
-// LoadMasterKey loads master key from keyFilePath
-func LoadMasterKey(keyFilePath string) (key *ec.PrivateKey, err error) {
+// ErrHashNotMatch indicates specified key hash is wrong
+var ErrHashNotMatch = errors.New("private key hash not match")
+
+// LoadPrivateKey loads private key from keyFilePath, and verifies the hash
+// head
+func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *ec.PrivateKey, err error) {
 	fileContent, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
 		log.Errorf("error read key file: %s, err: %s", keyFilePath, err)
 		return
 	}
 
-	if len(fileContent) != ec.PrivKeyBytesLen {
-		log.Errorf("master key file size should be %d bytes", ec.PrivKeyBytesLen)
+	decData, err := symmetric.DecryptWithPassword(fileContent, masterKey)
+	if err != nil {
+		log.Errorf("decrypt private key error")
+		return
+	}
+
+	// sha256 + privateKey
+	if len(decData) != hash.HashBSize+ec.PrivKeyBytesLen {
+		log.Errorf("private key file size should be %d bytes", hash.HashBSize+ec.PrivKeyBytesLen)
 		return nil, ErrNotKeyFile
 	}
 
-	key, _ = ec.PrivKeyFromBytes(ec.S256(), fileContent)
+	computedHash := hash.DoubleHashB(decData[hash.HashBSize:])
+	if bytes.Compare(computedHash, decData[:hash.HashBSize]) != 0 {
+		return nil, ErrHashNotMatch
+	}
+
+	key, _ = ec.PrivKeyFromBytes(ec.S256(), decData[hash.HashBSize:])
 	return
 }
 
-// SaveMasterKey saves master key to keyFilePath, default perm is 0600
-func SaveMasterKey(keyFilePath string, key *ec.PrivateKey) (err error) {
+// SavePrivateKey saves private key with its hash on the head to keyFilePath,
+// default perm is 0600
+func SavePrivateKey(keyFilePath string, key *ec.PrivateKey, masterKey []byte) (err error) {
 	serializedKey := key.Serialize()
-	return ioutil.WriteFile(keyFilePath, serializedKey, 0600)
+	keyHash := hash.DoubleHashB(serializedKey)
+	rawData := append(keyHash, serializedKey...)
+	encKey, err := symmetric.EncryptWithPassword(rawData, masterKey)
+	if err != nil {
+		log.Errorf("encrypt private key error")
+		return
+	}
+	return ioutil.WriteFile(keyFilePath, encKey, 0600)
 }
 
-// GenerateMasterKey generates a new EC private key
-func GenerateMasterKey() (key *ec.PrivateKey, err error) {
+// GeneratePrivateKey generates a new EC private key
+func GeneratePrivateKey() (key *ec.PrivateKey, err error) {
 	return ec.NewPrivateKey(ec.S256())
 }

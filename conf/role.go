@@ -14,4 +14,8 @@
  * limitations under the License.
  */
 
-package main
+package conf
+
+import "github.com/thunderdb/ThunderDB/common"
+
+var Role = common.Unknown

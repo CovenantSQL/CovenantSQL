@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may obtain A copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,7 +19,6 @@ package cpuminer
 
 import (
 	"errors"
-	"math/big"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -27,7 +26,7 @@ import (
 
 // Nonce contains nonce and the difficulty to the block
 type Nonce struct {
-	Nonce      big.Int
+	Nonce      Uint256
 	Difficulty int
 	Hash       hash.Hash
 }
@@ -51,29 +50,29 @@ type CPUMiner struct {
 	quit chan struct{}
 }
 
-// NewCPUMiner init a new CPU miner
+// NewCPUMiner init A new CPU miner
 func NewCPUMiner(quit chan struct{}) *CPUMiner {
 	return &CPUMiner{quit: quit}
 }
 
 // HashBlock calculate the hash of MiningBlock
-func (miner *CPUMiner) HashBlock(data []byte, nonce big.Int) hash.Hash {
+func (miner *CPUMiner) HashBlock(data []byte, nonce Uint256) hash.Hash {
 	return hash.DoubleHashH(append(data, nonce.Bytes()...))
 }
 
 // CalculateBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
 // if interrupted or stopped highest difficulty nonce will be sent to the NonceCh
-//  todo: make calculation parallel
+//  TODO(auxten): make calculation parallel
 func (miner *CPUMiner) CalculateBlockNonce(
 	block MiningBlock,
-	startNonce big.Int,
+	startNonce Uint256,
 	difficulty int,
 ) (err error) {
 
 	var (
 		bestNonce Nonce
 	)
-	for i := startNonce; ; i.Add(&i, big.NewInt(1)) {
+	for i := startNonce; ; i.Inc() {
 		select {
 		case <-block.Stop:
 			log.Info("Stop mining job")
@@ -88,14 +87,14 @@ func (miner *CPUMiner) CalculateBlockNonce(
 			currentDifficulty := currentHash.Difficulty()
 			if currentDifficulty >= difficulty {
 				bestNonce.Difficulty = currentDifficulty
-				bestNonce.Nonce.Set(&i)
+				bestNonce.Nonce = i
 				bestNonce.Hash.SetBytes(currentHash[:])
 				block.NonceChan <- bestNonce
 				return
 			}
 			if currentDifficulty > bestNonce.Difficulty {
 				bestNonce.Difficulty = currentDifficulty
-				bestNonce.Nonce.Set(&i)
+				bestNonce.Nonce = i
 				bestNonce.Hash.SetBytes(currentHash[:])
 			}
 		}

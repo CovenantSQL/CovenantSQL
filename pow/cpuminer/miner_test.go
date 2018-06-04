@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may obtain A copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,7 +17,6 @@
 package cpuminer
 
 import (
-	"math/big"
 	"testing"
 
 	"time"
@@ -49,7 +48,7 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err = miner.CalculateBlockNonce(block, *big.NewInt(0), diffWanted)
+		err = miner.CalculateBlockNonce(block, Uint256{}, diffWanted)
 		wg.Done()
 	}()
 	nonceFromCh := <-nonceCh
@@ -58,7 +57,7 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 	hash := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if err != nil || nonceFromCh.Difficulty < diffWanted || hash.Difficulty() < diffWanted {
 		t.Errorf("CalculateBlockNonce got %v, difficulty %d, nonce %s",
-			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.String())
+			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hash.String())
 }
@@ -81,7 +80,7 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 		err error
 	)
 	go func() {
-		err = miner.CalculateBlockNonce(block, *big.NewInt(0), diffWanted)
+		err = miner.CalculateBlockNonce(block, Uint256{}, diffWanted)
 	}()
 	// stop miner
 	time.Sleep(2 * time.Second)
@@ -94,7 +93,7 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 	hasha := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
 		t.Errorf("CalculateBlockNonce got %v, difficulty %d, nonce %s, hash %s",
-			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.String(), hasha.String())
+			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes(), hasha.String())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hasha.String())
 }
@@ -117,7 +116,7 @@ func TestCPUMiner_HashBlock_quit(t *testing.T) {
 		err error
 	)
 	go func() {
-		err = miner.CalculateBlockNonce(block, *big.NewInt(0), diffWanted)
+		err = miner.CalculateBlockNonce(block, Uint256{}, diffWanted)
 	}()
 	// stop miner
 	time.Sleep(2 * time.Second)
@@ -130,7 +129,7 @@ func TestCPUMiner_HashBlock_quit(t *testing.T) {
 	hasha := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
 		t.Errorf("CalculateBlockNonce got %v, difficulty %d, nonce %s, hash %s",
-			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.String(), hasha.String())
+			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes(), hasha.String())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hasha.String())
 }

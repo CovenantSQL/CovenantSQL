@@ -22,12 +22,16 @@ import (
 
 	"time"
 
+	ec "github.com/btcsuite/btcd/btcec"
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto"
 )
 
 func TestGenSecp256k1Keypair(t *testing.T) {
 	privateKey, publicKey, err := GenSecp256k1Keypair()
+	log.Infof("privateKey: %x", privateKey.Serialize())
+	log.Infof("publicKey: %x", publicKey.SerializeCompressed())
 	if err != nil {
 		t.Fatal("failed to generate private key")
 	}
@@ -73,8 +77,26 @@ func TestGetPubKeyNonce(t *testing.T) {
 			t.Fatal("failed to generate private key")
 		}
 
-		nonce := GetPubKeyNonce(publicKey, 10, 200*time.Millisecond)
+		nonce := GetPubKeyNonce(publicKey, 10, 200*time.Millisecond, nil)
 
+		// sometimes nonce difficulty can be little bit higher than expected
+		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 20)
+	})
+
+}
+
+func TestGetThePubKeyNonce(t *testing.T) {
+	Convey("translate key error", t, func() {
+		publicKey, _ := ec.ParsePubKey([]byte{
+			0x02,
+			0xc1, 0xdb, 0x96, 0xf2, 0xba, 0x7e, 0x1c, 0xb4,
+			0xe9, 0x82, 0x2d, 0x12, 0xde, 0x0f, 0x63, 0xfb,
+			0x66, 0x6f, 0xeb, 0x82, 0x8c, 0x7f, 0x50, 0x9e,
+			0x81, 0xfa, 0xb9, 0xbd, 0x7a, 0x34, 0x03, 0x9c,
+		}, ec.S256())
+		nonce := GetPubKeyNonce(publicKey, 256, 1*time.Second, nil)
+
+		log.Infof("nonce: %v", nonce)
 		// sometimes nonce difficulty can be little bit higher than expected
 		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 20)
 	})

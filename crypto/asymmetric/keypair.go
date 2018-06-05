@@ -17,7 +17,6 @@
 package asymmetric
 
 import (
-	"math/big"
 	"time"
 
 	ec "github.com/btcsuite/btcd/btcec"
@@ -45,9 +44,10 @@ func GenSecp256k1Keypair() (
 func GetPubKeyNonce(
 	publicKey *ec.PublicKey,
 	difficulty int,
-	timeThreshold time.Duration) (nonce mine.Nonce) {
+	timeThreshold time.Duration,
+	quit chan struct{}) (nonce mine.Nonce) {
 
-	miner := mine.NewCPUMiner(nil)
+	miner := mine.NewCPUMiner(quit)
 	nonceCh := make(chan mine.Nonce)
 	// if miner finished his work before timeThreshold
 	// make sure writing to the Stop chan non-blocking.
@@ -58,7 +58,7 @@ func GetPubKeyNonce(
 		Stop:      stop,
 	}
 
-	go miner.CalculateBlockNonce(block, *big.NewInt(0), difficulty)
+	go miner.CalculateBlockNonce(block, mine.Uint256{}, difficulty)
 
 	time.Sleep(timeThreshold)
 	// stop miner

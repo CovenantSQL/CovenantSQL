@@ -29,7 +29,7 @@ func TestDSN(t *testing.T) {
 	}
 
 	for _, s := range testStrings {
-		dsn, err := New(s)
+		dsn, err := NewDSN(s)
 
 		if err != nil {
 			t.Errorf("Error occurred: %s", err.Error())

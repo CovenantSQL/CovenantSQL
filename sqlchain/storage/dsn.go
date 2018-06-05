@@ -27,12 +27,12 @@ type DSN struct {
 	params   map[string]string
 }
 
-// New parses the given string and returns a DSN.
-func New(s string) (dsn *DSN, err error) {
+// NewDSN parses the given string and returns a DSN.
+func NewDSN(s string) (dsn *DSN, err error) {
 	parts := strings.SplitN(s, "?", 2)
 
 	dsn = &DSN{
-		filename: parts[0],
+		filename: strings.TrimLeft(parts[0], "file:"),
 		params:   make(map[string]string),
 	}
 
@@ -58,7 +58,7 @@ func (dsn *DSN) Format() string {
 	l := len(dsn.params)
 
 	if l <= 0 {
-		return dsn.filename
+		return fmt.Sprintf("file:%s", dsn.filename)
 	}
 
 	params := make([]string, 0, l)
@@ -67,11 +67,14 @@ func (dsn *DSN) Format() string {
 		params = append(params, strings.Join([]string{k, v}, "="))
 	}
 
-	return strings.Join([]string{dsn.filename, strings.Join(params, "&")}, "?")
+	return fmt.Sprintf("file:%s?%s", dsn.filename, strings.Join(params, "&"))
 }
 
 // SetFileName sets the sqlite database file name of DSN.
 func (dsn *DSN) SetFileName(fn string) { dsn.filename = fn }
+
+// GetFileName gets the sqlite database file name of DSN.
+func (dsn *DSN) GetFileName() string { return dsn.filename }
 
 // AddParam adds key:value pair DSN parameters.
 func (dsn *DSN) AddParam(key, value string) {
@@ -80,4 +83,10 @@ func (dsn *DSN) AddParam(key, value string) {
 	}
 
 	dsn.params[key] = value
+}
+
+// GetParam gets the value.
+func (dsn *DSN) GetParam(key string) (value string, ok bool) {
+	value, ok = dsn.params[key]
+	return
 }

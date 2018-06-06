@@ -17,12 +17,16 @@
 package kayak
 
 import (
-	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"bytes"
-	"encoding/binary"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
-	"net"
 	"context"
+	"encoding/base64"
+	"encoding/binary"
+	"fmt"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/crypto/signature"
 )
 
 // Log entries are replicated to all members of the Raft cluster
@@ -44,8 +48,8 @@ type Log struct {
 	Hash hash.Hash
 }
 
-// ReHash update Hash with generated hash.
-func (l *Log) ReHash() {
+// ComputeHash updates Hash.
+func (l *Log) ComputeHash() {
 	l.Hash.SetBytes(hash.DoubleHashB(l.getBytes()))
 }
 
@@ -78,10 +82,10 @@ type LogStore interface {
 	LastIndex() (uint64, error)
 
 	// GetLog gets a log entry at a given index.
-	GetLog(index uint64, log *Log) error
+	GetLog(index uint64, l *Log) error
 
 	// StoreLog stores a log entry.
-	StoreLog(log *Log) error
+	StoreLog(l *Log) error
 
 	// StoreLogs stores multiple log entries.
 	StoreLogs(logs []*Log) error
@@ -110,17 +114,27 @@ type ServerID string
 // ServerAddress is a network address for a server that a transport can contact.
 type ServerAddress string
 
-// ServerRole define the role of node to be leader/coordinator in peer set
+// ServerRole define the role of node to be leader/coordinator in peer set.
 type ServerRole int
+
+// ServerState define the state of node to be checked by commit/peers update logic.
+type ServerState int
 
 // Note: Don't renumber these, since the numbers are written into the log.
 const (
-	// Peer is a server whose vote is counted in elections and whose match index
-	// is used in advancing the leader's commit index.
+	// Leader is a server that have the ability to organize committing requests.
 	Leader ServerRole = iota
-	// Learner is a server that receives log entries but is not considered for
-	// elections or commitment purposes.
+	// Follower a server that follow the leader log commits.
 	Follower
+
+	// Idle indicates no running transaction.
+	Idle ServerState = iota
+
+	// Prepared indicates in-flight transaction prepared.
+	Prepared
+
+	// Shutdown state
+	Shutdown
 )
 
 func (s ServerRole) String() string {
@@ -129,6 +143,16 @@ func (s ServerRole) String() string {
 		return "Leader"
 	case Follower:
 		return "Follower"
+	}
+	return "Unknown"
+}
+
+func (s ServerState) String() string {
+	switch s {
+	case Idle:
+		return "Idle"
+	case Prepared:
+		return "Prepared"
 	}
 	return "Unknown"
 }
@@ -145,11 +169,31 @@ type Server struct {
 	PubKey *signature.PublicKey
 }
 
+func (s *Server) String() string {
+	return fmt.Sprintf("Server id:%s role:%s address:%s pubKey:%s",
+		s.ID, s.Role, s.Address,
+		base64.StdEncoding.EncodeToString(s.PubKey.Serialize()))
+}
+
+// Serialize payload to bytes
+func (s *Server) Serialize() []byte {
+	buffer := new(bytes.Buffer)
+	binary.Write(buffer, binary.LittleEndian, s.Role)
+	binary.Write(buffer, binary.LittleEndian, s.ID)
+	binary.Write(buffer, binary.LittleEndian, s.Address)
+	if s.PubKey != nil {
+		buffer.Write(s.PubKey.Serialize())
+	}
+
+	return buffer.Bytes()
+}
+
 // Peers defines peer configuration.
 type Peers struct {
 	Term      uint64
-	Leader    Server
-	Servers   []Server
+	Leader    *Server
+	Servers   []*Server
+	PubKey    *signature.PublicKey
 	Signature *signature.Signature
 }
 
@@ -158,36 +202,103 @@ func (c *Peers) Clone() (copy Peers) {
 	copy.Term = c.Term
 	copy.Leader = c.Leader
 	copy.Servers = append(copy.Servers, c.Servers...)
+	copy.PubKey = c.PubKey
 	copy.Signature = c.Signature
 	return
 }
 
-// Config defines minimal configuration fields for consensus runner.
-type Config struct {
-	// The unique ID for this server across all time.
-	LocalID ServerID
+func (c *Peers) getBytes() []byte {
+	buffer := new(bytes.Buffer)
+	binary.Write(buffer, binary.LittleEndian, c.Term)
+	binary.Write(buffer, binary.LittleEndian, c.Leader.Serialize())
+	for _, s := range c.Servers {
+		binary.Write(buffer, binary.LittleEndian, s.Serialize())
+	}
+	return buffer.Bytes()
 }
 
-// Dialer adapter for abstraction.
-type Dialer interface {
-	// Dial connects to the destination server.
-	Dial(serverID ServerID) (net.Conn, error)
+// Sign generates signature
+func (c *Peers) Sign(signer *signature.PrivateKey) error {
+	sig, err := signer.Sign(c.getBytes())
 
-	// DialContext connects to the destination server using the provided context.
-	DialContext(ctx context.Context, serverID ServerID) (net.Conn, error)
+	if err != nil {
+		return fmt.Errorf("sign peer configuration failed: %s", err.Error())
+	}
+
+	c.Signature = sig
+
+	return nil
+}
+
+// Verify verify signature
+func (c *Peers) Verify() bool {
+	return c.Signature.Verify(c.getBytes(), c.PubKey)
+}
+
+func (c *Peers) String() string {
+	return fmt.Sprintf("Peers term:%v nodesCnt:%v leader:%s signature:%s",
+		c.Term, len(c.Servers), c.Leader.ID,
+		base64.StdEncoding.EncodeToString(c.Signature.Serialize()))
+}
+
+// RuntimeConfig defines minimal configuration fields for consensus runner.
+type RuntimeConfig struct {
+	// RootDir is the root dir for runtime
+	RootDir string
+
+	// LocalID is the unique ID for this server across all time.
+	LocalID ServerID
+
+	// Runner defines the runner type
+	Runner Runner
+
+	// Transport defines the dialer type
+	Dialer Transport
+
+	// ProcessTimeout defines whole process timeout
+	ProcessTimeout time.Duration
+
+	// AutoBanCount defines how many times a nodes will be banned from execution
+	AutoBanCount uint32
+
+	// Logger is the logger
+	Logger *log.Logger
+}
+
+// Config interface for abstraction.
+type Config interface {
+	// Get config returns runtime config
+	GetRuntimeConfig() *RuntimeConfig
+}
+
+// Request defines a transport request payload
+type Request interface {
+	GetServerID() ServerID
+	GetMethod() string
+	GetRequest() interface{}
+	SendResponse(interface{}) error
+}
+
+// Transport adapter for abstraction.
+type Transport interface {
+	// Request
+	Request(ctx context.Context, serverID ServerID, method string, args interface{}, response interface{}) error
+
+	// Process
+	Process() <-chan Request
 }
 
 // Runner adapter for different consensus protocols including Eventual Consistency/2PC/3PC.
 type Runner interface {
 	// Init defines setup logic.
-	Init(config *Config, peers *Peers, log LogStore, stable StableStore, dialer Dialer) error
+	Init(config Config, peers *Peers, logs LogStore, stable StableStore, transport Transport) error
 
 	// UpdatePeers defines peer configuration update logic.
 	UpdatePeers(peers *Peers) error
 
 	// Process defines log replication and log commit logic
 	// and should be called by Leader role only.
-	Process(log *Log) error
+	Process(data []byte) error
 
 	// Shutdown defines destruct logic.
 	Shutdown() error

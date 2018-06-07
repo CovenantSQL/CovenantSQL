@@ -34,18 +34,33 @@ const (
 	password       = "auxten"
 )
 
+//func TestSaveLoadPrivateKey(t *testing.T) {
+//	Convey("save and load", t, func() {
+//		pass := ""
+//		privateKeyBytes, _ := hex.DecodeString("")
+//		privateKey, _ := ec.PrivKeyFromBytes(ec.S256(), privateKeyBytes)
+//		SavePrivateKey("../../keys/private.key", privateKey, []byte(pass))
+//		pl, _ := LoadPrivateKey("../../keys/private.key", []byte(pass))
+//		So(bytes.Compare(pl.Serialize(), privateKey.Serialize()), ShouldBeZeroValue)
+//		So(bytes.Compare(privateKeyBytes, privateKey.Serialize()), ShouldBeZeroValue)
+//		publicKeyBytes, _ := hex.DecodeString(BPPublicKeyStr)
+//		publicKey, _ := ec.ParsePubKey(publicKeyBytes, ec.S256())
+//		So(pl.PubKey().IsEqual(publicKey), ShouldBeTrue)
+//	})
+//}
+
 func TestLoadPrivateKey(t *testing.T) {
 	Convey("save and load", t, func() {
-		mk, err := GeneratePrivateKey()
-		So(mk, ShouldNotBeNil)
+		defer os.Remove(privateKeyPath)
+		pk, err := GeneratePrivateKey()
+		So(pk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
-		err = SavePrivateKey(privateKeyPath, mk, []byte(password))
+		err = SavePrivateKey(privateKeyPath, pk, []byte(password))
 		So(err, ShouldBeNil)
 
 		lk, err := LoadPrivateKey(privateKeyPath, []byte(password))
 		So(err, ShouldBeNil)
-		So(string(mk.Serialize()), ShouldEqual, string(lk.Serialize()))
-		os.Remove(privateKeyPath)
+		So(string(pk.Serialize()), ShouldEqual, string(lk.Serialize()))
 	})
 	Convey("load error", t, func() {
 		lk, err := LoadPrivateKey("/path/not/exist", []byte(password))
@@ -53,11 +68,11 @@ func TestLoadPrivateKey(t *testing.T) {
 		So(lk, ShouldBeNil)
 	})
 	Convey("empty key file", t, func() {
+		defer os.Remove("./.empty")
 		os.Create("./.empty")
 		lk, err := LoadPrivateKey("./.empty", []byte(password))
 		So(err, ShouldEqual, symmetric.ErrInputSize)
 		So(lk, ShouldBeNil)
-		os.Remove("./.empty")
 	})
 	Convey("not key file1", t, func() {
 		lk, err := LoadPrivateKey("doc.go", []byte(password))
@@ -65,20 +80,64 @@ func TestLoadPrivateKey(t *testing.T) {
 		So(lk, ShouldBeNil)
 	})
 	Convey("not key file2", t, func() {
+		defer os.Remove("./.notkey")
 		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password))
 		ioutil.WriteFile("./.notkey", enc, 0600)
 		lk, err := LoadPrivateKey("./.notkey", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)
 		So(lk, ShouldBeNil)
-		os.Remove("./.notkey")
 	})
 	Convey("hash not match", t, func() {
+		defer os.Remove("./.HashNotMatch")
 		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
 		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
 		lk, err := LoadPrivateKey("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
 		So(lk, ShouldBeNil)
-		os.Remove("./.HashNotMatch")
 	})
+}
 
+func TestInitLocalKeyPair(t *testing.T) {
+	Convey("InitLocalKeyPair", t, func() {
+		defer os.Remove(privateKeyPath)
+		err := InitLocalKeyPair(privateKeyPath, []byte(password))
+		So(err, ShouldBeNil)
+		gotPrivate1, _ := GetLocalPrivateKey()
+		gotPublic1, _ := GetLocalPublicKey()
+		So(gotPrivate1, ShouldNotBeNil)
+		So(gotPublic1, ShouldNotBeNil)
+
+		err = InitLocalKeyPair(privateKeyPath, []byte(password))
+		So(err, ShouldBeNil)
+		err = InitLocalKeyPair("/path/not/exist", []byte(password))
+		So(err, ShouldNotBeNil)
+
+		err = InitLocalKeyPair(privateKeyPath, []byte("aa"))
+		So(err, ShouldNotBeNil)
+		gotPrivate2, _ := GetLocalPrivateKey()
+		gotPublic2, _ := GetLocalPublicKey()
+		So(gotPrivate2, ShouldNotBeNil)
+		So(gotPublic2, ShouldNotBeNil)
+
+		So(bytes.Compare(gotPrivate1.Serialize(), gotPrivate2.Serialize()), ShouldBeZeroValue)
+		So(gotPublic1.IsEqual(gotPublic2), ShouldBeTrue)
+		So(gotPrivate1.PubKey().IsEqual(gotPublic2), ShouldBeTrue)
+	})
+}
+
+func TestInitLocalKeyPair_error(t *testing.T) {
+	Convey("hash not match", t, func() {
+		defer os.Remove("./.HashNotMatch")
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
+		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
+		err := InitLocalKeyPair("./.HashNotMatch", []byte(password))
+		So(err, ShouldEqual, ErrHashNotMatch)
+	})
+	Convey("ErrNotKeyFile", t, func() {
+		defer os.Remove("./.ErrNotKeyFile")
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password))
+		ioutil.WriteFile("./.ErrNotKeyFile", enc, 0600)
+		err := InitLocalKeyPair("./.ErrNotKeyFile", []byte(password))
+		So(err, ShouldEqual, ErrNotKeyFile)
+	})
 }

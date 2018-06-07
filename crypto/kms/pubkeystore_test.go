@@ -23,69 +23,84 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
 const dbFile = ".test.db"
 
 func TestDB(t *testing.T) {
-	privKey1, pubKey1, _ := asymmetric.GenSecp256k1Keypair()
-	privKey2, pubKey2, _ := asymmetric.GenSecp256k1Keypair()
+	privKey1, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
+	privKey2, pubKey2, _ := asymmetric.GenSecp256k1KeyPair()
 	Convey("Init db", t, func() {
+		pks = nil
 		defer os.Remove(dbFile)
-		pks, err := NewPublicKeyStore(dbFile)
+		InitPublicKeyStore(dbFile)
 		So(pks.bucket, ShouldNotBeNil)
-		So(err, ShouldBeNil)
 
-		pubk, err := pks.GetPublicKey(proto.NodeID("not exist"))
+		pubk, err := GetPublicKey(proto.NodeID(BPNodeID))
+		So(pubk, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+		So(pubk.IsEqual(BPPublicKey), ShouldBeTrue)
+
+		pubk, err = GetPublicKey(proto.NodeID("not exist"))
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
-		err = pks.SetPublicKey(proto.NodeID("node1"), pubKey1)
+		err = setPublicKey(proto.NodeID("node1"), pubKey1)
 		So(err, ShouldBeNil)
 
-		err = pks.SetPublicKey(proto.NodeID("node2"), pubKey2)
+		err = setPublicKey(proto.NodeID("node2"), pubKey2)
 		So(err, ShouldBeNil)
 
-		pubk, err = pks.GetPublicKey(proto.NodeID("node1"))
+		err = SetPublicKey(proto.NodeID(BPNodeID), BPNonce, BPPublicKey)
+		So(err, ShouldBeNil)
+
+		err = SetPublicKey(proto.NodeID(BPNodeID), cpuminer.Uint256{}, BPPublicKey)
+		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
+
+		err = SetPublicKey(proto.NodeID("0"+BPNodeID), BPNonce, BPPublicKey)
+		So(err, ShouldEqual, ErrNotValidNodeID)
+
+		pubk, err = GetPublicKey(proto.NodeID("node1"))
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		So(privKey1.PubKey().IsEqual(pubKey1), ShouldBeTrue)
 
-		pubk, err = pks.GetPublicKey(proto.NodeID("node2"))
+		pubk, err = GetPublicKey(proto.NodeID("node2"))
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		So(privKey2.PubKey().IsEqual(pubKey2), ShouldBeTrue)
 
-		err = pks.DelPublicKey(proto.NodeID("node2"))
+		err = DelPublicKey(proto.NodeID("node2"))
 		So(err, ShouldBeNil)
 
-		err = pks.DelPublicKey(proto.NodeID("node2"))
+		err = DelPublicKey(proto.NodeID("node2"))
 		So(err, ShouldBeNil)
 
-		pubk, err = pks.GetPublicKey(proto.NodeID("node2"))
+		pubk, err = GetPublicKey(proto.NodeID("node2"))
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
-		err = pks.RemoveBucket()
+		err = removeBucket()
 		So(err, ShouldBeNil)
 
-		pubk, err = pks.GetPublicKey(proto.NodeID("not exist"))
+		pubk, err = GetPublicKey(proto.NodeID("not exist"))
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
-		err = pks.SetPublicKey(proto.NodeID("node1"), pubKey1)
+		err = setPublicKey(proto.NodeID("node1"), pubKey1)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
-		err = pks.DelPublicKey(proto.NodeID("node2"))
+		err = DelPublicKey(proto.NodeID("node2"))
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 	})
 }
 
 func TestErrorPath(t *testing.T) {
 	Convey("can not init db", t, func() {
-		pks, err := NewPublicKeyStore("/path/not/exist")
+		pks = nil
+		InitPublicKeyStore("/path/not/exist")
 		So(pks, ShouldBeNil)
-		So(err, ShouldNotBeNil)
 	})
 }

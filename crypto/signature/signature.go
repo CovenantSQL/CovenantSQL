@@ -26,8 +26,8 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 )
 
-// PrivKeyBytesLen defines the length in bytes of a serialized private key.
-const PrivKeyBytesLen = 32
+// PrivateKeyBytesLen defines the length in bytes of a serialized private key.
+const PrivateKeyBytesLen = 32
 
 // Signature is a type representing an ecdsa signature.
 type Signature struct {
@@ -46,8 +46,8 @@ type PublicKey ecdsa.PublicKey
 // Serialize returns the private key number d as a big-endian binary-encoded number, padded to a
 // length of 32 bytes.
 func (p *PrivateKey) Serialize() []byte {
-	b := make([]byte, 0, PrivKeyBytesLen)
-	return paddedAppend(PrivKeyBytesLen, b, p.D.Bytes())
+	b := make([]byte, 0, PrivateKeyBytesLen)
+	return paddedAppend(PrivateKeyBytesLen, b, p.D.Bytes())
 }
 
 // Sign generates an ECDSA signature for the provided hash (which should be the result of hashing

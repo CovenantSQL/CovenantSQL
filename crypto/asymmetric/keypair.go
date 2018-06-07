@@ -24,8 +24,8 @@ import (
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
-// GenSecp256k1Keypair generate Secp256k1(used by Bitcoin) key pair
-func GenSecp256k1Keypair() (
+// GenSecp256k1KeyPair generate Secp256k1(used by Bitcoin) key pair
+func GenSecp256k1KeyPair() (
 	privateKey *ec.PrivateKey,
 	publicKey *ec.PublicKey,
 	err error) {
@@ -58,7 +58,7 @@ func GetPubKeyNonce(
 		Stop:      stop,
 	}
 
-	go miner.CalculateBlockNonce(block, mine.Uint256{}, difficulty)
+	go miner.ComputeBlockNonce(block, mine.Uint256{}, difficulty)
 
 	time.Sleep(timeThreshold)
 	// stop miner

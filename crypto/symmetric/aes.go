@@ -39,7 +39,7 @@ var (
 	ErrInputSize = errors.New("cipher data size not match")
 )
 
-// keyDerivation does sha256 twice
+// keyDerivation does sha256 twice to password
 func keyDerivation(password []byte) (out []byte) {
 	return hash.DoubleHashB(append(password, keySalt...))
 }

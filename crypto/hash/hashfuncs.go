@@ -17,9 +17,12 @@
 package hash
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"hash/fnv"
+
+	//"github.com/minio/sha256-simd"
+	// "crypto/sha256" benchmark is at least 10% faster than "github.com/minio/sha256-simd"
+	"crypto/sha256"
 )
 
 const HashBSize = sha256.Size

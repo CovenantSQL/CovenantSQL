@@ -29,9 +29,9 @@ import (
 )
 
 func TestGenSecp256k1Keypair(t *testing.T) {
-	privateKey, publicKey, err := GenSecp256k1Keypair()
-	log.Infof("privateKey: %x", privateKey.Serialize())
-	log.Infof("publicKey: %x", publicKey.SerializeCompressed())
+	privateKey, publicKey, err := GenSecp256k1KeyPair()
+	log.Debugf("privateKey: %x", privateKey.Serialize())
+	log.Debugf("publicKey: %x", publicKey.SerializeCompressed())
 	if err != nil {
 		t.Fatal("failed to generate private key")
 	}
@@ -54,8 +54,8 @@ func TestGenSecp256k1Keypair(t *testing.T) {
 }
 
 func TestGenECDHSharedSecret(t *testing.T) {
-	privateKey1, publicKey1, _ := GenSecp256k1Keypair()
-	privateKey2, publicKey2, _ := GenSecp256k1Keypair()
+	privateKey1, publicKey1, _ := GenSecp256k1KeyPair()
+	privateKey2, publicKey2, _ := GenSecp256k1KeyPair()
 	shared1 := GenECDHSharedSecret(privateKey1, publicKey2)
 	shared2 := GenECDHSharedSecret(privateKey2, publicKey1)
 	if len(shared1) <= 0 {
@@ -72,13 +72,15 @@ func TestGenECDHSharedSecret(t *testing.T) {
 
 func TestGetPubKeyNonce(t *testing.T) {
 	Convey("translate key error", t, func() {
-		_, publicKey, err := GenSecp256k1Keypair()
+		privateKey, publicKey, err := GenSecp256k1KeyPair()
 		if err != nil {
 			t.Fatal("failed to generate private key")
 		}
+		log.Infof("privateKey: %x", privateKey.Serialize())
+		log.Infof("publicKey: %x", publicKey.SerializeCompressed())
 
 		nonce := GetPubKeyNonce(publicKey, 10, 200*time.Millisecond, nil)
-
+		log.Infof("nonce: %v", nonce)
 		// sometimes nonce difficulty can be little bit higher than expected
 		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 20)
 	})
@@ -98,7 +100,7 @@ func TestGetThePubKeyNonce(t *testing.T) {
 
 		log.Infof("nonce: %v", nonce)
 		// sometimes nonce difficulty can be little bit higher than expected
-		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 20)
+		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 40)
 	})
 
 }

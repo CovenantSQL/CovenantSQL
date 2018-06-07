@@ -17,35 +17,57 @@
 package route
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
+	"net/rpc"
+
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/etls"
+	"github.com/thunderdb/ThunderDB/consistent"
 	. "github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/rpc"
 )
 
 func TestPingFindValue(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	l, err := net.Listen("tcp", addr)
+	rpc.RegisterName("DHT", NewDHTService())
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
+	}
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				continue
+			}
+			go rpc.ServeConn(c)
+		}
+	}()
+
+	client, err := rpc.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		log.Error(err)
 	}
 
-	dhtServer, err := rpc.InitDHTServer(l)
-	if err != nil {
-		log.Fatal(err)
+	req := &FindValueReq{
+		NodeID: "123",
+		Count:  2,
 	}
-
-	go dhtServer.Serve()
-
-	client, err := rpc.InitClient(l.Addr().String())
+	resp := new(FindValueResp)
+	err = client.Call("DHT.FindValue", req, resp)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
+	log.Debugf("resp: %v", resp)
+
+	Convey("test FindValue empty", t, func() {
+		So(resp.Nodes, ShouldBeEmpty)
+		So(err.Error(), ShouldEqual, consistent.ErrEmptyCircle.Error())
+	})
 
 	reqA := &PingReq{
 		Node: Node{
@@ -55,7 +77,7 @@ func TestPingFindValue(t *testing.T) {
 	respA := new(PingResp)
 	err = client.Call("DHT.Ping", reqA, respA)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 	log.Debugf("respA: %v", respA)
 
@@ -67,18 +89,18 @@ func TestPingFindValue(t *testing.T) {
 	respB := new(PingResp)
 	err = client.Call("DHT.Ping", reqB, respB)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 	log.Debugf("respA: %v", respB)
 
-	req := &FindValueReq{
+	req = &FindValueReq{
 		NodeID: "123",
 		Count:  2,
 	}
-	resp := new(FindValueResp)
+	resp = new(FindValueResp)
 	err = client.Call("DHT.FindValue", req, resp)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 	log.Debugf("resp: %v", resp)
 	nodeIDList := []string{
@@ -91,80 +113,4 @@ func TestPingFindValue(t *testing.T) {
 	})
 
 	client.Close()
-	dhtServer.Stop()
-}
-
-func TestEncPingFindValue(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-	addr := "127.0.0.1:0"
-	pass := "12345"
-
-	l, err := etls.NewCryptoListener("tcp", addr, pass)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	dhtServer, err := rpc.InitDHTServer(l)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	go dhtServer.Serve()
-
-	cipher := etls.NewCipher([]byte(pass))
-	conn, err := etls.Dial("tcp", l.Addr().String(), cipher)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	client, err := rpc.InitClientConn(conn)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	reqA := &PingReq{
-		Node: Node{
-			ID: "node1",
-		},
-	}
-	respA := new(PingResp)
-	err = client.Call("DHT.Ping", reqA, respA)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Debugf("respA: %v", respA)
-
-	reqB := &PingReq{
-		Node: Node{
-			ID: "node2",
-		},
-	}
-	respB := new(PingResp)
-	err = client.Call("DHT.Ping", reqB, respB)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Debugf("respA: %v", respB)
-
-	req := &FindValueReq{
-		NodeID: "123",
-		Count:  2,
-	}
-	resp := new(FindValueResp)
-	err = client.Call("DHT.FindValue", req, resp)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Debugf("resp: %v", resp)
-	nodeIDList := []string{
-		string(resp.Nodes[0].ID),
-		string(resp.Nodes[1].ID),
-	}
-	Convey("test FindValue", t, func() {
-		So(nodeIDList, ShouldContain, "node1")
-		So(nodeIDList, ShouldContain, "node2")
-	})
-
-	client.Close()
-	dhtServer.Stop()
 }

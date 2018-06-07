@@ -21,7 +21,8 @@ import (
 
 	"sync"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 )

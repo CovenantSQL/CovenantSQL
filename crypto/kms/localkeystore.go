@@ -21,8 +21,9 @@ import (
 
 	"runtime"
 
+	"errors"
+
 	ec "github.com/btcsuite/btcd/btcec"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )

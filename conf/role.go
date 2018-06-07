@@ -18,4 +18,8 @@ package conf
 
 import "github.com/thunderdb/ThunderDB/common"
 
+// Role indicate which role the daemon is playing
+// 	Unknown       = "U"
+//	Miner         = "M"
+//	BlockProducer = "B"
 var Role = common.Unknown

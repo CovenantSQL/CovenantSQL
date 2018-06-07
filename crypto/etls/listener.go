@@ -22,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// CipherHandler is the func type for converting net.Conn to CryptoConn
 type CipherHandler func(conn net.Conn) (cryptoConn *CryptoConn, err error)
 
 // CryptoListener implements net.Listener

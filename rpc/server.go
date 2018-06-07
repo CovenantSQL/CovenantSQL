@@ -170,16 +170,16 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 
 	// nodeIdBuf len is hash.HashBSize, so there won't be any error
 	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
-	nodeId := proto.NodeID(idHash.String())
+	nodeID := proto.NodeID(idHash.String())
 	// TODO(auxten): compute the nonce and check difficulty
 	// cpuminer.FromBytes(headerBuf[hash.HashBSize:])
 
-	publicKey, err := kms.GetPublicKey(nodeId)
+	publicKey, err := kms.GetPublicKey(nodeID)
 	if err != nil {
 		if conf.Role[0] == 'M' && err == kms.ErrKeyNotFound {
 			// TODO(auxten): if Miner running and key not found, ask BlockProducer
 		}
-		log.Errorf("get public key failed, node id: %s", nodeId)
+		log.Errorf("get public key failed, node id: %s", nodeID)
 		return
 	}
 	privateKey, err := kms.GetLocalPrivateKey()

@@ -25,6 +25,7 @@ import (
 	"crypto/sha256"
 )
 
+// HashBSize is the size of HashB
 const HashBSize = sha256.Size
 
 // HashSuite contains the hash length and the func handler

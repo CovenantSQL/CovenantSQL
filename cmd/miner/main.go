@@ -89,6 +89,7 @@ var (
 	rpcServer *rpc.Server
 )
 
+// Role indicates the role of current server playing
 const Role = common.Miner
 
 const name = `thunderdbd`

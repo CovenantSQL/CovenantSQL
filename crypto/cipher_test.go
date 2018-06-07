@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"testing"
 
-	asymCrypto "github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 )
 
 // Test 1: Encryption and decryption
 func TestCipheringBasic(t *testing.T) {
-	privkey, _, err := asymCrypto.GenSecp256k1Keypair()
+	privkey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		t.Fatal("failed to generate private key")
 	}
@@ -48,7 +49,7 @@ func TestCipheringBasic(t *testing.T) {
 }
 
 func TestCipheringErrors(t *testing.T) {
-	privkey, _, err := asymCrypto.GenSecp256k1Keypair()
+	privkey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		t.Fatal("failed to generate private key")
 	}
@@ -140,4 +141,15 @@ func TestCipheringErrors(t *testing.T) {
 			t.Errorf("removePKCSPadding #%d did not get error", i)
 		}
 	}
+}
+
+func TestAddPKCSPadding(t *testing.T) {
+	Convey("padding", t, func() {
+		data := []byte("xxxxxx")
+		padData := AddPKCSPadding(data)
+		cleanData, err := RemovePKCSPadding(padData)
+
+		So(cleanData, ShouldResemble, data)
+		So(err, ShouldBeNil)
+	})
 }

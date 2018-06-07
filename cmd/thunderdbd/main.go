@@ -22,16 +22,17 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"syscall"
 	"time"
 
-	"syscall"
+	"golang.org/x/crypto/ssh/terminal"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/conf"
+	"github.com/thunderdb/ThunderDB/route"
 	"github.com/thunderdb/ThunderDB/rpc"
 	"github.com/thunderdb/ThunderDB/utils"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const logo = `
@@ -65,8 +66,9 @@ var (
 	cpuProfile string
 	memProfile string
 
-	// private key path
-	privateKeyPath string
+	// key path
+	privateKeyPath     string
+	publicKeyStorePath string
 
 	// other
 	noLogo      bool
@@ -92,6 +94,7 @@ func init() {
 	flag.DurationVar(&publishPeersTimeout, "publish-peers-timeout", time.Second*30, "Timeout for peers to publish")
 	flag.DurationVar(&publishPeersDelay, "publish-peers-delay", time.Second, "Interval for peers publishing retry")
 	flag.StringVar(&privateKeyPath, "private-key-path", "./private.key", "Path to private key file")
+	flag.StringVar(&publicKeyStorePath, "public-keystore-path", "./public.keystore", "Path to public keystore file")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
@@ -145,14 +148,17 @@ func main() {
 	if err != nil {
 		fmt.Printf("Failed to read Master Key: %v", err)
 	}
+	fmt.Println("")
 
 	// start RPC server
 	rpcServer := rpc.NewServer()
-	err = rpcServer.InitRPCServer("0.0.0.0:2120", privateKeyPath, masterKeyBytes)
-	if err != nil {
-		log.Fatalf("init RPC server failed: %s", err)
-	}
-	go rpcServer.Serve()
+
+	// if any error, InitRPCServer will log.Fatal which calls os.Exit
+	rpcServer.InitRPCServer("0.0.0.0:2120", privateKeyPath, publicKeyStorePath, masterKeyBytes)
+
+	// Register service by a name
+	rpcServer.RegisterService("DHT", route.NewDHTService())
+	rpcServer.Serve()
 
 	log.Info("server stopped")
 }

@@ -34,7 +34,13 @@ import (
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
+var (
+	version = "unknown"
+)
+
 func main() {
+	// TODO(auxten): keypair and nodeID generator
+	log.Infof("idminer build: %s", version)
 	if len(os.Args) != 2 {
 		log.Error("usage: ./idminer publicKeyHex")
 		os.Exit(1)
@@ -78,11 +84,12 @@ func main() {
 			}
 			start := mine.Uint256{0, 0, 0, step*uint64(i) + uint64(rand.Uint32())}
 			log.Infof("miner #%d start: %v", i, start)
-			miner.CalculateBlockNonce(block, start, 256)
+			miner.ComputeBlockNonce(block, start, 256)
 		}(i)
 	}
 
-	<-signalCh
+	sig := <-signalCh
+	log.Infof("received signal %s", sig)
 	for i := 0; i < cpuCount; i++ {
 		stopChs[i] <- struct{}{}
 	}

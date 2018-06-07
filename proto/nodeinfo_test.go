@@ -26,14 +26,14 @@ import (
 )
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {
-	NewNodeIDDifficultyTimeout = 6000 * time.Millisecond
+	NewNodeIDDifficultyTimeout = 1000 * time.Millisecond
 	Convey("InitNodeCryptoInfo", t, func() {
 		node := NewNode()
 		err := node.InitNodeCryptoInfo()
 		hashTmp := hash.DoubleHashH(append(node.PublicKey.SerializeCompressed(),
 			node.Nonce.Nonce.Bytes()...))
-		t.Logf("CalculateBlockNonce got %v, difficulty %d, nonce %s, hash %s",
-			err, node.Nonce.Difficulty, node.Nonce.Nonce.String(), hashTmp.String())
+		t.Logf("ComputeBlockNonce got %v, difficulty %d, nonce %v, hash %s",
+			err, node.Nonce.Difficulty, node.Nonce.Nonce, hashTmp.String())
 
 		So(node.Nonce.Difficulty, ShouldBeGreaterThan, 1)
 		So(hashTmp.Difficulty(), ShouldEqual, node.Nonce.Difficulty)

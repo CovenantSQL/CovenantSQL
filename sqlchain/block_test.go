@@ -68,7 +68,7 @@ func TestSign(t *testing.T) {
 				0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
 				0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
 			},
-			TimeStamp: time.Now(),
+			Timestamp: time.Now(),
 		}
 
 		signedHeader := SignedHeader{
@@ -99,6 +99,20 @@ func TestSign(t *testing.T) {
 		if !block.VerifyHeader() {
 			t.Errorf("%s could not verify header: %v", test.name, err)
 			continue
+		}
+
+		// Test marshal/unmarshal
+		buffer, err := signedHeader.marshal()
+
+		if err != nil {
+			t.Errorf("Error occurred: %s", err.Error())
+		}
+
+		parsed := &SignedHeader{}
+		err = parsed.unmarshal(buffer)
+
+		if err != nil {
+			t.Errorf("Error occurred: %s", err.Error())
 		}
 	}
 }

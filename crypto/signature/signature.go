@@ -35,6 +35,21 @@ type Signature struct {
 	S *big.Int
 }
 
+func (s *Signature) toBTCEC() *btcec.Signature {
+	return (*btcec.Signature)(s)
+}
+
+// Serialize converts a signature to stirng
+func (s *Signature) Serialize() []byte {
+	return s.toBTCEC().Serialize()
+}
+
+// ParseDERSignature recovers the signature from a sigStr
+func ParseDERSignature(sigStr []byte, curve elliptic.Curve) (*Signature, error) {
+	sig, err := btcec.ParseDERSignature(sigStr, curve)
+	return (*Signature)(sig), err
+}
+
 // PrivateKey wraps an ecdsa.PrivateKey as a convenience mainly for signing things with the the
 // private key without having to directly import the ecdsa package.
 type PrivateKey ecdsa.PrivateKey
@@ -68,10 +83,26 @@ func (p *PublicKey) toECDSA() *ecdsa.PublicKey {
 	return (*ecdsa.PublicKey)(p)
 }
 
+func (p *PublicKey) toBTCEC() *btcec.PublicKey {
+	return (*btcec.PublicKey)(p)
+}
+
+// Serialize is a function that converts a public key
+// to uncompressed byte array
+func (p *PublicKey) Serialize() []byte {
+	return p.toBTCEC().SerializeUncompressed()
+}
+
+// ParsePubKey recovers the public key from pubKeyStr
+func ParsePubKey(pubKeyStr []byte, curve *btcec.KoblitzCurve) (*PublicKey, error) {
+	key, err := btcec.ParsePubKey(pubKeyStr, curve)
+	return (*PublicKey)(key), err
+}
+
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true
 // if the signature is valid, false otherwise.
-func (sig *Signature) Verify(hash []byte, signee *PublicKey) bool {
-	return ecdsa.Verify(signee.toECDSA(), hash, sig.R, sig.S)
+func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
+	return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 
 // PrivKeyFromBytes returns a private and public key for `curve' based on the private key passed

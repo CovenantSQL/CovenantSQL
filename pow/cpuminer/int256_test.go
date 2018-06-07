@@ -17,9 +17,10 @@
 package cpuminer
 
 import (
-	"log"
 	"math"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	"unsafe"
 

@@ -28,7 +28,7 @@ import (
 type Nonce struct {
 	Nonce      Uint256
 	Difficulty int
-	Hash       hash.Hash
+	Hash       hash.Hash // Hash can be used as raw NodeID
 }
 
 // MiningBlock contains Data tobe mined
@@ -56,14 +56,14 @@ func NewCPUMiner(quit chan struct{}) *CPUMiner {
 }
 
 // HashBlock calculate the hash of MiningBlock
-func (miner *CPUMiner) HashBlock(data []byte, nonce Uint256) hash.Hash {
+func HashBlock(data []byte, nonce Uint256) hash.Hash {
 	return hash.DoubleHashH(append(data, nonce.Bytes()...))
 }
 
-// CalculateBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
+// ComputeBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
 // if interrupted or stopped highest difficulty nonce will be sent to the NonceCh
 //  TODO(auxten): make calculation parallel
-func (miner *CPUMiner) CalculateBlockNonce(
+func (miner *CPUMiner) ComputeBlockNonce(
 	block MiningBlock,
 	startNonce Uint256,
 	difficulty int,
@@ -83,7 +83,7 @@ func (miner *CPUMiner) CalculateBlockNonce(
 			block.NonceChan <- bestNonce
 			return errors.New("miner interrupted")
 		default:
-			currentHash := miner.HashBlock(block.Data, i)
+			currentHash := HashBlock(block.Data, i)
 			currentDifficulty := currentHash.Difficulty()
 			if currentDifficulty >= difficulty {
 				bestNonce.Difficulty = currentDifficulty

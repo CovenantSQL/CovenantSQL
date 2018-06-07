@@ -48,7 +48,7 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err = miner.CalculateBlockNonce(block, Uint256{}, diffWanted)
+		err = miner.ComputeBlockNonce(block, Uint256{}, diffWanted)
 		wg.Done()
 	}()
 	nonceFromCh := <-nonceCh
@@ -56,7 +56,7 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 
 	hash := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if err != nil || nonceFromCh.Difficulty < diffWanted || hash.Difficulty() < diffWanted {
-		t.Errorf("CalculateBlockNonce got %v, difficulty %d, nonce %s",
+		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %s",
 			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hash.String())
@@ -80,7 +80,7 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 		err error
 	)
 	go func() {
-		err = miner.CalculateBlockNonce(block, Uint256{}, diffWanted)
+		err = miner.ComputeBlockNonce(block, Uint256{}, diffWanted)
 	}()
 	// stop miner
 	time.Sleep(2 * time.Second)
@@ -92,7 +92,7 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 	//hasha := miner.HashBlock(data, nonceFromCh.Nonce)
 	hasha := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
-		t.Errorf("CalculateBlockNonce got %v, difficulty %d, nonce %s, hash %s",
+		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %s, hash %s",
 			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes(), hasha.String())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hasha.String())
@@ -116,10 +116,10 @@ func TestCPUMiner_HashBlock_quit(t *testing.T) {
 		err error
 	)
 	go func() {
-		err = miner.CalculateBlockNonce(block, Uint256{}, diffWanted)
+		err = miner.ComputeBlockNonce(block, Uint256{}, diffWanted)
 	}()
 	// stop miner
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	//block.Stop <- struct{}{}
 	miner.quit <- struct{}{}
 
@@ -128,7 +128,7 @@ func TestCPUMiner_HashBlock_quit(t *testing.T) {
 	//hasha := miner.HashBlock(data, nonceFromCh.Nonce)
 	hasha := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
-		t.Errorf("CalculateBlockNonce got %v, difficulty %d, nonce %s, hash %s",
+		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %s, hash %s",
 			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes(), hasha.String())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hasha.String())

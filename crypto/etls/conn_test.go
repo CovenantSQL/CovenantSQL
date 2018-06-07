@@ -42,13 +42,20 @@ func (f *Foo) Bar(args *string, res *Result) error {
 
 const service = "127.0.0.1:28000"
 const contentLength = 9999
+const pass = "123"
 
-func server(pass string) *CryptoListener {
+var simpleCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
+	cipher := NewCipher([]byte(pass))
+	cryptoConn = NewConn(conn, cipher)
+	return
+}
+
+func server() *CryptoListener {
 	if err := rpc.Register(new(Foo)); err != nil {
 		log.Error("Failed to register RPC method")
 	}
 
-	listener, err := NewCryptoListener("tcp", service, pass)
+	listener, err := NewCryptoListener("tcp", service, simpleCipherHandler)
 	//listener, err := net.Listen("tcp", service)
 	if err != nil {
 		log.Errorf("server: listen: %s", err)
@@ -84,6 +91,7 @@ func client(pass string) (ret int, err error) {
 	conn.SetWriteDeadline(time.Time{})
 
 	log.Println("client: connected to: ", conn.RemoteAddr())
+	log.Println("client: LocalAddr: ", conn.LocalAddr())
 	rpcClient := rpc.NewClient(conn)
 	res := new(Result)
 	args := strings.Repeat("a", contentLength)
@@ -102,8 +110,7 @@ func handleClient(conn net.Conn) {
 }
 
 func TestConn(t *testing.T) {
-	const pass = "123"
-	l := server(pass)
+	l := server()
 	Convey("get addr", t, func() {
 		addr := l.Addr().String()
 		So(addr, ShouldEqual, service)

@@ -22,41 +22,41 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type CipherHandler func(conn net.Conn) (cryptoConn *CryptoConn, err error)
+
 // CryptoListener implements net.Listener
-// testPass is used for JUST test
 type CryptoListener struct {
-	listener net.Listener
-	testPass string
+	net.Listener
+	CHandler CipherHandler
 }
 
 // NewCryptoListener returns a new CryptoListener
-func NewCryptoListener(network, addr, pass string) (*CryptoListener, error) {
+func NewCryptoListener(network, addr string, handler CipherHandler) (*CryptoListener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return &CryptoListener{l, pass}, nil
+	return &CryptoListener{l, handler}, nil
 }
 
 // Accept waits for and returns the next connection to the listener.
 func (l *CryptoListener) Accept() (net.Conn, error) {
-	c, err := l.listener.Accept()
+	c, err := l.Listener.Accept()
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-	cipher := NewCipher([]byte(l.testPass))
 
-	return NewConn(c, cipher), nil
+	return l.CHandler(c)
 }
 
 // Close closes the listener.
 // Any blocked Accept operations will be unblocked and return errors.
 func (l *CryptoListener) Close() error {
-	return l.listener.Close()
+	return l.Listener.Close()
 }
 
 // Addr returns the listener's network address.
 func (l *CryptoListener) Addr() net.Addr {
-	return l.listener.Addr()
+	return l.Listener.Addr()
 }

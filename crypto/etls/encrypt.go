@@ -101,7 +101,7 @@ func NewCipher(rawKey []byte) (c *Cipher) {
 		newAESCFBEncStream,
 	}
 	hSuite := &hash.HashSuite{
-		HashLen:  32,
+		HashLen:  hash.HashBSize,
 		HashFunc: hash.DoubleHashB,
 	}
 	key := KeyDerivation(rawKey, mi.keyLen, hSuite)

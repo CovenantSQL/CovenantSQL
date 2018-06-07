@@ -25,7 +25,13 @@ import (
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/thunderdb/ThunderDB/conf"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"github.com/thunderdb/ThunderDB/crypto/etls"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
+	"github.com/thunderdb/ThunderDB/route"
 )
 
 // ServiceMap maps service name to service instance
@@ -33,12 +39,13 @@ type ServiceMap map[string]interface{}
 
 // Server is the RPC server struct
 type Server struct {
-	node       *proto.Node
-	sessions   sync.Map // map[id]*Session
-	rpcServer  *rpc.Server
-	stopCh     chan interface{}
-	serviceMap ServiceMap
-	listener   net.Listener
+	publicKeyStore *kms.PublicKeyStore
+	node           *proto.Node
+	sessions       sync.Map // map[id]*Session
+	rpcServer      *rpc.Server
+	stopCh         chan interface{}
+	serviceMap     ServiceMap
+	Listener       net.Listener
 }
 
 // NewServer return a new Server
@@ -48,6 +55,35 @@ func NewServer() *Server {
 		stopCh:     make(chan interface{}),
 		serviceMap: make(ServiceMap),
 	}
+}
+
+// InitRPCServer load the private key, init the crypto transfer layer and register RPC
+// services.
+// IF ANY ERROR, the func will FATAL
+func (s *Server) InitRPCServer(
+	addr string,
+	privateKeyPath string,
+	publicKeyStorePath string,
+	masterKey []byte,
+) {
+	route.InitResolver()
+
+	// Create new public key store, IF ANY ERROR, the func will FATAL
+	kms.InitPublicKeyStore(publicKeyStorePath)
+
+	err := kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	if err != nil {
+		log.Fatalf("init LocalKeyPair failed: %s", err)
+	}
+
+	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
+	if err != nil {
+		log.Fatalf("create crypto listener failed: %s", err)
+	}
+
+	s.SetListener(l)
+
+	return
 }
 
 // NewServerWithService also return a new Server, and also register the Server.ServiceMap
@@ -66,7 +102,7 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 
 // SetListener set the service loop listener, used by func Serve main loop
 func (s *Server) SetListener(l net.Listener) {
-	s.listener = l
+	s.Listener = l
 	return
 }
 
@@ -79,9 +115,9 @@ serverLoop:
 			log.Info("Stopping Server Loop")
 			break serverLoop
 		default:
-			conn, err := s.listener.Accept()
+			conn, err := s.Listener.Accept()
 			if err != nil {
-				log.Debug(err)
+				log.Error(err)
 				continue
 			}
 			go s.handleConn(conn)
@@ -121,4 +157,40 @@ func (s *Server) RegisterService(name string, service interface{}) error {
 // Stop Server main loop
 func (s *Server) Stop() {
 	close(s.stopCh)
+}
+
+func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
+	// NodeID + Uint256 Nonce
+	headerBuf := make([]byte, hash.HashBSize+32)
+	rCount, err := conn.Read(headerBuf)
+	if err != nil || rCount != hash.HashBSize+32 {
+		log.Errorf("read node header error: %s", err)
+		return
+	}
+
+	// nodeIdBuf len is hash.HashBSize, so there won't be any error
+	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
+	nodeId := proto.NodeID(idHash.String())
+	// TODO(auxten): compute the nonce and check difficulty
+	// cpuminer.FromBytes(headerBuf[hash.HashBSize:])
+
+	publicKey, err := kms.GetPublicKey(nodeId)
+	if err != nil {
+		if conf.Role[0] == 'M' && err == kms.ErrKeyNotFound {
+			// TODO(auxten): if Miner running and key not found, ask BlockProducer
+		}
+		log.Errorf("get public key failed, node id: %s", nodeId)
+		return
+	}
+	privateKey, err := kms.GetLocalPrivateKey()
+	if err != nil {
+		log.Errorf("get local private key failed: %s", err)
+		return
+	}
+
+	symmetricKey := asymmetric.GenECDHSharedSecret(privateKey, publicKey)
+	cipher := etls.NewCipher(symmetricKey)
+	cryptoConn = etls.NewConn(conn, cipher)
+
+	return
 }

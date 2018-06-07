@@ -29,14 +29,14 @@ import (
 
 // CryptoConn implements net.Conn and Cipher interface
 type CryptoConn struct {
-	conn net.Conn
+	net.Conn
 	*Cipher
 }
 
 // NewConn returns a new CryptoConn
 func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 	return &CryptoConn{
-		conn:   c,
+		Conn:   c,
 		Cipher: cipher,
 	}
 }
@@ -46,19 +46,25 @@ func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
-		log.Errorf("Connect to %s failed: %v", address, err)
+		log.Errorf("connect to %s failed: %s", address, err)
 		return
 	}
+
 	c = NewConn(conn, cipher)
-	c.conn = conn
+	c.Conn = conn
 	return
+}
+
+// RawRead is the raw net.Conn.Read
+func (c *CryptoConn) RawRead(b []byte) (n int, err error) {
+	return c.Conn.Read(b)
 }
 
 // Read iv and Encrypted data
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
 		iv := make([]byte, c.info.ivLen)
-		if _, err = io.ReadFull(c.conn, iv); err != nil {
+		if _, err = io.ReadFull(c.Conn, iv); err != nil {
 			log.Error(err)
 			return
 		}
@@ -72,7 +78,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 
 	cipherData := make([]byte, len(b))
 
-	n, err = c.conn.Read(cipherData)
+	n, err = c.Conn.Read(cipherData)
 	if err != nil {
 		log.Error(err)
 		return
@@ -81,6 +87,11 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 		c.decrypt(b[0:n], cipherData[0:n])
 	}
 	return
+}
+
+// RawWrite is the raw net.Conn.Write
+func (c *CryptoConn) RawWrite(b []byte) (n int, err error) {
+	return c.Conn.Read(b)
 }
 
 // Write iv and Encrypted data
@@ -103,24 +114,24 @@ func (c *CryptoConn) Write(b []byte) (n int, err error) {
 	}
 
 	c.encrypt(cipherData[len(iv):], b)
-	n, err = c.conn.Write(cipherData)
+	n, err = c.Conn.Write(cipherData)
 	return
 }
 
 // Close closes the connection.
 // Any blocked Read or Write operations will be unblocked and return errors.
 func (c *CryptoConn) Close() error {
-	return c.conn.Close()
+	return c.Conn.Close()
 }
 
 // LocalAddr returns the local network address.
 func (c *CryptoConn) LocalAddr() net.Addr {
-	return c.conn.LocalAddr()
+	return c.Conn.LocalAddr()
 }
 
 // RemoteAddr returns the remote network address.
 func (c *CryptoConn) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
+	return c.Conn.RemoteAddr()
 }
 
 // SetDeadline sets the read and write deadlines associated with the connection.
@@ -128,13 +139,13 @@ func (c *CryptoConn) RemoteAddr() net.Addr {
 // After a Write has timed out, the TLS state is corrupt and all future writes
 // will return the same error.
 func (c *CryptoConn) SetDeadline(t time.Time) error {
-	return c.conn.SetDeadline(t)
+	return c.Conn.SetDeadline(t)
 }
 
 // SetReadDeadline sets the read deadline on the underlying connection.
 // A zero value for t means Read will not time out.
 func (c *CryptoConn) SetReadDeadline(t time.Time) error {
-	return c.conn.SetReadDeadline(t)
+	return c.Conn.SetReadDeadline(t)
 }
 
 // SetWriteDeadline sets the write deadline on the underlying connection.
@@ -142,5 +153,5 @@ func (c *CryptoConn) SetReadDeadline(t time.Time) error {
 // After a Write has timed out, the TLS state is corrupt and all future writes
 // will return the same error.
 func (c *CryptoConn) SetWriteDeadline(t time.Time) error {
-	return c.conn.SetWriteDeadline(t)
+	return c.Conn.SetWriteDeadline(t)
 }

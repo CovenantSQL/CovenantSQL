@@ -50,6 +50,12 @@
   version = "v1.7.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/minio/blake2b-simd"
+  packages = ["."]
+  revision = "3f5f724cb5b182a5c278d6d3d55b40e7f8c2efb4"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -111,6 +117,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6e58b95e5b5dca61e4ea23728445c4417fe0ce3c9f3010b72307cbf98e5ee407"
+  inputs-digest = "1f482721d14fe290d7778a089c9b5c9f98dc3c7f37f138980c063d385a939362"
   solver-name = "gps-cdcl"
   solver-version = 1

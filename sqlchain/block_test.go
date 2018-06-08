@@ -97,7 +97,7 @@ func TestSign(t *testing.T) {
 		}
 
 		if !block.VerifyHeader() {
-			t.Errorf("%s could not verify header: %v", test.name, err)
+			t.Errorf("%s could not verify header", test.name)
 			continue
 		}
 

@@ -156,18 +156,20 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	return err
 }
 
+// Verify verifies the signature of the SignedHeader.
+func (s *SignedHeader) Verify() bool {
+	return s.Signature.Verify(s.BlockHash[:], s.Signee)
+}
+
 // Block is a node of blockchain.
 type Block struct {
 	SignedHeader *SignedHeader
 	Queries      []*Query
 }
 
-// Blocks is Block (reference) array.
-type Blocks []*Block
-
 // SignHeader generates the signature for the Block from the given PrivateKey.
 func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
-	buffer, err := b.SignedHeader.marshal()
+	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
 		return err
@@ -181,5 +183,21 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 
 // VerifyHeader verifies the signature of the Block.
 func (b *Block) VerifyHeader() bool {
-	return b.SignedHeader.Signature.Verify(b.SignedHeader.BlockHash[:], b.SignedHeader.Signee)
+	buffer, err := b.SignedHeader.Header.marshal()
+
+	if err != nil {
+		return false
+	}
+
+	h := hash.DoubleHashH(buffer)
+
+	if h != b.SignedHeader.BlockHash {
+		fmt.Printf("error: hash not match: %v, %v", h, b.SignedHeader.BlockHash)
+		return false
+	}
+
+	return b.SignedHeader.Verify()
 }
+
+// Blocks is Block (reference) array.
+type Blocks []*Block

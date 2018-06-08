@@ -18,13 +18,61 @@ package sqlchain
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"testing"
 	"time"
 
 	bolt "github.com/coreos/bbolt"
 	"github.com/thunderdb/ThunderDB/common"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 )
+
+var (
+	rootHash = hash.Hash{
+		0xea, 0xf0, 0x2c, 0xa3, 0x48, 0xc5, 0x24, 0xe6,
+		0x39, 0x26, 0x55, 0xba, 0x4d, 0x29, 0x60, 0x3c,
+		0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
+		0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
+	}
+)
+
+func testSetup() {
+	rand.Seed(time.Now().UnixNano())
+	kms.InitLocalKeyStore()
+}
+
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
+	// Generate key pair
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		return
+	}
+
+	b = &Block{
+		Header{
+			Version:    0x01000000,
+			RootHash:   rootHash,
+			ParentHash: parent,
+			Timestamp:  time.Now(),
+		},
+		Signee:    (*signature.PublicKey)(pub),
+		Signature: nil,
+	}
+
+	rand.Read(b.SignedHeader.Header.Producer[:])
+
+	// TODO(leventeliu): use merkle package to generate this field from queries.
+	rand.Read(b.SignedHeader.Header.MerkleRoot[:])
+
+	if isGenesis {
+		copy(b.SignedHeader.Header.Producer[:], kms.BPNodeID[:])
+	}
+}
 
 func TestChain(t *testing.T) {
 	fl, err := ioutil.TempFile("", "chain")
@@ -32,6 +80,8 @@ func TestChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
+
+	fl.Close()
 
 	// Cold init
 	chain, err := NewChain(&Config{DataDir: fl.Name()})
@@ -110,4 +160,9 @@ func TestChain(t *testing.T) {
 		// FIXME(leventeliu)
 		t.Logf("init error: %s", err.Error())
 	}
+}
+
+func TestMain(m *testing.M) {
+	testSetup()
+	os.Exit(m.Run())
 }

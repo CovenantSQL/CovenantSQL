@@ -735,7 +735,7 @@ func NewTwoPCWorkerWrapper(runner *TwoPCRunner, serverID ServerID) *TwoPCWorkerW
 
 // Prepare implements twopc.Worker.Prepare
 func (tpww *TwoPCWorkerWrapper) Prepare(ctx context.Context, wb twopc.WriteBatch) error {
-	return tpww.callRemote("Prepare", ctx, wb)
+	return tpww.callRemote(ctx, "Prepare", wb)
 }
 
 // Commit implements twopc.Worker.Commit
@@ -746,7 +746,7 @@ func (tpww *TwoPCWorkerWrapper) Commit(ctx context.Context, wb twopc.WriteBatch)
 		return ErrInvalidLog
 	}
 
-	return tpww.callRemote("Commit", ctx, l.Index)
+	return tpww.callRemote(ctx, "Commit", l.Index)
 }
 
 // Rollback implements twopc.Worker.Rollback
@@ -757,10 +757,10 @@ func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatc
 		return ErrInvalidLog
 	}
 
-	return tpww.callRemote("Rollback", ctx, l.Index)
+	return tpww.callRemote(ctx, "Rollback", l.Index)
 }
 
-func (tpww *TwoPCWorkerWrapper) callRemote(method string, ctx context.Context, args interface{}) error {
+func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) error {
 	var remoteErr error
 
 	// TODO(xq262144), handle retry

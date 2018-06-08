@@ -101,7 +101,7 @@ func (r *Runtime) Init() error {
 
 // Shutdown defines common shutdown logic.
 func (r *Runtime) Shutdown() error {
-	err := r.config.Runner.Shutdown()
+	err := r.config.Runner.Shutdown(true)
 	if err != nil {
 		return fmt.Errorf("%s runner shutdown: %s", r.config.Runner, err.Error())
 	}

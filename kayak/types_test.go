@@ -199,4 +199,8 @@ func TestPeers_Sign(t *testing.T) {
 	Convey("verify signed peers", t, func() {
 		So(peers.Verify(), ShouldBeTrue)
 	})
+	Convey("verify corrupted peers", t, func() {
+		peers.Term = 2
+		So(peers.Verify(), ShouldBeFalse)
+	})
 }

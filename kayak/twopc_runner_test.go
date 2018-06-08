@@ -262,6 +262,29 @@ func (w *MockTwoPCWorker) GetState() string {
 	return w.state
 }
 
+type CallCollector struct {
+	l         sync.Mutex
+	callOrder []string
+}
+
+func (c *CallCollector) Append(call string) {
+	c.l.Lock()
+	defer c.l.Unlock()
+	c.callOrder = append(c.callOrder, call)
+}
+
+func (c *CallCollector) Get() []string {
+	c.l.Lock()
+	defer c.l.Unlock()
+	return c.callOrder[:]
+}
+
+func (c *CallCollector) Reset() {
+	c.l.Lock()
+	defer c.l.Unlock()
+	c.callOrder = c.callOrder[:0]
+}
+
 func testPeersFixture(term uint64, servers []*Server) *Peers {
 	testPriv := []byte{
 		0xea, 0xf0, 0x2c, 0xa3, 0x48, 0xc5, 0x24, 0xe6,
@@ -749,22 +772,22 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 		Convey("commit", func() {
 			// mock worker
-			var callOrder []string
+			callOrder := &CallCollector{}
 			mockRes.worker.On("Prepare", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "prepare")
+				callOrder.Append("prepare")
 			})
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "store_log")
+				callOrder.Append("store_log")
 			})
 			mockRes.worker.On("Commit", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "commit")
+				callOrder.Append("commit")
 			})
 			mockRes.stableStore.On("SetUint64", keyCommittedIndex, uint64(1)).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "update_committed")
+				callOrder.Append("update_committed")
 			})
 
 			testData, _ := mockLogCodec.Encode("test data")
@@ -775,7 +798,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// test call orders
-			So(callOrder, ShouldResemble, []string{
+			So(callOrder.Get(), ShouldResemble, []string{
 				"prepare",
 				"store_log",
 				"commit",
@@ -785,23 +808,23 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 		Convey("rollback", func() {
 			// mock worker
-			var callOrder []string
+			callOrder := &CallCollector{}
 			unknownErr := errors.New("unknown error")
 			mockRes.worker.On("Prepare", mock.Anything, "test data").
 				Return(unknownErr).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "prepare")
+				callOrder.Append("prepare")
 			})
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "store_log")
+				callOrder.Append("store_log")
 			})
 			mockRes.worker.On("Rollback", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "rollback")
+				callOrder.Append("rollback")
 			})
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "truncate_log")
+				callOrder.Append("truncate_log")
 			})
 
 			testData, _ := mockLogCodec.Encode("test data")
@@ -812,7 +835,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 			// no log should be written to local log store after failed preparing
 			mockRes.logStore.AssertNotCalled(t, "StoreLog", mock.AnythingOfType("*kayak.Log"))
-			So(callOrder, ShouldResemble, []string{
+			So(callOrder.Get(), ShouldResemble, []string{
 				"prepare",
 				"truncate_log",
 				"rollback",
@@ -904,10 +927,12 @@ func TestTwoPCRunner_Process(t *testing.T) {
 				Address: "follower2_address",
 			},
 		})
-		initMock := func(r *createMockRes) {
-			store := NewMockInmemStore()
-			err := r.runner.Init(r.config, peers, store, store, r.transport)
-			So(err, ShouldBeNil)
+		initMock := func(mocks ...*createMockRes) {
+			for _, r := range mocks {
+				store := NewMockInmemStore()
+				err := r.runner.Init(r.config, peers, store, store, r.transport)
+				So(err, ShouldBeNil)
+			}
 		}
 
 		Convey("commit", func() {
@@ -916,36 +941,34 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			f2Mock := createMock("follower2")
 
 			// init
-			initMock(lMock)
-			initMock(f1Mock)
-			initMock(f2Mock)
+			initMock(lMock, f1Mock, f2Mock)
 
 			testData, _ := mockLogCodec.Encode("test data")
 
-			var callOrder []string
+			callOrder := &CallCollector{}
 			f1Mock.worker.On("Prepare", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_prepare")
+				callOrder.Append("f_prepare")
 			})
 			f2Mock.worker.On("Prepare", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_prepare")
+				callOrder.Append("f_prepare")
 			})
 			f1Mock.worker.On("Commit", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_commit")
+				callOrder.Append("f_commit")
 			})
 			f2Mock.worker.On("Commit", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_commit")
+				callOrder.Append("f_commit")
 			})
 			lMock.worker.On("Prepare", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "l_prepare")
+				callOrder.Append("l_prepare")
 			})
 			lMock.worker.On("Commit", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "l_commit")
+				callOrder.Append("l_commit")
 			})
 
 			// try call process
@@ -954,7 +977,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// test call orders
-			So(callOrder, ShouldResemble, []string{
+			So(callOrder.Get(), ShouldResemble, []string{
 				"f_prepare",
 				"f_prepare",
 				"l_prepare",
@@ -962,6 +985,48 @@ func TestTwoPCRunner_Process(t *testing.T) {
 				"f_commit",
 				"l_commit",
 			})
+
+			lastLogHash := lMock.runner.lastLogHash
+			lastLogIndex := lMock.runner.lastLogIndex
+			lastLogTerm := lMock.runner.lastLogTerm
+
+			So(lastLogHash, ShouldNotBeNil)
+			So(lastLogIndex, ShouldEqual, uint64(1))
+			So(lastLogTerm, ShouldEqual, uint64(1))
+
+			// check with log
+			var firstLog Log
+			err = lMock.runner.logStore.GetLog(1, &firstLog)
+			So(err, ShouldBeNil)
+
+			So(firstLog.LastHash, ShouldBeNil)
+			So(lastLogHash.IsEqual(&firstLog.Hash), ShouldBeTrue)
+			So(lastLogIndex, ShouldResemble, firstLog.Index)
+			So(lastLogTerm, ShouldResemble, firstLog.Term)
+
+			// commit second log
+			callOrder.Reset()
+
+			err = lMock.runner.Process(testData)
+
+			So(err, ShouldBeNil)
+
+			// test call orders
+			So(callOrder.Get(), ShouldResemble, []string{
+				"f_prepare",
+				"f_prepare",
+				"l_prepare",
+				"f_commit",
+				"f_commit",
+				"l_commit",
+			})
+
+			// check with log
+			var secondLog Log
+			err = lMock.runner.logStore.GetLog(2, &secondLog)
+			So(err, ShouldBeNil)
+
+			So(secondLog.LastHash.IsEqual(lastLogHash), ShouldBeTrue)
 		})
 
 		Convey("rollback", func() {
@@ -970,39 +1035,37 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			f2Mock := createMock("follower2")
 
 			// init
-			initMock(lMock)
-			initMock(f1Mock)
-			initMock(f2Mock)
+			initMock(lMock, f1Mock, f2Mock)
 
 			testData, _ := mockLogCodec.Encode("test data")
 
-			var callOrder []string
+			callOrder := &CallCollector{}
 			unknownErr := errors.New("unknown error")
 			// f1 prepare with error
 			f1Mock.worker.On("Prepare", mock.Anything, "test data").
 				Return(unknownErr).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_prepare")
+				callOrder.Append("f_prepare")
 			})
 			f1Mock.worker.On("Rollback", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_rollback")
+				callOrder.Append("f_rollback")
 			})
 			// f2 prepare with no error
 			f2Mock.worker.On("Prepare", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_prepare")
+				callOrder.Append("f_prepare")
 			})
 			f2Mock.worker.On("Rollback", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "f_rollback")
+				callOrder.Append("f_rollback")
 			})
 			lMock.worker.On("Prepare", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "l_prepare")
+				callOrder.Append("l_prepare")
 			})
 			lMock.worker.On("Rollback", mock.Anything, "test data").
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder = append(callOrder, "l_rollback")
+				callOrder.Append("l_rollback")
 			})
 
 			// try call process
@@ -1015,7 +1078,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			// prepare failed, so no l_prepare is called
 			// since one prepare failed, only one f_rollback with be triggered
 			// TODO, mixing coordinator role with worker role in leader node may be a bad idea, need code refactor
-			So(callOrder, ShouldResemble, []string{
+			So(callOrder.Get(), ShouldResemble, []string{
 				"f_prepare",
 				"f_prepare",
 				//"l_prepare",
@@ -1046,9 +1109,11 @@ func TestTwoPCRunner_Process(t *testing.T) {
 				Address: "follower2_address",
 			},
 		})
-		initMock := func(r *createMockRes) {
-			err := r.runner.Init(r.config, peers, r.logStore, r.stableStore, r.transport)
-			So(err, ShouldBeNil)
+		initMock := func(mocks ...*createMockRes) {
+			for _, r := range mocks {
+				err := r.runner.Init(r.config, peers, r.logStore, r.stableStore, r.transport)
+				So(err, ShouldBeNil)
+			}
 		}
 
 		Convey("request from non-leader", func() {
@@ -1057,9 +1122,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			f2Mock := createMock("follower1")
 
 			// init
-			initMock(lMock)
-			initMock(f1Mock)
-			initMock(f2Mock)
+			initMock(lMock, f1Mock, f2Mock)
 
 			// fake request
 			testData, _ := mockLogCodec.Encode("test data")
@@ -1087,8 +1150,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			f1Mock := createMock("follower1")
 
 			// init
-			initMock(lMock)
-			initMock(f1Mock)
+			initMock(lMock, f1Mock)
 
 			// fake request
 			var err, remoteErr error
@@ -1109,8 +1171,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			f1Mock := createMock("follower1")
 
 			// init
-			initMock(lMock)
-			initMock(f1Mock)
+			initMock(lMock, f1Mock)
 
 			var err, remoteErr error
 			err = lMock.transport.Request(
@@ -1174,11 +1235,11 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		// init with no log and no term info
 		res.stableStore.On("GetUint64", keyCurrentTerm).Return(uint64(0), nil)
 		res.stableStore.On("GetUint64", keyCommittedIndex).Return(uint64(0), nil)
-		res.stableStore.On("SetUint64", keyCurrentTerm, uint64(1)).Return(nil)
+		res.stableStore.On("SetUint64", keyCurrentTerm, uint64(2)).Return(nil)
 		res.logStore.On("LastIndex").Return(uint64(0), nil)
 		return
 	}
-	peers := testPeersFixture(1, []*Server{
+	peers := testPeersFixture(2, []*Server{
 		{
 			Role:    Leader,
 			ID:      "leader",
@@ -1195,17 +1256,242 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 			Address: "follower2_address",
 		},
 	})
-	initMock := func(r *createMockRes) {
-		err := r.runner.Init(r.config, peers, r.logStore, r.stableStore, r.transport)
-		So(err, ShouldBeNil)
+	initMock := func(mocks ...*createMockRes) {
+		for _, r := range mocks {
+			err := r.runner.Init(r.config, peers, r.logStore, r.stableStore, r.transport)
+			So(err, ShouldBeNil)
+		}
+	}
+	testMock := func(peers *Peers, testFunc func(*createMockRes, error), mocks ...*createMockRes) {
+		wg := new(sync.WaitGroup)
+
+		for _, r := range mocks {
+			wg.Add(1)
+			go func(m *createMockRes) {
+				defer wg.Done()
+				err := m.runner.UpdatePeers(peers)
+				if testFunc != nil {
+					testFunc(m, err)
+				}
+			}(r)
+		}
+
+		wg.Wait()
 	}
 
-	Convey("update peers with incorrect leader", t, func() {
+	Convey("update peers with invalid configuration", t, func() {
 		mockRouter.ResetAll()
 
 		lMock := createMock("leader")
 		f1Mock := createMock("follower1")
 		f2Mock := createMock("follower2")
+
+		// init
+		initMock(lMock, f1Mock, f2Mock)
+
+		Convey("same peers term", FailureContinues, func(c C) {
+			newPeers := testPeersFixture(2, []*Server{
+				{
+					Role:    Leader,
+					ID:      "leader",
+					Address: "leader_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower1",
+					Address: "follower1_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower2",
+					Address: "follower2_address",
+				},
+			})
+
+			testFunc := func(_ *createMockRes, err error) {
+				c.So(err, ShouldBeNil)
+			}
+			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
+		})
+
+		Convey("invalid peers term", FailureContinues, func(c C) {
+			newPeers := testPeersFixture(1, []*Server{
+				{
+					Role:    Leader,
+					ID:      "leader",
+					Address: "leader_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower1",
+					Address: "follower1_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower2",
+					Address: "follower2_address",
+				},
+			})
+
+			testFunc := func(_ *createMockRes, err error) {
+				c.So(err, ShouldNotBeNil)
+				c.So(err, ShouldEqual, ErrInvalidConfig)
+			}
+			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
+		})
+
+		Convey("invalid peers signature", FailureContinues, func(c C) {
+			newPeers := testPeersFixture(4, []*Server{
+				{
+					Role:    Leader,
+					ID:      "leader",
+					Address: "leader_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower1",
+					Address: "follower1_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower2",
+					Address: "follower2_address",
+				},
+			})
+
+			newPeers.Term = 3
+
+			testFunc := func(_ *createMockRes, err error) {
+				c.So(err, ShouldNotBeNil)
+				c.So(err, ShouldEqual, ErrInvalidConfig)
+			}
+			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
+		})
+
+		Convey("peers update success", FailureContinues, func(c C) {
+			updateMock := func(mocks ...*createMockRes) {
+				for _, r := range mocks {
+					r.stableStore.On("SetUint64", keyCurrentTerm, uint64(3)).Return(nil)
+				}
+			}
+
+			updateMock(lMock, f1Mock, f2Mock)
+
+			newPeers := testPeersFixture(3, []*Server{
+				{
+					Role:    Leader,
+					ID:      "leader",
+					Address: "leader_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower1",
+					Address: "follower1_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower2",
+					Address: "follower2_address",
+				},
+			})
+
+			testFunc := func(r *createMockRes, err error) {
+				c.So(err, ShouldBeNil)
+				c.So(r.runner.currentTerm, ShouldEqual, uint64(3))
+				c.So(r.runner.peers, ShouldResemble, newPeers)
+				r.stableStore.AssertCalled(t, "SetUint64", keyCurrentTerm, uint64(3))
+			}
+
+			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
+		})
+
+		Convey("peers update include leader change", FailureContinues, func(c C) {
+			updateMock := func(mocks ...*createMockRes) {
+				for _, r := range mocks {
+					r.stableStore.On("SetUint64", keyCurrentTerm, uint64(3)).Return(nil)
+				}
+			}
+
+			updateMock(lMock, f1Mock, f2Mock)
+
+			newPeers := testPeersFixture(3, []*Server{
+				{
+					Role:    Follower,
+					ID:      "leader",
+					Address: "leader_address",
+				},
+				{
+					Role:    Leader,
+					ID:      "follower1",
+					Address: "follower1_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower2",
+					Address: "follower2_address",
+				},
+			})
+
+			testFunc := func(r *createMockRes, err error) {
+				c.So(err, ShouldBeNil)
+				c.So(r.runner.currentTerm, ShouldEqual, uint64(3))
+				c.So(r.runner.peers, ShouldResemble, newPeers)
+
+				switch r.config.LocalID {
+				case "leader":
+					c.So(r.runner.role, ShouldEqual, Follower)
+				case "follower1":
+					c.So(r.runner.role, ShouldEqual, Leader)
+				case "follower2":
+					c.So(r.runner.role, ShouldEqual, Follower)
+				}
+
+				r.stableStore.AssertCalled(t, "SetUint64", keyCurrentTerm, uint64(3))
+			}
+
+			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
+
+			// test call process
+			testData, _ := mockLogCodec.Encode("test data")
+			err := lMock.runner.Process(testData)
+
+			// no longer leader
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("peers update with shutdown", FailureContinues, func(c C) {
+			updateMock := func(mocks ...*createMockRes) {
+				for _, r := range mocks {
+					r.stableStore.On("SetUint64", keyCurrentTerm, uint64(3)).Return(nil)
+				}
+			}
+
+			updateMock(lMock, f1Mock, f2Mock)
+
+			newPeers := testPeersFixture(3, []*Server{
+				{
+					Role:    Leader,
+					ID:      "leader",
+					Address: "leader_address",
+				},
+				{
+					Role:    Follower,
+					ID:      "follower1",
+					Address: "follower1_address",
+				},
+			})
+
+			testFunc := func(r *createMockRes, err error) {
+				c.So(err, ShouldBeNil)
+				c.So(r.runner.currentTerm, ShouldEqual, uint64(3))
+				c.So(r.runner.peers, ShouldResemble, newPeers)
+				r.stableStore.AssertCalled(t, "SetUint64", keyCurrentTerm, uint64(3))
+			}
+
+			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
+
+			So(f2Mock.runner.currentState, ShouldEqual, Shutdown)
+		})
 	})
 }
 

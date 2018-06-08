@@ -114,6 +114,7 @@ type TwoPCLogCodec interface {
 // NewTwoPCRunner create a two pc runner
 func NewTwoPCRunner() *TwoPCRunner {
 	return &TwoPCRunner{
+		shutdownCh:     make(chan struct{}),
 		processReq:     make(chan []byte),
 		processRes:     make(chan error),
 		updatePeersReq: make(chan *Peers),
@@ -141,6 +142,7 @@ func (r *TwoPCRunner) Init(config Config, peers *Peers, logs LogStore, stable St
 	r.logStore = logs
 	r.stableStore = stable
 	r.transport = transport
+	r.currentState = Idle
 
 	// restore from log/stable store
 	if err := r.tryRestore(); err != nil {
@@ -306,7 +308,7 @@ func (r *TwoPCRunner) Process(data []byte) error {
 }
 
 // Shutdown implements Runner.Shutdown.
-func (r *TwoPCRunner) Shutdown() error {
+func (r *TwoPCRunner) Shutdown(wait bool) error {
 	r.shutdownLock.Lock()
 	defer r.shutdownLock.Unlock()
 
@@ -314,7 +316,9 @@ func (r *TwoPCRunner) Shutdown() error {
 		close(r.shutdownCh)
 		r.shutdown = true
 		r.setState(Shutdown)
-		r.routinesGroup.Wait()
+		if wait {
+			r.routinesGroup.Wait()
+		}
 	}
 
 	return nil
@@ -473,6 +477,25 @@ func (r *TwoPCRunner) processPeersUpdate(peersUpdate *Peers) {
 	var err error
 	if err = r.stableStore.SetUint64(keyCurrentTerm, peersUpdate.Term); err == nil {
 		r.peers = peersUpdate
+		r.currentTerm = peersUpdate.Term
+
+		// change role
+		r.leader = r.peers.Leader
+
+		notFound := true
+
+		for _, s := range r.peers.Servers {
+			if s.ID == r.config.LocalID {
+				r.role = s.Role
+				notFound = false
+				break
+			}
+		}
+
+		if notFound {
+			// shutdown
+			r.Shutdown(false)
+		}
 	}
 
 	r.updatePeersRes <- err

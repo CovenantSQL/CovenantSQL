@@ -301,5 +301,5 @@ type Runner interface {
 	Process(data []byte) error
 
 	// Shutdown defines destruct logic.
-	Shutdown() error
+	Shutdown(wait bool) error
 }

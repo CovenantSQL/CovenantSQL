@@ -142,7 +142,7 @@ func (r *TwoPCRunner) Init(config Config, peers *Peers, logs LogStore, stable St
 	r.logStore = logs
 	r.stableStore = stable
 	r.transport = transport
-	r.currentState = Idle
+	r.setState(Idle)
 
 	// restore from log/stable store
 	if err := r.tryRestore(); err != nil {
@@ -342,7 +342,7 @@ func (r *TwoPCRunner) run() {
 }
 
 func (r *TwoPCRunner) safeForPeersUpdate() chan *Peers {
-	if r.currentState == Idle {
+	if r.getState() == Idle {
 		return r.updatePeersReq
 	}
 
@@ -452,6 +452,12 @@ func (r *TwoPCRunner) setState(state ServerState) {
 	r.currentState = state
 }
 
+func (r *TwoPCRunner) getState() ServerState {
+	r.stateLock.Lock()
+	defer r.stateLock.Unlock()
+	return r.currentState
+}
+
 func (r *TwoPCRunner) processRequest(req Request) {
 	// verify call from leader
 	if err := r.verifyLeader(req); err != nil {
@@ -539,7 +545,7 @@ func (r *TwoPCRunner) decodeLogData(data []byte) (interface{}, error) {
 func (r *TwoPCRunner) processPrepare(req Request) {
 	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.PrepareTimeout, func(ctx context.Context) (err error) {
 		// already in transaction, try abort previous
-		if r.currentState != Idle {
+		if r.getState() != Idle {
 			// TODO(xq262144), has running transaction
 			// TODO(xq262144), abort previous or failed current
 		}
@@ -606,7 +612,7 @@ func (r *TwoPCRunner) processCommit(req Request) {
 	// commit log
 	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.CommitTimeout, func(ctx context.Context) (err error) {
 		// TODO(xq262144), check current running transaction index
-		if r.currentState != Prepared {
+		if r.getState() != Prepared {
 			// not prepared, failed directly
 			return ErrInvalidRequest
 		}
@@ -664,7 +670,7 @@ func (r *TwoPCRunner) processRollback(req Request) {
 	// rollback log
 	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.RollbackTimeout, func(ctx context.Context) (err error) {
 		// TODO(xq262144), check current running transaction index
-		if r.currentState != Prepared {
+		if r.getState() != Prepared {
 			// not prepared, failed directly
 			return ErrInvalidRequest
 		}

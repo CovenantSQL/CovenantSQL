@@ -54,15 +54,14 @@ var (
 	BPPublicKeyStr = "02c1db96f2ba7e1cb4e9822d12de0f63f" +
 		"b666feb828c7f509e81fab9bd7a34039c"
 	// BPNodeID is the node id of Block Producer
-	// 	{{235455434 0 0 1537228675571897187} 42 00000000003beb34cc9324644920e085c63675d2de5d822b4b61ac7d13a967df}
-	BPNodeID = "00000000003beb34cc9324644920e085" +
-		"c63675d2de5d822b4b61ac7d13a967df"
+	// 	{{25462458 0 0 0} 26 0000003835f45b576f73b575b46c5bfb8856f001f886a07b4d068940cb572d8e}
+	BPNodeID = "0000003835f45b576f73b575b46c5bfb8856f001f886a07b4d068940cb572d8e"
 	// BPNonce is the nonce, SEE cmd/idminer for more
 	BPNonce = mine.Uint256{
-		235455434,
+		25462458,
 		0,
 		0,
-		1537228675571897187,
+		0,
 	}
 	// BPPublicKey point to BlockProducer public key
 	BPPublicKey *ec.PublicKey

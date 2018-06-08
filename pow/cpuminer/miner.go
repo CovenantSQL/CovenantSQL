@@ -57,7 +57,7 @@ func NewCPUMiner(quit chan struct{}) *CPUMiner {
 
 // HashBlock calculate the hash of MiningBlock
 func HashBlock(data []byte, nonce Uint256) hash.Hash {
-	return hash.DoubleHashH(append(data, nonce.Bytes()...))
+	return hash.THashH(append(data, nonce.Bytes()...))
 }
 
 // ComputeBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce

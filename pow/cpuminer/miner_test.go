@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"sync"
-
-	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestCPUMiner_HashBlock(t *testing.T) {
@@ -53,11 +51,11 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 	}()
 	nonceFromCh := <-nonceCh
 	wg.Wait()
-
-	hash := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
+	hash := HashBlock(data, nonceFromCh.Nonce)
+	//hash := hash.THashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if err != nil || nonceFromCh.Difficulty < diffWanted || hash.Difficulty() < diffWanted {
-		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %s",
-			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes())
+		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %v",
+			err, nonceFromCh.Difficulty, nonceFromCh.Nonce)
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hash.String())
 }
@@ -89,11 +87,11 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 
 	nonceFromCh := <-block.NonceChan
 
-	//hasha := miner.HashBlock(data, nonceFromCh.Nonce)
-	hasha := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
+	hasha := HashBlock(data, nonceFromCh.Nonce)
+	//hasha := hash.THashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
-		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %s, hash %s",
-			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes(), hasha.String())
+		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %v, hash %s",
+			err, nonceFromCh.Difficulty, nonceFromCh.Nonce, hasha.String())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hasha.String())
 }
@@ -125,11 +123,11 @@ func TestCPUMiner_HashBlock_quit(t *testing.T) {
 
 	nonceFromCh := <-block.NonceChan
 
-	//hasha := miner.HashBlock(data, nonceFromCh.Nonce)
-	hasha := hash.DoubleHashH(append(data, nonceFromCh.Nonce.Bytes()...))
+	hasha := HashBlock(data, nonceFromCh.Nonce)
+	//hasha := hash.THashH(append(data, nonceFromCh.Nonce.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
-		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %s, hash %s",
-			err, nonceFromCh.Difficulty, nonceFromCh.Nonce.Bytes(), hasha.String())
+		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %v, hash %s",
+			err, nonceFromCh.Difficulty, nonceFromCh.Nonce, hasha.String())
 	}
 	t.Logf("Difficulty: %d, Hash: %s", nonceFromCh.Difficulty, hasha.String())
 }

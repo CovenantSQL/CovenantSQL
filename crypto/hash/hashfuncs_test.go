@@ -20,19 +20,9 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
-)
 
-func BenchmarkHashFuncs(b *testing.B) {
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		HashB([]byte{
-			0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
-			0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
-			0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
-			0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
-		})
-	}
-}
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 // TestHashFuncs ensures the hash functions which perform hash(b) work as
 // expected.
@@ -199,5 +189,57 @@ func TestFNVHash32uint(t *testing.T) {
 			continue
 		}
 	}
+}
 
+func TestTHashB(t *testing.T) {
+	tests := []struct {
+		out string
+		in  string
+	}{
+		{"0de4562d6cdc540f430d6810375c278c545865bc4f1496571e9166ec97da283a", ""},
+		{"e44e59f7f22470ae9c67e5f00ca0dc953d87a040a6a0782ea1ebd4e46113ce57", "a"},
+		{"7bf8d035589f6a3320b443e20f5f834466a8b0e64306d63c066ddb1591330e52", "ab"},
+		{"41edb331faeae63be46881b4087336c9fa4c17ad62f158ad67d6e5aa1404bc17", "abc"},
+	}
+
+	for _, test := range tests {
+		hash := THashH([]byte(test.in))
+		if hash.String() != test.out {
+			t.Errorf("THashB(%q) = %s, want %s", test.in, hash,
+				test.out)
+			continue
+		}
+	}
+}
+
+func TestTHashH(t *testing.T) {
+	Convey("HashH HashB", t, func() {
+		b := []byte{0x43, 0x9c, 0x2f, 0x4b}
+		h := THashH(b)
+		So(h.CloneBytes(), ShouldResemble, THashB(b))
+	})
+}
+
+func BenchmarkTHashB(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		THashB([]byte{
+			0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
+			0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
+			0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
+			0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
+		})
+	}
+}
+
+func BenchmarkHashFuncs(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		HashB([]byte{
+			0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
+			0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
+			0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
+			0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
+		})
+	}
 }

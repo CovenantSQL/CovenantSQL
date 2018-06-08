@@ -17,7 +17,6 @@
 package kayak
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -119,12 +118,12 @@ func TestServer_Serialize(t *testing.T) {
 	data2 := s2.Serialize()
 
 	Convey("test serialization", t, func() {
-		So(reflect.DeepEqual(data, data2), ShouldBeTrue)
+		So(data, ShouldResemble, data2)
 	})
 
 	Convey("test serialize with nil PubKey", t, func() {
 		s.PubKey = nil
-		So(reflect.DeepEqual(s.Serialize(), data2), ShouldBeFalse)
+		So(s.Serialize(), ShouldNotResemble, data2)
 	})
 }
 
@@ -159,10 +158,10 @@ func TestPeers_Clone(t *testing.T) {
 	Convey("clone peers", t, func() {
 		peers := samplePeersConf.Clone()
 		So(peers.Term, ShouldEqual, samplePeersConf.Term)
-		So(reflect.DeepEqual(peers.Leader, samplePeersConf.Leader), ShouldBeTrue)
-		So(reflect.DeepEqual(peers.Servers, samplePeersConf.Servers), ShouldBeTrue)
-		So(reflect.DeepEqual(peers.PubKey, samplePeersConf.PubKey), ShouldBeTrue)
-		So(reflect.DeepEqual(peers.Signature, samplePeersConf.Signature), ShouldBeTrue)
+		So(peers.Leader, ShouldResemble, samplePeersConf.Leader)
+		So(peers.Servers, ShouldResemble, samplePeersConf.Servers)
+		So(peers.PubKey, ShouldResemble, samplePeersConf.PubKey)
+		So(peers.Signature, ShouldResemble, samplePeersConf.Signature)
 	})
 }
 

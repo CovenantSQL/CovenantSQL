@@ -253,7 +253,7 @@ type RuntimeConfig struct {
 	Runner Runner
 
 	// Transport defines the dialer type
-	Dialer Transport
+	Transport Transport
 
 	// ProcessTimeout defines whole process timeout
 	ProcessTimeout time.Duration

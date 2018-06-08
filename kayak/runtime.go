@@ -88,13 +88,14 @@ func (r *Runtime) Init() error {
 	if err != nil {
 		return fmt.Errorf("new bolt store: %s", err.Error())
 	}
-	r.logStore = logStore
 
 	// call runner init
-	err = r.config.Runner.Init(r.runnerConfig, r.peers, logStore, logStore, r.config.Dialer)
+	err = r.config.Runner.Init(r.runnerConfig, r.peers, logStore, logStore, r.config.Transport)
 	if err != nil {
+		logStore.Close()
 		return fmt.Errorf("%s runner init: %s", r.config.Runner, err.Error())
 	}
+	r.logStore = logStore
 
 	return nil
 }
@@ -106,9 +107,13 @@ func (r *Runtime) Shutdown() error {
 		return fmt.Errorf("%s runner shutdown: %s", r.config.Runner, err.Error())
 	}
 
-	err = r.logStore.Close()
-	if err != nil {
-		return fmt.Errorf("shutdown bolt store: %s", err.Error())
+	if r.logStore != nil {
+		err = r.logStore.Close()
+		if err != nil {
+			return fmt.Errorf("shutdown bolt store: %s", err.Error())
+		}
+
+		r.logStore = nil
 	}
 
 	return nil

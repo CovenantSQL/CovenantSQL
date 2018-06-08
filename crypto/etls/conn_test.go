@@ -130,3 +130,28 @@ func TestConn(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
+
+func TestCryptoConn_RawRead(t *testing.T) {
+	var nilCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
+		cryptoConn = NewConn(conn, nil)
+		return
+	}
+
+	Convey("server client OK", t, func() {
+		l, _ := NewCryptoListener("tcp", "127.0.0.1:0", nilCipherHandler)
+		go func() {
+			rBuf := make([]byte, 1)
+			c, err := l.Accept()
+			cc, _ := c.(*CryptoConn)
+			_, err = cc.RawRead(rBuf)
+			log.Errorf("RawRead: %s", err)
+			So(rBuf[0], ShouldEqual, 'x')
+			So(err, ShouldBeNil)
+		}()
+		conn, _ := Dial("tcp", l.Addr().String(), nil)
+		go func() {
+			n, err := conn.RawWrite([]byte("xxxxxxxxxxxxxxxx"))
+			log.Errorf("RawWrite: %d %s", n, err)
+		}()
+	})
+}

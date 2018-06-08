@@ -17,14 +17,15 @@
 package kayak
 
 import (
-	"testing"
-	. "github.com/smartystreets/goconvey/convey"
-	"time"
-	log "github.com/sirupsen/logrus"
+	"errors"
 	"io/ioutil"
 	"os"
+	"testing"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"errors"
 )
 
 func testConfig(rootDir string, serverID ServerID) Config {

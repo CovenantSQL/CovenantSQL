@@ -17,14 +17,14 @@
 package kayak
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"io/ioutil"
-	"os"
 )
 
 func TestExampleTwoPCCommit(t *testing.T) {

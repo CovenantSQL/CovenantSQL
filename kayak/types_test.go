@@ -17,6 +17,7 @@
 package kayak
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -201,5 +202,36 @@ func TestPeers_Sign(t *testing.T) {
 	Convey("verify corrupted peers", t, func() {
 		peers.Term = 2
 		So(peers.Verify(), ShouldBeFalse)
+	})
+}
+
+func TestToString(t *testing.T) {
+	Convey("ServerRole", t, func() {
+		So(fmt.Sprint(Leader), ShouldEqual, "Leader")
+		So(fmt.Sprint(Follower), ShouldEqual, "Follower")
+		So(fmt.Sprint(ServerRole(100)), ShouldEqual, "Unknown")
+	})
+	Convey("ServerState", t, func() {
+		So(fmt.Sprint(Idle), ShouldEqual, "Idle")
+		So(fmt.Sprint(Prepared), ShouldEqual, "Prepared")
+		So(fmt.Sprint(ServerState(100)), ShouldEqual, "Unknown")
+	})
+	Convey("Server", t, func() {
+		s := &Server{
+			Role:    Leader,
+			ID:      "test",
+			Address: "test",
+		}
+		So(fmt.Sprint(s), ShouldNotBeEmpty)
+	})
+	Convey("Peers", t, func() {
+		p := testPeersFixture(1, []*Server{
+			{
+				Role:    Leader,
+				ID:      "test",
+				Address: "test",
+			},
+		})
+		So(fmt.Sprint(p), ShouldNotBeEmpty)
 	})
 }

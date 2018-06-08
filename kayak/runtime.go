@@ -93,7 +93,7 @@ func (r *Runtime) Init() error {
 	err = r.config.Runner.Init(r.runnerConfig, r.peers, logStore, logStore, r.config.Transport)
 	if err != nil {
 		logStore.Close()
-		return fmt.Errorf("%s runner init: %s", r.config.Runner, err.Error())
+		return fmt.Errorf("%s runner init: %s", r.config.LocalID, err.Error())
 	}
 	r.logStore = logStore
 
@@ -104,7 +104,7 @@ func (r *Runtime) Init() error {
 func (r *Runtime) Shutdown() error {
 	err := r.config.Runner.Shutdown(true)
 	if err != nil {
-		return fmt.Errorf("%s runner shutdown: %s", r.config.Runner, err.Error())
+		return fmt.Errorf("%s runner shutdown: %s", r.config.LocalID, err.Error())
 	}
 
 	if r.logStore != nil {

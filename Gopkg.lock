@@ -33,6 +33,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/hashicorp/go-msgpack"
+  packages = ["codec"]
+  revision = "fa3f63826f7c23912c15263591e65d54d080b458"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
@@ -88,8 +94,17 @@
   version = "1.6.3"
 
 [[projects]]
+  name = "github.com/stretchr/objx"
+  packages = ["."]
+  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
+  version = "v0.1"
+
+[[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "mock"
+  ]
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
 
@@ -103,7 +118,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "b47b1587369238182299fe4dad77d05b8b461e06"
+  revision = "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9"
 
 [[projects]]
   branch = "master"
@@ -117,6 +132,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1f482721d14fe290d7778a089c9b5c9f98dc3c7f37f138980c063d385a939362"
+  inputs-digest = "90373ca529dadc53b1acbf1b4a089a38ef15ba8129a4c84c24db5426d4451942"
   solver-name = "gps-cdcl"
   solver-version = 1

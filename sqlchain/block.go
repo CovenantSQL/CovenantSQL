@@ -31,7 +31,8 @@ import (
 
 // Header is a block header.
 type Header struct {
-	Version    int32
+	Version int32
+	// TODO(leventeliu): switch address to proto.NodeID.
 	Producer   common.Address
 	RootHash   hash.Hash
 	ParentHash hash.Hash
@@ -183,6 +184,10 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 
 // VerifyHeader verifies the signature of the Block.
 func (b *Block) VerifyHeader() bool {
+	// TODO(leventeliu): verify merkle root of queries
+	// ...
+
+	// Verify block hash
 	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
@@ -196,6 +201,7 @@ func (b *Block) VerifyHeader() bool {
 		return false
 	}
 
+	// Verify signature
 	return b.SignedHeader.Verify()
 }
 

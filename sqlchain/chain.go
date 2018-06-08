@@ -18,11 +18,16 @@ package sqlchain
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"reflect"
 
 	bolt "github.com/coreos/bbolt"
-	"github.com/golang/protobuf/proto"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
 )
 
@@ -40,7 +45,7 @@ type State struct {
 }
 
 func (s *State) marshal() ([]byte, error) {
-	return proto.Marshal(&pbtypes.State{
+	return pb.Marshal(&pbtypes.State{
 		Head:   &pbtypes.Hash{Hash: s.Head[:]},
 		Height: s.Height,
 	})
@@ -48,7 +53,7 @@ func (s *State) marshal() ([]byte, error) {
 
 func (s *State) unmarshal(buffer []byte) (err error) {
 	pbState := &pbtypes.State{}
-	err = proto.Unmarshal(buffer, pbState)
+	err = pb.Unmarshal(buffer, pbState)
 
 	if err != nil {
 		return err
@@ -76,12 +81,34 @@ type Chain struct {
 
 // NewChain creates a new sql-chain struct.
 func NewChain(cfg *Config) (chain *Chain, err error) {
+	if !verifyGenesis(&cfg.Genesis) {
+		return nil, errors.New("new chain: genesis cannot be verified")
+	}
+
+	// Open DB file
 	db, err := bolt.Open(cfg.DataDir, 0600, nil)
 
 	if err != nil {
-		return nil, err
+		return
 	}
 
+	// Create buckets for chain meta
+	err = db.Update(func(tx *bolt.Tx) (err error) {
+		bucket, err := tx.CreateBucketIfNotExists(metaBucket[:])
+
+		if err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaBlockIndexBucket)
+		return
+	})
+
+	if err != nil {
+		return
+	}
+
+	// Create chain state
 	chain = &Chain{
 		cfg:          cfg,
 		db:           db,
@@ -90,16 +117,43 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 		state:        &State{},
 	}
 
-	if err = chain.InitChain(); err != nil {
-		return nil, err
-	}
-
-	return chain, err
+	return
 }
 
-// TODO(leventeliu): implement this function
-func verifyGenesis() bool {
-	return true
+func verifyGenesis(b *Block) bool {
+	if b == nil || b.SignedHeader == nil {
+		return false
+	}
+
+	// Assume that we can fetch public key from kms after initialization.
+	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
+
+	if err != nil {
+		return false
+	}
+
+	// TODO(leventeliu): use an unifield PublicKey type through this project.
+	if !reflect.DeepEqual((*signature.PublicKey)(pk), b.SignedHeader.Signee) {
+		return false
+	}
+
+	return b.VerifyHeader()
+}
+
+func verifyGenesisHeader(sh *SignedHeader) bool {
+	// Assume that we can fetch public key from kms after initialization.
+	pk, err := kms.GetPublicKey(proto.NodeID(sh.Header.Producer[:]))
+
+	if err != nil {
+		return false
+	}
+
+	// TODO(leventeliu): use an unifield PublicKey type through this project.
+	if !reflect.DeepEqual((*signature.PublicKey)(pk), sh.Signee) {
+		return false
+	}
+
+	return sh.Verify()
 }
 
 func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
@@ -109,29 +163,8 @@ func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
 	return indexKey
 }
 
-// InitChain initializes the chain state from the specified database and rebuilds a memory index.
-func (c *Chain) InitChain() (err error) {
-	initialized := false
-
-	err = c.db.View(func(tx *bolt.Tx) (err error) {
-		bucket := tx.Bucket(metaBucket[:])
-
-		if bucket != nil && bucket.Get(metaStateKey) != nil &&
-			bucket.Bucket(metaBlockIndexBucket) != nil {
-			initialized = true
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	if !initialized {
-		return c.createGenesis()
-	}
-
+// LoadChain loads the chain state from the specified database and rebuilds a memory index.
+func (c *Chain) LoadChain() (err error) {
 	return c.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		bucket := tx.Bucket(metaBucket[:])
@@ -156,7 +189,7 @@ func (c *Chain) InitChain() (err error) {
 		cursor = bi.Cursor()
 
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			header := SignedHeader{}
+			header := &SignedHeader{}
 			err := header.unmarshal(v)
 
 			if err != nil {
@@ -166,7 +199,7 @@ func (c *Chain) InitChain() (err error) {
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
-				if !verifyGenesis() {
+				if !verifyGenesisHeader(header) {
 					return fmt.Errorf("initChain: failed to verify genesis block")
 				}
 			} else if header.ParentHash == lastNode.hash {
@@ -179,17 +212,12 @@ func (c *Chain) InitChain() (err error) {
 				}
 			}
 
-			nodes[index].initBlockNode(&header, parent)
+			nodes[index].initBlockNode(header, parent)
 			index++
 		}
 
 		return nil
 	})
-}
-
-// TODO(leventeliu): implement this method
-func (c *Chain) createGenesis() (err error) {
-	return nil
 }
 
 // PushBlock pushes the signed block header to extend the current main chain.

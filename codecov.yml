@@ -28,3 +28,4 @@ comment:
 ignore:
   - "sqlchain/pbtypes"
   - "cmd"
+  - "conf"

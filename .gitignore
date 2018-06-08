@@ -1,3 +1,5 @@
+*.key
+idminer
 .gitignore
 .travis.yml
 coverage.txt

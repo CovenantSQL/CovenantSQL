@@ -15,26 +15,3 @@
  */
 
 package main
-
-import (
-	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/etls"
-	"github.com/thunderdb/ThunderDB/route"
-	"github.com/thunderdb/ThunderDB/rpc"
-)
-
-func startRPCServer(addr string, server *rpc.Server) {
-	pass := "12345"
-
-	l, err := etls.NewCryptoListener("tcp", addr, pass)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Register service by a name
-	server.RegisterService("DHT", route.NewDHTService())
-
-	server.SetListener(l)
-
-	go server.Serve()
-}

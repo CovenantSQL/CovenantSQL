@@ -15,7 +15,7 @@
  */
 
 /*
-Package asymmetric implements Asymmetric Encryption method ported from btcd, Ethereum-go etc.
+Package asymmetric implements Asymmetric Encryption methods ported from btcd, Ethereum-go etc.
 
 
 Package btcec implements support for the elliptic curves needed for bitcoin.

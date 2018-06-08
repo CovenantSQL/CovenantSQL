@@ -17,6 +17,13 @@
 // Package common defines some common types which are used by multiple modules.
 package common
 
+// these const specify the role of this app, which can be "miner", "blockProducer"
+const (
+	Unknown       = "U"
+	Miner         = "M"
+	BlockProducer = "B"
+)
+
 const (
 	// AddressLength is the fixed length of a ThunderDB node address.
 	AddressLength = 20

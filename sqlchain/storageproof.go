@@ -68,7 +68,7 @@ func getNextPuzzle(answers []Answer, previousBlock StorageProofBlock) (int32, er
 }
 
 // getNExtVerifier returns the id of next verifier.
-// Id is determined by the hash of previous block.
+// ID is determined by the hash of previous block.
 func getNextVerifier(previousBlock, currentBlock StorageProofBlock) (int32, error) {
 	// check if block is valid
 	if len(previousBlock.ID) <= 0 {

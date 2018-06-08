@@ -29,7 +29,7 @@ import (
 // KeyDerivation .according to ANSI X9.63 we should do a key derivation before using
 // it as a symmetric key, there is not really a common standard KDF(Key Derivation Func).
 // But as SSL/TLS/DTLS did it described in "RFC 4492 TLS ECC", we prefer a Double
-// SHA3-256 with it.
+// SHA-256 with it.
 func KeyDerivation(rawKey []byte, keyLen int, hSuite *hash.HashSuite) (key []byte) {
 	hashLen := hSuite.HashLen
 
@@ -101,7 +101,7 @@ func NewCipher(rawKey []byte) (c *Cipher) {
 		newAESCFBEncStream,
 	}
 	hSuite := &hash.HashSuite{
-		HashLen:  32,
+		HashLen:  hash.HashBSize,
 		HashFunc: hash.DoubleHashB,
 	}
 	key := KeyDerivation(rawKey, mi.keyLen, hSuite)

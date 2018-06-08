@@ -38,12 +38,12 @@ func NewNode() *Node {
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.Nonce
 // Node.ID = Node.Nonce.Hash
 func (node *Node) InitNodeCryptoInfo() (err error) {
-	node.privateKey, node.PublicKey, err = asymmetric.GenSecp256k1Keypair()
+	node.privateKey, node.PublicKey, err = asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		log.Error("Failed to generate key pair")
 	}
 
-	node.Nonce = asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, NewNodeIDDifficultyTimeout)
+	node.Nonce = asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, NewNodeIDDifficultyTimeout, nil)
 	node.ID = NodeID(node.Nonce.Hash.String())
 	log.Debugf("Node: %v", node)
 	return

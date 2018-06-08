@@ -25,6 +25,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/common"
+	"github.com/thunderdb/ThunderDB/conf"
 	"github.com/thunderdb/ThunderDB/rpc"
 	"github.com/thunderdb/ThunderDB/utils"
 )
@@ -87,6 +89,9 @@ var (
 	rpcServer *rpc.Server
 )
 
+// Role indicates the role of current server playing
+const Role = common.Miner
+
 const name = `thunderdbd`
 const desc = `ThunderDB is a database`
 
@@ -110,7 +115,6 @@ func init() {
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
-	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
 		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data directory>\n", name)
@@ -124,6 +128,7 @@ func initLogs() {
 
 	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
 	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("role: %s", conf.Role)
 }
 
 func main() {
@@ -133,7 +138,7 @@ func main() {
 	initLogs()
 
 	if showVersion {
-		log.Fatalf("%s %s %s %s %s (commit %s, branch %s)",
+		log.Info("%s %s %s %s %s (commit %s, branch %s)",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version(), commit, branch)
 		os.Exit(0)
 	}
@@ -149,10 +154,10 @@ func main() {
 
 	// validate args
 	if minPort >= maxPort {
-		log.Fatal("a valid port range is required")
+		log.Error("a valid port range is required")
 		os.Exit(2)
 	} else if maxPort-minPort < 1 {
-		log.Fatal("at least two port in random port range is required")
+		log.Error("at least two port in random port range is required")
 		os.Exit(2)
 	}
 

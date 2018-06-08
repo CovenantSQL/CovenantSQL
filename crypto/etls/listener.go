@@ -44,7 +44,7 @@ func NewCryptoListener(network, addr string, handler CipherHandler) (*CryptoList
 func (l *CryptoListener) Accept() (net.Conn, error) {
 	c, err := l.Listener.Accept()
 	if err != nil {
-		log.Error(err)
+		log.Errorf("accept error: %s", err)
 		return nil, err
 	}
 

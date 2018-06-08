@@ -20,10 +20,20 @@ import (
 	"net"
 	"testing"
 
+	"time"
+
+	"os"
+
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/etls"
+	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/thunderdb/ThunderDB/proto"
+	"github.com/thunderdb/ThunderDB/route"
 	"github.com/thunderdb/ThunderDB/utils"
 )
+
+const PubKeyStorePath = "./public.keystore"
 
 type TestService struct {
 	counter int
@@ -127,30 +137,27 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 }
 
 func TestEncryptIncCounterSimpleArgs(t *testing.T) {
+	defer os.Remove(PubKeyStorePath)
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	pass := "12345"
-
-	l, err := etls.NewCryptoListener("tcp", addr, pass)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	masterKey := []byte("abc")
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	server.SetListener(l)
+	server.InitRPCServer(addr, "../keys/test.key", PubKeyStorePath, masterKey)
 	go server.Serve()
 
-	cipher := etls.NewCipher([]byte(pass))
-	conn, err := etls.Dial("tcp", l.Addr().String(), cipher)
-	if err != nil {
-		log.Fatal(err)
-	}
+	publicKey, err := kms.GetLocalPublicKey()
+	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
+	serverNodeID := proto.NodeID(nonce.Hash.String())
+	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
+	route.SetNodeAddr(serverNodeID, server.Listener.Addr().String())
 
-	client, err := InitClientConn(conn)
+	cryptoConn, err := DailToNode(serverNodeID)
+	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,6 +168,83 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 	utils.CheckNum(*repSimple, 10, t)
+
+	client.Close()
+	server.Stop()
+}
+
+func TestServer_InitRPCServer(t *testing.T) {
+
+}
+
+func TestEncPingFindValue(t *testing.T) {
+	defer os.Remove(PubKeyStorePath)
+	log.SetLevel(log.DebugLevel)
+	addr := "127.0.0.1:0"
+	masterKey := []byte("abc")
+	server, err := NewServerWithService(ServiceMap{"DHT": route.NewDHTService()})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server.InitRPCServer(addr, "../keys/test.key", PubKeyStorePath, masterKey)
+	go server.Serve()
+
+	publicKey, err := kms.GetLocalPublicKey()
+	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
+	serverNodeID := proto.NodeID(nonce.Hash.String())
+	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
+	route.SetNodeAddr(serverNodeID, server.Listener.Addr().String())
+
+	cryptoConn, err := DailToNode(serverNodeID)
+	client, err := InitClientConn(cryptoConn)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	reqA := &proto.PingReq{
+		Node: proto.Node{
+			ID: "node1",
+		},
+	}
+	respA := new(proto.PingResp)
+	err = client.Call("DHT.Ping", reqA, respA)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("respA: %v", respA)
+
+	reqB := &proto.PingReq{
+		Node: proto.Node{
+			ID: "node2",
+		},
+	}
+	respB := new(proto.PingResp)
+	err = client.Call("DHT.Ping", reqB, respB)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("respA: %v", respB)
+
+	req := &proto.FindValueReq{
+		NodeID: "123",
+		Count:  2,
+	}
+	resp := new(proto.FindValueResp)
+	err = client.Call("DHT.FindValue", req, resp)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("resp: %v", resp)
+	nodeIDList := []string{
+		string(resp.Nodes[0].ID),
+		string(resp.Nodes[1].ID),
+	}
+	Convey("test FindValue", t, func() {
+		So(nodeIDList, ShouldContain, "node1")
+		So(nodeIDList, ShouldContain, "node2")
+	})
 
 	client.Close()
 	server.Stop()

@@ -22,9 +22,15 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"syscall"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/common"
+	"github.com/thunderdb/ThunderDB/conf"
+	"github.com/thunderdb/ThunderDB/route"
 	"github.com/thunderdb/ThunderDB/rpc"
 	"github.com/thunderdb/ThunderDB/utils"
 )
@@ -60,6 +66,10 @@ var (
 	cpuProfile string
 	memProfile string
 
+	// key path
+	privateKeyPath     string
+	publicKeyStorePath string
+
 	// other
 	noLogo      bool
 	showVersion bool
@@ -67,6 +77,9 @@ var (
 	// rpc server
 	rpcServer *rpc.Server
 )
+
+// Role specifies the role of this app, which can be "miner", "blockProducer"
+const Role = common.BlockProducer
 
 const name = `thunderdbd`
 const desc = `ThunderDB is a database`
@@ -80,9 +93,10 @@ func init() {
 	flag.Uint64Var(&raftSnapThreshold, "raft-snap", 8192, "Number of outstanding log entries that trigger snapshot")
 	flag.DurationVar(&publishPeersTimeout, "publish-peers-timeout", time.Second*30, "Timeout for peers to publish")
 	flag.DurationVar(&publishPeersDelay, "publish-peers-delay", time.Second, "Interval for peers publishing retry")
+	flag.StringVar(&privateKeyPath, "private-key-path", "./private.key", "Path to private key file")
+	flag.StringVar(&publicKeyStorePath, "public-keystore-path", "./public.keystore", "Path to public keystore file")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
-	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
 	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -97,6 +111,7 @@ func initLogs() {
 
 	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
 	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("role: %s", conf.Role)
 }
 
 func main() {
@@ -106,7 +121,7 @@ func main() {
 	initLogs()
 
 	if showVersion {
-		log.Fatalf("%s %s %s %s %s (commit %s, branch %s)",
+		log.Infof("%s %s %s %s %s (commit %s, branch %s)",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version(), commit, branch)
 		os.Exit(0)
 	}
@@ -127,8 +142,23 @@ func main() {
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
+	// read master key
+	fmt.Print("Type in Master key to continue: ")
+	masterKeyBytes, err := terminal.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		fmt.Printf("Failed to read Master Key: %v", err)
+	}
+	fmt.Println("")
+
 	// start RPC server
-	startRPCServer("0.0.0.0:2120", rpcServer)
+	rpcServer := rpc.NewServer()
+
+	// if any error, InitRPCServer will log.Fatal which calls os.Exit
+	rpcServer.InitRPCServer("0.0.0.0:2120", privateKeyPath, publicKeyStorePath, masterKeyBytes)
+
+	// Register service by a name
+	rpcServer.RegisterService("DHT", route.NewDHTService())
+	rpcServer.Serve()
 
 	log.Info("server stopped")
 }

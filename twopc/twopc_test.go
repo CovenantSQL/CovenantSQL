@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"net"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/etls"
 	"github.com/thunderdb/ThunderDB/rpc"
@@ -114,11 +116,17 @@ func NewRaftNode() (r *RaftNode, err error) {
 	return r, err
 }
 
+var simpleCipherHandler etls.CipherHandler = func(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
+	cipher := etls.NewCipher([]byte(pass))
+	cryptoConn = etls.NewConn(conn, cipher)
+	return
+}
+
 func (r *RaftNode) start() (err error) {
 	// Start a local RPC server to simulate a Raft node
 	addr := "127.0.0.1:0"
 
-	l, err := etls.NewCryptoListener("tcp", addr, pass)
+	l, err := etls.NewCryptoListener("tcp", addr, simpleCipherHandler)
 	r.addr = l.Addr().String()
 
 	if err != nil {

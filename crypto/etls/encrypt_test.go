@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-// Package route provides DHT routing functions
-package route
+package etls
 
 import (
-	"net"
+	"testing"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/rpc"
+	"bytes"
+
+	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// InitDHTServer install DHTService payload to RPC server, also set listener
-func InitDHTServer(l net.Listener) (server *rpc.Server, err error) {
-	server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": NewDHTService()})
-	if err != nil {
-		log.Fatal(err)
-		return
+func TestKeyDerivation(t *testing.T) {
+	hSuite := &hash.HashSuite{
+		HashLen:  hash.HashBSize,
+		HashFunc: hash.DoubleHashB,
 	}
-	server.SetListener(l)
-	return
+
+	Convey("get addr", t, func() {
+		rawKey := bytes.Repeat([]byte("a"), 1000)
+		dKey := KeyDerivation(rawKey, 100, hSuite)
+		So(dKey, ShouldHaveLength, 100)
+	})
 }

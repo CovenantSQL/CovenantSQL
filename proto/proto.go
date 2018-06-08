@@ -21,8 +21,7 @@ import (
 	"time"
 
 	ec "github.com/btcsuite/btcd/btcec"
-
-	"github.com/thunderdb/ThunderDB/pow/cpuminer"
+	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // NodeID is node name, will be generated from Hash(nodePublicKey)
@@ -38,7 +37,7 @@ type Node struct {
 	Addr      string
 	ID        NodeID
 	PublicKey *ec.PublicKey
-	Nonce     cpuminer.Nonce
+	Nonce     mine.Nonce
 	// make privateKey non-public!
 	privateKey *ec.PrivateKey
 }

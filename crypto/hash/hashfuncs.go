@@ -17,11 +17,18 @@
 package hash
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"hash/fnv"
+
+	//"github.com/minio/sha256-simd"
+	// "crypto/sha256" benchmark is at least 10% faster than "github.com/minio/sha256-simd"
+	"crypto/sha256"
 )
 
+// HashBSize is the size of HashB
+const HashBSize = sha256.Size
+
+// HashSuite contains the hash length and the func handler
 type HashSuite struct {
 	HashLen  int
 	HashFunc func([]byte) []byte

@@ -168,7 +168,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		return
 	}
 
-	// nodeIdBuf len is hash.HashBSize, so there won't be any error
+	// headerBuf len is hash.HashBSize, so there won't be any error
 	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
 	nodeID := proto.NodeID(idHash.String())
 	// TODO(auxten): compute the nonce and check difficulty

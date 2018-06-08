@@ -43,8 +43,8 @@ type MiningBlock struct {
 // CPUMiner provides concurrency-safe PoW worker group to solve hash puzzle
 // Inspired by:
 // 	"S/Kademlia: A Practicable Approach Towards Secure Key-Based Routing"
-// 	- Section 4.1. Secure nodeId assignment.
-// 	- Figure 3. Static (left) and dynamic (right) crypto puzzles for nodeId
+// 	- Section 4.1. Secure nodeID assignment.
+// 	- Figure 3. Static (left) and dynamic (right) crypto puzzles for nodeID
 // 		generation
 type CPUMiner struct {
 	quit chan struct{}

@@ -11,13 +11,13 @@
 ThunderDB is a Distributed Database Service running on BlockChain for ĐApps and Traditional Apps.
 
 ## Installation
-### Still Under Heavy Construction 
-
+**ThunderDB is Still Under Heavy Construction**
 🚧🚧🚧🚧👷👷👷👷👷🚧🚧🚧🚧
+
 
 ### Requirements
 
-ThunderDB requires `Go` 1.10+ and compiler to build. To install `Go`, follow this [link](https://golang.org/doc/install). 
+ThunderDB requires `Go` 1.10+. To install `Go`, follow this [link](https://golang.org/doc/install). 
 
 In addition, [dep](https://github.com/golang/dep) is required to manage dependencies. 
 
@@ -53,6 +53,8 @@ https://godoc.org/github.com/thunderdb/ThunderDB
 #### Consensus
 
 - [BFT-DPoS](https://github.com/thunderdb/research/wiki/BFT-DPoS)
+- PoE (Proof of Execution)
+- PoS (Proof of Storage)
 
 #### Zero-Knowledge Proof
 
@@ -61,6 +63,7 @@ https://godoc.org/github.com/thunderdb/ThunderDB
 
 ### Support
 
+### Contributing
 
 ### Community
 

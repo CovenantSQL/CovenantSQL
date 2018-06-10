@@ -9,8 +9,19 @@
 ## What is ThunderDB?
 
 ThunderDB is a Distributed Database running on BlockChain for ĐApps and Traditional Apps. 
+
 Traditionally databases are running on some expensive servers hosted
-in IDC taking good care by a brunch of Engineers and DBAs. For high availability and scalability, 
+in IDCs taking good care by experienced Engineers and DBAs. For high availability and scalability, it will be much more expensive. ThunderDB provides user a Pay on Used database running on Internet with Features:
+
+- Decentralized: Database Replications are controled by algorithm, without the PrivateKey nobody can take control or destroy it.
+- Secure: All data storage and transfer are encrypted with [ETLS]((https://github.com/thunderdb/research/wiki/ETLS(Enhanced-Transport-Layer-Security)))
+- Open: You can share your data with GRANTed permission. You can even make your database public readable.
+- High Available: Replications are distributed all over the Internet. Replication counts can be define on demand.
+- Immutable: All database changes will be logged on Blockchain Immutably.
+
+## Mining
+
+Your can get paid by joining the ThunderDB network as a miner. Miners with higher performance and stability will get more mining rewards.
 
 ## Installation
 **ThunderDB is Still Under Heavy Construction**

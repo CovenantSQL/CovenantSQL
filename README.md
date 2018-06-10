@@ -8,7 +8,9 @@
 
 ## What is ThunderDB?
 
-ThunderDB is a Distributed Database Service running on BlockChain for ĐApps and Traditional Apps.
+ThunderDB is a Distributed Database running on BlockChain for ĐApps and Traditional Apps. 
+Traditionally databases are running on some expensive servers hosted
+in IDC taking good care by a brunch of Engineers and DBAs. For high availability and scalability, 
 
 ## Installation
 **ThunderDB is Still Under Heavy Construction**
@@ -63,8 +65,7 @@ https://godoc.org/github.com/thunderdb/ThunderDB
 
 ### Support
 
-### Contributing
+[Our Mail](mailto:webmaster@thunderdb.io)
 
-### Community
 
 

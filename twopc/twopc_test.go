@@ -26,10 +26,11 @@ import (
 
 	"net"
 
+	"errors"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/etls"
 	"github.com/thunderdb/ThunderDB/rpc"
-	"errors"
 )
 
 type RaftTxState int
@@ -43,7 +44,7 @@ const (
 )
 
 const (
-	AllGood       TestPolicy = iota
+	AllGood TestPolicy = iota
 	FailOnPrepare
 	FailOnCommit
 )

@@ -51,7 +51,7 @@ dep ensure -v
 ```
 
 ## API
-https://godoc.org/github.com/thunderdb/ThunderDB
+- https://godoc.org/github.com/thunderdb/ThunderDB
 
 ## Key Technologies Explaination
 

@@ -63,9 +63,9 @@ https://godoc.org/github.com/thunderdb/ThunderDB
 - [zk-SNARKS](https://github.com/thunderdb/research/wiki/zk-SNARKS)
 
 
-### Support
+## Support
 
-[Our Mail](mailto:webmaster@thunderdb.io)
+- [Our Mail](mailto:webmaster@thunderdb.io)
 
 
 

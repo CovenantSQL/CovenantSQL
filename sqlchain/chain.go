@@ -66,7 +66,7 @@ func (s *State) unmarshal(buffer []byte) (err error) {
 
 	s.node = nil
 	copy(s.Head[:], pbState.GetHead().Hash)
-	s.Height = s.Height
+	s.Height = pbState.Height
 
 	return err
 }

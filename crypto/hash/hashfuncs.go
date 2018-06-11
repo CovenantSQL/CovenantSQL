@@ -20,9 +20,14 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 
-	//"github.com/minio/sha256-simd"
-	// "crypto/sha256" benchmark is at least 10% faster than "github.com/minio/sha256-simd"
+	// "crypto/sha256" benchmark is at least 10% faster on
+	// i7-4870HQ CPU @ 2.50GHz than "github.com/minio/sha256-simd"
 	"crypto/sha256"
+
+	// "minio/blake2b-simd" benchmark is at least 3% faster on
+	// i7-4870HQ CPU @ 2.50GHz than "golang.org/x/crypto/blake2b"
+	// and supports more CPU instructions
+	"github.com/minio/blake2b-simd"
 )
 
 // HashBSize is the size of HashB
@@ -68,5 +73,21 @@ func DoubleHashB(b []byte) []byte {
 // Hash.
 func DoubleHashH(b []byte) Hash {
 	first := sha256.Sum256(b)
+	return Hash(sha256.Sum256(first[:]))
+}
+
+// THashB is a combination of blake2b-512 and SHA256
+//  The cryptographic hash function BLAKE2 is an improved version of the
+// SHA-3 finalist BLAKE
+func THashB(b []byte) []byte {
+	first := blake2b.Sum512(b)
+	second := sha256.Sum256(first[:])
+	return second[:]
+}
+
+// THashH calculates sha256(blake2b-512(b)) and returns the resulting bytes as a
+// Hash.
+func THashH(b []byte) Hash {
+	first := blake2b.Sum512(b)
 	return Hash(sha256.Sum256(first[:]))
 }

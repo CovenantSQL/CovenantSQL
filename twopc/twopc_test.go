@@ -26,6 +26,8 @@ import (
 
 	"net"
 
+	"errors"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/etls"
 	"github.com/thunderdb/ThunderDB/rpc"
@@ -361,6 +363,16 @@ func testSetup() (err error) {
 	return nil
 }
 
+func testNodeReset() {
+	for _, node := range nodes {
+		raft, ok := node.(*RaftNode)
+
+		if ok {
+			raft.state = Initailized
+		}
+	}
+}
+
 func testTearDown() {
 	for _, node := range nodes {
 		raft, ok := node.(*RaftNode)
@@ -386,12 +398,16 @@ func TestMain(m *testing.M) {
 func TestTwoPhaseCommit(t *testing.T) {
 	c := NewCoordinator(&Options{timeout: 5 * time.Second})
 
+	testNodeReset()
+
 	policy = AllGood
 	err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
+
+	testNodeReset()
 
 	policy = FailOnPrepare
 	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"-3", "-4", "+1"}})
@@ -402,11 +418,102 @@ func TestTwoPhaseCommit(t *testing.T) {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}
 
+	testNodeReset()
+
 	policy = FailOnCommit
 	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"-5", "+9", "+1"}})
 
 	if err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
+	} else {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	}
+}
+
+func TestTwoPhaseCommit_WithHooks(t *testing.T) {
+	errorBeforePrepare := false
+	beforePrepareError := errors.New("before prepare error")
+	errorBeforeCommit := false
+	beforeCommitError := errors.New("before commit error")
+	errorBeforeRollback := false
+	beforeRollbackError := errors.New("before rollback error")
+	policy = AllGood
+
+	c := NewCoordinator(&Options{
+		timeout: 5 * time.Second,
+		beforePrepare: func(cxt context.Context) error {
+			if errorBeforePrepare {
+				return beforePrepareError
+			}
+
+			return nil
+		},
+		beforeCommit: func(ctx context.Context) error {
+			if errorBeforeCommit {
+				return beforeCommitError
+			}
+
+			return nil
+		},
+		beforeRollback: func(ctx context.Context) error {
+			if errorBeforeRollback {
+				return beforeRollbackError
+			}
+
+			return nil
+		}})
+
+	testNodeReset()
+
+	err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	// error before prepare
+	errorBeforePrepare = true
+	errorBeforeCommit = false
+	errorBeforeRollback = false
+
+	testNodeReset()
+
+	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"+1", "-3", "+10"}})
+	if err == nil {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	} else if err != beforePrepareError {
+		t.Fatal("Unexpected result: beforePrepare error is expected")
+	} else {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	}
+
+	// error before commit
+	errorBeforePrepare = false
+	errorBeforeCommit = true
+	errorBeforeRollback = false
+
+	testNodeReset()
+
+	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"+1", "-3", "+10"}})
+	if err == nil {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	} else if err != beforeCommitError {
+		t.Fatal("Unexpected result: beforeCommit error is expected")
+	} else {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	}
+
+	// error before rollback
+	errorBeforePrepare = false
+	errorBeforeCommit = true
+	errorBeforeRollback = true
+
+	testNodeReset()
+
+	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 3, Cmds: []string{"+1", "-3", "+10"}})
+	if err == nil {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	} else if err != beforeCommitError {
+		t.Fatal("Unexpected result: beforeCommit error is expected")
 	} else {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}

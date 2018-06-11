@@ -57,11 +57,10 @@ func main() {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(
 		signalCh,
-		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
-		syscall.SIGQUIT,
 	)
+	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
 
 	cpuCount := runtime.NumCPU()
 	log.Infof("cpu: %d", cpuCount)

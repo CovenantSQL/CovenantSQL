@@ -17,8 +17,6 @@
 package sqlchain
 
 import (
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -61,10 +59,10 @@ func produceTestBlocks() (err error) {
 	for index := 0; index < blockNum; index++ {
 		header := Header{
 			Version: int32(0x01000000),
-			Producer: common.Address{
+			Producer: common.NodeID([]byte{
 				0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,
 				0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0, 0x1, 0x2, 0x3,
-			},
+			}),
 			RootHash:   genesisHash,
 			ParentHash: prev,
 			MerkleRoot: hash.Hash{
@@ -102,20 +100,12 @@ func produceTestBlocks() (err error) {
 	return nil
 }
 
-func testSetup() (err error) {
-	err = produceTestBlocks()
-	return err
-}
-
-func TestMain(m *testing.M) {
-	err := testSetup()
+func init() {
+	err := produceTestBlocks()
 
 	if err != nil {
-		fmt.Println("Failed to setup test environment.")
-		os.Exit(1)
+		panic(err)
 	}
-
-	os.Exit(m.Run())
 }
 
 func TestNewBlockNode(t *testing.T) {

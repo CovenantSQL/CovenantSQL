@@ -26,13 +26,13 @@ const (
 
 const (
 	// AddressLength is the fixed length of a ThunderDB node address.
-	AddressLength = 20
+	AddressLength = 64
 	// UUIDLength is the fixed length of a UUID.
 	UUIDLength = 16
 )
 
 // Address is a ThunderDB node address.
-type Address [AddressLength]byte
+type NodeID string
 
 // UUID is a unique identity which may be used as a Raft transaction ID.
 type UUID [UUIDLength]byte

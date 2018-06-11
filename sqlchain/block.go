@@ -31,8 +31,9 @@ import (
 
 // Header is a block header.
 type Header struct {
-	Version    int32
-	Producer   common.Address
+	Version int32
+	// TODO(leventeliu): switch address to proto.NodeID.
+	Producer   common.NodeID
 	RootHash   hash.Hash
 	ParentHash hash.Hash
 	MerkleRoot hash.Hash
@@ -48,7 +49,7 @@ func (h *Header) marshal() ([]byte, error) {
 
 	return proto.Marshal(&types.Header{
 		Version:    h.Version,
-		Producer:   &types.Address{Address: h.Producer[:]},
+		Producer:   &types.NodeID{NodeID: string(h.Producer)},
 		Root:       &types.Hash{Hash: h.RootHash[:]},
 		Parent:     &types.Hash{Hash: h.ParentHash[:]},
 		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
@@ -75,7 +76,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 	return proto.Marshal(&types.SignedHeader{
 		Header: &types.Header{
 			Version:    s.Version,
-			Producer:   &types.Address{Address: s.Producer[:]},
+			Producer:   &types.NodeID{NodeID: string(s.Producer)},
 			Root:       &types.Hash{Hash: s.RootHash[:]},
 			Parent:     &types.Hash{Hash: s.ParentHash[:]},
 			MerkleRoot: &types.Hash{Hash: s.MerkleRoot[:]},
@@ -112,13 +113,13 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return fmt.Errorf("sqlchain: unexpected big int")
 	}
 
-	ps, ok = ps.SetString(pbSignedHeader.GetSignature().GetR(), 10)
+	ps, ok = ps.SetString(pbSignedHeader.GetSignature().GetS(), 10)
 
 	if !ok {
 		return fmt.Errorf("sqlchain: unexpected big int")
 	}
 
-	if len(pbSignedHeader.GetHeader().GetProducer().GetAddress()) != common.AddressLength ||
+	if len(pbSignedHeader.GetHeader().GetProducer().GetNodeID()) != common.AddressLength ||
 		len(pbSignedHeader.GetHeader().GetRoot().GetHash()) != hash.HashSize ||
 		len(pbSignedHeader.GetHeader().GetParent().GetHash()) != hash.HashSize ||
 		len(pbSignedHeader.GetHeader().GetMerkleRoot().GetHash()) != hash.HashSize ||
@@ -141,7 +142,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 
 	// Copy fields
 	s.Version = pbSignedHeader.Header.GetVersion()
-	copy(s.Producer[:], pbSignedHeader.GetHeader().GetProducer().GetAddress())
+	s.Producer = common.NodeID(pbSignedHeader.GetHeader().GetProducer().GetNodeID())
 	copy(s.RootHash[:], pbSignedHeader.GetHeader().GetRoot().GetHash())
 	copy(s.ParentHash[:], pbSignedHeader.GetHeader().GetParent().GetHash())
 	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())
@@ -156,18 +157,20 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	return err
 }
 
+// Verify verifies the signature of the SignedHeader.
+func (s *SignedHeader) Verify() bool {
+	return s.Signature.Verify(s.BlockHash[:], s.Signee)
+}
+
 // Block is a node of blockchain.
 type Block struct {
 	SignedHeader *SignedHeader
 	Queries      []*Query
 }
 
-// Blocks is Block (reference) array.
-type Blocks []*Block
-
 // SignHeader generates the signature for the Block from the given PrivateKey.
 func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
-	buffer, err := b.SignedHeader.marshal()
+	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
 		return err
@@ -181,5 +184,26 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 
 // VerifyHeader verifies the signature of the Block.
 func (b *Block) VerifyHeader() bool {
-	return b.SignedHeader.Signature.Verify(b.SignedHeader.BlockHash[:], b.SignedHeader.Signee)
+	// TODO(leventeliu): verify merkle root of queries
+	// ...
+
+	// Verify block hash
+	buffer, err := b.SignedHeader.Header.marshal()
+
+	if err != nil {
+		return false
+	}
+
+	h := hash.DoubleHashH(buffer)
+
+	if h != b.SignedHeader.BlockHash {
+		fmt.Printf("error: hash not match: %v, %v", h, b.SignedHeader.BlockHash)
+		return false
+	}
+
+	// Verify signature
+	return b.SignedHeader.Verify()
 }
+
+// Blocks is Block (reference) array.
+type Blocks []*Block

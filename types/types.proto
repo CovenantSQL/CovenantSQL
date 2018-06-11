@@ -1,0 +1,108 @@
+syntax = "proto3";
+package types;
+
+message Signature {
+    string R = 1;
+    string S = 2;
+}
+
+message PublicKey {
+    bytes PublicKey = 1;
+}
+
+message Hash {
+    bytes Hash = 1;
+}
+
+message UtxoEntry {
+    bool IsCoinbase = 1;
+    bool FromMainChain = 2;
+    uint32 BlockHeight = 3;
+    map<uint32, Utxo> SparseOutputs = 4;
+}
+
+message Utxo {
+    UtxoHeader UtxoHeader = 1;
+    bool Spent = 2;
+    uint64 amount = 3;
+}
+
+message UtxoHeader {
+    int32 Version = 1;
+    Hash PrevTxHash = 2;
+    PublicKey Signee = 3;
+    Signature Signature = 4;
+}
+
+enum TxType {
+     QUERY = 0;
+     STORAGE = 1;
+}
+
+message Tx {
+    repeated Utxo UtxoIn = 1;
+    repeated Utxo UtxoOut = 2;
+    TxType type = 3;
+    string Content = 4;
+}
+
+message NodeID {
+    string NodeID = 1;
+}
+
+message Header {
+    int32 Version = 1;
+    NodeID Producer = 2;
+    Hash Root = 3;
+    Hash Parent = 4;
+    Hash MerkleRoot = 5;
+    bytes Timestamp = 6;
+}
+
+message SignedHeader {
+    Header Header = 1;
+    Hash BlockHash = 2;
+    PublicKey Signee = 3;
+    Signature Signature = 4;
+}
+
+message State {
+    Hash Head = 1;
+    int32 Height = 2;
+}
+
+message BPTx {
+    Hash TxHash = 1;
+    BPTxData txdata = 2;
+}
+
+message BPTxData {
+    uint64 AccountNonce = 1;
+    NodeID Recipient = 2;
+    bytes Amount = 3;
+    bytes Payload = 4;
+
+    Signature Sig = 5;
+    PublicKey publicKey = 6;
+}
+
+message BPHeader {
+    int32 Version = 1;
+    NodeID Producer = 2;
+    Hash Root = 3;
+    Hash Parent = 4;
+    Hash MerkleRoot = 5;
+    bytes Timestamp = 6;
+}
+
+message BPSignedHeader {
+    Header Header = 1;
+    Hash BlockHash = 2;
+    PublicKey Signee = 3;
+    Signature Signature = 4;
+}
+
+message BPBlock {
+    BPSignedHeader Header = 1;
+    repeated BPTx Tx = 2;
+}

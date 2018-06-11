@@ -19,32 +19,65 @@ package proto
 import (
 	"time"
 
+	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
+	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 var (
-	// NewNodeIDDifficulty is simply exposed for easy testing
+	// NewNodeIDDifficulty is exposed for easy testing
 	NewNodeIDDifficulty = 40
-	// NewNodeIDDifficultyTimeout is simply exposed for easy testing
+	// NewNodeIDDifficultyTimeout is exposed for easy testing
 	NewNodeIDDifficultyTimeout = 60 * time.Second
 )
+
+// NodeID is node name, will be generated from Hash(nodePublicKey)
+type NodeID string
+
+// NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
+type NodeKey uint64
+
+// Node is all node info struct
+type Node struct {
+	ID        NodeID
+	Addr      string
+	PublicKey *ec.PublicKey
+	Nonce     mine.Uint256
+}
 
 // NewNode just return a new node struct
 func NewNode() *Node {
 	return &Node{}
 }
 
-// InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.Nonce
-// Node.ID = Node.Nonce.Hash
+// Difficulty returns NodeID difficulty, returns -1 on length mismatch or any error
+func (id *NodeID) Difficulty() (difficulty int) {
+	if id == nil {
+		return -1
+	}
+	if len(*id) != hash.HashSize*2 {
+		return -1
+	}
+	idHash, err := hash.NewHashFromStr(string(*id))
+	if err != nil {
+		return -1
+	}
+	return idHash.Difficulty()
+}
+
+// InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo
+// Node.ID = Node.NonceInfo.Hash
 func (node *Node) InitNodeCryptoInfo() (err error) {
-	node.privateKey, node.PublicKey, err = asymmetric.GenSecp256k1KeyPair()
+	_, node.PublicKey, err = asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		log.Error("Failed to generate key pair")
 	}
 
-	node.Nonce = asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, NewNodeIDDifficultyTimeout, nil)
-	node.ID = NodeID(node.Nonce.Hash.String())
+	nonce := asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, NewNodeIDDifficultyTimeout, nil)
+	node.ID = NodeID(nonce.Hash.String())
+	node.Nonce = nonce.Nonce
 	log.Debugf("Node: %v", node)
 	return
 }

@@ -713,36 +713,6 @@ func TestAddCollision(t *testing.T) {
 	}
 }
 
-//// inspired by @or-else on github
-//func TestCollisionsCRC(t *testing.T) {
-//	t.SkipNow()
-//	c := New()
-//	f, err := os.Open("/usr/share/dict/words")
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	defer f.Close()
-//	found := make(map[NodeKey]string)
-//	scanner := bufio.NewScanner(f)
-//	count := 0
-//	for scanner.Scan() {
-//		word := scanner.Text()
-//		for i := 0; i < c.NumberOfReplicas; i++ {
-//			ekey := c.nodeKey(NodeID(word), i)
-//			// ekey := word + "|" + strconv.Itoa(i)
-//			k := c.hashKey(ekey)
-//			exist, ok := found[k]
-//			if ok {
-//				t.Logf("found collision: %v, %v", ekey, exist)
-//				count++
-//			} else {
-//				found[k] = ekey
-//			}
-//		}
-//	}
-//	t.Logf("number of collisions: %d", count)
-//}
-
 func TestConcurrentGetSet(t *testing.T) {
 	x := New()
 	x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})

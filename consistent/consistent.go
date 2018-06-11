@@ -64,7 +64,6 @@ type Consistent struct {
 	sortedHashes     NodeKeys
 	NumberOfReplicas int
 	count            int64
-	scratch          [64]byte
 	sync.RWMutex
 }
 

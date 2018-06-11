@@ -17,30 +17,7 @@
 // Package proto contains DHT RPC protocol struct
 package proto
 
-import (
-	"time"
-
-	ec "github.com/btcsuite/btcd/btcec"
-	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
-)
-
-// NodeID is node name, will be generated from Hash(nodePublicKey)
-type NodeID string
-
-// NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
-type NodeKey uint64
-
-// Node is all node info struct
-type Node struct {
-	Name      string
-	Port      uint16
-	Addr      string
-	ID        NodeID
-	PublicKey *ec.PublicKey
-	Nonce     mine.Nonce
-	// make privateKey non-public!
-	privateKey *ec.PrivateKey
-}
+import "time"
 
 // Envelope is the protocol
 type Envelope struct {

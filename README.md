@@ -8,23 +8,24 @@
 
 ## What is ThunderDB?
 
-ThunderDB is a Distributed Database running on BlockChain for ĐApps and Traditional Apps. 
+ThunderDB is a distributed database running on BlockChain for ĐApps and traditional Apps. 
 
-Traditionally databases are running on some expensive servers hosted
-in IDCs taking good care by experienced Engineers and DBAs. For high availability and scalability, it will be much more expensive. ThunderDB provides user a Pay on Used database running on Internet with Features:
+Traditional databases run on expensive servers hosted
+by IDCs and must be maintained by experienced engineers and DBAs. Also, high availability and scalability are expensive to achieve. ThunderDB is a paid database service that addresses these problems using a sharing economy with the following features:
 
-- Decentralized: Database Replications are controled by algorithm, without the PrivateKey nobody can take control or destroy it.
-- Secure: All data storage and transfer are encrypted with [ETLS]((https://github.com/thunderdb/research/wiki/ETLS(Enhanced-Transport-Layer-Security)))
-- Open: You can share your data with GRANTed permission. You can even make your database public readable.
-- High Available: Replications are distributed all over the Internet. Replication counts can be define on demand.
-- Immutable: All database changes will be logged on Blockchain Immutably.
+- **Decentralized**: database replication on the blockchain is controlled automatically by an algorithm.
+- **Immutable**: all database changes are permanently recorded on the blockchain.
+- **Secure**: all data storage and transfers are encrypted using [ETLS]((https://github.com/thunderdb/research/wiki/ETLS(Enhanced-Transport-Layer-Security))).
+- **Open**: you control who your data is shared with by granting permissions. You have the option of making your database public-readable.
+- **High Availability**: databases are replicated and distributed over the Internet. You can specify the number of replications.
 
 ## Mining
 
-Your can get paid by joining the ThunderDB network as a miner. Miners with higher performance and stability will get more mining rewards.
+Miners in the ThunderDB network are paid for offering computing resources. Miners with higher performance and stability receive more rewards.
 
 ## Installation
-**ThunderDB is Still Under Heavy Construction**
+
+**ThunderDB is Still Under Construction**
 🚧🚧🚧🚧👷👷👷👷👷🚧🚧🚧🚧
 
 
@@ -51,32 +52,29 @@ dep ensure -v
 ```
 
 ## API
-- https://godoc.org/github.com/thunderdb/ThunderDB
+- The source code is periodically indexed: [ThunderDB API](https://godoc.org/github.com/thunderdb/ThunderDB)
 
 ## Key Technologies Explaination
 
-#### Crypto
+- Crypto
+  - [ETLS Explaination](https://github.com/thunderdb/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
 
-- [ETLS Explaination](https://github.com/thunderdb/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
+- P2P Technology
+  - [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
 
-#### P2P Technology
+- Consensus
+  - [BFT-DPoS](https://github.com/thunderdb/research/wiki/BFT-DPoS)
+  - PoE (Proof of Execution)
+  - PoS (Proof of Storage)
 
-- [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
-
-#### Consensus
-
-- [BFT-DPoS](https://github.com/thunderdb/research/wiki/BFT-DPoS)
-- PoE (Proof of Execution)
-- PoS (Proof of Storage)
-
-#### Zero-Knowledge Proof
-
-- [zk-SNARKS](https://github.com/thunderdb/research/wiki/zk-SNARKS)
+- Zero-Knowledge Proof
+  - [zk-SNARKS](https://github.com/thunderdb/research/wiki/zk-SNARKS)
 
 
 ## Support
 
-- [Our Mail](mailto:webmaster@thunderdb.io)
+- [mail us](mailto:webmaster@thunderdb.io)
+- [submit issue](https://github.com/thunderdb/ThunderDB/issues/new)
 
 
 

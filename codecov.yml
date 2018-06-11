@@ -30,6 +30,6 @@ comment:
   require_changes: no
 
 ignore:
-  - "sqlchain/pbtypes"
+  - "types"
   - "cmd"
   - "conf"

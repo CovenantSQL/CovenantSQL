@@ -29,7 +29,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
+	"github.com/thunderdb/ThunderDB/types"
 )
 
 var (
@@ -46,14 +46,14 @@ type State struct {
 }
 
 func (s *State) marshal() ([]byte, error) {
-	return pb.Marshal(&pbtypes.State{
-		Head:   &pbtypes.Hash{Hash: s.Head[:]},
+	return pb.Marshal(&types.State{
+		Head:   &types.Hash{Hash: s.Head[:]},
 		Height: s.Height,
 	})
 }
 
 func (s *State) unmarshal(buffer []byte) (err error) {
-	pbState := &pbtypes.State{}
+	pbState := &types.State{}
 	err = pb.Unmarshal(buffer, pbState)
 
 	if err != nil {

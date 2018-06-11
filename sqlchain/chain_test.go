@@ -33,7 +33,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
+	pbtypes "github.com/thunderdb/ThunderDB/types"
 )
 
 var (

@@ -1,4 +1,4 @@
-package pbtypes
+package types
 
 import (
 	"bytes"

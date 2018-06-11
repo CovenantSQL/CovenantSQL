@@ -25,9 +25,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Hook are called during 2PC running
+type Hook func(ctx context.Context) error
+
 // Options represents options of a 2PC coordinator.
 type Options struct {
-	timeout time.Duration
+	timeout        time.Duration
+	beforePrepare  Hook
+	beforeCommit   Hook
+	beforeRollback Hook
 }
 
 // Worker represents a 2PC worker who implements Prepare, Commit, and Rollback.
@@ -49,6 +55,23 @@ type Coordinator struct {
 func NewCoordinator(opt *Options) *Coordinator {
 	return &Coordinator{
 		option: opt,
+	}
+}
+
+// NewOptions returns a new coordinator option
+func NewOptions(timeout time.Duration) *Options {
+	return &Options{
+		timeout: timeout,
+	}
+}
+
+// NewOptionsWithCallback returns a new coordinator option with before prepare/commit/rollback callback
+func NewOptionsWithCallback(timeout time.Duration, beforePrepare Hook, beforeCommit Hook, beforeRollback Hook) *Options {
+	return &Options{
+		timeout:        timeout,
+		beforePrepare:  beforePrepare,
+		beforeCommit:   beforeCommit,
+		beforeRollback: beforeRollback,
 	}
 }
 
@@ -104,6 +127,12 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.option.timeout)
 	defer cancel()
 
+	if c.option.beforePrepare != nil {
+		if err := c.option.beforePrepare(ctx); err != nil {
+			return err
+		}
+	}
+
 	errs := make([]error, len(workers))
 	wg := sync.WaitGroup{}
 
@@ -118,12 +147,32 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 	wg.Wait()
 
 	// Check prepare results and initiate phase two
+	var returnErr error
 	for index, err := range errs {
 		if err != nil {
+			returnErr = err
 			log.Debugf("prepare failed on %v: err = %v", workers[index], err)
-			return c.rollback(ctx, workers, wb)
+			goto ROLLBACK
+		}
+	}
+
+	if c.option.beforeCommit != nil {
+		if err := c.option.beforeCommit(ctx); err != nil {
+			returnErr = err
+			log.Debug("before commit failed: err = %v", err)
+			goto ROLLBACK
 		}
 	}
 
 	return c.commit(ctx, workers, wb)
+
+ROLLBACK:
+	if c.option.beforeRollback != nil {
+		// ignore rollback fail options
+		c.option.beforeRollback(ctx)
+	}
+
+	c.rollback(ctx, workers, wb)
+
+	return returnErr
 }

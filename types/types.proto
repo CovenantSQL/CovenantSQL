@@ -46,13 +46,13 @@ message Tx {
     string Content = 4;
 }
 
-message Address {
-    bytes Address = 1;
+message NodeID {
+    string NodeID = 1;
 }
 
 message Header {
     int32 Version = 1;
-    Address Producer = 2;
+    NodeID Producer = 2;
     Hash Root = 3;
     Hash Parent = 4;
     Hash MerkleRoot = 5;
@@ -69,4 +69,40 @@ message SignedHeader {
 message State {
     Hash Head = 1;
     int32 Height = 2;
+}
+
+message BPTx {
+    Hash TxHash = 1;
+    BPTxData txdata = 2;
+}
+
+message BPTxData {
+    uint64 AccountNonce = 1;
+    NodeID Recipient = 2;
+    bytes Amount = 3;
+    bytes Payload = 4;
+
+    Signature Sig = 5;
+    PublicKey publicKey = 6;
+}
+
+message BPHeader {
+    int32 Version = 1;
+    NodeID Producer = 2;
+    Hash Root = 3;
+    Hash Parent = 4;
+    Hash MerkleRoot = 5;
+    bytes Timestamp = 6;
+}
+
+message BPSignedHeader {
+    Header Header = 1;
+    Hash BlockHash = 2;
+    PublicKey Signee = 3;
+    Signature Signature = 4;
+}
+
+message BPBlock {
+    BPSignedHeader Header = 1;
+    repeated BPTx Tx = 2;
 }

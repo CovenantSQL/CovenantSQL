@@ -32,7 +32,7 @@ import (
 // Header is a block header.
 type Header struct {
 	Version    int32
-	Producer   common.Address
+	Producer   common.NodeID
 	RootHash   hash.Hash
 	ParentHash hash.Hash
 	MerkleRoot hash.Hash
@@ -48,7 +48,7 @@ func (h *Header) marshal() ([]byte, error) {
 
 	return proto.Marshal(&types.Header{
 		Version:    h.Version,
-		Producer:   &types.Address{Address: h.Producer[:]},
+		Producer:   &types.NodeID{NodeID: string(h.Producer)},
 		Root:       &types.Hash{Hash: h.RootHash[:]},
 		Parent:     &types.Hash{Hash: h.ParentHash[:]},
 		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
@@ -75,7 +75,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 	return proto.Marshal(&types.SignedHeader{
 		Header: &types.Header{
 			Version:    s.Version,
-			Producer:   &types.Address{Address: s.Producer[:]},
+			Producer:   &types.NodeID{NodeID: string(s.Producer)},
 			Root:       &types.Hash{Hash: s.RootHash[:]},
 			Parent:     &types.Hash{Hash: s.ParentHash[:]},
 			MerkleRoot: &types.Hash{Hash: s.MerkleRoot[:]},
@@ -118,7 +118,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return fmt.Errorf("sqlchain: unexpected big int")
 	}
 
-	if len(pbSignedHeader.GetHeader().GetProducer().GetAddress()) != common.AddressLength ||
+	if len(pbSignedHeader.GetHeader().GetProducer().GetNodeID()) != common.AddressLength ||
 		len(pbSignedHeader.GetHeader().GetRoot().GetHash()) != hash.HashSize ||
 		len(pbSignedHeader.GetHeader().GetParent().GetHash()) != hash.HashSize ||
 		len(pbSignedHeader.GetHeader().GetMerkleRoot().GetHash()) != hash.HashSize ||
@@ -141,7 +141,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 
 	// Copy fields
 	s.Version = pbSignedHeader.Header.GetVersion()
-	copy(s.Producer[:], pbSignedHeader.GetHeader().GetProducer().GetAddress())
+	s.Producer = common.NodeID(pbSignedHeader.GetHeader().GetProducer().GetNodeID())
 	copy(s.RootHash[:], pbSignedHeader.GetHeader().GetRoot().GetHash())
 	copy(s.ParentHash[:], pbSignedHeader.GetHeader().GetParent().GetHash())
 	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())

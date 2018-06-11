@@ -32,6 +32,18 @@ const dbFile = ".test.db"
 func TestDB(t *testing.T) {
 	privKey1, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
 	privKey2, pubKey2, _ := asymmetric.GenSecp256k1KeyPair()
+	node1 := &proto.Node{
+		ID:        proto.NodeID("node1"),
+		Addr:      "",
+		PublicKey: pubKey1,
+		Nonce:     cpuminer.Uint256{},
+	}
+	node2 := &proto.Node{
+		ID:        proto.NodeID("node2"),
+		Addr:      "",
+		PublicKey: pubKey2,
+		Nonce:     cpuminer.Uint256{},
+	}
 	Convey("Init db", t, func() {
 		pks = nil
 		defer os.Remove(dbFile)
@@ -47,10 +59,13 @@ func TestDB(t *testing.T) {
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
-		err = setPublicKey(proto.NodeID("node1"), pubKey1)
+		err = SetNodeInfo(nil)
+		So(err, ShouldEqual, ErrNilNode)
+
+		err = setPublicKey(node1)
 		So(err, ShouldBeNil)
 
-		err = setPublicKey(proto.NodeID("node2"), pubKey2)
+		err = setPublicKey(node2)
 		So(err, ShouldBeNil)
 
 		err = SetPublicKey(proto.NodeID(BPNodeID), BPNonce, BPPublicKey)
@@ -72,10 +87,10 @@ func TestDB(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(privKey2.PubKey().IsEqual(pubKey2), ShouldBeTrue)
 
-		err = DelPublicKey(proto.NodeID("node2"))
+		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldBeNil)
 
-		err = DelPublicKey(proto.NodeID("node2"))
+		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldBeNil)
 
 		pubk, err = GetPublicKey(proto.NodeID("node2"))
@@ -89,10 +104,10 @@ func TestDB(t *testing.T) {
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
-		err = setPublicKey(proto.NodeID("node1"), pubKey1)
+		err = setPublicKey(node1)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
-		err = DelPublicKey(proto.NodeID("node2"))
+		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 	})
 }

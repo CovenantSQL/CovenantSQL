@@ -59,26 +59,32 @@ func NewServer() *Server {
 
 // InitRPCServer load the private key, init the crypto transfer layer and register RPC
 // services.
-// IF ANY ERROR, the func will FATAL
+// IF ANY ERROR returned, please raise a FATAL
 func (s *Server) InitRPCServer(
 	addr string,
 	privateKeyPath string,
 	publicKeyStorePath string,
 	masterKey []byte,
-) {
+) (err error) {
 	route.InitResolver()
 
-	// Create new public key store, IF ANY ERROR, the func will FATAL
-	kms.InitPublicKeyStore(publicKeyStorePath)
-
-	err := kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	// Create new public key store
+	err = kms.InitPublicKeyStore(publicKeyStorePath)
 	if err != nil {
-		log.Fatalf("init LocalKeyPair failed: %s", err)
+		log.Errorf("init public keystore failed: %s", err)
+		return
+	}
+
+	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	if err != nil {
+		log.Errorf("init local key pair failed: %s", err)
+		return
 	}
 
 	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
 	if err != nil {
-		log.Fatalf("create crypto listener failed: %s", err)
+		log.Errorf("create crypto listener failed: %s", err)
+		return
 	}
 
 	s.SetListener(l)

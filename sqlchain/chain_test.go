@@ -95,7 +95,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 
 	if isGenesis {
 		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.Nonce)
+		nonceCh := make(chan cpuminer.NonceInfo)
 		quitCh := make(chan struct{})
 		miner := cpuminer.NewCPUMiner(quitCh)
 		go miner.ComputeBlockNonce(cpuminer.MiningBlock{

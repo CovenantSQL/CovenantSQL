@@ -180,7 +180,7 @@ func verifyGenesisHeader(sh *SignedHeader) (err error) {
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
 	if !reflect.DeepEqual((*signature.PublicKey)(pk), sh.Signee) {
-		return
+		return errors.New("verify genesis header: node id public key not match")
 	}
 
 	if !sh.Verify() {

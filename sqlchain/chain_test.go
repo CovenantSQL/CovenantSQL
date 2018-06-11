@@ -18,6 +18,7 @@ package sqlchain
 
 import (
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"os"
 	"reflect"
@@ -37,16 +38,12 @@ import (
 
 var (
 	testHeight = int32(50)
-	rootHash   = hash.Hash{
-		0xea, 0xf0, 0x2c, 0xa3, 0x48, 0xc5, 0x24, 0xe6,
-		0x39, 0x26, 0x55, 0xba, 0x4d, 0x29, 0x60, 0x3c,
-		0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
-		0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
-	}
+	rootHash   = hash.Hash{}
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+	rand.Read(rootHash[:])
 	f, err := ioutil.TempFile("", "keystore")
 
 	if err != nil {
@@ -172,6 +169,102 @@ func TestState(t *testing.T) {
 	err = rState.unmarshal(buffer)
 
 	if err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+}
+
+func TestGenesis(t *testing.T) {
+	genesis, err := createRandomBlock(rootHash, true)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	if err = verifyGenesis(genesis); err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	if err = verifyGenesis(nil); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	if err = verifyGenesisHeader(nil); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	// Test non-genesis block
+	genesis, err = createRandomBlock(rootHash, false)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	if err = verifyGenesis(genesis); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	// Test altered public key block
+	genesis, err = createRandomBlock(rootHash, true)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	_, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	genesis.SignedHeader.Signee = (*signature.PublicKey)(pub)
+
+	if err = verifyGenesis(genesis); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	// Test altered signature
+	genesis, err = createRandomBlock(rootHash, true)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	genesis.SignedHeader.Signature.R.Add(genesis.SignedHeader.Signature.R, big.NewInt(int64(1)))
+	genesis.SignedHeader.Signature.S.Add(genesis.SignedHeader.Signature.S, big.NewInt(int64(1)))
+
+	if err = verifyGenesis(genesis); err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")

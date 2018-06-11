@@ -26,7 +26,7 @@ import (
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
-	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
+	"github.com/thunderdb/ThunderDB/types"
 )
 
 // Header is a block header.
@@ -46,12 +46,12 @@ func (h *Header) marshal() ([]byte, error) {
 		return nil, err
 	}
 
-	return proto.Marshal(&pbtypes.Header{
+	return proto.Marshal(&types.Header{
 		Version:    h.Version,
-		Producer:   &pbtypes.Address{Address: h.Producer[:]},
-		Root:       &pbtypes.Hash{Hash: h.RootHash[:]},
-		Parent:     &pbtypes.Hash{Hash: h.ParentHash[:]},
-		MerkleRoot: &pbtypes.Hash{Hash: h.MerkleRoot[:]},
+		Producer:   &types.Address{Address: h.Producer[:]},
+		Root:       &types.Hash{Hash: h.RootHash[:]},
+		Parent:     &types.Hash{Hash: h.ParentHash[:]},
+		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
 		Timestamp:  buffer,
 	})
 }
@@ -72,22 +72,22 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 		return nil, err
 	}
 
-	return proto.Marshal(&pbtypes.SignedHeader{
-		Header: &pbtypes.Header{
+	return proto.Marshal(&types.SignedHeader{
+		Header: &types.Header{
 			Version:    s.Version,
-			Producer:   &pbtypes.Address{Address: s.Producer[:]},
-			Root:       &pbtypes.Hash{Hash: s.RootHash[:]},
-			Parent:     &pbtypes.Hash{Hash: s.ParentHash[:]},
-			MerkleRoot: &pbtypes.Hash{Hash: s.MerkleRoot[:]},
+			Producer:   &types.Address{Address: s.Producer[:]},
+			Root:       &types.Hash{Hash: s.RootHash[:]},
+			Parent:     &types.Hash{Hash: s.ParentHash[:]},
+			MerkleRoot: &types.Hash{Hash: s.MerkleRoot[:]},
 			Timestamp:  buffer,
 		},
-		BlockHash: &pbtypes.Hash{Hash: s.BlockHash[:]},
-		Signee:    &pbtypes.PublicKey{PublicKey: s.Signee.Serialize()},
-		Signature: func(s *signature.Signature) *pbtypes.Signature {
+		BlockHash: &types.Hash{Hash: s.BlockHash[:]},
+		Signee:    &types.PublicKey{PublicKey: s.Signee.Serialize()},
+		Signature: func(s *signature.Signature) *types.Signature {
 			if s == nil {
 				return nil
 			}
-			return &pbtypes.Signature{
+			return &types.Signature{
 				S: s.S.String(),
 				R: s.R.String(),
 			}
@@ -96,7 +96,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 }
 
 func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
-	pbSignedHeader := &pbtypes.SignedHeader{}
+	pbSignedHeader := &types.SignedHeader{}
 	err = proto.Unmarshal(buffer, pbSignedHeader)
 
 	if err != nil {

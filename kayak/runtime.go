@@ -119,14 +119,14 @@ func (r *Runtime) Shutdown() error {
 	return nil
 }
 
-// Process defines common process logic.
-func (r *Runtime) Process(data []byte) error {
+// Apply defines common process logic.
+func (r *Runtime) Apply(data []byte) error {
 	// validate if myself is leader
 	if !r.isLeader {
 		return ErrNotLeader
 	}
 
-	err := r.config.Runner.Process(data)
+	err := r.config.Runner.Apply(data)
 	if err != nil {
 		return fmt.Errorf("process log: %s", err.Error())
 	}

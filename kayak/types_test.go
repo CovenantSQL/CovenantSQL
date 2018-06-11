@@ -102,19 +102,17 @@ func TestServer_Serialize(t *testing.T) {
 	}
 
 	s := &Server{
-		Role:    Leader,
-		ID:      "happy",
-		Address: "happy2",
-		PubKey:  pubKey,
+		Role:   Leader,
+		ID:     "happy",
+		PubKey: pubKey,
 	}
 	data := s.Serialize()
 
 	// try to load data from serialization
 	s2 := &Server{
-		Role:    Leader,
-		ID:      "happy",
-		Address: "happy2",
-		PubKey:  pubKey,
+		Role:   Leader,
+		ID:     "happy",
+		PubKey: pubKey,
 	}
 	data2 := s2.Serialize()
 
@@ -140,17 +138,15 @@ func TestPeers_Clone(t *testing.T) {
 	samplePeersConf := &Peers{
 		Term: 1,
 		Leader: &Server{
-			Role:    Leader,
-			ID:      "happy",
-			Address: "happy_address",
-			PubKey:  pubKey,
+			Role:   Leader,
+			ID:     "happy",
+			PubKey: pubKey,
 		},
 		Servers: []*Server{
 			{
-				Role:    Leader,
-				ID:      "happy",
-				Address: "happy_address",
-				PubKey:  pubKey,
+				Role:   Leader,
+				ID:     "happy",
+				PubKey: pubKey,
 			},
 		},
 		PubKey: pubKey,
@@ -177,17 +173,15 @@ func TestPeers_Sign(t *testing.T) {
 	peers := &Peers{
 		Term: 1,
 		Leader: &Server{
-			Role:    Leader,
-			ID:      "happy",
-			Address: "happy_address",
-			PubKey:  pubKey,
+			Role:   Leader,
+			ID:     "happy",
+			PubKey: pubKey,
 		},
 		Servers: []*Server{
 			{
-				Role:    Leader,
-				ID:      "happy",
-				Address: "happy_address",
-				PubKey:  pubKey,
+				Role:   Leader,
+				ID:     "happy",
+				PubKey: pubKey,
 			},
 		},
 		PubKey: pubKey,
@@ -218,18 +212,16 @@ func TestToString(t *testing.T) {
 	})
 	Convey("Server", t, func() {
 		s := &Server{
-			Role:    Leader,
-			ID:      "test",
-			Address: "test",
+			Role: Leader,
+			ID:   "test",
 		}
 		So(fmt.Sprint(s), ShouldNotBeEmpty)
 	})
 	Convey("Peers", t, func() {
 		p := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "test",
-				Address: "test",
+				Role: Leader,
+				ID:   "test",
 			},
 		})
 		So(fmt.Sprint(p), ShouldNotBeEmpty)

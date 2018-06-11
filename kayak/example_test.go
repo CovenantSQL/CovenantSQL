@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 func TestExampleTwoPCCommit(t *testing.T) {
@@ -40,28 +41,25 @@ func TestExampleTwoPCCommit(t *testing.T) {
 	mockLogCodec := &MockLogCodec{}
 	// router is a dummy channel based local rpc transport router
 	mockRouter := &MockTransportRouter{
-		transports: make(map[ServerID]*MockTransport),
+		transports: make(map[proto.NodeID]*MockTransport),
 	}
 	// peers is a simple 3-node peer configuration
 	peers := testPeersFixture(1, []*Server{
 		{
-			Role:    Leader,
-			ID:      "leader",
-			Address: "leader_address",
+			Role: Leader,
+			ID:   "leader",
 		},
 		{
-			Role:    Follower,
-			ID:      "follower1",
-			Address: "follower_address",
+			Role: Follower,
+			ID:   "follower1",
 		},
 		{
-			Role:    Follower,
-			ID:      "follower2",
-			Address: "follower2_address",
+			Role: Follower,
+			ID:   "follower2",
 		},
 	})
 	// create mock returns basic arguments to prepare for a server
-	createMock := func(serverID ServerID) (res *createMockRes) {
+	createMock := func(nodeID proto.NodeID) (res *createMockRes) {
 		res = &createMockRes{}
 		logger := log.New()
 		logger.SetLevel(log.FatalLevel)
@@ -70,14 +68,14 @@ func TestExampleTwoPCCommit(t *testing.T) {
 		// runner instance
 		res.runner = NewTwoPCRunner()
 		// transport for this instance
-		res.transport = mockRouter.getTransport(serverID)
+		res.transport = mockRouter.getTransport(nodeID)
 		// underlying worker
 		res.worker = &MockWorker{}
 		// runner config including timeout settings, commit log storage, local server id
 		res.config = &TwoPCConfig{
 			RuntimeConfig: RuntimeConfig{
 				RootDir:        d,
-				LocalID:        serverID,
+				LocalID:        nodeID,
 				Runner:         res.runner,
 				Transport:      res.transport,
 				ProcessTimeout: time.Millisecond * 800,
@@ -148,7 +146,7 @@ func TestExampleTwoPCCommit(t *testing.T) {
 		})
 
 		// process the encoded data
-		err = lMock.runtime.Process(testData)
+		err = lMock.runtime.Apply(testData)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",
@@ -161,7 +159,7 @@ func TestExampleTwoPCCommit(t *testing.T) {
 
 		// process the encoded data again
 		callOrder.Reset()
-		err = lMock.runner.Process(testData)
+		err = lMock.runner.Apply(testData)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",

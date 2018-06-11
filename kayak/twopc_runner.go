@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/twopc"
 )
 
@@ -98,8 +99,8 @@ type TwoPCRunner struct {
 
 // TwoPCWorkerWrapper wraps remote runner as worker
 type TwoPCWorkerWrapper struct {
-	runner   *TwoPCRunner
-	serverID ServerID
+	runner *TwoPCRunner
+	nodeID proto.NodeID
 }
 
 // TwoPCLogCodec is the log data encode/decoder
@@ -293,8 +294,8 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 	return <-r.updatePeersRes
 }
 
-// Process implements Runner.Process.
-func (r *TwoPCRunner) Process(data []byte) error {
+// Apply implements Runner.Apply.
+func (r *TwoPCRunner) Apply(data []byte) error {
 	r.processLock.Lock()
 	defer r.processLock.Unlock()
 
@@ -509,7 +510,7 @@ func (r *TwoPCRunner) processPeersUpdate(peersUpdate *Peers) {
 
 func (r *TwoPCRunner) verifyLeader(req Request) error {
 	// TODO(xq262144), verify call from current leader or from new leader containing new peers info
-	if req.GetServerID() != r.peers.Leader.ID {
+	if req.GetNodeID() != r.peers.Leader.ID {
 		// not our leader
 		return ErrInvalidRequest
 	}
@@ -732,10 +733,10 @@ func (r *TwoPCRunner) goFunc(f func()) {
 }
 
 // NewTwoPCWorkerWrapper returns a wrapper for remote worker
-func NewTwoPCWorkerWrapper(runner *TwoPCRunner, serverID ServerID) *TwoPCWorkerWrapper {
+func NewTwoPCWorkerWrapper(runner *TwoPCRunner, nodeID proto.NodeID) *TwoPCWorkerWrapper {
 	return &TwoPCWorkerWrapper{
-		serverID: serverID,
-		runner:   runner,
+		nodeID: nodeID,
+		runner: runner,
 	}
 }
 
@@ -766,16 +767,21 @@ func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatc
 	return tpww.callRemote(ctx, "Rollback", l.Index)
 }
 
-func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) error {
-	var remoteErr error
-
+func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) (err error) {
 	// TODO(xq262144), handle retry
-
-	if err := tpww.runner.transport.Request(ctx, tpww.serverID, method, args, &remoteErr); err != nil {
+	var rv interface{}
+	if rv, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, args); err != nil {
 		return err
 	}
 
-	return remoteErr
+	if rv != nil {
+		var ok bool
+		if err, ok = rv.(error); !ok {
+			return ErrInvalidRequest
+		}
+	}
+
+	return err
 }
 
 func nestedTimeoutCtx(ctx context.Context, timeout time.Duration, process func(context.Context) error) error {

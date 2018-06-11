@@ -17,8 +17,6 @@
 package sqlchain
 
 import (
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -102,20 +100,12 @@ func produceTestBlocks() (err error) {
 	return nil
 }
 
-func testSetup() (err error) {
-	err = produceTestBlocks()
-	return err
-}
-
-func TestMain(m *testing.M) {
-	err := testSetup()
+func init() {
+	err := produceTestBlocks()
 
 	if err != nil {
-		fmt.Println("Failed to setup test environment.")
-		os.Exit(1)
+		panic(err)
 	}
-
-	os.Exit(m.Run())
 }
 
 func TestNewBlockNode(t *testing.T) {

@@ -20,9 +20,11 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
+	pb "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -30,10 +32,11 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
+	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
 )
 
 var (
-	testHeight = int32(20)
+	testHeight = int32(50)
 	rootHash   = hash.Hash{
 		0xea, 0xf0, 0x2c, 0xa3, 0x48, 0xc5, 0x24, 0xe6,
 		0x39, 0x26, 0x55, 0xba, 0x4d, 0x29, 0x60, 0x3c,
@@ -121,6 +124,58 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	}
 
 	return
+}
+
+func TestState(t *testing.T) {
+	state := &State{
+		node:   nil,
+		Head:   hash.Hash{},
+		Height: 0,
+	}
+
+	rand.Read(state.Head[:])
+	buffer, err := state.marshal()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	rState := &State{}
+	err = rState.unmarshal(buffer)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	rand.Read(buffer)
+	err = rState.unmarshal(buffer)
+
+	if err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	if !reflect.DeepEqual(state, rState) {
+		t.Fatalf("Values don't match: v1 = %v, v2 = %v", state, rState)
+	}
+
+	buffer, err = pb.Marshal(&pbtypes.State{
+		Head:   &pbtypes.Hash{Hash: []byte("xxxx")},
+		Height: 0,
+	})
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	err = rState.unmarshal(buffer)
+
+	if err != nil {
+		t.Logf("Error occurred as expected: %s", err.Error())
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
 }
 
 func TestChain(t *testing.T) {

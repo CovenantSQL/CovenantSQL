@@ -113,7 +113,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return fmt.Errorf("sqlchain: unexpected big int")
 	}
 
-	ps, ok = ps.SetString(pbSignedHeader.GetSignature().GetR(), 10)
+	ps, ok = ps.SetString(pbSignedHeader.GetSignature().GetS(), 10)
 
 	if !ok {
 		return fmt.Errorf("sqlchain: unexpected big int")

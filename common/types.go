@@ -26,7 +26,7 @@ const (
 
 const (
 	// AddressLength is the fixed length of a ThunderDB node address.
-	AddressLength = 20
+	AddressLength = 64
 	// UUIDLength is the fixed length of a UUID.
 	UUIDLength = 16
 )

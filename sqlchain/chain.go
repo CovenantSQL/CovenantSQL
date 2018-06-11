@@ -24,6 +24,7 @@ import (
 
 	bolt "github.com/coreos/bbolt"
 	pb "github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
@@ -81,8 +82,10 @@ type Chain struct {
 
 // NewChain creates a new sql-chain struct.
 func NewChain(cfg *Config) (chain *Chain, err error) {
-	if !verifyGenesis(&cfg.Genesis) {
-		return nil, errors.New("new chain: genesis cannot be verified")
+	err = verifyGenesis(cfg.Genesis)
+
+	if err != nil {
+		return
 	}
 
 	// Open DB file
@@ -114,46 +117,77 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 		db:           db,
 		index:        newBlockIndex(cfg),
 		pendingBlock: &Block{},
-		state:        &State{},
+		state: &State{
+			node:   nil,
+			Head:   cfg.Genesis.SignedHeader.RootHash,
+			Height: -1,
+		},
+	}
+
+	err = chain.PushBlock(cfg.Genesis.SignedHeader)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return
 }
 
-func verifyGenesis(b *Block) bool {
+func verifyGenesis(b *Block) (err error) {
 	if b == nil || b.SignedHeader == nil {
-		return false
+		return errors.New("verify genesis: nil value")
 	}
 
 	// Assume that we can fetch public key from kms after initialization.
 	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
 
 	if err != nil {
-		return false
+		return
 	}
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
 	if !reflect.DeepEqual((*signature.PublicKey)(pk), b.SignedHeader.Signee) {
-		return false
+		return errors.New("verify genesis: node id public key not match")
 	}
 
-	return b.VerifyHeader()
+	if !b.VerifyHeader() {
+		return errors.New("verify genesis: signature not match")
+	}
+
+	return
 }
 
-func verifyGenesisHeader(sh *SignedHeader) bool {
+func verifyGenesisHeader(sh *SignedHeader) (err error) {
+	if sh == nil {
+		return errors.New("verify genesis header: nil value")
+	}
+
+	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
+		" block = %s",
+		string(sh.Producer[:]),
+		sh.RootHash.String(),
+		sh.ParentHash.String(),
+		sh.MerkleRoot.String(),
+		sh.BlockHash.String(),
+	)
+
 	// Assume that we can fetch public key from kms after initialization.
 	pk, err := kms.GetPublicKey(proto.NodeID(sh.Header.Producer[:]))
 
 	if err != nil {
-		return false
+		return
 	}
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
 	if !reflect.DeepEqual((*signature.PublicKey)(pk), sh.Signee) {
-		return false
+		return
 	}
 
-	return sh.Verify()
+	if !sh.Verify() {
+		return errors.New("verify genesis header: signature not match")
+	}
+
+	return
 }
 
 func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
@@ -164,11 +198,27 @@ func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
 }
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
-func (c *Chain) LoadChain() (err error) {
-	return c.db.View(func(tx *bolt.Tx) (err error) {
+func LoadChain(cfg *Config) (chain *Chain, err error) {
+	// Open DB file
+	db, err := bolt.Open(cfg.DataDir, 0600, nil)
+
+	if err != nil {
+		return
+	}
+
+	// Create chain state
+	chain = &Chain{
+		cfg:          cfg,
+		db:           db,
+		index:        newBlockIndex(cfg),
+		pendingBlock: &Block{},
+		state:        &State{},
+	}
+
+	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		bucket := tx.Bucket(metaBucket[:])
-		err = c.state.unmarshal(bucket.Get(metaStateKey))
+		err = chain.state.unmarshal(bucket.Get(metaStateKey))
 
 		if err != nil {
 			return err
@@ -190,7 +240,7 @@ func (c *Chain) LoadChain() (err error) {
 
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 			header := &SignedHeader{}
-			err := header.unmarshal(v)
+			err = header.unmarshal(v)
 
 			if err != nil {
 				return err
@@ -199,13 +249,13 @@ func (c *Chain) LoadChain() (err error) {
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
-				if !verifyGenesisHeader(header) {
-					return fmt.Errorf("initChain: failed to verify genesis block")
+				if err = verifyGenesisHeader(header); err != nil {
+					return
 				}
 			} else if header.ParentHash == lastNode.hash {
 				parent = lastNode
 			} else {
-				parent = c.index.LookupNode(&header.ParentHash)
+				parent = chain.index.LookupNode(&header.ParentHash)
 
 				if parent == nil {
 					return fmt.Errorf("initChain: could not find parent node")
@@ -213,11 +263,18 @@ func (c *Chain) LoadChain() (err error) {
 			}
 
 			nodes[index].initBlockNode(header, parent)
+			lastNode = &nodes[index]
 			index++
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 // PushBlock pushes the signed block header to extend the current main chain.
@@ -258,6 +315,6 @@ func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 
 		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, buffer)
 
-		return nil
+		return
 	})
 }

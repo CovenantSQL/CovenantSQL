@@ -27,7 +27,6 @@ import (
 
 	pb "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
@@ -83,7 +82,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b.SignedHeader.Header.Producer = common.NodeID(h.String())
+	b.SignedHeader.Header.Producer = proto.NodeID(h.String())
 
 	for i := 0; i < len(b.Queries); i++ {
 		b.Queries[i] = new(Query)
@@ -108,7 +107,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		close(nonceCh)
 		// Add public key to KMS
 		id := cpuminer.HashBlock(pub.SerializeCompressed(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = common.NodeID(id.String())
+		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
 		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
 
 		if err != nil {

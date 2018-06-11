@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 func TestSign(t *testing.T) {
@@ -46,7 +46,7 @@ func TestSign(t *testing.T) {
 		priv, pub := signature.PrivKeyFromBytes(btcec.S256(), test.key)
 		header := Header{
 			Version: int32(0x01000000),
-			Producer: common.NodeID([]byte{
+			Producer: proto.NodeID([]byte{
 				0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
 				0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0, 0x1,
 				0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0, 0x1,
@@ -98,12 +98,12 @@ func TestSign(t *testing.T) {
 		err := block.SignHeader(priv)
 
 		if err != nil {
-			t.Errorf("%s could not sign header: %v", test.name, err)
+			t.Errorf("%s could not sign header: %s", test.name, err.Error())
 			continue
 		}
 
-		if !block.VerifyHeader() {
-			t.Errorf("%s could not verify header", test.name)
+		if err = block.VerifyHeader(); err != nil {
+			t.Errorf("%s could not verify header: %s", test.name, err.Error())
 			continue
 		}
 

@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 var (
@@ -59,7 +59,7 @@ func produceTestBlocks() (err error) {
 	for index := 0; index < blockNum; index++ {
 		header := Header{
 			Version: int32(0x01000000),
-			Producer: common.NodeID([]byte{
+			Producer: proto.NodeID([]byte{
 				0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,
 				0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0, 0x1, 0x2, 0x3,
 			}),

@@ -23,7 +23,7 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/sqlchain/pbtypes"
+	"github.com/thunderdb/ThunderDB/types"
 )
 
 var (
@@ -40,14 +40,14 @@ type State struct {
 }
 
 func (s *State) marshal() ([]byte, error) {
-	return proto.Marshal(&pbtypes.State{
-		Head:   &pbtypes.Hash{Hash: s.Head[:]},
+	return proto.Marshal(&types.State{
+		Head:   &types.Hash{Hash: s.Head[:]},
 		Height: s.Height,
 	})
 }
 
 func (s *State) unmarshal(buffer []byte) (err error) {
-	pbState := &pbtypes.State{}
+	pbState := &types.State{}
 	err = proto.Unmarshal(buffer, pbState)
 
 	if err != nil {

@@ -16,7 +16,8 @@
 
 package sqlchain
 
-// Config represents a sql-chain config
+// Config represents a sql-chain config.
 type Config struct {
 	DataDir string
+	Genesis *Block
 }

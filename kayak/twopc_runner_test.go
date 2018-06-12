@@ -672,7 +672,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				Data:  testData,
 			}
 
-			var err, remoteErr error
+			var err error
 			var rv interface{}
 			rv, err = f1Mock.transport.Request(
 				context.Background(),
@@ -680,10 +680,10 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				"Prepare",
 				fakeLog,
 			)
-			remoteErr = rv.(error)
-			So(err, ShouldBeNil)
-			So(remoteErr, ShouldNotBeNil)
-			So(remoteErr, ShouldEqual, ErrInvalidRequest)
+
+			So(rv, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, ErrInvalidRequest.Error())
 		})
 
 		Convey("send invalid request", func() {
@@ -694,7 +694,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			initMock(lMock, f1Mock)
 
 			// fake request
-			var err, remoteErr error
+			var err error
 			var rv interface{}
 			rv, err = lMock.transport.Request(
 				context.Background(),
@@ -702,10 +702,10 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				"invalid request",
 				nil,
 			)
-			remoteErr = rv.(error)
-			So(err, ShouldBeNil)
-			So(remoteErr, ShouldNotBeNil)
-			So(remoteErr, ShouldEqual, ErrInvalidRequest)
+
+			So(rv, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, ErrInvalidRequest.Error())
 		})
 
 		Convey("log could not be decoded", func() {
@@ -715,7 +715,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// init
 			initMock(lMock, f1Mock)
 
-			var err, remoteErr error
+			var err error
 			var rv interface{}
 			rv, err = lMock.transport.Request(
 				context.Background(),
@@ -723,10 +723,10 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				"Prepare",
 				nil,
 			)
-			remoteErr = rv.(error)
-			So(err, ShouldBeNil)
-			So(remoteErr, ShouldNotBeNil)
-			So(remoteErr, ShouldEqual, ErrInvalidLog)
+
+			So(rv, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldEqual, ErrInvalidLog)
 		})
 	})
 }

@@ -66,6 +66,7 @@ type MockRequest struct {
 type MockResponse struct {
 	ResponseID uint64
 	Payload    interface{}
+	Error      error
 }
 
 type MockTwoPCWorker struct {
@@ -167,9 +168,9 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 					delete(m.giveUp, res.ResponseID)
 				}
 			} else {
-				log.Debugf("[%v] [%v] -> [%v] response %v",
-					r.RequestID, req.GetNodeID(), r.NodeID, res.Payload)
-				return res.Payload, nil
+				log.Debugf("[%v] [%v] -> [%v] response %v: %v",
+					r.RequestID, req.GetNodeID(), r.NodeID, res.Payload, res.Error)
+				return res.Payload, res.Error
 			}
 		}
 	}
@@ -187,10 +188,11 @@ func (m *MockRequest) GetRequest() interface{} {
 	return m.Payload
 }
 
-func (m *MockRequest) SendResponse(v interface{}) error {
+func (m *MockRequest) SendResponse(v interface{}, err error) error {
 	m.transport.waitQueue <- &MockResponse{
 		ResponseID: m.RequestID,
 		Payload:    v,
+		Error:      err,
 	}
 
 	return nil
@@ -321,15 +323,12 @@ func TestMockTransport(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
 		defer cancel()
 
-		var err, remoteErr error
+		var err error
 		var rv interface{}
 		rv, err = mockRouter.getTransport("a").Request(ctx, "b", "Test", "happy")
-		if rv != nil {
-			remoteErr = rv.(error)
-		}
 
+		So(rv, ShouldBeNil)
 		So(err, ShouldNotBeNil)
-		So(remoteErr, ShouldBeNil)
 	})
 
 	Convey("test transport with successful request", t, func(c C) {
@@ -346,7 +345,7 @@ func TestMockTransport(t *testing.T) {
 				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("c"))
 				c.So(req.GetMethod(), ShouldEqual, "Test")
 				c.So(req.GetRequest(), ShouldResemble, "happy")
-				req.SendResponse("happy too")
+				req.SendResponse("happy too", nil)
 			}
 		}()
 
@@ -411,7 +410,7 @@ func TestMockTransport(t *testing.T) {
 					c.So(req.GetNodeID(), ShouldBeIn, []proto.NodeID{"e", "f"})
 					c.So(req.GetMethod(), ShouldBeIn, []string{"test1", "test2"})
 					c.So(req.GetRequest(), ShouldResemble, "happy")
-					req.SendResponse(fmt.Sprintf("happy %s %s", req.GetNodeID(), req.GetMethod()))
+					req.SendResponse(fmt.Sprintf("happy %s %s", req.GetNodeID(), req.GetMethod()), nil)
 				}
 			}
 		}()
@@ -447,7 +446,7 @@ func TestMockTransport(t *testing.T) {
 				context.Background(), "k", "pass2", req.GetRequest())
 
 			c.So(err, ShouldBeNil)
-			req.SendResponse(response)
+			req.SendResponse(response, nil)
 		}()
 
 		wg.Add(1)
@@ -458,7 +457,7 @@ func TestMockTransport(t *testing.T) {
 				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("j"))
 				c.So(req.GetMethod(), ShouldEqual, "pass2")
 				c.So(req.GetRequest(), ShouldResemble, randReq)
-				req.SendResponse(randResp)
+				req.SendResponse(randResp, nil)
 			}
 		}()
 

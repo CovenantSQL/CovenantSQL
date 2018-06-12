@@ -268,7 +268,7 @@ type Request interface {
 	GetNodeID() proto.NodeID
 	GetMethod() string
 	GetRequest() interface{}
-	SendResponse(interface{}) error
+	SendResponse(interface{}, error) error
 }
 
 // Transport adapter for abstraction.

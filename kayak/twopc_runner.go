@@ -18,6 +18,7 @@ package kayak
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -462,7 +463,7 @@ func (r *TwoPCRunner) getState() ServerState {
 func (r *TwoPCRunner) processRequest(req Request) {
 	// verify call from leader
 	if err := r.verifyLeader(req); err != nil {
-		req.SendResponse(err)
+		req.SendResponse(nil, err)
 		return
 	}
 
@@ -474,7 +475,7 @@ func (r *TwoPCRunner) processRequest(req Request) {
 	case "Rollback":
 		r.processRollback(req)
 	default:
-		req.SendResponse(ErrInvalidRequest)
+		req.SendResponse(nil, ErrInvalidRequest)
 	}
 }
 
@@ -519,7 +520,18 @@ func (r *TwoPCRunner) verifyLeader(req Request) error {
 }
 
 func (r *TwoPCRunner) decodeLogIndex(data interface{}) (uint64, error) {
-	if index, ok := data.(uint64); ok {
+	// FIXME(xq262144), very very hack, lost precision
+	if data == nil {
+		return 0, ErrInvalidLog
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return 0, err
+	}
+
+	var index uint64
+	if err = json.Unmarshal(b, &index); err == nil {
 		return index, nil
 	}
 
@@ -527,7 +539,19 @@ func (r *TwoPCRunner) decodeLogIndex(data interface{}) (uint64, error) {
 }
 
 func (r *TwoPCRunner) decodeLog(data interface{}) (*Log, error) {
-	if l, ok := data.(*Log); ok {
+	// TODO(xq262144), very very hack, need rewrite later
+	if data == nil {
+		return nil, ErrInvalidLog
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var l *Log
+
+	if err = json.Unmarshal(b, &l); err == nil {
 		return l, nil
 	}
 
@@ -544,7 +568,7 @@ func (r *TwoPCRunner) decodeLogData(data []byte) (interface{}, error) {
 }
 
 func (r *TwoPCRunner) processPrepare(req Request) {
-	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.PrepareTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.PrepareTimeout, func(ctx context.Context) (err error) {
 		// already in transaction, try abort previous
 		if r.getState() != Idle {
 			// TODO(xq262144), has running transaction
@@ -611,7 +635,7 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 
 func (r *TwoPCRunner) processCommit(req Request) {
 	// commit log
-	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.CommitTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.CommitTimeout, func(ctx context.Context) (err error) {
 		// TODO(xq262144), check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
@@ -669,7 +693,7 @@ func (r *TwoPCRunner) processCommit(req Request) {
 
 func (r *TwoPCRunner) processRollback(req Request) {
 	// rollback log
-	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.RollbackTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.RollbackTimeout, func(ctx context.Context) (err error) {
 		// TODO(xq262144), check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
@@ -769,19 +793,8 @@ func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatc
 
 func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) (err error) {
 	// TODO(xq262144), handle retry
-	var rv interface{}
-	if rv, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, args); err != nil {
-		return err
-	}
-
-	if rv != nil {
-		var ok bool
-		if err, ok = rv.(error); !ok {
-			return ErrInvalidRequest
-		}
-	}
-
-	return err
+	_, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, args)
+	return
 }
 
 func nestedTimeoutCtx(ctx context.Context, timeout time.Duration, process func(context.Context) error) error {

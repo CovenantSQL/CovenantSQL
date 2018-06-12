@@ -47,6 +47,7 @@ type Request struct {
 	Method        string
 	Payload       interface{}
 	Response      interface{}
+	Error         error
 	respAvailable chan struct{}
 	respInit      sync.Once
 }
@@ -157,7 +158,7 @@ func (r *Request) GetRequest() interface{} {
 }
 
 // SendResponse implements kayak.Request.SendResponse
-func (r *Request) SendResponse(resp interface{}) error {
+func (r *Request) SendResponse(resp interface{}, err error) error {
 	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
@@ -165,18 +166,19 @@ func (r *Request) SendResponse(resp interface{}) error {
 		return kayak.ErrInvalidRequest
 	default:
 		r.Response = resp
+		r.Error = err
 		close(r.respAvailable)
 	}
 	return nil
 }
 
-func (r *Request) getResponse() interface{} {
+func (r *Request) getResponse() (interface{}, error) {
 	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
 	case <-r.respAvailable:
 	}
-	return r.Response
+	return r.Response, r.Error
 }
 
 func (r *Request) initChan() {
@@ -233,8 +235,9 @@ func (p *RequestProxy) Call(req *Request, res *Response) error {
 	}
 
 	p.transport.enqueue(req)
-	res.set(req.getResponse())
-	return nil
+	obj, err := req.getResponse()
+	res.set(obj)
+	return err
 }
 
 func (p *RequestProxy) serve() {

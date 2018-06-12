@@ -88,7 +88,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	err = pb.Unmarshal(buffer, pbSignedHeader)
 
 	if err != nil {
-		return err
+		return
 	}
 
 	pr := new(big.Int)
@@ -117,7 +117,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	pk, err := signature.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey(), btcec.S256())
 
 	if err != nil {
-		return err
+		return
 	}
 
 	// Copy fields
@@ -134,7 +134,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	}
 	s.Signee = pk
 
-	return err
+	return
 }
 
 // Verify verifies the signature of the SignedHeader.
@@ -157,13 +157,13 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
-		return err
+		return
 	}
 
 	b.SignedHeader.BlockHash = hash.DoubleHashH(buffer)
 	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
 
-	return err
+	return
 }
 
 // VerifyHeader verifies the signature of the Block.

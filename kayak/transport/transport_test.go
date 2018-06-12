@@ -172,6 +172,9 @@ func TestTransport(t *testing.T) {
 			}
 		}()
 
+		t1.Close()
+		t2.Close()
+
 		wg.Wait()
 	})
 }

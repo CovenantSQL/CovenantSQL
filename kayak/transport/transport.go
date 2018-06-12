@@ -87,12 +87,7 @@ type RequestProxy struct {
 
 // NewConfig returns new transport config
 func NewConfig(nodeID proto.NodeID, streamLayer StreamLayer) (c *Config) {
-	return &Config{
-		NodeID:      nodeID,
-		StreamLayer: streamLayer,
-		ClientCodec: jsonrpc.NewClientCodec,
-		ServerCodec: jsonrpc.NewServerCodec,
-	}
+	return NewConfigWithCodec(nodeID, streamLayer, jsonrpc.NewClientCodec, jsonrpc.NewServerCodec)
 }
 
 // NewConfigWithCodec returns new transport config with custom codec

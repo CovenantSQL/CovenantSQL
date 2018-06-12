@@ -150,11 +150,7 @@ func verifyGenesis(b *Block) (err error) {
 		return errors.New("verify genesis: node id public key not match")
 	}
 
-	if !b.VerifyHeader() {
-		return errors.New("verify genesis: signature not match")
-	}
-
-	return
+	return b.VerifyHeader()
 }
 
 func verifyGenesisHeader(sh *SignedHeader) (err error) {
@@ -183,11 +179,7 @@ func verifyGenesisHeader(sh *SignedHeader) (err error) {
 		return errors.New("verify genesis header: node id public key not match")
 	}
 
-	if !sh.Verify() {
-		return errors.New("verify genesis header: signature not match")
-	}
-
-	return
+	return sh.Verify()
 }
 
 func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {

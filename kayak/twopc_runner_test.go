@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 func TestTwoPCRunner_Init(t *testing.T) {
@@ -55,15 +56,14 @@ func TestTwoPCRunner_Init(t *testing.T) {
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "happy",
-				Address: "happy_address",
+				Role: Leader,
+				ID:   "happy",
 			},
 		})
 		// change term to invalidate signature
 		peers.Term = 2
 		mockRouter := &MockTransportRouter{
-			transports: make(map[ServerID]*MockTransport),
+			transports: make(map[proto.NodeID]*MockTransport),
 		}
 		mockLogStore := &MockLogStore{}
 		mockStableStore := &MockStableStore{}
@@ -100,13 +100,12 @@ func TestTwoPCRunner_Init(t *testing.T) {
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "happy",
-				Address: "happy_address",
+				Role: Leader,
+				ID:   "happy",
 			},
 		})
 		mockRouter := &MockTransportRouter{
-			transports: make(map[ServerID]*MockTransport),
+			transports: make(map[proto.NodeID]*MockTransport),
 		}
 		mockLogStore := &MockLogStore{}
 		mockStableStore := &MockStableStore{}
@@ -224,10 +223,10 @@ func TestTwoPCRunner_Init(t *testing.T) {
 	})
 }
 
-func TestTwoPCRunner_Process(t *testing.T) {
+func TestTwoPCRunner_Apply(t *testing.T) {
 	mockLogCodec := &MockLogCodec{}
 	mockRouter := &MockTransportRouter{
-		transports: make(map[ServerID]*MockTransport),
+		transports: make(map[proto.NodeID]*MockTransport),
 	}
 
 	type createMockRes struct {
@@ -239,17 +238,17 @@ func TestTwoPCRunner_Process(t *testing.T) {
 		stableStore *MockStableStore
 	}
 
-	createMock := func(serverID ServerID) (res *createMockRes) {
+	createMock := func(nodeID proto.NodeID) (res *createMockRes) {
 		res = &createMockRes{}
 		logger := log.New()
 		logger.SetLevel(log.FatalLevel)
 		res.runner = NewTwoPCRunner()
-		res.transport = mockRouter.getTransport(serverID)
+		res.transport = mockRouter.getTransport(nodeID)
 		res.worker = &MockWorker{}
 		res.config = &TwoPCConfig{
 			RuntimeConfig: RuntimeConfig{
 				RootDir:        "test_dir",
-				LocalID:        serverID,
+				LocalID:        nodeID,
 				Runner:         res.runner,
 				Transport:      res.transport,
 				ProcessTimeout: time.Millisecond * 800,
@@ -273,14 +272,12 @@ func TestTwoPCRunner_Process(t *testing.T) {
 	}
 	peers := testPeersFixture(1, []*Server{
 		{
-			Role:    Leader,
-			ID:      "leader",
-			Address: "leader_address",
+			Role: Leader,
+			ID:   "leader",
 		},
 		{
-			Role:    Follower,
-			ID:      "follower",
-			Address: "follower_address",
+			Role: Follower,
+			ID:   "follower",
 		},
 	})
 
@@ -292,11 +289,11 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 		So(err, ShouldBeNil)
 		So(mockRes.runner.role, ShouldEqual, Follower)
-		So(mockRes.runner.leader.ID, ShouldEqual, ServerID("leader"))
+		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		// try call process
 		testData, _ := mockLogCodec.Encode("test data")
-		err = mockRes.runner.Process(testData)
+		err = mockRes.runner.Apply(testData)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldEqual, ErrNotLeader)
 	})
@@ -307,9 +304,8 @@ func TestTwoPCRunner_Process(t *testing.T) {
 		// change server id to leader and set peers to single node
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 		})
 		mockRes := createMock("leader")
@@ -318,7 +314,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 		So(err, ShouldBeNil)
 		So(mockRes.runner.role, ShouldEqual, Leader)
-		So(mockRes.runner.leader.ID, ShouldEqual, ServerID("leader"))
+		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		Convey("commit", func() {
 			// mock worker
@@ -343,7 +339,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			testData, _ := mockLogCodec.Encode("test data")
 
 			// try call process
-			err = mockRes.runner.Process(testData)
+			err = mockRes.runner.Apply(testData)
 
 			So(err, ShouldBeNil)
 
@@ -380,7 +376,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			testData, _ := mockLogCodec.Encode("test data")
 
 			// try call process
-			err = mockRes.runner.Process(testData)
+			err = mockRes.runner.Apply(testData)
 			So(err, ShouldNotBeNil)
 
 			// no log should be written to local log store after failed preparing
@@ -405,7 +401,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			testData, _ := mockLogCodec.Encode("test data")
 
 			// try call process
-			err = mockRes.runner.Process(testData)
+			err = mockRes.runner.Apply(testData)
 
 			So(err, ShouldNotBeNil)
 		})
@@ -427,7 +423,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			testData, _ := mockLogCodec.Encode("test data")
 
 			// try call process
-			err = mockRes.runner.Process(testData)
+			err = mockRes.runner.Apply(testData)
 
 			So(err, ShouldNotBeNil)
 		})
@@ -449,7 +445,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			testData, _ := mockLogCodec.Encode("test data")
 
 			// try call process
-			err = mockRes.runner.Process(testData)
+			err = mockRes.runner.Apply(testData)
 
 			// rollback error is ignored
 			So(err, ShouldNotBeNil)
@@ -462,19 +458,16 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower1",
-				Address: "follower_address",
+				Role: Follower,
+				ID:   "follower1",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower2",
-				Address: "follower2_address",
+				Role: Follower,
+				ID:   "follower2",
 			},
 		})
 		initMock := func(mocks ...*createMockRes) {
@@ -522,7 +515,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			})
 
 			// try call process
-			err := lMock.runner.Process(testData)
+			err := lMock.runner.Apply(testData)
 
 			So(err, ShouldBeNil)
 
@@ -557,7 +550,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			// commit second log
 			callOrder.Reset()
 
-			err = lMock.runner.Process(testData)
+			err = lMock.runner.Apply(testData)
 
 			So(err, ShouldBeNil)
 
@@ -619,7 +612,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			})
 
 			// try call process
-			err := lMock.runner.Process(testData)
+			err := lMock.runner.Apply(testData)
 
 			So(err, ShouldNotBeNil)
 			So(err, ShouldEqual, unknownErr)
@@ -644,19 +637,16 @@ func TestTwoPCRunner_Process(t *testing.T) {
 
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower1",
-				Address: "follower_address",
+				Role: Follower,
+				ID:   "follower1",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower2",
-				Address: "follower2_address",
+				Role: Follower,
+				ID:   "follower2",
 			},
 		})
 		initMock := func(mocks ...*createMockRes) {
@@ -682,17 +672,18 @@ func TestTwoPCRunner_Process(t *testing.T) {
 				Data:  testData,
 			}
 
-			var err, remoteErr error
-			err = f1Mock.transport.Request(
+			var err error
+			var rv interface{}
+			rv, err = f1Mock.transport.Request(
 				context.Background(),
 				f2Mock.config.LocalID,
 				"Prepare",
 				fakeLog,
-				&remoteErr,
 			)
-			So(err, ShouldBeNil)
-			So(remoteErr, ShouldNotBeNil)
-			So(remoteErr, ShouldEqual, ErrInvalidRequest)
+
+			So(rv, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, ErrInvalidRequest.Error())
 		})
 
 		Convey("send invalid request", func() {
@@ -703,17 +694,18 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			initMock(lMock, f1Mock)
 
 			// fake request
-			var err, remoteErr error
-			err = lMock.transport.Request(
+			var err error
+			var rv interface{}
+			rv, err = lMock.transport.Request(
 				context.Background(),
 				f1Mock.config.LocalID,
 				"invalid request",
 				nil,
-				&remoteErr,
 			)
-			So(err, ShouldBeNil)
-			So(remoteErr, ShouldNotBeNil)
-			So(remoteErr, ShouldEqual, ErrInvalidRequest)
+
+			So(rv, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, ErrInvalidRequest.Error())
 		})
 
 		Convey("log could not be decoded", func() {
@@ -723,17 +715,18 @@ func TestTwoPCRunner_Process(t *testing.T) {
 			// init
 			initMock(lMock, f1Mock)
 
-			var err, remoteErr error
-			err = lMock.transport.Request(
+			var err error
+			var rv interface{}
+			rv, err = lMock.transport.Request(
 				context.Background(),
 				f1Mock.config.LocalID,
 				"Prepare",
 				nil,
-				&remoteErr,
 			)
-			So(err, ShouldBeNil)
-			So(remoteErr, ShouldNotBeNil)
-			So(remoteErr, ShouldEqual, ErrInvalidLog)
+
+			So(rv, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldEqual, ErrInvalidLog)
 		})
 	})
 }
@@ -741,7 +734,7 @@ func TestTwoPCRunner_Process(t *testing.T) {
 func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 	mockLogCodec := &MockLogCodec{}
 	mockRouter := &MockTransportRouter{
-		transports: make(map[ServerID]*MockTransport),
+		transports: make(map[proto.NodeID]*MockTransport),
 	}
 
 	type createMockRes struct {
@@ -753,17 +746,17 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		stableStore *MockStableStore
 	}
 
-	createMock := func(serverID ServerID) (res *createMockRes) {
+	createMock := func(nodeID proto.NodeID) (res *createMockRes) {
 		res = &createMockRes{}
 		logger := log.New()
 		logger.SetLevel(log.FatalLevel)
 		res.runner = NewTwoPCRunner()
-		res.transport = mockRouter.getTransport(serverID)
+		res.transport = mockRouter.getTransport(nodeID)
 		res.worker = &MockWorker{}
 		res.config = &TwoPCConfig{
 			RuntimeConfig: RuntimeConfig{
 				RootDir:        "test_dir",
-				LocalID:        serverID,
+				LocalID:        nodeID,
 				Runner:         res.runner,
 				Transport:      res.transport,
 				ProcessTimeout: time.Millisecond * 800,
@@ -787,19 +780,16 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 	}
 	peers := testPeersFixture(2, []*Server{
 		{
-			Role:    Leader,
-			ID:      "leader",
-			Address: "leader_address",
+			Role: Leader,
+			ID:   "leader",
 		},
 		{
-			Role:    Follower,
-			ID:      "follower1",
-			Address: "follower_address",
+			Role: Follower,
+			ID:   "follower1",
 		},
 		{
-			Role:    Follower,
-			ID:      "follower2",
-			Address: "follower2_address",
+			Role: Follower,
+			ID:   "follower2",
 		},
 	})
 	initMock := func(mocks ...*createMockRes) {
@@ -838,19 +828,16 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("same peers term", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(2, []*Server{
 				{
-					Role:    Leader,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Leader,
+					ID:   "leader",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower1",
-					Address: "follower1_address",
+					Role: Follower,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -863,19 +850,16 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("invalid peers term", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(1, []*Server{
 				{
-					Role:    Leader,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Leader,
+					ID:   "leader",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower1",
-					Address: "follower1_address",
+					Role: Follower,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -889,19 +873,16 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("invalid peers signature", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(4, []*Server{
 				{
-					Role:    Leader,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Leader,
+					ID:   "leader",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower1",
-					Address: "follower1_address",
+					Role: Follower,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -925,19 +906,16 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role:    Leader,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Leader,
+					ID:   "leader",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower1",
-					Address: "follower1_address",
+					Role: Follower,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -962,19 +940,16 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role:    Follower,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Follower,
+					ID:   "leader",
 				},
 				{
-					Role:    Leader,
-					ID:      "follower1",
-					Address: "follower1_address",
+					Role: Leader,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -999,7 +974,7 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			// test call process
 			testData, _ := mockLogCodec.Encode("test data")
-			err := lMock.runner.Process(testData)
+			err := lMock.runner.Apply(testData)
 
 			// no longer leader
 			So(err, ShouldNotBeNil)
@@ -1016,14 +991,12 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role:    Leader,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Leader,
+					ID:   "leader",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower1",
-					Address: "follower1_address",
+					Role: Follower,
+					ID:   "follower1",
 				},
 			})
 

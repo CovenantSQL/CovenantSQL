@@ -44,6 +44,12 @@
   revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/jordwest/mock-conn"
+  packages = ["."]
+  revision = "9bb209ef84c64540c483d6dbf40a4850f4b9302f"
+
+[[projects]]
   name = "github.com/jtolds/gls"
   packages = ["."]
   revision = "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
@@ -96,8 +102,8 @@
 [[projects]]
   name = "github.com/stretchr/objx"
   packages = ["."]
-  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
-  version = "v0.1"
+  revision = "477a77ecc69700c7cdeb1fa9e129548e1c1c393c"
+  version = "v0.1.1"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -105,8 +111,8 @@
     "assert",
     "mock"
   ]
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   name = "github.com/tchap/go-patricia"
@@ -127,11 +133,11 @@
     "unix",
     "windows"
   ]
-  revision = "9527bec2660bd847c050fda93a0f0c6dee0800bb"
+  revision = "bff228c7b664c5fce602223a05fb708fd8654986"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "90373ca529dadc53b1acbf1b4a089a38ef15ba8129a4c84c24db5426d4451942"
+  inputs-digest = "8687f2b87ad854d47255f0add7cbfbbc898862bb069a9b60a1c14f902a9a4a1f"
   solver-name = "gps-cdcl"
   solver-version = 1

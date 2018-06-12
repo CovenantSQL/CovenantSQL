@@ -33,6 +33,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/twopc"
 )
 
@@ -41,12 +42,12 @@ type MockLogCodec struct{}
 
 type MockTransportRouter struct {
 	reqSeq        uint64
-	transports    map[ServerID]*MockTransport
+	transports    map[proto.NodeID]*MockTransport
 	transportLock sync.Mutex
 }
 
 type MockTransport struct {
-	serverID  ServerID
+	nodeID    proto.NodeID
 	router    *MockTransportRouter
 	queue     chan Request
 	waitQueue chan *MockResponse
@@ -57,7 +58,7 @@ type MockRequest struct {
 	transport *MockTransport
 	ctx       context.Context
 	RequestID uint64
-	ServerID  ServerID
+	NodeID    proto.NodeID
 	Method    string
 	Payload   interface{}
 }
@@ -65,13 +66,14 @@ type MockRequest struct {
 type MockResponse struct {
 	ResponseID uint64
 	Payload    interface{}
+	Error      error
 }
 
 type MockTwoPCWorker struct {
-	serverID ServerID
-	state    string
-	data     int64
-	total    int64
+	nodeID proto.NodeID
+	state  string
+	data   int64
+	total  int64
 }
 
 var (
@@ -86,13 +88,13 @@ func (m *MockLogCodec) Decode(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
-func (m *MockTransportRouter) getTransport(serverID ServerID) *MockTransport {
+func (m *MockTransportRouter) getTransport(nodeID proto.NodeID) *MockTransport {
 	m.transportLock.Lock()
 	defer m.transportLock.Unlock()
 
-	if _, ok := m.transports[serverID]; !ok {
-		m.transports[serverID] = &MockTransport{
-			serverID:  serverID,
+	if _, ok := m.transports[nodeID]; !ok {
+		m.transports[nodeID] = &MockTransport{
+			nodeID:    nodeID,
 			router:    m,
 			queue:     make(chan Request, 1000),
 			waitQueue: make(chan *MockResponse, 1000),
@@ -100,16 +102,16 @@ func (m *MockTransportRouter) getTransport(serverID ServerID) *MockTransport {
 		}
 	}
 
-	return m.transports[serverID]
+	return m.transports[nodeID]
 }
 
-func (m *MockTransportRouter) ResetTransport(serverID ServerID) {
+func (m *MockTransportRouter) ResetTransport(nodeID proto.NodeID) {
 	m.transportLock.Lock()
 	defer m.transportLock.Unlock()
 
-	if _, ok := m.transports[serverID]; ok {
+	if _, ok := m.transports[nodeID]; ok {
 		// reset
-		delete(m.transports, serverID)
+		delete(m.transports, nodeID)
 	}
 }
 
@@ -117,32 +119,22 @@ func (m *MockTransportRouter) ResetAll() {
 	m.transportLock.Lock()
 	defer m.transportLock.Unlock()
 
-	m.transports = make(map[ServerID]*MockTransport)
+	m.transports = make(map[proto.NodeID]*MockTransport)
 }
 
 func (m *MockTransportRouter) getReqID() uint64 {
 	return atomic.AddUint64(&m.reqSeq, 1)
 }
 
-func (m *MockTransport) Request(ctx context.Context, serverID ServerID,
-	method string, args interface{}, response interface{}) error {
-	resp, err := m.router.getTransport(serverID).sendRequest(&MockRequest{
+func (m *MockTransport) Request(ctx context.Context, nodeID proto.NodeID,
+	method string, args interface{}) (interface{}, error) {
+	return m.router.getTransport(nodeID).sendRequest(&MockRequest{
 		RequestID: m.router.getReqID(),
-		ServerID:  m.serverID,
+		NodeID:    m.nodeID,
 		Method:    method,
 		Payload:   args,
 		ctx:       ctx,
 	})
-
-	if err == nil && resp != nil {
-		// set response
-		rv := reflect.Indirect(reflect.ValueOf(response))
-		if rv.CanSet() && resp != nil {
-			rv.Set(reflect.ValueOf(resp))
-		}
-	}
-
-	return err
 }
 
 func (m *MockTransport) Process() <-chan Request {
@@ -156,7 +148,7 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 	if log.GetLevel() >= log.DebugLevel {
 		fmt.Println()
 	}
-	log.Debugf("[%v] [%v] -> [%v] request %v", r.RequestID, r.ServerID, req.GetServerID(), r.GetRequest())
+	log.Debugf("[%v] [%v] -> [%v] request %v", r.RequestID, r.NodeID, req.GetNodeID(), r.GetRequest())
 	m.queue <- r
 
 	for {
@@ -164,7 +156,7 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 		case <-r.ctx.Done():
 			// deadline reached
 			log.Debugf("[%v] [%v] -> [%v] request timeout",
-				r.RequestID, r.ServerID, req.GetServerID())
+				r.RequestID, r.NodeID, req.GetNodeID())
 			m.giveUp[r.RequestID] = true
 			return nil, r.ctx.Err()
 		case res := <-m.waitQueue:
@@ -176,16 +168,16 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 					delete(m.giveUp, res.ResponseID)
 				}
 			} else {
-				log.Debugf("[%v] [%v] -> [%v] response %v",
-					r.RequestID, req.GetServerID(), r.ServerID, res.Payload)
-				return res.Payload, nil
+				log.Debugf("[%v] [%v] -> [%v] response %v: %v",
+					r.RequestID, req.GetNodeID(), r.NodeID, res.Payload, res.Error)
+				return res.Payload, res.Error
 			}
 		}
 	}
 }
 
-func (m *MockRequest) GetServerID() ServerID {
-	return m.ServerID
+func (m *MockRequest) GetNodeID() proto.NodeID {
+	return m.NodeID
 }
 
 func (m *MockRequest) GetMethod() string {
@@ -196,10 +188,11 @@ func (m *MockRequest) GetRequest() interface{} {
 	return m.Payload
 }
 
-func (m *MockRequest) SendResponse(v interface{}) error {
+func (m *MockRequest) SendResponse(v interface{}, err error) error {
 	m.transport.waitQueue <- &MockResponse{
 		ResponseID: m.RequestID,
 		Payload:    v,
+		Error:      err,
 	}
 
 	return nil
@@ -299,10 +292,9 @@ func testPeersFixture(term uint64, servers []*Server) *Peers {
 
 	for _, s := range servers {
 		newS := &Server{
-			Role:    s.Role,
-			ID:      s.ID,
-			Address: s.Address,
-			PubKey:  pubKey,
+			Role:   s.Role,
+			ID:     s.ID,
+			PubKey: pubKey,
 		}
 		newServers = append(newServers, newS)
 		if newS.Role == Leader {
@@ -326,21 +318,22 @@ func testPeersFixture(term uint64, servers []*Server) *Peers {
 func TestMockTransport(t *testing.T) {
 	Convey("test transport with request timeout", t, func() {
 		mockRouter := &MockTransportRouter{
-			transports: make(map[ServerID]*MockTransport),
+			transports: make(map[proto.NodeID]*MockTransport),
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
 		defer cancel()
 
-		var err, remoteErr error
-		err = mockRouter.getTransport("a").Request(ctx, "b", "Test", "happy", &remoteErr)
+		var err error
+		var rv interface{}
+		rv, err = mockRouter.getTransport("a").Request(ctx, "b", "Test", "happy")
 
+		So(rv, ShouldBeNil)
 		So(err, ShouldNotBeNil)
-		So(remoteErr, ShouldBeNil)
 	})
 
 	Convey("test transport with successful request", t, func(c C) {
 		mockRouter := &MockTransportRouter{
-			transports: make(map[ServerID]*MockTransport),
+			transports: make(map[proto.NodeID]*MockTransport),
 		}
 		var wg sync.WaitGroup
 
@@ -349,10 +342,10 @@ func TestMockTransport(t *testing.T) {
 			defer wg.Done()
 			select {
 			case req := <-mockRouter.getTransport("d").Process():
-				c.So(req.GetServerID(), ShouldEqual, ServerID("c"))
+				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("c"))
 				c.So(req.GetMethod(), ShouldEqual, "Test")
 				c.So(req.GetRequest(), ShouldResemble, "happy")
-				req.SendResponse("happy too")
+				req.SendResponse("happy too", nil)
 			}
 		}()
 
@@ -361,8 +354,10 @@ func TestMockTransport(t *testing.T) {
 			defer wg.Done()
 			var err error
 			var response string
-			err = mockRouter.getTransport("c").Request(
-				context.Background(), "d", "Test", "happy", &response)
+			var rv interface{}
+			rv, err = mockRouter.getTransport("c").Request(
+				context.Background(), "d", "Test", "happy")
+			response = rv.(string)
 
 			c.So(err, ShouldBeNil)
 			c.So(response, ShouldEqual, "happy too")
@@ -373,7 +368,7 @@ func TestMockTransport(t *testing.T) {
 
 	Convey("test transport with concurrent request", t, FailureContinues, func(c C) {
 		mockRouter := &MockTransportRouter{
-			transports: make(map[ServerID]*MockTransport),
+			transports: make(map[proto.NodeID]*MockTransport),
 		}
 		var wg sync.WaitGroup
 
@@ -382,8 +377,10 @@ func TestMockTransport(t *testing.T) {
 			defer wg.Done()
 			var err error
 			var response string
-			err = mockRouter.getTransport("e").Request(
-				context.Background(), "g", "test1", "happy", &response)
+			var rv interface{}
+			rv, err = mockRouter.getTransport("e").Request(
+				context.Background(), "g", "test1", "happy")
+			response = rv.(string)
 
 			c.So(err, ShouldBeNil)
 			c.So(response, ShouldEqual, "happy e test1")
@@ -394,8 +391,10 @@ func TestMockTransport(t *testing.T) {
 			defer wg.Done()
 			var err error
 			var response string
-			err = mockRouter.getTransport("f").Request(
-				context.Background(), "g", "test2", "happy", &response)
+			var rv interface{}
+			rv, err = mockRouter.getTransport("f").Request(
+				context.Background(), "g", "test2", "happy")
+			response = rv.(string)
 
 			c.So(err, ShouldBeNil)
 			c.So(response, ShouldEqual, "happy f test2")
@@ -408,10 +407,10 @@ func TestMockTransport(t *testing.T) {
 			for i := 0; i < 2; i++ {
 				select {
 				case req := <-mockRouter.getTransport("g").Process():
-					c.So(req.GetServerID(), ShouldBeIn, []ServerID{"e", "f"})
+					c.So(req.GetNodeID(), ShouldBeIn, []proto.NodeID{"e", "f"})
 					c.So(req.GetMethod(), ShouldBeIn, []string{"test1", "test2"})
 					c.So(req.GetRequest(), ShouldResemble, "happy")
-					req.SendResponse(fmt.Sprintf("happy %s %s", req.GetServerID(), req.GetMethod()))
+					req.SendResponse(fmt.Sprintf("happy %s %s", req.GetNodeID(), req.GetMethod()), nil)
 				}
 			}
 		}()
@@ -421,7 +420,7 @@ func TestMockTransport(t *testing.T) {
 
 	Convey("test transport with piped request", t, FailureContinues, func(c C) {
 		mockRouter := &MockTransportRouter{
-			transports: make(map[ServerID]*MockTransport),
+			transports: make(map[proto.NodeID]*MockTransport),
 		}
 		var wg sync.WaitGroup
 
@@ -439,15 +438,15 @@ func TestMockTransport(t *testing.T) {
 
 			select {
 			case req = <-mockRouter.getTransport("j").Process():
-				c.So(req.GetServerID(), ShouldEqual, ServerID("i"))
+				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("i"))
 				c.So(req.GetMethod(), ShouldEqual, "pass1")
 			}
 
-			err = mockRouter.getTransport("j").Request(
-				context.Background(), "k", "pass2", req.GetRequest(), &response)
+			response, err = mockRouter.getTransport("j").Request(
+				context.Background(), "k", "pass2", req.GetRequest())
 
 			c.So(err, ShouldBeNil)
-			req.SendResponse(response)
+			req.SendResponse(response, nil)
 		}()
 
 		wg.Add(1)
@@ -455,10 +454,10 @@ func TestMockTransport(t *testing.T) {
 			defer wg.Done()
 			select {
 			case req := <-mockRouter.getTransport("k").Process():
-				c.So(req.GetServerID(), ShouldEqual, ServerID("j"))
+				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("j"))
 				c.So(req.GetMethod(), ShouldEqual, "pass2")
 				c.So(req.GetRequest(), ShouldResemble, randReq)
-				req.SendResponse(randResp)
+				req.SendResponse(randResp, nil)
 			}
 		}()
 
@@ -468,8 +467,8 @@ func TestMockTransport(t *testing.T) {
 			var err error
 			var response interface{}
 
-			err = mockRouter.getTransport("i").Request(
-				context.Background(), "j", "pass1", randReq, &response)
+			response, err = mockRouter.getTransport("i").Request(
+				context.Background(), "j", "pass1", randReq)
 
 			c.So(err, ShouldBeNil)
 			c.So(response, ShouldResemble, randResp)

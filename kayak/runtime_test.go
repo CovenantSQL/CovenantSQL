@@ -26,16 +26,17 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
-func testConfig(rootDir string, serverID ServerID) Config {
+func testConfig(rootDir string, nodeID proto.NodeID) Config {
 	config := &MockConfig{}
 	logger := log.New()
 	logger.SetLevel(log.FatalLevel)
 
 	runtimeConfig := &RuntimeConfig{
 		RootDir:        rootDir,
-		LocalID:        serverID,
+		LocalID:        nodeID,
 		Runner:         &MockRunner{},
 		Transport:      &MockTransport{},
 		ProcessTimeout: time.Microsecond * 800,
@@ -53,19 +54,16 @@ func TestNewRuntime(t *testing.T) {
 		config := testConfig(".", "leader")
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower1",
-				Address: "follower_address",
+				Role: Follower,
+				ID:   "follower1",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower2",
-				Address: "follower2_address",
+				Role: Follower,
+				ID:   "follower2",
 			},
 		})
 
@@ -140,19 +138,16 @@ func TestRuntimeAll(t *testing.T) {
 		config := testConfig(d, "leader")
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower1",
-				Address: "follower_address",
+				Role: Follower,
+				ID:   "follower1",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower2",
-				Address: "follower2_address",
+				Role: Follower,
+				ID:   "follower2",
 			},
 		})
 
@@ -194,9 +189,9 @@ func TestRuntimeAll(t *testing.T) {
 			So(r.logStore, ShouldNotBeNil)
 
 			// run process
-			runner.On("Process", mock.Anything).Return(nil)
+			runner.On("Apply", mock.Anything).Return(nil)
 
-			err = r.Process([]byte("test"))
+			err = r.Apply([]byte("test"))
 			So(err, ShouldBeNil)
 
 			// call shutdowns
@@ -215,19 +210,16 @@ func TestRuntimeAll(t *testing.T) {
 		config := testConfig(d, "follower1")
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower1",
-				Address: "follower_address",
+				Role: Follower,
+				ID:   "follower1",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower2",
-				Address: "follower2_address",
+				Role: Follower,
+				ID:   "follower2",
 			},
 		})
 
@@ -244,13 +236,13 @@ func TestRuntimeAll(t *testing.T) {
 		).Return(nil)
 		runner.On("Shutdown", mock.Anything).
 			Return(nil)
-		runner.On("Process", mock.Anything).Return(nil)
+		runner.On("Apply", mock.Anything).Return(nil)
 
 		err = r.Init()
 		So(err, ShouldBeNil)
 		defer r.Shutdown()
 
-		err = r.Process([]byte("test"))
+		err = r.Apply([]byte("test"))
 		So(err, ShouldNotBeNil)
 		So(err, ShouldEqual, ErrNotLeader)
 	})
@@ -265,19 +257,16 @@ func TestRuntimeAll(t *testing.T) {
 		config := testConfig(d, "leader")
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role:    Leader,
-				ID:      "leader",
-				Address: "leader_address",
+				Role: Leader,
+				ID:   "leader",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower1",
-				Address: "follower_address",
+				Role: Follower,
+				ID:   "follower1",
 			},
 			{
-				Role:    Follower,
-				ID:      "follower2",
-				Address: "follower2_address",
+				Role: Follower,
+				ID:   "follower2",
 			},
 		})
 
@@ -302,19 +291,16 @@ func TestRuntimeAll(t *testing.T) {
 		Convey("invalid peers", func() {
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role:    Leader,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Leader,
+					ID:   "leader",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower1",
-					Address: "follower_address",
+					Role: Follower,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -330,19 +316,16 @@ func TestRuntimeAll(t *testing.T) {
 		Convey("change leader", func() {
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role:    Follower,
-					ID:      "leader",
-					Address: "leader_address",
+					Role: Follower,
+					ID:   "leader",
 				},
 				{
-					Role:    Leader,
-					ID:      "follower1",
-					Address: "follower_address",
+					Role: Leader,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 
@@ -356,14 +339,12 @@ func TestRuntimeAll(t *testing.T) {
 		Convey("dropped peer", func() {
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role:    Leader,
-					ID:      "follower1",
-					Address: "follower_address",
+					Role: Leader,
+					ID:   "follower1",
 				},
 				{
-					Role:    Follower,
-					ID:      "follower2",
-					Address: "follower2_address",
+					Role: Follower,
+					ID:   "follower2",
 				},
 			})
 

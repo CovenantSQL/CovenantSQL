@@ -73,6 +73,14 @@ func TestSerialization(t *testing.T) {
 	if !reflect.DeepEqual(sheader.Header, rSHeader.Header) {
 		t.Fatalf("Values don't match: v1 = %+v, v2 = %+v", sheader.Header, rSHeader.Header)
 	}
+
+	if err = sheader.Verify(); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if err = rSHeader.Verify(); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
 }
 
 func TestGenesis(t *testing.T) {

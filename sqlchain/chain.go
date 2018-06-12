@@ -18,7 +18,6 @@ package sqlchain
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	bolt "github.com/coreos/bbolt"
 	pb "github.com/golang/protobuf/proto"
@@ -55,7 +54,7 @@ func (s *State) unmarshal(buffer []byte) (err error) {
 	}
 
 	if len(pbState.GetHead().Hash) != hash.HashSize {
-		return fmt.Errorf("sqlchain: unexpected hash length")
+		return ErrFieldLength
 	}
 
 	s.node = nil
@@ -195,7 +194,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 				parent = chain.index.LookupNode(&header.ParentHash)
 
 				if parent == nil {
-					return fmt.Errorf("initChain: could not find parent node")
+					return ErrParentNotFound
 				}
 			}
 
@@ -218,7 +217,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 	// Pushed block must extend the best chain
 	if block.Header.ParentHash != hash.Hash(c.state.Head) {
-		return fmt.Errorf("pushBlock: new block must extend the best chain")
+		return ErrInvalidBlock
 	}
 
 	// Update best state

@@ -43,4 +43,11 @@ var (
 	// ErrNilValue indicates that an unexpected but not fatal nil value is detected , hence return
 	// it as an error.
 	ErrNilValue = errors.New("unexpected nil value")
+
+	// ErrParentNotFound indicates an error failing to find parent node during a chain reloading.
+	ErrParentNotFound = errors.New("could not find parent node")
+
+	// ErrInvalidBlock indicates an invalid block which does not extend the best chain while
+	// pushing new blocks.
+	ErrInvalidBlock = errors.New("invalid block")
 )

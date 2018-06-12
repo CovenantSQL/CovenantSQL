@@ -20,110 +20,15 @@ import (
 	"io/ioutil"
 	"math/big"
 	"math/rand"
-	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	pb "github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
-	"github.com/thunderdb/ThunderDB/pow/cpuminer"
-	"github.com/thunderdb/ThunderDB/proto"
 	pbtypes "github.com/thunderdb/ThunderDB/types"
 )
-
-var (
-	testHeight = int32(50)
-	rootHash   = hash.Hash{}
-)
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-	rand.Read(rootHash[:])
-	f, err := ioutil.TempFile("", "keystore")
-
-	if err != nil {
-		panic(err)
-	}
-
-	f.Close()
-	kms.InitPublicKeyStore(f.Name())
-
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
-}
-
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
-	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	b = &Block{
-		SignedHeader: &SignedHeader{
-			Header: Header{
-				Version:    0x01000000,
-				RootHash:   rootHash,
-				ParentHash: parent,
-				Timestamp:  time.Now(),
-			},
-			Signee:    (*signature.PublicKey)(pub),
-			Signature: nil,
-		},
-		Queries: make([]*Query, rand.Intn(10)+10),
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b.SignedHeader.Header.Producer = common.NodeID(h.String())
-
-	for i := 0; i < len(b.Queries); i++ {
-		b.Queries[i] = new(Query)
-		rand.Read(b.Queries[i].TxnID[:])
-	}
-
-	// TODO(leventeliu): use merkle package to generate this field from queries.
-	rand.Read(b.SignedHeader.Header.MerkleRoot[:])
-
-	if isGenesis {
-		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.Nonce)
-		quitCh := make(chan struct{})
-		miner := cpuminer.NewCPUMiner(quitCh)
-		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.SerializeCompressed(),
-			NonceChan: nonceCh,
-			Stop:      nil,
-		}, cpuminer.Uint256{0, 0, 0, 0}, 4)
-		nonce := <-nonceCh
-		close(quitCh)
-		close(nonceCh)
-		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.SerializeCompressed(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = common.NodeID(id.String())
-		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = b.SignHeader((*signature.PrivateKey)(priv))
-
-	if err != nil {
-		return nil, err
-	}
-
-	return
-}
 
 func TestState(t *testing.T) {
 	state := &State{

@@ -18,17 +18,11 @@ package sqlchain
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"reflect"
 
 	bolt "github.com/coreos/bbolt"
 	pb "github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
-	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
 
@@ -82,7 +76,7 @@ type Chain struct {
 
 // NewChain creates a new sql-chain struct.
 func NewChain(cfg *Config) (chain *Chain, err error) {
-	err = verifyGenesis(cfg.Genesis)
+	err = cfg.Genesis.VerifyAsGenesis()
 
 	if err != nil {
 		return
@@ -131,55 +125,6 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	return
-}
-
-func verifyGenesis(b *Block) (err error) {
-	if b == nil || b.SignedHeader == nil {
-		return errors.New("verify genesis: nil value")
-	}
-
-	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
-
-	if err != nil {
-		return
-	}
-
-	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*signature.PublicKey)(pk), b.SignedHeader.Signee) {
-		return errors.New("verify genesis: node id public key not match")
-	}
-
-	return b.VerifyHeader()
-}
-
-func verifyGenesisHeader(sh *SignedHeader) (err error) {
-	if sh == nil {
-		return errors.New("verify genesis header: nil value")
-	}
-
-	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
-		" block = %s",
-		string(sh.Producer[:]),
-		sh.RootHash.String(),
-		sh.ParentHash.String(),
-		sh.MerkleRoot.String(),
-		sh.BlockHash.String(),
-	)
-
-	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(proto.NodeID(sh.Header.Producer[:]))
-
-	if err != nil {
-		return
-	}
-
-	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*signature.PublicKey)(pk), sh.Signee) {
-		return errors.New("verify genesis header: node id public key not match")
-	}
-
-	return sh.Verify()
 }
 
 func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
@@ -241,7 +186,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
-				if err = verifyGenesisHeader(header); err != nil {
+				if err = header.VerifyAsGenesis(); err != nil {
 					return
 				}
 			} else if header.ParentHash == lastNode.hash {

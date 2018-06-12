@@ -18,12 +18,15 @@ package sqlchain
 
 import (
 	"math/big"
+	"reflect"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
 	pb "github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
@@ -137,13 +140,39 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	return
 }
 
-// Verify verifies the signature of the SignedHeader.
+// Verify verifies the signature of the signed header.
 func (s *SignedHeader) Verify() error {
 	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
 		return ErrSignVerification
 	}
 
 	return nil
+}
+
+// VerifyAsGenesis verifies the signed header as a genesis block header.
+func (s *SignedHeader) VerifyAsGenesis() (err error) {
+	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
+		" block = %s",
+		string(s.Producer[:]),
+		s.RootHash.String(),
+		s.ParentHash.String(),
+		s.MerkleRoot.String(),
+		s.BlockHash.String(),
+	)
+
+	// Assume that we can fetch public key from kms after initialization.
+	pk, err := kms.GetPublicKey(proto.NodeID(s.Header.Producer[:]))
+
+	if err != nil {
+		return
+	}
+
+	// TODO(leventeliu): use an unifield PublicKey type through this project.
+	if !reflect.DeepEqual((*signature.PublicKey)(pk), s.Signee) {
+		return ErrNodePublicKeyNotMatch
+	}
+
+	return s.Verify()
 }
 
 // Block is a node of blockchain.
@@ -166,8 +195,8 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 	return
 }
 
-// VerifyHeader verifies the signature of the Block.
-func (b *Block) VerifyHeader() (err error) {
+// Verify verifies the merkle root and header signature of the block.
+func (b *Block) Verify() (err error) {
 	// TODO(leventeliu): verify merkle root of queries
 	// ...
 
@@ -186,6 +215,27 @@ func (b *Block) VerifyHeader() (err error) {
 
 	// Verify signature
 	return b.SignedHeader.Verify()
+}
+
+// VerifyAsGenesis verifies the block as a genesis block.
+func (b *Block) VerifyAsGenesis() (err error) {
+	if b.SignedHeader == nil {
+		return ErrNilValue
+	}
+
+	// Assume that we can fetch public key from kms after initialization.
+	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
+
+	if err != nil {
+		return
+	}
+
+	// TODO(leventeliu): use an unifield PublicKey type through this project.
+	if !reflect.DeepEqual((*signature.PublicKey)(pk), b.SignedHeader.Signee) {
+		return ErrNodePublicKeyNotMatch
+	}
+
+	return b.Verify()
 }
 
 // Blocks is Block (reference) array.

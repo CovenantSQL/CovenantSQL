@@ -18,15 +18,12 @@ package sqlchain
 
 import (
 	"io/ioutil"
-	"math/big"
 	"math/rand"
 	"reflect"
 	"testing"
 
 	pb "github.com/golang/protobuf/proto"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	pbtypes "github.com/thunderdb/ThunderDB/types"
 )
 
@@ -41,21 +38,21 @@ func TestState(t *testing.T) {
 	buffer, err := state.marshal()
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	rState := &State{}
 	err = rState.unmarshal(buffer)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	rand.Read(buffer)
 	err = rState.unmarshal(buffer)
 
 	if err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	}
@@ -70,109 +67,13 @@ func TestState(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	err = rState.unmarshal(buffer)
 
 	if err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-}
-
-func TestGenesis(t *testing.T) {
-	genesis, err := createRandomBlock(rootHash, true)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	if err = verifyGenesis(genesis); err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	if err = verifyGenesis(nil); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	if err = verifyGenesisHeader(nil); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	// Test non-genesis block
-	genesis, err = createRandomBlock(rootHash, false)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	if err = verifyGenesis(genesis); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	// Test altered public key block
-	genesis, err = createRandomBlock(rootHash, true)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	_, pub, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	genesis.SignedHeader.Signee = (*signature.PublicKey)(pub)
-
-	if err = verifyGenesis(genesis); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	// Test altered signature
-	genesis, err = createRandomBlock(rootHash, true)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
-	}
-
-	genesis.SignedHeader.Signature.R.Add(genesis.SignedHeader.Signature.R, big.NewInt(int64(1)))
-	genesis.SignedHeader.Signature.S.Add(genesis.SignedHeader.Signature.S, big.NewInt(int64(1)))
-
-	if err = verifyGenesis(genesis); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	if err = verifyGenesisHeader(genesis.SignedHeader); err != nil {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	}
@@ -182,7 +83,7 @@ func TestChain(t *testing.T) {
 	fl, err := ioutil.TempFile("", "chain")
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	fl.Close()
@@ -191,7 +92,7 @@ func TestChain(t *testing.T) {
 	genesis, err := createRandomBlock(rootHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	chain, err := NewChain(&Config{
@@ -200,7 +101,7 @@ func TestChain(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	t.Logf("Create new chain: genesis hash = %s", genesis.SignedHeader.BlockHash.String())
@@ -212,7 +113,7 @@ func TestChain(t *testing.T) {
 		err = chain.PushBlock(block.SignedHeader)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %s", err.Error())
+			t.Fatalf("Error occurred: %v", err)
 		}
 
 		t.Logf("Pushed new block: height = %d,  %s <- %s",
@@ -226,7 +127,7 @@ func TestChain(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	// Reload chain from DB file and rebuild memory cache
@@ -234,6 +135,6 @@ func TestChain(t *testing.T) {
 	chain, err = LoadChain(&Config{DataDir: fl.Name()})
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 }

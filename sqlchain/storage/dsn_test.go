@@ -32,7 +32,7 @@ func TestDSN(t *testing.T) {
 		dsn, err := NewDSN(s)
 
 		if err != nil {
-			t.Errorf("Error occurred: %s", err.Error())
+			t.Errorf("Error occurred: %v", err)
 			continue
 		}
 

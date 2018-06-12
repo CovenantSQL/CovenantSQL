@@ -28,31 +28,31 @@ func TestBadType(t *testing.T) {
 	fl, err := ioutil.TempFile("", "sqlite3-")
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	st, err := New(fmt.Sprintf("file:%s", fl.Name()))
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	if err = st.Prepare(context.Background(), struct{}{}); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	}
 
 	if err = st.Commit(context.Background(), struct{}{}); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	}
 
 	if err = st.Rollback(context.Background(), struct{}{}); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	}
 }
 
@@ -60,13 +60,13 @@ func TestStorage(t *testing.T) {
 	fl, err := ioutil.TempFile("", "sqlite3-")
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	st, err := New(fmt.Sprintf("file:%s", fl.Name()))
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	el1 := &ExecLog{
@@ -93,32 +93,32 @@ func TestStorage(t *testing.T) {
 	}
 
 	if err = st.Prepare(context.Background(), el1); err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	if err = st.Prepare(context.Background(), el1); err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 
 	if err = st.Prepare(context.Background(), el2); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	}
 
 	if err = st.Commit(context.Background(), el2); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	}
 
 	if err = st.Rollback(context.Background(), el2); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
-		t.Logf("Error occurred as expected: %s", err.Error())
+		t.Logf("Error occurred as expected: %v", err)
 	}
 
 	if err = st.Commit(context.Background(), el1); err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("Error occurred: %v", err)
 	}
 }

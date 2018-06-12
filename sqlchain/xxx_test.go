@@ -67,7 +67,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 				Version:    0x01000000,
 				RootHash:   rootHash,
 				ParentHash: parent,
-				Timestamp:  time.Now(),
+				Timestamp:  time.Now().UTC(),
 			},
 			Signee:    (*signature.PublicKey)(pub),
 			Signature: nil,

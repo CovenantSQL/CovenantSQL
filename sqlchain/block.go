@@ -41,19 +41,13 @@ type Header struct {
 }
 
 func (h *Header) marshal() ([]byte, error) {
-	buffer, err := h.Timestamp.MarshalJSON()
-
-	if err != nil {
-		return nil, err
-	}
-
 	return proto.Marshal(&types.Header{
 		Version:    h.Version,
 		Producer:   &types.NodeID{NodeID: string(h.Producer)},
 		Root:       &types.Hash{Hash: h.RootHash[:]},
 		Parent:     &types.Hash{Hash: h.ParentHash[:]},
 		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
-		Timestamp:  buffer,
+		Timestamp:  h.Timestamp.UnixNano(),
 	})
 }
 
@@ -67,12 +61,6 @@ type SignedHeader struct {
 }
 
 func (s *SignedHeader) marshal() ([]byte, error) {
-	buffer, err := s.Timestamp.MarshalJSON()
-
-	if err != nil {
-		return nil, err
-	}
-
 	return proto.Marshal(&types.SignedHeader{
 		Header: &types.Header{
 			Version:    s.Version,
@@ -80,7 +68,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 			Root:       &types.Hash{Hash: s.RootHash[:]},
 			Parent:     &types.Hash{Hash: s.ParentHash[:]},
 			MerkleRoot: &types.Hash{Hash: s.MerkleRoot[:]},
-			Timestamp:  buffer,
+			Timestamp:  s.Timestamp.UnixNano(),
 		},
 		BlockHash: &types.Hash{Hash: s.BlockHash[:]},
 		Signee:    &types.PublicKey{PublicKey: s.Signee.Serialize()},
@@ -127,8 +115,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return fmt.Errorf("sqlchain: unexpected hash length")
 	}
 
-	t := time.Time{}
-	err = t.UnmarshalJSON(pbSignedHeader.GetHeader().GetTimestamp())
+	t := time.Unix(0, pbSignedHeader.GetHeader().GetTimestamp())
 
 	if err != nil {
 		return err

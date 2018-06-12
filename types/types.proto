@@ -56,7 +56,7 @@ message Header {
     Hash Root = 3;
     Hash Parent = 4;
     Hash MerkleRoot = 5;
-    bytes Timestamp = 6;
+    int64 Timestamp = 6;
 }
 
 message SignedHeader {
@@ -92,7 +92,7 @@ message BPHeader {
     Hash Root = 3;
     Hash Parent = 4;
     Hash MerkleRoot = 5;
-    bytes Timestamp = 6;
+    int64 Timestamp = 6;
 }
 
 message BPSignedHeader {

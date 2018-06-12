@@ -22,15 +22,16 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	proto2 "github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
 
 // Header is the header structure that will be signed
 type Header struct {
 	Version    int32
-	Producer   *types.AccountAddress
+	Producer   proto2.AccountAddress
 	Root       hash.Hash
 	Parent     hash.Hash
 	MerkleRoot hash.Hash
@@ -40,7 +41,7 @@ type Header struct {
 func (h *Header) marshal() ([]byte, error) {
 	return proto.Marshal(&types.BPHeader{
 		Version:    h.Version,
-		Producer:   h.Producer,
+		Producer:   &types.AccountAddress{AccountAddress: string(h.Producer)},
 		Root:       &types.Hash{Hash: h.Root[:]},
 		Parent:     &types.Hash{Hash: h.Parent[:]},
 		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
@@ -65,7 +66,7 @@ func (h *Header) toHeader(bpHeader types.BPHeader) error {
 	}
 
 	h.Version = bpHeader.Version
-	h.Producer = bpHeader.Producer
+	h.Producer = proto2.AccountAddress(bpHeader.Producer.AccountAddress)
 	h.Root = *rootHash
 	h.Parent = *parentHash
 	h.MerkleRoot = *MerkleRootHash
@@ -87,7 +88,7 @@ func (h *SignedHeader) toBPSignedHeader() *types.BPSignedHeader {
 	return &types.BPSignedHeader{
 		Header: &types.BPHeader{
 			Version:    h.Version,
-			Producer:   h.Producer,
+			Producer:   &types.AccountAddress{AccountAddress: string(h.Producer)},
 			Root:       &types.Hash{Hash: h.Root[:]},
 			Parent:     &types.Hash{Hash: h.Parent[:]},
 			MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},

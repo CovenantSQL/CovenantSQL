@@ -28,6 +28,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
 
@@ -82,9 +83,7 @@ func init() {
 		},
 	}
 	header.Version = 2
-	header.Producer = &types.AccountAddress{
-		AccountAddress: hash.DoubleHashH([]byte{9, 1, 4, 2, 1, 10}).String(),
-	}
+	header.Producer = proto.AccountAddress(hash.DoubleHashH([]byte{9, 1, 4, 2, 1, 10}).String())
 	header.Root = hash.DoubleHashH([]byte{4, 2, 1, 10})
 	header.Parent = hash.DoubleHashH([]byte{1, 9, 2, 22})
 	header.MerkleRoot = hash.DoubleHashH([]byte{9, 2, 1, 11})
@@ -116,8 +115,11 @@ func TestTx(t *testing.T) {
 		if err != nil {
 			t.Errorf("cannot deserialized Tx buff: %v", serializedTx)
 		}
-		if !reflect.DeepEqual(deserializedTx, tx) {
-			t.Errorf("deserialized tx is not equal to tx: \ntx: %v\ndeserializedTx: %v", tx, deserializedTx)
+		if !deserializedTx.TxHash.IsEqual(&tx.TxHash) {
+			t.Errorf("deserialized tx hash is not equal to tx hash: \ntx: %v\ndeserializedTx: %v", tx, deserializedTx)
+		}
+		if !deserializedTx.TxData.Signature.IsEqual(tx.TxData.Signature) {
+			t.Errorf("deserialized tx sign is not equal to tx sign: \ntx: %v\ndeserializedTx: %v", tx, deserializedTx)
 		}
 	}
 }
@@ -133,8 +135,12 @@ func TestSignedHeader(t *testing.T) {
 	if err != nil {
 		t.Errorf("cannot deserialized signedHeader: %v", serializedSignedHeader)
 	}
-	if !reflect.DeepEqual(deserializedSignedHeader, header) {
-		t.Errorf("deserialized header is not equal to header: \nheader: %v\ndeserializedBlock: %v",
+	if !deserializedSignedHeader.Signature.IsEqual(header.Signature) {
+		t.Errorf("deserialized header sign is not equal to header sign: \nheader: %v\ndeserializedBlock: %v",
+			header, deserializedSignedHeader)
+	}
+	if !deserializedSignedHeader.BlockHash.IsEqual(&header.BlockHash) {
+		t.Errorf("deserialized header block hash is not equal to header block hash: \nheader: %v\ndeserializedBlock: %v",
 			header, deserializedSignedHeader)
 	}
 }
@@ -150,8 +156,19 @@ func TestBlock(t *testing.T) {
 	if err != nil {
 		t.Errorf("cannot deserialized: %v", serializedBlock)
 	}
-	if !reflect.DeepEqual(deserializedBlock, block) {
-		t.Errorf("deserialized block is not equal to block: \nblock: %v\ndeserializedBlock: %v",
+	if !reflect.DeepEqual(deserializedBlock.Header.Header, block.Header.Header) {
+		t.Errorf("deserialized block tx is not equal to block tx: \nblock: %v\ndeserializedBlock: %v",
+			block.Header.Header.Producer, deserializedBlock.Header.Header.Producer)
+	}
+	for i := 0; i < len(block.Tx); i++ {
+		if deserializedBlock.Tx[i].TxHash != block.Tx[i].TxHash {
+			t.Errorf("deserialized block tx #%d hash is not equal to block tx #%d hash: "+
+				"\nblock: %v\ndeserializedBlock: %v",
+				i, i, block, deserializedBlock)
+		}
+	}
+	if !deserializedBlock.Header.Signature.IsEqual(block.Header.Signature) {
+		t.Errorf("deserialized block sign is not equal to block sign: \nblock: %v\ndeserializedBlock: %v",
 			block, deserializedBlock)
 	}
 }

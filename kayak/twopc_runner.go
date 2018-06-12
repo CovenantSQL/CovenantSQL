@@ -18,12 +18,14 @@ package kayak
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/twopc"
 )
 
@@ -98,8 +100,8 @@ type TwoPCRunner struct {
 
 // TwoPCWorkerWrapper wraps remote runner as worker
 type TwoPCWorkerWrapper struct {
-	runner   *TwoPCRunner
-	serverID ServerID
+	runner *TwoPCRunner
+	nodeID proto.NodeID
 }
 
 // TwoPCLogCodec is the log data encode/decoder
@@ -293,8 +295,8 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 	return <-r.updatePeersRes
 }
 
-// Process implements Runner.Process.
-func (r *TwoPCRunner) Process(data []byte) error {
+// Apply implements Runner.Apply.
+func (r *TwoPCRunner) Apply(data []byte) error {
 	r.processLock.Lock()
 	defer r.processLock.Unlock()
 
@@ -461,7 +463,7 @@ func (r *TwoPCRunner) getState() ServerState {
 func (r *TwoPCRunner) processRequest(req Request) {
 	// verify call from leader
 	if err := r.verifyLeader(req); err != nil {
-		req.SendResponse(err)
+		req.SendResponse(nil, err)
 		return
 	}
 
@@ -473,7 +475,7 @@ func (r *TwoPCRunner) processRequest(req Request) {
 	case "Rollback":
 		r.processRollback(req)
 	default:
-		req.SendResponse(ErrInvalidRequest)
+		req.SendResponse(nil, ErrInvalidRequest)
 	}
 }
 
@@ -509,7 +511,7 @@ func (r *TwoPCRunner) processPeersUpdate(peersUpdate *Peers) {
 
 func (r *TwoPCRunner) verifyLeader(req Request) error {
 	// TODO(xq262144), verify call from current leader or from new leader containing new peers info
-	if req.GetServerID() != r.peers.Leader.ID {
+	if req.GetNodeID() != r.peers.Leader.ID {
 		// not our leader
 		return ErrInvalidRequest
 	}
@@ -518,7 +520,18 @@ func (r *TwoPCRunner) verifyLeader(req Request) error {
 }
 
 func (r *TwoPCRunner) decodeLogIndex(data interface{}) (uint64, error) {
-	if index, ok := data.(uint64); ok {
+	// FIXME(xq262144), very very hack, lost precision
+	if data == nil {
+		return 0, ErrInvalidLog
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return 0, err
+	}
+
+	var index uint64
+	if err = json.Unmarshal(b, &index); err == nil {
 		return index, nil
 	}
 
@@ -526,7 +539,19 @@ func (r *TwoPCRunner) decodeLogIndex(data interface{}) (uint64, error) {
 }
 
 func (r *TwoPCRunner) decodeLog(data interface{}) (*Log, error) {
-	if l, ok := data.(*Log); ok {
+	// TODO(xq262144), very very hack, need rewrite later
+	if data == nil {
+		return nil, ErrInvalidLog
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var l *Log
+
+	if err = json.Unmarshal(b, &l); err == nil {
 		return l, nil
 	}
 
@@ -543,7 +568,7 @@ func (r *TwoPCRunner) decodeLogData(data []byte) (interface{}, error) {
 }
 
 func (r *TwoPCRunner) processPrepare(req Request) {
-	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.PrepareTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.PrepareTimeout, func(ctx context.Context) (err error) {
 		// already in transaction, try abort previous
 		if r.getState() != Idle {
 			// TODO(xq262144), has running transaction
@@ -610,7 +635,7 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 
 func (r *TwoPCRunner) processCommit(req Request) {
 	// commit log
-	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.CommitTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.CommitTimeout, func(ctx context.Context) (err error) {
 		// TODO(xq262144), check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
@@ -668,7 +693,7 @@ func (r *TwoPCRunner) processCommit(req Request) {
 
 func (r *TwoPCRunner) processRollback(req Request) {
 	// rollback log
-	req.SendResponse(nestedTimeoutCtx(context.Background(), r.config.RollbackTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.RollbackTimeout, func(ctx context.Context) (err error) {
 		// TODO(xq262144), check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
@@ -732,10 +757,10 @@ func (r *TwoPCRunner) goFunc(f func()) {
 }
 
 // NewTwoPCWorkerWrapper returns a wrapper for remote worker
-func NewTwoPCWorkerWrapper(runner *TwoPCRunner, serverID ServerID) *TwoPCWorkerWrapper {
+func NewTwoPCWorkerWrapper(runner *TwoPCRunner, nodeID proto.NodeID) *TwoPCWorkerWrapper {
 	return &TwoPCWorkerWrapper{
-		serverID: serverID,
-		runner:   runner,
+		nodeID: nodeID,
+		runner: runner,
 	}
 }
 
@@ -766,16 +791,10 @@ func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatc
 	return tpww.callRemote(ctx, "Rollback", l.Index)
 }
 
-func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) error {
-	var remoteErr error
-
+func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) (err error) {
 	// TODO(xq262144), handle retry
-
-	if err := tpww.runner.transport.Request(ctx, tpww.serverID, method, args, &remoteErr); err != nil {
-		return err
-	}
-
-	return remoteErr
+	_, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, args)
+	return
 }
 
 func nestedTimeoutCtx(ctx context.Context, timeout time.Duration, process func(context.Context) error) error {

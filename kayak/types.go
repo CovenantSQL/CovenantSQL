@@ -27,6 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 // Log entries are replicated to all members of the Raft cluster
@@ -108,12 +109,6 @@ type StableStore interface {
 	GetUint64(key []byte) (uint64, error)
 }
 
-// ServerID is a unique string identifying a server for all time.
-type ServerID string
-
-// ServerAddress is a network address for a server that a transport can contact.
-type ServerAddress string
-
 // ServerRole define the role of node to be leader/coordinator in peer set.
 type ServerRole int
 
@@ -162,16 +157,14 @@ type Server struct {
 	// Suffrage determines whether the server gets a vote.
 	Role ServerRole
 	// ID is a unique string identifying this server for all time.
-	ID ServerID
-	// Address is its network address that a transport can contact.
-	Address ServerAddress
+	ID proto.NodeID
 	// Public key
 	PubKey *signature.PublicKey
 }
 
 func (s *Server) String() string {
-	return fmt.Sprintf("Server id:%s role:%s address:%s pubKey:%s",
-		s.ID, s.Role, s.Address,
+	return fmt.Sprintf("Server id:%s role:%s pubKey:%s",
+		s.ID, s.Role,
 		base64.StdEncoding.EncodeToString(s.PubKey.Serialize()))
 }
 
@@ -180,7 +173,6 @@ func (s *Server) Serialize() []byte {
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, s.Role)
 	binary.Write(buffer, binary.LittleEndian, s.ID)
-	binary.Write(buffer, binary.LittleEndian, s.Address)
 	if s.PubKey != nil {
 		buffer.Write(s.PubKey.Serialize())
 	}
@@ -247,7 +239,7 @@ type RuntimeConfig struct {
 	RootDir string
 
 	// LocalID is the unique ID for this server across all time.
-	LocalID ServerID
+	LocalID proto.NodeID
 
 	// Runner defines the runner type
 	Runner Runner
@@ -273,18 +265,18 @@ type Config interface {
 
 // Request defines a transport request payload
 type Request interface {
-	GetServerID() ServerID
+	GetNodeID() proto.NodeID
 	GetMethod() string
 	GetRequest() interface{}
-	SendResponse(interface{}) error
+	SendResponse(interface{}, error) error
 }
 
 // Transport adapter for abstraction.
 type Transport interface {
 	// Request
-	Request(ctx context.Context, serverID ServerID, method string, args interface{}, response interface{}) error
+	Request(ctx context.Context, nodeID proto.NodeID, method string, args interface{}) (interface{}, error)
 
-	// Process
+	// Apply
 	Process() <-chan Request
 }
 
@@ -296,9 +288,9 @@ type Runner interface {
 	// UpdatePeers defines peer configuration update logic.
 	UpdatePeers(peers *Peers) error
 
-	// Process defines log replication and log commit logic
+	// Apply defines log replication and log commit logic
 	// and should be called by Leader role only.
-	Process(data []byte) error
+	Apply(data []byte) error
 
 	// Shutdown defines destruct logic.
 	Shutdown(wait bool) error

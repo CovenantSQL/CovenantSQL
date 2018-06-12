@@ -49,7 +49,7 @@ func (h *Header) marshal() ([]byte, error) {
 	})
 }
 
-func (h *Header) toHeader(bpHeader types.BPHeader) error {
+func (h *Header) fromBPHeader(bpHeader *types.BPHeader) error {
 	rootHash, err := hash.NewHash(bpHeader.Root.Hash)
 	if err != nil {
 		return err
@@ -105,7 +105,7 @@ func (h *SignedHeader) toBPSignedHeader() *types.BPSignedHeader {
 	}
 }
 
-func (h *SignedHeader) toSignedHeader(bpSignedHeader types.BPSignedHeader) error {
+func (h *SignedHeader) fromBPSignedHeader(bpSignedHeader *types.BPSignedHeader) error {
 	blockHash, err := hash.NewHash(bpSignedHeader.BlockHash.Hash)
 	if err != nil {
 		return err
@@ -121,7 +121,11 @@ func (h *SignedHeader) toSignedHeader(bpSignedHeader types.BPSignedHeader) error
 	s := new(big.Int)
 	s.SetString(bpSignedHeader.Signature.S, 10)
 
-	h.toHeader(*bpSignedHeader.Header)
+	err = h.fromBPHeader(bpSignedHeader.Header)
+	if err != nil {
+		return err
+	}
+
 	h.BlockHash = *blockHash
 	h.PublicKey = publicKey
 	h.Signature = &btcec.Signature{
@@ -142,7 +146,7 @@ func (h *SignedHeader) unmarshal(buff []byte) error {
 		return err
 	}
 
-	err = h.toSignedHeader(pbBPSignedHeader)
+	err = h.fromBPSignedHeader(&pbBPSignedHeader)
 	if err != nil {
 		return err
 	}
@@ -181,7 +185,7 @@ func (t *TxData) marshal() ([]byte, error) {
 	return proto.Marshal(t.toBPTxData())
 }
 
-func (t *TxData) toTxData(bpTxData types.BPTxData) error {
+func (t *TxData) fromBPTxData(bpTxData *types.BPTxData) error {
 	publicKey, err := btcec.ParsePubKey(bpTxData.Signee.PublicKey, btcec.S256())
 	if err != nil {
 		return err
@@ -214,13 +218,13 @@ type Tx struct {
 	TxData TxData
 }
 
-func (t *Tx) toTx(BPTx types.BPTx) error {
+func (t *Tx) fromBPTx(BPTx *types.BPTx) error {
 	txHash, err := hash.NewHash(BPTx.TxHash.Hash)
 	if err != nil {
 		return err
 	}
 
-	err = t.TxData.toTxData(*BPTx.TxData)
+	err = t.TxData.fromBPTxData(BPTx.TxData)
 	if err != nil {
 		return err
 	}
@@ -233,7 +237,7 @@ func (t *Tx) toTx(BPTx types.BPTx) error {
 func (t *Tx) toBPTx() *types.BPTx {
 	return &types.BPTx{
 		// lambda: warning!!!! it will not pass the test case if i use t.TxHash[:] and i do not know why
-		TxHash: &types.Hash{Hash: t.TxHash.CloneBytes()},
+		TxHash: &types.Hash{Hash: t.TxHash[:]},
 		TxData: t.TxData.toBPTxData(),
 	}
 }
@@ -249,7 +253,7 @@ func (t *Tx) unmarshal(buff []byte) error {
 		return err
 	}
 
-	err = t.toTx(*bpTx)
+	err = t.fromBPTx(bpTx)
 	return err
 }
 
@@ -261,9 +265,10 @@ type Block struct {
 
 func (b *Block) marshal() ([]byte, error) {
 	bpTx := make([]*types.BPTx, len(b.Tx))
+	size := len(b.Tx)
 
-	for i, tx := range b.Tx {
-		bpTx[i] = tx.toBPTx()
+	for i := 0; i < size; i++ {
+		bpTx[i] = b.Tx[i].toBPTx()
 	}
 
 	return proto.Marshal(&types.BPBlock{
@@ -280,7 +285,7 @@ func (b *Block) unmarshal(buff []byte) error {
 	}
 
 	header := SignedHeader{}
-	err = header.toSignedHeader(*block.Header)
+	err = header.fromBPSignedHeader(block.Header)
 	if err != nil {
 		return err
 	}
@@ -288,8 +293,13 @@ func (b *Block) unmarshal(buff []byte) error {
 	b.Header = &header
 
 	txes := make([]Tx, len(block.Tx))
-	for i, bpTx := range block.Tx {
-		txes[i].toTx(*bpTx)
+
+	size := len(block.Tx)
+	for i := 0; i < size; i++ {
+		err = txes[i].fromBPTx(block.Tx[i])
+		if err != nil {
+			return err
+		}
 	}
 
 	b.Tx = txes

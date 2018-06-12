@@ -25,7 +25,10 @@ import (
 
 	"reflect"
 
+	"os"
+
 	"github.com/btcsuite/btcd/btcec"
+	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/proto"
@@ -36,11 +39,15 @@ var (
 	voidTxSlice []Tx
 	txSlice     []Tx
 	header      SignedHeader
+	header2     SignedHeader
 	block       Block
 	voidBlock   Block
 )
 
 func init() {
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+
 	voidTxSlice = []Tx{}
 	txSlice = make([]Tx, 10)
 
@@ -51,8 +58,9 @@ func init() {
 		if err != nil {
 			return
 		}
+		h := hash.DoubleHashH([]byte{byte(i)})
 		txSlice[i] = Tx{
-			TxHash: hash.DoubleHashH([]byte{byte(i)}),
+			TxHash: h,
 			TxData: TxData{
 				AccountNonce: uint64(i),
 				Recipient: &types.AccountAddress{
@@ -88,6 +96,21 @@ func init() {
 	header.Parent = hash.DoubleHashH([]byte{1, 9, 2, 22})
 	header.MerkleRoot = hash.DoubleHashH([]byte{9, 2, 1, 11})
 	header.Timestamp = time.Now().UTC()
+
+	header2 = SignedHeader{
+		BlockHash: hash.DoubleHashH([]byte{1, 2, 3}),
+		PublicKey: pub,
+		Signature: &btcec.Signature{
+			R: big.NewInt(8391),
+			S: big.NewInt(2371),
+		},
+	}
+	header2.Version = 2
+	header2.Producer = proto.AccountAddress(hash.DoubleHashH([]byte{1, 4, 2, 1, 10}).String())
+	header2.Root = hash.DoubleHashH([]byte{4, 2, 1})
+	header2.Parent = hash.DoubleHashH([]byte{1, 9, 22})
+	header2.MerkleRoot = hash.DoubleHashH([]byte{9, 1, 11})
+	header2.Timestamp = time.Now().UTC()
 
 	voidBlock = Block{
 		Header: &header,
@@ -146,29 +169,35 @@ func TestSignedHeader(t *testing.T) {
 }
 
 func TestBlock(t *testing.T) {
-	serializedBlock, err := block.marshal()
-	if err != nil {
-		t.Errorf("cannot serialized block: %v", block)
-	}
-
-	deserializedBlock := Block{}
-	err = deserializedBlock.unmarshal(serializedBlock)
-	if err != nil {
-		t.Errorf("cannot deserialized: %v", serializedBlock)
-	}
-	if !reflect.DeepEqual(deserializedBlock.Header.Header, block.Header.Header) {
-		t.Errorf("deserialized block tx is not equal to block tx: \nblock: %v\ndeserializedBlock: %v",
-			block.Header.Header.Producer, deserializedBlock.Header.Header.Producer)
-	}
-	for i := 0; i < len(block.Tx); i++ {
-		if deserializedBlock.Tx[i].TxHash != block.Tx[i].TxHash {
-			t.Errorf("deserialized block tx #%d hash is not equal to block tx #%d hash: "+
-				"\nblock: %v\ndeserializedBlock: %v",
-				i, i, block, deserializedBlock)
+	blocks := make([]Block, 2)
+	blocks[0] = voidBlock
+	blocks[1] = block
+	for i := 0; i < 2; i++ {
+		serializedBlock, err := blocks[i].marshal()
+		if err != nil {
+			t.Errorf("cannot serialized block: %v", blocks[i])
 		}
-	}
-	if !deserializedBlock.Header.Signature.IsEqual(block.Header.Signature) {
-		t.Errorf("deserialized block sign is not equal to block sign: \nblock: %v\ndeserializedBlock: %v",
-			block, deserializedBlock)
+
+		deserializedBlock := Block{}
+		err = deserializedBlock.unmarshal(serializedBlock)
+		if err != nil {
+			t.Errorf("cannot deserialized: %v", serializedBlock)
+		}
+		if !reflect.DeepEqual(deserializedBlock.Header.Header, blocks[i].Header.Header) {
+			t.Errorf("deserialized block tx is not equal to block tx: \nblock: %v\ndeserializedBlock: %v",
+				blocks[i].Header.Header.Producer, deserializedBlock.Header.Header.Producer)
+		}
+		for i := 0; i < len(blocks[i].Tx); i++ {
+			if !deserializedBlock.Tx[i].TxHash.IsEqual(&blocks[i].Tx[i].TxHash) {
+				t.Errorf("deserialized block tx #%d hash is not equal to block tx #%d hash: "+
+					"\nblock: %v\ndeserializedBlock: %v",
+					i, i, blocks[i].Tx[i], deserializedBlock.Tx[i])
+			}
+		}
+		if !deserializedBlock.Header.Signature.IsEqual(blocks[i].Header.Signature) {
+			t.Errorf("deserialized block sign is not equal to block sign: \nblock: %v\ndeserializedBlock: %v",
+				blocks[i], deserializedBlock)
+		}
+
 	}
 }

@@ -31,8 +31,7 @@ import (
 
 // Header is a block header.
 type Header struct {
-	Version int32
-	// TODO(leventeliu): switch address to proto.NodeID.
+	Version    int32
 	Producer   proto.NodeID
 	RootHash   hash.Hash
 	ParentHash hash.Hash

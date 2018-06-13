@@ -17,13 +17,14 @@
 package worker
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
-	"gitlab.com/thunderdb/ThunderDB/types"
-	"github.com/btcsuite/btcd/btcec"
 	"math/big"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"time"
+
+	"github.com/btcsuite/btcd/btcec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	"gitlab.com/thunderdb/ThunderDB/types"
 )
 
 func publicKeyToPB(publicKey *signature.PublicKey) *types.PublicKey {

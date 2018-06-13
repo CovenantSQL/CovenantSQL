@@ -58,7 +58,7 @@ type AggrNoAckReportHeader struct {
 
 // SignedAggrNoAckReportHeader defines worker leader aggregated/signed client no ack report.
 type SignedAggrNoAckReportHeader struct {
-	Header     SignedAggrNoAckReportHeader
+	Header     AggrNoAckReportHeader
 	HeaderHash hash.Hash
 	Signee     *signature.PublicKey
 	Signature  *signature.Signature
@@ -284,8 +284,15 @@ func (sh *SignedAggrNoAckReportHeader) unmarshal(buffer []byte) (err error) {
 
 // Verify checks hash and signature in aggregated no ack report.
 func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
-	if err = sh.Header.Verify(); err != nil {
+	// verify original request
+	if err = sh.Header.Request.Verify(); err != nil {
 		return
+	}
+	// verify original reports
+	for _, r := range sh.Header.Reports {
+		if err = r.Verify(); err != nil {
+			return
+		}
 	}
 	// verify hash
 	if err = verifyHash(&sh.Header, &sh.HeaderHash); err != nil {

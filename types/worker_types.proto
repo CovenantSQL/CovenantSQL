@@ -108,7 +108,7 @@ message AggrNoQueryAckReportHeader {
 }
 
 message SignedAggrNoQueryAckReportHeader {
-    SignedAggrNoQueryAckReportHeader Header = 1;
+    AggrNoQueryAckReportHeader Header = 1;
     Hash HeaderHash = 2;
     PublicKey Signee = 3;
     Signature Signature = 4;

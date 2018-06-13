@@ -58,13 +58,13 @@ func init() {
 		if err != nil {
 			return
 		}
-		h := hash.DoubleHashH([]byte{byte(i)})
+		h := hash.THashH([]byte{byte(i)})
 		txSlice[i] = &Tx{
 			TxHash: h,
 			TxData: TxData{
 				AccountNonce: uint64(i),
 				Recipient: &types.AccountAddress{
-					AccountAddress: hash.DoubleHashH([]byte{byte(i * i)}).String(),
+					AccountAddress: hash.THashH([]byte{byte(i * i)}).String(),
 				},
 				Amount:  big.NewInt(int64(i)),
 				Payload: hash.THashB([]byte{byte(i / 2)}),
@@ -83,7 +83,7 @@ func init() {
 	}
 
 	header = SignedHeader{
-		BlockHash: hash.DoubleHashH([]byte{1, 2, 3}),
+		BlockHash: hash.THashH([]byte{1, 2, 3}),
 		PublicKey: pub,
 		Signature: &btcec.Signature{
 			R: big.NewInt(8391),
@@ -91,14 +91,14 @@ func init() {
 		},
 	}
 	header.Version = 2
-	header.Producer = proto.AccountAddress(hash.DoubleHashH([]byte{9, 1, 4, 2, 1, 10}).String())
-	header.Root = hash.DoubleHashH([]byte{4, 2, 1, 10})
-	header.Parent = hash.DoubleHashH([]byte{1, 9, 2, 22})
-	header.MerkleRoot = hash.DoubleHashH([]byte{9, 2, 1, 11})
+	header.Producer = proto.AccountAddress(hash.THashH([]byte{9, 1, 4, 2, 1, 10}).String())
+	header.Root = hash.THashH([]byte{4, 2, 1, 10})
+	header.Parent = hash.THashH([]byte{1, 9, 2, 22})
+	header.MerkleRoot = hash.THashH([]byte{9, 2, 1, 11})
 	header.Timestamp = time.Now().UTC()
 
 	header2 = SignedHeader{
-		BlockHash: hash.DoubleHashH([]byte{1, 2, 3}),
+		BlockHash: hash.THashH([]byte{1, 2, 3}),
 		PublicKey: pub,
 		Signature: &btcec.Signature{
 			R: big.NewInt(8391),
@@ -106,10 +106,10 @@ func init() {
 		},
 	}
 	header2.Version = 2
-	header2.Producer = proto.AccountAddress(hash.DoubleHashH([]byte{1, 4, 2, 1, 10}).String())
-	header2.Root = hash.DoubleHashH([]byte{4, 2, 1})
-	header2.Parent = hash.DoubleHashH([]byte{1, 9, 22})
-	header2.MerkleRoot = hash.DoubleHashH([]byte{9, 1, 11})
+	header2.Producer = proto.AccountAddress(hash.THashH([]byte{1, 4, 2, 1, 10}).String())
+	header2.Root = hash.THashH([]byte{4, 2, 1})
+	header2.Parent = hash.THashH([]byte{1, 9, 22})
+	header2.MerkleRoot = hash.THashH([]byte{9, 1, 11})
 	header2.Timestamp = time.Now().UTC()
 
 	voidBlock = Block{

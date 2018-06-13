@@ -111,7 +111,7 @@ func buildHash(data hasMarshal, h *hash.Hash) (err error) {
 		return
 	}
 
-	newHash := hash.DoubleHashH(buffer)
+	newHash := hash.THashH(buffer)
 	copy(h[:], newHash[:])
 	return
 }

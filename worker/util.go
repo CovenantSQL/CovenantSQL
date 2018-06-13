@@ -94,13 +94,15 @@ type hasMarshal interface {
 	marshal() ([]byte, error)
 }
 
-func verifyHash(data hasMarshal, h *hash.Hash) error {
+func verifyHash(data hasMarshal, h *hash.Hash) (err error) {
 	var newHash hash.Hash
-	buildHash(data, &newHash)
+	if err = buildHash(data, &newHash); err != nil {
+		return
+	}
 	if !newHash.IsEqual(h) {
 		return ErrHashVerification
 	}
-	return nil
+	return
 }
 
 func buildHash(data hasMarshal, h *hash.Hash) (err error) {

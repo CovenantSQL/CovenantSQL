@@ -42,7 +42,7 @@ var (
 type ExecLog struct {
 	ConnectionID uint64
 	SeqNo        uint64
-	Timestamp    uint64
+	Timestamp    int64
 	Queries      []string
 }
 
@@ -91,7 +91,7 @@ func openDB(dsn string) (db *sql.DB, err error) {
 type TxID struct {
 	ConnectionID uint64
 	SeqNo        uint64
-	Timestamp    uint64
+	Timestamp    int64
 }
 
 func equalTxID(x, y *TxID) bool {

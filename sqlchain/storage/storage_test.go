@@ -72,7 +72,7 @@ func TestStorage(t *testing.T) {
 	el1 := &ExecLog{
 		ConnectionID: 1,
 		SeqNo:        1,
-		Timestamp:    uint64(time.Now().Unix()),
+		Timestamp:    time.Now().UnixNano(),
 		Queries: []string{
 			"CREATE TABLE IF NOT EXISTS `kv` (`key` TEXT PRIMARY KEY, `value` BLOB)",
 			"INSERT OR IGNORE INTO `kv` VALUES ('k1', 'v1')",
@@ -86,7 +86,7 @@ func TestStorage(t *testing.T) {
 	el2 := &ExecLog{
 		ConnectionID: 1,
 		SeqNo:        2,
-		Timestamp:    uint64(time.Now().Unix()),
+		Timestamp:    time.Now().UnixNano(),
 		Queries: []string{
 			"INSERT OR REPLACE INTO `kv` VALUES ('k1', 'v1-2')",
 		},

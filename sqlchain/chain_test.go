@@ -17,6 +17,8 @@
 package sqlchain
 
 import (
+	"bytes"
+	"encoding/hex"
 	"io/ioutil"
 	"math/rand"
 	"reflect"
@@ -76,6 +78,40 @@ func TestState(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+}
+
+func TestIndexKey(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		b1, err := createRandomBlock(rootHash, false)
+
+		if err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
+
+		b2, err := createRandomBlock(rootHash, false)
+
+		if err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
+
+		// Test partial order
+		bi1 := newBlockNode(b1.SignedHeader, nil)
+		bi2 := newBlockNode(b2.SignedHeader, nil)
+		bi1.height = rand.Int31()
+		bi2.height = rand.Int31()
+		k1 := bi1.indexKey()
+		k2 := bi2.indexKey()
+
+		if c1, c2 := bytes.Compare(k1, k2) < 0, bi1.height < bi2.height; c1 != c2 {
+			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
+				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
+		}
+
+		if c1, c2 := bytes.Compare(k1, k2) > 0, bi1.height > bi2.height; c1 != c2 {
+			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
+				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
+		}
 	}
 }
 

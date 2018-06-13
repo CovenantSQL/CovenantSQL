@@ -76,6 +76,6 @@ func (merkle *Merkle) GetRoot() *hash.Hash {
 
 // MergeTwoHash computes the hash of the concatenate of two hash
 func MergeTwoHash(l *hash.Hash, r *hash.Hash) *hash.Hash {
-	result := hash.DoubleHashH(append(append([]byte{}, (*l)[:]...), (*r)[:]...))
+	result := hash.THashH(append(append([]byte{}, (*l)[:]...), (*r)[:]...))
 	return &result
 }

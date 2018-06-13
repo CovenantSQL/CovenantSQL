@@ -36,8 +36,8 @@ import (
 )
 
 var (
-	voidTxSlice []Tx
-	txSlice     []Tx
+	voidTxSlice []*Tx
+	txSlice     []*Tx
 	header      SignedHeader
 	header2     SignedHeader
 	block       Block
@@ -48,8 +48,8 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 
-	voidTxSlice = []Tx{}
-	txSlice = make([]Tx, 10)
+	voidTxSlice = []*Tx{}
+	txSlice = make([]*Tx, 10)
 
 	var i int64
 	for i = 0; i < 10; i++ {
@@ -59,7 +59,7 @@ func init() {
 			return
 		}
 		h := hash.DoubleHashH([]byte{byte(i)})
-		txSlice[i] = Tx{
+		txSlice[i] = &Tx{
 			TxHash: h,
 			TxData: TxData{
 				AccountNonce: uint64(i),
@@ -67,7 +67,7 @@ func init() {
 					AccountAddress: hash.DoubleHashH([]byte{byte(i * i)}).String(),
 				},
 				Amount:  big.NewInt(int64(i)),
-				Payload: hash.DoubleHashB([]byte{byte(i / 2)}),
+				Payload: hash.THashB([]byte{byte(i / 2)}),
 				Signature: &btcec.Signature{
 					R: big.NewInt(1238 * i),
 					S: big.NewInt(890321 / (i + 1)),

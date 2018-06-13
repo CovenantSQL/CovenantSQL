@@ -40,7 +40,7 @@ type tx struct {
 }
 
 func (t tx) Hash() *hash.Hash {
-	h := hash.DoubleHashH(t.v)
+	h := hash.THashH(t.v)
 	return &h
 }
 

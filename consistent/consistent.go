@@ -33,12 +33,16 @@
 package consistent
 
 import (
+	"encoding/hex"
 	"errors"
 	"hash/fnv"
 	"sort"
 	"strconv"
 	"sync"
 
+	ec "github.com/btcsuite/btcd/btcec"
+	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
@@ -59,23 +63,75 @@ var ErrEmptyCircle = errors.New("empty circle")
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
-	circle           map[proto.NodeKey]proto.Node
-	members          map[proto.NodeID]proto.Node
+	// TODO(auxten): do not store node info on circle, just put node id as value
+	// and put node info into kms
+	circle map[proto.NodeKey]proto.Node
+	//members          map[proto.NodeID]proto.Node
 	sortedHashes     NodeKeys
 	NumberOfReplicas int
 	count            int64
 	sync.RWMutex
 }
 
-// New creates a new Consistent object with a default setting of 20 replicas for each entry.
+// InitConsistent creates a new Consistent object with a default setting of 20 replicas for each entry.
 //
 // To change the number of replicas, set NumberOfReplicas before adding entries.
-func New() *Consistent {
-	c := new(Consistent)
-	c.NumberOfReplicas = 20
-	c.circle = make(map[proto.NodeKey]proto.Node)
-	c.members = make(map[proto.NodeID]proto.Node)
-	return c
+func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
+	var BPNode *proto.Node
+	if initBP {
+		// Load BlockProducer public key, set it in public key store
+		// as all inputs of this func are pre defined. there should not
+		// be any error, if any then panic at caller
+		var (
+			publicKeyBytes []byte
+		)
+		publicKeyBytes, err = hex.DecodeString(kms.BPPublicKeyStr)
+		if err == nil {
+			kms.BPPublicKey, err = ec.ParsePubKey(publicKeyBytes, ec.S256())
+			if err == nil {
+				BPNode = &proto.Node{
+					ID:        proto.NodeID(kms.BPNodeID),
+					Addr:      "",
+					PublicKey: kms.BPPublicKey,
+					Nonce:     kms.BPNonce,
+				}
+			}
+		}
+		if err != nil {
+			log.Errorf("load BlockProducer public key failed: %s", err)
+			return
+		}
+	}
+
+	// Create new public key store
+	err = kms.InitPublicKeyStore(storePath, BPNode)
+	if err != nil {
+		log.Errorf("init public keystore failed: %s", err)
+		return
+	}
+	IDs, err := kms.GetAllNodeID()
+	if err != nil {
+		log.Errorf("get all node id failed: %s", err)
+		return
+	}
+	c = &Consistent{
+		NumberOfReplicas: 20,
+		circle:           make(map[proto.NodeKey]proto.Node),
+	}
+
+	if IDs != nil {
+		for _, id := range IDs {
+			node, err := kms.GetNodeInfo(id)
+			if err != nil {
+				// this may happen, just continue
+				log.Errorf("get node info for %s failed: %s", id, err)
+				continue
+			}
+			c.add(*node)
+		}
+	}
+
+	return
 }
 
 // nodeKey generates a string key for an node with an index.
@@ -85,74 +141,71 @@ func (c *Consistent) nodeKey(nodeID proto.NodeID, idx int) string {
 }
 
 // Add inserts a string node in the consistent hash.
-func (c *Consistent) Add(node proto.Node) {
+func (c *Consistent) Add(node proto.Node) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	c.add(node)
+	return c.add(node)
 }
 
 // need c.Lock() before calling
-func (c *Consistent) add(node proto.Node) {
+func (c *Consistent) add(node proto.Node) (err error) {
+	err = kms.SetNodeInfo(&node)
+	if err != nil {
+		log.Errorf("set node info failed: %s", err)
+		return
+	}
 	for i := 0; i < c.NumberOfReplicas; i++ {
 		c.circle[c.hashKey(c.nodeKey(node.ID, i))] = node
 	}
-	c.members[node.ID] = node
 	c.updateSortedHashes()
 	c.count++
+	return
 }
 
 // Remove removes an node from the hash.
-func (c *Consistent) Remove(node proto.Node) {
+func (c *Consistent) Remove(node proto.NodeID) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	c.remove(node.ID)
+	return c.remove(node)
 }
 
 // need c.Lock() before calling
-func (c *Consistent) remove(nodeID proto.NodeID) {
+func (c *Consistent) remove(nodeID proto.NodeID) (err error) {
+	err = kms.DelNode(nodeID)
+	if err != nil {
+		log.Errorf("del node failed: %s", err)
+		return
+	}
+
 	for i := 0; i < c.NumberOfReplicas; i++ {
 		delete(c.circle, c.hashKey(c.nodeKey(nodeID, i)))
 	}
-	delete(c.members, nodeID)
 	c.updateSortedHashes()
 	c.count--
+
+	return
 }
 
 // Set sets all the nodes in the hash.  If there are existing nodes not
 // present in nodes, they will be removed.
-func (c *Consistent) Set(nodes []proto.Node) {
+func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	for k := range c.members {
-		found := false
-		for _, v := range nodes {
-			if k == v.ID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			c.remove(k)
-		}
+	err = kms.ResetBucket()
+	if err != nil {
+		log.Errorf("reset bucket failed: %s", err)
+		return
 	}
+
+	c.circle = make(map[proto.NodeKey]proto.Node)
+	c.count = 0
+	c.sortedHashes = NodeKeys{}
+
 	for _, v := range nodes {
-		_, exists := c.members[v.ID]
-		if exists {
-			continue
-		}
 		c.add(v)
 	}
-}
 
-// Members get all Node inserted by Set/Add
-func (c *Consistent) Members() []proto.Node {
-	c.RLock()
-	defer c.RUnlock()
-	var m []proto.Node
-	for _, v := range c.members {
-		m = append(m, v)
-	}
-	return m
+	return
 }
 
 // Get returns an node close to where name hashes to in the circle.

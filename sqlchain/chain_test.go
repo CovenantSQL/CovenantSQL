@@ -52,7 +52,7 @@ func init() {
 	}
 
 	f.Close()
-	kms.InitPublicKeyStore(f.Name())
+	kms.InitPublicKeyStore(f.Name(), nil)
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)

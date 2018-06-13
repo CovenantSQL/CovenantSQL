@@ -21,6 +21,11 @@ import (
 
 	"os"
 
+	"sync"
+
+	"encoding/hex"
+
+	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -44,10 +49,19 @@ func TestDB(t *testing.T) {
 		PublicKey: pubKey2,
 		Nonce:     cpuminer.Uint256{},
 	}
+	publicKeyBytes, _ := hex.DecodeString(BPPublicKeyStr)
+	BPPublicKey, _ = ec.ParsePubKey(publicKeyBytes, ec.S256())
+	BPNode := &proto.Node{
+		ID:        proto.NodeID(BPNodeID),
+		Addr:      "",
+		PublicKey: BPPublicKey,
+		Nonce:     BPNonce,
+	}
+
 	Convey("Init db", t, func() {
 		pks = nil
 		defer os.Remove(dbFile)
-		InitPublicKeyStore(dbFile)
+		InitPublicKeyStore(dbFile, BPNode)
 		So(pks.bucket, ShouldNotBeNil)
 
 		pubk, err := GetPublicKey(proto.NodeID(BPNodeID))
@@ -87,6 +101,13 @@ func TestDB(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(privKey2.PubKey().IsEqual(pubKey2), ShouldBeTrue)
 
+		IDs, err := GetAllNodeID()
+		So(err, ShouldBeNil)
+		So(IDs, ShouldHaveLength, 3)
+		So(IDs, ShouldContain, proto.NodeID("node1"))
+		So(IDs, ShouldContain, proto.NodeID("node2"))
+		So(IDs, ShouldContain, proto.NodeID(BPNodeID))
+
 		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldBeNil)
 
@@ -109,13 +130,30 @@ func TestDB(t *testing.T) {
 
 		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldEqual, ErrBucketNotInitialized)
+
+		IDs, err = GetAllNodeID()
+		So(IDs, ShouldBeNil)
+		So(err, ShouldEqual, ErrBucketNotInitialized)
+
+		err = ResetBucket()
+		So(err, ShouldBeNil)
+
+		pubk, err = GetPublicKey(proto.NodeID("node2"))
+		So(pubk, ShouldBeNil)
+		So(err, ShouldEqual, ErrKeyNotFound)
+
+		IDs, err = GetAllNodeID()
+		So(IDs, ShouldBeNil)
+		So(err, ShouldBeNil)
 	})
 }
 
 func TestErrorPath(t *testing.T) {
 	Convey("can not init db", t, func() {
 		pks = nil
-		InitPublicKeyStore("/path/not/exist")
+		PksOnce = sync.Once{}
+		err := InitPublicKeyStore("/path/not/exist", nil)
 		So(pks, ShouldBeNil)
+		So(err, ShouldNotBeNil)
 	})
 }

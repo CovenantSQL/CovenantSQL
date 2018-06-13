@@ -23,16 +23,22 @@ import (
 
 	"net/rpc"
 
+	"os"
+
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/consistent"
 	. "github.com/thunderdb/ThunderDB/proto"
 )
 
+const DHTStorePath = "./DHTStore"
+
 func TestPingFindValue(t *testing.T) {
+	defer os.Remove(DHTStorePath)
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	rpc.RegisterName("DHT", NewDHTService())
+	dht, _ := NewDHTService(DHTStorePath)
+	rpc.RegisterName("DHT", dht)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		fmt.Println(err)

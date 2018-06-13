@@ -19,8 +19,6 @@ package kms
 import (
 	"errors"
 
-	"encoding/hex"
-
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -47,8 +45,11 @@ const (
 
 var (
 	// pks holds the singleton instance
-	pks     *PublicKeyStore
-	pksOnce sync.Once
+	pks *PublicKeyStore
+	// for easy test we make PksOnce exported
+	PksOnce sync.Once
+	// Unittest is a test flag
+	Unittest bool
 )
 
 var (
@@ -84,8 +85,8 @@ var (
 
 // InitPublicKeyStore opens a db file, if not exist, creates it.
 // and creates a bucket if not exist
-func InitPublicKeyStore(dbPath string) (err error) {
-	pksOnce.Do(func() {
+func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
+	PksOnce.Do(func() {
 		var bdb *bolt.DB
 		bdb, err = bolt.Open(dbPath, 0600, nil)
 		if err != nil {
@@ -106,27 +107,14 @@ func InitPublicKeyStore(dbPath string) (err error) {
 			return
 		}
 
+		// pks is the singleton instance
 		pks = &PublicKeyStore{
 			db:     bdb,
 			bucket: name,
 		}
 
-		// Load BlockProducer public key, set it in public key store
-		// as all inputs of this func are pre defined. there should not
-		// be any error, if any then panic!
-		var publicKeyBytes []byte
-		publicKeyBytes, err = hex.DecodeString(BPPublicKeyStr)
-		if err == nil {
-			BPPublicKey, err = ec.ParsePubKey(publicKeyBytes, ec.S256())
-			if err == nil {
-				node := &proto.Node{
-					ID:        proto.NodeID(BPNodeID),
-					Addr:      "",
-					PublicKey: BPPublicKey,
-					Nonce:     BPNonce,
-				}
-				err = setPublicKey(node)
-			}
+		if initNode != nil {
+			err = setPublicKey(initNode)
 		}
 	})
 
@@ -177,7 +165,31 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 
 		return err // return from View func
 	})
+	if err != nil {
+		log.Errorf("get node info failed: %s", err)
+	}
 	return
+}
+
+// GetAllNodeID
+func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
+	err = (*bolt.DB)(pks.db).View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(pks.bucket)
+		if bucket == nil {
+			return ErrBucketNotInitialized
+		}
+		err := bucket.ForEach(func(k, v []byte) error {
+			nodeIDs = append(nodeIDs, proto.NodeID(k))
+			return nil
+		})
+
+		return err // return from View func
+	})
+	if err != nil {
+		log.Errorf("get all node id failed: %s", err)
+	}
+	return
+
 }
 
 // SetPublicKey verifies nonce and set Public Key
@@ -196,14 +208,19 @@ func SetNodeInfo(nodeInfo *proto.Node) (err error) {
 	if nodeInfo == nil {
 		return ErrNilNode
 	}
-	keyHash := mine.HashBlock(nodeInfo.PublicKey.SerializeCompressed(), nodeInfo.Nonce)
-	id := nodeInfo.ID
-	idHash, err := hash.NewHashFromStr(string(id))
-	if err != nil {
-		return ErrNotValidNodeID
-	}
-	if !keyHash.IsEqual(idHash) {
-		return ErrNodeIDKeyNonceNotMatch
+	if !Unittest {
+		if nodeInfo.PublicKey == nil {
+			return ErrNilNode
+		}
+		keyHash := mine.HashBlock(nodeInfo.PublicKey.SerializeCompressed(), nodeInfo.Nonce)
+		id := nodeInfo.ID
+		idHash, err := hash.NewHashFromStr(string(id))
+		if err != nil {
+			return ErrNotValidNodeID
+		}
+		if !keyHash.IsEqual(idHash) {
+			return ErrNodeIDKeyNonceNotMatch
+		}
 	}
 
 	return setPublicKey(nodeInfo)
@@ -234,27 +251,55 @@ func setPublicKey(nodeInfo *proto.Node) (err error) {
 			}
 			return bucket.Put([]byte(nodeInfo.ID), nodeBuf)
 		})
+	} else {
+		log.Errorf("get node info failed: %s", err)
+		return
 	}
-	return
 }
 
 // DelNode removes PublicKey to the id
 func DelNode(id proto.NodeID) (err error) {
-	return (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
 			return ErrBucketNotInitialized
 		}
 		return bucket.Delete([]byte(id))
 	})
+	if err != nil {
+		log.Errorf("del node failed: %s", err)
+	}
+	return
 }
 
 // removeBucket this bucket
-func removeBucket() error {
-	err := (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
-		return tx.DeleteBucket([]byte(pks.bucket))
+func removeBucket() (err error) {
+	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+		return tx.DeleteBucket([]byte(kmsBucketName))
 	})
+	if err != nil {
+		log.Errorf("remove bucket failed: %s", err)
+		return
+	}
 	// ks.bucket == nil means bucket not exist
 	pks.bucket = nil
+	return
+}
+
+// ResetBucket this bucket
+func ResetBucket() error {
+	// cause we are going to reset the bucket, the return of removeBucket
+	// is not useful
+	removeBucket()
+	bucketName := []byte(kmsBucketName)
+	err := (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists(bucketName)
+		return err
+	})
+	pks.bucket = bucketName
+	if err != nil {
+		log.Errorf("reset bucket failed: %s", err)
+	}
+
 	return err
 }

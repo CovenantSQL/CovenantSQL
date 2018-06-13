@@ -26,15 +26,20 @@ import (
 
 // DHTService is server side RPC implementation
 type DHTService struct {
-	thisNode proto.Node
 	hashRing *consistent.Consistent
 }
 
 // NewDHTService will return a new DHTService
-func NewDHTService() *DHTService {
-	return &DHTService{
-		hashRing: consistent.New(),
+func NewDHTService(DHTStorePath string) (s *DHTService, err error) {
+	c, err := consistent.InitConsistent(DHTStorePath, true)
+	if err != nil {
+		log.Errorf("init DHT service failed: %s", err)
+		return
 	}
+	s = &DHTService{
+		hashRing: c,
+	}
+	return
 }
 
 // FindValue RPC returns FindValueReq.Count closest node from DHT

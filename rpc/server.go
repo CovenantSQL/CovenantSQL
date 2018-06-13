@@ -63,17 +63,9 @@ func NewServer() *Server {
 func (s *Server) InitRPCServer(
 	addr string,
 	privateKeyPath string,
-	publicKeyStorePath string,
 	masterKey []byte,
 ) (err error) {
 	route.InitResolver()
-
-	// Create new public key store
-	err = kms.InitPublicKeyStore(publicKeyStorePath)
-	if err != nil {
-		log.Errorf("init public keystore failed: %s", err)
-		return
-	}
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {

@@ -146,7 +146,8 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, "../keys/test.key", PubKeyStorePath, masterKey)
+	route.NewDHTService(PubKeyStorePath)
+	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
 	publicKey, err := kms.GetLocalPublicKey()
@@ -182,12 +183,13 @@ func TestEncPingFindValue(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
-	server, err := NewServerWithService(ServiceMap{"DHT": route.NewDHTService()})
+	dht, err := route.NewDHTService(PubKeyStorePath)
+	server, err := NewServerWithService(ServiceMap{"DHT": dht})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, "../keys/test.key", PubKeyStorePath, masterKey)
+	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
 	publicKey, err := kms.GetLocalPublicKey()

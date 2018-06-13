@@ -17,7 +17,9 @@
 // Package proto contains DHT RPC protocol struct
 package proto
 
-import "time"
+import (
+	"time"
+)
 
 // Envelope is the protocol
 type Envelope struct {
@@ -28,30 +30,26 @@ type Envelope struct {
 
 // PingReq is Ping RPC request
 type PingReq struct {
-	Node    Node
-	Version string
+	Node Node
 	Envelope
 }
 
 // PingResp is Ping RPC response, i.e. Pong
 type PingResp struct {
-	Msg     string
-	Version string
+	Msg string
 	Envelope
 }
 
 // FindValueReq is FindValue RPC request
 type FindValueReq struct {
-	NodeID  NodeID
-	Count   int
-	Version string
+	NodeID NodeID
+	Count  int
 	Envelope
 }
 
 // FindValueResp is FindValue RPC response
 type FindValueResp struct {
-	Nodes   []Node
-	Msg     string
-	Version string
+	Nodes []Node
+	Msg   string
 	Envelope
 }

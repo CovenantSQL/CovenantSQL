@@ -22,8 +22,8 @@ func (_m *MockRunner) Init(config Config, peers *Peers, logs LogStore, stable St
 	return r0
 }
 
-// Process provides a mock function with given fields: data
-func (_m *MockRunner) Process(data []byte) error {
+// Apply provides a mock function with given fields: data
+func (_m *MockRunner) Apply(data []byte) error {
 	ret := _m.Called(data)
 
 	var r0 error

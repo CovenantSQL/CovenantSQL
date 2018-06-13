@@ -64,13 +64,17 @@ message Node {
     Nonce Nonce = 4;
 }
 
+message AccountAddress {
+    string AccountAddress = 1;
+}
+
 message Header {
     int32 Version = 1;
     NodeID Producer = 2;
     Hash Root = 3;
     Hash Parent = 4;
     Hash MerkleRoot = 5;
-    bytes Timestamp = 6;
+    int64 Timestamp = 6;
 }
 
 message SignedHeader {
@@ -87,30 +91,30 @@ message State {
 
 message BPTx {
     Hash TxHash = 1;
-    BPTxData txdata = 2;
+    BPTxData TxData = 2;
 }
 
 message BPTxData {
     uint64 AccountNonce = 1;
-    NodeID Recipient = 2;
+    AccountAddress Recipient = 2;
     bytes Amount = 3;
     bytes Payload = 4;
 
-    Signature Sig = 5;
-    PublicKey publicKey = 6;
+    Signature Signature = 5;
+    PublicKey Signee = 6;
 }
 
 message BPHeader {
     int32 Version = 1;
-    NodeID Producer = 2;
+    AccountAddress Producer = 2;
     Hash Root = 3;
     Hash Parent = 4;
     Hash MerkleRoot = 5;
-    bytes Timestamp = 6;
+    int64 Timestamp = 6;
 }
 
 message BPSignedHeader {
-    Header Header = 1;
+    BPHeader Header = 1;
     Hash BlockHash = 2;
     PublicKey Signee = 3;
     Signature Signature = 4;

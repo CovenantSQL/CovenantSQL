@@ -17,23 +17,22 @@
 package sqlchain
 
 import (
-	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/golang/protobuf/proto"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
 
 // Header is a block header.
 type Header struct {
-	Version int32
-	// TODO(leventeliu): switch address to proto.NodeID.
-	Producer   common.NodeID
+	Version    int32
+	Producer   proto.NodeID
 	RootHash   hash.Hash
 	ParentHash hash.Hash
 	MerkleRoot hash.Hash
@@ -41,19 +40,13 @@ type Header struct {
 }
 
 func (h *Header) marshal() ([]byte, error) {
-	buffer, err := h.Timestamp.MarshalJSON()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return proto.Marshal(&types.Header{
+	return pb.Marshal(&types.Header{
 		Version:    h.Version,
 		Producer:   &types.NodeID{NodeID: string(h.Producer)},
 		Root:       &types.Hash{Hash: h.RootHash[:]},
 		Parent:     &types.Hash{Hash: h.ParentHash[:]},
 		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
-		Timestamp:  buffer,
+		Timestamp:  h.Timestamp.UnixNano(),
 	})
 }
 
@@ -67,20 +60,14 @@ type SignedHeader struct {
 }
 
 func (s *SignedHeader) marshal() ([]byte, error) {
-	buffer, err := s.Timestamp.MarshalJSON()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return proto.Marshal(&types.SignedHeader{
+	return pb.Marshal(&types.SignedHeader{
 		Header: &types.Header{
 			Version:    s.Version,
 			Producer:   &types.NodeID{NodeID: string(s.Producer)},
 			Root:       &types.Hash{Hash: s.RootHash[:]},
 			Parent:     &types.Hash{Hash: s.ParentHash[:]},
 			MerkleRoot: &types.Hash{Hash: s.MerkleRoot[:]},
-			Timestamp:  buffer,
+			Timestamp:  s.Timestamp.UnixNano(),
 		},
 		BlockHash: &types.Hash{Hash: s.BlockHash[:]},
 		Signee:    &types.PublicKey{PublicKey: s.Signee.Serialize()},
@@ -98,10 +85,10 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 
 func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	pbSignedHeader := &types.SignedHeader{}
-	err = proto.Unmarshal(buffer, pbSignedHeader)
+	err = pb.Unmarshal(buffer, pbSignedHeader)
 
 	if err != nil {
-		return err
+		return
 	}
 
 	pr := new(big.Int)
@@ -110,13 +97,13 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	pr, ok := pr.SetString(pbSignedHeader.GetSignature().GetR(), 10)
 
 	if !ok {
-		return fmt.Errorf("sqlchain: unexpected big int")
+		return ErrFieldConversion
 	}
 
 	ps, ok = ps.SetString(pbSignedHeader.GetSignature().GetS(), 10)
 
 	if !ok {
-		return fmt.Errorf("sqlchain: unexpected big int")
+		return ErrFieldConversion
 	}
 
 	if len(pbSignedHeader.GetHeader().GetProducer().GetNodeID()) != common.AddressLength ||
@@ -124,42 +111,39 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		len(pbSignedHeader.GetHeader().GetParent().GetHash()) != hash.HashSize ||
 		len(pbSignedHeader.GetHeader().GetMerkleRoot().GetHash()) != hash.HashSize ||
 		len(pbSignedHeader.GetBlockHash().GetHash()) != hash.HashSize {
-		return fmt.Errorf("sqlchain: unexpected hash length")
-	}
-
-	t := time.Time{}
-	err = t.UnmarshalJSON(pbSignedHeader.GetHeader().GetTimestamp())
-
-	if err != nil {
-		return err
+		return ErrFieldLength
 	}
 
 	pk, err := signature.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey(), btcec.S256())
 
 	if err != nil {
-		return err
+		return
 	}
 
 	// Copy fields
 	s.Version = pbSignedHeader.Header.GetVersion()
-	s.Producer = common.NodeID(pbSignedHeader.GetHeader().GetProducer().GetNodeID())
+	s.Producer = proto.NodeID(pbSignedHeader.GetHeader().GetProducer().GetNodeID())
 	copy(s.RootHash[:], pbSignedHeader.GetHeader().GetRoot().GetHash())
 	copy(s.ParentHash[:], pbSignedHeader.GetHeader().GetParent().GetHash())
 	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())
 	copy(s.BlockHash[:], pbSignedHeader.GetBlockHash().GetHash())
-	s.Timestamp = t
+	s.Timestamp = time.Unix(0, pbSignedHeader.GetHeader().GetTimestamp()).UTC()
 	s.Signature = &signature.Signature{
 		R: pr,
 		S: ps,
 	}
 	s.Signee = pk
 
-	return err
+	return
 }
 
 // Verify verifies the signature of the SignedHeader.
-func (s *SignedHeader) Verify() bool {
-	return s.Signature.Verify(s.BlockHash[:], s.Signee)
+func (s *SignedHeader) Verify() error {
+	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
+		return ErrSignVerification
+	}
+
+	return nil
 }
 
 // Block is a node of blockchain.
@@ -173,17 +157,17 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
-		return err
+		return
 	}
 
 	b.SignedHeader.BlockHash = hash.DoubleHashH(buffer)
 	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
 
-	return err
+	return
 }
 
 // VerifyHeader verifies the signature of the Block.
-func (b *Block) VerifyHeader() bool {
+func (b *Block) VerifyHeader() (err error) {
 	// TODO(leventeliu): verify merkle root of queries
 	// ...
 
@@ -191,14 +175,13 @@ func (b *Block) VerifyHeader() bool {
 	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
-		return false
+		return
 	}
 
 	h := hash.DoubleHashH(buffer)
 
-	if h != b.SignedHeader.BlockHash {
-		fmt.Printf("error: hash not match: %v, %v", h, b.SignedHeader.BlockHash)
-		return false
+	if !h.IsEqual(&b.SignedHeader.BlockHash) {
+		return ErrHashVerification
 	}
 
 	// Verify signature

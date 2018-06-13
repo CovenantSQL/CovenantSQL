@@ -53,7 +53,7 @@ type RequestHeader struct {
 
 // SignedRequestHeader defines a signed query request header.
 type SignedRequestHeader struct {
-	Header     RequestHeader
+	RequestHeader
 	HeaderHash hash.Hash
 	Signee     *signature.PublicKey
 	Signature  *signature.Signature
@@ -134,7 +134,7 @@ func (h *RequestHeader) unmarshal(buffer []byte) (err error) {
 
 func (sh *SignedRequestHeader) toPB() *types.SignedQueryRequestHeader {
 	return &types.SignedQueryRequestHeader{
-		Header:     sh.Header.toPB(),
+		Header:     sh.RequestHeader.toPB(),
 		HeaderHash: hashToPB(&sh.HeaderHash),
 		Signee:     publicKeyToPB(sh.Signee),
 		Signature:  signatureToPB(sh.Signature),
@@ -145,7 +145,7 @@ func (sh *SignedRequestHeader) fromPB(pbsh *types.SignedQueryRequestHeader) (err
 	if pbsh == nil {
 		return
 	}
-	if err = sh.Header.fromPB(pbsh.GetHeader()); err != nil {
+	if err = sh.RequestHeader.fromPB(pbsh.GetHeader()); err != nil {
 		return
 	}
 	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
@@ -175,7 +175,7 @@ func (sh *SignedRequestHeader) unmarshal(buffer []byte) (err error) {
 // Verify checks hash and signature in request header.
 func (sh *SignedRequestHeader) Verify() (err error) {
 	// verify hash
-	if err = verifyHash(&sh.Header, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.RequestHeader, &sh.HeaderHash); err != nil {
 		return
 	}
 	// verify sign
@@ -220,7 +220,7 @@ func (r *Request) unmarshal(buffer []byte) (err error) {
 // Verify checks hash and signature in whole request.
 func (r *Request) Verify() (err error) {
 	// verify payload hash in signed header
-	if err = verifyHash(&r.Payload, &r.Header.Header.QueriesHash); err != nil {
+	if err = verifyHash(&r.Payload, &r.Header.QueriesHash); err != nil {
 		return
 	}
 	// verify header sign

@@ -34,7 +34,7 @@ type AckHeader struct {
 
 // SignedAckHeader defines client signed ack entity.
 type SignedAckHeader struct {
-	Header     AckHeader
+	AckHeader
 	HeaderHash hash.Hash
 	Signee     *signature.PublicKey
 	Signature  *signature.Signature
@@ -79,7 +79,7 @@ func (h *AckHeader) unmarshal(buffer []byte) (err error) {
 
 func (sh *SignedAckHeader) toPB() *types.SignedQueryAckHeader {
 	return &types.SignedQueryAckHeader{
-		Header:     sh.Header.toPB(),
+		Header:     sh.AckHeader.toPB(),
 		HeaderHash: hashToPB(&sh.HeaderHash),
 		Signee:     publicKeyToPB(sh.Signee),
 		Signature:  signatureToPB(sh.Signature),
@@ -90,7 +90,7 @@ func (sh *SignedAckHeader) fromPB(pbsh *types.SignedQueryAckHeader) (err error) 
 	if pbsh == nil {
 		return
 	}
-	if err = sh.Header.fromPB(pbsh.GetHeader()); err != nil {
+	if err = sh.AckHeader.fromPB(pbsh.GetHeader()); err != nil {
 		return
 	}
 	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
@@ -120,10 +120,10 @@ func (sh *SignedAckHeader) unmarshal(buffer []byte) (err error) {
 // Verify checks hash and signature in ack header.
 func (sh *SignedAckHeader) Verify() (err error) {
 	// verify response
-	if err = sh.Header.Response.Verify(); err != nil {
+	if err = sh.Response.Verify(); err != nil {
 		return
 	}
-	if err = verifyHash(&sh.Header, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.AckHeader, &sh.HeaderHash); err != nil {
 		return
 	}
 	// verify sign

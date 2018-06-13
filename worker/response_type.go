@@ -28,6 +28,7 @@ import (
 // ResponseRow defines single row of query response.
 type ResponseRow struct {
 	Values []interface{}
+	// TODO, convert to bytes array or using golang any type
 }
 
 // ResponsePayload defines column names and rows of query response.
@@ -48,7 +49,7 @@ type ResponseHeader struct {
 
 // SignedResponseHeader defines a signed query response header.
 type SignedResponseHeader struct {
-	Header     ResponseHeader
+	ResponseHeader
 	HeaderHash hash.Hash
 	Signee     *signature.PublicKey
 	Signature  *signature.Signature
@@ -101,7 +102,7 @@ func (h *ResponseHeader) unmarshal(buffer []byte) (err error) {
 
 func (sh *SignedResponseHeader) toPB() *types.SignedQueryResponseHeader {
 	return &types.SignedQueryResponseHeader{
-		Header:     sh.Header.toPB(),
+		Header:     sh.ResponseHeader.toPB(),
 		HeaderHash: hashToPB(&sh.HeaderHash),
 		Signee:     publicKeyToPB(sh.Signee),
 		Signature:  signatureToPB(sh.Signature),
@@ -113,7 +114,7 @@ func (sh *SignedResponseHeader) fromPB(pbsh *types.SignedQueryResponseHeader) (e
 		return
 	}
 
-	if err = sh.Header.fromPB(pbsh.GetHeader()); err != nil {
+	if err = sh.ResponseHeader.fromPB(pbsh.GetHeader()); err != nil {
 		return
 	}
 	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
@@ -144,11 +145,11 @@ func (sh *SignedResponseHeader) unmarshal(buffer []byte) (err error) {
 // Verify checks hash and signature in response header.
 func (sh *SignedResponseHeader) Verify() (err error) {
 	// verify original request header
-	if err = sh.Header.Request.Verify(); err != nil {
+	if err = sh.Request.Verify(); err != nil {
 		return
 	}
 	// verify hash
-	if err = verifyHash(&sh.Header, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.ResponseHeader, &sh.HeaderHash); err != nil {
 		return
 	}
 	// verify signature

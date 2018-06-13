@@ -36,7 +36,7 @@ type NoAckReportHeader struct {
 
 // SignedNoAckReportHeader defines worker worker issued/signed client no ack report.
 type SignedNoAckReportHeader struct {
-	Header     NoAckReportHeader
+	NoAckReportHeader
 	HeaderHash hash.Hash
 	Signee     *signature.PublicKey
 	Signature  *signature.Signature
@@ -58,7 +58,7 @@ type AggrNoAckReportHeader struct {
 
 // SignedAggrNoAckReportHeader defines worker leader aggregated/signed client no ack report.
 type SignedAggrNoAckReportHeader struct {
-	Header     AggrNoAckReportHeader
+	AggrNoAckReportHeader
 	HeaderHash hash.Hash
 	Signee     *signature.PublicKey
 	Signature  *signature.Signature
@@ -104,7 +104,7 @@ func (h *NoAckReportHeader) unmarshal(buffer []byte) (err error) {
 
 func (sh *SignedNoAckReportHeader) toPB() *types.SignedNoQueryAckReportHeader {
 	return &types.SignedNoQueryAckReportHeader{
-		Header:     sh.Header.toPB(),
+		Header:     sh.NoAckReportHeader.toPB(),
 		HeaderHash: hashToPB(&sh.HeaderHash),
 		Signee:     publicKeyToPB(sh.Signee),
 		Signature:  signatureToPB(sh.Signature),
@@ -115,7 +115,7 @@ func (sh *SignedNoAckReportHeader) fromPB(pbsh *types.SignedNoQueryAckReportHead
 	if pbsh == nil {
 		return
 	}
-	if err = sh.Header.fromPB(pbsh.GetHeader()); err != nil {
+	if err = sh.NoAckReportHeader.fromPB(pbsh.GetHeader()); err != nil {
 		return
 	}
 	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
@@ -145,15 +145,15 @@ func (sh *SignedNoAckReportHeader) unmarshal(buffer []byte) (err error) {
 // Verify checks hash and signature in signed no ack report header.
 func (sh *SignedNoAckReportHeader) Verify() (err error) {
 	// verify original request
-	if err = sh.Header.Request.Verify(); err != nil {
+	if err = sh.Request.Verify(); err != nil {
 		return
 	}
 	// verify original response
-	if err = sh.Header.Response.Verify(); err != nil {
+	if err = sh.Response.Verify(); err != nil {
 		return
 	}
 	// verify hash
-	if err = verifyHash(&sh.Header, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.NoAckReportHeader, &sh.HeaderHash); err != nil {
 		return
 	}
 	// validate signature
@@ -244,7 +244,7 @@ func (h *AggrNoAckReportHeader) unmarshal(buffer []byte) (err error) {
 
 func (sh *SignedAggrNoAckReportHeader) toPB() *types.SignedAggrNoQueryAckReportHeader {
 	return &types.SignedAggrNoQueryAckReportHeader{
-		Header:     sh.Header.toPB(),
+		Header:     sh.AggrNoAckReportHeader.toPB(),
 		HeaderHash: hashToPB(&sh.HeaderHash),
 		Signee:     publicKeyToPB(sh.Signee),
 		Signature:  signatureToPB(sh.Signature),
@@ -255,7 +255,7 @@ func (sh *SignedAggrNoAckReportHeader) fromPB(pbsh *types.SignedAggrNoQueryAckRe
 	if pbsh == nil {
 		return
 	}
-	if err = sh.Header.fromPB(pbsh.GetHeader()); err != nil {
+	if err = sh.AggrNoAckReportHeader.fromPB(pbsh.GetHeader()); err != nil {
 		return
 	}
 	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
@@ -285,17 +285,17 @@ func (sh *SignedAggrNoAckReportHeader) unmarshal(buffer []byte) (err error) {
 // Verify checks hash and signature in aggregated no ack report.
 func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 	// verify original request
-	if err = sh.Header.Request.Verify(); err != nil {
+	if err = sh.AggrNoAckReportHeader.Request.Verify(); err != nil {
 		return
 	}
 	// verify original reports
-	for _, r := range sh.Header.Reports {
+	for _, r := range sh.Reports {
 		if err = r.Verify(); err != nil {
 			return
 		}
 	}
 	// verify hash
-	if err = verifyHash(&sh.Header, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.AggrNoAckReportHeader, &sh.HeaderHash); err != nil {
 		return
 	}
 	// verify signature

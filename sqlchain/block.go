@@ -160,7 +160,7 @@ func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
 		return
 	}
 
-	b.SignedHeader.BlockHash = hash.DoubleHashH(buffer)
+	b.SignedHeader.BlockHash = hash.THashH(buffer)
 	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
 
 	return
@@ -178,7 +178,7 @@ func (b *Block) VerifyHeader() (err error) {
 		return
 	}
 
-	h := hash.DoubleHashH(buffer)
+	h := hash.THashH(buffer)
 
 	if !h.IsEqual(&b.SignedHeader.BlockHash) {
 		return ErrHashVerification

@@ -42,7 +42,7 @@ func upperPowOfTwo(n int) int {
 
 // NewMerkle generate a merkle tree according
 // to some hashable values like transactions or blocks
-func NewMerkle(items []sqlchain.Hashable) *Merkle {
+func NewMerkle(items []*sqlchain.Hashable) *Merkle {
 	// the max number of merkle tree node = len(items) * 2 + 2
 	upperPoT := upperPowOfTwo(len(items))
 	maxMerkleSize := upperPoT*2 - 1
@@ -50,7 +50,7 @@ func NewMerkle(items []sqlchain.Hashable) *Merkle {
 
 	// generate merkle tree
 	for i, item := range items {
-		hashArray[i] = item.Hash()
+		hashArray[i] = (*item).Hash()
 	}
 	offset := upperPoT
 	for i := 0; i < maxMerkleSize-1; i += 2 {
@@ -76,6 +76,6 @@ func (merkle *Merkle) GetRoot() *hash.Hash {
 
 // MergeTwoHash computes the hash of the concatenate of two hash
 func MergeTwoHash(l *hash.Hash, r *hash.Hash) *hash.Hash {
-	result := hash.DoubleHashH(append(append([]byte{}, (*l)[:]...), (*r)[:]...))
+	result := hash.THashH(append(append([]byte{}, (*l)[:]...), (*r)[:]...))
 	return &result
 }

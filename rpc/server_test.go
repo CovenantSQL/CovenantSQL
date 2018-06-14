@@ -241,7 +241,7 @@ func TestEncPingFindValue(t *testing.T) {
 
 	req := &proto.FindValueReq{
 		NodeID: "123",
-		Count:  3,
+		Count:  10,
 	}
 	resp := new(proto.FindValueResp)
 	err = client.Call("DHT.FindValue", req, resp)
@@ -249,14 +249,12 @@ func TestEncPingFindValue(t *testing.T) {
 		log.Fatal(err)
 	}
 	log.Debugf("resp: %v", resp)
-	nodeResp1, err := proto.UnmarshalNode(resp.Nodes[0])
-	nodeResp2, err := proto.UnmarshalNode(resp.Nodes[1])
-	nodeResp3, err := proto.UnmarshalNode(resp.Nodes[2])
-	nodeIDList := []string{
-		string(nodeResp1.ID),
-		string(nodeResp2.ID),
-		string(nodeResp3.ID),
+	var nodeIDList []string
+	for _, n := range resp.Nodes[:] {
+		nodeResp, _ := proto.UnmarshalNode(n)
+		nodeIDList = append(nodeIDList, string(nodeResp.ID))
 	}
+
 	log.Debugf("nodeIDList: %v", nodeIDList)
 	Convey("test FindValue", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))

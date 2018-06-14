@@ -111,7 +111,7 @@ func TestPingFindValue(t *testing.T) {
 
 	req = &FindValueReq{
 		NodeID: "123",
-		Count:  2,
+		Count:  10,
 	}
 	resp = new(FindValueResp)
 	err = client.Call("DHT.FindValue", req, resp)
@@ -119,11 +119,10 @@ func TestPingFindValue(t *testing.T) {
 		log.Error(err)
 	}
 	log.Debugf("resp: %v", resp)
-	nodeResp1, err := UnmarshalNode(resp.Nodes[0])
-	nodeResp2, err := UnmarshalNode(resp.Nodes[1])
-	nodeIDList := []string{
-		string(nodeResp1.ID),
-		string(nodeResp2.ID),
+	var nodeIDList []string
+	for _, n := range resp.Nodes[:] {
+		nodeResp, _ := UnmarshalNode(n)
+		nodeIDList = append(nodeIDList, string(nodeResp.ID))
 	}
 	log.Debugf("nodeIDList: %v", nodeIDList)
 	Convey("test FindValue", t, func() {

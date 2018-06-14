@@ -172,7 +172,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 	return
 }
 
-// GetAllNodeID
+// GetAllNodeID get all node ids exist in store
 func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 	err = (*bolt.DB)(pks.db).View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)

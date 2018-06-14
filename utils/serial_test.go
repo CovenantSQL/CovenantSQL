@@ -111,7 +111,6 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 
 func (s *testStruct) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
-
 	return ReadElements(reader, binary.BigEndian,
 		&s.BoolField,
 		&s.Int8Field,

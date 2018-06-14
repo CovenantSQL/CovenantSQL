@@ -93,7 +93,7 @@ func (n *Node) Marshal() (nodeBytes NodeBytes, err error) {
 	return NodeBytes(nodeBuf), err
 }
 
-// Unmarshal the proto.Node with protobuf
+// UnmarshalNode the proto.Node with protobuf
 func UnmarshalNode(nodeBytes NodeBytes) (node *Node, err error) {
 	if nodeBytes == nil {
 		return nil, errors.New("unmarshal got nil input")

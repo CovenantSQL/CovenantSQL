@@ -46,7 +46,7 @@ const (
 var (
 	// pks holds the singleton instance
 	pks *PublicKeyStore
-	// for easy test we make PksOnce exported
+	// PksOnce for easy test we make PksOnce exported
 	PksOnce sync.Once
 	// Unittest is a test flag
 	Unittest bool
@@ -244,18 +244,23 @@ func setPublicKey(nodeInfo *proto.Node) (err error) {
 			D: nodeInfo.Nonce.D,
 		},
 	})
-	if err == nil {
-		return (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
-			bucket := tx.Bucket(pks.bucket)
-			if bucket == nil {
-				return ErrBucketNotInitialized
-			}
-			return bucket.Put([]byte(nodeInfo.ID), nodeBuf)
-		})
-	} else {
-		log.Errorf("get node info failed: %s", err)
+	if err != nil {
+		log.Errorf("marshal node info failed: %s", err)
 		return
 	}
+
+	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(pks.bucket)
+		if bucket == nil {
+			return ErrBucketNotInitialized
+		}
+		return bucket.Put([]byte(nodeInfo.ID), nodeBuf)
+	})
+	if err != nil {
+		log.Errorf("get node info failed: %s", err)
+	}
+
+	return
 }
 
 // DelNode removes PublicKey to the id

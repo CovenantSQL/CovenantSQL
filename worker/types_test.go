@@ -181,7 +181,6 @@ func TestResponse_Sign(t *testing.T) {
 					NodeID:            proto.NodeID("node2"),
 					Timestamp:         time.Now().UTC(),
 					RowCount:          uint64(1),
-					AffectedRowsCount: uint64(1),
 				},
 				Signee: pubKey,
 			},
@@ -300,7 +299,6 @@ func TestAck_Sign(t *testing.T) {
 							NodeID:            proto.NodeID("node2"),
 							Timestamp:         time.Now().UTC(),
 							RowCount:          uint64(1),
-							AffectedRowsCount: uint64(1),
 						},
 						Signee: pubKey,
 					},
@@ -387,7 +385,6 @@ func TestNoAckReport_Sign(t *testing.T) {
 							NodeID:            proto.NodeID("node2"),
 							Timestamp:         time.Now().UTC(),
 							RowCount:          uint64(1),
-							AffectedRowsCount: uint64(1),
 						},
 						Signee: pubKey,
 					},
@@ -433,7 +430,7 @@ func TestNoAckReport_Sign(t *testing.T) {
 			})
 
 			Convey("response change", func() {
-				noAck.Header.Response.AffectedRowsCount = 100
+				noAck.Header.Response.RowCount = 100
 
 				err = noAck.Verify()
 				So(err, ShouldNotBeNil)
@@ -478,7 +475,6 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 										NodeID:            proto.NodeID("node2"),
 										Timestamp:         time.Now().UTC(),
 										RowCount:          uint64(1),
-										AffectedRowsCount: uint64(1),
 									},
 									Signee: pubKey,
 								},
@@ -504,7 +500,6 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 										NodeID:            proto.NodeID("node3"),
 										Timestamp:         time.Now().UTC(),
 										RowCount:          uint64(1),
-										AffectedRowsCount: uint64(1),
 									},
 									Signee: pubKey,
 								},
@@ -579,7 +574,7 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 			})
 
 			Convey("response change", func() {
-				aggrNoAck.Header.Reports[0].Response.AffectedRowsCount = 100
+				aggrNoAck.Header.Reports[0].Response.RowCount = 1000
 
 				err = aggrNoAck.Verify()
 				So(err, ShouldNotBeNil)

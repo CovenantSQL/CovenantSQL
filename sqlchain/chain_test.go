@@ -26,7 +26,6 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	pbtypes "github.com/thunderdb/ThunderDB/types"
 )
 
@@ -141,7 +140,7 @@ func TestGenesis(t *testing.T) {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
 
-	genesis.SignedHeader.Signee = (*signature.PublicKey)(pub)
+	genesis.SignedHeader.Signee = (*asymmetric.PublicKey)(pub)
 
 	if err = verifyGenesis(genesis); err != nil {
 		t.Logf("Error occurred as expected: %s", err.Error())

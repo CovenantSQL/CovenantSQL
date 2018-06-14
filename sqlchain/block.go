@@ -23,8 +23,8 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/common"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
@@ -55,8 +55,8 @@ type SignedHeader struct {
 	Header
 
 	BlockHash hash.Hash
-	Signee    *signature.PublicKey
-	Signature *signature.Signature
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 func (s *SignedHeader) marshal() ([]byte, error) {
@@ -71,7 +71,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 		},
 		BlockHash: &types.Hash{Hash: s.BlockHash[:]},
 		Signee:    &types.PublicKey{PublicKey: s.Signee.Serialize()},
-		Signature: func(s *signature.Signature) *types.Signature {
+		Signature: func(s *asymmetric.Signature) *types.Signature {
 			if s == nil {
 				return nil
 			}
@@ -114,7 +114,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return ErrFieldLength
 	}
 
-	pk, err := signature.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey(), btcec.S256())
+	pk, err := asymmetric.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey(), btcec.S256())
 
 	if err != nil {
 		return
@@ -128,7 +128,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())
 	copy(s.BlockHash[:], pbSignedHeader.GetBlockHash().GetHash())
 	s.Timestamp = time.Unix(0, pbSignedHeader.GetHeader().GetTimestamp()).UTC()
-	s.Signature = &signature.Signature{
+	s.Signature = &asymmetric.Signature{
 		R: pr,
 		S: ps,
 	}
@@ -153,7 +153,7 @@ type Block struct {
 }
 
 // SignHeader generates the signature for the Block from the given PrivateKey.
-func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
+func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
 	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {

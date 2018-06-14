@@ -25,9 +25,9 @@ import (
 	bolt "github.com/coreos/bbolt"
 	pb "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
@@ -146,7 +146,7 @@ func verifyGenesis(b *Block) (err error) {
 	}
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*signature.PublicKey)(pk), b.SignedHeader.Signee) {
+	if !reflect.DeepEqual((*asymmetric.PublicKey)(pk), b.SignedHeader.Signee) {
 		return errors.New("verify genesis: node id public key not match")
 	}
 
@@ -175,7 +175,7 @@ func verifyGenesisHeader(sh *SignedHeader) (err error) {
 	}
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*signature.PublicKey)(pk), sh.Signee) {
+	if !reflect.DeepEqual((*asymmetric.PublicKey)(pk), sh.Signee) {
 		return errors.New("verify genesis header: node id public key not match")
 	}
 

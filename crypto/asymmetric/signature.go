@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Package signature is a wrapper of btcsuite's signature package, except that it only exports types and
+// Package asymmetric is a wrapper of btcsuite's signature package, except that it only exports types and
 // functions which will be used by ThunderDB.
 package asymmetric
 
@@ -55,8 +55,8 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // Sign generates an ECDSA signature for the provided hash (which should be the result of hashing
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
-func (p *PrivateKey) Sign(hash []byte) (*Signature, error) {
-	s, e := (*ec.PrivateKey)(p).Sign(hash)
+func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
+	s, e := (*ec.PrivateKey)(private).Sign(hash)
 	return (*Signature)(s), e
 }
 

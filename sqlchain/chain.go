@@ -180,6 +180,10 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 					return
 				}
 			} else if header.ParentHash == lastNode.hash {
+				if err = header.Verify(); err != nil {
+					return
+				}
+
 				parent = lastNode
 			} else {
 				parent = chain.index.LookupNode(&header.ParentHash)

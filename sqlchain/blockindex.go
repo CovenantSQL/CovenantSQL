@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"encoding/binary"
 	"sync"
 
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -66,6 +67,13 @@ func (bn *blockNode) ancestor(height int32) (ancestor *blockNode) {
 	}
 
 	return ancestor
+}
+
+func (bn *blockNode) indexKey() []byte {
+	indexKey := make([]byte, hash.HashSize+4)
+	binary.BigEndian.PutUint32(indexKey[0:4], uint32(bn.height))
+	copy(indexKey[4:hash.HashSize], bn.hash[:])
+	return indexKey
 }
 
 type blockIndex struct {

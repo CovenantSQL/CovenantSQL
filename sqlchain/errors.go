@@ -35,4 +35,19 @@ var (
 
 	// ErrSignVerification indicates a failed signature verification.
 	ErrSignVerification = errors.New("signature verification failed")
+
+	// ErrNodePublicKeyNotMatch indicates that the public key given with a node does not match the
+	// one in the key store.
+	ErrNodePublicKeyNotMatch = errors.New("node publick key doesn't match")
+
+	// ErrNilValue indicates that an unexpected but not fatal nil value is detected , hence return
+	// it as an error.
+	ErrNilValue = errors.New("unexpected nil value")
+
+	// ErrParentNotFound indicates an error failing to find parent node during a chain reloading.
+	ErrParentNotFound = errors.New("could not find parent node")
+
+	// ErrInvalidBlock indicates an invalid block which does not extend the best chain while
+	// pushing new blocks.
+	ErrInvalidBlock = errors.New("invalid block")
 )

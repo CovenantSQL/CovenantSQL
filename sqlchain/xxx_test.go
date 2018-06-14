@@ -68,7 +68,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 				ParentHash: parent,
 				Timestamp:  time.Now().UTC(),
 			},
-			Signee:    (*asymmetric.PublicKey)(pub),
+			Signee:    pub,
 			Signature: nil,
 		},
 		Queries: make([]*Query, rand.Intn(10)+10),

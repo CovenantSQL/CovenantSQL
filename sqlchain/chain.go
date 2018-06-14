@@ -17,19 +17,12 @@
 package sqlchain
 
 import (
+	"bytes"
 	"encoding/binary"
-	"errors"
-	"fmt"
-	"reflect"
 
 	bolt "github.com/coreos/bbolt"
-	pb "github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/types"
+	"github.com/thunderdb/ThunderDB/utils"
 )
 
 var (
@@ -46,29 +39,24 @@ type State struct {
 }
 
 func (s *State) marshal() ([]byte, error) {
-	return pb.Marshal(&types.State{
-		Head:   &types.Hash{Hash: s.Head[:]},
-		Height: s.Height,
-	})
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		s.Head,
+		s.Height,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
 
-func (s *State) unmarshal(buffer []byte) (err error) {
-	pbState := &types.State{}
-	err = pb.Unmarshal(buffer, pbState)
-
-	if err != nil {
-		return err
-	}
-
-	if len(pbState.GetHead().Hash) != hash.HashSize {
-		return fmt.Errorf("sqlchain: unexpected hash length")
-	}
-
-	s.node = nil
-	copy(s.Head[:], pbState.GetHead().Hash)
-	s.Height = pbState.Height
-
-	return err
+func (s *State) unmarshal(b []byte) (err error) {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&s.Head,
+		&s.Height,
+	)
 }
 
 // Chain represents a sql-chain.
@@ -82,7 +70,7 @@ type Chain struct {
 
 // NewChain creates a new sql-chain struct.
 func NewChain(cfg *Config) (chain *Chain, err error) {
-	err = verifyGenesis(cfg.Genesis)
+	err = cfg.Genesis.VerifyAsGenesis()
 
 	if err != nil {
 		return
@@ -131,55 +119,6 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	return
-}
-
-func verifyGenesis(b *Block) (err error) {
-	if b == nil || b.SignedHeader == nil {
-		return errors.New("verify genesis: nil value")
-	}
-
-	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
-
-	if err != nil {
-		return
-	}
-
-	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*asymmetric.PublicKey)(pk), b.SignedHeader.Signee) {
-		return errors.New("verify genesis: node id public key not match")
-	}
-
-	return b.VerifyHeader()
-}
-
-func verifyGenesisHeader(sh *SignedHeader) (err error) {
-	if sh == nil {
-		return errors.New("verify genesis header: nil value")
-	}
-
-	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
-		" block = %s",
-		string(sh.Producer[:]),
-		sh.RootHash.String(),
-		sh.ParentHash.String(),
-		sh.MerkleRoot.String(),
-		sh.BlockHash.String(),
-	)
-
-	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(proto.NodeID(sh.Header.Producer[:]))
-
-	if err != nil {
-		return
-	}
-
-	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*asymmetric.PublicKey)(pk), sh.Signee) {
-		return errors.New("verify genesis header: node id public key not match")
-	}
-
-	return sh.Verify()
 }
 
 func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
@@ -241,16 +180,20 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
-				if err = verifyGenesisHeader(header); err != nil {
+				if err = header.VerifyAsGenesis(); err != nil {
 					return
 				}
 			} else if header.ParentHash == lastNode.hash {
+				if err = header.Verify(); err != nil {
+					return
+				}
+
 				parent = lastNode
 			} else {
 				parent = chain.index.LookupNode(&header.ParentHash)
 
 				if parent == nil {
-					return fmt.Errorf("initChain: could not find parent node")
+					return ErrParentNotFound
 				}
 			}
 
@@ -273,7 +216,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 	// Pushed block must extend the best chain
 	if block.Header.ParentHash != hash.Hash(c.state.Head) {
-		return fmt.Errorf("pushBlock: new block must extend the best chain")
+		return ErrInvalidBlock
 	}
 
 	// Update best state
@@ -292,7 +235,7 @@ func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 			return err
 		}
 
-		key := blockIndexKey(&block.BlockHash, uint32(c.state.Height))
+		key := c.state.node.indexKey()
 		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(key, buffer)
 
 		if err != nil {

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// Package asymmetric is a wrapper of btcsuite's signature package, except that it only exports types and
-// functions which will be used by ThunderDB.
 package asymmetric
 
 import (
@@ -39,6 +37,11 @@ func (s *Signature) toec() *ec.Signature {
 // Serialize converts a signature to stirng
 func (s *Signature) Serialize() []byte {
 	return (*ec.Signature)(s).Serialize()
+}
+
+// ParseSignature recovers the signature from a sigStr using koblitz curve.
+func ParseSignature(sigStr []byte) (*Signature, error) {
+	return ParseDERSignature(sigStr, ec.S256())
 }
 
 // ParseDERSignature recovers the signature from a sigStr

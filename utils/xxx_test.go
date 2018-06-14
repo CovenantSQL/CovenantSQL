@@ -14,34 +14,24 @@
  * limitations under the License.
  */
 
-package storage
+package utils
 
 import (
+	"math/rand"
+	"os"
 	"testing"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func TestDSN(t *testing.T) {
-	testStrings := []string{
-		"",
-		"file:test.db",
-		"file::memory:?cache=shared&mode=memory",
-		"file:test.db?p1=v1&p2=v2&p1=v3",
-	}
+func testSetup() {
+	rand.Seed(time.Now().UnixNano())
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+}
 
-	for _, s := range testStrings {
-		dsn, err := NewDSN(s)
-
-		if err != nil {
-			t.Errorf("Error occurred: %v", err)
-			continue
-		}
-
-		t.Logf("Test format: string = %s, formatted = %s", s, dsn.Format())
-
-		dsn.SetFileName("file:/dev/null")
-		t.Logf("Test set file name: formatted = %s", dsn.Format())
-
-		dsn.AddParam("key", "value")
-		t.Logf("Test set add param: formatted = %s", dsn.Format())
-	}
+func TestMain(m *testing.M) {
+	testSetup()
+	os.Exit(m.Run())
 }

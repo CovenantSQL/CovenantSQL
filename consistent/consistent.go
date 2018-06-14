@@ -149,7 +149,7 @@ func (c *Consistent) Add(node proto.Node) (err error) {
 
 // need c.Lock() before calling
 func (c *Consistent) add(node proto.Node) (err error) {
-	err = kms.SetNodeInfo(&node)
+	err = kms.SetNode(&node)
 	if err != nil {
 		log.Errorf("set node info failed: %s", err)
 		return

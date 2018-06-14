@@ -21,15 +21,16 @@ import (
 
 	"sync"
 
+	"bytes"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/coreos/bbolt"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/types"
+	"github.com/ugorji/go/codec"
 )
 
 // PublicKeyStore holds db and bucket name
@@ -113,7 +114,7 @@ func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
 	}
 
 	if initNode != nil {
-		err = setPublicKey(initNode)
+		err = setNode(initNode)
 	}
 
 	return
@@ -141,27 +142,12 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		if byteVal == nil {
 			return ErrKeyNotFound
 		}
-
-		// error log will be done at the wrapper func
-		nodeInfoTypes := &types.Node{}
-		err = pb.Unmarshal(byteVal, nodeInfoTypes)
-		if err == nil {
-			publicKey, err := asymmetric.ParsePubKey(nodeInfoTypes.PublicKey.PublicKey)
-			if err == nil {
-				nodeInfo = &proto.Node{
-					ID:        proto.NodeID(nodeInfoTypes.ID.NodeID),
-					Addr:      nodeInfoTypes.Addr,
-					PublicKey: publicKey,
-					Nonce: mine.Uint256{
-						A: nodeInfoTypes.Nonce.A,
-						B: nodeInfoTypes.Nonce.B,
-						C: nodeInfoTypes.Nonce.C,
-						D: nodeInfoTypes.Nonce.D,
-					},
-				}
-			}
-		}
-
+		log.Debugf("get node: %#v", byteVal)
+		reader := bytes.NewReader(byteVal)
+		mh := &codec.MsgpackHandle{}
+		dec := codec.NewDecoder(reader, mh)
+		nodeInfo = proto.NewNode()
+		err = dec.Decode(nodeInfo)
 		return err // return from View func
 	})
 	if err != nil {
@@ -199,11 +185,11 @@ func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *asymmetric.Pub
 		PublicKey: publicKey,
 		Nonce:     nonce,
 	}
-	return SetNodeInfo(nodeInfo)
+	return SetNode(nodeInfo)
 }
 
-// SetNodeInfo verifies nonce and sets {proto.Node.ID: proto.Node}
-func SetNodeInfo(nodeInfo *proto.Node) (err error) {
+// SetNode verifies nonce and sets {proto.Node.ID: proto.Node}
+func SetNode(nodeInfo *proto.Node) (err error) {
 	if nodeInfo == nil {
 		return ErrNilNode
 	}
@@ -222,37 +208,27 @@ func SetNodeInfo(nodeInfo *proto.Node) (err error) {
 		}
 	}
 
-	return setPublicKey(nodeInfo)
+	return setNode(nodeInfo)
 }
 
-// setPublicKey sets id and its publicKey
-func setPublicKey(nodeInfo *proto.Node) (err error) {
-	nodeBuf, err := pb.Marshal(&types.Node{
-		ID: &types.NodeID{
-			NodeID: string(nodeInfo.ID),
-		},
-		Addr: nodeInfo.Addr,
-		PublicKey: &types.PublicKey{
-			PublicKey: nodeInfo.PublicKey.Serialize(),
-		},
-		Nonce: &types.Nonce{
-			A: nodeInfo.Nonce.A,
-			B: nodeInfo.Nonce.B,
-			C: nodeInfo.Nonce.C,
-			D: nodeInfo.Nonce.D,
-		},
-	})
+// setNode sets id and its publicKey
+func setNode(nodeInfo *proto.Node) (err error) {
+	nodeBuf := new(bytes.Buffer)
+	mh := &codec.MsgpackHandle{}
+	enc := codec.NewEncoder(nodeBuf, mh)
+	err = enc.Encode(*nodeInfo)
 	if err != nil {
 		log.Errorf("marshal node info failed: %s", err)
 		return
 	}
+	log.Debugf("set node: %#v", nodeBuf.Bytes())
 
 	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
 			return ErrBucketNotInitialized
 		}
-		return bucket.Put([]byte(nodeInfo.ID), nodeBuf)
+		return bucket.Put([]byte(nodeInfo.ID), nodeBuf.Bytes())
 	})
 	if err != nil {
 		log.Errorf("get node info failed: %s", err)

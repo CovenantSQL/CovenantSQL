@@ -38,7 +38,7 @@ var (
 
 // LoadPrivateKey loads private key from keyFilePath, and verifies the hash
 // head
-func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *ec.PrivateKey, err error) {
+func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
 	fileContent, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
 		log.Errorf("error read key file: %s, err: %s", keyFilePath, err)
@@ -63,13 +63,14 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *ec.PrivateKey, e
 		return nil, ErrHashNotMatch
 	}
 
-	key, _ = ec.PrivKeyFromBytes(ec.S256(), decData[hash.HashBSize:])
+	ecKey, _ := ec.PrivKeyFromBytes(ec.S256(), decData[hash.HashBSize:])
+	key = (*asymmetric.PrivateKey)(ecKey)
 	return
 }
 
 // SavePrivateKey saves private key with its hash on the head to keyFilePath,
 // default perm is 0600
-func SavePrivateKey(keyFilePath string, key *ec.PrivateKey, masterKey []byte) (err error) {
+func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []byte) (err error) {
 	serializedKey := key.Serialize()
 	keyHash := hash.DoubleHashB(serializedKey)
 	rawData := append(keyHash, serializedKey...)
@@ -81,14 +82,15 @@ func SavePrivateKey(keyFilePath string, key *ec.PrivateKey, masterKey []byte) (e
 }
 
 // GeneratePrivateKey generates a new EC private key
-func GeneratePrivateKey() (key *ec.PrivateKey, err error) {
-	return ec.NewPrivateKey(ec.S256())
+func GeneratePrivateKey() (key *asymmetric.PrivateKey, err error) {
+	ecKey, err := ec.NewPrivateKey(ec.S256())
+	return (*asymmetric.PrivateKey)(ecKey), err
 }
 
 // InitLocalKeyPair initializes local private key
 func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
-	var privateKey *ec.PrivateKey
-	var publicKey *ec.PublicKey
+	var privateKey *asymmetric.PrivateKey
+	var publicKey *asymmetric.PublicKey
 	InitLocalKeyStore()
 	privateKey, err = LoadPrivateKey(privateKeyPath, masterKey)
 	if err != nil {
@@ -119,7 +121,7 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	if publicKey == nil {
 		publicKey = privateKey.PubKey()
 	}
-	log.Infof("\n### Public Key ###\n%x\n### Public Key ###\n", publicKey.SerializeCompressed())
+	log.Infof("\n### Public Key ###\n%x\n### Public Key ###\n", publicKey.Serialize())
 	SetLocalKeyPair(privateKey, publicKey)
 	return
 }

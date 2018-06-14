@@ -17,6 +17,8 @@
 package sqlchain
 
 import (
+	"encoding/binary"
+
 	bolt "github.com/coreos/bbolt"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -122,6 +124,13 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	return
+}
+
+func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
+	indexKey := make([]byte, hash.HashSize+4)
+	binary.BigEndian.PutUint32(indexKey[0:4], height)
+	copy(indexKey[4:hash.HashSize], blockHash[:])
+	return indexKey
 }
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.

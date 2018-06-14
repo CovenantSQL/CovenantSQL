@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 )
 
 func TestSign(t *testing.T) {
@@ -130,7 +129,7 @@ func TestGenesis(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	genesis.SignedHeader.Signee = (*signature.PublicKey)(pub)
+	genesis.SignedHeader.Signee = pub
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)

@@ -146,7 +146,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, false)
+	route.NewDHTService(PubKeyStorePath, true)
 	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
@@ -184,7 +184,7 @@ func TestEncPingFindValue(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
-	dht, err := route.NewDHTService(PubKeyStorePath, false)
+	dht, err := route.NewDHTService(PubKeyStorePath, true)
 
 	server, err := NewServerWithService(ServiceMap{"DHT": dht})
 	if err != nil {
@@ -194,11 +194,11 @@ func TestEncPingFindValue(t *testing.T) {
 	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
-	kms.ResetBucket()
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
 	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddr(serverNodeID, server.Listener.Addr().String())
 
@@ -211,7 +211,7 @@ func TestEncPingFindValue(t *testing.T) {
 	proto.NewNodeIDDifficultyTimeout = 100 * time.Millisecond
 	node1 := proto.NewNode()
 	node1.InitNodeCryptoInfo()
-	nodeBytes1, _ := node1.Marshal()
+	nodeBytes1, _ := node1.MarshalBinary()
 
 	reqA := &proto.PingReq{
 		Node: nodeBytes1,
@@ -226,7 +226,7 @@ func TestEncPingFindValue(t *testing.T) {
 
 	node2 := proto.NewNode()
 	node2.InitNodeCryptoInfo()
-	nodeBytes2, _ := node2.Marshal()
+	nodeBytes2, _ := node2.MarshalBinary()
 
 	reqB := &proto.PingReq{
 		Node: nodeBytes2,
@@ -237,11 +237,11 @@ func TestEncPingFindValue(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Debugf("respA: %v", respB)
+	log.Debugf("respB: %v", respB)
 
 	req := &proto.FindValueReq{
 		NodeID: "123",
-		Count:  3,
+		Count:  10,
 	}
 	resp := new(proto.FindValueResp)
 	err = client.Call("DHT.FindValue", req, resp)
@@ -249,19 +249,17 @@ func TestEncPingFindValue(t *testing.T) {
 		log.Fatal(err)
 	}
 	log.Debugf("resp: %v", resp)
-	nodeResp1, err := proto.UnmarshalNode(resp.Nodes[0])
-	nodeResp2, err := proto.UnmarshalNode(resp.Nodes[1])
-	nodeResp3, err := proto.UnmarshalNode(resp.Nodes[2])
-	nodeIDList := []string{
-		string(nodeResp1.ID),
-		string(nodeResp2.ID),
-		string(nodeResp3.ID),
+	var nodeIDList []string
+	for _, n := range resp.Nodes[:] {
+		nodeResp, _ := proto.UnmarshalNode(n)
+		nodeIDList = append(nodeIDList, string(nodeResp.ID))
 	}
+
 	log.Debugf("nodeIDList: %v", nodeIDList)
 	Convey("test FindValue", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))
 		So(nodeIDList, ShouldContain, string(node2.ID))
-		So(nodeIDList, ShouldContain, string(serverNodeID))
+		So(nodeIDList, ShouldContain, string(kms.BPNodeID))
 	})
 	client.Close()
 	server.Stop()

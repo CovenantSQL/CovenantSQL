@@ -21,13 +21,12 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
 	pb "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/common"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
 )
@@ -58,8 +57,8 @@ type SignedHeader struct {
 	Header
 
 	BlockHash hash.Hash
-	Signee    *signature.PublicKey
-	Signature *signature.Signature
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 func (s *SignedHeader) marshal() ([]byte, error) {
@@ -74,7 +73,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 		},
 		BlockHash: &types.Hash{Hash: s.BlockHash[:]},
 		Signee:    &types.PublicKey{PublicKey: s.Signee.Serialize()},
-		Signature: func(s *signature.Signature) *types.Signature {
+		Signature: func(s *asymmetric.Signature) *types.Signature {
 			if s == nil {
 				return nil
 			}
@@ -117,7 +116,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return ErrFieldLength
 	}
 
-	pk, err := signature.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey(), btcec.S256())
+	pk, err := asymmetric.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey())
 
 	if err != nil {
 		return
@@ -131,7 +130,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())
 	copy(s.BlockHash[:], pbSignedHeader.GetBlockHash().GetHash())
 	s.Timestamp = time.Unix(0, pbSignedHeader.GetHeader().GetTimestamp()).UTC()
-	s.Signature = &signature.Signature{
+	s.Signature = &asymmetric.Signature{
 		R: pr,
 		S: ps,
 	}
@@ -168,7 +167,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 	}
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*signature.PublicKey)(pk), s.Signee) {
+	if !reflect.DeepEqual(pk, s.Signee) {
 		return ErrNodePublicKeyNotMatch
 	}
 
@@ -182,14 +181,14 @@ type Block struct {
 }
 
 // SignHeader generates the signature for the Block from the given PrivateKey.
-func (b *Block) SignHeader(signer *signature.PrivateKey) (err error) {
+func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
 	buffer, err := b.SignedHeader.Header.marshal()
 
 	if err != nil {
 		return
 	}
 
-	b.SignedHeader.BlockHash = hash.DoubleHashH(buffer)
+	b.SignedHeader.BlockHash = hash.THashH(buffer)
 	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
 
 	return
@@ -207,7 +206,7 @@ func (b *Block) Verify() (err error) {
 		return
 	}
 
-	h := hash.DoubleHashH(buffer)
+	h := hash.THashH(buffer)
 
 	if !h.IsEqual(&b.SignedHeader.BlockHash) {
 		return ErrHashVerification
@@ -231,7 +230,7 @@ func (b *Block) VerifyAsGenesis() (err error) {
 	}
 
 	// TODO(leventeliu): use an unifield PublicKey type through this project.
-	if !reflect.DeepEqual((*signature.PublicKey)(pk), b.SignedHeader.Signee) {
+	if !reflect.DeepEqual(pk, b.SignedHeader.Signee) {
 		return ErrNodePublicKeyNotMatch
 	}
 

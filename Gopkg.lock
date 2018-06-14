@@ -121,6 +121,12 @@
   version = "v2.2.6"
 
 [[projects]]
+  name = "github.com/ugorji/go"
+  packages = ["codec"]
+  revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
+  version = "v1.1.1"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -138,6 +144,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8687f2b87ad854d47255f0add7cbfbbc898862bb069a9b60a1c14f902a9a4a1f"
+  inputs-digest = "723aca91a68d9ef1f55facebcdf74a1585469fa92dbbd417222debf42da86c4f"
   solver-name = "gps-cdcl"
   solver-version = 1

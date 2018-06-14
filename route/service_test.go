@@ -32,9 +32,56 @@ import (
 	"github.com/thunderdb/ThunderDB/consistent"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	. "github.com/thunderdb/ThunderDB/proto"
+	"github.com/ugorji/go/codec"
 )
 
 const DHTStorePath = "./DHTStore"
+
+func TestDHTService_Ping(t *testing.T) {
+	os.Remove(DHTStorePath)
+	defer os.Remove(DHTStorePath)
+	log.SetLevel(log.DebugLevel)
+	addr := "127.0.0.1:0"
+	dht, _ := NewDHTService(DHTStorePath, false)
+	rpc.RegisterName("DHT", dht)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	mh := &codec.MsgpackHandle{}
+
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				continue
+			}
+			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(c, mh)
+			go rpc.ServeCodec(msgpackCodec)
+		}
+	}()
+
+	client, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		log.Error(err)
+	}
+
+	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
+	node1 := NewNode()
+	node1.InitNodeCryptoInfo()
+
+	reqA := &PingReq{
+		Node: *node1,
+	}
+	respA := new(PingResp)
+	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(client, mh)
+	err = rpc.NewClientWithCodec(msgpackCodec).Call("DHT.Ping", reqA, respA)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Debugf("respA: %v", respA)
+}
 
 func TestPingFindValue(t *testing.T) {
 	os.Remove(DHTStorePath)
@@ -83,10 +130,9 @@ func TestPingFindValue(t *testing.T) {
 	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
 	node1 := NewNode()
 	node1.InitNodeCryptoInfo()
-	nodeBytes1, _ := node1.Marshal()
 
 	reqA := &PingReq{
-		Node: nodeBytes1,
+		Node: *node1,
 	}
 	respA := new(PingResp)
 	err = client.Call("DHT.Ping", reqA, respA)
@@ -97,10 +143,9 @@ func TestPingFindValue(t *testing.T) {
 
 	node2 := NewNode()
 	node2.InitNodeCryptoInfo()
-	nodeBytes2, _ := node2.Marshal()
 
 	reqB := &PingReq{
-		Node: nodeBytes2,
+		Node: *node2,
 	}
 	respB := new(PingResp)
 	err = client.Call("DHT.Ping", reqB, respB)
@@ -111,7 +156,7 @@ func TestPingFindValue(t *testing.T) {
 
 	req = &FindValueReq{
 		NodeID: "123",
-		Count:  2,
+		Count:  10,
 	}
 	resp = new(FindValueResp)
 	err = client.Call("DHT.FindValue", req, resp)
@@ -119,11 +164,9 @@ func TestPingFindValue(t *testing.T) {
 		log.Error(err)
 	}
 	log.Debugf("resp: %v", resp)
-	nodeResp1, err := UnmarshalNode(resp.Nodes[0])
-	nodeResp2, err := UnmarshalNode(resp.Nodes[1])
-	nodeIDList := []string{
-		string(nodeResp1.ID),
-		string(nodeResp2.ID),
+	var nodeIDList []string
+	for _, n := range resp.Nodes[:] {
+		nodeIDList = append(nodeIDList, string(n.ID))
 	}
 	log.Debugf("nodeIDList: %v", nodeIDList)
 	Convey("test FindValue", t, func() {

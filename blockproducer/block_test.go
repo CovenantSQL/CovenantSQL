@@ -27,7 +27,6 @@ import (
 
 	"os"
 
-	"github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -36,8 +35,8 @@ import (
 )
 
 var (
-	voidTxSlice []Tx
-	txSlice     []Tx
+	voidTxSlice []*Tx
+	txSlice     []*Tx
 	header      SignedHeader
 	header2     SignedHeader
 	block       Block
@@ -48,8 +47,8 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 
-	voidTxSlice = []Tx{}
-	txSlice = make([]Tx, 10)
+	voidTxSlice = []*Tx{}
+	txSlice = make([]*Tx, 10)
 
 	var i int64
 	for i = 0; i < 10; i++ {
@@ -58,17 +57,17 @@ func init() {
 		if err != nil {
 			return
 		}
-		h := hash.DoubleHashH([]byte{byte(i)})
-		txSlice[i] = Tx{
+		h := hash.THashH([]byte{byte(i)})
+		txSlice[i] = &Tx{
 			TxHash: h,
 			TxData: TxData{
 				AccountNonce: uint64(i),
 				Recipient: &types.AccountAddress{
-					AccountAddress: hash.DoubleHashH([]byte{byte(i * i)}).String(),
+					AccountAddress: hash.THashH([]byte{byte(i * i)}).String(),
 				},
 				Amount:  big.NewInt(int64(i)),
-				Payload: hash.DoubleHashB([]byte{byte(i / 2)}),
-				Signature: &btcec.Signature{
+				Payload: hash.THashB([]byte{byte(i / 2)}),
+				Signature: &asymmetric.Signature{
 					R: big.NewInt(1238 * i),
 					S: big.NewInt(890321 / (i + 1)),
 				},
@@ -83,33 +82,33 @@ func init() {
 	}
 
 	header = SignedHeader{
-		BlockHash: hash.DoubleHashH([]byte{1, 2, 3}),
+		BlockHash: hash.THashH([]byte{1, 2, 3}),
 		PublicKey: pub,
-		Signature: &btcec.Signature{
+		Signature: &asymmetric.Signature{
 			R: big.NewInt(8391),
 			S: big.NewInt(2371),
 		},
 	}
 	header.Version = 2
-	header.Producer = proto.AccountAddress(hash.DoubleHashH([]byte{9, 1, 4, 2, 1, 10}).String())
-	header.Root = hash.DoubleHashH([]byte{4, 2, 1, 10})
-	header.Parent = hash.DoubleHashH([]byte{1, 9, 2, 22})
-	header.MerkleRoot = hash.DoubleHashH([]byte{9, 2, 1, 11})
+	header.Producer = proto.AccountAddress(hash.THashH([]byte{9, 1, 4, 2, 1, 10}).String())
+	header.Root = hash.THashH([]byte{4, 2, 1, 10})
+	header.Parent = hash.THashH([]byte{1, 9, 2, 22})
+	header.MerkleRoot = hash.THashH([]byte{9, 2, 1, 11})
 	header.Timestamp = time.Now().UTC()
 
 	header2 = SignedHeader{
-		BlockHash: hash.DoubleHashH([]byte{1, 2, 3}),
+		BlockHash: hash.THashH([]byte{1, 2, 3}),
 		PublicKey: pub,
-		Signature: &btcec.Signature{
+		Signature: &asymmetric.Signature{
 			R: big.NewInt(8391),
 			S: big.NewInt(2371),
 		},
 	}
 	header2.Version = 2
-	header2.Producer = proto.AccountAddress(hash.DoubleHashH([]byte{1, 4, 2, 1, 10}).String())
-	header2.Root = hash.DoubleHashH([]byte{4, 2, 1})
-	header2.Parent = hash.DoubleHashH([]byte{1, 9, 22})
-	header2.MerkleRoot = hash.DoubleHashH([]byte{9, 1, 11})
+	header2.Producer = proto.AccountAddress(hash.THashH([]byte{1, 4, 2, 1, 10}).String())
+	header2.Root = hash.THashH([]byte{4, 2, 1})
+	header2.Parent = hash.THashH([]byte{1, 9, 22})
+	header2.MerkleRoot = hash.THashH([]byte{9, 1, 11})
 	header2.Timestamp = time.Now().UTC()
 
 	voidBlock = Block{

@@ -40,8 +40,8 @@ import (
 	"strconv"
 	"sync"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 )
@@ -87,7 +87,7 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 		)
 		publicKeyBytes, err = hex.DecodeString(kms.BPPublicKeyStr)
 		if err == nil {
-			kms.BPPublicKey, err = ec.ParsePubKey(publicKeyBytes, ec.S256())
+			kms.BPPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 			if err == nil {
 				BPNode = &proto.Node{
 					ID:        proto.NodeID(kms.BPNodeID),

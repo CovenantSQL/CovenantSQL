@@ -16,7 +16,7 @@
 
 // Package sign is a wrapper of btcsuite's signature package, except that it only exports types and
 // functions which will be used by ThunderDB.
-package signature
+package asymmetric
 
 import (
 	"bytes"
@@ -74,42 +74,4 @@ func TestSign(t *testing.T) {
 				targetSig, sig)
 		}
 	}
-}
-
-func TestPubKey(t *testing.T) {
-	pubKeyTests := []struct {
-		name string
-		key  []byte
-	}{
-		{
-			name: "Test serialize",
-			key: []byte{0x04, 0x11, 0xdb, 0x93, 0xe1, 0xdc, 0xdb, 0x8a,
-				0x01, 0x6b, 0x49, 0x84, 0x0f, 0x8c, 0x53, 0xbc, 0x1e,
-				0xb6, 0x8a, 0x38, 0x2e, 0x97, 0xb1, 0x48, 0x2e, 0xca,
-				0xd7, 0xb1, 0x48, 0xa6, 0x90, 0x9a, 0x5c, 0xb2, 0xe0,
-				0xea, 0xdd, 0xfb, 0x84, 0xcc, 0xf9, 0x74, 0x44, 0x64,
-				0xf8, 0x2e, 0x16, 0x0b, 0xfa, 0x9b, 0x8b, 0x64, 0xf9,
-				0xd4, 0xc0, 0x3f, 0x99, 0x9b, 0x86, 0x43, 0xf6, 0x56,
-				0xb4, 0x12, 0xa3,
-			},
-		},
-	}
-
-	for _, test := range pubKeyTests {
-		pubKey, err := ParsePubKey(test.key, btcec.S256())
-
-		if err != nil {
-			t.Errorf("%s could not parse public key: %v", test.name, err)
-			continue
-		}
-
-		serializedKey := pubKey.Serialize()
-
-		if !bytes.Equal(test.key, serializedKey) {
-			t.Errorf("%s unexpected serialized bytes - got: %x, want: %x", test.name,
-				serializedKey, test.key)
-		}
-
-	}
-
 }

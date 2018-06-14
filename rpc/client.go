@@ -20,7 +20,6 @@ package rpc
 import (
 	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 
 	ec "github.com/btcsuite/btcd/btcec"
 	"github.com/hashicorp/yamux"
@@ -30,6 +29,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/route"
+	"github.com/ugorji/go/codec"
 )
 
 // Client is RPC client
@@ -140,7 +140,9 @@ func (c *Client) start(conn net.Conn) {
 		log.Panic(err)
 		return
 	}
-	c.Client = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(clientConn))
+	mh := &codec.MsgpackHandle{}
+	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(clientConn, mh)
+	c.Client = rpc.NewClientWithCodec(msgpackCodec)
 }
 
 // Close the client RPC connection

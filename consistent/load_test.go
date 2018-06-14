@@ -22,9 +22,9 @@ import (
 
 	"sort"
 
-	"github.com/docker/docker/pkg/fileutils"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/thunderdb/ThunderDB/utils"
 )
 
 const testStorePath1 = "./test.store1"
@@ -43,7 +43,7 @@ func TestSaveDHT(t *testing.T) {
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)
 		So(len(x.sortedHashes), ShouldEqual, x.NumberOfReplicas*2)
 		So(sort.IsSorted(x.sortedHashes), ShouldBeTrue)
-		fileutils.CopyFile(testStorePath1, testStorePath2)
+		utils.CopyFile(testStorePath1, testStorePath2)
 	})
 }
 

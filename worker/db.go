@@ -20,7 +20,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 
+	"github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -34,12 +36,15 @@ var (
 
 // Database defines a single database instance in worker runtime.
 type Database struct {
-	cfg          *Config
-	dbID         proto.DatabaseID
-	storage      *storage.Storage
-	kayakRuntime *kayak.Runtime
-	kayakConfig  *kayak.TwoPCConfig
-	privKey      *asymmetric.PrivateKey
+	cfg                *Config
+	dbID               proto.DatabaseID
+	dbMeta             *bolt.DB
+	storage            *storage.Storage
+	kayakRuntime       *kayak.Runtime
+	kayakConfig        *kayak.TwoPCConfig
+	privKey            *asymmetric.PrivateKey
+	noAckRequest       sync.Map
+	responseWaitingAck sync.Map
 }
 
 // NewDatabase create a single database instance using config.
@@ -73,21 +78,55 @@ func NewDatabase(cfg *Config) (db *Database, err error) {
 	return
 }
 
-// Query defines database read-only query interface.
-func (db *Database) Query() (err error) {
+// Query defines database query interface.
+func (db *Database) Query(request *Request) (response *Response, err error) {
+	if err = request.Verify(); err != nil {
+		return
+	}
+
+	switch request.Header.QueryType {
+	case ReadQuery:
+		return db.readQuery(request)
+	case WriteQuery:
+		return db.writeQuery(request)
+	default:
+		// TODO(xq262144) verbose errors with custom error structure
+		return nil, ErrInvalidRequest
+	}
+}
+
+// Ack defines client response ack interface.
+func (db *Database) Ack(ack *Ack) (err error) {
+	if err = ack.Verify(); err != nil {
+		return
+	}
+
+	// remove query response from waiting ack lists
 	// TODO(xq262144)
 	return
 }
 
-// Execute defines database write-only query interface.
-func (db *Database) Execute() (err error) {
+// NoAckReport defines worker nodes reporting no ack.
+func (db *Database) NoAckReport(noAck *NoAckReport) (err error) {
+	if err = noAck.Verify(); err != nil {
+		return
+	}
+	// verify no ack report
+	// record
 	// TODO(xq262144)
 	return
 }
 
 // Shutdown stop database handles and stop service the database.
 func (db *Database) Shutdown() (err error) {
-	// shutdown
+	// shutdown, flush bucket
+	// TODO(xq262144), close all goroutine and flush meta to disk
+	return
+}
+
+// Destroy stop database instance and destroy all data/meta.
+func (db *Database) Destroy() (err error) {
+	// TODO(xq262144), destroy data
 	return
 }
 
@@ -146,5 +185,44 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	log.Queries = make([]string, len(req.Payload.Queries))
 	copy(log.Queries, req.Payload.Queries)
 
+	return
+}
+
+func (db *Database) writeQuery(request *Request) (response *Response, err error) {
+	// call kayak runtime Process
+	// TODO(xq262144), check timestamp and connection id to anti replay
+	// TODO(xq262144), call kayak
+	return
+}
+
+func (db *Database) readQuery(request *Request) (response *Response, err error) {
+	// call storage query directly
+	// TODO(xq262144), add timeout logic basic of client options
+	var columns, types []string
+	var data [][]interface{}
+
+	columns, types, data, err = db.storage.Query(context.Background(), request.Payload.Queries)
+
+	_ = columns
+	_ = types
+	_ = data
+
+	return
+}
+
+func (db *Database) buildQueryResponse() (response *Response, err error) {
+	// build response
+	// TODO(xq262144)
+	// sign fields
+	// TODO(xq262144)
+	// record response for future ack process
+	// TODO(xq262144)
+	// return
+	return
+}
+
+func (db *Database) persistence() (err error) {
+	// save to meta database
+	// TODO(xq262144)
 	return
 }

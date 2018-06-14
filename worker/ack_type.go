@@ -17,13 +17,13 @@
 package worker
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
-	pb "github.com/golang/protobuf/proto"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/types"
 )
 
 // AckHeader defines client ack entity.
@@ -46,76 +46,28 @@ type Ack struct {
 	Header SignedAckHeader
 }
 
-func (h *AckHeader) toPB() *types.QueryAckHeader {
-	return &types.QueryAckHeader{
-		Response:  h.Response.toPB(),
-		NodeID:    &types.NodeID{NodeID: string(h.NodeID)},
-		Timestamp: h.Timestamp.UnixNano(),
-	}
+// Serialize structure to bytes.
+func (h *AckHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
+
+	buf.Write(h.Response.Serialize())
+	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
+	buf.WriteString(string(h.NodeID))
+	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
+
+	return buf.Bytes()
 }
 
-func (h *AckHeader) fromPB(pbh *types.QueryAckHeader) (err error) {
-	if pbh == nil {
-		return
-	}
-	if err = h.Response.fromPB(pbh.GetResponse()); err != nil {
-		return
-	}
-	h.NodeID = proto.NodeID(pbh.GetNodeID().GetNodeID())
-	h.Timestamp = timeFromTimestamp(pbh.GetTimestamp())
-	return
-}
+// Serialize structure to bytes.
+func (sh *SignedAckHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-func (h *AckHeader) marshal() ([]byte, error) {
-	return pb.Marshal(h.toPB())
-}
+	buf.Write(sh.AckHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	buf.Write(sh.Signee.Serialize())
+	buf.Write(sh.Signature.Serialize())
 
-func (h *AckHeader) unmarshal(buffer []byte) (err error) {
-	pbh := new(types.QueryAckHeader)
-	if err = pb.Unmarshal(buffer, pbh); err != nil {
-		return
-	}
-	return h.fromPB(pbh)
-}
-
-func (sh *SignedAckHeader) toPB() *types.SignedQueryAckHeader {
-	return &types.SignedQueryAckHeader{
-		Header:     sh.AckHeader.toPB(),
-		HeaderHash: hashToPB(&sh.HeaderHash),
-		Signee:     publicKeyToPB(sh.Signee),
-		Signature:  signatureToPB(sh.Signature),
-	}
-}
-
-func (sh *SignedAckHeader) fromPB(pbsh *types.SignedQueryAckHeader) (err error) {
-	if pbsh == nil {
-		return
-	}
-	if err = sh.AckHeader.fromPB(pbsh.GetHeader()); err != nil {
-		return
-	}
-	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
-		return
-	}
-	if sh.Signee, err = publicKeyFromPB(pbsh.GetSignee()); err != nil {
-		return
-	}
-	if sh.Signature, err = signatureFromPB(pbsh.GetSignature()); err != nil {
-		return
-	}
-	return
-}
-
-func (sh *SignedAckHeader) marshal() ([]byte, error) {
-	return pb.Marshal(sh.toPB())
-}
-
-func (sh *SignedAckHeader) unmarshal(buffer []byte) (err error) {
-	pbsh := new(types.SignedQueryAckHeader)
-	if err = pb.Unmarshal(buffer, pbsh); err != nil {
-		return
-	}
-	return sh.fromPB(pbsh)
+	return buf.Bytes()
 }
 
 // Verify checks hash and signature in ack header.
@@ -134,29 +86,9 @@ func (sh *SignedAckHeader) Verify() (err error) {
 	return
 }
 
-func (a *Ack) toPB() *types.QueryAck {
-	return &types.QueryAck{
-		Header: a.Header.toPB(),
-	}
-}
-
-func (a *Ack) fromPB(pba *types.QueryAck) (err error) {
-	if pba == nil {
-		return
-	}
-	return a.Header.fromPB(pba.GetHeader())
-}
-
-func (a *Ack) marshal() ([]byte, error) {
-	return pb.Marshal(a.toPB())
-}
-
-func (a *Ack) unmarshal(buffer []byte) (err error) {
-	pba := new(types.QueryAck)
-	if err = pb.Unmarshal(buffer, pba); err != nil {
-		return
-	}
-	return a.fromPB(pba)
+// Serialize structure to bytes.
+func (a *Ack) Serialize() []byte {
+	return a.Header.Serialize()
 }
 
 // Verify checks hash and signature in ack.

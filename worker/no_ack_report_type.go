@@ -17,14 +17,14 @@
 package worker
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
-	pb "github.com/golang/protobuf/proto"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/types"
 )
 
 // NoAckReportHeader defines worker issued client no ack report.
@@ -70,77 +70,29 @@ type AggrNoAckReport struct {
 	Header SignedAggrNoAckReportHeader
 }
 
-func (h *NoAckReportHeader) toPB() *types.NoQueryAckReportHeader {
-	return &types.NoQueryAckReportHeader{
-		NodeID:    &types.NodeID{NodeID: string(h.NodeID)},
-		Timestamp: timeToTimestamp(h.Timestamp),
-		Request:   h.Request.toPB(),
-		Response:  h.Response.toPB(),
-	}
+// Serialize structure to bytes.
+func (h *NoAckReportHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
+
+	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
+	buf.WriteString(string(h.NodeID))
+	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
+	buf.Write(h.Request.Serialize())
+	buf.Write(h.Response.Serialize())
+
+	return buf.Bytes()
 }
 
-func (h *NoAckReportHeader) fromPB(pbh *types.NoQueryAckReportHeader) (err error) {
-	if pbh == nil {
-		return
-	}
-	h.NodeID = proto.NodeID(pbh.GetNodeID().GetNodeID())
-	h.Timestamp = timeFromTimestamp(pbh.GetTimestamp())
-	if err = h.Request.fromPB(pbh.GetRequest()); err != nil {
-		return
-	}
-	return h.Response.fromPB(pbh.GetResponse())
-}
+// Serialize structure to bytes.
+func (sh *SignedNoAckReportHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-func (h *NoAckReportHeader) marshal() ([]byte, error) {
-	return pb.Marshal(h.toPB())
-}
+	buf.Write(sh.NoAckReportHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	buf.Write(sh.Signee.Serialize())
+	buf.Write(sh.Signature.Serialize())
 
-func (h *NoAckReportHeader) unmarshal(buffer []byte) (err error) {
-	pbh := new(types.NoQueryAckReportHeader)
-	if err = pb.Unmarshal(buffer, pbh); err != nil {
-		return
-	}
-	return h.fromPB(pbh)
-}
-
-func (sh *SignedNoAckReportHeader) toPB() *types.SignedNoQueryAckReportHeader {
-	return &types.SignedNoQueryAckReportHeader{
-		Header:     sh.NoAckReportHeader.toPB(),
-		HeaderHash: hashToPB(&sh.HeaderHash),
-		Signee:     publicKeyToPB(sh.Signee),
-		Signature:  signatureToPB(sh.Signature),
-	}
-}
-
-func (sh *SignedNoAckReportHeader) fromPB(pbsh *types.SignedNoQueryAckReportHeader) (err error) {
-	if pbsh == nil {
-		return
-	}
-	if err = sh.NoAckReportHeader.fromPB(pbsh.GetHeader()); err != nil {
-		return
-	}
-	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
-		return
-	}
-	if sh.Signee, err = publicKeyFromPB(pbsh.GetSignee()); err != nil {
-		return
-	}
-	if sh.Signature, err = signatureFromPB(pbsh.GetSignature()); err != nil {
-		return
-	}
-	return
-}
-
-func (sh *SignedNoAckReportHeader) marshal() ([]byte, error) {
-	return pb.Marshal(sh.toPB())
-}
-
-func (sh *SignedNoAckReportHeader) unmarshal(buffer []byte) (err error) {
-	pbsh := new(types.SignedNoQueryAckReportHeader)
-	if err = pb.Unmarshal(buffer, pbsh); err != nil {
-		return
-	}
-	return sh.fromPB(pbsh)
+	return buf.Bytes()
 }
 
 // Verify checks hash and signature in signed no ack report header.
@@ -164,29 +116,9 @@ func (sh *SignedNoAckReportHeader) Verify() (err error) {
 	return
 }
 
-func (r *NoAckReport) toPB() *types.NoQueryAckReport {
-	return &types.NoQueryAckReport{
-		Header: r.Header.toPB(),
-	}
-}
-
-func (r *NoAckReport) fromPB(pbr *types.NoQueryAckReport) (err error) {
-	if pbr == nil {
-		return
-	}
-	return r.Header.fromPB(pbr.GetHeader())
-}
-
-func (r *NoAckReport) marshal() ([]byte, error) {
-	return pb.Marshal(r.toPB())
-}
-
-func (r *NoAckReport) unmarshal(buffer []byte) (err error) {
-	pbr := new(types.NoQueryAckReport)
-	if err = pb.Unmarshal(buffer, pbr); err != nil {
-		return
-	}
-	return r.fromPB(pbr)
+// Serialize structure to bytes.
+func (r *NoAckReport) Serialize() []byte {
+	return r.Serialize()
 }
 
 // Verify checks hash and signature in whole no ack report.
@@ -194,93 +126,33 @@ func (r *NoAckReport) Verify() error {
 	return r.Header.Verify()
 }
 
-func (h *AggrNoAckReportHeader) toPB() *types.AggrNoQueryAckReportHeader {
-	return &types.AggrNoQueryAckReportHeader{
-		NodeID:    &types.NodeID{NodeID: string(h.NodeID)},
-		Timestamp: timeToTimestamp(h.Timestamp),
-		Request:   h.Request.toPB(),
-		Reports: func(reports []SignedNoAckReportHeader) []*types.SignedNoQueryAckReportHeader {
-			res := make([]*types.SignedNoQueryAckReportHeader, 0, len(reports))
+// Serialize structure to bytes.
+func (h *AggrNoAckReportHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-			for _, report := range reports {
-				res = append(res, report.toPB())
-			}
-
-			return res
-		}(h.Reports),
-		// TODO peers
+	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
+	buf.WriteString(string(h.NodeID))
+	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
+	buf.Write(h.Request.Serialize())
+	binary.Write(buf, binary.LittleEndian, uint64(len(h.Reports)))
+	for _, r := range h.Reports {
+		buf.Write(r.Serialize())
 	}
+	buf.Write(h.Peers.Serialize())
+
+	return buf.Bytes()
 }
 
-func (h *AggrNoAckReportHeader) fromPB(pbh *types.AggrNoQueryAckReportHeader) (err error) {
-	if pbh == nil {
-		return
-	}
-	h.NodeID = proto.NodeID(pbh.GetNodeID().GetNodeID())
-	h.Timestamp = timeFromTimestamp(pbh.GetTimestamp())
-	if err = h.Request.fromPB(pbh.GetRequest()); err != nil {
-		return
-	}
-	h.Reports = make([]SignedNoAckReportHeader, len(pbh.GetReports()))
-	for i, r := range pbh.GetReports() {
-		if err = h.Reports[i].fromPB(r); err != nil {
-			return
-		}
-	}
-	// TODO peers
-	return
-}
+// Serialize structure to bytes.
+func (sh *SignedAggrNoAckReportHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-func (h *AggrNoAckReportHeader) marshal() ([]byte, error) {
-	return pb.Marshal(h.toPB())
-}
+	buf.Write(sh.AggrNoAckReportHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	buf.Write(sh.Signee.Serialize())
+	buf.Write(sh.Signature.Serialize())
 
-func (h *AggrNoAckReportHeader) unmarshal(buffer []byte) (err error) {
-	pbh := new(types.AggrNoQueryAckReportHeader)
-	if err = pb.Unmarshal(buffer, pbh); err != nil {
-		return
-	}
-	return h.fromPB(pbh)
-}
-
-func (sh *SignedAggrNoAckReportHeader) toPB() *types.SignedAggrNoQueryAckReportHeader {
-	return &types.SignedAggrNoQueryAckReportHeader{
-		Header:     sh.AggrNoAckReportHeader.toPB(),
-		HeaderHash: hashToPB(&sh.HeaderHash),
-		Signee:     publicKeyToPB(sh.Signee),
-		Signature:  signatureToPB(sh.Signature),
-	}
-}
-
-func (sh *SignedAggrNoAckReportHeader) fromPB(pbsh *types.SignedAggrNoQueryAckReportHeader) (err error) {
-	if pbsh == nil {
-		return
-	}
-	if err = sh.AggrNoAckReportHeader.fromPB(pbsh.GetHeader()); err != nil {
-		return
-	}
-	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
-		return
-	}
-	if sh.Signee, err = publicKeyFromPB(pbsh.GetSignee()); err != nil {
-		return
-	}
-	if sh.Signature, err = signatureFromPB(pbsh.GetSignature()); err != nil {
-		return
-	}
-	return
-}
-
-func (sh *SignedAggrNoAckReportHeader) marshal() ([]byte, error) {
-	return pb.Marshal(sh.toPB())
-}
-
-func (sh *SignedAggrNoAckReportHeader) unmarshal(buffer []byte) (err error) {
-	pbsh := new(types.SignedAggrNoQueryAckReportHeader)
-	if err = pb.Unmarshal(buffer, pbsh); err != nil {
-		return
-	}
-	return sh.fromPB(pbsh)
+	return buf.Bytes()
 }
 
 // Verify checks hash and signature in aggregated no ack report.
@@ -306,29 +178,9 @@ func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 	return
 }
 
-func (r *AggrNoAckReport) toPB() *types.SignedAggrNoQueryAckReport {
-	return &types.SignedAggrNoQueryAckReport{
-		Header: r.Header.toPB(),
-	}
-}
-
-func (r *AggrNoAckReport) fromPB(pbr *types.SignedAggrNoQueryAckReport) (err error) {
-	if pbr == nil {
-		return
-	}
-	return r.Header.fromPB(pbr.GetHeader())
-}
-
-func (r *AggrNoAckReport) marshal() ([]byte, error) {
-	return pb.Marshal(r.toPB())
-}
-
-func (r *AggrNoAckReport) unmarshal(buffer []byte) (err error) {
-	pbr := new(types.SignedAggrNoQueryAckReport)
-	if err = pb.Unmarshal(buffer, pbr); err != nil {
-		return
-	}
-	return r.fromPB(pbr)
+// Serialize structure to bytes.
+func (r *AggrNoAckReport) Serialize() ([]byte, error) {
+	return r.Serialize()
 }
 
 // Verify the whole aggregation no ack report.

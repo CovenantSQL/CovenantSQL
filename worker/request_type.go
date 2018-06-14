@@ -17,13 +17,13 @@
 package worker
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
-	pb "github.com/golang/protobuf/proto"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/types"
 )
 
 // QueryType enumerates available query type, currently read/write.
@@ -66,111 +66,45 @@ type Request struct {
 	Payload RequestPayload
 }
 
-func (p *RequestPayload) toPB() *types.QueryRequestPayload {
-	return &types.QueryRequestPayload{
-		Queries: p.Queries,
+// Serialize returns byte based binary form of struct.
+func (p *RequestPayload) Serialize() []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, uint64(len(p.Queries)))
+
+	for _, q := range p.Queries {
+		binary.Write(buf, binary.LittleEndian, uint64(len(q)))
+		buf.WriteString(q)
 	}
+
+	return buf.Bytes()
 }
 
-func (p *RequestPayload) fromPB(pbp *types.QueryRequestPayload) (err error) {
-	if pbp == nil {
-		return
-	}
+// Serialize returns bytes based binary form of struct.
+func (h *RequestHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-	copy(p.Queries, pbp.GetQueries())
-	return
+	binary.Write(buf, binary.LittleEndian, h.QueryType)
+	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
+	buf.WriteString(string(h.NodeID))
+	binary.Write(buf, binary.LittleEndian, h.ConnectionID)
+	binary.Write(buf, binary.LittleEndian, h.SeqNo)
+	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano())) // use nanoseconds unix epoch
+	binary.Write(buf, binary.LittleEndian, h.BatchCount)
+	buf.Write(h.QueriesHash[:])
+
+	return buf.Bytes()
 }
 
-func (p *RequestPayload) marshal() ([]byte, error) {
-	return pb.Marshal(p.toPB())
-}
+// Serialize returns bytes based binary form of struct.
+func (sh *SignedRequestHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-func (p *RequestPayload) unmarshal(buffer []byte) (err error) {
-	pbRp := new(types.QueryRequestPayload)
-	err = pb.Unmarshal(buffer, pbRp)
-	if err != nil {
-		return err
-	}
+	buf.Write(sh.RequestHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	buf.Write(sh.Signee.Serialize())
+	buf.Write(sh.Signature.Serialize())
 
-	return p.fromPB(pbRp)
-}
-
-func (h *RequestHeader) toPB() *types.QueryRequestHeader {
-	return &types.QueryRequestHeader{
-		QueryType:    types.QueryType(h.QueryType),
-		NodeID:       &types.NodeID{NodeID: string(h.NodeID)},
-		ConnectionID: h.ConnectionID,
-		SeqNo:        h.SeqNo,
-		Timestamp:    timeToTimestamp(h.Timestamp),
-		BatchCount:   h.BatchCount,
-		QueriesHash:  hashToPB(&h.QueriesHash),
-	}
-}
-
-func (h *RequestHeader) fromPB(pbh *types.QueryRequestHeader) (err error) {
-	if pbh == nil {
-		return
-	}
-
-	h.QueryType = QueryType(pbh.GetQueryType())
-	h.NodeID = proto.NodeID(pbh.GetNodeID().GetNodeID())
-	h.ConnectionID = pbh.GetConnectionID()
-	h.SeqNo = pbh.GetSeqNo()
-	h.Timestamp = timeFromTimestamp(pbh.GetTimestamp())
-	h.BatchCount = pbh.GetBatchCount()
-	return hashFromPB(pbh.GetQueriesHash(), &h.QueriesHash)
-}
-
-func (h *RequestHeader) marshal() ([]byte, error) {
-	return pb.Marshal(h.toPB())
-}
-
-func (h *RequestHeader) unmarshal(buffer []byte) (err error) {
-	pbh := new(types.QueryRequestHeader)
-	if err = pb.Unmarshal(buffer, pbh); err != nil {
-		return
-	}
-	return h.fromPB(pbh)
-}
-
-func (sh *SignedRequestHeader) toPB() *types.SignedQueryRequestHeader {
-	return &types.SignedQueryRequestHeader{
-		Header:     sh.RequestHeader.toPB(),
-		HeaderHash: hashToPB(&sh.HeaderHash),
-		Signee:     publicKeyToPB(sh.Signee),
-		Signature:  signatureToPB(sh.Signature),
-	}
-}
-
-func (sh *SignedRequestHeader) fromPB(pbsh *types.SignedQueryRequestHeader) (err error) {
-	if pbsh == nil {
-		return
-	}
-	if err = sh.RequestHeader.fromPB(pbsh.GetHeader()); err != nil {
-		return
-	}
-	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
-		return
-	}
-	if sh.Signee, err = publicKeyFromPB(pbsh.GetSignee()); err != nil {
-		return
-	}
-	if sh.Signature, err = signatureFromPB(pbsh.GetSignature()); err != nil {
-		return
-	}
-	return
-}
-
-func (sh *SignedRequestHeader) marshal() ([]byte, error) {
-	return pb.Marshal(sh.toPB())
-}
-
-func (sh *SignedRequestHeader) unmarshal(buffer []byte) (err error) {
-	pbsh := new(types.SignedQueryRequestHeader)
-	if err = pb.Unmarshal(buffer, pbsh); err != nil {
-		return
-	}
-	return sh.fromPB(pbsh)
+	return buf.Bytes()
 }
 
 // Verify checks hash and signature in request header.
@@ -186,36 +120,14 @@ func (sh *SignedRequestHeader) Verify() (err error) {
 	return nil
 }
 
-func (r *Request) toPB() *types.QueryRequest {
-	return &types.QueryRequest{
-		Header:  r.Header.toPB(),
-		Payload: r.Payload.toPB(),
-	}
-}
+// Serialize returns bytes based binary form of struct.
+func (r *Request) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-func (r *Request) fromPB(pbr *types.QueryRequest) (err error) {
-	if pbr == nil {
-		return
-	}
-	if err = r.Header.fromPB(pbr.GetHeader()); err != nil {
-		return
-	}
-	if err = r.Payload.fromPB(pbr.GetPayload()); err != nil {
-		return
-	}
-	return
-}
+	buf.Write(r.Header.Serialize())
+	buf.Write(r.Payload.Serialize())
 
-func (r *Request) marshal() ([]byte, error) {
-	return pb.Marshal(r.toPB())
-}
-
-func (r *Request) unmarshal(buffer []byte) (err error) {
-	pbr := new(types.QueryRequest)
-	if err = pb.Unmarshal(buffer, pbr); err != nil {
-		return
-	}
-	return r.fromPB(pbr)
+	return buf.Bytes()
 }
 
 // Verify checks hash and signature in whole request.

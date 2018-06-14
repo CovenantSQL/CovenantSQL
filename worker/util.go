@@ -17,85 +17,14 @@
 package worker
 
 import (
-	"math/big"
-	"time"
-
-	"github.com/btcsuite/btcd/btcec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	"gitlab.com/thunderdb/ThunderDB/types"
 )
 
-func publicKeyToPB(publicKey *signature.PublicKey) *types.PublicKey {
-	return &types.PublicKey{
-		PublicKey: publicKey.Serialize(),
-	}
+type canSerialize interface {
+	Serialize() []byte
 }
 
-func publicKeyFromPB(pb *types.PublicKey) (*signature.PublicKey, error) {
-	return signature.ParsePubKey(pb.GetPublicKey(), btcec.S256())
-}
-
-func signatureToPB(sig *signature.Signature) *types.Signature {
-	if sig == nil {
-		return nil
-	}
-
-	return &types.Signature{
-		S: sig.S.String(),
-		R: sig.R.String(),
-	}
-}
-
-func signatureFromPB(pb *types.Signature) (*signature.Signature, error) {
-	pr := new(big.Int)
-	ps := new(big.Int)
-
-	pr, ok := pr.SetString(pb.GetR(), 10)
-
-	if !ok {
-		return nil, sqlchain.ErrFieldConversion
-	}
-
-	ps, ok = ps.SetString(pb.GetS(), 10)
-
-	if !ok {
-		return nil, sqlchain.ErrFieldConversion
-	}
-
-	return &signature.Signature{
-		R: pr,
-		S: ps,
-	}, nil
-}
-
-func timeToTimestamp(t time.Time) int64 {
-	return t.UnixNano()
-}
-
-func timeFromTimestamp(tm int64) time.Time {
-	return time.Unix(0, tm).UTC()
-}
-
-func hashToPB(h *hash.Hash) *types.Hash {
-	return &types.Hash{Hash: h[:]}
-}
-
-func hashFromPB(pb *types.Hash, h *hash.Hash) (err error) {
-	if len(pb.GetHash()) != hash.HashSize {
-		return ErrFieldLength
-	}
-
-	copy(h[:], pb.GetHash())
-	return
-}
-
-type hasMarshal interface {
-	marshal() ([]byte, error)
-}
-
-func verifyHash(data hasMarshal, h *hash.Hash) (err error) {
+func verifyHash(data canSerialize, h *hash.Hash) (err error) {
 	var newHash hash.Hash
 	if err = buildHash(data, &newHash); err != nil {
 		return
@@ -106,13 +35,8 @@ func verifyHash(data hasMarshal, h *hash.Hash) (err error) {
 	return
 }
 
-func buildHash(data hasMarshal, h *hash.Hash) (err error) {
-	var buffer []byte
-	if buffer, err = data.marshal(); err != nil {
-		return
-	}
-
-	newHash := hash.THashH(buffer)
+func buildHash(data canSerialize, h *hash.Hash) (err error) {
+	newHash := hash.THashH(data.Serialize())
 	copy(h[:], newHash[:])
 	return
 }

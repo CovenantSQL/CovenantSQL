@@ -17,25 +17,27 @@
 package worker
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
-	pb "github.com/golang/protobuf/proto"
+	"github.com/hashicorp/go-msgpack/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/types"
 )
 
 // ResponseRow defines single row of query response.
 type ResponseRow struct {
+	// TODO(xq262144), currently use as-is type from golang sqlite3 driver
 	Values []interface{}
-	// TODO, convert to bytes array or using golang any type
 }
 
 // ResponsePayload defines column names and rows of query response.
 type ResponsePayload struct {
-	Columns []string
-	Rows    []ResponseRow
+	Columns   []string
+	DeclTypes []string
+	Rows      []ResponseRow
 }
 
 // ResponseHeader defines a query response header.
@@ -62,85 +64,67 @@ type Response struct {
 	Payload ResponsePayload
 }
 
-func (h *ResponseHeader) toPB() *types.QueryResponseHeader {
-	return &types.QueryResponseHeader{
-		Request:           h.Request.toPB(),
-		NodeID:            &types.NodeID{NodeID: string(h.NodeID)},
-		Timestamp:         timeToTimestamp(h.Timestamp),
-		RowCount:          h.RowCount,
-		AffectedRowsCount: h.AffectedRowsCount,
-		DataHash:          hashToPB(&h.DataHash),
+// Serialize structure to bytes.
+func (r *ResponseRow) Serialize() []byte {
+	// FIXME(xq262144), currently use idiomatic serialization for hash generation
+	buf := new(bytes.Buffer)
+	hd := codec.MsgpackHandle{}
+	enc := codec.NewEncoder(buf, &hd)
+	err := enc.Encode(r)
+	// FIXME(xq262144), panic of failure, should never happened
+	if err != nil {
+		panic(err)
 	}
+	return buf.Bytes()
 }
 
-func (h *ResponseHeader) fromPB(pbh *types.QueryResponseHeader) (err error) {
-	if pbh == nil {
-		return
+// Serialize structure to bytes.
+func (r *ResponsePayload) Serialize() []byte {
+	buf := new(bytes.Buffer)
+
+	binary.Write(buf, binary.LittleEndian, uint64(len(r.Columns)))
+	for _, c := range r.Columns {
+		buf.WriteString(c)
 	}
 
-	if err = h.Request.fromPB(pbh.GetRequest()); err != nil {
-		return
+	binary.Write(buf, binary.LittleEndian, uint64(len(r.DeclTypes)))
+	for _, t := range r.DeclTypes {
+		buf.WriteString(t)
 	}
-	h.NodeID = proto.NodeID(pbh.GetNodeID().GetNodeID())
-	h.Timestamp = timeFromTimestamp(pbh.GetTimestamp())
-	h.RowCount = pbh.GetRowCount()
-	h.AffectedRowsCount = pbh.GetAffectedRowsCount()
-	return hashFromPB(pbh.GetDataHash(), &h.DataHash)
+
+	binary.Write(buf, binary.LittleEndian, uint64(len(r.Rows)))
+	for _, row := range r.Rows {
+		buf.Write(row.Serialize())
+	}
+
+	return buf.Bytes()
 }
 
-func (h *ResponseHeader) marshal() ([]byte, error) {
-	return pb.Marshal(h.toPB())
+// Serialize structure to bytes.
+func (h *ResponseHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
+
+	buf.Write(h.Request.Serialize())
+	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
+	buf.WriteString(string(h.NodeID))
+	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
+	binary.Write(buf, binary.LittleEndian, h.RowCount)
+	binary.Write(buf, binary.LittleEndian, h.AffectedRowsCount)
+	buf.Write(h.DataHash[:])
+
+	return buf.Bytes()
 }
 
-func (h *ResponseHeader) unmarshal(buffer []byte) (err error) {
-	pbh := new(types.QueryResponseHeader)
-	if err = pb.Unmarshal(buffer, pbh); err != nil {
-		return
-	}
+// Serialize structure to bytes.
+func (sh *SignedResponseHeader) Serialize() []byte {
+	buf := new(bytes.Buffer)
 
-	return h.fromPB(pbh)
-}
+	buf.Write(sh.ResponseHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	buf.Write(sh.Signee.Serialize())
+	buf.Write(sh.Signature.Serialize())
 
-func (sh *SignedResponseHeader) toPB() *types.SignedQueryResponseHeader {
-	return &types.SignedQueryResponseHeader{
-		Header:     sh.ResponseHeader.toPB(),
-		HeaderHash: hashToPB(&sh.HeaderHash),
-		Signee:     publicKeyToPB(sh.Signee),
-		Signature:  signatureToPB(sh.Signature),
-	}
-}
-
-func (sh *SignedResponseHeader) fromPB(pbsh *types.SignedQueryResponseHeader) (err error) {
-	if pbsh == nil {
-		return
-	}
-
-	if err = sh.ResponseHeader.fromPB(pbsh.GetHeader()); err != nil {
-		return
-	}
-	if err = hashFromPB(pbsh.GetHeaderHash(), &sh.HeaderHash); err != nil {
-		return
-	}
-	if sh.Signee, err = publicKeyFromPB(pbsh.GetSignee()); err != nil {
-		return
-	}
-	if sh.Signature, err = signatureFromPB(pbsh.GetSignature()); err != nil {
-		return
-	}
-	return
-}
-
-func (sh *SignedResponseHeader) marshal() ([]byte, error) {
-	return pb.Marshal(sh.toPB())
-}
-
-func (sh *SignedResponseHeader) unmarshal(buffer []byte) (err error) {
-	pbsh := new(types.SignedQueryResponseHeader)
-	if err = pb.Unmarshal(buffer, pbsh); err != nil {
-		return
-	}
-
-	return sh.fromPB(pbsh)
+	return buf.Bytes()
 }
 
 // Verify checks hash and signature in response header.

@@ -33,12 +33,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/hashicorp/go-msgpack"
-  packages = ["codec"]
-  revision = "fa3f63826f7c23912c15263591e65d54d080b458"
-
-[[projects]]
-  branch = "master"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
@@ -144,6 +138,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "723aca91a68d9ef1f55facebcdf74a1585469fa92dbbd417222debf42da86c4f"
+  inputs-digest = "391cd4a6f978a618e6904b84b5e3edda43de44fd21984bf21b9e2d66a10a13f5"
   solver-name = "gps-cdcl"
   solver-version = 1

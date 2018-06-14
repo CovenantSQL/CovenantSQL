@@ -26,6 +26,7 @@ import (
 	"bytes"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/symmetric"
 )
 
@@ -52,7 +53,7 @@ const (
 func TestLoadPrivateKey(t *testing.T) {
 	Convey("save and load", t, func() {
 		defer os.Remove(privateKeyPath)
-		pk, err := GeneratePrivateKey()
+		pk, _, err := asymmetric.GenSecp256k1KeyPair()
 		So(pk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		err = SavePrivateKey(privateKeyPath, pk, []byte(password))

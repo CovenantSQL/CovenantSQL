@@ -18,7 +18,6 @@ package asymmetric
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"math/big"
 	"time"
 
@@ -65,27 +64,15 @@ func (p *PublicKey) IsEqual(public *PublicKey) bool {
 	return (*ec.PublicKey)(p).IsEqual((*ec.PublicKey)(public))
 }
 
-// Serialize returns the private key number d as a big-endian binary-encoded number, padded to a
-// length of 32 bytes.
-func (p *PrivateKey) Serialize() []byte {
-	b := make([]byte, 0, PrivateKeyBytesLen)
-	return paddedAppend(PrivateKeyBytesLen, b, p.D.Bytes())
-}
-
-// PubKey return the public key
-func (p *PrivateKey) PubKey() *PublicKey {
-	return (*PublicKey)((*ec.PrivateKey)(p).PubKey())
-}
-
 // toECDSA returns the public key as a *ecdsa.PublicKey.
-func (p *PublicKey) toECDSA() *ecdsa.PublicKey {
-	return (*ecdsa.PublicKey)(p)
+func (pub *PublicKey) toECDSA() *ecdsa.PublicKey {
+	return (*ecdsa.PublicKey)(pub)
 }
 
 // Serialize is a function that converts a public key
 // to uncompressed byte array
-func (p *PublicKey) Serialize() []byte {
-	return (*ec.PublicKey)(p).SerializeCompressed()
+func (pub *PublicKey) Serialize() []byte {
+	return (*ec.PublicKey)(pub).SerializeCompressed()
 }
 
 // ParsePubKey recovers the public key from pubKeyStr
@@ -96,12 +83,12 @@ func ParsePubKey(pubKeyStr []byte) (*PublicKey, error) {
 
 // PrivKeyFromBytes returns a private and public key for `curve' based on the private key passed
 // as an argument as a byte slice.
-func PrivKeyFromBytes(curve elliptic.Curve, pk []byte) (*PrivateKey, *PublicKey) {
-	x, y := curve.ScalarBaseMult(pk)
+func PrivKeyFromBytes(pk []byte) (*PrivateKey, *PublicKey) {
+	x, y := ec.S256().ScalarBaseMult(pk)
 
 	priv := &ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
-			Curve: curve,
+			Curve: ec.S256(),
 			X:     x,
 			Y:     y,
 		},
@@ -109,6 +96,18 @@ func PrivKeyFromBytes(curve elliptic.Curve, pk []byte) (*PrivateKey, *PublicKey)
 	}
 
 	return (*PrivateKey)(priv), (*PublicKey)(&priv.PublicKey)
+}
+
+// Serialize returns the private key number d as a big-endian binary-encoded number, padded to a
+// length of 32 bytes.
+func (private *PrivateKey) Serialize() []byte {
+	b := make([]byte, 0, PrivateKeyBytesLen)
+	return paddedAppend(PrivateKeyBytesLen, b, private.D.Bytes())
+}
+
+// PubKey return the public key
+func (private *PrivateKey) PubKey() *PublicKey {
+	return (*PublicKey)((*ec.PrivateKey)(private).PubKey())
 }
 
 // paddedAppend appends the src byte slice to dst, returning the new slice. If the length of the

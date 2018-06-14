@@ -43,7 +43,7 @@ func TestSign(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		priv, pub := PrivKeyFromBytes(btcec.S256(), test.key)
+		priv, pub := PrivKeyFromBytes(test.key)
 		hash := []byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9}
 		sig, err := priv.Sign(hash)
 

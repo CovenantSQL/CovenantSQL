@@ -21,10 +21,10 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/ugorji/go/codec"
 )
 
 // ResponseRow defines single row of query response.

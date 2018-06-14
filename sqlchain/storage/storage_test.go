@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -75,6 +76,7 @@ func TestStorage(t *testing.T) {
 		Timestamp:    time.Now().UnixNano(),
 		Queries: []string{
 			"CREATE TABLE IF NOT EXISTS `kv` (`key` TEXT PRIMARY KEY, `value` BLOB)",
+			"INSERT OR IGNORE INTO `kv` VALUES ('k0', NULL)",
 			"INSERT OR IGNORE INTO `kv` VALUES ('k1', 'v1')",
 			"INSERT OR IGNORE INTO `kv` VALUES ('k2', 'v2')",
 			"INSERT OR IGNORE INTO `kv` VALUES ('k3', 'v3')",
@@ -120,5 +122,142 @@ func TestStorage(t *testing.T) {
 
 	if err = st.Commit(context.Background(), el1); err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	}
+
+	// test query
+	columns, types, data, err := st.Query(context.Background(), []string{"SELECT * FROM `kv` ORDER BY `key` ASC"})
+
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	}
+	if !reflect.DeepEqual(columns, []string{"key", "value"}) {
+		t.Fatalf("Error column result: %v", columns)
+	}
+	if !reflect.DeepEqual(types, []string{"TEXT", "BLOB"}) {
+		t.Fatalf("Error types result: %v", types)
+	}
+	if len(data) != 3 {
+		t.Fatalf("Error result count: %v, should be 3", len(data))
+	} else {
+		// compare rows
+		// FIXME(xq262144), this version of go-sqlite3 driver returns text field in bytes array type
+		should1 := []interface{}{[]byte("k0"), nil}
+		should2 := []interface{}{[]byte("k1"), []byte("v1")}
+		should3 := []interface{}{[]byte("k3"), []byte("v3-2")}
+		t.Logf("Rows: %v", data)
+		if !reflect.DeepEqual(data[0], should1) {
+			t.Fatalf("Error result row: %v, should: %v", data[0], should1)
+		}
+		if !reflect.DeepEqual(data[1], should2) {
+			t.Fatalf("Error result row: %v, should: %v", data[1], should2)
+		}
+		if !reflect.DeepEqual(data[2], should3) {
+			t.Fatalf("Error result row: %v, should: %v", data[2], should2)
+		}
+	}
+
+	// test query with projection
+	columns, types, data, err = st.Query(context.Background(), []string{"SELECT `key` FROM `kv` ORDER BY `key` ASC"})
+
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	}
+	if !reflect.DeepEqual(columns, []string{"key"}) {
+		t.Fatalf("Error column result: %v", columns)
+	}
+	if !reflect.DeepEqual(types, []string{"TEXT"}) {
+		t.Fatalf("Error types result: %v", types)
+	}
+	if len(data) != 3 {
+		t.Fatalf("Error result count: %v, should be 3", len(data))
+	} else {
+		// compare rows
+		// FIXME(xq262144), this version of go-sqlite3 driver returns text field in bytes array type
+		should1 := []interface{}{[]byte("k0")}
+		should2 := []interface{}{[]byte("k1")}
+		should3 := []interface{}{[]byte("k3")}
+		t.Logf("Rows: %v", data)
+		if !reflect.DeepEqual(data[0], should1) {
+			t.Fatalf("Error result row: %v, should: %v", data[0], should1)
+		}
+		if !reflect.DeepEqual(data[1], should2) {
+			t.Fatalf("Error result row: %v, should: %v", data[1], should2)
+		}
+		if !reflect.DeepEqual(data[2], should3) {
+			t.Fatalf("Error result row: %v, should: %v", data[2], should2)
+		}
+	}
+
+	// test query with condition
+	columns, types, data, err = st.Query(context.Background(), []string{"SELECT `key` FROM `kv` WHERE `value` IS NOT NULL ORDER BY `key` ASC"})
+
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	}
+	if !reflect.DeepEqual(columns, []string{"key"}) {
+		t.Fatalf("Error column result: %v", columns)
+	}
+	if !reflect.DeepEqual(types, []string{"TEXT"}) {
+		t.Fatalf("Error types result: %v", types)
+	}
+	if len(data) != 2 {
+		t.Fatalf("Error result count: %v, should be 3", len(data))
+	} else {
+		// compare rows
+		// FIXME(xq262144), this version of go-sqlite3 driver returns text field in bytes array type
+		should1 := []interface{}{[]byte("k1")}
+		should2 := []interface{}{[]byte("k3")}
+		t.Logf("Rows: %v", data)
+		if !reflect.DeepEqual(data[0], should1) {
+			t.Fatalf("Error result row: %v, should: %v", data[0], should1)
+		}
+		if !reflect.DeepEqual(data[1], should2) {
+			t.Fatalf("Error result row: %v, should: %v", data[1], should2)
+		}
+	}
+
+	// test failed query
+	columns, types, data, err = st.Query(context.Background(), []string{"SQL???? WHAT!!!!"})
+
+	if err == nil {
+		t.Fatalf("Query should failed")
+	} else {
+		t.Logf("Query failed as expected with: %v", err.Error())
+	}
+
+	// test non-read query
+	columns, types, data, err = st.Query(context.Background(), []string{"DELETE FROM `kv` WHERE `value` IS NULL"})
+
+	// FIXME(xq262144), storage should return err on non-read query
+
+	// test again
+	columns, types, data, err = st.Query(context.Background(), []string{"SELECT `key` FROM `kv`"})
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	} else if len(data) != 3 {
+		t.Fatalf("Last write query should not take any effect, row count: %v", len(data))
+	}
+
+	// test with function
+	columns, types, data, err = st.Query(context.Background(), []string{"SELECT COUNT(1) AS `c` FROM `kv`"})
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	} else {
+		if len(columns) != 1 {
+			t.Fatalf("Query result should contain only one column, now %v", len(columns))
+		} else if columns[0] != "c" {
+			t.Fatalf("Query result column name is not defined alias, but :%v", columns[0])
+		}
+		if len(types) != 1 {
+			t.Fatalf("Query result should contain only one column, now %v", len(types))
+		} else {
+			// FIXME(xq262144), dynamic function type is not analyzed sqlite3 itself nor the golang-sqlite3 driver
+			t.Logf("Query result type is: %v", types[0])
+		}
+		if len(data) != 1 || len(data[0]) != 1 {
+			t.Fatalf("Query result should contain only one row and one column, now %v", data)
+		} else if !reflect.DeepEqual(data[0][0], int64(3)) {
+			t.Fatalf("Query result should be table row count 3, but: %v", data[0])
+		}
 	}
 }

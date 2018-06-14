@@ -17,18 +17,17 @@
 package sqlchain
 
 import (
-	"math/big"
+	"bytes"
+	"encoding/binary"
 	"reflect"
 	"time"
 
-	pb "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/types"
+	"github.com/thunderdb/ThunderDB/utils"
 )
 
 // Header is a block header.
@@ -42,14 +41,20 @@ type Header struct {
 }
 
 func (h *Header) marshal() ([]byte, error) {
-	return pb.Marshal(&types.Header{
-		Version:    h.Version,
-		Producer:   &types.NodeID{NodeID: string(h.Producer)},
-		Root:       &types.Hash{Hash: h.RootHash[:]},
-		Parent:     &types.Hash{Hash: h.ParentHash[:]},
-		MerkleRoot: &types.Hash{Hash: h.MerkleRoot[:]},
-		Timestamp:  h.Timestamp.UnixNano(),
-	})
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		h.Version,
+		h.Producer,
+		&h.RootHash,
+		&h.ParentHash,
+		&h.MerkleRoot,
+		h.Timestamp,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
 
 // SignedHeader is block header along with its producer signature.
@@ -62,81 +67,38 @@ type SignedHeader struct {
 }
 
 func (s *SignedHeader) marshal() ([]byte, error) {
-	return pb.Marshal(&types.SignedHeader{
-		Header: &types.Header{
-			Version:    s.Version,
-			Producer:   &types.NodeID{NodeID: string(s.Producer)},
-			Root:       &types.Hash{Hash: s.RootHash[:]},
-			Parent:     &types.Hash{Hash: s.ParentHash[:]},
-			MerkleRoot: &types.Hash{Hash: s.MerkleRoot[:]},
-			Timestamp:  s.Timestamp.UnixNano(),
-		},
-		BlockHash: &types.Hash{Hash: s.BlockHash[:]},
-		Signee:    &types.PublicKey{PublicKey: s.Signee.Serialize()},
-		Signature: func(s *asymmetric.Signature) *types.Signature {
-			if s == nil {
-				return nil
-			}
-			return &types.Signature{
-				S: s.S.String(),
-				R: s.R.String(),
-			}
-		}(s.Signature),
-	})
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		s.Version,
+		s.Producer,
+		&s.RootHash,
+		&s.ParentHash,
+		&s.MerkleRoot,
+		s.Timestamp,
+		&s.BlockHash,
+		s.Signee,
+		s.Signature,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
 
-func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
-	pbSignedHeader := &types.SignedHeader{}
-	err = pb.Unmarshal(buffer, pbSignedHeader)
-
-	if err != nil {
-		return
-	}
-
-	pr := new(big.Int)
-	ps := new(big.Int)
-
-	pr, ok := pr.SetString(pbSignedHeader.GetSignature().GetR(), 10)
-
-	if !ok {
-		return ErrFieldConversion
-	}
-
-	ps, ok = ps.SetString(pbSignedHeader.GetSignature().GetS(), 10)
-
-	if !ok {
-		return ErrFieldConversion
-	}
-
-	if len(pbSignedHeader.GetHeader().GetProducer().GetNodeID()) != common.AddressLength ||
-		len(pbSignedHeader.GetHeader().GetRoot().GetHash()) != hash.HashSize ||
-		len(pbSignedHeader.GetHeader().GetParent().GetHash()) != hash.HashSize ||
-		len(pbSignedHeader.GetHeader().GetMerkleRoot().GetHash()) != hash.HashSize ||
-		len(pbSignedHeader.GetBlockHash().GetHash()) != hash.HashSize {
-		return ErrFieldLength
-	}
-
-	pk, err := asymmetric.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey())
-
-	if err != nil {
-		return
-	}
-
-	// Copy fields
-	s.Version = pbSignedHeader.Header.GetVersion()
-	s.Producer = proto.NodeID(pbSignedHeader.GetHeader().GetProducer().GetNodeID())
-	copy(s.RootHash[:], pbSignedHeader.GetHeader().GetRoot().GetHash())
-	copy(s.ParentHash[:], pbSignedHeader.GetHeader().GetParent().GetHash())
-	copy(s.MerkleRoot[:], pbSignedHeader.GetHeader().GetMerkleRoot().GetHash())
-	copy(s.BlockHash[:], pbSignedHeader.GetBlockHash().GetHash())
-	s.Timestamp = time.Unix(0, pbSignedHeader.GetHeader().GetTimestamp()).UTC()
-	s.Signature = &asymmetric.Signature{
-		R: pr,
-		S: ps,
-	}
-	s.Signee = pk
-
-	return
+func (s *SignedHeader) unmarshal(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&s.Version,
+		&s.Producer,
+		&s.RootHash,
+		&s.ParentHash,
+		&s.MerkleRoot,
+		&s.Timestamp,
+		&s.BlockHash,
+		&s.Signee,
+		&s.Signature,
+	)
 }
 
 // Verify verifies the signature of the signed header.

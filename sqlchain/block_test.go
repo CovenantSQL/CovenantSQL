@@ -18,7 +18,6 @@ package sqlchain
 
 import (
 	"math/big"
-	"math/rand"
 	"reflect"
 	"testing"
 
@@ -60,8 +59,7 @@ func TestSerialization(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	rand.Read(buffer)
-	err = rSHeader.unmarshal(buffer)
+	err = rSHeader.unmarshal(nil)
 
 	if err != nil {
 		t.Logf("Error occurred as expected: %v", err)
@@ -70,7 +68,7 @@ func TestSerialization(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(sheader.Header, rSHeader.Header) {
-		t.Fatalf("Values don't match: v1 = %+v, v2 = %+v", sheader.Header, rSHeader.Header)
+		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", sheader.Header, rSHeader.Header)
 	}
 
 	if err = sheader.Verify(); err != nil {

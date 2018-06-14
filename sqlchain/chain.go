@@ -17,12 +17,12 @@
 package sqlchain
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	bolt "github.com/coreos/bbolt"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/types"
+	"github.com/thunderdb/ThunderDB/utils"
 )
 
 var (
@@ -39,29 +39,24 @@ type State struct {
 }
 
 func (s *State) marshal() ([]byte, error) {
-	return pb.Marshal(&types.State{
-		Head:   &types.Hash{Hash: s.Head[:]},
-		Height: s.Height,
-	})
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		s.Head,
+		s.Height,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
 
-func (s *State) unmarshal(buffer []byte) (err error) {
-	pbState := &types.State{}
-	err = pb.Unmarshal(buffer, pbState)
-
-	if err != nil {
-		return err
-	}
-
-	if len(pbState.GetHead().Hash) != hash.HashSize {
-		return ErrFieldLength
-	}
-
-	s.node = nil
-	copy(s.Head[:], pbState.GetHead().Hash)
-	s.Height = pbState.Height
-
-	return err
+func (s *State) unmarshal(b []byte) (err error) {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&s.Head,
+		&s.Height,
+	)
 }
 
 // Chain represents a sql-chain.

@@ -50,8 +50,7 @@ func TestState(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	rand.Read(buffer)
-	err = rState.unmarshal(buffer)
+	err = rState.unmarshal(nil)
 
 	if err != nil {
 		t.Logf("Error occurred as expected: %v", err)

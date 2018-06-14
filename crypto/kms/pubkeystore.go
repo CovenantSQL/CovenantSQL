@@ -23,9 +23,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	"github.com/coreos/bbolt"
 	pb "github.com/golang/protobuf/proto"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
@@ -67,7 +67,7 @@ var (
 		10808639108098016056,
 	}
 	// BPPublicKey point to BlockProducer public key
-	BPPublicKey *ec.PublicKey
+	BPPublicKey *asymmetric.PublicKey
 )
 
 var (
@@ -86,44 +86,42 @@ var (
 // InitPublicKeyStore opens a db file, if not exist, creates it.
 // and creates a bucket if not exist
 func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
-	PksOnce.Do(func() {
-		var bdb *bolt.DB
-		bdb, err = bolt.Open(dbPath, 0600, nil)
-		if err != nil {
-			log.Errorf("InitPublicKeyStore failed: %s", err)
-			return
-		}
+	var bdb *bolt.DB
+	bdb, err = bolt.Open(dbPath, 0600, nil)
+	if err != nil {
+		log.Errorf("InitPublicKeyStore failed: %s", err)
+		return
+	}
 
-		name := []byte(kmsBucketName)
-		err = (*bolt.DB)(bdb).Update(func(tx *bolt.Tx) error {
-			if _, err := tx.CreateBucketIfNotExists(name); err != nil {
-				log.Errorf("could not create bucket: %s", err)
-				return err
-			}
-			return nil // return from Update func
-		})
-		if err != nil {
-			log.Errorf("InitPublicKeyStore failed: %s", err)
-			return
+	name := []byte(kmsBucketName)
+	err = (*bolt.DB)(bdb).Update(func(tx *bolt.Tx) error {
+		if _, err := tx.CreateBucketIfNotExists(name); err != nil {
+			log.Errorf("could not create bucket: %s", err)
+			return err
 		}
-
-		// pks is the singleton instance
-		pks = &PublicKeyStore{
-			db:     bdb,
-			bucket: name,
-		}
-
-		if initNode != nil {
-			err = setPublicKey(initNode)
-		}
+		return nil // return from Update func
 	})
+	if err != nil {
+		log.Errorf("InitPublicKeyStore failed: %s", err)
+		return
+	}
+
+	// pks is the singleton instance
+	pks = &PublicKeyStore{
+		db:     bdb,
+		bucket: name,
+	}
+
+	if initNode != nil {
+		err = setPublicKey(initNode)
+	}
 
 	return
 }
 
 // GetPublicKey gets a PublicKey of given id
 // Returns an error if the id was not found
-func GetPublicKey(id proto.NodeID) (publicKey *ec.PublicKey, err error) {
+func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) {
 	node, err := GetNodeInfo(id)
 	if err == nil {
 		publicKey = node.PublicKey
@@ -148,7 +146,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		nodeInfoTypes := &types.Node{}
 		err = pb.Unmarshal(byteVal, nodeInfoTypes)
 		if err == nil {
-			publicKey, err := ec.ParsePubKey(nodeInfoTypes.PublicKey.PublicKey, ec.S256())
+			publicKey, err := asymmetric.ParsePubKey(nodeInfoTypes.PublicKey.PublicKey)
 			if err == nil {
 				nodeInfo = &proto.Node{
 					ID:        proto.NodeID(nodeInfoTypes.ID.NodeID),
@@ -194,7 +192,7 @@ func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 }
 
 // SetPublicKey verifies nonce and set Public Key
-func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *ec.PublicKey) (err error) {
+func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *asymmetric.PublicKey) (err error) {
 	nodeInfo := &proto.Node{
 		ID:        id,
 		Addr:      "",
@@ -213,7 +211,7 @@ func SetNodeInfo(nodeInfo *proto.Node) (err error) {
 		if nodeInfo.PublicKey == nil {
 			return ErrNilNode
 		}
-		keyHash := mine.HashBlock(nodeInfo.PublicKey.SerializeCompressed(), nodeInfo.Nonce)
+		keyHash := mine.HashBlock(nodeInfo.PublicKey.Serialize(), nodeInfo.Nonce)
 		id := nodeInfo.ID
 		idHash, err := hash.NewHashFromStr(string(id))
 		if err != nil {
@@ -235,7 +233,7 @@ func setPublicKey(nodeInfo *proto.Node) (err error) {
 		},
 		Addr: nodeInfo.Addr,
 		PublicKey: &types.PublicKey{
-			PublicKey: nodeInfo.PublicKey.SerializeCompressed(),
+			PublicKey: nodeInfo.PublicKey.Serialize(),
 		},
 		Nonce: &types.Nonce{
 			A: nodeInfo.Nonce.A,

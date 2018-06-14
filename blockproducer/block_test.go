@@ -27,7 +27,6 @@ import (
 
 	"os"
 
-	"github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -68,7 +67,7 @@ func init() {
 				},
 				Amount:  big.NewInt(int64(i)),
 				Payload: hash.THashB([]byte{byte(i / 2)}),
-				Signature: &btcec.Signature{
+				Signature: &asymmetric.Signature{
 					R: big.NewInt(1238 * i),
 					S: big.NewInt(890321 / (i + 1)),
 				},
@@ -85,7 +84,7 @@ func init() {
 	header = SignedHeader{
 		BlockHash: hash.THashH([]byte{1, 2, 3}),
 		PublicKey: pub,
-		Signature: &btcec.Signature{
+		Signature: &asymmetric.Signature{
 			R: big.NewInt(8391),
 			S: big.NewInt(2371),
 		},
@@ -100,7 +99,7 @@ func init() {
 	header2 = SignedHeader{
 		BlockHash: hash.THashH([]byte{1, 2, 3}),
 		PublicKey: pub,
-		Signature: &btcec.Signature{
+		Signature: &asymmetric.Signature{
 			R: big.NewInt(8391),
 			S: big.NewInt(2371),
 		},

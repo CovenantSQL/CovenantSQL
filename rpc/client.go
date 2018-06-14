@@ -20,9 +20,7 @@ package rpc
 import (
 	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -30,6 +28,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/route"
+	"github.com/ugorji/go/codec"
 )
 
 // Client is RPC client
@@ -70,7 +69,7 @@ func Dial(network, address string, cipher *etls.Cipher) (c *etls.CryptoConn, err
 
 // DailToNode connects to the node with nodeID
 func DailToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
-	var nodePublicKey *ec.PublicKey
+	var nodePublicKey *asymmetric.PublicKey
 	if route.IsBPNodeID(nodeID) {
 		nodePublicKey = kms.BPPublicKey
 	} else {
@@ -140,7 +139,9 @@ func (c *Client) start(conn net.Conn) {
 		log.Panic(err)
 		return
 	}
-	c.Client = rpc.NewClientWithCodec(jsonrpc.NewClientCodec(clientConn))
+	mh := &codec.MsgpackHandle{}
+	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(clientConn, mh)
+	c.Client = rpc.NewClientWithCodec(msgpackCodec)
 }
 
 // Close the client RPC connection

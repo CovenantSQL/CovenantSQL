@@ -27,7 +27,6 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
 )
@@ -69,7 +68,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 				ParentHash: parent,
 				Timestamp:  time.Now().UTC(),
 			},
-			Signee:    (*signature.PublicKey)(pub),
+			Signee:    (*asymmetric.PublicKey)(pub),
 			Signature: nil,
 		},
 		Queries: make([]*Query, rand.Intn(10)+10),
@@ -94,7 +93,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		quitCh := make(chan struct{})
 		miner := cpuminer.NewCPUMiner(quitCh)
 		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.SerializeCompressed(),
+			Data:      pub.Serialize(),
 			NonceChan: nonceCh,
 			Stop:      nil,
 		}, cpuminer.Uint256{0, 0, 0, 0}, 4)
@@ -102,7 +101,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		close(quitCh)
 		close(nonceCh)
 		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.SerializeCompressed(), nonce.Nonce)
+		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
 		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
 		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
 
@@ -111,7 +110,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		}
 	}
 
-	err = b.SignHeader((*signature.PrivateKey)(priv))
+	err = b.SignHeader((*asymmetric.PrivateKey)(priv))
 
 	if err != nil {
 		return nil, err

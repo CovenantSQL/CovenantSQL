@@ -23,16 +23,16 @@ import (
 
 	"errors"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // LocalKeyStore is the type hold local private & public key
 type LocalKeyStore struct {
 	isSet     bool
-	private   *ec.PrivateKey
-	public    *ec.PublicKey
+	private   *asymmetric.PrivateKey
+	public    *asymmetric.PublicKey
 	nodeID    []byte
 	nodeNonce *mine.Uint256
 	sync.RWMutex
@@ -63,7 +63,7 @@ func InitLocalKeyStore() {
 }
 
 // SetLocalKeyPair sets private and public key, this is a one time thing
-func SetLocalKeyPair(private *ec.PrivateKey, public *ec.PublicKey) {
+func SetLocalKeyPair(private *asymmetric.PrivateKey, public *asymmetric.PublicKey) {
 	localKey.Lock()
 	defer localKey.Unlock()
 	if localKey.isSet {
@@ -113,7 +113,7 @@ func GetLocalNonce() (nonce *mine.Uint256, err error) {
 }
 
 // GetLocalPublicKey gets local public key, if not set yet returns nil
-func GetLocalPublicKey() (public *ec.PublicKey, err error) {
+func GetLocalPublicKey() (public *asymmetric.PublicKey, err error) {
 	localKey.RLock()
 	public = localKey.public
 	if public == nil {
@@ -125,7 +125,7 @@ func GetLocalPublicKey() (public *ec.PublicKey, err error) {
 
 // GetLocalPrivateKey gets local private key, if not set yet returns nil
 //  all call to this func will be logged
-func GetLocalPrivateKey() (private *ec.PrivateKey, err error) {
+func GetLocalPrivateKey() (private *asymmetric.PrivateKey, err error) {
 	localKey.RLock()
 	private = localKey.private
 	if private == nil {

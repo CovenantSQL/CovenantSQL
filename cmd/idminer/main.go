@@ -29,8 +29,8 @@ import (
 	"math/rand"
 	"time"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
@@ -50,7 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error converting hex: %s", err)
 	}
-	publicKey, err := ec.ParsePubKey(publicKeyBytes, ec.S256())
+	publicKey, err := asymmetric.ParsePubKey(publicKeyBytes)
 	if err != nil {
 		log.Fatalf("error converting public key: %s", err)
 	}
@@ -77,7 +77,7 @@ func main() {
 			miner := mine.NewCPUMiner(stopChs[i])
 			nonceCh := nonceChs[i]
 			block := mine.MiningBlock{
-				Data:      publicKey.SerializeCompressed(),
+				Data:      publicKey.Serialize(),
 				NonceChan: nonceCh,
 				Stop:      nil,
 			}

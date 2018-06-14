@@ -19,12 +19,10 @@ package rpc
 import (
 	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"sync"
 
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
-
 	"github.com/thunderdb/ThunderDB/conf"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/etls"
@@ -32,6 +30,7 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/route"
+	"github.com/ugorji/go/codec"
 )
 
 // ServiceMap maps service name to service instance
@@ -144,7 +143,8 @@ func (s *Server) serveRPC(sess *yamux.Session) {
 		log.Error(err)
 		return
 	}
-	s.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+	msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(conn, &codec.MsgpackHandle{})
+	s.rpcServer.ServeCodec(msgpackCodec)
 }
 
 // RegisterService with a Service name, used by Client RPC

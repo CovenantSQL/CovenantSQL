@@ -24,8 +24,8 @@ import (
 
 	"os"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
@@ -79,7 +79,7 @@ func TestDailToNode(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		publicKeyBytes, _ := hex.DecodeString(kms.BPPublicKeyStr)
-		kms.BPPublicKey, _ = ec.ParsePubKey(publicKeyBytes, ec.S256())
+		kms.BPPublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
 		BPNode := &proto.Node{
 			ID:        proto.NodeID(kms.BPNodeID),
 			Addr:      "",

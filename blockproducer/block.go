@@ -21,8 +21,8 @@ import (
 
 	"math/big"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	proto2 "github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/types"
@@ -80,8 +80,8 @@ func (h *Header) fromBPHeader(bpHeader *types.BPHeader) error {
 type SignedHeader struct {
 	Header
 	BlockHash hash.Hash
-	PublicKey *btcec.PublicKey
-	Signature *btcec.Signature
+	PublicKey *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 func (h *SignedHeader) toBPSignedHeader() *types.BPSignedHeader {
@@ -96,7 +96,7 @@ func (h *SignedHeader) toBPSignedHeader() *types.BPSignedHeader {
 		},
 		BlockHash: &types.Hash{Hash: h.BlockHash[:]},
 		Signee: &types.PublicKey{
-			PublicKey: h.PublicKey.SerializeUncompressed(),
+			PublicKey: h.PublicKey.Serialize(),
 		},
 		Signature: &types.Signature{
 			R: h.Signature.R.String(),
@@ -111,7 +111,7 @@ func (h *SignedHeader) fromBPSignedHeader(bpSignedHeader *types.BPSignedHeader) 
 		return err
 	}
 
-	publicKey, err := btcec.ParsePubKey(bpSignedHeader.Signee.PublicKey, btcec.S256())
+	publicKey, err := asymmetric.ParsePubKey(bpSignedHeader.Signee.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (h *SignedHeader) fromBPSignedHeader(bpSignedHeader *types.BPSignedHeader) 
 
 	h.BlockHash = *blockHash
 	h.PublicKey = publicKey
-	h.Signature = &btcec.Signature{
+	h.Signature = &asymmetric.Signature{
 		R: r,
 		S: s,
 	}
@@ -161,8 +161,8 @@ type TxData struct {
 	Amount       *big.Int
 	Payload      []byte
 
-	Signature *btcec.Signature
-	PublicKey *btcec.PublicKey
+	Signature *asymmetric.Signature
+	PublicKey *asymmetric.PublicKey
 }
 
 func (t *TxData) toBPTxData() *types.BPTxData {
@@ -176,7 +176,7 @@ func (t *TxData) toBPTxData() *types.BPTxData {
 			S: t.Signature.S.String(),
 		},
 		Signee: &types.PublicKey{
-			PublicKey: t.PublicKey.SerializeUncompressed(),
+			PublicKey: t.PublicKey.Serialize(),
 		},
 	}
 }
@@ -186,7 +186,7 @@ func (t *TxData) marshal() ([]byte, error) {
 }
 
 func (t *TxData) fromBPTxData(bpTxData *types.BPTxData) error {
-	publicKey, err := btcec.ParsePubKey(bpTxData.Signee.PublicKey, btcec.S256())
+	publicKey, err := asymmetric.ParsePubKey(bpTxData.Signee.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (t *TxData) fromBPTxData(bpTxData *types.BPTxData) error {
 	t.Recipient = bpTxData.Recipient
 	t.Amount = amount
 	t.Payload = bpTxData.Payload
-	t.Signature = &btcec.Signature{
+	t.Signature = &asymmetric.Signature{
 		R: r,
 		S: s,
 	}

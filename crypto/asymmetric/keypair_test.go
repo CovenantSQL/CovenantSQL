@@ -25,25 +25,24 @@ import (
 	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto"
 )
 
 func TestGenSecp256k1Keypair(t *testing.T) {
 	privateKey, publicKey, err := GenSecp256k1KeyPair()
 	log.Debugf("privateKey: %x", privateKey.Serialize())
-	log.Debugf("publicKey: %x", publicKey.SerializeCompressed())
+	log.Debugf("publicKey: %x", publicKey.Serialize())
 	if err != nil {
 		t.Fatal("failed to generate private key")
 	}
 
 	in := []byte("Hey there dude. How are you doing? This is a test.")
 
-	out, err := crypto.EncryptAndSign(publicKey, in)
+	out, err := ec.Encrypt((*ec.PublicKey)(publicKey), in)
 	if err != nil {
 		t.Fatal("failed to encrypt:", err)
 	}
 
-	dec, err := crypto.DecryptAndCheck(privateKey, out)
+	dec, err := ec.Decrypt((*ec.PrivateKey)(privateKey), out)
 	if err != nil {
 		t.Fatal("failed to decrypt:", err)
 	}
@@ -77,7 +76,7 @@ func TestGetPubKeyNonce(t *testing.T) {
 			t.Fatal("failed to generate private key")
 		}
 		log.Infof("privateKey: %x", privateKey.Serialize())
-		log.Infof("publicKey: %x", publicKey.SerializeCompressed())
+		log.Infof("publicKey: %x", publicKey.Serialize())
 
 		nonce := GetPubKeyNonce(publicKey, 10, 200*time.Millisecond, nil)
 		log.Infof("nonce: %v", nonce)
@@ -89,13 +88,13 @@ func TestGetPubKeyNonce(t *testing.T) {
 
 func TestGetThePubKeyNonce(t *testing.T) {
 	Convey("translate key error", t, func() {
-		publicKey, _ := ec.ParsePubKey([]byte{
+		publicKey, _ := ParsePubKey([]byte{
 			0x02,
 			0xc1, 0xdb, 0x96, 0xf2, 0xba, 0x7e, 0x1c, 0xb4,
 			0xe9, 0x82, 0x2d, 0x12, 0xde, 0x0f, 0x63, 0xfb,
 			0x66, 0x6f, 0xeb, 0x82, 0x8c, 0x7f, 0x50, 0x9e,
 			0x81, 0xfa, 0xb9, 0xbd, 0x7a, 0x34, 0x03, 0x9c,
-		}, ec.S256())
+		})
 		nonce := GetPubKeyNonce(publicKey, 256, 1*time.Second, nil)
 
 		log.Infof("nonce: %v", nonce)
@@ -103,4 +102,49 @@ func TestGetThePubKeyNonce(t *testing.T) {
 		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 40)
 	})
 
+}
+
+func TestPubKey(t *testing.T) {
+	pubKeyTests := []struct {
+		name string
+		key  []byte
+	}{
+		{
+			name: "Test serialize",
+			key: []byte{
+				0x02,
+				0xc1, 0xdb, 0x96, 0xf2, 0xba, 0x7e, 0x1c, 0xb4,
+				0xe9, 0x82, 0x2d, 0x12, 0xde, 0x0f, 0x63, 0xfb,
+				0x66, 0x6f, 0xeb, 0x82, 0x8c, 0x7f, 0x50, 0x9e,
+				0x81, 0xfa, 0xb9, 0xbd, 0x7a, 0x34, 0x03, 0x9c,
+			},
+		},
+	}
+
+	for _, test := range pubKeyTests {
+		pubKey, err := ParsePubKey(test.key)
+
+		if err != nil {
+			t.Errorf("%s could not parse public key: %v", test.name, err)
+			continue
+		}
+
+		serializedKey := pubKey.Serialize()
+
+		if !bytes.Equal(test.key, serializedKey) {
+			t.Errorf("%s unexpected serialized bytes - got: %x, want: %x", test.name,
+				serializedKey, test.key)
+		}
+	}
+}
+
+func TestPublicKey_MarshalBinary(t *testing.T) {
+	Convey("marshal unmarshal key", t, func() {
+		_, publicKey, _ := GenSecp256k1KeyPair()
+		publicKey2 := new(PublicKey)
+		buf, _ := publicKey.MarshalBinary()
+		publicKey2.UnmarshalBinary(buf)
+
+		So(publicKey.IsEqual(publicKey2), ShouldBeTrue)
+	})
 }

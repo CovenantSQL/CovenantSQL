@@ -24,6 +24,6 @@ import ec "github.com/btcsuite/btcd/btcec"
 // RFC5903 Section 9 states we should only return x.
 // Key Feature:
 // 		GenECDHSharedSecret(BPub, APriv) == GenECDHSharedSecret(APub, BPriv)
-func GenECDHSharedSecret(privateKey *ec.PrivateKey, publicKey *ec.PublicKey) []byte {
-	return ec.GenerateSharedSecret(privateKey, publicKey)
+func GenECDHSharedSecret(privateKey *PrivateKey, publicKey *PublicKey) []byte {
+	return ec.GenerateSharedSecret((*ec.PrivateKey)(privateKey), (*ec.PublicKey)(publicKey))
 }

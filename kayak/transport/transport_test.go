@@ -25,12 +25,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/jordwest/mock-conn"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/kayak"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/twopc"
@@ -201,7 +200,7 @@ func testPeersFixture(term uint64, servers []*kayak.Server) *kayak.Peers {
 		0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
 		0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
 	}
-	privKey, pubKey := signature.PrivKeyFromBytes(btcec.S256(), testPriv)
+	privKey, pubKey := asymmetric.PrivKeyFromBytes(testPriv)
 
 	newServers := make([]*kayak.Server, 0, len(servers))
 	var leaderNode *kayak.Server

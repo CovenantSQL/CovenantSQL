@@ -25,7 +25,6 @@ import (
 
 	"encoding/hex"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -50,7 +49,7 @@ func TestDB(t *testing.T) {
 		Nonce:     cpuminer.Uint256{},
 	}
 	publicKeyBytes, _ := hex.DecodeString(BPPublicKeyStr)
-	BPPublicKey, _ = ec.ParsePubKey(publicKeyBytes, ec.S256())
+	BPPublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
 	BPNode := &proto.Node{
 		ID:        proto.NodeID(BPNodeID),
 		Addr:      "",

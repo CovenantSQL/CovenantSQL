@@ -24,6 +24,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/thunderdb/ThunderDB/utils"
 )
 
 const testStorePath1 = "./test.store1"
@@ -33,7 +34,7 @@ func TestSaveDHT(t *testing.T) {
 	kms.Unittest = true
 	os.Remove(testStorePath1)
 	os.Remove(testStorePath2)
-	kms.ResetBucket()
+	//kms.ResetBucket()
 
 	Convey("save DHT", t, func() {
 		x, _ := InitConsistent(testStorePath1, false)
@@ -42,7 +43,7 @@ func TestSaveDHT(t *testing.T) {
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)
 		So(len(x.sortedHashes), ShouldEqual, x.NumberOfReplicas*2)
 		So(sort.IsSorted(x.sortedHashes), ShouldBeTrue)
-		os.Rename(testStorePath1, testStorePath2)
+		utils.CopyFile(testStorePath1, testStorePath2)
 	})
 }
 
@@ -50,6 +51,7 @@ func TestLoadDHT(t *testing.T) {
 	Convey("load existing DHT", t, func() {
 		kms.Unittest = true
 		x, _ := InitConsistent(testStorePath2, false)
+		defer os.Remove(testStorePath1)
 		defer os.Remove(testStorePath2)
 		// with BP node, there should be 3 nodes
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)

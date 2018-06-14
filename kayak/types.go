@@ -25,8 +25,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/signature"
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
@@ -159,7 +159,7 @@ type Server struct {
 	// ID is a unique string identifying this server for all time.
 	ID proto.NodeID
 	// Public key
-	PubKey *signature.PublicKey
+	PubKey *asymmetric.PublicKey
 }
 
 func (s *Server) String() string {
@@ -185,8 +185,8 @@ type Peers struct {
 	Term      uint64
 	Leader    *Server
 	Servers   []*Server
-	PubKey    *signature.PublicKey
-	Signature *signature.Signature
+	PubKey    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // Clone makes a deep copy of a Peers.
@@ -210,7 +210,7 @@ func (c *Peers) getBytes() []byte {
 }
 
 // Sign generates signature
-func (c *Peers) Sign(signer *signature.PrivateKey) error {
+func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 	sig, err := signer.Sign(c.getBytes())
 
 	if err != nil {

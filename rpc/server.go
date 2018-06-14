@@ -177,7 +177,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		if conf.Role[0] == 'M' && err == kms.ErrKeyNotFound {
 			// TODO(auxten): if Miner running and key not found, ask BlockProducer
 		}
-		log.Errorf("get public key failed, node id: %s", nodeID)
+		log.Errorf("get public key failed, node id: %s, err: %s", nodeID, err)
 		return
 	}
 	privateKey, err := kms.GetLocalPrivateKey()

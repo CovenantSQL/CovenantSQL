@@ -25,15 +25,22 @@ import (
 
 	"encoding/hex"
 
+	"bytes"
+
+	"reflect"
+
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 	"github.com/thunderdb/ThunderDB/proto"
+	"github.com/ugorji/go/codec"
 )
 
 const dbFile = ".test.db"
 
 func TestDB(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	privKey1, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
 	privKey2, pubKey2, _ := asymmetric.GenSecp256k1KeyPair()
 	node1 := &proto.Node{
@@ -59,10 +66,13 @@ func TestDB(t *testing.T) {
 
 	Convey("Init db", t, func() {
 		pks = nil
+		os.Remove(dbFile)
 		defer os.Remove(dbFile)
 		InitPublicKeyStore(dbFile, BPNode)
 		So(pks.bucket, ShouldNotBeNil)
 
+		nodeInfo, err := GetNodeInfo(proto.NodeID(BPNodeID))
+		log.Debugf("nodeInfo %v", nodeInfo)
 		pubk, err := GetPublicKey(proto.NodeID(BPNodeID))
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
@@ -72,13 +82,13 @@ func TestDB(t *testing.T) {
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
-		err = SetNodeInfo(nil)
+		err = SetNode(nil)
 		So(err, ShouldEqual, ErrNilNode)
 
-		err = setPublicKey(node1)
+		err = setNode(node1)
 		So(err, ShouldBeNil)
 
-		err = setPublicKey(node2)
+		err = setNode(node2)
 		So(err, ShouldBeNil)
 
 		err = SetPublicKey(proto.NodeID(BPNodeID), BPNonce, BPPublicKey)
@@ -124,7 +134,7 @@ func TestDB(t *testing.T) {
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
-		err = setPublicKey(node1)
+		err = setNode(node1)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
 		err = DelNode(proto.NodeID("node2"))
@@ -154,5 +164,35 @@ func TestErrorPath(t *testing.T) {
 		err := InitPublicKeyStore("/path/not/exist", nil)
 		So(pks, ShouldBeNil)
 		So(err, ShouldNotBeNil)
+	})
+}
+
+func TestMarshalNode(t *testing.T) {
+	Convey("marshal unmarshal node", t, func() {
+		nodeInfo := &proto.Node{
+			ID:        "abc",
+			Addr:      "addr",
+			PublicKey: nil,
+			Nonce: cpuminer.Uint256{
+				A: 1,
+				B: 2,
+				C: 3,
+				D: 4,
+			},
+		}
+		nodeBuf := new(bytes.Buffer)
+		mh := &codec.MsgpackHandle{}
+		enc := codec.NewEncoder(nodeBuf, mh)
+		err := enc.Encode(nodeInfo)
+		if err != nil {
+			log.Errorf("encode error: %s", err)
+		}
+
+		nodeDec := proto.NewNode()
+		reader := bytes.NewReader(nodeBuf.Bytes())
+		dec := codec.NewDecoder(reader, mh)
+		err = dec.Decode(nodeDec)
+
+		So(reflect.DeepEqual(nodeDec, nodeInfo), ShouldBeTrue)
 	})
 }

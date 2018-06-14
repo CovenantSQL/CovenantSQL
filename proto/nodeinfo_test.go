@@ -29,14 +29,26 @@ func TestNode_InitNodeCryptoInfo(t *testing.T) {
 	NewNodeIDDifficultyTimeout = 1000 * time.Millisecond
 	Convey("InitNodeCryptoInfo", t, func() {
 		node := NewNode()
-		err := node.InitNodeCryptoInfo()
+		node.InitNodeCryptoInfo()
 		hashTmp := hash.THashH(append(node.PublicKey.SerializeCompressed(),
-			node.Nonce.Nonce.Bytes()...))
-		t.Logf("ComputeBlockNonce got %v, difficulty %d, nonce %v, hash %s",
-			err, node.Nonce.Difficulty, node.Nonce.Nonce, hashTmp.String())
+			node.Nonce.Bytes()...))
+		t.Logf("ComputeBlockNonce, Difficulty: %d, nonce %v, hash %s",
+			node.ID.Difficulty(), node.Nonce, hashTmp.String())
 
-		So(node.Nonce.Difficulty, ShouldBeGreaterThan, 1)
-		So(hashTmp.Difficulty(), ShouldEqual, node.Nonce.Difficulty)
+		So(node.ID.Difficulty(), ShouldBeGreaterThan, 1)
+		So(hashTmp.String(), ShouldEqual, node.ID)
 	})
-
+	Convey("NodeID Difficulty", t, func() {
+		var node NodeID
+		So(node.Difficulty(), ShouldEqual, -1)
+		node = NodeID("")
+		So(node.Difficulty(), ShouldEqual, -1)
+		node = NodeID("1")
+		So(node.Difficulty(), ShouldEqual, -1)
+		node = NodeID("00000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573")
+		So(node.Difficulty(), ShouldEqual, 39)
+		node = NodeID("#0000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573")
+		So(node.Difficulty(), ShouldEqual, -1)
+		So((*NodeID)(nil).Difficulty(), ShouldEqual, -1)
+	})
 }

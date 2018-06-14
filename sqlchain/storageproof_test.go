@@ -187,5 +187,5 @@ func init() {
 		},
 	}
 	voidAnswer = nil
-	voidNode = proto.Node{Name: ""}
+	voidNode = proto.Node{}
 }

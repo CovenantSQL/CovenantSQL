@@ -17,12 +17,14 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"net"
 
 	"os"
 
+	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -76,7 +78,16 @@ func TestDailToNode(t *testing.T) {
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
-		kms.InitPublicKeyStore(publicKeyStore)
+		publicKeyBytes, _ := hex.DecodeString(kms.BPPublicKeyStr)
+		kms.BPPublicKey, _ = ec.ParsePubKey(publicKeyBytes, ec.S256())
+		BPNode := &proto.Node{
+			ID:        proto.NodeID(kms.BPNodeID),
+			Addr:      "",
+			PublicKey: kms.BPPublicKey,
+			Nonce:     kms.BPNonce,
+		}
+
+		kms.InitPublicKeyStore(publicKeyStore, BPNode)
 		c, err = DailToNode(proto.NodeID(nodeID))
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)

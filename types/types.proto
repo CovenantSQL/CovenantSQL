@@ -50,6 +50,20 @@ message NodeID {
     string NodeID = 1;
 }
 
+message Nonce {
+    uint64 A = 1;
+    uint64 B = 2;
+    uint64 C = 3;
+    uint64 D = 4;
+}
+
+message Node {
+    NodeID ID = 1;
+    string Addr = 2;
+    PublicKey PublicKey = 3;
+    Nonce Nonce = 4;
+}
+
 message AccountAddress {
     string AccountAddress = 1;
 }

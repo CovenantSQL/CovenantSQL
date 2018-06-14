@@ -30,7 +30,7 @@ type Envelope struct {
 
 // PingReq is Ping RPC request
 type PingReq struct {
-	Node Node
+	Node NodeBytes
 	Envelope
 }
 
@@ -49,7 +49,7 @@ type FindValueReq struct {
 
 // FindValueResp is FindValue RPC response
 type FindValueResp struct {
-	Nodes []Node
+	Nodes []NodeBytes
 	Msg   string
 	Envelope
 }

@@ -17,13 +17,16 @@
 package proto
 
 import (
+	"errors"
 	"time"
 
 	ec "github.com/btcsuite/btcd/btcec"
+	pb "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
+	"github.com/thunderdb/ThunderDB/types"
 )
 
 var (
@@ -53,6 +56,72 @@ type Node struct {
 // NewNode just return a new node struct
 func NewNode() *Node {
 	return &Node{}
+}
+
+// NodeBytes is the marshal output of proto.Node.Marshal
+type NodeBytes []byte
+
+// Marshal the proto.Node with protobuf
+func (n *Node) Marshal() (nodeBytes NodeBytes, err error) {
+	if n == nil {
+		return nil, errors.New("nil node")
+	}
+	if n.PublicKey == nil {
+		return nil, errors.New("nil public key")
+	}
+
+	nodeBuf, err := pb.Marshal(&types.Node{
+		ID: &types.NodeID{
+			NodeID: string(n.ID),
+		},
+		Addr: n.Addr,
+		PublicKey: &types.PublicKey{
+			PublicKey: n.PublicKey.SerializeCompressed(),
+		},
+		Nonce: &types.Nonce{
+			A: n.Nonce.A,
+			B: n.Nonce.B,
+			C: n.Nonce.C,
+			D: n.Nonce.D,
+		},
+	})
+	if err != nil {
+		log.Errorf("marshal node failed: %s", err)
+		return nil, err
+	}
+
+	return NodeBytes(nodeBuf), err
+}
+
+// Unmarshal the proto.Node with protobuf
+func UnmarshalNode(nodeBytes NodeBytes) (node *Node, err error) {
+	if nodeBytes == nil {
+		return nil, errors.New("unmarshal got nil input")
+	}
+	nodeInfoTypes := &types.Node{}
+	err = pb.Unmarshal(nodeBytes, nodeInfoTypes)
+	if err != nil {
+		log.Errorf("unmarshal node failed: %s", err)
+		return
+	}
+
+	publicKey, err := ec.ParsePubKey(nodeInfoTypes.PublicKey.PublicKey, ec.S256())
+	if err != nil {
+		log.Errorf("parse public key failed: %s", err)
+		return
+	}
+	node = &Node{
+		ID:        NodeID(nodeInfoTypes.ID.NodeID),
+		Addr:      nodeInfoTypes.Addr,
+		PublicKey: publicKey,
+		Nonce: mine.Uint256{
+			A: nodeInfoTypes.Nonce.A,
+			B: nodeInfoTypes.Nonce.B,
+			C: nodeInfoTypes.Nonce.C,
+			D: nodeInfoTypes.Nonce.D,
+		},
+	}
+	return
 }
 
 // Difficulty returns NodeID difficulty, returns -1 on length mismatch or any error

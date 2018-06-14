@@ -144,6 +144,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 			return ErrKeyNotFound
 		}
 
+		// error log will be done at the wrapper func
 		nodeInfoTypes := &types.Node{}
 		err = pb.Unmarshal(byteVal, nodeInfoTypes)
 		if err == nil {

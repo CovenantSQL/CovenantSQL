@@ -160,7 +160,7 @@ func main() {
 	}
 
 	// Register service by a name
-	dht, err := route.NewDHTService(publicKeyStorePath)
+	dht, err := route.NewDHTService(publicKeyStorePath, true)
 	if err != nil {
 		log.Fatalf("creating dht service failed: %s", err)
 	}

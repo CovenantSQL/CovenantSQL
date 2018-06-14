@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
@@ -38,8 +38,8 @@ type NoAckReportHeader struct {
 type SignedNoAckReportHeader struct {
 	NoAckReportHeader
 	HeaderHash hash.Hash
-	Signee     *signature.PublicKey
-	Signature  *signature.Signature
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
 }
 
 // NoAckReport defines whole worker no client ack report.
@@ -59,8 +59,8 @@ type AggrNoAckReportHeader struct {
 type SignedAggrNoAckReportHeader struct {
 	AggrNoAckReportHeader
 	HeaderHash hash.Hash
-	Signee     *signature.PublicKey
-	Signature  *signature.Signature
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
 }
 
 // AggrNoAckReport defines whole worker leader no client ack report.
@@ -126,7 +126,7 @@ func (sh *SignedNoAckReportHeader) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *SignedNoAckReportHeader) Sign(signer *signature.PrivateKey) (err error) {
+func (sh *SignedNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// verify original response
 	if err = sh.Response.Verify(); err != nil {
 		return
@@ -156,7 +156,7 @@ func (r *NoAckReport) Verify() error {
 }
 
 // Sign the request.
-func (r *NoAckReport) Sign(signer *signature.PrivateKey) error {
+func (r *NoAckReport) Sign(signer *asymmetric.PrivateKey) error {
 	return r.Header.Sign(signer)
 }
 
@@ -224,7 +224,7 @@ func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *SignedAggrNoAckReportHeader) Sign(signer *signature.PrivateKey) (err error) {
+func (sh *SignedAggrNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	for _, r := range sh.Reports {
 		if err = r.Verify(); err != nil {
 			return
@@ -255,6 +255,6 @@ func (r *AggrNoAckReport) Verify() (err error) {
 }
 
 // Sign the request.
-func (r *AggrNoAckReport) Sign(signer *signature.PrivateKey) error {
+func (r *AggrNoAckReport) Sign(signer *asymmetric.PrivateKey) error {
 	return r.Header.Sign(signer)
 }

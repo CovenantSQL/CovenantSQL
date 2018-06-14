@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
@@ -42,19 +42,19 @@ type ResponsePayload struct {
 
 // ResponseHeader defines a query response header.
 type ResponseHeader struct {
-	Request           SignedRequestHeader
-	NodeID            proto.NodeID // response node id
-	Timestamp         time.Time    // time in UTC zone
-	RowCount          uint64       // response row count of payload
-	DataHash          hash.Hash    // hash of query response
+	Request   SignedRequestHeader
+	NodeID    proto.NodeID // response node id
+	Timestamp time.Time    // time in UTC zone
+	RowCount  uint64       // response row count of payload
+	DataHash  hash.Hash    // hash of query response
 }
 
 // SignedResponseHeader defines a signed query response header.
 type SignedResponseHeader struct {
 	ResponseHeader
 	HeaderHash hash.Hash
-	Signee     *signature.PublicKey
-	Signature  *signature.Signature
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
 }
 
 // Response defines a complete query response.
@@ -168,7 +168,7 @@ func (sh *SignedResponseHeader) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *SignedResponseHeader) Sign(signer *signature.PrivateKey) (err error) {
+func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// make sure original header is signed
 	if err = sh.Request.Verify(); err != nil {
 		return
@@ -208,7 +208,7 @@ func (sh *Response) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *Response) Sign(signer *signature.PrivateKey) (err error) {
+func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// build hash in header
 	buildHash(&sh.Payload, &sh.Header.DataHash)
 

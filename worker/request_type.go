@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
@@ -56,8 +56,8 @@ type RequestHeader struct {
 type SignedRequestHeader struct {
 	RequestHeader
 	HeaderHash hash.Hash
-	Signee     *signature.PublicKey
-	Signature  *signature.Signature
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
 }
 
 // Request defines a complete query request.
@@ -141,7 +141,7 @@ func (sh *SignedRequestHeader) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *SignedRequestHeader) Sign(signer *signature.PrivateKey) (err error) {
+func (sh *SignedRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// compute hash
 	buildHash(&sh.RequestHeader, &sh.HeaderHash)
 
@@ -180,7 +180,7 @@ func (r *Request) Verify() (err error) {
 }
 
 // Sign the request.
-func (r *Request) Sign(signer *signature.PrivateKey) (err error) {
+func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// set query count
 	r.Header.BatchCount = uint64(len(r.Payload.Queries))
 

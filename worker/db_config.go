@@ -17,7 +17,7 @@
 package worker
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
@@ -25,5 +25,5 @@ import (
 type Config struct {
 	DatabaseID proto.DatabaseID
 	DataDir    string
-	PrivKey    *signature.PrivateKey
+	PrivKey    *asymmetric.PrivateKey
 }

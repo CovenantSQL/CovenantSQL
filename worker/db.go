@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
@@ -39,7 +39,7 @@ type Database struct {
 	storage      *storage.Storage
 	kayakRuntime *kayak.Runtime
 	kayakConfig  *kayak.TwoPCConfig
-	privKey      *signature.PrivateKey
+	privKey      *asymmetric.PrivateKey
 }
 
 // NewDatabase create a single database instance using config.

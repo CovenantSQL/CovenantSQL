@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
@@ -37,8 +37,8 @@ type AckHeader struct {
 type SignedAckHeader struct {
 	AckHeader
 	HeaderHash hash.Hash
-	Signee     *signature.PublicKey
-	Signature  *signature.Signature
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
 }
 
 // Ack defines a whole client ack request entity.
@@ -103,7 +103,7 @@ func (sh *SignedAckHeader) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *SignedAckHeader) Sign(signer *signature.PrivateKey) (err error) {
+func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// check original header signature
 	if err = sh.Response.Verify(); err != nil {
 		return
@@ -133,7 +133,7 @@ func (a *Ack) Verify() error {
 }
 
 // Sign the request.
-func (a *Ack) Sign(signer *signature.PrivateKey) (err error) {
+func (a *Ack) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// sign
 	return a.Header.Sign(signer)
 }

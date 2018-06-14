@@ -20,7 +20,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/thunderdb/ThunderDB/common"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -114,7 +113,7 @@ func (s *SignedHeader) unmarshal(buffer []byte) (err error) {
 		return ErrFieldLength
 	}
 
-	pk, err := asymmetric.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey(), btcec.S256())
+	pk, err := asymmetric.ParsePubKey(pbSignedHeader.GetSignee().GetPublicKey())
 
 	if err != nil {
 		return

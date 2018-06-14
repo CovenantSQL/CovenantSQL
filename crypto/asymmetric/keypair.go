@@ -22,6 +22,8 @@ import (
 	"math/big"
 	"time"
 
+	"errors"
+
 	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -38,11 +40,41 @@ type PrivateKey ec.PrivateKey
 // public key without having to directly import the ecdsa package.
 type PublicKey ec.PublicKey
 
+// MarshalBinary does the serialization
+func (pub *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
+	if pub == nil {
+		return nil, errors.New("nil public key")
+	}
+	return pub.Serialize(), nil
+}
+
+// UnmarshalBinary does the deserialization
+func (pub *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
+	if pub == nil {
+		return errors.New("nil public key")
+	}
+	pubNew, err := ParsePubKey(keyBytes)
+	if err == nil {
+		*pub = *pubNew
+	}
+	return
+}
+
+// IsEqual return true if two keys are equal
+func (pub *PublicKey) IsEqual(public *PublicKey) bool {
+	return (*ec.PublicKey)(pub).IsEqual((*ec.PublicKey)(public))
+}
+
 // Serialize returns the private key number d as a big-endian binary-encoded number, padded to a
 // length of 32 bytes.
 func (p *PrivateKey) Serialize() []byte {
 	b := make([]byte, 0, PrivateKeyBytesLen)
 	return paddedAppend(PrivateKeyBytesLen, b, p.D.Bytes())
+}
+
+// PubKey return the public key
+func (p *PrivateKey) PubKey() *PublicKey {
+	return (*PublicKey)((*ec.PrivateKey)(p).PubKey())
 }
 
 // toECDSA returns the public key as a *ecdsa.PublicKey.
@@ -53,12 +85,12 @@ func (p *PublicKey) toECDSA() *ecdsa.PublicKey {
 // Serialize is a function that converts a public key
 // to uncompressed byte array
 func (p *PublicKey) Serialize() []byte {
-	return (*ec.PublicKey)(p).SerializeUncompressed()
+	return (*ec.PublicKey)(p).SerializeCompressed()
 }
 
 // ParsePubKey recovers the public key from pubKeyStr
-func ParsePubKey(pubKeyStr []byte, curve *ec.KoblitzCurve) (*PublicKey, error) {
-	key, err := ec.ParsePubKey(pubKeyStr, curve)
+func ParsePubKey(pubKeyStr []byte) (*PublicKey, error) {
+	key, err := ec.ParsePubKey(pubKeyStr, ec.S256())
 	return (*PublicKey)(key), err
 }
 
@@ -91,23 +123,24 @@ func paddedAppend(size uint, dst, src []byte) []byte {
 
 // GenSecp256k1KeyPair generate Secp256k1(used by Bitcoin) key pair
 func GenSecp256k1KeyPair() (
-	privateKey *ec.PrivateKey,
-	publicKey *ec.PublicKey,
+	privateKey *PrivateKey,
+	publicKey *PublicKey,
 	err error) {
 
-	privateKey, err = ec.NewPrivateKey(ec.S256())
+	privateKeyEc, err := ec.NewPrivateKey(ec.S256())
 	if err != nil {
 		log.Errorf("private key generation error: %s", err)
 		return nil, nil, err
 	}
-	publicKey = privateKey.PubKey()
+	publicKey = (*PublicKey)(privateKeyEc.PubKey())
+	privateKey = (*PrivateKey)(privateKeyEc)
 	return
 }
 
 // GetPubKeyNonce will make his best effort to find a difficult enough
 // nonce.
 func GetPubKeyNonce(
-	publicKey *ec.PublicKey,
+	publicKey *PublicKey,
 	difficulty int,
 	timeThreshold time.Duration,
 	quit chan struct{}) (nonce mine.NonceInfo) {
@@ -118,7 +151,7 @@ func GetPubKeyNonce(
 	// make sure writing to the Stop chan non-blocking.
 	stop := make(chan struct{}, 1)
 	block := mine.MiningBlock{
-		Data:      publicKey.SerializeCompressed(),
+		Data:      publicKey.Serialize(),
 		NonceChan: nonceCh,
 		Stop:      stop,
 	}

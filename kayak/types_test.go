@@ -95,7 +95,7 @@ func TestServer_Serialize(t *testing.T) {
 		0xb4, 0x12, 0xa3,
 	}
 
-	pubKey, err := asymmetric.ParsePubKey(testKey, btcec.S256())
+	pubKey, err := asymmetric.ParsePubKey(testKey)
 
 	if err != nil {
 		t.Fatalf("parse pubkey failed: %v", err.Error())

@@ -46,33 +46,18 @@ func NewDHTService(DHTStorePath string, initBP bool) (s *DHTService, err error) 
 func (DHT *DHTService) FindValue(req *proto.FindValueReq, resp *proto.FindValueResp) (err error) {
 	nodes, err := DHT.hashRing.GetN(string(req.NodeID), req.Count)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("get nodes from DHT failed: %s", err)
 		resp.Msg = fmt.Sprint(err)
 		return
 	}
-	resp.Nodes = make([]proto.NodeBytes, len(nodes))
-	for i, n := range nodes[:] {
-		var b proto.NodeBytes
-		b, err = n.Marshal()
-		if err != nil {
-			log.Error(err)
-			resp.Msg = fmt.Sprint(err)
-			break
-		}
-		resp.Nodes[i] = b
-	}
-	if err != nil {
-		log.Error(err)
-		resp.Msg = fmt.Sprint(err)
-		return
-	}
+	resp.Nodes = nodes
 	return
 }
 
 // Ping RPC add PingReq.Node to DHT
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
-	node, err := proto.UnmarshalNode(req.Node)
-	DHT.hashRing.Add(*node)
+	log.Debugf("got req: %#v", req)
+	DHT.hashRing.Add(req.Node)
 	resp = new(proto.PingResp)
 	resp.Msg = "Pong"
 	return

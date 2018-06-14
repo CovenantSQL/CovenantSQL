@@ -146,7 +146,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, false)
+	route.NewDHTService(PubKeyStorePath, true)
 	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
@@ -211,7 +211,7 @@ func TestEncPingFindValue(t *testing.T) {
 	proto.NewNodeIDDifficultyTimeout = 100 * time.Millisecond
 	node1 := proto.NewNode()
 	node1.InitNodeCryptoInfo()
-	nodeBytes1, _ := node1.Marshal()
+	nodeBytes1, _ := node1.MarshalBinary()
 
 	reqA := &proto.PingReq{
 		Node: nodeBytes1,
@@ -226,7 +226,7 @@ func TestEncPingFindValue(t *testing.T) {
 
 	node2 := proto.NewNode()
 	node2.InitNodeCryptoInfo()
-	nodeBytes2, _ := node2.Marshal()
+	nodeBytes2, _ := node2.MarshalBinary()
 
 	reqB := &proto.PingReq{
 		Node: nodeBytes2,
@@ -237,7 +237,7 @@ func TestEncPingFindValue(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Debugf("respA: %v", respB)
+	log.Debugf("respB: %v", respB)
 
 	req := &proto.FindValueReq{
 		NodeID: "123",

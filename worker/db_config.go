@@ -16,10 +16,14 @@
 
 package worker
 
-import "gitlab.com/thunderdb/ThunderDB/proto"
+import (
+	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+)
 
 // Config defines the database config.
 type Config struct {
 	DatabaseID proto.DatabaseID
 	DataDir    string
+	PrivKey    *signature.PrivateKey
 }

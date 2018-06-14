@@ -30,4 +30,7 @@ var (
 
 	// ErrSignRequest indicates a failed signature compute operation.
 	ErrSignRequest = errors.New("signature compute failed")
+
+	// ErrMultipleQuery defines error on executing multiple select query in single request.
+	ErrMultipleQuery = errors.New("multiple query in single request")
 )

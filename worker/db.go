@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/signature"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
@@ -38,6 +39,7 @@ type Database struct {
 	storage      *storage.Storage
 	kayakRuntime *kayak.Runtime
 	kayakConfig  *kayak.TwoPCConfig
+	privKey      *signature.PrivateKey
 }
 
 // NewDatabase create a single database instance using config.
@@ -68,6 +70,18 @@ func NewDatabase(cfg *Config) (db *Database, err error) {
 		storage: st,
 	}
 
+	return
+}
+
+// Query defines database read-only query interface.
+func (db *Database) Query() (err error) {
+	// TODO(xq262144)
+	return
+}
+
+// Execute defines database write-only query interface.
+func (db *Database) Execute() (err error) {
+	// TODO(xq262144)
 	return
 }
 
@@ -129,6 +143,7 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	log.ConnectionID = req.Header.ConnectionID
 	log.SeqNo = req.Header.SeqNo
 	log.Timestamp = req.Header.Timestamp.UnixNano()
+	log.Queries = make([]string, len(req.Payload.Queries))
 	copy(log.Queries, req.Payload.Queries)
 
 	return

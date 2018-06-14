@@ -24,8 +24,8 @@ import (
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// Nonce contains nonce and the difficulty to the block
-type Nonce struct {
+// NonceInfo contains nonce and the difficulty to the block
+type NonceInfo struct {
 	Nonce      Uint256
 	Difficulty int
 	Hash       hash.Hash // Hash can be used as raw NodeID
@@ -35,7 +35,7 @@ type Nonce struct {
 type MiningBlock struct {
 	Data []byte
 	// NonceChan is used to notify the got nonce
-	NonceChan chan Nonce
+	NonceChan chan NonceInfo
 	// Stop chan is used to stop mining and return the max difficult nonce
 	Stop chan struct{}
 }
@@ -70,7 +70,7 @@ func (miner *CPUMiner) ComputeBlockNonce(
 ) (err error) {
 
 	var (
-		bestNonce Nonce
+		bestNonce NonceInfo
 	)
 	for i := startNonce; ; i.Inc() {
 		select {

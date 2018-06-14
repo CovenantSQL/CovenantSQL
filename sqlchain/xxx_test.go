@@ -47,7 +47,7 @@ func testSetup() {
 	}
 
 	f.Close()
-	kms.InitPublicKeyStore(f.Name())
+	kms.InitPublicKeyStore(f.Name(), nil)
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
@@ -90,7 +90,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 
 	if isGenesis {
 		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.Nonce)
+		nonceCh := make(chan cpuminer.NonceInfo)
 		quitCh := make(chan struct{})
 		miner := cpuminer.NewCPUMiner(quitCh)
 		go miner.ComputeBlockNonce(cpuminer.MiningBlock{

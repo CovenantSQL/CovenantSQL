@@ -26,7 +26,7 @@ import (
 
 func TestCPUMiner_HashBlock(t *testing.T) {
 	miner := NewCPUMiner(make(chan struct{}))
-	nonceCh := make(chan Nonce)
+	nonceCh := make(chan NonceInfo)
 	stop := make(chan struct{})
 	diffWanted := 20
 	data := []byte{
@@ -52,7 +52,7 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 	nonceFromCh := <-nonceCh
 	wg.Wait()
 	hash := HashBlock(data, nonceFromCh.Nonce)
-	//hash := hash.THashH(append(data, nonceFromCh.Nonce.Bytes()...))
+	//hash := hash.THashH(append(data, nonceFromCh.NonceInfo.Bytes()...))
 	if err != nil || nonceFromCh.Difficulty < diffWanted || hash.Difficulty() < diffWanted {
 		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %v",
 			err, nonceFromCh.Difficulty, nonceFromCh.Nonce)
@@ -63,7 +63,7 @@ func TestCPUMiner_HashBlock(t *testing.T) {
 func TestCPUMiner_HashBlock_stop(t *testing.T) {
 	minerQuit := make(chan struct{})
 	miner := NewCPUMiner(minerQuit)
-	nonceCh := make(chan Nonce)
+	nonceCh := make(chan NonceInfo)
 	stop := make(chan struct{})
 	diffWanted := 256
 	data := []byte{
@@ -88,7 +88,7 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 	nonceFromCh := <-block.NonceChan
 
 	hasha := HashBlock(data, nonceFromCh.Nonce)
-	//hasha := hash.THashH(append(data, nonceFromCh.Nonce.Bytes()...))
+	//hasha := hash.THashH(append(data, nonceFromCh.NonceInfo.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
 		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %v, hash %s",
 			err, nonceFromCh.Difficulty, nonceFromCh.Nonce, hasha.String())
@@ -99,7 +99,7 @@ func TestCPUMiner_HashBlock_stop(t *testing.T) {
 func TestCPUMiner_HashBlock_quit(t *testing.T) {
 	minerQuit := make(chan struct{})
 	miner := NewCPUMiner(minerQuit)
-	nonceCh := make(chan Nonce)
+	nonceCh := make(chan NonceInfo)
 	stop := make(chan struct{})
 	diffWanted := 256
 	data := []byte{
@@ -124,7 +124,7 @@ func TestCPUMiner_HashBlock_quit(t *testing.T) {
 	nonceFromCh := <-block.NonceChan
 
 	hasha := HashBlock(data, nonceFromCh.Nonce)
-	//hasha := hash.THashH(append(data, nonceFromCh.Nonce.Bytes()...))
+	//hasha := hash.THashH(append(data, nonceFromCh.NonceInfo.Bytes()...))
 	if nonceFromCh.Difficulty < 1 || hasha.Difficulty() != nonceFromCh.Difficulty {
 		t.Errorf("ComputeBlockNonce got %v, difficulty %d, nonce %v, hash %s",
 			err, nonceFromCh.Difficulty, nonceFromCh.Nonce, hasha.String())

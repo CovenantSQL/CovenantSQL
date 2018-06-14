@@ -26,16 +26,33 @@ import (
 	"testing/quick"
 	"time"
 
+	"os"
+
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/thunderdb/ThunderDB/pow/cpuminer"
 	. "github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/utils"
 )
 
+const testStorePath = "./test.store"
+
 func NewNodeFromID(id string) Node {
-	return Node{ID: NodeID(id)}
+	_, publicKey, _ := asymmetric.GenSecp256k1KeyPair()
+	return Node{
+		ID:        NodeID(id),
+		Addr:      "",
+		PublicKey: publicKey,
+		Nonce:     cpuminer.Uint256{},
+	}
 }
 
 func TestNew(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	if x == nil {
 		t.Errorf("expected obj")
 	}
@@ -43,7 +60,12 @@ func TestNew(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	utils.CheckNum(len(x.circle), 20, t)
 	utils.CheckNum(len(x.sortedHashes), 20, t)
@@ -59,31 +81,37 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
-	x.Remove(NewNodeFromID("abcdefg"))
+	x.Remove("abcdefg")
 	utils.CheckNum(len(x.circle), 0, t)
 	utils.CheckNum(len(x.sortedHashes), 0, t)
 }
 
-func TestMembers(t *testing.T) {
-	x := New()
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("abcdefghi"))
-	x.Remove(NewNodeFromID("abcdefg"))
-	utils.CheckNum(len(x.Members()), 1, t)
-	utils.CheckStr(string(x.Members()[0].ID), "abcdefghi", t)
-}
-
 func TestRemoveNonExisting(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
-	x.Remove(NewNodeFromID("abcdefghijk"))
+	x.Remove("abcdefghijk")
 	utils.CheckNum(len(x.circle), 20, t)
 }
 
 func TestGetEmpty(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	_, err := x.Get("asdfsadfsadf")
 	if err == nil {
 		t.Errorf("expected error")
@@ -94,7 +122,12 @@ func TestGetEmpty(t *testing.T) {
 }
 
 func TestGetSingle(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	f := func(s string) bool {
 		y, err := x.Get(s)
@@ -122,7 +155,12 @@ var gmtests = []gtest{
 }
 
 func TestGetMultiple(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -138,7 +176,12 @@ func TestGetMultiple(t *testing.T) {
 }
 
 func TestGetMultipleQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -169,7 +212,12 @@ var rtestsAfter = []gtest{
 }
 
 func TestGetMultipleRemove(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -182,7 +230,7 @@ func TestGetMultipleRemove(t *testing.T) {
 			t.Errorf("%d. got %v, expected %v before rm", i, result, v.out)
 		}
 	}
-	x.Remove(NewNodeFromID("hijklmn"))
+	x.Remove("hijklmn")
 	for i, v := range rtestsAfter {
 		result, err := x.Get(v.in)
 		if err != nil {
@@ -195,11 +243,16 @@ func TestGetMultipleRemove(t *testing.T) {
 }
 
 func TestGetMultipleRemoveQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
-	x.Remove(NewNodeFromID("opqrstu"))
+	x.Remove(NodeID("opqrstu"))
 	f := func(s string) bool {
 		y, err := x.Get(s)
 		if err != nil {
@@ -215,7 +268,12 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 }
 
 func TestGetTwo(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -235,7 +293,12 @@ func TestGetTwo(t *testing.T) {
 }
 
 func TestGetTwoEmpty(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	_, _, err := x.GetTwo("9999999")
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
@@ -243,7 +306,12 @@ func TestGetTwoEmpty(t *testing.T) {
 }
 
 func TestGetTwoQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -274,7 +342,12 @@ func TestGetTwoQuick(t *testing.T) {
 }
 
 func TestGetTwoOnlyTwoQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	f := func(s string) bool {
@@ -304,7 +377,12 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 }
 
 func TestGetTwoOnlyOneInCircle(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	a, b, err := x.GetTwo("99999999")
 	if err != nil {
@@ -322,7 +400,12 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 }
 
 func TestGetN(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -345,7 +428,12 @@ func TestGetN(t *testing.T) {
 }
 
 func TestGetNLess(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -365,7 +453,12 @@ func TestGetNLess(t *testing.T) {
 }
 
 func TestGetNMore(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -388,7 +481,12 @@ func TestGetNMore(t *testing.T) {
 }
 
 func TestGetNEmpty(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	members, err := x.GetN("9999999", 5)
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
@@ -399,7 +497,12 @@ func TestGetNEmpty(t *testing.T) {
 }
 
 func TestGetNQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -433,7 +536,12 @@ func TestGetNQuick(t *testing.T) {
 }
 
 func TestGetNLessQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -467,7 +575,12 @@ func TestGetNLessQuick(t *testing.T) {
 }
 
 func TestGetNMoreQuick(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
@@ -501,11 +614,17 @@ func TestGetNMoreQuick(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abc"))
 	x.Add(NewNodeFromID("def"))
 	x.Add(NewNodeFromID("ghi"))
-	x.Set([]Node{{ID: "jkl"}, {ID: "mno"}})
+
+	x.Set([]Node{NewNodeFromID("jkl"), NewNodeFromID("mno")})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -522,7 +641,7 @@ func TestSet(t *testing.T) {
 	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{{ID: "pqr"}, {ID: "mno"}})
+	x.Set([]Node{NewNodeFromID("pqr"), NewNodeFromID("mno")})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -539,7 +658,7 @@ func TestSet(t *testing.T) {
 	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{{ID: "pqr"}, {ID: "mno"}})
+	x.Set([]Node{NewNodeFromID("pqr"), NewNodeFromID("mno")})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
@@ -578,55 +697,80 @@ func mallocNum(f func()) uint64 {
 }
 
 func BenchmarkAllocations(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("stays"))
 	b.ResetTimer()
 	allocSize := allocBytes(func() {
 		for i := 0; i < b.N; i++ {
 			x.Add(NewNodeFromID("Foo"))
-			x.Remove(NewNodeFromID("Foo"))
+			x.Remove(NodeID("Foo"))
 		}
 	})
 	b.Logf("%d: Allocated %d bytes (%.2fx)", b.N, allocSize, float64(allocSize)/float64(b.N))
 }
 
 func BenchmarkMalloc(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("stays"))
 	b.ResetTimer()
 	mallocs := mallocNum(func() {
 		for i := 0; i < b.N; i++ {
 			x.Add(NewNodeFromID("Foo"))
-			x.Remove(NewNodeFromID("Foo"))
+			x.Remove(NodeID("Foo"))
 		}
 	})
 	b.Logf("%d: Mallocd %d times (%.2fx)", b.N, mallocs, float64(mallocs)/float64(b.N))
 }
 
 func BenchmarkCycle(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.Add(NewNodeFromID("foo" + strconv.Itoa(i)))
-		x.Remove(NewNodeFromID("foo" + strconv.Itoa(i)))
+		x.Remove(NodeID("foo" + strconv.Itoa(i)))
 	}
 }
 
 func BenchmarkCycleLarge(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.Add(NewNodeFromID("foo" + strconv.Itoa(i)))
-		x.Remove(NewNodeFromID("foo" + strconv.Itoa(i)))
+		x.Remove(NodeID("foo" + strconv.Itoa(i)))
 	}
 }
 
 func BenchmarkGet(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -635,7 +779,12 @@ func BenchmarkGet(b *testing.B) {
 }
 
 func BenchmarkGetLarge(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
@@ -646,7 +795,12 @@ func BenchmarkGetLarge(b *testing.B) {
 }
 
 func BenchmarkGetN(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -655,7 +809,12 @@ func BenchmarkGetN(b *testing.B) {
 }
 
 func BenchmarkGetNLarge(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
@@ -666,7 +825,12 @@ func BenchmarkGetNLarge(b *testing.B) {
 }
 
 func BenchmarkGetTwo(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -675,7 +839,12 @@ func BenchmarkGetTwo(b *testing.B) {
 }
 
 func BenchmarkGetTwoLarge(b *testing.B) {
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
 	}
@@ -691,7 +860,12 @@ func TestAddCollision(t *testing.T) {
 	// appended added by Consistent.eltKey.
 	const s1 = "abear"
 	const s2 = "solidiform"
-	x := New()
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID(s1))
 	x.Add(NewNodeFromID(s2))
 	elt1, err := x.Get("abear")
@@ -699,7 +873,8 @@ func TestAddCollision(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	y := New()
+	y, _ := InitConsistent(testStorePath+"2", false)
+	defer os.Remove(testStorePath + "2")
 	// add elements in opposite order
 	y.Add(NewNodeFromID(s2))
 	y.Add(NewNodeFromID(s1))
@@ -713,48 +888,23 @@ func TestAddCollision(t *testing.T) {
 	}
 }
 
-//// inspired by @or-else on github
-//func TestCollisionsCRC(t *testing.T) {
-//	t.SkipNow()
-//	c := New()
-//	f, err := os.Open("/usr/share/dict/words")
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	defer f.Close()
-//	found := make(map[NodeKey]string)
-//	scanner := bufio.NewScanner(f)
-//	count := 0
-//	for scanner.Scan() {
-//		word := scanner.Text()
-//		for i := 0; i < c.NumberOfReplicas; i++ {
-//			ekey := c.nodeKey(NodeID(word), i)
-//			// ekey := word + "|" + strconv.Itoa(i)
-//			k := c.hashKey(ekey)
-//			exist, ok := found[k]
-//			if ok {
-//				t.Logf("found collision: %v, %v", ekey, exist)
-//				count++
-//			} else {
-//				found[k] = ekey
-//			}
-//		}
-//	}
-//	t.Logf("number of collisions: %d", count)
-//}
-
 func TestConcurrentGetSet(t *testing.T) {
-	x := New()
-	x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, false)
+	defer os.Remove(testStorePath)
+	x.Set([]Node{NewNodeFromID("abc"), NewNodeFromID("def"), NewNodeFromID("ghi"), NewNodeFromID("jkl"), NewNodeFromID("mno")})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 100; i++ {
-				x.Set([]Node{{ID: "abc"}, {ID: "def"}, {ID: "ghi"}, {ID: "jkl"}, {ID: "mno"}})
+				x.Set([]Node{NewNodeFromID("abc"), NewNodeFromID("def"), NewNodeFromID("ghi"), NewNodeFromID("jkl"), NewNodeFromID("mno")})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-				x.Set([]Node{{ID: "pqr"}, {ID: "stu"}, {ID: "vwx"}})
+				x.Set([]Node{NewNodeFromID("pqr"), NewNodeFromID("stu"), NewNodeFromID("vwx")})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}
 			wg.Done()

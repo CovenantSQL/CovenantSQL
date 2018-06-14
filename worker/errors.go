@@ -28,6 +28,6 @@ var (
 	// ErrSignVerification indicates a failed signature verification.
 	ErrSignVerification = errors.New("signature verification failed")
 
-	// ErrFieldLength defines hash field length mismatched error.
-	ErrFieldLength = errors.New("unexpected slice field length")
+	// ErrSignRequest indicates a failed signature compute operation.
+	ErrSignRequest = errors.New("signature compute failed")
 )

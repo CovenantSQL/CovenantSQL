@@ -26,17 +26,14 @@ type canSerialize interface {
 
 func verifyHash(data canSerialize, h *hash.Hash) (err error) {
 	var newHash hash.Hash
-	if err = buildHash(data, &newHash); err != nil {
-		return
-	}
+	buildHash(data, &newHash)
 	if !newHash.IsEqual(h) {
 		return ErrHashVerification
 	}
 	return
 }
 
-func buildHash(data canSerialize, h *hash.Hash) (err error) {
+func buildHash(data canSerialize, h *hash.Hash) {
 	newHash := hash.THashH(data.Serialize())
 	copy(h[:], newHash[:])
-	return
 }

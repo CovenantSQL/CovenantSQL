@@ -48,6 +48,10 @@ type Ack struct {
 
 // Serialize structure to bytes.
 func (h *AckHeader) Serialize() []byte {
+	if h == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.Write(h.Response.Serialize())
@@ -60,12 +64,24 @@ func (h *AckHeader) Serialize() []byte {
 
 // Serialize structure to bytes.
 func (sh *SignedAckHeader) Serialize() []byte {
+	if sh == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.Write(sh.AckHeader.Serialize())
 	buf.Write(sh.HeaderHash[:])
-	buf.Write(sh.Signee.Serialize())
-	buf.Write(sh.Signature.Serialize())
+	if sh.Signee != nil {
+		buf.Write(sh.Signee.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+	if sh.Signature != nil {
+		buf.Write(sh.Signature.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
 
 	return buf.Bytes()
 }
@@ -86,12 +102,38 @@ func (sh *SignedAckHeader) Verify() (err error) {
 	return
 }
 
+// Sign the request.
+func (sh *SignedAckHeader) Sign(signer *signature.PrivateKey) (err error) {
+	// check original header signature
+	if err = sh.Response.Verify(); err != nil {
+		return
+	}
+
+	// build hash
+	buildHash(&sh.AckHeader, &sh.HeaderHash)
+
+	// sign
+	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+
+	return
+}
+
 // Serialize structure to bytes.
 func (a *Ack) Serialize() []byte {
+	if a == nil {
+		return []byte{'\000'}
+	}
+
 	return a.Header.Serialize()
 }
 
 // Verify checks hash and signature in ack.
 func (a *Ack) Verify() error {
 	return a.Header.Verify()
+}
+
+// Sign the request.
+func (a *Ack) Sign(signer *signature.PrivateKey) (err error) {
+	// sign
+	return a.Header.Sign(signer)
 }

@@ -66,6 +66,10 @@ type Response struct {
 
 // Serialize structure to bytes.
 func (r *ResponseRow) Serialize() []byte {
+	if r == nil {
+		return []byte{'\000'}
+	}
+
 	// FIXME(xq262144), currently use idiomatic serialization for hash generation
 	buf := new(bytes.Buffer)
 	hd := codec.MsgpackHandle{}
@@ -80,6 +84,10 @@ func (r *ResponseRow) Serialize() []byte {
 
 // Serialize structure to bytes.
 func (r *ResponsePayload) Serialize() []byte {
+	if r == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	binary.Write(buf, binary.LittleEndian, uint64(len(r.Columns)))
@@ -102,6 +110,10 @@ func (r *ResponsePayload) Serialize() []byte {
 
 // Serialize structure to bytes.
 func (h *ResponseHeader) Serialize() []byte {
+	if h == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.Write(h.Request.Serialize())
@@ -117,12 +129,24 @@ func (h *ResponseHeader) Serialize() []byte {
 
 // Serialize structure to bytes.
 func (sh *SignedResponseHeader) Serialize() []byte {
+	if sh == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.Write(sh.ResponseHeader.Serialize())
 	buf.Write(sh.HeaderHash[:])
-	buf.Write(sh.Signee.Serialize())
-	buf.Write(sh.Signature.Serialize())
+	if sh.Signee != nil {
+		buf.Write(sh.Signee.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+	if sh.Signature != nil {
+		buf.Write(sh.Signature.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
 
 	return buf.Bytes()
 }
@@ -143,4 +167,53 @@ func (sh *SignedResponseHeader) Verify() (err error) {
 	}
 
 	return nil
+}
+
+// Sign the request.
+func (sh *SignedResponseHeader) Sign(signer *signature.PrivateKey) (err error) {
+	// make sure original header is signed
+	if err = sh.Request.Verify(); err != nil {
+		return
+	}
+
+	// build our hash
+	buildHash(&sh.ResponseHeader, &sh.HeaderHash)
+
+	// sign
+	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+
+	return
+}
+
+// Serialize structure to bytes.
+func (sh *Response) Serialize() []byte {
+	if sh == nil {
+		return []byte{'\000'}
+	}
+
+	buf := new(bytes.Buffer)
+
+	buf.Write(sh.Header.Serialize())
+	buf.Write(sh.Payload.Serialize())
+
+	return buf.Bytes()
+}
+
+// Verify checks hash and signature in whole response.
+func (sh *Response) Verify() (err error) {
+	// verify data hash in header
+	if err = verifyHash(&sh.Payload, &sh.Header.DataHash); err != nil {
+		return
+	}
+
+	return sh.Header.Verify()
+}
+
+// Sign the request.
+func (sh *Response) Sign(signer *signature.PrivateKey) (err error) {
+	// build hash in header
+	buildHash(&sh.Payload, &sh.Header.DataHash)
+
+	// sign the request
+	return sh.Header.Sign(signer)
 }

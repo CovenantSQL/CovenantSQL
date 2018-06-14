@@ -178,12 +178,18 @@ func (s *Server) String() string {
 
 // Serialize server struct to bytes.
 func (s *Server) Serialize() []byte {
+	if s == nil {
+		return []byte{'\000'}
+	}
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, s.Role)
 	binary.Write(buffer, binary.LittleEndian, uint64(len(s.ID)))
 	buffer.WriteString(string(s.ID))
 	if s.PubKey != nil {
 		buffer.Write(s.PubKey.Serialize())
+	} else {
+		buffer.WriteRune('\000')
 	}
 
 	return buffer.Bytes()
@@ -210,6 +216,10 @@ func (c *Peers) Clone() (copy Peers) {
 
 // Serialize peers struct to bytes.
 func (c *Peers) Serialize() []byte {
+	if c == nil {
+		return []byte{'\000'}
+	}
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, c.Term)
 	binary.Write(buffer, binary.LittleEndian, c.Leader.Serialize())
@@ -219,6 +229,8 @@ func (c *Peers) Serialize() []byte {
 	}
 	if c.PubKey != nil {
 		buffer.Write(c.PubKey.Serialize())
+	} else {
+		buffer.WriteRune('\000')
 	}
 	return buffer.Bytes()
 }

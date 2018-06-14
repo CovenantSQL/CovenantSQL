@@ -68,6 +68,10 @@ type Request struct {
 
 // Serialize returns byte based binary form of struct.
 func (p *RequestPayload) Serialize() []byte {
+	if p == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.LittleEndian, uint64(len(p.Queries)))
 
@@ -81,6 +85,10 @@ func (p *RequestPayload) Serialize() []byte {
 
 // Serialize returns bytes based binary form of struct.
 func (h *RequestHeader) Serialize() []byte {
+	if h == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	binary.Write(buf, binary.LittleEndian, h.QueryType)
@@ -97,12 +105,24 @@ func (h *RequestHeader) Serialize() []byte {
 
 // Serialize returns bytes based binary form of struct.
 func (sh *SignedRequestHeader) Serialize() []byte {
+	if sh == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.Write(sh.RequestHeader.Serialize())
 	buf.Write(sh.HeaderHash[:])
-	buf.Write(sh.Signee.Serialize())
-	buf.Write(sh.Signature.Serialize())
+	if sh.Signee != nil {
+		buf.Write(sh.Signee.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+	if sh.Signature != nil {
+		buf.Write(sh.Signature.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
 
 	return buf.Bytes()
 }
@@ -114,14 +134,33 @@ func (sh *SignedRequestHeader) Verify() (err error) {
 		return
 	}
 	// verify sign
-	if !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return nil
 }
 
+// Sign the request.
+func (sh *SignedRequestHeader) Sign(signer *signature.PrivateKey) (err error) {
+	// compute hash
+	buildHash(&sh.RequestHeader, &sh.HeaderHash)
+
+	if sh.Signee == nil || signer == nil {
+		return ErrSignRequest
+	}
+
+	// sign
+	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+
+	return
+}
+
 // Serialize returns bytes based binary form of struct.
 func (r *Request) Serialize() []byte {
+	if r == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	buf.Write(r.Header.Serialize())
@@ -138,4 +177,15 @@ func (r *Request) Verify() (err error) {
 	}
 	// verify header sign
 	return r.Header.Verify()
+}
+
+// Sign the request.
+func (r *Request) Sign(signer *signature.PrivateKey) (err error) {
+	// set query count
+	r.Header.BatchCount = uint64(len(r.Payload.Queries))
+
+	// compute payload hash
+	buildHash(&r.Payload, &r.Header.QueriesHash)
+
+	return r.Header.Sign(signer)
 }

@@ -37,58 +37,12 @@ import (
 
 const DHTStorePath = "./DHTStore"
 
-func TestDHTService_Ping(t *testing.T) {
-	os.Remove(DHTStorePath)
-	defer os.Remove(DHTStorePath)
-	log.SetLevel(log.DebugLevel)
-	addr := "127.0.0.1:0"
-	dht, _ := NewDHTService(DHTStorePath, false)
-	rpc.RegisterName("DHT", dht)
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	mh := &codec.MsgpackHandle{}
-
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				continue
-			}
-			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(c, mh)
-			go rpc.ServeCodec(msgpackCodec)
-		}
-	}()
-
-	client, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		log.Error(err)
-	}
-
-	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
-	node1 := NewNode()
-	node1.InitNodeCryptoInfo()
-
-	reqA := &PingReq{
-		Node: *node1,
-	}
-	respA := new(PingResp)
-	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(client, mh)
-	err = rpc.NewClientWithCodec(msgpackCodec).Call("DHT.Ping", reqA, respA)
-	if err != nil {
-		log.Error(err)
-	}
-	log.Debugf("respA: %v", respA)
-}
-
 func TestPingFindValue(t *testing.T) {
 	os.Remove(DHTStorePath)
-	defer os.Remove(DHTStorePath)
+	defer os.Remove(DHTStorePath + "1")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	dht, _ := NewDHTService(DHTStorePath, false)
+	dht, _ := NewDHTService(DHTStorePath+"1", false)
 	kms.ResetBucket()
 	rpc.RegisterName("DHT", dht)
 	ln, err := net.Listen("tcp", addr)
@@ -175,4 +129,50 @@ func TestPingFindValue(t *testing.T) {
 	})
 
 	client.Close()
+}
+
+func TestDHTService_Ping(t *testing.T) {
+	os.Remove(DHTStorePath)
+	defer os.Remove(DHTStorePath)
+	log.SetLevel(log.DebugLevel)
+	addr := "127.0.0.1:0"
+	dht, _ := NewDHTService(DHTStorePath, false)
+	rpc.RegisterName("DHT", dht)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	mh := &codec.MsgpackHandle{}
+
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				continue
+			}
+			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(c, mh)
+			go rpc.ServeCodec(msgpackCodec)
+		}
+	}()
+
+	client, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		log.Error(err)
+	}
+
+	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
+	node1 := NewNode()
+	node1.InitNodeCryptoInfo()
+
+	reqA := &PingReq{
+		Node: *node1,
+	}
+	respA := new(PingResp)
+	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(client, mh)
+	err = rpc.NewClientWithCodec(msgpackCodec).Call("DHT.Ping", reqA, respA)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Debugf("respA: %v", respA)
 }

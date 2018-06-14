@@ -18,7 +18,6 @@ package asymmetric
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"math/big"
 	"time"
 
@@ -96,12 +95,12 @@ func ParsePubKey(pubKeyStr []byte) (*PublicKey, error) {
 
 // PrivKeyFromBytes returns a private and public key for `curve' based on the private key passed
 // as an argument as a byte slice.
-func PrivKeyFromBytes(curve elliptic.Curve, pk []byte) (*PrivateKey, *PublicKey) {
-	x, y := curve.ScalarBaseMult(pk)
+func PrivKeyFromBytes(pk []byte) (*PrivateKey, *PublicKey) {
+	x, y := ec.S256().ScalarBaseMult(pk)
 
 	priv := &ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
-			Curve: curve,
+			Curve: ec.S256(),
 			X:     x,
 			Y:     y,
 		},

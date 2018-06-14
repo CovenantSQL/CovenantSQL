@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -133,7 +132,7 @@ func TestPeers_Clone(t *testing.T) {
 		0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
 		0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
 	}
-	_, pubKey := asymmetric.PrivKeyFromBytes(btcec.S256(), testPriv)
+	_, pubKey := asymmetric.PrivKeyFromBytes(testPriv)
 
 	samplePeersConf := &Peers{
 		Term: 1,
@@ -169,7 +168,7 @@ func TestPeers_Sign(t *testing.T) {
 		0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
 		0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
 	}
-	privKey, pubKey := asymmetric.PrivKeyFromBytes(btcec.S256(), testPriv)
+	privKey, pubKey := asymmetric.PrivKeyFromBytes(testPriv)
 	peers := &Peers{
 		Term: 1,
 		Leader: &Server{

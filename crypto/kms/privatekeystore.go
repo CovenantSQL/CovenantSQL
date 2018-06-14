@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -52,9 +51,9 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	}
 
 	// sha256 + privateKey
-	if len(decData) != hash.HashBSize+ec.PrivKeyBytesLen {
+	if len(decData) != hash.HashBSize+asymmetric.PrivateKeyBytesLen {
 		log.Errorf("private key file size should be %d bytes",
-			hash.HashBSize+ec.PrivKeyBytesLen)
+			hash.HashBSize+asymmetric.PrivateKeyBytesLen)
 		return nil, ErrNotKeyFile
 	}
 
@@ -63,8 +62,7 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 		return nil, ErrHashNotMatch
 	}
 
-	ecKey, _ := ec.PrivKeyFromBytes(ec.S256(), decData[hash.HashBSize:])
-	key = (*asymmetric.PrivateKey)(ecKey)
+	key, _ = asymmetric.PrivKeyFromBytes(decData[hash.HashBSize:])
 	return
 }
 
@@ -79,12 +77,6 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 		return
 	}
 	return ioutil.WriteFile(keyFilePath, encKey, 0600)
-}
-
-// GeneratePrivateKey generates a new EC private key
-func GeneratePrivateKey() (key *asymmetric.PrivateKey, err error) {
-	ecKey, err := ec.NewPrivateKey(ec.S256())
-	return (*asymmetric.PrivateKey)(ecKey), err
 }
 
 // InitLocalKeyPair initializes local private key

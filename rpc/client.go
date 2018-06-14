@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/rpc"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -70,7 +69,7 @@ func Dial(network, address string, cipher *etls.Cipher) (c *etls.CryptoConn, err
 
 // DailToNode connects to the node with nodeID
 func DailToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
-	var nodePublicKey *ec.PublicKey
+	var nodePublicKey *asymmetric.PublicKey
 	if route.IsBPNodeID(nodeID) {
 		nodePublicKey = kms.BPPublicKey
 	} else {

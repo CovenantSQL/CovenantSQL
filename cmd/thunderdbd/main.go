@@ -153,11 +153,18 @@ func main() {
 	// start RPC server
 	rpcServer := rpc.NewServer()
 
-	// if any error, InitRPCServer will log.Fatal which calls os.Exit
-	rpcServer.InitRPCServer("0.0.0.0:2120", privateKeyPath, publicKeyStorePath, masterKeyBytes)
+	// if any error, log.Fatal will call os.Exit
+	err = rpcServer.InitRPCServer("0.0.0.0:2120", privateKeyPath, masterKeyBytes)
+	if err != nil {
+		log.Fatalf("rpcServer.InitRPCServer failed: %s", err)
+	}
 
 	// Register service by a name
-	rpcServer.RegisterService("DHT", route.NewDHTService())
+	dht, err := route.NewDHTService(publicKeyStorePath, true)
+	if err != nil {
+		log.Fatalf("creating dht service failed: %s", err)
+	}
+	rpcServer.RegisterService("DHT", dht)
 	rpcServer.Serve()
 
 	log.Info("server stopped")

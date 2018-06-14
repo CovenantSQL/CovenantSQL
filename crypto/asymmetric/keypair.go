@@ -45,10 +45,10 @@ func GetPubKeyNonce(
 	publicKey *ec.PublicKey,
 	difficulty int,
 	timeThreshold time.Duration,
-	quit chan struct{}) (nonce mine.Nonce) {
+	quit chan struct{}) (nonce mine.NonceInfo) {
 
 	miner := mine.NewCPUMiner(quit)
-	nonceCh := make(chan mine.Nonce)
+	nonceCh := make(chan mine.NonceInfo)
 	// if miner finished his work before timeThreshold
 	// make sure writing to the Stop chan non-blocking.
 	stop := make(chan struct{}, 1)

@@ -19,31 +19,7 @@ package proto
 
 import (
 	"time"
-
-	ec "github.com/btcsuite/btcd/btcec"
-	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
 )
-
-// NodeID is node name, will be generated from Hash(nodePublicKey)
-type NodeID string
-
-// AccountAddress is wallet address, will be generated from Hash(nodePublicKey)
-type AccountAddress string
-
-// NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
-type NodeKey uint64
-
-// Node is all node info struct
-type Node struct {
-	Name      string
-	Port      uint16
-	Addr      string
-	ID        NodeID
-	PublicKey *ec.PublicKey
-	Nonce     mine.Nonce
-	// make privateKey non-public!
-	privateKey *ec.PrivateKey
-}
 
 // Envelope is the protocol
 type Envelope struct {
@@ -54,30 +30,26 @@ type Envelope struct {
 
 // PingReq is Ping RPC request
 type PingReq struct {
-	Node    Node
-	Version string
+	Node NodeBytes
 	Envelope
 }
 
 // PingResp is Ping RPC response, i.e. Pong
 type PingResp struct {
-	Msg     string
-	Version string
+	Msg string
 	Envelope
 }
 
 // FindValueReq is FindValue RPC request
 type FindValueReq struct {
-	NodeID  NodeID
-	Count   int
-	Version string
+	NodeID NodeID
+	Count  int
 	Envelope
 }
 
 // FindValueResp is FindValue RPC response
 type FindValueResp struct {
-	Nodes   []Node
-	Msg     string
-	Version string
+	Nodes []NodeBytes
+	Msg   string
 	Envelope
 }

@@ -23,16 +23,27 @@ import (
 
 	"net/rpc"
 
+	"os"
+
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thunderdb/ThunderDB/consistent"
+	"github.com/thunderdb/ThunderDB/crypto/kms"
 	. "github.com/thunderdb/ThunderDB/proto"
 )
 
+const DHTStorePath = "./DHTStore"
+
 func TestPingFindValue(t *testing.T) {
+	os.Remove(DHTStorePath)
+	defer os.Remove(DHTStorePath)
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	rpc.RegisterName("DHT", NewDHTService())
+	dht, _ := NewDHTService(DHTStorePath, false)
+	kms.ResetBucket()
+	rpc.RegisterName("DHT", dht)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		fmt.Println(err)
@@ -69,10 +80,13 @@ func TestPingFindValue(t *testing.T) {
 		So(err.Error(), ShouldEqual, consistent.ErrEmptyCircle.Error())
 	})
 
+	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
+	node1 := NewNode()
+	node1.InitNodeCryptoInfo()
+	nodeBytes1, _ := node1.Marshal()
+
 	reqA := &PingReq{
-		Node: Node{
-			ID: "node1",
-		},
+		Node: nodeBytes1,
 	}
 	respA := new(PingResp)
 	err = client.Call("DHT.Ping", reqA, respA)
@@ -81,10 +95,12 @@ func TestPingFindValue(t *testing.T) {
 	}
 	log.Debugf("respA: %v", respA)
 
+	node2 := NewNode()
+	node2.InitNodeCryptoInfo()
+	nodeBytes2, _ := node2.Marshal()
+
 	reqB := &PingReq{
-		Node: Node{
-			ID: "node2",
-		},
+		Node: nodeBytes2,
 	}
 	respB := new(PingResp)
 	err = client.Call("DHT.Ping", reqB, respB)
@@ -103,13 +119,16 @@ func TestPingFindValue(t *testing.T) {
 		log.Error(err)
 	}
 	log.Debugf("resp: %v", resp)
+	nodeResp1, err := UnmarshalNode(resp.Nodes[0])
+	nodeResp2, err := UnmarshalNode(resp.Nodes[1])
 	nodeIDList := []string{
-		string(resp.Nodes[0].ID),
-		string(resp.Nodes[1].ID),
+		string(nodeResp1.ID),
+		string(nodeResp2.ID),
 	}
+	log.Debugf("nodeIDList: %v", nodeIDList)
 	Convey("test FindValue", t, func() {
-		So(nodeIDList, ShouldContain, "node1")
-		So(nodeIDList, ShouldContain, "node2")
+		So(nodeIDList, ShouldContain, string(node1.ID))
+		So(nodeIDList, ShouldContain, string(node2.ID))
 	})
 
 	client.Close()

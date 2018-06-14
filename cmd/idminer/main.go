@@ -64,14 +64,14 @@ func main() {
 
 	cpuCount := runtime.NumCPU()
 	log.Infof("cpu: %d", cpuCount)
-	nonceChs := make([]chan mine.Nonce, cpuCount)
+	nonceChs := make([]chan mine.NonceInfo, cpuCount)
 	stopChs := make([]chan struct{}, cpuCount)
 
 	rand.Seed(time.Now().UnixNano())
 	step := math.MaxUint64 / uint64(cpuCount)
 
 	for i := 0; i < cpuCount; i++ {
-		nonceChs[i] = make(chan mine.Nonce)
+		nonceChs[i] = make(chan mine.NonceInfo)
 		stopChs[i] = make(chan struct{})
 		go func(i int) {
 			miner := mine.NewCPUMiner(stopChs[i])
@@ -93,7 +93,7 @@ func main() {
 		stopChs[i] <- struct{}{}
 	}
 
-	max := mine.Nonce{}
+	max := mine.NonceInfo{}
 	for i := 0; i < cpuCount; i++ {
 		newNonce := <-nonceChs[i]
 		if max.Difficulty < newNonce.Difficulty {

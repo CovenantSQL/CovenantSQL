@@ -23,23 +23,31 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
+var (
+	testRounds = 100
+)
+
 type testStruct struct {
-	BoolField   bool
-	Int8Field   int8
-	Uint8Field  uint8
-	Int16Field  int16
-	Uint16Field uint16
-	Int32Field  int32
-	Uint32Field uint32
-	Int64Field  int64
-	Uint64Field uint64
-	StringField string
-	NodeIDField proto.NodeID
-	HashField   hash.Hash
+	BoolField      bool
+	Int8Field      int8
+	Uint8Field     uint8
+	Int16Field     int16
+	Uint16Field    uint16
+	Int32Field     int32
+	Uint32Field    uint32
+	Int64Field     int64
+	Uint64Field    uint64
+	StringField    string
+	BytesField     []byte
+	NodeIDField    proto.NodeID
+	HashField      hash.Hash
+	PublicKeyField *asymmetric.PublicKey
+	SignatureField *asymmetric.Signature
 }
 
 func (s *testStruct) randomize() {
@@ -52,15 +60,35 @@ func (s *testStruct) randomize() {
 	s.Uint32Field = rand.Uint32()
 	s.Int64Field = rand.Int63()
 	s.Uint64Field = rand.Uint64()
-	slen1 := rand.Intn(1024)
-	sbuf1 := make([]byte, slen1)
-	rand.Read(sbuf1)
-	s.StringField = string(sbuf1)
-	slen2 := rand.Intn(1024)
-	sbuf2 := make([]byte, slen2)
-	rand.Read(sbuf2)
-	s.NodeIDField = proto.NodeID(sbuf2)
+
+	slen := rand.Intn(2 * maxPooledBufferLength)
+	buff := make([]byte, slen)
+	rand.Read(buff)
+	s.StringField = string(buff)
+
+	slen = rand.Intn(2 * maxPooledBufferLength)
+	s.BytesField = make([]byte, slen)
+	rand.Read(s.BytesField)
+
+	slen = rand.Intn(2 * maxPooledBufferLength)
+	buff = make([]byte, slen)
+	rand.Read(buff)
+	s.NodeIDField = proto.NodeID(buff)
+
 	rand.Read(s.HashField[:])
+
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		panic(err)
+	}
+
+	s.PublicKeyField = pub
+	s.SignatureField, err = priv.Sign(s.HashField[:])
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *testStruct) MarshalBinary() ([]byte, error) {
@@ -77,8 +105,11 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.Int64Field,
 		s.Uint64Field,
 		s.StringField,
+		s.BytesField,
 		s.NodeIDField,
 		s.HashField,
+		s.PublicKeyField,
+		s.SignatureField,
 	); err != nil {
 		return nil, err
 	}
@@ -100,8 +131,11 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.Int64Field,
 		&s.Uint64Field,
 		&s.StringField,
+		&s.BytesField,
 		&s.NodeIDField,
 		&s.HashField,
+		&s.PublicKeyField,
+		&s.SignatureField,
 	); err != nil {
 		return nil, err
 	}
@@ -122,13 +156,16 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.Int64Field,
 		&s.Uint64Field,
 		&s.StringField,
+		&s.BytesField,
 		&s.NodeIDField,
 		&s.HashField,
+		&s.PublicKeyField,
+		&s.SignatureField,
 	)
 }
 
 func TestSerialization(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < testRounds; i++ {
 		ots := &testStruct{}
 		ots.randomize()
 		oenc, err := ots.MarshalBinary()
@@ -142,6 +179,14 @@ func TestSerialization(t *testing.T) {
 
 		if err = rts.UnmarshalBinary(oenc); err != nil {
 			t.Fatalf("Error occurred: %v", err)
+		}
+
+		if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
+			t.Fatalf("Failed to verify signature: hash=%s sign=%+v, pub=%+v",
+				rts.HashField.String(),
+				rts.SignatureField,
+				rts.PublicKeyField,
+			)
 		}
 
 		if !reflect.DeepEqual(ots, rts) {

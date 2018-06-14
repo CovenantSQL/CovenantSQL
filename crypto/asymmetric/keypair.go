@@ -41,28 +41,28 @@ type PrivateKey ec.PrivateKey
 type PublicKey ec.PublicKey
 
 // MarshalBinary does the serialization
-func (pub *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
-	if pub == nil {
+func (p *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
+	if p == nil {
 		return nil, errors.New("nil public key")
 	}
-	return pub.Serialize(), nil
+	return p.Serialize(), nil
 }
 
 // UnmarshalBinary does the deserialization
-func (pub *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
-	if pub == nil {
+func (p *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
+	if p == nil {
 		return errors.New("nil public key")
 	}
 	pubNew, err := ParsePubKey(keyBytes)
 	if err == nil {
-		*pub = *pubNew
+		*p = *pubNew
 	}
 	return
 }
 
 // IsEqual return true if two keys are equal
-func (pub *PublicKey) IsEqual(public *PublicKey) bool {
-	return (*ec.PublicKey)(pub).IsEqual((*ec.PublicKey)(public))
+func (p *PublicKey) IsEqual(public *PublicKey) bool {
+	return (*ec.PublicKey)(p).IsEqual((*ec.PublicKey)(public))
 }
 
 // Serialize returns the private key number d as a big-endian binary-encoded number, padded to a

@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -44,6 +45,7 @@ type testStruct struct {
 	Uint64Field    uint64
 	StringField    string
 	BytesField     []byte
+	TimeField      time.Time
 	NodeIDField    proto.NodeID
 	HashField      hash.Hash
 	PublicKeyField *asymmetric.PublicKey
@@ -69,6 +71,8 @@ func (s *testStruct) randomize() {
 	slen = rand.Intn(2 * maxPooledBufferLength)
 	s.BytesField = make([]byte, slen)
 	rand.Read(s.BytesField)
+
+	s.TimeField = time.Unix(0, rand.Int63()).UTC()
 
 	slen = rand.Intn(2 * maxPooledBufferLength)
 	buff = make([]byte, slen)
@@ -106,6 +110,7 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.Uint64Field,
 		s.StringField,
 		s.BytesField,
+		s.TimeField,
 		s.NodeIDField,
 		s.HashField,
 		s.PublicKeyField,
@@ -132,6 +137,7 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.Uint64Field,
 		&s.StringField,
 		&s.BytesField,
+		&s.TimeField,
 		&s.NodeIDField,
 		&s.HashField,
 		&s.PublicKeyField,
@@ -157,6 +163,7 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.Uint64Field,
 		&s.StringField,
 		&s.BytesField,
+		&s.TimeField,
 		&s.NodeIDField,
 		&s.HashField,
 		&s.PublicKeyField,

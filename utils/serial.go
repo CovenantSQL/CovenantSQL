@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/hash"
@@ -299,6 +300,13 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case *uint64:
 		*e, err = serializer.readUint64(r, order)
 
+	case *time.Time:
+		var ret uint64
+
+		if ret, err = serializer.readUint64(r, order); err == nil {
+			*e = time.Unix(0, int64(ret)).UTC()
+		}
+
 	case *string:
 		err = serializer.readString(r, order, e)
 
@@ -422,6 +430,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *[]byte:
 		err = serializer.writeBytes(w, order, *e)
+
+	case time.Time:
+		err = serializer.writeUint64(w, order, (uint64)(e.UnixNano()))
+
+	case *time.Time:
+		err = serializer.writeUint64(w, order, (uint64)(e.UnixNano()))
 
 	case proto.NodeID:
 		err = serializer.writeString(w, order, (*string)(&e))

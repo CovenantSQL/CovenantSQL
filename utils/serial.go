@@ -192,8 +192,8 @@ func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]
 	return
 }
 
-// readBytes reads fixed-size bytes from reader. It's used to read fixed-size array such as Hash,
-// which is a [32]byte array.
+// readFixedSizeBytes reads fixed-size bytes from reader. It's used to read fixed-size array such
+// as Hash, which is a [32]byte array.
 func (s simpleSerializer) readFixedSizeBytes(r io.Reader, lenToRead int, ret []byte) (err error) {
 	if len(ret) != lenToRead {
 		return ErrInsufficientBuffer
@@ -275,8 +275,8 @@ func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []
 	return
 }
 
-// readBytes writes fixed-size bytes to wirter. It's used to write fixed-size array such as Hash,
-// which is a [32]byte array.
+// writeFixedSizeBytes writes fixed-size bytes to wirter. It's used to write fixed-size array such
+// as Hash, which is a [32]byte array.
 func (s simpleSerializer) writeFixedSizeBytes(w io.Writer, lenToPut int, val []byte) (err error) {
 	if len(val) != lenToPut {
 		return ErrUnexpectedBufferLength

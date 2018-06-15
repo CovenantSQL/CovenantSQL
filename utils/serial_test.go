@@ -35,6 +35,12 @@ var (
 	testRounds     = 100
 )
 
+func init() {
+	for i := 0; i < maxPooledBufferNumber; i++ {
+		serializer.returnBuffer(make([]byte, pooledBufferLength))
+	}
+}
+
 type testStruct struct {
 	BoolField      bool
 	Int8Field      int8
@@ -185,9 +191,11 @@ func TestSerialization(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
+			ots := &testStruct{}
+			rts := &testStruct{}
+			ots.randomize()
+
 			for i := 0; i < testRounds; i++ {
-				ots := &testStruct{}
-				ots.randomize()
 				oenc, err := ots.MarshalBinary()
 
 				if err != nil {
@@ -195,7 +203,6 @@ func TestSerialization(t *testing.T) {
 				}
 
 				ohash := hash.HashH(oenc)
-				rts := &testStruct{}
 
 				if err = rts.UnmarshalBinary(oenc); err != nil {
 					t.Fatalf("Error occurred: %v", err)
@@ -229,4 +236,55 @@ func TestSerialization(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func BenchmarkMarshalBinary(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		b.StartTimer()
+
+		if _, err := st.MarshalBinary(); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
+}
+
+func BenchmarkMarshalBinary2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		b.StartTimer()
+
+		if _, err := st.MarshalBinary2(); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
+}
+
+func BenchmarkUnmarshalBinary(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		enc, err := st.MarshalBinary2()
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StartTimer()
+
+		if err = st.UnmarshalBinary(enc); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
 }

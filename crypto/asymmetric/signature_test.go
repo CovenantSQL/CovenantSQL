@@ -20,11 +20,17 @@ package asymmetric
 
 import (
 	"bytes"
+	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/btcsuite/btcd/btcec"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestSign(t *testing.T) {
 	tests := []struct {
@@ -73,5 +79,65 @@ func TestSign(t *testing.T) {
 			t.Errorf("%s unexpected serialized bytes - got: %x, want: %x", test.name,
 				targetSig, sig)
 		}
+	}
+}
+
+func BenchmarkGenKey(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if _, _, err := GenSecp256k1KeyPair(); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+	}
+}
+
+func BenchmarkSign(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		priv, pub, err := GenSecp256k1KeyPair()
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		var hash [32]byte
+		rand.Read(hash[:])
+
+		b.StartTimer()
+		sig, err := priv.Sign(hash[:])
+		b.StopTimer()
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		if !sig.Verify(hash[:], pub) {
+			b.Fatalf("Failed to verify signature")
+		}
+	}
+}
+
+func BenchmarkVerify(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		priv, pub, err := GenSecp256k1KeyPair()
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		var hash [32]byte
+		rand.Read(hash[:])
+		sig, err := priv.Sign(hash[:])
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StartTimer()
+
+		if !sig.Verify(hash[:], pub) {
+			b.Fatalf("Failed to verify signature")
+		}
+
 	}
 }

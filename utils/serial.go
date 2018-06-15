@@ -28,11 +28,13 @@ import (
 )
 
 const (
-	maxPooledBufferLength = hash.HashSize
+	pooledBufferLength    = hash.HashSize
 	maxPooledBufferNumber = 1024
 	maxBufferLength       = 1 << 20
 )
 
+// simpleSerializer is just a simple serializer with its own []byte pool, which is done by a
+// buffered []byte channel.
 type simpleSerializer chan []byte
 
 var (
@@ -51,7 +53,7 @@ var (
 )
 
 func (s simpleSerializer) borrowBuffer(len int) []byte {
-	if len > maxPooledBufferLength {
+	if len > pooledBufferLength {
 		return make([]byte, len)
 	}
 
@@ -61,16 +63,17 @@ func (s simpleSerializer) borrowBuffer(len int) []byte {
 	default:
 	}
 
-	return make([]byte, len, maxPooledBufferLength)
+	return make([]byte, len, pooledBufferLength)
 }
 
 func (s simpleSerializer) returnBuffer(buffer []byte) {
-	if cap(buffer) != maxPooledBufferLength {
+	// This guarantees all the buffers in free list are of the same size pooledBufferLength.
+	if cap(buffer) != pooledBufferLength {
 		return
 	}
 
 	select {
-	case s <- buffer[:maxPooledBufferLength]:
+	case s <- buffer:
 	default:
 	}
 }
@@ -119,6 +122,13 @@ func (s simpleSerializer) readUint64(r io.Reader, order binary.ByteOrder) (ret u
 	return
 }
 
+// readString reads string from reader with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             string              |
+// +-----+---------------------------------+
+//
 func (s simpleSerializer) readString(r io.Reader, order binary.ByteOrder, ret *string) (err error) {
 	lenBuffer := s.borrowBuffer(4)
 	defer s.returnBuffer(lenBuffer)
@@ -144,6 +154,13 @@ func (s simpleSerializer) readString(r io.Reader, order binary.ByteOrder, ret *s
 	return
 }
 
+// readBytes reads bytes from reader with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             bytes               |
+// +-----+---------------------------------+
+//
 func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]byte) (err error) {
 	lenBuffer := s.borrowBuffer(4)
 	defer s.returnBuffer(lenBuffer)
@@ -175,6 +192,8 @@ func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]
 	return
 }
 
+// readBytes reads fixed-size bytes from reader. It's used to read fixed-size array such as Hash,
+// which is a [32]byte array.
 func (s simpleSerializer) readFixedSizeBytes(r io.Reader, lenToRead int, ret []byte) (err error) {
 	if len(ret) != lenToRead {
 		return ErrInsufficientBuffer
@@ -220,6 +239,13 @@ func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val u
 	return
 }
 
+// writeString writes string to writer with the following format:
+//
+//  0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             string              |
+// +-----+---------------------------------+
+//
 func (s simpleSerializer) writeString(w io.Writer, order binary.ByteOrder, val *string) (err error) {
 	buffer := s.borrowBuffer(4 + len(*val))
 	defer s.returnBuffer(buffer)
@@ -231,6 +257,13 @@ func (s simpleSerializer) writeString(w io.Writer, order binary.ByteOrder, val *
 	return
 }
 
+// writeBytes writes bytes to writer with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             bytes               |
+// +-----+---------------------------------+
+//
 func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []byte) (err error) {
 	buffer := s.borrowBuffer(4 + len(val))
 	defer s.returnBuffer(buffer)
@@ -242,6 +275,8 @@ func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []
 	return
 }
 
+// readBytes writes fixed-size bytes to wirter. It's used to write fixed-size array such as Hash,
+// which is a [32]byte array.
 func (s simpleSerializer) writeFixedSizeBytes(w io.Writer, lenToPut int, val []byte) (err error) {
 	if len(val) != lenToPut {
 		return ErrUnexpectedBufferLength

@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,7 +31,8 @@ import (
 )
 
 var (
-	testRounds = 100
+	testGoRoutines = 100
+	testRounds     = 100
 )
 
 type testStruct struct {
@@ -63,24 +65,28 @@ func (s *testStruct) randomize() {
 	s.Int64Field = rand.Int63()
 	s.Uint64Field = rand.Uint64()
 
-	slen := rand.Intn(2 * maxPooledBufferLength)
+	// Randomize StringField
+	slen := rand.Intn(2 * pooledBufferLength)
 	buff := make([]byte, slen)
 	rand.Read(buff)
 	s.StringField = string(buff)
 
-	slen = rand.Intn(2 * maxPooledBufferLength)
+	// Randomize BytesField
+	slen = rand.Intn(2 * pooledBufferLength)
 	s.BytesField = make([]byte, slen)
 	rand.Read(s.BytesField)
 
 	s.TimeField = time.Unix(0, rand.Int63()).UTC()
 
-	slen = rand.Intn(2 * maxPooledBufferLength)
+	// Randomize NodeIDField
+	slen = rand.Intn(2 * pooledBufferLength)
 	buff = make([]byte, slen)
 	rand.Read(buff)
 	s.NodeIDField = proto.NodeID(buff)
 
 	rand.Read(s.HashField[:])
 
+	// Randomize PublicKeyField and SignatureField
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
@@ -172,44 +178,55 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 }
 
 func TestSerialization(t *testing.T) {
-	for i := 0; i < testRounds; i++ {
-		ots := &testStruct{}
-		ots.randomize()
-		oenc, err := ots.MarshalBinary()
+	wg := &sync.WaitGroup{}
 
-		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
-		}
+	for i := 0; i < testGoRoutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		ohash := hash.HashH(oenc)
-		rts := &testStruct{}
+			for i := 0; i < testRounds; i++ {
+				ots := &testStruct{}
+				ots.randomize()
+				oenc, err := ots.MarshalBinary()
 
-		if err = rts.UnmarshalBinary(oenc); err != nil {
-			t.Fatalf("Error occurred: %v", err)
-		}
+				if err != nil {
+					t.Fatalf("Error occurred: %v", err)
+				}
 
-		if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
-			t.Fatalf("Failed to verify signature: hash=%s sign=%+v, pub=%+v",
-				rts.HashField.String(),
-				rts.SignatureField,
-				rts.PublicKeyField,
-			)
-		}
+				ohash := hash.HashH(oenc)
+				rts := &testStruct{}
 
-		if !reflect.DeepEqual(ots, rts) {
-			t.Fatalf("Result not match: t1=%+v t2=%+v", ots, rts)
-		}
+				if err = rts.UnmarshalBinary(oenc); err != nil {
+					t.Fatalf("Error occurred: %v", err)
+				}
 
-		renc, err := rts.MarshalBinary2()
+				if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
+					t.Fatalf("Failed to verify signature: hash=%s, sign=%+v, pub=%+v",
+						rts.HashField.String(),
+						rts.SignatureField,
+						rts.PublicKeyField,
+					)
+				}
 
-		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
-		}
+				if !reflect.DeepEqual(ots, rts) {
+					t.Fatalf("Result not match: t1=%+v, t2=%+v", ots, rts)
+				}
 
-		rhash := hash.HashH(renc)
+				renc, err := rts.MarshalBinary2()
 
-		if rhash != ohash {
-			t.Fatalf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
-		}
+				if err != nil {
+					t.Fatalf("Error occurred: %v", err)
+				}
+
+				rhash := hash.HashH(renc)
+
+				if rhash != ohash {
+					t.Fatalf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
+				}
+			}
+		}()
 	}
+
+	wg.Wait()
 }

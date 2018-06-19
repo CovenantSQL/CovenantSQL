@@ -45,7 +45,7 @@ type StreamLayer interface {
 type NetworkRequest struct {
 	NodeID        proto.NodeID
 	Method        string
-	Payload       interface{}
+	Log           *kayak.Log
 	Response      interface{}
 	Error         error
 	respAvailable chan struct{}
@@ -103,11 +103,11 @@ func NewConfigWithCodec(nodeID proto.NodeID, streamLayer StreamLayer,
 }
 
 // NewRequest returns new request entity
-func NewRequest(nodeID proto.NodeID, method string, payload interface{}) (r *NetworkRequest) {
+func NewRequest(nodeID proto.NodeID, method string, log *kayak.Log) (r *NetworkRequest) {
 	return &NetworkRequest{
-		NodeID:  nodeID,
-		Method:  method,
-		Payload: payload,
+		NodeID: nodeID,
+		Method: method,
+		Log:    log,
 	}
 }
 
@@ -152,9 +152,9 @@ func (r *NetworkRequest) GetMethod() string {
 	return r.Method
 }
 
-// GetRequest implements kayak.Request.GetRequest
-func (r *NetworkRequest) GetRequest() interface{} {
-	return r.Payload
+// GetLog implements kayak.Request.GetLog
+func (r *NetworkRequest) GetLog() *kayak.Log {
+	return r.Log
 }
 
 // SendResponse implements kayak.Request.SendResponse
@@ -195,7 +195,7 @@ func (r *NetworkResponse) get() interface{} {
 
 // Request implements Transport.Request method
 func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
-	method string, args interface{}) (response interface{}, err error) {
+	method string, log *kayak.Log) (response interface{}, err error) {
 	conn, err := t.config.StreamLayer.Dial(ctx, nodeID)
 
 	if err != nil {
@@ -209,7 +209,7 @@ func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
 	}
 
 	client := rpc.NewClientWithCodec(t.config.ClientCodec(conn))
-	req := NewRequest(t.config.NodeID, method, args)
+	req := NewRequest(t.config.NodeID, method, log)
 	res := NewResponse()
 	// TODO(xq262144), too tricky
 	err = client.Call("Service.Call", req, res)

@@ -229,6 +229,18 @@ func testPeersFixture(term uint64, servers []*kayak.Server) *kayak.Peers {
 	return peers
 }
 
+func testLogFixture(data []byte) (log *kayak.Log) {
+	log = &kayak.Log{
+		Index: uint64(1),
+		Term:  uint64(1),
+		Data:  data,
+	}
+
+	log.ComputeHash()
+
+	return
+}
+
 func TestConnPair(t *testing.T) {
 	Convey("test transport", t, FailureContinues, func(c C) {
 		router := NewTestStreamRouter()
@@ -272,13 +284,14 @@ func TestTransport(t *testing.T) {
 		config2 := NewConfig("id2", stream2)
 		t1 := NewTransport(config1)
 		t2 := NewTransport(config2)
+		testLog := testLogFixture([]byte("test request"))
 
 		var wg sync.WaitGroup
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := t1.Request(context.Background(), "id2", "test method", "test request")
+			res, err := t1.Request(context.Background(), "id2", "test method", testLog)
 			c.So(err, ShouldBeNil)
 			c.So(res, ShouldResemble, "test response")
 		}()
@@ -288,7 +301,7 @@ func TestTransport(t *testing.T) {
 			defer wg.Done()
 			select {
 			case req := <-t2.Process():
-				c.So(req.GetRequest(), ShouldResemble, "test request")
+				c.So(req.GetLog(), ShouldResemble, testLog)
 				c.So(req.GetMethod(), ShouldEqual, "test method")
 				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("id1"))
 				req.SendResponse("test response", nil)

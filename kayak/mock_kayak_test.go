@@ -59,12 +59,12 @@ type MockRequest struct {
 	RequestID uint64
 	NodeID    proto.NodeID
 	Method    string
-	Payload   *Log
+	Log       *Log
 }
 
 type MockResponse struct {
 	ResponseID uint64
-	Payload    interface{}
+	Data       interface{}
 	Error      error
 }
 
@@ -130,7 +130,7 @@ func (m *MockTransport) Request(ctx context.Context, nodeID proto.NodeID, method
 		RequestID: m.router.getReqID(),
 		NodeID:    m.nodeID,
 		Method:    method,
-		Payload:   log,
+		Log:       log,
 		ctx:       ctx,
 	})
 }
@@ -167,8 +167,8 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 				}
 			} else {
 				log.Debugf("[%v] [%v] -> [%v] response %v: %v",
-					r.RequestID, req.GetNodeID(), r.NodeID, res.Payload, res.Error)
-				return res.Payload, res.Error
+					r.RequestID, req.GetNodeID(), r.NodeID, res.Data, res.Error)
+				return res.Data, res.Error
 			}
 		}
 	}
@@ -183,13 +183,13 @@ func (m *MockRequest) GetMethod() string {
 }
 
 func (m *MockRequest) GetLog() *Log {
-	return m.Payload
+	return m.Log
 }
 
 func (m *MockRequest) SendResponse(v interface{}, err error) error {
 	m.transport.waitQueue <- &MockResponse{
 		ResponseID: m.RequestID,
-		Payload:    v,
+		Data:       v,
 		Error:      err,
 	}
 

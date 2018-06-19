@@ -28,8 +28,20 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 )
 
+var (
+	priv *PrivateKey
+	pub  *PublicKey
+)
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
+
+	var err error
+	priv, pub, err = GenSecp256k1KeyPair()
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TestSign(t *testing.T) {
@@ -93,25 +105,15 @@ func BenchmarkGenKey(b *testing.B) {
 func BenchmarkSign(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		priv, pub, err := GenSecp256k1KeyPair()
-
-		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
-		}
-
 		var hash [32]byte
 		rand.Read(hash[:])
 
 		b.StartTimer()
-		sig, err := priv.Sign(hash[:])
+		_, err := priv.Sign(hash[:])
 		b.StopTimer()
 
 		if err != nil {
 			b.Fatalf("Error occurred: %v", err)
-		}
-
-		if !sig.Verify(hash[:], pub) {
-			b.Fatalf("Failed to verify signature")
 		}
 	}
 }
@@ -119,12 +121,6 @@ func BenchmarkSign(b *testing.B) {
 func BenchmarkVerify(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		priv, pub, err := GenSecp256k1KeyPair()
-
-		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
-		}
-
 		var hash [32]byte
 		rand.Read(hash[:])
 		sig, err := priv.Sign(hash[:])
@@ -138,6 +134,56 @@ func BenchmarkVerify(b *testing.B) {
 		if !sig.Verify(hash[:], pub) {
 			b.Fatalf("Failed to verify signature")
 		}
+	}
+}
 
+func BenchmarkPublicKeySerialization(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		pub.Serialize()
+	}
+}
+
+func BenchmarkParsePublicKey(b *testing.B) {
+	buffer := pub.Serialize()
+
+	for i := 0; i < b.N; i++ {
+		_, err := ParsePubKey(buffer)
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+	}
+}
+
+func BenchmarkSignatureSerialization(b *testing.B) {
+	var hash [32]byte
+	rand.Read(hash[:])
+	sig, err := priv.Sign(hash[:])
+
+	if err != nil {
+		b.Fatalf("Error occurred: %v", err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		sig.Serialize()
+	}
+}
+
+func BenchmarkParseSignature(b *testing.B) {
+	var hash [32]byte
+	rand.Read(hash[:])
+	sig, err := priv.Sign(hash[:])
+	buffer := sig.Serialize()
+
+	if err != nil {
+		b.Fatalf("Error occurred: %v", err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err := ParseSignature(buffer)
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
 	}
 }

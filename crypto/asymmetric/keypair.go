@@ -71,6 +71,12 @@ func (k *PublicKey) toECDSA() *ecdsa.PublicKey {
 
 // Serialize is a function that converts a public key
 // to uncompressed byte array
+//
+// TODO(leventeliu): use SerializeUncompressed, which is about 40 times faster than
+// SerializeCompressed.
+//
+// BenchmarkParsePublicKey-12                 50000             39819 ns/op            2401 B/op         35 allocs/op
+// BenchmarkParsePublicKey-12               1000000              1039 ns/op             384 B/op          9 allocs/op
 func (k *PublicKey) Serialize() []byte {
 	return (*ec.PublicKey)(k).SerializeCompressed()
 }

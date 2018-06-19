@@ -18,7 +18,6 @@ package kayak
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -519,43 +518,20 @@ func (r *TwoPCRunner) verifyLeader(req Request) error {
 	return nil
 }
 
-func (r *TwoPCRunner) decodeLogIndex(data interface{}) (uint64, error) {
-	// FIXME(xq262144), very very hack, lost precision
-	if data == nil {
-		return 0, ErrInvalidLog
+func (r *TwoPCRunner) verifyLog(req Request) (log *Log, err error) {
+	log = req.GetLog()
+
+	if log == nil {
+		err = ErrInvalidLog
+		return
 	}
 
-	b, err := json.Marshal(data)
-	if err != nil {
-		return 0, err
+	if !log.VerifyHash() {
+		err = ErrInvalidLog
+		return
 	}
 
-	var index uint64
-	if err = json.Unmarshal(b, &index); err == nil {
-		return index, nil
-	}
-
-	return 0, ErrInvalidLog
-}
-
-func (r *TwoPCRunner) decodeLog(data interface{}) (*Log, error) {
-	// TODO(xq262144), very very hack, need rewrite later
-	if data == nil {
-		return nil, ErrInvalidLog
-	}
-
-	b, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	var l *Log
-
-	if err = json.Unmarshal(b, &l); err == nil {
-		return l, nil
-	}
-
-	return nil, ErrInvalidLog
+	return
 }
 
 func (r *TwoPCRunner) decodeLogData(data []byte) (interface{}, error) {
@@ -577,20 +553,15 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 
 		// get log
 		var l *Log
-		if l, err = r.decodeLog(req.GetRequest()); err != nil {
+		if l, err = r.verifyLog(req); err != nil {
 			return
-		}
-
-		// validate log
-		if !l.VerifyHash() {
-			return ErrInvalidLog
 		}
 
 		// check log index existence
 		var lastIndex uint64
 		if lastIndex, err = r.logStore.LastIndex(); err != nil || lastIndex >= l.Index {
 			// already prepared or failed
-			return err
+			return
 		}
 
 		// check prepare hash with last log hash
@@ -602,7 +573,7 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		if lastIndex > 0 {
 			var lastLog Log
 			if err = r.logStore.GetLog(lastIndex, &lastLog); err != nil {
-				return err
+				return
 			}
 
 			if !l.LastHash.IsEqual(&lastLog.Hash) {
@@ -613,17 +584,17 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		// decode log payload
 		var decodedLog interface{}
 		if decodedLog, err = r.decodeLogData(l.Data); err != nil {
-			return err
+			return
 		}
 
 		// prepare on storage
 		if err = r.config.Storage.Prepare(ctx, decodedLog); err != nil {
-			return err
+			return
 		}
 
 		// write log to storage
 		if err = r.logStore.StoreLog(l); err != nil {
-			return err
+			return
 		}
 
 		// set state to prepared
@@ -642,44 +613,44 @@ func (r *TwoPCRunner) processCommit(req Request) {
 			return ErrInvalidRequest
 		}
 
-		// get index
-		var index uint64
-		if index, err = r.decodeLogIndex(req.GetRequest()); err != nil {
+		// get log
+		var l *Log
+		if l, err = r.verifyLog(req); err != nil {
 			return
 		}
 
 		var lastIndex uint64
 		if lastIndex, err = r.logStore.LastIndex(); err != nil {
-			return err
-		} else if lastIndex < index {
+			return
+		} else if lastIndex < l.Index {
 			// not logged, need re-prepare
 			return ErrInvalidLog
 		}
 
-		if r.lastLogIndex+1 != index {
+		if r.lastLogIndex+1 != l.Index {
 			// not at the head of the commit position
 			return ErrInvalidLog
 		}
 
 		// get log
 		var lastLog Log
-		if err = r.logStore.GetLog(index, &lastLog); err != nil {
-			return err
+		if err = r.logStore.GetLog(l.Index, &lastLog); err != nil {
+			return
 		}
 
 		// decode log
 		var decodedLog interface{}
 		if decodedLog, err = r.decodeLogData(lastLog.Data); err != nil {
-			return err
+			return
 		}
 
 		// commit on storage
 		if err = r.config.Storage.Commit(ctx, decodedLog); err != nil {
-			return err
+			return
 		}
 
 		// commit log
-		r.stableStore.SetUint64(keyCommittedIndex, index)
+		r.stableStore.SetUint64(keyCommittedIndex, l.Index)
 		r.lastLogHash = &lastLog.Hash
 		r.lastLogIndex = lastLog.Index
 		r.lastLogTerm = lastLog.Term
@@ -687,7 +658,7 @@ func (r *TwoPCRunner) processCommit(req Request) {
 		// set state to idle
 		r.setState(Idle)
 
-		return nil
+		return
 	}))
 }
 
@@ -700,49 +671,49 @@ func (r *TwoPCRunner) processRollback(req Request) {
 			return ErrInvalidRequest
 		}
 
-		// get index
-		var index uint64
-		if index, err = r.decodeLogIndex(req.GetRequest()); err != nil {
+		// get log
+		var l *Log
+		if l, err = r.verifyLog(req); err != nil {
 			return
 		}
 
 		var lastIndex uint64
 		if lastIndex, err = r.logStore.LastIndex(); err != nil {
-			return err
-		} else if lastIndex < index {
+			return
+		} else if lastIndex < l.Index {
 			// not logged, no rollback required, maybe previous initiated rollback
-			return nil
+			return
 		}
 
-		if r.lastLogIndex+1 != index {
+		if r.lastLogIndex+1 != l.Index {
 			// not at the head of the commit position
 			return ErrInvalidLog
 		}
 
 		// get log
 		var lastLog Log
-		if err = r.logStore.GetLog(index, &lastLog); err != nil {
-			return err
+		if err = r.logStore.GetLog(l.Index, &lastLog); err != nil {
+			return
 		}
 
 		// decode log
 		var decodedLog interface{}
 		if decodedLog, err = r.decodeLogData(lastLog.Data); err != nil {
-			return err
+			return
 		}
 
 		// rollback on storage
 		if err = r.config.Storage.Rollback(ctx, decodedLog); err != nil {
-			return err
+			return
 		}
 
 		// rewind log, can be failed, since committedIndex is not updated
-		r.logStore.DeleteRange(r.lastLogIndex+1, index)
+		r.logStore.DeleteRange(r.lastLogIndex+1, l.Index)
 
 		// set state to idle
 		r.setState(Idle)
 
-		return nil
+		return
 	}))
 }
 
@@ -766,34 +737,40 @@ func NewTwoPCWorkerWrapper(runner *TwoPCRunner, nodeID proto.NodeID) *TwoPCWorke
 
 // Prepare implements twopc.Worker.Prepare
 func (tpww *TwoPCWorkerWrapper) Prepare(ctx context.Context, wb twopc.WriteBatch) error {
-	return tpww.callRemote(ctx, "Prepare", wb)
+	// extract log
+	l, ok := wb.(*Log)
+	if !ok {
+		return ErrInvalidLog
+	}
+
+	return tpww.callRemote(ctx, "Prepare", l)
 }
 
 // Commit implements twopc.Worker.Commit
 func (tpww *TwoPCWorkerWrapper) Commit(ctx context.Context, wb twopc.WriteBatch) error {
-	// extract log index only
+	// extract log
 	l, ok := wb.(*Log)
 	if !ok {
 		return ErrInvalidLog
 	}
 
-	return tpww.callRemote(ctx, "Commit", l.Index)
+	return tpww.callRemote(ctx, "Commit", l)
 }
 
 // Rollback implements twopc.Worker.Rollback
 func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatch) error {
-	// extract log index only
+	// extract log
 	l, ok := wb.(*Log)
 	if !ok {
 		return ErrInvalidLog
 	}
 
-	return tpww.callRemote(ctx, "Rollback", l.Index)
+	return tpww.callRemote(ctx, "Rollback", l)
 }
 
-func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, args interface{}) (err error) {
+func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, log *Log) (err error) {
 	// TODO(xq262144), handle retry
-	_, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, args)
+	_, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, log)
 	return
 }
 

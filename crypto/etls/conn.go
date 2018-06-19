@@ -25,19 +25,22 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/thunderdb/ThunderDB/proto"
 )
 
 // CryptoConn implements net.Conn and Cipher interface
 type CryptoConn struct {
 	net.Conn
 	*Cipher
+	NodeID *proto.RawNodeID
 }
 
 // NewConn returns a new CryptoConn
-func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
+func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
 	return &CryptoConn{
 		Conn:   c,
 		Cipher: cipher,
+		NodeID: nodeID,
 	}
 }
 
@@ -50,8 +53,7 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 		return
 	}
 
-	c = NewConn(conn, cipher)
-	c.Conn = conn
+	c = NewConn(conn, cipher, nil)
 	return
 }
 

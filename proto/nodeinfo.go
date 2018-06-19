@@ -32,7 +32,13 @@ var (
 	NewNodeIDDifficultyTimeout = 60 * time.Second
 )
 
-// NodeID is node name, will be generated from Hash(nodePublicKey)
+// RawNodeID is node name, will be generated from Hash(nodePublicKey)
+// RawNodeID length should be 32 bytes normally
+type RawNodeID struct {
+	hash.Hash
+}
+
+// NodeID is the Hex of RawNodeID
 type NodeID string
 
 // AccountAddress is wallet address, will be generated from Hash(nodePublicKey)

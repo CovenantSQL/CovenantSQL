@@ -17,8 +17,6 @@
 package route
 
 import (
-	"strings"
-
 	"sync"
 
 	"errors"
@@ -29,18 +27,26 @@ import (
 
 //TODO(auxten): this whole file need to be implemented
 
+// ResolveCache is the map of proto.RawNodeID to node address
+type ResolveCache map[proto.RawNodeID]string
+
 var (
 	// resolver hold the singleton instance
 	resolver     *Resolver
 	resolverOnce sync.Once
 )
 
-// ErrUnknownNodeID indicates we got unknown node id
-var ErrUnknownNodeID = errors.New("unknown node id")
+var (
+	// ErrUnknownNodeID indicates we got unknown node id
+	ErrUnknownNodeID = errors.New("unknown node id")
+
+	// ErrNilNodeID indicates we got nil node id
+	ErrNilNodeID = errors.New("nil node id")
+)
 
 // Resolver does NodeID translation
 type Resolver struct {
-	cache map[proto.NodeID]string
+	cache ResolveCache
 	sync.RWMutex
 }
 
@@ -48,30 +54,36 @@ type Resolver struct {
 func InitResolver() {
 	resolverOnce.Do(func() {
 		resolver = &Resolver{
-			cache: make(map[proto.NodeID]string),
+			cache: make(ResolveCache),
 		}
 	})
 	return
 }
 
 // IsBPNodeID return if it is Block Producer node id
-func IsBPNodeID(id proto.NodeID) bool {
-	return strings.Compare(string(id), kms.BPNodeID) == 0
+func IsBPNodeID(id *proto.RawNodeID) bool {
+	if id == nil {
+		return false
+	}
+	return id.IsEqual(&kms.BPRawNodeID.Hash)
 }
 
 // InitResolveCache init Resolver.cache by a new map
-func InitResolveCache(initCache map[proto.NodeID]string) {
+func InitResolveCache(initCache ResolveCache) {
 	resolver.Lock()
 	defer resolver.Unlock()
 	resolver.cache = initCache
 }
 
 // GetNodeAddr get node addr by node id
-func GetNodeAddr(id proto.NodeID) (addr string, err error) {
+func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	//TODO(auxten): implement that
+	if id == nil {
+		return "", ErrNilNodeID
+	}
 	resolver.RLock()
 	defer resolver.RUnlock()
-	addr, ok := resolver.cache[id]
+	addr, ok := resolver.cache[*id]
 	if !ok {
 		return "", ErrUnknownNodeID
 	}
@@ -79,16 +91,19 @@ func GetNodeAddr(id proto.NodeID) (addr string, err error) {
 }
 
 // SetNodeAddr set node id and addr
-func SetNodeAddr(id proto.NodeID, addr string) (err error) {
+func SetNodeAddr(id *proto.RawNodeID, addr string) (err error) {
 	//TODO(auxten): implement that
+	if id == nil {
+		return ErrNilNodeID
+	}
 	resolver.Lock()
 	defer resolver.Unlock()
-	resolver.cache[id] = addr
+	resolver.cache[*id] = addr
 	return
 }
 
 // GetBPAddr return BlockProducer addresses array
-func GetBPAddr() (addrs []string) {
+func GetBPAddr() []string {
 	//TODO(auxten): implement that
 	return []string{"127.0.0.1:2120", "127.0.0.1:2120"}
 }

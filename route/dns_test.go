@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/proto"
 )
 
@@ -28,18 +29,33 @@ const addr = "127.0.0.1:22"
 func TestResolver(t *testing.T) {
 	Convey("resolver init", t, func() {
 		InitResolver()
-		InitResolveCache(make(map[proto.NodeID]string))
-		addr, err := GetNodeAddr(proto.NodeID("no exist"))
+		InitResolveCache(make(ResolveCache))
+		addr, err := GetNodeAddr(&proto.RawNodeID{
+			Hash: hash.Hash([32]byte{0xde, 0xad}),
+		})
 		So(err, ShouldEqual, ErrUnknownNodeID)
 		So(addr, ShouldBeBlank)
-		err = SetNodeAddr(proto.NodeID("aaa"), addr)
+
+		addr, err = GetNodeAddr(nil)
+		So(err, ShouldEqual, ErrNilNodeID)
+		So(addr, ShouldBeBlank)
+
+		err = SetNodeAddr(nil, addr)
+		So(err, ShouldEqual, ErrNilNodeID)
+
+		nodeA := &proto.RawNodeID{
+			Hash: hash.Hash([32]byte{0xaa, 0xaa}),
+		}
+		err = SetNodeAddr(nodeA, addr)
 		So(err, ShouldBeNil)
 
-		addr, err = GetNodeAddr(proto.NodeID("aaa"))
+		addr, err = GetNodeAddr(nodeA)
 		So(err, ShouldBeNil)
 		So(addr, ShouldEqual, addr)
 
-		So(IsBPNodeID(proto.NodeID("aa")), ShouldBeFalse)
+		So(IsBPNodeID(nil), ShouldBeFalse)
+
+		So(IsBPNodeID(nodeA), ShouldBeFalse)
 
 		So(GetBPAddr(), ShouldNotBeNil)
 	})

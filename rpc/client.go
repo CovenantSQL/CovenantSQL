@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"github.com/thunderdb/ThunderDB/crypto/etls"
+	"github.com/thunderdb/ThunderDB/crypto/hash"
 	"github.com/thunderdb/ThunderDB/crypto/kms"
 	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/thunderdb/ThunderDB/route"
@@ -36,9 +37,9 @@ type Client struct {
 	*rpc.Client
 }
 
-// Dial connects to a address with a Cipher
+// dial connects to a address with a Cipher
 // address should be in the form of host:port
-func Dial(network, address string, cipher *etls.Cipher) (c *etls.CryptoConn, err error) {
+func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher) (c *etls.CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		log.Errorf("connect to %s failed: %s", address, err)
@@ -62,15 +63,20 @@ func Dial(network, address string, cipher *etls.Cipher) (c *etls.CryptoConn, err
 		return
 	}
 
-	c = etls.NewConn(conn, cipher)
-	c.Conn = conn
+	c = etls.NewConn(conn, cipher, remoteNodeID)
 	return
 }
 
 // DailToNode connects to the node with nodeID
 func DailToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
 	var nodePublicKey *asymmetric.PublicKey
-	if route.IsBPNodeID(nodeID) {
+	var rawNodeID proto.RawNodeID
+	err = hash.Decode(&rawNodeID.Hash, string(nodeID))
+	if err != nil {
+		log.Errorf("decode node id error: %s", err)
+		return
+	}
+	if route.IsBPNodeID(&rawNodeID) {
 		nodePublicKey = kms.BPPublicKey
 	} else {
 		nodePublicKey, err = kms.GetPublicKey(nodeID)
@@ -90,14 +96,14 @@ func DailToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
 	}
 	symmetricKey := asymmetric.GenECDHSharedSecret(localPrivateKey, nodePublicKey)
 
-	nodeAddr, err := route.GetNodeAddr(nodeID)
+	nodeAddr, err := route.GetNodeAddr(&rawNodeID)
 	if err != nil {
-		log.Errorf("resolve node id failed: %s, err: %s", nodeID, err)
+		log.Errorf("resolve node id failed: %s, err: %s", rawNodeID, err)
 		return
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
-	conn, err = Dial("tcp", nodeAddr, cipher)
+	conn, err = dial("tcp", nodeAddr, &rawNodeID, cipher)
 	if err != nil {
 		log.Errorf("connect to %s: %s", nodeAddr, err)
 		return

@@ -38,32 +38,32 @@ const publicKeyStore = "./test.keystore"
 const pass = "abc"
 
 func TestDail(t *testing.T) {
-	Convey("Dial error case", t, func() {
-		c, err := Dial("tcp", "wrongaddr", nil)
+	Convey("dial error case", t, func() {
+		c, err := dial("tcp", "wrongaddr", nil, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.InitLocalKeyStore()
 		var l net.Listener
 		l, _ = net.Listen("tcp", "127.0.0.1:0")
-		c, err = Dial("tcp", l.Addr().String(), nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.SetLocalNodeIDNonce([]byte(nodeID), nil)
-		c, err = Dial("tcp", l.Addr().String(), nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{1, 1, 1, 1})
-		c, err = Dial("tcp", l.Addr().String(), nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 
 		go func() {
 			l.Accept()
 		}()
-		c, err = Dial("tcp", l.Addr().String(), nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 	})
@@ -100,7 +100,7 @@ func TestDailToNode(t *testing.T) {
 
 		l, _ := net.Listen("tcp", "127.0.0.1:0")
 
-		route.SetNodeAddr(proto.NodeID(kms.BPNodeID), l.Addr().String())
+		route.SetNodeAddr(&kms.BPRawNodeID, l.Addr().String())
 		c, err = DailToNode(proto.NodeID(kms.BPNodeID))
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)

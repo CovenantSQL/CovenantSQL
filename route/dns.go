@@ -27,6 +27,7 @@ import (
 
 //TODO(auxten): this whole file need to be implemented
 
+// ResolveCache is the map of proto.RawNodeID to node address
 type ResolveCache map[proto.RawNodeID]string
 
 var (

@@ -293,7 +293,7 @@ func TestTransport(t *testing.T) {
 			defer wg.Done()
 			res, err := t1.Request(context.Background(), "id2", "test method", testLog)
 			c.So(err, ShouldBeNil)
-			c.So(res, ShouldResemble, "test response")
+			c.So(res, ShouldResemble, []byte("test response"))
 		}()
 
 		wg.Add(1)
@@ -303,8 +303,8 @@ func TestTransport(t *testing.T) {
 			case req := <-t2.Process():
 				c.So(req.GetLog(), ShouldResemble, testLog)
 				c.So(req.GetMethod(), ShouldEqual, "test method")
-				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("id1"))
-				req.SendResponse("test response", nil)
+				c.So(req.GetPeerNodeID(), ShouldEqual, proto.NodeID("id1"))
+				req.SendResponse([]byte("test response"), nil)
 			}
 		}()
 
@@ -381,7 +381,7 @@ func TestIntegration(t *testing.T) {
 		os.RemoveAll(c.config.RuntimeConfig.RootDir)
 	}
 
-	Convey("", t, FailureContinues, func(c C) {
+	Convey("integration test", t, FailureContinues, func(c C) {
 		var err error
 
 		lMock := createMock("leader")

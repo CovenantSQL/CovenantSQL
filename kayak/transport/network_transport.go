@@ -46,7 +46,7 @@ type NetworkRequest struct {
 	NodeID        proto.NodeID
 	Method        string
 	Log           *kayak.Log
-	Response      interface{}
+	Response      []byte
 	Error         error
 	respAvailable chan struct{}
 	respInit      sync.Once
@@ -60,7 +60,7 @@ type ServerCodecBuilder func(closer io.ReadWriteCloser) rpc.ServerCodec
 
 // NetworkResponse is the response object hand off inter node response
 type NetworkResponse struct {
-	Response interface{}
+	Response []byte
 }
 
 // NetworkTransport support customized stream layer integration with kayak transport
@@ -142,8 +142,8 @@ func NewRequestProxy(transport *NetworkTransport, conn ConnWithPeerNodeID) (rp *
 	return
 }
 
-// GetNodeID implements kayak.Request.GetNodeID
-func (r *NetworkRequest) GetNodeID() proto.NodeID {
+// GetPeerNodeID implements kayak.Request.GetPeerNodeID
+func (r *NetworkRequest) GetPeerNodeID() proto.NodeID {
 	return r.NodeID
 }
 
@@ -158,7 +158,7 @@ func (r *NetworkRequest) GetLog() *kayak.Log {
 }
 
 // SendResponse implements kayak.Request.SendResponse
-func (r *NetworkRequest) SendResponse(resp interface{}, err error) error {
+func (r *NetworkRequest) SendResponse(resp []byte, err error) error {
 	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
@@ -172,7 +172,7 @@ func (r *NetworkRequest) SendResponse(resp interface{}, err error) error {
 	return nil
 }
 
-func (r *NetworkRequest) getResponse() (interface{}, error) {
+func (r *NetworkRequest) getResponse() ([]byte, error) {
 	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
@@ -185,17 +185,17 @@ func (r *NetworkRequest) initChan() {
 	r.respAvailable = make(chan struct{})
 }
 
-func (r *NetworkResponse) set(v interface{}) {
+func (r *NetworkResponse) set(v []byte) {
 	r.Response = v
 }
 
-func (r *NetworkResponse) get() interface{} {
+func (r *NetworkResponse) get() []byte {
 	return r.Response
 }
 
 // Request implements Transport.Request method
 func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
-	method string, log *kayak.Log) (response interface{}, err error) {
+	method string, log *kayak.Log) (response []byte, err error) {
 	conn, err := t.config.StreamLayer.Dial(ctx, nodeID)
 
 	if err != nil {

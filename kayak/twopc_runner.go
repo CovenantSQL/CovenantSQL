@@ -510,7 +510,7 @@ func (r *TwoPCRunner) processPeersUpdate(peersUpdate *Peers) {
 
 func (r *TwoPCRunner) verifyLeader(req Request) error {
 	// TODO(xq262144), verify call from current leader or from new leader containing new peers info
-	if req.GetNodeID() != r.peers.Leader.ID {
+	if req.GetPeerNodeID() != r.peers.Leader.ID {
 		// not our leader
 		return ErrInvalidRequest
 	}

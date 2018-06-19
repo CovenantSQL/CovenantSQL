@@ -271,16 +271,16 @@ type Config interface {
 
 // Request defines a transport request payload
 type Request interface {
-	GetNodeID() proto.NodeID
+	GetPeerNodeID() proto.NodeID
 	GetMethod() string
 	GetLog() *Log
-	SendResponse(interface{}, error) error
+	SendResponse([]byte, error) error
 }
 
 // Transport adapter for abstraction.
 type Transport interface {
 	// Request
-	Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) (interface{}, error)
+	Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error)
 
 	// Process
 	Process() <-chan Request

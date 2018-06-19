@@ -126,25 +126,34 @@ serverLoop:
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
+	// remote remoteNodeID connection awareness
+	var remoteNodeID *proto.RawNodeID
+
+	if c, ok := conn.(*etls.CryptoConn); ok {
+		// set node id
+		remoteNodeID = c.NodeID
+	}
+
 	sess, err := yamux.Server(conn, nil)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	s.serveRPC(sess)
+	s.serveRPC(sess, remoteNodeID)
 	log.Debugf("%s closed connection", conn.RemoteAddr())
 }
 
 // serveRPC install the JSON RPC codec
-func (s *Server) serveRPC(sess *yamux.Session) {
+func (s *Server) serveRPC(sess *yamux.Session, remoteNodeID *proto.RawNodeID) {
 	conn, err := sess.Accept()
 	if err != nil {
 		log.Error(err)
 		return
 	}
 	msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(conn, &codec.MsgpackHandle{})
-	s.rpcServer.ServeCodec(msgpackCodec)
+	nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
+	s.rpcServer.ServeCodec(nodeAwareCodec)
 }
 
 // RegisterService with a Service name, used by Client RPC

@@ -128,7 +128,6 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 		return
 	}
 
-	// TODO(leventeliu): use an unifield PublicKey type through this project.
 	if !reflect.DeepEqual(pk, s.Signee) {
 		return ErrNodePublicKeyNotMatch
 	}
@@ -191,7 +190,6 @@ func (b *Block) VerifyAsGenesis() (err error) {
 		return
 	}
 
-	// TODO(leventeliu): use an unifield PublicKey type through this project.
 	if !reflect.DeepEqual(pk, b.SignedHeader.Signee) {
 		return ErrNodePublicKeyNotMatch
 	}

@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,8 +31,15 @@ import (
 )
 
 var (
-	testRounds = 100
+	testGoRoutines = 100
+	testRounds     = 100
 )
+
+func init() {
+	for i := 0; i < maxPooledBufferNumber; i++ {
+		serializer.returnBuffer(make([]byte, pooledBufferLength))
+	}
+}
 
 type testStruct struct {
 	BoolField      bool
@@ -63,24 +71,33 @@ func (s *testStruct) randomize() {
 	s.Int64Field = rand.Int63()
 	s.Uint64Field = rand.Uint64()
 
-	slen := rand.Intn(2 * maxPooledBufferLength)
+	// Randomize StringField
+	slen := rand.Intn(2 * pooledBufferLength)
 	buff := make([]byte, slen)
 	rand.Read(buff)
 	s.StringField = string(buff)
 
-	slen = rand.Intn(2 * maxPooledBufferLength)
-	s.BytesField = make([]byte, slen)
-	rand.Read(s.BytesField)
+	// Randomize BytesField
+	slen = rand.Intn(2 * pooledBufferLength)
+
+	if slen == 0 {
+		s.BytesField = nil
+	} else {
+		s.BytesField = make([]byte, slen)
+		rand.Read(s.BytesField)
+	}
 
 	s.TimeField = time.Unix(0, rand.Int63()).UTC()
 
-	slen = rand.Intn(2 * maxPooledBufferLength)
+	// Randomize NodeIDField
+	slen = rand.Intn(2 * pooledBufferLength)
 	buff = make([]byte, slen)
 	rand.Read(buff)
 	s.NodeIDField = proto.NodeID(buff)
 
 	rand.Read(s.HashField[:])
 
+	// Randomize PublicKeyField and SignatureField
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
@@ -171,10 +188,14 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 	)
 }
 
-func TestSerialization(t *testing.T) {
+func TestNullValueSerialization(t *testing.T) {
+	ots := &testStruct{}
+	// XXX(leventeliu): beware of the zero value flaw -- time.Time zero value (January 1, year 1,
+	// 00:00:00.000000000 UTC) is out of range of the int64 (or uint64) Unix time.
+	ots.TimeField = time.Unix(0, 0).UTC()
+	rts := &testStruct{}
+
 	for i := 0; i < testRounds; i++ {
-		ots := &testStruct{}
-		ots.randomize()
 		oenc, err := ots.MarshalBinary()
 
 		if err != nil {
@@ -182,22 +203,13 @@ func TestSerialization(t *testing.T) {
 		}
 
 		ohash := hash.HashH(oenc)
-		rts := &testStruct{}
 
 		if err = rts.UnmarshalBinary(oenc); err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
-			t.Fatalf("Failed to verify signature: hash=%s sign=%+v, pub=%+v",
-				rts.HashField.String(),
-				rts.SignatureField,
-				rts.PublicKeyField,
-			)
-		}
-
 		if !reflect.DeepEqual(ots, rts) {
-			t.Fatalf("Result not match: t1=%+v t2=%+v", ots, rts)
+			t.Fatalf("Result not match: \n\tt1=%+v\n\tt2=%+v", ots, rts)
 		}
 
 		renc, err := rts.MarshalBinary2()
@@ -211,5 +223,111 @@ func TestSerialization(t *testing.T) {
 		if rhash != ohash {
 			t.Fatalf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
 		}
+	}
+}
+
+func TestSerialization(t *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	for i := 0; i < testGoRoutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			ots := &testStruct{}
+			rts := &testStruct{}
+
+			for i := 0; i < testRounds; i++ {
+				ots.randomize()
+				oenc, err := ots.MarshalBinary()
+
+				if err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+
+				ohash := hash.HashH(oenc)
+
+				if err = rts.UnmarshalBinary(oenc); err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+
+				if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
+					t.Errorf("Failed to verify signature: hash=%s, sign=%+v, pub=%+v",
+						rts.HashField.String(),
+						rts.SignatureField,
+						rts.PublicKeyField,
+					)
+				}
+
+				if !reflect.DeepEqual(ots, rts) {
+					t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+				}
+
+				renc, err := rts.MarshalBinary2()
+
+				if err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+
+				rhash := hash.HashH(renc)
+
+				if rhash != ohash {
+					t.Errorf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+func BenchmarkMarshalBinary(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		b.StartTimer()
+
+		if _, err := st.MarshalBinary(); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
+}
+
+func BenchmarkMarshalBinary2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		b.StartTimer()
+
+		if _, err := st.MarshalBinary2(); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
+}
+
+func BenchmarkUnmarshalBinary(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		enc, err := st.MarshalBinary2()
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StartTimer()
+
+		if err = st.UnmarshalBinary(enc); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
 	}
 }

@@ -60,6 +60,9 @@ var (
 	// BPNodeID is the node id of Block Producer
 	// 	{{746598970 0 0 10808639108098016056}   42 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c}
 	BPNodeID = "0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c"
+	// BPRawNodeID hold the binary hash version of BPNodeID, will be initialized
+	// at init()
+	BPRawNodeID proto.RawNodeID
 	// BPNonce is the nonce, SEE: cmd/idminer for more
 	BPNonce = mine.Uint256{
 		746598970,
@@ -70,6 +73,13 @@ var (
 	// BPPublicKey point to BlockProducer public key
 	BPPublicKey *asymmetric.PublicKey
 )
+
+func init() {
+	err := hash.Decode(&BPRawNodeID.Hash, BPNodeID)
+	if err != nil {
+		log.Fatalf("BPNodeID error: %s", err)
+	}
+}
 
 var (
 	// ErrBucketNotInitialized indicates bucket not initialized

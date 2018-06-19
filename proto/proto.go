@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// Envelope is the protocol
+// Envelope is the protocol header
 type Envelope struct {
 	Version string
 	TTL     time.Duration

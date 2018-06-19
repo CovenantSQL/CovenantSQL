@@ -188,7 +188,9 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 
 	symmetricKey := asymmetric.GenECDHSharedSecret(privateKey, publicKey)
 	cipher := etls.NewCipher(symmetricKey)
-	cryptoConn = etls.NewConn(conn, cipher)
+	cryptoConn = etls.NewConn(conn, cipher, &(proto.RawNodeID{
+		Hash: *idHash,
+	}))
 
 	return
 }

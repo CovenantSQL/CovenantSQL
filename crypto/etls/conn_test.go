@@ -46,7 +46,7 @@ const pass = "123"
 
 var simpleCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
 	cipher := NewCipher([]byte(pass))
-	cryptoConn = NewConn(conn, cipher)
+	cryptoConn = NewConn(conn, cipher, nil)
 	return
 }
 
@@ -80,7 +80,7 @@ func client(pass string) (ret int, err error) {
 	cipher := NewCipher([]byte(pass))
 
 	conn, err := Dial("tcp", service, cipher)
-	//conn, err := net.Dial("tcp", service)
+	//conn, err := net.dial("tcp", service)
 	if err != nil {
 		log.Errorf("client: dial: %s", err)
 		return 0, err
@@ -133,7 +133,7 @@ func TestConn(t *testing.T) {
 
 func TestCryptoConn_RawRead(t *testing.T) {
 	var nilCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
-		cryptoConn = NewConn(conn, nil)
+		cryptoConn = NewConn(conn, nil, nil)
 		return
 	}
 

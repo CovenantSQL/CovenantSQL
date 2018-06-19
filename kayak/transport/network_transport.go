@@ -41,8 +41,8 @@ type StreamLayer interface {
 	Dial(context.Context, proto.NodeID) (ConnWithPeerNodeID, error)
 }
 
-// Request is the request object hand off inter node request
-type Request struct {
+// NetworkRequest is the request object hand off inter node request
+type NetworkRequest struct {
 	NodeID        proto.NodeID
 	Method        string
 	Payload       interface{}
@@ -58,20 +58,20 @@ type ClientCodecBuilder func(io.ReadWriteCloser) rpc.ClientCodec
 // ServerCodecBuilder is the server codec builder
 type ServerCodecBuilder func(closer io.ReadWriteCloser) rpc.ServerCodec
 
-// Response is the response object hand off inter node response
-type Response struct {
+// NetworkResponse is the response object hand off inter node response
+type NetworkResponse struct {
 	Response interface{}
 }
 
-// Transport support customized stream layer integration with kayak transport
-type Transport struct {
-	config     *Config
+// NetworkTransport support customized stream layer integration with kayak transport
+type NetworkTransport struct {
+	config     *NetworkTransportConfig
 	shutdownCh chan struct{}
 	queue      chan kayak.Request
 }
 
-// Config defines Transport config object
-type Config struct {
+// NetworkTransportConfig defines NetworkTransport config object
+type NetworkTransportConfig struct {
 	NodeID      proto.NodeID
 	StreamLayer StreamLayer
 
@@ -79,22 +79,22 @@ type Config struct {
 	ServerCodec ServerCodecBuilder
 }
 
-// RequestProxy defines a rpc proxy method exported to golang net/rpc
-type RequestProxy struct {
-	transport *Transport
+// NetworkTransportRequestProxy defines a rpc proxy method exported to golang net/rpc
+type NetworkTransportRequestProxy struct {
+	transport *NetworkTransport
 	conn      ConnWithPeerNodeID
 	server    *rpc.Server
 }
 
 // NewConfig returns new transport config
-func NewConfig(nodeID proto.NodeID, streamLayer StreamLayer) (c *Config) {
+func NewConfig(nodeID proto.NodeID, streamLayer StreamLayer) (c *NetworkTransportConfig) {
 	return NewConfigWithCodec(nodeID, streamLayer, jsonrpc.NewClientCodec, jsonrpc.NewServerCodec)
 }
 
 // NewConfigWithCodec returns new transport config with custom codec
 func NewConfigWithCodec(nodeID proto.NodeID, streamLayer StreamLayer,
-	clientCodec ClientCodecBuilder, serverCodec ServerCodecBuilder) (c *Config) {
-	return &Config{
+	clientCodec ClientCodecBuilder, serverCodec ServerCodecBuilder) (c *NetworkTransportConfig) {
+	return &NetworkTransportConfig{
 		NodeID:      nodeID,
 		StreamLayer: streamLayer,
 		ClientCodec: clientCodec,
@@ -103,8 +103,8 @@ func NewConfigWithCodec(nodeID proto.NodeID, streamLayer StreamLayer,
 }
 
 // NewRequest returns new request entity
-func NewRequest(nodeID proto.NodeID, method string, payload interface{}) (r *Request) {
-	return &Request{
+func NewRequest(nodeID proto.NodeID, method string, payload interface{}) (r *NetworkRequest) {
+	return &NetworkRequest{
 		NodeID:  nodeID,
 		Method:  method,
 		Payload: payload,
@@ -112,13 +112,13 @@ func NewRequest(nodeID proto.NodeID, method string, payload interface{}) (r *Req
 }
 
 // NewResponse returns response returns new response entity
-func NewResponse() (r *Response) {
-	return &Response{}
+func NewResponse() (r *NetworkResponse) {
+	return &NetworkResponse{}
 }
 
 // NewTransport returns new network transport
-func NewTransport(config *Config) (t *Transport) {
-	t = &Transport{
+func NewTransport(config *NetworkTransportConfig) (t *NetworkTransport) {
+	t = &NetworkTransport{
 		config:     config,
 		shutdownCh: make(chan struct{}),
 		queue:      make(chan kayak.Request, 100),
@@ -130,8 +130,8 @@ func NewTransport(config *Config) (t *Transport) {
 }
 
 // NewRequestProxy returns request proxy object hand-off golang net/rpc
-func NewRequestProxy(transport *Transport, conn ConnWithPeerNodeID) (rp *RequestProxy) {
-	rp = &RequestProxy{
+func NewRequestProxy(transport *NetworkTransport, conn ConnWithPeerNodeID) (rp *NetworkTransportRequestProxy) {
+	rp = &NetworkTransportRequestProxy{
 		transport: transport,
 		conn:      conn,
 		server:    rpc.NewServer(),
@@ -143,22 +143,22 @@ func NewRequestProxy(transport *Transport, conn ConnWithPeerNodeID) (rp *Request
 }
 
 // GetNodeID implements kayak.Request.GetNodeID
-func (r *Request) GetNodeID() proto.NodeID {
+func (r *NetworkRequest) GetNodeID() proto.NodeID {
 	return r.NodeID
 }
 
 // GetMethod implements kayak.Request.GetMethod
-func (r *Request) GetMethod() string {
+func (r *NetworkRequest) GetMethod() string {
 	return r.Method
 }
 
 // GetRequest implements kayak.Request.GetRequest
-func (r *Request) GetRequest() interface{} {
+func (r *NetworkRequest) GetRequest() interface{} {
 	return r.Payload
 }
 
 // SendResponse implements kayak.Request.SendResponse
-func (r *Request) SendResponse(resp interface{}, err error) error {
+func (r *NetworkRequest) SendResponse(resp interface{}, err error) error {
 	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
@@ -172,7 +172,7 @@ func (r *Request) SendResponse(resp interface{}, err error) error {
 	return nil
 }
 
-func (r *Request) getResponse() (interface{}, error) {
+func (r *NetworkRequest) getResponse() (interface{}, error) {
 	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
@@ -181,20 +181,20 @@ func (r *Request) getResponse() (interface{}, error) {
 	return r.Response, r.Error
 }
 
-func (r *Request) initChan() {
+func (r *NetworkRequest) initChan() {
 	r.respAvailable = make(chan struct{})
 }
 
-func (r *Response) set(v interface{}) {
+func (r *NetworkResponse) set(v interface{}) {
 	r.Response = v
 }
 
-func (r *Response) get() interface{} {
+func (r *NetworkResponse) get() interface{} {
 	return r.Response
 }
 
 // Request implements Transport.Request method
-func (t *Transport) Request(ctx context.Context, nodeID proto.NodeID,
+func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
 	method string, args interface{}) (response interface{}, err error) {
 	conn, err := t.config.StreamLayer.Dial(ctx, nodeID)
 
@@ -218,16 +218,16 @@ func (t *Transport) Request(ctx context.Context, nodeID proto.NodeID,
 }
 
 // Process implements Transport.Process method
-func (t *Transport) Process() <-chan kayak.Request {
+func (t *NetworkTransport) Process() <-chan kayak.Request {
 	return t.queue
 }
 
-func (t *Transport) enqueue(req *Request) {
+func (t *NetworkTransport) enqueue(req *NetworkRequest) {
 	t.queue <- req
 }
 
 // Call hand-off request from remote rpc server
-func (p *RequestProxy) Call(req *Request, res *Response) error {
+func (p *NetworkTransportRequestProxy) Call(req *NetworkRequest, res *NetworkResponse) error {
 	// TODO(xq262144), too tricky
 	// verify node id
 	if p.conn.GetPeerNodeID() != req.NodeID {
@@ -240,12 +240,12 @@ func (p *RequestProxy) Call(req *Request, res *Response) error {
 	return err
 }
 
-func (p *RequestProxy) serve() {
+func (p *NetworkTransportRequestProxy) serve() {
 	p.server.ServeCodec(p.transport.config.ServerCodec(p.conn))
 }
 
 // Close shutdown transport hand-off
-func (t *Transport) Close() {
+func (t *NetworkTransport) Close() {
 	select {
 	case <-t.shutdownCh:
 	default:
@@ -253,7 +253,7 @@ func (t *Transport) Close() {
 	}
 }
 
-func (t *Transport) run() {
+func (t *NetworkTransport) run() {
 	for {
 		select {
 		case <-t.shutdownCh:
@@ -270,6 +270,6 @@ func (t *Transport) run() {
 	}
 }
 
-func (t *Transport) handleConn(conn ConnWithPeerNodeID) {
+func (t *NetworkTransport) handleConn(conn ConnWithPeerNodeID) {
 	NewRequestProxy(t, conn).serve()
 }

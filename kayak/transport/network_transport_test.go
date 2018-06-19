@@ -305,7 +305,7 @@ func TestTransport(t *testing.T) {
 func TestIntegration(t *testing.T) {
 	type createMockRes struct {
 		runner    *kayak.TwoPCRunner
-		transport *Transport
+		transport *NetworkTransport
 		worker    *MockWorker
 		config    *kayak.TwoPCConfig
 		runtime   *kayak.Runtime

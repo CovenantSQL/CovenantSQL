@@ -110,7 +110,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		}
 	}
 
-	err = b.SignHeader((*asymmetric.PrivateKey)(priv))
+	err = b.SignHeader(priv)
 
 	if err != nil {
 		return nil, err

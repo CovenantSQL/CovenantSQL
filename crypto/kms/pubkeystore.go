@@ -58,17 +58,17 @@ var (
 	BPPublicKeyStr = "02c1db96f2ba7e1cb4e9822d12de0f63f" +
 		"b666feb828c7f509e81fab9bd7a34039c"
 	// BPNodeID is the node id of Block Producer
-	// 	{{746598970 0 0 10808639108098016056}   42 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c}
-	BPNodeID = "0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c"
+	// 	{{789554103 0 0 8070450536379825883}    43 000000000013fd4b3180dd424d5a895bc57b798e5315087b7198c926d8893f98}
+	BPNodeID = "000000000013fd4b3180dd424d5a895bc57b798e5315087b7198c926d8893f98"
 	// BPRawNodeID hold the binary hash version of BPNodeID, will be initialized
 	// at init()
 	BPRawNodeID proto.RawNodeID
 	// BPNonce is the nonce, SEE: cmd/idminer for more
 	BPNonce = mine.Uint256{
-		746598970,
+		789554103,
 		0,
 		0,
-		10808639108098016056,
+		8070450536379825883,
 	}
 	// BPPublicKey point to BlockProducer public key
 	BPPublicKey *asymmetric.PublicKey

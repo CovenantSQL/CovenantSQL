@@ -190,6 +190,8 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 
 func TestNullValueSerialization(t *testing.T) {
 	ots := &testStruct{}
+	// XXX(leventeliu): beware of the zero value flaw -- time.Time zero value (January 1, year 1,
+	// 00:00:00.000000000 UTC) is out of range of the int64 (or uint64) Unix time.
 	ots.TimeField = time.Unix(0, 0).UTC()
 	rts := &testStruct{}
 

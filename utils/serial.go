@@ -174,6 +174,9 @@ func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]
 	if retLen > maxBufferLength {
 		err = ErrBufferLengthExceedLimit
 		return
+	} else if retLen == 0 {
+		*ret = nil
+		return
 	}
 
 	retBuffer := s.borrowBuffer(int(retLen))
@@ -357,15 +360,19 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case **asymmetric.PublicKey:
 		var buffer []byte
 
-		if err = serializer.readBytes(r, order, &buffer); err == nil {
+		if err = serializer.readBytes(r, order, &buffer); err == nil && len(buffer) > 0 {
 			*e, err = asymmetric.ParsePubKey(buffer)
+		} else {
+			*e = nil
 		}
 
 	case **asymmetric.Signature:
 		var buffer []byte
 
-		if err = serializer.readBytes(r, order, &buffer); err == nil {
+		if err = serializer.readBytes(r, order, &buffer); err == nil && len(buffer) > 0 {
 			*e, err = asymmetric.ParseSignature(buffer)
+		} else {
+			*e = nil
 		}
 
 	default:
@@ -485,16 +492,32 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 		err = serializer.writeFixedSizeBytes(w, hash.HashSize, (*e)[:])
 
 	case *asymmetric.PublicKey:
-		err = serializer.writeBytes(w, order, e.Serialize())
+		if e == nil {
+			err = serializer.writeBytes(w, order, nil)
+		} else {
+			err = serializer.writeBytes(w, order, e.Serialize())
+		}
 
 	case **asymmetric.PublicKey:
-		err = serializer.writeBytes(w, order, (*e).Serialize())
+		if *e == nil {
+			err = serializer.writeBytes(w, order, nil)
+		} else {
+			err = serializer.writeBytes(w, order, (*e).Serialize())
+		}
 
 	case *asymmetric.Signature:
-		err = serializer.writeBytes(w, order, e.Serialize())
+		if e == nil {
+			err = serializer.writeBytes(w, order, nil)
+		} else {
+			err = serializer.writeBytes(w, order, e.Serialize())
+		}
 
 	case **asymmetric.Signature:
-		err = serializer.writeBytes(w, order, (*e).Serialize())
+		if *e == nil {
+			err = serializer.writeBytes(w, order, nil)
+		} else {
+			err = serializer.writeBytes(w, order, (*e).Serialize())
+		}
 
 	default:
 		return binary.Write(w, order, element)

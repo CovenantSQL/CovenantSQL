@@ -79,8 +79,13 @@ func (s *testStruct) randomize() {
 
 	// Randomize BytesField
 	slen = rand.Intn(2 * pooledBufferLength)
-	s.BytesField = make([]byte, slen)
-	rand.Read(s.BytesField)
+
+	if slen == 0 {
+		s.BytesField = nil
+	} else {
+		s.BytesField = make([]byte, slen)
+		rand.Read(s.BytesField)
+	}
 
 	s.TimeField = time.Unix(0, rand.Int63()).UTC()
 
@@ -183,6 +188,42 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 	)
 }
 
+func TestNullValueSerialization(t *testing.T) {
+	ots := &testStruct{}
+	ots.TimeField = time.Unix(0, 0).UTC()
+	rts := &testStruct{}
+
+	for i := 0; i < testRounds; i++ {
+		oenc, err := ots.MarshalBinary()
+
+		if err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
+
+		ohash := hash.HashH(oenc)
+
+		if err = rts.UnmarshalBinary(oenc); err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
+
+		if !reflect.DeepEqual(ots, rts) {
+			t.Fatalf("Result not match: \n\tt1=%+v\n\tt2=%+v", ots, rts)
+		}
+
+		renc, err := rts.MarshalBinary2()
+
+		if err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
+
+		rhash := hash.HashH(renc)
+
+		if rhash != ohash {
+			t.Fatalf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
+		}
+	}
+}
+
 func TestSerialization(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
@@ -193,23 +234,23 @@ func TestSerialization(t *testing.T) {
 
 			ots := &testStruct{}
 			rts := &testStruct{}
-			ots.randomize()
 
 			for i := 0; i < testRounds; i++ {
+				ots.randomize()
 				oenc, err := ots.MarshalBinary()
 
 				if err != nil {
-					t.Fatalf("Error occurred: %v", err)
+					t.Errorf("Error occurred: %v", err)
 				}
 
 				ohash := hash.HashH(oenc)
 
 				if err = rts.UnmarshalBinary(oenc); err != nil {
-					t.Fatalf("Error occurred: %v", err)
+					t.Errorf("Error occurred: %v", err)
 				}
 
 				if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
-					t.Fatalf("Failed to verify signature: hash=%s, sign=%+v, pub=%+v",
+					t.Errorf("Failed to verify signature: hash=%s, sign=%+v, pub=%+v",
 						rts.HashField.String(),
 						rts.SignatureField,
 						rts.PublicKeyField,
@@ -217,19 +258,19 @@ func TestSerialization(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(ots, rts) {
-					t.Fatalf("Result not match: t1=%+v, t2=%+v", ots, rts)
+					t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
 				}
 
 				renc, err := rts.MarshalBinary2()
 
 				if err != nil {
-					t.Fatalf("Error occurred: %v", err)
+					t.Errorf("Error occurred: %v", err)
 				}
 
 				rhash := hash.HashH(renc)
 
 				if rhash != ohash {
-					t.Fatalf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
+					t.Errorf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
 				}
 			}
 		}()

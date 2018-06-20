@@ -115,6 +115,28 @@
   version = "v2.2.6"
 
 [[projects]]
+  branch = "develop"
+  name = "github.com/thunderdb/ThunderDB"
+  packages = [
+    "common",
+    "conf",
+    "consistent",
+    "crypto",
+    "crypto/asymmetric",
+    "crypto/etls",
+    "crypto/hash",
+    "crypto/kms",
+    "crypto/symmetric",
+    "kayak",
+    "pow/cpuminer",
+    "proto",
+    "route",
+    "rpc",
+    "twopc"
+  ]
+  revision = "ab432a855d09bb05a0bbee3ccd41505c0a77d5a6"
+
+[[projects]]
   name = "github.com/ugorji/go"
   packages = ["codec"]
   revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
@@ -138,6 +160,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "391cd4a6f978a618e6904b84b5e3edda43de44fd21984bf21b9e2d66a10a13f5"
+  inputs-digest = "7880f2278c3154625a82eb2a13bf641c317a024d2b8052d521b59ac29ce300e4"
   solver-name = "gps-cdcl"
   solver-version = 1

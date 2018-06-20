@@ -198,7 +198,6 @@ func TestETLSIntegration(t *testing.T) {
 
 	// test node map/routine map
 	var nodeMap sync.Map
-	var wgServer sync.WaitGroup
 
 	// codec to encode/decode data in kayak.Log structure
 	mockLogCodec := &MockLogCodec{}
@@ -235,9 +234,7 @@ func TestETLSIntegration(t *testing.T) {
 			RollbackTimeout: time.Millisecond * 200,
 		}
 		res.runtime, _ = kayak.NewRuntime(res.config, peers)
-		wgServer.Add(1)
 		go func() {
-			defer wgServer.Done()
 			res.etlsMock.server.Serve()
 		}()
 		return
@@ -348,5 +345,13 @@ func TestETLSIntegration(t *testing.T) {
 		lMock.runtime.Shutdown()
 		f1Mock.runtime.Shutdown()
 		f2Mock.runtime.Shutdown()
+
+		// stop server
+		lNodeEtls.server.Listener.Close()
+		f1NodeEtls.server.Listener.Close()
+		f2NodeEtls.server.Listener.Close()
+		lNodeEtls.server.Stop()
+		f1NodeEtls.server.Stop()
+		f2NodeEtls.server.Stop()
 	})
 }

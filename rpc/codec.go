@@ -19,7 +19,7 @@ package rpc
 import (
 	"net/rpc"
 
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 // NodeAwareServerCodec wraps normal rpc.ServerCodec and inject node id during request process

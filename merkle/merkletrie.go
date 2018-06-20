@@ -17,8 +17,8 @@
 package merkle
 
 import (
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/sqlchain"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
 // Merkle is a merkle tree implementation (https://en.wikipedia.org/wiki/Merkle_tree)

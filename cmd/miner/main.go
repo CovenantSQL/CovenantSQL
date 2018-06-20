@@ -25,10 +25,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/common"
-	"github.com/thunderdb/ThunderDB/conf"
-	"github.com/thunderdb/ThunderDB/rpc"
-	"github.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/common"
+	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const logo = `

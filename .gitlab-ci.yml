@@ -1,3 +1,8 @@
+image: golang:1.10
+stages:
+  - build
+  - test
+
 variables:
   REVIEWDOG_VERSION: 0.9.8
 
@@ -8,13 +13,20 @@ before_script:
   - go get github.com/mattn/goveralls
   - go get github.com/haya14busa/goverage
   - go get github.com/golang/lint/golint
+  - cp -r /builds/thunderdb /go/src/gitlab.com/thunderdb/
+  - cd /go/src/gitlab.com/thunderdb/ThunderDB
   - dep ensure
   - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
   - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
-rspec:
+build-my-project:
+  stage: build
   script:
     - bash build.sh
+
+test-my-project:
+  stage: test
+  script:
     - go test -v -race $(go list ./... | grep -v "/vendor/")
     - goverage -coverprofile=coverage.txt ./...
     - bash <(curl -s https://codecov.io/bash)

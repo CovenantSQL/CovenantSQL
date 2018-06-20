@@ -25,7 +25,7 @@ import (
 
 	ec "github.com/btcsuite/btcd/btcec"
 	log "github.com/sirupsen/logrus"
-	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
+	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // PrivateKeyBytesLen defines the length in bytes of a serialized private key.

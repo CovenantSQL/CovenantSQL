@@ -23,9 +23,9 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/symmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/symmetric"
 )
 
 var (

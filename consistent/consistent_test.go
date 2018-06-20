@@ -28,11 +28,11 @@ import (
 
 	"os"
 
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/pow/cpuminer"
-	. "github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	. "gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const testStorePath = "./test.store"

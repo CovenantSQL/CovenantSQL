@@ -25,8 +25,8 @@ import (
 	"testing"
 
 	pb "github.com/golang/protobuf/proto"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	pbtypes "github.com/thunderdb/ThunderDB/types"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	pbtypes "gitlab.com/thunderdb/ThunderDB/types"
 )
 
 func TestState(t *testing.T) {

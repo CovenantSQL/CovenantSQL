@@ -23,8 +23,8 @@ import (
 	"sort"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const testStorePath1 = "./test.store1"

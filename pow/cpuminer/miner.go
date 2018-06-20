@@ -21,7 +21,7 @@ import (
 	"errors"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 // NonceInfo contains nonce and the difficulty to the block

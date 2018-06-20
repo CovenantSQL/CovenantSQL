@@ -23,13 +23,13 @@ import (
 
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"github.com/thunderdb/ThunderDB/crypto/etls"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/route"
 	"github.com/ugorji/go/codec"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 // Client is RPC client

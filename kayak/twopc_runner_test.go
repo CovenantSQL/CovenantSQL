@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 func TestTwoPCRunner_Init(t *testing.T) {

@@ -30,8 +30,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 var (

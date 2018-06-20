@@ -23,7 +23,7 @@ import (
 	"errors"
 
 	ec "github.com/btcsuite/btcd/btcec"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 )
 
 var errInvalidPadding = errors.New("invalid PKCS#7 padding")

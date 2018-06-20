@@ -29,10 +29,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/consistent"
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	. "github.com/thunderdb/ThunderDB/proto"
 	"github.com/ugorji/go/codec"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	. "gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 const DHTStorePath = "./DHTStore"

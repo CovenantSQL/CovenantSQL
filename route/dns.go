@@ -21,8 +21,8 @@ import (
 
 	"errors"
 
-	"github.com/thunderdb/ThunderDB/crypto/kms"
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 //TODO(auxten): this whole file need to be implemented

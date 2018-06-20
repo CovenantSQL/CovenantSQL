@@ -22,7 +22,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {

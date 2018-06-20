@@ -20,7 +20,7 @@ import (
 	"errors"
 
 	"github.com/tchap/go-patricia/patricia"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 // Trie is a patricia trie

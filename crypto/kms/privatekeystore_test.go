@@ -26,8 +26,8 @@ import (
 	"bytes"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"github.com/thunderdb/ThunderDB/crypto/symmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/symmetric"
 )
 
 const (

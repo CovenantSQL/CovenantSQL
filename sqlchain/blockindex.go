@@ -20,7 +20,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 type blockNode struct {

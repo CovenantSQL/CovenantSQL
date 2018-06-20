@@ -31,10 +31,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"github.com/thunderdb/ThunderDB/pow/cpuminer"
-	"github.com/thunderdb/ThunderDB/proto"
 	"github.com/ugorji/go/codec"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 const dbFile = ".test.db"

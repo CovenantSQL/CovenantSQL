@@ -19,8 +19,8 @@ package sqlchain
 import (
 	"errors"
 
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 // Answer is responded by node to confirm other nodes that the node stores data correctly

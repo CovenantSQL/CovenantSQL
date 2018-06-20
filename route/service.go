@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/consistent"
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 // DHTService is server side RPC implementation

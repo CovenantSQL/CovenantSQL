@@ -10,8 +10,8 @@ import (
 	"math"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/sqlchain"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
 func TestMergeTwoHash(t *testing.T) {

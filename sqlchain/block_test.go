@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 )
 
 func TestSign(t *testing.T) {

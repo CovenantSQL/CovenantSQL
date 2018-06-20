@@ -19,7 +19,7 @@ package sqlchain
 import (
 	"testing"
 
-	"github.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 var (

@@ -26,7 +26,7 @@ import (
 	// Register go-sqlite3 engine.
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/twopc"
 )
 
 var (

@@ -22,8 +22,8 @@ import (
 	"bytes"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 func TestLocalKeyStore(t *testing.T) {

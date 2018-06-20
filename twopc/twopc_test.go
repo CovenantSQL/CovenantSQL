@@ -29,8 +29,8 @@ import (
 	"errors"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/etls"
-	"github.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
 type RaftTxState int

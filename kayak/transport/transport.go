@@ -24,8 +24,8 @@ import (
 	"net/rpc/jsonrpc"
 	"sync"
 
-	"github.com/thunderdb/ThunderDB/kayak"
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 // ConnWithPeerNodeID defines interface support getting remote peer ID

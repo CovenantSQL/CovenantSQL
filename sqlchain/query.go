@@ -17,7 +17,7 @@
 package sqlchain
 
 import (
-	"github.com/thunderdb/ThunderDB/common"
+	"gitlab.com/thunderdb/ThunderDB/common"
 )
 
 // QueryType enumerates the basic types of SQL query, i.e., ReadQuery or WriteQuery.

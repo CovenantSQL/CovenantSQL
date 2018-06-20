@@ -24,8 +24,8 @@ import (
 	"errors"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/crypto/asymmetric"
-	mine "github.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 // LocalKeyStore is the type hold local private & public key

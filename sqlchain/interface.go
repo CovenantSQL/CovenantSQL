@@ -1,6 +1,6 @@
 package sqlchain
 
-import "github.com/thunderdb/ThunderDB/crypto/hash"
+import "gitlab.com/thunderdb/ThunderDB/crypto/hash"
 
 // Hashable is an interface whitch make struct hashable
 type Hashable interface {

@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 
 	bolt "github.com/coreos/bbolt"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 var (

@@ -25,7 +25,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 // CryptoConn implements net.Conn and Cipher interface

@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	testGoRoutines = 100
-	testRounds     = 100
+	testGoRoutines = 10
+	testRounds     = 10
 )
 
 func init() {

@@ -18,10 +18,10 @@ package kayak
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"reflect"
 	"sync"
@@ -59,12 +59,12 @@ type MockRequest struct {
 	RequestID uint64
 	NodeID    proto.NodeID
 	Method    string
-	Payload   interface{}
+	Log       *Log
 }
 
 type MockResponse struct {
 	ResponseID uint64
-	Payload    interface{}
+	Data       []byte
 	Error      error
 }
 
@@ -125,13 +125,12 @@ func (m *MockTransportRouter) getReqID() uint64 {
 	return atomic.AddUint64(&m.reqSeq, 1)
 }
 
-func (m *MockTransport) Request(ctx context.Context, nodeID proto.NodeID,
-	method string, args interface{}) (interface{}, error) {
+func (m *MockTransport) Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error) {
 	return m.router.getTransport(nodeID).sendRequest(&MockRequest{
 		RequestID: m.router.getReqID(),
 		NodeID:    m.nodeID,
 		Method:    method,
-		Payload:   args,
+		Log:       log,
 		ctx:       ctx,
 	})
 }
@@ -140,14 +139,14 @@ func (m *MockTransport) Process() <-chan Request {
 	return m.queue
 }
 
-func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
+func (m *MockTransport) sendRequest(req Request) ([]byte, error) {
 	r := req.(*MockRequest)
 	r.transport = m
 
 	if log.GetLevel() >= log.DebugLevel {
 		fmt.Println()
 	}
-	log.Debugf("[%v] [%v] -> [%v] request %v", r.RequestID, r.NodeID, req.GetNodeID(), r.GetRequest())
+	log.Debugf("[%v] [%v] -> [%v] request %v", r.RequestID, r.NodeID, req.GetPeerNodeID(), r.GetLog())
 	m.queue <- r
 
 	for {
@@ -155,7 +154,7 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 		case <-r.ctx.Done():
 			// deadline reached
 			log.Debugf("[%v] [%v] -> [%v] request timeout",
-				r.RequestID, r.NodeID, req.GetNodeID())
+				r.RequestID, r.NodeID, req.GetPeerNodeID())
 			m.giveUp[r.RequestID] = true
 			return nil, r.ctx.Err()
 		case res := <-m.waitQueue:
@@ -168,14 +167,14 @@ func (m *MockTransport) sendRequest(req Request) (interface{}, error) {
 				}
 			} else {
 				log.Debugf("[%v] [%v] -> [%v] response %v: %v",
-					r.RequestID, req.GetNodeID(), r.NodeID, res.Payload, res.Error)
-				return res.Payload, res.Error
+					r.RequestID, req.GetPeerNodeID(), r.NodeID, res.Data, res.Error)
+				return res.Data, res.Error
 			}
 		}
 	}
 }
 
-func (m *MockRequest) GetNodeID() proto.NodeID {
+func (m *MockRequest) GetPeerNodeID() proto.NodeID {
 	return m.NodeID
 }
 
@@ -183,14 +182,14 @@ func (m *MockRequest) GetMethod() string {
 	return m.Method
 }
 
-func (m *MockRequest) GetRequest() interface{} {
-	return m.Payload
+func (m *MockRequest) GetLog() *Log {
+	return m.Log
 }
 
-func (m *MockRequest) SendResponse(v interface{}, err error) error {
+func (m *MockRequest) SendResponse(v []byte, err error) error {
 	m.transport.waitQueue <- &MockResponse{
 		ResponseID: m.RequestID,
-		Payload:    v,
+		Data:       v,
 		Error:      err,
 	}
 
@@ -313,6 +312,18 @@ func testPeersFixture(term uint64, servers []*Server) *Peers {
 	return peers
 }
 
+func testLogFixture(data []byte) (log *Log) {
+	log = &Log{
+		Index: uint64(1),
+		Term:  uint64(1),
+		Data:  data,
+	}
+
+	log.ComputeHash()
+
+	return
+}
+
 // test mock library itself
 func TestMockTransport(t *testing.T) {
 	Convey("test transport with request timeout", t, func() {
@@ -323,10 +334,11 @@ func TestMockTransport(t *testing.T) {
 		defer cancel()
 
 		var err error
-		var rv interface{}
-		rv, err = mockRouter.getTransport("a").Request(ctx, "b", "Test", "happy")
+		var response []byte
+		response, err = mockRouter.getTransport("a").Request(
+			ctx, "b", "Test", testLogFixture([]byte("happy")))
 
-		So(rv, ShouldBeNil)
+		So(response, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 	})
 
@@ -334,17 +346,19 @@ func TestMockTransport(t *testing.T) {
 		mockRouter := &MockTransportRouter{
 			transports: make(map[proto.NodeID]*MockTransport),
 		}
+		testLog := testLogFixture([]byte("happy"))
 		var wg sync.WaitGroup
 
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
 			select {
 			case req := <-mockRouter.getTransport("d").Process():
-				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("c"))
+				c.So(req.GetPeerNodeID(), ShouldEqual, proto.NodeID("c"))
 				c.So(req.GetMethod(), ShouldEqual, "Test")
-				c.So(req.GetRequest(), ShouldResemble, "happy")
-				req.SendResponse("happy too", nil)
+				c.So(req.GetLog(), ShouldResemble, testLog)
+				req.SendResponse([]byte("happy too"), nil)
 			}
 		}()
 
@@ -352,14 +366,12 @@ func TestMockTransport(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			var err error
-			var response string
-			var rv interface{}
-			rv, err = mockRouter.getTransport("c").Request(
-				context.Background(), "d", "Test", "happy")
-			response = rv.(string)
+			var response []byte
+			response, err = mockRouter.getTransport("c").Request(
+				context.Background(), "d", "Test", testLog)
 
 			c.So(err, ShouldBeNil)
-			c.So(response, ShouldEqual, "happy too")
+			c.So(response, ShouldResemble, []byte("happy too"))
 		}()
 
 		wg.Wait()
@@ -369,34 +381,31 @@ func TestMockTransport(t *testing.T) {
 		mockRouter := &MockTransportRouter{
 			transports: make(map[proto.NodeID]*MockTransport),
 		}
+		testLog := testLogFixture([]byte("happy"))
 		var wg sync.WaitGroup
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			var err error
-			var response string
-			var rv interface{}
-			rv, err = mockRouter.getTransport("e").Request(
-				context.Background(), "g", "test1", "happy")
-			response = rv.(string)
+			var response []byte
+			response, err = mockRouter.getTransport("e").Request(
+				context.Background(), "g", "test1", testLog)
 
 			c.So(err, ShouldBeNil)
-			c.So(response, ShouldEqual, "happy e test1")
+			c.So(response, ShouldResemble, []byte("happy e test1"))
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			var err error
-			var response string
-			var rv interface{}
-			rv, err = mockRouter.getTransport("f").Request(
-				context.Background(), "g", "test2", "happy")
-			response = rv.(string)
+			var response []byte
+			response, err = mockRouter.getTransport("f").Request(
+				context.Background(), "g", "test2", testLog)
 
 			c.So(err, ShouldBeNil)
-			c.So(response, ShouldEqual, "happy f test2")
+			c.So(response, ShouldResemble, []byte("happy f test2"))
 		}()
 
 		wg.Add(1)
@@ -406,10 +415,10 @@ func TestMockTransport(t *testing.T) {
 			for i := 0; i < 2; i++ {
 				select {
 				case req := <-mockRouter.getTransport("g").Process():
-					c.So(req.GetNodeID(), ShouldBeIn, []proto.NodeID{"e", "f"})
+					c.So(req.GetPeerNodeID(), ShouldBeIn, []proto.NodeID{"e", "f"})
 					c.So(req.GetMethod(), ShouldBeIn, []string{"test1", "test2"})
-					c.So(req.GetRequest(), ShouldResemble, "happy")
-					req.SendResponse(fmt.Sprintf("happy %s %s", req.GetNodeID(), req.GetMethod()), nil)
+					c.So(req.GetLog(), ShouldResemble, testLog)
+					req.SendResponse([]byte(fmt.Sprintf("happy %s %s", req.GetPeerNodeID(), req.GetMethod())), nil)
 				}
 			}
 		}()
@@ -423,8 +432,9 @@ func TestMockTransport(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 
-		randReq := rand.Int63()
-		randResp := rand.Int63()
+		randReq := testLogFixture([]byte("happy"))
+		randResp := make([]byte, 4)
+		rand.Read(randResp)
 
 		t.Logf("test with request %d, response %d", randReq, randResp)
 
@@ -432,17 +442,17 @@ func TestMockTransport(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			var err error
-			var response interface{}
+			var response []byte
 			var req Request
 
 			select {
 			case req = <-mockRouter.getTransport("j").Process():
-				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("i"))
+				c.So(req.GetPeerNodeID(), ShouldEqual, proto.NodeID("i"))
 				c.So(req.GetMethod(), ShouldEqual, "pass1")
 			}
 
 			response, err = mockRouter.getTransport("j").Request(
-				context.Background(), "k", "pass2", req.GetRequest())
+				context.Background(), "k", "pass2", req.GetLog())
 
 			c.So(err, ShouldBeNil)
 			req.SendResponse(response, nil)
@@ -453,9 +463,9 @@ func TestMockTransport(t *testing.T) {
 			defer wg.Done()
 			select {
 			case req := <-mockRouter.getTransport("k").Process():
-				c.So(req.GetNodeID(), ShouldEqual, proto.NodeID("j"))
+				c.So(req.GetPeerNodeID(), ShouldEqual, proto.NodeID("j"))
 				c.So(req.GetMethod(), ShouldEqual, "pass2")
-				c.So(req.GetRequest(), ShouldResemble, randReq)
+				c.So(req.GetLog(), ShouldResemble, randReq)
 				req.SendResponse(randResp, nil)
 			}
 		}()
@@ -464,7 +474,7 @@ func TestMockTransport(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			var err error
-			var response interface{}
+			var response []byte
 
 			response, err = mockRouter.getTransport("i").Request(
 				context.Background(), "j", "pass1", randReq)

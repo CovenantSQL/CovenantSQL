@@ -673,7 +673,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			}
 
 			var err error
-			var rv interface{}
+			var rv []byte
 			rv, err = f1Mock.transport.Request(
 				context.Background(),
 				f2Mock.config.LocalID,
@@ -695,7 +695,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 			// fake request
 			var err error
-			var rv interface{}
+			var rv []byte
 			rv, err = lMock.transport.Request(
 				context.Background(),
 				f1Mock.config.LocalID,
@@ -716,7 +716,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			initMock(lMock, f1Mock)
 
 			var err error
-			var rv interface{}
+			var rv []byte
 			rv, err = lMock.transport.Request(
 				context.Background(),
 				f1Mock.config.LocalID,

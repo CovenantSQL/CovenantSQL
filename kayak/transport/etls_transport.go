@@ -22,9 +22,9 @@ import (
 	nrpc "net/rpc"
 	"sync"
 
-	"github.com/thunderdb/ThunderDB/kayak"
-	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
 // ETLSRPCClientBuilder defines a rpc.Client builder.

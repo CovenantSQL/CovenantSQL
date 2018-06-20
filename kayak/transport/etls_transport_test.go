@@ -30,11 +30,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"github.com/thunderdb/ThunderDB/crypto/etls"
-	"github.com/thunderdb/ThunderDB/crypto/hash"
-	"github.com/thunderdb/ThunderDB/kayak"
-	"github.com/thunderdb/ThunderDB/proto"
-	"github.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
 var (

@@ -61,13 +61,19 @@ func (l *Log) VerifyHash() bool {
 }
 
 func (l *Log) getBytes() []byte {
+	if l == nil {
+		return []byte{'\000'}
+	}
+
 	buf := new(bytes.Buffer)
 
 	binary.Write(buf, binary.LittleEndian, &l.Index)
 	binary.Write(buf, binary.LittleEndian, &l.Term)
 	buf.Write(l.Data)
 	if l.LastHash != nil {
-		buf.Write(l.LastHash.CloneBytes())
+		buf.Write(l.LastHash[:])
+	} else {
+		buf.WriteRune('\000')
 	}
 
 	return buf.Bytes()
@@ -265,18 +271,18 @@ type Config interface {
 
 // Request defines a transport request payload
 type Request interface {
-	GetNodeID() proto.NodeID
+	GetPeerNodeID() proto.NodeID
 	GetMethod() string
-	GetRequest() interface{}
-	SendResponse(interface{}, error) error
+	GetLog() *Log
+	SendResponse([]byte, error) error
 }
 
 // Transport adapter for abstraction.
 type Transport interface {
 	// Request
-	Request(ctx context.Context, nodeID proto.NodeID, method string, args interface{}) (interface{}, error)
+	Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error)
 
-	// Apply
+	// Process
 	Process() <-chan Request
 }
 

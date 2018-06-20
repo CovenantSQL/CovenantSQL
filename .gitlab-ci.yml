@@ -3,6 +3,7 @@ image: golang:latest
 variables:
   REVIEWDOG_VERSION: 0.9.9
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
+  CODECOV_TOKEN: $CODECOV_TOKEN
 
 before_script:
   # Setup dependency management tool
@@ -11,12 +12,13 @@ before_script:
   - go get github.com/mattn/goveralls
   - go get github.com/haya14busa/goverage
   - go get github.com/golang/lint/golint
+  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
   - mkdir -p $GOPATH/src/gitlab.com/
   - cp -r /builds/thunderdb $GOPATH/src/gitlab.com/
   - cd $GOPATH/src/gitlab.com/thunderdb/ThunderDB
 #  - dep ensure
-  - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
-  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
+#  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
 test-my-project:
   stage: test
@@ -26,5 +28,5 @@ test-my-project:
     - goverage -coverprofile=coverage.txt ./...
     - bash <(curl -s https://codecov.io/bash)
     - >-
-      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -ci=travis
+      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=gitlab-mr-commit
 

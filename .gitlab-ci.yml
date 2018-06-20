@@ -11,12 +11,13 @@ before_script:
   - go get github.com/mattn/goveralls
   - go get github.com/haya14busa/goverage
   - go get github.com/golang/lint/golint
+  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
   - mkdir -p $GOPATH/src/gitlab.com/
   - cp -r /builds/thunderdb $GOPATH/src/gitlab.com/
   - cd $GOPATH/src/gitlab.com/thunderdb/ThunderDB
 #  - dep ensure
-  - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
-  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
+#  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
 test-my-project:
   stage: test

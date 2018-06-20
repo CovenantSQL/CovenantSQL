@@ -3,6 +3,7 @@ image: golang:latest
 variables:
   REVIEWDOG_VERSION: 0.9.9
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
+  CODECOV_TOKEN: $CODECOV_TOKEN
 
 before_script:
   # Setup dependency management tool

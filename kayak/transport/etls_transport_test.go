@@ -330,7 +330,7 @@ func TestETLSIntegration(t *testing.T) {
 
 		// process the encoded data again
 		callOrder.Reset()
-		err = lMock.runner.Apply(testData)
+		err = lMock.runtime.Apply(testData)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",

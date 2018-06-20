@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thunderdb/ThunderDB?style=flat-square)](https://goreportcard.com/report/github.com/thunderdb/ThunderDB)
 [![pipeline status](https://gitlab.com/thunderdb/ThunderDB/badges/develop/pipeline.svg)](https://gitlab.com/thunderdb/ThunderDB/commits/develop)
 [![Coverage gitlab](https://gitlab.com/thunderdb/ThunderDB/badges/develop/coverage.svg)](https://gitlab.com/thunderdb/ThunderDB/commits/develop)
-[![Coverage](https://codecov.io/gh/thunderdb/ThunderDB/branch/develop/graph/badge.svg)](https://codecov.io/gh/thunderdb/ThunderDB)
+[![Coverage](https://codecov.io/gl/thunderdb/ThunderDB/branch/develop/graph/badge.svg)](https://codecov.io/gl/thunderdb/ThunderDB)
 [![Build Status](https://travis-ci.org/thunderdb/ThunderDB.png?branch=develop)](https://travis-ci.org/thunderdb/ThunderDB)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/thunderdb/ThunderDB)

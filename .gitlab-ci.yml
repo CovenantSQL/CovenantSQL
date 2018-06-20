@@ -1,10 +1,8 @@
 image: golang:1.10
-stages:
-  - build
-  - test
 
 variables:
-  REVIEWDOG_VERSION: 0.9.8
+  REVIEWDOG_VERSION: 0.9.9
+  REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
 
 before_script:
   # Setup dependency management tool
@@ -20,14 +18,10 @@ before_script:
   - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
   - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
-build-my-project:
-  stage: build
-  script:
-    - bash build.sh
-
 test-my-project:
   stage: test
   script:
+    - bash build.sh
     - go test -v -race $(go list ./... | grep -v "/vendor/")
     - goverage -coverprofile=coverage.txt ./...
     - bash <(curl -s https://codecov.io/bash)

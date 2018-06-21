@@ -1,0 +1,5 @@
+*.keystore
+*.keypair
+node_*/
+kayak_test
+*.conf

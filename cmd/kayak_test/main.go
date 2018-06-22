@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -46,16 +45,16 @@ import (
 )
 
 const (
-	ListenHost               = "127.0.0.1"
-	ListenAddrPattern        = ListenHost + ":%v"
-	NodeDirPattern           = "./node_%v"
-	PubKeyStoreFile          = "public.keystore"
-	PrivateKeyFile           = "private.key"
-	PrivateKeyMasterKey      = "abc"
-	KayakServiceName         = "kayak"
-	KayakInstanceTransportID = "kayak_test"
-	DBServiceName            = "Database"
-	DBFileName               = "storage.db"
+	listenHost               = "127.0.0.1"
+	listenAddrPattern        = listenHost + ":%v"
+	nodeDirPattern           = "./node_%v"
+	pubKeyStoreFile          = "public.keystore"
+	privateKeyFile           = "private.key"
+	privateKeyMasterKey      = "abc"
+	kayakServiceName         = "kayak"
+	kayakInstanceTransportID = "kayak_test"
+	dbServiceName            = "Database"
+	dbFileName               = "storage.db"
 )
 
 var (
@@ -67,8 +66,10 @@ var (
 	nodeCnt         int
 	nodeOffset      int
 	clientOperation string
+	payloadCodec    PayloadCodec
 )
 
+// NodeInfo for conf generation and load purpose.
 type NodeInfo struct {
 	Nonce          *cpuminer.NonceInfo
 	PublicKeyBytes []byte
@@ -77,45 +78,80 @@ type NodeInfo struct {
 	Role           kayak.ServerRole
 }
 
-type LogCodec struct{}
+// PayloadCodec defines simple codec.
+type PayloadCodec struct{}
 
-func (m *LogCodec) Encode(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
+func (m *PayloadCodec) Encode(execLog *storage.ExecLog) ([]byte, error) {
+	return json.Marshal(execLog)
 }
 
-func (m *LogCodec) Decode(data []byte, v interface{}) (err error) {
-	var payload storage.ExecLog
-	err = json.Unmarshal(data, &payload)
+func (m *PayloadCodec) Decode(data []byte, execLog *storage.ExecLog) (err error) {
+	return json.Unmarshal(data, execLog)
+}
 
-	if v == nil {
+type Storage struct {
+	*storage.Storage
+}
+
+func (s *Storage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
+	var execLog *storage.ExecLog
+	if execLog, err = s.decodeLog(wb); err != nil {
 		return
 	}
 
-	rv := reflect.ValueOf(v)
+	return s.Storage.Prepare(ctx, execLog)
+}
 
-	if rv.Kind() == reflect.Ptr {
-		rv.Elem().Set(reflect.ValueOf(&payload))
-	} else {
-		rv.Set(reflect.ValueOf(&payload))
+func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
+	var execLog *storage.ExecLog
+	if execLog, err = s.decodeLog(wb); err != nil {
+		return
 	}
 
+	return s.Storage.Commit(ctx, execLog)
+}
+
+func (s *Storage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
+	var execLog *storage.ExecLog
+	if execLog, err = s.decodeLog(wb); err != nil {
+		return
+	}
+
+	return s.Storage.Rollback(ctx, execLog)
+}
+
+func (s *Storage) decodeLog(wb twopc.WriteBatch) (log *storage.ExecLog, err error) {
+	var bytesPayload []byte
+	var execLog storage.ExecLog
+	var ok bool
+
+	if bytesPayload, ok = wb.([]byte); !ok {
+		err = kayak.ErrInvalidLog
+		return
+	}
+	if err = payloadCodec.Decode(bytesPayload, &execLog); err != nil {
+		return
+	}
+
+	log = &execLog
 	return
 }
 
 type StubServer struct {
 	Runtime *kayak.Runtime
-	Storage *storage.Storage
-	Codec   kayak.TwoPCLogCodec
+	Storage *Storage
 }
 
-func (s *StubServer) Write(sql string, response *string) (err error) {
+type ResponseRows []map[string]interface{}
+
+func (s *StubServer) Write(sql string, _ *ResponseRows) (err error) {
 	var writeData []byte
 
 	l := &storage.ExecLog{
 		Queries: []string{sql},
 	}
 
-	if writeData, err = s.Codec.Encode(l); err != nil {
+	if writeData, err = payloadCodec.Encode(l); err != nil {
 		return err
 	}
 
@@ -124,7 +160,7 @@ func (s *StubServer) Write(sql string, response *string) (err error) {
 	return
 }
 
-func (s *StubServer) Read(sql string, rows *[]map[string]interface{}) (err error) {
+func (s *StubServer) Read(sql string, rows *ResponseRows) (err error) {
 	var columns []string
 	var result [][]interface{}
 	columns, _, result, err = s.Storage.Query(context.Background(), []string{sql})
@@ -230,28 +266,34 @@ func clientRequest(leader *NodeInfo, reqType string, sql string) (err error) {
 
 	reqType = strings.Title(strings.ToLower(reqType))
 
-	var res interface{}
-	if err = client.Call(fmt.Sprintf("%v.%v", DBServiceName, reqType), sql, &res); err != nil {
+	var rows ResponseRows
+	if err = client.Call(fmt.Sprintf("%v.%v", dbServiceName, reqType), sql, &rows); err != nil {
 		return
 	}
+	var res []byte
+	if res, err = json.MarshalIndent(rows, "", strings.Repeat(" ", 4)); err != nil {
+		return
+	}
+
+	fmt.Println(string(res))
 
 	return
 }
 
 func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
-	clientRootDir := fmt.Sprintf(NodeDirPattern, "client")
+	clientRootDir := fmt.Sprintf(nodeDirPattern, "client")
 	os.MkdirAll(clientRootDir, 0755)
 
 	// init local key store
-	pubKeyStorePath := filepath.Join(clientRootDir, PubKeyStoreFile)
+	pubKeyStorePath := filepath.Join(clientRootDir, pubKeyStoreFile)
 	if _, err = consistent.InitConsistent(pubKeyStorePath, true); err != nil {
 		return
 	}
 
 	// init client private key
 	route.InitResolver()
-	privateKeyStorePath := filepath.Join(clientRootDir, PrivateKeyFile)
-	if err = kms.InitLocalKeyPair(privateKeyStorePath, []byte(PrivateKeyMasterKey)); err != nil {
+	privateKeyStorePath := filepath.Join(clientRootDir, privateKeyFile)
+	if err = kms.InitLocalKeyPair(privateKeyStorePath, []byte(privateKeyMasterKey)); err != nil {
 		return
 	}
 
@@ -262,7 +304,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 	kms.SetPublicKey(leaderNodeID, leader.Nonce.Nonce, leader.PublicKey)
 
 	// set route to leader
-	route.SetNodeAddr(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(ListenAddrPattern, leader.Port))
+	route.SetNodeAddr(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, leader.Port))
 
 	return
 }
@@ -300,23 +342,22 @@ func runNode() (err error) {
 
 	// init storage
 	log.Infof("init storage")
-	var stor *storage.Storage
-	if stor, err = initStorage(nodeOffset); err != nil {
+	var st *Storage
+	if st, err = initStorage(nodeOffset); err != nil {
 		return
 	}
 
 	// init kayak
 	log.Infof("init kayak runtime")
 	var kayakRuntime *kayak.Runtime
-	if _, kayakRuntime, err = initKayakTwoPC(nodeOffset, &nodes[nodeOffset], peers, stor, service); err != nil {
+	if _, kayakRuntime, err = initKayakTwoPC(nodeOffset, &nodes[nodeOffset], peers, st, service); err != nil {
 		return
 	}
 
 	// register service rpc
-	server.RegisterService(DBServiceName, &StubServer{
+	server.RegisterService(dbServiceName, &StubServer{
 		Runtime: kayakRuntime,
-		Storage: stor,
-		Codec:   &LogCodec{},
+		Storage: st,
 	})
 
 	// start server
@@ -325,9 +366,17 @@ func runNode() (err error) {
 	return
 }
 
-func initStorage(nodeOffset int) (stor *storage.Storage, err error) {
-	dbFile := filepath.Join(fmt.Sprintf(NodeDirPattern, nodeOffset), DBFileName)
-	return storage.New(dbFile)
+func initStorage(nodeOffset int) (stor *Storage, err error) {
+	dbFile := filepath.Join(fmt.Sprintf(nodeDirPattern, nodeOffset), dbFileName)
+	var st *storage.Storage
+	if st, err = storage.New(dbFile); err != nil {
+		return
+	}
+
+	stor = &Storage{
+		Storage: st,
+	}
+	return
 }
 
 func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
@@ -340,9 +389,9 @@ func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker t
 	log.Infof("create etls transport config")
 	transportConfig := &kt.ETLSTransportConfig{
 		NodeID:           localNodeID,
-		TransportID:      KayakInstanceTransportID,
+		TransportID:      kayakInstanceTransportID,
 		TransportService: service,
-		ServiceName:      KayakServiceName,
+		ServiceName:      kayakServiceName,
 		ClientBuilder: func(ctx context.Context, nodeID proto.NodeID) (client *rpc.Client, err error) {
 			log.Infof("dial to node %s", nodeID)
 
@@ -360,23 +409,20 @@ func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker t
 
 	log.Infof("create etls transport")
 	var transport *kt.ETLSTransport
-	if transport, err = kt.NewETLSTransport(transportConfig); err != nil {
-		return
-	}
+	transport = kt.NewETLSTransport(transportConfig)
 
 	// create twopc config
 	log.Infof("create kayak twopc config")
 	config = &kayak.TwoPCConfig{
 		RuntimeConfig: kayak.RuntimeConfig{
-			RootDir:        fmt.Sprintf(NodeDirPattern, nodeOffset),
+			RootDir:        fmt.Sprintf(nodeDirPattern, nodeOffset),
 			LocalID:        localNodeID,
 			Runner:         runner,
 			Transport:      transport,
 			ProcessTimeout: time.Second * 5,
 			Logger:         log.New(),
 		},
-		LogCodec: &LogCodec{},
-		Storage:  worker,
+		Storage: worker,
 	}
 
 	// create runtime
@@ -497,13 +543,13 @@ func generateConf(nodeCnt, minPort, maxPort int, filename string) (err error) {
 	nodes := make([]NodeInfo, nodeCnt+1)
 
 	var ports []int
-	if ports, err = utils.GetRandomPorts(ListenHost, minPort, maxPort, nodeCnt); err != nil {
+	if ports, err = utils.GetRandomPorts(listenHost, minPort, maxPort, nodeCnt); err != nil {
 		return
 	}
 
 	// server conf
 	for i := 0; i != nodeCnt; i++ {
-		nodeRootDir := fmt.Sprintf(NodeDirPattern, i)
+		nodeRootDir := fmt.Sprintf(nodeDirPattern, i)
 		nodes[i].Nonce, nodes[i].PublicKeyBytes, err = getSingleNodeConf(nodeRootDir)
 
 		if err != nil {
@@ -520,7 +566,7 @@ func generateConf(nodeCnt, minPort, maxPort int, filename string) (err error) {
 	}
 
 	// client conf
-	nodes[nodeCnt].Nonce, nodes[nodeCnt].PublicKeyBytes, err = getSingleNodeConf(fmt.Sprintf(NodeDirPattern, "client"))
+	nodes[nodeCnt].Nonce, nodes[nodeCnt].PublicKeyBytes, err = getSingleNodeConf(fmt.Sprintf(nodeDirPattern, "client"))
 	if err != nil {
 		return
 	}
@@ -543,7 +589,7 @@ func getSingleNodeConf(nodeRootDir string) (nonce *cpuminer.NonceInfo, pubKeyByt
 	os.MkdirAll(nodeRootDir, 0755)
 
 	// create private key
-	privateKeyPath := filepath.Join(nodeRootDir, PrivateKeyFile)
+	privateKeyPath := filepath.Join(nodeRootDir, privateKeyFile)
 	var privateKey *asymmetric.PrivateKey
 	var publicKey *asymmetric.PublicKey
 
@@ -555,7 +601,7 @@ func getSingleNodeConf(nodeRootDir string) (nonce *cpuminer.NonceInfo, pubKeyByt
 	}
 
 	// save key to file
-	err = kms.SavePrivateKey(privateKeyPath, privateKey, []byte(PrivateKeyMasterKey))
+	err = kms.SavePrivateKey(privateKeyPath, privateKey, []byte(privateKeyMasterKey))
 
 	if err != nil {
 		return
@@ -574,7 +620,7 @@ func createService() *kt.ETLSTransportService {
 }
 
 func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (server *rpc.Server, err error) {
-	pubKeyStorePath := filepath.Join(fmt.Sprintf(NodeDirPattern, nodeOffset), PubKeyStoreFile)
+	pubKeyStorePath := filepath.Join(fmt.Sprintf(nodeDirPattern, nodeOffset), pubKeyStoreFile)
 	os.Remove(pubKeyStorePath)
 
 	var dht *route.DHTService
@@ -584,15 +630,15 @@ func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (serve
 
 	server, err = rpc.NewServerWithService(rpc.ServiceMap{
 		"DHT":            dht,
-		KayakServiceName: service,
+		kayakServiceName: service,
 	})
 	if err != nil {
 		return
 	}
 
-	listenAddr := fmt.Sprintf(ListenAddrPattern, port)
-	privateKeyPath := filepath.Join(fmt.Sprintf(NodeDirPattern, nodeOffset), PrivateKeyFile)
-	err = server.InitRPCServer(listenAddr, privateKeyPath, []byte(PrivateKeyMasterKey))
+	listenAddr := fmt.Sprintf(listenAddrPattern, port)
+	privateKeyPath := filepath.Join(fmt.Sprintf(nodeDirPattern, nodeOffset), privateKeyFile)
+	err = server.InitRPCServer(listenAddr, privateKeyPath, []byte(privateKeyMasterKey))
 
 	return
 }
@@ -600,7 +646,7 @@ func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (serve
 func initNode(node *NodeInfo) (nodeID proto.NodeID, err error) {
 	nodeID = proto.NodeID(node.Nonce.Hash.String())
 	kms.SetPublicKey(nodeID, node.Nonce.Nonce, node.PublicKey)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: node.Nonce.Hash}, fmt.Sprintf(ListenAddrPattern, node.Port))
+	route.SetNodeAddr(&proto.RawNodeID{Hash: node.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, node.Port))
 
 	return
 }

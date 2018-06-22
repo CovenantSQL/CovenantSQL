@@ -34,6 +34,7 @@ type Options struct {
 	beforePrepare  Hook
 	beforeCommit   Hook
 	beforeRollback Hook
+	afterCommit    Hook
 }
 
 // Worker represents a 2PC worker who implements Prepare, Commit, and Rollback.
@@ -66,12 +67,14 @@ func NewOptions(timeout time.Duration) *Options {
 }
 
 // NewOptionsWithCallback returns a new coordinator option with before prepare/commit/rollback callback
-func NewOptionsWithCallback(timeout time.Duration, beforePrepare Hook, beforeCommit Hook, beforeRollback Hook) *Options {
+func NewOptionsWithCallback(timeout time.Duration,
+	beforePrepare Hook, beforeCommit Hook, beforeRollback Hook, afterCommit Hook) *Options {
 	return &Options{
 		timeout:        timeout,
 		beforePrepare:  beforePrepare,
 		beforeCommit:   beforeCommit,
 		beforeRollback: beforeRollback,
+		afterCommit:    afterCommit,
 	}
 }
 
@@ -164,7 +167,14 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 		}
 	}
 
-	return c.commit(ctx, workers, wb)
+	err = c.commit(ctx, workers, wb)
+
+	if c.option.afterCommit != nil {
+		err = c.option.afterCommit(ctx)
+		log.Debug("after commit failed: err = %v", err)
+	}
+
+	return
 
 ROLLBACK:
 	if c.option.beforeRollback != nil {

@@ -15,21 +15,3 @@
  */
 
 package sqlchain
-
-import (
-	"time"
-
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-)
-
-// Config represents a sql-chain config.
-type Config struct {
-	DataDir string
-
-	Genesis        *Block
-	Period         time.Duration
-	TimeResolution time.Duration
-
-	Peers  *kayak.Peers
-	Server *kayak.Server
-}

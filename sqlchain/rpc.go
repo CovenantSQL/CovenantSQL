@@ -16,20 +16,36 @@
 
 package sqlchain
 
-import (
-	"time"
+type ChainRPCServer struct {
+	chain *Chain
+}
 
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-)
+type AdviseNewBlockReq struct {
+}
 
-// Config represents a sql-chain config.
-type Config struct {
-	DataDir string
+type AdviseNewBlockResp struct {
+}
 
-	Genesis        *Block
-	Period         time.Duration
-	TimeResolution time.Duration
+type AdviseBinLogReq struct {
+}
 
-	Peers  *kayak.Peers
-	Server *kayak.Server
+type AdviseBinLogResp struct {
+}
+
+type AdviseQueriesReq struct {
+}
+
+type AdviseQueriesResp struct {
+}
+
+func (s *ChainRPCServer) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
+	return nil
+}
+
+func (s *ChainRPCServer) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
+	return nil
+}
+
+func (s *ChainRPCServer) AdviseQueries(req *AdviseQueriesReq, resp *AdviseQueriesResp) error {
+	return nil
 }

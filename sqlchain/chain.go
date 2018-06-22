@@ -34,13 +34,6 @@ var (
 	metaBlockIndexBucket = []byte("thunderdb-block-index-bucket")
 )
 
-// ChainRPCServer defines interface of a chain RPC server.
-type ChainRPCServer interface {
-	AdviseNewBlock(block *Block) error
-	AdviseBinLogs() error
-	AdviseNewQueries(queries []*Query) error
-}
-
 // State represents a snapshot of current best chain.
 type State struct {
 	node   *blockNode

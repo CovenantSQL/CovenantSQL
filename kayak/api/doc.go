@@ -16,5 +16,5 @@
 
 /*
 Package api provides simplified kayak api with pre-defined practical options.
- */
+*/
 package api

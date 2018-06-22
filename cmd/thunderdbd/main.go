@@ -147,6 +147,38 @@ func main() {
 		log.Fatalf("rpcServer.InitRPCServer failed: %s", err)
 	}
 
+	//privateKey, err := kms.GetLocalPrivateKey()
+	//if err != nil {
+	//	log.Fatalf("get local private key failed: %s", err)
+	//}
+	//
+	//publicKey, err := kms.GetLocalPublicKey()
+	//if err != nil {
+	//	log.Fatalf("get local public key failed: %s", err)
+	//}
+	//
+	//peers, err := InitKayakPeers(privateKey, publicKey)
+	//if err != nil {
+	//	log.Fatalf("init kayak peers failed: %s", err)
+	//}
+	//
+	//kayak.NewRuntime(&kayak.TwoPCConfig{
+	//	RuntimeConfig: kayak.RuntimeConfig{
+	//		RootDir:        "",
+	//		LocalID:        "",
+	//		Runner:         nil,
+	//		Transport:      nil,
+	//		ProcessTimeout: 0,
+	//		AutoBanCount:   0,
+	//		Logger:         nil,
+	//	},
+	//	LogCodec:        nil,
+	//	Storage:         nil,
+	//	PrepareTimeout:  time.Millisecond * 500,
+	//	CommitTimeout:   time.Millisecond * 500,
+	//	RollbackTimeout: time.Millisecond * 500,
+	//}, peers)
+
 	// Register service by a name
 	dht, err := route.NewDHTService(publicKeyStorePath, true)
 	if err != nil {

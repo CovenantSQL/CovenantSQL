@@ -45,6 +45,7 @@ type Server struct {
 	stopCh         chan interface{}
 	serviceMap     ServiceMap
 	Listener       net.Listener
+	Mux            *yamux.Session
 }
 
 // NewServer return a new Server
@@ -139,14 +140,14 @@ func (s *Server) handleConn(conn net.Conn) {
 		log.Error(err)
 		return
 	}
-
-	s.serveRPC(sess, remoteNodeID)
+	s.Mux = sess
+	s.serveRPC(remoteNodeID)
 	log.Debugf("%s closed connection", conn.RemoteAddr())
 }
 
 // serveRPC install the JSON RPC codec
-func (s *Server) serveRPC(sess *yamux.Session, remoteNodeID *proto.RawNodeID) {
-	conn, err := sess.Accept()
+func (s *Server) serveRPC(remoteNodeID *proto.RawNodeID) {
+	conn, err := s.Mux.Accept()
 	if err != nil {
 		log.Error(err)
 		return
@@ -163,6 +164,12 @@ func (s *Server) RegisterService(name string, service interface{}) error {
 
 // Stop Server main loop
 func (s *Server) Stop() {
+	if s.Mux != nil {
+		s.Mux.Close()
+	}
+	if s.Listener != nil {
+		s.Listener.Close()
+	}
 	close(s.stopCh)
 }
 

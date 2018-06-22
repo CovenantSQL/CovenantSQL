@@ -90,7 +90,7 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 			kms.BPPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 			if err == nil {
 				BPNode = &proto.Node{
-					ID:        proto.NodeID(kms.BPNodeID),
+					ID:        kms.BPNodeID,
 					Addr:      "",
 					PublicKey: kms.BPPublicKey,
 					Nonce:     kms.BPNonce,

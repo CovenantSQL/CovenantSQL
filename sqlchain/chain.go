@@ -37,6 +37,8 @@ var (
 // ChainRPCServer defines interface of a chain RPC server.
 type ChainRPCServer interface {
 	AdviseNewBlock(block *Block) error
+	AdviseBinLogs() error
+	AdviseNewQueries(queries []*Query) error
 }
 
 // State represents a snapshot of current best chain.
@@ -57,6 +59,9 @@ type Runtime struct {
 
 	// Period is the block producing cycle.
 	Period time.Duration
+
+	// TimeResolution is the maximum time frame between each cycle.
+	TimeResolution time.Duration
 
 	// ChainInitTime is the initial cycle time, when the Genesis blcok is produced.
 	ChainInitTime time.Time
@@ -81,7 +86,7 @@ func (r *Runtime) Now() time.Time {
 	return time.Now().Add(r.Offset)
 }
 
-func (r *Runtime) GotoNextTurn() {
+func (r *Runtime) SetNextTurn() {
 	r.Lock()
 	defer r.Unlock()
 	r.NextHeight++
@@ -91,8 +96,15 @@ func (r *Runtime) Stop() {
 	close(r.stopCh)
 }
 
-func (r *Runtime) TillNextWakeUp() time.Duration {
-	return r.ChainInitTime.Add(time.Duration(r.NextHeight) * r.Period).Sub(r.Now())
+func (r *Runtime) TillNextCycle() (t time.Time, d time.Duration) {
+	t = r.Now()
+	d = r.ChainInitTime.Add(time.Duration(r.NextHeight) * r.Period).Sub(t)
+
+	if d > r.TimeResolution {
+		d = r.TimeResolution
+	}
+
+	return
 }
 
 func (s *State) marshal() ([]byte, error) {
@@ -329,10 +341,9 @@ func (c *Chain) AdviseNewBlock(block *Block) (err error) {
 		return ErrBlockExists
 	}
 
-	// Verify block producing time
-	start := c.cfg.Genesis.SignedHeader.Timestamp.Add(
-		time.Duration(c.state.Height+1) * c.cfg.Period)
-	end := start.Add(c.cfg.Period)
+	// Block must produced within [start, end)
+	start := c.rt.ChainInitTime.Add(time.Duration(c.rt.NextHeight-1) * c.rt.Period)
+	end := start.Add(c.rt.Period)
 	ptime := block.SignedHeader.Timestamp
 
 	if ptime.Before(start) || (ptime.Equal(end) || ptime.After(end)) {
@@ -354,7 +365,7 @@ func (c *Chain) IsMyTurn() bool {
 	return false
 }
 
-func (c *Chain) ProduceBlock() (err error) {
+func (c *Chain) ProduceBlock(now time.Time) (err error) {
 	// TODO(leventeliu): remember to initialize local key store somewhere.
 	priv, err := kms.GetLocalPrivateKey()
 
@@ -363,6 +374,7 @@ func (c *Chain) ProduceBlock() (err error) {
 	}
 
 	// Sign pending block
+	c.pendingBlock.SignedHeader.Timestamp = now
 	err = c.pendingBlock.SignHeader(priv)
 
 	if err != nil {
@@ -374,8 +386,14 @@ func (c *Chain) ProduceBlock() (err error) {
 	return
 }
 
-func (c *Chain) Cycle() {
-	if err := c.ProduceBlock(); err != nil {
+func (c *Chain) Cycle(now time.Time) {
+	defer c.rt.SetNextTurn()
+
+	if !c.IsMyTurn() {
+		return
+	}
+
+	if err := c.ProduceBlock(now); err != nil {
 		c.Stop()
 	}
 }
@@ -386,11 +404,10 @@ func (c *Chain) BlockProducingCycle() {
 		case <-c.rt.stopCh:
 			return
 		default:
-			if d := c.rt.TillNextWakeUp(); d > 0 {
+			if t, d := c.rt.TillNextCycle(); d > 0 {
 				time.Sleep(d)
-			} else if c.IsMyTurn() {
-				c.Cycle()
-				c.rt.GotoNextTurn()
+			} else {
+				c.Cycle(t)
 			}
 		}
 	}

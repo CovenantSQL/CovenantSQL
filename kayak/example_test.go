@@ -81,8 +81,8 @@ func TestExampleTwoPCCommit(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 800,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
+			LogCodec: mockLogCodec,
+			Storage:  res.worker,
 		}
 		res.runtime, _ = NewRuntime(res.config, peers)
 		return

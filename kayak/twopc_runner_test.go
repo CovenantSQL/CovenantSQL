@@ -254,8 +254,8 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 300,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
+			LogCodec: mockLogCodec,
+			Storage:  res.worker,
 		}
 		res.logStore = &MockLogStore{}
 		res.stableStore = &MockStableStore{}
@@ -759,8 +759,8 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 800,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
+			LogCodec: mockLogCodec,
+			Storage:  res.worker,
 		}
 		res.logStore = &MockLogStore{}
 		res.stableStore = &MockStableStore{}

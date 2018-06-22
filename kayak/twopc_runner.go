@@ -18,7 +18,6 @@ package kayak
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -34,9 +33,6 @@ var (
 
 	// committed index store in local meta
 	keyCommittedIndex = []byte("CommittedIndex")
-
-	// ErrInvalidRequest indicate inconsistent state
-	ErrInvalidRequest = errors.New("invalid request")
 )
 
 // TwoPCConfig is a RuntimeConfig implementation organizing two phase commit mutation

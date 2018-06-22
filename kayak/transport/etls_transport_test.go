@@ -111,7 +111,7 @@ func testWithNewNode(nodeMap *sync.Map) (mock *mockRes, err error) {
 	rand.Read(randBytes)
 	mock.nodeID = proto.NodeID(hash.THashH(randBytes).String())
 	mock.service = &ETLSTransportService{}
-	mock.transport, _ = NewETLSTransport(&ETLSTransportConfig{
+	mock.transport = NewETLSTransport(&ETLSTransportConfig{
 		NodeID:           mock.nodeID,
 		TransportID:      "test",
 		TransportService: mock.service,
@@ -199,9 +199,6 @@ func TestETLSIntegration(t *testing.T) {
 	// test node map/routine map
 	var nodeMap sync.Map
 
-	// codec to encode/decode data in kayak.Log structure
-	mockLogCodec := &MockLogCodec{}
-
 	// create mock returns basic arguments to prepare for a server
 	createMock := func(etlsMock *mockRes, peers *kayak.Peers) (res *createMockRes) {
 		res = &createMockRes{}
@@ -227,8 +224,7 @@ func TestETLSIntegration(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 800,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
+			Storage: res.worker,
 		}
 		res.runtime, _ = kayak.NewRuntime(res.config, peers)
 		go func() {
@@ -283,8 +279,7 @@ func TestETLSIntegration(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// payload to send
-		testPayload := "test data"
-		testData, _ := mockLogCodec.Encode(testPayload)
+		testPayload := []byte("test data")
 
 		// underlying worker mock, prepare/commit/rollback with be received the decoded data
 		callOrder := &CallCollector{}
@@ -314,7 +309,7 @@ func TestETLSIntegration(t *testing.T) {
 		})
 
 		// process the encoded data
-		err = lMock.runtime.Apply(testData)
+		err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",
@@ -327,7 +322,7 @@ func TestETLSIntegration(t *testing.T) {
 
 		// process the encoded data again
 		callOrder.Reset()
-		err = lMock.runtime.Apply(testData)
+		err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",

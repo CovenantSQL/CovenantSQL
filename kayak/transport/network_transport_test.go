@@ -18,7 +18,6 @@ package transport
 
 import (
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -158,16 +157,6 @@ func (_m *MockWorker) Rollback(ctx context.Context, wb twopc.WriteBatch) error {
 	}
 
 	return r0
-}
-
-type MockLogCodec struct{}
-
-func (m *MockLogCodec) Encode(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
-}
-
-func (m *MockLogCodec) Decode(data []byte, v interface{}) error {
-	return json.Unmarshal(data, v)
 }
 
 type CallCollector struct {
@@ -324,8 +313,6 @@ func TestIntegration(t *testing.T) {
 		runtime   *kayak.Runtime
 	}
 
-	// codec to encode/decode data in kayak.Log structure
-	mockLogCodec := &MockLogCodec{}
 	// router is a dummy channel based local rpc transport router
 	mockRouter := NewTestStreamRouter()
 
@@ -367,8 +354,7 @@ func TestIntegration(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 800,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
+			Storage: res.worker,
 		}
 		res.runtime, _ = kayak.NewRuntime(res.config, peers)
 		return
@@ -397,8 +383,7 @@ func TestIntegration(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// payload to send
-		testPayload := "test data"
-		testData, _ := mockLogCodec.Encode(testPayload)
+		testPayload := []byte("test data")
 
 		// underlying worker mock, prepare/commit/rollback with be received the decoded data
 		callOrder := &CallCollector{}
@@ -428,7 +413,7 @@ func TestIntegration(t *testing.T) {
 		})
 
 		// process the encoded data
-		err = lMock.runtime.Apply(testData)
+		err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",
@@ -441,7 +426,7 @@ func TestIntegration(t *testing.T) {
 
 		// process the encoded data again
 		callOrder.Reset()
-		err = lMock.runtime.Apply(testData)
+		err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",

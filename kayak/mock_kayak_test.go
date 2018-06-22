@@ -19,7 +19,6 @@ package kayak
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -37,8 +36,6 @@ import (
 )
 
 // common mocks
-type MockLogCodec struct{}
-
 type MockTransportRouter struct {
 	reqSeq        uint64
 	transports    map[proto.NodeID]*MockTransport
@@ -78,14 +75,6 @@ type MockTwoPCWorker struct {
 var (
 	_ twopc.Worker = &MockTwoPCWorker{}
 )
-
-func (m *MockLogCodec) Encode(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
-}
-
-func (m *MockLogCodec) Decode(data []byte, v interface{}) error {
-	return json.Unmarshal(data, v)
-}
 
 func (m *MockTransportRouter) getTransport(nodeID proto.NodeID) *MockTransport {
 	m.transportLock.Lock()

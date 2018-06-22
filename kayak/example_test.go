@@ -36,9 +36,6 @@ func TestExampleTwoPCCommit(t *testing.T) {
 		config    *TwoPCConfig
 		runtime   *Runtime
 	}
-
-	// codec to encode/decode data in kayak.Log structure
-	mockLogCodec := &MockLogCodec{}
 	// router is a dummy channel based local rpc transport router
 	mockRouter := &MockTransportRouter{
 		transports: make(map[proto.NodeID]*MockTransport),
@@ -81,8 +78,7 @@ func TestExampleTwoPCCommit(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 800,
 				Logger:         logger,
 			},
-			LogCodec: mockLogCodec,
-			Storage:  res.worker,
+			Storage: res.worker,
 		}
 		res.runtime, _ = NewRuntime(res.config, peers)
 		return
@@ -112,8 +108,7 @@ func TestExampleTwoPCCommit(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// payload to send
-		testPayload := "test data"
-		testData, _ := mockLogCodec.Encode(testPayload)
+		testPayload := []byte("test data")
 
 		// underlying worker mock, prepare/commit/rollback with be received the decoded data
 		callOrder := &CallCollector{}
@@ -143,7 +138,7 @@ func TestExampleTwoPCCommit(t *testing.T) {
 		})
 
 		// process the encoded data
-		err = lMock.runtime.Apply(testData)
+		err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",
@@ -156,7 +151,7 @@ func TestExampleTwoPCCommit(t *testing.T) {
 
 		// process the encoded data again
 		callOrder.Reset()
-		err = lMock.runner.Apply(testData)
+		err = lMock.runner.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
 			"f_prepare",

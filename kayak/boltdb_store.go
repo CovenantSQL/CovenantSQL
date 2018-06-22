@@ -72,11 +72,11 @@ func (o *Options) readOnly() bool {
 
 // NewBoltStore takes a file path and returns a connected Raft backend.
 func NewBoltStore(path string) (*BoltStore, error) {
-	return New(Options{Path: path})
+	return NewBoltStoreWithOptions(Options{Path: path})
 }
 
-// New uses the supplied options to open the BoltDB and prepare it for use as a raft     backend.
-func New(options Options) (*BoltStore, error) {
+// NewBoltStoreWithOptions uses the supplied options to open the BoltDB and prepare it for use as a raft backend.
+func NewBoltStoreWithOptions(options Options) (*BoltStore, error) {
 	// Try to connect
 	handle, err := bolt.Open(options.Path, dbFileMode, options.BoltOptions)
 	if err != nil {

@@ -67,8 +67,8 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 	return
 }
 
-// DailToNode connects to the node with nodeID
-func DailToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
+// DialToNode connects to the node with nodeID
+func DialToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
 	var nodePublicKey *asymmetric.PublicKey
 	var rawNodeID proto.RawNodeID
 	err = hash.Decode(&rawNodeID.Hash, string(nodeID))

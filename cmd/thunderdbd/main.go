@@ -51,13 +51,6 @@ var (
 )
 
 var (
-	// raft
-	raftHeartbeatTimeout time.Duration
-	raftApplyTimeout     time.Duration
-	raftOpenTimeout      time.Duration
-	raftSnapThreshold    uint64
-	initPeers            string
-
 	// api
 	publishPeersTimeout time.Duration
 	publishPeersDelay   time.Duration
@@ -87,17 +80,12 @@ const desc = `ThunderDB is a database`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.DurationVar(&raftHeartbeatTimeout, "raft-timeout", time.Second, "Raft heartbeat timeout")
-	flag.DurationVar(&raftApplyTimeout, "raft-apply-timeout", time.Second*10, "Raft apply timeout")
-	flag.DurationVar(&raftOpenTimeout, "raft-open-timeout", time.Second*120, "Time for initial Raft logs to be applied. Use 0s duration to skip wait")
-	flag.Uint64Var(&raftSnapThreshold, "raft-snap", 8192, "Number of outstanding log entries that trigger snapshot")
 	flag.DurationVar(&publishPeersTimeout, "publish-peers-timeout", time.Second*30, "Timeout for peers to publish")
 	flag.DurationVar(&publishPeersDelay, "publish-peers-delay", time.Second, "Interval for peers publishing retry")
 	flag.StringVar(&privateKeyPath, "private-key-path", "./private.key", "Path to private key file")
 	flag.StringVar(&publicKeyStorePath, "public-keystore-path", "./public.keystore", "Path to public keystore file")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
-	flag.StringVar(&initPeers, "init-peers", "", "Init peers to join")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
 		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data directory>\n", name)

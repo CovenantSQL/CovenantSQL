@@ -18,7 +18,6 @@ package kayak
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -34,29 +33,14 @@ var (
 
 	// committed index store in local meta
 	keyCommittedIndex = []byte("CommittedIndex")
-
-	// ErrInvalidRequest indicate inconsistent state
-	ErrInvalidRequest = errors.New("invalid request")
 )
 
 // TwoPCConfig is a RuntimeConfig implementation organizing two phase commit mutation
 type TwoPCConfig struct {
 	RuntimeConfig
 
-	// LogCodec is the underlying storage log codec
-	LogCodec TwoPCLogCodec
-
 	// Storage is the underlying twopc Storage
 	Storage twopc.Worker
-
-	// PrepareTimeout
-	PrepareTimeout time.Duration
-
-	// CommitTimeout
-	CommitTimeout time.Duration
-
-	// RollbackTimeout
-	RollbackTimeout time.Duration
 }
 
 // TwoPCRunner is a Runner implementation organizing two phase commit mutation
@@ -90,8 +74,9 @@ type TwoPCRunner struct {
 	updatePeersReq  chan *Peers
 	updatePeersRes  chan error
 
-	currentState ServerState
-	stateLock    sync.Mutex
+	currentState   ServerState
+	stateLock      sync.Mutex
+	currentContext context.Context
 
 	// Tracks running goroutines
 	routinesGroup sync.WaitGroup
@@ -101,15 +86,6 @@ type TwoPCRunner struct {
 type TwoPCWorkerWrapper struct {
 	runner *TwoPCRunner
 	nodeID proto.NodeID
-}
-
-// TwoPCLogCodec is the log data encode/decoder
-type TwoPCLogCodec interface {
-	// Encode log to bytes
-	Encode(interface{}) ([]byte, error)
-
-	// Decode logs to bytes
-	Decode([]byte, interface{}) error
 }
 
 // NewTwoPCRunner create a two pc runner
@@ -350,7 +326,7 @@ func (r *TwoPCRunner) safeForPeersUpdate() chan *Peers {
 	return nil
 }
 
-func (r *TwoPCRunner) processNewLog(data []byte) error {
+func (r *TwoPCRunner) processNewLog(data []byte) (err error) {
 	// build Log
 	l := &Log{
 		Index:    r.lastLogIndex + 1,
@@ -362,47 +338,34 @@ func (r *TwoPCRunner) processNewLog(data []byte) error {
 	// compute hash
 	l.ComputeHash()
 
-	// decode log payload
-	var err error
-	var decodedLog interface{}
-	if decodedLog, err = r.decodeLogData(l.Data); err != nil {
-		return err
-	}
-
-	hasRollback := false
-
+	// TODO(xq262144), local prepare/rollback/commit should be re-organized
 	localPrepare := func(ctx context.Context) error {
-		return nestedTimeoutCtx(ctx, r.config.PrepareTimeout, func(prepareCtx context.Context) error {
-			// prepare local prepare node
-			if err := r.config.Storage.Prepare(prepareCtx, decodedLog); err != nil {
-				return err
-			}
+		// prepare local prepare node
+		if err := r.config.Storage.Prepare(ctx, l.Data); err != nil {
+			return err
+		}
 
-			// write log to storage
-			return r.logStore.StoreLog(l)
-		})
+		// write log to storage
+		return r.logStore.StoreLog(l)
 	}
 
 	localRollback := func(ctx context.Context) error {
-		hasRollback = true
-
-		return nestedTimeoutCtx(ctx, r.config.RollbackTimeout, func(rollbackCtx context.Context) error {
-			// prepare local rollback node
-			// TODO(xq262144), check log position
-			r.logStore.DeleteRange(r.lastLogIndex+1, l.Index)
-			return r.config.Storage.Rollback(rollbackCtx, decodedLog)
-		})
+		// prepare local rollback node
+		// TODO(xq262144), check log position
+		r.logStore.DeleteRange(r.lastLogIndex+1, l.Index)
+		return r.config.Storage.Rollback(ctx, l.Data)
 	}
 
-	localCommit := func(ctx context.Context) error {
-		return nestedTimeoutCtx(ctx, r.config.CommitTimeout, func(commitCtx context.Context) error {
-			return r.config.Storage.Commit(commitCtx, decodedLog)
-		})
-	}
+	localCommit := func(ctx context.Context) (err error) {
+		err = r.config.Storage.Commit(ctx, l.Data)
 
-	// init context
-	ctx, cancel := context.WithTimeout(context.Background(), r.config.ProcessTimeout)
-	defer cancel()
+		r.stableStore.SetUint64(keyCommittedIndex, l.Index)
+		r.lastLogHash = &l.Hash
+		r.lastLogIndex = l.Index
+		r.lastLogTerm = l.Term
+
+		return
+	}
 
 	// build 2PC workers
 	if len(r.peers.Servers) > 1 {
@@ -418,33 +381,29 @@ func (r *TwoPCRunner) processNewLog(data []byte) error {
 		c := twopc.NewCoordinator(twopc.NewOptionsWithCallback(
 			r.config.ProcessTimeout,
 			nil,
-			localPrepare,
-			localRollback,
+			localPrepare,  // after all remote nodes prepared
+			localRollback, // before all remote nodes rollback
+			localCommit,   // after all remote nodes commit
 		))
 
-		// TODO(xq262144), commit error management considering failure node count
-		// only return error on transaction has been rollback
-		if err := c.Put(nodes, l); err != nil && hasRollback {
-			return err
-		}
+		err = c.Put(nodes, l)
 	} else {
+		// single node short cut
+		// init context
+		ctx, cancel := context.WithTimeout(context.Background(), r.config.ProcessTimeout)
+		defer cancel()
+
 		if err := localPrepare(ctx); err != nil {
 			localRollback(ctx)
 			return err
 		}
+
+		// Commit myself
+		// return commit err but still commit
+		err = localCommit(ctx)
 	}
 
-	// Commit myself
-	if err := localCommit(ctx); err != nil {
-		return err
-	}
-
-	r.stableStore.SetUint64(keyCommittedIndex, l.Index)
-	r.lastLogHash = &l.Hash
-	r.lastLogIndex = l.Index
-	r.lastLogTerm = l.Term
-
-	return nil
+	return
 }
 
 func (r *TwoPCRunner) setState(state ServerState) {
@@ -534,22 +493,16 @@ func (r *TwoPCRunner) verifyLog(req Request) (log *Log, err error) {
 	return
 }
 
-func (r *TwoPCRunner) decodeLogData(data []byte) (interface{}, error) {
-	var decoded interface{}
-	if err := r.config.LogCodec.Decode(data, &decoded); err != nil {
-		return nil, err
-	}
-
-	return decoded, nil
-}
-
 func (r *TwoPCRunner) processPrepare(req Request) {
-	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.PrepareTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, func() (err error) {
 		// already in transaction, try abort previous
 		if r.getState() != Idle {
 			// TODO(xq262144), has running transaction
 			// TODO(xq262144), abort previous or failed current
 		}
+
+		// init context
+		r.currentContext, _ = context.WithTimeout(context.Background(), r.config.ProcessTimeout)
 
 		// get log
 		var l *Log
@@ -581,14 +534,8 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 			}
 		}
 
-		// decode log payload
-		var decodedLog interface{}
-		if decodedLog, err = r.decodeLogData(l.Data); err != nil {
-			return
-		}
-
 		// prepare on storage
-		if err = r.config.Storage.Prepare(ctx, decodedLog); err != nil {
+		if err = r.config.Storage.Prepare(r.currentContext, l.Data); err != nil {
 			return
 		}
 
@@ -601,12 +548,12 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		r.setState(Prepared)
 
 		return nil
-	}))
+	}())
 }
 
 func (r *TwoPCRunner) processCommit(req Request) {
 	// commit log
-	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.CommitTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, func() (err error) {
 		// TODO(xq262144), check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
@@ -638,16 +585,9 @@ func (r *TwoPCRunner) processCommit(req Request) {
 			return
 		}
 
-		// decode log
-		var decodedLog interface{}
-		if decodedLog, err = r.decodeLogData(lastLog.Data); err != nil {
-			return
-		}
-
 		// commit on storage
-		if err = r.config.Storage.Commit(ctx, decodedLog); err != nil {
-			return
-		}
+		// return err but still commit local index
+		err = r.config.Storage.Commit(r.currentContext, l.Data)
 
 		// commit log
 		r.stableStore.SetUint64(keyCommittedIndex, l.Index)
@@ -659,12 +599,12 @@ func (r *TwoPCRunner) processCommit(req Request) {
 		r.setState(Idle)
 
 		return
-	}))
+	}())
 }
 
 func (r *TwoPCRunner) processRollback(req Request) {
 	// rollback log
-	req.SendResponse(nil, nestedTimeoutCtx(context.Background(), r.config.RollbackTimeout, func(ctx context.Context) (err error) {
+	req.SendResponse(nil, func() (err error) {
 		// TODO(xq262144), check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
@@ -696,14 +636,8 @@ func (r *TwoPCRunner) processRollback(req Request) {
 			return
 		}
 
-		// decode log
-		var decodedLog interface{}
-		if decodedLog, err = r.decodeLogData(lastLog.Data); err != nil {
-			return
-		}
-
 		// rollback on storage
-		if err = r.config.Storage.Rollback(ctx, decodedLog); err != nil {
+		if err = r.config.Storage.Rollback(r.currentContext, l.Data); err != nil {
 			return
 		}
 
@@ -714,7 +648,7 @@ func (r *TwoPCRunner) processRollback(req Request) {
 		r.setState(Idle)
 
 		return
-	}))
+	}())
 }
 
 // Start a goroutine and properly handle the race between a routine

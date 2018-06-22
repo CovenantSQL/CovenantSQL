@@ -17,48 +17,56 @@
 package main
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/route"
-	"fmt"
-	"os"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"time"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"context"
 	"encoding/json"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"strings"
-	"io/ioutil"
-	"flag"
-	log "github.com/sirupsen/logrus"
 	"errors"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
-	"context"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const (
 	ListenHost               = "127.0.0.1"
 	ListenAddrPattern        = ListenHost + ":%v"
 	NodeDirPattern           = "./node_%v"
-	PubKeyStorePattern       = "./public.%v.keystore"
-	PrivateKeyPattern        = "./private.%v.keypair"
+	PubKeyStoreFile          = "public.keystore"
+	PrivateKeyFile           = "private.key"
 	PrivateKeyMasterKey      = "abc"
 	KayakServiceName         = "kayak"
 	KayakInstanceTransportID = "kayak_test"
+	DBServiceName            = "Database"
+	DBFileName               = "storage.db"
 )
 
 var (
-	genConf    bool
-	confPath   string
-	minPort    int
-	maxPort    int
-	nodeCnt    int
-	nodeOffset int
+	genConf         bool
+	clientMode      bool
+	confPath        string
+	minPort         int
+	maxPort         int
+	nodeCnt         int
+	nodeOffset      int
+	clientOperation string
 )
 
 type NodeInfo struct {
@@ -75,23 +83,91 @@ func (m *LogCodec) Encode(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (m *LogCodec) Decode(data []byte, v interface{}) error {
-	return json.Unmarshal(data, v)
+func (m *LogCodec) Decode(data []byte, v interface{}) (err error) {
+	var payload storage.ExecLog
+	err = json.Unmarshal(data, &payload)
+
+	if v == nil {
+		return
+	}
+
+	rv := reflect.ValueOf(v)
+
+	if rv.Kind() == reflect.Ptr {
+		rv.Elem().Set(reflect.ValueOf(&payload))
+	} else {
+		rv.Set(reflect.ValueOf(&payload))
+	}
+
+	return
+}
+
+type StubServer struct {
+	Runtime *kayak.Runtime
+	Storage *storage.Storage
+	Codec   kayak.TwoPCLogCodec
+}
+
+func (s *StubServer) Write(sql string, response *string) (err error) {
+	var writeData []byte
+
+	l := &storage.ExecLog{
+		Queries: []string{sql},
+	}
+
+	if writeData, err = s.Codec.Encode(l); err != nil {
+		return err
+	}
+
+	err = s.Runtime.Apply(writeData)
+
+	return
+}
+
+func (s *StubServer) Read(sql string, rows *[]map[string]interface{}) (err error) {
+	var columns []string
+	var result [][]interface{}
+	columns, _, result, err = s.Storage.Query(context.Background(), []string{sql})
+
+	// rebuild map
+	*rows = make([]map[string]interface{}, 0, len(result))
+
+	for _, r := range result {
+		// build row map
+		row := make(map[string]interface{})
+
+		for i, c := range r {
+			row[columns[i]] = c
+		}
+
+		*rows = append(*rows, row)
+	}
+
+	return
 }
 
 func init() {
-	flag.BoolVar(&genConf, "generate", false, "generate conf mode")
+	flag.BoolVar(&genConf, "generate", false, "run conf generation")
+	flag.BoolVar(&clientMode, "client", false, "run as client")
 	flag.StringVar(&confPath, "conf", "peers.conf", "peers conf path")
 	flag.IntVar(&minPort, "minPort", 10000, "minimum port number to allocate (used in conf generation)")
 	flag.IntVar(&maxPort, "maxPort", 20000, "maximum port number to allocate (used in conf generation)")
 	flag.IntVar(&nodeCnt, "nodeCnt", 3, "node count for conf generation")
 	flag.IntVar(&nodeOffset, "nodeOffset", 0, "node offset in peers conf")
+	flag.StringVar(&clientOperation, "operation", "read", "client operation")
 }
 
 func main() {
 	flag.Parse()
 
-	if genConf {
+	if clientMode {
+		if err := runClient(); err != nil {
+			log.Fatalf("run client failed: %v", err.Error())
+		} else {
+			log.Infof("run client success")
+		}
+		return
+	} else if genConf {
 		// call conf generator
 		if err := generateConf(nodeCnt, minPort, maxPort, confPath); err != nil {
 			log.Fatalf("generate conf failed: %v", err.Error())
@@ -104,6 +180,91 @@ func main() {
 	if err := runNode(); err != nil {
 		log.Fatalf("run kayak failed: %v", err.Error())
 	}
+}
+
+func runClient() (err error) {
+	var nodes []NodeInfo
+
+	// load conf
+	log.Infof("load conf")
+	if nodes, err = loadConf(confPath); err != nil {
+		return
+	}
+
+	var leader *NodeInfo
+	var client *NodeInfo
+
+	// get leader node
+	for i := range nodes {
+		if nodes[i].Role == kayak.Leader {
+			leader = &nodes[i]
+		} else if nodes[i].Role != kayak.Follower {
+			client = &nodes[i]
+		}
+	}
+
+	// create client key
+	if err = initClientKey(client, leader); err != nil {
+		return
+	}
+
+	// do client request
+	if err = clientRequest(leader, clientOperation, flag.Arg(0)); err != nil {
+		return
+	}
+
+	return
+}
+
+func clientRequest(leader *NodeInfo, reqType string, sql string) (err error) {
+	leaderNodeID := proto.NodeID(leader.Nonce.Hash.String())
+	var conn *etls.CryptoConn
+	if conn, err = rpc.DialToNode(leaderNodeID); err != nil {
+		return
+	}
+
+	var client *rpc.Client
+	if client, err = rpc.InitClientConn(conn); err != nil {
+		return
+	}
+
+	reqType = strings.Title(strings.ToLower(reqType))
+
+	var res interface{}
+	if err = client.Call(fmt.Sprintf("%v.%v", DBServiceName, reqType), sql, &res); err != nil {
+		return
+	}
+
+	return
+}
+
+func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
+	clientRootDir := fmt.Sprintf(NodeDirPattern, "client")
+	os.MkdirAll(clientRootDir, 0755)
+
+	// init local key store
+	pubKeyStorePath := filepath.Join(clientRootDir, PubKeyStoreFile)
+	if _, err = consistent.InitConsistent(pubKeyStorePath, true); err != nil {
+		return
+	}
+
+	// init client private key
+	route.InitResolver()
+	privateKeyStorePath := filepath.Join(clientRootDir, PrivateKeyFile)
+	if err = kms.InitLocalKeyPair(privateKeyStorePath, []byte(PrivateKeyMasterKey)); err != nil {
+		return
+	}
+
+	kms.SetLocalNodeIDNonce(client.Nonce.Hash.CloneBytes(), &client.Nonce.Nonce)
+
+	// set leader key
+	leaderNodeID := proto.NodeID(leader.Nonce.Hash.String())
+	kms.SetPublicKey(leaderNodeID, leader.Nonce.Nonce, leader.PublicKey)
+
+	// set route to leader
+	route.SetNodeAddr(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(ListenAddrPattern, leader.Port))
+
+	return
 }
 
 func runNode() (err error) {
@@ -140,40 +301,33 @@ func runNode() (err error) {
 	// init storage
 	log.Infof("init storage")
 	var stor *storage.Storage
-	if stor, err = initStorage(); err != nil {
+	if stor, err = initStorage(nodeOffset); err != nil {
 		return
 	}
 
 	// init kayak
 	log.Infof("init kayak runtime")
 	var kayakRuntime *kayak.Runtime
-	if _, kayakRuntime, err = initKayakTwoPC(nodeOffset, &nodes[nodeOffset], peers, stor, service);
-		err != nil {
+	if _, kayakRuntime, err = initKayakTwoPC(nodeOffset, &nodes[nodeOffset], peers, stor, service); err != nil {
 		return
 	}
+
+	// register service rpc
+	server.RegisterService(DBServiceName, &StubServer{
+		Runtime: kayakRuntime,
+		Storage: stor,
+		Codec:   &LogCodec{},
+	})
 
 	// start server
-	go server.Serve()
-
-	// TODO, make following statement as rpc endpoint
-
-	// call kayak apply
-	// get codec
-	codec := &LogCodec{}
-
-	var testData []byte
-	testData, err = codec.Encode("test data")
-	if err != nil {
-		return
-	}
-	log.Infof("apply data to kayak")
-	err = kayakRuntime.Apply(testData)
+	server.Serve()
 
 	return
 }
 
-func initStorage() (stor *storage.Storage, err error) {
-	return storage.New(":memory:")
+func initStorage(nodeOffset int) (stor *storage.Storage, err error) {
+	dbFile := filepath.Join(fmt.Sprintf(NodeDirPattern, nodeOffset), DBFileName)
+	return storage.New(dbFile)
 }
 
 func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
@@ -198,10 +352,6 @@ func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker t
 				return
 			}
 
-			if d, ok := ctx.Deadline(); ok {
-				conn.SetDeadline(d)
-			}
-
 			client, err = rpc.InitClientConn(conn)
 
 			return
@@ -222,14 +372,11 @@ func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker t
 			LocalID:        localNodeID,
 			Runner:         runner,
 			Transport:      transport,
-			ProcessTimeout: time.Second,
+			ProcessTimeout: time.Second * 5,
 			Logger:         log.New(),
 		},
-		LogCodec:        &LogCodec{},
-		Storage:         worker,
-		PrepareTimeout:  time.Millisecond * 500,
-		CommitTimeout:   time.Millisecond * 500,
-		RollbackTimeout: time.Millisecond * 500,
+		LogCodec: &LogCodec{},
+		Storage:  worker,
 	}
 
 	// create runtime
@@ -270,7 +417,7 @@ func initPeers(nodeOffset int, nodes []NodeInfo) (peers *kayak.Peers, err error)
 	// init peers struct
 	peers = &kayak.Peers{
 		Term:    uint64(1),
-		Servers: make([]*kayak.Server, len(nodes)),
+		Servers: make([]*kayak.Server, len(nodes)-1),
 		PubKey:  publicKey,
 	}
 
@@ -290,12 +437,15 @@ func initPeers(nodeOffset int, nodes []NodeInfo) (peers *kayak.Peers, err error)
 			PubKey: node.PublicKey,
 		}
 
-		peers.Servers[i] = s
-
 		// set leader
 		if node.Role == kayak.Leader {
 			peers.Leader = s
+		} else if node.Role != kayak.Follower {
+			// complete
+			break
 		}
+
+		peers.Servers[i] = s
 
 		// init current node
 		if i == nodeOffset {
@@ -343,15 +493,18 @@ func loadConf(filename string) (nodes []NodeInfo, err error) {
 }
 
 func generateConf(nodeCnt, minPort, maxPort int, filename string) (err error) {
-	nodes := make([]NodeInfo, nodeCnt)
+	// server including client
+	nodes := make([]NodeInfo, nodeCnt+1)
 
 	var ports []int
 	if ports, err = utils.GetRandomPorts(ListenHost, minPort, maxPort, nodeCnt); err != nil {
 		return
 	}
 
+	// server conf
 	for i := 0; i != nodeCnt; i++ {
-		nodes[i].Nonce, nodes[i].PublicKeyBytes, err = getSingleNodeNonce(i)
+		nodeRootDir := fmt.Sprintf(NodeDirPattern, i)
+		nodes[i].Nonce, nodes[i].PublicKeyBytes, err = getSingleNodeConf(nodeRootDir)
 
 		if err != nil {
 			return
@@ -366,6 +519,14 @@ func generateConf(nodeCnt, minPort, maxPort int, filename string) (err error) {
 		}
 	}
 
+	// client conf
+	nodes[nodeCnt].Nonce, nodes[nodeCnt].PublicKeyBytes, err = getSingleNodeConf(fmt.Sprintf(NodeDirPattern, "client"))
+	if err != nil {
+		return
+	}
+
+	nodes[nodeCnt].Role = -1
+
 	var confData []byte
 	confData, err = json.MarshalIndent(nodes, "", strings.Repeat(" ", 4))
 
@@ -374,29 +535,33 @@ func generateConf(nodeCnt, minPort, maxPort int, filename string) (err error) {
 	return
 }
 
-func getSingleNodeNonce(nodeOffset int) (nonce *cpuminer.NonceInfo, pubKeyBytes []byte, err error) {
-	privateKeyPath := fmt.Sprintf(PrivateKeyPattern, nodeOffset)
+func getSingleNodeConf(nodeRootDir string) (nonce *cpuminer.NonceInfo, pubKeyBytes []byte, err error) {
+	// remove node dir if exists
+	os.RemoveAll(nodeRootDir)
+
+	// create node root dir
+	os.MkdirAll(nodeRootDir, 0755)
+
+	// create private key
+	privateKeyPath := filepath.Join(nodeRootDir, PrivateKeyFile)
 	var privateKey *asymmetric.PrivateKey
 	var publicKey *asymmetric.PublicKey
 
-	privateKey, err = kms.LoadPrivateKey(privateKeyPath, []byte(PrivateKeyMasterKey))
-	if err == nil {
-		publicKey = privateKey.PubKey()
-	} else if err == kms.ErrNotKeyFile {
+	// create new key
+	privateKey, publicKey, err = asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
 		return
-	} else {
-		// create new key
-		if _, ok := err.(*os.PathError); ok || err == os.ErrNotExist {
-			privateKey, publicKey, err = asymmetric.GenSecp256k1KeyPair()
-
-			if err != nil {
-				return
-			}
-
-			err = kms.SavePrivateKey(privateKeyPath, privateKey, []byte(PrivateKeyMasterKey))
-		}
 	}
 
+	// save key to file
+	err = kms.SavePrivateKey(privateKeyPath, privateKey, []byte(PrivateKeyMasterKey))
+
+	if err != nil {
+		return
+	}
+
+	// generate node nonce with public key
 	n := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	nonce = &n
 	pubKeyBytes = publicKey.Serialize()
@@ -409,7 +574,7 @@ func createService() *kt.ETLSTransportService {
 }
 
 func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (server *rpc.Server, err error) {
-	pubKeyStorePath := fmt.Sprintf(PubKeyStorePattern, port)
+	pubKeyStorePath := filepath.Join(fmt.Sprintf(NodeDirPattern, nodeOffset), PubKeyStoreFile)
 	os.Remove(pubKeyStorePath)
 
 	var dht *route.DHTService
@@ -426,8 +591,8 @@ func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (serve
 	}
 
 	listenAddr := fmt.Sprintf(ListenAddrPattern, port)
-	privateKayPath := fmt.Sprintf(PrivateKeyPattern, nodeOffset)
-	err = server.InitRPCServer(listenAddr, privateKayPath, []byte(PrivateKeyMasterKey))
+	privateKeyPath := filepath.Join(fmt.Sprintf(NodeDirPattern, nodeOffset), PrivateKeyFile)
+	err = server.InitRPCServer(listenAddr, privateKeyPath, []byte(PrivateKeyMasterKey))
 
 	return
 }

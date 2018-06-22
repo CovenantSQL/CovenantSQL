@@ -24,6 +24,7 @@ import (
 
 	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
@@ -54,8 +55,16 @@ type Runtime struct {
 	// TODO(leventeliu): update Offset in ping cycle.
 	Offset time.Duration
 
+	// Period is the block producing cycle.
+	Period time.Duration
+
+	// ChainInitTime is the initial cycle time, when the Genesis blcok is produced.
+	ChainInitTime time.Time
+
 	// NextHeight is the height of the next block.
 	NextHeight int32
+
+	stopCh chan struct{}
 }
 
 // UpdateTime updates the current coodinated chain time.
@@ -70,6 +79,20 @@ func (r *Runtime) Now() time.Time {
 	r.RLock()
 	defer r.RUnlock()
 	return time.Now().Add(r.Offset)
+}
+
+func (r *Runtime) GotoNextTurn() {
+	r.Lock()
+	defer r.Unlock()
+	r.NextHeight++
+}
+
+func (r *Runtime) Stop() {
+	close(r.stopCh)
+}
+
+func (r *Runtime) TillNextWakeUp() time.Duration {
+	return r.ChainInitTime.Add(time.Duration(r.NextHeight) * r.Period).Sub(r.Now())
 }
 
 func (s *State) marshal() ([]byte, error) {
@@ -98,7 +121,7 @@ type Chain struct {
 	cfg          *Config
 	db           *bolt.DB
 	index        *blockIndex
-	runtime      *Runtime
+	rt           *Runtime
 	pendingBlock *Block
 	state        *State
 }
@@ -139,8 +162,12 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 		cfg:   cfg,
 		db:    db,
 		index: newBlockIndex(cfg),
-		runtime: &Runtime{
-			Offset: time.Duration(0),
+		rt: &Runtime{
+			Offset:        time.Duration(0),
+			Period:        cfg.Period,
+			ChainInitTime: cfg.Genesis.SignedHeader.Timestamp,
+			NextHeight:    1,
+			stopCh:        make(chan struct{}),
 		},
 		pendingBlock: &Block{},
 		state: &State{
@@ -173,8 +200,12 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		cfg:   cfg,
 		db:    db,
 		index: newBlockIndex(cfg),
-		runtime: &Runtime{
-			Offset: time.Duration(0),
+		rt: &Runtime{
+			Offset:        time.Duration(0),
+			Period:        cfg.Period,
+			ChainInitTime: cfg.Genesis.SignedHeader.Timestamp,
+			NextHeight:    1,
+			stopCh:        make(chan struct{}),
 		},
 		pendingBlock: &Block{},
 		state:        &State{},
@@ -288,8 +319,9 @@ func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 	})
 }
 
+// AdviseNewBlock implements ChainRPCServer.AdviseNewBlock.
 func (c *Chain) AdviseNewBlock(block *Block) (err error) {
-	// TODO(leventeliu): verify the block.SignedHeader.Producer is the rightful producer of the
+	// TODO(leventeliu): verify that block.SignedHeader.Producer is the rightful producer of the
 	// block.
 
 	// Check block existence
@@ -315,12 +347,55 @@ func (c *Chain) AdviseNewBlock(block *Block) (err error) {
 	return c.PushBlock(block.SignedHeader)
 }
 
-func (c *Chain) BlockProducingCycle(stopCh <-chan struct{}) {
+// IsMyTurn returns whether it's my turn to produce block or not.
+//
+// TODO(leventliu): need implementation.
+func (c *Chain) IsMyTurn() bool {
+	return false
+}
+
+func (c *Chain) ProduceBlock() (err error) {
+	// TODO(leventeliu): remember to initialize local key store somewhere.
+	priv, err := kms.GetLocalPrivateKey()
+
+	if err != nil {
+		return
+	}
+
+	// Sign pending block
+	err = c.pendingBlock.SignHeader(priv)
+
+	if err != nil {
+		return
+	}
+
+	// TODO(leventeliu): advise new block
+
+	return
+}
+
+func (c *Chain) Cycle() {
+	if err := c.ProduceBlock(); err != nil {
+		c.Stop()
+	}
+}
+
+func (c *Chain) BlockProducingCycle() {
 	for {
 		select {
-		case <-stopch:
+		case <-c.rt.stopCh:
+			return
 		default:
-			time.Sleep()
+			if d := c.rt.TillNextWakeUp(); d > 0 {
+				time.Sleep(d)
+			} else if c.IsMyTurn() {
+				c.Cycle()
+				c.rt.GotoNextTurn()
+			}
 		}
 	}
+}
+
+func (c *Chain) Stop() {
+	c.rt.Stop()
 }

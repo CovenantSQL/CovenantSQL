@@ -90,6 +90,7 @@ func (e *ETLSTransport) Request(ctx context.Context,
 	if client, err = e.ClientBuilder(ctx, nodeID); err != nil {
 		return
 	}
+	defer client.Close()
 
 	req := &ETLSTransportRequest{
 		TransportID: e.TransportID,

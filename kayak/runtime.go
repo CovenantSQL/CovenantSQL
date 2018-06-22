@@ -17,7 +17,6 @@
 package kayak
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 )
@@ -25,15 +24,6 @@ import (
 const (
 	// FileStorePath is the default log store filename
 	FileStorePath = "kayak.db"
-)
-
-var (
-	// ErrInvalidConfig defines invalid config error
-	ErrInvalidConfig = errors.New("invalid configuration")
-	// ErrInvalidLog defines invalid log error
-	ErrInvalidLog = errors.New("invalid log")
-	// ErrNotLeader defines not leader on log processing
-	ErrNotLeader = errors.New("not leader")
 )
 
 // Runtime defines common init/shutdown logic for different consensus protocol runner

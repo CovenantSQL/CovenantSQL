@@ -17,11 +17,9 @@
 package kms
 
 import (
-	"sync"
-
-	"runtime"
-
 	"errors"
+	"runtime"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -136,6 +134,6 @@ func GetLocalPrivateKey() (private *asymmetric.PrivateKey, err error) {
 	// log the call stack
 	buf := make([]byte, 4096)
 	count := runtime.Stack(buf, false)
-	log.Infof("###getting private key from###\n%s\n###getting private  key end###\n", buf[:count])
+	log.Debugf("###getting private key from###\n%s\n###getting private  key end###\n", buf[:count])
 	return
 }

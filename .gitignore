@@ -1,9 +1,9 @@
 *.key
 idminer
-.gitignore
 .travis.yml
 coverage.txt
 analysisVendor.png
+vendor/**/.gitignore
 
 # Binaries for programs and plugins
 bin/

@@ -369,9 +369,6 @@ func TestIntegration(t *testing.T) {
 			},
 			LogCodec:        mockLogCodec,
 			Storage:         res.worker,
-			PrepareTimeout:  time.Millisecond * 200,
-			CommitTimeout:   time.Millisecond * 200,
-			RollbackTimeout: time.Millisecond * 200,
 		}
 		res.runtime, _ = kayak.NewRuntime(res.config, peers)
 		return

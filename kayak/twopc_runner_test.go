@@ -251,14 +251,11 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				LocalID:        nodeID,
 				Runner:         res.runner,
 				Transport:      res.transport,
-				ProcessTimeout: time.Millisecond * 800,
+				ProcessTimeout: time.Millisecond * 300,
 				Logger:         logger,
 			},
 			LogCodec:        mockLogCodec,
 			Storage:         res.worker,
-			PrepareTimeout:  time.Millisecond * 200,
-			CommitTimeout:   time.Millisecond * 200,
-			RollbackTimeout: time.Millisecond * 200,
 		}
 		res.logStore = &MockLogStore{}
 		res.stableStore = &MockStableStore{}
@@ -391,7 +388,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		Convey("prepare timeout", FailureContinues, func(c C) {
 			unknownErr := errors.New("unknown error")
 			mockRes.worker.On("Prepare", mock.Anything, "test data").
-				Return(unknownErr).After(time.Millisecond * 250).Run(func(args mock.Arguments) {
+				Return(unknownErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				c.So(ctx.Err(), ShouldNotBeNil)
 			})
@@ -413,7 +410,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil)
 			mockRes.worker.On("Commit", mock.Anything, "test data").
-				Return(unknownErr).After(time.Millisecond * 250).Run(func(args mock.Arguments) {
+				Return(unknownErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				c.So(ctx.Err(), ShouldNotBeNil)
 			})
@@ -436,7 +433,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil)
 			mockRes.worker.On("Rollback", mock.Anything, "test data").
-				Return(rollbackErr).After(time.Millisecond * 250).Run(func(args mock.Arguments) {
+				Return(rollbackErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				c.So(ctx.Err(), ShouldNotBeNil)
 			})
@@ -764,9 +761,6 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 			},
 			LogCodec:        mockLogCodec,
 			Storage:         res.worker,
-			PrepareTimeout:  time.Millisecond * 200,
-			CommitTimeout:   time.Millisecond * 200,
-			RollbackTimeout: time.Millisecond * 200,
 		}
 		res.logStore = &MockLogStore{}
 		res.stableStore = &MockStableStore{}

@@ -47,7 +47,8 @@ type ETLSTransport struct {
 
 // ETLSTransportService defines kayak rpc endpoint to be registered to rpc server.
 type ETLSTransportService struct {
-	serviceMap sync.Map
+	ServiceName string
+	serviceMap  sync.Map
 }
 
 // ETLSTransportRequest defines kayak rpc request entity.
@@ -70,7 +71,7 @@ type ETLSTransportResponse struct {
 }
 
 // NewETLSTransport creates new transport and bind to transport service with specified transport id.
-func NewETLSTransport(config *ETLSTransportConfig) (t *ETLSTransport, err error) {
+func NewETLSTransport(config *ETLSTransportConfig) (t *ETLSTransport) {
 	t = &ETLSTransport{
 		ETLSTransportConfig: config,
 		queue:               make(chan kayak.Request, 100),

@@ -41,7 +41,7 @@
   branch = "master"
   name = "github.com/jordwest/mock-conn"
   packages = ["."]
-  revision = "9bb209ef84c64540c483d6dbf40a4850f4b9302f"
+  revision = "4896c6bd164172da9f78789f233b470a3a6fb359"
 
 [[projects]]
   name = "github.com/jtolds/gls"
@@ -124,7 +124,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9"
+  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
 
 [[projects]]
   branch = "master"
@@ -133,7 +133,7 @@
     "unix",
     "windows"
   ]
-  revision = "56ede360ec1c541828fb88741b3f1049406d28f5"
+  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
 
 [solve-meta]
   analyzer-name = "dep"

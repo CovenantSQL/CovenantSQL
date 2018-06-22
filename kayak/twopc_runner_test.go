@@ -224,7 +224,6 @@ func TestTwoPCRunner_Init(t *testing.T) {
 }
 
 func TestTwoPCRunner_Apply(t *testing.T) {
-	mockLogCodec := &MockLogCodec{}
 	mockRouter := &MockTransportRouter{
 		transports: make(map[proto.NodeID]*MockTransport),
 	}
@@ -251,14 +250,10 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				LocalID:        nodeID,
 				Runner:         res.runner,
 				Transport:      res.transport,
-				ProcessTimeout: time.Millisecond * 800,
+				ProcessTimeout: time.Millisecond * 300,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
-			PrepareTimeout:  time.Millisecond * 200,
-			CommitTimeout:   time.Millisecond * 200,
-			RollbackTimeout: time.Millisecond * 200,
+			Storage: res.worker,
 		}
 		res.logStore = &MockLogStore{}
 		res.stableStore = &MockStableStore{}
@@ -292,8 +287,8 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		// try call process
-		testData, _ := mockLogCodec.Encode("test data")
-		err = mockRes.runner.Apply(testData)
+		testPayload := []byte("test data")
+		err = mockRes.runner.Apply(testPayload)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldEqual, ErrNotLeader)
 	})
@@ -317,9 +312,11 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		Convey("commit", func() {
+			testPayload := []byte("test data")
+
 			// mock worker
 			callOrder := &CallCollector{}
-			mockRes.worker.On("Prepare", mock.Anything, "test data").
+			mockRes.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("prepare")
 			})
@@ -327,7 +324,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("store_log")
 			})
-			mockRes.worker.On("Commit", mock.Anything, "test data").
+			mockRes.worker.On("Commit", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("commit")
 			})
@@ -336,10 +333,8 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				callOrder.Append("update_committed")
 			})
 
-			testData, _ := mockLogCodec.Encode("test data")
-
 			// try call process
-			err = mockRes.runner.Apply(testData)
+			err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
@@ -353,10 +348,12 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		})
 
 		Convey("rollback", func() {
+			testPayload := []byte("test data")
+
 			// mock worker
 			callOrder := &CallCollector{}
 			unknownErr := errors.New("unknown error")
-			mockRes.worker.On("Prepare", mock.Anything, "test data").
+			mockRes.worker.On("Prepare", mock.Anything, testPayload).
 				Return(unknownErr).Run(func(args mock.Arguments) {
 				callOrder.Append("prepare")
 			})
@@ -364,7 +361,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("store_log")
 			})
-			mockRes.worker.On("Rollback", mock.Anything, "test data").
+			mockRes.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("rollback")
 			})
@@ -373,10 +370,8 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				callOrder.Append("truncate_log")
 			})
 
-			testData, _ := mockLogCodec.Encode("test data")
-
 			// try call process
-			err = mockRes.runner.Apply(testData)
+			err = mockRes.runner.Apply(testPayload)
 			So(err, ShouldNotBeNil)
 
 			// no log should be written to local log store after failed preparing
@@ -389,63 +384,60 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		})
 
 		Convey("prepare timeout", FailureContinues, func(c C) {
+			testPayload := []byte("test data")
 			unknownErr := errors.New("unknown error")
-			mockRes.worker.On("Prepare", mock.Anything, "test data").
-				Return(unknownErr).After(time.Millisecond * 250).Run(func(args mock.Arguments) {
+			mockRes.worker.On("Prepare", mock.Anything, testPayload).
+				Return(unknownErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				c.So(ctx.Err(), ShouldNotBeNil)
 			})
-			mockRes.worker.On("Rollback", mock.Anything, "test data").Return(nil)
+			mockRes.worker.On("Rollback", mock.Anything, testPayload).Return(nil)
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).Return(nil)
 
-			testData, _ := mockLogCodec.Encode("test data")
-
 			// try call process
-			err = mockRes.runner.Apply(testData)
+			err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("commit timeout", FailureContinues, func(c C) {
+			testPayload := []byte("test data")
 			unknownErr := errors.New("unknown error")
-			mockRes.worker.On("Prepare", mock.Anything, "test data").
+			mockRes.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil)
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil)
-			mockRes.worker.On("Commit", mock.Anything, "test data").
-				Return(unknownErr).After(time.Millisecond * 250).Run(func(args mock.Arguments) {
+			mockRes.worker.On("Commit", mock.Anything, testPayload).
+				Return(unknownErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				c.So(ctx.Err(), ShouldNotBeNil)
 			})
 			mockRes.stableStore.On("SetUint64", keyCommittedIndex, uint64(1)).
 				Return(nil)
 
-			testData, _ := mockLogCodec.Encode("test data")
-
 			// try call process
-			err = mockRes.runner.Apply(testData)
+			err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("rollback timeout", FailureContinues, func(c C) {
+			testPayload := []byte("test data")
 			prepareErr := errors.New("prepare error")
 			rollbackErr := errors.New("rollback error")
-			mockRes.worker.On("Prepare", mock.Anything, "test data").
+			mockRes.worker.On("Prepare", mock.Anything, testPayload).
 				Return(prepareErr)
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil)
-			mockRes.worker.On("Rollback", mock.Anything, "test data").
-				Return(rollbackErr).After(time.Millisecond * 250).Run(func(args mock.Arguments) {
+			mockRes.worker.On("Rollback", mock.Anything, testPayload).
+				Return(rollbackErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
 				ctx := args.Get(0).(context.Context)
 				c.So(ctx.Err(), ShouldNotBeNil)
 			})
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).Return(nil)
 
-			testData, _ := mockLogCodec.Encode("test data")
-
 			// try call process
-			err = mockRes.runner.Apply(testData)
+			err = mockRes.runner.Apply(testPayload)
 
 			// rollback error is ignored
 			So(err, ShouldNotBeNil)
@@ -486,36 +478,36 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// init
 			initMock(lMock, f1Mock, f2Mock)
 
-			testData, _ := mockLogCodec.Encode("test data")
+			testPayload := []byte("test data")
 
 			callOrder := &CallCollector{}
-			f1Mock.worker.On("Prepare", mock.Anything, "test data").
+			f1Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_prepare")
 			})
-			f2Mock.worker.On("Prepare", mock.Anything, "test data").
+			f2Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_prepare")
 			})
-			f1Mock.worker.On("Commit", mock.Anything, "test data").
+			f1Mock.worker.On("Commit", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_commit")
 			})
-			f2Mock.worker.On("Commit", mock.Anything, "test data").
+			f2Mock.worker.On("Commit", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_commit")
 			})
-			lMock.worker.On("Prepare", mock.Anything, "test data").
+			lMock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("l_prepare")
 			})
-			lMock.worker.On("Commit", mock.Anything, "test data").
+			lMock.worker.On("Commit", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("l_commit")
 			})
 
 			// try call process
-			err := lMock.runner.Apply(testData)
+			err := lMock.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
@@ -550,7 +542,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// commit second log
 			callOrder.Reset()
 
-			err = lMock.runner.Apply(testData)
+			err = lMock.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
@@ -580,39 +572,39 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// init
 			initMock(lMock, f1Mock, f2Mock)
 
-			testData, _ := mockLogCodec.Encode("test data")
+			testPayload := []byte("test data")
 
 			callOrder := &CallCollector{}
 			unknownErr := errors.New("unknown error")
 			// f1 prepare with error
-			f1Mock.worker.On("Prepare", mock.Anything, "test data").
+			f1Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(unknownErr).Run(func(args mock.Arguments) {
 				callOrder.Append("f_prepare")
 			})
-			f1Mock.worker.On("Rollback", mock.Anything, "test data").
+			f1Mock.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_rollback")
 			})
 			// f2 prepare with no error
-			f2Mock.worker.On("Prepare", mock.Anything, "test data").
+			f2Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_prepare")
 			})
-			f2Mock.worker.On("Rollback", mock.Anything, "test data").
+			f2Mock.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("f_rollback")
 			})
-			lMock.worker.On("Prepare", mock.Anything, "test data").
+			lMock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("l_prepare")
 			})
-			lMock.worker.On("Rollback", mock.Anything, "test data").
+			lMock.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
 				callOrder.Append("l_rollback")
 			})
 
 			// try call process
-			err := lMock.runner.Apply(testData)
+			err := lMock.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 			So(err, ShouldEqual, unknownErr)
@@ -665,11 +657,11 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			initMock(lMock, f1Mock, f2Mock)
 
 			// fake request
-			testData, _ := mockLogCodec.Encode("test data")
+			testPayload := []byte("test data")
 			fakeLog := &Log{
 				Term:  1,
 				Index: 1,
-				Data:  testData,
+				Data:  testPayload,
 			}
 
 			var err error
@@ -732,7 +724,6 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 }
 
 func TestTwoPCRunner_UpdatePeers(t *testing.T) {
-	mockLogCodec := &MockLogCodec{}
 	mockRouter := &MockTransportRouter{
 		transports: make(map[proto.NodeID]*MockTransport),
 	}
@@ -762,11 +753,7 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 				ProcessTimeout: time.Millisecond * 800,
 				Logger:         logger,
 			},
-			LogCodec:        mockLogCodec,
-			Storage:         res.worker,
-			PrepareTimeout:  time.Millisecond * 200,
-			CommitTimeout:   time.Millisecond * 200,
-			RollbackTimeout: time.Millisecond * 200,
+			Storage: res.worker,
 		}
 		res.logStore = &MockLogStore{}
 		res.stableStore = &MockStableStore{}
@@ -973,8 +960,8 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 			testMock(newPeers, testFunc, lMock, f1Mock, f2Mock)
 
 			// test call process
-			testData, _ := mockLogCodec.Encode("test data")
-			err := lMock.runner.Apply(testData)
+			testPayload := []byte("test data")
+			err := lMock.runner.Apply(testPayload)
 
 			// no longer leader
 			So(err, ShouldNotBeNil)

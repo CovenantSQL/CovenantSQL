@@ -21,12 +21,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 
+	"gitlab.com/thunderdb/ThunderDB/twopc"
 	// Register go-sqlite3 engine.
 	_ "github.com/mattn/go-sqlite3"
-
-	"gitlab.com/thunderdb/ThunderDB/twopc"
 )
 
 var (
@@ -42,7 +42,7 @@ var (
 type ExecLog struct {
 	ConnectionID uint64
 	SeqNo        uint64
-	Timestamp    uint64
+	Timestamp    int64
 	Queries      []string
 }
 
@@ -91,7 +91,7 @@ func openDB(dsn string) (db *sql.DB, err error) {
 type TxID struct {
 	ConnectionID uint64
 	SeqNo        uint64
-	Timestamp    uint64
+	Timestamp    int64
 }
 
 func equalTxID(x, y *TxID) bool {
@@ -179,6 +179,9 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 				}
 			}
 
+			s.tx.Commit()
+			s.tx = nil
+			s.queries = nil
 			return nil
 		}
 
@@ -212,4 +215,120 @@ func (s *Storage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error)
 	}
 
 	return nil
+}
+
+// Query implements read-only query feature.
+func (s *Storage) Query(ctx context.Context, queries []string) (columns []string, types []string,
+	data [][]interface{}, err error) {
+	data = make([][]interface{}, 0)
+
+	if len(queries) == 0 {
+		return
+	}
+
+	var tx *sql.Tx
+	var txOptions = &sql.TxOptions{
+		ReadOnly: true,
+	}
+
+	if tx, err = s.db.BeginTx(ctx, txOptions); err != nil {
+		return
+	}
+
+	// always rollback on complete
+	defer tx.Rollback()
+
+	// TODO(xq262144), multiple result set is not supported in this release
+	var rows *sql.Rows
+	if rows, err = tx.Query(queries[0]); err != nil {
+		return
+	}
+
+	// free result set
+	defer rows.Close()
+
+	// get rows meta
+	if columns, err = rows.Columns(); err != nil {
+		return
+	}
+
+	// get types meta
+	if types, err = s.transformColumnTypes(rows.ColumnTypes()); err != nil {
+		return
+	}
+
+	rs := newRowScanner(len(columns))
+
+	for rows.Next() {
+		err = rows.Scan(rs.ScanArgs()...)
+		if err != nil {
+			return
+		}
+
+		data = append(data, rs.GetRow())
+	}
+
+	err = rows.Err()
+	return
+}
+
+func (s *Storage) transformColumnTypes(columnTypes []*sql.ColumnType, e error) (types []string, err error) {
+	if e != nil {
+		err = e
+		return
+	}
+
+	types = make([]string, len(columnTypes))
+
+	for i, c := range columnTypes {
+		types[i] = c.DatabaseTypeName()
+	}
+
+	return
+}
+
+// golang does trick convert, use rowScanner to return the original result type in sqlite3 driver
+type rowScanner struct {
+	fieldCnt int
+	column   int           // current column
+	fields   []interface{} // temp fields
+	scanArgs []interface{}
+}
+
+func newRowScanner(fieldCnt int) (s *rowScanner) {
+	s = &rowScanner{
+		fieldCnt: fieldCnt,
+		column:   0,
+		fields:   make([]interface{}, fieldCnt),
+		scanArgs: make([]interface{}, fieldCnt),
+	}
+
+	for i := 0; i != fieldCnt; i++ {
+		s.scanArgs[i] = s
+	}
+
+	return
+}
+
+func (s *rowScanner) Scan(src interface{}) error {
+	if s.fieldCnt <= s.column {
+		// read complete
+		return io.EOF
+	}
+
+	s.fields[s.column] = src
+	s.column++
+
+	return nil
+}
+
+func (s *rowScanner) GetRow() []interface{} {
+	return s.fields
+}
+
+func (s *rowScanner) ScanArgs() []interface{} {
+	// reset
+	s.column = 0
+	s.fields = make([]interface{}, s.fieldCnt)
+	return s.scanArgs
 }

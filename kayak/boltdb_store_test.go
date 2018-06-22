@@ -72,13 +72,13 @@ func TestBoltOptionsTimeout(t *testing.T) {
 				Timeout: time.Second / 10,
 			},
 		}
-		store, err := New(options)
+		store, err := NewBoltStoreWithOptions(options)
 		So(err, ShouldBeNil)
 		defer store.Close()
 		// trying to open it again should timeout
 		doneCh := make(chan error, 1)
 		go func() {
-			_, err := New(options)
+			_, err := NewBoltStoreWithOptions(options)
 			doneCh <- err
 		}()
 		select {
@@ -112,7 +112,7 @@ func TestBoltOptionsReadOnly(t *testing.T) {
 				ReadOnly: true,
 			},
 		}
-		roStore, err := New(options)
+		roStore, err := NewBoltStoreWithOptions(options)
 		So(err, ShouldBeNil)
 		defer roStore.Close()
 		result := new(Log)

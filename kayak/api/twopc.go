@@ -32,11 +32,15 @@ import (
 )
 
 var (
+	// DefaultProcessTimeout defines package default process timeout.
 	DefaultProcessTimeout = time.Second * 5
-	DefaultTransportID    = "DEFAULT"
-	DefaultLogger         = log.New()
+	// DefaultTransportID defines default transport id for service multiplex.
+	DefaultTransportID = "DEFAULT"
+	// DefaultLogger defines package default logger.
+	DefaultLogger = log.New()
 )
 
+// TwoPCOptions defines optional arguments for kayak twopc config.
 type TwoPCOptions struct {
 	ProcessTimeout time.Duration
 	NodeID         proto.NodeID
@@ -45,6 +49,7 @@ type TwoPCOptions struct {
 	Logger         *log.Logger
 }
 
+// DefaultClientBuilder defines default etls dialer and creates rpc client.
 func DefaultClientBuilder(ctx context.Context, nodeID proto.NodeID) (client *rpc.Client, err error) {
 	var conn *etls.CryptoConn
 	conn, err = rpc.DialToNode(nodeID)
@@ -57,6 +62,7 @@ func DefaultClientBuilder(ctx context.Context, nodeID proto.NodeID) (client *rpc
 	return
 }
 
+// NewTwoPCOptions creates empty twopc configuration options.
 func NewTwoPCOptions() *TwoPCOptions {
 	return &TwoPCOptions{
 		ProcessTimeout: DefaultProcessTimeout,
@@ -66,6 +72,7 @@ func NewTwoPCOptions() *TwoPCOptions {
 	}
 }
 
+// NewDefaultTwoPCOptions creates twopc configuration options with default settings.
 func NewDefaultTwoPCOptions() *TwoPCOptions {
 	// TODO(xq262144), node id hack
 	rawNodeID, _ := kms.GetLocalNodeID()
@@ -74,39 +81,47 @@ func NewDefaultTwoPCOptions() *TwoPCOptions {
 	return NewTwoPCOptions().WithNodeID(nodeID)
 }
 
+// WithProcessTimeout set custom process timeout to options.
 func (o *TwoPCOptions) WithProcessTimeout(timeout time.Duration) *TwoPCOptions {
 	o.ProcessTimeout = timeout
 	return o
 }
 
+// WithNodeID set custom node id to options.
 func (o *TwoPCOptions) WithNodeID(nodeID proto.NodeID) *TwoPCOptions {
 	o.NodeID = nodeID
 	return o
 }
 
+// WithTransportID set custom transport id to options.
 func (o *TwoPCOptions) WithTransportID(id string) *TwoPCOptions {
 	o.TransportID = id
 	return o
 }
 
+// WithClientBuilder set custom client builder to options.
 func (o *TwoPCOptions) WithClientBuilder(builder kt.ETLSRPCClientBuilder) *TwoPCOptions {
 	o.ClientBuilder = builder
 	return o
 }
 
+// WithLogger set custom logger to options.
 func (o *TwoPCOptions) WithLogger(l *log.Logger) *TwoPCOptions {
 	o.Logger = l
 	return o
 }
 
+// NewTwoPCKayak creates new kayak runtime.
 func NewTwoPCKayak(peers *kayak.Peers, config kayak.Config) (*kayak.Runtime, error) {
 	return kayak.NewRuntime(config, peers)
 }
 
+// NewTwoPCConfig creates new twopc config object.
 func NewTwoPCConfig(rootDir string, service *kt.ETLSTransportService, worker twopc.Worker) kayak.Config {
 	return NewTwoPCConfigWithOptions(rootDir, service, worker, NewDefaultTwoPCOptions())
 }
 
+// NewTwoPCConfigWithOptions creates new twopc config object with custom options.
 func NewTwoPCConfigWithOptions(rootDir string, service *kt.ETLSTransportService,
 	worker twopc.Worker, options *TwoPCOptions) kayak.Config {
 	runner := kayak.NewTwoPCRunner()

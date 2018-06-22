@@ -14,7 +14,4 @@
  * limitations under the License.
  */
 
-/*
-Package kayak is a simple configurable multi-purpose consensus sdk.
- */
-package kayak
+package api

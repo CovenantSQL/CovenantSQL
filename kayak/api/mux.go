@@ -14,7 +14,18 @@
  * limitations under the License.
  */
 
-/*
-Package kayak is a simple configurable multi-purpose consensus sdk.
- */
-package kayak
+package api
+
+import (
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+)
+
+func NewMuxService(serviceName string, server *rpc.Server) (service *kt.ETLSTransportService) {
+	service = &kt.ETLSTransportService{
+		ServiceName: serviceName,
+	}
+	server.RegisterService(serviceName, service)
+
+	return service
+}

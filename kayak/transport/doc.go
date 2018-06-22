@@ -15,6 +15,6 @@
  */
 
 /*
-Package kayak is a simple configurable multi-purpose consensus sdk.
+Package transport implements applicable transport implementations for kayak runtime.
  */
-package kayak
+package transport

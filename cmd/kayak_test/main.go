@@ -35,6 +35,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -45,16 +46,15 @@ import (
 )
 
 const (
-	listenHost               = "127.0.0.1"
-	listenAddrPattern        = listenHost + ":%v"
-	nodeDirPattern           = "./node_%v"
-	pubKeyStoreFile          = "public.keystore"
-	privateKeyFile           = "private.key"
-	privateKeyMasterKey      = "abc"
-	kayakServiceName         = "kayak"
-	kayakInstanceTransportID = "kayak_test"
-	dbServiceName            = "Database"
-	dbFileName               = "storage.db"
+	listenHost          = "127.0.0.1"
+	listenAddrPattern   = listenHost + ":%v"
+	nodeDirPattern      = "./node_%v"
+	pubKeyStoreFile     = "public.keystore"
+	privateKeyFile      = "private.key"
+	privateKeyMasterKey = "abc"
+	kayakServiceName    = "kayak"
+	dbServiceName       = "Database"
+	dbFileName          = "storage.db"
 )
 
 var (
@@ -319,16 +319,11 @@ func runNode() (err error) {
 	}
 
 	var service *kt.ETLSTransportService
-
-	// create service
-	log.Infof("create service")
-	service = createService()
-
 	var server *rpc.Server
 
 	// create server
 	log.Infof("create server")
-	if server, err = createServer(nodeOffset, nodes[nodeOffset].Port, service); err != nil {
+	if service, server, err = createServer(nodeOffset, nodes[nodeOffset].Port); err != nil {
 		return
 	}
 
@@ -380,54 +375,14 @@ func initStorage(nodeOffset int) (stor *Storage, err error) {
 }
 
 func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
-	// create twopc runner
-	log.Infof("create twopc runner")
-	runner := kayak.NewTwoPCRunner()
-	localNodeID := proto.NodeID(node.Nonce.Hash.String())
+	// create kayak config
+	log.Infof("create twopc config")
+	rootDir := fmt.Sprintf(nodeDirPattern, nodeOffset)
+	config = ka.NewTwoPCConfig(rootDir, service, worker)
 
-	// create transport
-	log.Infof("create etls transport config")
-	transportConfig := &kt.ETLSTransportConfig{
-		NodeID:           localNodeID,
-		TransportID:      kayakInstanceTransportID,
-		TransportService: service,
-		ServiceName:      kayakServiceName,
-		ClientBuilder: func(ctx context.Context, nodeID proto.NodeID) (client *rpc.Client, err error) {
-			log.Infof("dial to node %s", nodeID)
-
-			var conn *etls.CryptoConn
-			conn, err = rpc.DialToNode(nodeID)
-			if err != nil {
-				return
-			}
-
-			client, err = rpc.InitClientConn(conn)
-
-			return
-		},
-	}
-
-	log.Infof("create etls transport")
-	var transport *kt.ETLSTransport
-	transport = kt.NewETLSTransport(transportConfig)
-
-	// create twopc config
-	log.Infof("create kayak twopc config")
-	config = &kayak.TwoPCConfig{
-		RuntimeConfig: kayak.RuntimeConfig{
-			RootDir:        fmt.Sprintf(nodeDirPattern, nodeOffset),
-			LocalID:        localNodeID,
-			Runner:         runner,
-			Transport:      transport,
-			ProcessTimeout: time.Second * 5,
-			Logger:         log.New(),
-		},
-		Storage: worker,
-	}
-
-	// create runtime
-	log.Infof("create kayak twopc runtime")
-	runtime, err = kayak.NewRuntime(config, peers)
+	// create kayak runtime
+	log.Infof("create kayak runtime")
+	runtime, err = ka.NewTwoPCKayak(peers, config)
 	if err != nil {
 		return
 	}
@@ -615,11 +570,7 @@ func getSingleNodeConf(nodeRootDir string) (nonce *cpuminer.NonceInfo, pubKeyByt
 	return
 }
 
-func createService() *kt.ETLSTransportService {
-	return &kt.ETLSTransportService{}
-}
-
-func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (server *rpc.Server, err error) {
+func createServer(nodeOffset, port int) (service *kt.ETLSTransportService, server *rpc.Server, err error) {
 	pubKeyStorePath := filepath.Join(fmt.Sprintf(nodeDirPattern, nodeOffset), pubKeyStoreFile)
 	os.Remove(pubKeyStorePath)
 
@@ -629,8 +580,7 @@ func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (serve
 	}
 
 	server, err = rpc.NewServerWithService(rpc.ServiceMap{
-		"DHT":            dht,
-		kayakServiceName: service,
+		"DHT": dht,
 	})
 	if err != nil {
 		return
@@ -639,6 +589,7 @@ func createServer(nodeOffset, port int, service *kt.ETLSTransportService) (serve
 	listenAddr := fmt.Sprintf(listenAddrPattern, port)
 	privateKeyPath := filepath.Join(fmt.Sprintf(nodeDirPattern, nodeOffset), privateKeyFile)
 	err = server.InitRPCServer(listenAddr, privateKeyPath, []byte(privateKeyMasterKey))
+	service = ka.NewMuxService(kayakServiceName, server)
 
 	return
 }

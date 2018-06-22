@@ -15,6 +15,6 @@
  */
 
 /*
-Package kayak is a simple configurable multi-purpose consensus sdk.
+Package api provides simplified kayak api with pre-defined practical options.
  */
-package kayak
+package api

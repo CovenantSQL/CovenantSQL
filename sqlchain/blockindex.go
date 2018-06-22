@@ -29,19 +29,18 @@ type blockNode struct {
 	height int32
 }
 
-func newBlockNode(header *SignedHeader, parent *blockNode) (node *blockNode) {
-	node = &blockNode{
+func newBlockNode(header *SignedHeader, parent *blockNode) *blockNode {
+	return &blockNode{
 		hash:   header.BlockHash,
-		parent: nil,
-		height: 0,
-	}
+		parent: parent,
+		height: func() int32 {
+			if parent != nil {
+				return parent.height + 1
+			}
 
-	if parent != nil {
-		node.parent = parent
-		node.height = parent.height + 1
+			return 0
+		}(),
 	}
-
-	return node
 }
 
 func (bn *blockNode) initBlockNode(head *SignedHeader, parent *blockNode) {
@@ -66,14 +65,14 @@ func (bn *blockNode) ancestor(height int32) (ancestor *blockNode) {
 		ancestor = ancestor.parent
 	}
 
-	return ancestor
+	return
 }
 
-func (bn *blockNode) indexKey() []byte {
-	indexKey := make([]byte, hash.HashSize+4)
-	binary.BigEndian.PutUint32(indexKey[0:4], uint32(bn.height))
-	copy(indexKey[4:hash.HashSize], bn.hash[:])
-	return indexKey
+func (bn *blockNode) indexKey() (key []byte) {
+	key = make([]byte, hash.HashSize+4)
+	binary.BigEndian.PutUint32(key[0:4], uint32(bn.height))
+	copy(key[4:hash.HashSize], bn.hash[:])
+	return
 }
 
 type blockIndex struct {
@@ -102,12 +101,12 @@ func (bi *blockIndex) HasBlock(hash *hash.Hash) (hasBlock bool) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 	_, hasBlock = bi.index[*hash]
-	return hasBlock
+	return
 }
 
 func (bi *blockIndex) LookupNode(hash *hash.Hash) (b *blockNode) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 	b = bi.index[*hash]
-	return b
+	return
 }

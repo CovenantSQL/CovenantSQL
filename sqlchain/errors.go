@@ -47,7 +47,13 @@ var (
 	// ErrParentNotFound indicates an error failing to find parent node during a chain reloading.
 	ErrParentNotFound = errors.New("could not find parent node")
 
+	// ErrBlockExists indicates that a received block is already in the indexed.
+	ErrBlockExists = errors.New("block already exists")
+
 	// ErrInvalidBlock indicates an invalid block which does not extend the best chain while
 	// pushing new blocks.
 	ErrInvalidBlock = errors.New("invalid block")
+
+	// ErrBlockTimestampOutOfPeriod indicates a block producing timestamp verification failure.
+	ErrBlockTimestampOutOfPeriod = errors.New("block timestamp is out of producing period")
 )

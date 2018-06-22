@@ -16,8 +16,13 @@
 
 package sqlchain
 
+import (
+	"time"
+)
+
 // Config represents a sql-chain config.
 type Config struct {
 	DataDir string
 	Genesis *Block
+	Period  time.Duration
 }

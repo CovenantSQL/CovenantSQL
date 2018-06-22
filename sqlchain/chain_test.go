@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
 	pb "github.com/golang/protobuf/proto"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -133,6 +134,7 @@ func TestChain(t *testing.T) {
 	chain, err := NewChain(&Config{
 		DataDir: fl.Name(),
 		Genesis: genesis,
+		Period:  300 * time.Second,
 	})
 
 	if err != nil {
@@ -167,7 +169,10 @@ func TestChain(t *testing.T) {
 
 	// Reload chain from DB file and rebuild memory cache
 	chain.db.Close()
-	chain, err = LoadChain(&Config{DataDir: fl.Name()})
+	chain, err = LoadChain(&Config{
+		DataDir: fl.Name(),
+		Period:  300 * time.Second,
+	})
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)

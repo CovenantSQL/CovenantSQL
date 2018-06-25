@@ -28,6 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
 // Header is a block header.
@@ -60,7 +61,6 @@ func (h *Header) marshal() ([]byte, error) {
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
-
 	BlockHash hash.Hash
 	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
@@ -138,7 +138,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 // Block is a node of blockchain.
 type Block struct {
 	SignedHeader *SignedHeader
-	Queries      []*Query
+	Queries      []*worker.Request
 }
 
 // SignHeader generates the signature for the Block from the given PrivateKey.

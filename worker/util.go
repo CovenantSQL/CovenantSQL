@@ -14,20 +14,26 @@
  * limitations under the License.
  */
 
-package kayak
+package worker
 
 import (
-	"encoding/binary"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// Converts bytes to an integer.
-func bytesToUint64(b []byte) uint64 {
-	return binary.BigEndian.Uint64(b)
+type canSerialize interface {
+	Serialize() []byte
 }
 
-// Converts a uint to a byte slice.
-func uint64ToBytes(u uint64) []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, u)
-	return buf
+func verifyHash(data canSerialize, h *hash.Hash) (err error) {
+	var newHash hash.Hash
+	buildHash(data, &newHash)
+	if !newHash.IsEqual(h) {
+		return ErrHashVerification
+	}
+	return
+}
+
+func buildHash(data canSerialize, h *hash.Hash) {
+	newHash := hash.THashH(data.Serialize())
+	copy(h[:], newHash[:])
 }

@@ -114,6 +114,10 @@ func (m *MockTransportRouter) getReqID() uint64 {
 	return atomic.AddUint64(&m.reqSeq, 1)
 }
 
+func (m *MockTransport) Init() error {
+	return nil
+}
+
 func (m *MockTransport) Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error) {
 	return m.router.getTransport(nodeID).sendRequest(&MockRequest{
 		RequestID: m.router.getReqID(),
@@ -126,6 +130,10 @@ func (m *MockTransport) Request(ctx context.Context, nodeID proto.NodeID, method
 
 func (m *MockTransport) Process() <-chan Request {
 	return m.queue
+}
+
+func (m *MockTransport) Shutdown() error {
+	return nil
 }
 
 func (m *MockTransport) sendRequest(req Request) ([]byte, error) {

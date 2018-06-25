@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-package kayak
+package worker
 
-import (
-	"encoding/binary"
+const (
+	// DBKayakRPCName defines rpc service name of database internal consensus.
+	DBKayakRPCName = "DatabaseConsensus"
+
+	// DBServiceRPCName defines rpc service name of database external query api.
+	DBServiceRPCName = "DatabaseService"
 )
 
-// Converts bytes to an integer.
-func bytesToUint64(b []byte) uint64 {
-	return binary.BigEndian.Uint64(b)
-}
-
-// Converts a uint to a byte slice.
-func uint64ToBytes(u uint64) []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, u)
-	return buf
-}
+// TODO(xq262144) define multi-database management logic

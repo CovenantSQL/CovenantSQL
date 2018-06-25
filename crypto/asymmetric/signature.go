@@ -19,6 +19,7 @@ package asymmetric
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"errors"
 	"math/big"
 
 	ec "github.com/btcsuite/btcd/btcec"
@@ -67,4 +68,31 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 // if the signature is valid, false otherwise.
 func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
+}
+
+// MarshalBinary does the serialization.
+func (s *Signature) MarshalBinary() (keyBytes []byte, err error) {
+	if s == nil {
+		err = errors.New("nil signature")
+		return
+	}
+
+	keyBytes = s.Serialize()
+	return
+}
+
+// UnmarshalBinary does the deserialization.
+func (s *Signature) UnmarshalBinary(keyBytes []byte) (err error) {
+	if s == nil {
+		err = errors.New("nil signature")
+		return
+	}
+
+	var sig *Signature
+	sig, err = ParseSignature(keyBytes)
+	if err != nil {
+		return
+	}
+	*s = *sig
+	return
 }

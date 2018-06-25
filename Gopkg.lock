@@ -20,6 +20,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/fortytw2/leaktest"
+  packages = ["."]
+  revision = "a5ef70473c97b71626b9abeda80ee92ba2a7de9e"
+  version = "v1.2.0"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
@@ -138,6 +144,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "391cd4a6f978a618e6904b84b5e3edda43de44fd21984bf21b9e2d66a10a13f5"
+  inputs-digest = "b7dd7b5c0871673aa6ccdf253307073a07fb202be26401f7de7c98c5f555e694"
   solver-name = "gps-cdcl"
   solver-version = 1

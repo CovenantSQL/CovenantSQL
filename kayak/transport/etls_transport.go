@@ -77,9 +77,13 @@ func NewETLSTransport(config *ETLSTransportConfig) (t *ETLSTransport) {
 		queue:               make(chan kayak.Request, 100),
 	}
 
-	t.TransportService.register(t)
-
 	return
+}
+
+// Init implements kayak.Transport.Init.
+func (e *ETLSTransport) Init() error {
+	e.TransportService.register(e)
+	return nil
 }
 
 // Request implements kayak.Transport.Request.
@@ -117,6 +121,12 @@ func (e *ETLSTransport) Request(ctx context.Context,
 func (e *ETLSTransport) Process() <-chan kayak.Request {
 	// get response from remote request
 	return e.queue
+}
+
+// Shutdown implements kayak.Transport.Shutdown.
+func (e *ETLSTransport) Shutdown() error {
+	e.TransportService.deRegister(e)
+	return nil
 }
 
 func (e *ETLSTransport) enqueue(req *ETLSTransportRequest) {
@@ -198,5 +208,11 @@ func (s *ETLSTransportService) Call(req *ETLSTransportRequest, resp *ETLSTranspo
 }
 
 func (s *ETLSTransportService) register(t *ETLSTransport) {
+	// register transport to service map
 	s.serviceMap.Store(t.TransportID, t)
+}
+
+func (s *ETLSTransportService) deRegister(t *ETLSTransport) {
+	// de-register transport from service map
+	s.serviceMap.Delete(t.TransportID)
 }

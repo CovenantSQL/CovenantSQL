@@ -109,3 +109,6 @@ func (e *Envelope) SetExpire(exp time.Duration) {
 func (e *Envelope) SetNodeID(nodeID *RawNodeID) {
 	e.NodeID = nodeID
 }
+
+// DatabaseID is database name, will be generated from UUID
+type DatabaseID string

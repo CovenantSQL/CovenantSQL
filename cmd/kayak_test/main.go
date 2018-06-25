@@ -66,7 +66,7 @@ var (
 	nodeCnt         int
 	nodeOffset      int
 	clientOperation string
-	payloadCodec    PayloadCodec
+	payloadCodec    logCodec
 )
 
 // NodeInfo for conf generation and load purpose.
@@ -78,22 +78,22 @@ type NodeInfo struct {
 	Role           kayak.ServerRole
 }
 
-// PayloadCodec defines simple codec.
-type PayloadCodec struct{}
+type logCodec struct{}
 
-func (m *PayloadCodec) Encode(execLog *storage.ExecLog) ([]byte, error) {
+func (m *logCodec) encode(execLog *storage.ExecLog) ([]byte, error) {
 	return json.Marshal(execLog)
 }
 
-func (m *PayloadCodec) Decode(data []byte, execLog *storage.ExecLog) (err error) {
+func (m *logCodec) decode(data []byte, execLog *storage.ExecLog) (err error) {
 	return json.Unmarshal(data, execLog)
 }
 
-type Storage struct {
+type storageWrap struct {
 	*storage.Storage
 }
 
-func (s *Storage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
+// Prepare implements twopc.Worker.Prepare.
+func (s *storageWrap) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	var execLog *storage.ExecLog
 	if execLog, err = s.decodeLog(wb); err != nil {
 		return
@@ -102,7 +102,8 @@ func (s *Storage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) 
 	return s.Storage.Prepare(ctx, execLog)
 }
 
-func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
+// Commit implements twopc.Worker.Commit.
+func (s *storageWrap) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	var execLog *storage.ExecLog
 	if execLog, err = s.decodeLog(wb); err != nil {
 		return
@@ -111,7 +112,8 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	return s.Storage.Commit(ctx, execLog)
 }
 
-func (s *Storage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
+// Rollback implements twopc.Worker.Rollback.
+func (s *storageWrap) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	var execLog *storage.ExecLog
 	if execLog, err = s.decodeLog(wb); err != nil {
 		return
@@ -120,7 +122,7 @@ func (s *Storage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error)
 	return s.Storage.Rollback(ctx, execLog)
 }
 
-func (s *Storage) decodeLog(wb twopc.WriteBatch) (log *storage.ExecLog, err error) {
+func (s *storageWrap) decodeLog(wb twopc.WriteBatch) (log *storage.ExecLog, err error) {
 	var bytesPayload []byte
 	var execLog storage.ExecLog
 	var ok bool
@@ -129,7 +131,7 @@ func (s *Storage) decodeLog(wb twopc.WriteBatch) (log *storage.ExecLog, err erro
 		err = kayak.ErrInvalidLog
 		return
 	}
-	if err = payloadCodec.Decode(bytesPayload, &execLog); err != nil {
+	if err = payloadCodec.decode(bytesPayload, &execLog); err != nil {
 		return
 	}
 
@@ -137,33 +139,35 @@ func (s *Storage) decodeLog(wb twopc.WriteBatch) (log *storage.ExecLog, err erro
 	return
 }
 
-type StubServer struct {
-	Runtime *kayak.Runtime
-	Storage *Storage
+type stubServer struct {
+	runtime *kayak.Runtime
+	storage *storageWrap
 }
 
-type ResponseRows []map[string]interface{}
+type responseRows []map[string]interface{}
 
-func (s *StubServer) Write(sql string, _ *ResponseRows) (err error) {
+// Write defines Database.Write rpc.
+func (s *stubServer) Write(sql string, _ *responseRows) (err error) {
 	var writeData []byte
 
 	l := &storage.ExecLog{
 		Queries: []string{sql},
 	}
 
-	if writeData, err = payloadCodec.Encode(l); err != nil {
+	if writeData, err = payloadCodec.encode(l); err != nil {
 		return err
 	}
 
-	err = s.Runtime.Apply(writeData)
+	err = s.runtime.Apply(writeData)
 
 	return
 }
 
-func (s *StubServer) Read(sql string, rows *ResponseRows) (err error) {
+// Read defines Database.Read rpc.
+func (s *stubServer) Read(sql string, rows *responseRows) (err error) {
 	var columns []string
 	var result [][]interface{}
-	columns, _, result, err = s.Storage.Query(context.Background(), []string{sql})
+	columns, _, result, err = s.storage.Query(context.Background(), []string{sql})
 
 	// rebuild map
 	*rows = make([]map[string]interface{}, 0, len(result))
@@ -266,7 +270,7 @@ func clientRequest(leader *NodeInfo, reqType string, sql string) (err error) {
 
 	reqType = strings.Title(strings.ToLower(reqType))
 
-	var rows ResponseRows
+	var rows responseRows
 	if err = client.Call(fmt.Sprintf("%v.%v", dbServiceName, reqType), sql, &rows); err != nil {
 		return
 	}
@@ -337,7 +341,7 @@ func runNode() (err error) {
 
 	// init storage
 	log.Infof("init storage")
-	var st *Storage
+	var st *storageWrap
 	if st, err = initStorage(nodeOffset); err != nil {
 		return
 	}
@@ -350,9 +354,9 @@ func runNode() (err error) {
 	}
 
 	// register service rpc
-	server.RegisterService(dbServiceName, &StubServer{
-		Runtime: kayakRuntime,
-		Storage: st,
+	server.RegisterService(dbServiceName, &stubServer{
+		runtime: kayakRuntime,
+		storage: st,
 	})
 
 	// start server
@@ -361,20 +365,21 @@ func runNode() (err error) {
 	return
 }
 
-func initStorage(nodeOffset int) (stor *Storage, err error) {
+func initStorage(nodeOffset int) (stor *storageWrap, err error) {
 	dbFile := filepath.Join(fmt.Sprintf(nodeDirPattern, nodeOffset), dbFileName)
 	var st *storage.Storage
 	if st, err = storage.New(dbFile); err != nil {
 		return
 	}
 
-	stor = &Storage{
+	stor = &storageWrap{
 		Storage: st,
 	}
 	return
 }
 
-func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
+func initKayakTwoPC(nodeOffset int, node *NodeInfo, peers *kayak.Peers,
+	worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
 	// create kayak config
 	log.Infof("create twopc config")
 	rootDir := fmt.Sprintf(nodeDirPattern, nodeOffset)

@@ -272,6 +272,11 @@ func (s *Storage) Query(ctx context.Context, queries []string) (columns []string
 	return
 }
 
+// Close implements database safe close feature.
+func (s *Storage) Close() (err error) {
+	return s.db.Close()
+}
+
 func (s *Storage) transformColumnTypes(columnTypes []*sql.ColumnType, e error) (types []string, err error) {
 	if e != nil {
 		err = e

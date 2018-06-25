@@ -21,6 +21,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
+// NewMuxService create a new transport mux service and register to rpc server.
 func NewMuxService(serviceName string, server *rpc.Server) (service *kt.ETLSTransportService) {
 	service = &kt.ETLSTransportService{
 		ServiceName: serviceName,

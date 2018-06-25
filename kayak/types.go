@@ -30,7 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-// Log entries are replicated to all members of the Raft cluster
+// Log entries are replicated to all members of the Kayak cluster
 // and form the heart of the replicated state machine.
 type Log struct {
 	// Index holds the index of the log entry.
@@ -51,24 +51,26 @@ type Log struct {
 
 // ComputeHash updates Hash.
 func (l *Log) ComputeHash() {
-	l.Hash.SetBytes(hash.DoubleHashB(l.getBytes()))
+	l.Hash.SetBytes(hash.DoubleHashB(l.Serialize()))
 }
 
 // VerifyHash validates hash field.
 func (l *Log) VerifyHash() bool {
-	h := hash.DoubleHashH(l.getBytes())
+	h := hash.DoubleHashH(l.Serialize())
 	return h.IsEqual(&l.Hash)
 }
 
-func (l *Log) getBytes() []byte {
+// Serialize transform log structure to bytes.
+func (l *Log) Serialize() []byte {
 	if l == nil {
 		return []byte{'\000'}
 	}
 
 	buf := new(bytes.Buffer)
 
-	binary.Write(buf, binary.LittleEndian, &l.Index)
-	binary.Write(buf, binary.LittleEndian, &l.Term)
+	binary.Write(buf, binary.LittleEndian, l.Index)
+	binary.Write(buf, binary.LittleEndian, l.Term)
+	binary.Write(buf, binary.LittleEndian, uint64(len(l.Data)))
 	buf.Write(l.Data)
 	if l.LastHash != nil {
 		buf.Write(l.LastHash[:])
@@ -178,13 +180,20 @@ func (s *Server) String() string {
 		base64.StdEncoding.EncodeToString(s.PubKey.Serialize()))
 }
 
-// Serialize payload to bytes
+// Serialize server struct to bytes.
 func (s *Server) Serialize() []byte {
+	if s == nil {
+		return []byte{'\000'}
+	}
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, s.Role)
-	binary.Write(buffer, binary.LittleEndian, s.ID)
+	binary.Write(buffer, binary.LittleEndian, uint64(len(s.ID)))
+	buffer.WriteString(string(s.ID))
 	if s.PubKey != nil {
 		buffer.Write(s.PubKey.Serialize())
+	} else {
+		buffer.WriteRune('\000')
 	}
 
 	return buffer.Bytes()
@@ -209,19 +218,30 @@ func (c *Peers) Clone() (copy Peers) {
 	return
 }
 
-func (c *Peers) getBytes() []byte {
+// Serialize peers struct to bytes.
+func (c *Peers) Serialize() []byte {
+	if c == nil {
+		return []byte{'\000'}
+	}
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, c.Term)
 	binary.Write(buffer, binary.LittleEndian, c.Leader.Serialize())
+	binary.Write(buffer, binary.LittleEndian, uint64(len(c.Servers)))
 	for _, s := range c.Servers {
 		binary.Write(buffer, binary.LittleEndian, s.Serialize())
+	}
+	if c.PubKey != nil {
+		buffer.Write(c.PubKey.Serialize())
+	} else {
+		buffer.WriteRune('\000')
 	}
 	return buffer.Bytes()
 }
 
-// Sign generates signature
+// Sign generates signature.
 func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
-	sig, err := signer.Sign(c.getBytes())
+	sig, err := signer.Sign(c.Serialize())
 
 	if err != nil {
 		return fmt.Errorf("sign peer configuration failed: %s", err.Error())
@@ -232,9 +252,9 @@ func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
-// Verify verify signature
+// Verify verify signature.
 func (c *Peers) Verify() bool {
-	return c.Signature.Verify(c.getBytes(), c.PubKey)
+	return c.Signature.Verify(c.Serialize(), c.PubKey)
 }
 
 func (c *Peers) String() string {
@@ -273,7 +293,7 @@ type Config interface {
 	GetRuntimeConfig() *RuntimeConfig
 }
 
-// Request defines a transport request payload
+// Request defines a transport request payload.
 type Request interface {
 	GetPeerNodeID() proto.NodeID
 	GetMethod() string
@@ -283,11 +303,15 @@ type Request interface {
 
 // Transport adapter for abstraction.
 type Transport interface {
+	Init() error
+
 	// Request
 	Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error)
 
 	// Process
 	Process() <-chan Request
+
+	Shutdown() error
 }
 
 // Runner adapter for different consensus protocols including Eventual Consistency/2PC/3PC.

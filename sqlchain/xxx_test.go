@@ -29,6 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
 var (
@@ -60,10 +61,14 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		return
 	}
 
+	h := hash.Hash{}
+	rand.Read(h[:])
+
 	b = &Block{
 		SignedHeader: &SignedHeader{
 			Header: Header{
 				Version:     0x01000000,
+				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
@@ -71,17 +76,51 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 			Signee:    pub,
 			Signature: nil,
 		},
-		Queries: make([]*Query, rand.Intn(10)+10),
+		Queries: make([]*worker.Request, rand.Intn(10)+10),
 	}
 
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b.SignedHeader.Header.Producer = proto.NodeID(h.String())
-
 	for i := 0; i < len(b.Queries); i++ {
-		b.Queries[i] = new(Query)
-		rand.Read(b.Queries[i].TxnID[:])
+		var priv *asymmetric.PrivateKey
+		var pub *asymmetric.PublicKey
+		priv, pub, err = asymmetric.GenSecp256k1KeyPair()
+
+		if err != nil {
+			return
+		}
+
+		h := hash.Hash{}
+		rand.Read(h[:])
+
+		q := &worker.Request{
+			Header: worker.SignedRequestHeader{
+				RequestHeader: worker.RequestHeader{
+					QueryType:    worker.QueryType(rand.Intn(2)),
+					NodeID:       proto.NodeID(h.String()),
+					ConnectionID: uint64(rand.Int63()),
+					SeqNo:        uint64(rand.Int63()),
+					Timestamp:    time.Now().UTC(),
+				},
+				Signee:    pub,
+				Signature: nil,
+			},
+			Payload: worker.RequestPayload{
+				Queries: make([]string, rand.Intn(10)+10),
+			},
+		}
+
+		for j := 0; j < len(q.Payload.Queries); j++ {
+			buff := make([]byte, rand.Intn(10)+10)
+			rand.Read(buff)
+			q.Payload.Queries[j] = string(buff)
+		}
+
+		err = q.Sign(priv)
+
+		if err != nil {
+			return
+		}
+
+		b.Queries[i] = q
 	}
 
 	// TODO(leventeliu): use merkle package to generate this field from queries.

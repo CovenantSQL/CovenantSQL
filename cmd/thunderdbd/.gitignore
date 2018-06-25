@@ -1,6 +1,0 @@
-*.keystore
-*.key
-node_*/
-kayak_test
-*.conf
-thunderdbd

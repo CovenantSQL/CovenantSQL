@@ -20,11 +20,9 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -35,32 +33,20 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-var (
-	storageFile = "db.sqlite"
-)
-
 // Database defines a single database instance in worker runtime.
 type Database struct {
 	cfg          *Config
 	dbID         proto.DatabaseID
-	dbMeta       *bolt.DB
 	storage      *storage.Storage
 	kayakRuntime *kayak.Runtime
 	kayakConfig  kayak.Config
-	privKey      *asymmetric.PrivateKey
 	connSeqs     sync.Map
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *Config, peers *kayak.Peers) (db *Database, err error) {
+func NewDatabase(cfg *Config, peers *kayak.Peers, st *storage.Storage) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
-		return
-	}
-
-	// init underlying storage
-	var st *storage.Storage
-	if st, err = storage.New(filepath.Join(cfg.DataDir, storageFile)); err != nil {
 		return
 	}
 
@@ -72,7 +58,7 @@ func NewDatabase(cfg *Config, peers *kayak.Peers) (db *Database, err error) {
 	}
 
 	// init kayak config
-	options := ka.NewTwoPCOptions()
+	options := ka.NewDefaultTwoPCOptions().WithTransportID(string(cfg.DatabaseID))
 	db.kayakConfig = ka.NewTwoPCConfigWithOptions(cfg.DataDir, cfg.MuxService, db, options)
 
 	// create kayak runtime
@@ -121,15 +107,17 @@ func (db *Database) Shutdown() (err error) {
 		return
 	}
 
-	// flush meta
-	// TODO(xq262144), flush meta
-
 	return
 }
 
 // Destroy stop database instance and destroy all data/meta.
 func (db *Database) Destroy() (err error) {
-	// TODO(xq262144), destroy data
+	if err = db.Shutdown(); err != nil {
+		return
+	}
+
+	// TODO(xq262144), remove database files, now simply remove whole root dir
+	os.RemoveAll(db.cfg.DataDir)
 
 	return
 }

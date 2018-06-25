@@ -99,6 +99,7 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 		return
 	}
 	c = &Consistent{
+		//TODO(auxten): reduce NumberOfReplicas
 		NumberOfReplicas: 20,
 		circle:           make(map[proto.NodeKey]proto.Node),
 	}

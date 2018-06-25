@@ -56,7 +56,6 @@ func TestNew(t *testing.T) {
 	if x == nil {
 		t.Errorf("expected obj")
 	}
-	utils.CheckNum(x.NumberOfReplicas, 20, t)
 }
 
 func TestAdd(t *testing.T) {
@@ -67,14 +66,14 @@ func TestAdd(t *testing.T) {
 	x, _ := InitConsistent(testStorePath, false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
-	utils.CheckNum(len(x.circle), 20, t)
-	utils.CheckNum(len(x.sortedHashes), 20, t)
+	utils.CheckNum(len(x.circle), x.NumberOfReplicas, t)
+	utils.CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
 	x.Add(NewNodeFromID(("qwer")))
-	utils.CheckNum(len(x.circle), 40, t)
-	utils.CheckNum(len(x.sortedHashes), 40, t)
+	utils.CheckNum(len(x.circle), 2*x.NumberOfReplicas, t)
+	utils.CheckNum(len(x.sortedHashes), 2*x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
@@ -102,7 +101,7 @@ func TestRemoveNonExisting(t *testing.T) {
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Remove("abcdefghijk")
-	utils.CheckNum(len(x.circle), 20, t)
+	utils.CheckNum(len(x.circle), x.NumberOfReplicas, t)
 }
 
 func TestGetEmpty(t *testing.T) {

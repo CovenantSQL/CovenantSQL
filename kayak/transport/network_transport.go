@@ -124,8 +124,6 @@ func NewTransport(config *NetworkTransportConfig) (t *NetworkTransport) {
 		queue:      make(chan kayak.Request, 100),
 	}
 
-	go t.run()
-
 	return
 }
 
@@ -195,6 +193,7 @@ func (r *NetworkResponse) get() []byte {
 
 // Init implements kayak.Transport.Init method
 func (t *NetworkTransport) Init() error {
+	go t.run()
 	return nil
 }
 
@@ -229,6 +228,11 @@ func (t *NetworkTransport) Process() <-chan kayak.Request {
 
 // Shutdown implements kayak.Transport.Shutdown method
 func (t *NetworkTransport) Shutdown() error {
+	select {
+	case <-t.shutdownCh:
+	default:
+		close(t.shutdownCh)
+	}
 	return nil
 }
 
@@ -252,15 +256,6 @@ func (p *NetworkTransportRequestProxy) Call(req *NetworkRequest, res *NetworkRes
 
 func (p *NetworkTransportRequestProxy) serve() {
 	p.server.ServeCodec(p.transport.config.ServerCodec(p.conn))
-}
-
-// Close shutdown transport hand-off
-func (t *NetworkTransport) Close() {
-	select {
-	case <-t.shutdownCh:
-	default:
-		close(t.shutdownCh)
-	}
 }
 
 func (t *NetworkTransport) run() {

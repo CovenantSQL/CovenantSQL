@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -263,8 +264,92 @@ func TestSingleDatabase(t *testing.T) {
 }
 
 func TestDatabaseRecycle(t *testing.T) {
+	defer leaktest.Check(t)()
+
 	// test init/shutdown/destroy
 	// test goroutine status
+	Convey("test init destroy", t, func() {
+		var err error
+		var server *rpc.Server
+		var cleanup func()
+		cleanup, server, err = initNode()
+		So(err, ShouldBeNil)
+
+		defer cleanup()
+
+		var rootDir string
+		rootDir, err = ioutil.TempDir("", "db_test_")
+		So(err, ShouldBeNil)
+
+		// create mux service
+		service := ka.NewMuxService("DBKayak", server)
+
+		// create peers
+		var peers *kayak.Peers
+		peers, err = getPeers()
+		So(err, ShouldBeNil)
+
+		// create file
+		cfg := &Config{
+			DatabaseID:      "TEST",
+			DataDir:         rootDir,
+			MuxService:      service,
+			MaxWriteTimeGap: time.Duration(5 * time.Second),
+		}
+
+		// create storage
+		storePath := filepath.Join(rootDir, "database.db")
+		var st *storage.Storage
+		st, err = storage.New(storePath)
+		So(err, ShouldBeNil)
+
+		defer st.Close()
+
+		// create database
+		var db *Database
+		db, err = NewDatabase(cfg, peers, st)
+		So(err, ShouldBeNil)
+
+		// do some query
+		var writeQuery *Request
+		var res *Response
+		writeQuery, err = buildQuery(WriteQuery, 1, 1, []string{
+			"create table test (test int)",
+			"insert into test values(1)",
+		})
+		So(err, ShouldBeNil)
+
+		res, err = db.Query(writeQuery)
+		So(err, ShouldBeNil)
+		err = res.Verify()
+		So(err, ShouldBeNil)
+		So(res.Header.RowCount, ShouldEqual, 0)
+
+		// test select query
+		var readQuery *Request
+		readQuery, err = buildQuery(ReadQuery, 1, 2, []string{
+			"select * from test",
+		})
+		So(err, ShouldBeNil)
+
+		res, err = db.Query(readQuery)
+		So(err, ShouldBeNil)
+		err = res.Verify()
+		So(err, ShouldBeNil)
+
+		So(res.Header.RowCount, ShouldEqual, uint64(1))
+		So(res.Payload.Columns, ShouldResemble, []string{"test"})
+		So(res.Payload.DeclTypes, ShouldResemble, []string{"int"})
+		So(res.Payload.Rows, ShouldNotBeEmpty)
+		So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
+		So(res.Payload.Rows[0].Values[0], ShouldEqual, 1)
+
+		// destroy
+		err = db.Destroy()
+		So(err, ShouldBeNil)
+		_, err = os.Stat(rootDir)
+		So(err, ShouldNotBeNil)
+	})
 }
 
 func buildAck(res *Response) (ack *Ack, err error) {

@@ -78,11 +78,13 @@ func DialToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
 		log.Errorf("decode node id error: %s", err)
 		return
 	}
+
 	if route.IsBPNodeID(rawNodeID) {
 		nodePublicKey = kms.BPPublicKey
 	} else {
 		nodePublicKey, err = kms.GetPublicKey(nodeID)
 		if err != nil {
+			log.Infof("get public key for %s locally failed: %s", nodeID, err)
 			if err == kms.ErrKeyNotFound {
 				// TODO(auxten): get node public key form BP
 			} else {
@@ -96,6 +98,7 @@ func DialToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
 		log.Errorf("get local private key failed: %s", err)
 		return
 	}
+	log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
 	symmetricKey := asymmetric.GenECDHSharedSecret(localPrivateKey, nodePublicKey)
 
 	nodeAddr, err := route.GetNodeAddr(rawNodeID)

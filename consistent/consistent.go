@@ -33,7 +33,6 @@
 package consistent
 
 import (
-	"encoding/hex"
 	"errors"
 	"hash/fnv"
 	"sort"
@@ -41,7 +40,6 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
@@ -80,26 +78,12 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 	var BPNode *proto.Node
 	if initBP {
 		// Load BlockProducer public key, set it in public key store
-		// as all inputs of this func are pre defined. there should not
-		// be any error, if any then panic at caller
-		var (
-			publicKeyBytes []byte
-		)
-		publicKeyBytes, err = hex.DecodeString(kms.BPPublicKeyStr)
-		if err == nil {
-			kms.BPPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-			if err == nil {
-				BPNode = &proto.Node{
-					ID:        kms.BPNodeID,
-					Addr:      "",
-					PublicKey: kms.BPPublicKey,
-					Nonce:     kms.BPNonce,
-				}
-			}
-		}
-		if err != nil {
-			log.Errorf("load BlockProducer public key failed: %s", err)
-			return
+		// as all kms.BP stuff is initialized on kms init()
+		BPNode = &proto.Node{
+			ID:        kms.BPNodeID,
+			Addr:      "",
+			PublicKey: kms.BPPublicKey,
+			Nonce:     kms.BPNonce,
 		}
 	}
 

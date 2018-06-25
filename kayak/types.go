@@ -125,8 +125,12 @@ type ServerState int
 const (
 	// Leader is a server that have the ability to organize committing requests.
 	Leader ServerRole = iota
-	// Follower a server that follow the leader log commits.
+	// Follower is a server that follow the leader log commits.
 	Follower
+	// Miner is a server that run sql database
+	Miner
+	// Client is a client that send sql query to database
+	Client
 
 	// Idle indicates no running transaction.
 	Idle ServerState = iota

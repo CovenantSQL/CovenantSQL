@@ -17,6 +17,7 @@
 package kms
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"sync"
@@ -54,6 +55,7 @@ var (
 )
 
 var (
+	//TODO(auxten): maybe each BP uses distinct key pair is safer
 	// BPPublicKeyStr is the public key of Block Producer
 	BPPublicKeyStr = "02c1db96f2ba7e1cb4e9822d12de0f63f" +
 		"b666feb828c7f509e81fab9bd7a34039c"
@@ -78,6 +80,15 @@ func init() {
 	err := hash.Decode(&BPRawNodeID.Hash, string(BPNodeID))
 	if err != nil {
 		log.Fatalf("BPNodeID error: %s", err)
+	}
+
+	publicKeyBytes, err := hex.DecodeString(BPPublicKeyStr)
+	if err != nil {
+		log.Fatalf("hex decode BPPublicKeyStr error: %s", err)
+	}
+	BPPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+	if err != nil {
+		log.Fatalf("parse publicKeyBytes error: %s", err)
 	}
 }
 
@@ -231,7 +242,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 		log.Errorf("marshal node info failed: %s", err)
 		return
 	}
-	log.Debugf("set node: %#v", nodeBuf.Bytes())
+	log.Debugf("set node: %v", nodeInfo)
 
 	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)

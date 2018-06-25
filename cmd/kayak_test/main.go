@@ -185,7 +185,7 @@ func (s *StubServer) Read(sql string, rows *ResponseRows) (err error) {
 func init() {
 	flag.BoolVar(&genConf, "generate", false, "run conf generation")
 	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&confPath, "conf", "peers.conf", "peers conf path")
+	flag.StringVar(&confPath, "conf", "peers.json", "peers conf path")
 	flag.IntVar(&minPort, "minPort", 10000, "minimum port number to allocate (used in conf generation)")
 	flag.IntVar(&maxPort, "maxPort", 20000, "maximum port number to allocate (used in conf generation)")
 	flag.IntVar(&nodeCnt, "nodeCnt", 3, "node count for conf generation")

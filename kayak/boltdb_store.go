@@ -174,12 +174,12 @@ func (b *BoltStore) GetLog(idx uint64, log *Log) error {
 	return utils.DecodeMsgPack(val, log)
 }
 
-// StoreLog is used to store a single raft log
+// StoreLog is used to store a single raft log.
 func (b *BoltStore) StoreLog(log *Log) error {
 	return b.StoreLogs([]*Log{log})
 }
 
-// StoreLogs is used to store a set of raft logs
+// StoreLogs is used to store a set of raft logs.
 func (b *BoltStore) StoreLogs(logs []*Log) error {
 	tx, err := b.conn.Begin(true)
 	if err != nil {
@@ -228,7 +228,7 @@ func (b *BoltStore) DeleteRange(min, max uint64) error {
 	return tx.Commit()
 }
 
-// Set is used to set a key/value set outside of the raft log
+// Set is used to set a key/value set outside of the raft log.
 func (b *BoltStore) Set(k, v []byte) error {
 	tx, err := b.conn.Begin(true)
 	if err != nil {
@@ -244,7 +244,7 @@ func (b *BoltStore) Set(k, v []byte) error {
 	return tx.Commit()
 }
 
-// Get is used to retrieve a value from the k/v store by key
+// Get is used to retrieve a value from the k/v store by key.
 func (b *BoltStore) Get(k []byte) ([]byte, error) {
 	tx, err := b.conn.Begin(false)
 	if err != nil {
@@ -261,12 +261,12 @@ func (b *BoltStore) Get(k []byte) ([]byte, error) {
 	return append([]byte(nil), val...), nil
 }
 
-// SetUint64 is like Set, but handles uint64 values
+// SetUint64 is like Set, but handles uint64 values.
 func (b *BoltStore) SetUint64(key []byte, val uint64) error {
 	return b.Set(key, uint64ToBytes(val))
 }
 
-// GetUint64 is like Get, but handles uint64 values
+// GetUint64 is like Get, but handles uint64 values.
 func (b *BoltStore) GetUint64(key []byte) (uint64, error) {
 	val, err := b.Get(key)
 	if err != nil {

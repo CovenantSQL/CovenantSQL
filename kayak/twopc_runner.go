@@ -35,7 +35,7 @@ var (
 	keyCommittedIndex = []byte("CommittedIndex")
 )
 
-// TwoPCConfig is a RuntimeConfig implementation organizing two phase commit mutation
+// TwoPCConfig is a RuntimeConfig implementation organizing two phase commit mutation.
 type TwoPCConfig struct {
 	RuntimeConfig
 
@@ -43,7 +43,7 @@ type TwoPCConfig struct {
 	Storage twopc.Worker
 }
 
-// TwoPCRunner is a Runner implementation organizing two phase commit mutation
+// TwoPCRunner is a Runner implementation organizing two phase commit mutation.
 type TwoPCRunner struct {
 	config      *TwoPCConfig
 	peers       *Peers
@@ -82,13 +82,13 @@ type TwoPCRunner struct {
 	routinesGroup sync.WaitGroup
 }
 
-// TwoPCWorkerWrapper wraps remote runner as worker
+// TwoPCWorkerWrapper wraps remote runner as worker.
 type TwoPCWorkerWrapper struct {
 	runner *TwoPCRunner
 	nodeID proto.NodeID
 }
 
-// NewTwoPCRunner create a two pc runner
+// NewTwoPCRunner create a two pc runner.
 func NewTwoPCRunner() *TwoPCRunner {
 	return &TwoPCRunner{
 		shutdownCh:     make(chan struct{}),
@@ -99,7 +99,7 @@ func NewTwoPCRunner() *TwoPCRunner {
 	}
 }
 
-// GetRuntimeConfig implements Config.GetRuntimeConfig
+// GetRuntimeConfig implements Config.GetRuntimeConfig.
 func (tpc *TwoPCConfig) GetRuntimeConfig() *RuntimeConfig {
 	return &tpc.RuntimeConfig
 }
@@ -661,7 +661,7 @@ func (r *TwoPCRunner) goFunc(f func()) {
 	}()
 }
 
-// NewTwoPCWorkerWrapper returns a wrapper for remote worker
+// NewTwoPCWorkerWrapper returns a wrapper for remote worker.
 func NewTwoPCWorkerWrapper(runner *TwoPCRunner, nodeID proto.NodeID) *TwoPCWorkerWrapper {
 	return &TwoPCWorkerWrapper{
 		nodeID: nodeID,
@@ -669,7 +669,7 @@ func NewTwoPCWorkerWrapper(runner *TwoPCRunner, nodeID proto.NodeID) *TwoPCWorke
 	}
 }
 
-// Prepare implements twopc.Worker.Prepare
+// Prepare implements twopc.Worker.Prepare.
 func (tpww *TwoPCWorkerWrapper) Prepare(ctx context.Context, wb twopc.WriteBatch) error {
 	// extract log
 	l, ok := wb.(*Log)
@@ -680,7 +680,7 @@ func (tpww *TwoPCWorkerWrapper) Prepare(ctx context.Context, wb twopc.WriteBatch
 	return tpww.callRemote(ctx, "Prepare", l)
 }
 
-// Commit implements twopc.Worker.Commit
+// Commit implements twopc.Worker.Commit.
 func (tpww *TwoPCWorkerWrapper) Commit(ctx context.Context, wb twopc.WriteBatch) error {
 	// extract log
 	l, ok := wb.(*Log)
@@ -691,7 +691,7 @@ func (tpww *TwoPCWorkerWrapper) Commit(ctx context.Context, wb twopc.WriteBatch)
 	return tpww.callRemote(ctx, "Commit", l)
 }
 
-// Rollback implements twopc.Worker.Rollback
+// Rollback implements twopc.Worker.Rollback.
 func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatch) error {
 	// extract log
 	l, ok := wb.(*Log)

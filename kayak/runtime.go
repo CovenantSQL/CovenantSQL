@@ -26,7 +26,7 @@ const (
 	FileStorePath = "kayak.db"
 )
 
-// Runtime defines common init/shutdown logic for different consensus protocol runner
+// Runtime defines common init/shutdown logic for different consensus protocol runner.
 type Runtime struct {
 	config       *RuntimeConfig
 	runnerConfig Config

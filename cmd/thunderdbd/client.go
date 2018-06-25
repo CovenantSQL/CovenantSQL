@@ -33,28 +33,6 @@ import (
 )
 
 func runClient() (err error) {
-	// load conf
-	//log.Infof("load conf")
-	//if nodes, peers, err = initNodePeers(confPath); err != nil {
-	//	return
-	//}
-	//
-	//var leader *NodeInfo
-	//var client *NodeInfo
-	//
-	//// get leader node
-	//for i := range nodes {
-	//	if nodes[i].Role == kayak.Leader {
-	//		leader = &nodes[i]
-	//	} else if nodes[i].Role != kayak.Follower {
-	//		client = &nodes[i]
-	//	}
-	//}
-	//
-	//// create client key
-	//if err = initClientKey(client, leader); err != nil {
-	//	return
-	//}
 	var idx = -1
 	for i, n := range AllNodes[:] {
 		if n.Role == kayak.Client {
@@ -132,33 +110,3 @@ func clientRequest(reqType string, sql string) (err error) {
 
 	return
 }
-
-//
-//func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
-//	clientRootDir := fmt.Sprintf(nodeDirPattern, "client")
-//	os.MkdirAll(clientRootDir, 0755)
-//
-//	// init local key store
-//	pubKeyStorePath := filepath.Join(clientRootDir, pubKeyStoreFile)
-//	if _, err = consistent.InitConsistent(pubKeyStorePath, true); err != nil {
-//		return
-//	}
-//
-//	// init client private key
-//	route.InitResolver()
-//	privateKeyStorePath := filepath.Join(clientRootDir, privateKeyFile)
-//	if err = kms.InitLocalKeyPair(privateKeyStorePath, []byte(privateKeyMasterKey)); err != nil {
-//		return
-//	}
-//
-//	kms.SetLocalNodeIDNonce(client.Nonce.Hash.CloneBytes(), &client.Nonce.Nonce)
-//
-//	// set leader key
-//	leaderNodeID := proto.NodeID(leader.Nonce.Hash.String())
-//	kms.SetPublicKey(leaderNodeID, leader.Nonce.Nonce, leader.PublicKey)
-//
-//	// set route to leader
-//	route.SetNodeAddr(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, leader.Port))
-//
-//	return
-//}

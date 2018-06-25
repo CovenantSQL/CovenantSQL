@@ -161,29 +161,3 @@ func initNodePeers(idx int, publicKeystorePath string) (nodes *[]NodeInfo, peers
 
 	return
 }
-
-//func main() {
-//	log.SetLevel(log.DebugLevel)
-//	flag.Parse()
-//	// read master key
-//	fmt.Print("Type in Master key to continue: ")
-//	masterKey, err := terminal.ReadPassword(int(syscall.Stdin))
-//	if err != nil {
-//		fmt.Printf("Failed to read Master Key: %v", err)
-//	}
-//	fmt.Println("")
-//
-//	err = kms.InitLocalKeyPair("private.key", masterKey)
-//	if err != nil {
-//		log.Errorf("init local key pair failed: %s", err)
-//		return
-//	}
-//
-//	// call conf generator
-//	_, _, err = initNodePeers(0, "public.keystore")
-//	if err != nil {
-//		log.Fatalf("initNodePeers failed: %s", err)
-//	}
-//
-//	return
-//}

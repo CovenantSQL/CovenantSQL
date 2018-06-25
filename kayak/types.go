@@ -51,24 +51,26 @@ type Log struct {
 
 // ComputeHash updates Hash.
 func (l *Log) ComputeHash() {
-	l.Hash.SetBytes(hash.DoubleHashB(l.getBytes()))
+	l.Hash.SetBytes(hash.DoubleHashB(l.Serialize()))
 }
 
 // VerifyHash validates hash field.
 func (l *Log) VerifyHash() bool {
-	h := hash.DoubleHashH(l.getBytes())
+	h := hash.DoubleHashH(l.Serialize())
 	return h.IsEqual(&l.Hash)
 }
 
-func (l *Log) getBytes() []byte {
+// Serialize transform log structure to bytes.
+func (l *Log) Serialize() []byte {
 	if l == nil {
 		return []byte{'\000'}
 	}
 
 	buf := new(bytes.Buffer)
 
-	binary.Write(buf, binary.LittleEndian, &l.Index)
-	binary.Write(buf, binary.LittleEndian, &l.Term)
+	binary.Write(buf, binary.LittleEndian, l.Index)
+	binary.Write(buf, binary.LittleEndian, l.Term)
+	binary.Write(buf, binary.LittleEndian, uint64(len(l.Data)))
 	buf.Write(l.Data)
 	if l.LastHash != nil {
 		buf.Write(l.LastHash[:])
@@ -174,13 +176,20 @@ func (s *Server) String() string {
 		base64.StdEncoding.EncodeToString(s.PubKey.Serialize()))
 }
 
-// Serialize payload to bytes
+// Serialize server struct to bytes.
 func (s *Server) Serialize() []byte {
+	if s == nil {
+		return []byte{'\000'}
+	}
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, s.Role)
-	binary.Write(buffer, binary.LittleEndian, s.ID)
+	binary.Write(buffer, binary.LittleEndian, uint64(len(s.ID)))
+	buffer.WriteString(string(s.ID))
 	if s.PubKey != nil {
 		buffer.Write(s.PubKey.Serialize())
+	} else {
+		buffer.WriteRune('\000')
 	}
 
 	return buffer.Bytes()
@@ -205,19 +214,30 @@ func (c *Peers) Clone() (copy Peers) {
 	return
 }
 
-func (c *Peers) getBytes() []byte {
+// Serialize peers struct to bytes.
+func (c *Peers) Serialize() []byte {
+	if c == nil {
+		return []byte{'\000'}
+	}
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.LittleEndian, c.Term)
 	binary.Write(buffer, binary.LittleEndian, c.Leader.Serialize())
+	binary.Write(buffer, binary.LittleEndian, uint64(len(c.Servers)))
 	for _, s := range c.Servers {
 		binary.Write(buffer, binary.LittleEndian, s.Serialize())
+	}
+	if c.PubKey != nil {
+		buffer.Write(c.PubKey.Serialize())
+	} else {
+		buffer.WriteRune('\000')
 	}
 	return buffer.Bytes()
 }
 
 // Sign generates signature
 func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
-	sig, err := signer.Sign(c.getBytes())
+	sig, err := signer.Sign(c.Serialize())
 
 	if err != nil {
 		return fmt.Errorf("sign peer configuration failed: %s", err.Error())
@@ -230,7 +250,7 @@ func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 
 // Verify verify signature
 func (c *Peers) Verify() bool {
-	return c.Signature.Verify(c.getBytes(), c.PubKey)
+	return c.Signature.Verify(c.Serialize(), c.PubKey)
 }
 
 func (c *Peers) String() string {

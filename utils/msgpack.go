@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-package kayak
+package utils
 
 import (
-	"encoding/binary"
+	"bytes"
+
+	"github.com/ugorji/go/codec"
 )
 
-// Converts bytes to an integer
-func bytesToUint64(b []byte) uint64 {
-	return binary.BigEndian.Uint64(b)
+// DecodeMsgPack reverses the encode operation on a byte slice input.
+func DecodeMsgPack(buf []byte, out interface{}) error {
+	r := bytes.NewBuffer(buf)
+	hd := codec.MsgpackHandle{}
+	dec := codec.NewDecoder(r, &hd)
+	return dec.Decode(out)
 }
 
-// Converts a uint to a byte slice
-func uint64ToBytes(u uint64) []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, u)
-	return buf
+// EncodeMsgPack writes an encoded object to a new bytes buffer.
+func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
+	buf := bytes.NewBuffer(nil)
+	hd := codec.MsgpackHandle{}
+	enc := codec.NewEncoder(buf, &hd)
+	err := enc.Encode(in)
+	return buf, err
 }

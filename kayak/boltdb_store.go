@@ -20,6 +20,7 @@ import (
 	"errors"
 
 	"github.com/coreos/bbolt"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const (
@@ -170,7 +171,7 @@ func (b *BoltStore) GetLog(idx uint64, log *Log) error {
 	if val == nil {
 		return ErrKeyNotFound
 	}
-	return decodeMsgPack(val, log)
+	return utils.DecodeMsgPack(val, log)
 }
 
 // StoreLog is used to store a single raft log
@@ -188,7 +189,7 @@ func (b *BoltStore) StoreLogs(logs []*Log) error {
 
 	for _, log := range logs {
 		key := uint64ToBytes(log.Index)
-		val, err := encodeMsgPack(log)
+		val, err := utils.EncodeMsgPack(log)
 		if err != nil {
 			return err
 		}

@@ -209,6 +209,9 @@ func (sh *Response) Verify() (err error) {
 
 // Sign the request.
 func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
+	// set rows count
+	sh.Header.RowCount = uint64(len(sh.Payload.Rows))
+
 	// build hash in header
 	buildHash(&sh.Payload, &sh.Header.DataHash)
 

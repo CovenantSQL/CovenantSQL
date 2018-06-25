@@ -63,10 +63,10 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	b = &Block{
 		SignedHeader: &SignedHeader{
 			Header: Header{
-				Version:    0x01000000,
-				RootHash:   rootHash,
-				ParentHash: parent,
-				Timestamp:  time.Now().UTC(),
+				Version:     0x01000000,
+				GenesisHash: rootHash,
+				ParentHash:  parent,
+				Timestamp:   time.Now().UTC(),
 			},
 			Signee:    pub,
 			Signature: nil,

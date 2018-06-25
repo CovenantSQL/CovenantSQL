@@ -177,7 +177,7 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 		pendingBlock: &Block{},
 		state: &State{
 			node:   nil,
-			Head:   cfg.Genesis.SignedHeader.RootHash,
+			Head:   cfg.Genesis.SignedHeader.GenesisHash,
 			Height: -1,
 		},
 	}

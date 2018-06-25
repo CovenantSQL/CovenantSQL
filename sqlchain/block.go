@@ -32,12 +32,12 @@ import (
 
 // Header is a block header.
 type Header struct {
-	Version    int32
-	Producer   proto.NodeID
-	RootHash   hash.Hash
-	ParentHash hash.Hash
-	MerkleRoot hash.Hash
-	Timestamp  time.Time
+	Version     int32
+	Producer    proto.NodeID
+	GenesisHash hash.Hash
+	ParentHash  hash.Hash
+	MerkleRoot  hash.Hash
+	Timestamp   time.Time
 }
 
 func (h *Header) marshal() ([]byte, error) {
@@ -46,7 +46,7 @@ func (h *Header) marshal() ([]byte, error) {
 	if err := utils.WriteElements(buffer, binary.BigEndian,
 		h.Version,
 		h.Producer,
-		&h.RootHash,
+		&h.GenesisHash,
 		&h.ParentHash,
 		&h.MerkleRoot,
 		h.Timestamp,
@@ -72,7 +72,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 	if err := utils.WriteElements(buffer, binary.BigEndian,
 		s.Version,
 		s.Producer,
-		&s.RootHash,
+		&s.GenesisHash,
 		&s.ParentHash,
 		&s.MerkleRoot,
 		s.Timestamp,
@@ -91,7 +91,7 @@ func (s *SignedHeader) unmarshal(b []byte) error {
 	return utils.ReadElements(reader, binary.BigEndian,
 		&s.Version,
 		&s.Producer,
-		&s.RootHash,
+		&s.GenesisHash,
 		&s.ParentHash,
 		&s.MerkleRoot,
 		&s.Timestamp,
@@ -115,7 +115,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
 		" block = %s",
 		string(s.Producer[:]),
-		s.RootHash.String(),
+		s.GenesisHash.String(),
 		s.ParentHash.String(),
 		s.MerkleRoot.String(),
 		s.BlockHash.String(),

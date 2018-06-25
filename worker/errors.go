@@ -22,6 +22,9 @@ var (
 	// ErrInvalidRequest defines invalid request structure during request.
 	ErrInvalidRequest = errors.New("invalid request supplied")
 
+	// ErrInvalidRequestSeq defines invalid sequence no of request.
+	ErrInvalidRequestSeq = errors.New("invalid request sequence applied")
+
 	// ErrHashVerification indicates a failed hash verification.
 	ErrHashVerification = errors.New("hash verification failed")
 

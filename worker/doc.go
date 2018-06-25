@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 
+/*
+Package worker defines miner node logic for database storage and sql-chain accounting integration.
+*/
 package worker
-
-const (
-	// DBKayakRPCName defines rpc service name of database internal consensus.
-	DBKayakRPCName = "DatabaseConsensus"
-
-	// DBServiceRPCName defines rpc service name of database external query api.
-	DBServiceRPCName = "DatabaseService"
-)
-
-// TODO(xq262144) define multi-database management logic

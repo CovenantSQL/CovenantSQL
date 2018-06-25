@@ -17,17 +17,22 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
+	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
-	"gitlab.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 var (
@@ -36,19 +41,18 @@ var (
 
 // Database defines a single database instance in worker runtime.
 type Database struct {
-	cfg                *Config
-	dbID               proto.DatabaseID
-	dbMeta             *bolt.DB
-	storage            *storage.Storage
-	kayakRuntime       *kayak.Runtime
-	kayakConfig        *kayak.TwoPCConfig
-	privKey            *asymmetric.PrivateKey
-	noAckRequest       sync.Map
-	responseWaitingAck sync.Map
+	cfg          *Config
+	dbID         proto.DatabaseID
+	dbMeta       *bolt.DB
+	storage      *storage.Storage
+	kayakRuntime *kayak.Runtime
+	kayakConfig  kayak.Config
+	privKey      *asymmetric.PrivateKey
+	connSeqs     sync.Map
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *Config) (db *Database, err error) {
+func NewDatabase(cfg *Config, peers *kayak.Peers) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
@@ -60,19 +64,25 @@ func NewDatabase(cfg *Config) (db *Database, err error) {
 		return
 	}
 
-	// init kayak transport
-	// TODO(xq262144)
-
-	// init kayak config
-	// TODO(xq262144)
-
-	// create kayak runtime
-	// TODO(xq262144)
-
+	// init database
 	db = &Database{
 		cfg:     cfg,
 		dbID:    cfg.DatabaseID,
 		storage: st,
+	}
+
+	// init kayak config
+	options := ka.NewTwoPCOptions()
+	db.kayakConfig = ka.NewTwoPCConfigWithOptions(cfg.DataDir, cfg.MuxService, db, options)
+
+	// create kayak runtime
+	if db.kayakRuntime, err = ka.NewTwoPCKayak(peers, db.kayakConfig); err != nil {
+		return
+	}
+
+	// init kayak runtime
+	if err = db.kayakRuntime.Init(); err != nil {
+		return
 	}
 
 	return
@@ -101,98 +111,43 @@ func (db *Database) Ack(ack *Ack) (err error) {
 		return
 	}
 
-	// remove query response from waiting ack lists
-	// TODO(xq262144)
-	return
-}
-
-// NoAckReport defines worker nodes reporting no ack.
-func (db *Database) NoAckReport(noAck *NoAckReport) (err error) {
-	if err = noAck.Verify(); err != nil {
-		return
-	}
-	// verify no ack report
-	// record
-	// TODO(xq262144)
-	return
+	return db.saveAck(ack)
 }
 
 // Shutdown stop database handles and stop service the database.
 func (db *Database) Shutdown() (err error) {
-	// shutdown, flush bucket
-	// TODO(xq262144), close all goroutine and flush meta to disk
+	// shutdown, stop kayak
+	if err = db.kayakRuntime.Shutdown(); err != nil {
+		return
+	}
+
+	// flush meta
+	// TODO(xq262144), flush meta
+
 	return
 }
 
 // Destroy stop database instance and destroy all data/meta.
 func (db *Database) Destroy() (err error) {
 	// TODO(xq262144), destroy data
-	return
-}
-
-// Prepare implements twopc.Worker.Prepare.
-func (db *Database) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
-	// wrap storage with signature check
-	var log *storage.ExecLog
-	if log, err = db.convertRequest(wb); err != nil {
-		return
-	}
-	return db.storage.Prepare(ctx, log)
-}
-
-// Commit implements twopc.Worker.Commmit.
-func (db *Database) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
-	// wrap storage with signature check
-	var log *storage.ExecLog
-	if log, err = db.convertRequest(wb); err != nil {
-		return
-	}
-	return db.storage.Commit(ctx, log)
-}
-
-// Rollback implements twopc.Worker.Rollback.
-func (db *Database) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
-	// wrap storage with signature check
-	var log *storage.ExecLog
-	if log, err = db.convertRequest(wb); err != nil {
-		return
-	}
-	return db.storage.Rollback(ctx, log)
-}
-
-func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, err error) {
-	var req *Request
-	var ok bool
-
-	// type assert
-	if req, ok = wb.(*Request); !ok {
-		// invalid request data
-		err = ErrInvalidRequest
-		return
-	}
-
-	// verify
-	if err = req.Verify(); err != nil {
-		req = nil
-		return
-	}
-
-	// convert
-	log = new(storage.ExecLog)
-	log.ConnectionID = req.Header.ConnectionID
-	log.SeqNo = req.Header.SeqNo
-	log.Timestamp = req.Header.Timestamp.UnixNano()
-	log.Queries = make([]string, len(req.Payload.Queries))
-	copy(log.Queries, req.Payload.Queries)
 
 	return
 }
 
 func (db *Database) writeQuery(request *Request) (response *Response, err error) {
 	// call kayak runtime Process
-	// TODO(xq262144), check timestamp and connection id to anti replay
-	// TODO(xq262144), call kayak
-	return
+	var buf *bytes.Buffer
+	if buf, err = utils.EncodeMsgPack(request); err != nil {
+		return
+	}
+
+	err = db.kayakRuntime.Apply(buf.Bytes())
+
+	if err != nil {
+		return
+	}
+
+	return db.buildQueryResponse(request, []string{}, []string{}, [][]interface{}{})
 }
 
 func (db *Database) readQuery(request *Request) (response *Response, err error) {
@@ -202,27 +157,85 @@ func (db *Database) readQuery(request *Request) (response *Response, err error) 
 	var data [][]interface{}
 
 	columns, types, data, err = db.storage.Query(context.Background(), request.Payload.Queries)
+	if err != nil {
+		return
+	}
 
-	_ = columns
-	_ = types
-	_ = data
-
-	return
+	return db.buildQueryResponse(request, columns, types, data)
 }
 
-func (db *Database) buildQueryResponse() (response *Response, err error) {
+func (db *Database) buildQueryResponse(request *Request, columns []string, types []string, data [][]interface{}) (response *Response, err error) {
 	// build response
-	// TODO(xq262144)
+	response = new(Response)
+	response.Header.Request = request.Header
+	if response.Header.NodeID, err = db.getLocalNodeID(); err != nil {
+		return
+	}
+	response.Header.Timestamp = db.getLocalTime()
+	response.Header.RowCount = uint64(len(data))
+	if response.Header.Signee, err = db.getLocalPubKey(); err != nil {
+		return
+	}
+
+	// set payload
+	response.Payload.Columns = columns
+	response.Payload.DeclTypes = types
+	response.Payload.Rows = make([]ResponseRow, len(data))
+
+	for i, d := range data {
+		response.Payload.Rows[i].Values = d
+	}
+
 	// sign fields
-	// TODO(xq262144)
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = db.getLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = response.Sign(privateKey); err != nil {
+		return
+	}
+
 	// record response for future ack process
-	// TODO(xq262144)
-	// return
+	err = db.saveRequest(request)
+
 	return
 }
 
-func (db *Database) persistence() (err error) {
-	// save to meta database
-	// TODO(xq262144)
+// TODO(xq262144), following are function to be filled and revised for integration in the future
+
+func (db *Database) saveRequest(request *Request) (err error) {
+	// TODO(xq262144), to be integrated with sqlchain
 	return
+}
+
+func (db *Database) saveAck(ack *Ack) (err error) {
+	// TODO(xq262144), to be integrated with sqlchain
+	return
+}
+
+func (db *Database) getLocalTime() time.Time {
+	// TODO(xq262144), to use same time coordination logic with sqlchain
+	return time.Now().UTC()
+}
+
+func (db *Database) getLocalNodeID() (nodeID proto.NodeID, err error) {
+	// TODO(xq262144), to use refactored node id interface by kms
+	var rawNodeID []byte
+	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+	var h *hash.Hash
+	if h, err = hash.NewHash(rawNodeID); err != nil {
+		return
+	}
+	nodeID = proto.NodeID(h.String())
+	return
+}
+
+func (db *Database) getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {
+	return kms.GetLocalPublicKey()
+}
+
+func (db *Database) getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
+	return kms.GetLocalPrivateKey()
 }

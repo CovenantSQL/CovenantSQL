@@ -17,13 +17,20 @@
 package worker
 
 import (
+	"time"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
 // Config defines the database config.
 type Config struct {
-	DatabaseID proto.DatabaseID
-	DataDir    string
-	PrivKey    *asymmetric.PrivateKey
+	DatabaseID      proto.DatabaseID
+	DataDir         string
+	PrivKey         *asymmetric.PrivateKey
+	Server          *rpc.Server
+	MuxService      *kt.ETLSTransportService
+	MaxWriteTimeGap time.Duration
 }

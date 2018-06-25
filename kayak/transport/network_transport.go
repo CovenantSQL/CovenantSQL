@@ -193,7 +193,12 @@ func (r *NetworkResponse) get() []byte {
 	return r.Response
 }
 
-// Request implements Transport.Request method
+// Init implements kayak.Transport.Init method
+func (t *NetworkTransport) Init() error {
+	return nil
+}
+
+// Request implements kayak.Transport.Request method
 func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
 	method string, log *kayak.Log) (response []byte, err error) {
 	conn, err := t.config.StreamLayer.Dial(ctx, nodeID)
@@ -217,9 +222,14 @@ func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
 	return res.get(), err
 }
 
-// Process implements Transport.Process method
+// Process implements kayak.Transport.Process method
 func (t *NetworkTransport) Process() <-chan kayak.Request {
 	return t.queue
+}
+
+// Shutdown implements kayak.Transport.Shutdown method
+func (t *NetworkTransport) Shutdown() error {
+	return nil
 }
 
 func (t *NetworkTransport) enqueue(req *NetworkRequest) {

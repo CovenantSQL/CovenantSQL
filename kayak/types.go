@@ -299,11 +299,15 @@ type Request interface {
 
 // Transport adapter for abstraction.
 type Transport interface {
+	Init() error
+
 	// Request
 	Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error)
 
 	// Process
 	Process() <-chan Request
+
+	Shutdown() error
 }
 
 // Runner adapter for different consensus protocols including Eventual Consistency/2PC/3PC.

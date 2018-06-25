@@ -152,6 +152,12 @@ func TestETLSTransport(t *testing.T) {
 			mock2.server.Serve()
 		}()
 
+		// init transport
+		err = mock1.transport.Init()
+		So(err, ShouldBeNil)
+		err = mock2.transport.Init()
+		So(err, ShouldBeNil)
+
 		testLog := testLogFixture([]byte("test request"))
 
 		wgRequest.Add(1)
@@ -175,6 +181,12 @@ func TestETLSTransport(t *testing.T) {
 		}()
 
 		wgRequest.Wait()
+
+		// shutdown transport
+		err = mock1.transport.Shutdown()
+		So(err, ShouldBeNil)
+		err = mock2.transport.Shutdown()
+		So(err, ShouldBeNil)
 
 		// stop
 		mock1.server.Listener.Close()

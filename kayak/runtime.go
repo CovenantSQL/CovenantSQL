@@ -72,16 +72,21 @@ func NewRuntime(config Config, peers *Peers) (*Runtime, error) {
 }
 
 // Init defines the common init logic.
-func (r *Runtime) Init() error {
+func (r *Runtime) Init() (err error) {
 	// init log store
-	logStore, err := NewBoltStore(filepath.Join(r.config.RootDir, FileStorePath))
-	if err != nil {
+	var logStore *BoltStore
+
+	if logStore, err = NewBoltStore(filepath.Join(r.config.RootDir, FileStorePath)); err != nil {
 		return fmt.Errorf("new bolt store: %s", err.Error())
 	}
 
+	// call transport init
+	if err = r.config.Transport.Init(); err != nil {
+		return
+	}
+
 	// call runner init
-	err = r.config.Runner.Init(r.runnerConfig, r.peers, logStore, logStore, r.config.Transport)
-	if err != nil {
+	if err = r.config.Runner.Init(r.runnerConfig, r.peers, logStore, logStore, r.config.Transport); err != nil {
 		logStore.Close()
 		return fmt.Errorf("%s runner init: %s", r.config.LocalID, err.Error())
 	}
@@ -91,15 +96,17 @@ func (r *Runtime) Init() error {
 }
 
 // Shutdown defines common shutdown logic.
-func (r *Runtime) Shutdown() error {
-	err := r.config.Runner.Shutdown(true)
-	if err != nil {
+func (r *Runtime) Shutdown() (err error) {
+	if err = r.config.Runner.Shutdown(true); err != nil {
 		return fmt.Errorf("%s runner shutdown: %s", r.config.LocalID, err.Error())
 	}
 
+	if err = r.config.Transport.Shutdown(); err != nil {
+		return
+	}
+
 	if r.logStore != nil {
-		err = r.logStore.Close()
-		if err != nil {
+		if err = r.logStore.Close(); err != nil {
 			return fmt.Errorf("shutdown bolt store: %s", err.Error())
 		}
 

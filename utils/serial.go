@@ -30,6 +30,7 @@ import (
 const (
 	pooledBufferLength    = hash.HashSize
 	maxPooledBufferNumber = 1024
+	maxSliceLength        = 4 << 10
 	maxBufferLength       = 1 << 20
 )
 
@@ -43,6 +44,10 @@ var (
 	// ErrBufferLengthExceedLimit indicates that a string length exceeds limit during
 	// deserialization.
 	ErrBufferLengthExceedLimit = errors.New("buffer length exceeds limit")
+
+	// ErrSliceLengthExceedLimit indicates that a slice length exceeds limit during
+	// deserialization.
+	ErrSliceLengthExceedLimit = errors.New("slice length exceeds limit")
 
 	// ErrInsufficientBuffer indicates that the given buffer space is insufficient during
 	// deserialization.
@@ -129,7 +134,8 @@ func (s simpleSerializer) readUint64(r io.Reader, order binary.ByteOrder) (ret u
 // | len |             string              |
 // +-----+---------------------------------+
 //
-func (s simpleSerializer) readString(r io.Reader, order binary.ByteOrder, ret *string) (err error) {
+func (s simpleSerializer) readString(r io.Reader, order binary.ByteOrder, ret *string) (
+	err error) {
 	lenBuffer := s.borrowBuffer(4)
 	defer s.returnBuffer(lenBuffer)
 
@@ -175,6 +181,7 @@ func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]
 		err = ErrBufferLengthExceedLimit
 		return
 	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
 		*ret = nil
 		return
 	}
@@ -206,6 +213,45 @@ func (s simpleSerializer) readFixedSizeBytes(r io.Reader, lenToRead int, ret []b
 	return
 }
 
+// readStrings reads strings from reader with the following format:
+//
+// 0          4       8          8+len_0
+// +----------+-------+----------+---------+-------+----------+
+// | sliceLen | len_0 | string_0 |   ...   | len_n | string_n |
+// +----------+-------+----------+---------+-------+----------+
+//
+func (s simpleSerializer) readStrings(r io.Reader, order binary.ByteOrder, ret *[]string) (
+	err error) {
+	var retLen uint32
+
+	if retLen, err = s.readUint32(r, order); err != nil {
+		return
+	}
+
+	if retLen > maxSliceLength {
+		err = ErrSliceLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	if *ret == nil || cap(*ret) < int(retLen) {
+		*ret = make([]string, retLen)
+	} else {
+		*ret = (*ret)[:retLen]
+	}
+
+	for i := range *ret {
+		if err = s.readString(r, order, &((*ret)[i])); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 func (s simpleSerializer) writeUint8(w io.Writer, val uint8) (err error) {
 	buffer := s.borrowBuffer(1)
 	defer s.returnBuffer(buffer)
@@ -215,7 +261,8 @@ func (s simpleSerializer) writeUint8(w io.Writer, val uint8) (err error) {
 	return
 }
 
-func (s simpleSerializer) writeUint16(w io.Writer, order binary.ByteOrder, val uint16) (err error) {
+func (s simpleSerializer) writeUint16(w io.Writer, order binary.ByteOrder, val uint16) (
+	err error) {
 	buffer := s.borrowBuffer(2)
 	defer s.returnBuffer(buffer)
 
@@ -224,7 +271,8 @@ func (s simpleSerializer) writeUint16(w io.Writer, order binary.ByteOrder, val u
 	return
 }
 
-func (s simpleSerializer) writeUint32(w io.Writer, order binary.ByteOrder, val uint32) (err error) {
+func (s simpleSerializer) writeUint32(w io.Writer, order binary.ByteOrder, val uint32) (
+	err error) {
 	buffer := s.borrowBuffer(4)
 	defer s.returnBuffer(buffer)
 
@@ -233,7 +281,8 @@ func (s simpleSerializer) writeUint32(w io.Writer, order binary.ByteOrder, val u
 	return
 }
 
-func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val uint64) (err error) {
+func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val uint64) (
+	err error) {
 	buffer := s.borrowBuffer(8)
 	defer s.returnBuffer(buffer)
 
@@ -249,7 +298,8 @@ func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val u
 // | len |             string              |
 // +-----+---------------------------------+
 //
-func (s simpleSerializer) writeString(w io.Writer, order binary.ByteOrder, val *string) (err error) {
+func (s simpleSerializer) writeString(w io.Writer, order binary.ByteOrder, val *string) (
+	err error) {
 	buffer := s.borrowBuffer(4 + len(*val))
 	defer s.returnBuffer(buffer)
 
@@ -286,6 +336,28 @@ func (s simpleSerializer) writeFixedSizeBytes(w io.Writer, lenToPut int, val []b
 	}
 
 	_, err = w.Write(val)
+	return
+}
+
+// writeStrings writes strings to writer with the following format:
+//
+// 0          4       8          8+len_0
+// +----------+-------+----------+---------+-------+----------+
+// | sliceLen | len_0 | string_0 |   ...   | len_n | string_n |
+// +----------+-------+----------+---------+-------+----------+
+//
+func (s simpleSerializer) writeStrings(w io.Writer, order binary.ByteOrder, val []string) (
+	err error) {
+	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return
+	}
+
+	for i := range val {
+		if err = s.writeString(w, order, &val[i]); err != nil {
+			break
+		}
+	}
+
 	return
 }
 
@@ -374,6 +446,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 		} else {
 			*e = nil
 		}
+
+	case *[]string:
+		err = serializer.readStrings(r, order, e)
 
 	default:
 		return binary.Read(r, order, element)
@@ -518,6 +593,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 		} else {
 			err = serializer.writeBytes(w, order, (*e).Serialize())
 		}
+
+	case []string:
+		err = serializer.writeStrings(w, order, e)
+
+	case *([]string):
+		err = serializer.writeStrings(w, order, *e)
 
 	default:
 		return binary.Write(w, order, element)

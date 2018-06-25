@@ -58,6 +58,7 @@ type testStruct struct {
 	HashField      hash.Hash
 	PublicKeyField *asymmetric.PublicKey
 	SignatureField *asymmetric.Signature
+	StringsField   []string
 }
 
 func (s *testStruct) randomize() {
@@ -81,7 +82,7 @@ func (s *testStruct) randomize() {
 	slen = rand.Intn(2 * pooledBufferLength)
 
 	if slen == 0 {
-		s.BytesField = nil
+		s.BytesField = nil // Watch out, a zero-length slice will is not deep equal to nil
 	} else {
 		s.BytesField = make([]byte, slen)
 		rand.Read(s.BytesField)
@@ -110,6 +111,22 @@ func (s *testStruct) randomize() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Randomize strings field
+	slen = rand.Intn(1024)
+
+	if slen == 0 {
+		s.StringsField = nil // Watch out, a zero-length slice will is not deep equal to nil
+	} else {
+		s.StringsField = make([]string, slen)
+	}
+
+	for i := range s.StringsField {
+		slen = rand.Intn(2 * pooledBufferLength)
+		buff = make([]byte, slen)
+		rand.Read(buff)
+		s.StringsField[i] = string(buff)
+	}
 }
 
 func (s *testStruct) MarshalBinary() ([]byte, error) {
@@ -132,6 +149,7 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.HashField,
 		s.PublicKeyField,
 		s.SignatureField,
+		s.StringsField,
 	); err != nil {
 		return nil, err
 	}
@@ -159,6 +177,7 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
+		&s.StringsField,
 	); err != nil {
 		return nil, err
 	}
@@ -185,6 +204,7 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
+		&s.StringsField,
 	)
 }
 
@@ -279,6 +299,45 @@ func TestSerialization(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestLengthExceedLimitError(t *testing.T) {
+	writeDummyLength := func(l uint32) ([]byte, error) {
+		buffer := bytes.NewBuffer(nil)
+
+		if err := WriteElements(buffer, binary.BigEndian, l); err != nil {
+			return nil, err
+		}
+
+		return buffer.Bytes(), nil
+	}
+
+	var buffer []byte
+	var err error
+
+	buffer, err = writeDummyLength(maxSliceLength + 1)
+	err = func(b []byte) error {
+		reader := bytes.NewReader(b)
+		return ReadElements(reader, binary.BigEndian, &[]string{})
+	}(buffer)
+
+	if err == ErrSliceLengthExceedLimit {
+		t.Logf("Error occurred as expected: %v", err)
+	} else {
+		t.Fatalf("Unexpected error type: %v", err)
+	}
+
+	buffer, err = writeDummyLength(maxBufferLength + 1)
+	err = func(b []byte) error {
+		reader := bytes.NewReader(b)
+		return ReadElements(reader, binary.BigEndian, &[]byte{})
+	}(buffer)
+
+	if err == ErrBufferLengthExceedLimit {
+		t.Logf("Error occurred as expected: %v", err)
+	} else {
+		t.Fatalf("Unexpected error type: %v", err)
+	}
 }
 
 func BenchmarkMarshalBinary(b *testing.B) {

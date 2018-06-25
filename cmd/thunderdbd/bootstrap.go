@@ -60,24 +60,6 @@ func init() {
 	flag.StringVar(&clientOperation, "operation", "read", "client operation")
 }
 
-func main() {
-	log.SetLevel(log.DebugLevel)
-	flag.Parse()
-
-	if clientMode {
-		if err := runClient(); err != nil {
-			log.Fatalf("run client failed: %v", err.Error())
-		} else {
-			log.Infof("run client success")
-		}
-		return
-	}
-
-	if err := runNode(nodeOffset); err != nil {
-		log.Fatalf("run kayak failed: %v", err.Error())
-	}
-}
-
 func runNode(idx int) (err error) {
 	rootPath := fmt.Sprintf(nodeDirPattern, idx)
 	pubKeyStorePath := filepath.Join(rootPath, pubKeyStoreFile)

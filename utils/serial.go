@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"encoding"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -451,6 +452,18 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 		err = serializer.readStrings(r, order, e)
 
 	default:
+		// Fallback to BinaryUnmarshaler interface
+		if i, ok := e.(encoding.BinaryUnmarshaler); ok {
+			var buffer []byte
+
+			if err = serializer.readBytes(r, order, &buffer); err != nil {
+				return
+			}
+
+			return i.UnmarshalBinary(buffer)
+		}
+
+		// Fallback to default read method
 		return binary.Read(r, order, element)
 	}
 
@@ -601,6 +614,18 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 		err = serializer.writeStrings(w, order, *e)
 
 	default:
+		// Fallback to BinaryMarshaler interface
+		if i, ok := e.(encoding.BinaryMarshaler); ok {
+			var data []byte
+
+			if data, err = i.MarshalBinary(); err == nil {
+				err = serializer.writeBytes(w, order, data)
+			}
+
+			return
+		}
+
+		// Fallback to default write method
 		return binary.Write(w, order, element)
 	}
 

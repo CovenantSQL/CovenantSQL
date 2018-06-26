@@ -24,6 +24,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // AckHeader defines client ack entity.
@@ -152,4 +153,33 @@ func (a *Ack) SignedResponseHeader() *SignedResponseHeader {
 
 func (a *Ack) SignedAckHeader() *SignedAckHeader {
 	return &a.Header
+}
+
+func (h *SignedAckHeader) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		&h.Response,
+		&h.NodeID,
+		h.Timestamp,
+		&h.HeaderHash,
+		h.Signee,
+		h.Signature,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (h *SignedAckHeader) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&h.Response,
+		&h.NodeID,
+		&h.Timestamp,
+		&h.HeaderHash,
+		&h.Signee,
+		&h.Signature,
+	)
 }

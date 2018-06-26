@@ -24,6 +24,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // QueryType enumerates available query type, currently read/write.
@@ -188,4 +189,62 @@ func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	buildHash(&r.Payload, &r.Header.QueriesHash)
 
 	return r.Header.Sign(signer)
+}
+
+func (h *SignedRequestHeader) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		int32(h.QueryType),
+		&h.NodeID,
+		h.ConnectionID,
+		h.SeqNo,
+		h.Timestamp,
+		h.BatchCount,
+		&h.QueriesHash,
+		&h.HeaderHash,
+		h.Signee,
+		h.Signature,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (h *SignedRequestHeader) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		(*int32)(&h.QueryType),
+		&h.NodeID,
+		&h.ConnectionID,
+		&h.SeqNo,
+		&h.Timestamp,
+		&h.BatchCount,
+		&h.QueriesHash,
+		&h.HeaderHash,
+		&h.Signee,
+		&h.Signature,
+	)
+}
+
+func (r *Request) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		&r.Header,
+		r.Payload,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (r *Request) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&r.Header,
+		&r.Payload,
+	)
 }

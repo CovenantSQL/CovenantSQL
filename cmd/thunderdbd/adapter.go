@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
-	"github.com/go-errors/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/consistent"

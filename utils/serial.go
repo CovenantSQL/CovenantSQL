@@ -293,7 +293,7 @@ func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val u
 
 // writeString writes string to writer with the following format:
 //
-//  0     4                                 4+len
+// 0     4                                 4+len
 // +-----+---------------------------------+
 // | len |             string              |
 // +-----+---------------------------------+

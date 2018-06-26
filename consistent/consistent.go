@@ -68,6 +68,7 @@ type Consistent struct {
 	sortedHashes     NodeKeys
 	NumberOfReplicas int
 	count            int64
+	persist          Persistence
 	sync.RWMutex
 }
 
@@ -88,32 +89,30 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 	}
 
 	// Create new public key store
-	err = kms.InitPublicKeyStore(storePath, BPNode)
-	if err != nil {
-		log.Errorf("init public keystore failed: %s", err)
-		return
-	}
-	IDs, err := kms.GetAllNodeID()
-	if err != nil {
-		log.Errorf("get all node id failed: %s", err)
-		return
-	}
+	//err = kms.InitPublicKeyStore(storePath, BPNode)
+	//if err != nil {
+	//	log.Errorf("init public keystore failed: %s", err)
+	//	return
+	//}
+	//IDs, err := kms.GetAllNodeID()
+	//if err != nil {
+	//	log.Errorf("get all node id failed: %s", err)
+	//	return
+	//}
 	c = &Consistent{
 		//TODO(auxten): reduce NumberOfReplicas
 		NumberOfReplicas: 20,
 		circle:           make(map[proto.NodeKey]proto.Node),
+		persist:          new(KMSStorage),
 	}
-
-	if IDs != nil {
-		for _, id := range IDs {
-			node, err := kms.GetNodeInfo(id)
-			if err != nil {
-				// this may happen, just continue
-				log.Errorf("get node info for %s failed: %s", id, err)
-				continue
-			}
-			c.add(*node)
-		}
+	c.persist.Init(storePath, BPNode)
+	nodes, err := c.persist.GetAllNodeInfo()
+	if err != nil {
+		log.Errorf("get all node id failed: %s", err)
+		return
+	}
+	for _, n := range nodes[:] {
+		c.add(n)
 	}
 
 	return
@@ -134,7 +133,7 @@ func (c *Consistent) Add(node proto.Node) (err error) {
 
 // need c.Lock() before calling
 func (c *Consistent) add(node proto.Node) (err error) {
-	err = kms.SetNode(&node)
+	err = c.persist.SetNode(&node)
 	if err != nil {
 		log.Errorf("set node info failed: %s", err)
 		return
@@ -156,7 +155,7 @@ func (c *Consistent) Remove(node proto.NodeID) (err error) {
 
 // need c.Lock() before calling
 func (c *Consistent) remove(nodeID proto.NodeID) (err error) {
-	err = kms.DelNode(nodeID)
+	err = c.persist.DelNode(nodeID)
 	if err != nil {
 		log.Errorf("del node failed: %s", err)
 		return
@@ -176,7 +175,7 @@ func (c *Consistent) remove(nodeID proto.NodeID) (err error) {
 func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	err = kms.ResetBucket()
+	err = c.persist.Reset()
 	if err != nil {
 		log.Errorf("reset bucket failed: %s", err)
 		return

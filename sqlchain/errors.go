@@ -56,4 +56,7 @@ var (
 
 	// ErrBlockTimestampOutOfPeriod indicates a block producing timestamp verification failure.
 	ErrBlockTimestampOutOfPeriod = errors.New("block timestamp is out of producing period")
+
+	// ErrQueryExists indicates that a query already exists in memory index during adding.
+	ErrQueryExists = errors.New("query already exists in index")
 )

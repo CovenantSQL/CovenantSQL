@@ -63,7 +63,7 @@ func TestSingleDatabase(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create file
-		cfg := &Config{
+		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
 			MuxService:      service,
@@ -291,7 +291,7 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create file
-		cfg := &Config{
+		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
 			MuxService:      service,

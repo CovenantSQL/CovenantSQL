@@ -35,7 +35,7 @@ import (
 
 // Database defines a single database instance in worker runtime.
 type Database struct {
-	cfg          *Config
+	cfg          *DBConfig
 	dbID         proto.DatabaseID
 	storage      *storage.Storage
 	kayakRuntime *kayak.Runtime
@@ -44,7 +44,7 @@ type Database struct {
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *Config, peers *kayak.Peers, st *storage.Storage) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *kayak.Peers, st *storage.Storage) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return

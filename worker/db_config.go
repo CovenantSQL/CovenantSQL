@@ -23,8 +23,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-// Config defines the database config.
-type Config struct {
+// DBConfig defines the database config.
+type DBConfig struct {
 	DatabaseID      proto.DatabaseID
 	DataDir         string
 	MuxService      *kt.ETLSTransportService

@@ -30,7 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-// Log entries are replicated to all members of the Raft cluster
+// Log entries are replicated to all members of the Kayak cluster
 // and form the heart of the replicated state machine.
 type Log struct {
 	// Index holds the index of the log entry.
@@ -235,7 +235,7 @@ func (c *Peers) Serialize() []byte {
 	return buffer.Bytes()
 }
 
-// Sign generates signature
+// Sign generates signature.
 func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 	sig, err := signer.Sign(c.Serialize())
 
@@ -248,7 +248,7 @@ func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
-// Verify verify signature
+// Verify verify signature.
 func (c *Peers) Verify() bool {
 	return c.Signature.Verify(c.Serialize(), c.PubKey)
 }
@@ -289,7 +289,7 @@ type Config interface {
 	GetRuntimeConfig() *RuntimeConfig
 }
 
-// Request defines a transport request payload
+// Request defines a transport request payload.
 type Request interface {
 	GetPeerNodeID() proto.NodeID
 	GetMethod() string
@@ -299,11 +299,15 @@ type Request interface {
 
 // Transport adapter for abstraction.
 type Transport interface {
+	Init() error
+
 	// Request
 	Request(ctx context.Context, nodeID proto.NodeID, method string, log *Log) ([]byte, error)
 
 	// Process
 	Process() <-chan Request
+
+	Shutdown() error
 }
 
 // Runner adapter for different consensus protocols including Eventual Consistency/2PC/3PC.

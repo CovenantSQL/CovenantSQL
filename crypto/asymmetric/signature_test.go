@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -90,6 +91,44 @@ func TestSign(t *testing.T) {
 				targetSig, sig)
 		}
 	}
+}
+
+func TestSignature_MarshalBinary(t *testing.T) {
+	Convey("marshal unmarshal signature", t, func() {
+		// generate
+		privateKey, publicKey, _ := GenSecp256k1KeyPair()
+
+		// random data
+		buf := make([]byte, 16)
+		rand.Read(buf)
+
+		// sign
+		var sign *Signature
+		sign, _ = privateKey.Sign(buf)
+
+		var err error
+		keyBytes, err := sign.MarshalBinary()
+		So(err, ShouldBeNil)
+
+		sign2 := new(Signature)
+		err = sign2.UnmarshalBinary(keyBytes)
+		So(err, ShouldBeNil)
+
+		So(sign2.Verify(buf, publicKey), ShouldBeTrue)
+	})
+
+	Convey("test marshal unmarshal nil value", t, func() {
+		var sig *Signature
+		var err error
+
+		// nil value marshal
+		_, err = sig.MarshalBinary()
+		So(err, ShouldNotBeNil)
+
+		// nil value unmarshal
+		err = sig.UnmarshalBinary([]byte{})
+		So(err, ShouldNotBeNil)
+	})
 }
 
 func BenchmarkGenKey(b *testing.B) {

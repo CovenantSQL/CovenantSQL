@@ -275,6 +275,14 @@ func TestTransport(t *testing.T) {
 		t2 := NewTransport(config2)
 		testLog := testLogFixture([]byte("test request"))
 
+		var err error
+
+		// init
+		err = t1.Init()
+		So(err, ShouldBeNil)
+		err = t2.Init()
+		So(err, ShouldBeNil)
+
 		var wg sync.WaitGroup
 
 		wg.Add(1)
@@ -299,8 +307,11 @@ func TestTransport(t *testing.T) {
 
 		wg.Wait()
 
-		t1.Close()
-		t2.Close()
+		// shutdown transport
+		err = t1.Shutdown()
+		So(err, ShouldBeNil)
+		err = t2.Shutdown()
+		So(err, ShouldBeNil)
 	})
 }
 

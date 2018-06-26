@@ -74,6 +74,11 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, st *storage.Storage) (db *Da
 	return
 }
 
+// UpdatePeers defines peers update query interface.
+func (db *Database) UpdatePeers(peers *kayak.Peers) error {
+	return db.kayakRuntime.UpdatePeers(peers)
+}
+
 // Query defines database query interface.
 func (db *Database) Query(request *Request) (response *Response, err error) {
 	if err = request.Verify(); err != nil {

@@ -78,10 +78,10 @@ func TestGetPubKeyNonce(t *testing.T) {
 		log.Infof("privateKey: %x", privateKey.Serialize())
 		log.Infof("publicKey: %x", publicKey.Serialize())
 
-		nonce := GetPubKeyNonce(publicKey, 10, 200*time.Millisecond, nil)
+		nonce := GetPubKeyNonce(publicKey, 20, 500*time.Millisecond, nil)
 		log.Infof("nonce: %v", nonce)
 		// sometimes nonce difficulty can be little bit higher than expected
-		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 20)
+		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 120)
 	})
 
 }

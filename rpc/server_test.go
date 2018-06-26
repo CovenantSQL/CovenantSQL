@@ -26,6 +26,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -146,7 +147,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, true)
+	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
@@ -184,7 +185,7 @@ func TestEncPingFindValue(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
-	dht, err := route.NewDHTService(PubKeyStorePath, true)
+	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
 	server, err := NewServerWithService(ServiceMap{"DHT": dht})
 	if err != nil {
@@ -208,9 +209,8 @@ func TestEncPingFindValue(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	proto.NewNodeIDDifficultyTimeout = 100 * time.Millisecond
 	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo()
+	node1.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqA := &proto.PingReq{
 		Node: *node1,
@@ -224,7 +224,7 @@ func TestEncPingFindValue(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	node2 := proto.NewNode()
-	node2.InitNodeCryptoInfo()
+	node2.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqB := &proto.PingReq{
 		Node: *node2,

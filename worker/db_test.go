@@ -25,6 +25,7 @@ import (
 
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -498,7 +499,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 
 	// init dht
 	pubKeyStoreFile := filepath.Join(d, "pubkey.store")
-	dht, err = route.NewDHTService(pubKeyStoreFile, true)
+	dht, err = route.NewDHTService(pubKeyStoreFile, new(consistent.KMSStorage), true)
 	if err != nil {
 		return
 	}

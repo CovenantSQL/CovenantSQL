@@ -16,5 +16,5 @@
 
 /*
 Package kayak is a simple configurable multi-purpose consensus sdk.
- */
+*/
 package kayak

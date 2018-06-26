@@ -18,6 +18,7 @@ package utils
 
 import (
 	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 )
 

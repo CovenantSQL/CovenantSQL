@@ -86,6 +86,7 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	InitLocalKeyStore()
 	privateKey, err = LoadPrivateKey(privateKeyPath, masterKey)
 	if err != nil {
+		log.Infof("load private key failed: %s", err)
 		if err == ErrNotKeyFile {
 			log.Errorf("not a valid private key file: %s", privateKeyPath)
 			return

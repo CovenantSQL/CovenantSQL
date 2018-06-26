@@ -272,6 +272,32 @@ func (s *Storage) Query(ctx context.Context, queries []string) (columns []string
 	return
 }
 
+// Exec implements write query feature.
+func (s *Storage) Exec(ctx context.Context, queries []string) (rowsAffected int64, err error) {
+	if len(queries) == 0 {
+		return
+	}
+
+	var tx *sql.Tx
+	var txOptions = &sql.TxOptions{
+		ReadOnly: false,
+	}
+
+	if tx, err = s.db.BeginTx(ctx, txOptions); err != nil {
+		return
+	}
+
+	defer tx.Rollback()
+	var result sql.Result
+	if result, err = tx.Exec(queries[0]); err != nil {
+		return
+	}
+	tx.Commit()
+
+	rowsAffected, err = result.RowsAffected()
+	return
+}
+
 // Close implements database safe close feature.
 func (s *Storage) Close() (err error) {
 	return s.db.Close()

@@ -74,14 +74,14 @@ func TestDailToNode(t *testing.T) {
 		defer os.Remove(publicKeyStore)
 		defer os.Remove(privateKey)
 		kms.InitLocalKeyStore()
-		c, err := DialToNode(proto.NodeID(kms.BPNodeID))
+		c, err := DialToNode(kms.BPNodeID)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		publicKeyBytes, _ := hex.DecodeString(kms.BPPublicKeyStr)
 		kms.BPPublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
 		BPNode := &proto.Node{
-			ID:        proto.NodeID(kms.BPNodeID),
+			ID:        kms.BPNodeID,
 			Addr:      "",
 			PublicKey: kms.BPPublicKey,
 			Nonce:     kms.BPNonce,
@@ -94,14 +94,14 @@ func TestDailToNode(t *testing.T) {
 
 		kms.InitLocalKeyPair(privateKey, []byte(pass))
 		route.InitResolver()
-		c, err = DialToNode(proto.NodeID(kms.BPNodeID))
+		c, err = DialToNode(kms.BPNodeID)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		l, _ := net.Listen("tcp", "127.0.0.1:0")
 
 		route.SetNodeAddr(&kms.BPRawNodeID, l.Addr().String())
-		c, err = DialToNode(proto.NodeID(kms.BPNodeID))
+		c, err = DialToNode(kms.BPNodeID)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 	})

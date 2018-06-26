@@ -58,7 +58,7 @@ func TestDB(t *testing.T) {
 	publicKeyBytes, _ := hex.DecodeString(BPPublicKeyStr)
 	BPPublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
 	BPNode := &proto.Node{
-		ID:        proto.NodeID(BPNodeID),
+		ID:        BPNodeID,
 		Addr:      "",
 		PublicKey: BPPublicKey,
 		Nonce:     BPNonce,
@@ -71,9 +71,9 @@ func TestDB(t *testing.T) {
 		InitPublicKeyStore(dbFile, BPNode)
 		So(pks.bucket, ShouldNotBeNil)
 
-		nodeInfo, err := GetNodeInfo(proto.NodeID(BPNodeID))
+		nodeInfo, err := GetNodeInfo(BPNodeID)
 		log.Debugf("nodeInfo %v", nodeInfo)
-		pubk, err := GetPublicKey(proto.NodeID(BPNodeID))
+		pubk, err := GetPublicKey(BPNodeID)
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		So(pubk.IsEqual(BPPublicKey), ShouldBeTrue)
@@ -91,10 +91,10 @@ func TestDB(t *testing.T) {
 		err = setNode(node2)
 		So(err, ShouldBeNil)
 
-		err = SetPublicKey(proto.NodeID(BPNodeID), BPNonce, BPPublicKey)
+		err = SetPublicKey(BPNodeID, BPNonce, BPPublicKey)
 		So(err, ShouldBeNil)
 
-		err = SetPublicKey(proto.NodeID(BPNodeID), cpuminer.Uint256{}, BPPublicKey)
+		err = SetPublicKey(BPNodeID, cpuminer.Uint256{}, BPPublicKey)
 		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
 
 		err = SetPublicKey(proto.NodeID("0"+BPNodeID), BPNonce, BPPublicKey)
@@ -115,7 +115,7 @@ func TestDB(t *testing.T) {
 		So(IDs, ShouldHaveLength, 3)
 		So(IDs, ShouldContain, proto.NodeID("node1"))
 		So(IDs, ShouldContain, proto.NodeID("node2"))
-		So(IDs, ShouldContain, proto.NodeID(BPNodeID))
+		So(IDs, ShouldContain, BPNodeID)
 
 		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldBeNil)

@@ -228,6 +228,18 @@ func TestStorage(t *testing.T) {
 	// test non-read query
 	columns, types, data, err = st.Query(context.Background(), []string{"DELETE FROM `kv` WHERE `value` IS NULL"})
 
+	affected, err := st.Exec(context.Background(), []string{"INSERT OR REPLACE INTO `kv` VALUES ('k4', 'v4')"})
+	if err != nil || affected != 1 {
+		t.Fatalf("Exec INSERT failed: %v", err)
+	}
+	affected, err = st.Exec(context.Background(), []string{"DELETE FROM `kv` WHERE `key`='k4'"})
+	if err != nil || affected != 1 {
+		t.Fatalf("Exec DELETE failed: %v", err)
+	}
+	affected, err = st.Exec(context.Background(), []string{"DELETE FROM `kv` WHERE `key`='noexist'"})
+	if err != nil || affected != 0 {
+		t.Fatalf("Exec DELETE failed: %v", err)
+	}
 	// FIXME(xq262144), storage should return err on non-read query
 
 	// test again

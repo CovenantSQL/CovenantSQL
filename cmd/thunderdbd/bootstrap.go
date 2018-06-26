@@ -28,21 +28,20 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	listenHost          = "127.0.0.1"
-	listenAddrPattern   = listenHost + ":%v"
-	nodeDirPattern      = "./node_%v"
-	pubKeyStoreFile     = "public.keystore"
-	privateKeyFile      = "private.key"
-	privateKeyMasterKey = "abc"
-	kayakServiceName    = "kayak"
-	dbServiceName       = "Database"
-	dbFileName          = "storage.db"
+	listenHost       = "127.0.0.1"
+	nodeDirPattern   = "./node_%v"
+	pubKeyStoreFile  = "public.keystore"
+	privateKeyFile   = "private.key"
+	kayakServiceName = "kayak"
+	dhtServiceName   = "DHT"
+	dhtFileName      = "dht.db"
 )
 
 var (
@@ -50,21 +49,20 @@ var (
 	clientMode      bool
 	nodeOffset      int
 	clientOperation string
-	payloadCodec    PayloadCodec
 )
 
 func init() {
 	flag.BoolVar(&genConf, "generate", false, "run conf generation")
 	flag.BoolVar(&clientMode, "client", false, "run as client")
 	flag.IntVar(&nodeOffset, "nodeOffset", 0, "node offset in peers conf")
-	flag.StringVar(&clientOperation, "operation", "read", "client operation")
+	flag.StringVar(&clientOperation, "operation", "FindValue", "client operation")
 }
 
 func runNode(idx int) (err error) {
 	rootPath := fmt.Sprintf(nodeDirPattern, idx)
 	pubKeyStorePath := filepath.Join(rootPath, pubKeyStoreFile)
 	privateKeyPath := filepath.Join(rootPath, privateKeyFile)
-	dbFile := filepath.Join(rootPath, dbFileName)
+	dbFile := filepath.Join(rootPath, dhtFileName)
 
 	// read master key
 	fmt.Print("Type in Master key to continue: ")
@@ -84,6 +82,7 @@ func runNode(idx int) (err error) {
 	log.Infof("init peers")
 	nodes, peers, err := initNodePeers(idx, pubKeyStorePath)
 	if err != nil {
+		log.Errorf("init nodes and peers failed: %s", err)
 		return
 	}
 
@@ -93,13 +92,15 @@ func runNode(idx int) (err error) {
 	// create server
 	log.Infof("create server")
 	if service, server, err = createServer(privateKeyPath, pubKeyStorePath, masterKey, (*nodes)[idx].Addr); err != nil {
+		log.Errorf("create server failed: %s", err)
 		return
 	}
 
 	// init storage
 	log.Infof("init storage")
-	var st *Storage
+	var st *LocalStorage
 	if st, err = initStorage(dbFile); err != nil {
+		log.Errorf("init storage failed: %s", err)
 		return
 	}
 
@@ -107,14 +108,32 @@ func runNode(idx int) (err error) {
 	log.Infof("init kayak runtime")
 	var kayakRuntime *kayak.Runtime
 	if _, kayakRuntime, err = initKayakTwoPC(rootPath, &(*nodes)[idx], peers, st, service); err != nil {
+		log.Errorf("init kayak runtime failed: %s", err)
 		return
 	}
 
-	// register service rpc
-	server.RegisterService(dbServiceName, &StubServer{
+	// init kayak and consistent
+	log.Infof("init kayak and consistent runtime")
+	kayak := &KayakKVServer{
 		Runtime: kayakRuntime,
 		Storage: st,
-	})
+	}
+	dht, err := route.NewDHTService(dbFile, kayak, false)
+	if err != nil {
+		log.Errorf("init consistent hash failed: %s", err)
+		return
+	}
+
+	// set consistent handler to kayak storage
+	kayak.Storage.consistent = dht.Consistent
+
+	// register service rpc
+	log.Infof("register dht service rpc")
+	err = server.RegisterService(dhtServiceName, dht)
+	if err != nil {
+		log.Errorf("register dht service failed: %s", err)
+		return
+	}
 
 	// start server
 	server.Serve()
@@ -124,14 +143,7 @@ func runNode(idx int) (err error) {
 
 func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (service *kt.ETLSTransportService, server *rpc.Server, err error) {
 	os.Remove(pubKeyStorePath)
-	//var dht *route.DHTService
-	//if dht, err = route.NewDHTService(pubKeyStorePath, true); err != nil {
-	//	return
-	//}
 
-	//server, err = rpc.NewServerWithService(rpc.ServiceMap{
-	//	"DHT": dht,
-	//})
 	server = rpc.NewServer()
 	if err != nil {
 		return

@@ -37,7 +37,7 @@ func TestSaveDHT(t *testing.T) {
 	//kms.ResetBucket()
 
 	Convey("save DHT", t, func() {
-		x, _ := InitConsistent(testStorePath1, false)
+		x, _ := InitConsistent(testStorePath1, new(KMSStorage), false)
 		x.Add(NewNodeFromID("abcdefg"))
 		x.Add(NewNodeFromID(("qwer")))
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)
@@ -50,7 +50,7 @@ func TestSaveDHT(t *testing.T) {
 func TestLoadDHT(t *testing.T) {
 	Convey("load existing DHT", t, func() {
 		kms.Unittest = true
-		x, _ := InitConsistent(testStorePath2, false)
+		x, _ := InitConsistent(testStorePath2, new(KMSStorage), false)
 		defer os.Remove(testStorePath1)
 		defer os.Remove(testStorePath2)
 		// with BP node, there should be 3 nodes

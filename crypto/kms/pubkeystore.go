@@ -163,12 +163,12 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		if byteVal == nil {
 			return ErrKeyNotFound
 		}
-		log.Debugf("get node: %#v", byteVal)
 		reader := bytes.NewReader(byteVal)
 		mh := &codec.MsgpackHandle{}
 		dec := codec.NewDecoder(reader, mh)
 		nodeInfo = proto.NewNode()
 		err = dec.Decode(nodeInfo)
+		log.Debugf("get node: %v", nodeInfo)
 		return err // return from View func
 	})
 	if err != nil {

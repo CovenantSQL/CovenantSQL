@@ -42,7 +42,7 @@ func TestPingFindValue(t *testing.T) {
 	defer os.Remove(DHTStorePath + "1")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	dht, _ := NewDHTService(DHTStorePath+"1", false)
+	dht, _ := NewDHTService(DHTStorePath+"1", new(consistent.KMSStorage), false)
 	kms.ResetBucket()
 	rpc.RegisterName("DHT", dht)
 	ln, err := net.Listen("tcp", addr)
@@ -81,9 +81,8 @@ func TestPingFindValue(t *testing.T) {
 		So(err.Error(), ShouldEqual, consistent.ErrEmptyCircle.Error())
 	})
 
-	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
 	node1 := NewNode()
-	node1.InitNodeCryptoInfo()
+	node1.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqA := &PingReq{
 		Node: *node1,
@@ -96,7 +95,7 @@ func TestPingFindValue(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	node2 := NewNode()
-	node2.InitNodeCryptoInfo()
+	node2.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqB := &PingReq{
 		Node: *node2,
@@ -136,7 +135,8 @@ func TestDHTService_Ping(t *testing.T) {
 	defer os.Remove(DHTStorePath)
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
-	dht, _ := NewDHTService(DHTStorePath, false)
+
+	dht, _ := NewDHTService(DHTStorePath, new(consistent.KMSStorage), false)
 	rpc.RegisterName("DHT", dht)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -163,7 +163,7 @@ func TestDHTService_Ping(t *testing.T) {
 
 	NewNodeIDDifficultyTimeout = 100 * time.Millisecond
 	node1 := NewNode()
-	node1.InitNodeCryptoInfo()
+	node1.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqA := &PingReq{
 		Node: *node1,

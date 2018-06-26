@@ -26,25 +26,30 @@ import (
 
 // DHTService is server side RPC implementation
 type DHTService struct {
-	hashRing *consistent.Consistent
+	Consistent *consistent.Consistent
 }
 
-// NewDHTService will return a new DHTService
-func NewDHTService(DHTStorePath string, initBP bool) (s *DHTService, err error) {
-	c, err := consistent.InitConsistent(DHTStorePath, initBP)
-	if err != nil {
-		log.Errorf("init DHT service failed: %s", err)
-		return
-	}
+// NewDHTServiceWithRing will return a new DHTService and set an existing hash ring
+func NewDHTServiceWithRing(c *consistent.Consistent) (s *DHTService, err error) {
 	s = &DHTService{
-		hashRing: c,
+		Consistent: c,
 	}
 	return
 }
 
+// NewDHTService will return a new DHTService
+func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, initBP bool) (s *DHTService, err error) {
+	c, err := consistent.InitConsistent(DHTStorePath, persistImpl, initBP)
+	if err != nil {
+		log.Errorf("init DHT service failed: %s", err)
+		return
+	}
+	return NewDHTServiceWithRing(c)
+}
+
 // FindValue RPC returns FindValueReq.Count closest node from DHT
 func (DHT *DHTService) FindValue(req *proto.FindValueReq, resp *proto.FindValueResp) (err error) {
-	nodes, err := DHT.hashRing.GetN(string(req.NodeID), req.Count)
+	nodes, err := DHT.Consistent.GetN(string(req.NodeID), req.Count)
 	if err != nil {
 		log.Errorf("get nodes from DHT failed: %s", err)
 		resp.Msg = fmt.Sprint(err)
@@ -57,8 +62,13 @@ func (DHT *DHTService) FindValue(req *proto.FindValueReq, resp *proto.FindValueR
 // Ping RPC add PingReq.Node to DHT
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
-	DHT.hashRing.Add(req.Node)
+	err = DHT.Consistent.Add(req.Node)
 	resp = new(proto.PingResp)
-	resp.Msg = "Pong"
+	if err != nil {
+		log.Errorf("DHT.Consistent.Add %v failed: %s", req.Node, err)
+		resp.Msg = err.Error()
+	} else {
+		resp.Msg = "Pong"
+	}
 	return
 }

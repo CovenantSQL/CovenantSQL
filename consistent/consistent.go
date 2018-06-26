@@ -75,7 +75,7 @@ type Consistent struct {
 // InitConsistent creates a new Consistent object with a default setting of 20 replicas for each entry.
 //
 // To change the number of replicas, set NumberOfReplicas before adding entries.
-func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
+func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *Consistent, err error) {
 	var BPNode *proto.Node
 	if initBP {
 		// Load BlockProducer public key, set it in public key store
@@ -103,7 +103,7 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 		//TODO(auxten): reduce NumberOfReplicas
 		NumberOfReplicas: 20,
 		circle:           make(map[proto.NodeKey]proto.Node),
-		persist:          new(KMSStorage),
+		persist:          persistImpl,
 	}
 	c.persist.Init(storePath, BPNode)
 	nodes, err := c.persist.GetAllNodeInfo()
@@ -111,6 +111,7 @@ func InitConsistent(storePath string, initBP bool) (c *Consistent, err error) {
 		log.Errorf("get all node id failed: %s", err)
 		return
 	}
+	log.Debugf("c.persist.GetAllNodeInfo: %v", nodes)
 	for _, n := range nodes[:] {
 		c.add(n)
 	}
@@ -138,6 +139,12 @@ func (c *Consistent) add(node proto.Node) (err error) {
 		log.Errorf("set node info failed: %s", err)
 		return
 	}
+
+	return c.AddCache(node)
+}
+
+// AddCache only adds c.circle skips persist
+func (c *Consistent) AddCache(node proto.Node) (err error) {
 	for i := 0; i < c.NumberOfReplicas; i++ {
 		c.circle[c.hashKey(c.nodeKey(node.ID, i))] = node
 	}

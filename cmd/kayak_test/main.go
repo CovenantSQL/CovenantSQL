@@ -290,7 +290,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 
 	// init local key store
 	pubKeyStorePath := filepath.Join(clientRootDir, pubKeyStoreFile)
-	if _, err = consistent.InitConsistent(pubKeyStorePath, true); err != nil {
+	if _, err = consistent.InitConsistent(pubKeyStorePath, new(consistent.KMSStorage), true); err != nil {
 		return
 	}
 
@@ -580,7 +580,7 @@ func createServer(nodeOffset, port int) (service *kt.ETLSTransportService, serve
 	os.Remove(pubKeyStorePath)
 
 	var dht *route.DHTService
-	if dht, err = route.NewDHTService(pubKeyStorePath, true); err != nil {
+	if dht, err = route.NewDHTService(pubKeyStorePath, new(consistent.KMSStorage), true); err != nil {
 		return
 	}
 

@@ -17,17 +17,18 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -84,6 +85,7 @@ func runClient() (err error) {
 }
 
 func clientRequest(reqType string, sql string) (err error) {
+	log.SetLevel(log.DebugLevel)
 	leaderNodeID := kms.BPNodeID
 	var conn *etls.CryptoConn
 	if conn, err = rpc.DialToNode(leaderNodeID); err != nil {
@@ -95,18 +97,36 @@ func clientRequest(reqType string, sql string) (err error) {
 		return
 	}
 
-	reqType = strings.Title(strings.ToLower(reqType))
+	if len(reqType) > 0 && strings.Title(reqType[:1]) == "P" {
+		reqType = "Ping"
+		node1 := proto.NewNode()
+		node1.InitNodeCryptoInfo(100 * time.Millisecond)
 
-	var rows ResponseRows
-	if err = client.Call(fmt.Sprintf("%v.%v", dbServiceName, reqType), sql, &rows); err != nil {
-		return
-	}
-	var res []byte
-	if res, err = json.MarshalIndent(rows, "", strings.Repeat(" ", 4)); err != nil {
-		return
-	}
+		reqA := &proto.PingReq{
+			Node: *node1,
+		}
 
-	fmt.Println(string(res))
+		respA := new(proto.PingResp)
+		log.Debugf("reqA: %v", reqA)
+		err = client.Call("DHT.Ping", reqA, respA)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Debugf("respA: %v", respA)
+	} else {
+		reqType = "FindValue"
+		req := &proto.FindValueReq{
+			NodeID: proto.NodeID(flag.Arg(0)),
+			Count:  10,
+		}
+		resp := new(proto.FindValueResp)
+		log.Debugf("req: %v", req)
+		err = client.Call("DHT.FindValue", req, resp)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Debugf("resp: %v", resp)
+	}
 
 	return
 }

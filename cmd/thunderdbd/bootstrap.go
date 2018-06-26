@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	listenHost       = "127.0.0.1"
 	nodeDirPattern   = "./node_%v"
 	pubKeyStoreFile  = "public.keystore"
 	privateKeyFile   = "private.key"

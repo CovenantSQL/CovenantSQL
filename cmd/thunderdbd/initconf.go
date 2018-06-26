@@ -31,6 +31,8 @@ import (
 
 var (
 	// TODO(auxten): move these BP info into conf
+
+	// AllNodes holds all BP nodes and client node info
 	AllNodes = []NodeInfo{
 		{
 			ID:        kms.BPNodeID,

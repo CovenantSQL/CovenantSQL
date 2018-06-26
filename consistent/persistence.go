@@ -22,6 +22,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+// Persistence is the interface for consistent persistence
 type Persistence interface {
 	Init(storePath string, initNode *proto.Node) (err error)
 	SetNode(node *proto.Node) (err error)
@@ -30,24 +31,30 @@ type Persistence interface {
 	GetAllNodeInfo() (nodes []proto.Node, err error)
 }
 
+// KMSStorage implements Persistence
 type KMSStorage struct{}
 
+// Init implements Persistence interface
 func (s *KMSStorage) Init(storePath string, initNode *proto.Node) (err error) {
 	return kms.InitPublicKeyStore(storePath, initNode)
 }
 
+// SetNode implements Persistence interface
 func (s *KMSStorage) SetNode(node *proto.Node) (err error) {
 	return kms.SetNode(node)
 }
 
+// DelNode implements Persistence interface
 func (s *KMSStorage) DelNode(nodeID proto.NodeID) (err error) {
 	return kms.DelNode(nodeID)
 }
 
+// Reset implements Persistence interface
 func (s *KMSStorage) Reset() (err error) {
 	return kms.ResetBucket()
 }
 
+// GetAllNodeInfo implements Persistence interface
 func (s *KMSStorage) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	IDs, err := kms.GetAllNodeID()
 	if err != nil {

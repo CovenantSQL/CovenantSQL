@@ -56,6 +56,7 @@ var (
 
 var (
 	//TODO(auxten): maybe each BP uses distinct key pair is safer
+
 	// BPPublicKeyStr is the public key of Block Producer
 	BPPublicKeyStr = "02c1db96f2ba7e1cb4e9822d12de0f63f" +
 		"b666feb828c7f509e81fab9bd7a34039c"

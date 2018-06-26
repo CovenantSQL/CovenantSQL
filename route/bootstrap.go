@@ -15,10 +15,3 @@
  */
 
 package route
-
-import "gitlab.com/thunderdb/ThunderDB/proto"
-
-func GetBootstrapBP() (addrList []proto.Node) {
-
-	return
-}

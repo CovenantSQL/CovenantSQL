@@ -33,8 +33,9 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-const CMDSET = "set"
+const cmdset = "set"
 
+// LocalStorage holds consistent and storage struct
 type LocalStorage struct {
 	consistent *consistent.Consistent
 	*storage.Storage
@@ -61,6 +62,7 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 	return
 }
 
+// Prepare implements twopc Worker.Prepare
 func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	payload, err := s.decodeLog(wb)
 	if err != nil {
@@ -75,6 +77,7 @@ func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err er
 	return s.Storage.Prepare(ctx, execLog)
 }
 
+// Commit implements twopc Worker.Commit
 func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 
 	payload, err := s.decodeLog(wb)
@@ -104,6 +107,7 @@ func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err err
 	return s.Storage.Commit(ctx, execLog)
 }
 
+// Rollback implements twopc Worker.Rollback
 func (s *LocalStorage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	payload, err := s.decodeLog(wb)
 	if err != nil {
@@ -121,7 +125,7 @@ func (s *LocalStorage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err e
 
 func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.ExecLog, err error) {
 	switch payload.Command {
-	case CMDSET:
+	case cmdset:
 		var nodeToSet proto.Node
 		err = utils.DecodeMsgPack(payload.Data, &nodeToSet)
 		if err != nil {
@@ -179,20 +183,24 @@ func (s *LocalStorage) decodeLog(wb twopc.WriteBatch) (payload *KayakPayload, er
 	return
 }
 
+// KayakKVServer holds kayak.Runtime and LocalStorage
 type KayakKVServer struct {
 	Runtime *kayak.Runtime
 	Storage *LocalStorage
 }
 
+// Init implements consistent.Persistence
 func (s *KayakKVServer) Init(storePath string, initNode *proto.Node) (err error) {
 	return
 }
 
+// KayakPayload is the payload used in kayak Leader and Follower
 type KayakPayload struct {
 	Command string
 	Data    []byte
 }
 
+// SetNode implements consistent.Persistence
 func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 	nodeBuf, err := utils.EncodeMsgPack(node)
 	if err != nil {
@@ -200,7 +208,7 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 		return
 	}
 	payload := &KayakPayload{
-		Command: CMDSET,
+		Command: cmdset,
 		Data:    nodeBuf.Bytes(),
 	}
 
@@ -218,16 +226,19 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 	return
 }
 
+// DelNode implements consistent.Persistence
 func (s *KayakKVServer) DelNode(nodeID proto.NodeID) (err error) {
 	// no need to del node currently
 	return
 }
 
+// Reset implements consistent.Persistence
 func (s *KayakKVServer) Reset() (err error) {
 	// no need to reset for kayak
 	return
 }
 
+// GetAllNodeInfo implements consistent.Persistence
 func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	var result [][]interface{}
 	mh := &codec.MsgpackHandle{}

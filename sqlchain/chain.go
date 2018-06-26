@@ -29,9 +29,13 @@ import (
 )
 
 var (
-	metaBucket           = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey         = []byte("thunderdb-state")
-	metaBlockIndexBucket = []byte("thunderdb-block-index-bucket")
+	metaBucket              = [4]byte{0x0, 0x0, 0x0, 0x0}
+	metaStateKey            = []byte("thunderdb-state")
+	metaBlockIndexBucket    = []byte("thunderdb-block-index-bucket")
+	metaHeightIndexBucket   = []byte("thunderdb-query-height-index-bucket")
+	metaRequestIndexBucket  = []byte("thunderdb-query-reqeust-index-bucket")
+	metaResponseIndexBucket = []byte("thunderdb-query-response-index-bucket")
+	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
 )
 
 // State represents a snapshot of current best chain.

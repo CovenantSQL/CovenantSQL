@@ -137,3 +137,19 @@ func (a *Ack) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// sign
 	return a.Header.Sign(signer)
 }
+
+func (a *Ack) ResponseHeaderHash() hash.Hash {
+	return a.Header.AckHeader.Response.HeaderHash
+}
+
+func (a *Ack) SignedRequestHeader() *SignedRequestHeader {
+	return &a.Header.AckHeader.Response.Request
+}
+
+func (a *Ack) SignedResponseHeader() *SignedResponseHeader {
+	return &a.Header.Response
+}
+
+func (a *Ack) SignedAckHeader() *SignedAckHeader {
+	return &a.Header
+}

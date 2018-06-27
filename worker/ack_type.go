@@ -140,23 +140,18 @@ func (a *Ack) Sign(signer *asymmetric.PrivateKey) (err error) {
 }
 
 // ResponseHeaderHash returns the deep shadowed Response HeaderHash field.
-func (a *Ack) ResponseHeaderHash() hash.Hash {
-	return a.Header.AckHeader.Response.HeaderHash
+func (sh *SignedAckHeader) ResponseHeaderHash() hash.Hash {
+	return sh.AckHeader.Response.HeaderHash
 }
 
 // SignedRequestHeader returns the deep shadowed Request reference.
-func (a *Ack) SignedRequestHeader() *SignedRequestHeader {
-	return &a.Header.AckHeader.Response.Request
+func (sh *SignedAckHeader) SignedRequestHeader() *SignedRequestHeader {
+	return &sh.AckHeader.Response.Request
 }
 
 // SignedResponseHeader returns the Response reference.
-func (a *Ack) SignedResponseHeader() *SignedResponseHeader {
-	return &a.Header.Response
-}
-
-// SignedAckHeader returns the Header reference.
-func (a *Ack) SignedAckHeader() *SignedAckHeader {
-	return &a.Header
+func (sh *SignedAckHeader) SignedResponseHeader() *SignedResponseHeader {
+	return &sh.Response
 }
 
 // MarshalBinary implements BinaryMarshaler.

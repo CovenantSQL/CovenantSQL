@@ -30,13 +30,10 @@ type QuerySummary struct {
 	Ack      *worker.SignedAckHeader
 }
 
-func (s *QuerySummary) UpdateQuerySummary(ack *worker.Ack) (err error) {
+func (s *QuerySummary) UpdateQuerySummaryWithResp(resp *worker.SignedResponseHeader) (err error) {
 	if s.Response == nil {
-		s.Response = ack.SignedResponseHeader()
-		s.Ack = ack.SignedAckHeader()
-	} else if s.Ack == nil {
-		s.Response = ack.SignedResponseHeader()
-		s.Ack = ack.SignedAckHeader()
+		s.Response = resp
+		s.Ack = nil
 	} else {
 		err = ErrQueryExists
 	}
@@ -44,7 +41,21 @@ func (s *QuerySummary) UpdateQuerySummary(ack *worker.Ack) (err error) {
 	return
 }
 
-// hash: response header hash
+func (s *QuerySummary) UpdateQuerySummaryWithAck(ack *worker.SignedAckHeader) (err error) {
+	if s.Response == nil {
+		s.Response = ack.SignedResponseHeader()
+		s.Ack = ack
+	} else if s.Ack == nil {
+		// A later Ack can overwrite the original Response setting
+		s.Response = ack.SignedResponseHeader()
+		s.Ack = ack
+	} else {
+		err = ErrQueryExists
+	}
+
+	return
+}
+
 type HashIndex map[hash.Hash]*QuerySummary
 
 type SeqAcks struct {
@@ -86,19 +97,39 @@ func NewMultiIndex() *MultiIndex {
 	}
 }
 
-func (i *MultiIndex) AddAck(ack *worker.Ack) (err error) {
+func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) error {
+	i.Lock()
+	defer i.Unlock()
+
+	if v, ok := i.HashIndex[resp.HeaderHash]; ok && v != nil {
+		return v.UpdateQuerySummaryWithResp(resp)
+	}
+
+	// Build new QuerySummary and update both indexes
+	s := &QuerySummary{
+		Response: resp,
+	}
+
+	i.HashIndex[resp.HeaderHash] = s
+	q := i.SeqIndex.Ensure(resp.Request.SeqNo)
+	q.Queries = append(q.Queries, s)
+
+	return nil
+}
+
+func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
 	i.Lock()
 	defer i.Unlock()
 
 	if v, ok := i.HashIndex[ack.ResponseHeaderHash()]; ok && v != nil {
 		// This should also update the *SeqAcks indexed by seqNo
-		return v.UpdateQuerySummary(ack)
+		return v.UpdateQuerySummaryWithAck(ack)
 	}
 
 	// Build new QuerySummary and update both indexes
 	s := &QuerySummary{
 		Response: ack.SignedResponseHeader(),
-		Ack:      ack.SignedAckHeader(),
+		Ack:      ack,
 	}
 
 	i.HashIndex[ack.ResponseHeaderHash()] = s
@@ -109,7 +140,7 @@ func (i *MultiIndex) AddAck(ack *worker.Ack) (err error) {
 		q.FirstAck = s
 	}
 
-	return
+	return nil
 }
 
 type HeightIndex map[int32]*MultiIndex
@@ -134,7 +165,6 @@ func (i HeightIndex) EnsureHeight(h int32) (v *MultiIndex) {
 }
 
 type QueryIndex struct {
-	config      Config
 	heightIndex HeightIndex
 }
 
@@ -144,9 +174,12 @@ func NewQueryIndex() *QueryIndex {
 	}
 }
 
-func (i *QueryIndex) AddAck(ack *worker.Ack) error {
+func (i *QueryIndex) AddResponse(h int32, resp *worker.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
-	return i.heightIndex.EnsureHeight(i.config.GetHeightFromTime(
-		ack.SignedRequestHeader().Timestamp)).AddAck(ack)
+	return i.heightIndex.EnsureHeight(h).AddResponse(resp)
+}
+
+func (i *QueryIndex) AddAck(h int32, ack *worker.SignedAckHeader) error {
+	return i.heightIndex.EnsureHeight(h).AddAck(ack)
 }

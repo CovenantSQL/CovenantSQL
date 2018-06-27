@@ -16,6 +16,4 @@
 
 package sqlchain
 
-import (
-	"gitlab.com/thunderdb/ThunderDB/worker"
-)
+import ()

@@ -16,11 +16,16 @@
 
 package sqlchain
 
+import (
+	"gitlab.com/thunderdb/ThunderDB/worker"
+)
+
 type ChainRPCServer struct {
 	chain *Chain
 }
 
 type AdviseNewBlockReq struct {
+	block *Block
 }
 
 type AdviseNewBlockResp struct {
@@ -32,20 +37,34 @@ type AdviseBinLogReq struct {
 type AdviseBinLogResp struct {
 }
 
-type AdviseQueriesReq struct {
+type AdviseResponsedQueryReq struct {
+	query *worker.SignedResponseHeader
 }
 
-type AdviseQueriesResp struct {
+type AdviseResponsedQueryResp struct {
+}
+
+type AdviseAckedQueryReq struct {
+	query *worker.SignedAckHeader
+}
+
+type AdviseAckedQueryResp struct {
 }
 
 func (s *ChainRPCServer) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
-	return nil
+	return s.chain.CheckAndPushNewBlock(req.block)
 }
 
 func (s *ChainRPCServer) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
 	return nil
 }
 
-func (s *ChainRPCServer) AdviseQueries(req *AdviseQueriesReq, resp *AdviseQueriesResp) error {
-	return nil
+func (s *ChainRPCServer) AdviseResponsedQuery(
+	req *AdviseResponsedQueryReq, resp *AdviseResponsedQueryResp) error {
+	return s.chain.CheckAndPushResponsedQuery(req.query)
+}
+
+func (s *ChainRPCServer) AdviseAckedQuery(
+	req *AdviseAckedQueryReq, resp *AdviseAckedQueryResp) error {
+	return s.chain.CheckAndPushAckedQuery(req.query)
 }

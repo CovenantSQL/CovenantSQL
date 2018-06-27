@@ -236,7 +236,7 @@ func (r *Request) MarshalBinary() ([]byte, error) {
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
 		&r.Header,
-		r.Payload,
+		r.Payload.Queries,
 	); err != nil {
 		return nil, err
 	}
@@ -249,6 +249,6 @@ func (r *Request) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
 		&r.Header,
-		&r.Payload,
+		&r.Payload.Queries,
 	)
 }

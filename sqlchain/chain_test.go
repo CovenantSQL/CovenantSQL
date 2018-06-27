@@ -82,7 +82,7 @@ func TestState(t *testing.T) {
 }
 
 func TestIndexKey(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		b1, err := createRandomBlock(rootHash, false)
 
 		if err != nil {

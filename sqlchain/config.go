@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
 // Config represents a sql-chain config.
@@ -32,8 +33,15 @@ type Config struct {
 
 	Peers  *kayak.Peers
 	Server *kayak.Server
+
+	// Price list: query type -> gas
+	Price map[worker.QueryType]uint32
 }
 
 func (c *Config) GetHeightFromTime(t time.Time) int32 {
 	return int32(t.Sub(c.Genesis.SignedHeader.Timestamp) % c.Period)
+}
+
+func (c *Config) GetQueryGas(t worker.QueryType) uint32 {
+	return c.Price[t]
 }

@@ -53,6 +53,123 @@ func testSetup() {
 	log.SetLevel(log.DebugLevel)
 }
 
+func createRandomString(offset, length int, s *string) {
+	buff := make([]byte, rand.Intn(length)+offset)
+	rand.Read(buff)
+	*s = string(buff)
+}
+
+func createRandomStrings(offset, length, soffset, slength int) (s []string) {
+	s = make([]string, rand.Intn(length)+offset)
+
+	for i, _ := range s {
+		createRandomString(soffset, slength, &s[i])
+	}
+
+	return
+}
+
+func createRandomQueryRequest(
+	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
+) (r *worker.SignedRequestHeader, err error) {
+	req := &worker.Request{
+		Header: worker.SignedRequestHeader{
+			RequestHeader: worker.RequestHeader{
+				QueryType:    worker.QueryType(rand.Intn(2)),
+				NodeID:       reqNode,
+				ConnectionID: uint64(rand.Int63()),
+				SeqNo:        uint64(rand.Int63()),
+				Timestamp:    time.Now().UTC(),
+			},
+			Signee:    reqPub,
+			Signature: nil,
+		},
+		Payload: worker.RequestPayload{
+			Queries: createRandomStrings(10, 10, 10, 10),
+		},
+	}
+
+	if err = req.Sign(reqPriv); err != nil {
+		return
+	}
+
+	r = &req.Header
+	return
+}
+
+func createRandomQueryResponse(
+	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
+	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
+) (r *worker.SignedResponseHeader, err error) {
+	req, err := createRandomQueryRequest(reqNode, reqPriv, reqPub)
+
+	if err != nil {
+		return
+	}
+
+	resp := &worker.Response{
+		Header: worker.SignedResponseHeader{
+			ResponseHeader: worker.ResponseHeader{
+				Request:   *req,
+				NodeID:    respNode,
+				Timestamp: time.Now().UTC(),
+			},
+			Signee:    respPub,
+			Signature: nil,
+		},
+		Payload: worker.ResponsePayload{
+			Columns:   createRandomStrings(10, 10, 10, 10),
+			DeclTypes: createRandomStrings(10, 10, 10, 10),
+			Rows:      make([]worker.ResponseRow, rand.Intn(10)+10),
+		},
+	}
+
+	for i, _ := range resp.Payload.Rows {
+		s := createRandomStrings(10, 10, 10, 10)
+		resp.Payload.Rows[i].Values = make([]interface{}, len(s))
+		for j, _ := range resp.Payload.Rows[i].Values {
+			resp.Payload.Rows[i].Values[j] = s[j]
+		}
+	}
+
+	if err = resp.Sign(respPriv); err != nil {
+		return
+	}
+
+	r = &resp.Header
+	return
+}
+
+func createRandomQueryAck(
+	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
+	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
+) (r *worker.SignedAckHeader, err error) {
+	resp, err := createRandomQueryResponse(reqNode, reqPriv, reqPub, respNode, respPriv, respPub)
+
+	if err != nil {
+		return
+	}
+
+	ack := &worker.Ack{
+		Header: worker.SignedAckHeader{
+			AckHeader: worker.AckHeader{
+				Response:  *resp,
+				NodeID:    reqNode,
+				Timestamp: time.Now().UTC(),
+			},
+			Signee:    reqPub,
+			Signature: nil,
+		},
+	}
+
+	if err = ack.Sign(reqPriv); err != nil {
+		return
+	}
+
+	r = &ack.Header
+	return
+}
+
 func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
@@ -76,51 +193,31 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 			Signee:    pub,
 			Signature: nil,
 		},
-		Queries: make([]*worker.Request, rand.Intn(10)+10),
+		Queries: make([]*worker.SignedAckHeader, rand.Intn(10)+10),
 	}
 
-	for i := 0; i < len(b.Queries); i++ {
-		var priv *asymmetric.PrivateKey
-		var pub *asymmetric.PublicKey
-		priv, pub, err = asymmetric.GenSecp256k1KeyPair()
+	for i, _ := range b.Queries {
+		var reqPriv, respPriv *asymmetric.PrivateKey
+		var reqPub, respPub *asymmetric.PublicKey
 
-		if err != nil {
+		if reqPriv, reqPub, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+			return
+		}
+
+		if respPriv, respPub, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
 			return
 		}
 
 		h := hash.Hash{}
 		rand.Read(h[:])
-
-		q := &worker.Request{
-			Header: worker.SignedRequestHeader{
-				RequestHeader: worker.RequestHeader{
-					QueryType:    worker.QueryType(rand.Intn(2)),
-					NodeID:       proto.NodeID(h.String()),
-					ConnectionID: uint64(rand.Int63()),
-					SeqNo:        uint64(rand.Int63()),
-					Timestamp:    time.Now().UTC(),
-				},
-				Signee:    pub,
-				Signature: nil,
-			},
-			Payload: worker.RequestPayload{
-				Queries: make([]string, rand.Intn(10)+10),
-			},
-		}
-
-		for j := 0; j < len(q.Payload.Queries); j++ {
-			buff := make([]byte, rand.Intn(10)+10)
-			rand.Read(buff)
-			q.Payload.Queries[j] = string(buff)
-		}
-
-		err = q.Sign(priv)
-
-		if err != nil {
+		reqNode := proto.NodeID(h.String())
+		rand.Read(h[:])
+		respNode := proto.NodeID(h.String())
+		if b.Queries[i], err = createRandomQueryAck(
+			reqNode, reqPriv, reqPub, respNode, respPriv, respPub,
+		); err != nil {
 			return
 		}
-
-		b.Queries[i] = q
 	}
 
 	// TODO(leventeliu): use merkle package to generate this field from queries.

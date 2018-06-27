@@ -59,7 +59,4 @@ var (
 
 	// ErrQueryExists indicates that a query already exists in memory index during adding.
 	ErrQueryExists = errors.New("query already exists in index")
-
-	// ErrNilValue indicates that an unexpected DB nil bucket is detected.
-	ErrNilBucket = errors.New("unexpected nil bucket")
 )

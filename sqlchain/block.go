@@ -138,7 +138,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 // Block is a node of blockchain.
 type Block struct {
 	SignedHeader *SignedHeader
-	Queries      []*worker.Request
+	Queries      []*worker.SignedAckHeader
 }
 
 // SignHeader generates the signature for the Block from the given PrivateKey.
@@ -167,9 +167,7 @@ func (b *Block) Verify() (err error) {
 		return
 	}
 
-	h := hash.THashH(buffer)
-
-	if !h.IsEqual(&b.SignedHeader.BlockHash) {
+	if h := hash.THashH(buffer); !h.IsEqual(&b.SignedHeader.BlockHash) {
 		return ErrHashVerification
 	}
 

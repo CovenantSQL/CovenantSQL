@@ -247,10 +247,6 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		// Read blocks and rebuild memory index
 		blockCount := int32(0)
 		bi := bucket.Bucket(metaBlockIndexBucket)
-
-		if bi == nil {
-		}
-
 		cursor := bi.Cursor()
 
 		for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
@@ -424,7 +420,7 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 			return
 		}
 
-		// Always put memory changes which will not be affected by rollback after DB operations.
+		// Always put memory changes which will not be affected by rollback after DB operations
 		return c.qi.AddResponse(h, resp)
 	})
 }

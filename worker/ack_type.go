@@ -139,32 +139,37 @@ func (a *Ack) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return a.Header.Sign(signer)
 }
 
+// ResponseHeaderHash returns the deep shadowed Response HeaderHash field.
 func (a *Ack) ResponseHeaderHash() hash.Hash {
 	return a.Header.AckHeader.Response.HeaderHash
 }
 
+// SignedRequestHeader returns the deep shadowed Request reference.
 func (a *Ack) SignedRequestHeader() *SignedRequestHeader {
 	return &a.Header.AckHeader.Response.Request
 }
 
+// SignedResponseHeader returns the Response reference.
 func (a *Ack) SignedResponseHeader() *SignedResponseHeader {
 	return &a.Header.Response
 }
 
+// SignedAckHeader returns the Header reference.
 func (a *Ack) SignedAckHeader() *SignedAckHeader {
 	return &a.Header
 }
 
-func (h *SignedAckHeader) MarshalBinary() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (sh *SignedAckHeader) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
-		&h.Response,
-		&h.NodeID,
-		h.Timestamp,
-		&h.HeaderHash,
-		h.Signee,
-		h.Signature,
+		&sh.Response,
+		&sh.NodeID,
+		sh.Timestamp,
+		&sh.HeaderHash,
+		sh.Signee,
+		sh.Signature,
 	); err != nil {
 		return nil, err
 	}
@@ -172,14 +177,15 @@ func (h *SignedAckHeader) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (h *SignedAckHeader) UnmarshalBinary(b []byte) error {
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (sh *SignedAckHeader) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
-		&h.Response,
-		&h.NodeID,
-		&h.Timestamp,
-		&h.HeaderHash,
-		&h.Signee,
-		&h.Signature,
+		&sh.Response,
+		&sh.NodeID,
+		&sh.Timestamp,
+		&sh.HeaderHash,
+		&sh.Signee,
+		&sh.Signature,
 	)
 }

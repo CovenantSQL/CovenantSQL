@@ -220,18 +220,19 @@ func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return sh.Header.Sign(signer)
 }
 
-func (h *SignedResponseHeader) MarshalBinary() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (sh *SignedResponseHeader) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
-		&h.Request,
-		&h.NodeID,
-		h.Timestamp,
-		h.RowCount,
-		&h.DataHash,
-		&h.HeaderHash,
-		h.Signee,
-		h.Signature,
+		&sh.Request,
+		&sh.NodeID,
+		sh.Timestamp,
+		sh.RowCount,
+		&sh.DataHash,
+		&sh.HeaderHash,
+		sh.Signee,
+		sh.Signature,
 	); err != nil {
 		return nil, err
 	}
@@ -239,16 +240,17 @@ func (h *SignedResponseHeader) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (h *SignedResponseHeader) UnmarshalBinary(b []byte) error {
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (sh *SignedResponseHeader) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
-		&h.Request,
-		&h.NodeID,
-		&h.Timestamp,
-		&h.RowCount,
-		&h.DataHash,
-		&h.HeaderHash,
-		&h.Signee,
-		&h.Signature,
+		&sh.Request,
+		&sh.NodeID,
+		&sh.Timestamp,
+		&sh.RowCount,
+		&sh.DataHash,
+		&sh.HeaderHash,
+		&sh.Signee,
+		&sh.Signature,
 	)
 }

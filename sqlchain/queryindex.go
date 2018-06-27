@@ -16,6 +16,8 @@
 
 package sqlchain
 
+// TODO(leventeliu): use pooled objects to speed up this index.
+
 import (
 	"sync"
 
@@ -28,15 +30,16 @@ type QuerySummary struct {
 	// Ack is already verified, simply use Header.
 	Response *worker.SignedResponseHeader
 	Ack      *worker.SignedAckHeader
+
+	// Packer is the hash of the block which contains this query.
+	Packer *hash.Hash
 }
 
 func (s *QuerySummary) UpdateQuerySummaryWithResp(resp *worker.SignedResponseHeader) (err error) {
 	if s.Response == nil {
 		s.Response = resp
 		s.Ack = nil
-	} else {
-		err = ErrQueryExists
-	}
+	} // else it's same as s.Response, cause they have same header hash
 
 	return
 }
@@ -49,9 +52,11 @@ func (s *QuerySummary) UpdateQuerySummaryWithAck(ack *worker.SignedAckHeader) (e
 		// A later Ack can overwrite the original Response setting
 		s.Response = ack.SignedResponseHeader()
 		s.Ack = ack
-	} else {
-		err = ErrQueryExists
-	}
+	} else if !s.Ack.HeaderHash.IsEqual(&ack.HeaderHash) {
+		// This may happen when a client sends multiple acknowledgements for a same query (same
+		// response header hash)
+		err = ErrMultipleAck
+	} // else it's same as s.Ack, let's try not to overwrite it
 
 	return
 }
@@ -136,11 +141,37 @@ func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
 	q := i.SeqIndex.Ensure(ack.SignedRequestHeader().SeqNo)
 	q.Queries = append(q.Queries, s)
 
-	if q.FirstAck == nil {
+	// TODO(leventeliu):
+	// This query has multiple signed acknowledgements. It may be caused by a network problem.
+	// We will keep the first ack counted anyway. But, should we report it to someone?
+	if q.FirstAck == nil || q.FirstAck.Ack.Timestamp.After(s.Ack.Timestamp) {
 		q.FirstAck = s
 	}
 
 	return nil
+}
+
+func (i *MultiIndex) expire() {
+	i.Lock()
+	defer i.Unlock()
+
+	for _, q := range i.SeqIndex {
+		if q.FirstAck == nil {
+			// TODO(leventeliu):
+			// This query is not acknowledged and expires now.
+		} else if q.FirstAck.Packer == nil {
+			// TODO(leventeliu):
+			// This query was acknowledged normally but collectors didn't pack it in any block.
+			// There is definitely something wrong with them.
+		}
+
+		for _, s := range q.Queries {
+			if s != q.FirstAck {
+				// TODO(leventeliu): so these guys lost the competition in this query. Should we
+				// do something about it?
+			}
+		}
+	}
 }
 
 type HeightIndex map[int32]*MultiIndex
@@ -164,7 +195,13 @@ func (i HeightIndex) EnsureHeight(h int32) (v *MultiIndex) {
 	return
 }
 
+func (i HeightIndex) HasHeight(h int32) (ok bool) {
+	_, ok = i[h]
+	return
+}
+
 type QueryIndex struct {
+	barrier     int32
 	heightIndex HeightIndex
 }
 
@@ -182,4 +219,21 @@ func (i *QueryIndex) AddResponse(h int32, resp *worker.SignedResponseHeader) err
 
 func (i *QueryIndex) AddAck(h int32, ack *worker.SignedAckHeader) error {
 	return i.heightIndex.EnsureHeight(h).AddAck(ack)
+}
+
+func (i *QueryIndex) expireHeight(h int32) {
+	if i.heightIndex.HasHeight(h) {
+		i.heightIndex[h].expire()
+		delete(i.heightIndex, h)
+	}
+}
+
+// AdvanceBarrier moves barrier to given height. All buckets lower than this height will be set as
+// expired, and all the queries which are not packed in these buckets will be reported.
+func (i *QueryIndex) AdvanceBarrier(height int32) {
+	for x := i.barrier; x < height; x++ {
+		i.expireHeight(x)
+	}
+
+	i.barrier = height
 }

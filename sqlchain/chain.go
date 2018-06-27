@@ -416,7 +416,7 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 			return
 		}
 
-		if err = b.Bucket(metaResponseIndexBucket).Put(k, enc); err != nil {
+		if err = b.Bucket(metaResponseIndexBucket).Put(resp.HeaderHash[:], enc); err != nil {
 			return
 		}
 
@@ -441,11 +441,14 @@ func (c *Chain) PushAckedQuery(ack *worker.SignedAckHeader) (err error) {
 			return
 		}
 
-		if err = b.Bucket(metaAckIndexBucket).Put(k, enc); err != nil {
+		// TODO(leventeliu): this doesn't seem right to use an error to detect key existence.
+		if err = b.Bucket(metaAckIndexBucket).Put(
+			ack.HeaderHash[:], enc,
+		); err != nil && err != bolt.ErrIncompatibleValue {
 			return
 		}
 
-		// Always put memory changes which will not be affected by rollback after DB operations.
+		// Always put memory changes which will not be affected by rollback after DB operations
 		return c.qi.AddAck(h, ack)
 	})
 }
@@ -461,12 +464,22 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 	}
 
 	// Block must produced within [start, end)
-	start := c.rt.ChainInitTime.Add(time.Duration(c.rt.NextHeight-1) * c.rt.Period)
-	end := start.Add(c.rt.Period)
-	ptime := block.SignedHeader.Timestamp
+	h := c.cfg.GetHeightFromTime(block.SignedHeader.Timestamp)
 
-	if ptime.Before(start) || (ptime.Equal(end) || ptime.After(end)) {
+	if h != c.rt.NextHeight {
 		return ErrBlockTimestampOutOfPeriod
+	}
+
+	// Check queries
+	for _, q := range block.Queries {
+		if err = q.Verify(); err != nil {
+			return
+		}
+
+		// ErrMultipleAck is acceptable in this case, as long as they are all verified
+		if err = c.PushAckedQuery(q); err != nil && err != ErrMultipleAck {
+			return
+		}
 	}
 
 	// Verify block signatures
@@ -477,11 +490,38 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 	return c.PushBlock(block.SignedHeader)
 }
 
+func (c *Chain) queryTimeIsExpired(t time.Time) bool {
+	// Checking query expiration for the pending block, whose height is c.rt.NextHeight:
+	//
+	//     TimeLived = c.rt.NextHeight - c.cfg.GetHeightFromTime(t)
+	//
+	// Return true if:  TTL < TimeLived.
+	//
+	// NOTE(leventeliu): as a result, a TTL=1 requires any query to be acknowledged and received
+	// immediately.
+	// Consider the case that a query has happended right before period h, which has height h.
+	// If its ACK+Roundtrip time>0, it will be seemed as acknowledged in period h+1, or even later.
+	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
+	// has expired.
+	//
+	return c.cfg.GetHeightFromTime(t) < c.rt.NextHeight-c.cfg.QueryTTL
+}
+
 func (c *Chain) CheckAndPushResponsedQuery(resp *worker.SignedResponseHeader) (err error) {
+	// TODO(leventeliu): check resp.
+	if c.queryTimeIsExpired(resp.Timestamp) {
+		return ErrQueryExpired
+	}
+
 	return c.PushResponedQuery(resp)
 }
 
 func (c *Chain) CheckAndPushAckedQuery(ack *worker.SignedAckHeader) (err error) {
+	// TODO(leventeliu): check resp.
+	if c.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
+		return ErrQueryExpired
+	}
+
 	return c.PushAckedQuery(ack)
 }
 

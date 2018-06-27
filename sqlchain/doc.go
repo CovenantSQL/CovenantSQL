@@ -99,4 +99,31 @@
 // |
 // +-- ...
 //
+//
+//
+// Block producing:
+//
+//      blocks: Block-0               Block-1               Block-2               ...
+//             (Genesis)              |                     |
+//              |                     +-{q1, q2}            +-{q3, q5}            ...
+//              |                     |                     |
+//              +---------------------+---------------------+-------------------
+//              |                     |                     |
+//     queries: | q1       q2    q3   |        q4 q5    q6  |     q7              ...
+//     \        | |\       |\    |\   |        |  |     |   |     |
+//      \       | | \      | |   | +--|--+     |  +     +   +     +
+//  (responses) | |  \     | |   |    |   \    |  |\    |\   \    |\
+//        \     | |   |    | |   |    +    \   |  | +   | \   \   | \
+//         \    | |   |    | |   |     \    \  |  | |   |  \   \  |  \
+//        acks: | |   a1   | a2  |      +    a3|  | a5  |   a6  + |   a7          ...
+//              | |   |    | |   |      |    | |  | |   |    \  | |    \
+//              | |   |    | |   |      |    | |  | |   |     + | |     +
+//              | |   |    | |   |      |    | |  | |   |     | | |     |
+//      height: 0 +---+----+-+---+--- 1 +----+-+--+-+---+-- 2 +-+-+-----+-------- ...
+//              |                     |                     |
+//              [ ---- period-0 ---- )[ ---- period-1 ---- )[ ---- period-2 ---- )...
+//
+// Note: q4 will expire after `config.QueryTTL` blocks; q5 and q6, which are acknowledged in
+// period-2, will be included in the next block.
+//
 package sqlchain

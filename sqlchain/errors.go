@@ -57,6 +57,10 @@ var (
 	// ErrBlockTimestampOutOfPeriod indicates a block producing timestamp verification failure.
 	ErrBlockTimestampOutOfPeriod = errors.New("block timestamp is out of producing period")
 
-	// ErrQueryExists indicates that a query already exists in memory index during adding.
-	ErrQueryExists = errors.New("query already exists in index")
+	// ErrMultipleAck indicates that multiple acknowledgements for a same query response is
+	// detected.
+	ErrMultipleAck = errors.New("multiple acknowledgements")
+
+	// ErrQueryExpired indicates that a received query Response/Ack has expired.
+	ErrQueryExpired = errors.New("query has expired")
 )

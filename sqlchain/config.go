@@ -34,12 +34,15 @@ type Config struct {
 	Peers  *kayak.Peers
 	Server *kayak.Server
 
-	// Price list: query type -> gas
+	// Price sets query price in gases.
 	Price map[worker.QueryType]uint32
+
+	// QueryTTL sets the unacknowledged query TTL in block periods.
+	QueryTTL int32
 }
 
 func (c *Config) GetHeightFromTime(t time.Time) int32 {
-	return int32(t.Sub(c.Genesis.SignedHeader.Timestamp) % c.Period)
+	return int32(t.Sub(c.Genesis.SignedHeader.Timestamp) / c.Period)
 }
 
 func (c *Config) GetQueryGas(t worker.QueryType) uint32 {

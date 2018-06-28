@@ -43,6 +43,3 @@ func TestGetBP(t *testing.T) {
     fmt.Printf("BP addresses: %v\n", ips)
 }
 
-func TestGetKey(t *testing.T) {
-    return
-}

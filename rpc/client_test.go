@@ -37,7 +37,7 @@ const privateKey = "test.private"
 const publicKeyStore = "./test.keystore"
 const pass = "abc"
 
-func TestDail(t *testing.T) {
+func TestDial(t *testing.T) {
 	Convey("dial error case", t, func() {
 		c, err := dial("tcp", "wrongaddr", nil, nil)
 		So(c, ShouldBeNil)
@@ -69,7 +69,7 @@ func TestDail(t *testing.T) {
 	})
 }
 
-func TestDailToNode(t *testing.T) {
+func TestDialToNode(t *testing.T) {
 	Convey("DialToNode error case", t, func() {
 		defer os.Remove(publicKeyStore)
 		defer os.Remove(privateKey)

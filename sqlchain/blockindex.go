@@ -29,9 +29,9 @@ type blockNode struct {
 	height int32
 }
 
-func newBlockNode(header *SignedHeader, parent *blockNode) *blockNode {
+func newBlockNode(block *Block, parent *blockNode) *blockNode {
 	return &blockNode{
-		hash:   header.BlockHash,
+		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
 		height: func() int32 {
 			if parent != nil {
@@ -43,8 +43,8 @@ func newBlockNode(header *SignedHeader, parent *blockNode) *blockNode {
 	}
 }
 
-func (bn *blockNode) initBlockNode(head *SignedHeader, parent *blockNode) {
-	bn.hash = head.BlockHash
+func (bn *blockNode) initBlockNode(block *Block, parent *blockNode) {
+	bn.hash = block.SignedHeader.BlockHash
 	bn.parent = nil
 	bn.height = 0
 

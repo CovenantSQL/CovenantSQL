@@ -201,7 +201,7 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 		},
 	}
 
-	err = chain.PushBlock(cfg.Genesis.SignedHeader)
+	err = chain.PushBlock(cfg.Genesis)
 
 	if err != nil {
 		return nil, err
@@ -259,34 +259,33 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		cursor = bi.Cursor()
 
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			header := &SignedHeader{}
-			err = header.unmarshal(v)
+			block := &Block{}
 
-			if err != nil {
-				return err
+			if err = block.UnmarshalBinary(v); err != nil {
+				return
 			}
 
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
-				if err = header.VerifyAsGenesis(); err != nil {
+				if err = block.SignedHeader.VerifyAsGenesis(); err != nil {
 					return
 				}
-			} else if header.ParentHash == lastNode.hash {
-				if err = header.Verify(); err != nil {
+			} else if block.SignedHeader.ParentHash.IsEqual(&lastNode.hash) {
+				if err = block.SignedHeader.Verify(); err != nil {
 					return
 				}
 
 				parent = lastNode
 			} else {
-				parent = chain.bi.LookupNode(&header.ParentHash)
+				parent = chain.bi.LookupNode(&block.SignedHeader.BlockHash)
 
 				if parent == nil {
 					return ErrParentNotFound
 				}
 			}
 
-			nodes[index].initBlockNode(header, parent)
+			nodes[index].initBlockNode(block, parent)
 			lastNode = &nodes[index]
 			index++
 		}
@@ -334,22 +333,17 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // PushBlock pushes the signed block header to extend the current main chain.
-func (c *Chain) PushBlock(block *SignedHeader) (err error) {
-	// Pushed block must extend the best chain
-	if block.Header.ParentHash != hash.Hash(c.state.Head) {
-		return ErrInvalidBlock
-	}
-
+func (c *Chain) PushBlock(block *Block) (err error) {
 	// Prepare and encode
 	node := newBlockNode(block, c.state.node)
 	state := &State{
 		node:   node,
-		Head:   block.BlockHash,
+		Head:   node.hash,
 		Height: node.height,
 	}
 	var encBlock, encState []byte
 
-	if encBlock, err = block.marshal(); err != nil {
+	if encBlock, err = block.MarshalBinary(); err != nil {
 		return
 	}
 
@@ -370,6 +364,7 @@ func (c *Chain) PushBlock(block *SignedHeader) (err error) {
 
 		c.state = state
 		c.bi.AddBlock(node)
+		c.qi.MarkForBlock(c.cfg.GetHeightFromTime(block.SignedHeader.Timestamp), block)
 
 		return
 	})
@@ -417,7 +412,6 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 		}
 
 		if err = b.Bucket(metaResponseIndexBucket).Put(resp.HeaderHash[:], enc); err != nil {
-			return
 		}
 
 		// Always put memory changes which will not be affected by rollback after DB operations
@@ -425,7 +419,7 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 	})
 }
 
-func (c *Chain) PushAckedQuery(ack *worker.SignedAckHeader) (err error) {
+func (c *Chain) PushAckedQuery(block *hash.Hash, ack *worker.SignedAckHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := HeightToKey(h)
 	var enc []byte
@@ -449,12 +443,18 @@ func (c *Chain) PushAckedQuery(ack *worker.SignedAckHeader) (err error) {
 		}
 
 		// Always put memory changes which will not be affected by rollback after DB operations
+		c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
 		return c.qi.AddAck(h, ack)
 	})
 }
 
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
 func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
+	// Pushed block must extend the best chain
+	if !block.SignedHeader.BlockHash.IsEqual(&c.state.Head) {
+		return ErrInvalidBlock
+	}
+
 	// TODO(leventeliu): verify that block.SignedHeader.Producer is the rightful producer of the
 	// block.
 
@@ -472,13 +472,14 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 
 	// Check queries
 	for _, q := range block.Queries {
-		if err = q.Verify(); err != nil {
+		var ok bool
+
+		if ok, err = c.qi.HasAck(h, &block.SignedHeader.BlockHash, q); err != nil {
 			return
 		}
 
-		// ErrMultipleAck is acceptable in this case, as long as they are all verified
-		if err = c.PushAckedQuery(q); err != nil && err != ErrMultipleAck {
-			return
+		if !ok {
+			// TODO(leventeliu): call RPC.FetchAckedQuery from block.SignedHeader.Producer
 		}
 	}
 
@@ -487,7 +488,7 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 		return
 	}
 
-	return c.PushBlock(block.SignedHeader)
+	return c.PushBlock(block)
 }
 
 func (c *Chain) queryTimeIsExpired(t time.Time) bool {
@@ -513,6 +514,10 @@ func (c *Chain) CheckAndPushResponsedQuery(resp *worker.SignedResponseHeader) (e
 		return ErrQueryExpired
 	}
 
+	if err = resp.Verify(); err != nil {
+		return
+	}
+
 	return c.PushResponedQuery(resp)
 }
 
@@ -522,7 +527,11 @@ func (c *Chain) CheckAndPushAckedQuery(ack *worker.SignedAckHeader) (err error) 
 		return ErrQueryExpired
 	}
 
-	return c.PushAckedQuery(ack)
+	if err = ack.Verify(); err != nil {
+		return
+	}
+
+	return c.PushAckedQuery(nil, ack)
 }
 
 // IsMyTurn returns whether it's my turn to produce block or not.
@@ -542,13 +551,17 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 
 	// Sign pending block
 	c.pendingBlock.SignedHeader.Timestamp = now
-	err = c.pendingBlock.SignHeader(priv)
 
-	if err != nil {
+	if err = c.pendingBlock.SignHeader(priv); err != nil {
 		return
 	}
 
 	// TODO(leventeliu): advise new block
+	// ...
+
+	if err = c.PushBlock(c.pendingBlock); err != nil {
+		return
+	}
 
 	return
 }
@@ -580,6 +593,32 @@ func (c *Chain) BlockProducingCycle() {
 	}
 }
 
+func (c *Chain) Sync() {
+}
+
+func (c *Chain) Start() {
+	c.Sync()
+	c.BlockProducingCycle()
+}
+
 func (c *Chain) Stop() {
 	c.rt.Stop()
+}
+
+func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
+	if n := c.state.node.ancestor(height); n != nil {
+		k := n.indexKey()
+
+		err = c.db.View(func(tx *bolt.Tx) (err error) {
+			v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
+			err = b.UnmarshalBinary(v)
+			return
+		})
+	}
+
+	return
+}
+
+func (c *Chain) FetchAckedQuery(h *hash.Hash) (ack *worker.Ack, err error) {
+	return nil, nil
 }

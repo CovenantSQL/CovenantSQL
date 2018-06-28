@@ -682,7 +682,7 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 	case []*hash.Hash:
 		err = serializer.writeHashes(w, order, e)
 
-	case *([]*hash.Hash):
+	case *[]*hash.Hash:
 		err = serializer.writeHashes(w, order, *e)
 
 	default:

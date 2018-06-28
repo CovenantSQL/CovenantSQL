@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
@@ -25,7 +26,7 @@ type ChainRPCServer struct {
 }
 
 type AdviseNewBlockReq struct {
-	block *Block
+	Block *Block
 }
 
 type AdviseNewBlockResp struct {
@@ -38,21 +39,38 @@ type AdviseBinLogResp struct {
 }
 
 type AdviseResponsedQueryReq struct {
-	query *worker.SignedResponseHeader
+	Query *worker.SignedResponseHeader
 }
 
 type AdviseResponsedQueryResp struct {
 }
 
 type AdviseAckedQueryReq struct {
-	query *worker.SignedAckHeader
+	Query *worker.SignedAckHeader
 }
 
 type AdviseAckedQueryResp struct {
 }
 
+type FetchBlockReq struct {
+	Height int32
+}
+
+type FetchBlockResp struct {
+	Height int32
+	Block  *Block
+}
+
+type FetchAckedQueryReq struct {
+	SignedResponseHeaderHash *hash.Hash
+}
+
+type FetchAckedQueryResp struct {
+	Ack *worker.Ack
+}
+
 func (s *ChainRPCServer) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
-	return s.chain.CheckAndPushNewBlock(req.block)
+	return s.chain.CheckAndPushNewBlock(req.Block)
 }
 
 func (s *ChainRPCServer) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
@@ -61,10 +79,22 @@ func (s *ChainRPCServer) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogRe
 
 func (s *ChainRPCServer) AdviseResponsedQuery(
 	req *AdviseResponsedQueryReq, resp *AdviseResponsedQueryResp) error {
-	return s.chain.CheckAndPushResponsedQuery(req.query)
+	return s.chain.CheckAndPushResponsedQuery(req.Query)
 }
 
 func (s *ChainRPCServer) AdviseAckedQuery(
 	req *AdviseAckedQueryReq, resp *AdviseAckedQueryResp) error {
-	return s.chain.CheckAndPushAckedQuery(req.query)
+	return s.chain.CheckAndPushAckedQuery(req.Query)
+}
+
+func (s *ChainRPCServer) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
+	resp.Height = req.Height
+	resp.Block, err = s.chain.FetchBlock(req.Height)
+	return
+}
+
+func (s *ChainRPCServer) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
+) (err error) {
+	resp.Ack, err = s.chain.FetchAckedQuery(req.SignedResponseHeaderHash)
+	return
 }

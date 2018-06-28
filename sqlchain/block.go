@@ -28,7 +28,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
 // Header is a block header.
@@ -41,7 +40,7 @@ type Header struct {
 	Timestamp   time.Time
 }
 
-func (h *Header) marshal() ([]byte, error) {
+func (h *Header) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -58,6 +57,18 @@ func (h *Header) marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+func (h *Header) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&h.Version,
+		&h.Producer,
+		&h.GenesisHash,
+		&h.ParentHash,
+		&h.MerkleRoot,
+		&h.Timestamp,
+	)
+}
+
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
@@ -66,7 +77,7 @@ type SignedHeader struct {
 	Signature *asymmetric.Signature
 }
 
-func (s *SignedHeader) marshal() ([]byte, error) {
+func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -86,7 +97,7 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *SignedHeader) unmarshal(b []byte) error {
+func (s *SignedHeader) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
 		&s.Version,
@@ -137,13 +148,13 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 
 // Block is a node of blockchain.
 type Block struct {
-	SignedHeader *SignedHeader
-	Queries      []*worker.SignedAckHeader
+	SignedHeader SignedHeader
+	Queries      []*hash.Hash
 }
 
 // SignHeader generates the signature for the Block from the given PrivateKey.
 func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
-	buffer, err := b.SignedHeader.Header.marshal()
+	buffer, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {
 		return
@@ -155,13 +166,42 @@ func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
+func (b *Block) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		&b.SignedHeader,
+		b.Queries,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (b *Block) UnmarshalBinary(data []byte) error {
+	reader := bytes.NewReader(data)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&b.SignedHeader,
+		&b.Queries,
+	)
+}
+
+func (b *Block) PushAckedQuery(h *hash.Hash) {
+	if b.Queries == nil {
+		b.Queries = make([]*hash.Hash, 0, 100)
+	}
+
+	b.Queries = append(b.Queries, h)
+}
+
 // Verify verifies the merkle root and header signature of the block.
 func (b *Block) Verify() (err error) {
 	// TODO(leventeliu): verify merkle root of queries
 	// ...
 
 	// Verify block hash
-	buffer, err := b.SignedHeader.Header.marshal()
+	buffer, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {
 		return
@@ -177,10 +217,6 @@ func (b *Block) Verify() (err error) {
 
 // VerifyAsGenesis verifies the block as a genesis block.
 func (b *Block) VerifyAsGenesis() (err error) {
-	if b.SignedHeader == nil {
-		return ErrNilValue
-	}
-
 	// Assume that we can fetch public key from kms after initialization.
 	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
 

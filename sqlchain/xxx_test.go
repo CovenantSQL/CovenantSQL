@@ -182,7 +182,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	rand.Read(h[:])
 
 	b = &Block{
-		SignedHeader: &SignedHeader{
+		SignedHeader: SignedHeader{
 			Header: Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
@@ -193,31 +193,12 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 			Signee:    pub,
 			Signature: nil,
 		},
-		Queries: make([]*worker.SignedAckHeader, rand.Intn(10)+10),
+		Queries: make([]*hash.Hash, rand.Intn(10)+10),
 	}
 
-	for i, _ := range b.Queries {
-		var reqPriv, respPriv *asymmetric.PrivateKey
-		var reqPub, respPub *asymmetric.PublicKey
-
-		if reqPriv, reqPub, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
-			return
-		}
-
-		if respPriv, respPub, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
-			return
-		}
-
-		h := hash.Hash{}
-		rand.Read(h[:])
-		reqNode := proto.NodeID(h.String())
-		rand.Read(h[:])
-		respNode := proto.NodeID(h.String())
-		if b.Queries[i], err = createRandomQueryAck(
-			reqNode, reqPriv, reqPub, respNode, respPriv, respPub,
-		); err != nil {
-			return
-		}
+	for i := range b.Queries {
+		b.Queries[i] = new(hash.Hash)
+		rand.Read(b.Queries[i][:])
 	}
 
 	// TODO(leventeliu): use merkle package to generate this field from queries.

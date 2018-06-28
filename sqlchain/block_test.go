@@ -46,20 +46,20 @@ func TestSerialization(t *testing.T) {
 	}
 
 	sheader := block.SignedHeader
-	buffer, err := sheader.marshal()
+	buffer, err := sheader.MarshalBinary()
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
 	rSHeader := &SignedHeader{}
-	err = rSHeader.unmarshal(buffer)
+	err = rSHeader.UnmarshalBinary(buffer)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	err = rSHeader.unmarshal(nil)
+	err = rSHeader.UnmarshalBinary(nil)
 
 	if err != nil {
 		t.Logf("Error occurred as expected: %v", err)
@@ -161,14 +161,5 @@ func TestGenesis(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	// Test nil signature
-	genesis.SignedHeader = nil
-
-	if err = genesis.VerifyAsGenesis(); err == ErrNilValue {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatalf("Unexpected error: %v", err)
 	}
 }

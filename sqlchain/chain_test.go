@@ -96,8 +96,8 @@ func TestIndexKey(t *testing.T) {
 		}
 
 		// Test partial order
-		bi1 := newBlockNode(b1.SignedHeader, nil)
-		bi2 := newBlockNode(b2.SignedHeader, nil)
+		bi1 := newBlockNode(b1, nil)
+		bi2 := newBlockNode(b2, nil)
 		bi1.height = rand.Int31()
 		bi2.height = rand.Int31()
 		k1 := bi1.indexKey()
@@ -147,7 +147,7 @@ func TestChain(t *testing.T) {
 	for block, err := createRandomBlock(
 		genesis.SignedHeader.BlockHash, false,
 	); err == nil; block, err = createRandomBlock(block.SignedHeader.BlockHash, false) {
-		err = chain.PushBlock(block.SignedHeader)
+		err = chain.PushBlock(block)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)

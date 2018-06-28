@@ -45,13 +45,12 @@ func (s *QuerySummary) UpdateQuerySummaryWithResp(resp *worker.SignedResponseHea
 }
 
 func (s *QuerySummary) UpdateQuerySummaryWithAck(ack *worker.SignedAckHeader) (err error) {
-	if s.Response == nil {
-		s.Response = ack.SignedResponseHeader()
-		s.Ack = ack
-	} else if s.Ack == nil {
+	if s.Response == nil || s.Ack == nil {
 		// A later Ack can overwrite the original Response setting
-		s.Response = ack.SignedResponseHeader()
-		s.Ack = ack
+		*s = QuerySummary{
+			Response: ack.SignedResponseHeader(),
+			Ack:      ack,
+		}
 	} else if !s.Ack.HeaderHash.IsEqual(&ack.HeaderHash) {
 		// This may happen when a client sends multiple acknowledgements for a same query (same
 		// response header hash)
@@ -91,13 +90,14 @@ func (i SeqIndex) Ensure(seq uint64) (v *SeqAcks) {
 
 type MultiIndex struct {
 	sync.Mutex
-	HashIndex
+	RespIndex, AckIndex HashIndex
 	SeqIndex
 }
 
 func NewMultiIndex() *MultiIndex {
 	return &MultiIndex{
-		HashIndex: make(map[hash.Hash]*QuerySummary),
+		RespIndex: make(map[hash.Hash]*QuerySummary),
+		AckIndex:  make(map[hash.Hash]*QuerySummary),
 		SeqIndex:  make(map[uint64]*SeqAcks),
 	}
 }
@@ -106,7 +106,7 @@ func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) error {
 	i.Lock()
 	defer i.Unlock()
 
-	if v, ok := i.HashIndex[resp.HeaderHash]; ok && v != nil {
+	if v, ok := i.RespIndex[resp.HeaderHash]; ok && v != nil {
 		return v.UpdateQuerySummaryWithResp(resp)
 	}
 
@@ -115,7 +115,7 @@ func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) error {
 		Response: resp,
 	}
 
-	i.HashIndex[resp.HeaderHash] = s
+	i.RespIndex[resp.HeaderHash] = s
 	q := i.SeqIndex.Ensure(resp.Request.SeqNo)
 	q.Queries = append(q.Queries, s)
 
@@ -126,8 +126,10 @@ func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
 	i.Lock()
 	defer i.Unlock()
 
-	if v, ok := i.HashIndex[ack.ResponseHeaderHash()]; ok && v != nil {
-		// This should also update the *SeqAcks indexed by seqNo
+	if v, ok := i.RespIndex[ack.ResponseHeaderHash()]; ok && v != nil {
+		// This should also update the *QuerySummary indexed by AckIndex and *SeqAcks indexed by
+		// seqNo
+		i.AckIndex[ack.HeaderHash] = v
 		return v.UpdateQuerySummaryWithAck(ack)
 	}
 
@@ -137,7 +139,8 @@ func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
 		Ack:      ack,
 	}
 
-	i.HashIndex[ack.ResponseHeaderHash()] = s
+	i.RespIndex[ack.ResponseHeaderHash()] = s
+	i.AckIndex[ack.HeaderHash] = s
 	q := i.SeqIndex.Ensure(ack.SignedRequestHeader().SeqNo)
 	q.Queries = append(q.Queries, s)
 
@@ -149,6 +152,15 @@ func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
 	}
 
 	return nil
+}
+
+func (i *MultiIndex) MarkPacker(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
+	i.Lock()
+	defer i.Unlock()
+
+	if v, ok := i.AckIndex[*ackHeaderHash]; ok {
+		v.Packer = blockHash
+	}
 }
 
 func (i *MultiIndex) expire() {
@@ -219,6 +231,34 @@ func (i *QueryIndex) AddResponse(h int32, resp *worker.SignedResponseHeader) err
 
 func (i *QueryIndex) AddAck(h int32, ack *worker.SignedAckHeader) error {
 	return i.heightIndex.EnsureHeight(h).AddAck(ack)
+}
+
+func (i *QueryIndex) HasAck(h int32, b *hash.Hash, ack *hash.Hash) (ok bool, err error) {
+	if h < i.barrier {
+		err = ErrQueryExpired
+		return
+	}
+
+	q, ok := i.heightIndex.EnsureHeight(h).AckIndex[*ack]
+
+	if !ok {
+		return
+	}
+
+	if q.Packer != nil && !q.Packer.IsEqual(b) {
+		err = ErrQueryPackedByAnotherBlock
+		return
+	}
+
+	return
+}
+
+func (i *QueryIndex) MarkForBlock(h int32, block *Block) {
+	hi := i.heightIndex.EnsureHeight(h)
+
+	for _, v := range block.Queries {
+		hi.MarkPacker(&block.SignedHeader.BlockHash, v)
+	}
 }
 
 func (i *QueryIndex) expireHeight(h int32) {

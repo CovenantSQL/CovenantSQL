@@ -63,4 +63,8 @@ var (
 
 	// ErrQueryExpired indicates that a received query Response/Ack has expired.
 	ErrQueryExpired = errors.New("query has expired")
+
+	ErrQueryNotCached = errors.New("query is not cached locally")
+
+	ErrQueryPackedByAnotherBlock = errors.New("query has been packed by another block")
 )

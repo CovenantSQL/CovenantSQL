@@ -107,12 +107,12 @@ func clientRequest(reqType string, sql string) (err error) {
 		}
 
 		respA := new(proto.PingResp)
-		log.Debugf("reqA: %v", reqA)
-		err = client.Call("DHT.Ping", reqA, respA)
+		log.Debugf("req %s: %v", reqType, reqA)
+		err = client.Call("DHT."+reqType, reqA, respA)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Debugf("respA: %v", respA)
+		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
 		reqType = "FindValue"
 		req := &proto.FindValueReq{
@@ -120,12 +120,12 @@ func clientRequest(reqType string, sql string) (err error) {
 			Count:  10,
 		}
 		resp := new(proto.FindValueResp)
-		log.Debugf("req: %v", req)
-		err = client.Call("DHT.FindValue", req, resp)
+		log.Debugf("req %s: %v", reqType, req)
+		err = client.Call("DHT."+reqType, req, resp)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Debugf("resp: %v", resp)
+		log.Debugf("resp %s: %v", reqType, resp)
 	}
 
 	return

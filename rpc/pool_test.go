@@ -30,7 +30,8 @@ import (
 const (
 	localAddr   = "127.0.0.1:4444"
 	localAddr2  = "127.0.0.1:4445"
-	concurrency = 100
+	concurrency = 10
+	packetCount = 100
 )
 
 func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) error {
@@ -59,10 +60,10 @@ func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) er
 				log.Println("accepting stream")
 				stream, err := session.Accept()
 				if err == nil {
-
 					buf1 := make([]byte, 4)
 					for i := 0; i < n; i++ {
 						stream.Read(buf1)
+						c2.So(string(buf1), ShouldEqual, "ping")
 					}
 					log.Debugf("buf#%d read done", i)
 				}
@@ -129,7 +130,7 @@ func TestNewSessionPool(t *testing.T) {
 
 		wg := &sync.WaitGroup{}
 
-		server(c, localAddr, wg, p, 100)
+		server(c, localAddr, wg, p, packetCount)
 		for i := 0; i < concurrency; i++ {
 			wg.Add(1)
 			go func(c2 C, n int) {
@@ -137,11 +138,15 @@ func TestNewSessionPool(t *testing.T) {
 				// Stream implements net.Conn
 				defer wg.Done()
 				stream, err := p.Get(proto.NodeID(localAddr))
+				if err != nil {
+					log.Errorf("get session failed: %s", err)
+					return
+				}
 				c2.So(err, ShouldBeNil)
 				for i := 0; i < n; i++ {
 					_, err = stream.Write([]byte("ping"))
 				}
-			}(c, 100)
+			}(c, packetCount)
 		}
 
 		wg.Wait()
@@ -156,7 +161,7 @@ func TestNewSessionPool(t *testing.T) {
 		//c.So(err, ShouldBeNil)
 
 		wg2 := &sync.WaitGroup{}
-		server(c, localAddr2, wg2, p, 100)
+		server(c, localAddr2, wg2, p, packetCount)
 		conn, _ := net.Dial("tcp", localAddr2)
 		exists := p.Set(proto.NodeID(localAddr2), conn)
 		c.So(exists, ShouldBeFalse)
@@ -171,11 +176,15 @@ func TestNewSessionPool(t *testing.T) {
 				// Stream implements net.Conn
 				defer wg2.Done()
 				stream, err := p.Get(proto.NodeID(localAddr2))
+				if err != nil {
+					log.Errorf("get session failed: %s", err)
+					return
+				}
 				c2.So(err, ShouldBeNil)
 				for i := 0; i < n; i++ {
 					_, err = stream.Write([]byte("ping"))
 				}
-			}(c, 100)
+			}(c, packetCount)
 		}
 
 		wg2.Wait()

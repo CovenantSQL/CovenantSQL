@@ -45,6 +45,7 @@ const (
 type SessPool interface {
 	Get(proto.NodeID) (net.Conn, error)
 	Set(proto.NodeID, net.Conn) bool
+	Remove(proto.NodeID)
 	Close()
 	Len() int
 }
@@ -85,9 +86,7 @@ func NewSessionPool(nd NodeDialer) *SessionPool {
 // toSession wraps net.Conn to yamux.Session
 func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
 	// create yamux session
-	config := yamux.DefaultConfig()
-	config.LogOutput = log.StandardLogger().Out
-	newSess, err := yamux.Client(conn, config)
+	newSess, err := yamux.Client(conn, YamuxConfig)
 	if err != nil {
 		//log.Errorf("dial to new node %s failed: %s", id, err)  // no log in lock
 		return
@@ -158,14 +157,21 @@ func (p *SessionPool) Set(id proto.NodeID, conn net.Conn) (exist bool) {
 	return
 }
 
+// Remove the node sessions in the pool
+func (p *SessionPool) Remove(id proto.NodeID) {
+	p.Lock()
+	defer p.Unlock()
+	delete(p.sessions, id)
+}
+
 // Close closes all sessions in the pool
 func (p *SessionPool) Close() {
 	p.Lock()
+	defer p.Unlock()
 	for _, s := range p.sessions {
 		s.Close()
 	}
 	p.sessions = make(SessionMap)
-	defer p.Unlock()
 }
 
 // Len returns the session counts in the pool

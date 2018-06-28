@@ -69,16 +69,6 @@ func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) er
 				}
 			}(i, c)
 		}
-
-		//// Accept a stream
-		//log.Println("accepting stream2")
-		//stream2, err := session.Accept()
-		//c.So(err, ShouldBeNil)
-		//// Listen for a message
-		//buf2 := make([]byte, 5)
-		//_, err = stream2.Read(buf2)
-		//log.Printf("buf2 = %+v\n", string(buf2))
-
 	}()
 	return err
 }
@@ -109,14 +99,6 @@ func BenchmarkSessionPool_Get(b *testing.B) {
 			}(c, b.N)
 		}
 		wg.Wait()
-		//
-		//// Open a new stream
-		//log.Println("opening stream2")
-		//stream2, err := p.Get(proto.NodeID(localAddr))
-		//So(err, ShouldBeNil)
-		//// Stream implements net.Conn
-		//_, err = stream2.Write([]byte("ping2"))
-		//c.So(err, ShouldBeNil)
 	})
 }
 
@@ -152,14 +134,6 @@ func TestNewSessionPool(t *testing.T) {
 		wg.Wait()
 		c.So(p.Len(), ShouldEqual, 1)
 
-		//// Open a new stream
-		//log.Println("opening stream2")
-		//stream2, err := p.Get(proto.NodeID(localAddr))
-		//So(err, ShouldBeNil)
-		//// Stream implements net.Conn
-		//_, err = stream2.Write([]byte("ping2"))
-		//c.So(err, ShouldBeNil)
-
 		wg2 := &sync.WaitGroup{}
 		server(c, localAddr2, wg2, p, packetCount)
 		conn, _ := net.Dial("tcp", localAddr2)
@@ -190,19 +164,11 @@ func TestNewSessionPool(t *testing.T) {
 		wg2.Wait()
 		c.So(p.Len(), ShouldEqual, 2)
 
-		//// Open a new stream
-		//log.Println("opening stream2")
-		//stream2, err = p.Get(proto.NodeID(localAddr2))
-		//So(err, ShouldBeNil)
-		//// Stream implements net.Conn
-		//_, err = stream2.Write([]byte("ping2"))
-		//c.So(err, ShouldBeNil)
-
-		c.So(p.Len(), ShouldEqual, 2)
+		p.Remove(proto.NodeID(localAddr2))
+		c.So(p.Len(), ShouldEqual, 1)
 
 		p.Close()
 		c.So(p.Len(), ShouldEqual, 0)
 
 	})
-
 }

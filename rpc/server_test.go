@@ -81,7 +81,7 @@ func TestIncCounter(t *testing.T) {
 	go server.Serve()
 
 	rep := new(TestRep)
-	client, err := InitClient(l.Addr().String())
+	client, err := initClient(l.Addr().String())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 	server.SetListener(l)
 	go server.Serve()
 
-	client, err := InitClient(l.Addr().String())
+	client, err := initClient(l.Addr().String())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID)
+	cryptoConn, err := DialToNode(serverNodeID, nil)
 	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)
@@ -203,7 +203,7 @@ func TestEncPingFindValue(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID)
+	cryptoConn, err := DialToNode(serverNodeID, nil)
 	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)

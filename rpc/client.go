@@ -35,7 +35,16 @@ import (
 // Client is RPC client
 type Client struct {
 	*rpc.Client
-	Mux *yamux.Session
+}
+
+var (
+	YamuxConfig   *yamux.Config
+	DefaultDialer = dialToNode
+)
+
+func init() {
+	YamuxConfig = yamux.DefaultConfig()
+	YamuxConfig.LogOutput = log.StandardLogger().Out
 }
 
 // dial connects to a address with a Cipher
@@ -69,8 +78,33 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 	return
 }
 
-// DialToNode connects to the node with nodeID
-func DialToNode(nodeID proto.NodeID) (conn *etls.CryptoConn, err error) {
+// DialToNode ties use connection in pool, if fails then connects to the node with nodeID
+func DialToNode(nodeID proto.NodeID, pool *SessionPool) (conn net.Conn, err error) {
+	if pool == nil {
+		var ETLSConn net.Conn
+		var sess *yamux.Session
+		ETLSConn, err = dialToNode(nodeID)
+		if err != nil {
+			log.Errorf("dialToNode failed: %s", err)
+			return
+		}
+		sess, err = yamux.Client(ETLSConn, YamuxConfig)
+		if err != nil {
+			log.Errorf("init yamux client failed: %s", err)
+			return
+		}
+		conn, err = sess.Open()
+		if err != nil {
+			log.Errorf("open new session failed", err)
+		}
+		return
+	} else {
+		return pool.Get(nodeID)
+	}
+}
+
+// dialToNode connects to the node with nodeID
+func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 	var nodePublicKey *asymmetric.PublicKey
 	var rawNodeID = new(proto.RawNodeID)
 	err = hash.Decode(&rawNodeID.Hash, string(nodeID))
@@ -122,8 +156,8 @@ func NewClient() *Client {
 	return &Client{}
 }
 
-// InitClient initializes client with connection to given addr
-func InitClient(addr string) (client *Client, err error) {
+// initClient initializes client with connection to given addr
+func initClient(addr string) (client *Client, err error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -134,19 +168,21 @@ func InitClient(addr string) (client *Client, err error) {
 // InitClientConn initializes client with connection to given addr
 func InitClientConn(conn net.Conn) (client *Client, err error) {
 	client = NewClient()
-	sess, err := yamux.Client(conn, nil)
-	if err != nil {
-		log.Panic(err)
-	}
+	var muxConn *yamux.Stream
+	muxConn, ok := conn.(*yamux.Stream)
+	if !ok {
+		sess, err := yamux.Client(conn, YamuxConfig)
+		if err != nil {
+			log.Panic(err)
+		}
 
-	client.Mux = sess
-	clientConn, err := sess.Open()
-	if err != nil {
-		log.Panic(err)
-		return
+		muxConn, err = sess.OpenStream()
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 	mh := &codec.MsgpackHandle{}
-	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(clientConn, mh)
+	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(muxConn, mh)
 	client.Client = rpc.NewClientWithCodec(msgpackCodec)
 
 	return client, nil
@@ -154,6 +190,5 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 
 // Close the client RPC connection
 func (c *Client) Close() {
-	c.Mux.Close()
 	c.Client.Close()
 }

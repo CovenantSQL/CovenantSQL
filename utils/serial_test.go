@@ -63,6 +63,7 @@ type testStruct struct {
 	PublicKeyField *asymmetric.PublicKey
 	SignatureField *asymmetric.Signature
 	StringsField   []string
+	HashesField    []*hash.Hash
 }
 
 func (s *testStruct) randomize() {
@@ -131,6 +132,20 @@ func (s *testStruct) randomize() {
 		rand.Read(buff)
 		s.StringsField[i] = string(buff)
 	}
+
+	// Randomize hashes field
+	slen = rand.Intn(1024)
+
+	if slen == 0 {
+		s.HashesField = nil // Watch out, a zero-length slice will is not deep equal to nil
+	} else {
+		s.HashesField = make([]*hash.Hash, slen)
+	}
+
+	for i := range s.HashesField {
+		s.HashesField[i] = new(hash.Hash)
+		rand.Read(s.HashesField[i][:])
+	}
 }
 
 func (s *innerStruct) MarshalBinary() ([]byte, error) {
@@ -185,6 +200,7 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.PublicKeyField,
 		s.SignatureField,
 		s.StringsField,
+		s.HashesField,
 	); err != nil {
 		return nil, err
 	}
@@ -213,6 +229,7 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
+		&s.HashesField,
 	); err != nil {
 		return nil, err
 	}
@@ -235,6 +252,7 @@ func (s *testStruct) MarshalBinary3() ([]byte, error) {
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
+		&s.HashesField,
 	); err != nil {
 		return nil, err
 	}
@@ -262,6 +280,7 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
+		&s.HashesField,
 	)
 }
 
@@ -279,6 +298,7 @@ func (s *testStruct) UnmarshalBinary2(b []byte) error {
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
+		&s.HashesField,
 	)
 }
 

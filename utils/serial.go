@@ -253,6 +253,47 @@ func (s simpleSerializer) readStrings(r io.Reader, order binary.ByteOrder, ret *
 	return
 }
 
+// readHashes reads hashes from reader with the following format:
+//
+// 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
+// +----------+------------+------------+------------+------------+
+// | sliceLen |   hash_0   |   hash_1   |    ...     |   hash_n   |
+// +----------+------------+------------+------------+------------+
+//
+func (s simpleSerializer) readHashes(r io.Reader, order binary.ByteOrder, ret *[]*hash.Hash) (
+	err error) {
+	var retLen uint32
+
+	if retLen, err = s.readUint32(r, order); err != nil {
+		return
+	}
+
+	if retLen > maxSliceLength {
+		err = ErrSliceLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	if *ret == nil || cap(*ret) < int(retLen) {
+		*ret = make([]*hash.Hash, retLen)
+	} else {
+		*ret = (*ret)[:retLen]
+	}
+
+	for i := range *ret {
+		(*ret)[i] = new(hash.Hash)
+
+		if err = s.readFixedSizeBytes(r, hash.HashSize, ((*ret)[i])[:]); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 func (s simpleSerializer) writeUint8(w io.Writer, val uint8) (err error) {
 	buffer := s.borrowBuffer(1)
 	defer s.returnBuffer(buffer)
@@ -362,6 +403,28 @@ func (s simpleSerializer) writeStrings(w io.Writer, order binary.ByteOrder, val 
 	return
 }
 
+// writeHashes writes hashes to writer with the following format:
+//
+// 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
+// +----------+------------+------------+------------+------------+
+// | sliceLen |   hash_0   |   hash_1   |    ...     |   hash_n   |
+// +----------+------------+------------+------------+------------+
+//
+func (s simpleSerializer) writeHashes(w io.Writer, order binary.ByteOrder, val []*hash.Hash) (
+	err error) {
+	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return
+	}
+
+	for _, v := range val {
+		if err = s.writeFixedSizeBytes(w, hash.HashSize, v[:]); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err error) {
 	switch e := element.(type) {
 	case *bool:
@@ -450,6 +513,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 
 	case *[]string:
 		err = serializer.readStrings(r, order, e)
+
+	case *[]*hash.Hash:
+		err = serializer.readHashes(r, order, e)
 
 	default:
 		// Fallback to BinaryUnmarshaler interface
@@ -612,6 +678,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *([]string):
 		err = serializer.writeStrings(w, order, *e)
+
+	case []*hash.Hash:
+		err = serializer.writeHashes(w, order, e)
+
+	case *([]*hash.Hash):
+		err = serializer.writeHashes(w, order, *e)
 
 	default:
 		// Fallback to BinaryMarshaler interface

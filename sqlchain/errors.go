@@ -64,7 +64,13 @@ var (
 	// ErrQueryExpired indicates that a received query Response/Ack has expired.
 	ErrQueryExpired = errors.New("query has expired")
 
+	// ErrQueryNotCached indicates that a wanted query is not cached locally.
 	ErrQueryNotCached = errors.New("query is not cached locally")
 
-	ErrQueryPackedByAnotherBlock = errors.New("query has been packed by another block")
+	// ErrQuerySignedByAnotherBlock indicates that a query is already signed in a known block
+	// during the verification of a new introduced block.
+	ErrQuerySignedByAnotherBlock = errors.New("query has been packed by another block")
+
+	// ErrCorruptedIndex indecates that a corrupted index item is detected.
+	ErrCorruptedIndex = errors.New("corrupted index item")
 )

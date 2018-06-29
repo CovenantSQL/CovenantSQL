@@ -40,6 +40,7 @@ type Header struct {
 	Timestamp   time.Time
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (h *Header) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
@@ -57,6 +58,7 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (h *Header) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
@@ -77,6 +79,7 @@ type SignedHeader struct {
 	Signature *asymmetric.Signature
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
@@ -97,6 +100,7 @@ func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (s *SignedHeader) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
@@ -166,6 +170,7 @@ func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (b *Block) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
@@ -179,6 +184,7 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (b *Block) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
 	return utils.ReadElements(reader, binary.BigEndian,
@@ -187,6 +193,7 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	)
 }
 
+// PushAckedQuery pushes a acknowledged and verified query into the block.
 func (b *Block) PushAckedQuery(h *hash.Hash) {
 	if b.Queries == nil {
 		b.Queries = make([]*hash.Hash, 0, 100)

@@ -25,29 +25,39 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
-type QuerySummary struct {
+// RequestTracker defines a tracker of a particular database query request.
+// We use it to track and update queries in this index system.
+type RequestTracker struct {
 	// TODO(leventeliu): maybe we don't need them to be "signed" here. Given that the Response or
 	// Ack is already verified, simply use Header.
 	Response *worker.SignedResponseHeader
 	Ack      *worker.SignedAckHeader
 
-	// Packer is the hash of the block which contains this query.
-	Packer *hash.Hash
+	// SignedBlock is the hash of the block in the currently best chain which contains this query.
+	SignedBlock *hash.Hash
 }
 
-func (s *QuerySummary) UpdateQuerySummaryWithResp(resp *worker.SignedResponseHeader) (err error) {
-	if s.Response == nil {
-		s.Response = resp
-		s.Ack = nil
-	} // else it's same as s.Response, cause they have same header hash
-
-	return
+// QueryTracker defines a tracker of a particular database query. It may contain multiple queries
+// to differe workers.
+type QueryTracker struct {
+	FirstAck *RequestTracker
+	Queries  []*RequestTracker
 }
 
-func (s *QuerySummary) UpdateQuerySummaryWithAck(ack *worker.SignedAckHeader) (err error) {
+// NewQuerySummary returns a new QueryTracker reference.
+func NewQuerySummary() *QueryTracker {
+	return &QueryTracker{
+		// TODO(leventeliu): set appropriate capacity.
+		FirstAck: nil,
+		Queries:  make([]*RequestTracker, 0, 10),
+	}
+}
+
+// UpdateAck updates the query tracker with a verified SignedAckHeader.
+func (s *RequestTracker) UpdateAck(ack *worker.SignedAckHeader) (err error) {
 	if s.Response == nil || s.Ack == nil {
 		// A later Ack can overwrite the original Response setting
-		*s = QuerySummary{
+		*s = RequestTracker{
 			Response: ack.SignedResponseHeader(),
 			Ack:      ack,
 		}
@@ -60,81 +70,152 @@ func (s *QuerySummary) UpdateQuerySummaryWithAck(ack *worker.SignedAckHeader) (e
 	return
 }
 
-type HashIndex map[hash.Hash]*QuerySummary
+// HashIndex defines a RequestTracker index using hash as key.
+type HashIndex map[hash.Hash]*RequestTracker
 
-type SeqAcks struct {
-	FirstAck *QuerySummary
-	Queries  []*QuerySummary
-}
+// SeqIndex defines a QueryTracker index using sequence number as key.
+type SeqIndex map[uint64]*QueryTracker
 
-func NewSeqAcks() *SeqAcks {
-	return &SeqAcks{
-		// TODO(leventeliu): set appropriate capacity.
-		FirstAck: nil,
-		Queries:  make([]*QuerySummary, 0, 10),
-	}
-}
+// Ensure returns the *QueryTracker associated with the given key. It creates a new item if the
+// key doesn't exist.
+func (i SeqIndex) Ensure(k uint64) (v *QueryTracker) {
+	var ok bool
 
-type SeqIndex map[uint64]*SeqAcks
-
-func (i SeqIndex) Ensure(seq uint64) (v *SeqAcks) {
-	v, ok := i[seq]
-
-	if !ok {
-		v = NewSeqAcks()
-		i[seq] = v
+	if v, ok = i[k]; !ok {
+		v = NewQuerySummary()
+		i[k] = v
 	}
 
 	return
 }
 
+// MultiIndex defines a combination of multiple indexes.
+//
+// Index layout is as following:
+//
+//  RespIndex                                    +----------------+
+//                +---------------------------+->| RequestTracker |       +---------------------------+
+// |  ...   |     |                           |  | +-Response     |------>| SignedResponseHeader      |
+// +--------+     |                           |  | +-Ack (nil)    |       | +-ResponseHeader          |
+// | hash#1 |-----+                           |  | +-...          |       | | +-SignedRequestHeader   |
+// +--------+                                 |  +----------------+       | | | +-RequestHeader       |
+// |  ...   |                                 |                           | | | | +-...               |
+// +--------+           +------------------+  |                           | | | | +-SeqNo: seq#0      |
+// | hash#3 |--+     +->| QueryTracker     |  |                           | | | | +-...               |
+// +--------+  |     |  | +-FirstAck (nil) |  |                           | | | +-HeaderHash = hash#0 |
+// |  ...   |  |     |  | +-Queries        |  |                           | | | +-Signee ====> pubk#0 |
+// +--------+  |     |  |   +-[0]          |--+                           | | | +-Signature => sign#0 |
+// | hash#6 |--|--+  |  |   +-...          |                              | | +-...                   |
+// +--------+  |  |  |  +------------------+                              | +-HeaderHash = hash#1     |
+// |  ...   |  |  |  |                                                    | +-Signee ====> pubk#1     |
+//             |  |  |                                                    | +-Signature => sign#1     |
+//             |  |  |                                                    +---------------------------+
+//             |  |  |                           +----------------+
+//             +----------------+---------+-+--->| RequestTracker |
+//                |  |          |         | |    | +-Response     |----+  +-------------------------------+
+//  AckIndex      |  |          |         | |    | +-Ack          |----|->| SignedAckHeader               |
+//                |  |          |         | |    | +-...          |    |  | +-AckHeader                   |
+// |  ...   |     |  |          |         | |    +----------------+    +->| | +-SignedResponseHeader      |
+// +--------+     |  |          |         | |                             | | | +-ResponseHeader          |
+// | hash#4 |-----|-------------+         | |                             | | | | +-SignedRequestHeader   |
+// +--------+     |  |                    | |                             | | | | | +-RequestHeader       |
+// |  ...   |     |  |                    | |                             | | | | | | +-...               |
+//                |  |                    | |                             | | | | | | +-SeqNo: seq#1      |
+//                |  |                    | |                             | | | | | | +-...               |
+//                |  |                    | |                             | | | | | +-HeaderHash = hash#2 |
+//                |  |                    | |                             | | | | | +-Signee ====> pubk#2 |
+//                |  |                    | |                             | | | | | +-Signature => sign#2 |
+//  SeqIndex      |  |                    | |    +----------------+       | | | | +-...                   |
+//                +---------------------------+->| RequestTracker |       | | | +-HeaderHash = hash#3     |
+// |  ...   |        |                    | | |  | +-Response     |---+   | | | +-Signee ====> pubk#3     |
+// +--------+        |                    | | |  | +-Ack (nil)    |   |   | | | +-Signature => sign#3     |
+// | seq#0  |--------+                    | | |  | +-...          |   |   | | +-...                       |
+// +--------+                             | | |  +----------------+   |   | +-HeaderHash = hash#4         |
+// |  ...   |                             | | |                       |   | +-Signee ====> pubk#2         |
+// +--------+           +--------------+  | | |                       |   | +-Signature => sign#4         |
+// | seq#1  |---------->| QueryTracker |  | | |                       |   +-------------------------------+
+// +--------+           | +-FirstAck   |--+ | |                       |
+// |  ...   |           | +-Queries    |    | |                       |
+//                      |   +-[0]      |----+ |                       |
+//                      |   +-[1]      |------+                       |   +---------------------------+
+//                      |   +-...      |                              +-->| SignedResponseHeader      |
+//                      +--------------+                                  | +-ResponseHeader          |
+//                                                                        | | +-SignedRequestHeader   |
+//                                                                        | | | +-RequestHeader       |
+//                                                                        | | | | +-...               |
+//                                                                        | | | | +-SeqNo: seq#1      |
+//                                                                        | | | | +-...               |
+//                                                                        | | | +-HeaderHash = hash#5 |
+//                                                                        | | | +-Signee ====> pubk#5 |
+//                                                                        | | | +-Signature => sign#5 |
+//                                                                        | | +-...                   |
+//                                                                        | +-HeaderHash = hash#6     |
+//                                                                        | +-Signee ====> pubk#6     |
+//                                                                        | +-Signature => sign#6     |
+//                                                                        +---------------------------+
+//
 type MultiIndex struct {
 	sync.Mutex
 	RespIndex, AckIndex HashIndex
 	SeqIndex
 }
 
+// NewMultiIndex returns a new MultiIndex reference.
 func NewMultiIndex() *MultiIndex {
 	return &MultiIndex{
-		RespIndex: make(map[hash.Hash]*QuerySummary),
-		AckIndex:  make(map[hash.Hash]*QuerySummary),
-		SeqIndex:  make(map[uint64]*SeqAcks),
+		RespIndex: make(map[hash.Hash]*RequestTracker),
+		AckIndex:  make(map[hash.Hash]*RequestTracker),
+		SeqIndex:  make(map[uint64]*QueryTracker),
 	}
 }
 
-func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) error {
+// AddResponse adds the responsed query to the index.
+func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
-	if v, ok := i.RespIndex[resp.HeaderHash]; ok && v != nil {
-		return v.UpdateQuerySummaryWithResp(resp)
+	if v, ok := i.RespIndex[resp.HeaderHash]; ok {
+		if v == nil || v.Response == nil {
+			// TODO(leventeliu): consider to panic.
+			err = ErrCorruptedIndex
+		}
+
+		// Given that `resp` is already verified by user, its header should be deeply equal to
+		// v.Response.ResponseHeader.
+		// Considering that we may allow a node to update its key pair on-the-fly, just overwrite
+		// this Response.
+		v.Response = resp
 	}
 
-	// Build new QuerySummary and update both indexes
-	s := &QuerySummary{
+	// Create new item
+	s := &RequestTracker{
 		Response: resp,
 	}
 
 	i.RespIndex[resp.HeaderHash] = s
 	q := i.SeqIndex.Ensure(resp.Request.SeqNo)
 	q.Queries = append(q.Queries, s)
-
 	return nil
 }
 
-func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
+// AddAck adds the acknowledged query to the index.
+func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
-	if v, ok := i.RespIndex[ack.ResponseHeaderHash()]; ok && v != nil {
-		// This should also update the *QuerySummary indexed by AckIndex and *SeqAcks indexed by
-		// seqNo
+	if v, ok := i.RespIndex[ack.ResponseHeaderHash()]; ok {
+		if v == nil || v.Response == nil {
+			// TODO(leventeliu): consider to panic.
+			err = ErrCorruptedIndex
+		}
+
+		// This also updates the item indexed by AckIndex and SeqIndex
 		i.AckIndex[ack.HeaderHash] = v
-		return v.UpdateQuerySummaryWithAck(ack)
+		return v.UpdateAck(ack)
 	}
 
-	// Build new QuerySummary and update both indexes
-	s := &QuerySummary{
+	// Build new QueryTracker and update both indexes
+	s := &RequestTracker{
 		Response: ack.SignedResponseHeader(),
 		Ack:      ack,
 	}
@@ -154,16 +235,18 @@ func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) error {
 	return nil
 }
 
-func (i *MultiIndex) MarkPacker(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
+// SetSignedBlock sets the signed block of the acknowledged query.
+func (i *MultiIndex) SetSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
 	i.Lock()
 	defer i.Unlock()
 
 	if v, ok := i.AckIndex[*ackHeaderHash]; ok {
-		v.Packer = blockHash
+		v.SignedBlock = blockHash
 	}
 }
 
-func (i *MultiIndex) expire() {
+// CheckBeforeExpire checks the index and does some necessary work before it expires.
+func (i *MultiIndex) CheckBeforeExpire() {
 	i.Lock()
 	defer i.Unlock()
 
@@ -171,7 +254,7 @@ func (i *MultiIndex) expire() {
 		if q.FirstAck == nil {
 			// TODO(leventeliu):
 			// This query is not acknowledged and expires now.
-		} else if q.FirstAck.Packer == nil {
+		} else if q.FirstAck.SignedBlock == nil {
 			// TODO(leventeliu):
 			// This query was acknowledged normally but collectors didn't pack it in any block.
 			// There is definitely something wrong with them.
@@ -186,16 +269,11 @@ func (i *MultiIndex) expire() {
 	}
 }
 
+// HeightIndex defines a MultiIndex index using height as key.
 type HeightIndex map[int32]*MultiIndex
 
-func (i HeightIndex) EnsureRange(l, h int32) {
-	for x := l; x < h; x++ {
-		if _, ok := i[x]; !ok {
-			i[x] = NewMultiIndex()
-		}
-	}
-}
-
+// EnsureHeight returns the *MultiIndex associated with the given height. It creates a new item if
+// the key doesn't exist.
 func (i HeightIndex) EnsureHeight(h int32) (v *MultiIndex) {
 	v, ok := i[h]
 
@@ -207,63 +285,100 @@ func (i HeightIndex) EnsureHeight(h int32) (v *MultiIndex) {
 	return
 }
 
+// EnsureRange creates new *MultiIndex items associated within the given height range [l, h) for
+// those don't exist.
+func (i HeightIndex) EnsureRange(l, h int32) {
+	for x := l; x < h; x++ {
+		if _, ok := i[x]; !ok {
+			i[x] = NewMultiIndex()
+		}
+	}
+}
+
+// HasHeight returns true if the index has the given key.
 func (i HeightIndex) HasHeight(h int32) (ok bool) {
 	_, ok = i[h]
 	return
 }
 
+// QueryIndex defines a query index maintainer.
 type QueryIndex struct {
 	barrier     int32
 	heightIndex HeightIndex
 }
 
+// NewQueryIndex returns a new QueryIndex reference.
 func NewQueryIndex() *QueryIndex {
 	return &QueryIndex{
 		heightIndex: make(map[int32]*MultiIndex),
 	}
 }
 
+// AddResponse adds the responsed query to the index.
 func (i *QueryIndex) AddResponse(h int32, resp *worker.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
 	return i.heightIndex.EnsureHeight(h).AddResponse(resp)
 }
 
+// AddAck adds the acknowledged query to the index.
 func (i *QueryIndex) AddAck(h int32, ack *worker.SignedAckHeader) error {
 	return i.heightIndex.EnsureHeight(h).AddAck(ack)
 }
 
-func (i *QueryIndex) HasAck(h int32, b *hash.Hash, ack *hash.Hash) (ok bool, err error) {
+// CheckAckFromBlock checks a acknowledged query from a block.
+func (i *QueryIndex) CheckAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
+	isKnown bool, err error,
+) {
 	if h < i.barrier {
 		err = ErrQueryExpired
 		return
 	}
 
-	q, ok := i.heightIndex.EnsureHeight(h).AckIndex[*ack]
+	q, isKnown := i.heightIndex.EnsureHeight(h).AckIndex[*ack]
 
-	if !ok {
+	if !isKnown {
 		return
 	}
 
-	if q.Packer != nil && !q.Packer.IsEqual(b) {
-		err = ErrQueryPackedByAnotherBlock
+	if q.SignedBlock != nil && !q.SignedBlock.IsEqual(b) {
+		err = ErrQuerySignedByAnotherBlock
 		return
 	}
 
 	return
 }
 
-func (i *QueryIndex) MarkForBlock(h int32, block *Block) {
+// SetSignedBlock updates the signed block in index for the acknowledged queries in the block.
+func (i *QueryIndex) SetSignedBlock(h int32, b *Block) {
 	hi := i.heightIndex.EnsureHeight(h)
 
-	for _, v := range block.Queries {
-		hi.MarkPacker(&block.SignedHeader.BlockHash, v)
+	for _, v := range b.Queries {
+		hi.SetSignedBlock(&b.SignedHeader.BlockHash, v)
 	}
 }
 
+// GetAck gets the acknowledged queries from the index.
+func (i *QueryIndex) GetAck(h int32, header *hash.Hash) (
+	ack *worker.SignedAckHeader, err error,
+) {
+	if h >= i.barrier {
+		if q, ok := i.heightIndex.EnsureHeight(h).AckIndex[*header]; ok {
+			ack = q.Ack
+		} else {
+			err = ErrQueryNotCached
+		}
+	} else {
+		err = ErrQueryExpired
+	}
+
+	return
+}
+
+// expireHeight expires all the queries indexed at the specified height.
 func (i *QueryIndex) expireHeight(h int32) {
 	if i.heightIndex.HasHeight(h) {
-		i.heightIndex[h].expire()
+		i.heightIndex[h].CheckBeforeExpire()
 		delete(i.heightIndex, h)
 	}
 }

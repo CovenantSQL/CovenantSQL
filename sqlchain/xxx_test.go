@@ -62,7 +62,7 @@ func createRandomString(offset, length int, s *string) {
 func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 	s = make([]string, rand.Intn(length)+offset)
 
-	for i, _ := range s {
+	for i := range s {
 		createRandomString(soffset, slength, &s[i])
 	}
 
@@ -124,10 +124,10 @@ func createRandomQueryResponse(
 		},
 	}
 
-	for i, _ := range resp.Payload.Rows {
+	for i := range resp.Payload.Rows {
 		s := createRandomStrings(10, 10, 10, 10)
 		resp.Payload.Rows[i].Values = make([]interface{}, len(s))
-		for j, _ := range resp.Payload.Rows[i].Values {
+		for j := range resp.Payload.Rows[i].Values {
 			resp.Payload.Rows[i].Values[j] = s[j]
 		}
 	}

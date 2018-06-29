@@ -41,10 +41,12 @@ type Config struct {
 	QueryTTL int32
 }
 
+// GetHeightFromTime calculates the height with this sql-chain config of a given time reading.
 func (c *Config) GetHeightFromTime(t time.Time) int32 {
 	return int32(t.Sub(c.Genesis.SignedHeader.Timestamp) / c.Period)
 }
 
+// GetQueryGas gets the consumption of gas for a specified query type.
 func (c *Config) GetQueryGas(t worker.QueryType) uint32 {
 	return c.Price[t]
 }

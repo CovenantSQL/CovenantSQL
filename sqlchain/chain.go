@@ -39,12 +39,14 @@ var (
 	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
 )
 
+// HeightToKey converts a height in int32 to a key in bytes.
 func HeightToKey(h int32) (key []byte) {
 	key = make([]byte, 4)
 	binary.BigEndian.PutUint32(key, uint32(h))
 	return
 }
 
+// KeyToHeight converts a height back from a key in bytes.
 func KeyToHeight(k []byte) int32 {
 	return int32(binary.BigEndian.Uint32(k))
 }
@@ -94,16 +96,21 @@ func (r *Runtime) Now() time.Time {
 	return time.Now().Add(r.Offset)
 }
 
+// SetNextTurn prepares the runtime state for the next turn.
 func (r *Runtime) SetNextTurn() {
 	r.Lock()
 	defer r.Unlock()
 	r.NextHeight++
 }
 
+// Stop sends a signal to the Runtime stop channel by closing it.
 func (r *Runtime) Stop() {
 	close(r.stopCh)
 }
 
+// TillNextCycle returns the current time reading and the duration till the next cycle. If duration
+// is less or equal to 0, use the time reading to run the next cycle - this avoids some problem
+// caused by concurrently time synchronization.
 func (r *Runtime) TillNextCycle() (t time.Time, d time.Duration) {
 	t = r.Now()
 	d = r.ChainInitTime.Add(time.Duration(r.NextHeight) * r.Period).Sub(t)
@@ -115,7 +122,8 @@ func (r *Runtime) TillNextCycle() (t time.Time, d time.Duration) {
 	return
 }
 
-func (s *State) marshal() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (s *State) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -128,7 +136,8 @@ func (s *State) marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *State) unmarshal(b []byte) (err error) {
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (s *State) UnmarshalBinary(b []byte) (err error) {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
 		&s.Head,
@@ -238,7 +247,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		bucket := tx.Bucket(metaBucket[:])
-		err = chain.state.unmarshal(bucket.Get(metaStateKey))
+		err = chain.state.UnmarshalBinary(bucket.Get(metaStateKey))
 
 		if err != nil {
 			return err
@@ -333,9 +342,10 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // PushBlock pushes the signed block header to extend the current main chain.
-func (c *Chain) PushBlock(block *Block) (err error) {
+func (c *Chain) PushBlock(b *Block) (err error) {
 	// Prepare and encode
-	node := newBlockNode(block, c.state.node)
+	h := c.cfg.GetHeightFromTime(b.SignedHeader.Timestamp)
+	node := newBlockNode(b, c.state.node)
 	state := &State{
 		node:   node,
 		Head:   node.hash,
@@ -343,11 +353,11 @@ func (c *Chain) PushBlock(block *Block) (err error) {
 	}
 	var encBlock, encState []byte
 
-	if encBlock, err = block.MarshalBinary(); err != nil {
+	if encBlock, err = b.MarshalBinary(); err != nil {
 		return
 	}
 
-	if encState, err = state.marshal(); err != nil {
+	if encState, err = state.MarshalBinary(); err != nil {
 		return
 	}
 
@@ -364,7 +374,7 @@ func (c *Chain) PushBlock(block *Block) (err error) {
 
 		c.state = state
 		c.bi.AddBlock(node)
-		c.qi.MarkForBlock(c.cfg.GetHeightFromTime(block.SignedHeader.Timestamp), block)
+		c.qi.SetSignedBlock(h, b)
 
 		return
 	})
@@ -395,6 +405,7 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 	return
 }
 
+// PushResponedQuery pushes a responsed, signed and verified query into the chain.
 func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(resp.Request.Timestamp)
 	k := HeightToKey(h)
@@ -419,6 +430,7 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 	})
 }
 
+// PushAckedQuery pushed a acknowledged, signed and verified query into the chain.
 func (c *Chain) PushAckedQuery(block *hash.Hash, ack *worker.SignedAckHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := HeightToKey(h)
@@ -474,7 +486,7 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 	for _, q := range block.Queries {
 		var ok bool
 
-		if ok, err = c.qi.HasAck(h, &block.SignedHeader.BlockHash, q); err != nil {
+		if ok, err = c.qi.CheckAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
 			return
 		}
 
@@ -508,7 +520,8 @@ func (c *Chain) queryTimeIsExpired(t time.Time) bool {
 	return c.cfg.GetHeightFromTime(t) < c.rt.NextHeight-c.cfg.QueryTTL
 }
 
-func (c *Chain) CheckAndPushResponsedQuery(resp *worker.SignedResponseHeader) (err error) {
+// VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
+func (c *Chain) VerifyAndPushResponsedQuery(resp *worker.SignedResponseHeader) (err error) {
 	// TODO(leventeliu): check resp.
 	if c.queryTimeIsExpired(resp.Timestamp) {
 		return ErrQueryExpired
@@ -521,8 +534,9 @@ func (c *Chain) CheckAndPushResponsedQuery(resp *worker.SignedResponseHeader) (e
 	return c.PushResponedQuery(resp)
 }
 
-func (c *Chain) CheckAndPushAckedQuery(ack *worker.SignedAckHeader) (err error) {
-	// TODO(leventeliu): check resp.
+// VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
+func (c *Chain) VerifyAndPushAckedQuery(ack *worker.SignedAckHeader) (err error) {
+	// TODO(leventeliu): check ack.
 	if c.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
 		return ErrQueryExpired
 	}
@@ -541,6 +555,7 @@ func (c *Chain) IsMyTurn() bool {
 	return false
 }
 
+// ProduceBlock prepares, signs and advises the pending block to the orther peers.
 func (c *Chain) ProduceBlock(now time.Time) (err error) {
 	// TODO(leventeliu): remember to initialize local key store somewhere.
 	priv, err := kms.GetLocalPrivateKey()
@@ -566,6 +581,7 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 	return
 }
 
+// Cycle does the check and runs block producing if its my turn.
 func (c *Chain) Cycle(now time.Time) {
 	defer c.rt.SetNextTurn()
 
@@ -578,6 +594,7 @@ func (c *Chain) Cycle(now time.Time) {
 	}
 }
 
+// BlockProducingCycle runs a constantly check for a short time resolution.
 func (c *Chain) BlockProducingCycle() {
 	for {
 		select {
@@ -593,18 +610,29 @@ func (c *Chain) BlockProducingCycle() {
 	}
 }
 
-func (c *Chain) Sync() {
+// Sync synchronizes blocks and queries from the other peers.
+//
+// TODO(leventeliu): need implementation.
+func (c *Chain) Sync() error {
+	return nil
 }
 
-func (c *Chain) Start() {
-	c.Sync()
+// Start starts the main process of the sql-chain.
+func (c *Chain) Start() (err error) {
+	if err = c.Sync(); err != nil {
+		return
+	}
+
 	c.BlockProducingCycle()
+	return
 }
 
+// Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() {
 	c.rt.Stop()
 }
 
+// FetchBlock fetches the block at specified height from local cache.
 func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
 	if n := c.state.node.ancestor(height); n != nil {
 		k := n.indexKey()
@@ -619,6 +647,9 @@ func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
 	return
 }
 
-func (c *Chain) FetchAckedQuery(h *hash.Hash) (ack *worker.Ack, err error) {
-	return nil, nil
+// FetchAckedQuery fetches the acknowledged query from local cache.
+func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
+	ack *worker.SignedAckHeader, err error,
+) {
+	return c.qi.GetAck(height, header)
 }

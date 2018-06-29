@@ -38,20 +38,20 @@ func TestState(t *testing.T) {
 	}
 
 	rand.Read(state.Head[:])
-	buffer, err := state.marshal()
+	buffer, err := state.MarshalBinary()
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
 	rState := &State{}
-	err = rState.unmarshal(buffer)
+	err = rState.UnmarshalBinary(buffer)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	err = rState.unmarshal(nil)
+	err = rState.UnmarshalBinary(nil)
 
 	if err != nil {
 		t.Logf("Error occurred as expected: %v", err)
@@ -72,7 +72,7 @@ func TestState(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	err = rState.unmarshal(buffer)
+	err = rState.UnmarshalBinary(buffer)
 
 	if err != nil {
 		t.Logf("Error occurred as expected: %v", err)

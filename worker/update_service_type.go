@@ -74,6 +74,30 @@ func (h *UpdateServiceHeader) Serialize() []byte {
 	return buf.Bytes()
 }
 
+// Serialize structure to bytes.
+func (sh *SignedUpdateServiceHeader) Serialize() []byte {
+	if sh == nil {
+		return []byte{'\000'}
+	}
+
+	buf := new(bytes.Buffer)
+
+	buf.Write(sh.UpdateServiceHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	if sh.Signee != nil {
+		buf.Write(sh.Signee.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+	if sh.Signature != nil {
+		buf.Write(sh.Signature.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+
+	return buf.Bytes()
+}
+
 // Verify checks hash and signature in update service header.
 func (sh *SignedUpdateServiceHeader) Verify() (err error) {
 	// verify hash
@@ -96,6 +120,15 @@ func (sh *SignedUpdateServiceHeader) Sign(signer *asymmetric.PrivateKey) (err er
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
 
 	return
+}
+
+// Serialize structure to bytes.
+func (s *UpdateService) Serialize() []byte {
+	if s == nil {
+		return []byte{'\000'}
+	}
+
+	return s.Header.Serialize()
 }
 
 // Verify checks hash and signature in update service.

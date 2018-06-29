@@ -51,12 +51,11 @@ func TestNew(t *testing.T) {
 	kms.Unittest = true
 	os.Remove(testStorePath)
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	if x == nil {
 		t.Errorf("expected obj")
 	}
-	utils.CheckNum(x.NumberOfReplicas, 20, t)
 }
 
 func TestAdd(t *testing.T) {
@@ -64,17 +63,17 @@ func TestAdd(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
-	utils.CheckNum(len(x.circle), 20, t)
-	utils.CheckNum(len(x.sortedHashes), 20, t)
+	utils.CheckNum(len(x.circle), x.NumberOfReplicas, t)
+	utils.CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
 	x.Add(NewNodeFromID(("qwer")))
-	utils.CheckNum(len(x.circle), 40, t)
-	utils.CheckNum(len(x.sortedHashes), 40, t)
+	utils.CheckNum(len(x.circle), 2*x.NumberOfReplicas, t)
+	utils.CheckNum(len(x.sortedHashes), 2*x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
@@ -85,7 +84,7 @@ func TestRemove(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Remove("abcdefg")
@@ -98,11 +97,11 @@ func TestRemoveNonExisting(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Remove("abcdefghijk")
-	utils.CheckNum(len(x.circle), 20, t)
+	utils.CheckNum(len(x.circle), x.NumberOfReplicas, t)
 }
 
 func TestGetEmpty(t *testing.T) {
@@ -110,7 +109,7 @@ func TestGetEmpty(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	_, err := x.Get("asdfsadfsadf")
 	if err == nil {
@@ -126,7 +125,7 @@ func TestGetSingle(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	f := func(s string) bool {
@@ -159,7 +158,7 @@ func TestGetMultiple(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -180,7 +179,7 @@ func TestGetMultipleQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -216,7 +215,7 @@ func TestGetMultipleRemove(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -247,7 +246,7 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -272,7 +271,7 @@ func TestGetTwo(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -297,7 +296,7 @@ func TestGetTwoEmpty(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	_, _, err := x.GetTwo("9999999")
 	if err != ErrEmptyCircle {
@@ -310,7 +309,7 @@ func TestGetTwoQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -346,7 +345,7 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -381,7 +380,7 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	a, b, err := x.GetTwo("99999999")
@@ -404,7 +403,7 @@ func TestGetN(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -432,7 +431,7 @@ func TestGetNLess(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -457,7 +456,7 @@ func TestGetNMore(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -485,7 +484,7 @@ func TestGetNEmpty(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	members, err := x.GetN("9999999", 5)
 	if err != ErrEmptyCircle {
@@ -501,7 +500,7 @@ func TestGetNQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -540,7 +539,7 @@ func TestGetNLessQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -579,7 +578,7 @@ func TestGetNMoreQuick(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
@@ -618,7 +617,7 @@ func TestSet(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abc"))
 	x.Add(NewNodeFromID("def"))
@@ -701,7 +700,7 @@ func BenchmarkAllocations(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("stays"))
 	b.ResetTimer()
@@ -719,7 +718,7 @@ func BenchmarkMalloc(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("stays"))
 	b.ResetTimer()
@@ -737,7 +736,7 @@ func BenchmarkCycle(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
@@ -752,7 +751,7 @@ func BenchmarkCycleLarge(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
@@ -769,7 +768,7 @@ func BenchmarkGet(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
@@ -783,7 +782,7 @@ func BenchmarkGetLarge(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
@@ -799,7 +798,7 @@ func BenchmarkGetN(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
@@ -813,7 +812,7 @@ func BenchmarkGetNLarge(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
@@ -829,7 +828,7 @@ func BenchmarkGetTwo(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
@@ -843,7 +842,7 @@ func BenchmarkGetTwoLarge(b *testing.B) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
@@ -864,7 +863,7 @@ func TestAddCollision(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID(s1))
 	x.Add(NewNodeFromID(s2))
@@ -873,7 +872,7 @@ func TestAddCollision(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	y, _ := InitConsistent(testStorePath+"2", false)
+	y, _ := InitConsistent(testStorePath+"2", new(KMSStorage), false)
 	defer os.Remove(testStorePath + "2")
 	// add elements in opposite order
 	y.Add(NewNodeFromID(s2))
@@ -893,7 +892,7 @@ func TestConcurrentGetSet(t *testing.T) {
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
-	x, _ := InitConsistent(testStorePath, false)
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Set([]Node{NewNodeFromID("abc"), NewNodeFromID("def"), NewNodeFromID("ghi"), NewNodeFromID("jkl"), NewNodeFromID("mno")})
 

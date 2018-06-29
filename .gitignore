@@ -4,6 +4,12 @@ idminer
 coverage.txt
 analysisVendor.png
 vendor/**/.gitignore
+*.keystore
+node_*/
+kayak_test
+*.conf
+thunderdbd
+
 
 # Binaries for programs and plugins
 bin/

@@ -22,15 +22,11 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
-	"syscall"
 	"time"
-
-	"golang.org/x/crypto/ssh/terminal"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/common"
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
@@ -51,10 +47,6 @@ var (
 )
 
 var (
-	// api
-	publishPeersTimeout time.Duration
-	publishPeersDelay   time.Duration
-
 	// profile
 	cpuProfile string
 	memProfile string
@@ -80,12 +72,11 @@ const desc = `ThunderDB is a database`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.DurationVar(&publishPeersTimeout, "publish-peers-timeout", time.Second*30, "Timeout for peers to publish")
-	flag.DurationVar(&publishPeersDelay, "publish-peers-delay", time.Second, "Interval for peers publishing retry")
 	flag.StringVar(&privateKeyPath, "private-key-path", "./private.key", "Path to private key file")
 	flag.StringVar(&publicKeyStorePath, "public-keystore-path", "./public.keystore", "Path to public keystore file")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
 		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data directory>\n", name)
@@ -94,8 +85,7 @@ func init() {
 }
 
 func initLogs() {
-	log.SetOutput(os.Stderr)
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 
 	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
 	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
@@ -114,11 +104,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	if flag.NArg() == 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
-
 	if !noLogo {
 		fmt.Print(logo)
 	}
@@ -130,30 +115,18 @@ func main() {
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
-	// read master key
-	fmt.Print("Type in Master key to continue: ")
-	masterKeyBytes, err := terminal.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		fmt.Printf("Failed to read Master Key: %v", err)
-	}
-	fmt.Println("")
-
-	// start RPC server
-	rpcServer := rpc.NewServer()
-
-	// if any error, log.Fatal will call os.Exit
-	err = rpcServer.InitRPCServer("0.0.0.0:2120", privateKeyPath, masterKeyBytes)
-	if err != nil {
-		log.Fatalf("rpcServer.InitRPCServer failed: %s", err)
+	if clientMode {
+		if err := runClient(); err != nil {
+			log.Fatalf("run client failed: %v", err.Error())
+		} else {
+			log.Infof("run client success")
+		}
+		return
 	}
 
-	// Register service by a name
-	dht, err := route.NewDHTService(publicKeyStorePath, true)
-	if err != nil {
-		log.Fatalf("creating dht service failed: %s", err)
+	if err := runNode(nodeOffset); err != nil {
+		log.Fatalf("run kayak failed: %v", err.Error())
 	}
-	rpcServer.RegisterService("DHT", dht)
-	rpcServer.Serve()
 
 	log.Info("server stopped")
 }

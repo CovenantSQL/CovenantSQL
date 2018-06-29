@@ -19,7 +19,6 @@ package rpc
 import (
 	"net"
 	"net/rpc"
-	"sync"
 
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
@@ -38,13 +37,10 @@ type ServiceMap map[string]interface{}
 
 // Server is the RPC server struct
 type Server struct {
-	publicKeyStore *kms.PublicKeyStore
-	node           *proto.Node
-	sessions       sync.Map // map[id]*Session
-	rpcServer      *rpc.Server
-	stopCh         chan interface{}
-	serviceMap     ServiceMap
-	Listener       net.Listener
+	rpcServer  *rpc.Server
+	stopCh     chan interface{}
+	serviceMap ServiceMap
+	Listener   net.Listener
 }
 
 // NewServer return a new Server
@@ -139,21 +135,16 @@ func (s *Server) handleConn(conn net.Conn) {
 		log.Error(err)
 		return
 	}
-
-	s.serveRPC(sess, remoteNodeID)
-	log.Debugf("%s closed connection", conn.RemoteAddr())
-}
-
-// serveRPC install the JSON RPC codec
-func (s *Server) serveRPC(sess *yamux.Session, remoteNodeID *proto.RawNodeID) {
-	conn, err := sess.Accept()
+	muxConn, err := sess.Accept()
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(conn, &codec.MsgpackHandle{})
+	msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
 	nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
 	s.rpcServer.ServeCodec(nodeAwareCodec)
+
+	log.Debugf("%s closed connection", conn.RemoteAddr())
 }
 
 // RegisterService with a Service name, used by Client RPC
@@ -163,6 +154,9 @@ func (s *Server) RegisterService(name string, service interface{}) error {
 
 // Stop Server main loop
 func (s *Server) Stop() {
+	if s.Listener != nil {
+		s.Listener.Close()
+	}
 	close(s.stopCh)
 }
 

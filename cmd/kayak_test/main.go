@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,11 +32,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
+	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -189,7 +189,7 @@ func (s *stubServer) Read(sql string, rows *responseRows) (err error) {
 func init() {
 	flag.BoolVar(&genConf, "generate", false, "run conf generation")
 	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&confPath, "conf", "peers.conf", "peers conf path")
+	flag.StringVar(&confPath, "conf", "peers.json", "peers conf path")
 	flag.IntVar(&minPort, "minPort", 10000, "minimum port number to allocate (used in conf generation)")
 	flag.IntVar(&maxPort, "maxPort", 20000, "maximum port number to allocate (used in conf generation)")
 	flag.IntVar(&nodeCnt, "nodeCnt", 3, "node count for conf generation")
@@ -258,8 +258,8 @@ func runClient() (err error) {
 
 func clientRequest(leader *NodeInfo, reqType string, sql string) (err error) {
 	leaderNodeID := proto.NodeID(leader.Nonce.Hash.String())
-	var conn *etls.CryptoConn
-	if conn, err = rpc.DialToNode(leaderNodeID); err != nil {
+	var conn net.Conn
+	if conn, err = rpc.DialToNode(leaderNodeID, nil); err != nil {
 		return
 	}
 
@@ -290,7 +290,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 
 	// init local key store
 	pubKeyStorePath := filepath.Join(clientRootDir, pubKeyStoreFile)
-	if _, err = consistent.InitConsistent(pubKeyStorePath, true); err != nil {
+	if _, err = consistent.InitConsistent(pubKeyStorePath, new(consistent.KMSStorage), true); err != nil {
 		return
 	}
 
@@ -580,7 +580,7 @@ func createServer(nodeOffset, port int) (service *kt.ETLSTransportService, serve
 	os.Remove(pubKeyStorePath)
 
 	var dht *route.DHTService
-	if dht, err = route.NewDHTService(pubKeyStorePath, true); err != nil {
+	if dht, err = route.NewDHTService(pubKeyStorePath, new(consistent.KMSStorage), true); err != nil {
 		return
 	}
 

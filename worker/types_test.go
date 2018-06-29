@@ -602,3 +602,67 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 		})
 	})
 }
+
+func TestInitServiceResponse_Sign(t *testing.T) {
+	privKey, pubKey := getCommKeys()
+
+	Convey("sign", t, func() {
+		var err error
+
+		initServiceResponse := &InitServiceResponse{
+			Header: SignedInitServiceResponseHeader{
+				InitServiceResponseHeader: InitServiceResponseHeader{
+					Instances: []ServiceInstance{
+						{
+							DatabaseID: proto.DatabaseID("db1"),
+							Peers: &kayak.Peers{
+								Term: uint64(1),
+								Leader: &kayak.Server{
+									Role: kayak.Leader,
+									ID:   proto.NodeID("node3"),
+								},
+								Servers: []*kayak.Server{
+									{
+										Role: kayak.Leader,
+										ID:   proto.NodeID("node3"),
+									},
+									{
+										Role: kayak.Follower,
+										ID:   proto.NodeID("node2"),
+									},
+								},
+								PubKey:    pubKey,
+								Signature: nil,
+							},
+							// TODO(xq26144), should integrated with genesis block serialization test
+							Genesis: nil,
+						},
+					},
+				},
+				Signee: pubKey,
+			},
+		}
+
+		Convey("serialize", func() {
+			So(initServiceResponse.Serialize(), ShouldNotBeEmpty)
+			So((*InitServiceResponse)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*InitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedInitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+		})
+
+		// sign
+		err = initServiceResponse.Sign(privKey)
+
+		Convey("verify", func() {
+			err = initServiceResponse.Verify()
+			So(err, ShouldBeNil)
+
+			Convey("header change", func() {
+				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
+
+				err = initServiceResponse.Verify()
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}

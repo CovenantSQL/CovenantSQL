@@ -93,6 +93,30 @@ func (h *InitServiceResponseHeader) Serialize() []byte {
 	return buf.Bytes()
 }
 
+// Serialize structure to bytes.
+func (sh *SignedInitServiceResponseHeader) Serialize() []byte {
+	if sh == nil {
+		return []byte{'\000'}
+	}
+
+	buf := new(bytes.Buffer)
+
+	buf.Write(sh.InitServiceResponseHeader.Serialize())
+	buf.Write(sh.HeaderHash[:])
+	if sh.Signee != nil {
+		buf.Write(sh.Signee.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+	if sh.Signature != nil {
+		buf.Write(sh.Signature.Serialize())
+	} else {
+		buf.WriteRune('\000')
+	}
+
+	return buf.Bytes()
+}
+
 // Verify checks hash and signature in init service response header.
 func (sh *SignedInitServiceResponseHeader) Verify() (err error) {
 	// verify hash
@@ -115,6 +139,15 @@ func (sh *SignedInitServiceResponseHeader) Sign(signer *asymmetric.PrivateKey) (
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
 
 	return
+}
+
+// Serialize structure to bytes.
+func (rs *InitServiceResponse) Serialize() []byte {
+	if rs == nil {
+		return []byte{'\000'}
+	}
+
+	return rs.Header.Serialize()
 }
 
 // Verify checks hash and signature in init service response header.

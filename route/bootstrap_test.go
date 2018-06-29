@@ -39,7 +39,11 @@ func TestGetSRV(t *testing.T) {
 
 func TestGetBP(t *testing.T) {
     dc := NewDNSClient()
-    ips := dc.GetBPAddresses(Domain)
-    fmt.Printf("BP addresses: %v\n", ips)
+    ips, err := dc.GetBPAddresses(Domain)
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+    } else {
+        fmt.Printf("BP addresses: %v\n", ips)
+    }
 }
 

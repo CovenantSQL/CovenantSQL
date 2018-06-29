@@ -152,6 +152,7 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 		 * 		   11       22  033.0
 		 * 	--from: https://stackoverflow.com/a/42264331/896026
 		 */
+		//TODO(auxten):filter SQL injection
 		sql := fmt.Sprintf("INSERT OR REPLACE INTO `dht`(`id`, `node`) VALUES ('t%s', '%s');",
 			nodeToSet.ID, base64.StdEncoding.EncodeToString(payload.Data))
 		log.Debugf("sql: %s", sql)

@@ -56,7 +56,7 @@ var (
 			Role:      kayak.Follower,
 		},
 		{
-			//{{22403 0 0 0} 20 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d}
+			// {{22403 0 0 0} 20 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d}
 			ID:        proto.NodeID("00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"),
 			Nonce:     cpuminer.Uint256{22403, 0, 0, 0},
 			PublicKey: nil,

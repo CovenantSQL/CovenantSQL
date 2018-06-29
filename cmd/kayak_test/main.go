@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +32,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
@@ -258,8 +258,8 @@ func runClient() (err error) {
 
 func clientRequest(leader *NodeInfo, reqType string, sql string) (err error) {
 	leaderNodeID := proto.NodeID(leader.Nonce.Hash.String())
-	var conn *etls.CryptoConn
-	if conn, err = rpc.DialToNode(leaderNodeID); err != nil {
+	var conn net.Conn
+	if conn, err = rpc.DialToNode(leaderNodeID, nil); err != nil {
 		return
 	}
 

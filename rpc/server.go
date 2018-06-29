@@ -19,7 +19,6 @@ package rpc
 import (
 	"net"
 	"net/rpc"
-	"sync"
 
 	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
@@ -38,13 +37,10 @@ type ServiceMap map[string]interface{}
 
 // Server is the RPC server struct
 type Server struct {
-	publicKeyStore *kms.PublicKeyStore
-	node           *proto.Node
-	sessions       sync.Map // map[id]*Session
-	rpcServer      *rpc.Server
-	stopCh         chan interface{}
-	serviceMap     ServiceMap
-	Listener       net.Listener
+	rpcServer  *rpc.Server
+	stopCh     chan interface{}
+	serviceMap ServiceMap
+	Listener   net.Listener
 }
 
 // NewServer return a new Server

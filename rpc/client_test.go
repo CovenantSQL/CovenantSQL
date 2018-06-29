@@ -37,7 +37,7 @@ const privateKey = "test.private"
 const publicKeyStore = "./test.keystore"
 const pass = "abc"
 
-func TestDail(t *testing.T) {
+func TestDial(t *testing.T) {
 	Convey("dial error case", t, func() {
 		c, err := dial("tcp", "wrongaddr", nil, nil)
 		So(c, ShouldBeNil)
@@ -69,12 +69,12 @@ func TestDail(t *testing.T) {
 	})
 }
 
-func TestDailToNode(t *testing.T) {
+func TestDialToNode(t *testing.T) {
 	Convey("DialToNode error case", t, func() {
 		defer os.Remove(publicKeyStore)
 		defer os.Remove(privateKey)
 		kms.InitLocalKeyStore()
-		c, err := DialToNode(kms.BPNodeID)
+		c, err := DialToNode(kms.BPNodeID, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
@@ -88,20 +88,20 @@ func TestDailToNode(t *testing.T) {
 		}
 
 		kms.InitPublicKeyStore(publicKeyStore, BPNode)
-		c, err = DialToNode(proto.NodeID(nodeID))
+		c, err = DialToNode(proto.NodeID(nodeID), nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.InitLocalKeyPair(privateKey, []byte(pass))
 		route.InitResolver()
-		c, err = DialToNode(kms.BPNodeID)
+		c, err = DialToNode(kms.BPNodeID, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		l, _ := net.Listen("tcp", "127.0.0.1:0")
 
 		route.SetNodeAddr(&kms.BPRawNodeID, l.Addr().String())
-		c, err = DialToNode(kms.BPNodeID)
+		c, err = DialToNode(kms.BPNodeID, nil)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 	})

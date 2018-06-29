@@ -18,10 +18,10 @@ package api
 
 import (
 	"context"
+	"net"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -51,8 +51,8 @@ type TwoPCOptions struct {
 
 // DefaultClientBuilder defines default etls dialer and creates rpc client.
 func DefaultClientBuilder(ctx context.Context, nodeID proto.NodeID) (client *rpc.Client, err error) {
-	var conn *etls.CryptoConn
-	conn, err = rpc.DialToNode(nodeID)
+	var conn net.Conn
+	conn, err = rpc.DialToNode(nodeID, nil)
 	if err != nil {
 		return
 	}

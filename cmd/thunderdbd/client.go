@@ -19,13 +19,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -76,19 +76,20 @@ func runClient() (err error) {
 		return
 	}
 
+	connPool := rpc.NewSessionPool(rpc.DefaultDialer)
 	// do client request
-	if err = clientRequest(clientOperation, flag.Arg(0)); err != nil {
+	if err = clientRequest(connPool, clientOperation, flag.Arg(0)); err != nil {
 		return
 	}
 
 	return
 }
 
-func clientRequest(reqType string, sql string) (err error) {
+func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err error) {
 	log.SetLevel(log.DebugLevel)
 	leaderNodeID := kms.BPNodeID
-	var conn *etls.CryptoConn
-	if conn, err = rpc.DialToNode(leaderNodeID); err != nil {
+	var conn net.Conn
+	if conn, err = rpc.DialToNode(leaderNodeID, connPool); err != nil {
 		return
 	}
 
@@ -107,12 +108,12 @@ func clientRequest(reqType string, sql string) (err error) {
 		}
 
 		respA := new(proto.PingResp)
-		log.Debugf("reqA: %v", reqA)
-		err = client.Call("DHT.Ping", reqA, respA)
+		log.Debugf("req %s: %v", reqType, reqA)
+		err = client.Call("DHT."+reqType, reqA, respA)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Debugf("respA: %v", respA)
+		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
 		reqType = "FindValue"
 		req := &proto.FindValueReq{
@@ -120,12 +121,12 @@ func clientRequest(reqType string, sql string) (err error) {
 			Count:  10,
 		}
 		resp := new(proto.FindValueResp)
-		log.Debugf("req: %v", req)
-		err = client.Call("DHT.FindValue", req, resp)
+		log.Debugf("req %s: %v", reqType, req)
+		err = client.Call("DHT."+reqType, req, resp)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Debugf("resp: %v", resp)
+		log.Debugf("resp %s: %v", reqType, resp)
 	}
 
 	return

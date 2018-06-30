@@ -17,151 +17,151 @@
 package route
 
 import (
-    "fmt"
-    "net"
-    "strings"
-    "time"
+	"fmt"
+	"net"
+	"strings"
+	"time"
 
-    log "github.com/sirupsen/logrus"
-    "github.com/miekg/dns"
+	"github.com/miekg/dns"
+	log "github.com/sirupsen/logrus"
 )
 
 // DNSClient contains tools for querying nameservers
 type DNSClient struct {
-    msg  *dns.Msg
-    clt  *dns.Client
-    conf *dns.ClientConfig
+	msg  *dns.Msg
+	clt  *dns.Client
+	conf *dns.ClientConfig
 }
 
 // NewDNSClient returns a new DNSClient
 func NewDNSClient() *DNSClient {
-    m := new(dns.Msg)
-    m.SetEdns0(4096, true)
+	m := new(dns.Msg)
+	m.SetEdns0(4096, true)
 
-    config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-    if err != nil || config == nil {
-        log.Errorf("Cannot initialize the local resolver: %s\n", err)
-    }
+	config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+	if err != nil || config == nil {
+		log.Errorf("Cannot initialize the local resolver: %s\n", err)
+	}
 
-    return &DNSClient{
-        msg:  m,
-        clt:  new(dns.Client),
-        conf: config,
-    }
+	return &DNSClient{
+		msg:  m,
+		clt:  new(dns.Client),
+		conf: config,
+	}
 }
 
 // Query DNS nameserver and return the response
 func (dc *DNSClient) Query(qname string, qtype uint16) (*dns.Msg, error) {
-    dc.msg.SetQuestion(qname, qtype)
-    for _, server := range dc.conf.Servers {
-        r, _, err := dc.clt.Exchange(dc.msg, server+":"+dc.conf.Port)
-        if err != nil {
-            return nil, err
-        }
-        if r.Rcode == dns.RcodeSuccess {
-            return r, err
-        }
-        return r, fmt.Errorf("DNS query failed with Rcode %v\n", r.Rcode)
-    }
-    return nil, fmt.Errorf("No available name server")
+	dc.msg.SetQuestion(qname, qtype)
+	for _, server := range dc.conf.Servers {
+		r, _, err := dc.clt.Exchange(dc.msg, server+":"+dc.conf.Port)
+		if err != nil {
+			return nil, err
+		}
+		if r.Rcode == dns.RcodeSuccess {
+			return r, err
+		}
+		return r, fmt.Errorf("DNS query failed with Rcode %v\n", r.Rcode)
+	}
+	return nil, fmt.Errorf("No available name server")
 }
 
 // GetKey returns the DNSKey for a nameserver
-func (dc *DNSClient) GetKey(name string, keytag uint16,) (*dns.DNSKEY, error) {
-    r, err := dc.Query(name, dns.TypeDNSKEY)
-    if err != nil {
-        return nil, fmt.Errorf("DNSKEY record query failed: %v\n", err)
-    }
-    for _, k := range r.Answer {
-        if k1, ok := k.(*dns.DNSKEY); ok {
-            if k1.KeyTag() == keytag {
-                return k1, nil
-            }
-        }
-    }
-    return nil, fmt.Errorf("No DNSKEY returned by nameserver")
+func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
+	r, err := dc.Query(name, dns.TypeDNSKEY)
+	if err != nil {
+		return nil, fmt.Errorf("DNSKEY record query failed: %v\n", err)
+	}
+	for _, k := range r.Answer {
+		if k1, ok := k.(*dns.DNSKEY); ok {
+			if k1.KeyTag() == keytag {
+				return k1, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("No DNSKEY returned by nameserver")
 }
 
-// VerifySectrion checks RRSIGs to make sure the nameserver is authentic
+// VerifySection checks RRSIGs to make sure the nameserver is authentic
 // TODO: Check chain of trust up to root
 func (dc *DNSClient) VerifySection(set []dns.RR) error {
-    for _, rr := range set {
-        if rr.Header().Rrtype == dns.TypeRRSIG {
-            if !rr.(*dns.RRSIG).ValidityPeriod(time.Now().UTC()) {
-                return fmt.Errorf("Signature %s is expired", shortSig(rr.(*dns.RRSIG)))
-            }
-            rrset := GetRRSet(set, rr.Header().Name, rr.(*dns.RRSIG).TypeCovered)
-            key, err := dc.GetKey(rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag)
-            if err != nil {
-                return fmt.Errorf(";? DNSKEY %s/%d not found, error: %v\n", rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag, err)
-            }
-            if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
-                return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]\n",
-                    shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
-            } else {
-                log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag())
-            }
-        }
-    }
-    return nil
+	for _, rr := range set {
+		if rr.Header().Rrtype == dns.TypeRRSIG {
+			if !rr.(*dns.RRSIG).ValidityPeriod(time.Now().UTC()) {
+				return fmt.Errorf("Signature %s is expired", shortSig(rr.(*dns.RRSIG)))
+			}
+			rrset := GetRRSet(set, rr.Header().Name, rr.(*dns.RRSIG).TypeCovered)
+			key, err := dc.GetKey(rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag)
+			if err != nil {
+				return fmt.Errorf(";? DNSKEY %s/%d not found, error: %v\n", rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag, err)
+			}
+			if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
+				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]\n",
+					shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
+			} else {
+				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag())
+			}
+		}
+	}
+	return nil
 }
 
 // GetRRSet returns the RRset belonging to the signature with name and type t
 func GetRRSet(l []dns.RR, name string, t uint16) []dns.RR {
-    var l1 []dns.RR
-    for _, rr := range l {
-        if strings.ToLower(rr.Header().Name) == strings.ToLower(name) && rr.Header().Rrtype == t {
-            l1 = append(l1, rr)
-        }
-    }
-    return l1
+	var l1 []dns.RR
+	for _, rr := range l {
+		if strings.ToLower(rr.Header().Name) == strings.ToLower(name) && rr.Header().Rrtype == t {
+			l1 = append(l1, rr)
+		}
+	}
+	return l1
 }
 
 // Shorten RRSIG
 func shortSig(sig *dns.RRSIG) string {
-    return sig.Header().Name + " RRSIG(" + dns.TypeToString[sig.TypeCovered] + ")"
+	return sig.Header().Name + " RRSIG(" + dns.TypeToString[sig.TypeCovered] + ")"
 }
 
 // GetBPAddresses returns an array of the BP IP addresses listed at a domain
 func (dc *DNSClient) GetBPAddresses(name string) ([]net.IP, error) {
-    var ips []net.IP
-    srvRR := dc.GetSRVRecords(name)
-    if err := dc.VerifySection(srvRR.Answer); err != nil {
-        return nil, err
-    }
-    // For all SRV RRs returned, query for corresponding A RR
-    for _, rr := range srvRR.Answer {
-        if ss, ok := rr.(*dns.SRV); ok {
-            aRR := dc.GetARecord(ss.Target)
-            if err := dc.VerifySection(aRR.Answer); err != nil {
-                return nil, err
-            }
-            for _, rr1 := range aRR.Answer {
-                if ss1, ok := rr1.(*dns.A); ok {
-                    ips = append(ips, ss1.A)
-                }
-            }
-        }
-    }
-    return ips, nil
+	var ips []net.IP
+	srvRR := dc.GetSRVRecords(name)
+	if err := dc.VerifySection(srvRR.Answer); err != nil {
+		return nil, err
+	}
+	// For all SRV RRs returned, query for corresponding A RR
+	for _, rr := range srvRR.Answer {
+		if ss, ok := rr.(*dns.SRV); ok {
+			aRR := dc.GetARecord(ss.Target)
+			if err := dc.VerifySection(aRR.Answer); err != nil {
+				return nil, err
+			}
+			for _, rr1 := range aRR.Answer {
+				if ss1, ok := rr1.(*dns.A); ok {
+					ips = append(ips, ss1.A)
+				}
+			}
+		}
+	}
+	return ips, nil
 }
 
 // GetSRVRecords retrieves TypeSRV RRs
 func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
-    in, err := dc.Query(name, dns.TypeSRV)
-    if err != nil {
-        log.Errorf("SRV record query failed: %v\n", err)
-        return nil
-    }
-    return in
+	in, err := dc.Query(name, dns.TypeSRV)
+	if err != nil {
+		log.Errorf("SRV record query failed: %v\n", err)
+		return nil
+	}
+	return in
 }
 
 // GetARecord retrieves TypeA RRs
 func (dc *DNSClient) GetARecord(name string) *dns.Msg {
-    in, err := dc.Query(name, dns.TypeA)
-    if err != nil {
-        log.Errorf("A record query failed: %v\n", err)
-        return nil
-    }
-    return in
+	in, err := dc.Query(name, dns.TypeA)
+	if err != nil {
+		log.Errorf("A record query failed: %v\n", err)
+		return nil
+	}
+	return in
 }

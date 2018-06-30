@@ -17,33 +17,32 @@
 package route
 
 import (
-    "testing"
-    "fmt"
-    "github.com/miekg/dns"
+	"fmt"
+	"github.com/miekg/dns"
+	"testing"
 )
 
 const Domain = "_bp._tcp.gridb.io."
 
 func TestGetSRV(t *testing.T) {
-    dc := NewDNSClient()
-    in := dc.GetSRVRecords(Domain)
-    fmt.Printf("answer: %v\n", in.Answer)
-    for _, rr := range in.Answer {
-        if ss, ok := rr.(*dns.SRV); ok {
-            fmt.Printf("string: %v\n", ss.Target)
-        }
-    }
-    fmt.Printf("ns: %v\n", in.Ns)
-    fmt.Printf("extra: %v\n", in.Extra)
+	dc := NewDNSClient()
+	in := dc.GetSRVRecords(Domain)
+	fmt.Printf("answer: %v\n", in.Answer)
+	for _, rr := range in.Answer {
+		if ss, ok := rr.(*dns.SRV); ok {
+			fmt.Printf("string: %v\n", ss.Target)
+		}
+	}
+	fmt.Printf("ns: %v\n", in.Ns)
+	fmt.Printf("extra: %v\n", in.Extra)
 }
 
 func TestGetBP(t *testing.T) {
-    dc := NewDNSClient()
-    ips, err := dc.GetBPAddresses(Domain)
-    if err != nil {
-        fmt.Printf("Error: %v\n", err)
-    } else {
-        fmt.Printf("BP addresses: %v\n", ips)
-    }
+	dc := NewDNSClient()
+	ips, err := dc.GetBPAddresses(Domain)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	} else {
+		fmt.Printf("BP addresses: %v\n", ips)
+	}
 }
-

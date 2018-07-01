@@ -112,8 +112,17 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		return
 	}
 	log.Debugf("c.persist.GetAllNodeInfo: %v", nodes)
-	for _, n := range nodes[:] {
-		c.add(n)
+
+	_, isKMSStorage := c.persist.(*KMSStorage)
+	if isKMSStorage {
+		for _, n := range nodes[:] {
+			c.add(n)
+		}
+	} else {
+		// currently just for KayakKVServer
+		for _, n := range nodes[:] {
+			c.AddCache(n)
+		}
 	}
 
 	return

@@ -132,12 +132,12 @@ func (s *UpdateService) Serialize() []byte {
 }
 
 // Verify checks hash and signature in update service.
-func (r *UpdateService) Verify() error {
-	return r.Header.Verify()
+func (s *UpdateService) Verify() error {
+	return s.Header.Verify()
 }
 
 // Sign the request.
-func (r *UpdateService) Sign(signer *asymmetric.PrivateKey) (err error) {
+func (s *UpdateService) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// sign
-	return r.Header.Sign(signer)
+	return s.Header.Sign(signer)
 }

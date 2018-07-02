@@ -100,7 +100,7 @@ func (sh *SignedAckHeader) Verify() (err error) {
 		return
 	}
 	// verify sign
-	if !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return

@@ -27,7 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/common"
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
@@ -51,17 +51,14 @@ var (
 	cpuProfile string
 	memProfile string
 
-	// key path
-	privateKeyPath     string
-	publicKeyStorePath string
-
 	// other
-	noLogo          bool
-	showVersion     bool
-	integrationTest bool // run integration testing
+	noLogo      bool
+	showVersion bool
+	configFile  string
+	genKeyPair  bool
 
-	// rpc server
-	rpcServer *rpc.Server
+	clientMode      bool
+	clientOperation string
 )
 
 // Role specifies the role of this app, which can be "miner", "blockProducer"
@@ -73,15 +70,17 @@ const desc = `ThunderDB is a database`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&integrationTest, "test", false, "Run integration test mode")
-	flag.StringVar(&privateKeyPath, "private-key-path", "./private.key", "Path to private key file")
-	flag.StringVar(&publicKeyStorePath, "public-keystore-path", "./public.keystore", "Path to public keystore file")
+	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
+	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 
+	flag.BoolVar(&clientMode, "client", false, "run as client")
+	flag.StringVar(&clientOperation, "operation", "FindValue", "client operation")
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data directory>\n", name)
 		flag.PrintDefaults()
 	}
 }
@@ -93,11 +92,19 @@ func initLogs() {
 }
 
 func main() {
+	// set random
+	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 
-	if integrationTest {
+	var err error
+	conf.GConf, err = conf.LoadConfig(configFile)
+	if err != nil {
+		log.Fatalf("load config from %s failed: %s", configFile, err)
 	}
+	kms.InitBP()
+	log.Debugf("config:\n%#v", conf.GConf)
+	conf.GConf.GenerateKeyPair = genKeyPair
 
 	// init log
 	initLogs()
@@ -112,15 +119,12 @@ func main() {
 		fmt.Print(logo)
 	}
 
-	// set random
-	rand.Seed(time.Now().UnixNano())
-
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
 	if clientMode {
-		if err := runClient(); err != nil {
+		if err := runClient(conf.GConf.ThisNodeID); err != nil {
 			log.Fatalf("run client failed: %v", err.Error())
 		} else {
 			log.Infof("run client success")
@@ -128,7 +132,7 @@ func main() {
 		return
 	}
 
-	if err := runNode(nodeOffset); err != nil {
+	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {
 		log.Fatalf("run kayak failed: %v", err.Error())
 	}
 

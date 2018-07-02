@@ -23,6 +23,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/symmetric"
@@ -76,7 +77,7 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(keyFilePath, encKey, 0600)
+	return ioutil.WriteFile(keyFilePath, encKey, 0400)
 }
 
 // InitLocalKeyPair initializes local private key
@@ -91,7 +92,7 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 			log.Errorf("not a valid private key file: %s", privateKeyPath)
 			return
 		}
-		if _, ok := err.(*os.PathError); ok || err == os.ErrNotExist {
+		if _, ok := err.(*os.PathError); (ok || err == os.ErrNotExist) && conf.GConf.GenerateKeyPair {
 			log.Info("private key file not exist, generating one")
 			// TODO(auxten): generate public key and use cpu miner to
 			// 	generate a nonce to match the difficulty at idminer

@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
-import "errors"
-
-var (
-	// ErrInvalidRequest defines invalid request structure during request.
-	ErrInvalidRequest = errors.New("invalid request supplied")
-
-	// ErrInvalidRequestSeq defines invalid sequence no of request.
-	ErrInvalidRequestSeq = errors.New("invalid request sequence applied")
-
-	// ErrMultipleQuery defines error on executing multiple select query in single request.
-	ErrMultipleQuery = errors.New("multiple query in single request")
+import (
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
+
+type canSerialize interface {
+	Serialize() []byte
+}
+
+func verifyHash(data canSerialize, h *hash.Hash) (err error) {
+	var newHash hash.Hash
+	buildHash(data, &newHash)
+	if !newHash.IsEqual(h) {
+		return ErrHashVerification
+	}
+	return
+}
+
+func buildHash(data canSerialize, h *hash.Hash) {
+	newHash := hash.THashH(data.Serialize())
+	copy(h[:], newHash[:])
+}

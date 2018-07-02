@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import "errors"
 
 var (
-	// ErrInvalidRequest defines invalid request structure during request.
-	ErrInvalidRequest = errors.New("invalid request supplied")
+	// ErrHashVerification indicates a failed hash verification.
+	ErrHashVerification = errors.New("hash verification failed")
 
-	// ErrInvalidRequestSeq defines invalid sequence no of request.
-	ErrInvalidRequestSeq = errors.New("invalid request sequence applied")
+	// ErrSignVerification indicates a failed signature verification.
+	ErrSignVerification = errors.New("signature verification failed")
 
-	// ErrMultipleQuery defines error on executing multiple select query in single request.
-	ErrMultipleQuery = errors.New("multiple query in single request")
+	// ErrSignRequest indicates a failed signature compute operation.
+	ErrSignRequest = errors.New("signature compute failed")
 )

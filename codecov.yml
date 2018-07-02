@@ -13,7 +13,7 @@ coverage:
         threshold: 3
     patch:
       default:
-        threshold: 10
+        threshold: 15
     changes: no
 
 parsers:

@@ -65,7 +65,7 @@ func IsBPNodeID(id *proto.RawNodeID) bool {
 	if id == nil {
 		return false
 	}
-	return id.IsEqual(&kms.BPRawNodeID.Hash)
+	return id.IsEqual(&kms.BP.RawNodeID.Hash)
 }
 
 // InitResolveCache init Resolver.cache by a new map

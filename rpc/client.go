@@ -38,7 +38,9 @@ type Client struct {
 }
 
 var (
-	YamuxConfig   *yamux.Config
+	// YamuxConfig holds the default Yamux config
+	YamuxConfig *yamux.Config
+	// DefaultDialer holds the default dialer of SessionPool
 	DefaultDialer = dialToNode
 )
 
@@ -98,9 +100,8 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool) (conn net.Conn, err erro
 			log.Errorf("open new session failed", err)
 		}
 		return
-	} else {
-		return pool.Get(nodeID)
 	}
+	return pool.Get(nodeID)
 }
 
 // dialToNode connects to the node with nodeID
@@ -114,7 +115,7 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 	}
 
 	if route.IsBPNodeID(rawNodeID) {
-		nodePublicKey = kms.BPPublicKey
+		nodePublicKey = kms.BP.PublicKey
 	} else {
 		nodePublicKey, err = kms.GetPublicKey(nodeID)
 		if err != nil {

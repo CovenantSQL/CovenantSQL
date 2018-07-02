@@ -35,8 +35,8 @@ var (
 	// AllNodes holds all BP nodes and client node info
 	AllNodes = []NodeInfo{
 		{
-			ID:        kms.BPNodeID,
-			Nonce:     kms.BPNonce,
+			ID:        kms.BP.NodeID,
+			Nonce:     kms.BP.Nonce,
 			PublicKey: nil,
 			Addr:      "127.0.0.1:2122",
 			Role:      kayak.Leader,
@@ -100,7 +100,7 @@ func initNodePeers(idx int, publicKeystorePath string) (nodes *[]NodeInfo, peers
 
 	for i, n := range AllNodes[:] {
 		if n.Role == kayak.Leader || n.Role == kayak.Follower {
-			AllNodes[i].PublicKey = kms.BPPublicKey
+			AllNodes[i].PublicKey = kms.BP.PublicKey
 			peers.Servers = append(peers.Servers, &kayak.Server{
 				Role:   n.Role,
 				ID:     n.ID,

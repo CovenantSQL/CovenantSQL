@@ -87,18 +87,17 @@ func runClient() (err error) {
 
 func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err error) {
 	log.SetLevel(log.DebugLevel)
-	leaderNodeID := kms.BPNodeID
+	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
-	if conn, err = rpc.DialToNode(leaderNodeID, connPool); err != nil {
-		return
-	}
-
 	var client *rpc.Client
-	if client, err = rpc.InitClientConn(conn); err != nil {
-		return
-	}
 
 	if len(reqType) > 0 && strings.Title(reqType[:1]) == "P" {
+		if conn, err = rpc.DialToNode(leaderNodeID, connPool); err != nil {
+			return
+		}
+		if client, err = rpc.InitClientConn(conn); err != nil {
+			return
+		}
 		reqType = "Ping"
 		node1 := proto.NewNode()
 		node1.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -115,18 +114,29 @@ func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err e
 		}
 		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
-		reqType = "FindValue"
-		req := &proto.FindValueReq{
-			NodeID: proto.NodeID(flag.Arg(0)),
-			Count:  10,
+		for _, bp := range AllNodes[:] {
+			if bp.Role == kayak.Leader || bp.Role == kayak.Follower {
+				if conn, err = rpc.DialToNode(bp.ID, connPool); err != nil {
+					return
+				}
+				if client, err = rpc.InitClientConn(conn); err != nil {
+					return
+				}
+				log.Debugf("Calling BP: %s", bp.ID)
+				reqType = "FindValue"
+				req := &proto.FindValueReq{
+					NodeID: proto.NodeID(flag.Arg(0)),
+					Count:  10,
+				}
+				resp := new(proto.FindValueResp)
+				log.Debugf("req %s: %v", reqType, req)
+				err = client.Call("DHT."+reqType, req, resp)
+				if err != nil {
+					log.Fatal(err)
+				}
+				log.Debugf("resp %s: %v", reqType, resp)
+			}
 		}
-		resp := new(proto.FindValueResp)
-		log.Debugf("req %s: %v", reqType, req)
-		err = client.Call("DHT."+reqType, req, resp)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Debugf("resp %s: %v", reqType, resp)
 	}
 
 	return

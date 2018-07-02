@@ -29,7 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (
@@ -71,11 +71,11 @@ func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 
 func createRandomQueryRequest(
 	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
-) (r *worker.SignedRequestHeader, err error) {
-	req := &worker.Request{
-		Header: worker.SignedRequestHeader{
-			RequestHeader: worker.RequestHeader{
-				QueryType:    worker.QueryType(rand.Intn(2)),
+) (r *types.SignedRequestHeader, err error) {
+	req := &types.Request{
+		Header: types.SignedRequestHeader{
+			RequestHeader: types.RequestHeader{
+				QueryType:    types.QueryType(rand.Intn(2)),
 				NodeID:       reqNode,
 				ConnectionID: uint64(rand.Int63()),
 				SeqNo:        uint64(rand.Int63()),
@@ -84,7 +84,7 @@ func createRandomQueryRequest(
 			Signee:    reqPub,
 			Signature: nil,
 		},
-		Payload: worker.RequestPayload{
+		Payload: types.RequestPayload{
 			Queries: createRandomStrings(10, 10, 10, 10),
 		},
 	}
@@ -100,16 +100,16 @@ func createRandomQueryRequest(
 func createRandomQueryResponse(
 	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
 	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
-) (r *worker.SignedResponseHeader, err error) {
+) (r *types.SignedResponseHeader, err error) {
 	req, err := createRandomQueryRequest(reqNode, reqPriv, reqPub)
 
 	if err != nil {
 		return
 	}
 
-	resp := &worker.Response{
-		Header: worker.SignedResponseHeader{
-			ResponseHeader: worker.ResponseHeader{
+	resp := &types.Response{
+		Header: types.SignedResponseHeader{
+			ResponseHeader: types.ResponseHeader{
 				Request:   *req,
 				NodeID:    respNode,
 				Timestamp: time.Now().UTC(),
@@ -117,10 +117,10 @@ func createRandomQueryResponse(
 			Signee:    respPub,
 			Signature: nil,
 		},
-		Payload: worker.ResponsePayload{
+		Payload: types.ResponsePayload{
 			Columns:   createRandomStrings(10, 10, 10, 10),
 			DeclTypes: createRandomStrings(10, 10, 10, 10),
-			Rows:      make([]worker.ResponseRow, rand.Intn(10)+10),
+			Rows:      make([]types.ResponseRow, rand.Intn(10)+10),
 		},
 	}
 
@@ -143,16 +143,16 @@ func createRandomQueryResponse(
 func createRandomQueryAck(
 	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
 	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
-) (r *worker.SignedAckHeader, err error) {
+) (r *types.SignedAckHeader, err error) {
 	resp, err := createRandomQueryResponse(reqNode, reqPriv, reqPub, respNode, respPriv, respPub)
 
 	if err != nil {
 		return
 	}
 
-	ack := &worker.Ack{
-		Header: worker.SignedAckHeader{
-			AckHeader: worker.AckHeader{
+	ack := &types.Ack{
+		Header: types.SignedAckHeader{
+			AckHeader: types.AckHeader{
 				Response:  *resp,
 				NodeID:    reqNode,
 				Timestamp: time.Now().UTC(),

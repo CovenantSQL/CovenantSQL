@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // RequestTracker defines a tracker of a particular database query request.
@@ -30,8 +30,8 @@ import (
 type RequestTracker struct {
 	// TODO(leventeliu): maybe we don't need them to be "signed" here. Given that the Response or
 	// Ack is already verified, simply use Header.
-	Response *worker.SignedResponseHeader
-	Ack      *worker.SignedAckHeader
+	Response *types.SignedResponseHeader
+	Ack      *types.SignedAckHeader
 
 	// SignedBlock is the hash of the block in the currently best chain which contains this query.
 	SignedBlock *hash.Hash
@@ -54,7 +54,7 @@ func NewQuerySummary() *QueryTracker {
 }
 
 // UpdateAck updates the query tracker with a verified SignedAckHeader.
-func (s *RequestTracker) UpdateAck(ack *worker.SignedAckHeader) (err error) {
+func (s *RequestTracker) UpdateAck(ack *types.SignedAckHeader) (err error) {
 	if s.Response == nil || s.Ack == nil {
 		// A later Ack can overwrite the original Response setting
 		*s = RequestTracker{
@@ -170,7 +170,7 @@ func NewMultiIndex() *MultiIndex {
 }
 
 // AddResponse adds the responsed query to the index.
-func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) (err error) {
+func (i *MultiIndex) AddResponse(resp *types.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -199,7 +199,7 @@ func (i *MultiIndex) AddResponse(resp *worker.SignedResponseHeader) (err error) 
 }
 
 // AddAck adds the acknowledged query to the index.
-func (i *MultiIndex) AddAck(ack *worker.SignedAckHeader) (err error) {
+func (i *MultiIndex) AddAck(ack *types.SignedAckHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -315,14 +315,14 @@ func NewQueryIndex() *QueryIndex {
 }
 
 // AddResponse adds the responsed query to the index.
-func (i *QueryIndex) AddResponse(h int32, resp *worker.SignedResponseHeader) error {
+func (i *QueryIndex) AddResponse(h int32, resp *types.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
 	return i.heightIndex.EnsureHeight(h).AddResponse(resp)
 }
 
 // AddAck adds the acknowledged query to the index.
-func (i *QueryIndex) AddAck(h int32, ack *worker.SignedAckHeader) error {
+func (i *QueryIndex) AddAck(h int32, ack *types.SignedAckHeader) error {
 	return i.heightIndex.EnsureHeight(h).AddAck(ack)
 }
 
@@ -360,7 +360,7 @@ func (i *QueryIndex) SetSignedBlock(h int32, b *Block) {
 
 // GetAck gets the acknowledged queries from the index.
 func (i *QueryIndex) GetAck(h int32, header *hash.Hash) (
-	ack *worker.SignedAckHeader, err error,
+	ack *types.SignedAckHeader, err error,
 ) {
 	if h >= i.barrier {
 		if q, ok := i.heightIndex.EnsureHeight(h).AckIndex[*header]; ok {

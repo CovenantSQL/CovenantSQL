@@ -18,7 +18,7 @@ package sqlchain
 
 import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // ChainRPCServer defines a sql-chain RPC server.
@@ -45,7 +45,7 @@ type AdviseBinLogResp struct {
 
 // AdviseResponsedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type AdviseResponsedQueryReq struct {
-	Query *worker.SignedResponseHeader
+	Query *types.SignedResponseHeader
 }
 
 // AdviseResponsedQueryResp defines a response of the AdviseAckedQuery RPC method.
@@ -54,7 +54,7 @@ type AdviseResponsedQueryResp struct {
 
 // AdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type AdviseAckedQueryReq struct {
-	Query *worker.SignedAckHeader
+	Query *types.SignedAckHeader
 }
 
 // AdviseAckedQueryResp defines a response of the AdviseAckedQuery RPC method.
@@ -80,7 +80,7 @@ type FetchAckedQueryReq struct {
 
 // FetchAckedQueryResp defines a request of the FetchAckedQuery RPC method.
 type FetchAckedQueryResp struct {
-	Ack *worker.SignedAckHeader
+	Ack *types.SignedAckHeader
 }
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.

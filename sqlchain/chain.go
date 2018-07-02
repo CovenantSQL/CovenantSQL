@@ -26,7 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (
@@ -302,8 +302,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		// Read queries and rebuild memory index
 		qi := bucket.Bucket(metaHeightIndexBucket)
 		cursor = qi.Cursor()
-		resp := &worker.SignedResponseHeader{}
-		ack := &worker.SignedAckHeader{}
+		resp := &types.SignedResponseHeader{}
+		ack := &types.SignedAckHeader{}
 
 		for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
 			h := KeyToHeight(k)
@@ -406,7 +406,7 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 }
 
 // PushResponedQuery pushes a responsed, signed and verified query into the chain.
-func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error) {
+func (c *Chain) PushResponedQuery(resp *types.SignedResponseHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(resp.Request.Timestamp)
 	k := HeightToKey(h)
 	var enc []byte
@@ -431,7 +431,7 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 }
 
 // PushAckedQuery pushed a acknowledged, signed and verified query into the chain.
-func (c *Chain) PushAckedQuery(ack *worker.SignedAckHeader) (err error) {
+func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := HeightToKey(h)
 	var enc []byte
@@ -521,7 +521,7 @@ func (c *Chain) queryTimeIsExpired(t time.Time) bool {
 }
 
 // VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushResponsedQuery(resp *worker.SignedResponseHeader) (err error) {
+func (c *Chain) VerifyAndPushResponsedQuery(resp *types.SignedResponseHeader) (err error) {
 	// TODO(leventeliu): check resp.
 	if c.queryTimeIsExpired(resp.Timestamp) {
 		return ErrQueryExpired
@@ -535,7 +535,7 @@ func (c *Chain) VerifyAndPushResponsedQuery(resp *worker.SignedResponseHeader) (
 }
 
 // VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushAckedQuery(ack *worker.SignedAckHeader) (err error) {
+func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
 	if c.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
 		return ErrQueryExpired
@@ -649,7 +649,7 @@ func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
 
 // FetchAckedQuery fetches the acknowledged query from local cache.
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
-	ack *worker.SignedAckHeader, err error,
+	ack *types.SignedAckHeader, err error,
 ) {
 	return c.qi.GetAck(height, header)
 }

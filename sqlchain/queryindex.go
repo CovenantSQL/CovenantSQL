@@ -180,6 +180,7 @@ func (i *MultiIndex) AddResponse(resp *types.SignedResponseHeader) (err error) {
 		if v == nil || v.Response == nil {
 			// TODO(leventeliu): consider to panic.
 			err = ErrCorruptedIndex
+			return
 		}
 
 		// Given that `resp` is already verified by user, its header should be deeply equal to
@@ -214,6 +215,7 @@ func (i *MultiIndex) AddAck(ack *types.SignedAckHeader) (err error) {
 		if v == nil || v.Response == nil {
 			// TODO(leventeliu): consider to panic.
 			err = ErrCorruptedIndex
+			return
 		}
 
 		// This also updates the item indexed by AckIndex and SeqIndex

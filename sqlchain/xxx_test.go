@@ -37,6 +37,40 @@ var (
 	rootHash   = hash.Hash{}
 )
 
+type nodeProfile struct {
+	NodeID     proto.NodeID
+	PrivateKey *asymmetric.PrivateKey
+	PublicKey  *asymmetric.PublicKey
+}
+
+func newRandomNode() (node *nodeProfile, err error) {
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		return
+	}
+
+	node = &nodeProfile{
+		PrivateKey: priv,
+		PublicKey:  pub,
+	}
+
+	createRandomString(10, 10, (*string)(&node.NodeID))
+	return
+}
+
+func newRandomNodes(n int) (nodes []*nodeProfile, err error) {
+	nodes = make([]*nodeProfile, n)
+
+	for i := range nodes {
+		if nodes[i], err = newRandomNode(); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 func testSetup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(rootHash[:])
@@ -69,20 +103,22 @@ func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 	return
 }
 
-func createRandomQueryRequest(
-	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
-) (r *types.SignedRequestHeader, err error) {
+func createRandomTimeAfter(now time.Time, maxDelayMillisecond int) time.Time {
+	return now.Add(time.Duration(rand.Intn(maxDelayMillisecond)+1) * time.Millisecond)
+}
+
+func createRandomQueryRequest(cli *nodeProfile) (r *types.SignedRequestHeader, err error) {
 	req := &types.Request{
 		Header: types.SignedRequestHeader{
 			RequestHeader: types.RequestHeader{
 				QueryType:    types.QueryType(rand.Intn(2)),
-				NodeID:       reqNode,
+				NodeID:       cli.NodeID,
 				ConnectionID: uint64(rand.Int63()),
 				SeqNo:        uint64(rand.Int63()),
 				Timestamp:    time.Now().UTC(),
 				// BatchCount and QueriesHash will be set by req.Sign()
 			},
-			Signee:    reqPub,
+			Signee:    cli.PublicKey,
 			Signature: nil,
 		},
 		Payload: types.RequestPayload{
@@ -92,7 +128,7 @@ func createRandomQueryRequest(
 
 	createRandomString(10, 10, (*string)(&req.Header.DatabaseID))
 
-	if err = req.Sign(reqPriv); err != nil {
+	if err = req.Sign(cli.PrivateKey); err != nil {
 		return
 	}
 
@@ -100,11 +136,10 @@ func createRandomQueryRequest(
 	return
 }
 
-func createRandomQueryResponse(
-	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
-	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
-) (r *types.SignedResponseHeader, err error) {
-	req, err := createRandomQueryRequest(reqNode, reqPriv, reqPub)
+func createRandomQueryResponse(cli, worker *nodeProfile) (
+	r *types.SignedResponseHeader, err error,
+) {
+	req, err := createRandomQueryRequest(cli)
 
 	if err != nil {
 		return
@@ -114,10 +149,10 @@ func createRandomQueryResponse(
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
 				Request:   *req,
-				NodeID:    respNode,
-				Timestamp: req.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
+				NodeID:    worker.NodeID,
+				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
 			},
-			Signee:    respPub,
+			Signee:    worker.PublicKey,
 			Signature: nil,
 		},
 		Payload: types.ResponsePayload{
@@ -135,7 +170,7 @@ func createRandomQueryResponse(
 		}
 	}
 
-	if err = resp.Sign(respPriv); err != nil {
+	if err = resp.Sign(worker.PrivateKey); err != nil {
 		return
 	}
 
@@ -143,18 +178,17 @@ func createRandomQueryResponse(
 	return
 }
 
-func createRandomQueryResponseWithRequest(
-	req *types.SignedRequestHeader,
-	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
-) (r *types.SignedResponseHeader, err error) {
+func createRandomQueryResponseWithRequest(req *types.SignedRequestHeader, worker *nodeProfile) (
+	r *types.SignedResponseHeader, err error,
+) {
 	resp := &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
 				Request:   *req,
-				NodeID:    respNode,
-				Timestamp: req.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
+				NodeID:    worker.NodeID,
+				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
 			},
-			Signee:    respPub,
+			Signee:    worker.PublicKey,
 			Signature: nil,
 		},
 		Payload: types.ResponsePayload{
@@ -172,7 +206,7 @@ func createRandomQueryResponseWithRequest(
 		}
 	}
 
-	if err = resp.Sign(respPriv); err != nil {
+	if err = resp.Sign(worker.PrivateKey); err != nil {
 		return
 	}
 
@@ -180,23 +214,22 @@ func createRandomQueryResponseWithRequest(
 	return
 }
 
-func createRandomQueryAckWithResponse(
-	resp *types.SignedResponseHeader,
-	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
-) (r *types.SignedAckHeader, err error) {
+func createRandomQueryAckWithResponse(resp *types.SignedResponseHeader, cli *nodeProfile) (
+	r *types.SignedAckHeader, err error,
+) {
 	ack := &types.Ack{
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
 				Response:  *resp,
-				NodeID:    reqNode,
-				Timestamp: resp.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
+				NodeID:    cli.NodeID,
+				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
 			},
-			Signee:    reqPub,
+			Signee:    cli.PublicKey,
 			Signature: nil,
 		},
 	}
 
-	if err = ack.Sign(reqPriv); err != nil {
+	if err = ack.Sign(cli.PrivateKey); err != nil {
 		return
 	}
 
@@ -204,11 +237,8 @@ func createRandomQueryAckWithResponse(
 	return
 }
 
-func createRandomQueryAck(
-	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
-	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
-) (r *types.SignedAckHeader, err error) {
-	resp, err := createRandomQueryResponse(reqNode, reqPriv, reqPub, respNode, respPriv, respPub)
+func createRandomQueryAck(cli, worker *nodeProfile) (r *types.SignedAckHeader, err error) {
+	resp, err := createRandomQueryResponse(cli, worker)
 
 	if err != nil {
 		return
@@ -218,20 +248,36 @@ func createRandomQueryAck(
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
 				Response:  *resp,
-				NodeID:    reqNode,
-				Timestamp: resp.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
+				NodeID:    cli.NodeID,
+				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
 			},
-			Signee:    reqPub,
+			Signee:    cli.PublicKey,
 			Signature: nil,
 		},
 	}
 
-	if err = ack.Sign(reqPriv); err != nil {
+	if err = ack.Sign(cli.PrivateKey); err != nil {
 		return
 	}
 
 	r = &ack.Header
 	return
+}
+
+func createRandomNodesAndAck() (r *types.SignedAckHeader, err error) {
+	cli, err := newRandomNode()
+
+	if err != nil {
+		return
+	}
+
+	worker, err := newRandomNode()
+
+	if err != nil {
+		return
+	}
+
+	return createRandomQueryAck(cli, worker)
 }
 
 func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {

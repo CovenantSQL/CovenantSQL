@@ -115,7 +115,7 @@ func createRandomQueryResponse(
 			ResponseHeader: types.ResponseHeader{
 				Request:   *req,
 				NodeID:    respNode,
-				Timestamp: time.Now().UTC(),
+				Timestamp: req.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
 			},
 			Signee:    respPub,
 			Signature: nil,
@@ -152,7 +152,7 @@ func createRandomQueryResponseWithRequest(
 			ResponseHeader: types.ResponseHeader{
 				Request:   *req,
 				NodeID:    respNode,
-				Timestamp: time.Now().UTC(),
+				Timestamp: req.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
 			},
 			Signee:    respPub,
 			Signature: nil,
@@ -189,7 +189,7 @@ func createRandomQueryAckWithResponse(
 			AckHeader: types.AckHeader{
 				Response:  *resp,
 				NodeID:    reqNode,
-				Timestamp: time.Now().UTC(),
+				Timestamp: resp.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
 			},
 			Signee:    reqPub,
 			Signature: nil,
@@ -219,7 +219,7 @@ func createRandomQueryAck(
 			AckHeader: types.AckHeader{
 				Response:  *resp,
 				NodeID:    reqNode,
-				Timestamp: time.Now().UTC(),
+				Timestamp: resp.Timestamp.Add(time.Duration(rand.Int63n(1000)) * time.Nanosecond),
 			},
 			Signee:    reqPub,
 			Signature: nil,

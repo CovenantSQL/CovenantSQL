@@ -245,7 +245,7 @@ func (i *MultiIndex) AddAck(ack *types.SignedAckHeader) (err error) {
 	// We will keep the first ack counted anyway. But, should we report it to someone?
 	if q.FirstAck == nil {
 		q.FirstAck = v
-	} else {
+	} else if !q.FirstAck.Ack.HeaderHash.IsEqual(&ack.HeaderHash) {
 		err = ErrMultipleAckOfSeqNo
 	}
 

@@ -24,8 +24,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // InitService defines worker service init request.
@@ -35,9 +33,9 @@ type InitService struct {
 
 // ServiceInstance defines single instance to be initialized.
 type ServiceInstance struct {
-	DatabaseID proto.DatabaseID
-	Peers      *kayak.Peers
-	Genesis    *sqlchain.Block
+	DatabaseID   proto.DatabaseID
+	Peers        *kayak.Peers
+	GenesisBlock []byte
 }
 
 // InitServiceResponseHeader defines worker service init response header.
@@ -68,11 +66,8 @@ func (i *ServiceInstance) Serialize() []byte {
 
 	buf.WriteString(string(i.DatabaseID))
 	buf.Write(i.Peers.Serialize())
-
-	// TODO(xq262144), to be modified to stable bytes serialization method
-	var genesisBytes *bytes.Buffer
-	genesisBytes, _ = utils.EncodeMsgPack(i.Genesis)
-	buf.Write(genesisBytes.Bytes())
+	binary.Write(buf, binary.LittleEndian, uint64(len(i.GenesisBlock)))
+	buf.Write(i.GenesisBlock)
 
 	return buf.Bytes()
 }

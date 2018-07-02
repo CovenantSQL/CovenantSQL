@@ -44,6 +44,7 @@ type SignedNoAckReportHeader struct {
 
 // NoAckReport defines whole worker no client ack report.
 type NoAckReport struct {
+	proto.Envelope
 	Header SignedNoAckReportHeader
 }
 
@@ -65,6 +66,7 @@ type SignedAggrNoAckReportHeader struct {
 
 // AggrNoAckReport defines whole worker leader no client ack report.
 type AggrNoAckReport struct {
+	proto.Envelope
 	Header SignedAggrNoAckReportHeader
 }
 

@@ -43,8 +43,12 @@ type SignedAckHeader struct {
 
 // Ack defines a whole client ack request entity.
 type Ack struct {
+	proto.Envelope
 	Header SignedAckHeader
 }
+
+// AckResponse defines client ack response entity.
+type AckResponse struct{}
 
 // Serialize structure to bytes.
 func (h *AckHeader) Serialize() []byte {

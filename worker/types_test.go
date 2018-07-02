@@ -74,6 +74,7 @@ func TestSignedRequestHeader_Sign(t *testing.T) {
 			RequestHeader: RequestHeader{
 				QueryType:    WriteQuery,
 				NodeID:       proto.NodeID("node"),
+				DatabaseID:   proto.DatabaseID("db1"),
 				ConnectionID: uint64(1),
 				SeqNo:        uint64(2),
 				Timestamp:    time.Now().UTC(),
@@ -112,6 +113,7 @@ func TestRequest_Sign(t *testing.T) {
 				RequestHeader: RequestHeader{
 					QueryType:    WriteQuery,
 					NodeID:       proto.NodeID("node"),
+					DatabaseID:   proto.DatabaseID("db1"),
 					ConnectionID: uint64(1),
 					SeqNo:        uint64(2),
 					Timestamp:    time.Now().UTC(),
@@ -171,6 +173,7 @@ func TestResponse_Sign(t *testing.T) {
 						RequestHeader: RequestHeader{
 							QueryType:    WriteQuery,
 							NodeID:       proto.NodeID("node1"),
+							DatabaseID:   proto.DatabaseID("db1"),
 							ConnectionID: uint64(1),
 							SeqNo:        uint64(2),
 							Timestamp:    time.Now().UTC(),
@@ -289,6 +292,7 @@ func TestAck_Sign(t *testing.T) {
 								RequestHeader: RequestHeader{
 									QueryType:    WriteQuery,
 									NodeID:       proto.NodeID("node1"),
+									DatabaseID:   proto.DatabaseID("db1"),
 									ConnectionID: uint64(1),
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
@@ -375,6 +379,7 @@ func TestNoAckReport_Sign(t *testing.T) {
 								RequestHeader: RequestHeader{
 									QueryType:    WriteQuery,
 									NodeID:       proto.NodeID("node1"),
+									DatabaseID:   proto.DatabaseID("db1"),
 									ConnectionID: uint64(1),
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
@@ -465,6 +470,7 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 											RequestHeader: RequestHeader{
 												QueryType:    WriteQuery,
 												NodeID:       proto.NodeID("node1"),
+												DatabaseID:   proto.DatabaseID("db1"),
 												ConnectionID: uint64(1),
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
@@ -490,6 +496,7 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 											RequestHeader: RequestHeader{
 												QueryType:    WriteQuery,
 												NodeID:       proto.NodeID("node1"),
+												DatabaseID:   proto.DatabaseID("db1"),
 												ConnectionID: uint64(1),
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),

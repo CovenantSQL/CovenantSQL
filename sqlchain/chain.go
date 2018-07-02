@@ -431,7 +431,7 @@ func (c *Chain) PushResponedQuery(resp *worker.SignedResponseHeader) (err error)
 }
 
 // PushAckedQuery pushed a acknowledged, signed and verified query into the chain.
-func (c *Chain) PushAckedQuery(block *hash.Hash, ack *worker.SignedAckHeader) (err error) {
+func (c *Chain) PushAckedQuery(ack *worker.SignedAckHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := HeightToKey(h)
 	var enc []byte
@@ -545,7 +545,7 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *worker.SignedAckHeader) (err error)
 		return
 	}
 
-	return c.PushAckedQuery(nil, ack)
+	return c.PushAckedQuery(ack)
 }
 
 // IsMyTurn returns whether it's my turn to produce block or not.

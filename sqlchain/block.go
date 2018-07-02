@@ -196,6 +196,7 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 // PushAckedQuery pushes a acknowledged and verified query into the block.
 func (b *Block) PushAckedQuery(h *hash.Hash) {
 	if b.Queries == nil {
+		// TODO(leventeliu): set appropriate capacity.
 		b.Queries = make([]*hash.Hash, 0, 100)
 	}
 

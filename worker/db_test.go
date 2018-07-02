@@ -18,6 +18,7 @@ package worker
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,12 +33,15 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
+
+var rootHash = hash.Hash{}
 
 func TestSingleDatabase(t *testing.T) {
 	// init as single node database
@@ -61,7 +65,7 @@ func TestSingleDatabase(t *testing.T) {
 
 		// create peers
 		var peers *kayak.Peers
-		peers, err = getPeers()
+		peers, err = getPeers(1)
 		So(err, ShouldBeNil)
 
 		// create file
@@ -72,15 +76,14 @@ func TestSingleDatabase(t *testing.T) {
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
-		// create storage
-		storePath := filepath.Join(rootDir, "database.db")
-		var st *storage.Storage
-		st, err = storage.New(storePath)
+		// create genesis block
+		var block *sqlchain.Block
+		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// create database
 		var db *Database
-		db, err = NewDatabase(cfg, peers, st)
+		db, err = NewDatabase(cfg, peers, block)
 		So(err, ShouldBeNil)
 
 		Convey("test read write", func() {
@@ -262,7 +265,59 @@ func TestSingleDatabase(t *testing.T) {
 
 			err = db.Ack(ack)
 			So(err, ShouldBeNil)
+
+			// test update peers
+			peers, err = getPeers(2)
+			So(err, ShouldBeNil)
+			err = db.UpdatePeers(peers)
+			So(err, ShouldBeNil)
 		})
+	})
+}
+
+func TestInitFailed(t *testing.T) {
+	Convey("test database", t, func() {
+		var err error
+		var server *rpc.Server
+		var cleanup func()
+		cleanup, server, err = initNode()
+		So(err, ShouldBeNil)
+
+		defer cleanup()
+
+		var rootDir string
+		rootDir, err = ioutil.TempDir("", "db_test_")
+		So(err, ShouldBeNil)
+
+		defer os.RemoveAll(rootDir)
+
+		// create mux service
+		service := ka.NewMuxService("DBKayak", server)
+
+		// create peers
+		var peers *kayak.Peers
+		peers, err = getPeers(1)
+		So(err, ShouldBeNil)
+
+		// create file
+		cfg := &DBConfig{
+			DatabaseID:      "TEST",
+			DataDir:         rootDir,
+			MuxService:      service,
+			MaxWriteTimeGap: time.Duration(5 * time.Second),
+		}
+
+		// create genesis block
+		var block *sqlchain.Block
+		block, err = createRandomBlock(rootHash, true)
+		So(err, ShouldBeNil)
+
+		// broken peers configuration
+		peers.Term = 2
+
+		// create database
+		_, err = NewDatabase(cfg, peers, block)
+		So(err, ShouldNotBeNil)
 	})
 }
 
@@ -289,7 +344,7 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		// create peers
 		var peers *kayak.Peers
-		peers, err = getPeers()
+		peers, err = getPeers(1)
 		So(err, ShouldBeNil)
 
 		// create file
@@ -300,17 +355,14 @@ func TestDatabaseRecycle(t *testing.T) {
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
-		// create storage
-		storePath := filepath.Join(rootDir, "database.db")
-		var st *storage.Storage
-		st, err = storage.New(storePath)
+		// create genesis block
+		var block *sqlchain.Block
+		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
-
-		defer st.Close()
 
 		// create database
 		var db *Database
-		db, err = NewDatabase(cfg, peers, st)
+		db, err = NewDatabase(cfg, peers, block)
 		So(err, ShouldBeNil)
 
 		// do some query
@@ -429,11 +481,7 @@ func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64
 	return
 }
 
-func getLocalTime() time.Time {
-	return time.Now().UTC()
-}
-
-func getPeers() (peers *kayak.Peers, err error) {
+func getPeers(term uint64) (peers *kayak.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = getNodeID(); err != nil {
@@ -455,7 +503,7 @@ func getPeers() (peers *kayak.Peers, err error) {
 		PubKey: pubKey,
 	}
 	peers = &kayak.Peers{
-		Term:    1,
+		Term:    term,
 		Leader:  server,
 		Servers: []*kayak.Server{server},
 		PubKey:  pubKey,
@@ -538,5 +586,64 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		server.Stop()
 	}
 
+	return
+}
+
+// copied from sqlchain.xxx_test.
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *sqlchain.Block, err error) {
+	// Generate key pair
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		return
+	}
+
+	h := hash.Hash{}
+	rand.Read(h[:])
+
+	b = &sqlchain.Block{
+		SignedHeader: sqlchain.SignedHeader{
+			Header: sqlchain.Header{
+				Version:     0x01000000,
+				Producer:    proto.NodeID(h.String()),
+				GenesisHash: rootHash,
+				ParentHash:  parent,
+				Timestamp:   time.Now().UTC(),
+			},
+			Signee:    pub,
+			Signature: nil,
+		},
+		Queries: make([]*hash.Hash, rand.Intn(10)+10),
+	}
+
+	for i := range b.Queries {
+		b.Queries[i] = new(hash.Hash)
+		rand.Read(b.Queries[i][:])
+	}
+
+	if isGenesis {
+		// Compute nonce with public key
+		nonceCh := make(chan cpuminer.NonceInfo)
+		quitCh := make(chan struct{})
+		miner := cpuminer.NewCPUMiner(quitCh)
+		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
+			Data:      pub.Serialize(),
+			NonceChan: nonceCh,
+			Stop:      nil,
+		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
+		nonce := <-nonceCh
+		close(quitCh)
+		close(nonceCh)
+		// Add public key to KMS
+		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
+		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
+		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = b.PackAndSignBlock(priv)
 	return
 }

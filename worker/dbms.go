@@ -23,7 +23,12 @@ import (
 	"path/filepath"
 	"sync"
 
+	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
+	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
 const (
@@ -39,9 +44,10 @@ const (
 
 // DBMS defines a database management instance.
 type DBMS struct {
-	cfg      *DBMSConfig
-	metaLock sync.Mutex
-	meta     *DBMSMeta
+	cfg        *DBMSConfig
+	dbMap      sync.Map
+	muxService *kt.ETLSTransportService
+	rpc        *DBMSRPCService
 }
 
 // NewDBMS returns new database management instance.
@@ -50,15 +56,18 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 		cfg: cfg,
 	}
 
+	// init kayak rpc mux
+	dbms.muxService = ka.NewMuxService(DBKayakRPCName, cfg.Server)
+
+	// init service
+	dbms.rpc = NewDBMSRPCService(DBServiceRPCName, cfg.Server, dbms)
+
 	return
 }
 
-func (dbms *DBMS) readMeta() (err error) {
-	dbms.metaLock.Lock()
-	defer dbms.metaLock.Unlock()
-
+func (dbms *DBMS) readMeta() (meta *DBMSMeta, err error) {
 	filePath := filepath.Join(dbms.cfg.RootDir, DBMetaFileName)
-	dbms.meta = new(DBMSMeta)
+	meta = new(DBMSMeta)
 
 	var fileContent []byte
 
@@ -73,21 +82,22 @@ func (dbms *DBMS) readMeta() (err error) {
 		return
 	}
 
-	err = utils.DecodeMsgPack(fileContent, dbms.meta)
+	err = utils.DecodeMsgPack(fileContent, meta)
 
 	return
 }
 
 func (dbms *DBMS) writeMeta() (err error) {
-	dbms.metaLock.Lock()
-	defer dbms.metaLock.Unlock()
+	meta := new(DBMSMeta)
 
-	if dbms.meta == nil {
-		dbms.meta = new(DBMSMeta)
-	}
+	dbms.dbMap.Range(func(key, value interface{}) bool {
+		dbID := key.(proto.DatabaseID)
+		meta.DBS[dbID] = true
+		return true
+	})
 
 	var buf *bytes.Buffer
-	if buf, err = utils.EncodeMsgPack(dbms.meta); err != nil {
+	if buf, err = utils.EncodeMsgPack(meta); err != nil {
 		return
 	}
 
@@ -100,30 +110,206 @@ func (dbms *DBMS) writeMeta() (err error) {
 // Init defines dbms init logic.
 func (dbms *DBMS) Init() (err error) {
 	// read meta
-	err = dbms.readMeta()
+	var localMeta *DBMSMeta
+	if localMeta, err = dbms.readMeta(); err != nil {
+		return
+	}
+
+	// load current peers info from block producer
+	var dbMapping []wt.ServiceInstance
+	if dbMapping, err = dbms.getMappedInstances(); err != nil {
+		return
+	}
+
+	// init database
+	if err = dbms.initDatabases(localMeta, dbMapping); err != nil {
+		return
+	}
 
 	return
 }
 
-func (dbms *DBMS) create() (err error) {
-	// called by rpc to call create database logic
+func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err error) {
+	currentInstance := make(map[proto.DatabaseID]bool)
+
+	for _, instanceConf := range conf {
+		currentInstance[instanceConf.DatabaseID] = true
+		if err = dbms.create(&instanceConf, false); err != nil {
+			return
+		}
+	}
+
+	// calculate to drop databases
+	toDropInstance := make(map[proto.DatabaseID]bool)
+
+	for dbID := range meta.DBS {
+		if _, exists := currentInstance[dbID]; !exists {
+			toDropInstance[dbID] = true
+		}
+	}
+
+	// drop database
+	for dbID := range toDropInstance {
+		if err = dbms.drop(dbID); err != nil {
+			return
+		}
+	}
+
 	return
 }
 
-func (dbms *DBMS) drop() (err error) {
-	// called by rpc to call drop database logic
+func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error) {
+	if _, alreadyExists := dbms.getMeta(instance.DatabaseID); alreadyExists {
+		return ErrAlreadyExists
+	}
+
+	// set database root dir
+	rootDir := filepath.Join(dbms.cfg.RootDir, string(instance.DatabaseID))
+
+	// clear current data
+	if cleanup {
+		if err = os.RemoveAll(rootDir); err != nil {
+			return
+		}
+	}
+
+	var db *Database
+
+	defer func() {
+		// close on failed
+		if err != nil {
+			if db != nil {
+				db.Shutdown()
+			}
+
+			dbms.removeMeta(instance.DatabaseID)
+		}
+	}()
+
+	// new db
+	dbCfg := &DBConfig{
+		DatabaseID:      instance.DatabaseID,
+		DataDir:         rootDir,
+		MuxService:      dbms.muxService,
+		MaxWriteTimeGap: dbms.cfg.MaxWriteTimeGap,
+	}
+
+	// parse genesis block
+	var block *sqlchain.Block
+
+	// TODO(xq262144), temporary using msgpack marshal/unmarshal
+	// TODO(xq262144), to be refined later using optimal sqlchain api
+	if err = utils.DecodeMsgPack(instance.GenesisBlock, &block); err != nil {
+		return
+	}
+
+	if db, err = NewDatabase(dbCfg, instance.Peers, block); err != nil {
+		return
+	}
+
+	// add to meta
+	err = dbms.addMeta(instance.DatabaseID, db)
+
 	return
 }
 
-func (dbms *DBMS) update() (err error) {
-	// called by rpc to call drop database logic
+func (dbms *DBMS) drop(dbID proto.DatabaseID) (err error) {
+	var db *Database
+	var exists bool
+
+	if db, exists = dbms.getMeta(dbID); !exists {
+		return ErrNotExists
+	}
+
+	// shutdown database
+	if err = db.Shutdown(); err != nil {
+		return
+	}
+
+	// remove meta
+	return dbms.removeMeta(dbID)
+}
+
+func (dbms *DBMS) update(instance *wt.ServiceInstance) (err error) {
+	var db *Database
+	var exists bool
+
+	if db, exists = dbms.getMeta(instance.DatabaseID); !exists {
+		return ErrNotExists
+	}
+
+	// update peers
+	return db.UpdatePeers(instance.Peers)
+}
+
+func (dbms *DBMS) query(req *wt.Request) (res *wt.Response, err error) {
+	var db *Database
+	var exists bool
+
+	// find database
+	if db, exists = dbms.getMeta(req.Header.DatabaseID); !exists {
+		err = ErrNotExists
+		return
+	}
+
+	// send query
+	return db.Query(req)
+}
+
+func (dbms *DBMS) ack(ack *wt.Ack) (err error) {
+	var db *Database
+	var exists bool
+
+	// find database
+	if db, exists = dbms.getMeta(ack.Header.Response.Request.DatabaseID); !exists {
+		err = ErrNotExists
+		return
+	}
+
+	// send query
+	return db.Ack(ack)
+}
+
+func (dbms *DBMS) getMeta(dbID proto.DatabaseID) (db *Database, exists bool) {
+	var rawDB interface{}
+
+	if rawDB, exists = dbms.dbMap.Load(dbID); !exists {
+		return
+	}
+
+	db = rawDB.(*Database)
+
+	return
+}
+
+func (dbms *DBMS) addMeta(dbID proto.DatabaseID, db *Database) (err error) {
+	if _, alreadyExists := dbms.dbMap.LoadOrStore(dbID, db); alreadyExists {
+		return ErrAlreadyExists
+	}
+
+	return dbms.writeMeta()
+}
+
+func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
+	dbms.dbMap.Delete(dbID)
+	return dbms.writeMeta()
+}
+
+func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err error) {
+	// TODO(xq26144), wait for block producer api ready
 	return
 }
 
 // Shutdown defines dbms shutdown logic.
 func (dbms *DBMS) Shutdown() (err error) {
-	// shutdown databases
-	// TODO(xq262144), shutdown databases
+	dbms.dbMap.Range(func(_, rawDB interface{}) bool {
+		db := rawDB.(*Database)
+
+		// TODO(xq262144), more error handling
+		db.Shutdown()
+
+		return true
+	})
 
 	// persist meta
 	err = dbms.writeMeta()

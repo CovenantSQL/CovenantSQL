@@ -20,5 +20,5 @@ import "gitlab.com/thunderdb/ThunderDB/proto"
 
 // DBMSMeta defines the meta structure .
 type DBMSMeta struct {
-	DBS []proto.DatabaseID
+	DBS map[proto.DatabaseID]bool
 }

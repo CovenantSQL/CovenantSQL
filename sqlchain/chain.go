@@ -455,8 +455,12 @@ func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 		}
 
 		// Always put memory changes which will not be affected by rollback after DB operations
+		if err = c.qi.AddAck(h, ack); err != nil {
+			return
+		}
+
 		c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
-		return c.qi.AddAck(h, ack)
+		return
 	})
 }
 
@@ -556,7 +560,7 @@ func (c *Chain) IsMyTurn() bool {
 }
 
 // ProduceBlock prepares, signs and advises the pending block to the orther peers.
-func (c *Chain) ProduceBlock(now time.Time) (err error) {
+func (c *Chain) ProduceBlock(parent hash.Hash, now time.Time) (err error) {
 	// TODO(leventeliu): remember to initialize local key store somewhere.
 	priv, err := kms.GetLocalPrivateKey()
 
@@ -566,6 +570,7 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 
 	// Sign pending block
 	c.pendingBlock.SignedHeader.Timestamp = now
+	c.pendingBlock.SignedHeader.ParentHash = parent
 
 	if err = c.pendingBlock.PackAndSignBlock(priv); err != nil {
 		return
@@ -589,7 +594,7 @@ func (c *Chain) Cycle(now time.Time) {
 		return
 	}
 
-	if err := c.ProduceBlock(now); err != nil {
+	if err := c.ProduceBlock(c.state.Head, now); err != nil {
 		c.Stop()
 	}
 }

@@ -54,17 +54,19 @@ func NewQuerySummary() *QueryTracker {
 }
 
 // UpdateAck updates the query tracker with a verified SignedAckHeader.
-func (s *RequestTracker) UpdateAck(ack *types.SignedAckHeader) (err error) {
-	if s.Response == nil || s.Ack == nil {
+func (s *RequestTracker) UpdateAck(ack *types.SignedAckHeader) (newAck bool, err error) {
+	if s.Ack == nil {
 		// A later Ack can overwrite the original Response setting
 		*s = RequestTracker{
 			Response: ack.SignedResponseHeader(),
 			Ack:      ack,
 		}
+
+		newAck = true
 	} else if !s.Ack.HeaderHash.IsEqual(&ack.HeaderHash) {
 		// This may happen when a client sends multiple acknowledgements for a same query (same
 		// response header hash)
-		err = ErrMultipleAck
+		err = ErrMultipleAckOfResponse
 	} // else it's same as s.Ack, let's try not to overwrite it
 
 	return
@@ -185,6 +187,7 @@ func (i *MultiIndex) AddResponse(resp *types.SignedResponseHeader) (err error) {
 		// Considering that we may allow a node to update its key pair on-the-fly, just overwrite
 		// this Response.
 		v.Response = resp
+		return
 	}
 
 	// Create new item
@@ -195,6 +198,7 @@ func (i *MultiIndex) AddResponse(resp *types.SignedResponseHeader) (err error) {
 	i.RespIndex[resp.HeaderHash] = s
 	q := i.SeqIndex.Ensure(resp.Request.SeqNo)
 	q.Queries = append(q.Queries, s)
+
 	return nil
 }
 
@@ -202,37 +206,50 @@ func (i *MultiIndex) AddResponse(resp *types.SignedResponseHeader) (err error) {
 func (i *MultiIndex) AddAck(ack *types.SignedAckHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
+	var v *RequestTracker
+	var ok bool
+	q := i.SeqIndex.Ensure(ack.SignedRequestHeader().SeqNo)
 
-	if v, ok := i.RespIndex[ack.ResponseHeaderHash()]; ok {
+	if v, ok = i.RespIndex[ack.ResponseHeaderHash()]; ok {
 		if v == nil || v.Response == nil {
 			// TODO(leventeliu): consider to panic.
 			err = ErrCorruptedIndex
 		}
 
 		// This also updates the item indexed by AckIndex and SeqIndex
+		var newAck bool
+
+		if newAck, err = v.UpdateAck(ack); err != nil {
+			return
+		}
+
+		if newAck {
+			q.Queries = append(q.Queries, v)
+		}
+
 		i.AckIndex[ack.HeaderHash] = v
-		return v.UpdateAck(ack)
-	}
+	} else {
+		// Build new QueryTracker and update both indexes
+		v = &RequestTracker{
+			Response: ack.SignedResponseHeader(),
+			Ack:      ack,
+		}
 
-	// Build new QueryTracker and update both indexes
-	s := &RequestTracker{
-		Response: ack.SignedResponseHeader(),
-		Ack:      ack,
+		i.RespIndex[ack.ResponseHeaderHash()] = v
+		i.AckIndex[ack.HeaderHash] = v
+		q.Queries = append(q.Queries, v)
 	}
-
-	i.RespIndex[ack.ResponseHeaderHash()] = s
-	i.AckIndex[ack.HeaderHash] = s
-	q := i.SeqIndex.Ensure(ack.SignedRequestHeader().SeqNo)
-	q.Queries = append(q.Queries, s)
 
 	// TODO(leventeliu):
 	// This query has multiple signed acknowledgements. It may be caused by a network problem.
 	// We will keep the first ack counted anyway. But, should we report it to someone?
-	if q.FirstAck == nil || q.FirstAck.Ack.Timestamp.After(s.Ack.Timestamp) {
-		q.FirstAck = s
+	if q.FirstAck == nil {
+		q.FirstAck = v
+	} else {
+		err = ErrMultipleAckOfSeqNo
 	}
 
-	return nil
+	return
 }
 
 // SetSignedBlock sets the signed block of the acknowledged query.

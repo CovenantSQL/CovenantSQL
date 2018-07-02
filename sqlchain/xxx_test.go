@@ -80,6 +80,7 @@ func createRandomQueryRequest(
 				ConnectionID: uint64(rand.Int63()),
 				SeqNo:        uint64(rand.Int63()),
 				Timestamp:    time.Now().UTC(),
+				// BatchCount and QueriesHash will be set by req.Sign()
 			},
 			Signee:    reqPub,
 			Signature: nil,
@@ -88,6 +89,8 @@ func createRandomQueryRequest(
 			Queries: createRandomStrings(10, 10, 10, 10),
 		},
 	}
+
+	createRandomString(10, 10, (*string)(&req.Header.DatabaseID))
 
 	if err = req.Sign(reqPriv); err != nil {
 		return
@@ -137,6 +140,67 @@ func createRandomQueryResponse(
 	}
 
 	r = &resp.Header
+	return
+}
+
+func createRandomQueryResponseWithRequest(
+	req *types.SignedRequestHeader,
+	respNode proto.NodeID, respPriv *asymmetric.PrivateKey, respPub *asymmetric.PublicKey,
+) (r *types.SignedResponseHeader, err error) {
+	resp := &types.Response{
+		Header: types.SignedResponseHeader{
+			ResponseHeader: types.ResponseHeader{
+				Request:   *req,
+				NodeID:    respNode,
+				Timestamp: time.Now().UTC(),
+			},
+			Signee:    respPub,
+			Signature: nil,
+		},
+		Payload: types.ResponsePayload{
+			Columns:   createRandomStrings(10, 10, 10, 10),
+			DeclTypes: createRandomStrings(10, 10, 10, 10),
+			Rows:      make([]types.ResponseRow, rand.Intn(10)+10),
+		},
+	}
+
+	for i := range resp.Payload.Rows {
+		s := createRandomStrings(10, 10, 10, 10)
+		resp.Payload.Rows[i].Values = make([]interface{}, len(s))
+		for j := range resp.Payload.Rows[i].Values {
+			resp.Payload.Rows[i].Values[j] = s[j]
+		}
+	}
+
+	if err = resp.Sign(respPriv); err != nil {
+		return
+	}
+
+	r = &resp.Header
+	return
+}
+
+func createRandomQueryAckWithResponse(
+	resp *types.SignedResponseHeader,
+	reqNode proto.NodeID, reqPriv *asymmetric.PrivateKey, reqPub *asymmetric.PublicKey,
+) (r *types.SignedAckHeader, err error) {
+	ack := &types.Ack{
+		Header: types.SignedAckHeader{
+			AckHeader: types.AckHeader{
+				Response:  *resp,
+				NodeID:    reqNode,
+				Timestamp: time.Now().UTC(),
+			},
+			Signee:    reqPub,
+			Signature: nil,
+		},
+	}
+
+	if err = ack.Sign(reqPriv); err != nil {
+		return
+	}
+
+	r = &ack.Header
 	return
 }
 

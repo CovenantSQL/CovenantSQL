@@ -60,9 +60,13 @@ var (
 	// ErrBlockTimestampOutOfPeriod indicates a block producing timestamp verification failure.
 	ErrBlockTimestampOutOfPeriod = errors.New("block timestamp is out of producing period")
 
-	// ErrMultipleAck indicates that multiple acknowledgements for a same query response is
+	// ErrMultipleAckOfResponse indicates that multiple acknowledgements for a same query response is
 	// detected.
-	ErrMultipleAck = errors.New("multiple acknowledgements")
+	ErrMultipleAckOfResponse = errors.New("multiple acknowledgements of same response")
+
+	// ErrMultipleAckOfSeqNo indicates that multiple acknowledgements for a same sequence number is
+	// detected.
+	ErrMultipleAckOfSeqNo = errors.New("multiple acknowledgements of same sequence number")
 
 	// ErrQueryExpired indicates that a received query Response/Ack has expired.
 	ErrQueryExpired = errors.New("query has expired")

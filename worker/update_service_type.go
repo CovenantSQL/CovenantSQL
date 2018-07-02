@@ -22,7 +22,6 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
@@ -40,9 +39,8 @@ const (
 
 // UpdateServiceHeader defines service update header.
 type UpdateServiceHeader struct {
-	DatabaseID proto.DatabaseID
-	Op         UpdateType
-	Peers      *kayak.Peers
+	Op       UpdateType
+	Instance ServiceInstance
 }
 
 // SignedUpdateServiceHeader defines signed service update header.
@@ -70,9 +68,8 @@ func (h *UpdateServiceHeader) Serialize() []byte {
 
 	buf := new(bytes.Buffer)
 
-	buf.WriteString(string(h.DatabaseID))
 	binary.Write(buf, binary.LittleEndian, int32(h.Op))
-	buf.Write(h.Peers.Serialize())
+	buf.Write(h.Instance.Serialize())
 
 	return buf.Bytes()
 }

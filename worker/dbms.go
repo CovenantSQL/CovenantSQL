@@ -26,9 +26,9 @@ import (
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
 const (
@@ -67,13 +67,13 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 func (dbms *DBMS) readMeta() (meta *DBMSMeta, err error) {
 	filePath := filepath.Join(dbms.cfg.RootDir, DBMetaFileName)
-	meta = new(DBMSMeta)
+	meta = NewDBMSMeta()
 
 	var fileContent []byte
 
 	if fileContent, err = ioutil.ReadFile(filePath); err != nil {
 		// if not exists
-		if err == os.ErrNotExist {
+		if os.IsNotExist(err) {
 			// new without meta
 			err = nil
 			return
@@ -84,11 +84,16 @@ func (dbms *DBMS) readMeta() (meta *DBMSMeta, err error) {
 
 	err = utils.DecodeMsgPack(fileContent, meta)
 
+	// create empty meta if meta map is nil
+	if err == nil && meta.DBS == nil {
+		meta = NewDBMSMeta()
+	}
+
 	return
 }
 
 func (dbms *DBMS) writeMeta() (err error) {
-	meta := new(DBMSMeta)
+	meta := NewDBMSMeta()
 
 	dbms.dbMap.Range(func(key, value interface{}) bool {
 		dbID := key.(proto.DatabaseID)
@@ -222,7 +227,7 @@ func (dbms *DBMS) drop(dbID proto.DatabaseID) (err error) {
 	}
 
 	// shutdown database
-	if err = db.Shutdown(); err != nil {
+	if err = db.Destroy(); err != nil {
 		return
 	}
 

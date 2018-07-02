@@ -69,7 +69,7 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 	}
 
 	// verify if ack node is the original ack node
-	if ack.Envelope.NodeID.String() == string(ack.Header.Response.Request.NodeID) {
+	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {
 		err = ErrInvalidRequest
 		return
 	}

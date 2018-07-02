@@ -73,7 +73,7 @@ func TestSingleDatabase(t *testing.T) {
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
 			MuxService:      service,
-			MaxWriteTimeGap: time.Duration(5 * time.Second),
+			MaxWriteTimeGap: time.Second * 5,
 		}
 
 		// create genesis block
@@ -439,10 +439,18 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 }
 
 func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, queries []string) (query *wt.Request, err error) {
-	return buildQueryWithTimeShift(queryType, connID, seqNo, time.Duration(0), queries)
+	return buildQueryEx(queryType, connID, seqNo, time.Duration(0), proto.DatabaseID(""), queries)
+}
+
+func buildQueryWithDatabaseID(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
+	return buildQueryEx(queryType, connID, seqNo, time.Duration(0), databaseID, queries)
 }
 
 func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, queries []string) (query *wt.Request, err error) {
+	return buildQueryEx(queryType, connID, seqNo, timeShift, proto.DatabaseID(""), queries)
+}
+
+func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = getNodeID(); err != nil {
@@ -463,6 +471,7 @@ func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64
 	query = &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
+				DatabaseID:   databaseID,
 				QueryType:    queryType,
 				NodeID:       nodeID,
 				ConnectionID: connID,

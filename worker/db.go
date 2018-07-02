@@ -31,11 +31,12 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // Database defines a single database instance in worker runtime.
 type Database struct {
-	cfg          *Config
+	cfg          *DBConfig
 	dbID         proto.DatabaseID
 	storage      *storage.Storage
 	kayakRuntime *kayak.Runtime
@@ -44,7 +45,7 @@ type Database struct {
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *Config, peers *kayak.Peers, st *storage.Storage) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *kayak.Peers, st *storage.Storage) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
@@ -74,16 +75,21 @@ func NewDatabase(cfg *Config, peers *kayak.Peers, st *storage.Storage) (db *Data
 	return
 }
 
+// UpdatePeers defines peers update query interface.
+func (db *Database) UpdatePeers(peers *kayak.Peers) error {
+	return db.kayakRuntime.UpdatePeers(peers)
+}
+
 // Query defines database query interface.
-func (db *Database) Query(request *Request) (response *Response, err error) {
+func (db *Database) Query(request *wt.Request) (response *wt.Response, err error) {
 	if err = request.Verify(); err != nil {
 		return
 	}
 
 	switch request.Header.QueryType {
-	case ReadQuery:
+	case wt.ReadQuery:
 		return db.readQuery(request)
-	case WriteQuery:
+	case wt.WriteQuery:
 		return db.writeQuery(request)
 	default:
 		// TODO(xq262144) verbose errors with custom error structure
@@ -92,7 +98,7 @@ func (db *Database) Query(request *Request) (response *Response, err error) {
 }
 
 // Ack defines client response ack interface.
-func (db *Database) Ack(ack *Ack) (err error) {
+func (db *Database) Ack(ack *wt.Ack) (err error) {
 	if err = ack.Verify(); err != nil {
 		return
 	}
@@ -122,7 +128,7 @@ func (db *Database) Destroy() (err error) {
 	return
 }
 
-func (db *Database) writeQuery(request *Request) (response *Response, err error) {
+func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err error) {
 	// call kayak runtime Process
 	var buf *bytes.Buffer
 	if buf, err = utils.EncodeMsgPack(request); err != nil {
@@ -138,7 +144,7 @@ func (db *Database) writeQuery(request *Request) (response *Response, err error)
 	return db.buildQueryResponse(request, []string{}, []string{}, [][]interface{}{})
 }
 
-func (db *Database) readQuery(request *Request) (response *Response, err error) {
+func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err error) {
 	// call storage query directly
 	// TODO(xq262144), add timeout logic basic of client options
 	var columns, types []string
@@ -152,9 +158,9 @@ func (db *Database) readQuery(request *Request) (response *Response, err error) 
 	return db.buildQueryResponse(request, columns, types, data)
 }
 
-func (db *Database) buildQueryResponse(request *Request, columns []string, types []string, data [][]interface{}) (response *Response, err error) {
+func (db *Database) buildQueryResponse(request *wt.Request, columns []string, types []string, data [][]interface{}) (response *wt.Response, err error) {
 	// build response
-	response = new(Response)
+	response = new(wt.Response)
 	response.Header.Request = request.Header
 	if response.Header.NodeID, err = db.getLocalNodeID(); err != nil {
 		return
@@ -168,7 +174,7 @@ func (db *Database) buildQueryResponse(request *Request, columns []string, types
 	// set payload
 	response.Payload.Columns = columns
 	response.Payload.DeclTypes = types
-	response.Payload.Rows = make([]ResponseRow, len(data))
+	response.Payload.Rows = make([]wt.ResponseRow, len(data))
 
 	for i, d := range data {
 		response.Payload.Rows[i].Values = d
@@ -191,12 +197,12 @@ func (db *Database) buildQueryResponse(request *Request, columns []string, types
 
 // TODO(xq262144), following are function to be filled and revised for integration in the future
 
-func (db *Database) saveRequest(request *Request) (err error) {
+func (db *Database) saveRequest(request *wt.Request) (err error) {
 	// TODO(xq262144), to be integrated with sqlchain
 	return
 }
 
-func (db *Database) saveAck(ack *Ack) (err error) {
+func (db *Database) saveAck(ack *wt.Ack) (err error) {
 	// TODO(xq262144), to be integrated with sqlchain
 	return
 }

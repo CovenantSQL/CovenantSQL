@@ -25,15 +25,6 @@ var (
 	// ErrInvalidRequestSeq defines invalid sequence no of request.
 	ErrInvalidRequestSeq = errors.New("invalid request sequence applied")
 
-	// ErrHashVerification indicates a failed hash verification.
-	ErrHashVerification = errors.New("hash verification failed")
-
-	// ErrSignVerification indicates a failed signature verification.
-	ErrSignVerification = errors.New("signature verification failed")
-
-	// ErrSignRequest indicates a failed signature compute operation.
-	ErrSignRequest = errors.New("signature compute failed")
-
 	// ErrMultipleQuery defines error on executing multiple select query in single request.
 	ErrMultipleQuery = errors.New("multiple query in single request")
 )

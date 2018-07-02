@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
-import (
-	"time"
+import "errors"
 
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
+var (
+	// ErrHashVerification indicates a failed hash verification.
+	ErrHashVerification = errors.New("hash verification failed")
+
+	// ErrSignVerification indicates a failed signature verification.
+	ErrSignVerification = errors.New("signature verification failed")
+
+	// ErrSignRequest indicates a failed signature compute operation.
+	ErrSignRequest = errors.New("signature compute failed")
 )
-
-// DBConfig defines the database config.
-type DBConfig struct {
-	DatabaseID      proto.DatabaseID
-	DataDir         string
-	MuxService      *kt.ETLSTransportService
-	MaxWriteTimeGap time.Duration
-}

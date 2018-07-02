@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import (
 	"bytes"
@@ -44,7 +44,8 @@ type RequestPayload struct {
 // RequestHeader defines a query request header.
 type RequestHeader struct {
 	QueryType    QueryType
-	NodeID       proto.NodeID // request node id
+	NodeID       proto.NodeID     // request node id
+	DatabaseID   proto.DatabaseID // request database id
 	ConnectionID uint64
 	SeqNo        uint64
 	Timestamp    time.Time // time in UTC zone
@@ -62,6 +63,7 @@ type SignedRequestHeader struct {
 
 // Request defines a complete query request.
 type Request struct {
+	proto.Envelope
 	Header  SignedRequestHeader
 	Payload RequestPayload
 }
@@ -94,6 +96,7 @@ func (h *RequestHeader) Serialize() []byte {
 	binary.Write(buf, binary.LittleEndian, h.QueryType)
 	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
 	buf.WriteString(string(h.NodeID))
+	buf.WriteString(string(h.DatabaseID))
 	binary.Write(buf, binary.LittleEndian, h.ConnectionID)
 	binary.Write(buf, binary.LittleEndian, h.SeqNo)
 	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano())) // use nanoseconds unix epoch

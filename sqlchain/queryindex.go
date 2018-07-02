@@ -101,32 +101,32 @@ func (i SeqIndex) Ensure(k uint64) (v *QueryTracker) {
 // +--------+                                 |  +----------------+       | | | +-RequestHeader       |
 // |  ...   |                                 |                           | | | | +-...               |
 // +--------+           +------------------+  |                           | | | | +-SeqNo: seq#0      |
-// | hash#3 |--+     +->| QueryTracker     |  |                           | | | | +-...               |
-// +--------+  |     |  | +-FirstAck (nil) |  |                           | | | +-HeaderHash = hash#0 |
-// |  ...   |  |     |  | +-Queries        |  |                           | | | +-Signee ====> pubk#0 |
-// +--------+  |     |  |   +-[0]          |--+                           | | | +-Signature => sign#0 |
-// | hash#6 |--|--+  |  |   +-...          |                              | | +-...                   |
+// | hash#3 |-----+  +->| QueryTracker     |  |                           | | | | +-...               |
+// +--------+     |  |  | +-FirstAck (nil) |  |                           | | | +-HeaderHash = hash#0 |
+// |  ...   |     |  |  | +-Queries        |  |                           | | | +-Signee ====> pubk#0 |
+// +--------+     |  |  |   +-[0]          |--+                           | | | +-Signature => sign#0 |
+// | hash#6 |--+  |  |  |   +-...          |                              | | +-...                   |
 // +--------+  |  |  |  +------------------+                              | +-HeaderHash = hash#1     |
 // |  ...   |  |  |  |                                                    | +-Signee ====> pubk#1     |
 //             |  |  |                                                    | +-Signature => sign#1     |
 //             |  |  |                                                    +---------------------------+
 //             |  |  |                           +----------------+
-//             +----------------+---------+-+--->| RequestTracker |
-//                |  |          |         | |    | +-Response     |----+  +-------------------------------+
-//  AckIndex      |  |          |         | |    | +-Ack          |----|->| SignedAckHeader               |
-//                |  |          |         | |    | +-...          |    |  | +-AckHeader                   |
-// |  ...   |     |  |          |         | |    +----------------+    +->| | +-SignedResponseHeader      |
-// +--------+     |  |          |         | |                             | | | +-ResponseHeader          |
-// | hash#4 |-----|-------------+         | |                             | | | | +-SignedRequestHeader   |
-// +--------+     |  |                    | |                             | | | | | +-RequestHeader       |
-// |  ...   |     |  |                    | |                             | | | | | | +-...               |
-//                |  |                    | |                             | | | | | | +-SeqNo: seq#1      |
-//                |  |                    | |                             | | | | | | +-...               |
-//                |  |                    | |                             | | | | | +-HeaderHash = hash#2 |
-//                |  |                    | |                             | | | | | +-Signee ====> pubk#2 |
-//                |  |                    | |                             | | | | | +-Signature => sign#2 |
-//  SeqIndex      |  |                    | |    +----------------+       | | | | +-...                   |
-//                +---------------------------+->| RequestTracker |       | | | +-HeaderHash = hash#3     |
+//             |  +-------------+---------+-+--->| RequestTracker |
+//             |     |          |         | |    | +-Response     |----+  +-------------------------------+
+//  AckIndex   |     |          |         | |    | +-Ack          |----|->| SignedAckHeader               |
+//             |     |          |         | |    | +-...          |    |  | +-AckHeader                   |
+// |  ...   |  |     |          |         | |    +----------------+    +->| | +-SignedResponseHeader      |
+// +--------+  |     |          |         | |                             | | | +-ResponseHeader          |
+// | hash#4 |--|----------------+         | |                             | | | | +-SignedRequestHeader   |
+// +--------+  |     |                    | |                             | | | | | +-RequestHeader       |
+// |  ...   |  |     |                    | |                             | | | | | | +-...               |
+//             |     |                    | |                             | | | | | | +-SeqNo: seq#1      |
+//             |     |                    | |                             | | | | | | +-...               |
+//             |     |                    | |                             | | | | | +-HeaderHash = hash#2 |
+//             |     |                    | |                             | | | | | +-Signee ====> pubk#2 |
+//             |     |                    | |                             | | | | | +-Signature => sign#2 |
+//  SeqIndex   |     |                    | |    +----------------+       | | | | +-...                   |
+//             +------------------------------+->| RequestTracker |       | | | +-HeaderHash = hash#3     |
 // |  ...   |        |                    | | |  | +-Response     |---+   | | | +-Signee ====> pubk#3     |
 // +--------+        |                    | | |  | +-Ack (nil)    |   |   | | | +-Signature => sign#3     |
 // | seq#0  |--------+                    | | |  | +-...          |   |   | | +-...                       |

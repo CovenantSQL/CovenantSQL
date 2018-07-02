@@ -11,7 +11,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
 func TestMergeTwoHash(t *testing.T) {
@@ -26,57 +25,34 @@ func TestMergeTwoHash(t *testing.T) {
 	})
 }
 
-type tx struct {
-	h *hash.Hash
-}
-
-func (t *tx) Hash() *hash.Hash {
-	if t.h == nil {
-		t.h = &hash.Hash{}
-		rand.Read(t.h[:])
-	}
-	return t.h
-}
-
 func TestNewMerkle(t *testing.T) {
-	tests := []struct {
-		t []tx
-	}{
-		{
-			[]tx{
-				tx{},
-				tx{},
-				tx{},
-			},
+	tests := [][]*hash.Hash{
+		[]*hash.Hash{
+			&hash.Hash{},
+			&hash.Hash{},
+			&hash.Hash{},
 		},
-		{
-			[]tx{
-				tx{},
-				tx{},
-				tx{},
-				tx{},
-			},
+		[]*hash.Hash{
+			&hash.Hash{},
+			&hash.Hash{},
+			&hash.Hash{},
+			&hash.Hash{},
 		},
-		{
-			[]tx{
-				tx{},
-				tx{},
-				tx{},
-				tx{},
-				tx{},
-			},
+		[]*hash.Hash{
+			&hash.Hash{},
+			&hash.Hash{},
+			&hash.Hash{},
+			&hash.Hash{},
+			&hash.Hash{},
 		},
 	}
 	Convey("Two root hashes should be the same", t, func() {
 		for i := range tests {
-			hashableTx := make([]*sqlchain.Hashable, len(tests[i].t))
-			for j := range tests[i].t {
-				tests[i].t[j].Hash()
-				hashable := sqlchain.Hashable(&(tests[i].t[j]))
-				hashableTx[j] = &hashable
+			for j := range tests[i] {
+				rand.Read(tests[i][j][:])
 			}
-			merkle := NewMerkle(hashableTx)
-			wantedMerkle := buildMerkleTreeStore(hashableTx)
+			merkle := NewMerkle(tests[i])
+			wantedMerkle := buildMerkleTreeStore(tests[i])
 			wanted := wantedMerkle[len(wantedMerkle)-1]
 			root := merkle.GetRoot()
 			So(bytes.Compare(wanted[:], root[:]), ShouldEqual, 0)
@@ -104,16 +80,16 @@ func nextPowerOfTwo(n int) int {
 	return 1 << exponent // 2^exponent
 }
 
-func buildMerkleTreeStore(transactions []*sqlchain.Hashable) []*hash.Hash {
+func buildMerkleTreeStore(hashes []*hash.Hash) []*hash.Hash {
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
-	nextPoT := nextPowerOfTwo(len(transactions))
+	nextPoT := nextPowerOfTwo(len(hashes))
 	arraySize := nextPoT*2 - 1
 	merkles := make([]*hash.Hash, arraySize)
 
 	// Create the base transaction hashes and populate the array with them.
-	for i, tx := range transactions {
-		merkles[i] = (*tx).Hash()
+	for i, h := range hashes {
+		merkles[i] = h
 	}
 
 	// Start the array offset after the last transaction and adjusted to the

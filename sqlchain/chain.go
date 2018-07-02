@@ -567,7 +567,7 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 	// Sign pending block
 	c.pendingBlock.SignedHeader.Timestamp = now
 
-	if err = c.pendingBlock.SignHeader(priv); err != nil {
+	if err = c.pendingBlock.PackAndSignBlock(priv); err != nil {
 		return
 	}
 

@@ -201,9 +201,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		rand.Read(b.Queries[i][:])
 	}
 
-	// TODO(leventeliu): use merkle package to generate this field from queries.
-	rand.Read(b.SignedHeader.Header.MerkleRoot[:])
-
 	if isGenesis {
 		// Compute nonce with public key
 		nonceCh := make(chan cpuminer.NonceInfo)
@@ -227,7 +224,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		}
 	}
 
-	err = b.SignHeader(priv)
+	err = b.PackAndSignBlock(priv)
 
 	if err != nil {
 		return nil, err

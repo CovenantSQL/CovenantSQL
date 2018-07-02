@@ -26,6 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/merkle"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
@@ -156,8 +157,11 @@ type Block struct {
 	Queries      []*hash.Hash
 }
 
-// SignHeader generates the signature for the Block from the given PrivateKey.
-func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
+// PackAndSignBlock generates the signature for the Block from the given PrivateKey.
+func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
+	// Calculate merkle root
+	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Queries).GetRoot()
+
 	buffer, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {
@@ -205,8 +209,12 @@ func (b *Block) PushAckedQuery(h *hash.Hash) {
 
 // Verify verifies the merkle root and header signature of the block.
 func (b *Block) Verify() (err error) {
-	// TODO(leventeliu): verify merkle root of queries
-	// ...
+	// Verify merkle root
+	if MerkleRoot := *merkle.NewMerkle(b.Queries).GetRoot(); !MerkleRoot.IsEqual(
+		&b.SignedHeader.MerkleRoot,
+	) {
+		return ErrMerkleRootVerification
+	}
 
 	// Verify block hash
 	buffer, err := b.SignedHeader.Header.MarshalBinary()

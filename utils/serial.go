@@ -490,6 +490,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case *proto.NodeID:
 		err = serializer.readString(r, order, (*string)(e))
 
+	case *proto.DatabaseID:
+		err = serializer.readString(r, order, (*string)(e))
+
 	case *hash.Hash:
 		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
 
@@ -637,6 +640,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 		err = serializer.writeString(w, order, (*string)(&e))
 
 	case *proto.NodeID:
+		err = serializer.writeString(w, order, (*string)(e))
+
+	case proto.DatabaseID:
+		err = serializer.writeString(w, order, (*string)(&e))
+
+	case *proto.DatabaseID:
 		err = serializer.writeString(w, order, (*string)(e))
 
 	case hash.Hash:

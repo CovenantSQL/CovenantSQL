@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import (
 	"testing"
@@ -74,6 +74,7 @@ func TestSignedRequestHeader_Sign(t *testing.T) {
 			RequestHeader: RequestHeader{
 				QueryType:    WriteQuery,
 				NodeID:       proto.NodeID("node"),
+				DatabaseID:   proto.DatabaseID("db1"),
 				ConnectionID: uint64(1),
 				SeqNo:        uint64(2),
 				Timestamp:    time.Now().UTC(),
@@ -112,6 +113,7 @@ func TestRequest_Sign(t *testing.T) {
 				RequestHeader: RequestHeader{
 					QueryType:    WriteQuery,
 					NodeID:       proto.NodeID("node"),
+					DatabaseID:   proto.DatabaseID("db1"),
 					ConnectionID: uint64(1),
 					SeqNo:        uint64(2),
 					Timestamp:    time.Now().UTC(),
@@ -130,6 +132,15 @@ func TestRequest_Sign(t *testing.T) {
 		var err error
 		var rreq Request
 
+		// sign
+		err = req.Sign(privKey)
+		So(err, ShouldBeNil)
+		So(req.Header.BatchCount, ShouldEqual, uint64(len(req.Payload.Queries)))
+
+		// test queries hash
+		err = verifyHash(&req.Payload, &req.Header.QueriesHash)
+		So(err, ShouldBeNil)
+
 		Convey("serialize", func() {
 			So(req.Serialize(), ShouldNotBeEmpty)
 			So((*Request)(nil).Serialize(), ShouldResemble, []byte{'\000'})
@@ -142,16 +153,13 @@ func TestRequest_Sign(t *testing.T) {
 			err = rreq.UnmarshalBinary(data)
 			So(err, ShouldBeNil)
 			So(req, ShouldResemble, &rreq)
+
+			// test nils
+			req.Header.Signee = nil
+			req.Header.Signature = nil
+
+			So(req.Serialize(), ShouldNotBeEmpty)
 		})
-
-		// sign
-		err = req.Sign(privKey)
-		So(err, ShouldBeNil)
-		So(req.Header.BatchCount, ShouldEqual, uint64(len(req.Payload.Queries)))
-
-		// test queries hash
-		err = verifyHash(&req.Payload, &req.Header.QueriesHash)
-		So(err, ShouldBeNil)
 
 		Convey("verify", func() {
 			err = req.Verify()
@@ -160,6 +168,21 @@ func TestRequest_Sign(t *testing.T) {
 			Convey("header change", func() {
 				// modify structure
 				req.Header.Timestamp = req.Header.Timestamp.Add(time.Second)
+
+				err = req.Verify()
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("header change without signing", func() {
+				req.Header.Timestamp = req.Header.Timestamp.Add(time.Second)
+
+				buildHash(&req.Header.RequestHeader, &req.Header.HeaderHash)
+				err = req.Verify()
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("header change with invalid queries hash", func() {
+				req.Payload.Queries = append(req.Payload.Queries, "select 1")
 
 				err = req.Verify()
 				So(err, ShouldNotBeNil)
@@ -179,6 +202,7 @@ func TestResponse_Sign(t *testing.T) {
 						RequestHeader: RequestHeader{
 							QueryType:    WriteQuery,
 							NodeID:       proto.NodeID("node1"),
+							DatabaseID:   proto.DatabaseID("db1"),
 							ConnectionID: uint64(1),
 							SeqNo:        uint64(2),
 							Timestamp:    time.Now().UTC(),
@@ -231,20 +255,6 @@ func TestResponse_Sign(t *testing.T) {
 		var err error
 		var rres Response
 
-		Convey("serialize", func() {
-			So(res.Serialize(), ShouldNotBeEmpty)
-			So((*Response)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*ResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*ResponsePayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*SignedResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-
-			data, err = res.Header.MarshalBinary()
-			So(err, ShouldBeNil)
-			err = rres.Header.UnmarshalBinary(data)
-			So(err, ShouldBeNil)
-			So(&res.Header, ShouldResemble, &rres.Header)
-		})
-
 		// sign directly, embedded original request is not filled
 		err = res.Sign(privKey)
 		So(err, ShouldNotBeNil)
@@ -264,6 +274,27 @@ func TestResponse_Sign(t *testing.T) {
 		// test hash
 		err = verifyHash(&res.Payload, &res.Header.DataHash)
 		So(err, ShouldBeNil)
+
+		Convey("serialize", func() {
+			So(res.Serialize(), ShouldNotBeEmpty)
+			So((*Response)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*ResponseRow)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*ResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*ResponsePayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			data, err = res.Header.MarshalBinary()
+			So(err, ShouldBeNil)
+			err = rres.Header.UnmarshalBinary(data)
+			So(err, ShouldBeNil)
+			So(&res.Header, ShouldResemble, &rres.Header)
+
+			// test nils
+			res.Header.Signee = nil
+			res.Header.Signature = nil
+
+			So(res.Serialize(), ShouldNotBeEmpty)
+		})
 
 		// verify
 		Convey("verify", func() {
@@ -288,6 +319,13 @@ func TestResponse_Sign(t *testing.T) {
 				err = res.Verify()
 				So(err, ShouldNotBeNil)
 			})
+			Convey("header change without signing", func() {
+				res.Header.Timestamp = res.Header.Timestamp.Add(time.Second)
+				buildHash(&res.Header.ResponseHeader, &res.Header.HeaderHash)
+
+				err = res.Verify()
+				So(err, ShouldNotBeNil)
+			})
 		})
 	})
 }
@@ -305,6 +343,7 @@ func TestAck_Sign(t *testing.T) {
 								RequestHeader: RequestHeader{
 									QueryType:    WriteQuery,
 									NodeID:       proto.NodeID("node1"),
+									DatabaseID:   proto.DatabaseID("db1"),
 									ConnectionID: uint64(1),
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
@@ -328,19 +367,6 @@ func TestAck_Sign(t *testing.T) {
 		var err error
 		var rack Ack
 
-		Convey("serialize", func() {
-			So(ack.Serialize(), ShouldNotBeEmpty)
-			So((*Ack)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*AckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*SignedAckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-
-			data, err = ack.Header.MarshalBinary()
-			So(err, ShouldBeNil)
-			err = rack.Header.UnmarshalBinary(data)
-			So(err, ShouldBeNil)
-			So(&ack.Header, ShouldResemble, &rack.Header)
-		})
-
 		// sign directly, embedded original response is not filled
 		err = ack.Sign(privKey)
 		So(err, ShouldNotBeNil)
@@ -358,6 +384,25 @@ func TestAck_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = ack.Sign(privKey)
 		So(err, ShouldBeNil)
+
+		Convey("serialize", func() {
+			So(ack.Serialize(), ShouldNotBeEmpty)
+			So((*Ack)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*AckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedAckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			data, err = ack.Header.MarshalBinary()
+			So(err, ShouldBeNil)
+			err = rack.Header.UnmarshalBinary(data)
+			So(err, ShouldBeNil)
+			So(&ack.Header, ShouldResemble, &rack.Header)
+
+			// test nils
+			ack.Header.Signee = nil
+			ack.Header.Signature = nil
+
+			So(ack.Serialize(), ShouldNotBeEmpty)
+		})
 
 		Convey("verify", func() {
 			err = ack.Verify()
@@ -381,6 +426,14 @@ func TestAck_Sign(t *testing.T) {
 				err = ack.Verify()
 				So(err, ShouldNotBeNil)
 			})
+			Convey("header change without signing", func() {
+				ack.Header.Timestamp = ack.Header.Timestamp.Add(time.Second)
+
+				buildHash(&ack.Header.AckHeader, &ack.Header.HeaderHash)
+
+				err = ack.Verify()
+				So(err, ShouldNotBeNil)
+			})
 		})
 	})
 }
@@ -400,6 +453,7 @@ func TestNoAckReport_Sign(t *testing.T) {
 								RequestHeader: RequestHeader{
 									QueryType:    WriteQuery,
 									NodeID:       proto.NodeID("node1"),
+									DatabaseID:   proto.DatabaseID("db1"),
 									ConnectionID: uint64(1),
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
@@ -419,13 +473,6 @@ func TestNoAckReport_Sign(t *testing.T) {
 
 		var err error
 
-		Convey("serialize", func() {
-			So(noAck.Serialize(), ShouldNotBeEmpty)
-			So((*NoAckReport)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*NoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*SignedNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-		})
-
 		// sign directly, embedded original response/request is not filled
 		err = noAck.Sign(privKey)
 		So(err, ShouldNotBeNil)
@@ -441,6 +488,19 @@ func TestNoAckReport_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = noAck.Sign(privKey)
 		So(err, ShouldBeNil)
+
+		Convey("serialize", func() {
+			So(noAck.Serialize(), ShouldNotBeEmpty)
+			So((*NoAckReport)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*NoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			// test nils
+			noAck.Header.Signee = nil
+			noAck.Header.Signature = nil
+
+			So(noAck.Serialize(), ShouldNotBeEmpty)
+		})
 
 		Convey("verify", func() {
 			err = noAck.Verify()
@@ -462,6 +522,15 @@ func TestNoAckReport_Sign(t *testing.T) {
 
 			Convey("header change", func() {
 				noAck.Header.Timestamp = noAck.Header.Timestamp.Add(time.Second)
+
+				err = noAck.Verify()
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("header change without signing", func() {
+				noAck.Header.Timestamp = noAck.Header.Timestamp.Add(time.Second)
+
+				buildHash(&noAck.Header.NoAckReportHeader, &noAck.Header.HeaderHash)
 
 				err = noAck.Verify()
 				So(err, ShouldNotBeNil)
@@ -490,6 +559,7 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 											RequestHeader: RequestHeader{
 												QueryType:    WriteQuery,
 												NodeID:       proto.NodeID("node1"),
+												DatabaseID:   proto.DatabaseID("db1"),
 												ConnectionID: uint64(1),
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
@@ -515,6 +585,7 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 											RequestHeader: RequestHeader{
 												QueryType:    WriteQuery,
 												NodeID:       proto.NodeID("node1"),
+												DatabaseID:   proto.DatabaseID("db1"),
 												ConnectionID: uint64(1),
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
@@ -555,13 +626,6 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 
 		var err error
 
-		Convey("serialize", func() {
-			So(aggrNoAck.Serialize(), ShouldNotBeEmpty)
-			So((*AggrNoAckReport)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*AggrNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*SignedAggrNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-		})
-
 		// sign directly, embedded original response/request is not filled
 		err = aggrNoAck.Sign(privKey)
 		So(err, ShouldNotBeNil)
@@ -585,6 +649,19 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = aggrNoAck.Sign(privKey)
 		So(err, ShouldBeNil)
+
+		Convey("serialize", func() {
+			So(aggrNoAck.Serialize(), ShouldNotBeEmpty)
+			So((*AggrNoAckReport)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*AggrNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedAggrNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			// test nils
+			aggrNoAck.Header.Signee = nil
+			aggrNoAck.Header.Signature = nil
+
+			So(aggrNoAck.Serialize(), ShouldNotBeEmpty)
+		})
 
 		Convey("verify", func() {
 			err = aggrNoAck.Verify()
@@ -615,6 +692,171 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 				aggrNoAck.Header.Timestamp = aggrNoAck.Header.Timestamp.Add(time.Second)
 
 				err = aggrNoAck.Verify()
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("header change without signing", func() {
+				aggrNoAck.Header.Timestamp = aggrNoAck.Header.Timestamp.Add(time.Second)
+
+				buildHash(&aggrNoAck.Header.AggrNoAckReportHeader, &aggrNoAck.Header.HeaderHash)
+
+				err = aggrNoAck.Verify()
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+func TestInitServiceResponse_Sign(t *testing.T) {
+	privKey, pubKey := getCommKeys()
+
+	Convey("sign", t, func() {
+		var err error
+
+		initServiceResponse := &InitServiceResponse{
+			Header: SignedInitServiceResponseHeader{
+				InitServiceResponseHeader: InitServiceResponseHeader{
+					Instances: []ServiceInstance{
+						{
+							DatabaseID: proto.DatabaseID("db1"),
+							Peers: &kayak.Peers{
+								Term: uint64(1),
+								Leader: &kayak.Server{
+									Role: kayak.Leader,
+									ID:   proto.NodeID("node3"),
+								},
+								Servers: []*kayak.Server{
+									{
+										Role: kayak.Leader,
+										ID:   proto.NodeID("node3"),
+									},
+									{
+										Role: kayak.Follower,
+										ID:   proto.NodeID("node2"),
+									},
+								},
+								PubKey:    pubKey,
+								Signature: nil,
+							},
+							// TODO(xq26144), should integrated with genesis block serialization test
+							GenesisBlock: nil,
+						},
+					},
+				},
+				Signee: pubKey,
+			},
+		}
+
+		// sign
+		err = initServiceResponse.Sign(privKey)
+
+		Convey("serialize", func() {
+			So(initServiceResponse.Serialize(), ShouldNotBeEmpty)
+			So((*ServiceInstance)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*InitServiceResponse)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*InitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedInitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			// test nils
+			initServiceResponse.Header.Signee = nil
+			initServiceResponse.Header.Signature = nil
+
+			So(initServiceResponse.Serialize(), ShouldNotBeEmpty)
+		})
+
+		Convey("verify", func() {
+			err = initServiceResponse.Verify()
+			So(err, ShouldBeNil)
+
+			Convey("header change", func() {
+				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
+
+				err = initServiceResponse.Verify()
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("header change without signing", func() {
+				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
+
+				buildHash(&initServiceResponse.Header.InitServiceResponseHeader, &initServiceResponse.Header.HeaderHash)
+
+				err = initServiceResponse.Verify()
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+func TestUpdateService_Sign(t *testing.T) {
+	privKey, pubKey := getCommKeys()
+
+	Convey("sign", t, func() {
+		var err error
+
+		updateServiceReq := &UpdateService{
+			Header: SignedUpdateServiceHeader{
+				UpdateServiceHeader: UpdateServiceHeader{
+					Op: CreateDB,
+					Instance: ServiceInstance{
+						DatabaseID: proto.DatabaseID("db1"),
+						Peers: &kayak.Peers{
+							Term: uint64(1),
+							Leader: &kayak.Server{
+								Role: kayak.Leader,
+								ID:   proto.NodeID("node3"),
+							},
+							Servers: []*kayak.Server{
+								{
+									Role: kayak.Leader,
+									ID:   proto.NodeID("node3"),
+								},
+								{
+									Role: kayak.Follower,
+									ID:   proto.NodeID("node2"),
+								},
+							},
+							PubKey:    pubKey,
+							Signature: nil,
+						},
+						// TODO(xq26144), should integrated with genesis block serialization test
+						GenesisBlock: nil,
+					},
+				},
+				Signee: pubKey,
+			},
+		}
+
+		// sign
+		err = updateServiceReq.Sign(privKey)
+
+		Convey("serialize", func() {
+			So(updateServiceReq.Serialize(), ShouldNotBeEmpty)
+			So((*UpdateService)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*UpdateServiceHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*SignedUpdateServiceHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			updateServiceReq.Header.Signee = nil
+			updateServiceReq.Header.Signature = nil
+
+			So(updateServiceReq.Serialize(), ShouldNotBeEmpty)
+		})
+
+		Convey("verify", func() {
+			err = updateServiceReq.Verify()
+			So(err, ShouldBeNil)
+
+			Convey("header change", func() {
+				updateServiceReq.Header.Instance.DatabaseID = proto.DatabaseID("db2")
+
+				err = updateServiceReq.Verify()
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("header change without signing", func() {
+				updateServiceReq.Header.Instance.DatabaseID = proto.DatabaseID("db2")
+				buildHash(&updateServiceReq.Header.UpdateServiceHeader, &updateServiceReq.Header.HeaderHash)
+
+				err = updateServiceReq.Verify()
 				So(err, ShouldNotBeNil)
 			})
 		})

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import (
 	"bytes"
@@ -161,7 +161,7 @@ func (sh *SignedResponseHeader) Verify() (err error) {
 		return
 	}
 	// verify signature
-	if !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 

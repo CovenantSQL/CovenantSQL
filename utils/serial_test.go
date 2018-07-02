@@ -53,17 +53,18 @@ type innerStruct struct {
 
 type testStruct struct {
 	innerStruct
-	Int64Field     int64
-	Uint64Field    uint64
-	StringField    string
-	BytesField     []byte
-	TimeField      time.Time
-	NodeIDField    proto.NodeID
-	HashField      hash.Hash
-	PublicKeyField *asymmetric.PublicKey
-	SignatureField *asymmetric.Signature
-	StringsField   []string
-	HashesField    []*hash.Hash
+	Int64Field      int64
+	Uint64Field     uint64
+	StringField     string
+	BytesField      []byte
+	TimeField       time.Time
+	NodeIDField     proto.NodeID
+	DatabaseIDField proto.DatabaseID
+	HashField       hash.Hash
+	PublicKeyField  *asymmetric.PublicKey
+	SignatureField  *asymmetric.Signature
+	StringsField    []string
+	HashesField     []*hash.Hash
 }
 
 func (s *testStruct) randomize() {
@@ -100,6 +101,12 @@ func (s *testStruct) randomize() {
 	buff = make([]byte, slen)
 	rand.Read(buff)
 	s.NodeIDField = proto.NodeID(buff)
+
+	// Randomize DatabaseIDField
+	slen = rand.Intn(2 * pooledBufferLength)
+	buff = make([]byte, slen)
+	rand.Read(buff)
+	s.DatabaseIDField = proto.DatabaseID(buff)
 
 	rand.Read(s.HashField[:])
 
@@ -196,6 +203,7 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.BytesField,
 		s.TimeField,
 		s.NodeIDField,
+		s.DatabaseIDField,
 		s.HashField,
 		s.PublicKeyField,
 		s.SignatureField,
@@ -225,6 +233,7 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.BytesField,
 		&s.TimeField,
 		&s.NodeIDField,
+		&s.DatabaseIDField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
@@ -248,6 +257,7 @@ func (s *testStruct) MarshalBinary3() ([]byte, error) {
 		&s.BytesField,
 		&s.TimeField,
 		&s.NodeIDField,
+		&s.DatabaseIDField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
@@ -276,6 +286,7 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.BytesField,
 		&s.TimeField,
 		&s.NodeIDField,
+		&s.DatabaseIDField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
@@ -294,6 +305,7 @@ func (s *testStruct) UnmarshalBinary2(b []byte) error {
 		&s.BytesField,
 		&s.TimeField,
 		&s.NodeIDField,
+		&s.DatabaseIDField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,

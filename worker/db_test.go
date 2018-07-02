@@ -35,6 +35,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 func TestSingleDatabase(t *testing.T) {
@@ -63,7 +64,7 @@ func TestSingleDatabase(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create file
-		cfg := &Config{
+		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
 			MuxService:      service,
@@ -83,9 +84,9 @@ func TestSingleDatabase(t *testing.T) {
 
 		Convey("test read write", func() {
 			// test write query
-			var writeQuery *Request
-			var res *Response
-			writeQuery, err = buildQuery(WriteQuery, 1, 1, []string{
+			var writeQuery *wt.Request
+			var res *wt.Response
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
 				"create table test (test int)",
 				"insert into test values(1)",
 			})
@@ -98,8 +99,8 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, 0)
 
 			// test select query
-			var readQuery *Request
-			readQuery, err = buildQuery(ReadQuery, 1, 2, []string{
+			var readQuery *wt.Request
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
 				"select * from test",
 			})
 			So(err, ShouldBeNil)
@@ -121,9 +122,9 @@ func TestSingleDatabase(t *testing.T) {
 		})
 
 		Convey("test invalid request", func() {
-			var writeQuery *Request
-			var res *Response
-			writeQuery, err = buildQuery(WriteQuery, 1, 1, []string{
+			var writeQuery *wt.Request
+			var res *wt.Response
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
 				"create table test (test int)",
 				"insert into test values(1)",
 			})
@@ -137,43 +138,43 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, 0)
 
 			// request again with same sequence
-			writeQuery, err = buildQuery(WriteQuery, 1, 1, []string{
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
 				"insert into test values(2)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request again with low sequence
-			writeQuery, err = buildQuery(WriteQuery, 1, 0, []string{
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 0, []string{
 				"insert into test values(3)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request with invalid timestamp
-			writeQuery, err = buildQueryWithTimeShift(WriteQuery, 1, 2, time.Second*100, []string{
+			writeQuery, err = buildQueryWithTimeShift(wt.WriteQuery, 1, 2, time.Second*100, []string{
 				"insert into test values(4)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request with invalid timestamp
-			writeQuery, err = buildQueryWithTimeShift(WriteQuery, 1, 2, -time.Second*100, []string{
+			writeQuery, err = buildQueryWithTimeShift(wt.WriteQuery, 1, 2, -time.Second*100, []string{
 				"insert into test values(5)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request with different connection id
-			writeQuery, err = buildQuery(WriteQuery, 2, 1, []string{
+			writeQuery, err = buildQuery(wt.WriteQuery, 2, 1, []string{
 				"insert into test values(6)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldBeNil)
 
 			// read query, test records
-			var readQuery *Request
-			readQuery, err = buildQuery(ReadQuery, 1, 2, []string{
+			var readQuery *wt.Request
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
 				"select * from test",
 			})
 			So(err, ShouldBeNil)
@@ -196,7 +197,7 @@ func TestSingleDatabase(t *testing.T) {
 		})
 
 		Convey("corner case", func() {
-			var req *Request
+			var req *wt.Request
 			var err error
 			req, err = buildQuery(-1, 1, 1, []string{
 				"create table test (test int)",
@@ -205,9 +206,9 @@ func TestSingleDatabase(t *testing.T) {
 			_, err = db.Query(req)
 			So(err, ShouldNotBeNil)
 
-			var writeQuery *Request
-			var res *Response
-			writeQuery, err = buildQuery(WriteQuery, 1, 1, []string{
+			var writeQuery *wt.Request
+			var res *wt.Response
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
 				"create table test (test int)",
 			})
 			So(err, ShouldBeNil)
@@ -215,8 +216,8 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// read query, test records
-			var readQuery *Request
-			readQuery, err = buildQuery(ReadQuery, 1, 2, []string{
+			var readQuery *wt.Request
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
 				"select * from test",
 			})
 			So(err, ShouldBeNil)
@@ -231,7 +232,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows, ShouldBeEmpty)
 
 			// write query, test failed
-			writeQuery, err = buildQuery(WriteQuery, 1, 3, []string{
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 3, []string{
 				"insert into test2 values(1)", // table should not exists
 			})
 			So(err, ShouldBeNil)
@@ -239,7 +240,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldNotBeNil)
 
 			// read query, test dynamic fields
-			readQuery, err = buildQuery(ReadQuery, 1, 4, []string{
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 4, []string{
 				"select 1 as test",
 			})
 			So(err, ShouldBeNil)
@@ -254,7 +255,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 
 			// test ack
-			var ack *Ack
+			var ack *wt.Ack
 			ack, err = buildAck(res)
 			So(err, ShouldBeNil)
 
@@ -291,7 +292,7 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create file
-		cfg := &Config{
+		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
 			MuxService:      service,
@@ -312,9 +313,9 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// do some query
-		var writeQuery *Request
-		var res *Response
-		writeQuery, err = buildQuery(WriteQuery, 1, 1, []string{
+		var writeQuery *wt.Request
+		var res *wt.Response
+		writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
 			"create table test (test int)",
 			"insert into test values(1)",
 		})
@@ -327,8 +328,8 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(res.Header.RowCount, ShouldEqual, 0)
 
 		// test select query
-		var readQuery *Request
-		readQuery, err = buildQuery(ReadQuery, 1, 2, []string{
+		var readQuery *wt.Request
+		readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
 			"select * from test",
 		})
 		So(err, ShouldBeNil)
@@ -353,7 +354,7 @@ func TestDatabaseRecycle(t *testing.T) {
 	})
 }
 
-func buildAck(res *Response) (ack *Ack, err error) {
+func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = getNodeID(); err != nil {
@@ -368,9 +369,9 @@ func buildAck(res *Response) (ack *Ack, err error) {
 		return
 	}
 
-	ack = &Ack{
-		Header: SignedAckHeader{
-			AckHeader: AckHeader{
+	ack = &wt.Ack{
+		Header: wt.SignedAckHeader{
+			AckHeader: wt.AckHeader{
 				Response:  res.Header,
 				NodeID:    nodeID,
 				Timestamp: getLocalTime(),
@@ -384,11 +385,11 @@ func buildAck(res *Response) (ack *Ack, err error) {
 	return
 }
 
-func buildQuery(queryType QueryType, connID uint64, seqNo uint64, queries []string) (query *Request, err error) {
+func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, queries []string) (query *wt.Request, err error) {
 	return buildQueryWithTimeShift(queryType, connID, seqNo, time.Duration(0), queries)
 }
 
-func buildQueryWithTimeShift(queryType QueryType, connID uint64, seqNo uint64, timeShift time.Duration, queries []string) (query *Request, err error) {
+func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, queries []string) (query *wt.Request, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = getNodeID(); err != nil {
@@ -406,9 +407,9 @@ func buildQueryWithTimeShift(queryType QueryType, connID uint64, seqNo uint64, t
 	tm := getLocalTime()
 	tm = tm.Add(-timeShift)
 
-	query = &Request{
-		Header: SignedRequestHeader{
-			RequestHeader: RequestHeader{
+	query = &wt.Request{
+		Header: wt.SignedRequestHeader{
+			RequestHeader: wt.RequestHeader{
 				QueryType:    queryType,
 				NodeID:       nodeID,
 				ConnectionID: connID,
@@ -417,7 +418,7 @@ func buildQueryWithTimeShift(queryType QueryType, connID uint64, seqNo uint64, t
 			},
 			Signee: pubKey,
 		},
-		Payload: RequestPayload{
+		Payload: wt.RequestPayload{
 			Queries: queries,
 		},
 	}

@@ -14,19 +14,26 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import (
-	"time"
-
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// DBConfig defines the database config.
-type DBConfig struct {
-	DatabaseID      proto.DatabaseID
-	DataDir         string
-	MuxService      *kt.ETLSTransportService
-	MaxWriteTimeGap time.Duration
+type canSerialize interface {
+	Serialize() []byte
+}
+
+func verifyHash(data canSerialize, h *hash.Hash) (err error) {
+	var newHash hash.Hash
+	buildHash(data, &newHash)
+	if !newHash.IsEqual(h) {
+		return ErrHashVerification
+	}
+	return
+}
+
+func buildHash(data canSerialize, h *hash.Hash) {
+	newHash := hash.THashH(data.Serialize())
+	copy(h[:], newHash[:])
 }

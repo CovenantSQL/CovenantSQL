@@ -81,10 +81,10 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		// Load BlockProducer public key, set it in public key store
 		// as all kms.BP stuff is initialized on kms init()
 		BPNode = &proto.Node{
-			ID:        kms.BPNodeID,
+			ID:        kms.BP.NodeID,
 			Addr:      "",
-			PublicKey: kms.BPPublicKey,
-			Nonce:     kms.BPNonce,
+			PublicKey: kms.BP.PublicKey,
+			Nonce:     kms.BP.Nonce,
 		}
 	}
 
@@ -112,8 +112,17 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		return
 	}
 	log.Debugf("c.persist.GetAllNodeInfo: %v", nodes)
-	for _, n := range nodes[:] {
-		c.add(n)
+
+	_, isKMSStorage := c.persist.(*KMSStorage)
+	if isKMSStorage {
+		for _, n := range nodes[:] {
+			c.add(n)
+		}
+	} else {
+		// currently just for KayakKVServer
+		for _, n := range nodes[:] {
+			c.AddCache(n)
+		}
 	}
 
 	return

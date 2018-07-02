@@ -1,4 +1,4 @@
-image: golang:latest
+image: golang:1.10
 
 variables:
   REVIEWDOG_VERSION: 0.9.9

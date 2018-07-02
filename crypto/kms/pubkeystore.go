@@ -17,12 +17,10 @@
 package kms
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
-
 	"sync"
-
-	"bytes"
 
 	log "github.com/sirupsen/logrus"
 
@@ -38,6 +36,20 @@ import (
 type PublicKeyStore struct {
 	db     *bolt.DB
 	bucket []byte
+}
+
+// BPInfo hold all BP info fields
+type BPInfo struct {
+	// PublicKeyStr is the public key of Block Producer
+	PublicKeyStr string
+	// PublicKey point to BlockProducer public key
+	PublicKey *asymmetric.PublicKey
+	// NodeID is the node id of Block Producer
+	NodeID proto.NodeID
+	// RawNodeID
+	RawNodeID proto.RawNodeID
+	// Nonce is the nonce, SEE: cmd/idminer for more
+	Nonce mine.Uint256
 }
 
 const (
@@ -57,37 +69,33 @@ var (
 var (
 	//TODO(auxten): maybe each BP uses distinct key pair is safer
 
-	// BPPublicKeyStr is the public key of Block Producer
-	BPPublicKeyStr = "02c1db96f2ba7e1cb4e9822d12de0f63f" +
-		"b666feb828c7f509e81fab9bd7a34039c"
-	// BPNodeID is the node id of Block Producer
-	// 	{{14396347928 0 0 6148914694092305796}  45 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8}
-	BPNodeID = proto.NodeID("00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8")
-	// BPRawNodeID hold the binary hash version of BPNodeID, will be initialized
-	// at init()
-	BPRawNodeID proto.RawNodeID
-	// BPNonce is the nonce, SEE: cmd/idminer for more
-	BPNonce = mine.Uint256{
-		14396347928,
-		0,
-		0,
-		6148914694092305796,
+	// BP hold the initial BP info
+	BP = &BPInfo{
+		PublicKeyStr: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c",
+		PublicKey:    nil,
+		// {{14396347928 0 0 6148914694092305796}  45 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8}
+		NodeID:    proto.NodeID("00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8"),
+		RawNodeID: proto.RawNodeID{},
+		Nonce: mine.Uint256{
+			14396347928,
+			0,
+			0,
+			6148914694092305796,
+		},
 	}
-	// BPPublicKey point to BlockProducer public key
-	BPPublicKey *asymmetric.PublicKey
 )
 
 func init() {
-	err := hash.Decode(&BPRawNodeID.Hash, string(BPNodeID))
+	err := hash.Decode(&BP.RawNodeID.Hash, string(BP.NodeID))
 	if err != nil {
-		log.Fatalf("BPNodeID error: %s", err)
+		log.Fatalf("BP.NodeID error: %s", err)
 	}
 
-	publicKeyBytes, err := hex.DecodeString(BPPublicKeyStr)
+	publicKeyBytes, err := hex.DecodeString(BP.PublicKeyStr)
 	if err != nil {
 		log.Fatalf("hex decode BPPublicKeyStr error: %s", err)
 	}
-	BPPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+	BP.PublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 	if err != nil {
 		log.Fatalf("parse publicKeyBytes error: %s", err)
 	}
@@ -109,6 +117,9 @@ var (
 // InitPublicKeyStore opens a db file, if not exist, creates it.
 // and creates a bucket if not exist
 func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
+	//testFlag := flag.Lookup("test")
+	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
+
 	var bdb *bolt.DB
 	bdb, err = bolt.Open(dbPath, 0600, nil)
 	if err != nil {

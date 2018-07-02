@@ -55,13 +55,13 @@ func TestDB(t *testing.T) {
 		PublicKey: pubKey2,
 		Nonce:     cpuminer.Uint256{},
 	}
-	publicKeyBytes, _ := hex.DecodeString(BPPublicKeyStr)
-	BPPublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
+	publicKeyBytes, _ := hex.DecodeString(BP.PublicKeyStr)
+	BP.PublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
 	BPNode := &proto.Node{
-		ID:        BPNodeID,
+		ID:        BP.NodeID,
 		Addr:      "",
-		PublicKey: BPPublicKey,
-		Nonce:     BPNonce,
+		PublicKey: BP.PublicKey,
+		Nonce:     BP.Nonce,
 	}
 
 	Convey("Init db", t, func() {
@@ -71,12 +71,12 @@ func TestDB(t *testing.T) {
 		InitPublicKeyStore(dbFile, BPNode)
 		So(pks.bucket, ShouldNotBeNil)
 
-		nodeInfo, err := GetNodeInfo(BPNodeID)
+		nodeInfo, err := GetNodeInfo(BP.NodeID)
 		log.Debugf("nodeInfo %v", nodeInfo)
-		pubk, err := GetPublicKey(BPNodeID)
+		pubk, err := GetPublicKey(BP.NodeID)
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
-		So(pubk.IsEqual(BPPublicKey), ShouldBeTrue)
+		So(pubk.IsEqual(BP.PublicKey), ShouldBeTrue)
 
 		pubk, err = GetPublicKey(proto.NodeID("not exist"))
 		So(pubk, ShouldBeNil)
@@ -91,13 +91,13 @@ func TestDB(t *testing.T) {
 		err = setNode(node2)
 		So(err, ShouldBeNil)
 
-		err = SetPublicKey(BPNodeID, BPNonce, BPPublicKey)
+		err = SetPublicKey(BP.NodeID, BP.Nonce, BP.PublicKey)
 		So(err, ShouldBeNil)
 
-		err = SetPublicKey(BPNodeID, cpuminer.Uint256{}, BPPublicKey)
+		err = SetPublicKey(BP.NodeID, cpuminer.Uint256{}, BP.PublicKey)
 		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
 
-		err = SetPublicKey(proto.NodeID("0"+BPNodeID), BPNonce, BPPublicKey)
+		err = SetPublicKey(proto.NodeID("0"+BP.NodeID), BP.Nonce, BP.PublicKey)
 		So(err, ShouldEqual, ErrNotValidNodeID)
 
 		pubk, err = GetPublicKey(proto.NodeID("node1"))
@@ -115,7 +115,7 @@ func TestDB(t *testing.T) {
 		So(IDs, ShouldHaveLength, 3)
 		So(IDs, ShouldContain, proto.NodeID("node1"))
 		So(IDs, ShouldContain, proto.NodeID("node2"))
-		So(IDs, ShouldContain, BPNodeID)
+		So(IDs, ShouldContain, BP.NodeID)
 
 		err = DelNode(proto.NodeID("node2"))
 		So(err, ShouldBeNil)

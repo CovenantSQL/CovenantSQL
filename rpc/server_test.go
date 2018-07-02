@@ -256,7 +256,7 @@ func TestEncPingFindValue(t *testing.T) {
 	Convey("test FindValue", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))
 		So(nodeIDList, ShouldContain, string(node2.ID))
-		So(nodeIDList, ShouldContain, string(kms.BPNodeID))
+		So(nodeIDList, ShouldContain, string(kms.BP.NodeID))
 	})
 	client.Close()
 	server.Stop()

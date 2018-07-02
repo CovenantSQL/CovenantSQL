@@ -87,7 +87,7 @@ func runClient() (err error) {
 
 func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err error) {
 	log.SetLevel(log.DebugLevel)
-	leaderNodeID := kms.BPNodeID
+	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
 	var client *rpc.Client
 

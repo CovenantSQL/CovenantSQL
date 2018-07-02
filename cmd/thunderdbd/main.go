@@ -56,8 +56,9 @@ var (
 	publicKeyStorePath string
 
 	// other
-	noLogo      bool
-	showVersion bool
+	noLogo          bool
+	showVersion     bool
+	integrationTest bool // run integration testing
 
 	// rpc server
 	rpcServer *rpc.Server
@@ -72,6 +73,7 @@ const desc = `ThunderDB is a database`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&integrationTest, "test", false, "Run integration test mode")
 	flag.StringVar(&privateKeyPath, "private-key-path", "./private.key", "Path to private key file")
 	flag.StringVar(&publicKeyStorePath, "public-keystore-path", "./public.keystore", "Path to public keystore file")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
@@ -85,15 +87,17 @@ func init() {
 }
 
 func initLogs() {
-	log.SetLevel(log.DebugLevel)
-
 	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
 	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
 	log.Infof("role: %s", conf.Role)
 }
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+
+	if integrationTest {
+	}
 
 	// init log
 	initLogs()

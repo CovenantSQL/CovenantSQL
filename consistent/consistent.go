@@ -81,10 +81,10 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		// Load BlockProducer public key, set it in public key store
 		// as all kms.BP stuff is initialized on kms init()
 		BPNode = &proto.Node{
-			ID:        kms.BPNodeID,
+			ID:        kms.BP.NodeID,
 			Addr:      "",
-			PublicKey: kms.BPPublicKey,
-			Nonce:     kms.BPNonce,
+			PublicKey: kms.BP.PublicKey,
+			Nonce:     kms.BP.Nonce,
 		}
 	}
 

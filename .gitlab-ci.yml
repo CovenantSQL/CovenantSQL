@@ -1,4 +1,4 @@
-image: thunderdb.io/build:lastet
+image: thunderdb-build:lastet
 
 variables:
   REVIEWDOG_VERSION: 0.9.9

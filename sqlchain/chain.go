@@ -77,8 +77,8 @@ type Runtime struct {
 	// ChainInitTime is the initial cycle time, when the Genesis blcok is produced.
 	ChainInitTime time.Time
 
-	// NextHeight is the height of the next block.
-	NextHeight int32
+	// NextTurn is the height of the next block.
+	NextTurn int32
 
 	stopCh chan struct{}
 }
@@ -101,7 +101,7 @@ func (r *Runtime) Now() time.Time {
 func (r *Runtime) SetNextTurn() {
 	r.Lock()
 	defer r.Unlock()
-	r.NextHeight++
+	r.NextTurn++
 }
 
 // Stop sends a signal to the Runtime stop channel by closing it.
@@ -109,12 +109,12 @@ func (r *Runtime) Stop() {
 	close(r.stopCh)
 }
 
-// TillNextCycle returns the current time reading and the duration till the next cycle. If duration
+// TillNextTurn returns the current time reading and the duration till the next turn. If duration
 // is less or equal to 0, use the time reading to run the next cycle - this avoids some problem
 // caused by concurrently time synchronization.
-func (r *Runtime) TillNextCycle() (t time.Time, d time.Duration) {
+func (r *Runtime) TillNextTurn() (t time.Time, d time.Duration) {
 	t = r.Now()
-	d = r.ChainInitTime.Add(time.Duration(r.NextHeight) * r.Period).Sub(t)
+	d = r.ChainInitTime.Add(time.Duration(r.NextTurn) * r.Period).Sub(t)
 
 	if d > r.TimeResolution {
 		d = r.TimeResolution
@@ -194,17 +194,24 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	// Create chain state
+	pub, err := kms.GetLocalPublicKey()
+
+	if err != nil {
+		return
+	}
+
 	chain = &Chain{
 		cfg: cfg,
 		db:  db,
 		bi:  newBlockIndex(cfg),
 		qi:  NewQueryIndex(),
 		rt: &Runtime{
-			Offset:        time.Duration(0),
-			Period:        cfg.Period,
-			ChainInitTime: cfg.Genesis.SignedHeader.Timestamp,
-			NextHeight:    1,
-			stopCh:        make(chan struct{}),
+			Offset:         time.Duration(0),
+			Period:         cfg.Period,
+			ChainInitTime:  cfg.Genesis.SignedHeader.Timestamp,
+			TimeResolution: cfg.TimeResolution,
+			NextTurn:       1,
+			stopCh:         make(chan struct{}),
 		},
 		pendingBlock: &Block{
 			SignedHeader: SignedHeader{
@@ -214,6 +221,7 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
 					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
 				},
+				Signee: pub,
 			},
 		},
 		state: &State{
@@ -242,19 +250,36 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	// Create chain state
+	pub, err := kms.GetLocalPublicKey()
+
+	if err != nil {
+		return
+	}
+
 	chain = &Chain{
 		cfg: cfg,
 		db:  db,
 		bi:  newBlockIndex(cfg),
 		qi:  NewQueryIndex(),
 		rt: &Runtime{
-			Offset:     time.Duration(0),
-			Period:     cfg.Period,
-			NextHeight: 1,
-			stopCh:     make(chan struct{}),
+			Offset:         time.Duration(0),
+			Period:         cfg.Period,
+			TimeResolution: cfg.TimeResolution,
+			NextTurn:       1,
+			stopCh:         make(chan struct{}),
 		},
-		pendingBlock: &Block{},
-		state:        &State{},
+		pendingBlock: &Block{
+			SignedHeader: SignedHeader{
+				Header: Header{
+					Version:     0x01000000,
+					Producer:    cfg.Server.ID,
+					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
+					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+				},
+				Signee: pub,
+			},
+		},
+		state: &State{},
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
@@ -287,6 +312,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 				return
 			}
 
+			log.Debugf("Read new block: %+v", block)
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
@@ -322,25 +348,31 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			h := KeyToHeight(k)
 			b := cursor.Bucket()
 
-			if err = b.Bucket(metaRequestIndexBucket).ForEach(
-				func(k []byte, v []byte) (err error) {
-					if err = resp.UnmarshalBinary(v); err != nil {
+			log.Debugf("reading resp & acks: height = %d", h)
+
+			if sb := b.Bucket(metaResponseIndexBucket); sb != nil {
+				if err = sb.ForEach(
+					func(k []byte, v []byte) (err error) {
+						if err = resp.UnmarshalBinary(v); err != nil {
+							return
+						}
+
+						return chain.qi.AddResponse(h, resp)
+					}); err != nil {
+					return
+				}
+			}
+
+			if sb := b.Bucket(metaAckIndexBucket); sb != nil {
+				if err = sb.ForEach(func(k []byte, v []byte) (err error) {
+					if err = ack.UnmarshalBinary(v); err != nil {
 						return
 					}
 
-					return chain.qi.AddResponse(h, resp)
+					return chain.qi.AddAck(h, ack)
 				}); err != nil {
-				return
-			}
-
-			if err = b.Bucket(metaAckIndexBucket).ForEach(func(k []byte, v []byte) (err error) {
-				if err = ack.UnmarshalBinary(v); err != nil {
 					return
 				}
-
-				return chain.qi.AddAck(h, ack)
-			}); err != nil {
-				return
 			}
 		}
 
@@ -436,6 +468,7 @@ func (c *Chain) PushResponedQuery(resp *types.SignedResponseHeader) (err error) 
 		}
 
 		if err = b.Bucket(metaResponseIndexBucket).Put(resp.HeaderHash[:], enc); err != nil {
+			return
 		}
 
 		// Always put memory changes which will not be affected by rollback after DB operations
@@ -497,8 +530,6 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 	// Block must produced within [start, end)
 	h := c.cfg.GetHeightFromTime(block.SignedHeader.Timestamp)
 
-	log.Debugf("check block: block height = %d, current staet height = %d, block = %+v", h, c.state.Height, block)
-
 	if h != c.state.Height+1 {
 		return ErrBlockTimestampOutOfPeriod
 	}
@@ -538,7 +569,7 @@ func (c *Chain) queryTimeIsExpired(t time.Time) bool {
 	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
 	// has expired.
 	//
-	return c.cfg.GetHeightFromTime(t) < c.rt.NextHeight-c.cfg.QueryTTL
+	return c.cfg.GetHeightFromTime(t) < c.rt.NextTurn-c.cfg.QueryTTL
 }
 
 // VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
@@ -604,8 +635,8 @@ func (c *Chain) ProduceBlock(parent hash.Hash, now time.Time) (err error) {
 	return
 }
 
-// Cycle does the check and runs block producing if its my turn.
-func (c *Chain) Cycle(now time.Time) {
+// RunCurrentTurn does the check and runs block producing if its my turn.
+func (c *Chain) RunCurrentTurn(now time.Time) {
 	defer c.rt.SetNextTurn()
 
 	if !c.IsMyTurn() {
@@ -624,10 +655,10 @@ func (c *Chain) BlockProducingCycle() {
 		case <-c.rt.stopCh:
 			return
 		default:
-			if t, d := c.rt.TillNextCycle(); d > 0 {
+			if t, d := c.rt.TillNextTurn(); d > 0 {
 				time.Sleep(d)
 			} else {
-				c.Cycle(t)
+				c.RunCurrentTurn(t)
 			}
 		}
 	}

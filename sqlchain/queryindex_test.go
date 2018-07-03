@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	testBucketNumber         = 50
-	testQueryNumberPerHeight = 50
+	testBucketNumber         = 10
+	testQueryNumberPerHeight = 10
 	testClientNumber         = 10
 	testWorkerNumber         = 10
 	testQueryWorkerNumber    = 3

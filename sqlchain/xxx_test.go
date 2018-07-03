@@ -345,8 +345,21 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	return
 }
 
-func createRandomQueriesAndBlock(genesis, parent hash.Hash) (
-	acks []*types.SignedAckHeader, b *Block, err error,
+func createRandomQueries(x int) (acks []*types.SignedAckHeader, err error) {
+	n := rand.Intn(x)
+	acks = make([]*types.SignedAckHeader, n)
+
+	for i := range acks {
+		if acks[i], err = createRandomNodesAndAck(); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*types.SignedAckHeader) (
+	b *Block, err error,
 ) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
@@ -372,20 +385,13 @@ func createRandomQueriesAndBlock(genesis, parent hash.Hash) (
 		},
 	}
 
-	n := rand.Intn(10)
-	acks = make([]*types.SignedAckHeader, n)
-	b.Queries = make([]*hash.Hash, n)
+	b.Queries = make([]*hash.Hash, len(acks))
 
-	for i := 0; i < n; i++ {
-		if acks[i], err = createRandomNodesAndAck(); err != nil {
-			return
-		}
-
-		b.Queries[i] = &acks[i].HeaderHash
+	for i, ack := range acks {
+		b.Queries[i] = &ack.HeaderHash
 	}
 
 	err = b.PackAndSignBlock(priv)
-
 	return
 }
 

@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
@@ -59,7 +60,7 @@ type TwoPCRunner struct {
 
 	// Server role
 	leader *Server
-	role   ServerRole
+	role   conf.ServerRole
 
 	// Shutdown channel to exit, protected to prevent concurrent exits
 	shutdown     bool
@@ -276,7 +277,7 @@ func (r *TwoPCRunner) Apply(data []byte) error {
 	defer r.processLock.Unlock()
 
 	// check leader privilege
-	if r.role != Leader {
+	if r.role != conf.Leader {
 		return ErrNotLeader
 	}
 

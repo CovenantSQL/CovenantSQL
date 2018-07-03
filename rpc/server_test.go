@@ -18,11 +18,9 @@ package rpc
 
 import (
 	"net"
-	"testing"
-
-	"time"
-
 	"os"
+	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
@@ -31,10 +29,16 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const PubKeyStorePath = "./public.keystore"
+
+// CheckNum make int assertion
+func CheckNum(num, expected int, t *testing.T) {
+	if num != expected {
+		t.Errorf("got %d, expected %d", num, expected)
+	}
+}
 
 type TestService struct {
 	counter int
@@ -90,20 +94,20 @@ func TestIncCounter(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	utils.CheckNum(rep.Ret, 10, t)
+	CheckNum(rep.Ret, 10, t)
 
 	err = client.Call("Test.IncCounter", &TestReq{Step: 10}, rep)
 	if err != nil {
 		log.Fatal(err)
 	}
-	utils.CheckNum(rep.Ret, 20, t)
+	CheckNum(rep.Ret, 20, t)
 
 	repSimple := new(int)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)
 	}
-	utils.CheckNum(*repSimple, 30, t)
+	CheckNum(*repSimple, 30, t)
 
 	client.Close()
 	server.Stop()
@@ -131,7 +135,7 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	utils.CheckNum(*repSimple, 10, t)
+	CheckNum(*repSimple, 10, t)
 
 	client.Close()
 	server.Stop()
@@ -169,7 +173,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	utils.CheckNum(*repSimple, 10, t)
+	CheckNum(*repSimple, 10, t)
 
 	client.Close()
 	server.Stop()

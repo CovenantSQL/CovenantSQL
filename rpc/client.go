@@ -35,6 +35,7 @@ import (
 // Client is RPC client
 type Client struct {
 	*rpc.Client
+	RemoteAddr string
 }
 
 var (
@@ -185,11 +186,13 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 	mh := &codec.MsgpackHandle{}
 	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(muxConn, mh)
 	client.Client = rpc.NewClientWithCodec(msgpackCodec)
+	client.RemoteAddr = conn.RemoteAddr().String()
 
 	return client, nil
 }
 
 // Close the client RPC connection
 func (c *Client) Close() {
+	log.Debugf("closing %s", c.RemoteAddr)
 	c.Client.Close()
 }

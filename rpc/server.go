@@ -120,7 +120,7 @@ serverLoop:
 
 // handleConn do all the work
 func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
+	//defer conn.Close()
 
 	// remote remoteNodeID connection awareness
 	var remoteNodeID *proto.RawNodeID

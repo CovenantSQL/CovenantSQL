@@ -101,7 +101,6 @@ func TestGetThePubKeyNonce(t *testing.T) {
 		// sometimes nonce difficulty can be little bit higher than expected
 		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 40)
 	})
-
 }
 
 func TestPubKey(t *testing.T) {

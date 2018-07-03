@@ -16,7 +16,9 @@
 
 package conf
 
-import "gitlab.com/thunderdb/ThunderDB/common"
+import (
+	"gitlab.com/thunderdb/ThunderDB/common"
+)
 
 // Role indicate which role the daemon is playing
 // 	Unknown       = "U"

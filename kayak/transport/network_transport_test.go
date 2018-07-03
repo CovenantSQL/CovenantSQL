@@ -28,6 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -201,7 +202,7 @@ func testPeersFixture(term uint64, servers []*kayak.Server) *kayak.Peers {
 			PubKey: pubKey,
 		}
 		newServers = append(newServers, newS)
-		if newS.Role == kayak.Leader {
+		if newS.Role == conf.Leader {
 			leaderNode = newS
 		}
 	}
@@ -330,15 +331,15 @@ func TestIntegration(t *testing.T) {
 	// peers is a simple 3-node peer configuration
 	peers := testPeersFixture(1, []*kayak.Server{
 		{
-			Role: kayak.Leader,
+			Role: conf.Leader,
 			ID:   "leader",
 		},
 		{
-			Role: kayak.Follower,
+			Role: conf.Follower,
 			ID:   "follower1",
 		},
 		{
-			Role: kayak.Follower,
+			Role: conf.Follower,
 			ID:   "follower2",
 		},
 	})

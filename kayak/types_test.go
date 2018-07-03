@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
@@ -101,7 +102,7 @@ func TestServer_Serialize(t *testing.T) {
 	}
 
 	s := &Server{
-		Role:   Leader,
+		Role:   conf.Leader,
 		ID:     "happy",
 		PubKey: pubKey,
 	}
@@ -109,7 +110,7 @@ func TestServer_Serialize(t *testing.T) {
 
 	// try to load data from serialization
 	s2 := &Server{
-		Role:   Leader,
+		Role:   conf.Leader,
 		ID:     "happy",
 		PubKey: pubKey,
 	}
@@ -137,13 +138,13 @@ func TestPeers_Clone(t *testing.T) {
 	samplePeersConf := &Peers{
 		Term: 1,
 		Leader: &Server{
-			Role:   Leader,
+			Role:   conf.Leader,
 			ID:     "happy",
 			PubKey: pubKey,
 		},
 		Servers: []*Server{
 			{
-				Role:   Leader,
+				Role:   conf.Leader,
 				ID:     "happy",
 				PubKey: pubKey,
 			},
@@ -172,13 +173,13 @@ func TestPeers_Sign(t *testing.T) {
 	peers := &Peers{
 		Term: 1,
 		Leader: &Server{
-			Role:   Leader,
+			Role:   conf.Leader,
 			ID:     "happy",
 			PubKey: pubKey,
 		},
 		Servers: []*Server{
 			{
-				Role:   Leader,
+				Role:   conf.Leader,
 				ID:     "happy",
 				PubKey: pubKey,
 			},
@@ -200,9 +201,9 @@ func TestPeers_Sign(t *testing.T) {
 
 func TestToString(t *testing.T) {
 	Convey("ServerRole", t, func() {
-		So(fmt.Sprint(Leader), ShouldEqual, "Leader")
-		So(fmt.Sprint(Follower), ShouldEqual, "Follower")
-		So(fmt.Sprint(ServerRole(100)), ShouldEqual, "Unknown")
+		So(fmt.Sprint(conf.Leader), ShouldEqual, "Leader")
+		So(fmt.Sprint(conf.Follower), ShouldEqual, "Follower")
+		So(fmt.Sprint(conf.ServerRole(100)), ShouldEqual, "Unknown")
 	})
 	Convey("ServerState", t, func() {
 		So(fmt.Sprint(Idle), ShouldEqual, "Idle")
@@ -211,7 +212,7 @@ func TestToString(t *testing.T) {
 	})
 	Convey("Server", t, func() {
 		s := &Server{
-			Role: Leader,
+			Role: conf.Leader,
 			ID:   "test",
 		}
 		So(fmt.Sprint(s), ShouldNotBeEmpty)
@@ -219,7 +220,7 @@ func TestToString(t *testing.T) {
 	Convey("Peers", t, func() {
 		p := testPeersFixture(1, []*Server{
 			{
-				Role: Leader,
+				Role: conf.Leader,
 				ID:   "test",
 			},
 		})

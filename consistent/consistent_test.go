@@ -18,6 +18,7 @@ package consistent
 
 import (
 	"math/rand"
+	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -26,16 +27,20 @@ import (
 	"testing/quick"
 	"time"
 
-	"os"
-
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	. "gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const testStorePath = "./test.store"
+
+// CheckNum make int assertion
+func CheckNum(num, expected int, t *testing.T) {
+	if num != expected {
+		t.Errorf("got %d, expected %d", num, expected)
+	}
+}
 
 func NewNodeFromID(id string) Node {
 	_, publicKey, _ := asymmetric.GenSecp256k1KeyPair()
@@ -66,14 +71,14 @@ func TestAdd(t *testing.T) {
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
-	utils.CheckNum(len(x.circle), x.NumberOfReplicas, t)
-	utils.CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
+	CheckNum(len(x.circle), x.NumberOfReplicas, t)
+	CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
 	x.Add(NewNodeFromID(("qwer")))
-	utils.CheckNum(len(x.circle), 2*x.NumberOfReplicas, t)
-	utils.CheckNum(len(x.sortedHashes), 2*x.NumberOfReplicas, t)
+	CheckNum(len(x.circle), 2*x.NumberOfReplicas, t)
+	CheckNum(len(x.sortedHashes), 2*x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
@@ -88,8 +93,8 @@ func TestRemove(t *testing.T) {
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Remove("abcdefg")
-	utils.CheckNum(len(x.circle), 0, t)
-	utils.CheckNum(len(x.sortedHashes), 0, t)
+	CheckNum(len(x.circle), 0, t)
+	CheckNum(len(x.sortedHashes), 0, t)
 }
 
 func TestRemoveNonExisting(t *testing.T) {
@@ -101,7 +106,7 @@ func TestRemoveNonExisting(t *testing.T) {
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Remove("abcdefghijk")
-	utils.CheckNum(len(x.circle), x.NumberOfReplicas, t)
+	CheckNum(len(x.circle), x.NumberOfReplicas, t)
 }
 
 func TestGetEmpty(t *testing.T) {

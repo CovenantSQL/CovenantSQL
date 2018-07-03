@@ -30,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -262,15 +263,15 @@ func TestETLSIntegration(t *testing.T) {
 		// peers is a simple 3-node peer configuration
 		peers := testPeersFixture(1, []*kayak.Server{
 			{
-				Role: kayak.Leader,
+				Role: conf.Leader,
 				ID:   lNodeEtls.nodeID,
 			},
 			{
-				Role: kayak.Follower,
+				Role: conf.Follower,
 				ID:   f1NodeEtls.nodeID,
 			},
 			{
-				Role: kayak.Follower,
+				Role: conf.Follower,
 				ID:   f2NodeEtls.nodeID,
 			},
 		})

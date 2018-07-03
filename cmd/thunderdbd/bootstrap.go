@@ -17,17 +17,18 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
@@ -35,41 +36,30 @@ import (
 )
 
 const (
-	nodeDirPattern   = "./node_%v"
-	pubKeyStoreFile  = "public.keystore"
-	privateKeyFile   = "private.key"
+	//nodeDirPattern   = "./node_%v"
+	//pubKeyStoreFile  = "public.keystore"
+	//privateKeyFile   = "private.key"
+	//dhtFileName      = "dht.db"
 	kayakServiceName = "kayak"
 	dhtServiceName   = "DHT"
-	dhtFileName      = "dht.db"
 )
 
-var (
-	genConf         bool
-	clientMode      bool
-	nodeOffset      int
-	clientOperation string
-)
+func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
+	rootPath := conf.GConf.WorkingRoot
+	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
+	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
+	dbFile := filepath.Join(rootPath, conf.GConf.DHTFileName)
 
-func init() {
-	flag.BoolVar(&genConf, "generate", false, "run conf generation")
-	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.IntVar(&nodeOffset, "nodeOffset", 0, "node offset in peers conf")
-	flag.StringVar(&clientOperation, "operation", "FindValue", "client operation")
-}
-
-func runNode(idx int) (err error) {
-	rootPath := fmt.Sprintf(nodeDirPattern, idx)
-	pubKeyStorePath := filepath.Join(rootPath, pubKeyStoreFile)
-	privateKeyPath := filepath.Join(rootPath, privateKeyFile)
-	dbFile := filepath.Join(rootPath, dhtFileName)
-
-	// read master key
-	fmt.Print("Type in Master key to continue: ")
-	masterKey, err := terminal.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		fmt.Printf("Failed to read Master Key: %v", err)
+	var masterKey []byte
+	if !conf.GConf.IsTestMode {
+		// read master key
+		fmt.Print("Type in Master key to continue: ")
+		masterKey, err = terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			fmt.Printf("Failed to read Master Key: %v", err)
+		}
+		fmt.Println("")
 	}
-	fmt.Println("")
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
@@ -79,7 +69,7 @@ func runNode(idx int) (err error) {
 
 	// init nodes
 	log.Infof("init peers")
-	nodes, peers, err := initNodePeers(idx, pubKeyStorePath)
+	_, peers, thisNode, err := initNodePeers(nodeID, pubKeyStorePath)
 	if err != nil {
 		log.Errorf("init nodes and peers failed: %s", err)
 		return
@@ -90,7 +80,7 @@ func runNode(idx int) (err error) {
 
 	// create server
 	log.Infof("create server")
-	if service, server, err = createServer(privateKeyPath, pubKeyStorePath, masterKey, (*nodes)[idx].Addr); err != nil {
+	if service, server, err = createServer(privateKeyPath, pubKeyStorePath, masterKey, listenAddr); err != nil {
 		log.Errorf("create server failed: %s", err)
 		return
 	}
@@ -106,7 +96,7 @@ func runNode(idx int) (err error) {
 	// init kayak
 	log.Infof("init kayak runtime")
 	var kayakRuntime *kayak.Runtime
-	if _, kayakRuntime, err = initKayakTwoPC(rootPath, &(*nodes)[idx], peers, st, service); err != nil {
+	if _, kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, service); err != nil {
 		log.Errorf("init kayak runtime failed: %s", err)
 		return
 	}
@@ -154,7 +144,7 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	return
 }
 
-func initKayakTwoPC(rootDir string, node *NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
+func initKayakTwoPC(rootDir string, node *conf.NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
 	// create kayak config
 	log.Infof("create twopc config")
 	config = ka.NewTwoPCConfig(rootDir, service, worker)

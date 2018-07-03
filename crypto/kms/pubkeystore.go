@@ -20,9 +20,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"
@@ -36,20 +41,6 @@ import (
 type PublicKeyStore struct {
 	db     *bolt.DB
 	bucket []byte
-}
-
-// BPInfo hold all BP info fields
-type BPInfo struct {
-	// PublicKeyStr is the public key of Block Producer
-	PublicKeyStr string
-	// PublicKey point to BlockProducer public key
-	PublicKey *asymmetric.PublicKey
-	// NodeID is the node id of Block Producer
-	NodeID proto.NodeID
-	// RawNodeID
-	RawNodeID proto.RawNodeID
-	// Nonce is the nonce, SEE: cmd/idminer for more
-	Nonce mine.Uint256
 }
 
 const (
@@ -70,22 +61,35 @@ var (
 	//TODO(auxten): maybe each BP uses distinct key pair is safer
 
 	// BP hold the initial BP info
-	BP = &BPInfo{
-		PublicKeyStr: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c",
-		PublicKey:    nil,
-		// {{14396347928 0 0 6148914694092305796}  45 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8}
-		NodeID:    proto.NodeID("00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8"),
-		RawNodeID: proto.RawNodeID{},
-		Nonce: mine.Uint256{
-			14396347928,
-			0,
-			0,
-			6148914694092305796,
-		},
-	}
+	BP *conf.BPInfo
 )
 
 func init() {
+
+	// if we were running go test
+	if strings.HasSuffix(os.Args[0], ".test") || strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
+		_, testFile, _, _ := runtime.Caller(0)
+		confFile := filepath.Join(filepath.Dir(testFile), "config.yaml")
+		log.Errorf("Current test filename: %s", confFile)
+		log.Errorf("os.Args: %v", os.Args)
+
+		var err error
+		conf.GConf, err = conf.LoadConfig(confFile)
+		if err != nil {
+			log.Fatalf("load config for test in kms failed: %s", err)
+		}
+		conf.GConf.GenerateKeyPair = true
+		InitBP()
+	}
+}
+
+// InitBP initializes kms.BP struct with conf.GConf
+func InitBP() {
+	if conf.GConf == nil {
+		log.Fatal("Must call conf.LoadConfig first")
+	}
+	BP = conf.GConf.BP
+
 	err := hash.Decode(&BP.RawNodeID.Hash, string(BP.NodeID))
 	if err != nil {
 		log.Fatalf("BP.NodeID error: %s", err)
@@ -119,6 +123,7 @@ var (
 func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
 	//testFlag := flag.Lookup("test")
 	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
+	InitBP()
 
 	var bdb *bolt.DB
 	bdb, err = bolt.Open(dbPath, 0600, nil)

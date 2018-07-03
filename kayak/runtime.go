@@ -19,6 +19,8 @@ package kayak
 import (
 	"fmt"
 	"path/filepath"
+
+	"gitlab.com/thunderdb/ThunderDB/conf"
 )
 
 const (
@@ -58,7 +60,7 @@ func NewRuntime(config Config, peers *Peers) (*Runtime, error) {
 		if s.ID == runtime.config.LocalID {
 			serverInPeers = true
 
-			if s.Role == Leader {
+			if s.Role == conf.Leader {
 				runtime.isLeader = true
 			}
 		}
@@ -145,7 +147,7 @@ func (r *Runtime) UpdatePeers(peers *Peers) error {
 	for _, s := range peers.Servers {
 		if s.ID == r.config.LocalID {
 			inPeers = true
-			isLeader = s.Role == Leader
+			isLeader = s.Role == conf.Leader
 			break
 		}
 	}

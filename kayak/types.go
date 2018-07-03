@@ -25,6 +25,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -117,23 +118,11 @@ type StableStore interface {
 	GetUint64(key []byte) (uint64, error)
 }
 
-// ServerRole define the role of node to be leader/coordinator in peer set.
-type ServerRole int
-
 // ServerState define the state of node to be checked by commit/peers update logic.
 type ServerState int
 
 // Note: Don't renumber these, since the numbers are written into the log.
 const (
-	// Leader is a server that have the ability to organize committing requests.
-	Leader ServerRole = iota
-	// Follower is a server that follow the leader log commits.
-	Follower
-	// Miner is a server that run sql database
-	Miner
-	// Client is a client that send sql query to database
-	Client
-
 	// Idle indicates no running transaction.
 	Idle ServerState = iota
 
@@ -143,16 +132,6 @@ const (
 	// Shutdown state
 	Shutdown
 )
-
-func (s ServerRole) String() string {
-	switch s {
-	case Leader:
-		return "Leader"
-	case Follower:
-		return "Follower"
-	}
-	return "Unknown"
-}
 
 func (s ServerState) String() string {
 	switch s {
@@ -167,7 +146,7 @@ func (s ServerState) String() string {
 // Server tracks the information about a single server in a configuration.
 type Server struct {
 	// Suffrage determines whether the server gets a vote.
-	Role ServerRole
+	Role conf.ServerRole
 	// ID is a unique string identifying this server for all time.
 	ID proto.NodeID
 	// Public key

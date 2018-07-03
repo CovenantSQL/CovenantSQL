@@ -8,7 +8,6 @@ vendor/**/.gitignore
 node_*/
 kayak_test
 *.conf
-thunderdbd
 
 
 # Binaries for programs and plugins

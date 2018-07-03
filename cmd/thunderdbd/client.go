@@ -26,33 +26,36 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-func runClient() (err error) {
-	var idx = -1
-	for i, n := range AllNodes[:] {
-		if n.Role == kayak.Client {
+func runClient(nodeID proto.NodeID) (err error) {
+	var idx int
+	for i, n := range (*conf.GConf.KnownNodes)[:] {
+		if n.ID == nodeID {
 			idx = i
 			break
 		}
 	}
 
-	rootPath := fmt.Sprintf(nodeDirPattern, "c")
-	pubKeyStorePath := filepath.Join(rootPath, pubKeyStoreFile)
-	privateKeyPath := filepath.Join(rootPath, privateKeyFile)
+	rootPath := conf.GConf.WorkingRoot
+	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
+	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
 
 	// read master key
-	fmt.Print("Type in Master key to continue: ")
-	masterKey, err := terminal.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		fmt.Printf("Failed to read Master Key: %v", err)
+	var masterKey []byte
+	if !conf.GConf.IsTestMode {
+		fmt.Print("Type in Master key to continue: ")
+		masterKey, err = terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			fmt.Printf("Failed to read Master Key: %v", err)
+		}
+		fmt.Println("")
 	}
-	fmt.Println("")
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
@@ -60,7 +63,7 @@ func runClient() (err error) {
 		return
 	}
 
-	AllNodes[idx].PublicKey, err = kms.GetLocalPublicKey()
+	(*conf.GConf.KnownNodes)[idx].PublicKey, err = kms.GetLocalPublicKey()
 	if err != nil {
 		log.Errorf("get local public key failed: %s", err)
 		return
@@ -71,7 +74,7 @@ func runClient() (err error) {
 
 	// init nodes
 	log.Infof("init peers")
-	_, _, err = initNodePeers(idx, pubKeyStorePath)
+	_, _, _, err = initNodePeers(nodeID, pubKeyStorePath)
 	if err != nil {
 		return
 	}
@@ -114,8 +117,8 @@ func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err e
 		}
 		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
-		for _, bp := range AllNodes[:] {
-			if bp.Role == kayak.Leader || bp.Role == kayak.Follower {
+		for _, bp := range (*conf.GConf.KnownNodes)[:] {
+			if bp.Role == conf.Leader || bp.Role == conf.Follower {
 				if conn, err = rpc.DialToNode(bp.ID, connPool); err != nil {
 					return
 				}

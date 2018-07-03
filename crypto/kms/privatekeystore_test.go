@@ -17,6 +17,7 @@
 package kms
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"os"
@@ -26,6 +27,7 @@ import (
 	"bytes"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/symmetric"
 )
@@ -35,20 +37,20 @@ const (
 	password       = "auxten"
 )
 
-//func TestSaveLoadPrivateKey(t *testing.T) {
-//	Convey("save and load", t, func() {
-//		pass := ""
-//		privateKeyBytes, _ := hex.DecodeString("")
-//		privateKey, _ := ec.PrivKeyFromBytes(ec.S256(), privateKeyBytes)
-//		SavePrivateKey("../../keys/private.key", privateKey, []byte(pass))
-//		pl, _ := LoadPrivateKey("../../keys/private.key", []byte(pass))
-//		So(bytes.Compare(pl.Serialize(), privateKey.Serialize()), ShouldBeZeroValue)
-//		So(bytes.Compare(privateKeyBytes, privateKey.Serialize()), ShouldBeZeroValue)
-//		publicKeyBytes, _ := hex.DecodeString(BPPublicKeyStr)
-//		publicKey, _ := ec.ParsePubKey(publicKeyBytes, ec.S256())
-//		So(pl.PubKey().IsEqual(publicKey), ShouldBeTrue)
-//	})
-//}
+func TestSaveLoadPrivateKey(t *testing.T) {
+	Convey("save and load", t, func() {
+		pass := ""
+		privateKeyBytes, _ := hex.DecodeString("f7c0bc718eb0df81e796a11e6f62e23cd2be0a4bdcca30df40d4d915cc3be3ff")
+		privateKey, _ := asymmetric.PrivKeyFromBytes(privateKeyBytes)
+		SavePrivateKey("private.key", privateKey, []byte(pass))
+		pl, _ := LoadPrivateKey("private.key", []byte(pass))
+		So(bytes.Compare(pl.Serialize(), privateKey.Serialize()), ShouldBeZeroValue)
+		So(bytes.Compare(privateKeyBytes, privateKey.Serialize()), ShouldBeZeroValue)
+		publicKeyBytes, _ := hex.DecodeString("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24")
+		publicKey, _ := asymmetric.ParsePubKey(publicKeyBytes)
+		So(pl.PubKey().IsEqual(publicKey), ShouldBeTrue)
+	})
+}
 
 func TestLoadPrivateKey(t *testing.T) {
 	Convey("save and load", t, func() {
@@ -100,6 +102,7 @@ func TestLoadPrivateKey(t *testing.T) {
 
 func TestInitLocalKeyPair(t *testing.T) {
 	Convey("InitLocalKeyPair", t, func() {
+		conf.GConf.GenerateKeyPair = true
 		defer os.Remove(privateKeyPath)
 		err := InitLocalKeyPair(privateKeyPath, []byte(password))
 		So(err, ShouldBeNil)

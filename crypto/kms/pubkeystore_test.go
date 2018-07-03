@@ -17,17 +17,12 @@
 package kms
 
 import (
-	"testing"
-
-	"os"
-
-	"sync"
-
-	"encoding/hex"
-
 	"bytes"
-
+	"encoding/hex"
+	"os"
 	"reflect"
+	"sync"
+	"testing"
 
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
@@ -35,6 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gopkg.in/yaml.v2"
 )
 
 const dbFile = ".test.db"
@@ -194,5 +190,14 @@ func TestMarshalNode(t *testing.T) {
 		err = dec.Decode(nodeDec)
 
 		So(reflect.DeepEqual(nodeDec, nodeInfo), ShouldBeTrue)
+	})
+}
+
+func TestMarshalBPInfo(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	Convey("marshal unmarshal BPInfo", t, func() {
+		sBP, err := yaml.Marshal(BP)
+		So(err, ShouldBeNil)
+		log.Debugf("BP:\n%s", sBP)
 	})
 }

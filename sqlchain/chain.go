@@ -284,28 +284,20 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
-		bucket := tx.Bucket(metaBucket[:])
-		err = chain.state.UnmarshalBinary(bucket.Get(metaStateKey))
+		meta := tx.Bucket(metaBucket[:])
+		err = chain.state.UnmarshalBinary(meta.Get(metaStateKey))
 
 		if err != nil {
 			return err
 		}
 
 		// Read blocks and rebuild memory index
-		blockCount := int32(0)
-		bi := bucket.Bucket(metaBlockIndexBucket)
-		cursor := bi.Cursor()
+		var last *blockNode
+		var index int32
+		blocks := meta.Bucket(metaBlockIndexBucket)
+		nodes := make([]blockNode, blocks.Stats().KeyN)
 
-		for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
-			blockCount++
-		}
-
-		lastNode := (*blockNode)(nil)
-		index := int32(0)
-		nodes := make([]blockNode, blockCount)
-		cursor = bi.Cursor()
-
-		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+		if err = blocks.ForEach(func(k, v []byte) (err error) {
 			block := &Block{}
 
 			if err = block.UnmarshalBinary(v); err != nil {
@@ -315,16 +307,16 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			log.Debugf("Read new block: %+v", block)
 			parent := (*blockNode)(nil)
 
-			if lastNode == nil {
+			if last == nil {
 				if err = block.SignedHeader.VerifyAsGenesis(); err != nil {
 					return
 				}
-			} else if block.SignedHeader.ParentHash.IsEqual(&lastNode.hash) {
+			} else if block.SignedHeader.ParentHash.IsEqual(&last.hash) {
 				if err = block.SignedHeader.Verify(); err != nil {
 					return
 				}
 
-				parent = lastNode
+				parent = last
 			} else {
 				parent = chain.bi.LookupNode(&block.SignedHeader.BlockHash)
 
@@ -334,37 +326,36 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			}
 
 			nodes[index].initBlockNode(block, parent)
-			lastNode = &nodes[index]
+			last = &nodes[index]
 			index++
+			return
+		}); err != nil {
+			return
 		}
 
 		// Read queries and rebuild memory index
-		qi := bucket.Bucket(metaHeightIndexBucket)
-		cursor = qi.Cursor()
+		heights := meta.Bucket(metaHeightIndexBucket)
 		resp := &types.SignedResponseHeader{}
 		ack := &types.SignedAckHeader{}
 
-		for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
+		if err = heights.ForEach(func(k, v []byte) (err error) {
 			h := KeyToHeight(k)
-			b := cursor.Bucket()
 
-			log.Debugf("reading resp & acks: height = %d", h)
+			if resps := heights.Bucket(k).Bucket(
+				metaResponseIndexBucket); resps != nil {
+				if err = resps.ForEach(func(k []byte, v []byte) (err error) {
+					if err = resp.UnmarshalBinary(v); err != nil {
+						return
+					}
 
-			if sb := b.Bucket(metaResponseIndexBucket); sb != nil {
-				if err = sb.ForEach(
-					func(k []byte, v []byte) (err error) {
-						if err = resp.UnmarshalBinary(v); err != nil {
-							return
-						}
-
-						return chain.qi.AddResponse(h, resp)
-					}); err != nil {
+					return chain.qi.AddResponse(h, resp)
+				}); err != nil {
 					return
 				}
 			}
 
-			if sb := b.Bucket(metaAckIndexBucket); sb != nil {
-				if err = sb.ForEach(func(k []byte, v []byte) (err error) {
+			if acks := heights.Bucket(k).Bucket(metaAckIndexBucket); acks != nil {
+				if err = acks.ForEach(func(k []byte, v []byte) (err error) {
 					if err = ack.UnmarshalBinary(v); err != nil {
 						return
 					}
@@ -374,14 +365,14 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 					return
 				}
 			}
+
+			return
+		}); err != nil {
+			return
 		}
 
 		return
 	})
-
-	if err != nil {
-		return nil, err
-	}
 
 	return
 }
@@ -461,13 +452,14 @@ func (c *Chain) PushResponedQuery(resp *types.SignedResponseHeader) (err error) 
 	}
 
 	return c.db.Update(func(tx *bolt.Tx) (err error) {
-		b, err := ensureHeight(tx, k)
+		heightBucket, err := ensureHeight(tx, k)
 
 		if err != nil {
 			return
 		}
 
-		if err = b.Bucket(metaResponseIndexBucket).Put(resp.HeaderHash[:], enc); err != nil {
+		if err = heightBucket.Bucket(metaResponseIndexBucket).Put(
+			resp.HeaderHash[:], enc); err != nil {
 			return
 		}
 
@@ -508,6 +500,7 @@ func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 		if c.IsMyTurn() {
 			c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
 		}
+
 		return
 	})
 }

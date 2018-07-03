@@ -81,7 +81,12 @@ func testSetup() {
 	}
 
 	f.Close()
-	kms.InitPublicKeyStore(f.Name(), nil)
+
+	if err = kms.InitPublicKeyStore(f.Name(), nil); err != nil {
+		panic(err)
+	}
+
+	kms.Unittest = true
 	kms.InitLocalKeyStore()
 
 	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {

@@ -22,6 +22,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // Following contains storage related logic extracted from main database instance definition.
@@ -89,7 +90,7 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	}
 
 	// decode
-	var req Request
+	var req wt.Request
 	if err = utils.DecodeMsgPack(payloadBytes, &req); err != nil {
 		return
 	}

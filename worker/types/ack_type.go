@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import (
 	"bytes"
@@ -43,8 +43,12 @@ type SignedAckHeader struct {
 
 // Ack defines a whole client ack request entity.
 type Ack struct {
+	proto.Envelope
 	Header SignedAckHeader
 }
+
+// AckResponse defines client ack response entity.
+type AckResponse struct{}
 
 // Serialize structure to bytes.
 func (h *AckHeader) Serialize() []byte {
@@ -96,7 +100,7 @@ func (sh *SignedAckHeader) Verify() (err error) {
 		return
 	}
 	// verify sign
-	if !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return

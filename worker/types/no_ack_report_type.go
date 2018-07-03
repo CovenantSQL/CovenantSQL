@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package worker
+package types
 
 import (
 	"bytes"
@@ -44,6 +44,7 @@ type SignedNoAckReportHeader struct {
 
 // NoAckReport defines whole worker no client ack report.
 type NoAckReport struct {
+	proto.Envelope
 	Header SignedNoAckReportHeader
 }
 
@@ -65,6 +66,7 @@ type SignedAggrNoAckReportHeader struct {
 
 // AggrNoAckReport defines whole worker leader no client ack report.
 type AggrNoAckReport struct {
+	proto.Envelope
 	Header SignedAggrNoAckReportHeader
 }
 
@@ -119,7 +121,7 @@ func (sh *SignedNoAckReportHeader) Verify() (err error) {
 		return
 	}
 	// validate signature
-	if !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return
@@ -217,7 +219,7 @@ func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 		return
 	}
 	// verify signature
-	if !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return

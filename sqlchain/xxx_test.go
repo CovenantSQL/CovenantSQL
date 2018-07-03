@@ -82,6 +82,13 @@ func testSetup() {
 
 	f.Close()
 	kms.InitPublicKeyStore(f.Name(), nil)
+	kms.InitLocalKeyStore()
+
+	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
+		kms.SetLocalKeyPair(priv, pub)
+	} else {
+		panic(err)
+	}
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
@@ -335,10 +342,49 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	}
 
 	err = b.PackAndSignBlock(priv)
+	return
+}
+
+func createRandomQueriesAndBlock(genesis, parent hash.Hash) (
+	acks []*types.SignedAckHeader, b *Block, err error,
+) {
+	// Generate key pair
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
-		return nil, err
+		return
 	}
+
+	h := hash.Hash{}
+	rand.Read(h[:])
+
+	b = &Block{
+		SignedHeader: SignedHeader{
+			Header: Header{
+				Version:     0x01000000,
+				Producer:    proto.NodeID(h.String()),
+				GenesisHash: genesis,
+				ParentHash:  parent,
+				Timestamp:   time.Now().UTC(),
+			},
+			Signee:    pub,
+			Signature: nil,
+		},
+	}
+
+	n := rand.Intn(10)
+	acks = make([]*types.SignedAckHeader, n)
+	b.Queries = make([]*hash.Hash, n)
+
+	for i := 0; i < n; i++ {
+		if acks[i], err = createRandomNodesAndAck(); err != nil {
+			return
+		}
+
+		b.Queries[i] = &acks[i].HeaderHash
+	}
+
+	err = b.PackAndSignBlock(priv)
 
 	return
 }

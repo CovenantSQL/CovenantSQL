@@ -23,6 +23,7 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -154,6 +155,9 @@ type Chain struct {
 	rt           *Runtime
 	pendingBlock *Block
 	state        *State
+
+	// Only for test
+	isMyTurn bool
 }
 
 // NewChain creates a new sql-chain struct.
@@ -202,7 +206,16 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 			NextHeight:    1,
 			stopCh:        make(chan struct{}),
 		},
-		pendingBlock: &Block{},
+		pendingBlock: &Block{
+			SignedHeader: SignedHeader{
+				Header: Header{
+					Version:     0x01000000,
+					Producer:    cfg.Server.ID,
+					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
+					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+				},
+			},
+		},
 		state: &State{
 			node:   nil,
 			Head:   cfg.Genesis.SignedHeader.GenesisHash,
@@ -459,7 +472,9 @@ func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 			return
 		}
 
-		c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
+		if c.IsMyTurn() {
+			c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
+		}
 		return
 	})
 }
@@ -467,7 +482,7 @@ func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
 func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 	// Pushed block must extend the best chain
-	if !block.SignedHeader.BlockHash.IsEqual(&c.state.Head) {
+	if !block.SignedHeader.ParentHash.IsEqual(&c.state.Head) {
 		return ErrInvalidBlock
 	}
 
@@ -482,7 +497,9 @@ func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
 	// Block must produced within [start, end)
 	h := c.cfg.GetHeightFromTime(block.SignedHeader.Timestamp)
 
-	if h != c.rt.NextHeight {
+	log.Debugf("check block: block height = %d, current staet height = %d, block = %+v", h, c.state.Height, block)
+
+	if h != c.state.Height+1 {
 		return ErrBlockTimestampOutOfPeriod
 	}
 
@@ -556,7 +573,7 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) 
 //
 // TODO(leventliu): need implementation.
 func (c *Chain) IsMyTurn() bool {
-	return false
+	return c.isMyTurn
 }
 
 // ProduceBlock prepares, signs and advises the pending block to the orther peers.
@@ -569,6 +586,7 @@ func (c *Chain) ProduceBlock(parent hash.Hash, now time.Time) (err error) {
 	}
 
 	// Sign pending block
+	c.pendingBlock.SignedHeader.ParentHash = c.state.Head
 	c.pendingBlock.SignedHeader.Timestamp = now
 	c.pendingBlock.SignedHeader.ParentHash = parent
 

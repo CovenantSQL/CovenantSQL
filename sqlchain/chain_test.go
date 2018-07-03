@@ -27,6 +27,7 @@ import (
 
 	pb "github.com/golang/protobuf/proto"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
 	pbtypes "gitlab.com/thunderdb/ThunderDB/types"
 )
 
@@ -132,31 +133,63 @@ func TestChain(t *testing.T) {
 	}
 
 	chain, err := NewChain(&Config{
-		DataDir: fl.Name(),
-		Genesis: genesis,
-		Period:  300 * time.Second,
+		DataDir:        fl.Name(),
+		Genesis:        genesis,
+		Period:         300 * time.Second,
+		TimeResolution: 100 * time.Millisecond,
+		QueryTTL:       10,
+		Server:         &kayak.Server{},
 	})
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	t.Logf("Create new chain: genesis hash = %s", genesis.SignedHeader.BlockHash.String())
+	t.Logf("Create new chain: genesis hash = %s", genesis.SignedHeader.BlockHash)
 
 	// Push blocks
-	for block, err := createRandomBlock(
-		genesis.SignedHeader.BlockHash, false,
-	); err == nil; block, err = createRandomBlock(block.SignedHeader.BlockHash, false) {
-		err = chain.PushBlock(block)
+	for {
+		chain.isMyTurn = (rand.Intn(10) == 0)
+		acks, block, err := createRandomQueriesAndBlock(
+			genesis.SignedHeader.BlockHash, chain.state.Head)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
+		for _, ack := range acks {
+			if err = chain.VerifyAndPushAckedQuery(ack); err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+		}
+
+		// Run main cycle
+		var now time.Time
+		var d time.Duration
+
+		for {
+			now, d = chain.rt.TillNextCycle()
+			if d > 0 {
+				time.Sleep(d)
+			} else {
+				chain.Cycle(now)
+				break
+			}
+		}
+
+		// Advise block if it's not my turn
+		if !chain.IsMyTurn() {
+			block.SignedHeader.Timestamp = now
+
+			if err = chain.CheckAndPushNewBlock(block); err != nil {
+				t.Fatalf("Error occurred: %v, block = %+v", err, block)
+			}
+		}
+
 		t.Logf("Pushed new block: height = %d,  %s <- %s",
 			chain.state.Height,
-			block.SignedHeader.ParentHash.String(),
-			block.SignedHeader.BlockHash.String())
+			block.SignedHeader.ParentHash,
+			block.SignedHeader.BlockHash)
 
 		if chain.state.Height >= testHeight {
 			break

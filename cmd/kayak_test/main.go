@@ -30,6 +30,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -75,7 +76,7 @@ type NodeInfo struct {
 	PublicKeyBytes []byte
 	PublicKey      *asymmetric.PublicKey
 	Port           int
-	Role           kayak.ServerRole
+	Role           conf.ServerRole
 }
 
 type logCodec struct{}
@@ -236,9 +237,9 @@ func runClient() (err error) {
 
 	// get leader node
 	for i := range nodes {
-		if nodes[i].Role == kayak.Leader {
+		if nodes[i].Role == conf.Leader {
 			leader = &nodes[i]
-		} else if nodes[i].Role != kayak.Follower {
+		} else if nodes[i].Role != conf.Follower {
 			client = &nodes[i]
 		}
 	}
@@ -444,9 +445,9 @@ func initPeers(nodeOffset int, nodes []NodeInfo) (peers *kayak.Peers, err error)
 		}
 
 		// set leader
-		if node.Role == kayak.Leader {
+		if node.Role == conf.Leader {
 			peers.Leader = s
-		} else if node.Role != kayak.Follower {
+		} else if node.Role != conf.Follower {
 			// complete
 			break
 		}
@@ -519,9 +520,9 @@ func generateConf(nodeCnt, minPort, maxPort int, filename string) (err error) {
 		nodes[i].Port = ports[i]
 
 		if i == 0 {
-			nodes[i].Role = kayak.Leader
+			nodes[i].Role = conf.Leader
 		} else {
-			nodes[i].Role = kayak.Follower
+			nodes[i].Role = conf.Follower
 		}
 	}
 

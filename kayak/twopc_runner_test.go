@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
@@ -56,7 +57,7 @@ func TestTwoPCRunner_Init(t *testing.T) {
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: Leader,
+				Role: conf.Leader,
 				ID:   "happy",
 			},
 		})
@@ -100,7 +101,7 @@ func TestTwoPCRunner_Init(t *testing.T) {
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: Leader,
+				Role: conf.Leader,
 				ID:   "happy",
 			},
 		})
@@ -267,11 +268,11 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 	}
 	peers := testPeersFixture(1, []*Server{
 		{
-			Role: Leader,
+			Role: conf.Leader,
 			ID:   "leader",
 		},
 		{
-			Role: Follower,
+			Role: conf.Follower,
 			ID:   "follower",
 		},
 	})
@@ -283,7 +284,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		err := mockRes.runner.Init(mockRes.config, peers, mockRes.logStore, mockRes.stableStore, mockRes.transport)
 
 		So(err, ShouldBeNil)
-		So(mockRes.runner.role, ShouldEqual, Follower)
+		So(mockRes.runner.role, ShouldEqual, conf.Follower)
 		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		// try call process
@@ -299,7 +300,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		// change server id to leader and set peers to single node
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: Leader,
+				Role: conf.Leader,
 				ID:   "leader",
 			},
 		})
@@ -308,7 +309,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		err := mockRes.runner.Init(mockRes.config, peers, mockRes.logStore, mockRes.stableStore, mockRes.transport)
 
 		So(err, ShouldBeNil)
-		So(mockRes.runner.role, ShouldEqual, Leader)
+		So(mockRes.runner.role, ShouldEqual, conf.Leader)
 		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		Convey("commit", func() {
@@ -450,15 +451,15 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: Leader,
+				Role: conf.Leader,
 				ID:   "leader",
 			},
 			{
-				Role: Follower,
+				Role: conf.Follower,
 				ID:   "follower1",
 			},
 			{
-				Role: Follower,
+				Role: conf.Follower,
 				ID:   "follower2",
 			},
 		})
@@ -629,15 +630,15 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: Leader,
+				Role: conf.Leader,
 				ID:   "leader",
 			},
 			{
-				Role: Follower,
+				Role: conf.Follower,
 				ID:   "follower1",
 			},
 			{
-				Role: Follower,
+				Role: conf.Follower,
 				ID:   "follower2",
 			},
 		})
@@ -767,15 +768,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 	}
 	peers := testPeersFixture(2, []*Server{
 		{
-			Role: Leader,
+			Role: conf.Leader,
 			ID:   "leader",
 		},
 		{
-			Role: Follower,
+			Role: conf.Follower,
 			ID:   "follower1",
 		},
 		{
-			Role: Follower,
+			Role: conf.Follower,
 			ID:   "follower2",
 		},
 	})
@@ -815,15 +816,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("same peers term", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(2, []*Server{
 				{
-					Role: Leader,
+					Role: conf.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -837,15 +838,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("invalid peers term", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(1, []*Server{
 				{
-					Role: Leader,
+					Role: conf.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -860,15 +861,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("invalid peers signature", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(4, []*Server{
 				{
-					Role: Leader,
+					Role: conf.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -893,15 +894,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role: Leader,
+					Role: conf.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -927,15 +928,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "leader",
 				},
 				{
-					Role: Leader,
+					Role: conf.Leader,
 					ID:   "follower1",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -947,11 +948,11 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 				switch r.config.LocalID {
 				case "leader":
-					c.So(r.runner.role, ShouldEqual, Follower)
+					c.So(r.runner.role, ShouldEqual, conf.Follower)
 				case "follower1":
-					c.So(r.runner.role, ShouldEqual, Leader)
+					c.So(r.runner.role, ShouldEqual, conf.Leader)
 				case "follower2":
-					c.So(r.runner.role, ShouldEqual, Follower)
+					c.So(r.runner.role, ShouldEqual, conf.Follower)
 				}
 
 				r.stableStore.AssertCalled(t, "SetUint64", keyCurrentTerm, uint64(3))
@@ -978,11 +979,11 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role: Leader,
+					Role: conf.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: Follower,
+					Role: conf.Follower,
 					ID:   "follower1",
 				},
 			})

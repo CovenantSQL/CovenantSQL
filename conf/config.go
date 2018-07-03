@@ -21,11 +21,34 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gopkg.in/yaml.v2"
 )
+
+// ServerRole define the role of node to be leader/coordinator in peer set.
+type ServerRole int
+
+const (
+	// Leader is a server that have the ability to organize committing requests.
+	Leader ServerRole = iota
+	// Follower is a server that follow the leader log commits.
+	Follower
+	// Miner is a server that run sql database
+	Miner
+	// Client is a client that send sql query to database
+	Client
+)
+
+func (s ServerRole) String() string {
+	switch s {
+	case Leader:
+		return "Leader"
+	case Follower:
+		return "Follower"
+	}
+	return "Unknown"
+}
 
 // BPInfo hold all BP info fields
 type BPInfo struct {
@@ -47,7 +70,7 @@ type NodeInfo struct {
 	Nonce     cpuminer.Uint256
 	PublicKey *asymmetric.PublicKey `yaml:"-"`
 	Addr      string
-	Role      kayak.ServerRole
+	Role      ServerRole
 }
 
 // Config holds all the config read from yaml config file

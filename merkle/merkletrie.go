@@ -42,6 +42,10 @@ func upperPowOfTwo(n int) int {
 // NewMerkle generate a merkle tree according
 // to some hashable values like transactions or blocks
 func NewMerkle(items []*hash.Hash) *Merkle {
+	if items == nil || len(items) == 0 {
+		items = []*hash.Hash{&hash.Hash{}}
+	}
+
 	// the max number of merkle tree node = len(items) * 2 + 2
 	upperPoT := upperPowOfTwo(len(items))
 	maxMerkleSize := upperPoT*2 - 1

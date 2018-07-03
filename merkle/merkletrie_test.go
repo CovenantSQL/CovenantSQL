@@ -27,6 +27,7 @@ func TestMergeTwoHash(t *testing.T) {
 
 func TestNewMerkle(t *testing.T) {
 	tests := [][]*hash.Hash{
+		[]*hash.Hash{},
 		[]*hash.Hash{
 			&hash.Hash{},
 			&hash.Hash{},
@@ -83,6 +84,10 @@ func nextPowerOfTwo(n int) int {
 func buildMerkleTreeStore(hashes []*hash.Hash) []*hash.Hash {
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
+	if hashes == nil || len(hashes) == 0 {
+		hashes = []*hash.Hash{&hash.Hash{}}
+	}
+
 	nextPoT := nextPowerOfTwo(len(hashes))
 	arraySize := nextPoT*2 - 1
 	merkles := make([]*hash.Hash, arraySize)

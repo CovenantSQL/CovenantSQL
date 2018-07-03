@@ -129,7 +129,9 @@ func TestRequest_Sign(t *testing.T) {
 			},
 		}
 
+		var data []byte
 		var err error
+		var rreq Request
 
 		// sign
 		err = req.Sign(privKey)
@@ -146,6 +148,12 @@ func TestRequest_Sign(t *testing.T) {
 			So((*RequestHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*RequestPayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedRequestHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			data, err = req.MarshalBinary()
+			So(err, ShouldBeNil)
+			err = rreq.UnmarshalBinary(data)
+			So(err, ShouldBeNil)
+			So(req, ShouldResemble, &rreq)
 
 			// test nils
 			req.Header.Signee = nil
@@ -244,7 +252,9 @@ func TestResponse_Sign(t *testing.T) {
 			},
 		}
 
+		var data []byte
 		var err error
+		var rres Response
 
 		// sign directly, embedded original request is not filled
 		err = res.Sign(privKey)
@@ -273,6 +283,12 @@ func TestResponse_Sign(t *testing.T) {
 			So((*ResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*ResponsePayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			data, err = res.Header.MarshalBinary()
+			So(err, ShouldBeNil)
+			err = rres.Header.UnmarshalBinary(data)
+			So(err, ShouldBeNil)
+			So(&res.Header, ShouldResemble, &rres.Header)
 
 			// test nils
 			res.Header.Signee = nil
@@ -341,13 +357,16 @@ func TestAck_Sign(t *testing.T) {
 						},
 						Signee: pubKey,
 					},
-					NodeID: proto.NodeID("node1"),
+					NodeID:    proto.NodeID("node1"),
+					Timestamp: time.Now().UTC(),
 				},
 				Signee: pubKey,
 			},
 		}
 
+		var data []byte
 		var err error
+		var rack Ack
 
 		// sign directly, embedded original response is not filled
 		err = ack.Sign(privKey)
@@ -372,6 +391,12 @@ func TestAck_Sign(t *testing.T) {
 			So((*Ack)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*AckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedAckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+
+			data, err = ack.Header.MarshalBinary()
+			So(err, ShouldBeNil)
+			err = rack.Header.UnmarshalBinary(data)
+			So(err, ShouldBeNil)
+			So(&ack.Header, ShouldResemble, &rack.Header)
 
 			// test nils
 			ack.Header.Signee = nil

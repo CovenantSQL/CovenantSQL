@@ -26,27 +26,29 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/merkle"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // Header is a block header.
 type Header struct {
-	Version    int32
-	Producer   proto.NodeID
-	RootHash   hash.Hash
-	ParentHash hash.Hash
-	MerkleRoot hash.Hash
-	Timestamp  time.Time
+	Version     int32
+	Producer    proto.NodeID
+	GenesisHash hash.Hash
+	ParentHash  hash.Hash
+	MerkleRoot  hash.Hash
+	Timestamp   time.Time
 }
 
-func (h *Header) marshal() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (h *Header) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
 		h.Version,
 		h.Producer,
-		&h.RootHash,
+		&h.GenesisHash,
 		&h.ParentHash,
 		&h.MerkleRoot,
 		h.Timestamp,
@@ -57,22 +59,35 @@ func (h *Header) marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (h *Header) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&h.Version,
+		&h.Producer,
+		&h.GenesisHash,
+		&h.ParentHash,
+		&h.MerkleRoot,
+		&h.Timestamp,
+	)
+}
+
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
-
 	BlockHash hash.Hash
 	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
 }
 
-func (s *SignedHeader) marshal() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
 		s.Version,
 		s.Producer,
-		&s.RootHash,
+		&s.GenesisHash,
 		&s.ParentHash,
 		&s.MerkleRoot,
 		s.Timestamp,
@@ -86,12 +101,13 @@ func (s *SignedHeader) marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *SignedHeader) unmarshal(b []byte) error {
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (s *SignedHeader) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
 		&s.Version,
 		&s.Producer,
-		&s.RootHash,
+		&s.GenesisHash,
 		&s.ParentHash,
 		&s.MerkleRoot,
 		&s.Timestamp,
@@ -115,7 +131,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
 		" block = %s",
 		string(s.Producer[:]),
-		s.RootHash.String(),
+		s.GenesisHash.String(),
 		s.ParentHash.String(),
 		s.MerkleRoot.String(),
 		s.BlockHash.String(),
@@ -137,13 +153,16 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 
 // Block is a node of blockchain.
 type Block struct {
-	SignedHeader *SignedHeader
-	Queries      []*Query
+	SignedHeader SignedHeader
+	Queries      []*hash.Hash
 }
 
-// SignHeader generates the signature for the Block from the given PrivateKey.
-func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
-	buffer, err := b.SignedHeader.Header.marshal()
+// PackAndSignBlock generates the signature for the Block from the given PrivateKey.
+func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
+	// Calculate merkle root
+	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Queries).GetRoot()
+
+	buffer, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {
 		return
@@ -155,21 +174,56 @@ func (b *Block) SignHeader(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
+// MarshalBinary implements BinaryMarshaler.
+func (b *Block) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		&b.SignedHeader,
+		b.Queries,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (b *Block) UnmarshalBinary(data []byte) error {
+	reader := bytes.NewReader(data)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&b.SignedHeader,
+		&b.Queries,
+	)
+}
+
+// PushAckedQuery pushes a acknowledged and verified query into the block.
+func (b *Block) PushAckedQuery(h *hash.Hash) {
+	if b.Queries == nil {
+		// TODO(leventeliu): set appropriate capacity.
+		b.Queries = make([]*hash.Hash, 0, 100)
+	}
+
+	b.Queries = append(b.Queries, h)
+}
+
 // Verify verifies the merkle root and header signature of the block.
 func (b *Block) Verify() (err error) {
-	// TODO(leventeliu): verify merkle root of queries
-	// ...
+	// Verify merkle root
+	if MerkleRoot := *merkle.NewMerkle(b.Queries).GetRoot(); !MerkleRoot.IsEqual(
+		&b.SignedHeader.MerkleRoot,
+	) {
+		return ErrMerkleRootVerification
+	}
 
 	// Verify block hash
-	buffer, err := b.SignedHeader.Header.marshal()
+	buffer, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {
 		return
 	}
 
-	h := hash.THashH(buffer)
-
-	if !h.IsEqual(&b.SignedHeader.BlockHash) {
+	if h := hash.THashH(buffer); !h.IsEqual(&b.SignedHeader.BlockHash) {
 		return ErrHashVerification
 	}
 
@@ -179,10 +233,6 @@ func (b *Block) Verify() (err error) {
 
 // VerifyAsGenesis verifies the block as a genesis block.
 func (b *Block) VerifyAsGenesis() (err error) {
-	if b.SignedHeader == nil {
-		return ErrNilValue
-	}
-
 	// Assume that we can fetch public key from kms after initialization.
 	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
 

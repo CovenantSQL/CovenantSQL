@@ -19,17 +19,38 @@ package sqlchain
 import (
 	"bytes"
 	"encoding/binary"
+	"sync"
+	"time"
 
 	bolt "github.com/coreos/bbolt"
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (
-	metaBucket           = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey         = []byte("thunderdb-state")
-	metaBlockIndexBucket = []byte("thunderdb-block-index-bucket")
+	metaBucket              = [4]byte{0x0, 0x0, 0x0, 0x0}
+	metaStateKey            = []byte("thunderdb-state")
+	metaBlockIndexBucket    = []byte("thunderdb-block-index-bucket")
+	metaHeightIndexBucket   = []byte("thunderdb-query-height-index-bucket")
+	metaRequestIndexBucket  = []byte("thunderdb-query-reqeust-index-bucket")
+	metaResponseIndexBucket = []byte("thunderdb-query-response-index-bucket")
+	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
 )
+
+// HeightToKey converts a height in int32 to a key in bytes.
+func HeightToKey(h int32) (key []byte) {
+	key = make([]byte, 4)
+	binary.BigEndian.PutUint32(key, uint32(h))
+	return
+}
+
+// KeyToHeight converts a height back from a key in bytes.
+func KeyToHeight(k []byte) int32 {
+	return int32(binary.BigEndian.Uint32(k))
+}
 
 // State represents a snapshot of current best chain.
 type State struct {
@@ -38,7 +59,72 @@ type State struct {
 	Height int32
 }
 
-func (s *State) marshal() ([]byte, error) {
+// Runtime represents a chain runtime state.
+type Runtime struct {
+	sync.RWMutex // Protects following fields.
+
+	// Offset is the time difference calculated by: coodinatedChainTime - time.Now().
+	//
+	// TODO(leventeliu): update Offset in ping cycle.
+	Offset time.Duration
+
+	// Period is the block producing cycle.
+	Period time.Duration
+
+	// TimeResolution is the maximum time frame between each cycle.
+	TimeResolution time.Duration
+
+	// ChainInitTime is the initial cycle time, when the Genesis blcok is produced.
+	ChainInitTime time.Time
+
+	// NextTurn is the height of the next block.
+	NextTurn int32
+
+	stopCh chan struct{}
+}
+
+// UpdateTime updates the current coodinated chain time.
+func (r *Runtime) UpdateTime(now time.Time) {
+	r.Lock()
+	defer r.Unlock()
+	r.Offset = now.Sub(time.Now())
+}
+
+// Now returns the current coodinated chain time.
+func (r *Runtime) Now() time.Time {
+	r.RLock()
+	defer r.RUnlock()
+	return time.Now().Add(r.Offset)
+}
+
+// SetNextTurn prepares the runtime state for the next turn.
+func (r *Runtime) SetNextTurn() {
+	r.Lock()
+	defer r.Unlock()
+	r.NextTurn++
+}
+
+// Stop sends a signal to the Runtime stop channel by closing it.
+func (r *Runtime) Stop() {
+	close(r.stopCh)
+}
+
+// TillNextTurn returns the current time reading and the duration till the next turn. If duration
+// is less or equal to 0, use the time reading to run the next cycle - this avoids some problem
+// caused by concurrently time synchronization.
+func (r *Runtime) TillNextTurn() (t time.Time, d time.Duration) {
+	t = r.Now()
+	d = r.ChainInitTime.Add(time.Duration(r.NextTurn) * r.Period).Sub(t)
+
+	if d > r.TimeResolution {
+		d = r.TimeResolution
+	}
+
+	return
+}
+
+// MarshalBinary implements BinaryMarshaler.
+func (s *State) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -51,7 +137,8 @@ func (s *State) marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *State) unmarshal(b []byte) (err error) {
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (s *State) UnmarshalBinary(b []byte) (err error) {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
 		&s.Head,
@@ -63,9 +150,14 @@ func (s *State) unmarshal(b []byte) (err error) {
 type Chain struct {
 	cfg          *Config
 	db           *bolt.DB
-	index        *blockIndex
+	bi           *blockIndex
+	qi           *QueryIndex
+	rt           *Runtime
 	pendingBlock *Block
 	state        *State
+
+	// Only for test
+	isMyTurn bool
 }
 
 // NewChain creates a new sql-chain struct.
@@ -84,48 +176,68 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	// Create buckets for chain meta
-	err = db.Update(func(tx *bolt.Tx) (err error) {
+	if err = db.Update(func(tx *bolt.Tx) (err error) {
 		bucket, err := tx.CreateBucketIfNotExists(metaBucket[:])
 
 		if err != nil {
 			return
 		}
 
-		_, err = bucket.CreateBucketIfNotExists(metaBlockIndexBucket)
+		if _, err = bucket.CreateBucketIfNotExists(metaBlockIndexBucket); err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaHeightIndexBucket)
 		return
-	})
+	}); err != nil {
+		return
+	}
+
+	// Create chain state
+	pub, err := kms.GetLocalPublicKey()
 
 	if err != nil {
 		return
 	}
 
-	// Create chain state
 	chain = &Chain{
-		cfg:          cfg,
-		db:           db,
-		index:        newBlockIndex(cfg),
-		pendingBlock: &Block{},
+		cfg: cfg,
+		db:  db,
+		bi:  newBlockIndex(cfg),
+		qi:  NewQueryIndex(),
+		rt: &Runtime{
+			Offset:         time.Duration(0),
+			Period:         cfg.Period,
+			ChainInitTime:  cfg.Genesis.SignedHeader.Timestamp,
+			TimeResolution: cfg.TimeResolution,
+			NextTurn:       1,
+			stopCh:         make(chan struct{}),
+		},
+		pendingBlock: &Block{
+			SignedHeader: SignedHeader{
+				Header: Header{
+					Version:     0x01000000,
+					Producer:    cfg.Server.ID,
+					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
+					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+				},
+				Signee: pub,
+			},
+		},
 		state: &State{
 			node:   nil,
-			Head:   cfg.Genesis.SignedHeader.RootHash,
+			Head:   cfg.Genesis.SignedHeader.GenesisHash,
 			Height: -1,
 		},
 	}
 
-	err = chain.PushBlock(cfg.Genesis.SignedHeader)
+	err = chain.PushBlock(cfg.Genesis)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return
-}
-
-func blockIndexKey(blockHash *hash.Hash, height uint32) []byte {
-	indexKey := make([]byte, hash.HashSize+4)
-	binary.BigEndian.PutUint32(indexKey[0:4], height)
-	copy(indexKey[4:hash.HashSize], blockHash[:])
-	return indexKey
 }
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
@@ -138,24 +250,48 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	// Create chain state
+	pub, err := kms.GetLocalPublicKey()
+
+	if err != nil {
+		return
+	}
+
 	chain = &Chain{
-		cfg:          cfg,
-		db:           db,
-		index:        newBlockIndex(cfg),
-		pendingBlock: &Block{},
-		state:        &State{},
+		cfg: cfg,
+		db:  db,
+		bi:  newBlockIndex(cfg),
+		qi:  NewQueryIndex(),
+		rt: &Runtime{
+			Offset:         time.Duration(0),
+			Period:         cfg.Period,
+			TimeResolution: cfg.TimeResolution,
+			NextTurn:       1,
+			stopCh:         make(chan struct{}),
+		},
+		pendingBlock: &Block{
+			SignedHeader: SignedHeader{
+				Header: Header{
+					Version:     0x01000000,
+					Producer:    cfg.Server.ID,
+					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
+					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+				},
+				Signee: pub,
+			},
+		},
+		state: &State{},
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		bucket := tx.Bucket(metaBucket[:])
-		err = chain.state.unmarshal(bucket.Get(metaStateKey))
+		err = chain.state.UnmarshalBinary(bucket.Get(metaStateKey))
 
 		if err != nil {
 			return err
 		}
 
-		// Rebuild memory index
+		// Read blocks and rebuild memory index
 		blockCount := int32(0)
 		bi := bucket.Bucket(metaBlockIndexBucket)
 		cursor := bi.Cursor()
@@ -170,39 +306,77 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		cursor = bi.Cursor()
 
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			header := &SignedHeader{}
-			err = header.unmarshal(v)
+			block := &Block{}
 
-			if err != nil {
-				return err
+			if err = block.UnmarshalBinary(v); err != nil {
+				return
 			}
 
+			log.Debugf("Read new block: %+v", block)
 			parent := (*blockNode)(nil)
 
 			if lastNode == nil {
-				if err = header.VerifyAsGenesis(); err != nil {
+				if err = block.SignedHeader.VerifyAsGenesis(); err != nil {
 					return
 				}
-			} else if header.ParentHash == lastNode.hash {
-				if err = header.Verify(); err != nil {
+			} else if block.SignedHeader.ParentHash.IsEqual(&lastNode.hash) {
+				if err = block.SignedHeader.Verify(); err != nil {
 					return
 				}
 
 				parent = lastNode
 			} else {
-				parent = chain.index.LookupNode(&header.ParentHash)
+				parent = chain.bi.LookupNode(&block.SignedHeader.BlockHash)
 
 				if parent == nil {
 					return ErrParentNotFound
 				}
 			}
 
-			nodes[index].initBlockNode(header, parent)
+			nodes[index].initBlockNode(block, parent)
 			lastNode = &nodes[index]
 			index++
 		}
 
-		return nil
+		// Read queries and rebuild memory index
+		qi := bucket.Bucket(metaHeightIndexBucket)
+		cursor = qi.Cursor()
+		resp := &types.SignedResponseHeader{}
+		ack := &types.SignedAckHeader{}
+
+		for k, _ := cursor.First(); k != nil; k, _ = cursor.Next() {
+			h := KeyToHeight(k)
+			b := cursor.Bucket()
+
+			log.Debugf("reading resp & acks: height = %d", h)
+
+			if sb := b.Bucket(metaResponseIndexBucket); sb != nil {
+				if err = sb.ForEach(
+					func(k []byte, v []byte) (err error) {
+						if err = resp.UnmarshalBinary(v); err != nil {
+							return
+						}
+
+						return chain.qi.AddResponse(h, resp)
+					}); err != nil {
+					return
+				}
+			}
+
+			if sb := b.Bucket(metaAckIndexBucket); sb != nil {
+				if err = sb.ForEach(func(k []byte, v []byte) (err error) {
+					if err = ack.UnmarshalBinary(v); err != nil {
+						return
+					}
+
+					return chain.qi.AddAck(h, ack)
+				}); err != nil {
+					return
+				}
+			}
+		}
+
+		return
 	})
 
 	if err != nil {
@@ -213,43 +387,323 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // PushBlock pushes the signed block header to extend the current main chain.
-func (c *Chain) PushBlock(block *SignedHeader) (err error) {
-	// Pushed block must extend the best chain
-	if block.Header.ParentHash != hash.Hash(c.state.Head) {
-		return ErrInvalidBlock
+func (c *Chain) PushBlock(b *Block) (err error) {
+	// Prepare and encode
+	h := c.cfg.GetHeightFromTime(b.SignedHeader.Timestamp)
+	node := newBlockNode(b, c.state.node)
+	state := &State{
+		node:   node,
+		Head:   node.hash,
+		Height: node.height,
+	}
+	var encBlock, encState []byte
+
+	if encBlock, err = b.MarshalBinary(); err != nil {
+		return
 	}
 
-	// Update best state
-	c.state.node = newBlockNode(block, c.state.node)
-	c.state.Head = [32]byte(block.BlockHash)
-	c.state.Height++
+	if encState, err = state.MarshalBinary(); err != nil {
+		return
+	}
 
-	// Update index
-	c.index.AddBlock(c.state.node)
-
-	// Write to db
+	// Update in transaction
 	return c.db.Update(func(tx *bolt.Tx) (err error) {
-		buffer, err := block.marshal()
-
-		if err != nil {
-			return err
+		if err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState); err != nil {
+			return
 		}
 
-		key := c.state.node.indexKey()
-		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(key, buffer)
-
-		if err != nil {
-			return err
+		if err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(
+			node.indexKey(), encBlock); err != nil {
+			return
 		}
 
-		buffer, err = c.state.marshal()
-
-		if err != nil {
-			return err
-		}
-
-		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, buffer)
+		c.state = state
+		c.bi.AddBlock(node)
+		c.qi.SetSignedBlock(h, b)
 
 		return
 	})
+}
+
+func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
+	b := tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
+
+	if hb = b.Bucket(k); hb == nil {
+		// Create and initialize bucket in new height
+		if hb, err = b.CreateBucket(k); err != nil {
+			return
+		}
+
+		if _, err = hb.CreateBucket(metaRequestIndexBucket); err != nil {
+			return
+		}
+
+		if _, err = hb.CreateBucket(metaResponseIndexBucket); err != nil {
+			return
+		}
+
+		if _, err = hb.CreateBucket(metaAckIndexBucket); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// PushResponedQuery pushes a responsed, signed and verified query into the chain.
+func (c *Chain) PushResponedQuery(resp *types.SignedResponseHeader) (err error) {
+	h := c.cfg.GetHeightFromTime(resp.Request.Timestamp)
+	k := HeightToKey(h)
+	var enc []byte
+
+	if enc, err = resp.MarshalBinary(); err != nil {
+		return
+	}
+
+	return c.db.Update(func(tx *bolt.Tx) (err error) {
+		b, err := ensureHeight(tx, k)
+
+		if err != nil {
+			return
+		}
+
+		if err = b.Bucket(metaResponseIndexBucket).Put(resp.HeaderHash[:], enc); err != nil {
+			return
+		}
+
+		// Always put memory changes which will not be affected by rollback after DB operations
+		return c.qi.AddResponse(h, resp)
+	})
+}
+
+// PushAckedQuery pushed a acknowledged, signed and verified query into the chain.
+func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
+	h := c.cfg.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
+	k := HeightToKey(h)
+	var enc []byte
+
+	if enc, err = ack.MarshalBinary(); err != nil {
+		return
+	}
+
+	return c.db.Update(func(tx *bolt.Tx) (err error) {
+		b, err := ensureHeight(tx, k)
+
+		if err != nil {
+			return
+		}
+
+		// TODO(leventeliu): this doesn't seem right to use an error to detect key existence.
+		if err = b.Bucket(metaAckIndexBucket).Put(
+			ack.HeaderHash[:], enc,
+		); err != nil && err != bolt.ErrIncompatibleValue {
+			return
+		}
+
+		// Always put memory changes which will not be affected by rollback after DB operations
+		if err = c.qi.AddAck(h, ack); err != nil {
+			return
+		}
+
+		if c.IsMyTurn() {
+			c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
+		}
+		return
+	})
+}
+
+// CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
+func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
+	// Pushed block must extend the best chain
+	if !block.SignedHeader.ParentHash.IsEqual(&c.state.Head) {
+		return ErrInvalidBlock
+	}
+
+	// TODO(leventeliu): verify that block.SignedHeader.Producer is the rightful producer of the
+	// block.
+
+	// Check block existence
+	if c.bi.HasBlock(&block.SignedHeader.BlockHash) {
+		return ErrBlockExists
+	}
+
+	// Block must produced within [start, end)
+	h := c.cfg.GetHeightFromTime(block.SignedHeader.Timestamp)
+
+	if h != c.state.Height+1 {
+		return ErrBlockTimestampOutOfPeriod
+	}
+
+	// Check queries
+	for _, q := range block.Queries {
+		var ok bool
+
+		if ok, err = c.qi.CheckAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
+			return
+		}
+
+		if !ok {
+			// TODO(leventeliu): call RPC.FetchAckedQuery from block.SignedHeader.Producer
+		}
+	}
+
+	// Verify block signatures
+	if err = block.Verify(); err != nil {
+		return
+	}
+
+	return c.PushBlock(block)
+}
+
+func (c *Chain) queryTimeIsExpired(t time.Time) bool {
+	// Checking query expiration for the pending block, whose height is c.rt.NextHeight:
+	//
+	//     TimeLived = c.rt.NextHeight - c.cfg.GetHeightFromTime(t)
+	//
+	// Return true if:  TTL < TimeLived.
+	//
+	// NOTE(leventeliu): as a result, a TTL=1 requires any query to be acknowledged and received
+	// immediately.
+	// Consider the case that a query has happended right before period h, which has height h.
+	// If its ACK+Roundtrip time>0, it will be seemed as acknowledged in period h+1, or even later.
+	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
+	// has expired.
+	//
+	return c.cfg.GetHeightFromTime(t) < c.rt.NextTurn-c.cfg.QueryTTL
+}
+
+// VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
+func (c *Chain) VerifyAndPushResponsedQuery(resp *types.SignedResponseHeader) (err error) {
+	// TODO(leventeliu): check resp.
+	if c.queryTimeIsExpired(resp.Timestamp) {
+		return ErrQueryExpired
+	}
+
+	if err = resp.Verify(); err != nil {
+		return
+	}
+
+	return c.PushResponedQuery(resp)
+}
+
+// VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
+func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
+	// TODO(leventeliu): check ack.
+	if c.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
+		return ErrQueryExpired
+	}
+
+	if err = ack.Verify(); err != nil {
+		return
+	}
+
+	return c.PushAckedQuery(ack)
+}
+
+// IsMyTurn returns whether it's my turn to produce block or not.
+//
+// TODO(leventliu): need implementation.
+func (c *Chain) IsMyTurn() bool {
+	return c.isMyTurn
+}
+
+// ProduceBlock prepares, signs and advises the pending block to the orther peers.
+func (c *Chain) ProduceBlock(parent hash.Hash, now time.Time) (err error) {
+	// TODO(leventeliu): remember to initialize local key store somewhere.
+	priv, err := kms.GetLocalPrivateKey()
+
+	if err != nil {
+		return
+	}
+
+	// Sign pending block
+	c.pendingBlock.SignedHeader.ParentHash = c.state.Head
+	c.pendingBlock.SignedHeader.Timestamp = now
+	c.pendingBlock.SignedHeader.ParentHash = parent
+
+	if err = c.pendingBlock.PackAndSignBlock(priv); err != nil {
+		return
+	}
+
+	// TODO(leventeliu): advise new block
+	// ...
+
+	if err = c.PushBlock(c.pendingBlock); err != nil {
+		return
+	}
+
+	return
+}
+
+// RunCurrentTurn does the check and runs block producing if its my turn.
+func (c *Chain) RunCurrentTurn(now time.Time) {
+	defer c.rt.SetNextTurn()
+
+	if !c.IsMyTurn() {
+		return
+	}
+
+	if err := c.ProduceBlock(c.state.Head, now); err != nil {
+		c.Stop()
+	}
+}
+
+// BlockProducingCycle runs a constantly check for a short time resolution.
+func (c *Chain) BlockProducingCycle() {
+	for {
+		select {
+		case <-c.rt.stopCh:
+			return
+		default:
+			if t, d := c.rt.TillNextTurn(); d > 0 {
+				time.Sleep(d)
+			} else {
+				c.RunCurrentTurn(t)
+			}
+		}
+	}
+}
+
+// Sync synchronizes blocks and queries from the other peers.
+//
+// TODO(leventeliu): need implementation.
+func (c *Chain) Sync() error {
+	return nil
+}
+
+// Start starts the main process of the sql-chain.
+func (c *Chain) Start() (err error) {
+	if err = c.Sync(); err != nil {
+		return
+	}
+
+	c.BlockProducingCycle()
+	return
+}
+
+// Stop stops the main process of the sql-chain.
+func (c *Chain) Stop() {
+	c.rt.Stop()
+}
+
+// FetchBlock fetches the block at specified height from local cache.
+func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
+	if n := c.state.node.ancestor(height); n != nil {
+		k := n.indexKey()
+
+		err = c.db.View(func(tx *bolt.Tx) (err error) {
+			v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
+			err = b.UnmarshalBinary(v)
+			return
+		})
+	}
+
+	return
+}
+
+// FetchAckedQuery fetches the acknowledged query from local cache.
+func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
+	ack *types.SignedAckHeader, err error,
+) {
+	return c.qi.GetAck(height, header)
 }

@@ -23,10 +23,11 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
-	pb "github.com/golang/protobuf/proto"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	pbtypes "gitlab.com/thunderdb/ThunderDB/types"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 func TestState(t *testing.T) {
@@ -37,20 +38,20 @@ func TestState(t *testing.T) {
 	}
 
 	rand.Read(state.Head[:])
-	buffer, err := state.marshal()
+	buffer, err := state.MarshalBinary()
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
 	rState := &State{}
-	err = rState.unmarshal(buffer)
+	err = rState.UnmarshalBinary(buffer)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	err = rState.unmarshal(nil)
+	err = rState.UnmarshalBinary(nil)
 
 	if err != nil {
 		t.Logf("Error occurred as expected: %v", err)
@@ -61,27 +62,10 @@ func TestState(t *testing.T) {
 	if !reflect.DeepEqual(state, rState) {
 		t.Fatalf("Values don't match: v1 = %v, v2 = %v", state, rState)
 	}
-
-	buffer, err = pb.Marshal(&pbtypes.State{
-		Head:   &pbtypes.Hash{Hash: []byte("xxxx")},
-		Height: 0,
-	})
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	err = rState.unmarshal(buffer)
-
-	if err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
 }
 
 func TestIndexKey(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		b1, err := createRandomBlock(rootHash, false)
 
 		if err != nil {
@@ -95,8 +79,8 @@ func TestIndexKey(t *testing.T) {
 		}
 
 		// Test partial order
-		bi1 := newBlockNode(b1.SignedHeader, nil)
-		bi2 := newBlockNode(b2.SignedHeader, nil)
+		bi1 := newBlockNode(b1, nil)
+		bi2 := newBlockNode(b2, nil)
 		bi1.height = rand.Int31()
 		bi2.height = rand.Int31()
 		k1 := bi1.indexKey()
@@ -131,30 +115,86 @@ func TestChain(t *testing.T) {
 	}
 
 	chain, err := NewChain(&Config{
-		DataDir: fl.Name(),
-		Genesis: genesis,
+		DataDir:        fl.Name(),
+		Genesis:        genesis,
+		Period:         1 * time.Second,
+		TimeResolution: 100 * time.Millisecond,
+		QueryTTL:       10,
+		Server: &kayak.Server{
+			ID: proto.NodeID("X1"),
+		},
 	})
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	t.Logf("Create new chain: genesis hash = %s", genesis.SignedHeader.BlockHash.String())
+	t.Logf("Create new chain: genesis = %s, inittime = %s, period = %.9f secs",
+		genesis.SignedHeader.BlockHash,
+		chain.rt.ChainInitTime.Format(time.RFC3339Nano),
+		chain.rt.Period.Seconds())
 
 	// Push blocks
-	for block, err := createRandomBlock(
-		genesis.SignedHeader.BlockHash, false,
-	); err == nil; block, err = createRandomBlock(block.SignedHeader.BlockHash, false) {
-		err = chain.PushBlock(block.SignedHeader)
+	for {
+		chain.isMyTurn = (rand.Intn(10) == 0)
+		t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
+			chain.state.Head, chain.state.Height, chain.rt.NextTurn,
+			chain.rt.ChainInitTime.Add(
+				chain.cfg.Period*time.Duration(chain.rt.NextTurn)).Format(time.RFC3339Nano),
+			chain.isMyTurn)
+		acks, err := createRandomQueries(10)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		t.Logf("Pushed new block: height = %d,  %s <- %s",
-			chain.state.Height,
-			block.SignedHeader.ParentHash.String(),
-			block.SignedHeader.BlockHash.String())
+		for _, ack := range acks {
+			if err = chain.VerifyAndPushAckedQuery(ack); err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+		}
+
+		// Run main cycle
+		var now time.Time
+		var d time.Duration
+
+		for {
+			now, d = chain.rt.TillNextTurn()
+
+			t.Logf("Wake up at: now = %s, d = %.9f secs",
+				now.Format(time.RFC3339Nano), d.Seconds())
+
+			if d > 0 {
+				time.Sleep(d)
+			} else {
+				chain.RunCurrentTurn(now)
+				break
+			}
+		}
+
+		// Advise block if it's not my turn
+		if !chain.IsMyTurn() {
+			block, err := createRandomBlockWithQueries(
+				genesis.SignedHeader.BlockHash, chain.state.Head, acks)
+
+			if err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+
+			if err = chain.CheckAndPushNewBlock(block); err != nil {
+				t.Fatalf("Error occurred: %v, block = %+v", err, block)
+			}
+
+			t.Logf("Pushed new block: height = %d,  %s <- %s",
+				chain.state.Height,
+				block.SignedHeader.ParentHash,
+				block.SignedHeader.BlockHash)
+		} else {
+			t.Logf("Produced new block: height = %d,  %s <- %s",
+				chain.state.Height,
+				chain.pendingBlock.SignedHeader.ParentHash,
+				chain.pendingBlock.SignedHeader.BlockHash)
+		}
 
 		if chain.state.Height >= testHeight {
 			break
@@ -167,7 +207,16 @@ func TestChain(t *testing.T) {
 
 	// Reload chain from DB file and rebuild memory cache
 	chain.db.Close()
-	chain, err = LoadChain(&Config{DataDir: fl.Name()})
+	chain, err = LoadChain(&Config{
+		DataDir:        fl.Name(),
+		Genesis:        genesis,
+		Period:         1 * time.Second,
+		TimeResolution: 100 * time.Millisecond,
+		QueryTTL:       10,
+		Server: &kayak.Server{
+			ID: proto.NodeID("X1"),
+		},
+	})
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)

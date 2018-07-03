@@ -18,7 +18,6 @@ package merkle
 
 import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
 // Merkle is a merkle tree implementation (https://en.wikipedia.org/wiki/Merkle_tree)
@@ -42,7 +41,11 @@ func upperPowOfTwo(n int) int {
 
 // NewMerkle generate a merkle tree according
 // to some hashable values like transactions or blocks
-func NewMerkle(items []*sqlchain.Hashable) *Merkle {
+func NewMerkle(items []*hash.Hash) *Merkle {
+	if items == nil || len(items) == 0 {
+		items = []*hash.Hash{&hash.Hash{}}
+	}
+
 	// the max number of merkle tree node = len(items) * 2 + 2
 	upperPoT := upperPowOfTwo(len(items))
 	maxMerkleSize := upperPoT*2 - 1
@@ -50,7 +53,7 @@ func NewMerkle(items []*sqlchain.Hashable) *Merkle {
 
 	// generate merkle tree
 	for i, item := range items {
-		hashArray[i] = (*item).Hash()
+		hashArray[i] = item
 	}
 	offset := upperPoT
 	for i := 0; i < maxMerkleSize-1; i += 2 {

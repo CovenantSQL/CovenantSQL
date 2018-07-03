@@ -36,6 +36,9 @@ var (
 	// ErrSignVerification indicates a failed signature verification.
 	ErrSignVerification = errors.New("signature verification failed")
 
+	// ErrMerkleRootVerification indicates a failed merkle root verificatin.
+	ErrMerkleRootVerification = errors.New("merkle root verification failed")
+
 	// ErrNodePublicKeyNotMatch indicates that the public key given with a node does not match the
 	// one in the key store.
 	ErrNodePublicKeyNotMatch = errors.New("node publick key doesn't match")
@@ -47,7 +50,34 @@ var (
 	// ErrParentNotFound indicates an error failing to find parent node during a chain reloading.
 	ErrParentNotFound = errors.New("could not find parent node")
 
+	// ErrBlockExists indicates that a received block is already in the indexed.
+	ErrBlockExists = errors.New("block already exists")
+
 	// ErrInvalidBlock indicates an invalid block which does not extend the best chain while
 	// pushing new blocks.
 	ErrInvalidBlock = errors.New("invalid block")
+
+	// ErrBlockTimestampOutOfPeriod indicates a block producing timestamp verification failure.
+	ErrBlockTimestampOutOfPeriod = errors.New("block timestamp is out of producing period")
+
+	// ErrMultipleAckOfResponse indicates that multiple acknowledgements for a same query response is
+	// detected.
+	ErrMultipleAckOfResponse = errors.New("multiple acknowledgements of same response")
+
+	// ErrMultipleAckOfSeqNo indicates that multiple acknowledgements for a same sequence number is
+	// detected.
+	ErrMultipleAckOfSeqNo = errors.New("multiple acknowledgements of same sequence number")
+
+	// ErrQueryExpired indicates that a received query Response/Ack has expired.
+	ErrQueryExpired = errors.New("query has expired")
+
+	// ErrQueryNotCached indicates that a wanted query is not cached locally.
+	ErrQueryNotCached = errors.New("query is not cached locally")
+
+	// ErrQuerySignedByAnotherBlock indicates that a query is already signed in a known block
+	// during the verification of a new introduced block.
+	ErrQuerySignedByAnotherBlock = errors.New("query has been packed by another block")
+
+	// ErrCorruptedIndex indecates that a corrupted index item is detected.
+	ErrCorruptedIndex = errors.New("corrupted index item")
 )

@@ -41,23 +41,30 @@ func init() {
 	}
 }
 
+type innerStruct struct {
+	BoolField   bool
+	Int8Field   int8
+	Uint8Field  uint8
+	Int16Field  int16
+	Uint16Field uint16
+	Int32Field  int32
+	Uint32Field uint32
+}
+
 type testStruct struct {
-	BoolField      bool
-	Int8Field      int8
-	Uint8Field     uint8
-	Int16Field     int16
-	Uint16Field    uint16
-	Int32Field     int32
-	Uint32Field    uint32
-	Int64Field     int64
-	Uint64Field    uint64
-	StringField    string
-	BytesField     []byte
-	TimeField      time.Time
-	NodeIDField    proto.NodeID
-	HashField      hash.Hash
-	PublicKeyField *asymmetric.PublicKey
-	SignatureField *asymmetric.Signature
+	innerStruct
+	Int64Field      int64
+	Uint64Field     uint64
+	StringField     string
+	BytesField      []byte
+	TimeField       time.Time
+	NodeIDField     proto.NodeID
+	DatabaseIDField proto.DatabaseID
+	HashField       hash.Hash
+	PublicKeyField  *asymmetric.PublicKey
+	SignatureField  *asymmetric.Signature
+	StringsField    []string
+	HashesField     []*hash.Hash
 }
 
 func (s *testStruct) randomize() {
@@ -81,7 +88,7 @@ func (s *testStruct) randomize() {
 	slen = rand.Intn(2 * pooledBufferLength)
 
 	if slen == 0 {
-		s.BytesField = nil
+		s.BytesField = nil // Watch out, a zero-length slice will is not deep equal to nil
 	} else {
 		s.BytesField = make([]byte, slen)
 		rand.Read(s.BytesField)
@@ -94,6 +101,12 @@ func (s *testStruct) randomize() {
 	buff = make([]byte, slen)
 	rand.Read(buff)
 	s.NodeIDField = proto.NodeID(buff)
+
+	// Randomize DatabaseIDField
+	slen = rand.Intn(2 * pooledBufferLength)
+	buff = make([]byte, slen)
+	rand.Read(buff)
+	s.DatabaseIDField = proto.DatabaseID(buff)
 
 	rand.Read(s.HashField[:])
 
@@ -110,6 +123,67 @@ func (s *testStruct) randomize() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Randomize strings field
+	slen = rand.Intn(1024)
+
+	if slen == 0 {
+		s.StringsField = nil // Watch out, a zero-length slice will is not deep equal to nil
+	} else {
+		s.StringsField = make([]string, slen)
+	}
+
+	for i := range s.StringsField {
+		slen = rand.Intn(2 * pooledBufferLength)
+		buff = make([]byte, slen)
+		rand.Read(buff)
+		s.StringsField[i] = string(buff)
+	}
+
+	// Randomize hashes field
+	slen = rand.Intn(1024)
+
+	if slen == 0 {
+		s.HashesField = nil // Watch out, a zero-length slice will is not deep equal to nil
+	} else {
+		s.HashesField = make([]*hash.Hash, slen)
+	}
+
+	for i := range s.HashesField {
+		s.HashesField[i] = new(hash.Hash)
+		rand.Read(s.HashesField[i][:])
+	}
+}
+
+func (s *innerStruct) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := WriteElements(buffer, binary.BigEndian,
+		s.BoolField,
+		s.Int8Field,
+		s.Uint8Field,
+		s.Int16Field,
+		s.Uint16Field,
+		s.Int32Field,
+		s.Uint32Field,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (s *innerStruct) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return ReadElements(reader, binary.BigEndian,
+		&s.BoolField,
+		&s.Int8Field,
+		&s.Uint8Field,
+		&s.Int16Field,
+		&s.Uint16Field,
+		&s.Int32Field,
+		&s.Uint32Field,
+	)
 }
 
 func (s *testStruct) MarshalBinary() ([]byte, error) {
@@ -129,9 +203,12 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.BytesField,
 		s.TimeField,
 		s.NodeIDField,
+		s.DatabaseIDField,
 		s.HashField,
 		s.PublicKeyField,
 		s.SignatureField,
+		s.StringsField,
+		s.HashesField,
 	); err != nil {
 		return nil, err
 	}
@@ -156,9 +233,36 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.BytesField,
 		&s.TimeField,
 		&s.NodeIDField,
+		&s.DatabaseIDField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
+		&s.StringsField,
+		&s.HashesField,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (s *testStruct) MarshalBinary3() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := WriteElements(buffer, binary.BigEndian,
+		&s.innerStruct,
+		&s.Int64Field,
+		&s.Uint64Field,
+		&s.StringField,
+		&s.BytesField,
+		&s.TimeField,
+		&s.NodeIDField,
+		&s.DatabaseIDField,
+		&s.HashField,
+		&s.PublicKeyField,
+		&s.SignatureField,
+		&s.StringsField,
+		&s.HashesField,
 	); err != nil {
 		return nil, err
 	}
@@ -182,9 +286,31 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.BytesField,
 		&s.TimeField,
 		&s.NodeIDField,
+		&s.DatabaseIDField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
+		&s.StringsField,
+		&s.HashesField,
+	)
+}
+
+func (s *testStruct) UnmarshalBinary2(b []byte) error {
+	reader := bytes.NewReader(b)
+	return ReadElements(reader, binary.BigEndian,
+		&s.innerStruct,
+		&s.Int64Field,
+		&s.Uint64Field,
+		&s.StringField,
+		&s.BytesField,
+		&s.TimeField,
+		&s.NodeIDField,
+		&s.DatabaseIDField,
+		&s.HashField,
+		&s.PublicKeyField,
+		&s.SignatureField,
+		&s.StringsField,
+		&s.HashesField,
 	)
 }
 
@@ -239,6 +365,8 @@ func TestSerialization(t *testing.T) {
 
 			for i := 0; i < testRounds; i++ {
 				ots.randomize()
+
+				// Test MarshalBinary/MarshalBinary2 <==> UnmarshalBinary
 				oenc, err := ots.MarshalBinary()
 
 				if err != nil {
@@ -263,7 +391,7 @@ func TestSerialization(t *testing.T) {
 					t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
 				}
 
-				renc, err := rts.MarshalBinary2()
+				renc, err := ots.MarshalBinary2()
 
 				if err != nil {
 					t.Errorf("Error occurred: %v", err)
@@ -274,11 +402,87 @@ func TestSerialization(t *testing.T) {
 				if rhash != ohash {
 					t.Errorf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
 				}
+
+				// Test MarshalBinary3 <==> UnmarshalBinary2
+				oenc, err = ots.MarshalBinary3()
+
+				if err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+
+				ohash = hash.HashH(oenc)
+
+				if err = rts.UnmarshalBinary2(oenc); err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+
+				if !rts.SignatureField.Verify(rts.HashField[:], rts.PublicKeyField) {
+					t.Errorf("Failed to verify signature: hash=%s, sign=%+v, pub=%+v",
+						rts.HashField.String(),
+						rts.SignatureField,
+						rts.PublicKeyField,
+					)
+				}
+
+				if !reflect.DeepEqual(ots, rts) {
+					t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+				}
+
+				renc, err = ots.MarshalBinary3()
+
+				if err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+
+				rhash = hash.HashH(renc)
+
+				if rhash != ohash {
+					t.Errorf("Hash result not match: %s v.s. %s", ohash.String(), rhash.String())
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
+}
+
+func TestLengthExceedLimitError(t *testing.T) {
+	writeDummyLength := func(l uint32) ([]byte, error) {
+		buffer := bytes.NewBuffer(nil)
+
+		if err := WriteElements(buffer, binary.BigEndian, l); err != nil {
+			return nil, err
+		}
+
+		return buffer.Bytes(), nil
+	}
+
+	var buffer []byte
+	var err error
+
+	buffer, err = writeDummyLength(maxSliceLength + 1)
+	err = func(b []byte) error {
+		reader := bytes.NewReader(b)
+		return ReadElements(reader, binary.BigEndian, &[]string{})
+	}(buffer)
+
+	if err == ErrSliceLengthExceedLimit {
+		t.Logf("Error occurred as expected: %v", err)
+	} else {
+		t.Fatalf("Unexpected error type: %v", err)
+	}
+
+	buffer, err = writeDummyLength(maxBufferLength + 1)
+	err = func(b []byte) error {
+		reader := bytes.NewReader(b)
+		return ReadElements(reader, binary.BigEndian, &[]byte{})
+	}(buffer)
+
+	if err == ErrBufferLengthExceedLimit {
+		t.Logf("Error occurred as expected: %v", err)
+	} else {
+		t.Fatalf("Unexpected error type: %v", err)
+	}
 }
 
 func BenchmarkMarshalBinary(b *testing.B) {
@@ -311,6 +515,21 @@ func BenchmarkMarshalBinary2(b *testing.B) {
 	}
 }
 
+func BenchmarkMarshalBinary3(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		b.StartTimer()
+
+		if _, err := st.MarshalBinary3(); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
+}
+
 func BenchmarkUnmarshalBinary(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
@@ -325,6 +544,27 @@ func BenchmarkUnmarshalBinary(b *testing.B) {
 		b.StartTimer()
 
 		if err = st.UnmarshalBinary(enc); err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StopTimer()
+	}
+}
+
+func BenchmarkUnmarshalBinary2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		st := &testStruct{}
+		st.randomize()
+		enc, err := st.MarshalBinary3()
+
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.StartTimer()
+
+		if err = st.UnmarshalBinary2(enc); err != nil {
 			b.Fatalf("Error occurred: %v", err)
 		}
 

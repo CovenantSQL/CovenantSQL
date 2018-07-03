@@ -25,6 +25,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // ResponseRow defines single row of query response.
@@ -217,4 +218,39 @@ func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 
 	// sign the request
 	return sh.Header.Sign(signer)
+}
+
+// MarshalBinary implements BinaryMarshaler.
+func (sh *SignedResponseHeader) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := utils.WriteElements(buffer, binary.BigEndian,
+		&sh.Request,
+		&sh.NodeID,
+		sh.Timestamp,
+		sh.RowCount,
+		&sh.DataHash,
+		&sh.HeaderHash,
+		sh.Signee,
+		sh.Signature,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (sh *SignedResponseHeader) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+	return utils.ReadElements(reader, binary.BigEndian,
+		&sh.Request,
+		&sh.NodeID,
+		&sh.Timestamp,
+		&sh.RowCount,
+		&sh.DataHash,
+		&sh.HeaderHash,
+		&sh.Signee,
+		&sh.Signature,
+	)
 }

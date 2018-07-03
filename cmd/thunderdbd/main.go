@@ -65,7 +65,7 @@ var (
 const Role = common.BlockProducer
 
 const name = `thunderdbd`
-const desc = `ThunderDB is a database`
+const desc = `ThunderDB is a Distributed Database running on BlockChain`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
@@ -81,6 +81,7 @@ func init() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
+		fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
 		flag.PrintDefaults()
 	}
 }

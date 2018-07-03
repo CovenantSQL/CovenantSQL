@@ -20,6 +20,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -60,6 +64,26 @@ var (
 	BP *conf.BPInfo
 )
 
+func init() {
+
+	// if we were running go test
+	if strings.HasSuffix(os.Args[0], ".test") || strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
+		_, testFile, _, _ := runtime.Caller(0)
+		confFile := filepath.Join(filepath.Dir(testFile), "config.yaml")
+		log.Errorf("Current test filename: %s", confFile)
+		log.Errorf("os.Args: %v", os.Args)
+
+		var err error
+		conf.GConf, err = conf.LoadConfig(confFile)
+		if err != nil {
+			log.Fatalf("load config for test in kms failed: %s", err)
+		}
+		conf.GConf.GenerateKeyPair = true
+		InitBP()
+	}
+}
+
+// InitBP initializes kms.BP struct with conf.GConf
 func InitBP() {
 	if conf.GConf == nil {
 		log.Fatal("Must call conf.LoadConfig first")

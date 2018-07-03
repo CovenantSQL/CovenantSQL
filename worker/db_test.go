@@ -25,6 +25,7 @@ import (
 
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -448,7 +449,7 @@ func getPeers() (peers *kayak.Peers, err error) {
 
 	// generate peers and sign
 	server := &kayak.Server{
-		Role:   kayak.Leader,
+		Role:   conf.Leader,
 		ID:     nodeID,
 		PubKey: pubKey,
 	}

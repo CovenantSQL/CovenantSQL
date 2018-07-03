@@ -28,7 +28,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"golang.org/x/crypto/ssh/terminal"
@@ -119,7 +118,7 @@ func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err e
 		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
 		for _, bp := range (*conf.GConf.KnownNodes)[:] {
-			if bp.Role == kayak.Leader || bp.Role == kayak.Follower {
+			if bp.Role == conf.Leader || bp.Role == conf.Follower {
 				if conn, err = rpc.DialToNode(bp.ID, connPool); err != nil {
 					return
 				}

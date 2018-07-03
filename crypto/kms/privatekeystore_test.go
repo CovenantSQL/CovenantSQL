@@ -27,6 +27,7 @@ import (
 	"bytes"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/symmetric"
 )
@@ -101,6 +102,7 @@ func TestLoadPrivateKey(t *testing.T) {
 
 func TestInitLocalKeyPair(t *testing.T) {
 	Convey("InitLocalKeyPair", t, func() {
+		conf.GConf.GenerateKeyPair = true
 		defer os.Remove(privateKeyPath)
 		err := InitLocalKeyPair(privateKeyPath, []byte(password))
 		So(err, ShouldBeNil)

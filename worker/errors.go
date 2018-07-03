@@ -27,4 +27,10 @@ var (
 
 	// ErrMultipleQuery defines error on executing multiple select query in single request.
 	ErrMultipleQuery = errors.New("multiple query in single request")
+
+	// ErrAlreadyExists defines error on re-creating existing database instance.
+	ErrAlreadyExists = errors.New("database instance already exists")
+
+	// ErrNotExists defines errors on manipulating a non-exists database instance.
+	ErrNotExists = errors.New("database instance not exists")
 )

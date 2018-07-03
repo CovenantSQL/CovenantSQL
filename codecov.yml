@@ -11,9 +11,7 @@ coverage:
     project:
       default:
         threshold: 3
-    patch:
-      default:
-        threshold: 15
+    patch: no
     changes: no
 
 parsers:

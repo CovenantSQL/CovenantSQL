@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -29,9 +30,18 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+)
+
+const (
+	// StorageFileName defines storage file name of database instance.
+	StorageFileName = "storage.db3"
+
+	// SQLChainFileName defines sqlchain storage file name.
+	SQLChainFileName = "chain.db"
 )
 
 // Database defines a single database instance in worker runtime.
@@ -42,10 +52,11 @@ type Database struct {
 	kayakRuntime *kayak.Runtime
 	kayakConfig  kayak.Config
 	connSeqs     sync.Map
+	chain        *sqlchain.Chain
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *DBConfig, peers *kayak.Peers, st *storage.Storage) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *sqlchain.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
@@ -53,9 +64,62 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, st *storage.Storage) (db *Da
 
 	// init database
 	db = &Database{
-		cfg:     cfg,
-		dbID:    cfg.DatabaseID,
-		storage: st,
+		cfg:  cfg,
+		dbID: cfg.DatabaseID,
+	}
+
+	defer func() {
+		// on error recycle all resources
+		if err != nil {
+			// stop kayak runtime
+			if db.kayakRuntime != nil {
+				db.kayakRuntime.Shutdown()
+			}
+
+			// close chain
+			if db.chain != nil {
+				// TODO(xq262144), close chain
+			}
+
+			// close storage
+			if db.storage != nil {
+				db.storage.Close()
+			}
+		}
+	}()
+
+	// init storage
+	storageFile := filepath.Join(cfg.DataDir, StorageFileName)
+	if db.storage, err = storage.New(storageFile); err != nil {
+		return
+	}
+
+	// init chain
+	var nodeID proto.NodeID
+	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
+	if nodeID, err = getLocalNodeID(); err != nil {
+		return
+	}
+
+	// TODO(xq262144), make sqlchain config use of global config object
+	chainCfg := &sqlchain.Config{
+		DataDir: chainFile,
+		Genesis: genesisBlock,
+		Peers:   peers,
+
+		// TODO(xq262144), should refactor server/node definition to conf/proto package
+		// currently sqlchain package only use Server.ID as node id
+		Server: &kayak.Server{
+			ID: nodeID,
+		},
+
+		// TODO(xq261244), currently using fixed period/resolution from sqlchain test case
+		Period:         1 * time.Second,
+		TimeResolution: 100 * time.Millisecond,
+		QueryTTL:       10,
+	}
+	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
+		return
 	}
 
 	// init kayak config
@@ -113,6 +177,14 @@ func (db *Database) Shutdown() (err error) {
 		return
 	}
 
+	// stop chain
+	// TODO(xq262144), stop chain if possible
+
+	// stop storage
+	if err = db.storage.Close(); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -162,12 +234,12 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 	// build response
 	response = new(wt.Response)
 	response.Header.Request = request.Header
-	if response.Header.NodeID, err = db.getLocalNodeID(); err != nil {
+	if response.Header.NodeID, err = getLocalNodeID(); err != nil {
 		return
 	}
-	response.Header.Timestamp = db.getLocalTime()
+	response.Header.Timestamp = getLocalTime()
 	response.Header.RowCount = uint64(len(data))
-	if response.Header.Signee, err = db.getLocalPubKey(); err != nil {
+	if response.Header.Signee, err = getLocalPubKey(); err != nil {
 		return
 	}
 
@@ -182,7 +254,7 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 
 	// sign fields
 	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = db.getLocalPrivateKey(); err != nil {
+	if privateKey, err = getLocalPrivateKey(); err != nil {
 		return
 	}
 	if err = response.Sign(privateKey); err != nil {
@@ -207,12 +279,12 @@ func (db *Database) saveAck(ack *wt.Ack) (err error) {
 	return
 }
 
-func (db *Database) getLocalTime() time.Time {
+func getLocalTime() time.Time {
 	// TODO(xq262144), to use same time coordination logic with sqlchain
 	return time.Now().UTC()
 }
 
-func (db *Database) getLocalNodeID() (nodeID proto.NodeID, err error) {
+func getLocalNodeID() (nodeID proto.NodeID, err error) {
 	// TODO(xq262144), to use refactored node id interface by kms
 	var rawNodeID []byte
 	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -226,10 +298,10 @@ func (db *Database) getLocalNodeID() (nodeID proto.NodeID, err error) {
 	return
 }
 
-func (db *Database) getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {
+func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {
 	return kms.GetLocalPublicKey()
 }
 
-func (db *Database) getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
+func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
 }

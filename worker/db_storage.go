@@ -102,7 +102,7 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 
 	// verify timestamp
 	// TODO(xq262144), maybe using central time service
-	nowTime := db.getLocalTime()
+	nowTime := getLocalTime()
 	minTime := nowTime.Add(-db.cfg.MaxWriteTimeGap)
 	maxTime := nowTime.Add(db.cfg.MaxWriteTimeGap)
 

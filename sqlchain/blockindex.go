@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
 type blockNode struct {
@@ -29,7 +30,7 @@ type blockNode struct {
 	height int32
 }
 
-func newBlockNode(block *Block, parent *blockNode) *blockNode {
+func newBlockNode(block *ct.Block, parent *blockNode) *blockNode {
 	return &blockNode{
 		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
@@ -43,7 +44,7 @@ func newBlockNode(block *Block, parent *blockNode) *blockNode {
 	}
 }
 
-func (bn *blockNode) initBlockNode(block *Block, parent *blockNode) {
+func (bn *blockNode) initBlockNode(block *ct.Block, parent *blockNode) {
 	bn.hash = block.SignedHeader.BlockHash
 	bn.parent = nil
 	bn.height = 0

@@ -114,7 +114,7 @@ func TestEnsureRange(t *testing.T) {
 func TestCheckAckFromBlock(t *testing.T) {
 	qi := NewQueryIndex()
 	qi.AdvanceBarrier(10)
-	b1, err := createRandomBlock(rootHash, false)
+	b1, err := createRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -135,7 +135,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	// Test a query signed by another block
-	b2, err := createRandomBlock(rootHash, false)
+	b2, err := createRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -195,7 +195,7 @@ func TestQueryIndex(t *testing.T) {
 	// Create some responses and acknowledgements and insert to index
 	for i := 0; i < testBucketNumber; i++ {
 		qi.AdvanceBarrier(int32(i))
-		block, err := createRandomBlock(rootHash, false)
+		block, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)

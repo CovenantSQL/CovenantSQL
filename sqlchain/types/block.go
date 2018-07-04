@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package sqlchain
+package types
 
 import (
 	"bytes"

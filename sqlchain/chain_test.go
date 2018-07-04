@@ -66,13 +66,13 @@ func TestState(t *testing.T) {
 
 func TestIndexKey(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		b1, err := createRandomBlock(rootHash, false)
+		b1, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		b2, err := createRandomBlock(rootHash, false)
+		b2, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
@@ -108,7 +108,7 @@ func TestChain(t *testing.T) {
 	fl.Close()
 
 	// Create new chain
-	genesis, err := createRandomBlock(rootHash, true)
+	genesis, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -192,8 +192,8 @@ func TestChain(t *testing.T) {
 		} else {
 			t.Logf("Produced new block: height = %d,  %s <- %s",
 				chain.state.Height,
-				chain.pendingBlock.SignedHeader.ParentHash,
-				chain.pendingBlock.SignedHeader.BlockHash)
+				chain.rt.pendingBlock.SignedHeader.ParentHash,
+				chain.rt.pendingBlock.SignedHeader.BlockHash)
 		}
 
 		if chain.state.Height >= testHeight {

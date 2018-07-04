@@ -30,19 +30,6 @@ var (
 	// length before read it back from a slice field to a fixed size array field.
 	ErrFieldLength = errors.New("unexpected slice field length")
 
-	// ErrHashVerification indicates a failed hash verification.
-	ErrHashVerification = errors.New("hash verification failed")
-
-	// ErrSignVerification indicates a failed signature verification.
-	ErrSignVerification = errors.New("signature verification failed")
-
-	// ErrMerkleRootVerification indicates a failed merkle root verificatin.
-	ErrMerkleRootVerification = errors.New("merkle root verification failed")
-
-	// ErrNodePublicKeyNotMatch indicates that the public key given with a node does not match the
-	// one in the key store.
-	ErrNodePublicKeyNotMatch = errors.New("node publick key doesn't match")
-
 	// ErrNilValue indicates that an unexpected but not fatal nil value is detected , hence return
 	// it as an error.
 	ErrNilValue = errors.New("unexpected nil value")

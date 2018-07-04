@@ -20,14 +20,15 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/worker/types"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // Config represents a sql-chain config.
 type Config struct {
 	DataDir string
 
-	Genesis        *Block
+	Genesis        *ct.Block
 	Period         time.Duration
 	TimeResolution time.Duration
 
@@ -35,7 +36,7 @@ type Config struct {
 	Server *kayak.Server
 
 	// Price sets query price in gases.
-	Price map[types.QueryType]uint32
+	Price map[wt.QueryType]uint32
 
 	// QueryTTL sets the unacknowledged query TTL in block periods.
 	QueryTTL int32
@@ -47,6 +48,6 @@ func (c *Config) GetHeightFromTime(t time.Time) int32 {
 }
 
 // GetQueryGas gets the consumption of gas for a specified query type.
-func (c *Config) GetQueryGas(t types.QueryType) uint32 {
+func (c *Config) GetQueryGas(t wt.QueryType) uint32 {
 	return c.Price[t]
 }

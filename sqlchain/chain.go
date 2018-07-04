@@ -26,8 +26,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/worker/types"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (
@@ -80,7 +81,8 @@ type Runtime struct {
 	// NextTurn is the height of the next block.
 	NextTurn int32
 
-	stopCh chan struct{}
+	pendingBlock *ct.Block
+	stopCh       chan struct{}
 }
 
 // UpdateTime updates the current coodinated chain time.
@@ -148,13 +150,12 @@ func (s *State) UnmarshalBinary(b []byte) (err error) {
 
 // Chain represents a sql-chain.
 type Chain struct {
-	cfg          *Config
-	db           *bolt.DB
-	bi           *blockIndex
-	qi           *QueryIndex
-	rt           *Runtime
-	pendingBlock *Block
-	state        *State
+	cfg   *Config
+	db    *bolt.DB
+	bi    *blockIndex
+	qi    *QueryIndex
+	rt    *Runtime
+	state *State
 
 	// Only for test
 	isMyTurn bool
@@ -211,18 +212,18 @@ func NewChain(cfg *Config) (chain *Chain, err error) {
 			ChainInitTime:  cfg.Genesis.SignedHeader.Timestamp,
 			TimeResolution: cfg.TimeResolution,
 			NextTurn:       1,
-			stopCh:         make(chan struct{}),
-		},
-		pendingBlock: &Block{
-			SignedHeader: SignedHeader{
-				Header: Header{
-					Version:     0x01000000,
-					Producer:    cfg.Server.ID,
-					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
-					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+			pendingBlock: &ct.Block{
+				SignedHeader: ct.SignedHeader{
+					Header: ct.Header{
+						Version:     0x01000000,
+						Producer:    cfg.Server.ID,
+						GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
+						ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+					},
+					Signee: pub,
 				},
-				Signee: pub,
 			},
+			stopCh: make(chan struct{}),
 		},
 		state: &State{
 			node:   nil,
@@ -266,18 +267,18 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			Period:         cfg.Period,
 			TimeResolution: cfg.TimeResolution,
 			NextTurn:       1,
-			stopCh:         make(chan struct{}),
-		},
-		pendingBlock: &Block{
-			SignedHeader: SignedHeader{
-				Header: Header{
-					Version:     0x01000000,
-					Producer:    cfg.Server.ID,
-					GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
-					ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+			pendingBlock: &ct.Block{
+				SignedHeader: ct.SignedHeader{
+					Header: ct.Header{
+						Version:     0x01000000,
+						Producer:    cfg.Server.ID,
+						GenesisHash: cfg.Genesis.SignedHeader.BlockHash,
+						ParentHash:  cfg.Genesis.SignedHeader.BlockHash,
+					},
+					Signee: pub,
 				},
-				Signee: pub,
 			},
+			stopCh: make(chan struct{}),
 		},
 		state: &State{},
 	}
@@ -298,7 +299,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		nodes := make([]blockNode, blocks.Stats().KeyN)
 
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
-			block := &Block{}
+			block := &ct.Block{}
 
 			if err = block.UnmarshalBinary(v); err != nil {
 				return
@@ -335,8 +336,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 		// Read queries and rebuild memory index
 		heights := meta.Bucket(metaHeightIndexBucket)
-		resp := &types.SignedResponseHeader{}
-		ack := &types.SignedAckHeader{}
+		resp := &wt.SignedResponseHeader{}
+		ack := &wt.SignedAckHeader{}
 
 		if err = heights.ForEach(func(k, v []byte) (err error) {
 			h := KeyToHeight(k)
@@ -378,7 +379,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // PushBlock pushes the signed block header to extend the current main chain.
-func (c *Chain) PushBlock(b *Block) (err error) {
+func (c *Chain) PushBlock(b *ct.Block) (err error) {
 	// Prepare and encode
 	h := c.cfg.GetHeightFromTime(b.SignedHeader.Timestamp)
 	node := newBlockNode(b, c.state.node)
@@ -442,7 +443,7 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 }
 
 // PushResponedQuery pushes a responsed, signed and verified query into the chain.
-func (c *Chain) PushResponedQuery(resp *types.SignedResponseHeader) (err error) {
+func (c *Chain) PushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(resp.Request.Timestamp)
 	k := HeightToKey(h)
 	var enc []byte
@@ -469,7 +470,7 @@ func (c *Chain) PushResponedQuery(resp *types.SignedResponseHeader) (err error) 
 }
 
 // PushAckedQuery pushed a acknowledged, signed and verified query into the chain.
-func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
+func (c *Chain) PushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	h := c.cfg.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := HeightToKey(h)
 	var enc []byte
@@ -498,7 +499,7 @@ func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 		}
 
 		if c.IsMyTurn() {
-			c.pendingBlock.PushAckedQuery(&ack.HeaderHash)
+			c.rt.pendingBlock.PushAckedQuery(&ack.HeaderHash)
 		}
 
 		return
@@ -506,7 +507,7 @@ func (c *Chain) PushAckedQuery(ack *types.SignedAckHeader) (err error) {
 }
 
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
-func (c *Chain) CheckAndPushNewBlock(block *Block) (err error) {
+func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	// Pushed block must extend the best chain
 	if !block.SignedHeader.ParentHash.IsEqual(&c.state.Head) {
 		return ErrInvalidBlock
@@ -566,7 +567,7 @@ func (c *Chain) queryTimeIsExpired(t time.Time) bool {
 }
 
 // VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushResponsedQuery(resp *types.SignedResponseHeader) (err error) {
+func (c *Chain) VerifyAndPushResponsedQuery(resp *wt.SignedResponseHeader) (err error) {
 	// TODO(leventeliu): check resp.
 	if c.queryTimeIsExpired(resp.Timestamp) {
 		return ErrQueryExpired
@@ -580,7 +581,7 @@ func (c *Chain) VerifyAndPushResponsedQuery(resp *types.SignedResponseHeader) (e
 }
 
 // VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
+func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
 	if c.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
 		return ErrQueryExpired
@@ -610,18 +611,18 @@ func (c *Chain) ProduceBlock(parent hash.Hash, now time.Time) (err error) {
 	}
 
 	// Sign pending block
-	c.pendingBlock.SignedHeader.ParentHash = c.state.Head
-	c.pendingBlock.SignedHeader.Timestamp = now
-	c.pendingBlock.SignedHeader.ParentHash = parent
+	c.rt.pendingBlock.SignedHeader.ParentHash = c.state.Head
+	c.rt.pendingBlock.SignedHeader.Timestamp = now
+	c.rt.pendingBlock.SignedHeader.ParentHash = parent
 
-	if err = c.pendingBlock.PackAndSignBlock(priv); err != nil {
+	if err = c.rt.pendingBlock.PackAndSignBlock(priv); err != nil {
 		return
 	}
 
 	// TODO(leventeliu): advise new block
 	// ...
 
-	if err = c.PushBlock(c.pendingBlock); err != nil {
+	if err = c.PushBlock(c.rt.pendingBlock); err != nil {
 		return
 	}
 
@@ -680,7 +681,7 @@ func (c *Chain) Stop() {
 }
 
 // FetchBlock fetches the block at specified height from local cache.
-func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
+func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 	if n := c.state.node.ancestor(height); n != nil {
 		k := n.indexKey()
 
@@ -696,7 +697,7 @@ func (c *Chain) FetchBlock(height int32) (b *Block, err error) {
 
 // FetchAckedQuery fetches the acknowledged query from local cache.
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
-	ack *types.SignedAckHeader, err error,
+	ack *wt.SignedAckHeader, err error,
 ) {
 	return c.qi.GetAck(height, header)
 }

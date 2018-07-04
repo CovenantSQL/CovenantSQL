@@ -18,7 +18,8 @@ package sqlchain
 
 import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/worker/types"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // ChainRPCServer defines a sql-chain RPC server.
@@ -28,7 +29,7 @@ type ChainRPCServer struct {
 
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
-	Block *Block
+	Block *ct.Block
 }
 
 // AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
@@ -45,7 +46,7 @@ type AdviseBinLogResp struct {
 
 // AdviseResponsedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type AdviseResponsedQueryReq struct {
-	Query *types.SignedResponseHeader
+	Query *wt.SignedResponseHeader
 }
 
 // AdviseResponsedQueryResp defines a response of the AdviseAckedQuery RPC method.
@@ -54,7 +55,7 @@ type AdviseResponsedQueryResp struct {
 
 // AdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type AdviseAckedQueryReq struct {
-	Query *types.SignedAckHeader
+	Query *wt.SignedAckHeader
 }
 
 // AdviseAckedQueryResp defines a response of the AdviseAckedQuery RPC method.
@@ -69,7 +70,7 @@ type FetchBlockReq struct {
 // FetchBlockResp defines a response of the FetchBlock RPC method.
 type FetchBlockResp struct {
 	Height int32
-	Block  *Block
+	Block  *ct.Block
 }
 
 // FetchAckedQueryReq defines a request of the FetchAckedQuery RPC method.
@@ -80,7 +81,7 @@ type FetchAckedQueryReq struct {
 
 // FetchAckedQueryResp defines a request of the FetchAckedQuery RPC method.
 type FetchAckedQueryResp struct {
-	Ack *types.SignedAckHeader
+	Ack *wt.SignedAckHeader
 }
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.

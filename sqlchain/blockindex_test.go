@@ -20,16 +20,17 @@ import (
 	"testing"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
 var (
-	testBlocks []*Block
+	testBlocks []*ct.Block
 )
 
 func generateTestBlocks() (err error) {
-	testBlocks = make([]*Block, 0, testHeight)
+	testBlocks = make([]*ct.Block, 0, testHeight)
 
-	for index, prev := int32(0), rootHash; index < testHeight; index++ {
+	for index, prev := int32(0), genesisHash; index < testHeight; index++ {
 		b, err := createRandomBlock(prev, false)
 
 		if err != nil {

@@ -37,7 +37,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -77,7 +77,7 @@ func TestSingleDatabase(t *testing.T) {
 		}
 
 		// create genesis block
-		var block *sqlchain.Block
+		var block *ct.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -308,7 +308,7 @@ func TestInitFailed(t *testing.T) {
 		}
 
 		// create genesis block
-		var block *sqlchain.Block
+		var block *ct.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -356,7 +356,7 @@ func TestDatabaseRecycle(t *testing.T) {
 		}
 
 		// create genesis block
-		var block *sqlchain.Block
+		var block *ct.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -599,7 +599,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 }
 
 // copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *sqlchain.Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -610,9 +610,9 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *sqlchain.Block, err
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &sqlchain.Block{
-		SignedHeader: sqlchain.SignedHeader{
-			Header: sqlchain.Header{
+	b = &ct.Block{
+		SignedHeader: ct.SignedHeader{
+			Header: ct.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,

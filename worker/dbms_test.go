@@ -26,6 +26,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -33,10 +34,9 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 )
 
 var (
@@ -73,7 +73,7 @@ func TestDBMS(t *testing.T) {
 		var req *wt.UpdateService
 		var res wt.UpdateServiceResponse
 		var peers *kayak.Peers
-		var block *sqlchain.Block
+		var block *ct.Block
 
 		dbID := proto.DatabaseID("db")
 

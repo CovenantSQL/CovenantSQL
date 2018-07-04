@@ -26,7 +26,7 @@ import (
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -200,7 +200,7 @@ func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error)
 	}
 
 	// parse genesis block
-	var block *sqlchain.Block
+	var block *ct.Block
 
 	// TODO(xq262144), temporary using msgpack marshal/unmarshal
 	// TODO(xq262144), to be refined later using optimal sqlchain api

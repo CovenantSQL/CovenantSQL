@@ -79,7 +79,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 			// close chain
 			if db.chain != nil {
-				// TODO(xq262144), close chain
+				db.chain.Stop()
 			}
 
 			// close storage
@@ -104,9 +104,9 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// TODO(xq262144), make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
-		DataDir: chainFile,
-		Genesis: genesisBlock,
-		Peers:   peers,
+		DataFile: chainFile,
+		Genesis:  genesisBlock,
+		Peers:    peers,
 
 		// TODO(xq262144), should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
@@ -120,6 +120,8 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		QueryTTL: 10,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
+		return
+	} else if err = db.chain.Start(); err != nil {
 		return
 	}
 
@@ -179,7 +181,9 @@ func (db *Database) Shutdown() (err error) {
 	}
 
 	// stop chain
-	// TODO(xq262144), stop chain if possible
+	if err = db.chain.Stop(); err != nil {
+		return
+	}
 
 	// stop storage
 	if err = db.storage.Close(); err != nil {

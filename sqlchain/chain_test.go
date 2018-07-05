@@ -117,7 +117,7 @@ func TestChain(t *testing.T) {
 	}
 
 	chain, err := NewChain(&Config{
-		DataDir:  fl.Name(),
+		DataFile: fl.Name(),
 		Genesis:  genesis,
 		Period:   1 * time.Second,
 		Tick:     100 * time.Millisecond,
@@ -225,7 +225,7 @@ func TestChain(t *testing.T) {
 	// Reload chain from DB file and rebuild memory cache
 	chain.db.Close()
 	chain, err = LoadChain(&Config{
-		DataDir:  fl.Name(),
+		DataFile: fl.Name(),
 		Genesis:  genesis,
 		Period:   1 * time.Second,
 		Tick:     100 * time.Millisecond,

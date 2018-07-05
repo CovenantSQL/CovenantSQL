@@ -15,29 +15,3 @@
  */
 
 package sqlchain
-
-import (
-	"time"
-
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-)
-
-// Config represents a sql-chain config.
-type Config struct {
-	DataFile string
-
-	Genesis *ct.Block
-	Period  time.Duration
-	Tick    time.Duration
-
-	Peers  *kayak.Peers
-	Server *kayak.Server
-
-	// Price sets query price in gases.
-	Price map[wt.QueryType]uint32
-
-	// QueryTTL sets the unacknowledged query TTL in block periods.
-	QueryTTL int32
-}

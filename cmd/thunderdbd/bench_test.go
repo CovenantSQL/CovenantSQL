@@ -94,21 +94,21 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	if client, err = rpc.InitClientConn(conn); err != nil {
 		return
 	}
-	var reqType = "FindValue"
+	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
 
-	reqFindValue := &proto.FindValueReq{
+	reqFindNeighbor := &proto.FindNeighborReq{
 		NodeID: proto.NodeID(nodePayload.ID),
 		Count:  1,
 	}
-	respFindValue := new(proto.FindValueResp)
-	log.Debugf("req %s: %v", reqType, reqFindValue)
+	respFindNeighbor := new(proto.FindNeighborResp)
+	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
 
 	b.Run("benchmark "+reqType, func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err = client.Call("DHT."+reqType, reqFindValue, respFindValue)
+			err = client.Call("DHT."+reqType, reqFindNeighbor, respFindNeighbor)
 			if err != nil {
 				log.Fatal(err)
 			}

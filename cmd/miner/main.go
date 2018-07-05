@@ -130,5 +130,7 @@ func main() {
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
+	//reg := metric.StartMetricCollector()
+
 	log.Info("miner stopped")
 }

@@ -77,7 +77,7 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 
 	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&clientOperation, "operation", "FindValue", "client operation")
+	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)

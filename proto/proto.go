@@ -54,15 +54,15 @@ type PingResp struct {
 	Envelope
 }
 
-// FindValueReq is FindValue RPC request
-type FindValueReq struct {
+// FindNeighborReq is FindNeighbor RPC request
+type FindNeighborReq struct {
 	NodeID NodeID
 	Count  int
 	Envelope
 }
 
-// FindValueResp is FindValue RPC response
-type FindValueResp struct {
+// FindNeighborResp is FindNeighbor RPC response
+type FindNeighborResp struct {
 	Nodes []Node
 	Msg   string
 	Envelope

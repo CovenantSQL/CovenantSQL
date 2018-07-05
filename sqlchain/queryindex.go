@@ -336,14 +336,14 @@ func (i *MultiIndex) CheckAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 }
 
 // MarkAndCollectUnsignedAcks marks and collects all the unsigned acknowledgements in the index.
-func (i *MultiIndex) MarkAndCollectUnsignedAcks(qs []*hash.Hash) {
+func (i *MultiIndex) MarkAndCollectUnsignedAcks(qs *[]*hash.Hash) {
 	i.Lock()
 	defer i.Unlock()
 
 	for _, q := range i.SeqIndex {
 		if ack := q.FirstAck; ack != nil && ack.SignedBlock == nil {
 			ack.SignedBlock = placeHolder
-			qs = append(qs, &ack.Ack.HeaderHash)
+			*qs = append(*qs, &ack.Ack.HeaderHash)
 		}
 	}
 }
@@ -454,7 +454,7 @@ func (i *QueryIndex) MarkAndCollectUnsignedAcks(height int32) (qs []*hash.Hash) 
 
 	for x := i.barrier; x < height; x++ {
 		if hi, ok := i.heightIndex[x]; ok {
-			hi.MarkAndCollectUnsignedAcks(qs)
+			hi.MarkAndCollectUnsignedAcks(&qs)
 		}
 	}
 

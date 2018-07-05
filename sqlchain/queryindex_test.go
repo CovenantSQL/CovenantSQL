@@ -112,8 +112,9 @@ func TestEnsureRange(t *testing.T) {
 }
 
 func TestCheckAckFromBlock(t *testing.T) {
+	var height int32 = 10
 	qi := NewQueryIndex()
-	qi.AdvanceBarrier(10)
+	qi.AdvanceBarrier(height)
 	b1, err := createRandomBlock(genesisHash, false)
 
 	if err != nil {
@@ -127,37 +128,111 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	if isKnown, err := qi.CheckAckFromBlock(
-		10, &b1.SignedHeader.BlockHash, b1.Queries[0],
+		height, &b1.SignedHeader.BlockHash, b1.Queries[0],
 	); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	} else if isKnown {
 		t.Fatal("Unexpected result: index should not know this query")
 	}
 
+	// Create a group of query for test
+	cli, err := newRandomNode()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	worker1, err := newRandomNode()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	worker2, err := newRandomNode()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	req, err := createRandomQueryRequest(cli)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	resp1, err := createRandomQueryResponseWithRequest(req, worker1)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	ack1, err := createRandomQueryAckWithResponse(resp1, cli)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	resp2, err := createRandomQueryResponseWithRequest(req, worker2)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	ack2, err := createRandomQueryAckWithResponse(resp2, cli)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
 	// Test a query signed by another block
+	if err = qi.AddAck(height, ack1); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if err = qi.AddAck(height, ack2); err != ErrMultipleAckOfSeqNo {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	b2, err := createRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	ack, err := createRandomNodesAndAck()
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	if err = qi.AddAck(10, ack); err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	b1.Queries[0] = &ack.HeaderHash
-	b2.Queries[0] = &ack.HeaderHash
-	qi.SetSignedBlock(10, b1)
+	b1.Queries[0] = &ack1.HeaderHash
+	b2.Queries[0] = &ack1.HeaderHash
+	qi.SetSignedBlock(height, b1)
 
 	if _, err := qi.CheckAckFromBlock(
-		10, &b2.SignedHeader.BlockHash, b2.Queries[0],
+		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
 	); err != ErrQuerySignedByAnotherBlock {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Test checking same ack signed by another block
+	b2.Queries[0] = &ack2.HeaderHash
+
+	if _, err = qi.CheckAckFromBlock(
+		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+	); err != ErrQuerySignedByAnotherBlock {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Revert index state for the first block, and test checking again
+	qi.heightIndex[height].SeqIndex[req.SeqNo].FirstAck.SignedBlock = nil
+
+	if _, err = qi.CheckAckFromBlock(
+		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+	); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	// Test corrupted index
+	qi.heightIndex[height].SeqIndex[req.SeqNo] = nil
+
+	if _, err = qi.CheckAckFromBlock(
+		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+	); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }

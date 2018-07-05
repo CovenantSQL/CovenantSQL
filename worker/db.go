@@ -115,9 +115,9 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		},
 
 		// TODO(xq261244), currently using fixed period/resolution from sqlchain test case
-		Period:         1 * time.Second,
-		TimeResolution: 100 * time.Millisecond,
-		QueryTTL:       10,
+		Period:   1 * time.Second,
+		Tick:     100 * time.Millisecond,
+		QueryTTL: 10,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return

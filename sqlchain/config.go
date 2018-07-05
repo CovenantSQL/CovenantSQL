@@ -28,9 +28,9 @@ import (
 type Config struct {
 	DataDir string
 
-	Genesis        *ct.Block
-	Period         time.Duration
-	TimeResolution time.Duration
+	Genesis *ct.Block
+	Period  time.Duration
+	Tick    time.Duration
 
 	Peers  *kayak.Peers
 	Server *kayak.Server
@@ -40,11 +40,6 @@ type Config struct {
 
 	// QueryTTL sets the unacknowledged query TTL in block periods.
 	QueryTTL int32
-}
-
-// GetHeightFromTime calculates the height with this sql-chain config of a given time reading.
-func (c *Config) GetHeightFromTime(t time.Time) int32 {
-	return int32(t.Sub(c.Genesis.SignedHeader.Timestamp) / c.Period)
 }
 
 // GetQueryGas gets the consumption of gas for a specified query type.

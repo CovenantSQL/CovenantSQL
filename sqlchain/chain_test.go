@@ -25,9 +25,11 @@ import (
 	"testing"
 	"time"
 
+	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
 func TestState(t *testing.T) {
@@ -115,11 +117,11 @@ func TestChain(t *testing.T) {
 	}
 
 	chain, err := NewChain(&Config{
-		DataDir:        fl.Name(),
-		Genesis:        genesis,
-		Period:         1 * time.Second,
-		TimeResolution: 100 * time.Millisecond,
-		QueryTTL:       10,
+		DataDir:  fl.Name(),
+		Genesis:  genesis,
+		Period:   1 * time.Second,
+		Tick:     100 * time.Millisecond,
+		QueryTTL: 10,
 		Server: &kayak.Server{
 			ID: proto.NodeID("X1"),
 		},
@@ -140,7 +142,7 @@ func TestChain(t *testing.T) {
 		t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
 			chain.state.Head, chain.state.Height, chain.rt.NextTurn,
 			chain.rt.ChainInitTime.Add(
-				chain.cfg.Period*time.Duration(chain.rt.NextTurn)).Format(time.RFC3339Nano),
+				chain.rt.Period*time.Duration(chain.rt.NextTurn)).Format(time.RFC3339Nano),
 			chain.isMyTurn)
 		acks, err := createRandomQueries(10)
 
@@ -159,7 +161,7 @@ func TestChain(t *testing.T) {
 		var d time.Duration
 
 		for {
-			now, d = chain.rt.TillNextTurn()
+			now, d = chain.rt.NextTick()
 
 			t.Logf("Wake up at: now = %s, d = %.9f secs",
 				now.Format(time.RFC3339Nano), d.Seconds())
@@ -185,15 +187,30 @@ func TestChain(t *testing.T) {
 				t.Fatalf("Error occurred: %v, block = %+v", err, block)
 			}
 
-			t.Logf("Pushed new block: height = %d,  %s <- %s",
+			t.Logf("Pushed new block: height = %d, %s <- %s",
 				chain.state.Height,
 				block.SignedHeader.ParentHash,
 				block.SignedHeader.BlockHash)
 		} else {
-			t.Logf("Produced new block: height = %d,  %s <- %s",
+			var enc []byte
+			var block ct.Block
+
+			if err = chain.db.View(func(tx *bolt.Tx) (err error) {
+				enc = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(
+					chain.state.node.indexKey())
+				return
+			}); err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+
+			if err = block.UnmarshalBinary(enc); err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+
+			t.Logf("Produced new block: height = %d, %s <- %s",
 				chain.state.Height,
-				chain.rt.pendingBlock.SignedHeader.ParentHash,
-				chain.rt.pendingBlock.SignedHeader.BlockHash)
+				block.SignedHeader.ParentHash,
+				block.SignedHeader.BlockHash)
 		}
 
 		if chain.state.Height >= testHeight {
@@ -208,11 +225,11 @@ func TestChain(t *testing.T) {
 	// Reload chain from DB file and rebuild memory cache
 	chain.db.Close()
 	chain, err = LoadChain(&Config{
-		DataDir:        fl.Name(),
-		Genesis:        genesis,
-		Period:         1 * time.Second,
-		TimeResolution: 100 * time.Millisecond,
-		QueryTTL:       10,
+		DataDir:  fl.Name(),
+		Genesis:  genesis,
+		Period:   1 * time.Second,
+		Tick:     100 * time.Millisecond,
+		QueryTTL: 10,
 		Server: &kayak.Server{
 			ID: proto.NodeID("X1"),
 		},

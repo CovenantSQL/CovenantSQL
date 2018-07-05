@@ -26,6 +26,10 @@ import (
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
+var (
+	placeHolder = &hash.Hash{}
+)
+
 // RequestTracker defines a tracker of a particular database query request.
 // We use it to track and update queries in this index system.
 type RequestTracker struct {
@@ -219,6 +223,10 @@ func (i *MultiIndex) AddAck(ack *wt.SignedAckHeader) (err error) {
 			return
 		}
 
+		// Add hash -> ack index anyway, so that we can find the request tracker later, even if
+		// there is a earlier acknowledgement for the same request
+		i.AckIndex[ack.HeaderHash] = v
+
 		// This also updates the item indexed by AckIndex and SeqIndex
 		var newAck bool
 
@@ -229,8 +237,6 @@ func (i *MultiIndex) AddAck(ack *wt.SignedAckHeader) (err error) {
 		if newAck {
 			q.Queries = append(q.Queries, v)
 		}
-
-		i.AckIndex[ack.HeaderHash] = v
 	} else {
 		// Build new QueryTracker and update both indexes
 		v = &RequestTracker{
@@ -271,10 +277,10 @@ func (i *MultiIndex) CheckBeforeExpire() {
 	defer i.Unlock()
 
 	for _, q := range i.SeqIndex {
-		if q.FirstAck == nil {
+		if ack := q.FirstAck; ack == nil {
 			// TODO(leventeliu):
 			// This query is not acknowledged and expires now.
-		} else if q.FirstAck.SignedBlock == nil {
+		} else if ack.SignedBlock == nil || ack.SignedBlock == placeHolder {
 			// TODO(leventeliu):
 			// This query was acknowledged normally but collectors didn't pack it in any block.
 			// There is definitely something wrong with them.
@@ -285,6 +291,59 @@ func (i *MultiIndex) CheckBeforeExpire() {
 				// TODO(leventeliu): so these guys lost the competition in this query. Should we
 				// do something about it?
 			}
+		}
+	}
+}
+
+// CheckAckFromBlock checks a acknowledged query from a block in this index.
+func (i *MultiIndex) CheckAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bool, err error) {
+	i.Lock()
+	defer i.Unlock()
+
+	// Check acknowledgement
+	q, isKnown := i.AckIndex[*ack]
+
+	if !isKnown {
+		return
+	}
+
+	if q.SignedBlock != nil && !q.SignedBlock.IsEqual(b) {
+		err = ErrQuerySignedByAnotherBlock
+		return
+	}
+
+	qs := i.SeqIndex[q.Ack.SignedRequestHeader().SeqNo]
+
+	// Check it as a first acknowledgement
+	if i.RespIndex[q.Response.HeaderHash] != q || qs == nil || qs.FirstAck == nil {
+		err = ErrCorruptedIndex
+		return
+	}
+
+	// If `q` is not considered first acknowledgement of this query locally
+	if qs.FirstAck != q {
+		if qs.FirstAck.SignedBlock != nil {
+			err = ErrQuerySignedByAnotherBlock
+			return
+		}
+
+		// But if the acknowledgement is not signed yet, it is also acceptable to promote another
+		// acknowledgement
+		qs.FirstAck = q
+	}
+
+	return
+}
+
+// MarkAndCollectUnsignedAcks marks and collects all the unsigned acknowledgements in the index.
+func (i *MultiIndex) MarkAndCollectUnsignedAcks(qs []*hash.Hash) {
+	i.Lock()
+	defer i.Unlock()
+
+	for _, q := range i.SeqIndex {
+		if ack := q.FirstAck; ack != nil && ack.SignedBlock == nil {
+			ack.SignedBlock = placeHolder
+			qs = append(qs, &ack.Ack.HeaderHash)
 		}
 	}
 }
@@ -315,12 +374,6 @@ func (i HeightIndex) EnsureRange(l, h int32) {
 	}
 }
 
-// HasHeight returns true if the index has the given key.
-func (i HeightIndex) HasHeight(h int32) (ok bool) {
-	_, ok = i[h]
-	return
-}
-
 // QueryIndex defines a query index maintainer.
 type QueryIndex struct {
 	barrier     int32
@@ -346,27 +399,13 @@ func (i *QueryIndex) AddAck(h int32, ack *wt.SignedAckHeader) error {
 	return i.heightIndex.EnsureHeight(h).AddAck(ack)
 }
 
-// CheckAckFromBlock checks a acknowledged query from a block.
-func (i *QueryIndex) CheckAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
-	isKnown bool, err error,
-) {
+// CheckAckFromBlock checks a acknowledged query from a block at the given height.
+func (i *QueryIndex) CheckAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (bool, error) {
 	if h < i.barrier {
-		err = ErrQueryExpired
-		return
+		return false, ErrQueryExpired
 	}
 
-	q, isKnown := i.heightIndex.EnsureHeight(h).AckIndex[*ack]
-
-	if !isKnown {
-		return
-	}
-
-	if q.SignedBlock != nil && !q.SignedBlock.IsEqual(b) {
-		err = ErrQuerySignedByAnotherBlock
-		return
-	}
-
-	return
+	return i.heightIndex.EnsureHeight(h).CheckAckFromBlock(b, ack)
 }
 
 // SetSignedBlock updates the signed block in index for the acknowledged queries in the block.
@@ -395,20 +434,29 @@ func (i *QueryIndex) GetAck(h int32, header *hash.Hash) (
 	return
 }
 
-// expireHeight expires all the queries indexed at the specified height.
-func (i *QueryIndex) expireHeight(h int32) {
-	if i.heightIndex.HasHeight(h) {
-		i.heightIndex[h].CheckBeforeExpire()
-		delete(i.heightIndex, h)
-	}
-}
-
 // AdvanceBarrier moves barrier to given height. All buckets lower than this height will be set as
 // expired, and all the queries which are not packed in these buckets will be reported.
 func (i *QueryIndex) AdvanceBarrier(height int32) {
 	for x := i.barrier; x < height; x++ {
-		i.expireHeight(x)
+		if hi, ok := i.heightIndex[x]; ok {
+			hi.CheckBeforeExpire()
+			delete(i.heightIndex, x)
+		}
 	}
 
 	i.barrier = height
+}
+
+// MarkAndCollectUnsignedAcks marks and collects all the unsigned acknowledgements which can be
+// signed by a block at the given height.
+func (i *QueryIndex) MarkAndCollectUnsignedAcks(height int32) (qs []*hash.Hash) {
+	qs = make([]*hash.Hash, 0, 1024)
+
+	for x := i.barrier; x < height; x++ {
+		if hi, ok := i.heightIndex[x]; ok {
+			hi.MarkAndCollectUnsignedAcks(qs)
+		}
+	}
+
+	return
 }

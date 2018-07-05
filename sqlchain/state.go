@@ -24,15 +24,15 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-// State represents a snapshot of current best chain.
-type State struct {
+// state represents a snapshot of current best chain.
+type state struct {
 	node   *blockNode
 	Head   hash.Hash
 	Height int32
 }
 
 // MarshalBinary implements BinaryMarshaler.
-func (s *State) MarshalBinary() ([]byte, error) {
+func (s *state) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -46,7 +46,7 @@ func (s *State) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary implements BinaryUnmarshaler.
-func (s *State) UnmarshalBinary(b []byte) (err error) {
+func (s *state) UnmarshalBinary(b []byte) (err error) {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
 		&s.Head,

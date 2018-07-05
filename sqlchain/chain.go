@@ -38,28 +38,28 @@ var (
 	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
 )
 
-// HeightToKey converts a height in int32 to a key in bytes.
-func HeightToKey(h int32) (key []byte) {
+// heightToKey converts a height in int32 to a key in bytes.
+func heightToKey(h int32) (key []byte) {
 	key = make([]byte, 4)
 	binary.BigEndian.PutUint32(key, uint32(h))
 	return
 }
 
-// KeyToHeight converts a height back from a key in bytes.
-func KeyToHeight(k []byte) int32 {
+// keyToHeight converts a height back from a key in bytes.
+func keyToHeight(k []byte) int32 {
 	return int32(binary.BigEndian.Uint32(k))
 }
 
 // Chain represents a sql-chain.
 type Chain struct {
-	db    *bolt.DB
-	bi    *blockIndex
-	qi    *QueryIndex
-	rt    *Runtime
-	state *State
+	db *bolt.DB
+	bi *blockIndex
+	qi *queryIndex
+	rt *runtime
+	st *state
 
 	// Only for test
-	isMyTurn bool
+	tIsMyTurn bool
 }
 
 // NewChain creates a new sql-chain struct.
@@ -99,16 +99,16 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	chain = &Chain{
 		db: db,
 		bi: newBlockIndex(c),
-		qi: NewQueryIndex(),
-		rt: NewRunTime(c),
-		state: &State{
+		qi: newQueryIndex(),
+		rt: newRunTime(c),
+		st: &state{
 			node:   nil,
 			Head:   c.Genesis.SignedHeader.GenesisHash,
 			Height: -1,
 		},
 	}
 
-	err = chain.PushBlock(c.Genesis)
+	err = chain.pushBlock(c.Genesis)
 
 	if err != nil {
 		return nil, err
@@ -128,17 +128,17 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		db:    db,
-		bi:    newBlockIndex(c),
-		qi:    NewQueryIndex(),
-		rt:    NewRunTime(c),
-		state: &State{},
+		db: db,
+		bi: newBlockIndex(c),
+		qi: newQueryIndex(),
+		rt: newRunTime(c),
+		st: &state{},
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		meta := tx.Bucket(metaBucket[:])
-		err = chain.state.UnmarshalBinary(meta.Get(metaStateKey))
+		err = chain.st.UnmarshalBinary(meta.Get(metaStateKey))
 
 		if err != nil {
 			return err
@@ -174,7 +174,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 				parent = last
 			} else {
-				parent = chain.bi.LookupNode(&block.SignedHeader.BlockHash)
+				parent = chain.bi.lookupNode(&block.SignedHeader.BlockHash)
 
 				if parent == nil {
 					return ErrParentNotFound
@@ -195,7 +195,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		ack := &wt.SignedAckHeader{}
 
 		if err = heights.ForEach(func(k, v []byte) (err error) {
-			h := KeyToHeight(k)
+			h := keyToHeight(k)
 
 			if resps := heights.Bucket(k).Bucket(
 				metaResponseIndexBucket); resps != nil {
@@ -204,7 +204,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 						return
 					}
 
-					return chain.qi.AddResponse(h, resp)
+					return chain.qi.addResponse(h, resp)
 				}); err != nil {
 					return
 				}
@@ -216,7 +216,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 						return
 					}
 
-					return chain.qi.AddAck(h, ack)
+					return chain.qi.addAck(h, ack)
 				}); err != nil {
 					return
 				}
@@ -233,12 +233,12 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	return
 }
 
-// PushBlock pushes the signed block header to extend the current main chain.
-func (c *Chain) PushBlock(b *ct.Block) (err error) {
+// pushBlock pushes the signed block header to extend the current main chain.
+func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	// Prepare and encode
-	h := c.rt.GetHeightFromTime(b.SignedHeader.Timestamp)
-	node := newBlockNode(b, c.state.node)
-	state := &State{
+	h := c.rt.getHeightFromTime(b.SignedHeader.Timestamp)
+	node := newBlockNode(b, c.st.node)
+	st := &state{
 		node:   node,
 		Head:   node.hash,
 		Height: node.height,
@@ -249,7 +249,7 @@ func (c *Chain) PushBlock(b *ct.Block) (err error) {
 		return
 	}
 
-	if encState, err = state.MarshalBinary(); err != nil {
+	if encState, err = st.MarshalBinary(); err != nil {
 		return
 	}
 
@@ -264,9 +264,9 @@ func (c *Chain) PushBlock(b *ct.Block) (err error) {
 			return
 		}
 
-		c.state = state
-		c.bi.AddBlock(node)
-		c.qi.SetSignedBlock(h, b)
+		c.st = st
+		c.bi.addBlock(node)
+		c.qi.setSignedBlock(h, b)
 
 		return
 	})
@@ -297,10 +297,10 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 	return
 }
 
-// PushResponedQuery pushes a responsed, signed and verified query into the chain.
-func (c *Chain) PushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
-	h := c.rt.GetHeightFromTime(resp.Request.Timestamp)
-	k := HeightToKey(h)
+// pushResponedQuery pushes a responsed, signed and verified query into the chain.
+func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
+	h := c.rt.getHeightFromTime(resp.Request.Timestamp)
+	k := heightToKey(h)
 	var enc []byte
 
 	if enc, err = resp.MarshalBinary(); err != nil {
@@ -320,14 +320,14 @@ func (c *Chain) PushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 		}
 
 		// Always put memory changes which will not be affected by rollback after DB operations
-		return c.qi.AddResponse(h, resp)
+		return c.qi.addResponse(h, resp)
 	})
 }
 
-// PushAckedQuery pushed a acknowledged, signed and verified query into the chain.
-func (c *Chain) PushAckedQuery(ack *wt.SignedAckHeader) (err error) {
-	h := c.rt.GetHeightFromTime(ack.SignedResponseHeader().Timestamp)
-	k := HeightToKey(h)
+// pushAckedQuery pushed a acknowledged, signed and verified query into the chain.
+func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
+	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
+	k := heightToKey(h)
 	var enc []byte
 
 	if enc, err = ack.MarshalBinary(); err != nil {
@@ -349,7 +349,7 @@ func (c *Chain) PushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 		}
 
 		// Always put memory changes which will not be affected by rollback after DB operations
-		if err = c.qi.AddAck(h, ack); err != nil {
+		if err = c.qi.addAck(h, ack); err != nil {
 			return
 		}
 
@@ -357,86 +357,15 @@ func (c *Chain) PushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	})
 }
 
-// CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
-func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
-	// Pushed block must extend the best chain
-	if !block.SignedHeader.ParentHash.IsEqual(&c.state.Head) {
-		return ErrInvalidBlock
-	}
-
-	// TODO(leventeliu): verify that block.SignedHeader.Producer is the rightful producer of the
-	// block.
-
-	// Check block existence
-	if c.bi.HasBlock(&block.SignedHeader.BlockHash) {
-		return ErrBlockExists
-	}
-
-	// Block must produced within [start, end)
-	h := c.rt.GetHeightFromTime(block.SignedHeader.Timestamp)
-
-	if h != c.state.Height+1 {
-		return ErrBlockTimestampOutOfPeriod
-	}
-
-	// Check queries
-	for _, q := range block.Queries {
-		var ok bool
-
-		if ok, err = c.qi.CheckAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
-			return
-		}
-
-		if !ok {
-			// TODO(leventeliu): call RPC.FetchAckedQuery from block.SignedHeader.Producer
-		}
-	}
-
-	// Verify block signatures
-	if err = block.Verify(); err != nil {
-		return
-	}
-
-	return c.PushBlock(block)
-}
-
-// VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushResponsedQuery(resp *wt.SignedResponseHeader) (err error) {
-	// TODO(leventeliu): check resp.
-	if c.rt.queryTimeIsExpired(resp.Timestamp) {
-		return ErrQueryExpired
-	}
-
-	if err = resp.Verify(); err != nil {
-		return
-	}
-
-	return c.PushResponedQuery(resp)
-}
-
-// VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
-	// TODO(leventeliu): check ack.
-	if c.rt.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
-		return ErrQueryExpired
-	}
-
-	if err = ack.Verify(); err != nil {
-		return
-	}
-
-	return c.PushAckedQuery(ack)
-}
-
-// IsMyTurn returns whether it's my turn to produce block or not.
+// isMyTurn returns whether it's my turn to produce block or not.
 //
 // TODO(leventliu): need implementation.
-func (c *Chain) IsMyTurn() bool {
-	return c.isMyTurn
+func (c *Chain) isMyTurn() bool {
+	return c.tIsMyTurn
 }
 
-// ProduceBlock prepares, signs and advises the pending block to the orther peers.
-func (c *Chain) ProduceBlock(now time.Time) (err error) {
+// produceBlock prepares, signs and advises the pending block to the orther peers.
+func (c *Chain) produceBlock(now time.Time) (err error) {
 	// Retrieve local key pair
 	priv, err := kms.GetLocalPrivateKey()
 
@@ -455,9 +384,9 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 		SignedHeader: ct.SignedHeader{
 			Header: ct.Header{
 				Version:     0x01000000,
-				Producer:    c.rt.Server.ID,
-				GenesisHash: c.rt.GenesisHash,
-				ParentHash:  c.state.Head,
+				Producer:    c.rt.server.ID,
+				GenesisHash: c.rt.genesisHash,
+				ParentHash:  c.st.Head,
 				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
 				Timestamp: now,
 			},
@@ -465,14 +394,14 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 			Signee: pub,
 			// Signature: will be set by Block.PackAndSignBlock(PrivateKey)
 		},
-		Queries: c.qi.MarkAndCollectUnsignedAcks(c.rt.getNextTurn()),
+		Queries: c.qi.markAndCollectUnsignedAcks(c.rt.getNextTurn()),
 	}
 
 	if err = block.PackAndSignBlock(priv); err != nil {
 		return
 	}
 
-	if err = c.PushBlock(block); err != nil {
+	if err = c.pushBlock(block); err != nil {
 		return
 	}
 
@@ -482,22 +411,22 @@ func (c *Chain) ProduceBlock(now time.Time) (err error) {
 	return
 }
 
-// RunCurrentTurn does the check and runs block producing if its my turn.
-func (c *Chain) RunCurrentTurn(now time.Time) {
+// runCurrentTurn does the check and runs block producing if its my turn.
+func (c *Chain) runCurrentTurn(now time.Time) {
 	defer c.rt.setNextTurn()
 
-	if !c.IsMyTurn() {
+	if !c.isMyTurn() {
 		return
 	}
 
-	if err := c.ProduceBlock(now); err != nil {
+	if err := c.produceBlock(now); err != nil {
 		log.Errorf("Failed to produce block: err = %v, now = %s", err, now.Format(time.RFC3339Nano))
 		c.Stop()
 	}
 }
 
-// MainCycle runs main cycle of the sql-chain.
-func (c *Chain) MainCycle() {
+// mainCycle runs main cycle of the sql-chain.
+func (c *Chain) mainCycle() {
 	c.rt.wg.Add(1)
 	defer c.rt.wg.Done()
 
@@ -506,20 +435,20 @@ func (c *Chain) MainCycle() {
 		case <-c.rt.stopCh:
 			return
 		default:
-			if t, d := c.rt.NextTick(); d > 0 {
+			if t, d := c.rt.nextTick(); d > 0 {
 				time.Sleep(d)
 			} else {
-				c.RunCurrentTurn(t)
+				c.runCurrentTurn(t)
 			}
 		}
 	}
 }
 
-// Sync synchronizes blocks and queries from the other peers.
-func (c *Chain) Sync() (err error) {
+// sync synchronizes blocks and queries from the other peers.
+func (c *Chain) sync() (err error) {
 	for {
-		now := c.rt.Now()
-		height := c.rt.GetHeightFromTime(now)
+		now := c.rt.now()
+		height := c.rt.getHeightFromTime(now)
 
 		if c.rt.getNextTurn() >= height {
 			break
@@ -536,24 +465,24 @@ func (c *Chain) Sync() (err error) {
 
 // Start starts the main process of the sql-chain.
 func (c *Chain) Start() (err error) {
-	if err = c.Sync(); err != nil {
+	if err = c.sync(); err != nil {
 		return
 	}
 
-	go c.MainCycle()
+	go c.mainCycle()
 	return
 }
 
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	err = c.db.Close()
-	c.rt.Stop()
+	c.rt.stop()
 	return
 }
 
 // FetchBlock fetches the block at specified height from local cache.
 func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
-	if n := c.state.node.ancestor(height); n != nil {
+	if n := c.st.node.ancestor(height); n != nil {
 		k := n.indexKey()
 
 		err = c.db.View(func(tx *bolt.Tx) (err error) {
@@ -570,5 +499,76 @@ func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	return c.qi.GetAck(height, header)
+	return c.qi.getAck(height, header)
+}
+
+// CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
+func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
+	// Pushed block must extend the best chain
+	if !block.SignedHeader.ParentHash.IsEqual(&c.st.Head) {
+		return ErrInvalidBlock
+	}
+
+	// TODO(leventeliu): verify that block.SignedHeader.Producer is the rightful producer of the
+	// block.
+
+	// Check block existence
+	if c.bi.hasBlock(&block.SignedHeader.BlockHash) {
+		return ErrBlockExists
+	}
+
+	// Block must produced within [start, end)
+	h := c.rt.getHeightFromTime(block.SignedHeader.Timestamp)
+
+	if h != c.st.Height+1 {
+		return ErrBlockTimestampOutOfPeriod
+	}
+
+	// Check queries
+	for _, q := range block.Queries {
+		var ok bool
+
+		if ok, err = c.qi.checkAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
+			return
+		}
+
+		if !ok {
+			// TODO(leventeliu): call RPC.FetchAckedQuery from block.SignedHeader.Producer
+		}
+	}
+
+	// Verify block signatures
+	if err = block.Verify(); err != nil {
+		return
+	}
+
+	return c.pushBlock(block)
+}
+
+// VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
+func (c *Chain) VerifyAndPushResponsedQuery(resp *wt.SignedResponseHeader) (err error) {
+	// TODO(leventeliu): check resp.
+	if c.rt.queryTimeIsExpired(resp.Timestamp) {
+		return ErrQueryExpired
+	}
+
+	if err = resp.Verify(); err != nil {
+		return
+	}
+
+	return c.pushResponedQuery(resp)
+}
+
+// VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
+func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
+	// TODO(leventeliu): check ack.
+	if c.rt.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
+		return ErrQueryExpired
+	}
+
+	if err = ack.Verify(); err != nil {
+		return
+	}
+
+	return c.pushAckedQuery(ack)
 }

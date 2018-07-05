@@ -15,3 +15,45 @@
  */
 
 package sqlchain
+
+import (
+	"math/rand"
+	"reflect"
+	"testing"
+
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+)
+
+func TestState(t *testing.T) {
+	st := &state{
+		node:   nil,
+		Head:   hash.Hash{},
+		Height: 0,
+	}
+
+	rand.Read(st.Head[:])
+	buffer, err := st.MarshalBinary()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	rState := &state{}
+	err = rState.UnmarshalBinary(buffer)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	err = rState.UnmarshalBinary(nil)
+
+	if err != nil {
+		t.Logf("Error occurred as expected: %v", err)
+	} else {
+		t.Fatal("Unexpected result: returned nil while expecting an error")
+	}
+
+	if !reflect.DeepEqual(st, rState) {
+		t.Fatalf("Values don't match: v1 = %v, v2 = %v", st, rState)
+	}
+}

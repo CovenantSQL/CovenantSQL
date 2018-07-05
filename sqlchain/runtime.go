@@ -26,52 +26,52 @@ import (
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
-// Runtime represents a chain runtime state.
-type Runtime struct {
+// runtime represents a chain runtime state.
+type runtime struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
-	// ChainInitTime is the initial cycle time, when the Genesis blcok is produced.
-	ChainInitTime time.Time
-	// GenesisHash is the hash of genesis block.
-	GenesisHash hash.Hash
+	// chainInitTime is the initial cycle time, when the Genesis blcok is produced.
+	chainInitTime time.Time
+	// genesisHash is the hash of genesis block.
+	genesisHash hash.Hash
 
 	// The following fields are copied from config, and should be constant during whole runtime.
 
-	// Period is the block producing cycle.
-	Period time.Duration
-	// Tick defines the maximum duration between each cycle.
-	Tick time.Duration
-	// QueryTTL sets the unacknowledged query TTL in block periods.
-	QueryTTL int32
-	// Peers is the peer list of the sql-chain.
-	Peers *kayak.Peers
-	// Server is the local peer service instance.
-	Server *kayak.Server
-	// Price sets query price in gases.
-	Price map[wt.QueryType]uint32
+	// period is the block producing cycle.
+	period time.Duration
+	// tick defines the maximum duration between each cycle.
+	tick time.Duration
+	// queryTTL sets the unacknowledged query TTL in block periods.
+	queryTTL int32
+	// peers is the peer list of the sql-chain.
+	peers *kayak.Peers
+	// server is the local peer service instance.
+	server *kayak.Server
+	// price sets query price in gases.
+	price map[wt.QueryType]uint32
 
 	sync.RWMutex // Protects following fields.
-	// NextTurn is the height of the next block.
-	NextTurn int32
-	// Offset is the time difference calculated by: coodinatedChainTime - time.Now().
+	// nextTurn is the height of the next block.
+	nextTurn int32
+	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
 	//
-	// TODO(leventeliu): update Offset in ping cycle.
-	Offset time.Duration
+	// TODO(leventeliu): update offset in ping cycle.
+	offset time.Duration
 }
 
-// NewRunTime returns a new sql-chain runtime instance with the specified config.
-func NewRunTime(c *Config) (r *Runtime) {
-	r = &Runtime{
+// newRunTime returns a new sql-chain runtime instance with the specified config.
+func newRunTime(c *Config) (r *runtime) {
+	r = &runtime{
 		stopCh:   make(chan struct{}),
-		Period:   c.Period,
-		Tick:     c.Tick,
-		QueryTTL: c.QueryTTL,
-		Peers:    c.Peers,
-		Server:   c.Server,
-		Price:    c.Price,
-		NextTurn: 1,
-		Offset:   time.Duration(0),
+		period:   c.Period,
+		tick:     c.Tick,
+		queryTTL: c.QueryTTL,
+		peers:    c.Peers,
+		server:   c.Server,
+		price:    c.Price,
+		nextTurn: 1,
+		offset:   time.Duration(0),
 	}
 
 	if c.Genesis != nil {
@@ -81,12 +81,12 @@ func NewRunTime(c *Config) (r *Runtime) {
 	return
 }
 
-func (r *Runtime) setGenesis(b *ct.Block) {
-	r.ChainInitTime = b.SignedHeader.Timestamp
-	r.GenesisHash = b.SignedHeader.BlockHash
+func (r *runtime) setGenesis(b *ct.Block) {
+	r.chainInitTime = b.SignedHeader.Timestamp
+	r.genesisHash = b.SignedHeader.BlockHash
 }
 
-func (r *Runtime) queryTimeIsExpired(t time.Time) bool {
+func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 	// Checking query expiration for the pending block, whose height is c.rt.NextHeight:
 	//
 	//     TimeLived = r.NextTurn - r.GetHeightFromTime(t)
@@ -100,61 +100,61 @@ func (r *Runtime) queryTimeIsExpired(t time.Time) bool {
 	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
 	// has expired.
 	//
-	return r.GetHeightFromTime(t) < r.NextTurn-r.QueryTTL
+	return r.getHeightFromTime(t) < r.nextTurn-r.queryTTL
 }
 
-// UpdateTime updates the current coodinated chain time.
-func (r *Runtime) UpdateTime(now time.Time) {
+// updateTime updates the current coodinated chain time.
+func (r *runtime) updateTime(now time.Time) {
 	r.Lock()
 	defer r.Unlock()
-	r.Offset = now.Sub(time.Now())
+	r.offset = now.Sub(time.Now())
 }
 
-// Now returns the current coodinated chain time.
-func (r *Runtime) Now() time.Time {
+// now returns the current coodinated chain time.
+func (r *runtime) now() time.Time {
 	r.RLock()
 	defer r.RUnlock()
-	return time.Now().Add(r.Offset)
+	return time.Now().Add(r.offset)
 }
 
-func (r *Runtime) getNextTurn() int32 {
+func (r *runtime) getNextTurn() int32 {
 	r.Lock()
 	defer r.Unlock()
-	return r.NextTurn
+	return r.nextTurn
 }
 
 // setNextTurn prepares the runtime state for the next turn.
-func (r *Runtime) setNextTurn() {
+func (r *runtime) setNextTurn() {
 	r.Lock()
 	defer r.Unlock()
-	r.NextTurn++
+	r.nextTurn++
 }
 
 // getQueryGas gets the consumption of gas for a specified query type.
-func (r *Runtime) getQueryGas(t wt.QueryType) uint32 {
-	return r.Price[t]
+func (r *runtime) getQueryGas(t wt.QueryType) uint32 {
+	return r.price[t]
 }
 
-// Stop sends a signal to the Runtime stop channel by closing it.
-func (r *Runtime) Stop() {
+// stop sends a signal to the Runtime stop channel by closing it.
+func (r *runtime) stop() {
 	close(r.stopCh)
 	r.wg.Wait()
 }
 
-// GetHeightFromTime calculates the height with this sql-chain config of a given time reading.
-func (r *Runtime) GetHeightFromTime(t time.Time) int32 {
-	return int32(t.Sub(r.ChainInitTime) / r.Period)
+// getHeightFromTime calculates the height with this sql-chain config of a given time reading.
+func (r *runtime) getHeightFromTime(t time.Time) int32 {
+	return int32(t.Sub(r.chainInitTime) / r.period)
 }
 
-// NextTick returns the current clock reading and the duration till the next turn. If duration
+// nextTick returns the current clock reading and the duration till the next turn. If duration
 // is less or equal to 0, use the clock reading to run the next cycle - this avoids some problem
 // caused by concurrently time synchronization.
-func (r *Runtime) NextTick() (t time.Time, d time.Duration) {
-	t = r.Now()
-	d = r.ChainInitTime.Add(time.Duration(r.NextTurn) * r.Period).Sub(t)
+func (r *runtime) nextTick() (t time.Time, d time.Duration) {
+	t = r.now()
+	d = r.chainInitTime.Add(time.Duration(r.nextTurn) * r.period).Sub(t)
 
-	if d > r.Tick {
-		d = r.Tick
+	if d > r.tick {
+		d = r.tick
 	}
 
 	return

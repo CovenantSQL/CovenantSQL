@@ -21,50 +21,14 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"math/rand"
-	"reflect"
 	"testing"
 	"time"
 
 	bolt "github.com/coreos/bbolt"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
-
-func TestState(t *testing.T) {
-	state := &State{
-		node:   nil,
-		Head:   hash.Hash{},
-		Height: 0,
-	}
-
-	rand.Read(state.Head[:])
-	buffer, err := state.MarshalBinary()
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	rState := &State{}
-	err = rState.UnmarshalBinary(buffer)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	err = rState.UnmarshalBinary(nil)
-
-	if err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	if !reflect.DeepEqual(state, rState) {
-		t.Fatalf("Values don't match: v1 = %v, v2 = %v", state, rState)
-	}
-}
 
 func TestIndexKey(t *testing.T) {
 	for i := 0; i < 10; i++ {
@@ -133,17 +97,17 @@ func TestChain(t *testing.T) {
 
 	t.Logf("Create new chain: genesis = %s, inittime = %s, period = %.9f secs",
 		genesis.SignedHeader.BlockHash,
-		chain.rt.ChainInitTime.Format(time.RFC3339Nano),
-		chain.rt.Period.Seconds())
+		chain.rt.chainInitTime.Format(time.RFC3339Nano),
+		chain.rt.period.Seconds())
 
 	// Push blocks
 	for {
-		chain.isMyTurn = (rand.Intn(10) == 0)
+		chain.tIsMyTurn = (rand.Intn(10) == 0)
 		t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-			chain.state.Head, chain.state.Height, chain.rt.NextTurn,
-			chain.rt.ChainInitTime.Add(
-				chain.rt.Period*time.Duration(chain.rt.NextTurn)).Format(time.RFC3339Nano),
-			chain.isMyTurn)
+			chain.st.Head, chain.st.Height, chain.rt.nextTurn,
+			chain.rt.chainInitTime.Add(
+				chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
+			chain.tIsMyTurn)
 		acks, err := createRandomQueries(10)
 
 		if err != nil {
@@ -161,7 +125,7 @@ func TestChain(t *testing.T) {
 		var d time.Duration
 
 		for {
-			now, d = chain.rt.NextTick()
+			now, d = chain.rt.nextTick()
 
 			t.Logf("Wake up at: now = %s, d = %.9f secs",
 				now.Format(time.RFC3339Nano), d.Seconds())
@@ -169,15 +133,15 @@ func TestChain(t *testing.T) {
 			if d > 0 {
 				time.Sleep(d)
 			} else {
-				chain.RunCurrentTurn(now)
+				chain.runCurrentTurn(now)
 				break
 			}
 		}
 
 		// Advise block if it's not my turn
-		if !chain.IsMyTurn() {
+		if !chain.isMyTurn() {
 			block, err := createRandomBlockWithQueries(
-				genesis.SignedHeader.BlockHash, chain.state.Head, acks)
+				genesis.SignedHeader.BlockHash, chain.st.Head, acks)
 
 			if err != nil {
 				t.Fatalf("Error occurred: %v", err)
@@ -188,7 +152,7 @@ func TestChain(t *testing.T) {
 			}
 
 			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.state.Height,
+				chain.st.Height,
 				block.SignedHeader.ParentHash,
 				block.SignedHeader.BlockHash)
 		} else {
@@ -197,7 +161,7 @@ func TestChain(t *testing.T) {
 
 			if err = chain.db.View(func(tx *bolt.Tx) (err error) {
 				enc = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(
-					chain.state.node.indexKey())
+					chain.st.node.indexKey())
 				return
 			}); err != nil {
 				t.Fatalf("Error occurred: %v", err)
@@ -208,12 +172,12 @@ func TestChain(t *testing.T) {
 			}
 
 			t.Logf("Produced new block: height = %d, %s <- %s",
-				chain.state.Height,
+				chain.st.Height,
 				block.SignedHeader.ParentHash,
 				block.SignedHeader.BlockHash)
 		}
 
-		if chain.state.Height >= testHeight {
+		if chain.st.Height >= testHeight {
 			break
 		}
 	}

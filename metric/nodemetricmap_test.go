@@ -19,6 +19,7 @@ package metric
 import (
 	"testing"
 
+	dto "github.com/prometheus/client_model/go"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -36,15 +37,19 @@ func TestCollectServer_FilterNode(t *testing.T) {
 	}
 	filterMem1MB := func(key proto.NodeID, value metricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
+		var v *dto.MetricFamily
 		v, ok := value["node_memory_bytes_total"]
-		if ok &&
-			len(v.Metric) > 0 &&
+		if !ok {
+			v, ok = value["node_memory_MemTotal_bytes"]
+		}
+		if ok && len(v.Metric) > 0 &&
 			v.Metric[0].GetGauge() != nil &&
 			v.Metric[0].GetGauge().Value != nil &&
 			*v.Metric[0].GetGauge().Value > float64(1*MB) {
 			log.Debugf("has memory: %fGB", *v.Metric[0].GetGauge().Value/float64(GB))
 			return true
 		}
+
 		return false
 	}
 	Convey("filter node", t, func() {

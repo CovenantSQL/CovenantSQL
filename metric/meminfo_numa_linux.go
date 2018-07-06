@@ -33,10 +33,6 @@ type meminfoNumaCollector struct {
 	metricDescs map[string]*prometheus.Desc
 }
 
-func init() {
-	registerCollector("meminfo_numa", defaultDisabled, NewMeminfoNumaCollector)
-}
-
 // NewMeminfoNumaCollector returns a new Collector exposing memory stats.
 func NewMeminfoNumaCollector() (Collector, error) {
 	return &meminfoNumaCollector{

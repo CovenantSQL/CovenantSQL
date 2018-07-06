@@ -51,10 +51,6 @@ type diskstatsCollector struct {
 	descs                 []typedFactorDesc
 }
 
-func init() {
-	registerCollector("diskstats", defaultEnabled, NewDiskstatsCollector)
-}
-
 // NewDiskstatsCollector returns a new Collector exposing disk device stats.
 func NewDiskstatsCollector() (Collector, error) {
 	var diskLabelNames = []string{"device"}

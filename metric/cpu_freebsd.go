@@ -85,10 +85,6 @@ type statCollector struct {
 	temp typedDesc
 }
 
-func init() {
-	registerCollector("cpu", defaultEnabled, NewStatCollector)
-}
-
 // NewStatCollector returns a new Collector exposing CPU stats.
 func NewStatCollector() (Collector, error) {
 	return &statCollector{

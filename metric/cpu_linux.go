@@ -37,10 +37,6 @@ type cpuCollector struct {
 	cpuPackageThrottle *prometheus.Desc
 }
 
-func init() {
-	registerCollector("cpu", defaultEnabled, NewCPUCollector)
-}
-
 // NewCPUCollector returns a new Collector exposing kernel/system statistics.
 func NewCPUCollector() (Collector, error) {
 	return &cpuCollector{
@@ -194,7 +190,7 @@ func (c *cpuCollector) updateCPUfreq(ch chan<- prometheus.Metric) error {
 
 // updateStat reads /proc/stat through procfs and exports cpu related metrics.
 func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
-	fs, err := procfs.NewFS(*procPath)
+	fs, err := procfs.NewFS("/proc")
 	if err != nil {
 		return fmt.Errorf("failed to open procfs: %v", err)
 	}

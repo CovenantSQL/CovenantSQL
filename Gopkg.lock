@@ -3,27 +3,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/alecthomas/template"
-  packages = [
-    ".",
-    "parse"
-  ]
-  revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/alecthomas/units"
-  packages = ["."]
-  revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
-
-[[projects]]
-  name = "github.com/beevik/ntp"
-  packages = ["."]
-  revision = "62c80a04de2086884d8296004b6d74ee1846c582"
-  version = "v0.2.0"
-
-[[projects]]
-  branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
@@ -41,34 +20,16 @@
   version = "v1.3.0"
 
 [[projects]]
-  name = "github.com/coreos/go-systemd"
-  packages = ["dbus"]
-  revision = "39ca1b05acc7ad1220e09f133283b8859a8b71ab"
-  version = "v17"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/ema/qdisc"
-  packages = ["."]
-  revision = "b307c22d3ce761d351b6e6270b50195b44ee9248"
-
-[[projects]]
   name = "github.com/fortytw2/leaktest"
   packages = ["."]
   revision = "a5ef70473c97b71626b9abeda80ee92ba2a7de9e"
   version = "v1.2.0"
-
-[[projects]]
-  name = "github.com/godbus/dbus"
-  packages = ["."]
-  revision = "a389bdde4dd695d414e47b755e95e72b7826432c"
-  version = "v4.1.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -102,12 +63,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/kolo/xmlrpc"
-  packages = ["."]
-  revision = "959962c1b48bbdbfbba4d59d58a8c15ff3fb9b22"
-
-[[projects]]
-  branch = "master"
   name = "github.com/lufia/iostat"
   packages = ["."]
   revision = "9f7362b77ad333b26c01c99de52a11bdb650ded2"
@@ -123,30 +78,6 @@
   packages = ["pbutil"]
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
   version = "v1.0.1"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mdlayher/genetlink"
-  packages = ["."]
-  revision = "2806253bd5d0ac9ce7af202e55d0fe0a5a911ac0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mdlayher/netlink"
-  packages = [
-    ".",
-    "nlenc"
-  ]
-  revision = "adc086b2d8d2648ac83706caa6ac26a5e7c6ce4e"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mdlayher/wifi"
-  packages = [
-    ".",
-    "internal/nl80211"
-  ]
-  revision = "9a2549315201616119128afe421d1601ef3506f9"
 
 [[projects]]
   branch = "master"
@@ -178,7 +109,6 @@
   packages = [
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
-    "log",
     "model",
     "version"
   ]
@@ -186,19 +116,11 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/prometheus/node_exporter"
-  packages = ["collector"]
-  revision = "8af84a215dd21a7d78be0a82cf88b3b5ce52250c"
-
-[[projects]]
-  branch = "master"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
-    "bcache",
     "internal/util",
     "nfs",
-    "sysfs",
     "xfs"
   ]
   revision = "ae68e2d4c00fed4943b5f6698d504a5fe083da8a"
@@ -228,12 +150,6 @@
   ]
   revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
   version = "1.6.3"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/soundcloud/go-runit"
-  packages = ["runit"]
-  revision = "06ad41a06c4a586951fb8040a697ecd39729640b"
 
 [[projects]]
   name = "github.com/stretchr/objx"
@@ -270,31 +186,12 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/net"
-  packages = [
-    "bpf",
-    "internal/iana",
-    "internal/socket",
-    "ipv4"
-  ]
-  revision = "ed29d75add3d7c4bf7ca65aac0c6df3d1420216f"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/sys"
   packages = [
     "unix",
-    "windows",
-    "windows/registry",
-    "windows/svc/eventlog"
+    "windows"
   ]
-  revision = "151529c776cdc58ddbe7963ba9af779f3577b419"
-
-[[projects]]
-  name = "gopkg.in/alecthomas/kingpin.v2"
-  packages = ["."]
-  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
-  version = "v2.2.6"
+  revision = "ce36f3865eeb42541ce3f87f32f8462c5687befa"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -305,6 +202,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4162d04d5623258401802e14e901ef0666125ea041853978602abc1c437875dc"
+  inputs-digest = "38606cb0bd65bcf7d7c5dc8611d7892ecf17484c8a98901b9f040d6f8ecc6c23"
   solver-name = "gps-cdcl"
   solver-version = 1

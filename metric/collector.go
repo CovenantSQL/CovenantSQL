@@ -21,8 +21,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
-	"github.com/prometheus/node_exporter/collector"
+	log "github.com/sirupsen/logrus"
 )
 
 // Namespace defines the common namespace to be used by all metrics.
@@ -51,7 +50,9 @@ type nodeCollector struct {
 // NewNodeCollector creates a new NodeCollector
 func NewNodeCollector() (*nodeCollector, error) {
 	collectors := make(map[string]Collector)
-	collectors["meminfo"], _ = collector.NewMeminfoCollector()
+	collectors["meminfo"], _ = NewMeminfoCollector()
+	collectors["cpu"], _ = NewCPUCollector()
+	collectors["diskstats"], _ = NewDiskstatsCollector()
 	return &nodeCollector{Collectors: collectors}, nil
 }
 
@@ -95,4 +96,13 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 type Collector interface {
 	// Get new metrics and expose them via prometheus registry.
 	Update(ch chan<- prometheus.Metric) error
+}
+
+type typedDesc struct {
+	desc      *prometheus.Desc
+	valueType prometheus.ValueType
+}
+
+func (d *typedDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {
+	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
 }

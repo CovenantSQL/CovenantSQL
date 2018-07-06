@@ -18,6 +18,7 @@ package metric
 
 import (
 	"bytes"
+	"errors"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -60,33 +61,34 @@ func NewCollectServer() *CollectServer {
 // UploadMetrics RPC uploads metric info
 func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.UploadMetricsResp) (err error) {
 	if req.NodeID == "" {
+		err = errors.New("empty node id")
 		resp.Msg = "empty node id"
 		log.Errorln(resp.Msg)
 		return
 	}
-	var mfm metricMap
+	mfm := make(metricMap, len(req.MFBytes))
+	log.Debugf("RPC received MFS len %d", len(req.MFBytes))
 	for i, _ := range req.MFBytes[:] {
-
 		bufReader := bytes.NewReader(req.MFBytes[i])
 		//mf := new(dto.MetricFamily)
 		//dec := expfmt.NewDecoder(bufReader, expfmt.FmtProtoCompact)
 		//err = dec.Decode(mf)
 		tp := expfmt.TextParser{}
-		mfm, err = tp.TextToMetricFamilies(bufReader)
+		mf, err := tp.TextToMetricFamilies(bufReader)
 		if err != nil {
 			log.Warnf("decode MetricFamily failed: %s", err)
 			continue
 		}
-		//if mf.Name != nil {
-		//	mfm[*mf.Name] = mf
-		//} else {
-		//	log.Warnf("metric family name should not be nil: %#v", mf)
-		//	continue
-		//}
+		log.Debugf("RPC received MF: %#v", mf)
+		for k, v := range mf {
+			mfm[k] = v
+		}
 	}
 	log.Debugf("MetricFamily uploaded: %v", mfm)
 	if len(mfm) > 0 {
 		cs.NodeMetric.Store(req.NodeID, mfm)
+	} else {
+		err = errors.New("no valid metric received")
 	}
 	return
 }
@@ -110,6 +112,9 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 			continue
 		}
 		mfb = append(mfb, buf.Bytes())
+	}
+	if len(mfb) == 0 {
+		err = errors.New("no valid metric gathered")
 	}
 
 	return

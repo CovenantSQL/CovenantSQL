@@ -52,19 +52,5 @@ func StartMetricCollector() (registry *prometheus.Registry) {
 		log.Infof(" - %s", n)
 	}
 
-	//gatherers := prometheus.Gatherers{
-	//	prometheus.DefaultGatherer,
-	//	registry,
-	//}
-	//// Delegate http serving to Prometheus client library, which will call collector.Collect.
-	//h := promhttp.InstrumentMetricHandler(
-	//	registry,
-	//	promhttp.HandlerFor(gatherers,
-	//		promhttp.HandlerOpts{
-	//			ErrorLog:      log.NewErrorLogger(),
-	//			ErrorHandling: promhttp.ContinueOnError,
-	//		}),
-	//)
-	//h.ServeHTTP(w, r)
 	return
 }

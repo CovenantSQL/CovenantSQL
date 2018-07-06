@@ -22,6 +22,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -58,11 +59,27 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	time.Sleep(time.Second)
-	err = cc.UploadMetrics(serverNodeID, nil)
-	v, _ := cs.NodeMetric.Load(serverNodeID)
-	log.Debugf("NodeMetric：%#v", v)
+	Convey("get metric and upload by RPC", t, func() {
+		err = cc.UploadMetrics(serverNodeID, nil)
+		v, ok := cs.NodeMetric.Load(serverNodeID)
+		So(ok, ShouldBeTrue)
+		//log.Debugf("NodeMetric：%#v", v)
 
-	m, _ := v.(metricMap)
-	log.Debugf("NodeMetric：%#v", m["node_scrape_collector_success"].Metric)
+		m, _ := v.(metricMap)
+		mfb, err := cc.GatherMetricBytes()
+		So(err, ShouldBeNil)
+		So(len(m), ShouldEqual, len(mfb))
+		So(len(m), ShouldBeGreaterThan, 2)
+	})
+
+	Convey("get metric and upload by RPC", t, func() {
+		req := &proto.UploadMetricsReq{
+			NodeID:   "",
+			MFBytes:  nil,
+			Envelope: proto.Envelope{},
+		}
+		err = cs.UploadMetrics(req, &proto.UploadMetricsResp{})
+		So(err, ShouldNotBeNil)
+	})
+
 }

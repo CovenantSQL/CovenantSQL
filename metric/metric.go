@@ -24,6 +24,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	// KB
+	KB int = 1024
+	// MB
+	MB int = KB * 1024
+	// GB
+	GB int = MB * 1024
+	// TB
+	TB int = GB * 1024
+)
+
 func init() {
 	prometheus.MustRegister(version.NewCollector("ThunderDB"))
 }

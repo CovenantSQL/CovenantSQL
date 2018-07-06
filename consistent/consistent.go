@@ -208,8 +208,8 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	return
 }
 
-// Get returns an node close to where name hashes to in the circle.
-func (c *Consistent) Get(name string) (proto.Node, error) {
+// GetNeighbor returns an node close to where name hashes to in the circle.
+func (c *Consistent) GetNeighbor(name string) (proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
@@ -231,8 +231,8 @@ func (c *Consistent) search(key proto.NodeKey) (i int) {
 	return
 }
 
-// GetTwo returns the two closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
+// GetTwoNeighbors returns the two closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
@@ -260,8 +260,8 @@ func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
 	return a, b, nil
 }
 
-// GetN returns the N closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetN(name string, n int) ([]proto.Node, error) {
+// GetNeighbors returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 

@@ -116,7 +116,7 @@ func TestGetEmpty(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	_, err := x.Get("asdfsadfsadf")
+	_, err := x.GetNeighbor("asdfsadfsadf")
 	if err == nil {
 		t.Errorf("expected error")
 	}
@@ -134,7 +134,7 @@ func TestGetSingle(t *testing.T) {
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
 	f := func(s string) bool {
-		y, err := x.Get(s)
+		y, err := x.GetNeighbor(s)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -169,7 +169,7 @@ func TestGetMultiple(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	for i, v := range gmtests {
-		result, err := x.Get(v.in)
+		result, err := x.GetNeighbor(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -190,7 +190,7 @@ func TestGetMultipleQuick(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
-		y, err := x.Get(s)
+		y, err := x.GetNeighbor(s)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -226,7 +226,7 @@ func TestGetMultipleRemove(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	for i, v := range rtestsBefore {
-		result, err := x.Get(v.in)
+		result, err := x.GetNeighbor(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -236,7 +236,7 @@ func TestGetMultipleRemove(t *testing.T) {
 	}
 	x.Remove("hijklmn")
 	for i, v := range rtestsAfter {
-		result, err := x.Get(v.in)
+		result, err := x.GetNeighbor(v.in)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,7 +258,7 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 	x.Add(NewNodeFromID("opqrstu"))
 	x.Remove(NodeID("opqrstu"))
 	f := func(s string) bool {
-		y, err := x.Get(s)
+		y, err := x.GetNeighbor(s)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -281,7 +281,7 @@ func TestGetTwo(t *testing.T) {
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
-	a, b, err := x.GetTwo("99999999")
+	a, b, err := x.GetTwoNeighbors("99999999")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +303,7 @@ func TestGetTwoEmpty(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	_, _, err := x.GetTwo("9999999")
+	_, _, err := x.GetTwoNeighbors("9999999")
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
 	}
@@ -320,7 +320,7 @@ func TestGetTwoQuick(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
-		a, b, err := x.GetTwo(s)
+		a, b, err := x.GetTwoNeighbors(s)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -355,7 +355,7 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	f := func(s string) bool {
-		a, b, err := x.GetTwo(s)
+		a, b, err := x.GetTwoNeighbors(s)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -388,7 +388,7 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID("abcdefg"))
-	a, b, err := x.GetTwo("99999999")
+	a, b, err := x.GetTwoNeighbors("99999999")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +413,7 @@ func TestGetN(t *testing.T) {
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
-	members, err := x.GetN("9999999", 3)
+	members, err := x.GetNeighbors("9999999", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +441,7 @@ func TestGetNLess(t *testing.T) {
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
-	members, err := x.GetN("99999999", 2)
+	members, err := x.GetNeighbors("99999999", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func TestGetNMore(t *testing.T) {
 	x.Add(NewNodeFromID("abcdefg"))
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
-	members, err := x.GetN("9999999", 5)
+	members, err := x.GetNeighbors("9999999", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +491,7 @@ func TestGetNEmpty(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	members, err := x.GetN("9999999", 5)
+	members, err := x.GetNeighbors("9999999", 5)
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
 	}
@@ -511,7 +511,7 @@ func TestGetNQuick(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
-		members, err := x.GetN(s, 3)
+		members, err := x.GetNeighbors(s, 3)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -550,7 +550,7 @@ func TestGetNLessQuick(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
-		members, err := x.GetN(s, 2)
+		members, err := x.GetNeighbors(s, 2)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -589,7 +589,7 @@ func TestGetNMoreQuick(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	f := func(s string) bool {
-		members, err := x.GetN(s, 5)
+		members, err := x.GetNeighbors(s, 5)
 		if err != nil {
 			t.Logf("error: %v", err)
 			return false
@@ -632,7 +632,7 @@ func TestSet(t *testing.T) {
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
-	a, b, err := x.GetTwo("qwerqwerwqer")
+	a, b, err := x.GetTwoNeighbors("qwerqwerwqer")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -649,7 +649,7 @@ func TestSet(t *testing.T) {
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
-	a, b, err = x.GetTwo("qwerqwerwqer")
+	a, b, err = x.GetTwoNeighbors("qwerqwerwqer")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -666,7 +666,7 @@ func TestSet(t *testing.T) {
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
-	a, b, err = x.GetTwo("qwerqwerwqer")
+	a, b, err = x.GetTwoNeighbors("qwerqwerwqer")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -778,7 +778,7 @@ func BenchmarkGet(b *testing.B) {
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Get("nothing")
+		x.GetNeighbor("nothing")
 	}
 }
 
@@ -794,7 +794,7 @@ func BenchmarkGetLarge(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Get("nothing")
+		x.GetNeighbor("nothing")
 	}
 }
 
@@ -808,7 +808,7 @@ func BenchmarkGetN(b *testing.B) {
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.GetN("nothing", 3)
+		x.GetNeighbors("nothing", 3)
 	}
 }
 
@@ -824,7 +824,7 @@ func BenchmarkGetNLarge(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.GetN("nothing", 3)
+		x.GetNeighbors("nothing", 3)
 	}
 }
 
@@ -838,7 +838,7 @@ func BenchmarkGetTwo(b *testing.B) {
 	x.Add(NewNodeFromID("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.GetTwo("nothing")
+		x.GetTwoNeighbors("nothing")
 	}
 }
 
@@ -854,7 +854,7 @@ func BenchmarkGetTwoLarge(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.GetTwo("nothing")
+		x.GetTwoNeighbors("nothing")
 	}
 }
 
@@ -872,7 +872,7 @@ func TestAddCollision(t *testing.T) {
 	defer os.Remove(testStorePath)
 	x.Add(NewNodeFromID(s1))
 	x.Add(NewNodeFromID(s2))
-	elt1, err := x.Get("abear")
+	elt1, err := x.GetNeighbor("abear")
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -882,7 +882,7 @@ func TestAddCollision(t *testing.T) {
 	// add elements in opposite order
 	y.Add(NewNodeFromID(s2))
 	y.Add(NewNodeFromID(s1))
-	elt2, err := y.Get(s1)
+	elt2, err := y.GetNeighbor(s1)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -919,7 +919,7 @@ func TestConcurrentGetSet(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 100; i++ {
-				a, err := x.Get("xxxxxxx")
+				a, err := x.GetNeighbor("xxxxxxx")
 				if err != nil {
 					t.Error(err)
 				}

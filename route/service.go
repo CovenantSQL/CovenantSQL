@@ -49,7 +49,7 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 
 // FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT
 func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
-	nodes, err := DHT.Consistent.GetN(string(req.NodeID), req.Count)
+	nodes, err := DHT.Consistent.GetNeighbors(string(req.NodeID), req.Count)
 	if err != nil {
 		log.Errorf("get nodes from DHT failed: %s", err)
 		resp.Msg = fmt.Sprint(err)

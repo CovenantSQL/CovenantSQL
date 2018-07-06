@@ -54,6 +54,20 @@ type PingResp struct {
 	Envelope
 }
 
+// UploadMetricsReq is UploadMetrics RPC request
+type UploadMetricsReq struct {
+	NodeID NodeID
+	// MetricFamily Bytes array
+	MFBytes [][]byte
+	Envelope
+}
+
+// UploadMetricsResp is UploadMetrics RPC response
+type UploadMetricsResp struct {
+	Msg string
+	Envelope
+}
+
 // FindNeighborReq is FindNeighbor RPC request
 type FindNeighborReq struct {
 	NodeID NodeID

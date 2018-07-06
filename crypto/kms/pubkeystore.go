@@ -70,8 +70,8 @@ func init() {
 	if strings.HasSuffix(os.Args[0], ".test") || strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
 		_, testFile, _, _ := runtime.Caller(0)
 		confFile := filepath.Join(filepath.Dir(testFile), "config.yaml")
-		log.Errorf("Current test filename: %s", confFile)
-		log.Errorf("os.Args: %v", os.Args)
+		log.Debugf("Current test filename: %s", confFile)
+		log.Debugf("os.Args: %v", os.Args)
 
 		var err error
 		conf.GConf, err = conf.LoadConfig(confFile)

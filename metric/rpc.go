@@ -1,0 +1,150 @@
+/*
+ * Copyright 2018 The ThunderDB Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package metric
+
+import (
+	"bytes"
+	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+)
+
+type metricMap map[string]*dto.MetricFamily
+
+const MetricServiceName = "Metric"
+
+type CollectClient struct {
+	registry *prometheus.Registry
+}
+
+func NewCollectClient() *CollectClient {
+	reg := StartMetricCollector()
+	if reg == nil {
+		log.Fatal("StartMetricCollector failed")
+	}
+
+	return &CollectClient{
+		registry: reg,
+	}
+}
+
+type CollectServer struct {
+	NodeMetric sync.Map // map[proto.NodeID]metricMap
+}
+
+func NewCollectServer() *CollectServer {
+	return &CollectServer{
+		NodeMetric: sync.Map{},
+	}
+}
+
+// UploadMetrics RPC uploads metric info
+func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.UploadMetricsResp) (err error) {
+	if req.NodeID == "" {
+		resp.Msg = "empty node id"
+		log.Errorln(resp.Msg)
+		return
+	}
+	var mfm metricMap
+	for i, _ := range req.MFBytes[:] {
+
+		bufReader := bytes.NewReader(req.MFBytes[i])
+		//mf := new(dto.MetricFamily)
+		//dec := expfmt.NewDecoder(bufReader, expfmt.FmtProtoCompact)
+		//err = dec.Decode(mf)
+		tp := expfmt.TextParser{}
+		mfm, err = tp.TextToMetricFamilies(bufReader)
+		if err != nil {
+			log.Warnf("decode MetricFamily failed: %s", err)
+			continue
+		}
+		//if mf.Name != nil {
+		//	mfm[*mf.Name] = mf
+		//} else {
+		//	log.Warnf("metric family name should not be nil: %#v", mf)
+		//	continue
+		//}
+	}
+	log.Debugf("MetricFamily uploaded: %v", mfm)
+	if len(mfm) > 0 {
+		cs.NodeMetric.Store(req.NodeID, mfm)
+	}
+	return
+}
+
+// UploadMetrics calls RPC UploadMetrics to upload its metric info
+func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
+	mfs, err := cc.registry.Gather()
+	if err != nil {
+		log.Errorf("gather metrics failed: %s", err)
+		return
+	}
+	mfb = make([][]byte, 0, len(mfs))
+	for _, mf := range mfs[:] {
+		log.Debugf("mf: %s", *mf)
+		buf := new(bytes.Buffer)
+		//enc := expfmt.NewEncoder(buf, expfmt.FmtProtoCompact)
+		//err = enc.Encode(mf)
+		expfmt.MetricFamilyToText(buf, mf)
+		if err != nil {
+			log.Warnf("encode MetricFamily failed: %s", err)
+			continue
+		}
+		mfb = append(mfb, buf.Bytes())
+	}
+
+	return
+}
+
+// UploadMetrics calls RPC UploadMetrics to upload its metric info
+func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID, connPool *rpc.SessionPool) (err error) {
+	mfb, err := cc.GatherMetricBytes()
+	if err != nil {
+		log.Errorf("GatherMetricBytes failed: %s", err)
+		return
+	}
+
+	conn, err := rpc.DialToNode(BPNodeID, connPool)
+	if err != nil {
+		log.Errorf("dial to %s failed: %s", BPNodeID, err)
+		return
+	}
+	client, err := rpc.InitClientConn(conn)
+	if err != nil {
+		log.Errorf("init client conn failed: %s", err)
+		return
+	}
+	log.Debugf("Calling BP: %s", BPNodeID)
+	reqType := MetricServiceName + ".UploadMetrics"
+	req := &proto.UploadMetricsReq{
+		NodeID:  BPNodeID,
+		MFBytes: mfb,
+	}
+	resp := new(proto.UploadMetricsResp)
+	log.Debugf("req %s: %v", reqType, req)
+	err = client.Call(reqType, req, resp)
+	if err != nil {
+		log.Errorf("calling RPC %s failed: %s", reqType, err)
+	}
+	log.Debugf("resp %s: %v", reqType, resp)
+	return
+}

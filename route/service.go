@@ -59,11 +59,10 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 	return
 }
 
-// Ping RPC add PingReq.Node to DHT
+// Ping RPC adds PingReq.Node to DHT
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
 	err = DHT.Consistent.Add(req.Node)
-	resp = new(proto.PingResp)
 	if err != nil {
 		log.Errorf("DHT.Consistent.Add %v failed: %s", req.Node, err)
 		resp.Msg = err.Error()

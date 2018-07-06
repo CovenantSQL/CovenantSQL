@@ -56,7 +56,7 @@ func NewDiskstatsCollector() (Collector, error) {
 	var diskLabelNames = []string{"device"}
 
 	return &diskstatsCollector{
-		ignoredDevicesPattern: regexp.MustCompile(*ignoredDevices),
+		ignoredDevicesPattern: regexp.MustCompile("^(ram|loop|fd|(h|s|v|xv)d[a-z]|nvme\\d+n\\d+p)\\d+$"),
 		// Docs from https://www.kernel.org/doc/Documentation/iostats.txt
 		descs: []typedFactorDesc{
 			{

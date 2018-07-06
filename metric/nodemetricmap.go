@@ -36,8 +36,7 @@ type NodeMetricMap struct {
 }
 
 // FilterNode return node id slice make filterFunc return true
-func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) []proto.NodeID {
-	ret := make([]proto.NodeID, 0)
+func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) (ret []proto.NodeID) {
 	nodePicker := func(key, value interface{}) bool {
 		id, ok := key.(proto.NodeID)
 		if !ok {
@@ -53,5 +52,5 @@ func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) []proto.NodeID {
 		return true
 	}
 	nmm.Range(nodePicker)
-	return ret
+	return
 }

@@ -94,7 +94,7 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 
 // Collector is the interface a collector has to implement.
 type Collector interface {
-	// Get new metrics and expose them via prometheus registry.
+	// Get new metrics and expose them via prometheus Registry.
 	Update(ch chan<- prometheus.Metric) error
 }
 

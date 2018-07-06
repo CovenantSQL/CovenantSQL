@@ -26,7 +26,7 @@ import (
 
 const historyCount = 2
 
-const updateInterval = 200 * time.Millisecond
+const updateInterval = 5 * time.Minute
 
 // thunderDBStatsMetrics provide description, value, and value type for thunderDB stat metrics.
 type thunderDBStatsMetrics []struct {

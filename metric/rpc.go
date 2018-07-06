@@ -19,25 +19,20 @@ package metric
 import (
 	"bytes"
 	"errors"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
-// metricMap is map from metric name to MetricFamily
-type metricMap map[string]*dto.MetricFamily
-
 // MetricServiceName is the RPC name
 const MetricServiceName = "Metric"
 
 // CollectClient is the Metric Collect Client
 type CollectClient struct {
-	registry *prometheus.Registry
+	Registry *prometheus.Registry
 }
 
 // NewCollectClient returns a new CollectClient
@@ -48,19 +43,19 @@ func NewCollectClient() *CollectClient {
 	}
 
 	return &CollectClient{
-		registry: reg,
+		Registry: reg,
 	}
 }
 
 // CollectServer is the Metric receiver side
 type CollectServer struct {
-	NodeMetric sync.Map // map[proto.NodeID]metricMap
+	NodeMetric NodeMetricMap // map[proto.NodeID]metricMap
 }
 
 // NewCollectServer returns a new CollectServer
 func NewCollectServer() *CollectServer {
 	return &CollectServer{
-		NodeMetric: sync.Map{},
+		NodeMetric: NodeMetricMap{},
 	}
 }
 
@@ -101,7 +96,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 
 // GatherMetricBytes gathers the registered metric info and encode it to [][]byte
 func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
-	mfs, err := cc.registry.Gather()
+	mfs, err := cc.Registry.Gather()
 	if err != nil {
 		log.Errorf("gather metrics failed: %s", err)
 		return

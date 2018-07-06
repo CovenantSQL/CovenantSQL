@@ -39,6 +39,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 var rootHash = hash.Hash{}
@@ -468,6 +469,13 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 	tm := getLocalTime()
 	tm = tm.Add(-timeShift)
 
+	// build queries
+	realQueries := make([]storage.Query, len(queries))
+
+	for i, v := range queries {
+		realQueries[i].Pattern = v
+	}
+
 	query = &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
@@ -481,7 +489,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 			Signee: pubKey,
 		},
 		Payload: wt.RequestPayload{
-			Queries: queries,
+			Queries: realQueries,
 		},
 	}
 

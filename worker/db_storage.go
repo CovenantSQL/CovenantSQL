@@ -117,7 +117,7 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	log.ConnectionID = req.Header.ConnectionID
 	log.SeqNo = req.Header.SeqNo
 	log.Timestamp = req.Header.Timestamp.UnixNano()
-	log.Queries = make([]string, len(req.Payload.Queries))
+	log.Queries = make([]storage.Query, len(req.Payload.Queries))
 	copy(log.Queries, req.Payload.Queries)
 
 	// verify connection sequence

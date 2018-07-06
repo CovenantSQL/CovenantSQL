@@ -3,6 +3,33 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/alecthomas/template"
+  packages = [
+    ".",
+    "parse"
+  ]
+  revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/alecthomas/units"
+  packages = ["."]
+  revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
+
+[[projects]]
+  name = "github.com/beevik/ntp"
+  packages = ["."]
+  revision = "62c80a04de2086884d8296004b6d74ee1846c582"
+  version = "v0.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
+  branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   revision = "86fed781132ac890ee03e906e4ecd5d6fa180c64"
@@ -14,16 +41,34 @@
   version = "v1.3.0"
 
 [[projects]]
+  name = "github.com/coreos/go-systemd"
+  packages = ["dbus"]
+  revision = "39ca1b05acc7ad1220e09f133283b8859a8b71ab"
+  version = "v17"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/ema/qdisc"
+  packages = ["."]
+  revision = "b307c22d3ce761d351b6e6270b50195b44ee9248"
+
+[[projects]]
   name = "github.com/fortytw2/leaktest"
   packages = ["."]
   revision = "a5ef70473c97b71626b9abeda80ee92ba2a7de9e"
   version = "v1.2.0"
+
+[[projects]]
+  name = "github.com/godbus/dbus"
+  packages = ["."]
+  revision = "a389bdde4dd695d414e47b755e95e72b7826432c"
+  version = "v4.1.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -35,7 +80,7 @@
   branch = "master"
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
-  revision = "8dffc02ea1cb8398bb73f30424697c60fcf8d4c5"
+  revision = "0892b62f0d9fb5857760c3cfca837207185117ee"
 
 [[projects]]
   branch = "master"
@@ -56,10 +101,52 @@
   version = "v4.2.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/kolo/xmlrpc"
+  packages = ["."]
+  revision = "959962c1b48bbdbfbba4d59d58a8c15ff3fb9b22"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/lufia/iostat"
+  packages = ["."]
+  revision = "9f7362b77ad333b26c01c99de52a11bdb650ded2"
+
+[[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
   revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
   version = "v1.9.0"
+
+[[projects]]
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mdlayher/genetlink"
+  packages = ["."]
+  revision = "2806253bd5d0ac9ce7af202e55d0fe0a5a911ac0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mdlayher/netlink"
+  packages = [
+    ".",
+    "nlenc"
+  ]
+  revision = "adc086b2d8d2648ac83706caa6ac26a5e7c6ce4e"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mdlayher/wifi"
+  packages = [
+    ".",
+    "internal/nl80211"
+  ]
+  revision = "9a2549315201616119128afe421d1601ef3506f9"
 
 [[projects]]
   branch = "master"
@@ -72,6 +159,49 @@
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/client_golang"
+  packages = ["prometheus"]
+  revision = "d6a9817c4afc94d51115e4a30d449056a3fbf547"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/common"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "log",
+    "model",
+    "version"
+  ]
+  revision = "7600349dcfe1abd18d72d3a1770870d9800a7801"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/node_exporter"
+  packages = ["collector"]
+  revision = "8af84a215dd21a7d78be0a82cf88b3b5ce52250c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "bcache",
+    "internal/util",
+    "nfs",
+    "sysfs",
+    "xfs"
+  ]
+  revision = "ae68e2d4c00fed4943b5f6698d504a5fe083da8a"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -98,6 +228,12 @@
   ]
   revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
   version = "1.6.3"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/soundcloud/go-runit"
+  packages = ["runit"]
+  revision = "06ad41a06c4a586951fb8040a697ecd39729640b"
 
 [[projects]]
   name = "github.com/stretchr/objx"
@@ -134,12 +270,31 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "bpf",
+    "internal/iana",
+    "internal/socket",
+    "ipv4"
+  ]
+  revision = "ed29d75add3d7c4bf7ca65aac0c6df3d1420216f"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = [
     "unix",
-    "windows"
+    "windows",
+    "windows/registry",
+    "windows/svc/eventlog"
   ]
-  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
+  revision = "151529c776cdc58ddbe7963ba9af779f3577b419"
+
+[[projects]]
+  name = "gopkg.in/alecthomas/kingpin.v2"
+  packages = ["."]
+  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
+  version = "v2.2.6"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -150,6 +305,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6584f13eee2a6795ceebd4aac5d47fac5483b44b08c151ed69035446cb21c41f"
+  inputs-digest = "9ba3b444ec5de62c6c4d2fd2e04c431ce02960d56b4cf4bf01e3460f29a1ccce"
   solver-name = "gps-cdcl"
   solver-version = 1

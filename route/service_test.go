@@ -37,7 +37,7 @@ import (
 
 const DHTStorePath = "./DHTStore"
 
-func TestPingFindValue(t *testing.T) {
+func TestPingFindNeighbor(t *testing.T) {
 	os.Remove(DHTStorePath)
 	defer os.Remove(DHTStorePath + "1")
 	log.SetLevel(log.DebugLevel)
@@ -65,18 +65,18 @@ func TestPingFindValue(t *testing.T) {
 		log.Error(err)
 	}
 
-	req := &FindValueReq{
+	req := &FindNeighborReq{
 		NodeID: "123",
 		Count:  2,
 	}
-	resp := new(FindValueResp)
-	err = client.Call("DHT.FindValue", req, resp)
+	resp := new(FindNeighborResp)
+	err = client.Call("DHT.FindNeighbor", req, resp)
 	if err != nil {
 		log.Error(err)
 	}
 	log.Debugf("resp: %v", resp)
 
-	Convey("test FindValue empty", t, func() {
+	Convey("test FindNeighbor empty", t, func() {
 		So(resp.Nodes, ShouldBeEmpty)
 		So(err.Error(), ShouldEqual, consistent.ErrEmptyCircle.Error())
 	})
@@ -107,12 +107,12 @@ func TestPingFindValue(t *testing.T) {
 	}
 	log.Debugf("respA: %v", respB)
 
-	req = &FindValueReq{
+	req = &FindNeighborReq{
 		NodeID: "123",
 		Count:  10,
 	}
-	resp = new(FindValueResp)
-	err = client.Call("DHT.FindValue", req, resp)
+	resp = new(FindNeighborResp)
+	err = client.Call("DHT.FindNeighbor", req, resp)
 	if err != nil {
 		log.Error(err)
 	}
@@ -122,7 +122,7 @@ func TestPingFindValue(t *testing.T) {
 		nodeIDList = append(nodeIDList, string(n.ID))
 	}
 	log.Debugf("nodeIDList: %v", nodeIDList)
-	Convey("test FindValue", t, func() {
+	Convey("test FindNeighbor", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))
 		So(nodeIDList, ShouldContain, string(node2.ID))
 	})

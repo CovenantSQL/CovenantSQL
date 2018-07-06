@@ -183,7 +183,7 @@ func TestServer_InitRPCServer(t *testing.T) {
 
 }
 
-func TestEncPingFindValue(t *testing.T) {
+func TestEncPingFindNeighbor(t *testing.T) {
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
 	log.SetLevel(log.DebugLevel)
@@ -241,12 +241,12 @@ func TestEncPingFindValue(t *testing.T) {
 	}
 	log.Debugf("respB: %v", respB)
 
-	req := &proto.FindValueReq{
+	req := &proto.FindNeighborReq{
 		NodeID: "123",
 		Count:  10,
 	}
-	resp := new(proto.FindValueResp)
-	err = client.Call("DHT.FindValue", req, resp)
+	resp := new(proto.FindNeighborResp)
+	err = client.Call("DHT.FindNeighbor", req, resp)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestEncPingFindValue(t *testing.T) {
 	}
 
 	log.Debugf("nodeIDList: %v", nodeIDList)
-	Convey("test FindValue", t, func() {
+	Convey("test FindNeighbor", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))
 		So(nodeIDList, ShouldContain, string(node2.ID))
 		So(nodeIDList, ShouldContain, string(kms.BP.NodeID))

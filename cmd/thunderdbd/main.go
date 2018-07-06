@@ -65,7 +65,7 @@ var (
 const Role = common.BlockProducer
 
 const name = `thunderdbd`
-const desc = `ThunderDB is a database`
+const desc = `ThunderDB is a Distributed Database running on BlockChain`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
@@ -77,10 +77,11 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 
 	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&clientOperation, "operation", "FindValue", "client operation")
+	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
+		fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
 		flag.PrintDefaults()
 	}
 }

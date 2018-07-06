@@ -23,6 +23,8 @@ before_script:
 test-my-project:
   stage: test
   script:
+    # Remove buggy wifi_linux.go
+    - rm -f vendor/github.com/prometheus/node_exporter/collector/wifi_linux.go
     - bash build.sh
     - go test -v -race $(go list ./... | grep -v "/vendor/")
     - goverage -coverprofile=coverage.txt ./...

@@ -28,6 +28,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("ThunderDB"))
 }
 
+// StartMetricCollector starts collector registered in NewNodeCollector()
 func StartMetricCollector() (registry *prometheus.Registry) {
 	nc, err := NewNodeCollector()
 	if err != nil {

@@ -29,14 +29,18 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
+// metricMap is map from metric name to MetricFamily
 type metricMap map[string]*dto.MetricFamily
 
+// MetricServiceName is the RPC name
 const MetricServiceName = "Metric"
 
+// CollectClient is the Metric Collect Client
 type CollectClient struct {
 	registry *prometheus.Registry
 }
 
+// NewCollectClient returns a new CollectClient
 func NewCollectClient() *CollectClient {
 	reg := StartMetricCollector()
 	if reg == nil {
@@ -48,10 +52,12 @@ func NewCollectClient() *CollectClient {
 	}
 }
 
+// CollectServer is the Metric receiver side
 type CollectServer struct {
 	NodeMetric sync.Map // map[proto.NodeID]metricMap
 }
 
+// NewCollectServer returns a new CollectServer
 func NewCollectServer() *CollectServer {
 	return &CollectServer{
 		NodeMetric: sync.Map{},
@@ -68,8 +74,8 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 	}
 	mfm := make(metricMap, len(req.MFBytes))
 	log.Debugf("RPC received MFS len %d", len(req.MFBytes))
-	for i, _ := range req.MFBytes[:] {
-		bufReader := bytes.NewReader(req.MFBytes[i])
+	for _, mf := range req.MFBytes[:] {
+		bufReader := bytes.NewReader(mf)
 		//mf := new(dto.MetricFamily)
 		//dec := expfmt.NewDecoder(bufReader, expfmt.FmtProtoCompact)
 		//err = dec.Decode(mf)
@@ -93,7 +99,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 	return
 }
 
-// UploadMetrics calls RPC UploadMetrics to upload its metric info
+// GatherMetricBytes gathers the registered metric info and encode it to [][]byte
 func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 	mfs, err := cc.registry.Gather()
 	if err != nil {

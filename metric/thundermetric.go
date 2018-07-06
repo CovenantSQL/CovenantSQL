@@ -48,6 +48,7 @@ func thunderDBStatNamespace(s string) string {
 	return fmt.Sprintf("thunderstats_%s", s)
 }
 
+// NewThunderDBCollector returns a new ThunderDBCollector
 func NewThunderDBCollector() prometheus.Collector {
 	cc := &ThunderDBCollector{
 		thunderDBStatHistory: [historyCount]int64{},
@@ -93,6 +94,7 @@ func (cc *ThunderDBCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
+// updateThunderDBStat updates metric in background
 func (cc *ThunderDBCollector) updateThunderDBStat() error {
 	cc.Lock()
 	defer cc.Unlock()
@@ -104,12 +106,14 @@ func (cc *ThunderDBCollector) updateThunderDBStat() error {
 	return nil
 }
 
+// ThunderDBIdle gets the idle of DB
 func ThunderDBIdle(cc *ThunderDBCollector) float64 {
 	cc.RLock()
 	defer cc.RUnlock()
 	return float64(cc.thunderDBStatHistory[0] - cc.thunderDBStatHistory[1])
 }
 
+// ThunderDBPrepared returns true when the metric is ready to be collected
 func (cc *ThunderDBCollector) ThunderDBPrepared() bool {
 	cc.RLock()
 	defer cc.RUnlock()

@@ -427,7 +427,6 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 
 // mainCycle runs main cycle of the sql-chain.
 func (c *Chain) mainCycle() {
-	c.rt.wg.Add(1)
 	defer c.rt.wg.Done()
 
 	for {
@@ -469,14 +468,20 @@ func (c *Chain) Start() (err error) {
 		return
 	}
 
+	c.rt.wg.Add(1)
 	go c.mainCycle()
 	return
 }
 
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
-	err = c.db.Close()
+	// TODO(leventeliu): unregister RPC service.
+
+	// Stop main process
 	c.rt.stop()
+
+	// Close database file
+	err = c.db.Close()
 	return
 }
 

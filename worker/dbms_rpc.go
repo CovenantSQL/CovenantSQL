@@ -52,7 +52,7 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 	}
 
 	var r *wt.Response
-	if r, err = rpc.dbms.query(req); err != nil {
+	if r, err = rpc.dbms.Query(req); err != nil {
 		return
 	}
 
@@ -75,7 +75,7 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 	}
 
 	// verification
-	err = rpc.dbms.ack(ack)
+	err = rpc.dbms.Ack(ack)
 
 	return
 }
@@ -96,11 +96,11 @@ func (rpc *DBMSRPCService) Update(req *wt.UpdateService, _ *wt.UpdateServiceResp
 	// create/drop/update
 	switch req.Header.Op {
 	case wt.CreateDB:
-		err = rpc.dbms.create(&req.Header.Instance, true)
+		err = rpc.dbms.Create(&req.Header.Instance, true)
 	case wt.UpdateDB:
-		err = rpc.dbms.update(&req.Header.Instance)
+		err = rpc.dbms.Update(&req.Header.Instance)
 	case wt.DropDB:
-		err = rpc.dbms.drop(req.Header.Instance.DatabaseID)
+		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}
 
 	return

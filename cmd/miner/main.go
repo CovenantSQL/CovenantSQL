@@ -25,8 +25,10 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"gitlab.com/thunderdb/ThunderDB/worker"
 )
 
 const logo = `
@@ -54,13 +56,9 @@ var (
 )
 
 var (
-	// database
-	minPort  int
-	maxPort  int
-	bindAddr string
-
 	// config
 	configFile string
+	genKeyPair bool
 
 	// profile
 	cpuProfile string
@@ -76,8 +74,8 @@ const desc = `ThunderDB is a Distributed Database running on BlockChain`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
-	flag.StringVar(&bindAddr, "bind-addr", "0.0.0.0:6699", "Addr and port to bind, In honor of Napster")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
@@ -126,7 +124,27 @@ func main() {
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
+	// set generate key pair config
+	conf.GConf.GenerateKeyPair = genKeyPair
+
+	// start rpc
+	var server *rpc.Server
+	if server, err = initNode(); err != nil {
+		log.Fatalf("init node failed: %v", err)
+	}
+
 	//reg := metric.StartMetricCollector()
+
+	// start dbms
+	var dbms *worker.DBMS
+	if dbms, err = startDBMS(server); err != nil {
+		log.Fatalf("start dbms failed: %v", err)
+	}
+
+	defer dbms.Shutdown()
+
+	// start rpc server
+	server.Serve()
 
 	log.Info("miner stopped")
 }

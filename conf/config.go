@@ -18,6 +18,7 @@ package conf
 
 import (
 	"io/ioutil"
+	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -88,9 +89,30 @@ type NodeInfo struct {
 	Role      ServerRole
 }
 
+// MinerDatabaseFixture config.
+type MinerDatabaseFixture struct {
+	DatabaseID               proto.DatabaseID
+	Term                     uint64
+	Leader                   proto.NodeID
+	Servers                  []proto.NodeID
+	GenesisBlockFile         string
+	AutoGenerateGenesisBlock bool `yaml:",omitempty"`
+}
+
+// MinerConfig for miner config.
+type MinerInfo struct {
+	// node basic config
+	RootDir           string
+	TimeShiftInterval time.Duration `yaml:",omitempty"`
+
+	// test mode config
+	IsTestMode   bool // when test mode, fixture database config is used.
+	TestFixtures []*MinerDatabaseFixture
+}
+
 // Config holds all the config read from yaml config file
 type Config struct {
-	IsTestMode      bool //when testMode use default empty masterKey
+	IsTestMode      bool // when testMode use default empty masterKey
 	GenerateKeyPair bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
 	WorkingRoot     string
@@ -101,7 +123,8 @@ type Config struct {
 	ThisNodeID      proto.NodeID
 	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 
-	BP *BPInfo `yaml:"BlockProducer"`
+	BP    *BPInfo    `yaml:"BlockProducer"`
+	Miner *MinerInfo `yaml:"Miner,omitempty"`
 
 	KnownNodes *[]NodeInfo
 }

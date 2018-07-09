@@ -147,7 +147,7 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 
 	for _, instanceConf := range conf {
 		currentInstance[instanceConf.DatabaseID] = true
-		if err = dbms.create(&instanceConf, false); err != nil {
+		if err = dbms.Create(&instanceConf, false); err != nil {
 			return
 		}
 	}
@@ -163,7 +163,7 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 
 	// drop database
 	for dbID := range toDropInstance {
-		if err = dbms.drop(dbID); err != nil {
+		if err = dbms.Drop(dbID); err != nil {
 			return
 		}
 	}
@@ -171,7 +171,8 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 	return
 }
 
-func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error) {
+// Create add new database to the miner dbms.
+func (dbms *DBMS) Create(instance *wt.ServiceInstance, cleanup bool) (err error) {
 	if _, alreadyExists := dbms.getMeta(instance.DatabaseID); alreadyExists {
 		return ErrAlreadyExists
 	}
@@ -227,7 +228,8 @@ func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error)
 	return
 }
 
-func (dbms *DBMS) drop(dbID proto.DatabaseID) (err error) {
+// Drop remove database from the miner dbms.
+func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	var db *Database
 	var exists bool
 
@@ -244,7 +246,8 @@ func (dbms *DBMS) drop(dbID proto.DatabaseID) (err error) {
 	return dbms.removeMeta(dbID)
 }
 
-func (dbms *DBMS) update(instance *wt.ServiceInstance) (err error) {
+// Update apply the new peers config to dbms.
+func (dbms *DBMS) Update(instance *wt.ServiceInstance) (err error) {
 	var db *Database
 	var exists bool
 
@@ -256,7 +259,8 @@ func (dbms *DBMS) update(instance *wt.ServiceInstance) (err error) {
 	return db.UpdatePeers(instance.Peers)
 }
 
-func (dbms *DBMS) query(req *wt.Request) (res *wt.Response, err error) {
+// Query handles query request in dbms.
+func (dbms *DBMS) Query(req *wt.Request) (res *wt.Response, err error) {
 	var db *Database
 	var exists bool
 
@@ -270,7 +274,8 @@ func (dbms *DBMS) query(req *wt.Request) (res *wt.Response, err error) {
 	return db.Query(req)
 }
 
-func (dbms *DBMS) ack(ack *wt.Ack) (err error) {
+// Ack handles ack of previous response.
+func (dbms *DBMS) Ack(ack *wt.Ack) (err error) {
 	var db *Database
 	var exists bool
 

@@ -31,6 +31,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 var (
@@ -116,6 +117,16 @@ func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 	return
 }
 
+func createRandomStorageQueries(offset, length, soffset, slength int) (qs []storage.Query) {
+	qs = make([]storage.Query, rand.Intn(length)+offset)
+
+	for i := range qs {
+		createRandomString(soffset, slength, &qs[i].Pattern)
+	}
+
+	return
+}
+
 func createRandomTimeAfter(now time.Time, maxDelayMillisecond int) time.Time {
 	return now.Add(time.Duration(rand.Intn(maxDelayMillisecond)+1) * time.Millisecond)
 }
@@ -135,7 +146,7 @@ func createRandomQueryRequest(cli *nodeProfile) (r *wt.SignedRequestHeader, err 
 			Signature: nil,
 		},
 		Payload: wt.RequestPayload{
-			Queries: createRandomStrings(10, 10, 10, 10),
+			Queries: createRandomStorageQueries(10, 10, 10, 10),
 		},
 	}
 

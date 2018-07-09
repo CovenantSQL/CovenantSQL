@@ -26,6 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 func getCommKeys() (*asymmetric.PrivateKey, *asymmetric.PublicKey) {
@@ -122,16 +123,18 @@ func TestRequest_Sign(t *testing.T) {
 				Signee: pubKey,
 			},
 			Payload: RequestPayload{
-				Queries: []string{
-					"INSERT INTO test VALUES(1)",
-					"INSERT INTO test VALUES(2)",
+				Queries: []storage.Query{
+					{
+						Pattern: "INSERT INTO test VALUES(1)",
+					},
+					{
+						Pattern: "INSERT INTO test VALUES(2)",
+					},
 				},
 			},
 		}
 
-		var data []byte
 		var err error
-		var rreq Request
 
 		// sign
 		err = req.Sign(privKey)
@@ -146,14 +149,8 @@ func TestRequest_Sign(t *testing.T) {
 			So(req.Serialize(), ShouldNotBeEmpty)
 			So((*Request)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*RequestHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*RequestPayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*RequestPayload)(nil).Serialize(), ShouldNotBeEmpty)
 			So((*SignedRequestHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-
-			data, err = req.MarshalBinary()
-			So(err, ShouldBeNil)
-			err = rreq.UnmarshalBinary(data)
-			So(err, ShouldBeNil)
-			So(req, ShouldResemble, &rreq)
 
 			// test nils
 			req.Header.Signee = nil
@@ -183,7 +180,11 @@ func TestRequest_Sign(t *testing.T) {
 			})
 
 			Convey("header change with invalid queries hash", func() {
-				req.Payload.Queries = append(req.Payload.Queries, "select 1")
+				req.Payload.Queries = append(req.Payload.Queries,
+					storage.Query{
+						Pattern: "select 1",
+					},
+				)
 
 				err = req.Verify()
 				So(err, ShouldNotBeNil)
@@ -279,7 +280,7 @@ func TestResponse_Sign(t *testing.T) {
 		Convey("serialize", func() {
 			So(res.Serialize(), ShouldNotBeEmpty)
 			So((*Response)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*ResponseRow)(nil).Serialize(), ShouldResemble, []byte{'\000'})
+			So((*ResponseRow)(nil).Serialize(), ShouldNotBeEmpty)
 			So((*ResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*ResponsePayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})

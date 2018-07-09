@@ -25,6 +25,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 // QueryType enumerates available query type, currently read/write.
@@ -39,7 +40,7 @@ const (
 
 // RequestPayload defines a queries payload.
 type RequestPayload struct {
-	Queries []string
+	Queries []storage.Query
 }
 
 // RequestHeader defines a query request header.
@@ -71,17 +72,8 @@ type Request struct {
 
 // Serialize returns byte based binary form of struct.
 func (p *RequestPayload) Serialize() []byte {
-	if p == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, uint64(len(p.Queries)))
-
-	for _, q := range p.Queries {
-		binary.Write(buf, binary.LittleEndian, uint64(len(q)))
-		buf.WriteString(q)
-	}
+	// FIXME(xq262144), currently use idiomatic serialization for hash generation
+	buf, _ := utils.EncodeMsgPack(p)
 
 	return buf.Bytes()
 }
@@ -232,28 +224,5 @@ func (sh *SignedRequestHeader) UnmarshalBinary(b []byte) error {
 		&sh.HeaderHash,
 		&sh.Signee,
 		&sh.Signature,
-	)
-}
-
-// MarshalBinary implements BinaryMarshaler.
-func (r *Request) MarshalBinary() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		&r.Header,
-		r.Payload.Queries,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (r *Request) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&r.Header,
-		&r.Payload.Queries,
 	)
 }

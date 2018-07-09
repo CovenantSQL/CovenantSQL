@@ -152,7 +152,11 @@ func (s *stubServer) Write(sql string, _ *responseRows) (err error) {
 	var writeData []byte
 
 	l := &storage.ExecLog{
-		Queries: []string{sql},
+		Queries: []storage.Query{
+			{
+				Pattern: sql,
+			},
+		},
 	}
 
 	if writeData, err = payloadCodec.encode(l); err != nil {
@@ -168,7 +172,11 @@ func (s *stubServer) Write(sql string, _ *responseRows) (err error) {
 func (s *stubServer) Read(sql string, rows *responseRows) (err error) {
 	var columns []string
 	var result [][]interface{}
-	columns, _, result, err = s.storage.Query(context.Background(), []string{sql})
+	columns, _, result, err = s.storage.Query(context.Background(), []storage.Query{
+		{
+			Pattern: sql,
+		},
+	})
 
 	// rebuild map
 	*rows = make([]map[string]interface{}, 0, len(result))

@@ -29,13 +29,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
-var (
-// TODO(auxten): move these BP info into conf
-
-// AllNodes holds all BP nodes and client node info
-//AllNodes = []NodeInfo{}
-)
-
 func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]conf.NodeInfo, peers *kayak.Peers, thisNode *conf.NodeInfo, err error) {
 	privateKey, err := kms.GetLocalPrivateKey()
 	if err != nil {

@@ -1,0 +1,2 @@
+## License
+Some of this package files are carried from `https://github.com/prometheus/node_exporter`. Because `https://github.com/prometheus/node_exporter` is highly bind to kingpin flags which made it difficult to use as a external package directly. We have to copy and modify it.

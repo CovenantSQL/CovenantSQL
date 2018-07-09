@@ -35,6 +35,14 @@
   branch = "master"
 
 [[override]]
+  name = "github.com/prometheus/client_golang"
+  branch = "master"
+
+[[override]]
+  name = "github.com/prometheus/node_exporter"
+  branch = "master"
+
+[[override]]
   name = "github.com/hashicorp/raft"
   branch = "master"
 

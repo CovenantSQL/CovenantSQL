@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -66,19 +65,9 @@ type Response struct {
 
 // Serialize structure to bytes.
 func (r *ResponseRow) Serialize() []byte {
-	if r == nil {
-		return []byte{'\000'}
-	}
-
 	// FIXME(xq262144), currently use idiomatic serialization for hash generation
-	buf := new(bytes.Buffer)
-	hd := codec.MsgpackHandle{}
-	enc := codec.NewEncoder(buf, &hd)
-	err := enc.Encode(r)
-	// FIXME(xq262144), panic of failure, should never happened
-	if err != nil {
-		panic(err)
-	}
+	buf, _ := utils.EncodeMsgPack(r)
+
 	return buf.Bytes()
 }
 

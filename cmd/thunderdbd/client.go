@@ -126,12 +126,12 @@ func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err e
 					return
 				}
 				log.Debugf("Calling BP: %s", bp.ID)
-				reqType = "FindValue"
-				req := &proto.FindValueReq{
+				reqType = "FindNeighbor"
+				req := &proto.FindNeighborReq{
 					NodeID: proto.NodeID(flag.Arg(0)),
 					Count:  10,
 				}
-				resp := new(proto.FindValueResp)
+				resp := new(proto.FindNeighborResp)
 				log.Debugf("req %s: %v", reqType, req)
 				err = client.Call("DHT."+reqType, req, resp)
 				if err != nil {

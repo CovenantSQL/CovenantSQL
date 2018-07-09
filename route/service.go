@@ -47,8 +47,8 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 	return NewDHTServiceWithRing(c)
 }
 
-// FindValue RPC returns FindValueReq.Count closest node from DHT
-func (DHT *DHTService) FindValue(req *proto.FindValueReq, resp *proto.FindValueResp) (err error) {
+// FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT
+func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
 	nodes, err := DHT.Consistent.GetN(string(req.NodeID), req.Count)
 	if err != nil {
 		log.Errorf("get nodes from DHT failed: %s", err)
@@ -59,11 +59,10 @@ func (DHT *DHTService) FindValue(req *proto.FindValueReq, resp *proto.FindValueR
 	return
 }
 
-// Ping RPC add PingReq.Node to DHT
+// Ping RPC adds PingReq.Node to DHT
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
 	err = DHT.Consistent.Add(req.Node)
-	resp = new(proto.PingResp)
 	if err != nil {
 		log.Errorf("DHT.Consistent.Add %v failed: %s", req.Node, err)
 		resp.Msg = err.Error()

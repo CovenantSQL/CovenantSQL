@@ -77,12 +77,14 @@ type NodeInfo struct {
 type Config struct {
 	IsTestMode      bool //when testMode use default empty masterKey
 	GenerateKeyPair bool `yaml:"-"`
+	//TODO(auxten): set yaml key for config
 	WorkingRoot     string
 	PubKeyStoreFile string
 	PrivateKeyFile  string
 	DHTFileName     string
 	ListenAddr      string
 	ThisNodeID      proto.NodeID
+	ValidDNSKeys    []string `yaml:"ValidDNSKeys"`
 
 	BP *BPInfo `yaml:"BlockProducer"`
 

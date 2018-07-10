@@ -49,7 +49,8 @@ var (
 
 // Resolver does NodeID translation
 type Resolver struct {
-	cache ResolveCache
+	cache       ResolveCache
+	bpAddresses []string // only write on booting
 	sync.RWMutex
 }
 
@@ -57,7 +58,8 @@ type Resolver struct {
 func InitResolver() {
 	resolverOnce.Do(func() {
 		resolver = &Resolver{
-			cache: make(ResolveCache),
+			cache:       make(ResolveCache),
+			bpAddresses: initBPAddrs(),
 		}
 	})
 	return
@@ -71,8 +73,8 @@ func IsBPNodeID(id *proto.RawNodeID) bool {
 	return id.IsEqual(&kms.BP.RawNodeID.Hash)
 }
 
-// InitResolveCache init Resolver.cache by a new map
-func InitResolveCache(initCache ResolveCache) {
+// SetResolveCache init Resolver.cache by a new map
+func SetResolveCache(initCache ResolveCache) {
 	resolver.Lock()
 	defer resolver.Unlock()
 	resolver.cache = initCache
@@ -88,6 +90,27 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	defer resolver.RUnlock()
 	addr, ok := resolver.cache[*id]
 	if !ok {
+		//if conn, err = rpc.DialToNode(leaderNodeID, connPool); err != nil {
+		//	return
+		//}
+		//if client, err = rpc.InitClientConn(conn); err != nil {
+		//	return
+		//}
+		//reqType = "Ping"
+		//node1 := proto.NewNode()
+		//node1.InitNodeCryptoInfo(100 * time.Millisecond)
+		//
+		//reqA := &proto.PingReq{
+		//	Node: *node1,
+		//}
+		//
+		//respA := new(proto.PingResp)
+		//log.Debugf("req %s: %v", reqType, reqA)
+		//err = client.Call("DHT."+reqType, reqA, respA)
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
+		//log.Debugf("resp %s: %v", reqType, respA)
 		return "", ErrUnknownNodeID
 	}
 	return
@@ -95,7 +118,6 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 
 // SetNodeAddrCache set node id and addr
 func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
-	//TODO(auxten): implement that
 	if id == nil {
 		return ErrNilNodeID
 	}
@@ -105,11 +127,17 @@ func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	return
 }
 
-// GetBPAddr return BlockProducer addresses array
-func GetBPAddr() (BPAddrs []string) {
-	for _, n := range (*conf.GConf.KnownNodes)[:] {
-		if n.Role == conf.Leader || n.Role == conf.Follower {
-			BPAddrs = append(BPAddrs, n.Addr)
+func GetBPAddrs() (BPAddrs []string) {
+	return resolver.bpAddresses
+}
+
+// initBPAddrs return BlockProducer addresses array
+func initBPAddrs() (BPAddrs []string) {
+	if conf.GConf.KnownNodes != nil {
+		for _, n := range (*conf.GConf.KnownNodes)[:] {
+			if n.Role == conf.Leader || n.Role == conf.Follower {
+				BPAddrs = append(BPAddrs, n.Addr)
+			}
 		}
 	}
 

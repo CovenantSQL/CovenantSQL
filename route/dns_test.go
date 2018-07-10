@@ -38,7 +38,7 @@ func TestResolver(t *testing.T) {
 
 	Convey("resolver init", t, func() {
 		InitResolver()
-		InitResolveCache(make(ResolveCache))
+		SetResolveCache(make(ResolveCache))
 		addr, err := GetNodeAddr(&proto.RawNodeID{
 			Hash: hash.Hash([32]byte{0xde, 0xad}),
 		})
@@ -66,7 +66,7 @@ func TestResolver(t *testing.T) {
 
 		So(IsBPNodeID(nodeA), ShouldBeFalse)
 
-		BPs := GetBPAddr()
+		BPs := GetBPAddrs()
 		dc := NewDNSClient()
 		ips, err := dc.GetBPAddresses(BPDomain)
 

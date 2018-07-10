@@ -18,31 +18,45 @@ package route
 
 import (
 	"fmt"
-	"github.com/miekg/dns"
+	"path/filepath"
+	"runtime"
 	"testing"
+
+	"github.com/miekg/dns"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 )
 
 const Domain = "_bp._tcp.gridb.io."
 
 func TestGetSRV(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_c/config.yaml")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %v", conf.GConf)
+
 	dc := NewDNSClient()
 	in := dc.GetSRVRecords(Domain)
-	fmt.Printf("answer: %v\n", in.Answer)
+	log.Debugf("answer: %v", in.Answer)
 	for _, rr := range in.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {
-			fmt.Printf("string: %v\n", ss.Target)
+			fmt.Printf("string: %v", ss.Target)
 		}
 	}
-	fmt.Printf("ns: %v\n", in.Ns)
-	fmt.Printf("extra: %v\n", in.Extra)
+	log.Debugf("ns: %v", in.Ns)
+	log.Debugf("extra: %v", in.Extra)
 }
 
 func TestGetBP(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
 	dc := NewDNSClient()
 	ips, err := dc.GetBPAddresses(Domain)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		t.Fatalf("Error: %v", err)
 	} else {
-		fmt.Printf("BP addresses: %v\n", ips)
+		log.Debugf("BP addresses: %v", ips)
 	}
 }

@@ -55,10 +55,10 @@ func TestConf(t *testing.T) {
 			DHTFileName:     "",
 			ListenAddr:      "",
 			ThisNodeID:      "",
-			ValidDNSKeys: []string{
+			ValidDNSKeys: map[string]string{
 				// Cloudflare.com DNSKEY. SEE: `dig +multi cloudflare.com DNSKEY`
-				"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==",
-				"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==",
+				"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",
+				"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",
 			},
 			BP: BP,
 			KnownNodes: &[]NodeInfo{

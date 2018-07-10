@@ -84,7 +84,7 @@ type Config struct {
 	DHTFileName     string
 	ListenAddr      string
 	ThisNodeID      proto.NodeID
-	ValidDNSKeys    []string `yaml:"ValidDNSKeys"`
+	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 
 	BP *BPInfo `yaml:"BlockProducer"`
 

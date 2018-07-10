@@ -18,12 +18,12 @@ package route
 
 import (
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 )
 
 // DNSClient contains tools for querying nameservers
@@ -79,27 +79,31 @@ func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("No DNSKEY returned by nameserver")
+	return nil, fmt.Errorf("no DNSKEY returned by nameserver")
 }
 
-// VerifySection checks RRSIGs to make sure the nameserver is authentic
-// TODO: Check chain of trust up to root
+// VerifySection checks RRSIGs to make sure the name server is authentic
 func (dc *DNSClient) VerifySection(set []dns.RR) error {
 	for _, rr := range set {
 		if rr.Header().Rrtype == dns.TypeRRSIG {
 			if !rr.(*dns.RRSIG).ValidityPeriod(time.Now().UTC()) {
-				return fmt.Errorf("Signature %s is expired", shortSig(rr.(*dns.RRSIG)))
+				return fmt.Errorf("signature %s is expired", shortSig(rr.(*dns.RRSIG)))
 			}
 			rrset := GetRRSet(set, rr.Header().Name, rr.(*dns.RRSIG).TypeCovered)
 			key, err := dc.GetKey(rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag)
 			if err != nil {
 				return fmt.Errorf(";? DNSKEY %s/%d not found, error: %v\n", rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag, err)
 			}
+			domain, validDNSKey := conf.GConf.ValidDNSKeys[key.PublicKey]
+			if !validDNSKey {
+				return fmt.Errorf("DNSKEY %s not valid", key.PublicKey)
+			}
+			log.Debugf("valid DNSKEY %s of %s", key.PublicKey, domain)
 			if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
 				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]\n",
 					shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
 			} else {
-				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag())
+				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
 			}
 		}
 	}
@@ -123,27 +127,26 @@ func shortSig(sig *dns.RRSIG) string {
 }
 
 // GetBPAddresses returns an array of the BP IP addresses listed at a domain
-func (dc *DNSClient) GetBPAddresses(name string) ([]net.IP, error) {
-	var ips []net.IP
+func (dc *DNSClient) GetBPAddresses(name string) (addr []string, err error) {
 	srvRR := dc.GetSRVRecords(name)
-	if err := dc.VerifySection(srvRR.Answer); err != nil {
-		return nil, err
+	if err = dc.VerifySection(srvRR.Answer); err != nil {
+		return
 	}
 	// For all SRV RRs returned, query for corresponding A RR
 	for _, rr := range srvRR.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {
 			aRR := dc.GetARecord(ss.Target)
-			if err := dc.VerifySection(aRR.Answer); err != nil {
-				return nil, err
+			if err = dc.VerifySection(aRR.Answer); err != nil {
+				return
 			}
 			for _, rr1 := range aRR.Answer {
 				if ss1, ok := rr1.(*dns.A); ok {
-					ips = append(ips, ss1.A)
+					addr = append(addr, fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port))
 				}
 			}
 		}
 	}
-	return ips, nil
+	return
 }
 
 // GetSRVRecords retrieves TypeSRV RRs

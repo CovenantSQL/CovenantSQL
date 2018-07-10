@@ -146,6 +146,29 @@ func TestGetSingle(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+func TestConsistent_GetNode(t *testing.T) {
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+	nodeID := "40f26f9c816577adcb271734fec72c76"
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
+	defer os.Remove(testStorePath)
+	x.Add(NewNodeFromID(nodeID))
+	f := func(s string) bool {
+		_, err := x.GetNode(s)
+		return err == ErrKeyNotFound
+	}
+	if err := quick.Check(f, nil); err != nil {
+		t.Fatal(err)
+	}
+	node, err := x.GetNode(nodeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(node.ID) != nodeID {
+		t.Fatalf("got node: %v", node)
+	}
+}
 
 type gtest struct {
 	in  string
@@ -155,7 +178,7 @@ type gtest struct {
 var gmtests = []gtest{
 	{"iiii", "abcdefg"},
 	{"hhh", "opqrstu"},
-	{"ggg", "hijklmn"},
+	{"ggg", "abcdefg"},
 }
 
 func TestGetMultiple(t *testing.T) {
@@ -206,7 +229,7 @@ func TestGetMultipleQuick(t *testing.T) {
 var rtestsBefore = []gtest{
 	{"iiii", "abcdefg"},
 	{"hhh", "opqrstu"},
-	{"ggg", "hijklmn"},
+	{"ggg", "abcdefg"},
 }
 
 var rtestsAfter = []gtest{
@@ -288,10 +311,10 @@ func TestGetTwo(t *testing.T) {
 	if a.ID == b.ID {
 		t.Errorf("a shouldn't equal b")
 	}
-	if a.ID != "hijklmn" {
+	if a.ID != "abcdefg" {
 		t.Errorf("wrong a: %v", a)
 	}
-	if b.ID != "abcdefg" {
+	if b.ID != "opqrstu" {
 		t.Errorf("wrong b: %v", b)
 	}
 }
@@ -423,10 +446,10 @@ func TestGetN(t *testing.T) {
 	if members[0].ID != "opqrstu" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "abcdefg" {
+	if members[1].ID != "hijklmn" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
-	if members[2].ID != "hijklmn" {
+	if members[2].ID != "abcdefg" {
 		t.Errorf("wrong members[2]: %v", members[2])
 	}
 }
@@ -448,10 +471,10 @@ func TestGetNLess(t *testing.T) {
 	if len(members) != 2 {
 		t.Errorf("expected 2 members instead of %d", len(members))
 	}
-	if members[0].ID != "hijklmn" {
+	if members[0].ID != "abcdefg" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "abcdefg" {
+	if members[1].ID != "opqrstu" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
 }
@@ -476,10 +499,10 @@ func TestGetNMore(t *testing.T) {
 	if members[0].ID != "opqrstu" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "abcdefg" {
+	if members[1].ID != "hijklmn" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
-	if members[2].ID != "hijklmn" {
+	if members[2].ID != "abcdefg" {
 		t.Errorf("wrong members[2]: %v", members[2])
 	}
 }
@@ -923,8 +946,8 @@ func TestConcurrentGetSet(t *testing.T) {
 				if err != nil {
 					t.Error(err)
 				}
-				if a.ID != "pqr" && a.ID != "jkl" {
-					t.Errorf("got %v, expected abc", a)
+				if a.ID != "jkl" && a.ID != "vwx" {
+					t.Errorf("got %v, expected vwx", a)
 				}
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}

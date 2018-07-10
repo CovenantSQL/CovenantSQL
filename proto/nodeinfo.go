@@ -45,7 +45,18 @@ type NodeID string
 type AccountAddress string
 
 // NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
-type NodeKey uint64
+type NodeKey RawNodeID
+
+// Less return true if k is less than y
+func (k *NodeKey) Less(y *NodeKey) bool {
+	for idx, val := range k.Hash {
+		if val == y.Hash[idx] {
+			continue
+		}
+		return val < y.Hash[idx]
+	}
+	return false
+}
 
 // Node is all node info struct
 type Node struct {

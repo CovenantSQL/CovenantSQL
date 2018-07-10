@@ -292,15 +292,17 @@ func DelNode(id proto.NodeID) (err error) {
 
 // removeBucket this bucket
 func removeBucket() (err error) {
-	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
-		return tx.DeleteBucket([]byte(kmsBucketName))
-	})
-	if err != nil {
-		log.Errorf("remove bucket failed: %s", err)
-		return
+	if pks != nil {
+		err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+			return tx.DeleteBucket([]byte(kmsBucketName))
+		})
+		if err != nil {
+			log.Errorf("remove bucket failed: %s", err)
+			return
+		}
+		// ks.bucket == nil means bucket not exist
+		pks.bucket = nil
 	}
-	// ks.bucket == nil means bucket not exist
-	pks.bucket = nil
 	return
 }
 

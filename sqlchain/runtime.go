@@ -22,6 +22,7 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -38,12 +39,16 @@ type runtime struct {
 
 	// The following fields are copied from config, and should be constant during whole runtime.
 
+	// databaseID is the current runtime database ID.
+	databaseID proto.DatabaseID
 	// period is the block producing cycle.
 	period time.Duration
 	// tick defines the maximum duration between each cycle.
 	tick time.Duration
 	// queryTTL sets the unacknowledged query TTL in block periods.
 	queryTTL int32
+	// muxServer is the multiplexing service of sql-chain PRC.
+	muxService *MuxService
 	// peers is the peer list of the sql-chain.
 	peers *kayak.Peers
 	// server is the local peer service instance.
@@ -63,15 +68,17 @@ type runtime struct {
 // newRunTime returns a new sql-chain runtime instance with the specified config.
 func newRunTime(c *Config) (r *runtime) {
 	r = &runtime{
-		stopCh:   make(chan struct{}),
-		period:   c.Period,
-		tick:     c.Tick,
-		queryTTL: c.QueryTTL,
-		peers:    c.Peers,
-		server:   c.Server,
-		price:    c.Price,
-		nextTurn: 1,
-		offset:   time.Duration(0),
+		stopCh:     make(chan struct{}),
+		databaseID: c.DatabaseID,
+		period:     c.Period,
+		tick:       c.Tick,
+		queryTTL:   c.QueryTTL,
+		muxService: c.MuxService,
+		peers:      c.Peers,
+		server:     c.Server,
+		price:      c.Price,
+		nextTurn:   1,
+		offset:     time.Duration(0),
 	}
 
 	if c.Genesis != nil {
@@ -137,6 +144,7 @@ func (r *runtime) getQueryGas(t wt.QueryType) uint32 {
 
 // stop sends a signal to the Runtime stop channel by closing it.
 func (r *runtime) stop() {
+	r.stopService()
 	close(r.stopCh)
 	r.wg.Wait()
 }
@@ -158,4 +166,12 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 	}
 
 	return
+}
+
+func (r *runtime) startService(chain *Chain) {
+	r.muxService.register(r.databaseID, &ChainRPCService{chain: chain})
+}
+
+func (r *runtime) stopService() {
+	r.muxService.unregister(r.databaseID)
 }

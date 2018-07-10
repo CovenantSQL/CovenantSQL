@@ -20,20 +20,23 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // Config represents a sql-chain config.
 type Config struct {
-	DataFile string
+	DatabaseID proto.DatabaseID
+	DataFile   string
 
 	Genesis *ct.Block
 	Period  time.Duration
 	Tick    time.Duration
 
-	Peers  *kayak.Peers
-	Server *kayak.Server
+	MuxService *MuxService
+	Peers      *kayak.Peers
+	Server     *kayak.Server
 
 	// Price sets query price in gases.
 	Price map[wt.QueryType]uint32

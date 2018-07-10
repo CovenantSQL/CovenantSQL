@@ -22,8 +22,8 @@ import (
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
-// ChainRPCServer defines a sql-chain RPC server.
-type ChainRPCServer struct {
+// ChainRPCService defines a sql-chain RPC server.
+type ChainRPCService struct {
 	chain *Chain
 }
 
@@ -85,37 +85,37 @@ type FetchAckedQueryResp struct {
 }
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
-func (s *ChainRPCServer) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
+func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	return s.chain.CheckAndPushNewBlock(req.Block)
 }
 
 // AdviseBinLog is the RPC method to advise a new binary log to the target server.
-func (s *ChainRPCServer) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
+func (s *ChainRPCService) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
 	// TOOD(leventeliu): need implementation.
 	return nil
 }
 
 // AdviseResponsedQuery is the RPC method to advise a new responsed query to the target server.
-func (s *ChainRPCServer) AdviseResponsedQuery(
+func (s *ChainRPCService) AdviseResponsedQuery(
 	req *AdviseResponsedQueryReq, resp *AdviseResponsedQueryResp) error {
 	return s.chain.VerifyAndPushResponsedQuery(req.Query)
 }
 
 // AdviseAckedQuery is the RPC method to advise a new acknowledged query to the target server.
-func (s *ChainRPCServer) AdviseAckedQuery(
+func (s *ChainRPCService) AdviseAckedQuery(
 	req *AdviseAckedQueryReq, resp *AdviseAckedQueryResp) error {
 	return s.chain.VerifyAndPushAckedQuery(req.Query)
 }
 
 // FetchBlock is the RPC method to fetch a known block form the target server.
-func (s *ChainRPCServer) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
+func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
 	resp.Height = req.Height
 	resp.Block, err = s.chain.FetchBlock(req.Height)
 	return
 }
 
 // FetchAckedQuery is the RPC method to fetch a known block form the target server.
-func (s *ChainRPCServer) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
+func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
 ) (err error) {
 	resp.Ack, err = s.chain.FetchAckedQuery(req.height, req.SignedResponseHeaderHash)
 	return

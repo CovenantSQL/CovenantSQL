@@ -27,6 +27,7 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
@@ -81,11 +82,13 @@ func TestChain(t *testing.T) {
 	}
 
 	chain, err := NewChain(&Config{
-		DataFile: fl.Name(),
-		Genesis:  genesis,
-		Period:   1 * time.Second,
-		Tick:     100 * time.Millisecond,
-		QueryTTL: 10,
+		DatabaseID: "tdb",
+		DataFile:   fl.Name(),
+		Genesis:    genesis,
+		Period:     1 * time.Second,
+		Tick:       100 * time.Millisecond,
+		QueryTTL:   10,
+		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
 		Server: &kayak.Server{
 			ID: proto.NodeID("X1"),
 		},
@@ -189,11 +192,12 @@ func TestChain(t *testing.T) {
 	// Reload chain from DB file and rebuild memory cache
 	chain.db.Close()
 	chain, err = LoadChain(&Config{
-		DataFile: fl.Name(),
-		Genesis:  genesis,
-		Period:   1 * time.Second,
-		Tick:     100 * time.Millisecond,
-		QueryTTL: 10,
+		DataFile:   fl.Name(),
+		Genesis:    genesis,
+		Period:     1 * time.Second,
+		Tick:       100 * time.Millisecond,
+		QueryTTL:   10,
+		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
 		Server: &kayak.Server{
 			ID: proto.NodeID("X1"),
 		},

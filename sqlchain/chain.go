@@ -55,6 +55,7 @@ type Chain struct {
 	db *bolt.DB
 	bi *blockIndex
 	qi *queryIndex
+	cl *rpcCaller
 	rt *runtime
 	st *state
 
@@ -100,6 +101,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		db: db,
 		bi: newBlockIndex(c),
 		qi: newQueryIndex(),
+		cl: newRPCCaller(),
 		rt: newRunTime(c),
 		st: &state{
 			node:   nil,
@@ -108,11 +110,12 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		},
 	}
 
-	err = chain.pushBlock(c.Genesis)
-
-	if err != nil {
+	if err = chain.pushBlock(c.Genesis); err != nil {
 		return nil, err
 	}
+
+	// Start service
+	chain.rt.startService(chain)
 
 	return
 }
@@ -131,6 +134,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		db: db,
 		bi: newBlockIndex(c),
 		qi: newQueryIndex(),
+		cl: newRPCCaller(),
 		rt: newRunTime(c),
 		st: &state{},
 	}
@@ -229,6 +233,9 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 		return
 	})
+
+	// Start service
+	chain.rt.startService(chain)
 
 	return
 }
@@ -475,8 +482,6 @@ func (c *Chain) Start() (err error) {
 
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
-	// TODO(leventeliu): unregister RPC service.
-
 	// Stop main process
 	c.rt.stop()
 

@@ -225,14 +225,14 @@ func (c *Consistent) GetNeighbor(name string) (proto.Node, error) {
 }
 
 // GetNode returns an node by its node id
-func (c *Consistent) GetNode(name string) (proto.Node, error) {
+func (c *Consistent) GetNode(name string) (*proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	n, ok := c.circle[hashKey(c.nodeKey(proto.NodeID(name), 0))]
 	if ok {
-		return *n, nil
+		return n, nil
 	}
-	return proto.Node{}, ErrKeyNotFound
+	return nil, ErrKeyNotFound
 }
 
 func (c *Consistent) search(key proto.NodeKey) (i int) {

@@ -75,7 +75,7 @@ func InitResolveCache(initCache ResolveCache) {
 	resolver.cache = initCache
 }
 
-// GetNodeAddr get node addr by node id
+// GetNodeAddr get node addr by node id, if cache missed try RPC
 func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	//TODO(auxten): implement that
 	if id == nil {

@@ -726,7 +726,7 @@ func mallocNum(f func()) uint64 {
 func BenchmarkAllocations(b *testing.B) {
 	kms.Unittest = true
 	os.Remove(testStorePath)
-	kms.ResetBucket()
+	//kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)

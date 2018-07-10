@@ -28,7 +28,7 @@ import (
 type DBConfig struct {
 	DatabaseID      proto.DatabaseID
 	DataDir         string
-	MuxService      *kt.ETLSTransportService
-	ChainMuxS       *sqlchain.MuxService
+	KayakMux        *kt.ETLSTransportService
+	ChainMux        *sqlchain.MuxService
 	MaxWriteTimeGap time.Duration
 }

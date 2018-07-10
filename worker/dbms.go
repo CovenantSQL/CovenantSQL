@@ -48,11 +48,11 @@ const (
 
 // DBMS defines a database management instance.
 type DBMS struct {
-	cfg        *DBMSConfig
-	dbMap      sync.Map
-	muxService *kt.ETLSTransportService
-	chainMuxS  *sqlchain.MuxService
-	rpc        *DBMSRPCService
+	cfg      *DBMSConfig
+	dbMap    sync.Map
+	kayakMux *kt.ETLSTransportService
+	chainMux *sqlchain.MuxService
+	rpc      *DBMSRPCService
 }
 
 // NewDBMS returns new database management instance.
@@ -62,10 +62,10 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 	}
 
 	// init kayak rpc mux
-	dbms.muxService = ka.NewMuxService(DBKayakRPCName, cfg.Server)
+	dbms.kayakMux = ka.NewMuxService(DBKayakRPCName, cfg.Server)
 
 	// init sql-chain rpc mux
-	dbms.chainMuxS = sqlchain.NewMuxService(SQLChainRPCName, cfg.Server)
+	dbms.chainMux = sqlchain.NewMuxService(SQLChainRPCName, cfg.Server)
 
 	// init service
 	dbms.rpc = NewDBMSRPCService(DBServiceRPCName, cfg.Server, dbms)
@@ -203,8 +203,8 @@ func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error)
 	dbCfg := &DBConfig{
 		DatabaseID:      instance.DatabaseID,
 		DataDir:         rootDir,
-		MuxService:      dbms.muxService,
-		ChainMuxS:       dbms.chainMuxS,
+		KayakMux:        dbms.kayakMux,
+		ChainMux:        dbms.chainMux,
 		MaxWriteTimeGap: dbms.cfg.MaxWriteTimeGap,
 	}
 

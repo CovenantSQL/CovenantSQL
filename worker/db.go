@@ -110,6 +110,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 		// TODO(xq262144), should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
+		MuxService: cfg.ChainMux,
 		Server: &kayak.Server{
 			ID: nodeID,
 		},
@@ -127,7 +128,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// init kayak config
 	options := ka.NewDefaultTwoPCOptions().WithTransportID(string(cfg.DatabaseID))
-	db.kayakConfig = ka.NewTwoPCConfigWithOptions(cfg.DataDir, cfg.MuxService, db, options)
+	db.kayakConfig = ka.NewTwoPCConfigWithOptions(cfg.DataDir, cfg.KayakMux, db, options)
 
 	// create kayak runtime
 	if db.kayakRuntime, err = ka.NewTwoPCKayak(peers, db.kayakConfig); err != nil {

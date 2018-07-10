@@ -26,8 +26,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/conf"
 )
 
-const Domain = "_bp._tcp.gridb.io."
-
 func TestGetSRV(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	_, testFile, _, _ := runtime.Caller(0)
@@ -37,7 +35,7 @@ func TestGetSRV(t *testing.T) {
 	log.Debugf("GConf: %v", conf.GConf)
 
 	dc := NewDNSClient()
-	in := dc.GetSRVRecords(Domain)
+	in := dc.GetSRVRecords(BPDomain)
 	log.Debugf("answer: %v", in.Answer)
 	for _, rr := range in.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {
@@ -52,7 +50,7 @@ func TestGetBP(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	dc := NewDNSClient()
-	ips, err := dc.GetBPAddresses(Domain)
+	ips, err := dc.GetBPAddresses(BPDomain)
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	} else {

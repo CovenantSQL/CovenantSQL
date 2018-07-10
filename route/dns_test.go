@@ -17,16 +17,25 @@
 package route
 
 import (
+	"path/filepath"
+	"runtime"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-const addr = "127.0.0.1:22"
-
 func TestResolver(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_c/config.yaml")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %v", conf.GConf)
+
 	Convey("resolver init", t, func() {
 		InitResolver()
 		InitResolveCache(make(ResolveCache))
@@ -40,13 +49,13 @@ func TestResolver(t *testing.T) {
 		So(err, ShouldEqual, ErrNilNodeID)
 		So(addr, ShouldBeBlank)
 
-		err = SetNodeAddr(nil, addr)
+		err = SetNodeAddrCache(nil, addr)
 		So(err, ShouldEqual, ErrNilNodeID)
 
 		nodeA := &proto.RawNodeID{
 			Hash: hash.Hash([32]byte{0xaa, 0xaa}),
 		}
-		err = SetNodeAddr(nodeA, addr)
+		err = SetNodeAddrCache(nodeA, addr)
 		So(err, ShouldBeNil)
 
 		addr, err = GetNodeAddr(nodeA)
@@ -57,6 +66,11 @@ func TestResolver(t *testing.T) {
 
 		So(IsBPNodeID(nodeA), ShouldBeFalse)
 
-		So(GetBPAddr(), ShouldNotBeNil)
+		BPs := GetBPAddr()
+		dc := NewDNSClient()
+		ips, err := dc.GetBPAddresses(BPDomain)
+
+		log.Debugf("BPs: %v", BPs)
+		So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))
 	})
 }

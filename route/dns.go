@@ -21,14 +21,17 @@ import (
 
 	"errors"
 
+	"github.com/prometheus/common/log"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
-
-//TODO(auxten): this whole file need to be implemented
 
 // ResolveCache is the map of proto.RawNodeID to node address
 type ResolveCache map[proto.RawNodeID]string
+
+const BPDomain = "_bp._tcp.gridb.io."
 
 var (
 	// resolver hold the singleton instance
@@ -90,8 +93,8 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	return
 }
 
-// SetNodeAddr set node id and addr
-func SetNodeAddr(id *proto.RawNodeID, addr string) (err error) {
+// SetNodeAddrCache set node id and addr
+func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	//TODO(auxten): implement that
 	if id == nil {
 		return ErrNilNodeID
@@ -103,7 +106,23 @@ func SetNodeAddr(id *proto.RawNodeID, addr string) (err error) {
 }
 
 // GetBPAddr return BlockProducer addresses array
-func GetBPAddr() []string {
-	//TODO(auxten): implement that
-	return []string{"127.0.0.1:2120", "127.0.0.1:2120"}
+func GetBPAddr() (BPAddrs []string) {
+	for _, n := range (*conf.GConf.KnownNodes)[:] {
+		if n.Role == conf.Leader || n.Role == conf.Follower {
+			BPAddrs = append(BPAddrs, n.Addr)
+		}
+	}
+
+	dc := NewDNSClient()
+	addrs, err := dc.GetBPAddresses(BPDomain)
+	if err == nil {
+		for _, addr := range addrs {
+			BPAddrs = append(BPAddrs, addr)
+		}
+	} else {
+		log.Errorf("getting BP addr from DNS failed: %s", err)
+	}
+
+	BPAddrs = utils.RemoveDuplicatesUnordered(BPAddrs)
+	return
 }

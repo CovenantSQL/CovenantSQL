@@ -584,7 +584,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	kms.SetPublicKey(serverNodeID, nonce.Nonce, pubKey)
 
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	// start server
 	go server.Serve()

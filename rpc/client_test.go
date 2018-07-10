@@ -100,7 +100,7 @@ func TestDialToNode(t *testing.T) {
 
 		l, _ := net.Listen("tcp", "127.0.0.1:0")
 
-		route.SetNodeAddr(&kms.BP.RawNodeID, l.Addr().String())
+		route.SetNodeAddrCache(&kms.BP.RawNodeID, l.Addr().String())
 		c, err = DialToNode(kms.BP.NodeID, nil)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)

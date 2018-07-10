@@ -129,6 +129,9 @@ func shortSig(sig *dns.RRSIG) string {
 // GetBPAddresses returns an array of the BP IP addresses listed at a domain
 func (dc *DNSClient) GetBPAddresses(name string) (addr []string, err error) {
 	srvRR := dc.GetSRVRecords(name)
+	if srvRR == nil {
+		return nil, fmt.Errorf("got empty SRV records set")
+	}
 	if err = dc.VerifySection(srvRR.Answer); err != nil {
 		return
 	}
@@ -136,12 +139,14 @@ func (dc *DNSClient) GetBPAddresses(name string) (addr []string, err error) {
 	for _, rr := range srvRR.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {
 			aRR := dc.GetARecord(ss.Target)
-			if err = dc.VerifySection(aRR.Answer); err != nil {
-				return
-			}
-			for _, rr1 := range aRR.Answer {
-				if ss1, ok := rr1.(*dns.A); ok {
-					addr = append(addr, fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port))
+			if aRR != nil {
+				if err = dc.VerifySection(aRR.Answer); err != nil {
+					return
+				}
+				for _, rr1 := range aRR.Answer {
+					if ss1, ok := rr1.(*dns.A); ok {
+						addr = append(addr, fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port))
+					}
 				}
 			}
 		}

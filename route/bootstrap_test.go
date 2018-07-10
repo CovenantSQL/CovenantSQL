@@ -17,7 +17,6 @@
 package route
 
 import (
-	"fmt"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -42,7 +41,7 @@ func TestGetSRV(t *testing.T) {
 	log.Debugf("answer: %v", in.Answer)
 	for _, rr := range in.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {
-			fmt.Printf("string: %v", ss.Target)
+			log.Printf("string: %v", ss.Target)
 		}
 	}
 	log.Debugf("ns: %v", in.Ns)

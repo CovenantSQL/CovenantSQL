@@ -70,17 +70,30 @@ type SessionPool struct {
 	sync.RWMutex
 }
 
+var (
+	instance *SessionPool
+	once     sync.Once
+)
+
 // Close closes the session
 func (s *Session) Close() {
 	s.Sess.Close()
 }
 
-// NewSessionPool creates a new SessionPool
-func NewSessionPool(nd NodeDialer) *SessionPool {
+// newSessionPool creates a new SessionPool
+func newSessionPool(nd NodeDialer) *SessionPool {
 	return &SessionPool{
 		sessions:   make(SessionMap),
 		nodeDialer: nd,
 	}
+}
+
+// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer
+func GetSessionPoolInstance() *SessionPool {
+	once.Do(func() {
+		instance = newSessionPool(DefaultDialer)
+	})
+	return instance
 }
 
 // toSession wraps net.Conn to yamux.Session

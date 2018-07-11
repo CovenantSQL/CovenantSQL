@@ -28,7 +28,7 @@ import (
 
 func TestLocalKeyStore(t *testing.T) {
 	Convey("set and get key", t, func() {
-		InitLocalKeyStore()
+		initLocalKeyStore()
 		So(localKey, ShouldNotBeNil)
 		gotPrivate, err := GetLocalPrivateKey()
 		So(gotPrivate, ShouldBeNil)
@@ -50,7 +50,7 @@ func TestLocalKeyStore(t *testing.T) {
 		So(gotPrivate.PubKey().IsEqual(pubKey1), ShouldBeTrue)
 	})
 	Convey("set and get key", t, func() {
-		InitLocalKeyStore()
+		initLocalKeyStore()
 		So(localKey, ShouldNotBeNil)
 		gotID, err := GetLocalNodeID()
 		So(gotID, ShouldBeNil)

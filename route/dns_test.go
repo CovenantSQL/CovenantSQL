@@ -39,13 +39,13 @@ func TestResolver(t *testing.T) {
 	Convey("resolver init", t, func() {
 		InitResolver()
 		SetResolveCache(make(ResolveCache))
-		addr, err := GetNodeAddr(&proto.RawNodeID{
+		addr, err := GetNodeAddrCache(&proto.RawNodeID{
 			Hash: hash.Hash([32]byte{0xde, 0xad}),
 		})
 		So(err, ShouldEqual, ErrUnknownNodeID)
 		So(addr, ShouldBeBlank)
 
-		addr, err = GetNodeAddr(nil)
+		addr, err = GetNodeAddrCache(nil)
 		So(err, ShouldEqual, ErrNilNodeID)
 		So(addr, ShouldBeBlank)
 
@@ -58,7 +58,7 @@ func TestResolver(t *testing.T) {
 		err = SetNodeAddrCache(nodeA, addr)
 		So(err, ShouldBeNil)
 
-		addr, err = GetNodeAddr(nodeA)
+		addr, err = GetNodeAddrCache(nodeA)
 		So(err, ShouldBeNil)
 		So(addr, ShouldEqual, addr)
 

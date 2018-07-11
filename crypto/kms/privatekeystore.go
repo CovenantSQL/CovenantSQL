@@ -84,7 +84,7 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	var privateKey *asymmetric.PrivateKey
 	var publicKey *asymmetric.PublicKey
-	InitLocalKeyStore()
+	initLocalKeyStore()
 	privateKey, err = LoadPrivateKey(privateKeyPath, masterKey)
 	if err != nil {
 		log.Infof("load private key failed: %s", err)

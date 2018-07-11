@@ -80,9 +80,8 @@ func SetResolveCache(initCache ResolveCache) {
 	resolver.cache = initCache
 }
 
-// GetNodeAddr get node addr by node id, if cache missed try RPC
-func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
-	//TODO(auxten): implement that
+// GetNodeAddrCache get node addr by node id, if cache missed try RPC
+func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 	if id == nil {
 		return "", ErrNilNodeID
 	}
@@ -90,27 +89,6 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	defer resolver.RUnlock()
 	addr, ok := resolver.cache[*id]
 	if !ok {
-		//if conn, err = rpc.DialToNode(leaderNodeID, connPool); err != nil {
-		//	return
-		//}
-		//if client, err = rpc.InitClientConn(conn); err != nil {
-		//	return
-		//}
-		//reqType = "Ping"
-		//node1 := proto.NewNode()
-		//node1.InitNodeCryptoInfo(100 * time.Millisecond)
-		//
-		//reqA := &proto.PingReq{
-		//	Node: *node1,
-		//}
-		//
-		//respA := new(proto.PingResp)
-		//log.Debugf("req %s: %v", reqType, reqA)
-		//err = client.Call("DHT."+reqType, reqA, respA)
-		//if err != nil {
-		//	log.Fatal(err)
-		//}
-		//log.Debugf("resp %s: %v", reqType, respA)
 		return "", ErrUnknownNodeID
 	}
 	return

@@ -43,7 +43,6 @@ func TestDial(t *testing.T) {
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
-		kms.InitLocalKeyStore()
 		var l net.Listener
 		l, _ = net.Listen("tcp", "127.0.0.1:0")
 		c, err = dial("tcp", l.Addr().String(), nil, nil)
@@ -73,7 +72,6 @@ func TestDialToNode(t *testing.T) {
 	Convey("DialToNode error case", t, func() {
 		defer os.Remove(publicKeyStore)
 		defer os.Remove(privateKey)
-		kms.InitLocalKeyStore()
 		c, err := DialToNode(kms.BP.NodeID, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)

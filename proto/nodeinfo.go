@@ -90,6 +90,16 @@ func (id *NodeID) Difficulty() (difficulty int) {
 	return idHash.Difficulty()
 }
 
+// ToRawNodeID converts NodeID to RawNodeID
+func (id *NodeID) ToRawNodeID() *RawNodeID {
+	idHash, err := hash.NewHashFromStr(string(*id))
+	if err != nil {
+		log.Errorf("error node id %s %s", *id, err)
+		return nil
+	}
+	return &RawNodeID{*idHash}
+}
+
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo
 // Node.ID = Node.NonceInfo.Hash
 func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {

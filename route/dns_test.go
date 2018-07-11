@@ -37,7 +37,6 @@ func TestResolver(t *testing.T) {
 	log.Debugf("GConf: %v", conf.GConf)
 
 	Convey("resolver init", t, func() {
-		initResolver()
 		setResolveCache(make(NodeIDAddressMap))
 		addr, err := GetNodeAddrCache(&proto.RawNodeID{
 			Hash: hash.Hash([32]byte{0xde, 0xad}),
@@ -66,11 +65,13 @@ func TestResolver(t *testing.T) {
 
 		So(IsBPNodeID(nodeA), ShouldBeFalse)
 
-		//BPs := GetBPAddrs()
-		//dc := NewDNSClient()
-		//ips, err := dc.GetBPIDAddrMap(BPDomain)
-		//
-		//log.Debugf("BPs: %v", BPs)
-		//So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))
+		BPmap := initBPNodeIDs()
+		log.Debugf("BPmap: %v", BPmap)
+		BPs := GetBPs()
+		dc := NewDNSClient()
+		ips, err := dc.GetBPIDAddrMap(BPDomain)
+
+		log.Debugf("BPs: %v", BPs)
+		So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))
 	})
 }

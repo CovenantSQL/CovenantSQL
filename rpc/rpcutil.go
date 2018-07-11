@@ -67,7 +67,31 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	if err != nil {
 		log.Infof("get node: %s addr failed: %s", addr, err)
 		if err == route.ErrUnknownNodeID {
+			BPs := route.GetBPs()
+			if len(BPs) == 0 {
+				log.Errorf("no available BP")
+				return
+			}
+			client := NewCaller()
+			reqFN := &proto.FindNodeReq{
+				NodeID: proto.NodeID(id.String()),
+			}
+			respFN := new(proto.FindNodeResp)
 
+			// TODO(auxten) add some random here for bp selection
+			for _, bp := range BPs {
+				method := "DHT.FindNode"
+				err := client.CallNode(bp, method, reqFN, respFN)
+				if err != nil {
+					log.Errorf("call %s %s failed: %s", bp, method, err)
+					continue
+				}
+				break
+			}
+			if err == nil {
+				route.SetNodeAddrCache(id, respFN.Node.Addr)
+				addr = respFN.Node.Addr
+			}
 		}
 	}
 	return

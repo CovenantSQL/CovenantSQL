@@ -52,6 +52,7 @@ func TestGetBP(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	dc := NewDNSClient()
+
 	ips, err := dc.GetBPIDAddrMap(BPDomain)
 	if err != nil {
 		t.Fatalf("Error: %v", err)

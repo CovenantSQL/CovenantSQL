@@ -84,8 +84,7 @@ func getNodeDialer(reqNodeID proto.NodeID, nodeMap *sync.Map) ETLSRPCClientBuild
 		}
 
 		// convert node id to raw node id
-		h, _ := hash.NewHashFromStr(string(reqNodeID))
-		rawNodeID := &proto.RawNodeID{Hash: *h}
+		rawNodeID := reqNodeID.ToRawNodeID()
 		wCount, err := conn.Write(rawNodeID.Hash[:])
 		if err != nil || wCount != hash.HashBSize {
 			return

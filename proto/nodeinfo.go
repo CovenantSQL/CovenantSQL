@@ -32,6 +32,10 @@ var (
 	NewNodeIDDifficultyTimeout = 60 * time.Second
 )
 
+const (
+	NodeIDLen = 2 * hash.HashSize
+)
+
 // RawNodeID is node name, will be generated from Hash(nodePublicKey)
 // RawNodeID length should be 32 bytes normally
 type RawNodeID struct {

@@ -89,7 +89,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 	}
 	log.Debugf("peers:\n %v\n", peers)
 
-	route.InitResolver()
+	//route.initResolver()
 	kms.InitPublicKeyStore(publicKeystorePath, nil)
 	// set p route and public keystore
 	for _, p := range (*conf.GConf.KnownNodes)[:] {

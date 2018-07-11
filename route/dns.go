@@ -21,14 +21,12 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-// ResolveCache is the map of proto.RawNodeID to node address
-type ResolveCache map[proto.RawNodeID]string
+// NodeIDAddressMap is the map of proto.RawNodeID to node address
+type NodeIDAddressMap map[proto.RawNodeID]string
 
 // BPDomain is the default BP domain list
 const BPDomain = "_bp._tcp.gridb.io."
@@ -49,18 +47,17 @@ var (
 
 // Resolver does NodeID translation
 type Resolver struct {
-	cache       ResolveCache
-	bpAddresses []string // only write on booting
+	cache NodeIDAddressMap
 	sync.RWMutex
 }
 
-// InitResolver returns a new resolver
-func InitResolver() {
+// initResolver returns a new resolver
+func initResolver() {
 	resolverOnce.Do(func() {
 		resolver = &Resolver{
-			cache:       make(ResolveCache),
-			bpAddresses: initBPAddrs(),
+			cache: make(NodeIDAddressMap),
 		}
+		initBPFromDNSSeed()
 	})
 	return
 }
@@ -73,8 +70,9 @@ func IsBPNodeID(id *proto.RawNodeID) bool {
 	return id.IsEqual(&kms.BP.RawNodeID.Hash)
 }
 
-// SetResolveCache initializes Resolver.cache by a new map
-func SetResolveCache(initCache ResolveCache) {
+// setResolveCache initializes Resolver.cache by a new map
+func setResolveCache(initCache NodeIDAddressMap) {
+	initResolver()
 	resolver.Lock()
 	defer resolver.Unlock()
 	resolver.cache = initCache
@@ -82,6 +80,7 @@ func SetResolveCache(initCache ResolveCache) {
 
 // GetNodeAddrCache gets node addr by node id, if cache missed try RPC
 func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
+	initResolver()
 	if id == nil {
 		return "", ErrNilNodeID
 	}
@@ -96,6 +95,7 @@ func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 
 // SetNodeAddrCache sets node id and addr
 func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
+	initResolver()
 	if id == nil {
 		return ErrNilNodeID
 	}
@@ -105,31 +105,17 @@ func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	return
 }
 
-// GetBPAddrs returns BlockProducer addresses array
-func GetBPAddrs() (BPAddrs []string) {
-	return resolver.bpAddresses
-}
-
-// initBPAddrs initializes BlockProducer addresses array
-func initBPAddrs() (BPAddrs []string) {
-	if conf.GConf.KnownNodes != nil {
-		for _, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == conf.Leader || n.Role == conf.Follower {
-				BPAddrs = append(BPAddrs, n.Addr)
-			}
-		}
-	}
-
+// initBPFromDNSSeed initializes BlockProducer info from DNS Seed
+func initBPFromDNSSeed() {
 	dc := NewDNSClient()
-	addrs, err := dc.GetBPAddresses(BPDomain)
+	addrs, err := dc.GetBPIDAddrMap(BPDomain)
 	if err == nil {
-		for _, addr := range addrs {
-			BPAddrs = append(BPAddrs, addr)
+		for id, addr := range addrs {
+			SetNodeAddrCache(&id, addr)
 		}
 	} else {
 		log.Errorf("getting BP addr from DNS failed: %s", err)
 	}
 
-	BPAddrs = utils.RemoveDuplicatesUnordered(BPAddrs)
 	return
 }

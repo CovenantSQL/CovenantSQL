@@ -304,7 +304,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 	}
 
 	// init client private key
-	route.InitResolver()
+	//route.initResolver()
 	privateKeyStorePath := filepath.Join(clientRootDir, privateKeyFile)
 	if err = kms.InitLocalKeyPair(privateKeyStorePath, []byte(privateKeyMasterKey)); err != nil {
 		return

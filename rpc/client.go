@@ -137,7 +137,7 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 	log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
 	symmetricKey := asymmetric.GenECDHSharedSecret(localPrivateKey, nodePublicKey)
 
-	nodeAddr, err := route.GetNodeAddr(rawNodeID)
+	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)
 	if err != nil {
 		log.Errorf("resolve node id failed: %s, err: %s", *rawNodeID, err)
 		return

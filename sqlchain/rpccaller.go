@@ -31,7 +31,7 @@ type rpcCaller struct {
 // newRPCCaller returns a new RPCCaller.
 func newRPCCaller() *rpcCaller {
 	return &rpcCaller{
-		pool: rpc.NewSessionPool(rpc.DefaultDialer),
+		pool: rpc.GetSessionPoolInstance(),
 	}
 }
 

@@ -317,7 +317,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 	kms.SetPublicKey(leaderNodeID, leader.Nonce.Nonce, leader.PublicKey)
 
 	// set route to leader
-	route.SetNodeAddr(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, leader.Port))
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, leader.Port))
 
 	return
 }
@@ -611,7 +611,7 @@ func createServer(nodeOffset, port int) (service *kt.ETLSTransportService, serve
 func initNode(node *NodeInfo) (nodeID proto.NodeID, err error) {
 	nodeID = proto.NodeID(node.Nonce.Hash.String())
 	kms.SetPublicKey(nodeID, node.Nonce.Nonce, node.PublicKey)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: node.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, node.Port))
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: node.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, node.Port))
 
 	return
 }

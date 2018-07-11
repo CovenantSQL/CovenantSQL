@@ -80,6 +80,12 @@
   version = "v1.0.1"
 
 [[projects]]
+  name = "github.com/miekg/dns"
+  packages = ["."]
+  revision = "5a2b9fab83ff0f8bfc99684bd5f43a37abe560f1"
+  version = "v1.0.8"
+
+[[projects]]
   branch = "master"
   name = "github.com/minio/blake2b-simd"
   packages = ["."]
@@ -181,8 +187,24 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "ssh/terminal"
+  ]
   revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "bpf",
+    "internal/iana",
+    "internal/socket",
+    "ipv4",
+    "ipv6"
+  ]
+  revision = "292b43bbf7cb8d35ddf40f8d5100ef3837cced3f"
 
 [[projects]]
   branch = "master"
@@ -202,6 +224,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "38606cb0bd65bcf7d7c5dc8611d7892ecf17484c8a98901b9f040d6f8ecc6c23"
+  inputs-digest = "ddf2671898a90a5e1256b29c4103b7355bb54ae1a97635d2cdd9528717c12f66"
   solver-name = "gps-cdcl"
   solver-version = 1

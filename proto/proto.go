@@ -82,6 +82,19 @@ type FindNeighborResp struct {
 	Envelope
 }
 
+// FindNodeReq is FindNode RPC request
+type FindNodeReq struct {
+	NodeID NodeID
+	Envelope
+}
+
+// FindNodeResp is FindNode RPC response
+type FindNodeResp struct {
+	Node *Node
+	Msg  string
+	Envelope
+}
+
 // Following are envelope methods implementing EnvelopeAPI interface
 
 // GetVersion implements EnvelopeAPI.GetVersion

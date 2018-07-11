@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	// Register go-sqlite3 engine.
 	_ "github.com/mattn/go-sqlite3"

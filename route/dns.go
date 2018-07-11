@@ -17,18 +17,20 @@
 package route
 
 import (
+	"errors"
 	"sync"
 
-	"errors"
-
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
-
-//TODO(auxten): this whole file need to be implemented
 
 // ResolveCache is the map of proto.RawNodeID to node address
 type ResolveCache map[proto.RawNodeID]string
+
+const BPDomain = "_bp._tcp.gridb.io."
 
 var (
 	// resolver hold the singleton instance
@@ -46,7 +48,8 @@ var (
 
 // Resolver does NodeID translation
 type Resolver struct {
-	cache ResolveCache
+	cache       ResolveCache
+	bpAddresses []string // only write on booting
 	sync.RWMutex
 }
 
@@ -54,7 +57,8 @@ type Resolver struct {
 func InitResolver() {
 	resolverOnce.Do(func() {
 		resolver = &Resolver{
-			cache: make(ResolveCache),
+			cache:       make(ResolveCache),
+			bpAddresses: initBPAddrs(),
 		}
 	})
 	return
@@ -68,16 +72,15 @@ func IsBPNodeID(id *proto.RawNodeID) bool {
 	return id.IsEqual(&kms.BP.RawNodeID.Hash)
 }
 
-// InitResolveCache init Resolver.cache by a new map
-func InitResolveCache(initCache ResolveCache) {
+// SetResolveCache init Resolver.cache by a new map
+func SetResolveCache(initCache ResolveCache) {
 	resolver.Lock()
 	defer resolver.Unlock()
 	resolver.cache = initCache
 }
 
-// GetNodeAddr get node addr by node id
-func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
-	//TODO(auxten): implement that
+// GetNodeAddrCache get node addr by node id, if cache missed try RPC
+func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 	if id == nil {
 		return "", ErrNilNodeID
 	}
@@ -90,9 +93,8 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	return
 }
 
-// SetNodeAddr set node id and addr
-func SetNodeAddr(id *proto.RawNodeID, addr string) (err error) {
-	//TODO(auxten): implement that
+// SetNodeAddrCache set node id and addr
+func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	if id == nil {
 		return ErrNilNodeID
 	}
@@ -102,8 +104,30 @@ func SetNodeAddr(id *proto.RawNodeID, addr string) (err error) {
 	return
 }
 
-// GetBPAddr return BlockProducer addresses array
-func GetBPAddr() []string {
-	//TODO(auxten): implement that
-	return []string{"127.0.0.1:2120", "127.0.0.1:2120"}
+func GetBPAddrs() (BPAddrs []string) {
+	return resolver.bpAddresses
+}
+
+// initBPAddrs return BlockProducer addresses array
+func initBPAddrs() (BPAddrs []string) {
+	if conf.GConf.KnownNodes != nil {
+		for _, n := range (*conf.GConf.KnownNodes)[:] {
+			if n.Role == conf.Leader || n.Role == conf.Follower {
+				BPAddrs = append(BPAddrs, n.Addr)
+			}
+		}
+	}
+
+	dc := NewDNSClient()
+	addrs, err := dc.GetBPAddresses(BPDomain)
+	if err == nil {
+		for _, addr := range addrs {
+			BPAddrs = append(BPAddrs, addr)
+		}
+	} else {
+		log.Errorf("getting BP addr from DNS failed: %s", err)
+	}
+
+	BPAddrs = utils.RemoveDuplicatesUnordered(BPAddrs)
+	return
 }

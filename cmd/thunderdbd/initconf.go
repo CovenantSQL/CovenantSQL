@@ -100,7 +100,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 		}
 		log.Debugf("set node addr: %v, %v", rawNodeIDHash, p.Addr)
 		rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
-		route.SetNodeAddr(rawNodeID, p.Addr)
+		route.SetNodeAddrCache(rawNodeID, p.Addr)
 		node := &proto.Node{
 			ID:        p.ID,
 			Addr:      p.Addr,

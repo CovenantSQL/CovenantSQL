@@ -29,9 +29,9 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 var (
@@ -89,7 +89,6 @@ func setup() {
 	}
 
 	kms.Unittest = true
-	kms.InitLocalKeyStore()
 
 	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
 		kms.SetLocalKeyPair(priv, pub)

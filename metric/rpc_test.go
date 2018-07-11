@@ -57,7 +57,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 	serverNodeID := proto.NodeID(nonce.Hash.String())
 	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	Convey("get metric and upload by RPC", t, func() {
 		err = cc.UploadMetrics(serverNodeID, nil)

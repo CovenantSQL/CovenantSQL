@@ -24,8 +24,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // QueryType enumerates available query type, currently read/write.

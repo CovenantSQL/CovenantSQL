@@ -17,11 +17,10 @@
 package route
 
 import (
+	"errors"
 	"sync"
 
-	"errors"
-
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"

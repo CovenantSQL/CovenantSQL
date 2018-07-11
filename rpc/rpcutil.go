@@ -22,6 +22,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
+// GetNodeAddr tries best to get node addr
 func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	addr, err = route.GetNodeAddrCache(id)
 	if err != nil {

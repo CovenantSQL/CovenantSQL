@@ -30,10 +30,11 @@ import (
 // ResolveCache is the map of proto.RawNodeID to node address
 type ResolveCache map[proto.RawNodeID]string
 
+// BPDomain is the default BP domain list
 const BPDomain = "_bp._tcp.gridb.io."
 
 var (
-	// resolver hold the singleton instance
+	// resolver holds the singleton instance
 	resolver     *Resolver
 	resolverOnce sync.Once
 )
@@ -53,7 +54,7 @@ type Resolver struct {
 	sync.RWMutex
 }
 
-// InitResolver return a new resolver
+// InitResolver returns a new resolver
 func InitResolver() {
 	resolverOnce.Do(func() {
 		resolver = &Resolver{
@@ -64,7 +65,7 @@ func InitResolver() {
 	return
 }
 
-// IsBPNodeID return if it is Block Producer node id
+// IsBPNodeID returns if it is Block Producer node id
 func IsBPNodeID(id *proto.RawNodeID) bool {
 	if id == nil {
 		return false
@@ -72,14 +73,14 @@ func IsBPNodeID(id *proto.RawNodeID) bool {
 	return id.IsEqual(&kms.BP.RawNodeID.Hash)
 }
 
-// SetResolveCache init Resolver.cache by a new map
+// SetResolveCache initializes Resolver.cache by a new map
 func SetResolveCache(initCache ResolveCache) {
 	resolver.Lock()
 	defer resolver.Unlock()
 	resolver.cache = initCache
 }
 
-// GetNodeAddrCache get node addr by node id, if cache missed try RPC
+// GetNodeAddrCache gets node addr by node id, if cache missed try RPC
 func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 	if id == nil {
 		return "", ErrNilNodeID
@@ -93,7 +94,7 @@ func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 	return
 }
 
-// SetNodeAddrCache set node id and addr
+// SetNodeAddrCache sets node id and addr
 func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	if id == nil {
 		return ErrNilNodeID
@@ -104,11 +105,12 @@ func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	return
 }
 
+// GetBPAddrs returns BlockProducer addresses array
 func GetBPAddrs() (BPAddrs []string) {
 	return resolver.bpAddresses
 }
 
-// initBPAddrs return BlockProducer addresses array
+// initBPAddrs initializes BlockProducer addresses array
 func initBPAddrs() (BPAddrs []string) {
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range (*conf.GConf.KnownNodes)[:] {

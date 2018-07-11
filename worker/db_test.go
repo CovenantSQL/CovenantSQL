@@ -38,6 +38,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -72,12 +74,13 @@ func TestSingleDatabase(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			MuxService:      service,
+			KayakMux:        service,
+			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
 			MaxWriteTimeGap: time.Second * 5,
 		}
 
 		// create genesis block
-		var block *sqlchain.Block
+		var block *ct.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -303,12 +306,13 @@ func TestInitFailed(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			MuxService:      service,
+			KayakMux:        service,
+			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
 		// create genesis block
-		var block *sqlchain.Block
+		var block *ct.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -351,12 +355,13 @@ func TestDatabaseRecycle(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			MuxService:      service,
+			KayakMux:        service,
+			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
 		// create genesis block
-		var block *sqlchain.Block
+		var block *ct.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -468,6 +473,13 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 	tm := getLocalTime()
 	tm = tm.Add(-timeShift)
 
+	// build queries
+	realQueries := make([]storage.Query, len(queries))
+
+	for i, v := range queries {
+		realQueries[i].Pattern = v
+	}
+
 	query = &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
@@ -481,7 +493,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 			Signee: pubKey,
 		},
 		Payload: wt.RequestPayload{
-			Queries: queries,
+			Queries: realQueries,
 		},
 	}
 
@@ -599,7 +611,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 }
 
 // copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *sqlchain.Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -610,9 +622,9 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *sqlchain.Block, err
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &sqlchain.Block{
-		SignedHeader: sqlchain.SignedHeader{
-			Header: sqlchain.Header{
+	b = &ct.Block{
+		SignedHeader: ct.SignedHeader{
+			Header: ct.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,

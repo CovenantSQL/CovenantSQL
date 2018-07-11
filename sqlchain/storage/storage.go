@@ -38,12 +38,18 @@ var (
 	}
 )
 
+// Query represents the single query of sqlite.
+type Query struct {
+	Pattern string
+	Args    []sql.NamedArg
+}
+
 // ExecLog represents the execution log of sqlite.
 type ExecLog struct {
 	ConnectionID uint64
 	SeqNo        uint64
 	Timestamp    int64
-	Queries      []string
+	Queries      []Query
 }
 
 func openDB(dsn string) (db *sql.DB, err error) {
@@ -105,7 +111,7 @@ type Storage struct {
 	db      *sql.DB
 	tx      *sql.Tx // Current tx
 	id      TxID
-	queries []string
+	queries []Query
 }
 
 // New returns a new storage connected by dsn.
@@ -169,7 +175,14 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	if s.tx != nil {
 		if equalTxID(&s.id, &TxID{el.ConnectionID, el.SeqNo, el.Timestamp}) {
 			for _, q := range s.queries {
-				_, err = s.tx.ExecContext(ctx, q)
+				// convert arguments types
+				args := make([]interface{}, len(q.Args))
+
+				for i, v := range q.Args {
+					args[i] = v
+				}
+
+				_, err = s.tx.ExecContext(ctx, q.Pattern, args...)
 
 				if err != nil {
 					s.tx.Rollback()
@@ -218,7 +231,7 @@ func (s *Storage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error)
 }
 
 // Query implements read-only query feature.
-func (s *Storage) Query(ctx context.Context, queries []string) (columns []string, types []string,
+func (s *Storage) Query(ctx context.Context, queries []Query) (columns []string, types []string,
 	data [][]interface{}, err error) {
 	data = make([][]interface{}, 0)
 
@@ -238,9 +251,17 @@ func (s *Storage) Query(ctx context.Context, queries []string) (columns []string
 	// always rollback on complete
 	defer tx.Rollback()
 
-	// TODO(xq262144), multiple result set is not supported in this release
+	q := queries[0]
+
+	// convert arguments types
+	args := make([]interface{}, len(q.Args))
+
+	for i, v := range q.Args {
+		args[i] = v
+	}
+
 	var rows *sql.Rows
-	if rows, err = tx.Query(queries[0]); err != nil {
+	if rows, err = tx.Query(q.Pattern, args...); err != nil {
 		return
 	}
 
@@ -273,7 +294,7 @@ func (s *Storage) Query(ctx context.Context, queries []string) (columns []string
 }
 
 // Exec implements write query feature.
-func (s *Storage) Exec(ctx context.Context, queries []string) (rowsAffected int64, err error) {
+func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64, err error) {
 	if len(queries) == 0 {
 		return
 	}
@@ -288,8 +309,18 @@ func (s *Storage) Exec(ctx context.Context, queries []string) (rowsAffected int6
 	}
 
 	defer tx.Rollback()
+
+	q := queries[0]
+
+	// convert arguments types
+	args := make([]interface{}, len(q.Args))
+
+	for i, v := range q.Args {
+		args[i] = v
+	}
+
 	var result sql.Result
-	if result, err = tx.Exec(queries[0]); err != nil {
+	if result, err = tx.Exec(q.Pattern, args...); err != nil {
 		return
 	}
 	tx.Commit()

@@ -47,8 +47,10 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 		return
 	}
 	//TODO(auxten): try BLOB for `id`, to performance test
-	_, err = st.Exec(context.Background(), []string{
-		"CREATE TABLE IF NOT EXISTS `dht` (`id` TEXT NOT NULL PRIMARY KEY, `node` BLOB);",
+	_, err = st.Exec(context.Background(), []storage.Query{
+		{
+			Pattern: "CREATE TABLE IF NOT EXISTS `dht` (`id` TEXT NOT NULL PRIMARY KEY, `node` BLOB);",
+		},
 	})
 	if err != nil {
 		log.Errorf("create dht table failed: %s", err)
@@ -157,7 +159,11 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 			nodeToSet.ID, base64.StdEncoding.EncodeToString(payload.Data))
 		log.Debugf("sql: %s", sql)
 		execLog = &storage.ExecLog{
-			Queries: []string{sql},
+			Queries: []storage.Query{
+				{
+					Pattern: sql,
+				},
+			},
 		}
 	default:
 		err = errors.New("undefined command: " + payload.Command)
@@ -245,7 +251,11 @@ func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	mh := &codec.MsgpackHandle{}
 	//sql := fmt.Sprintf("SELECT `node` FROM `dht` WHERE `id` = 't%s' LIMIT 1;", id)
 	sql := fmt.Sprintf("SELECT `node` FROM `dht`;")
-	_, _, result, err = s.Storage.Query(context.Background(), []string{sql})
+	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
+		{
+			Pattern: sql,
+		},
+	})
 	if err != nil {
 		log.Errorf("Query: %s failed: %s", sql, err)
 		return

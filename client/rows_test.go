@@ -14,21 +14,4 @@
  * limitations under the License.
  */
 
-package worker
-
-import (
-	"time"
-
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-)
-
-// DBConfig defines the database config.
-type DBConfig struct {
-	DatabaseID      proto.DatabaseID
-	DataDir         string
-	KayakMux        *kt.ETLSTransportService
-	ChainMux        *sqlchain.MuxService
-	MaxWriteTimeGap time.Duration
-}
+package client

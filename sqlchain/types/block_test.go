@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package sqlchain
+package types
 
 import (
 	"math/big"
@@ -22,66 +22,125 @@ import (
 	"testing"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-func TestSign(t *testing.T) {
-	block, err := createRandomBlock(rootHash, true)
+func TestSignAndVerify(t *testing.T) {
+	block, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	err = block.Verify()
-
-	if err != nil {
+	if err = block.Verify(); err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	}
+
+	block.SignedHeader.BlockHash[0]++
+
+	if err = block.Verify(); err != ErrHashVerification {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	h := &hash.Hash{}
+	block.PushAckedQuery(h)
+
+	if err = block.Verify(); err != ErrMerkleRootVerification {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
 
-func TestSerialization(t *testing.T) {
-	block, err := createRandomBlock(rootHash, true)
+func TestHeaderMarshalUnmarshaler(t *testing.T) {
+	block, err := createRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	sheader := block.SignedHeader
-	buffer, err := sheader.MarshalBinary()
+	origin := &block.SignedHeader.Header
+	enc, err := origin.MarshalBinary()
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	rSHeader := &SignedHeader{}
-	err = rSHeader.UnmarshalBinary(buffer)
+	dec := &Header{}
+
+	if err = dec.UnmarshalBinary(enc); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if !reflect.DeepEqual(origin, dec) {
+		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
+	}
+}
+
+func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
+	block, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	err = rSHeader.UnmarshalBinary(nil)
+	origin := &block.SignedHeader
+	enc, err := origin.MarshalBinary()
 
 	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	dec := &SignedHeader{}
+
+	if err = dec.UnmarshalBinary(enc); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	// Test unmarshaling nil buffer
+	if err = dec.UnmarshalBinary(nil); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	}
 
-	if !reflect.DeepEqual(sheader.Header, rSHeader.Header) {
-		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", sheader.Header, rSHeader.Header)
+	if !reflect.DeepEqual(origin.Header, dec.Header) {
+		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin.Header, dec.Header)
 	}
 
-	if err = sheader.Verify(); err != nil {
+	if err = origin.Verify(); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	if err = rSHeader.Verify(); err != nil {
+	if err = dec.Verify(); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 }
 
+func TestBlockMarshalUnmarshaler(t *testing.T) {
+	origin, err := createRandomBlock(genesisHash, false)
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	enc, err := origin.MarshalBinary()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	dec := &Block{}
+
+	if err = dec.UnmarshalBinary(enc); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if !reflect.DeepEqual(origin, dec) {
+		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
+	}
+}
+
 func TestGenesis(t *testing.T) {
-	genesis, err := createRandomBlock(rootHash, true)
+	genesis, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -96,7 +155,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	// Test non-genesis block
-	genesis, err = createRandomBlock(rootHash, false)
+	genesis, err = createRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -115,7 +174,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	// Test altered public key block
-	genesis, err = createRandomBlock(rootHash, true)
+	genesis, err = createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -142,7 +201,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	// Test altered signature
-	genesis, err = createRandomBlock(rootHash, true)
+	genesis, err = createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)

@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
 type blockNode struct {
@@ -29,7 +30,7 @@ type blockNode struct {
 	height int32
 }
 
-func newBlockNode(block *Block, parent *blockNode) *blockNode {
+func newBlockNode(block *ct.Block, parent *blockNode) *blockNode {
 	return &blockNode{
 		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
@@ -43,7 +44,7 @@ func newBlockNode(block *Block, parent *blockNode) *blockNode {
 	}
 }
 
-func (bn *blockNode) initBlockNode(block *Block, parent *blockNode) {
+func (bn *blockNode) initBlockNode(block *ct.Block, parent *blockNode) {
 	bn.hash = block.SignedHeader.BlockHash
 	bn.parent = nil
 	bn.height = 0
@@ -91,20 +92,20 @@ func newBlockIndex(cfg *Config) (index *blockIndex) {
 	return index
 }
 
-func (bi *blockIndex) AddBlock(newBlock *blockNode) {
+func (bi *blockIndex) addBlock(newBlock *blockNode) {
 	bi.mu.Lock()
 	defer bi.mu.Unlock()
 	bi.index[newBlock.hash] = newBlock
 }
 
-func (bi *blockIndex) HasBlock(hash *hash.Hash) (hasBlock bool) {
+func (bi *blockIndex) hasBlock(hash *hash.Hash) (hasBlock bool) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 	_, hasBlock = bi.index[*hash]
 	return
 }
 
-func (bi *blockIndex) LookupNode(hash *hash.Hash) (b *blockNode) {
+func (bi *blockIndex) lookupNode(hash *hash.Hash) (b *blockNode) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 	b = bi.index[*hash]

@@ -21,58 +21,25 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"math/rand"
-	"reflect"
 	"testing"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
-
-func TestState(t *testing.T) {
-	state := &State{
-		node:   nil,
-		Head:   hash.Hash{},
-		Height: 0,
-	}
-
-	rand.Read(state.Head[:])
-	buffer, err := state.MarshalBinary()
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	rState := &State{}
-	err = rState.UnmarshalBinary(buffer)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	err = rState.UnmarshalBinary(nil)
-
-	if err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
-	}
-
-	if !reflect.DeepEqual(state, rState) {
-		t.Fatalf("Values don't match: v1 = %v, v2 = %v", state, rState)
-	}
-}
 
 func TestIndexKey(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		b1, err := createRandomBlock(rootHash, false)
+		b1, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		b2, err := createRandomBlock(rootHash, false)
+		b2, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
@@ -108,18 +75,20 @@ func TestChain(t *testing.T) {
 	fl.Close()
 
 	// Create new chain
-	genesis, err := createRandomBlock(rootHash, true)
+	genesis, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
 	chain, err := NewChain(&Config{
-		DataDir:        fl.Name(),
-		Genesis:        genesis,
-		Period:         1 * time.Second,
-		TimeResolution: 100 * time.Millisecond,
-		QueryTTL:       10,
+		DatabaseID: "tdb",
+		DataFile:   fl.Name(),
+		Genesis:    genesis,
+		Period:     1 * time.Second,
+		Tick:       100 * time.Millisecond,
+		QueryTTL:   10,
+		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
 		Server: &kayak.Server{
 			ID: proto.NodeID("X1"),
 		},
@@ -131,17 +100,17 @@ func TestChain(t *testing.T) {
 
 	t.Logf("Create new chain: genesis = %s, inittime = %s, period = %.9f secs",
 		genesis.SignedHeader.BlockHash,
-		chain.rt.ChainInitTime.Format(time.RFC3339Nano),
-		chain.rt.Period.Seconds())
+		chain.rt.chainInitTime.Format(time.RFC3339Nano),
+		chain.rt.period.Seconds())
 
 	// Push blocks
 	for {
-		chain.isMyTurn = (rand.Intn(10) == 0)
+		chain.tIsMyTurn = (rand.Intn(10) == 0)
 		t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-			chain.state.Head, chain.state.Height, chain.rt.NextTurn,
-			chain.rt.ChainInitTime.Add(
-				chain.cfg.Period*time.Duration(chain.rt.NextTurn)).Format(time.RFC3339Nano),
-			chain.isMyTurn)
+			chain.st.Head, chain.st.Height, chain.rt.nextTurn,
+			chain.rt.chainInitTime.Add(
+				chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
+			chain.tIsMyTurn)
 		acks, err := createRandomQueries(10)
 
 		if err != nil {
@@ -159,7 +128,7 @@ func TestChain(t *testing.T) {
 		var d time.Duration
 
 		for {
-			now, d = chain.rt.TillNextTurn()
+			now, d = chain.rt.nextTick()
 
 			t.Logf("Wake up at: now = %s, d = %.9f secs",
 				now.Format(time.RFC3339Nano), d.Seconds())
@@ -167,15 +136,15 @@ func TestChain(t *testing.T) {
 			if d > 0 {
 				time.Sleep(d)
 			} else {
-				chain.RunCurrentTurn(now)
+				chain.runCurrentTurn(now)
 				break
 			}
 		}
 
 		// Advise block if it's not my turn
-		if !chain.IsMyTurn() {
+		if !chain.isMyTurn() {
 			block, err := createRandomBlockWithQueries(
-				genesis.SignedHeader.BlockHash, chain.state.Head, acks)
+				genesis.SignedHeader.BlockHash, chain.st.Head, acks)
 
 			if err != nil {
 				t.Fatalf("Error occurred: %v", err)
@@ -185,18 +154,33 @@ func TestChain(t *testing.T) {
 				t.Fatalf("Error occurred: %v, block = %+v", err, block)
 			}
 
-			t.Logf("Pushed new block: height = %d,  %s <- %s",
-				chain.state.Height,
+			t.Logf("Pushed new block: height = %d, %s <- %s",
+				chain.st.Height,
 				block.SignedHeader.ParentHash,
 				block.SignedHeader.BlockHash)
 		} else {
-			t.Logf("Produced new block: height = %d,  %s <- %s",
-				chain.state.Height,
-				chain.pendingBlock.SignedHeader.ParentHash,
-				chain.pendingBlock.SignedHeader.BlockHash)
+			var enc []byte
+			var block ct.Block
+
+			if err = chain.db.View(func(tx *bolt.Tx) (err error) {
+				enc = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(
+					chain.st.node.indexKey())
+				return
+			}); err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+
+			if err = block.UnmarshalBinary(enc); err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
+
+			t.Logf("Produced new block: height = %d, %s <- %s",
+				chain.st.Height,
+				block.SignedHeader.ParentHash,
+				block.SignedHeader.BlockHash)
 		}
 
-		if chain.state.Height >= testHeight {
+		if chain.st.Height >= testHeight {
 			break
 		}
 	}
@@ -208,11 +192,12 @@ func TestChain(t *testing.T) {
 	// Reload chain from DB file and rebuild memory cache
 	chain.db.Close()
 	chain, err = LoadChain(&Config{
-		DataDir:        fl.Name(),
-		Genesis:        genesis,
-		Period:         1 * time.Second,
-		TimeResolution: 100 * time.Millisecond,
-		QueryTTL:       10,
+		DataFile:   fl.Name(),
+		Genesis:    genesis,
+		Period:     1 * time.Second,
+		Tick:       100 * time.Millisecond,
+		QueryTTL:   10,
+		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
 		Server: &kayak.Server{
 			ID: proto.NodeID("X1"),
 		},

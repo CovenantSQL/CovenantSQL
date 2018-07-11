@@ -14,21 +14,11 @@
  * limitations under the License.
  */
 
-package worker
+package client
 
-import (
-	"time"
+import "errors"
 
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+// Various errors the driver might returns.
+var (
+	ErrQueryInTransaction = errors.New("only write is supported during transaction")
 )
-
-// DBConfig defines the database config.
-type DBConfig struct {
-	DatabaseID      proto.DatabaseID
-	DataDir         string
-	KayakMux        *kt.ETLSTransportService
-	ChainMux        *sqlchain.MuxService
-	MaxWriteTimeGap time.Duration
-}

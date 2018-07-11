@@ -18,12 +18,39 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"reflect"
 	"testing"
 	"time"
 )
+
+func newQuery(query string, args ...interface{}) (q Query) {
+	q.Pattern = query
+
+	// convert args
+	q.Args = make([]sql.NamedArg, len(args))
+	for i, v := range args {
+		q.Args[i] = sql.Named("", v)
+	}
+
+	return
+}
+
+func newNamedQuery(query string, args map[string]interface{}) (q Query) {
+	q.Pattern = query
+	q.Args = make([]sql.NamedArg, len(args))
+	i := 0
+
+	// convert args
+	for n, v := range args {
+		q.Args[i] = sql.Named(n, v)
+		i++
+	}
+
+	return
+}
 
 func TestBadType(t *testing.T) {
 	fl, err := ioutil.TempFile("", "sqlite3-")
@@ -74,14 +101,14 @@ func TestStorage(t *testing.T) {
 		ConnectionID: 1,
 		SeqNo:        1,
 		Timestamp:    time.Now().UnixNano(),
-		Queries: []string{
-			"CREATE TABLE IF NOT EXISTS `kv` (`key` TEXT PRIMARY KEY, `value` BLOB)",
-			"INSERT OR IGNORE INTO `kv` VALUES ('k0', NULL)",
-			"INSERT OR IGNORE INTO `kv` VALUES ('k1', 'v1')",
-			"INSERT OR IGNORE INTO `kv` VALUES ('k2', 'v2')",
-			"INSERT OR IGNORE INTO `kv` VALUES ('k3', 'v3')",
-			"INSERT OR REPLACE INTO `kv` VALUES ('k3', 'v3-2')",
-			"DELETE FROM `kv` WHERE `key`='k2'",
+		Queries: []Query{
+			newQuery("CREATE TABLE IF NOT EXISTS `kv` (`key` TEXT PRIMARY KEY, `value` BLOB)"),
+			newQuery("INSERT OR IGNORE INTO `kv` VALUES ('k0', NULL)"),
+			newQuery("INSERT OR IGNORE INTO `kv` VALUES ('k1', 'v1')"),
+			newQuery("INSERT OR IGNORE INTO `kv` VALUES ('k2', 'v2')"),
+			newQuery("INSERT OR IGNORE INTO `kv` VALUES ('k3', 'v3')"),
+			newQuery("INSERT OR REPLACE INTO `kv` VALUES ('k3', 'v3-2')"),
+			newQuery("DELETE FROM `kv` WHERE `key`='k2'"),
 		},
 	}
 
@@ -89,8 +116,8 @@ func TestStorage(t *testing.T) {
 		ConnectionID: 1,
 		SeqNo:        2,
 		Timestamp:    time.Now().UnixNano(),
-		Queries: []string{
-			"INSERT OR REPLACE INTO `kv` VALUES ('k1', 'v1-2')",
+		Queries: []Query{
+			newQuery("INSERT OR REPLACE INTO `kv` VALUES ('k1', 'v1-2')"),
 		},
 	}
 
@@ -125,7 +152,8 @@ func TestStorage(t *testing.T) {
 	}
 
 	// test query
-	columns, types, data, err := st.Query(context.Background(), []string{"SELECT * FROM `kv` ORDER BY `key` ASC"})
+	columns, types, data, err := st.Query(context.Background(),
+		[]Query{newQuery("SELECT * FROM `kv` ORDER BY `key` ASC")})
 
 	if err != nil {
 		t.Fatalf("Query failed: %v", err.Error())
@@ -157,7 +185,8 @@ func TestStorage(t *testing.T) {
 	}
 
 	// test query with projection
-	columns, types, data, err = st.Query(context.Background(), []string{"SELECT `key` FROM `kv` ORDER BY `key` ASC"})
+	columns, types, data, err = st.Query(context.Background(),
+		[]Query{newQuery("SELECT `key` FROM `kv` ORDER BY `key` ASC")})
 
 	if err != nil {
 		t.Fatalf("Query failed: %v", err.Error())
@@ -189,7 +218,8 @@ func TestStorage(t *testing.T) {
 	}
 
 	// test query with condition
-	columns, types, data, err = st.Query(context.Background(), []string{"SELECT `key` FROM `kv` WHERE `value` IS NOT NULL ORDER BY `key` ASC"})
+	columns, types, data, err = st.Query(context.Background(),
+		[]Query{newQuery("SELECT `key` FROM `kv` WHERE `value` IS NOT NULL ORDER BY `key` ASC")})
 
 	if err != nil {
 		t.Fatalf("Query failed: %v", err.Error())
@@ -217,7 +247,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	// test failed query
-	columns, types, data, err = st.Query(context.Background(), []string{"SQL???? WHAT!!!!"})
+	columns, types, data, err = st.Query(context.Background(), []Query{newQuery("SQL???? WHAT!!!!")})
 
 	if err == nil {
 		t.Fatalf("Query should failed")
@@ -226,32 +256,64 @@ func TestStorage(t *testing.T) {
 	}
 
 	// test non-read query
-	columns, types, data, err = st.Query(context.Background(), []string{"DELETE FROM `kv` WHERE `value` IS NULL"})
+	columns, types, data, err = st.Query(context.Background(),
+		[]Query{newQuery("DELETE FROM `kv` WHERE `value` IS NULL")})
 
-	affected, err := st.Exec(context.Background(), []string{"INSERT OR REPLACE INTO `kv` VALUES ('k4', 'v4')"})
+	affected, err := st.Exec(context.Background(),
+		[]Query{newQuery("INSERT OR REPLACE INTO `kv` VALUES ('k4', 'v4')")})
 	if err != nil || affected != 1 {
 		t.Fatalf("Exec INSERT failed: %v", err)
 	}
-	affected, err = st.Exec(context.Background(), []string{"DELETE FROM `kv` WHERE `key`='k4'"})
+	// test with arguments
+	affected, err = st.Exec(context.Background(), []Query{newQuery("DELETE FROM `kv` WHERE `key`='k4'")})
 	if err != nil || affected != 1 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
-	affected, err = st.Exec(context.Background(), []string{"DELETE FROM `kv` WHERE `key`='noexist'"})
+	affected, err = st.Exec(context.Background(),
+		[]Query{newQuery("DELETE FROM `kv` WHERE `key`=?", "not_exist")})
 	if err != nil || affected != 0 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
 	// FIXME(xq262144), storage should return err on non-read query
 
 	// test again
-	columns, types, data, err = st.Query(context.Background(), []string{"SELECT `key` FROM `kv`"})
+	columns, types, data, err = st.Query(context.Background(), []Query{newQuery("SELECT `key` FROM `kv`")})
 	if err != nil {
 		t.Fatalf("Query failed: %v", err.Error())
 	} else if len(data) != 3 {
 		t.Fatalf("Last write query should not take any effect, row count: %v", len(data))
+	} else {
+		t.Logf("Rows: %v", data)
+	}
+
+	// test with select
+	columns, types, data, err = st.Query(context.Background(),
+		[]Query{newQuery("SELECT `key` FROM `kv` WHERE `key` IN (?)", "k1")})
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	} else if len(data) != 1 {
+		t.Fatalf("Should only have one record, but actually %v", len(data))
+	} else {
+		t.Logf("Rows: %v", data)
+	}
+
+	// test with select with named arguments
+	columns, types, data, err = st.Query(context.Background(),
+		[]Query{newNamedQuery("SELECT `key` FROM `kv` WHERE `key` IN (:test2, :test1)", map[string]interface{}{
+			"test1": "k1",
+			"test2": "k3",
+		})})
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	} else if len(data) != 2 {
+		t.Fatalf("Should only have two records, but actually %v", len(data))
+	} else {
+		t.Logf("Rows: %v", data)
 	}
 
 	// test with function
-	columns, types, data, err = st.Query(context.Background(), []string{"SELECT COUNT(1) AS `c` FROM `kv`"})
+	columns, types, data, err = st.Query(context.Background(),
+		[]Query{newQuery("SELECT COUNT(1) AS `c` FROM `kv`")})
 	if err != nil {
 		t.Fatalf("Query failed: %v", err.Error())
 	} else {

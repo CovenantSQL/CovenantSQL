@@ -67,7 +67,9 @@ var (
 func init() {
 
 	// if we were running go test
-	if strings.HasSuffix(os.Args[0], ".test") || strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
+	if strings.HasSuffix(os.Args[0], ".test") ||
+		strings.HasSuffix(os.Args[0], ".test.exe") ||
+		strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
 		_, testFile, _, _ := runtime.Caller(0)
 		confFile := filepath.Join(filepath.Dir(testFile), "config.yaml")
 		log.Debugf("Current test filename: %s", confFile)

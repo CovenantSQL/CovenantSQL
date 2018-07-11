@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-package worker
+package client
 
 import (
-	"time"
+	"testing"
 
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 )
 
-// DBConfig defines the database config.
-type DBConfig struct {
-	DatabaseID      proto.DatabaseID
-	DataDir         string
-	KayakMux        *kt.ETLSTransportService
-	ChainMux        *sqlchain.MuxService
-	MaxWriteTimeGap time.Duration
+func TestConfig(t *testing.T) {
+	Convey("test config", t, func() {
+		var cfg *Config
+		var err error
+
+		cfg, err = ParseDSN("thunderdb://db")
+
+		So(err, ShouldBeNil)
+		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
+		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db")
+	})
 }

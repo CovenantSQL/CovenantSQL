@@ -36,14 +36,16 @@ func TestGetSRV(t *testing.T) {
 
 	dc := NewDNSClient()
 	in := dc.GetSRVRecords(BPDomain)
-	log.Debugf("answer: %v", in.Answer)
-	for _, rr := range in.Answer {
-		if ss, ok := rr.(*dns.SRV); ok {
-			log.Printf("string: %v", ss.Target)
+	if in != nil {
+		log.Debugf("answer: %v", in.Answer)
+		for _, rr := range in.Answer {
+			if ss, ok := rr.(*dns.SRV); ok {
+				log.Printf("string: %v", ss.Target)
+			}
 		}
+		log.Debugf("ns: %v", in.Ns)
+		log.Debugf("extra: %v", in.Extra)
 	}
-	log.Debugf("ns: %v", in.Ns)
-	log.Debugf("extra: %v", in.Extra)
 }
 
 func TestGetBP(t *testing.T) {

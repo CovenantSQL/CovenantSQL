@@ -29,12 +29,14 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/worker/types"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (
-	testHeight = int32(50)
-	rootHash   = hash.Hash{}
+	testHeight  = int32(50)
+	genesisHash = hash.Hash{}
 )
 
 type nodeProfile struct {
@@ -71,9 +73,9 @@ func newRandomNodes(n int) (nodes []*nodeProfile, err error) {
 	return
 }
 
-func testSetup() {
+func setup() {
 	rand.Seed(time.Now().UnixNano())
-	rand.Read(rootHash[:])
+	rand.Read(genesisHash[:])
 	f, err := ioutil.TempFile("", "keystore")
 
 	if err != nil {
@@ -81,7 +83,12 @@ func testSetup() {
 	}
 
 	f.Close()
-	kms.InitPublicKeyStore(f.Name(), nil)
+
+	if err = kms.InitPublicKeyStore(f.Name(), nil); err != nil {
+		panic(err)
+	}
+
+	kms.Unittest = true
 
 	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
 		kms.SetLocalKeyPair(priv, pub)
@@ -109,15 +116,25 @@ func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 	return
 }
 
+func createRandomStorageQueries(offset, length, soffset, slength int) (qs []storage.Query) {
+	qs = make([]storage.Query, rand.Intn(length)+offset)
+
+	for i := range qs {
+		createRandomString(soffset, slength, &qs[i].Pattern)
+	}
+
+	return
+}
+
 func createRandomTimeAfter(now time.Time, maxDelayMillisecond int) time.Time {
 	return now.Add(time.Duration(rand.Intn(maxDelayMillisecond)+1) * time.Millisecond)
 }
 
-func createRandomQueryRequest(cli *nodeProfile) (r *types.SignedRequestHeader, err error) {
-	req := &types.Request{
-		Header: types.SignedRequestHeader{
-			RequestHeader: types.RequestHeader{
-				QueryType:    types.QueryType(rand.Intn(2)),
+func createRandomQueryRequest(cli *nodeProfile) (r *wt.SignedRequestHeader, err error) {
+	req := &wt.Request{
+		Header: wt.SignedRequestHeader{
+			RequestHeader: wt.RequestHeader{
+				QueryType:    wt.QueryType(rand.Intn(2)),
 				NodeID:       cli.NodeID,
 				ConnectionID: uint64(rand.Int63()),
 				SeqNo:        uint64(rand.Int63()),
@@ -127,8 +144,8 @@ func createRandomQueryRequest(cli *nodeProfile) (r *types.SignedRequestHeader, e
 			Signee:    cli.PublicKey,
 			Signature: nil,
 		},
-		Payload: types.RequestPayload{
-			Queries: createRandomStrings(10, 10, 10, 10),
+		Payload: wt.RequestPayload{
+			Queries: createRandomStorageQueries(10, 10, 10, 10),
 		},
 	}
 
@@ -143,7 +160,7 @@ func createRandomQueryRequest(cli *nodeProfile) (r *types.SignedRequestHeader, e
 }
 
 func createRandomQueryResponse(cli, worker *nodeProfile) (
-	r *types.SignedResponseHeader, err error,
+	r *wt.SignedResponseHeader, err error,
 ) {
 	req, err := createRandomQueryRequest(cli)
 
@@ -151,9 +168,9 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 		return
 	}
 
-	resp := &types.Response{
-		Header: types.SignedResponseHeader{
-			ResponseHeader: types.ResponseHeader{
+	resp := &wt.Response{
+		Header: wt.SignedResponseHeader{
+			ResponseHeader: wt.ResponseHeader{
 				Request:   *req,
 				NodeID:    worker.NodeID,
 				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
@@ -161,10 +178,10 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 			Signee:    worker.PublicKey,
 			Signature: nil,
 		},
-		Payload: types.ResponsePayload{
+		Payload: wt.ResponsePayload{
 			Columns:   createRandomStrings(10, 10, 10, 10),
 			DeclTypes: createRandomStrings(10, 10, 10, 10),
-			Rows:      make([]types.ResponseRow, rand.Intn(10)+10),
+			Rows:      make([]wt.ResponseRow, rand.Intn(10)+10),
 		},
 	}
 
@@ -184,12 +201,12 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 	return
 }
 
-func createRandomQueryResponseWithRequest(req *types.SignedRequestHeader, worker *nodeProfile) (
-	r *types.SignedResponseHeader, err error,
+func createRandomQueryResponseWithRequest(req *wt.SignedRequestHeader, worker *nodeProfile) (
+	r *wt.SignedResponseHeader, err error,
 ) {
-	resp := &types.Response{
-		Header: types.SignedResponseHeader{
-			ResponseHeader: types.ResponseHeader{
+	resp := &wt.Response{
+		Header: wt.SignedResponseHeader{
+			ResponseHeader: wt.ResponseHeader{
 				Request:   *req,
 				NodeID:    worker.NodeID,
 				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
@@ -197,10 +214,10 @@ func createRandomQueryResponseWithRequest(req *types.SignedRequestHeader, worker
 			Signee:    worker.PublicKey,
 			Signature: nil,
 		},
-		Payload: types.ResponsePayload{
+		Payload: wt.ResponsePayload{
 			Columns:   createRandomStrings(10, 10, 10, 10),
 			DeclTypes: createRandomStrings(10, 10, 10, 10),
-			Rows:      make([]types.ResponseRow, rand.Intn(10)+10),
+			Rows:      make([]wt.ResponseRow, rand.Intn(10)+10),
 		},
 	}
 
@@ -220,12 +237,12 @@ func createRandomQueryResponseWithRequest(req *types.SignedRequestHeader, worker
 	return
 }
 
-func createRandomQueryAckWithResponse(resp *types.SignedResponseHeader, cli *nodeProfile) (
-	r *types.SignedAckHeader, err error,
+func createRandomQueryAckWithResponse(resp *wt.SignedResponseHeader, cli *nodeProfile) (
+	r *wt.SignedAckHeader, err error,
 ) {
-	ack := &types.Ack{
-		Header: types.SignedAckHeader{
-			AckHeader: types.AckHeader{
+	ack := &wt.Ack{
+		Header: wt.SignedAckHeader{
+			AckHeader: wt.AckHeader{
 				Response:  *resp,
 				NodeID:    cli.NodeID,
 				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
@@ -243,16 +260,16 @@ func createRandomQueryAckWithResponse(resp *types.SignedResponseHeader, cli *nod
 	return
 }
 
-func createRandomQueryAck(cli, worker *nodeProfile) (r *types.SignedAckHeader, err error) {
+func createRandomQueryAck(cli, worker *nodeProfile) (r *wt.SignedAckHeader, err error) {
 	resp, err := createRandomQueryResponse(cli, worker)
 
 	if err != nil {
 		return
 	}
 
-	ack := &types.Ack{
-		Header: types.SignedAckHeader{
-			AckHeader: types.AckHeader{
+	ack := &wt.Ack{
+		Header: wt.SignedAckHeader{
+			AckHeader: wt.AckHeader{
 				Response:  *resp,
 				NodeID:    cli.NodeID,
 				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
@@ -270,7 +287,7 @@ func createRandomQueryAck(cli, worker *nodeProfile) (r *types.SignedAckHeader, e
 	return
 }
 
-func createRandomNodesAndAck() (r *types.SignedAckHeader, err error) {
+func createRandomNodesAndAck() (r *wt.SignedAckHeader, err error) {
 	cli, err := newRandomNode()
 
 	if err != nil {
@@ -286,7 +303,7 @@ func createRandomNodesAndAck() (r *types.SignedAckHeader, err error) {
 	return createRandomQueryAck(cli, worker)
 }
 
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -297,24 +314,24 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &Block{
-		SignedHeader: SignedHeader{
-			Header: Header{
+	b = &ct.Block{
+		SignedHeader: ct.SignedHeader{
+			Header: ct.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
-				GenesisHash: rootHash,
+				GenesisHash: genesisHash,
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
 			Signee:    pub,
 			Signature: nil,
 		},
-		Queries: make([]*hash.Hash, rand.Intn(10)+10),
 	}
 
-	for i := range b.Queries {
-		b.Queries[i] = new(hash.Hash)
-		rand.Read(b.Queries[i][:])
+	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
+		h := &hash.Hash{}
+		rand.Read(h[:])
+		b.PushAckedQuery(h)
 	}
 
 	if isGenesis {
@@ -333,20 +350,22 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		// Add public key to KMS
 		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
 		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
-		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
 
-		if err != nil {
+		if err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub); err != nil {
 			return nil, err
 		}
+
+		// Set genesis hash as zero value
+		b.SignedHeader.GenesisHash = hash.Hash{}
 	}
 
 	err = b.PackAndSignBlock(priv)
 	return
 }
 
-func createRandomQueries(x int) (acks []*types.SignedAckHeader, err error) {
+func createRandomQueries(x int) (acks []*wt.SignedAckHeader, err error) {
 	n := rand.Intn(x)
-	acks = make([]*types.SignedAckHeader, n)
+	acks = make([]*wt.SignedAckHeader, n)
 
 	for i := range acks {
 		if acks[i], err = createRandomNodesAndAck(); err != nil {
@@ -357,8 +376,8 @@ func createRandomQueries(x int) (acks []*types.SignedAckHeader, err error) {
 	return
 }
 
-func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*types.SignedAckHeader) (
-	b *Block, err error,
+func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*wt.SignedAckHeader) (
+	b *ct.Block, err error,
 ) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
@@ -370,9 +389,9 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*types.Signe
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &Block{
-		SignedHeader: SignedHeader{
-			Header: Header{
+	b = &ct.Block{
+		SignedHeader: ct.SignedHeader{
+			Header: ct.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: genesis,
@@ -384,10 +403,8 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*types.Signe
 		},
 	}
 
-	b.Queries = make([]*hash.Hash, len(acks))
-
-	for i, ack := range acks {
-		b.Queries[i] = &ack.HeaderHash
+	for _, ack := range acks {
+		b.PushAckedQuery(&ack.HeaderHash)
 	}
 
 	err = b.PackAndSignBlock(priv)
@@ -395,6 +412,6 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*types.Signe
 }
 
 func TestMain(m *testing.M) {
-	testSetup()
+	setup()
 	os.Exit(m.Run())
 }

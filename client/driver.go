@@ -14,21 +14,27 @@
  * limitations under the License.
  */
 
-package worker
+package client
 
 import (
-	"time"
-
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	"database/sql"
+	"database/sql/driver"
 )
 
-// DBConfig defines the database config.
-type DBConfig struct {
-	DatabaseID      proto.DatabaseID
-	DataDir         string
-	KayakMux        *kt.ETLSTransportService
-	ChainMux        *sqlchain.MuxService
-	MaxWriteTimeGap time.Duration
+func init() {
+	sql.Register("thunderdb", new(thunderDBDriver))
+}
+
+// thunderDBDriver implements sql.Driver interface.
+type thunderDBDriver struct {
+}
+
+// Open returns new db connection.
+func (d *thunderDBDriver) Open(dsn string) (conn driver.Conn, err error) {
+	var cfg *Config
+	if cfg, err = ParseDSN(dsn); err != nil {
+		return
+	}
+
+	return newConn(cfg)
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package sqlchain
+package types
 
 import (
 	"bytes"
@@ -161,7 +161,6 @@ type Block struct {
 func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
 	// Calculate merkle root
 	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Queries).GetRoot()
-
 	buffer, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {

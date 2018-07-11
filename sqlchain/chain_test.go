@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+
 	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -81,6 +83,37 @@ func TestChain(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
+	pub, err := kms.GetLocalPublicKey()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	priv, err := kms.GetLocalPrivateKey()
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	servers := [...]*kayak.Server{
+		&kayak.Server{ID: "X1"},
+		&kayak.Server{ID: "X2"},
+		&kayak.Server{ID: "X3"},
+		&kayak.Server{ID: "X4"},
+		&kayak.Server{ID: "X5"},
+	}
+
+	peers := &kayak.Peers{
+		Term:    0,
+		Leader:  servers[0],
+		Servers: servers[:0],
+		PubKey:  pub,
+	}
+
+	if err = peers.Sign(priv); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
 	chain, err := NewChain(&Config{
 		DatabaseID: "tdb",
 		DataFile:   fl.Name(),
@@ -89,9 +122,8 @@ func TestChain(t *testing.T) {
 		Tick:       100 * time.Millisecond,
 		QueryTTL:   10,
 		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
-		Server: &kayak.Server{
-			ID: proto.NodeID("X1"),
-		},
+		Server:     servers[0],
+		Peers:      peers,
 	})
 
 	if err != nil {

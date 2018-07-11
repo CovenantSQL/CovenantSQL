@@ -18,12 +18,14 @@ package sqlchain
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	bolt "github.com/coreos/bbolt"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -412,8 +414,26 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 
-	// TODO(leventeliu): advise new block
-	// ...
+	// Advise new block to the other peers
+	req := &MuxAdviseNewBlockReq{
+		Envelope: proto.Envelope{
+			// TODO(leventeliu): Add
+		},
+		DatabaseID: c.rt.databaseID,
+		AdviseNewBlockReq: AdviseNewBlockReq{
+			Block: block,
+		},
+	}
+	resp := &MuxAdviseAckedQueryResp{}
+	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "AdviseNewBlock")
+
+	for _, p := range c.rt.peers.Servers {
+		if p.ID != c.rt.server.ID {
+			if err = c.cl.call(p.ID, method, req, resp); err != nil {
+				log.Errorf("Failed to advise now block to node %s", string(p.ID))
+			}
+		}
+	}
 
 	return
 }

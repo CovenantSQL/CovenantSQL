@@ -37,9 +37,10 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 var rootHash = hash.Hash{}
@@ -73,7 +74,8 @@ func TestSingleDatabase(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			MuxService:      service,
+			KayakMux:        service,
+			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
 			MaxWriteTimeGap: time.Second * 5,
 		}
 
@@ -304,7 +306,8 @@ func TestInitFailed(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			MuxService:      service,
+			KayakMux:        service,
+			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
@@ -352,7 +355,8 @@ func TestDatabaseRecycle(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			MuxService:      service,
+			KayakMux:        service,
+			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 

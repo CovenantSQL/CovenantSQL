@@ -92,20 +92,20 @@ func newBlockIndex(cfg *Config) (index *blockIndex) {
 	return index
 }
 
-func (bi *blockIndex) AddBlock(newBlock *blockNode) {
+func (bi *blockIndex) addBlock(newBlock *blockNode) {
 	bi.mu.Lock()
 	defer bi.mu.Unlock()
 	bi.index[newBlock.hash] = newBlock
 }
 
-func (bi *blockIndex) HasBlock(hash *hash.Hash) (hasBlock bool) {
+func (bi *blockIndex) hasBlock(hash *hash.Hash) (hasBlock bool) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 	_, hasBlock = bi.index[*hash]
 	return
 }
 
-func (bi *blockIndex) LookupNode(hash *hash.Hash) (b *blockNode) {
+func (bi *blockIndex) lookupNode(hash *hash.Hash) (b *blockNode) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 	b = bi.index[*hash]

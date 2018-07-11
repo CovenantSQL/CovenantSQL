@@ -65,6 +65,9 @@ var (
 	// during the verification of a new introduced block.
 	ErrQuerySignedByAnotherBlock = errors.New("query has been packed by another block")
 
-	// ErrCorruptedIndex indecates that a corrupted index item is detected.
+	// ErrCorruptedIndex indicates that a corrupted index item is detected.
 	ErrCorruptedIndex = errors.New("corrupted index item")
+
+	// ErrUnknownMuxRequest indicates that the a multiplexing request endpoint is not found.
+	ErrUnknownMuxRequest = errors.New("known multiplexing request")
 )

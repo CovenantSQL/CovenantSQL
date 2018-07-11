@@ -26,6 +26,7 @@ import (
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -34,6 +35,9 @@ import (
 const (
 	// DBKayakRPCName defines rpc service name of database internal consensus.
 	DBKayakRPCName = "DBC" // aka. database consensus
+
+	// SQLChainRPCName defines rpc service name of sql-chain internal consensus.
+	SQLChainRPCName = "SQLC"
 
 	// DBServiceRPCName defines rpc service name of database external query api.
 	DBServiceRPCName = "DBS" // aka. database service
@@ -44,10 +48,11 @@ const (
 
 // DBMS defines a database management instance.
 type DBMS struct {
-	cfg        *DBMSConfig
-	dbMap      sync.Map
-	muxService *kt.ETLSTransportService
-	rpc        *DBMSRPCService
+	cfg      *DBMSConfig
+	dbMap    sync.Map
+	kayakMux *kt.ETLSTransportService
+	chainMux *sqlchain.MuxService
+	rpc      *DBMSRPCService
 }
 
 // NewDBMS returns new database management instance.
@@ -57,7 +62,10 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 	}
 
 	// init kayak rpc mux
-	dbms.muxService = ka.NewMuxService(DBKayakRPCName, cfg.Server)
+	dbms.kayakMux = ka.NewMuxService(DBKayakRPCName, cfg.Server)
+
+	// init sql-chain rpc mux
+	dbms.chainMux = sqlchain.NewMuxService(SQLChainRPCName, cfg.Server)
 
 	// init service
 	dbms.rpc = NewDBMSRPCService(DBServiceRPCName, cfg.Server, dbms)
@@ -195,7 +203,8 @@ func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error)
 	dbCfg := &DBConfig{
 		DatabaseID:      instance.DatabaseID,
 		DataDir:         rootDir,
-		MuxService:      dbms.muxService,
+		KayakMux:        dbms.kayakMux,
+		ChainMux:        dbms.chainMux,
 		MaxWriteTimeGap: dbms.cfg.MaxWriteTimeGap,
 	}
 

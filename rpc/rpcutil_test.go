@@ -14,4 +14,16 @@
  * limitations under the License.
  */
 
-package sqlchain
+package rpc
+
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func Testrpc(t *testing.T) {
+	Convey("", t, func() {
+		So(1, ShouldEqual, 1)
+	})
+}

@@ -91,7 +91,7 @@ func TestDialToNode(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		kms.InitLocalKeyPair(privateKey, []byte(pass))
-		route.InitResolver()
+		//route.initResolver()
 		c, err = DialToNode(kms.BP.NodeID, nil)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)

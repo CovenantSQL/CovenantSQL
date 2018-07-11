@@ -29,7 +29,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 // ServiceMap maps service name to service instance
@@ -60,7 +59,7 @@ func (s *Server) InitRPCServer(
 	privateKeyPath string,
 	masterKey []byte,
 ) (err error) {
-	route.InitResolver()
+	//route.InitResolver()
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {

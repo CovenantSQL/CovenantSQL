@@ -130,12 +130,17 @@ func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Sess
 	return
 }
 
+func (p *SessionPool) getSessionFromPool(id proto.NodeID) (sess *Session, ok bool) {
+	p.Lock()
+	defer p.Unlock()
+	sess, ok = p.sessions[id]
+	return
+}
+
 // Get returns existing session to the node, if not exist try best to create one
 func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// first try to get one session from pool
-	p.Lock()
-	cachedConn, ok := p.sessions[id]
-	p.Unlock()
+	cachedConn, ok := p.getSessionFromPool(id)
 	if ok {
 		return cachedConn.Sess.Open()
 	}
@@ -172,6 +177,11 @@ func (p *SessionPool) Set(id proto.NodeID, conn net.Conn) (exist bool) {
 
 // Remove the node sessions in the pool
 func (p *SessionPool) Remove(id proto.NodeID) {
+	sess, ok := p.getSessionFromPool(id)
+	if ok {
+		sess.Close()
+	}
+
 	p.Lock()
 	defer p.Unlock()
 	delete(p.sessions, id)

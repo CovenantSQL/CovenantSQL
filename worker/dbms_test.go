@@ -18,7 +18,6 @@ package worker
 
 import (
 	"bytes"
-	"encoding/hex"
 	"io/ioutil"
 	"net"
 	"os"
@@ -26,21 +25,13 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-)
-
-var (
-	cachedOriginalBP *conf.BPInfo
 )
 
 func TestDBMS(t *testing.T) {
@@ -96,14 +87,8 @@ func TestDBMS(t *testing.T) {
 			GenesisBlock: blockBuffer.Bytes(),
 		})
 		So(err, ShouldBeNil)
-		err = testRequest("Update", req, &res)
-		So(err, ShouldNotBeNil)
 
 		Convey("with bp privilege", func() {
-			// fake myself as BP node
-			err = fakeMySelfAsBP()
-			So(err, ShouldBeNil)
-
 			// send update again
 			err = testRequest("Update", req, &res)
 			So(err, ShouldBeNil)
@@ -194,10 +179,6 @@ func TestDBMS(t *testing.T) {
 				err = dbms.Shutdown()
 				So(err, ShouldBeNil)
 			})
-
-			Reset(func() {
-				restoreBP()
-			})
 		})
 
 		Reset(func() {
@@ -259,52 +240,4 @@ func testRequest(method string, req interface{}, response interface{}) (err erro
 	defer client.Close()
 
 	return client.Call(realMethod, req, response)
-}
-
-func restoreBP() {
-	if cachedOriginalBP != nil {
-		kms.BP = cachedOriginalBP
-		cachedOriginalBP = nil
-	}
-}
-
-func fakeMySelfAsBP() (err error) {
-	// TODO(xq262144), currently modifies kms.BP global variable to override current node as BP node
-
-	// save current bp
-	cachedOriginalBP = kms.BP
-	kms.BP = &conf.BPInfo{}
-
-	// get private/public key
-	var pubKey *asymmetric.PublicKey
-
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
-	kms.BP.PublicKeyStr = hex.EncodeToString(pubKey.Serialize())
-	kms.BP.PublicKey = pubKey
-
-	// get node id
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
-	var rawNodeHash *hash.Hash
-	if rawNodeHash, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-
-	kms.BP.NodeID = proto.NodeID(rawNodeHash.String())
-	kms.BP.RawNodeID = proto.RawNodeID{Hash: *rawNodeHash}
-
-	var nonce *cpuminer.Uint256
-	if nonce, err = kms.GetLocalNonce(); err != nil {
-		return
-	}
-
-	kms.BP.Nonce = *nonce
-
-	return
 }

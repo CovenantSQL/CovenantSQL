@@ -21,6 +21,8 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -566,10 +568,20 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		return
 	}
 
+	// init conf
+	_, testFile, _, _ := runtime.Caller(0)
+	pubKeyStoreFile := filepath.Join(d, "pubkey.store")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(pubKeyStoreFile)
+
 	var dht *route.DHTService
 
 	// init dht
-	pubKeyStoreFile := filepath.Join(d, "pubkey.store")
 	dht, err = route.NewDHTService(pubKeyStoreFile, new(consistent.KMSStorage), true)
 	if err != nil {
 		return
@@ -582,21 +594,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 
 	// init private key
 	masterKey := []byte("abc")
-	privateKeyFile := filepath.Join(d, "private.key")
 	addr := "127.0.0.1:0"
-	server.InitRPCServer(addr, privateKeyFile, masterKey)
-
-	// get public key
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	nonce := asymmetric.GetPubKeyNonce(pubKey, 10, 100*time.Millisecond, nil)
-	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, pubKey)
-
-	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	server.InitRPCServer(addr, privateKeyPath, masterKey)
 
 	// start server
 	go server.Serve()

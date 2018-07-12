@@ -69,5 +69,5 @@ var (
 	ErrCorruptedIndex = errors.New("corrupted index item")
 
 	// ErrUnknownMuxRequest indicates that the a multiplexing request endpoint is not found.
-	ErrUnknownMuxRequest = errors.New("known multiplexing request")
+	ErrUnknownMuxRequest = errors.New("unknown multiplexing request")
 )

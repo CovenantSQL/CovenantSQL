@@ -317,7 +317,14 @@ func TestMultiChain(t *testing.T) {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		// Create some random clients to push new queries
+		defer func(c *Chain) {
+			// Stop chain main process
+			c.Stop()
+		}(chains[i])
+	}
+
+	// Create some random clients to push new queries
+	for i := range chains {
 		sC := make(chan struct{})
 		wg := &sync.WaitGroup{}
 		wk := &nodeProfile{
@@ -326,7 +333,7 @@ func TestMultiChain(t *testing.T) {
 			PublicKey:  testPubKey,
 		}
 
-		for x := 0; x < testClientNumberPerChain; x++ {
+		for j := 0; j < testClientNumberPerChain; j++ {
 			cli, err := newRandomNode()
 
 			if err != nil {
@@ -356,13 +363,11 @@ func TestMultiChain(t *testing.T) {
 			}(chains[i], cli)
 		}
 
-		defer func(c *Chain) {
+		defer func() {
 			// Quit client goroutines
 			close(sC)
 			wg.Wait()
-			// Stop chain main process
-			c.Stop()
-		}(chains[i])
+		}()
 	}
 
 	time.Sleep(time.Duration(testPeriodNumber) * testPeriod)

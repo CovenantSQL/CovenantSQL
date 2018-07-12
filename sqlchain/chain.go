@@ -408,7 +408,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	// Advise new block to the other peers
 	req := &MuxAdviseNewBlockReq{
 		Envelope: proto.Envelope{
-			// TODO(leventeliu): Add
+			// TODO(leventeliu): Add fields.
 		},
 		DatabaseID: c.rt.databaseID,
 		AdviseNewBlockReq: AdviseNewBlockReq{
@@ -421,7 +421,8 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	for _, p := range c.rt.peers.Servers {
 		if p.ID != c.rt.server.ID {
 			if err = c.cl.CallNode(p.ID, method, req, resp); err != nil {
-				log.Errorf("Failed to advise now block to node %s", string(p.ID))
+				log.WithField("node", string(p.ID)).WithError(err).Errorln(
+					"Failed to advise new block")
 			}
 		}
 	}
@@ -438,7 +439,8 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	}
 
 	if err := c.produceBlock(now); err != nil {
-		log.Errorf("Failed to produce block: err = %v, now = %s", err, now.Format(time.RFC3339Nano))
+		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
+			"Failed to produce block")
 	}
 }
 
@@ -493,7 +495,6 @@ func (c *Chain) Start() (err error) {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	log.Debugf("chain stopping: %p", c)
 	c.rt.stop()
 
 	// Close database file

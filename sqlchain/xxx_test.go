@@ -310,7 +310,6 @@ func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
 		}()
 		n := <-nCh
 		nis[i] = n
-		log.Debugf("Get new nonce: %+v", n)
 		next = n.Nonce
 		next.Inc()
 
@@ -462,7 +461,6 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 			ID:     proto.NodeID(nis[i].Hash.String()),
 			PubKey: pub,
 		}
-		log.Debugf("Created new node: %+v", s[i])
 	}
 
 	p = &kayak.Peers{

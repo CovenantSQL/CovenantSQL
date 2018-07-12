@@ -21,7 +21,6 @@ import (
 	"encoding/hex"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -156,7 +155,6 @@ func TestDB(t *testing.T) {
 func TestErrorPath(t *testing.T) {
 	Convey("can not init db", t, func() {
 		pks = nil
-		PksOnce = sync.Once{}
 		err := InitPublicKeyStore("/path/not/exist", nil)
 		So(pks, ShouldBeNil)
 		So(err, ShouldNotBeNil)

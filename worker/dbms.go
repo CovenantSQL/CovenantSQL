@@ -310,7 +310,7 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 }
 
 func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err error) {
-	// TODO(xq26144), wait for block producer api ready
+	// TODO(xq262144), wait for block producer api ready
 	return
 }
 

@@ -32,6 +32,11 @@ var (
 	NewNodeIDDifficultyTimeout = 60 * time.Second
 )
 
+const (
+	// NodeIDLen is the NodeID length
+	NodeIDLen = 2 * hash.HashSize
+)
+
 // RawNodeID is node name, will be generated from Hash(nodePublicKey)
 // RawNodeID length should be 32 bytes normally
 type RawNodeID struct {
@@ -84,6 +89,16 @@ func (id *NodeID) Difficulty() (difficulty int) {
 		return -1
 	}
 	return idHash.Difficulty()
+}
+
+// ToRawNodeID converts NodeID to RawNodeID
+func (id *NodeID) ToRawNodeID() *RawNodeID {
+	idHash, err := hash.NewHashFromStr(string(*id))
+	if err != nil {
+		log.Errorf("error node id %s %s", *id, err)
+		return nil
+	}
+	return &RawNodeID{*idHash}
 }
 
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo

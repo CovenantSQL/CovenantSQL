@@ -1,8 +1,8 @@
 BlockProducer:
-  PublicKeyStr: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  NodeID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
+  PublicKeyStr: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:
-    a: 14396347928
+    a: 313283
     b: 0
     c: 0
-    d: 6148914694092305796
+    d: 0

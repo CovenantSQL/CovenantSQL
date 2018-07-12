@@ -29,7 +29,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 // ServiceMap maps service name to service instance
@@ -60,7 +59,7 @@ func (s *Server) InitRPCServer(
 	privateKeyPath string,
 	masterKey []byte,
 ) (err error) {
-	route.InitResolver()
+	//route.InitResolver()
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
@@ -135,16 +134,36 @@ func (s *Server) handleConn(conn net.Conn) {
 		log.Error(err)
 		return
 	}
-	muxConn, err := sess.Accept()
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
-	nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
-	s.rpcServer.ServeCodec(nodeAwareCodec)
 
-	log.Debugf("%s closed connection", conn.RemoteAddr())
+	for {
+		select {
+		//TODO(auxten) stop loop here
+		//case <-s.stopCh:
+		//	log.Info("Stopping Server Loop")
+		//	break sessionLoop
+		default:
+			muxConn, err := sess.AcceptStream()
+			if err != nil {
+				log.Errorf("session accept failed: %s", err)
+				continue
+			}
+			log.Debugf("session accepted %d", muxConn.StreamID())
+			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
+			nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
+			go s.rpcServer.ServeCodec(nodeAwareCodec)
+		}
+	}
+
+	//muxConn, err := sess.Accept()
+	//if err != nil {
+	//	log.Error(err)
+	//	return
+	//}
+	//msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
+	//nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
+	//s.rpcServer.ServeCodec(nodeAwareCodec)
+
+	log.Debugf("Server.handleConn finished for %s", conn.RemoteAddr())
 }
 
 // RegisterService with a Service name, used by Client RPC

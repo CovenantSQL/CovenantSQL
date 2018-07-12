@@ -46,6 +46,10 @@ func (s ServerRole) String() string {
 		return "Leader"
 	case Follower:
 		return "Follower"
+	case Miner:
+		return "Miner"
+	case Client:
+		return "Client"
 	}
 	return "Unknown"
 }

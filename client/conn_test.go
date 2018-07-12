@@ -20,10 +20,12 @@ import (
 	"database/sql"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestConn(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	Convey("test connection", t, func() {
 		startTestService()
 		defer stopTestService()

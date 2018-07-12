@@ -24,7 +24,11 @@ import (
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
+
+const testDNS = "1.1.1.1"
 
 // DNSClient contains tools for querying nameservers
 type DNSClient struct {
@@ -38,10 +42,13 @@ func NewDNSClient() *DNSClient {
 	m := new(dns.Msg)
 	m.SetEdns0(4096, true)
 
+	//TODO(auxten) append dns server from conf
 	config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil || config == nil {
 		log.Errorf("Cannot initialize the local resolver: %s\n", err)
 	}
+	//TODO(auxten) use 1.1.1.1 just for testing now!
+	config.Servers[0] = testDNS
 
 	return &DNSClient{
 		msg:  m,
@@ -99,11 +106,11 @@ func (dc *DNSClient) VerifySection(set []dns.RR) error {
 				return fmt.Errorf("DNSKEY %s not valid", key.PublicKey)
 			}
 			log.Debugf("valid DNSKEY %s of %s", key.PublicKey, domain)
-			if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
+			if err := rr.(*dns.RRSIG).Verify(key, rrset); err == nil {
+				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
+			} else {
 				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]\n",
 					shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
-			} else {
-				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
 			}
 		}
 	}
@@ -126,15 +133,17 @@ func shortSig(sig *dns.RRSIG) string {
 	return sig.Header().Name + " RRSIG(" + dns.TypeToString[sig.TypeCovered] + ")"
 }
 
-// GetBPAddresses returns an array of the BP IP addresses listed at a domain
-func (dc *DNSClient) GetBPAddresses(name string) (addr []string, err error) {
-	srvRR := dc.GetSRVRecords(name)
+// GetBPIDAddrMap returns an array of the BP IP addresses listed at a domain
+func (dc *DNSClient) GetBPIDAddrMap(BPDomain string) (idAddrMap NodeIDAddressMap, err error) {
+	srvRR := dc.GetSRVRecords(BPDomain)
 	if srvRR == nil {
 		return nil, fmt.Errorf("got empty SRV records set")
 	}
 	if err = dc.VerifySection(srvRR.Answer); err != nil {
 		return
 	}
+	idAddrMap = make(NodeIDAddressMap)
+	var addr []string
 	// For all SRV RRs returned, query for corresponding A RR
 	for _, rr := range srvRR.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {
@@ -146,6 +155,15 @@ func (dc *DNSClient) GetBPAddresses(name string) (addr []string, err error) {
 				for _, rr1 := range aRR.Answer {
 					if ss1, ok := rr1.(*dns.A); ok {
 						addr = append(addr, fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port))
+						fields := strings.SplitN(ss.Target, ".", 2)
+						if len(fields) > 0 && len(fields[0]) <= proto.NodeIDLen+len("th") && strings.HasPrefix(fields[0], "th") {
+							nodeID := strings.Repeat("0", proto.NodeIDLen-len(fields[0])+len("th")) + fields[0][len("th"):]
+							nodeH, err := hash.NewHashFromStr(nodeID)
+							if err == nil {
+								idAddrMap[proto.RawNodeID{*nodeH}] = fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port)
+							}
+						}
+
 					}
 				}
 			}

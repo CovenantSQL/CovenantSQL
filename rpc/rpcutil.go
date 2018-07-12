@@ -22,12 +22,75 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
+// Caller is a wrapper for session pooling and RPC calling.
+type Caller struct {
+	pool *SessionPool
+}
+
+// NewCaller returns a new RPCCaller.
+func NewCaller() *Caller {
+	return &Caller{
+		pool: GetSessionPoolInstance(),
+	}
+}
+
+// CallNode invokes the named function, waits for it to complete, and returns its error status.
+func (c *Caller) CallNode(
+	node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
+	conn, err := DialToNode(node, c.pool)
+	if err != nil {
+		log.Errorf("dialing to node: %s failed: %s", node, err)
+		return
+	}
+
+	client, err := InitClientConn(conn)
+	if err != nil {
+		log.Errorf("init RPC client failed: %s", err)
+		return
+	}
+
+	//defer func() {
+	//	// call the yamux stream Close explicitly
+	//	//TODO(auxten) maybe a rpc client pool will gain much more performance
+	//	stream, ok := conn.(*yamux.Stream)
+	//	if ok {
+	//		stream.Close()
+	//	}
+	//}()
+	return client.Call(method, args, reply)
+}
+
+// GetNodeAddr tries best to get node addr
 func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	addr, err = route.GetNodeAddrCache(id)
 	if err != nil {
-		log.Infof("get node: %s addr failed: %s", addr, err)
+		log.Infof("get node \"%s\" addr failed: %s", addr, err)
 		if err == route.ErrUnknownNodeID {
-			//BPs := route.GetBPAddrs()
+			BPs := route.GetBPs()
+			if len(BPs) == 0 {
+				log.Errorf("no available BP")
+				return
+			}
+			client := NewCaller()
+			reqFN := &proto.FindNodeReq{
+				NodeID: proto.NodeID(id.String()),
+			}
+			respFN := new(proto.FindNodeResp)
+
+			// TODO(auxten) add some random here for bp selection
+			for _, bp := range BPs {
+				method := "DHT.FindNode"
+				err = client.CallNode(bp, method, reqFN, respFN)
+				if err != nil {
+					log.Errorf("call %s %s failed: %s", bp, method, err)
+					continue
+				}
+				break
+			}
+			if err == nil {
+				route.SetNodeAddrCache(id, respFN.Node.Addr)
+				addr = respFN.Node.Addr
+			}
 		}
 	}
 	return

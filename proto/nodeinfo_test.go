@@ -63,3 +63,17 @@ func TestNodeKey_Less(t *testing.T) {
 		So(k1.Less(&k2), ShouldBeTrue)
 	})
 }
+
+func TestNodeID_ToRawNodeID(t *testing.T) {
+	Convey("NodeID to RawNodeID", t, func() {
+		k1 := RawNodeID{
+			Hash: hash.Hash{0xa},
+		}
+		k1Node := NodeID(k1.String())
+		So(k1Node.ToRawNodeID().IsEqual(&k1.Hash), ShouldBeTrue)
+
+		id := "00000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573"
+		node := NodeID(id)
+		So(node.ToRawNodeID().String(), ShouldEqual, id)
+	})
+}

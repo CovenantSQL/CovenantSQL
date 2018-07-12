@@ -740,7 +740,7 @@ func TestInitServiceResponse_Sign(t *testing.T) {
 								PubKey:    pubKey,
 								Signature: nil,
 							},
-							// TODO(xq26144), should integrated with genesis block serialization test
+							// TODO(xq262144), should integrated with genesis block serialization test
 							GenesisBlock: nil,
 						},
 					},
@@ -820,7 +820,7 @@ func TestUpdateService_Sign(t *testing.T) {
 							PubKey:    pubKey,
 							Signature: nil,
 						},
-						// TODO(xq26144), should integrated with genesis block serialization test
+						// TODO(xq262144), should integrated with genesis block serialization test
 						GenesisBlock: nil,
 					},
 				},

@@ -19,10 +19,10 @@ package conf
 import (
 	"io/ioutil"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -46,6 +46,10 @@ func (s ServerRole) String() string {
 		return "Leader"
 	case Follower:
 		return "Follower"
+	case Miner:
+		return "Miner"
+	case Client:
+		return "Client"
 	}
 	return "Unknown"
 }
@@ -77,12 +81,14 @@ type NodeInfo struct {
 type Config struct {
 	IsTestMode      bool //when testMode use default empty masterKey
 	GenerateKeyPair bool `yaml:"-"`
+	//TODO(auxten): set yaml key for config
 	WorkingRoot     string
 	PubKeyStoreFile string
 	PrivateKeyFile  string
 	DHTFileName     string
 	ListenAddr      string
 	ThisNodeID      proto.NodeID
+	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 
 	BP *BPInfo `yaml:"BlockProducer"`
 

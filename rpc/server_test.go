@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const PubKeyStorePath = "./public.keystore"
@@ -160,7 +160,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	serverNodeID := proto.NodeID(nonce.Hash.String())
 	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	cryptoConn, err := DialToNode(serverNodeID, nil)
 	client, err := InitClientConn(cryptoConn)
@@ -205,7 +205,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	cryptoConn, err := DialToNode(serverNodeID, nil)
 	client, err := InitClientConn(cryptoConn)

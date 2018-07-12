@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
@@ -77,7 +77,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 		return
 	}
 
-	//connPool := rpc.NewSessionPool(rpc.DefaultDialer)
+	//connPool := rpc.newSessionPool(rpc.DefaultDialer)
 	//// do client request
 	//if err = clientRequest(connPool, clientOperation, ""); err != nil {
 	//	return

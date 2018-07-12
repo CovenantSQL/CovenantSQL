@@ -25,11 +25,11 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -79,23 +79,22 @@ func runClient(nodeID proto.NodeID) (err error) {
 		return
 	}
 
-	connPool := rpc.NewSessionPool(rpc.DefaultDialer)
 	// do client request
-	if err = clientRequest(connPool, clientOperation, flag.Arg(0)); err != nil {
+	if err = clientRequest(clientOperation, flag.Arg(0)); err != nil {
 		return
 	}
 
 	return
 }
 
-func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err error) {
+func clientRequest(reqType string, sql string) (err error) {
 	log.SetLevel(log.DebugLevel)
 	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
 	var client *rpc.Client
 
 	if len(reqType) > 0 && strings.Title(reqType[:1]) == "P" {
-		if conn, err = rpc.DialToNode(leaderNodeID, connPool); err != nil {
+		if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance()); err != nil {
 			return
 		}
 		if client, err = rpc.InitClientConn(conn); err != nil {
@@ -119,7 +118,7 @@ func clientRequest(connPool *rpc.SessionPool, reqType string, sql string) (err e
 	} else {
 		for _, bp := range (*conf.GConf.KnownNodes)[:] {
 			if bp.Role == conf.Leader || bp.Role == conf.Follower {
-				if conn, err = rpc.DialToNode(bp.ID, connPool); err != nil {
+				if conn, err = rpc.DialToNode(bp.ID, rpc.GetSessionPoolInstance()); err != nil {
 					return
 				}
 				if client, err = rpc.InitClientConn(conn); err != nil {

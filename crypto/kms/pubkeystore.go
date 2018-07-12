@@ -24,10 +24,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"
@@ -51,8 +50,6 @@ const (
 var (
 	// pks holds the singleton instance
 	pks *PublicKeyStore
-	// PksOnce for easy test we make PksOnce exported
-	PksOnce sync.Once
 	// Unittest is a test flag
 	Unittest bool
 )
@@ -108,6 +105,8 @@ func InitBP() {
 }
 
 var (
+	// ErrPKSNotInitialized indicates public keystore not initialized
+	ErrPKSNotInitialized = errors.New("public keystore not initialized")
 	// ErrBucketNotInitialized indicates bucket not initialized
 	ErrBucketNotInitialized = errors.New("bucket not initialized")
 	// ErrNilNode indicates input node is nil
@@ -173,6 +172,10 @@ func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) 
 // GetNodeInfo gets node info of given id
 // Returns an error if the id was not found
 func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
+	if pks == nil || pks.db == nil {
+		return nil, ErrPKSNotInitialized
+	}
+
 	err = (*bolt.DB)(pks.db).View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
@@ -187,7 +190,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		dec := codec.NewDecoder(reader, mh)
 		nodeInfo = proto.NewNode()
 		err = dec.Decode(nodeInfo)
-		log.Debugf("get node: %v", nodeInfo)
+		log.Debugf("get node info: %v", nodeInfo)
 		return err // return from View func
 	})
 	if err != nil {
@@ -198,6 +201,10 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 
 // GetAllNodeID get all node ids exist in store
 func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
+	if pks == nil || pks.db == nil {
+		return nil, ErrPKSNotInitialized
+	}
+
 	err = (*bolt.DB)(pks.db).View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
@@ -253,6 +260,10 @@ func SetNode(nodeInfo *proto.Node) (err error) {
 
 // setNode sets id and its publicKey
 func setNode(nodeInfo *proto.Node) (err error) {
+	if pks == nil || pks.db == nil {
+		return ErrPKSNotInitialized
+	}
+
 	nodeBuf := new(bytes.Buffer)
 	mh := &codec.MsgpackHandle{}
 	enc := codec.NewEncoder(nodeBuf, mh)
@@ -279,6 +290,10 @@ func setNode(nodeInfo *proto.Node) (err error) {
 
 // DelNode removes PublicKey to the id
 func DelNode(id proto.NodeID) (err error) {
+	if pks == nil || pks.db == nil {
+		return ErrPKSNotInitialized
+	}
+
 	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
@@ -294,15 +309,17 @@ func DelNode(id proto.NodeID) (err error) {
 
 // removeBucket this bucket
 func removeBucket() (err error) {
-	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
-		return tx.DeleteBucket([]byte(kmsBucketName))
-	})
-	if err != nil {
-		log.Errorf("remove bucket failed: %s", err)
-		return
+	if pks != nil {
+		err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+			return tx.DeleteBucket([]byte(kmsBucketName))
+		})
+		if err != nil {
+			log.Errorf("remove bucket failed: %s", err)
+			return
+		}
+		// ks.bucket == nil means bucket not exist
+		pks.bucket = nil
 	}
-	// ks.bucket == nil means bucket not exist
-	pks.bucket = nil
 	return
 }
 

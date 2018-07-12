@@ -36,8 +36,8 @@ type LocalKeyStore struct {
 
 var (
 	// localKey is global accessible local private & public key
-	localKey     *LocalKeyStore
-	localKeyOnce sync.Once
+	localKey *LocalKeyStore
+	once     sync.Once
 )
 
 var (
@@ -45,9 +45,13 @@ var (
 	ErrNilField = errors.New("local field is nil")
 )
 
-// InitLocalKeyStore returns a new LocalKeyStore
-func InitLocalKeyStore() {
-	localKeyOnce.Do(func() {
+func init() {
+	initLocalKeyStore()
+}
+
+// initLocalKeyStore returns a new LocalKeyStore
+func initLocalKeyStore() {
+	once.Do(func() {
 		localKey = &LocalKeyStore{
 			isSet:     false,
 			private:   nil,

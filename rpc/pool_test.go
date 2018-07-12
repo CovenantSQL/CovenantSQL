@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (
@@ -76,7 +76,7 @@ func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) er
 func BenchmarkSessionPool_Get(b *testing.B) {
 	Convey("session pool", b, func(c C) {
 		log.SetLevel(log.DebugLevel)
-		p := NewSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
+		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
 			log.Debugf("creating new connection to %s", nodeID)
 			return net.Dial("tcp", string(nodeID))
 		})
@@ -105,7 +105,7 @@ func BenchmarkSessionPool_Get(b *testing.B) {
 func TestNewSessionPool(t *testing.T) {
 	Convey("session pool", t, func(c C) {
 		log.SetLevel(log.DebugLevel)
-		p := NewSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
+		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
 			log.Debugf("creating new connection to %s", nodeID)
 			return net.Dial("tcp", string(nodeID))
 		})
@@ -170,5 +170,10 @@ func TestNewSessionPool(t *testing.T) {
 		p.Close()
 		c.So(p.Len(), ShouldEqual, 0)
 
+	})
+
+	Convey("session pool get instance", t, func(c C) {
+		So(GetSessionPoolInstance(), ShouldNotBeNil)
+		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
 	})
 }

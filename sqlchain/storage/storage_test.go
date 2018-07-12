@@ -18,12 +18,12 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"reflect"
 	"testing"
 	"time"
-	"database/sql"
 )
 
 func newQuery(query string, args ...interface{}) (q Query) {

@@ -19,9 +19,9 @@ package route
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // DHTService is server side RPC implementation
@@ -47,9 +47,21 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 	return NewDHTServiceWithRing(c)
 }
 
+// FindNode RPC returns node with requested node id from DHT
+func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp) (err error) {
+	node, err := DHT.Consistent.GetNode(string(req.NodeID))
+	if err != nil {
+		log.Errorf("get node %s from DHT failed: %s", req.NodeID, err)
+		resp.Msg = fmt.Sprint(err)
+		return
+	}
+	resp.Node = node
+	return
+}
+
 // FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT
 func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
-	nodes, err := DHT.Consistent.GetN(string(req.NodeID), req.Count)
+	nodes, err := DHT.Consistent.GetNeighbors(string(req.NodeID), req.Count)
 	if err != nil {
 		log.Errorf("get nodes from DHT failed: %s", err)
 		resp.Msg = fmt.Sprint(err)

@@ -21,10 +21,10 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -47,6 +47,19 @@ func TestConf(t *testing.T) {
 	Convey("LoadConfig", t, func() {
 		defer os.Remove(testFile)
 		config := &Config{
+			IsTestMode:      false,
+			GenerateKeyPair: false,
+			WorkingRoot:     "",
+			PubKeyStoreFile: "",
+			PrivateKeyFile:  "",
+			DHTFileName:     "",
+			ListenAddr:      "",
+			ThisNodeID:      "",
+			ValidDNSKeys: map[string]string{
+				// Cloudflare.com DNSKEY. SEE: `dig +multi cloudflare.com DNSKEY`
+				"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",
+				"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",
+			},
 			BP: BP,
 			KnownNodes: &[]NodeInfo{
 				{

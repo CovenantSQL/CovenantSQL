@@ -23,8 +23,8 @@ import (
 	"time"
 
 	ec "github.com/btcsuite/btcd/btcec"
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestGenSecp256k1Keypair(t *testing.T) {

@@ -21,17 +21,17 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (
-	// KB
+	// KB is 1024 Bytes
 	KB int = 1024
-	// MB
+	// MB is 1024 KB
 	MB int = KB * 1024
-	// GB
+	// GB is 1024 MB
 	GB int = MB * 1024
-	// TB
+	// TB is 1024 GB
 	TB int = GB * 1024
 )
 

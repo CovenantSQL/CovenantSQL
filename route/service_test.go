@@ -27,17 +27,17 @@ import (
 
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	. "gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const DHTStorePath = "./DHTStore"
 
-func TestPingFindNeighbor(t *testing.T) {
+func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	os.Remove(DHTStorePath)
 	defer os.Remove(DHTStorePath + "1")
 	log.SetLevel(log.DebugLevel)
@@ -81,8 +81,23 @@ func TestPingFindNeighbor(t *testing.T) {
 		So(err.Error(), ShouldEqual, consistent.ErrEmptyCircle.Error())
 	})
 
+	reqFN1 := &FindNodeReq{
+		NodeID: "123",
+	}
+	respFN1 := new(FindNodeResp)
+	err = client.Call("DHT.FindNode", reqFN1, respFN1)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Debugf("respFN1: %v", respFN1)
+	Convey("test FindNode", t, func() {
+		So(respFN1.Node, ShouldBeNil)
+		So(err.Error(), ShouldEqual, consistent.ErrKeyNotFound.Error())
+	})
+
 	node1 := NewNode()
 	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	node1.Addr = "node1 addr"
 
 	reqA := &PingReq{
 		Node: *node1,
@@ -93,6 +108,23 @@ func TestPingFindNeighbor(t *testing.T) {
 		log.Error(err)
 	}
 	log.Debugf("respA: %v", respA)
+
+	reqFN2 := &FindNodeReq{
+		NodeID: node1.ID,
+	}
+	respFN2 := new(FindNodeResp)
+	err = client.Call("DHT.FindNode", reqFN2, respFN2)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Debugf("respFN1: %v", respFN2)
+	Convey("test FindNode", t, func() {
+		So(respFN2.Node.ID, ShouldEqual, node1.ID)
+		So(respFN2.Node.Nonce == node1.Nonce, ShouldBeTrue)
+		So(respFN2.Node.Addr, ShouldEqual, node1.Addr)
+		So(respFN2.Node.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)
+		So(err, ShouldBeNil)
+	})
 
 	node2 := NewNode()
 	node2.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -125,6 +157,23 @@ func TestPingFindNeighbor(t *testing.T) {
 	Convey("test FindNeighbor", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))
 		So(nodeIDList, ShouldContain, string(node2.ID))
+	})
+
+	reqFN3 := &FindNodeReq{
+		NodeID: node2.ID,
+	}
+	respFN3 := new(FindNodeResp)
+	err = client.Call("DHT.FindNode", reqFN3, respFN3)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Debugf("respFN1: %v", respFN3)
+	Convey("test FindNode", t, func() {
+		So(respFN3.Node.ID, ShouldEqual, node2.ID)
+		So(respFN3.Node.Nonce == node2.Nonce, ShouldBeTrue)
+		So(respFN3.Node.Addr, ShouldEqual, node2.Addr)
+		So(respFN3.Node.PublicKey.IsEqual(node2.PublicKey), ShouldBeTrue)
+		So(err, ShouldBeNil)
 	})
 
 	client.Close()

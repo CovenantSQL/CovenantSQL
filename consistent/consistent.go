@@ -34,14 +34,14 @@ package consistent
 
 import (
 	"errors"
-	"hash/fnv"
 	"sort"
 	"strconv"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // NodeKeys is NodeKey array
@@ -51,19 +51,23 @@ type NodeKeys []proto.NodeKey
 func (x NodeKeys) Len() int { return len(x) }
 
 // Less returns true if node i is less than node j.
-func (x NodeKeys) Less(i, j int) bool { return x[i] < x[j] }
+func (x NodeKeys) Less(i, j int) bool { return x[i].Less(&x[j]) }
 
 // Swap exchanges nodes i and j.
 func (x NodeKeys) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 
-// ErrEmptyCircle is the error returned when trying to get an node when nothing has been added to hash.
-var ErrEmptyCircle = errors.New("empty circle")
+var (
+	// ErrEmptyCircle is the error returned when trying to get an node when nothing has been added to hash.
+	ErrEmptyCircle = errors.New("empty circle")
+	// ErrKeyNotFound is the error returned when no key in circle
+	ErrKeyNotFound = errors.New("node key not found")
+)
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
 	// TODO(auxten): do not store node info on circle, just put node id as value
 	// and put node info into kms
-	circle map[proto.NodeKey]proto.Node
+	circle map[proto.NodeKey]*proto.Node
 	//members          map[proto.NodeID]proto.Node
 	sortedHashes     NodeKeys
 	NumberOfReplicas int
@@ -102,7 +106,7 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 	c = &Consistent{
 		//TODO(auxten): reduce NumberOfReplicas
 		NumberOfReplicas: 20,
-		circle:           make(map[proto.NodeKey]proto.Node),
+		circle:           make(map[proto.NodeKey]*proto.Node),
 		persist:          persistImpl,
 	}
 	c.persist.Init(storePath, BPNode)
@@ -155,7 +159,7 @@ func (c *Consistent) add(node proto.Node) (err error) {
 // AddCache only adds c.circle skips persist
 func (c *Consistent) AddCache(node proto.Node) (err error) {
 	for i := 0; i < c.NumberOfReplicas; i++ {
-		c.circle[c.hashKey(c.nodeKey(node.ID, i))] = node
+		c.circle[hashKey(c.nodeKey(node.ID, i))] = &node
 	}
 	c.updateSortedHashes()
 	c.count++
@@ -178,7 +182,7 @@ func (c *Consistent) remove(nodeID proto.NodeID) (err error) {
 	}
 
 	for i := 0; i < c.NumberOfReplicas; i++ {
-		delete(c.circle, c.hashKey(c.nodeKey(nodeID, i)))
+		delete(c.circle, hashKey(c.nodeKey(nodeID, i)))
 	}
 	c.updateSortedHashes()
 	c.count--
@@ -197,7 +201,7 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 		return
 	}
 
-	c.circle = make(map[proto.NodeKey]proto.Node)
+	c.circle = make(map[proto.NodeKey]*proto.Node)
 	c.count = 0
 	c.sortedHashes = NodeKeys{}
 
@@ -208,21 +212,33 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	return
 }
 
-// Get returns an node close to where name hashes to in the circle.
-func (c *Consistent) Get(name string) (proto.Node, error) {
+// GetNeighbor returns an node close to where name hashes to in the circle.
+func (c *Consistent) GetNeighbor(name string) (proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
 		return proto.Node{}, ErrEmptyCircle
 	}
-	key := c.hashKey(name)
+	key := hashKey(name)
 	i := c.search(key)
-	return c.circle[c.sortedHashes[i]], nil
+	return *c.circle[c.sortedHashes[i]], nil
+}
+
+// GetNode returns an node by its node id
+func (c *Consistent) GetNode(name string) (*proto.Node, error) {
+	c.RLock()
+	defer c.RUnlock()
+	n, ok := c.circle[hashKey(c.nodeKey(proto.NodeID(name), 0))]
+	if ok {
+		return n, nil
+	}
+	return nil, ErrKeyNotFound
 }
 
 func (c *Consistent) search(key proto.NodeKey) (i int) {
 	f := func(x int) bool {
-		return c.sortedHashes[x] > key
+		//return c.sortedHashes[x] > key
+		return key.Less(&c.sortedHashes[x])
 	}
 	i = sort.Search(len(c.sortedHashes), f)
 	if i >= len(c.sortedHashes) {
@@ -231,16 +247,16 @@ func (c *Consistent) search(key proto.NodeKey) (i int) {
 	return
 }
 
-// GetTwo returns the two closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
+// GetTwoNeighbors returns the two closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if len(c.circle) == 0 {
 		return proto.Node{}, proto.Node{}, ErrEmptyCircle
 	}
-	key := c.hashKey(name)
+	key := hashKey(name)
 	i := c.search(key)
-	a := c.circle[c.sortedHashes[i]]
+	a := *c.circle[c.sortedHashes[i]]
 
 	if c.count == 1 {
 		return a, proto.Node{}, nil
@@ -252,7 +268,7 @@ func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
 		if i >= len(c.sortedHashes) {
 			i = 0
 		}
-		b = c.circle[c.sortedHashes[i]]
+		b = *c.circle[c.sortedHashes[i]]
 		if b.ID != a.ID {
 			break
 		}
@@ -260,8 +276,8 @@ func (c *Consistent) GetTwo(name string) (proto.Node, proto.Node, error) {
 	return a, b, nil
 }
 
-// GetN returns the N closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetN(name string, n int) ([]proto.Node, error) {
+// GetNeighbors returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -274,11 +290,11 @@ func (c *Consistent) GetN(name string, n int) ([]proto.Node, error) {
 	}
 
 	var (
-		key   = c.hashKey(name)
+		key   = hashKey(name)
 		i     = c.search(key)
 		start = i
 		res   = make([]proto.Node, 0, n)
-		elem  = c.circle[c.sortedHashes[i]]
+		elem  = *c.circle[c.sortedHashes[i]]
 	)
 
 	res = append(res, elem)
@@ -291,7 +307,7 @@ func (c *Consistent) GetN(name string, n int) ([]proto.Node, error) {
 		if i >= len(c.sortedHashes) {
 			i = 0
 		}
-		elem = c.circle[c.sortedHashes[i]]
+		elem = *c.circle[c.sortedHashes[i]]
 		if !sliceContainsMember(res, elem) {
 			res = append(res, elem)
 		}
@@ -303,15 +319,8 @@ func (c *Consistent) GetN(name string, n int) ([]proto.Node, error) {
 	return res, nil
 }
 
-func (c *Consistent) hashKey(key string) proto.NodeKey {
-	h := fnv.New64a()
-	if len(key) < 64 {
-		var scratch [64]byte
-		copy(scratch[:], key)
-		h.Write(scratch[:len(key)])
-	}
-	h.Write([]byte(key))
-	return proto.NodeKey(h.Sum64())
+func hashKey(key string) proto.NodeKey {
+	return proto.NodeKey{Hash: hash.HashH([]byte(key))}
 }
 
 func (c *Consistent) updateSortedHashes() {

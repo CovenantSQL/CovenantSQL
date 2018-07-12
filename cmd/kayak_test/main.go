@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -44,6 +43,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (
@@ -304,7 +304,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 	}
 
 	// init client private key
-	route.InitResolver()
+	//route.initResolver()
 	privateKeyStorePath := filepath.Join(clientRootDir, privateKeyFile)
 	if err = kms.InitLocalKeyPair(privateKeyStorePath, []byte(privateKeyMasterKey)); err != nil {
 		return
@@ -317,7 +317,7 @@ func initClientKey(client *NodeInfo, leader *NodeInfo) (err error) {
 	kms.SetPublicKey(leaderNodeID, leader.Nonce.Nonce, leader.PublicKey)
 
 	// set route to leader
-	route.SetNodeAddr(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, leader.Port))
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: leader.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, leader.Port))
 
 	return
 }
@@ -611,7 +611,7 @@ func createServer(nodeOffset, port int) (service *kt.ETLSTransportService, serve
 func initNode(node *NodeInfo) (nodeID proto.NodeID, err error) {
 	nodeID = proto.NodeID(node.Nonce.Hash.String())
 	kms.SetPublicKey(nodeID, node.Nonce.Nonce, node.PublicKey)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: node.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, node.Port))
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: node.Nonce.Hash}, fmt.Sprintf(listenAddrPattern, node.Port))
 
 	return
 }

@@ -21,10 +21,11 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -55,7 +56,7 @@ type Chain struct {
 	db *bolt.DB
 	bi *blockIndex
 	qi *queryIndex
-	cl *rpcCaller
+	cl *rpc.Caller
 	rt *runtime
 	st *state
 
@@ -101,7 +102,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		db: db,
 		bi: newBlockIndex(c),
 		qi: newQueryIndex(),
-		cl: newRPCCaller(),
+		cl: rpc.NewCaller(),
 		rt: newRunTime(c),
 		st: &state{
 			node:   nil,
@@ -134,7 +135,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		db: db,
 		bi: newBlockIndex(c),
 		qi: newQueryIndex(),
-		cl: newRPCCaller(),
+		cl: rpc.NewCaller(),
 		rt: newRunTime(c),
 		st: &state{},
 	}

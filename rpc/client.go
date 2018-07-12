@@ -22,7 +22,6 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
@@ -30,6 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // Client is RPC client
@@ -137,7 +137,7 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 	log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
 	symmetricKey := asymmetric.GenECDHSharedSecret(localPrivateKey, nodePublicKey)
 
-	nodeAddr, err := route.GetNodeAddr(rawNodeID)
+	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)
 	if err != nil {
 		log.Errorf("resolve node id failed: %s, err: %s", *rawNodeID, err)
 		return

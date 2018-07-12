@@ -51,3 +51,29 @@ func TestNode_InitNodeCryptoInfo(t *testing.T) {
 		So((*NodeID)(nil).Difficulty(), ShouldEqual, -1)
 	})
 }
+
+func TestNodeKey_Less(t *testing.T) {
+	Convey("NodeID Difficulty", t, func() {
+		k1 := NodeKey{}
+		k2 := NodeKey{
+			Hash: hash.Hash{0xa},
+		}
+		So(k1.Less(&k1), ShouldBeFalse)
+		So(k2.Less(&k1), ShouldBeFalse)
+		So(k1.Less(&k2), ShouldBeTrue)
+	})
+}
+
+func TestNodeID_ToRawNodeID(t *testing.T) {
+	Convey("NodeID to RawNodeID", t, func() {
+		k1 := RawNodeID{
+			Hash: hash.Hash{0xa},
+		}
+		k1Node := NodeID(k1.String())
+		So(k1Node.ToRawNodeID().IsEqual(&k1.Hash), ShouldBeTrue)
+
+		id := "00000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573"
+		node := NodeID(id)
+		So(node.ToRawNodeID().String(), ShouldEqual, id)
+	})
+}

@@ -24,6 +24,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -38,6 +40,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -48,7 +51,9 @@ var (
 	stopTestService  func()
 )
 
-// TODO(xq26144), to be replaced with standalone miner binary
+const PubKeyStorePath = "./public.keystore"
+
+// TODO(xq262144), to be replaced with standalone miner binary
 func startTestService() (err error) {
 	var server *rpc.Server
 	var cleanup func()
@@ -133,11 +138,24 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
 	}
+	log.Debugf("temp dir: %s", d)
+
+	// init conf
+	_, testFile, _, _ := runtime.Caller(0)
+	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
+	os.Remove(pubKeyStoreFile)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %#v", conf.GConf)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(pubKeyStoreFile + "_c")
 
 	var dht *route.DHTService
 
 	// init dht
-	pubKeyStoreFile := filepath.Join(d, "pubkey.store")
 	dht, err = route.NewDHTService(pubKeyStoreFile, new(consistent.KMSStorage), true)
 	if err != nil {
 		return
@@ -149,25 +167,15 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// init private key
-	masterKey := []byte("abc")
-	privateKeyFile := filepath.Join(d, "private.key")
+	masterKey := []byte("")
 	addr := "127.0.0.1:0"
-	server.InitRPCServer(addr, privateKeyFile, masterKey)
-
-	// get public key
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	nonce := asymmetric.GetPubKeyNonce(pubKey, 10, 100*time.Millisecond, nil)
-	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, pubKey)
-
-	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddr(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	server.InitRPCServer(addr, privateKeyPath, masterKey)
 
 	// start server
 	go server.Serve()
+
+	// fixme: force set the bp addr to this server
+	route.SetNodeAddrCache(&conf.GConf.BP.RawNodeID, server.Listener.Addr().String())
 
 	cleanupFunc = func() {
 		os.RemoveAll(d)

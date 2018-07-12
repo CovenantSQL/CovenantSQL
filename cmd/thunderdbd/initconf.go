@@ -19,7 +19,6 @@ package main
 import (
 	"encoding/hex"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -27,6 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]conf.NodeInfo, peers *kayak.Peers, thisNode *conf.NodeInfo, err error) {
@@ -89,7 +89,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 	}
 	log.Debugf("peers:\n %v\n", peers)
 
-	route.InitResolver()
+	//route.initResolver()
 	kms.InitPublicKeyStore(publicKeystorePath, nil)
 	// set p route and public keystore
 	for _, p := range (*conf.GConf.KnownNodes)[:] {
@@ -100,7 +100,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 		}
 		log.Debugf("set node addr: %v, %v", rawNodeIDHash, p.Addr)
 		rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
-		route.SetNodeAddr(rawNodeID, p.Addr)
+		route.SetNodeAddrCache(rawNodeID, p.Addr)
 		node := &proto.Node{
 			ID:        p.ID,
 			Addr:      p.Addr,

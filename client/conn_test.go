@@ -21,9 +21,11 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestConn(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	Convey("test connection", t, func() {
 		startTestService()
 		defer stopTestService()

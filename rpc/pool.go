@@ -21,8 +21,8 @@ import (
 	"sync"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // RoleType define the remote server role.
@@ -70,17 +70,32 @@ type SessionPool struct {
 	sync.RWMutex
 }
 
+var (
+	instance *SessionPool
+	once     sync.Once
+)
+
 // Close closes the session
 func (s *Session) Close() {
+	//TODO(auxten) stream.Close() puts the given connects back to the pool instead of closing it.
+	// like https://github.com/fatih/pool/blob/f83b9d975e4dbf8d73f9abeae43caa3bd654b9cb/conn.go#L17
 	s.Sess.Close()
 }
 
-// NewSessionPool creates a new SessionPool
-func NewSessionPool(nd NodeDialer) *SessionPool {
+// newSessionPool creates a new SessionPool
+func newSessionPool(nd NodeDialer) *SessionPool {
 	return &SessionPool{
 		sessions:   make(SessionMap),
 		nodeDialer: nd,
 	}
+}
+
+// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer
+func GetSessionPoolInstance() *SessionPool {
+	once.Do(func() {
+		instance = newSessionPool(DefaultDialer)
+	})
+	return instance
 }
 
 // toSession wraps net.Conn to yamux.Session
@@ -117,12 +132,17 @@ func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Sess
 	return
 }
 
+func (p *SessionPool) getSessionFromPool(id proto.NodeID) (sess *Session, ok bool) {
+	p.Lock()
+	defer p.Unlock()
+	sess, ok = p.sessions[id]
+	return
+}
+
 // Get returns existing session to the node, if not exist try best to create one
 func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// first try to get one session from pool
-	p.Lock()
-	cachedConn, ok := p.sessions[id]
-	p.Unlock()
+	cachedConn, ok := p.getSessionFromPool(id)
 	if ok {
 		return cachedConn.Sess.Open()
 	}
@@ -159,6 +179,11 @@ func (p *SessionPool) Set(id proto.NodeID, conn net.Conn) (exist bool) {
 
 // Remove the node sessions in the pool
 func (p *SessionPool) Remove(id proto.NodeID) {
+	sess, ok := p.getSessionFromPool(id)
+	if ok {
+		sess.Close()
+	}
+
 	p.Lock()
 	defer p.Unlock()
 	delete(p.sessions, id)

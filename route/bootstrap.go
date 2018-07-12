@@ -143,7 +143,7 @@ func (dc *DNSClient) GetBPIDAddrMap(BPDomain string) (idAddrMap NodeIDAddressMap
 		return
 	}
 	idAddrMap = make(NodeIDAddressMap)
-	addr := make([]string, 0)
+	var addr []string
 	// For all SRV RRs returned, query for corresponding A RR
 	for _, rr := range srvRR.Answer {
 		if ss, ok := rr.(*dns.SRV); ok {

@@ -33,6 +33,7 @@ var (
 )
 
 const (
+	// NodeIDLen is the NodeID length
 	NodeIDLen = 2 * hash.HashSize
 )
 

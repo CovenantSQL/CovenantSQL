@@ -37,7 +37,8 @@ const BPDomain = "_bp._tcp.gridb.io."
 var (
 	// resolver holds the singleton instance
 	resolver *Resolver
-	Once     sync.Once
+	// Once is exported just for unit test
+	Once sync.Once
 )
 
 var (
@@ -148,7 +149,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 // GetBPs return the known BP node id list
 func GetBPs() (BPAddrs []proto.NodeID) {
 	BPAddrs = make([]proto.NodeID, 0, len(resolver.bpNodeIDs))
-	for id, _ := range resolver.bpNodeIDs {
+	for id := range resolver.bpNodeIDs {
 		BPAddrs = append(BPAddrs, proto.NodeID(id.String()))
 	}
 	return

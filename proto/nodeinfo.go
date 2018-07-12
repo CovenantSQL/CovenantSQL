@@ -19,10 +19,10 @@ package proto
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
@@ -30,6 +30,11 @@ var (
 	NewNodeIDDifficulty = 40
 	// NewNodeIDDifficultyTimeout is exposed for easy testing
 	NewNodeIDDifficultyTimeout = 60 * time.Second
+)
+
+const (
+	// NodeIDLen is the NodeID length
+	NodeIDLen = 2 * hash.HashSize
 )
 
 // RawNodeID is node name, will be generated from Hash(nodePublicKey)
@@ -84,6 +89,16 @@ func (id *NodeID) Difficulty() (difficulty int) {
 		return -1
 	}
 	return idHash.Difficulty()
+}
+
+// ToRawNodeID converts NodeID to RawNodeID
+func (id *NodeID) ToRawNodeID() *RawNodeID {
+	idHash, err := hash.NewHashFromStr(string(*id))
+	if err != nil {
+		log.Errorf("error node id %s %s", *id, err)
+		return nil
+	}
+	return &RawNodeID{*idHash}
 }
 
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo

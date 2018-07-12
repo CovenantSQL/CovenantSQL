@@ -21,11 +21,11 @@ import (
 	"runtime"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestResolver(t *testing.T) {
@@ -37,8 +37,7 @@ func TestResolver(t *testing.T) {
 	log.Debugf("GConf: %v", conf.GConf)
 
 	Convey("resolver init", t, func() {
-		InitResolver()
-		SetResolveCache(make(ResolveCache))
+		setResolveCache(make(NodeIDAddressMap))
 		addr, err := GetNodeAddrCache(&proto.RawNodeID{
 			Hash: hash.Hash([32]byte{0xde, 0xad}),
 		})
@@ -66,9 +65,11 @@ func TestResolver(t *testing.T) {
 
 		So(IsBPNodeID(nodeA), ShouldBeFalse)
 
-		BPs := GetBPAddrs()
+		BPmap := initBPNodeIDs()
+		log.Debugf("BPmap: %v", BPmap)
+		BPs := GetBPs()
 		dc := NewDNSClient()
-		ips, err := dc.GetBPAddresses(BPDomain)
+		ips, err := dc.GetBPIDAddrMap(BPDomain)
 
 		log.Debugf("BPs: %v", BPs)
 		So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))

@@ -21,10 +21,10 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -34,6 +34,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -289,26 +290,35 @@ func createRandomNodesAndAck() (r *wt.SignedAckHeader, err error) {
 func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
 	nis []cpuminer.NonceInfo, err error) {
 	nis = make([]cpuminer.NonceInfo, num)
-	nCh := make(chan cpuminer.NonceInfo)
-	qCh := make(chan struct{})
-	miner := cpuminer.NewCPUMiner(qCh)
 
-	defer close(qCh)
-	go func() {
-		defer close(nCh)
-		miner.ComputeBlockNonce(
-			cpuminer.MiningBlock{Data: pub.Serialize(), NonceChan: nCh, Stop: nil},
-			cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0},
-			diff)
-	}()
+	miner := cpuminer.NewCPUMiner(nil)
+	nCh := make(chan cpuminer.NonceInfo)
+	defer close(nCh)
+	block := cpuminer.MiningBlock{
+		Data:      pub.Serialize(),
+		NonceChan: nCh,
+		Stop:      nil,
+	}
+	next := cpuminer.Uint256{}
+	wg := &sync.WaitGroup{}
 
 	for i := range nis {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			miner.ComputeBlockNonce(block, next, diff)
+		}()
 		n := <-nCh
 		nis[i] = n
+		log.Debugf("Get new nonce: %+v", n)
+		next = n.Nonce
+		next.Inc()
 
 		if err = kms.SetPublicKey(proto.NodeID(n.Hash.String()), n.Nonce, pub); err != nil {
 			return
 		}
+
+		wg.Wait()
 	}
 
 	// Register a local nonce, don't know what is the matter though
@@ -452,6 +462,7 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 			ID:     proto.NodeID(nis[i].Hash.String()),
 			PubKey: pub,
 		}
+		log.Debugf("Created new node: %+v", s[i])
 	}
 
 	p = &kayak.Peers{

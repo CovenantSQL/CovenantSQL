@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestTwoPCRunner_Init(t *testing.T) {
@@ -48,12 +48,9 @@ func TestTwoPCRunner_Init(t *testing.T) {
 
 	Convey("test sign broken peers", t, func() {
 		runner := NewTwoPCRunner()
-		logger := log.New()
-		logger.SetLevel(log.FatalLevel)
+		log.SetLevel(log.FatalLevel)
 		config := &TwoPCConfig{
-			RuntimeConfig: RuntimeConfig{
-				Logger: logger,
-			},
+			RuntimeConfig: RuntimeConfig{},
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
@@ -92,12 +89,9 @@ func TestTwoPCRunner_Init(t *testing.T) {
 
 	Convey("test log restore", t, func() {
 		runner := NewTwoPCRunner()
-		logger := log.New()
-		logger.SetLevel(log.FatalLevel)
+		log.SetLevel(log.FatalLevel)
 		config := &TwoPCConfig{
-			RuntimeConfig: RuntimeConfig{
-				Logger: logger,
-			},
+			RuntimeConfig: RuntimeConfig{},
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
@@ -240,8 +234,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 	createMock := func(nodeID proto.NodeID) (res *createMockRes) {
 		res = &createMockRes{}
-		logger := log.New()
-		logger.SetLevel(log.FatalLevel)
+		log.SetLevel(log.FatalLevel)
 		res.runner = NewTwoPCRunner()
 		res.transport = mockRouter.getTransport(nodeID)
 		res.worker = &MockWorker{}
@@ -252,7 +245,6 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				Runner:         res.runner,
 				Transport:      res.transport,
 				ProcessTimeout: time.Millisecond * 300,
-				Logger:         logger,
 			},
 			Storage: res.worker,
 		}
@@ -740,8 +732,7 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 	createMock := func(nodeID proto.NodeID) (res *createMockRes) {
 		res = &createMockRes{}
-		logger := log.New()
-		logger.SetLevel(log.FatalLevel)
+		log.SetLevel(log.FatalLevel)
 		res.runner = NewTwoPCRunner()
 		res.transport = mockRouter.getTransport(nodeID)
 		res.worker = &MockWorker{}
@@ -752,7 +743,6 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 				Runner:         res.runner,
 				Transport:      res.transport,
 				ProcessTimeout: time.Millisecond * 800,
-				Logger:         logger,
 			},
 			Storage: res.worker,
 		}

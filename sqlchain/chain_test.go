@@ -349,9 +349,17 @@ func TestMultiChain(t *testing.T) {
 					case <-sC:
 						break foreverLoop
 					default:
-						time.Sleep(time.Duration(rand.Int63n(100)+1) * time.Millisecond)
 						// Send a random query
-						ack, err := createRandomQueryAck(p, wk)
+						resp, err := createRandomQueryResponse(p, wk)
+
+						if err != nil {
+							t.Errorf("Error occurred: %v", err)
+						} else if err = c.VerifyAndPushResponsedQuery(resp); err != nil {
+							t.Errorf("Error occurred: %v", err)
+						}
+
+						time.Sleep(time.Duration(rand.Int63n(100)+1) * time.Millisecond)
+						ack, err := createRandomQueryAckWithResponse(resp, p)
 
 						if err != nil {
 							t.Errorf("Error occurred: %v", err)

@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -44,6 +43,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (

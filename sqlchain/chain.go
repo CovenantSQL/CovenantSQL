@@ -21,11 +21,11 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 

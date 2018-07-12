@@ -21,7 +21,6 @@ import (
 	"net"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -29,6 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
@@ -36,8 +36,6 @@ var (
 	DefaultProcessTimeout = time.Second * 5
 	// DefaultTransportID defines default transport id for service multiplex.
 	DefaultTransportID = "DEFAULT"
-	// DefaultLogger defines package default logger.
-	DefaultLogger = log.New()
 )
 
 // TwoPCOptions defines optional arguments for kayak twopc config.
@@ -68,7 +66,6 @@ func NewTwoPCOptions() *TwoPCOptions {
 		ProcessTimeout: DefaultProcessTimeout,
 		TransportID:    DefaultTransportID,
 		ClientBuilder:  DefaultClientBuilder,
-		Logger:         DefaultLogger,
 	}
 }
 
@@ -140,7 +137,6 @@ func NewTwoPCConfigWithOptions(rootDir string, service *kt.ETLSTransportService,
 			Runner:         runner,
 			Transport:      xpt,
 			ProcessTimeout: options.ProcessTimeout,
-			Logger:         options.Logger,
 		},
 		Storage: worker,
 	}

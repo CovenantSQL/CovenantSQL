@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -31,6 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const cmdset = "set"

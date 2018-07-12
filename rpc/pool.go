@@ -21,8 +21,8 @@ import (
 	"sync"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // RoleType define the remote server role.

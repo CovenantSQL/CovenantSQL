@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const PubKeyStorePath = "./public.keystore"

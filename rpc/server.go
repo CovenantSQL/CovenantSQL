@@ -21,7 +21,6 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -29,6 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // ServiceMap maps service name to service instance

@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestGetSRV(t *testing.T) {

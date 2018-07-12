@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -32,6 +31,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
 

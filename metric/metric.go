@@ -21,7 +21,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (

@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -36,6 +35,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
@@ -214,8 +214,7 @@ func TestETLSIntegration(t *testing.T) {
 	// create mock returns basic arguments to prepare for a server
 	createMock := func(etlsMock *mockRes, peers *kayak.Peers) (res *createMockRes) {
 		res = &createMockRes{}
-		logger := log.New()
-		logger.SetLevel(log.FatalLevel)
+		log.SetLevel(log.FatalLevel)
 		d, _ := ioutil.TempDir("", "kayak_test")
 
 		// etls mock res
@@ -234,7 +233,6 @@ func TestETLSIntegration(t *testing.T) {
 				Runner:         res.runner,
 				Transport:      res.transport,
 				ProcessTimeout: time.Millisecond * 800,
-				Logger:         logger,
 			},
 			Storage: res.worker,
 		}

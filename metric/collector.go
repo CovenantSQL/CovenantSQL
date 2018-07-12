@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // Namespace defines the common namespace to be used by all metrics.

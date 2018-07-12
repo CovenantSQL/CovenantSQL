@@ -20,7 +20,7 @@ import (
 	"math"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
 	"unsafe"
 

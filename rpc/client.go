@@ -22,7 +22,6 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
@@ -30,6 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // Client is RPC client

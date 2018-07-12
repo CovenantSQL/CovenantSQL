@@ -26,6 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
@@ -188,7 +189,7 @@ func (r *TwoPCRunner) tryRestore() error {
 
 	if lastIndex > lastCommitted {
 		// uncommitted log found, print warning
-		r.config.Logger.Warningf("truncating local uncommitted log, uncommitted: %d, committed: %d",
+		log.Warningf("truncating local uncommitted log, uncommitted: %d, committed: %d",
 			lastIndex, lastCommitted)
 
 		// truncate local uncommitted logs

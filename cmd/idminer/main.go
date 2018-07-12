@@ -29,9 +29,9 @@ import (
 	"math/rand"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (

@@ -28,6 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/metric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 const (
@@ -49,6 +50,10 @@ type DBService struct {
 func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatabaseResponse) (err error) {
 	// validate authority
 	// TODO(xq262144), call accounting features, top up deposit
+	var genesisBlock []byte
+	if genesisBlock, err = s.generateGenesisBlock(); err != nil {
+		return
+	}
 
 	// create random DatabaseID
 	var dbID proto.DatabaseID
@@ -60,10 +65,23 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	var peers *kayak.Peers
 	peers, err = s.allocateNodes(0, dbID, req.ResourceMeta)
 
-	_ = peers
+	// build response
+	resp.DatabaseID = dbID
+	resp.Peers = peers
 
 	// call miner nodes to provide service
-	// TODO(xq262144)
+	initSvcReq := &wt.UpdateService{
+		Header: wt.SignedUpdateServiceHeader{
+			UpdateServiceHeader: wt.UpdateServiceHeader{
+				Op: wt.CreateDB,
+				Instance: wt.ServiceInstance{
+					DatabaseID:   dbID,
+					Peers:        peers,
+					GenesisBlock: genesisBlock,
+				},
+			},
+		},
+	}
 
 	// send response to client
 	// TODO(xq262144)
@@ -271,5 +289,10 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 	// sign the peers structure
 	err = peers.Sign(privKey)
 
+	return
+}
+
+func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta DBResourceMeta) (genesisBlock []byte, err error) {
+	// TODO(xq262144), to be completed in the future
 	return
 }

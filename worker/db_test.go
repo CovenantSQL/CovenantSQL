@@ -47,6 +47,8 @@ import (
 
 var rootHash = hash.Hash{}
 
+const PubKeyStorePath = "./public.keystore"
+
 func TestSingleDatabase(t *testing.T) {
 	// init as single node database
 	Convey("test database", t, func() {
@@ -570,7 +572,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
-	pubKeyStoreFile := filepath.Join(d, "pubkey.store")
+	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
+	os.Remove(pubKeyStoreFile)
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
 
@@ -593,7 +596,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// init private key
-	masterKey := []byte("abc")
+	masterKey := []byte("")
 	addr := "127.0.0.1:0"
 	server.InitRPCServer(addr, privateKeyPath, masterKey)
 

@@ -49,7 +49,6 @@ func TestCaller_CallNode(t *testing.T) {
 	route.Once = sync.Once{}
 	route.InitKMS(publicKeyStore)
 
-	log.SetLevel(log.DebugLevel)
 	addr := conf.GConf.ListenAddr // see ../test/node_c/config.yaml
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)

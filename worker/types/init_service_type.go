@@ -24,6 +24,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
 // InitService defines worker service init request.
@@ -31,11 +32,19 @@ type InitService struct {
 	proto.Envelope
 }
 
+// ResourceMeta defines single database resource meta.
+type ResourceMeta struct {
+	Node   uint16 // reserved node count
+	Space  uint64 // reserved storage space in bytes
+	Memory uint64 // reserved memory in bytes
+}
+
 // ServiceInstance defines single instance to be initialized.
 type ServiceInstance struct {
 	DatabaseID   proto.DatabaseID
 	Peers        *kayak.Peers
-	GenesisBlock []byte
+	ResourceMeta ResourceMeta
+	GenesisBlock *ct.Block
 }
 
 // InitServiceResponseHeader defines worker service init response header.
@@ -57,6 +66,21 @@ type InitServiceResponse struct {
 }
 
 // Serialize structure to bytes.
+func (m *ResourceMeta) Serialize() []byte {
+	if m == nil {
+		return []byte{'\000'}
+	}
+
+	buf := new(bytes.Buffer)
+
+	binary.Write(buf, binary.LittleEndian, m.Node)
+	binary.Write(buf, binary.LittleEndian, m.Space)
+	binary.Write(buf, binary.LittleEndian, m.Memory)
+
+	return buf.Bytes()
+}
+
+// Serialize structure to bytes.
 func (i *ServiceInstance) Serialize() []byte {
 	if i == nil {
 		return []byte{'\000'}
@@ -66,8 +90,13 @@ func (i *ServiceInstance) Serialize() []byte {
 
 	buf.WriteString(string(i.DatabaseID))
 	buf.Write(i.Peers.Serialize())
-	binary.Write(buf, binary.LittleEndian, uint64(len(i.GenesisBlock)))
-	buf.Write(i.GenesisBlock)
+	buf.Write(i.ResourceMeta.Serialize())
+	if i.GenesisBlock != nil {
+		genesisBlock, _ := i.GenesisBlock.MarshalBinary()
+		buf.Write(genesisBlock)
+	} else {
+		buf.Write([]byte{'\000'})
+	}
 
 	return buf.Bytes()
 }

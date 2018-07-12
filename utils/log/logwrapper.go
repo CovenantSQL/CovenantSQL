@@ -73,7 +73,7 @@ func (hook *CallerHook) caller() string {
 		funcName = "unknown"
 		pc       uintptr
 	)
-	pc, file, line, ok = runtime.Caller(11)
+	pc, file, line, ok = runtime.Caller(10)
 	details := runtime.FuncForPC(pc)
 	if ok && details != nil {
 		funcName = details.Name()

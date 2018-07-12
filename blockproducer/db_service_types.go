@@ -18,7 +18,6 @@ package blockproducer
 
 import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
 )
 
 // CreateDatabaseRequest defines client create database rpc request entity.
@@ -30,8 +29,7 @@ type CreateDatabaseRequest struct {
 // CreateDatabaseResponse defines client create database rpc response entity.
 type CreateDatabaseResponse struct {
 	proto.Envelope
-	DatabaseID proto.DatabaseID
-	Peers      *kayak.Peers
+	InstanceMeta DBInstanceMeta
 }
 
 // DropDatabaseRequest defines client drop database rpc request entity.
@@ -54,7 +52,7 @@ type GetDatabaseRequest struct {
 // GetDatabaseResponse defines client get database rpc response entity.
 type GetDatabaseResponse struct {
 	proto.Envelope
-	Peers *kayak.Peers
+	InstanceMeta DBInstanceMeta
 }
 
 // GetNodeDatabasesRequest defines miner get node databases rpc request entity.
@@ -65,5 +63,5 @@ type GetNodeDatabasesRequest struct {
 // GetNodeDatabasesResponse defines miner get node databases rpc response entity.
 type GetNodeDatabasesResponse struct {
 	proto.Envelope
-	DBS map[proto.DatabaseID]*kayak.Peers
+	Instances []DBInstanceMeta
 }

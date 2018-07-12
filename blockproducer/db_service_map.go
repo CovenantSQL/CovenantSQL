@@ -40,9 +40,9 @@ type DBInstanceMeta struct {
 // DBMetaPersistence defines database meta persistence api.
 type DBMetaPersistence interface {
 	GetDatabase(dbID proto.DatabaseID) (DBInstanceMeta, error)
-	SetDatabase(dbID proto.DatabaseID, meta DBInstanceMeta) error
+	SetDatabase(meta DBInstanceMeta) error
 	DeleteDatabase(dbID proto.DatabaseID) error
-	GetAllDatabases() (map[proto.DatabaseID]DBInstanceMeta, error)
+	GetAllDatabases() ([]DBInstanceMeta, error)
 }
 
 // DBServiceMap defines database instance meta.
@@ -65,17 +65,17 @@ func InitServiceMap(persistImpl DBMetaPersistence) (s *DBServiceMap, err error) 
 	s.Lock()
 	defer s.Unlock()
 
-	var dbMap map[proto.DatabaseID]DBInstanceMeta
+	var allDatabases []DBInstanceMeta
 
-	if dbMap, err = s.persist.GetAllDatabases(); err != nil {
+	if allDatabases, err = s.persist.GetAllDatabases(); err != nil {
 		return
 	}
 
-	for dbID, meta := range dbMap {
-		s.dbMap[dbID] = meta
+	for _, meta := range allDatabases {
+		s.dbMap[meta.DatabaseID] = meta
 
 		for _, server := range meta.Peers.Servers {
-			s.nodeMap[server.ID][dbID] = true
+			s.nodeMap[server.ID][meta.DatabaseID] = true
 		}
 	}
 
@@ -83,7 +83,7 @@ func InitServiceMap(persistImpl DBMetaPersistence) (s *DBServiceMap, err error) 
 }
 
 // Set add database to meta.
-func (c *DBServiceMap) Set(dbID proto.DatabaseID, meta DBInstanceMeta) (err error) {
+func (c *DBServiceMap) Set(meta DBInstanceMeta) (err error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -95,21 +95,21 @@ func (c *DBServiceMap) Set(dbID proto.DatabaseID, meta DBInstanceMeta) (err erro
 	var oldMeta DBInstanceMeta
 	var ok bool
 
-	if oldMeta, ok = c.dbMap[dbID]; ok {
+	if oldMeta, ok = c.dbMap[meta.DatabaseID]; ok {
 		for _, s := range oldMeta.Peers.Servers {
-			delete(c.nodeMap[s.ID], dbID)
+			delete(c.nodeMap[s.ID], meta.DatabaseID)
 		}
 	}
 
 	// set new records
-	c.dbMap[dbID] = meta
+	c.dbMap[meta.DatabaseID] = meta
 
 	for _, s := range meta.Peers.Servers {
-		c.nodeMap[s.ID][dbID] = true
+		c.nodeMap[s.ID][meta.DatabaseID] = true
 	}
 
 	// set to persistence
-	err = c.persist.SetDatabase(dbID, meta)
+	err = c.persist.SetDatabase(meta)
 
 	return
 }
@@ -159,15 +159,18 @@ func (c *DBServiceMap) Delete(dbID proto.DatabaseID) (err error) {
 }
 
 // GetDatabases return database config.
-func (c *DBServiceMap) GetDatabases(nodeID proto.NodeID) (dbs map[proto.DatabaseID]DBInstanceMeta, err error) {
+func (c *DBServiceMap) GetDatabases(nodeID proto.NodeID) (dbs []DBInstanceMeta, err error) {
 	c.RLock()
 	defer c.RUnlock()
 
-	dbs = make(map[proto.DatabaseID]DBInstanceMeta)
+	dbs = make([]DBInstanceMeta, 0)
 
 	for dbID, ok := range c.nodeMap[nodeID] {
 		if ok {
-			dbs[dbID] = c.dbMap[dbID]
+			var db DBInstanceMeta
+			if db, ok = c.dbMap[dbID]; ok {
+				dbs = append(dbs, db)
+			}
 		}
 	}
 

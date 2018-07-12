@@ -29,6 +29,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"sync"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
 const (
@@ -48,12 +50,8 @@ type DBService struct {
 
 // CreateDatabase defines block producer create database logic.
 func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatabaseResponse) (err error) {
-	// validate authority
-	// TODO(xq262144), call accounting features, top up deposit
-	var genesisBlock []byte
-	if genesisBlock, err = s.generateGenesisBlock(); err != nil {
-		return
-	}
+	// TODO(xq262144), verify identity
+	// verify identity
 
 	// create random DatabaseID
 	var dbID proto.DatabaseID
@@ -65,9 +63,28 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	var peers *kayak.Peers
 	peers, err = s.allocateNodes(0, dbID, req.ResourceMeta)
 
-	// build response
-	resp.DatabaseID = dbID
-	resp.Peers = peers
+	// get node keys
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	// TODO(xq262144), call accounting features, top up deposit
+	var genesisBlock []byte
+	if genesisBlock, err = s.generateGenesisBlock(dbID, req.ResourceMeta); err != nil {
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			// TODO(xq262144), release deposit on error
+		}
+	}()
 
 	// call miner nodes to provide service
 	initSvcReq := &wt.UpdateService{
@@ -80,36 +97,122 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 					GenesisBlock: genesisBlock,
 				},
 			},
+			Signee: pubKey,
 		},
 	}
 
+	if err = initSvcReq.Sign(privKey); err != nil {
+		return
+	}
+
+	rollbackReq := &wt.UpdateService{
+		Header: wt.SignedUpdateServiceHeader{
+			UpdateServiceHeader: wt.UpdateServiceHeader{
+				Op: wt.DropDB,
+				Instance: wt.ServiceInstance{
+					DatabaseID: dbID,
+				},
+			},
+			Signee: pubKey,
+		},
+	}
+
+	if err = rollbackReq.Sign(privKey); err != nil {
+		return
+	}
+
+	err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers))
+
+	// save to meta
+	instanceMeta := DBInstanceMeta{
+		DatabaseID:   dbID,
+		Peers:        peers,
+		ResourceMeta: req.ResourceMeta,
+	}
+
+	if err = s.ServiceMap.Set(instanceMeta); err != nil {
+		// critical error
+		// TODO(xq262144), critical error recover
+		return err
+	}
+
 	// send response to client
-	// TODO(xq262144)
+	resp.InstanceMeta = instanceMeta
 
 	return
 }
 
 // DropDatabase defines block producer drop database logic.
 func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseResponse) (err error) {
+	// TODO(xq262144), verify identity
+	// verify identity and database belonging
+
 	// call miner nodes to drop database
-	// TODO(xq262144)
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	// get database peers
+	var instanceMeta DBInstanceMeta
+	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
+		return
+	}
+
+	dropDBSvcReq := &wt.UpdateService{
+		Header: wt.SignedUpdateServiceHeader{
+			UpdateServiceHeader: wt.UpdateServiceHeader{
+				Op: wt.DropDB,
+				Instance: wt.ServiceInstance{
+					DatabaseID: req.DatabaseID,
+				},
+			},
+			Signee: pubKey,
+		},
+	}
+
+	if err = dropDBSvcReq.Sign(privKey); err != nil {
+		return
+	}
+
+	if err = s.batchSendSvcReq(dropDBSvcReq, nil, s.peersToNodes(instanceMeta.Peers)); err != nil {
+		return
+	}
 
 	// withdraw deposit from sqlchain
 	// TODO(xq262144)
 
+	// remove from meta
+	if err = s.ServiceMap.Delete(req.DatabaseID); err != nil {
+		// critical error
+		// TODO(xq262144), critical error recover
+		return
+	}
+
 	// send response to client
-	// TODO(xq262144)
+	// nothing to set on response, only error flag
 
 	return
 }
 
 // GetDatabase defines block producer get database logic.
 func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseResponse) (err error) {
+	// TODO(xq262144), verify identity
+	// verify identity and database belonging
+
 	// fetch from meta
-	// TODO(xq262144)
+	var instanceMeta DBInstanceMeta
+	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
+		return
+	}
 
 	// send response to client
-	// TODO(xq262144)
+	resp.InstanceMeta = instanceMeta
 
 	return
 }
@@ -117,10 +220,13 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 // GetNodeDatabases defines block producer get node databases logic.
 func (s *DBService) GetNodeDatabases(req *GetNodeDatabasesRequest, resp *GetNodeDatabasesResponse) (err error) {
 	// fetch from meta
-	// TODO(xq262144)
+	var instances []DBInstanceMeta
+	if instances, err = s.ServiceMap.GetDatabases(proto.NodeID(req.GetNodeID().String())); err != nil {
+		return
+	}
 
 	// send response to client
-	// TODO(xq262144)
+	resp.Instances = instances
 
 	return
 }
@@ -294,5 +400,43 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 
 func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta DBResourceMeta) (genesisBlock []byte, err error) {
 	// TODO(xq262144), to be completed in the future
+	return
+}
+
+func (s *DBService) batchSendSvcReq(req *wt.UpdateService, rollbackReq *wt.UpdateService, nodes []proto.NodeID) (err error) {
+	if err = s.batchSendSingleSvcReq(req, nodes); err != nil {
+		s.batchSendSingleSvcReq(rollbackReq, nodes)
+	}
+
+	return
+}
+
+func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.NodeID) (err error) {
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(nodes))
+
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(s proto.NodeID, ec chan error) {
+			defer wg.Done()
+			var resp wt.UpdateServiceResponse
+			ec <- rpc.NewCaller().CallNode(s, "DBS.Update", req, &resp)
+		}(node, errCh)
+	}
+
+	wg.Wait()
+	close(errCh)
+	err = <-errCh
+
+	return
+}
+
+func (s *DBService) peersToNodes(peers *kayak.Peers) (nodes []proto.NodeID) {
+	nodes = make([]proto.NodeID, 0, len(peers.Servers))
+
+	for _, s := range peers.Servers {
+		nodes = append(nodes, s.ID)
+	}
+
 	return
 }

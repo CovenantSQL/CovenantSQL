@@ -31,6 +31,10 @@
 #  revision = "4188c50"
 
 [[override]]
+  name = "github.com/thunderdb/logrus"
+  branch = "master"
+
+[[override]]
   name = "github.com/thunderdb/rqlite"
   branch = "master"
 

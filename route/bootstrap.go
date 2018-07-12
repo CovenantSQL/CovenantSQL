@@ -28,7 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-//const testDNS = "1.1.1.1"
+const testDNS = "1.1.1.1"
 
 // DNSClient contains tools for querying nameservers
 type DNSClient struct {
@@ -47,7 +47,9 @@ func NewDNSClient() *DNSClient {
 	if err != nil || config == nil {
 		log.Errorf("Cannot initialize the local resolver: %s\n", err)
 	}
-	//config.Servers[0] = testDNS
+	//TODO(auxten) use 1.1.1.1 just for testing now!
+	config.Servers[0] = testDNS
+
 	return &DNSClient{
 		msg:  m,
 		clt:  new(dns.Client),

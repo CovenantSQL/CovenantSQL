@@ -19,7 +19,7 @@ package etls
 import (
 	"net"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/thunderdb/logrus"
 )
 
 // CipherHandler is the func type for converting net.Conn to CryptoConn

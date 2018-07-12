@@ -138,6 +138,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
 	}
+	log.Debugf("temp dir: %s", d)
+
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
@@ -149,7 +151,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
 	route.Once = sync.Once{}
-	route.InitKMS(pubKeyStoreFile)
+	route.InitKMS(pubKeyStoreFile + "_c")
 
 	var dht *route.DHTService
 
@@ -166,11 +168,14 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 
 	// init private key
 	masterKey := []byte("")
-	addr := conf.GConf.ListenAddr
+	addr := "127.0.0.1:0"
 	server.InitRPCServer(addr, privateKeyPath, masterKey)
 
 	// start server
 	go server.Serve()
+
+	// fixme: force set the bp addr to this server
+	route.SetNodeAddrCache(&conf.GConf.BP.RawNodeID, server.Listener.Addr().String())
 
 	cleanupFunc = func() {
 		os.RemoveAll(d)

@@ -574,13 +574,14 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
+	os.Remove(pubKeyStoreFile + "_c")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	// reset the once
 	route.Once = sync.Once{}
-	route.InitKMS(pubKeyStoreFile)
+	route.InitKMS(pubKeyStoreFile + "_c")
 
 	var dht *route.DHTService
 
@@ -602,6 +603,9 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 
 	// start server
 	go server.Serve()
+
+	// fixme: force set the bp addr to this server
+	route.SetNodeAddrCache(&conf.GConf.BP.RawNodeID, server.Listener.Addr().String())
 
 	cleanupFunc = func() {
 		os.RemoveAll(d)

@@ -38,6 +38,8 @@ func TestCaller_CallNode(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
+	os.Remove(publicKeyStore)
+	defer os.Remove(publicKeyStore)
 
 	_, testFile, _, _ := runtime.Caller(0)
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")

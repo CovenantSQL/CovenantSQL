@@ -161,6 +161,7 @@ func InitKMS(PubKeyStoreFile string) {
 		if n.Role == conf.Leader || n.Role == conf.Follower {
 			//TODO(auxten): put PublicKey to yaml
 			(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
+			log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
 		}
 		if n.Role == conf.Client {
 			var publicKeyBytes []byte

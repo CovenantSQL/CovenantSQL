@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -33,6 +32,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -50,15 +50,11 @@ type conn struct {
 
 	inTransaction bool
 	closed        int32
-	logger        *log.Logger
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
-	var logger *log.Logger
-
 	if cfg.Debug {
-		logger = log.New()
-		logger.SetLevel(log.DebugLevel)
+		log.SetLevel(log.DebugLevel)
 	}
 
 	// generate random connection id
@@ -87,7 +83,6 @@ func newConn(cfg *Config) (c *conn, err error) {
 
 	c = &conn{
 		dbID:         cfg.DatabaseID,
-		logger:       logger,
 		connectionID: uint64(connID),
 		nodeID:       nodeID,
 		privKey:      privKey,
@@ -106,9 +101,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 }
 
 func (c *conn) log(msg ...interface{}) {
-	if c.logger != nil {
-		c.logger.Println(msg...)
-	}
+	log.Println(msg...)
 }
 
 // Prepare implements the driver.Conn.Prepare method.

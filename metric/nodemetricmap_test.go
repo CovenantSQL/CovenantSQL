@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	dto "github.com/prometheus/client_model/go"
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestCollectServer_FilterNode(t *testing.T) {

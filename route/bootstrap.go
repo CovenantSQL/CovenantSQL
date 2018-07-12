@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const testDNS = "1.1.1.1"

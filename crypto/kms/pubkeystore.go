@@ -25,8 +25,8 @@ import (
 	"runtime"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"

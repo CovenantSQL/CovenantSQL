@@ -20,8 +20,8 @@ package cpuminer
 import (
 	"errors"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // NonceInfo contains nonce and the difficulty to the block

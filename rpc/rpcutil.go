@@ -17,9 +17,9 @@
 package rpc
 
 import (
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // Caller is a wrapper for session pooling and RPC calling.

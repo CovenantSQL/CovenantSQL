@@ -27,11 +27,11 @@ import (
 
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (

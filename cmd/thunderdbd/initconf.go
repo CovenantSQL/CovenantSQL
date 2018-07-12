@@ -19,7 +19,6 @@ package main
 import (
 	"encoding/hex"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -27,6 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]conf.NodeInfo, peers *kayak.Peers, thisNode *conf.NodeInfo, err error) {

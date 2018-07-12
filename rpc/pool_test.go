@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/yamux"
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (

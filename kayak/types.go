@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -261,9 +260,6 @@ type RuntimeConfig struct {
 
 	// AutoBanCount defines how many times a nodes will be banned from execution
 	AutoBanCount uint32
-
-	// Logger is the logger
-	Logger *log.Logger
 }
 
 // Config interface for abstraction.

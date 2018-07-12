@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var prof struct {

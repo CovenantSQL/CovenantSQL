@@ -23,17 +23,16 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func testConfig(rootDir string, nodeID proto.NodeID) Config {
 	config := &MockConfig{}
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	log.SetLevel(log.FatalLevel)
 
 	runtimeConfig := &RuntimeConfig{
 		RootDir:        rootDir,
@@ -42,7 +41,6 @@ func testConfig(rootDir string, nodeID proto.NodeID) Config {
 		Transport:      &MockTransport{},
 		ProcessTimeout: time.Microsecond * 800,
 		AutoBanCount:   100,
-		Logger:         logger,
 	}
 
 	config.On("GetRuntimeConfig").Return(runtimeConfig)

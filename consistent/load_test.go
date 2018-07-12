@@ -18,9 +18,8 @@ package consistent
 
 import (
 	"os"
-	"testing"
-
 	"sort"
+	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"

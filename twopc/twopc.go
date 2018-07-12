@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // Hook are called during 2PC running

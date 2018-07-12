@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -39,6 +38,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
@@ -212,7 +212,7 @@ func testWithNewNode(nodeMap *sync.Map) (mock *mockRes, err error) {
 		WithClientBuilder(getNodeDialer(mock.nodeID, nodeMap)).
 		WithProcessTimeout(time.Millisecond * 300).
 		WithTransportID(DefaultTransportID).
-		WithLogger(log.New())
+		WithLogger(log.StandardLogger())
 	mock.config = NewTwoPCConfigWithOptions(mock.rootDir, service, mock.worker, options)
 
 	return

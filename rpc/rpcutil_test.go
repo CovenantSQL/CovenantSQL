@@ -18,25 +18,40 @@ package rpc
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 const DHTStorePath = "./DHTStore"
 
-func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
+func TestCaller_CallNode(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
+
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %#v", conf.GConf)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(publicKeyStore)
+
 	log.SetLevel(log.DebugLevel)
-	addr := "127.0.0.1:0"
-	masterKey := []byte("abc")
+	addr := conf.GConf.ListenAddr // see ../test/node_c/config.yaml
+	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
 	server, err := NewServerWithService(ServiceMap{"DHT": dht})
@@ -44,33 +59,43 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	server.InitRPCServer(addr, privateKeyPath, masterKey)
 	go server.Serve()
 
-	publicKey, err := kms.GetLocalPublicKey()
-	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
-	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
-
-	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	//publicKey, err := kms.GetLocalPublicKey()
+	//nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
+	//serverNodeID := proto.NodeID(nonce.Hash.String())
+	//kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	//
+	//kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
+	//route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	client := NewCaller()
 	node1 := proto.NewNode()
 	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	node1.Addr = "1.1.1.1:1"
 
 	reqA := &proto.PingReq{
 		Node: *node1,
 	}
 
 	respA := new(proto.PingResp)
-	err = client.CallNode(serverNodeID, "DHT.Ping", reqA, respA)
+	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Debugf("respA: %v", respA)
 
-	//GetNodeAddr(node1.ID)
+	node1addr, err := GetNodeAddr(node1.ID.ToRawNodeID())
+	Convey("test GetNodeAddr", t, func() {
+		So(err, ShouldBeNil)
+		So(node1addr, ShouldEqual, node1.Addr)
+	})
 
+	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("respA2: %v", respA)
 	server.Stop()
 }

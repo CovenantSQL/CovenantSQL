@@ -17,12 +17,13 @@
 package route
 
 import (
+	"encoding/hex"
 	"errors"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
@@ -36,7 +37,7 @@ const BPDomain = "_bp._tcp.gridb.io."
 var (
 	// resolver holds the singleton instance
 	resolver *Resolver
-	once     sync.Once
+	Once     sync.Once
 )
 
 var (
@@ -56,7 +57,7 @@ type Resolver struct {
 
 // initResolver returns a new resolver
 func initResolver() {
-	once.Do(func() {
+	Once.Do(func() {
 		resolver = &Resolver{
 			cache:     make(NodeIDAddressMap),
 			bpNodeIDs: make(NodeIDAddressMap),
@@ -68,10 +69,12 @@ func initResolver() {
 
 // IsBPNodeID returns if it is Block Producer node id
 func IsBPNodeID(id *proto.RawNodeID) bool {
+	initResolver()
 	if id == nil {
 		return false
 	}
-	return id.IsEqual(&kms.BP.RawNodeID.Hash)
+	_, ok := resolver.bpNodeIDs[*id]
+	return ok
 }
 
 // setResolveCache initializes Resolver.cache by a new map
@@ -119,12 +122,11 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range (*conf.GConf.KnownNodes)[:] {
 			if n.Role == conf.Leader || n.Role == conf.Follower {
-				idHash, err := hash.NewHashFromStr(string(n.ID))
-				if err != nil {
-					log.Errorf("error node id %s from config: %s", n.ID, err)
-					continue
+				rawID := n.ID.ToRawNodeID()
+				if rawID != nil {
+					setNodeAddrCache(rawID, n.Addr)
+					resolver.bpNodeIDs[*rawID] = n.Addr
 				}
-				resolver.bpNodeIDs[proto.RawNodeID{*idHash}] = n.Addr
 			}
 		}
 	}
@@ -150,4 +152,52 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 		BPAddrs = append(BPAddrs, proto.NodeID(id.String()))
 	}
 	return
+}
+
+// InitKMS inits nasty stuff, only for testing
+func InitKMS(PubKeyStoreFile string) {
+	for i, n := range (*conf.GConf.KnownNodes)[:] {
+		if n.Role == conf.Leader || n.Role == conf.Follower {
+			//TODO(auxten): put PublicKey to yaml
+			(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
+		}
+		if n.Role == conf.Client {
+			var publicKeyBytes []byte
+			var clientPublicKey *asymmetric.PublicKey
+			//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+			publicKeyBytes, err := hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
+			if err != nil {
+				log.Errorf("hex decode clientPublicKey error: %s", err)
+				continue
+			}
+			clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+			if err != nil {
+				log.Errorf("parse clientPublicKey error: %s", err)
+				continue
+			}
+			(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
+		}
+
+	}
+	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
+	for _, n := range (*conf.GConf.KnownNodes)[:] {
+		rawNodeID := n.ID.ToRawNodeID()
+
+		log.Debugf("set node addr: %v, %v", rawNodeID, n.Addr)
+		SetNodeAddrCache(rawNodeID, n.Addr)
+		node := &proto.Node{
+			ID:        n.ID,
+			Addr:      n.Addr,
+			PublicKey: n.PublicKey,
+			Nonce:     n.Nonce,
+		}
+		err := kms.SetNode(node)
+		if err != nil {
+			log.Errorf("set node failed: %v\n %s", node, err)
+		}
+		if n.ID == conf.GConf.ThisNodeID {
+			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
+		}
+	}
+	log.Debugf("AllNodes:\n %v\n", conf.GConf.KnownNodes)
 }

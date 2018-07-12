@@ -17,7 +17,6 @@
 package rpc
 
 import (
-	"github.com/hashicorp/yamux"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -50,14 +49,14 @@ func (c *Caller) CallNode(
 		return
 	}
 
-	defer func() {
-		// call the yamux stream Close explicitly
-		//TODO(auxten) maybe a rpc client pool will gain much more performance
-		stream, ok := conn.(*yamux.Stream)
-		if ok {
-			stream.Close()
-		}
-	}()
+	//defer func() {
+	//	// call the yamux stream Close explicitly
+	//	//TODO(auxten) maybe a rpc client pool will gain much more performance
+	//	stream, ok := conn.(*yamux.Stream)
+	//	if ok {
+	//		stream.Close()
+	//	}
+	//}()
 	return client.Call(method, args, reply)
 }
 
@@ -65,7 +64,7 @@ func (c *Caller) CallNode(
 func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	addr, err = route.GetNodeAddrCache(id)
 	if err != nil {
-		log.Infof("get node: %s addr failed: %s", addr, err)
+		log.Infof("get node \"%s\" addr failed: %s", addr, err)
 		if err == route.ErrUnknownNodeID {
 			BPs := route.GetBPs()
 			if len(BPs) == 0 {
@@ -81,7 +80,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			// TODO(auxten) add some random here for bp selection
 			for _, bp := range BPs {
 				method := "DHT.FindNode"
-				err := client.CallNode(bp, method, reqFN, respFN)
+				err = client.CallNode(bp, method, reqFN, respFN)
 				if err != nil {
 					log.Errorf("call %s %s failed: %s", bp, method, err)
 					continue

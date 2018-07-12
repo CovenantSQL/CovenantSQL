@@ -37,12 +37,14 @@ import (
 )
 
 var (
-	testPeersNumber                   = 5
-	testPeriod                        = 1 * time.Second
-	testTick                          = 100 * time.Millisecond
-	testQueryTTL     int32            = 10
-	testDatabaseID   proto.DatabaseID = "tdb-test"
-	testChainService                  = "sql-chain.thunderdb.rpc"
+	testPeersNumber                           = 5
+	testPeriod                                = 1 * time.Second
+	testTick                                  = 100 * time.Millisecond
+	testQueryTTL             int32            = 10
+	testDatabaseID           proto.DatabaseID = "tdb-test"
+	testChainService                          = "sql-chain.thunderdb.rpc"
+	testPeriodNumber                          = 10
+	testClientNumberPerChain                  = 10
 )
 
 func TestIndexKey(t *testing.T) {
@@ -118,7 +120,7 @@ func TestChain(t *testing.T) {
 	peers := &kayak.Peers{
 		Term:    0,
 		Leader:  servers[0],
-		Servers: servers[:],
+		Servers: servers[:0],
 		PubKey:  pub,
 	}
 
@@ -137,6 +139,9 @@ func TestChain(t *testing.T) {
 		Server:     servers[0],
 		Peers:      peers,
 	})
+
+	// Hack for signle instance test
+	chain.rt.total = 5
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -279,10 +284,7 @@ func TestMultiChain(t *testing.T) {
 		}
 
 		go server.Serve()
-		defer func() {
-			server.Listener.Close()
-			server.Stop()
-		}()
+		defer server.Stop()
 		mux := NewMuxService(testChainService, server)
 
 		// Register address
@@ -324,7 +326,7 @@ func TestMultiChain(t *testing.T) {
 			PublicKey:  testPubKey,
 		}
 
-		for x := 0; x < 10; x++ {
+		for x := 0; x < testClientNumberPerChain; x++ {
 			cli, err := newRandomNode()
 
 			if err != nil {
@@ -363,6 +365,6 @@ func TestMultiChain(t *testing.T) {
 		}(chains[i])
 	}
 
-	time.Sleep(10 * testPeriod)
+	time.Sleep(time.Duration(testPeriodNumber) * testPeriod)
 	return
 }

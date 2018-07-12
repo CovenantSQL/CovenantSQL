@@ -56,6 +56,11 @@ type runtime struct {
 	// price sets query price in gases.
 	price map[wt.QueryType]uint32
 
+	// index is the index of the current server in the peer list.
+	index int32
+	// total is the total peer number of the sql-chain.
+	total int32
+
 	sync.RWMutex // Protects following fields.
 	// nextTurn is the height of the next block.
 	nextTurn int32
@@ -76,9 +81,18 @@ func newRunTime(c *Config) (r *runtime) {
 		muxService: c.MuxService,
 		peers:      c.Peers,
 		server:     c.Server,
-		price:      c.Price,
-		nextTurn:   1,
-		offset:     time.Duration(0),
+		index: func() int32 {
+			for i, s := range c.Peers.Servers {
+				if c.Server.ID == s.ID {
+					return int32(i)
+				}
+			}
+			return -1
+		}(),
+		total:    int32(len(c.Peers.Servers)),
+		price:    c.Price,
+		nextTurn: 1,
+		offset:   time.Duration(0),
 	}
 
 	if c.Genesis != nil {
@@ -107,6 +121,8 @@ func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
 	// has expired.
 	//
+	r.RLock()
+	defer r.RUnlock()
 	return r.getHeightFromTime(t) < r.nextTurn-r.queryTTL
 }
 
@@ -174,4 +190,10 @@ func (r *runtime) startService(chain *Chain) {
 
 func (r *runtime) stopService() {
 	r.muxService.unregister(r.databaseID)
+}
+
+func (r *runtime) isMyTurn() bool {
+	r.Lock()
+	defer r.Unlock()
+	return r.nextTurn%r.total == r.index
 }

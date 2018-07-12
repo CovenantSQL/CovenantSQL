@@ -60,9 +60,6 @@ type Chain struct {
 	cl *rpcCaller
 	rt *runtime
 	st *state
-
-	// Only for test
-	tIsMyTurn bool
 }
 
 // NewChain creates a new sql-chain struct.
@@ -366,13 +363,6 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	})
 }
 
-// isMyTurn returns whether it's my turn to produce block or not.
-//
-// TODO(leventliu): need implementation.
-func (c *Chain) isMyTurn() bool {
-	return c.tIsMyTurn
-}
-
 // produceBlock prepares, signs and advises the pending block to the orther peers.
 func (c *Chain) produceBlock(now time.Time) (err error) {
 	// Retrieve local key pair
@@ -442,7 +432,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 func (c *Chain) runCurrentTurn(now time.Time) {
 	defer c.rt.setNextTurn()
 
-	if !c.isMyTurn() {
+	if !c.rt.isMyTurn() {
 		return
 	}
 

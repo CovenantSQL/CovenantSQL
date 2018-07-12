@@ -21,40 +21,48 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 )
 
+// CreateDatabaseRequest defines client create database rpc request entity.
 type CreateDatabaseRequest struct {
 	proto.Envelope
 	ResourceMeta DBResourceMeta
 }
 
+// CreateDatabaseResponse defines client create database rpc response entity.
 type CreateDatabaseResponse struct {
 	proto.Envelope
 	DatabaseID proto.DatabaseID
 	Peers      *kayak.Peers
 }
 
+// DropDatabaseRequest defines client drop database rpc request entity.
 type DropDatabaseRequest struct {
 	proto.Envelope
 	DatabaseID proto.DatabaseID
 }
 
+// DropDatabaseResponse defines client drop database rpc response entity.
 type DropDatabaseResponse struct {
 	proto.Envelope
 }
 
+// GetDatabaseRequest defines client get database rpc request entity.
 type GetDatabaseRequest struct {
 	proto.Envelope
 	DatabaseID proto.DatabaseID
 }
 
+// GetDatabaseResponse defines client get database rpc response entity.
 type GetDatabaseResponse struct {
 	proto.Envelope
 	Peers *kayak.Peers
 }
 
+// GetNodeDatabasesRequest defines miner get node databases rpc request entity.
 type GetNodeDatabasesRequest struct {
 	proto.Envelope
 }
 
+// GetNodeDatabasesResponse defines miner get node databases rpc response entity.
 type GetNodeDatabasesResponse struct {
 	proto.Envelope
 	DBS map[proto.DatabaseID]*kayak.Peers

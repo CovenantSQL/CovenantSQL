@@ -43,7 +43,7 @@ var (
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"
 	testChainService                          = "sql-chain.thunderdb.rpc"
-	testPeriodNumber                          = 10
+	testPeriodNumber         int32            = 10
 	testClientNumberPerChain                  = 10
 )
 
@@ -228,7 +228,7 @@ func TestChain(t *testing.T) {
 				block.SignedHeader.BlockHash)
 		}
 
-		if chain.st.Height >= testHeight {
+		if chain.st.Height >= testPeriodNumber {
 			break
 		}
 	}

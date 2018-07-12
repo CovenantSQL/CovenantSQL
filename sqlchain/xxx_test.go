@@ -39,10 +39,9 @@ import (
 )
 
 var (
-	genesisHash           = hash.Hash{}
-	testHeight      int32 = 50
-	testDifficulty        = 4
-	testMasterKey         = []byte(".9K.sgch!3;C>w0v")
+	genesisHash     = hash.Hash{}
+	testDifficulty  = 4
+	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
 	testDataDir     string
 	testPrivKeyFile string
 	testPubKeysFile string

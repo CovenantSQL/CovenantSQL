@@ -88,25 +88,25 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 
 	go func() {
 		_, errStdout = io.Copy(stdout, stdoutIn)
+		if errStdout != nil {
+			log.Errorf("failed to capture stdout %s", errStdout)
+			err = errStdout
+			return
+		}
 	}()
 
 	go func() {
 		_, errStderr = io.Copy(stderr, stderrIn)
+		if errStderr != nil {
+			log.Errorf("failed to capture stderr %s", errStderr)
+			err = errStderr
+			return
+		}
 	}()
 
 	err = cmd.Wait()
 	if err != nil {
 		log.Errorf("cmd %s args %s failed with %v", cmd.Path, cmd.Args, err)
-		return
-	}
-	if errStdout != nil {
-		log.Errorf("failed to capture stdout %s", errStdout)
-		err = errStdout
-		return
-	}
-	if errStderr != nil {
-		log.Errorf("failed to capture stderr %s", errStderr)
-		err = errStderr
 		return
 	}
 	return

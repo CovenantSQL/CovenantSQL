@@ -106,13 +106,12 @@ func (dc *DNSClient) VerifySection(set []dns.RR) error {
 				return fmt.Errorf("DNSKEY %s not valid", key.PublicKey)
 			}
 			log.Debugf("valid DNSKEY %s of %s", key.PublicKey, domain)
-			if err := rr.(*dns.RRSIG).Verify(key, rrset); err == nil {
-				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
-				return nil
-			} else {
+			if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
 				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]",
 					shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
 			}
+			log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
+			return nil
 		}
 	}
 	return fmt.Errorf("not DNSSEC record")

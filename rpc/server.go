@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"io"
 	"net"
 	"net/rpc"
 
@@ -135,16 +136,21 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
+sessionLoop:
 	for {
 		select {
-		//TODO(auxten) stop loop here
-		//case <-s.stopCh:
-		//	log.Info("Stopping Server Loop")
-		//	break sessionLoop
+		case <-s.stopCh:
+			log.Info("Stopping Session Loop")
+			break sessionLoop
 		default:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
+				if err == io.EOF {
+					log.Info("session connection closed")
+					break sessionLoop
+				}
 				log.Errorf("session accept failed: %s", err)
+
 				continue
 			}
 			log.Debugf("session accepted %d", muxConn.StreamID())
@@ -153,15 +159,6 @@ func (s *Server) handleConn(conn net.Conn) {
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}
-
-	//muxConn, err := sess.Accept()
-	//if err != nil {
-	//	log.Error(err)
-	//	return
-	//}
-	//msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
-	//nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
-	//s.rpcServer.ServeCodec(nodeAwareCodec)
 
 	log.Debugf("Server.handleConn finished for %s", conn.RemoteAddr())
 }

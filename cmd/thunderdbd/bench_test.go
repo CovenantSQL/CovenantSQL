@@ -17,119 +17,139 @@
 package main
 
 import (
-	"io"
 	"net"
-	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
-	baseDir        = GetProjectSrcDir()
+	baseDir        = utils.GetProjectSrcDir()
 	testWorkingDir = FJ(baseDir, "./test/")
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
 var FJ = filepath.Join
 
-func GetProjectSrcDir() string {
-	_, testFile, _, _ := runtime.Caller(0)
-	return FJ(filepath.Dir(testFile), "../../")
-}
-
-func Build() (err error) {
-	wd := GetProjectSrcDir()
-	err = os.Chdir(wd)
-	if err != nil {
-		log.Errorf("change working dir failed: %s", err)
-	}
-	cmd := exec.Command("./build.sh")
-
-	err = cmd.Run()
-	if err != nil {
-		log.Errorf("build failed: %s", err)
-	}
-	return
-}
-
-func RunServer(bin, conf, name string, toStd bool) (err error) {
-	logFD, err := os.Create(FJ(logDir, name+".log"))
-	if err != nil {
-		log.Errorf("create log file failed: %s", err)
-		return
-	}
-
-	os.Chdir(testWorkingDir)
-	cmd := exec.Command(bin, "-config", conf)
-	stdoutIn, _ := cmd.StdoutPipe()
-	stderrIn, _ := cmd.StderrPipe()
-
-	var errStdout, errStderr error
-	var stdout, stderr io.Writer
-	if toStd {
-		stdout = io.MultiWriter(os.Stdout, logFD)
-		stderr = io.MultiWriter(os.Stderr, logFD)
-	} else {
-		stdout = logFD
-		stderr = logFD
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		log.Errorf("cmd.Start() failed with '%s'", err)
-		return
-	}
-
-	go func() {
-		_, errStdout = io.Copy(stdout, stdoutIn)
-	}()
-
-	go func() {
-		_, errStderr = io.Copy(stderr, stderrIn)
-	}()
-
-	err = cmd.Wait()
-	if err != nil {
-		log.Errorf("cmd %s args %s failed with %s", cmd.Path, cmd.Args, err)
-		return
-	}
-	if errStdout != nil {
-		log.Errorf("failed to capture stdout %s", errStdout)
-		return
-	}
-	if errStderr != nil {
-		log.Errorf("failed to capture stderr %s", errStderr)
-		return
-	}
-	return
-}
-
 func TestBuild(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	Build()
+	utils.Build()
 }
 
-func TestStartBPs(t *testing.T) {
-	go RunServer(FJ(baseDir, "./bin/thunderdbd"), FJ(testWorkingDir, "./node_0/config.yaml"), "leader", false)
-	go RunServer(FJ(baseDir, "./bin/thunderdbd"), FJ(testWorkingDir, "./node_1/config.yaml"), "follower1", false)
-	go RunServer(FJ(baseDir, "./bin/thunderdbd"), FJ(testWorkingDir, "./node_2/config.yaml"), "follower2", false)
+func start3BPs() {
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
+		"leader", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml")},
+		"follower1", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml")},
+		"follower2", testWorkingDir, logDir, false,
+	)
+}
+
+func TestStartBP_CallRPC(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	start3BPs()
+	time.Sleep(5 * time.Second)
+
+	var err error
+	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
+	if err != nil {
+		t.Fatalf("load config from %s failed: %s", configFile, err)
+	}
+	rootPath := conf.GConf.WorkingRoot
+	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
+	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
+
+	route.InitKMS(pubKeyStorePath)
+	var masterKey []byte
+
+	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	if err != nil {
+		t.Errorf("init local key pair failed: %s", err)
+		return
+	}
+
+	leaderNodeID := kms.BP.NodeID
+	var conn net.Conn
+	var RPCClient *rpc.Client
+
+	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance()); err != nil {
+		t.Fatal(err)
+	}
+	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
+		t.Fatal(err)
+	}
+
+	var reqType = "FindNeighbor"
+	nodePayload := proto.NewNode()
+	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
+	nodePayload.Addr = "nodePayloadAddr"
+
+	reqFindNeighbor := &proto.FindNeighborReq{
+		NodeID: proto.NodeID(nodePayload.ID),
+		Count:  1,
+	}
+	respFindNeighbor := new(proto.FindNeighborResp)
+	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
+	err = RPCClient.Call("DHT."+reqType, reqFindNeighbor, respFindNeighbor)
+	log.Debugf("respFindNeighbor %s: %##v", reqType, respFindNeighbor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqType = "Ping"
+	reqPing := &proto.PingReq{
+		Node: *nodePayload,
+	}
+	respPing := new(proto.PingResp)
+	err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
+	log.Debugf("respPing %s: %##v", reqType, respPing)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqType = "FindNode"
+	reqFN := &proto.FindNodeReq{
+		NodeID: nodePayload.ID,
+	}
+	respFN := new(proto.FindNodeResp)
+	err = RPCClient.Call("DHT."+reqType, reqFN, respFN)
+	log.Debugf("respFN %s: %##v", reqType, respFN.Node)
+	if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
+		t.Fatal(err)
+	}
+
+	caller := rpc.NewCaller()
+	for _, n := range (*conf.GConf.KnownNodes)[:] {
+		if n.Role == conf.Follower {
+			err = caller.CallNode(n.ID, "DHT."+reqType, reqFN, respFN)
+			log.Debugf("respFN %s: %##v", reqType, respFN.Node)
+			if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
+				t.Fatal(err)
+			}
+		}
+	}
 }
 
 func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	log.SetLevel(log.DebugLevel)
-
-	go RunServer(FJ(baseDir, "./bin/thunderdbd"), FJ(testWorkingDir, "./node_0/config.yaml"), "leader", false)
-	go RunServer(FJ(baseDir, "./bin/thunderdbd"), FJ(testWorkingDir, "./node_1/config.yaml"), "follower1", false)
-	go RunServer(FJ(baseDir, "./bin/thunderdbd"), FJ(testWorkingDir, "./node_2/config.yaml"), "follower2", false)
+	start3BPs()
 
 	time.Sleep(5 * time.Second)
 
@@ -194,7 +214,6 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
 		return
 	}
-	client := rpc.NewCaller()
 
 	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()
@@ -210,7 +229,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	b.Run("benchmark "+reqType, func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err = client.CallNode(leaderNodeID, "DHT."+reqType, reqFindNeighbor, respFindNeighbor)
+			err = RPCClient.Call("DHT."+reqType, reqFindNeighbor, respFindNeighbor)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -226,7 +245,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	b.Run("benchmark "+reqType, func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err = client.CallNode(leaderNodeID, "DHT."+reqType, reqPing, respPing)
+			err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
 			if err != nil {
 				log.Fatal(err)
 			}

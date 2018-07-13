@@ -75,7 +75,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	}
 	res := new(bp.CreateDatabaseResponse)
 
-	if err = requestBP("BP.CreateDatabase", req, res); err != nil {
+	if err = requestBP(bp.DBServiceName+".CreateDatabase", req, res); err != nil {
 		return
 	}
 
@@ -97,7 +97,7 @@ func Drop(dsn string) (err error) {
 		DatabaseID: cfg.DatabaseID,
 	}
 	res := new(bp.DropDatabaseResponse)
-	err = requestBP("BP.DropDatabase", req, res)
+	err = requestBP(bp.DBServiceName+".DropDatabase", req, res)
 
 	return
 }

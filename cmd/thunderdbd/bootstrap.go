@@ -33,6 +33,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
+	"gitlab.com/thunderdb/ThunderDB/metric"
 )
 
 const (
@@ -103,24 +105,42 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// init kayak and consistent
 	log.Infof("init kayak and consistent runtime")
-	kayak := &KayakKVServer{
+	kvServer := &KayakKVServer{
 		Runtime: kayakRuntime,
 		Storage: st,
 	}
-	dht, err := route.NewDHTService(dbFile, kayak, false)
+	dht, err := route.NewDHTService(dbFile, kvServer, false)
 	if err != nil {
 		log.Errorf("init consistent hash failed: %s", err)
 		return
 	}
 
 	// set consistent handler to kayak storage
-	kayak.Storage.consistent = dht.Consistent
+	kvServer.Storage.consistent = dht.Consistent
 
 	// register service rpc
 	log.Infof("register dht service rpc")
 	err = server.RegisterService(dhtServiceName, dht)
 	if err != nil {
 		log.Errorf("register dht service failed: %s", err)
+		return
+	}
+
+	// init metrics
+	metricService := metric.NewCollectServer()
+	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
+		log.Errorf("init metric service failed: %v", err)
+		return
+	}
+
+	// init block producer database service
+	var dbService *bp.DBService
+	if dbService, err = initDBService(kvServer, metricService); err != nil {
+		log.Errorf("init block producer db service failed: %v", err)
+		return
+	}
+	if err = server.RegisterService(bp.DBServiceName, dbService); err != nil {
+		log.Error("init block producer db service failed: %v", err)
 		return
 	}
 
@@ -159,6 +179,23 @@ func initKayakTwoPC(rootDir string, node *conf.NodeInfo, peers *kayak.Peers, wor
 	// init runtime
 	log.Infof("init kayak twopc runtime")
 	err = runtime.Init()
+
+	return
+}
+
+func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer) (dbService *bp.DBService, err error) {
+	var serviceMap *bp.DBServiceMap
+	if serviceMap, err = bp.InitServiceMap(kvServer); err != nil {
+		log.Errorf("init bp database service map failed")
+		return
+	}
+
+	dbService = &bp.DBService{
+		AllocationRounds: bp.DefaultAllocationRounds, //
+		ServiceMap:       serviceMap,
+		Consistent:       kvServer.Storage.consistent,
+		NodeMetrics:      &metricService.NodeMetric,
+	}
 
 	return
 }

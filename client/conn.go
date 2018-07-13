@@ -315,7 +315,7 @@ func (c *conn) getPeers() (err error) {
 		DatabaseID: c.dbID,
 	}
 	res := new(bp.GetDatabaseResponse)
-	if err = requestBP("BP.GetDatabase", req, res); err != nil {
+	if err = requestBP(bp.DBServiceName+".GetDatabase", req, res); err != nil {
 		return
 	}
 

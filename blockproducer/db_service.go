@@ -39,12 +39,16 @@ const (
 	MetricFreeMemoryBytes = "node_memory_free_bytes_total"
 	// MetricFreeFSBytes defines metric name for free filesystem in miner instance.
 	MetricFreeFSBytes = "node_filesystem_free_bytes_total"
+	// DefaultAllocationRounds defines max rounds to try allocate peers for database creation.
+	DefaultAllocationRounds = 3
+	// ServiceName for block producer to provide database management related logic.
+	DBServiceName = "BPDB"
 )
 
 // DBService defines block producer database service rpc endpoint.
 type DBService struct {
 	AllocationRounds int
-	ServiceMap       DBServiceMap
+	ServiceMap       *DBServiceMap
 	Consistent       *consistent.Consistent
 	NodeMetrics      *metric.NodeMetricMap
 }

@@ -320,7 +320,8 @@ func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err erro
 	bpID := bps[int(nonce.D%uint64(len(bps)))]
 	req := &wt.InitService{}
 	res := new(wt.InitServiceResponse)
-	if err = rpc.NewCaller().CallNode(bpID, "BP.GetNodeDatabases", req, res); err != nil {
+	// TODO(xq262144), maybe we should define service name convention to a single location
+	if err = rpc.NewCaller().CallNode(bpID, "BPDB.GetNodeDatabases", req, res); err != nil {
 		return
 	}
 

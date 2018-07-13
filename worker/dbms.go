@@ -29,6 +29,10 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 )
 
 const (
@@ -305,7 +309,23 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 }
 
 func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err error) {
-	// TODO(xq262144), wait for block producer api ready
+	// get bp nodes
+	var nonce *cpuminer.Uint256
+	if nonce, err = kms.GetLocalNonce(); err != nil {
+		return
+	}
+
+	// TODO(xq262144), unify block producer calls
+	bps := route.GetBPs()
+	bpID := bps[int(nonce.D%uint64(len(bps)))]
+	req := &wt.InitService{}
+	res := new(wt.InitServiceResponse)
+	if err = rpc.NewCaller().CallNode(bpID, "BP.GetNodeDatabases", req, res); err != nil {
+		return
+	}
+
+	instances = res.Instances
+
 	return
 }
 

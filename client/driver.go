@@ -19,6 +19,21 @@ package client
 import (
 	"database/sql"
 	"database/sql/driver"
+	"path/filepath"
+
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
+	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+)
+
+const (
+	// PubKeyStorePath defines public cache store.
+	PubKeyStorePath = "./public.keystore"
 )
 
 func init() {
@@ -37,4 +52,66 @@ func (d *thunderDBDriver) Open(dsn string) (conn driver.Conn, err error) {
 	}
 
 	return newConn(cfg)
+}
+
+// ResourceMeta defines new database resources requirement descriptions.
+type ResourceMeta wt.ResourceMeta
+
+// Init defines init process for client.
+func Init(configFile string) (err error) {
+	// load config
+	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
+		return
+	}
+	pubKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, PubKeyStorePath)
+	route.InitKMS(pubKeyFilePath)
+	return
+}
+
+// Create send create database operation to block producer.
+func Create(meta ResourceMeta) (dsn string, err error) {
+	req := &bp.CreateDatabaseRequest{
+		ResourceMeta: wt.ResourceMeta(meta),
+	}
+	res := new(bp.CreateDatabaseResponse)
+
+	if err = requestBP("BP.CreateDatabase", req, res); err != nil {
+		return
+	}
+
+	cfg := NewConfig()
+	cfg.DatabaseID = res.InstanceMeta.DatabaseID
+	dsn = cfg.FormatDSN()
+
+	return
+}
+
+// Drop send drop database operation to block producer.
+func Drop(dsn string) (err error) {
+	var cfg *Config
+	if cfg, err = ParseDSN(dsn); err != nil {
+		return
+	}
+
+	req := &bp.DropDatabaseRequest{
+		DatabaseID: cfg.DatabaseID,
+	}
+	res := new(bp.DropDatabaseResponse)
+	err = requestBP("BP.DropDatabase", req, res)
+
+	return
+}
+
+func requestBP(method string, request interface{}, response interface{}) (err error) {
+	// TODO(xq262144), unify block producer calls
+	// get bp node
+	var nonce *cpuminer.Uint256
+	nonce, err = kms.GetLocalNonce()
+	var bps []proto.NodeID
+	bps = route.GetBPs()
+
+	// choose bp node by nonce
+	bpIdx := int(nonce.D % uint64(len(bps)))
+
+	return rpc.NewCaller().CallNode(bps[bpIdx], method, request, response)
 }

@@ -19,11 +19,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
 
-	"github.com/ugorji/go/codec"
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -31,9 +32,14 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
-const cmdset = "set"
+const (
+	CmdSet            = "set"
+	CmdSetDatabase    = "set_database"
+	CmdDeleteDatabase = "delete_database"
+)
 
 // LocalStorage holds consistent and storage struct
 type LocalStorage struct {
@@ -50,6 +56,9 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 	_, err = st.Exec(context.Background(), []storage.Query{
 		{
 			Pattern: "CREATE TABLE IF NOT EXISTS `dht` (`id` TEXT NOT NULL PRIMARY KEY, `node` BLOB);",
+		},
+		{
+			Pattern: "CREATE TABLE IF NOT EXISTS `databases` (`id` TEXT NOT NULL PRIMARY KEY, `meta` BLOB);",
 		},
 	})
 	if err != nil {
@@ -81,7 +90,6 @@ func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err er
 
 // Commit implements twopc Worker.Commit
 func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
-
 	payload, err := s.decodeLog(wb)
 	if err != nil {
 		log.Errorf("decode log failed: %s", err)
@@ -127,7 +135,7 @@ func (s *LocalStorage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err e
 
 func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.ExecLog, err error) {
 	switch payload.Command {
-	case cmdset:
+	case CmdSet:
 		var nodeToSet proto.Node
 		err = utils.DecodeMsgPack(payload.Data, &nodeToSet)
 		if err != nil {
@@ -162,6 +170,41 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 			Queries: []storage.Query{
 				{
 					Pattern: sql,
+				},
+			},
+		}
+	case CmdSetDatabase:
+		var instance wt.ServiceInstance
+		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
+			log.Errorf("compileExecLog: unmarshal instance meta failed: %v", err)
+			return
+		}
+		query := "INSERT OR REPLACE INTO `databases` (`id`, `meta`) VALUES (? ,?);"
+		execLog = &storage.ExecLog{
+			Queries: []storage.Query{
+				{
+					Pattern: query,
+					Args: []sql.NamedArg{
+						sql.Named("", string(instance.DatabaseID)),
+						sql.Named("", payload.Data),
+					},
+				},
+			},
+		}
+	case CmdDeleteDatabase:
+		var dbID proto.DatabaseID
+		if err = utils.DecodeMsgPack(payload.Data, &dbID); err != nil {
+			log.Errorf("compileExecLog: unmarshal instance id failed: %v", err)
+			return
+		}
+		query := "DELETE FROM `databases` WHERE `id` = ? LIMIT 1"
+		execLog = &storage.ExecLog{
+			Queries: []storage.Query{
+				{
+					Pattern: query,
+					Args: []sql.NamedArg{
+						sql.Named("", string(dbID)),
+					},
 				},
 			},
 		}
@@ -215,7 +258,7 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 		return
 	}
 	payload := &KayakPayload{
-		Command: cmdset,
+		Command: CmdSet,
 		Data:    nodeBuf.Bytes(),
 	}
 
@@ -245,10 +288,136 @@ func (s *KayakKVServer) Reset() (err error) {
 	return
 }
 
+// GetDatabase implements blockproducer.DBMetaPersistence.
+func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+	var result [][]interface{}
+	query := "SELECT `meta` FROM `databases` WHERE `id` = ? LIMIT 1"
+	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
+		{
+			Pattern: query,
+			Args: []sql.NamedArg{
+				sql.Named("", string(dbID)),
+			},
+		},
+	})
+	if err != nil {
+		log.Errorf("Query database %v instance meta failed", dbID, err)
+		return
+	}
+
+	if len(result) <= 0 || len(result[0]) <= 0 {
+		err = bp.ErrNoSuchDatabase
+		return
+	}
+
+	var rawInstanceMeta []byte
+	var ok bool
+	if rawInstanceMeta, ok = result[0][0].([]byte); !ok {
+		err = bp.ErrNoSuchDatabase
+		return
+	}
+
+	err = utils.DecodeMsgPack(rawInstanceMeta, &instance)
+	return
+}
+
+// SetDatabase implements blockproducer.DBMetaPersistence.
+func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
+	var metaBuf *bytes.Buffer
+	if metaBuf, err = utils.EncodeMsgPack(meta); err != nil {
+		return
+	}
+
+	payload := &KayakPayload{
+		Command: CmdSetDatabase,
+		Data:    metaBuf.Bytes(),
+	}
+
+	writeData, err := utils.EncodeMsgPack(payload)
+	if err != nil {
+		log.Errorf("marshal payload failed: %s", err)
+		return err
+	}
+
+	err = s.Runtime.Apply(writeData.Bytes())
+	if err != nil {
+		log.Errorf("Apply set database failed: %s\nPayload:\n	%s", err, writeData)
+	}
+
+	return
+}
+
+// DeleteDatabase implements blockproducer.DBMetaPersistence.
+func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
+	var dataBuf *bytes.Buffer
+	if dataBuf, err = utils.EncodeMsgPack(dbID); err != nil {
+		return
+	}
+	payload := &KayakPayload{
+		Command: CmdDeleteDatabase,
+		Data:    dataBuf.Bytes(),
+	}
+
+	writeData, err := utils.EncodeMsgPack(payload)
+	if err != nil {
+		log.Errorf("marshal payload failed: %s", err)
+		return err
+	}
+
+	err = s.Runtime.Apply(writeData.Bytes())
+	if err != nil {
+		log.Errorf("Apply set database failed: %s\nPayload:\n	%s", err, writeData)
+	}
+
+	return
+}
+
+// GetAllDatabases implements blockproducer.DBMetaPersistence.
+func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err error) {
+	var result [][]interface{}
+	query := "SELECT `meta` FROM `databases` LIMIT 1"
+	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
+		{
+			Pattern: query,
+		},
+	})
+	if err != nil {
+		log.Errorf("Query all database instance meta failed", err)
+		return
+	}
+
+	instances = make([]wt.ServiceInstance, 0, len(result))
+
+	for _, row := range result {
+		if len(row) <= 0 {
+			continue
+		}
+
+		var instance wt.ServiceInstance
+		var rawInstanceMeta []byte
+		var ok bool
+		if rawInstanceMeta, ok = row[0].([]byte); !ok {
+			err = bp.ErrNoSuchDatabase
+			continue
+		}
+
+		if err = utils.DecodeMsgPack(rawInstanceMeta, &instance); err != nil {
+			continue
+		}
+
+		instances = append(instances, instance)
+	}
+
+	if len(instances) > 0 {
+		err = nil
+	}
+
+	return
+}
+
 // GetAllNodeInfo implements consistent.Persistence
 func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	var result [][]interface{}
-	mh := &codec.MsgpackHandle{}
 	//sql := fmt.Sprintf("SELECT `node` FROM `dht` WHERE `id` = 't%s' LIMIT 1;", id)
 	sql := fmt.Sprintf("SELECT `node` FROM `dht`;")
 	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
@@ -278,9 +447,7 @@ func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 		}
 
 		nodeDec := proto.NewNode()
-		reader := bytes.NewReader(nodeBytes)
-		dec := codec.NewDecoder(reader, mh)
-		err = dec.Decode(nodeDec)
+		err = utils.DecodeMsgPack(nodeBytes, nodeDec)
 		if err != nil {
 			log.Errorf("unmarshal node info failed: %s", err)
 			continue

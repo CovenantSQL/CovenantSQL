@@ -42,7 +42,7 @@ type ServiceInstance struct {
 	GenesisBlock *ct.Block
 }
 
-// InitServiceResponseHeader defines worker service init response header.
+// InitServiceResponse defines worker service init response.
 type InitServiceResponse struct {
 	Instances []ServiceInstance
 }

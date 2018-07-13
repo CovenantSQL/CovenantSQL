@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"math/rand"
-	"net"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +32,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 )
 
 // conn implements an interface sql.Conn.
@@ -248,22 +248,6 @@ func (c *conn) addQuery(queryType wt.QueryType, query *storage.Query) (rows driv
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows driver.Rows, err error) {
-	// dial remote node
-	var conn net.Conn
-	// TODO(xq262144), add connection pool support
-	// currently connection pool server endpoint is not fully functional
-	if conn, err = rpc.DialToNode(c.peers.Leader.ID, nil); err != nil {
-		return
-	}
-	defer conn.Close()
-
-	// dial
-	var client *rpc.Client
-	if client, err = rpc.InitClientConn(conn); err != nil {
-		return
-	}
-	defer client.Close()
-
 	// build request
 	seqNo := atomic.AddUint64(&c.seqNo, 1)
 	req := &wt.Request{
@@ -288,7 +272,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 	}
 
 	var response wt.Response
-	if err = client.Call("DBS.Query", req, &response); err != nil {
+	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, "DBS.Query", req, &response); err != nil {
 		return
 	}
 
@@ -316,7 +300,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 	var ackRes wt.AckResponse
 
 	// send ack back
-	if err = client.Call("DBS.Ack", ack, &ackRes); err != nil {
+	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, "DBS.Ack", ack, &ackRes); err != nil {
 		return
 	}
 
@@ -326,18 +310,16 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 }
 
 func (c *conn) getPeers() (err error) {
-	// TODO(xq262144), update local peers setting from BP
-	// currently set static peers to localhost
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+	// TODO(xq262144)consider periodic calling this or implement Pinger interface for instance peers update.
+	req := &bp.GetDatabaseRequest{
+		DatabaseID: c.dbID,
+	}
+	res := new(bp.GetDatabaseResponse)
+	if err = requestBP("BP.GetDatabase", req, res); err != nil {
 		return
 	}
 
-	c.peers = &kayak.Peers{
-		Leader: &kayak.Server{
-			ID: nodeID,
-		},
-	}
+	c.peers = res.InstanceMeta.Peers
 
 	return
 }

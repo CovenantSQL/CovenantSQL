@@ -19,7 +19,6 @@ package client
 import (
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -43,11 +42,9 @@ import (
 )
 
 var (
-	rootHash         = hash.Hash{}
-	stopTestService  func()
+	rootHash        = hash.Hash{}
+	stopTestService func()
 )
-
-const PubKeyStorePath = "./public.keystore"
 
 // TODO(xq262144), to be replaced with standalone miner binary
 func startTestService() (err error) {
@@ -241,20 +238,7 @@ func testRequest(method string, req interface{}, response interface{}) (err erro
 		return
 	}
 
-	var conn net.Conn
-	if conn, err = rpc.DialToNode(nodeID, nil); err != nil {
-		return
-	}
-
-	var client *rpc.Client
-	if client, err = rpc.InitClientConn(conn); err != nil {
-		conn.Close()
-		return
-	}
-
-	defer client.Close()
-
-	return client.Call(realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
 }
 
 func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, err error) {

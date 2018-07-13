@@ -96,10 +96,22 @@ func TestStartBP_CallRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
 	nodePayload.Addr = "nodePayloadAddr"
+
+	var reqType = "Ping"
+	reqPing := &proto.PingReq{
+		Node: *nodePayload,
+	}
+	respPing := new(proto.PingResp)
+	err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
+	log.Debugf("respPing %s: %##v", reqType, respPing)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqType = "FindNeighbor"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
 		NodeID: proto.NodeID(nodePayload.ID),
@@ -114,10 +126,10 @@ func TestStartBP_CallRPC(t *testing.T) {
 	}
 
 	reqType = "Ping"
-	reqPing := &proto.PingReq{
+	reqPing = &proto.PingReq{
 		Node: *nodePayload,
 	}
-	respPing := new(proto.PingResp)
+	respPing = new(proto.PingResp)
 	err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
 	log.Debugf("respPing %s: %##v", reqType, respPing)
 	if err != nil {

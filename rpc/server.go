@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"io"
 	"net"
 	"net/rpc"
 
@@ -135,6 +136,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
+sessionLoop:
 	for {
 		select {
 		//TODO(auxten) stop loop here
@@ -144,7 +146,12 @@ func (s *Server) handleConn(conn net.Conn) {
 		default:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
+				if err == io.EOF {
+					log.Info("session connection closed")
+					break sessionLoop
+				}
 				log.Errorf("session accept failed: %s", err)
+
 				continue
 			}
 			log.Debugf("session accepted %d", muxConn.StreamID())

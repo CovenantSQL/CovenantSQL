@@ -30,5 +30,5 @@ test-my-project:
     - goverage -coverprofile=coverage.txt ./...
     - bash <(curl -s https://codecov.io/bash)
     - >-
-      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=gitlab-mr-commit
+      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=gitlab-mr-commit || true
 

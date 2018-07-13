@@ -27,7 +27,6 @@ import (
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -209,16 +208,7 @@ func (dbms *DBMS) Create(instance *wt.ServiceInstance, cleanup bool) (err error)
 		MaxWriteTimeGap: dbms.cfg.MaxWriteTimeGap,
 	}
 
-	// parse genesis block
-	var block *ct.Block
-
-	// TODO(xq262144), temporary using msgpack marshal/unmarshal
-	// TODO(xq262144), to be refined later using optimal sqlchain api
-	if err = utils.DecodeMsgPack(instance.GenesisBlock, &block); err != nil {
-		return
-	}
-
-	if db, err = NewDatabase(dbCfg, instance.Peers, block); err != nil {
+	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {
 		return
 	}
 

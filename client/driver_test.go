@@ -17,8 +17,6 @@
 package client
 
 import (
-	"bytes"
-	"encoding/hex"
 	"io/ioutil"
 	"math/rand"
 	"net"
@@ -39,7 +37,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -47,7 +44,6 @@ import (
 
 var (
 	rootHash         = hash.Hash{}
-	cachedOriginalBP *conf.BPInfo
 	stopTestService  func()
 )
 
@@ -101,28 +97,19 @@ func startTestService() (err error) {
 	// create sqlchain block
 	block, err = createRandomBlock(rootHash, true)
 
-	// fake current node as block producer node
-	if err = fakeMySelfAsBP(); err != nil {
-		return
-	}
-
-	var blockBuffer *bytes.Buffer
-	if blockBuffer, err = utils.EncodeMsgPack(block); err != nil {
-		return
-	}
-
 	// get database peers
 	if peers, err = getPeers(1); err != nil {
 		return
 	}
 
 	// build create database request
-	if req, err = buildUpdateRequest(wt.CreateDB, &wt.ServiceInstance{
-		DatabaseID:   dbID,
-		Peers:        peers,
-		GenesisBlock: blockBuffer.Bytes(),
-	}); err != nil {
-		return
+	req = &wt.UpdateService{
+		Op: wt.CreateDB,
+		Instance: wt.ServiceInstance{
+			DatabaseID:   dbID,
+			Peers:        peers,
+			GenesisBlock: block,
+		},
 	}
 
 	// send create database request
@@ -245,36 +232,12 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	return
 }
 
-func buildUpdateRequest(opType wt.UpdateType, instance *wt.ServiceInstance) (req *wt.UpdateService, err error) {
-	// get private/public key
-	var pubKey *asymmetric.PublicKey
-	var privateKey *asymmetric.PrivateKey
-
-	if privateKey, pubKey, err = getKeys(); err != nil {
-		return
-	}
-
-	req = &wt.UpdateService{
-		Header: wt.SignedUpdateServiceHeader{
-			UpdateServiceHeader: wt.UpdateServiceHeader{
-				Op:       opType,
-				Instance: *instance,
-			},
-			Signee: pubKey,
-		},
-	}
-
-	err = req.Sign(privateKey)
-
-	return
-}
-
 func testRequest(method string, req interface{}, response interface{}) (err error) {
 	realMethod := "DBS." + method
 
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -294,67 +257,6 @@ func testRequest(method string, req interface{}, response interface{}) (err erro
 	return client.Call(realMethod, req, response)
 }
 
-func restoreBP() {
-	if cachedOriginalBP != nil {
-		kms.BP = cachedOriginalBP
-		cachedOriginalBP = nil
-	}
-}
-
-func fakeMySelfAsBP() (err error) {
-	// TODO(xq262144), currently modifies kms.BP global variable to override current node as BP node
-
-	// save current bp
-	cachedOriginalBP = kms.BP
-	kms.BP = &conf.BPInfo{}
-
-	// get private/public key
-	var pubKey *asymmetric.PublicKey
-
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
-	kms.BP.PublicKeyStr = hex.EncodeToString(pubKey.Serialize())
-	kms.BP.PublicKey = pubKey
-
-	// get node id
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
-	var rawNodeHash *hash.Hash
-	if rawNodeHash, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-
-	kms.BP.NodeID = proto.NodeID(rawNodeHash.String())
-	kms.BP.RawNodeID = proto.RawNodeID{Hash: *rawNodeHash}
-
-	var nonce *cpuminer.Uint256
-	if nonce, err = kms.GetLocalNonce(); err != nil {
-		return
-	}
-
-	kms.BP.Nonce = *nonce
-
-	return
-}
-
-func getNodeID() (nodeID proto.NodeID, err error) {
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
-	return
-}
-
 func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, err error) {
 	// get public key
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -372,7 +274,7 @@ func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, er
 func getPeers(term uint64) (peers *kayak.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 

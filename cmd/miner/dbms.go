@@ -100,8 +100,8 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 			}
 
 			// load genesis block
-			var blockBytes []byte
-			if blockBytes, err = loadGenesisBlock(testFixture); err != nil {
+			var block *ct.Block
+			if block, err = loadGenesisBlock(testFixture); err != nil {
 				return
 			}
 
@@ -109,7 +109,7 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 			instance := &wt.ServiceInstance{
 				DatabaseID:   testFixture.DatabaseID,
 				Peers:        dbPeers,
-				GenesisBlock: blockBytes,
+				GenesisBlock: block,
 			}
 			if err = dbms.Create(instance, false); err != nil {
 				return
@@ -120,19 +120,19 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 	return
 }
 
-func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (blockBytes []byte, err error) {
+func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *ct.Block, err error) {
 	if fixture.GenesisBlockFile == "" {
 		err = os.ErrNotExist
 		return
 	}
 
+	var blockBytes []byte
 	if blockBytes, err = ioutil.ReadFile(fixture.GenesisBlockFile); err == nil {
 		return
 	}
 
 	if os.IsNotExist(err) && fixture.AutoGenerateGenesisBlock {
 		// generate
-		var block *ct.Block
 		if block, err = createRandomBlock(rootHash, true); err != nil {
 			return
 		}
@@ -146,9 +146,9 @@ func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (blockBytes []byte, er
 		blockBytes = bytesBuffer.Bytes()
 
 		// write to file
-		if err = ioutil.WriteFile(fixture.GenesisBlockFile, blockBytes, 0644); err != nil {
-			return
-		}
+		err = ioutil.WriteFile(fixture.GenesisBlockFile, blockBytes, 0644)
+	} else {
+		err = utils.DecodeMsgPack(blockBytes, &block)
 	}
 
 	return

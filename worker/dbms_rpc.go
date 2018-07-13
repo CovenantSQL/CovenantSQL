@@ -82,11 +82,6 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 
 // Update rpc, called by BP to create/drop database and update peers.
 func (rpc *DBMSRPCService) Update(req *wt.UpdateService, _ *wt.UpdateServiceResponse) (err error) {
-	// verify signature/checksum
-	if err = req.Verify(); err != nil {
-		return
-	}
-
 	// verify request node is block producer
 	if !route.IsBPNodeID(req.Envelope.NodeID) {
 		err = ErrInvalidRequest
@@ -94,13 +89,13 @@ func (rpc *DBMSRPCService) Update(req *wt.UpdateService, _ *wt.UpdateServiceResp
 	}
 
 	// create/drop/update
-	switch req.Header.Op {
+	switch req.Op {
 	case wt.CreateDB:
-		err = rpc.dbms.Create(&req.Header.Instance, true)
+		err = rpc.dbms.Create(&req.Instance, true)
 	case wt.UpdateDB:
-		err = rpc.dbms.Update(&req.Header.Instance)
+		err = rpc.dbms.Update(&req.Instance)
 	case wt.DropDB:
-		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
+		err = rpc.dbms.Drop(req.Instance.DatabaseID)
 	}
 
 	return

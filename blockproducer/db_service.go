@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"math/rand"
+	"sync"
 
 	dto "github.com/prometheus/client_model/go"
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -28,9 +29,9 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/metric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	"sync"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 const (
@@ -63,19 +64,8 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	var peers *kayak.Peers
 	peers, err = s.allocateNodes(0, dbID, req.ResourceMeta)
 
-	// get node keys
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	// TODO(xq262144), call accounting features, top up deposit
-	var genesisBlock []byte
+	var genesisBlock *ct.Block
 	if genesisBlock, err = s.generateGenesisBlock(dbID, req.ResourceMeta); err != nil {
 		return
 	}
@@ -88,43 +78,25 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	// call miner nodes to provide service
 	initSvcReq := &wt.UpdateService{
-		Header: wt.SignedUpdateServiceHeader{
-			UpdateServiceHeader: wt.UpdateServiceHeader{
-				Op: wt.CreateDB,
-				Instance: wt.ServiceInstance{
-					DatabaseID:   dbID,
-					Peers:        peers,
-					GenesisBlock: genesisBlock,
-				},
-			},
-			Signee: pubKey,
+		Op: wt.CreateDB,
+		Instance: wt.ServiceInstance{
+			DatabaseID:   dbID,
+			Peers:        peers,
+			GenesisBlock: genesisBlock,
 		},
-	}
-
-	if err = initSvcReq.Sign(privKey); err != nil {
-		return
 	}
 
 	rollbackReq := &wt.UpdateService{
-		Header: wt.SignedUpdateServiceHeader{
-			UpdateServiceHeader: wt.UpdateServiceHeader{
-				Op: wt.DropDB,
-				Instance: wt.ServiceInstance{
-					DatabaseID: dbID,
-				},
-			},
-			Signee: pubKey,
+		Op: wt.DropDB,
+		Instance: wt.ServiceInstance{
+			DatabaseID: dbID,
 		},
-	}
-
-	if err = rollbackReq.Sign(privKey); err != nil {
-		return
 	}
 
 	err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers))
 
 	// save to meta
-	instanceMeta := DBInstanceMeta{
+	instanceMeta := wt.ServiceInstance{
 		DatabaseID:   dbID,
 		Peers:        peers,
 		ResourceMeta: req.ResourceMeta,
@@ -147,37 +119,18 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	// TODO(xq262144), verify identity
 	// verify identity and database belonging
 
-	// call miner nodes to drop database
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	// get database peers
-	var instanceMeta DBInstanceMeta
+	var instanceMeta wt.ServiceInstance
 	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
 		return
 	}
 
+	// call miner nodes to drop database
 	dropDBSvcReq := &wt.UpdateService{
-		Header: wt.SignedUpdateServiceHeader{
-			UpdateServiceHeader: wt.UpdateServiceHeader{
-				Op: wt.DropDB,
-				Instance: wt.ServiceInstance{
-					DatabaseID: req.DatabaseID,
-				},
-			},
-			Signee: pubKey,
+		Op: wt.DropDB,
+		Instance: wt.ServiceInstance{
+			DatabaseID: req.DatabaseID,
 		},
-	}
-
-	if err = dropDBSvcReq.Sign(privKey); err != nil {
-		return
 	}
 
 	if err = s.batchSendSvcReq(dropDBSvcReq, nil, s.peersToNodes(instanceMeta.Peers)); err != nil {
@@ -206,7 +159,7 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 	// verify identity and database belonging
 
 	// fetch from meta
-	var instanceMeta DBInstanceMeta
+	var instanceMeta wt.ServiceInstance
 	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
 		return
 	}
@@ -218,9 +171,9 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 }
 
 // GetNodeDatabases defines block producer get node databases logic.
-func (s *DBService) GetNodeDatabases(req *GetNodeDatabasesRequest, resp *GetNodeDatabasesResponse) (err error) {
+func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
 	// fetch from meta
-	var instances []DBInstanceMeta
+	var instances []wt.ServiceInstance
 	if instances, err = s.ServiceMap.GetDatabases(proto.NodeID(req.GetNodeID().String())); err != nil {
 		return
 	}
@@ -256,7 +209,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 	return
 }
 
-func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta DBResourceMeta) (peers *kayak.Peers, err error) {
+func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *kayak.Peers, err error) {
 	curRange := int(resourceMeta.Node)
 	excludeNodes := make(map[proto.NodeID]bool)
 	allocated := make([]proto.NodeID, 0)
@@ -398,7 +351,7 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 	return
 }
 
-func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta DBResourceMeta) (genesisBlock []byte, err error) {
+func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (genesisBlock *ct.Block, err error) {
 	// TODO(xq262144), to be completed in the future
 	return
 }

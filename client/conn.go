@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -65,7 +64,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 
 	// get local node id
 	var nodeID proto.NodeID
-	if nodeID, err = getLocalNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -330,7 +329,7 @@ func (c *conn) getPeers() (err error) {
 	// TODO(xq262144), update local peers setting from BP
 	// currently set static peers to localhost
 	var nodeID proto.NodeID
-	if nodeID, err = getLocalNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -340,20 +339,6 @@ func (c *conn) getPeers() (err error) {
 		},
 	}
 
-	return
-}
-
-func getLocalNodeID() (nodeID proto.NodeID, err error) {
-	// TODO(xq262144), to use refactored node id interface by kms
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
 	return
 }
 

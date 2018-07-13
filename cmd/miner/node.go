@@ -24,12 +24,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"golang.org/x/crypto/ssh/terminal"
+	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 func initNode() (server *rpc.Server, err error) {
@@ -56,34 +54,8 @@ func initNode() (server *rpc.Server, err error) {
 
 	log.Infof("init routes")
 
-	route.InitResolver()
-	kms.InitPublicKeyStore(pubKeyPath, nil)
-
-	// set known nodes
-	for _, p := range (*conf.GConf.KnownNodes)[:] {
-		var rawNodeIDHash *hash.Hash
-		rawNodeIDHash, err = hash.NewHashFromStr(string(p.ID))
-		if err != nil {
-			log.Errorf("load hash from node id failed: %s", err)
-			return
-		}
-		log.Debugf("set node addr: %v, %v", rawNodeIDHash, p.Addr)
-		rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
-		route.SetNodeAddrCache(rawNodeID, p.Addr)
-		node := &proto.Node{
-			ID:        p.ID,
-			Addr:      p.Addr,
-			PublicKey: p.PublicKey,
-			Nonce:     p.Nonce,
-		}
-		err = kms.SetNode(node)
-		if err != nil {
-			log.Errorf("set node failed: %v\n %s", node, err)
-		}
-		if p.ID == conf.GConf.ThisNodeID {
-			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &p.Nonce)
-		}
-	}
+	// init kms routing
+	route.InitKMS(pubKeyPath)
 
 	// init server
 	if server, err = createServer(privKeyPath, pubKeyPath, masterKey, conf.GConf.ListenAddr); err != nil {

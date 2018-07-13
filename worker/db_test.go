@@ -419,7 +419,7 @@ func TestDatabaseRecycle(t *testing.T) {
 func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -462,7 +462,7 @@ func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64
 func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -509,7 +509,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 func getPeers(term uint64) (peers *kayak.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -534,19 +534,6 @@ func getPeers(term uint64) (peers *kayak.Peers, err error) {
 		PubKey:  pubKey,
 	}
 	err = peers.Sign(privateKey)
-	return
-}
-
-func getNodeID() (nodeID proto.NodeID, err error) {
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
 	return
 }
 

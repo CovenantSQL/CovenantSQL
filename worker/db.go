@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
@@ -98,7 +97,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	// init chain
 	var nodeID proto.NodeID
 	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
-	if nodeID, err = getLocalNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -240,7 +239,7 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 	// build response
 	response = new(wt.Response)
 	response.Header.Request = request.Header
-	if response.Header.NodeID, err = getLocalNodeID(); err != nil {
+	if response.Header.NodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 	response.Header.Timestamp = getLocalTime()
@@ -288,20 +287,6 @@ func (db *Database) saveAck(ack *wt.Ack) (err error) {
 func getLocalTime() time.Time {
 	// TODO(xq262144), to use same time coordination logic with sqlchain
 	return time.Now().UTC()
-}
-
-func getLocalNodeID() (nodeID proto.NodeID, err error) {
-	// TODO(xq262144), to use refactored node id interface by kms
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
-	return
 }
 
 func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {

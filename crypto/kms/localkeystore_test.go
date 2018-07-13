@@ -17,13 +17,13 @@
 package kms
 
 import (
-	"testing"
-
 	"bytes"
+	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 func TestLocalKeyStore(t *testing.T) {
@@ -52,7 +52,7 @@ func TestLocalKeyStore(t *testing.T) {
 	Convey("set and get key", t, func() {
 		initLocalKeyStore()
 		So(localKey, ShouldNotBeNil)
-		gotID, err := GetLocalNodeID()
+		gotID, err := GetLocalNodeIDBytes()
 		So(gotID, ShouldBeNil)
 		So(err, ShouldEqual, ErrNilField)
 		gotNonce, err := GetLocalNonce()
@@ -60,11 +60,16 @@ func TestLocalKeyStore(t *testing.T) {
 		So(err, ShouldEqual, ErrNilField)
 		SetLocalNodeIDNonce([]byte("aaa"), nil)
 		SetLocalNodeIDNonce([]byte("aaa"), &mine.Uint256{1, 1, 1, 1})
-		gotID, err = GetLocalNodeID()
+		gotID, err = GetLocalNodeIDBytes()
 		So(bytes.Compare(gotID, []byte("aaa")), ShouldBeZeroValue)
 		So(err, ShouldBeNil)
 		gotNonce, err = GetLocalNonce()
 		So(*gotNonce == mine.Uint256{1, 1, 1, 1}, ShouldBeTrue)
 		So(err, ShouldBeNil)
+		rawNodeID := &proto.RawNodeID{}
+		nodeIDBefore := rawNodeID.ToNodeID()
+		SetLocalNodeIDNonce(nodeIDBefore.ToRawNodeID().CloneBytes(), nil)
+		nodeID, err := GetLocalNodeID()
+		So(nodeID, ShouldResemble, nodeIDBefore)
 	})
 }

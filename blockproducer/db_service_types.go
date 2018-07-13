@@ -18,18 +18,19 @@ package blockproducer
 
 import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 // CreateDatabaseRequest defines client create database rpc request entity.
 type CreateDatabaseRequest struct {
 	proto.Envelope
-	ResourceMeta DBResourceMeta
+	ResourceMeta wt.ResourceMeta
 }
 
 // CreateDatabaseResponse defines client create database rpc response entity.
 type CreateDatabaseResponse struct {
 	proto.Envelope
-	InstanceMeta DBInstanceMeta
+	InstanceMeta wt.ServiceInstance
 }
 
 // DropDatabaseRequest defines client drop database rpc request entity.
@@ -52,16 +53,5 @@ type GetDatabaseRequest struct {
 // GetDatabaseResponse defines client get database rpc response entity.
 type GetDatabaseResponse struct {
 	proto.Envelope
-	InstanceMeta DBInstanceMeta
-}
-
-// GetNodeDatabasesRequest defines miner get node databases rpc request entity.
-type GetNodeDatabasesRequest struct {
-	proto.Envelope
-}
-
-// GetNodeDatabasesResponse defines miner get node databases rpc response entity.
-type GetNodeDatabasesResponse struct {
-	proto.Envelope
-	Instances []DBInstanceMeta
+	InstanceMeta wt.ServiceInstance
 }

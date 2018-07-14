@@ -7,7 +7,7 @@ import (
 )
 
 func TestAccount_MarshalUnmarshaler(t *testing.T) {
-	account := GenerateRandomAccount()
+	account := generateRandomAccount()
 	b, err := account.MarshalBinary()
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -25,12 +25,12 @@ func TestAccount_MarshalUnmarshaler(t *testing.T) {
 }
 
 func TestAccount_AppendSQLChainAndRole(t *testing.T) {
-	account := GenerateRandomAccount()
+	account := generateRandomAccount()
 	if len(account.Roles) != len(account.SQLChains) {
 		t.Fatalf("length not match: %+v", account)
 	}
 
-	databaseID := proto.DatabaseID(RandStringBytes(32))
+	databaseID := proto.DatabaseID(randStringBytes(32))
 	role := Customer
 	account.AppendSQLChainAndRole(&databaseID, role)
 

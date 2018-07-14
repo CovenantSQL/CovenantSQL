@@ -28,7 +28,7 @@ func (a *Account) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
-		a.Address,
+		&a.Address,
 		a.StableCoinBalance,
 		a.ThunderCoinBalance,
 		&a.SQLChains,

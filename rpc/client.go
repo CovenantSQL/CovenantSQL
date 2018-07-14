@@ -134,7 +134,7 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 		log.Errorf("get local private key failed: %s", err)
 		return
 	}
-	log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
+	//log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
 	symmetricKey := asymmetric.GenECDHSharedSecret(localPrivateKey, nodePublicKey)
 
 	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)

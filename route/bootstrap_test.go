@@ -50,13 +50,25 @@ func TestGetSRV(t *testing.T) {
 
 func TestGetBP(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_c/config.yaml")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %v", conf.GConf)
 
 	dc := NewDNSClient()
-
 	ips, err := dc.GetBPIDAddrMap(BPDomain)
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	} else {
 		log.Debugf("BP addresses: %v", ips)
+	}
+
+	// not DNSSEC domain
+	ips, err = dc.GetBPIDAddrMap("_bp._tcp.gridbase.io.")
+	if err == nil {
+		t.Fatal("should be error")
+	} else {
+		log.Debugf("Error: %v", err)
 	}
 }

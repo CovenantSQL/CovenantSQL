@@ -44,7 +44,7 @@ const (
 	MetricFreeFSBytes = "node_filesystem_free_bytes_total"
 	// DefaultAllocationRounds defines max rounds to try allocate peers for database creation.
 	DefaultAllocationRounds = 3
-	// ServiceName for block producer to provide database management related logic.
+	// DBServiceName for block producer to provide database management related logic.
 	DBServiceName = "BPDB"
 )
 

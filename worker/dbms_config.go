@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	// DefaultWriteTimeGap defines max time gap between request and server.
+	// DefaultMaxWriteTimeGap defines max time gap between request and server.
 	DefaultMaxWriteTimeGap = time.Second * 5
 )
 

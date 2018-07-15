@@ -26,8 +26,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// ServerRole define the role of node to be leader/coordinator in peer set.
+// ServerRole defines the role of node to be leader/coordinator in peer set.
 type ServerRole int
+
+// these const specify the role of this app, which can be "miner", "blockProducer"
+const (
+	MinerBuildTag         = "M"
+	BlockProducerBuildTag = "B"
+	ClientBuildTag        = "C"
+	UnknownBuildTag       = "U"
+)
+
+// RoleTag indicate which role the daemon is playing
+var RoleTag = UnknownBuildTag
 
 const (
 	// Leader is a server that have the ability to organize committing requests.

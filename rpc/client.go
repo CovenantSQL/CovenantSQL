@@ -23,9 +23,7 @@ import (
 
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -42,12 +40,13 @@ var (
 	// YamuxConfig holds the default Yamux config
 	YamuxConfig *yamux.Config
 	// DefaultDialer holds the default dialer of SessionPool
-	DefaultDialer = dialToNode
+	DefaultDialer func(nodeID proto.NodeID) (conn net.Conn, err error)
 )
 
 func init() {
 	YamuxConfig = yamux.DefaultConfig()
 	YamuxConfig.LogOutput = log.StandardLogger().Out
+	DefaultDialer = dialToNode
 }
 
 // dial connects to a address with a Cipher
@@ -107,39 +106,17 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool) (conn net.Conn, err erro
 
 // dialToNode connects to the node with nodeID
 func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
-	var nodePublicKey *asymmetric.PublicKey
-	var rawNodeID = new(proto.RawNodeID)
-	err = hash.Decode(&rawNodeID.Hash, string(nodeID))
-	if err != nil {
-		log.Errorf("decode node id error: %s", err)
-		return
-	}
+	var rawNodeID = nodeID.ToRawNodeID()
 
-	if route.IsBPNodeID(rawNodeID) {
-		nodePublicKey = kms.BP.PublicKey
-	} else {
-		nodePublicKey, err = kms.GetPublicKey(nodeID)
-		if err != nil {
-			log.Infof("get public key for %s locally failed: %s", nodeID, err)
-			if err == kms.ErrKeyNotFound {
-				// TODO(auxten): get node public key form BP
-			} else {
-				log.Errorf("get public key failed: %s, err: %s", nodeID, err)
-				return
-			}
-		}
-	}
-	localPrivateKey, err := kms.GetLocalPrivateKey()
+	symmetricKey, err := GetSharedSecretWith(rawNodeID)
 	if err != nil {
-		log.Errorf("get local private key failed: %s", err)
+		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
 		return
 	}
-	//log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
-	symmetricKey := asymmetric.GenECDHSharedSecret(localPrivateKey, nodePublicKey)
 
 	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)
 	if err != nil {
-		log.Errorf("resolve node id failed: %s, err: %s", *rawNodeID, err)
+		log.Errorf("resolve node %x failed, err: %s", *rawNodeID, err)
 		return
 	}
 

@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -91,6 +92,21 @@ func TestCaller_CallNode(t *testing.T) {
 	Convey("test GetNodeAddr", t, func() {
 		So(err, ShouldBeNil)
 		So(node1addr, ShouldEqual, node1.Addr)
+	})
+
+	node2, err := GetNodeInfo(node1.ID.ToRawNodeID())
+	Convey("test GetNodeInfo", t, func() {
+		So(err, ShouldBeNil)
+		So(node2.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)
+		log.Debugf("\nnode1 %##v \nnode2 %##v", node1, node2)
+	})
+
+	kms.DelNode(node2.ID)
+	node2, err = GetNodeInfo(node1.ID.ToRawNodeID())
+	Convey("test GetNodeInfo", t, func() {
+		So(err, ShouldBeNil)
+		So(node2.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)
+		log.Debugf("\nnode1 %##v \nnode2 %##v", node1, node2)
 	})
 
 	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)

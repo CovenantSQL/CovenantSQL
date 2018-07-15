@@ -18,16 +18,17 @@ package client
 
 import (
 	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 func TestInit(t *testing.T) {
 	// test init
 	Convey("test init", t, func() {
 		var err error
-		err = Init("../test/node_driver/config.yaml")
+		err = Init("../test/node_standalone/config.yaml")
 		So(err, ShouldBeNil)
 		// test loaded block producer nodes
 		bps := route.GetBPs()

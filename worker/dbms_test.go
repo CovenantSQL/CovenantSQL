@@ -18,18 +18,17 @@ package worker
 
 import (
 	"io/ioutil"
-	"net"
 	"os"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 )
 
 func TestDBMS(t *testing.T) {
@@ -138,7 +137,7 @@ func TestDBMS(t *testing.T) {
 				var writeQuery *wt.Request
 				var queryRes *wt.Response
 				writeQuery, err = buildQueryWithDatabaseID(wt.WriteQuery, 1, 1,
-					proto.DatabaseID("db2"), []string{
+					proto.DatabaseID("db_not_exists"), []string{
 						"create table test (test int)",
 						"insert into test values(1)",
 					})
@@ -203,18 +202,5 @@ func testRequest(method string, req interface{}, response interface{}) (err erro
 		return
 	}
 
-	var conn net.Conn
-	if conn, err = rpc.DialToNode(nodeID, nil); err != nil {
-		return
-	}
-
-	var client *rpc.Client
-	if client, err = rpc.InitClientConn(conn); err != nil {
-		conn.Close()
-		return
-	}
-
-	defer client.Close()
-
-	return client.Call(realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
 }

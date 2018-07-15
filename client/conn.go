@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -32,7 +33,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 )
 
 // conn implements an interface sql.Conn.

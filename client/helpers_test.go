@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -39,7 +40,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
-	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 )
 
 var (
@@ -196,8 +196,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_driver/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_driver/private.key")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)

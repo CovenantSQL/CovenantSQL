@@ -28,6 +28,7 @@ import (
 
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -562,8 +563,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
 	os.Remove(pubKeyStoreFile + "_c")
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	// reset the once
@@ -583,21 +584,24 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		return
 	}
 
+	// register bpdb service
+	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+		return
+	}
+
 	// init private key
 	masterKey := []byte("")
-	addr := "127.0.0.1:0"
-	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey)
 
 	// start server
 	go server.Serve()
-
-	// fixme: force set the bp addr to this server
-	route.SetNodeAddrCache(&conf.GConf.BP.RawNodeID, server.Listener.Addr().String())
 
 	cleanupFunc = func() {
 		os.RemoveAll(d)
 		server.Listener.Close()
 		server.Stop()
+		// clear the connection pool
+		rpc.GetSessionPoolInstance().Close()
 	}
 
 	return
@@ -659,5 +663,69 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	}
 
 	err = b.PackAndSignBlock(priv)
+	return
+}
+
+// fake BPDB service
+type stubBPDBService struct{}
+
+func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
+	resp.InstanceMeta, err = s.getInstanceMeta("db2")
+	return
+}
+
+func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.DropDatabaseRequest) (err error) {
+	return
+}
+
+func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
+	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
+	return
+}
+
+func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
+	resp.Instances = make([]wt.ServiceInstance, 1)
+	resp.Instances[0], err = s.getInstanceMeta("db2")
+	return
+}
+
+func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	var nodeID proto.NodeID
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	instance.DatabaseID = proto.DatabaseID(dbID)
+	instance.Peers = &kayak.Peers{
+		Term: 1,
+		Leader: &kayak.Server{
+			Role:   conf.Leader,
+			ID:     nodeID,
+			PubKey: pubKey,
+		},
+		Servers: []*kayak.Server{
+			{
+				Role:   conf.Leader,
+				ID:     nodeID,
+				PubKey: pubKey,
+			},
+		},
+		PubKey: pubKey,
+	}
+	if err = instance.Peers.Sign(privKey); err != nil {
+		return
+	}
+	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
+
 	return
 }

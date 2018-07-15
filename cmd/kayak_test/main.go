@@ -53,7 +53,7 @@ const (
 	pubKeyStoreFile     = "public.keystore"
 	privateKeyFile      = "private.key"
 	privateKeyMasterKey = "abc"
-	kayakServiceName    = "kayak"
+	kayakServiceName    = "Kayak"
 	dbServiceName       = "Database"
 	dbFileName          = "storage.db"
 )

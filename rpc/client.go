@@ -116,7 +116,7 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 
 	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)
 	if err != nil {
-		log.Errorf("resolve node id failed: %x, err: %s", *rawNodeID, err)
+		log.Errorf("resolve node %x failed, err: %s", *rawNodeID, err)
 		return
 	}
 

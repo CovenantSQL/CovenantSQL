@@ -19,10 +19,12 @@ package metric
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -67,6 +69,13 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		log.Errorln(resp.Msg)
 		return
 	}
+	if !route.IsPermitted(req.NodeID, route.MetricUploadMetrics) {
+		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
+		resp.Msg = fmt.Sprint(err)
+		log.Error(err)
+		return
+	}
+
 	mfm := make(metricMap, len(req.MFBytes))
 	log.Debugf("RPC received MFS len %d", len(req.MFBytes))
 	for _, mf := range req.MFBytes[:] {

@@ -40,7 +40,7 @@ const (
 	//pubKeyStoreFile  = "public.keystore"
 	//privateKeyFile   = "private.key"
 	//dhtFileName      = "dht.db"
-	kayakServiceName = "kayak"
+	kayakServiceName = "Kayak"
 	dhtServiceName   = "DHT"
 )
 

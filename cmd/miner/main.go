@@ -24,7 +24,6 @@ import (
 	"runtime"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/common"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -72,9 +71,6 @@ var (
 	showVersion bool
 )
 
-// Role indicates the role of current server playing
-const Role = common.Miner
-
 const name = `thunderminerd`
 const desc = `ThunderDB is a Distributed Database running on BlockChain`
 
@@ -97,7 +93,7 @@ func init() {
 func initLogs() {
 	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
 	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
-	log.Infof("role: %s", conf.Role)
+	log.Infof("role: %s", conf.RoleTag)
 }
 
 func main() {

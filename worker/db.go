@@ -180,19 +180,25 @@ func (db *Database) Ack(ack *wt.Ack) (err error) {
 
 // Shutdown stop database handles and stop service the database.
 func (db *Database) Shutdown() (err error) {
-	// shutdown, stop kayak
-	if err = db.kayakRuntime.Shutdown(); err != nil {
-		return
+	if db.kayakRuntime != nil {
+		// shutdown, stop kayak
+		if err = db.kayakRuntime.Shutdown(); err != nil {
+			return
+		}
 	}
 
-	// stop chain
-	if err = db.chain.Stop(); err != nil {
-		return
+	if db.chain != nil {
+		// stop chain
+		if err = db.chain.Stop(); err != nil {
+			return
+		}
 	}
 
-	// stop storage
-	if err = db.storage.Close(); err != nil {
-		return
+	if db.storage != nil {
+		// stop storage
+		if err = db.storage.Close(); err != nil {
+			return
+		}
 	}
 
 	return

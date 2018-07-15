@@ -17,6 +17,8 @@
 package blockproducer
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -38,6 +40,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -189,10 +192,14 @@ func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metri
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
+	dupConfFile := filepath.Join(d, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	if err = dupConf(confFile, dupConfFile); err != nil {
+		return
+	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
-	conf.GConf, _ = conf.LoadConfig(confFile)
+	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
 	route.Once = sync.Once{}
@@ -239,4 +246,22 @@ func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metri
 	}
 
 	return
+}
+
+// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+func dupConf(confFile string, newConfFile string) (err error) {
+	// replace port in confFile
+	var fileBytes []byte
+	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
+		return
+	}
+
+	var ports []int
+	if ports, err = utils.GetRandomPorts("127.0.0.1", 1000, 10000, 1); err != nil {
+		return
+	}
+
+	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
+
+	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

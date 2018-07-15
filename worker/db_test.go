@@ -17,6 +17,8 @@
 package worker
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -43,6 +45,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -59,13 +62,9 @@ func TestSingleDatabase(t *testing.T) {
 		cleanup, server, err = initNode()
 		So(err, ShouldBeNil)
 
-		defer cleanup()
-
 		var rootDir string
 		rootDir, err = ioutil.TempDir("", "db_test_")
 		So(err, ShouldBeNil)
-
-		defer os.RemoveAll(rootDir)
 
 		// create mux service
 		service := ka.NewMuxService("DBKayak", server)
@@ -279,6 +278,12 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 			err = db.UpdatePeers(peers)
 			So(err, ShouldBeNil)
+		})
+
+		Reset(func() {
+			db.Shutdown()
+			os.RemoveAll(rootDir)
+			cleanup()
 		})
 	})
 }
@@ -563,10 +568,14 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
 	os.Remove(pubKeyStoreFile + "_c")
+	dupConfFile := filepath.Join(d, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	if err = dupConf(confFile, dupConfFile); err != nil {
+		return
+	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
-	conf.GConf, _ = conf.LoadConfig(confFile)
+	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	// reset the once
 	route.Once = sync.Once{}
 	route.InitKMS(pubKeyStoreFile + "_c")
@@ -730,4 +739,22 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
 
 	return
+}
+
+// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+func dupConf(confFile string, newConfFile string) (err error) {
+	// replace port in confFile
+	var fileBytes []byte
+	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
+		return
+	}
+
+	var ports []int
+	if ports, err = utils.GetRandomPorts("127.0.0.1", 1000, 10000, 1); err != nil {
+		return
+	}
+
+	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
+
+	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

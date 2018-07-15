@@ -38,14 +38,18 @@ import (
 )
 
 const (
-	// MetricFreeMemoryBytes defines metric name for free memory in miner instance.
-	MetricFreeMemoryBytes = "node_memory_free_bytes_total"
-	// MetricFreeFSBytes defines metric name for free filesystem in miner instance.
-	MetricFreeFSBytes = "node_filesystem_free_bytes_total"
 	// DefaultAllocationRounds defines max rounds to try allocate peers for database creation.
 	DefaultAllocationRounds = 3
 	// DBServiceName for block producer to provide database management related logic.
 	DBServiceName = "BPDB"
+)
+
+var (
+	// MetricKeyFreeMemory enumerates possible free memory metric keys.
+	MetricKeyFreeMemory = []string{
+		"node_memory_free_bytes_total", // mac
+		"node_memory_MemFree_bytes",    // linux
+	}
 )
 
 // DBService defines block producer database service rpc endpoint.
@@ -267,7 +271,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			var metricValue uint64
 
 			// get metric
-			if metricValue, err = s.getMetric(nodeMetric, MetricFreeMemoryBytes); err != nil {
+			if metricValue, err = s.getMetric(nodeMetric, MetricKeyFreeMemory); err != nil {
 				log.Debugf("get node %s memory metric failed", nodeID)
 
 				// add to excludes
@@ -302,24 +306,26 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 	return
 }
 
-func (s *DBService) getMetric(metric metric.MetricMap, key string) (value uint64, err error) {
-	var rawMetric *dto.MetricFamily
-	var ok bool
+func (s *DBService) getMetric(metric metric.MetricMap, keys []string) (value uint64, err error) {
+	for _, key := range keys {
+		var rawMetric *dto.MetricFamily
+		var ok bool
 
-	if rawMetric, ok = metric[key]; !ok || rawMetric == nil {
-		err = ErrMetricNotCollected
-		return
+		if rawMetric, ok = metric[key]; !ok || rawMetric == nil {
+			continue
+		}
+
+		switch rawMetric.GetType() {
+		case dto.MetricType_GAUGE:
+			value = uint64(rawMetric.GetMetric()[0].GetGauge().GetValue())
+			return
+		case dto.MetricType_COUNTER:
+			value = uint64(rawMetric.GetMetric()[0].GetCounter().GetValue())
+			return
+		}
 	}
 
-	switch rawMetric.GetType() {
-	case dto.MetricType_GAUGE:
-		value = uint64(rawMetric.GetMetric()[0].GetGauge().GetValue())
-	case dto.MetricType_COUNTER:
-		value = uint64(rawMetric.GetMetric()[0].GetCounter().GetValue())
-	default:
-		err = ErrMetricNotCollected
-		return
-	}
+	err = ErrMetricNotCollected
 
 	return
 }

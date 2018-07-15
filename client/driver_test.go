@@ -39,10 +39,12 @@ func TestInit(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	Convey("test create", t, func() {
-		startTestService()
+		var stopTestService func()
+		var err error
+		stopTestService, err = startTestService()
+		So(err, ShouldBeNil)
 		defer stopTestService()
 		var dsn string
-		var err error
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 		So(dsn, ShouldEqual, "thunderdb://db")
@@ -51,9 +53,11 @@ func TestCreate(t *testing.T) {
 
 func TestDrop(t *testing.T) {
 	Convey("test drop", t, func() {
-		startTestService()
-		defer stopTestService()
+		var stopTestService func()
 		var err error
+		stopTestService, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
 		err = Drop("thunderdb://db")
 		So(err, ShouldBeNil)
 	})

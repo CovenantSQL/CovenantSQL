@@ -27,11 +27,13 @@ import (
 func TestConn(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	Convey("test connection", t, func() {
-		startTestService()
+		var stopTestService func()
+		var err error
+		stopTestService, err = startTestService()
+		So(err, ShouldBeNil)
 		defer stopTestService()
 
 		var db *sql.DB
-		var err error
 		db, err = sql.Open("thunderdb", "thunderdb://db")
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)
@@ -145,11 +147,13 @@ func TestConn(t *testing.T) {
 
 func TestTransaction(t *testing.T) {
 	Convey("test transaction", t, func() {
-		startTestService()
+		var stopTestService func()
+		var err error
+		stopTestService, err = startTestService()
+		So(err, ShouldBeNil)
 		defer stopTestService()
 
 		var db *sql.DB
-		var err error
 		db, err = sql.Open("thunderdb", "thunderdb://db")
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)

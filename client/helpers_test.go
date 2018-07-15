@@ -17,6 +17,8 @@
 package client
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -37,21 +39,21 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (
-	rootHash        = hash.Hash{}
-	stopTestService func()
+	rootHash = hash.Hash{}
 )
 
 // fake BPDB service
 type stubBPDBService struct{}
 
 func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta()
+	resp.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db"))
 	return
 }
 
@@ -60,17 +62,16 @@ func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.Dro
 }
 
 func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta()
+	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
 	return
 }
 
 func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Instances = make([]wt.ServiceInstance, 1)
-	resp.Instances[0], err = s.getInstanceMeta()
+	resp.Instances = make([]wt.ServiceInstance, 0)
 	return
 }
 
-func (s *stubBPDBService) getInstanceMeta() (instance wt.ServiceInstance, err error) {
+func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
 		return
@@ -86,7 +87,7 @@ func (s *stubBPDBService) getInstanceMeta() (instance wt.ServiceInstance, err er
 		return
 	}
 
-	instance.DatabaseID = proto.DatabaseID("db")
+	instance.DatabaseID = proto.DatabaseID(dbID)
 	instance.Peers = &kayak.Peers{
 		Term: 1,
 		Leader: &kayak.Server{
@@ -112,7 +113,7 @@ func (s *stubBPDBService) getInstanceMeta() (instance wt.ServiceInstance, err er
 }
 
 // TODO(xq262144), to be replaced with standalone miner binary
-func startTestService() (err error) {
+func startTestService() (stopTestService func(), err error) {
 	var server *rpc.Server
 	var cleanup func()
 	if cleanup, server, err = initNode(); err != nil {
@@ -127,7 +128,7 @@ func startTestService() (err error) {
 	cfg := &worker.DBMSConfig{
 		RootDir:         rootDir,
 		Server:          server,
-		MaxWriteTimeGap: time.Second * 5,
+		MaxWriteTimeGap: worker.DefaultMaxWriteTimeGap,
 	}
 
 	var dbms *worker.DBMS
@@ -196,10 +197,13 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
+	dupConfFile := filepath.Join(d, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	if err = dupConf(confFile, dupConfFile); err != nil {
+		return
+	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
-
-	conf.GConf, _ = conf.LoadConfig(confFile)
+	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
 	route.Once = sync.Once{}
@@ -355,4 +359,22 @@ func getPeers(term uint64) (peers *kayak.Peers, err error) {
 	}
 	err = peers.Sign(privateKey)
 	return
+}
+
+// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+func dupConf(confFile string, newConfFile string) (err error) {
+	// replace port in confFile
+	var fileBytes []byte
+	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
+		return
+	}
+
+	var ports []int
+	if ports, err = utils.GetRandomPorts("127.0.0.1", 1000, 10000, 1); err != nil {
+		return
+	}
+
+	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
+
+	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

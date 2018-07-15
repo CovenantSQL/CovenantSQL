@@ -1,5 +1,5 @@
 istestmode: true
-workingroot: "./node_standalone"
+workingroot: "../test/node_standalone"
 pubkeystorefile: "public.keystore"
 privatekeyfile: "private.key"
 dhtfilename: "dht.db"

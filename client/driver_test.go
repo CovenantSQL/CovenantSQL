@@ -28,7 +28,7 @@ func TestInit(t *testing.T) {
 	// test init
 	Convey("test init", t, func() {
 		var err error
-		err = Init("../test/node_standalone/config.yaml")
+		err = Init("../test/node_standalone/config.yaml", []byte(""))
 		So(err, ShouldBeNil)
 		// test loaded block producer nodes
 		bps := route.GetBPs()

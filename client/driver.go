@@ -58,13 +58,14 @@ func (d *thunderDBDriver) Open(dsn string) (conn driver.Conn, err error) {
 type ResourceMeta wt.ResourceMeta
 
 // Init defines init process for client.
-func Init(configFile string) (err error) {
+func Init(configFile string, masterKey []byte) (err error) {
 	// load config
 	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
 		return
 	}
 	pubKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, PubKeyStorePath)
 	route.InitKMS(pubKeyFilePath)
+	err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey)
 	return
 }
 

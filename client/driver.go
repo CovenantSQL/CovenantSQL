@@ -111,7 +111,7 @@ func requestBP(method string, request interface{}, response interface{}) (err er
 	bps = route.GetBPs()
 
 	// choose bp node by nonce
-	bpIdx := int(nonce.D % uint64(len(bps)))
+	bpIdx := int(nonce.A % uint64(len(bps)))
 
 	return rpc.NewCaller().CallNode(bps[bpIdx], method, request, response)
 }

@@ -317,7 +317,7 @@ func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err erro
 
 	// TODO(xq262144), unify block producer calls
 	bps := route.GetBPs()
-	bpID := bps[int(nonce.D%uint64(len(bps)))]
+	bpID := bps[int(nonce.A%uint64(len(bps)))]
 	req := &wt.InitService{}
 	res := new(wt.InitServiceResponse)
 	// TODO(xq262144), maybe we should define service name convention to a single location

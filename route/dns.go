@@ -120,6 +120,10 @@ func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 
 // initBPNodeIDs initializes BlockProducer route and map from config file and DNS Seed
 func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
+	// clear address map before init
+	resolver.bpNodeIDs = make(NodeIDAddressMap)
+	bpNodeIDs = resolver.bpNodeIDs
+
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range (*conf.GConf.KnownNodes)[:] {
 			if n.Role == conf.Leader || n.Role == conf.Follower {
@@ -130,6 +134,8 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 				}
 			}
 		}
+
+		return
 	}
 
 	dc := NewDNSClient()

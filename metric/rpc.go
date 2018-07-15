@@ -112,7 +112,7 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 	}
 	mfb = make([][]byte, 0, len(mfs))
 	for _, mf := range mfs[:] {
-		log.Debugf("mf: %s", *mf)
+		log.Debugf("mf: %#v", *mf)
 		buf := new(bytes.Buffer)
 		//enc := expfmt.NewEncoder(buf, expfmt.FmtProtoCompact)
 		//err = enc.Encode(mf)

@@ -1,0 +1,240 @@
+/*
+ * Copyright 2018 The ThunderDB Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package blockproducer
+
+import (
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/metric"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"gitlab.com/thunderdb/ThunderDB/worker"
+	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+)
+
+const (
+	PubKeyStorePath = "./pubkey.store"
+)
+
+var (
+	rootHash = hash.Hash{}
+)
+
+// copied from sqlchain.xxx_test.
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
+	// Generate key pair
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		return
+	}
+
+	h := hash.Hash{}
+	rand.Read(h[:])
+
+	b = &ct.Block{
+		SignedHeader: ct.SignedHeader{
+			Header: ct.Header{
+				Version:     0x01000000,
+				Producer:    proto.NodeID(h.String()),
+				GenesisHash: rootHash,
+				ParentHash:  parent,
+				Timestamp:   time.Now().UTC(),
+			},
+			Signee:    pub,
+			Signature: nil,
+		},
+		Queries: make([]*hash.Hash, rand.Intn(10)+10),
+	}
+
+	for i := range b.Queries {
+		b.Queries[i] = new(hash.Hash)
+		rand.Read(b.Queries[i][:])
+	}
+
+	if isGenesis {
+		// Compute nonce with public key
+		nonceCh := make(chan cpuminer.NonceInfo)
+		quitCh := make(chan struct{})
+		miner := cpuminer.NewCPUMiner(quitCh)
+		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
+			Data:      pub.Serialize(),
+			NonceChan: nonceCh,
+			Stop:      nil,
+		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
+		nonce := <-nonceCh
+		close(quitCh)
+		close(nonceCh)
+		// Add public key to KMS
+		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
+		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
+		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = b.PackAndSignBlock(priv)
+	return
+}
+
+// fake a persistence driver
+type stubDBMetaPersistence struct{}
+
+func (p *stubDBMetaPersistence) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+	// for test purpose, name with db prefix consider it exists
+	if !strings.HasPrefix(string(dbID), "db") {
+		err = ErrNoSuchDatabase
+		return
+	}
+
+	return p.getInstanceMeta(dbID)
+}
+
+func (p *stubDBMetaPersistence) SetDatabase(meta wt.ServiceInstance) (err error) {
+	return
+}
+
+func (p *stubDBMetaPersistence) DeleteDatabase(dbID proto.DatabaseID) (err error) {
+	return
+}
+
+func (p *stubDBMetaPersistence) GetAllDatabases() (instances []wt.ServiceInstance, err error) {
+	instances = make([]wt.ServiceInstance, 1)
+	instances[0], err = p.getInstanceMeta("db")
+	return
+}
+
+func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	var nodeID proto.NodeID
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	instance.DatabaseID = proto.DatabaseID(dbID)
+	instance.Peers = &kayak.Peers{
+		Term: 1,
+		Leader: &kayak.Server{
+			Role:   conf.Leader,
+			ID:     nodeID,
+			PubKey: pubKey,
+		},
+		Servers: []*kayak.Server{
+			{
+				Role:   conf.Leader,
+				ID:     nodeID,
+				PubKey: pubKey,
+			},
+		},
+		PubKey: pubKey,
+	}
+	if err = instance.Peers.Sign(privKey); err != nil {
+		return
+	}
+	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
+
+	return
+}
+
+func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metric.CollectServer, server *rpc.Server, err error) {
+	var d string
+	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
+		return
+	}
+	log.Debugf("temp dir: %s", d)
+
+	// init conf
+	_, testFile, _, _ := runtime.Caller(0)
+	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
+	os.Remove(pubKeyStoreFile)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %#v", conf.GConf)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(pubKeyStoreFile + "_c")
+
+	// init dht
+	dht, err = route.NewDHTService(pubKeyStoreFile, new(consistent.KMSStorage), true)
+	if err != nil {
+		return
+	}
+
+	// init rpc
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht}); err != nil {
+		return
+	}
+
+	// register metric service
+	metricService = metric.NewCollectServer()
+	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
+		log.Errorf("init metric service failed: %v", err)
+		return
+	}
+
+	// register database service
+	_, err = worker.NewDBMS(&worker.DBMSConfig{
+		RootDir:         d,
+		Server:          server,
+		MaxWriteTimeGap: worker.DefaultMaxWriteTimeGap,
+	})
+
+	// init private key
+	masterKey := []byte("")
+	server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey)
+
+	// start server
+	go server.Serve()
+
+	cleanupFunc = func() {
+		os.RemoveAll(d)
+		server.Listener.Close()
+		server.Stop()
+	}
+
+	return
+}

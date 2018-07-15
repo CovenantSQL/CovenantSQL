@@ -62,6 +62,11 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		return
 	}
 
+	if peers == nil || genesisBlock == nil {
+		err = ErrInvalidDBConfig
+		return
+	}
+
 	// init database
 	db = &Database{
 		cfg:  cfg,

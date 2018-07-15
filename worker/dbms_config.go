@@ -22,6 +22,11 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
+var (
+	// DefaultWriteTimeGap defines max time gap between request and server.
+	DefaultMaxWriteTimeGap = time.Second * 5
+)
+
 // DBMSConfig defines the local multi-database management system config.
 type DBMSConfig struct {
 	RootDir         string

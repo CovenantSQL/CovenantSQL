@@ -19,11 +19,13 @@ package blockproducer
 import (
 	"math/rand"
 	"sync"
+	"time"
 
 	dto "github.com/prometheus/client_model/go"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/metric"
@@ -31,6 +33,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -66,7 +69,9 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	// allocate nodes
 	var peers *kayak.Peers
-	peers, err = s.allocateNodes(0, dbID, req.ResourceMeta)
+	if peers, err = s.allocateNodes(0, dbID, req.ResourceMeta); err != nil {
+		return
+	}
 
 	// TODO(xq262144), call accounting features, top up deposit
 	var genesisBlock *ct.Block
@@ -97,7 +102,9 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		},
 	}
 
-	err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers))
+	if err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers)); err != nil {
+		return
+	}
 
 	// save to meta
 	instanceMeta := wt.ServiceInstance{
@@ -206,6 +213,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 
 		// check existence
 		if _, err = s.ServiceMap.Get(dbID); err == ErrNoSuchDatabase {
+			err = nil
 			return
 		}
 	}
@@ -218,13 +226,22 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 	excludeNodes := make(map[proto.NodeID]bool)
 	allocated := make([]proto.NodeID, 0)
 
+	if resourceMeta.Node <= 0 {
+		err = ErrDatabaseAllocation
+		return
+	}
+
 	for i := 0; i != s.AllocationRounds; i++ {
+		log.Debugf("node allocation round %d", i+1)
+
 		var nodes []proto.Node
 
 		// clear previous allocated
 		allocated = allocated[:0]
 
 		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
+
+		log.Debugf("found %d neighbour nodes", len(nodes))
 
 		// TODO(xq262144), brute force implementation to be optimized
 		var nodeIDs []proto.NodeID
@@ -235,6 +252,8 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			}
 		}
 
+		log.Debugf("found %d suitable nodes", len(nodeIDs))
+
 		if len(nodeIDs) < int(resourceMeta.Node) {
 			continue
 		}
@@ -242,11 +261,15 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		// check node resource status
 		metrics := s.NodeMetrics.GetMetrics(nodeIDs)
 
+		log.Debugf("get %d metric records for %d nodes", len(metrics), len(nodeIDs))
+
 		for nodeID, nodeMetric := range metrics {
 			var metricValue uint64
 
 			// get metric
 			if metricValue, err = s.getMetric(nodeMetric, MetricFreeMemoryBytes); err != nil {
+				log.Debugf("get node %s memory metric failed", nodeID)
+
 				// add to excludes
 				excludeNodes[nodeID] = true
 				continue
@@ -259,6 +282,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 				// can allocate
 				allocated = append(allocated, nodeID)
 			} else {
+				log.Debugf("node %s memory metric does not meet requirements", nodeID)
 				excludeNodes[nodeID] = true
 			}
 		}
@@ -356,7 +380,37 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 }
 
 func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (genesisBlock *ct.Block, err error) {
-	// TODO(xq262144), to be completed in the future
+	// TODO(xq262144), following is stub code, real logic should be implemented in the future
+	emptyHash := hash.Hash{}
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	var nodeID proto.NodeID
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	genesisBlock = &ct.Block{
+		SignedHeader: ct.SignedHeader{
+			Header: ct.Header{
+				Version:     0x01000000,
+				Producer:    nodeID,
+				GenesisHash: emptyHash,
+				ParentHash:  emptyHash,
+				Timestamp:   time.Now().UTC(),
+			},
+			Signee:    pubKey,
+			Signature: nil,
+		},
+	}
+	err = genesisBlock.PackAndSignBlock(privKey)
+
 	return
 }
 
@@ -389,6 +443,10 @@ func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.N
 }
 
 func (s *DBService) peersToNodes(peers *kayak.Peers) (nodes []proto.NodeID) {
+	if peers == nil {
+		return
+	}
+
 	nodes = make([]proto.NodeID, 0, len(peers.Servers))
 
 	for _, s := range peers.Servers {

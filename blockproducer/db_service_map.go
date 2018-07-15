@@ -61,6 +61,9 @@ func InitServiceMap(persistImpl DBMetaPersistence) (s *DBServiceMap, err error) 
 		s.dbMap[meta.DatabaseID] = meta
 
 		for _, server := range meta.Peers.Servers {
+			if s.nodeMap[server.ID] == nil {
+				s.nodeMap[server.ID] = make(map[proto.DatabaseID]bool)
+			}
 			s.nodeMap[server.ID][meta.DatabaseID] = true
 		}
 	}
@@ -83,7 +86,9 @@ func (c *DBServiceMap) Set(meta wt.ServiceInstance) (err error) {
 
 	if oldMeta, ok = c.dbMap[meta.DatabaseID]; ok {
 		for _, s := range oldMeta.Peers.Servers {
-			delete(c.nodeMap[s.ID], meta.DatabaseID)
+			if c.nodeMap[s.ID] != nil {
+				delete(c.nodeMap[s.ID], meta.DatabaseID)
+			}
 		}
 	}
 
@@ -91,6 +96,9 @@ func (c *DBServiceMap) Set(meta wt.ServiceInstance) (err error) {
 	c.dbMap[meta.DatabaseID] = meta
 
 	for _, s := range meta.Peers.Servers {
+		if c.nodeMap[s.ID] == nil {
+			c.nodeMap[s.ID] = make(map[proto.DatabaseID]bool)
+		}
 		c.nodeMap[s.ID][meta.DatabaseID] = true
 	}
 
@@ -132,7 +140,9 @@ func (c *DBServiceMap) Delete(dbID proto.DatabaseID) (err error) {
 	// delete from cache
 	if meta, ok = c.dbMap[dbID]; ok {
 		for _, s := range meta.Peers.Servers {
-			delete(c.nodeMap[s.ID], dbID)
+			if c.nodeMap[s.ID] != nil {
+				delete(c.nodeMap[s.ID], dbID)
+			}
 		}
 	}
 

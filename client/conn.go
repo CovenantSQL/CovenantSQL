@@ -89,7 +89,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 		queries:      make([]storage.Query, 0),
 	}
 
-	c.log("new conn database %s", c.dbID)
+	c.log("new conn database ", c.dbID)
 
 	// get peers from BP
 	if err = c.getPeers(); err != nil {
@@ -130,7 +130,7 @@ func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	}
 
 	// start transaction
-	c.log("begin transaction tx=%t", c.inTransaction)
+	c.log("begin transaction tx=", c.inTransaction)
 
 	if c.inTransaction {
 		return nil, sql.ErrTxDone

@@ -225,7 +225,9 @@ func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metri
 
 	// init private key
 	masterKey := []byte("")
-	server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey)
+	if err = server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey); err != nil {
+		return
+	}
 
 	// start server
 	go server.Serve()

@@ -18,8 +18,6 @@ package transport
 
 import (
 	"context"
-	"fmt"
-	nrpc "net/rpc"
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -27,16 +25,12 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
 
-// ETLSRPCClientBuilder defines a rpc.Client builder.
-type ETLSRPCClientBuilder func(context.Context, proto.NodeID) (*rpc.Client, error)
-
 // ETLSTransportConfig defines a transport config with transport id and rpc service related config.
 type ETLSTransportConfig struct {
 	NodeID           proto.NodeID
 	TransportID      string
 	TransportService *ETLSTransportService
 	ServiceName      string
-	ClientBuilder    ETLSRPCClientBuilder
 }
 
 // ETLSTransport defines kayak transport using ETLS rpc as transport layer.
@@ -89,14 +83,6 @@ func (e *ETLSTransport) Init() error {
 // Request implements kayak.Transport.Request.
 func (e *ETLSTransport) Request(ctx context.Context,
 	nodeID proto.NodeID, method string, log *kayak.Log) (response []byte, err error) {
-	// send through rpc
-	var client *rpc.Client
-
-	if client, err = e.ClientBuilder(ctx, nodeID); err != nil {
-		return
-	}
-	//defer client.Close()
-
 	req := &ETLSTransportRequest{
 		TransportID: e.TransportID,
 		NodeID:      e.NodeID,
@@ -105,14 +91,11 @@ func (e *ETLSTransport) Request(ctx context.Context,
 	}
 	resp := &ETLSTransportResponse{}
 
-	ch := client.Go(fmt.Sprintf("%s.Call", e.ServiceName), req, resp, make(chan *nrpc.Call, 1))
-
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	case call := <-ch.Done:
-		return resp.Data, call.Error
+	if err = rpc.NewCaller().CallNodeWithContext(ctx, nodeID, e.ServiceName+".Call", req, resp); err != nil {
+		return
 	}
+
+	response = resp.Data
 
 	return
 }

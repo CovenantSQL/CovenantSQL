@@ -31,6 +31,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/metric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -58,6 +59,9 @@ type DBService struct {
 	ServiceMap       *DBServiceMap
 	Consistent       *consistent.Consistent
 	NodeMetrics      *metric.NodeMetricMap
+
+	// include block producer nodes for database allocation, for test case injection
+	includeBPNodesForAllocation bool
 }
 
 // CreateDatabase defines block producer create database logic.
@@ -233,6 +237,13 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 	if resourceMeta.Node <= 0 {
 		err = ErrDatabaseAllocation
 		return
+	}
+
+	if !s.includeBPNodesForAllocation {
+		// add block producer nodes to exclude node list
+		for _, nodeID := range route.GetBPs() {
+			excludeNodes[nodeID] = true
+		}
 	}
 
 	for i := 0; i != s.AllocationRounds; i++ {

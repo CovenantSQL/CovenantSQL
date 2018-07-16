@@ -243,6 +243,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		// clear previous allocated
 		allocated = allocated[:0]
 
+		// TODO(xq262144), filter roles that is not miner
 		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
 
 		log.Debugf("found %d neighbour nodes", len(nodes))

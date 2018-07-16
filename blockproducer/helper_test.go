@@ -225,9 +225,9 @@ func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metri
 
 	// register database service
 	_, err = worker.NewDBMS(&worker.DBMSConfig{
-		RootDir:         d,
-		Server:          server,
-		MaxWriteTimeGap: worker.DefaultMaxWriteTimeGap,
+		RootDir:       d,
+		Server:        server,
+		MaxReqTimeGap: worker.DefaultMaxReqTimeGap,
 	})
 
 	// init private key

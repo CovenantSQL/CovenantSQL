@@ -41,9 +41,9 @@ var rootHash = hash.Hash{}
 
 func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 	cfg := &worker.DBMSConfig{
-		RootDir:         conf.GConf.Miner.RootDir,
-		Server:          server,
-		MaxWriteTimeGap: conf.GConf.Miner.TimeShiftInterval,
+		RootDir:       conf.GConf.Miner.RootDir,
+		Server:        server,
+		MaxReqTimeGap: conf.GConf.Miner.MaxReqTimeGap,
 	}
 
 	if dbms, err = worker.NewDBMS(cfg); err != nil {

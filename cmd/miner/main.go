@@ -29,6 +29,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/metric"
+	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 const logo = `
@@ -133,7 +135,34 @@ func main() {
 		log.Fatalf("init node failed: %v", err)
 	}
 
-	//reg := metric.StartMetricCollector()
+	// start metric collector
+	metricCh := make(chan struct{})
+
+	go func() {
+		mc := metric.NewCollectClient()
+		tick := time.NewTicker(conf.GConf.Miner.MetricCollectInterval)
+		defer tick.Stop()
+
+		for {
+			select {
+			case <-metricCh:
+				return
+			case <-tick.C:
+			}
+
+			// choose block producer
+			bp := route.GetBPs()
+
+			if len(bp) <= 0 {
+				continue
+			}
+
+			bpID := bp[rand.Intn(len(bp))]
+			mc.UploadMetrics(bpID, nil)
+		}
+	}()
+
+	defer close(metricCh)
 
 	// start dbms
 	var dbms *worker.DBMS

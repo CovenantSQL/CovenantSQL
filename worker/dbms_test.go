@@ -44,9 +44,9 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		cfg := &DBMSConfig{
-			RootDir:         rootDir,
-			Server:          server,
-			MaxWriteTimeGap: time.Second * 5,
+			RootDir:       rootDir,
+			Server:        server,
+			MaxReqTimeGap: time.Second * 5,
 		}
 
 		var dbms *DBMS

@@ -102,8 +102,9 @@ type MinerDatabaseFixture struct {
 // MinerConfig for miner config.
 type MinerInfo struct {
 	// node basic config
-	RootDir           string
-	TimeShiftInterval time.Duration `yaml:",omitempty"`
+	RootDir               string
+	MaxReqTimeGap         time.Duration `yaml:",omitempty"`
+	MetricCollectInterval time.Duration `yaml:",omitempty"`
 
 	// test mode config
 	IsTestMode   bool // when test mode, fixture database config is used.

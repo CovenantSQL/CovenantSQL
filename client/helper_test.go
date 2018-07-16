@@ -126,9 +126,9 @@ func startTestService() (stopTestService func(), err error) {
 	}
 
 	cfg := &worker.DBMSConfig{
-		RootDir:         rootDir,
-		Server:          server,
-		MaxWriteTimeGap: worker.DefaultMaxWriteTimeGap,
+		RootDir:       rootDir,
+		Server:        server,
+		MaxReqTimeGap: worker.DefaultMaxReqTimeGap,
 	}
 
 	var dbms *worker.DBMS

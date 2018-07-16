@@ -209,7 +209,7 @@ func (dbms *DBMS) Create(instance *wt.ServiceInstance, cleanup bool) (err error)
 		DataDir:         rootDir,
 		KayakMux:        dbms.kayakMux,
 		ChainMux:        dbms.chainMux,
-		MaxWriteTimeGap: dbms.cfg.MaxWriteTimeGap,
+		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
 	}
 
 	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {

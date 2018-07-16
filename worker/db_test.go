@@ -750,7 +750,7 @@ func dupConf(confFile string, newConfFile string) (err error) {
 	}
 
 	var ports []int
-	if ports, err = utils.GetRandomPorts("127.0.0.1", 1000, 10000, 1); err != nil {
+	if ports, err = utils.GetRandomPorts("127.0.0.1", 5000, 6000, 1); err != nil {
 		return
 	}
 

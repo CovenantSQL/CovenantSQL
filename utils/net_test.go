@@ -36,13 +36,13 @@ func TestGetRandomPorts(t *testing.T) {
 	Convey("get too many ports", t, func() {
 		ports, err := GetRandomPorts("127.0.0.1", 2000, 2010, 100)
 		So(len(ports), ShouldBeBetween, 0, 12)
-		So(err, ShouldEqual, NotEnoughPorts)
+		So(err, ShouldEqual, ErrNotEnoughPorts)
 	})
 
 	Convey("port range error", t, func() {
 		ports, err := GetRandomPorts("127.0.0.1", 3000, 2010, 1)
 		So(ports, ShouldBeEmpty)
-		So(err, ShouldEqual, NotEnoughPorts)
+		So(err, ShouldEqual, ErrNotEnoughPorts)
 	})
 
 	Convey("port range start 0", t, func() {

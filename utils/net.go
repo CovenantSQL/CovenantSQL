@@ -24,7 +24,8 @@ import (
 )
 
 var (
-	NotEnoughPorts = errors.New("not enough ports in port range")
+	// ErrNotEnoughPorts defines error indicating random port allocation failure.
+	ErrNotEnoughPorts = errors.New("not enough ports in port range")
 )
 
 func testPort(bindAddr string, port int) bool {
@@ -37,6 +38,7 @@ func testPort(bindAddr string, port int) bool {
 	return true
 }
 
+// GetRandomPorts returns available random ports, previously allocated ports will be ignored.
 func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, err error) {
 	ports = make([]int, 0, count)
 
@@ -49,7 +51,7 @@ func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, 
 	}
 
 	if minPort > maxPort {
-		err = NotEnoughPorts
+		err = ErrNotEnoughPorts
 		return
 	}
 
@@ -75,7 +77,7 @@ func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, 
 		}
 	}
 
-	err = NotEnoughPorts
+	err = ErrNotEnoughPorts
 
 	return
 }

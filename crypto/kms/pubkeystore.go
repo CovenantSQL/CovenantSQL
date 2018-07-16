@@ -34,6 +34,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"sync"
 )
 
 // PublicKeyStore holds db and bucket name
@@ -49,7 +50,8 @@ const (
 
 var (
 	// pks holds the singleton instance
-	pks *PublicKeyStore
+	pks     *PublicKeyStore
+	pksLock sync.Mutex
 	// Unittest is a test flag
 	Unittest bool
 )
@@ -124,12 +126,14 @@ var (
 func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
 	//testFlag := flag.Lookup("test")
 	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
+	pksLock.Lock()
 	InitBP()
 
 	var bdb *bolt.DB
 	bdb, err = bolt.Open(dbPath, 0600, nil)
 	if err != nil {
 		log.Errorf("InitPublicKeyStore failed: %s", err)
+		pksLock.Unlock()
 		return
 	}
 
@@ -143,6 +147,7 @@ func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
 	})
 	if err != nil {
 		log.Errorf("InitPublicKeyStore failed: %s", err)
+		pksLock.Unlock()
 		return
 	}
 
@@ -151,6 +156,7 @@ func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
 		db:     bdb,
 		bucket: name,
 	}
+	pksLock.Unlock()
 
 	if initNode != nil {
 		err = setNode(initNode)
@@ -172,6 +178,8 @@ func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) 
 // GetNodeInfo gets node info of given id
 // Returns an error if the id was not found
 func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
+	pksLock.Lock()
+	defer pksLock.Unlock()
 	if pks == nil || pks.db == nil {
 		return nil, ErrPKSNotInitialized
 	}
@@ -260,6 +268,8 @@ func SetNode(nodeInfo *proto.Node) (err error) {
 
 // setNode sets id and its publicKey
 func setNode(nodeInfo *proto.Node) (err error) {
+	pksLock.Lock()
+	defer pksLock.Unlock()
 	if pks == nil || pks.db == nil {
 		return ErrPKSNotInitialized
 	}
@@ -290,6 +300,8 @@ func setNode(nodeInfo *proto.Node) (err error) {
 
 // DelNode removes PublicKey to the id
 func DelNode(id proto.NodeID) (err error) {
+	pksLock.Lock()
+	defer pksLock.Unlock()
 	if pks == nil || pks.db == nil {
 		return ErrPKSNotInitialized
 	}
@@ -309,6 +321,8 @@ func DelNode(id proto.NodeID) (err error) {
 
 // removeBucket this bucket
 func removeBucket() (err error) {
+	pksLock.Lock()
+	defer pksLock.Unlock()
 	if pks != nil {
 		err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
 			return tx.DeleteBucket([]byte(kmsBucketName))
@@ -328,6 +342,8 @@ func ResetBucket() error {
 	// cause we are going to reset the bucket, the return of removeBucket
 	// is not useful
 	removeBucket()
+	pksLock.Lock()
+	defer pksLock.Unlock()
 	bucketName := []byte(kmsBucketName)
 	err := (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(bucketName)

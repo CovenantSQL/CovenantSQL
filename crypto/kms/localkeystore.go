@@ -22,6 +22,8 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 // LocalKeyStore is the type hold local private & public key
@@ -86,8 +88,23 @@ func SetLocalNodeIDNonce(rawNodeID []byte, nonce *mine.Uint256) {
 	}
 }
 
-// GetLocalNodeID gets current node ID copy in []byte
-func GetLocalNodeID() (rawNodeID []byte, err error) {
+// GetLocalNodeID gets current node ID in hash string format
+func GetLocalNodeID() (rawNodeID proto.NodeID, err error) {
+	var rawNodeIDBytes []byte
+	if rawNodeIDBytes, err = GetLocalNodeIDBytes(); err != nil {
+		return
+	}
+	var h *hash.Hash
+	if h, err = hash.NewHash(rawNodeIDBytes); err != nil {
+		return
+	}
+	rawNodeID = proto.NodeID(h.String())
+
+	return
+}
+
+// GetLocalNodeIDBytes get current node ID copy in []byte
+func GetLocalNodeIDBytes() (rawNodeID []byte, err error) {
 	localKey.RLock()
 	if localKey.nodeID != nil {
 		rawNodeID = make([]byte, len(localKey.nodeID))

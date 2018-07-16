@@ -17,15 +17,15 @@
 package route
 
 import (
-	"encoding/hex"
 	"errors"
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"encoding/hex"
 )
 
 // NodeIDAddressMap is the map of proto.RawNodeID to node address
@@ -120,6 +120,10 @@ func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 
 // initBPNodeIDs initializes BlockProducer route and map from config file and DNS Seed
 func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
+	// clear address map before init
+	resolver.bpNodeIDs = make(NodeIDAddressMap)
+	bpNodeIDs = resolver.bpNodeIDs
+
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range (*conf.GConf.KnownNodes)[:] {
 			if n.Role == conf.Leader || n.Role == conf.Follower {
@@ -130,6 +134,8 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 				}
 			}
 		}
+
+		return
 	}
 
 	dc := NewDNSClient()
@@ -157,48 +163,51 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 
 // InitKMS inits nasty stuff, only for testing
 func InitKMS(PubKeyStoreFile string) {
-	for i, n := range (*conf.GConf.KnownNodes)[:] {
-		if n.Role == conf.Leader || n.Role == conf.Follower {
-			//TODO(auxten): put PublicKey to yaml
-			(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
-			log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
-		}
-		if n.Role == conf.Client {
-			var publicKeyBytes []byte
-			var clientPublicKey *asymmetric.PublicKey
-			//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-			publicKeyBytes, err := hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
-			if err != nil {
-				log.Errorf("hex decode clientPublicKey error: %s", err)
-				continue
+	if conf.GConf.KnownNodes != nil {
+		for i, n := range (*conf.GConf.KnownNodes)[:] {
+			if n.Role == conf.Leader || n.Role == conf.Follower {
+				//TODO(auxten): put PublicKey to yaml
+				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
+				log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
 			}
-			clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-			if err != nil {
-				log.Errorf("parse clientPublicKey error: %s", err)
-				continue
+			if n.Role == conf.Client {
+				var publicKeyBytes []byte
+				var clientPublicKey *asymmetric.PublicKey
+				//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+				publicKeyBytes, err := hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
+				if err != nil {
+					log.Errorf("hex decode clientPublicKey error: %s", err)
+					continue
+				}
+				clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+				if err != nil {
+					log.Errorf("parse clientPublicKey error: %s", err)
+					continue
+				}
+				(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
 			}
-			(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
 		}
-
 	}
 	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
-	for _, n := range (*conf.GConf.KnownNodes)[:] {
-		rawNodeID := n.ID.ToRawNodeID()
+	if conf.GConf.KnownNodes != nil {
+		for _, n := range (*conf.GConf.KnownNodes)[:] {
+			rawNodeID := n.ID.ToRawNodeID()
 
-		log.Debugf("set node addr: %v, %v", rawNodeID, n.Addr)
-		SetNodeAddrCache(rawNodeID, n.Addr)
-		node := &proto.Node{
-			ID:        n.ID,
-			Addr:      n.Addr,
-			PublicKey: n.PublicKey,
-			Nonce:     n.Nonce,
-		}
-		err := kms.SetNode(node)
-		if err != nil {
-			log.Errorf("set node failed: %v\n %s", node, err)
-		}
-		if n.ID == conf.GConf.ThisNodeID {
-			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
+			log.Debugf("set node addr: %v, %v", rawNodeID, n.Addr)
+			SetNodeAddrCache(rawNodeID, n.Addr)
+			node := &proto.Node{
+				ID:        n.ID,
+				Addr:      n.Addr,
+				PublicKey: n.PublicKey,
+				Nonce:     n.Nonce,
+			}
+			err := kms.SetNode(node)
+			if err != nil {
+				log.Errorf("set node failed: %v\n %s", node, err)
+			}
+			if n.ID == conf.GConf.ThisNodeID {
+				kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
+			}
 		}
 	}
 	log.Debugf("AllNodes:\n %v\n", conf.GConf.KnownNodes)

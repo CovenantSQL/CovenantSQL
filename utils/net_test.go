@@ -36,13 +36,13 @@ func TestGetRandomPorts(t *testing.T) {
 	Convey("get too many ports", t, func() {
 		ports, err := GetRandomPorts("127.0.0.1", 2000, 2010, 100)
 		So(len(ports), ShouldBeBetween, 0, 12)
-		So(err, ShouldEqual, NotEnoughPorts)
+		So(err, ShouldEqual, ErrNotEnoughPorts)
 	})
 
 	Convey("port range error", t, func() {
 		ports, err := GetRandomPorts("127.0.0.1", 3000, 2010, 1)
 		So(ports, ShouldBeEmpty)
-		So(err, ShouldEqual, NotEnoughPorts)
+		So(err, ShouldEqual, ErrNotEnoughPorts)
 	})
 
 	Convey("port range start 0", t, func() {
@@ -54,5 +54,22 @@ func TestGetRandomPorts(t *testing.T) {
 	Convey("port range error", t, func() {
 		ports, _ := GetRandomPorts("127.0.0.1", 0, 65535, 0)
 		So(ports, ShouldBeEmpty)
+	})
+
+	Convey("previously allocated should be unavailable", t, func() {
+		ports, err := GetRandomPorts("127.0.0.1", 1, 10000, 1)
+		So(ports, ShouldHaveLength, 1)
+		So(err, ShouldBeNil)
+		lastAllocated := ports[0]
+		ports, err = GetRandomPorts("127.0.0.1", lastAllocated, lastAllocated, 1)
+		So(err, ShouldNotBeNil)
+		// any address should be banned to allocate too
+		ports, err = GetRandomPorts("0.0.0.0", lastAllocated, lastAllocated, 1)
+		So(err, ShouldNotBeNil)
+		// but another bind address should be available, should be use 127.0.0.2, but mac does not support 127.0.0.2
+		ports, err = GetRandomPorts("", lastAllocated, lastAllocated, 1)
+		So(err, ShouldBeNil)
+		So(ports, ShouldHaveLength, 1)
+		So(ports[0], ShouldEqual, lastAllocated)
 	})
 }

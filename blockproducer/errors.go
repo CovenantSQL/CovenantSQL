@@ -14,22 +14,17 @@
  * limitations under the License.
  */
 
-package worker
+package blockproducer
 
-import (
-	"time"
-
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-)
+import "errors"
 
 var (
-	// DefaultMaxReqTimeGap defines max time gap between request and server.
-	DefaultMaxReqTimeGap = time.Second * 5
+	// ErrInvalidDBPeersConfig defines database peers invalid error.
+	ErrInvalidDBPeersConfig = errors.New("invalid database peers config")
+	// ErrNoSuchDatabase defines database meta not exists error.
+	ErrNoSuchDatabase = errors.New("no such database")
+	// ErrDatabaseAllocation defines database allocation failure error.
+	ErrDatabaseAllocation = errors.New("allocate database failed")
+	// ErrMetricNotCollected defines errors collected.
+	ErrMetricNotCollected = errors.New("metric not collected")
 )
-
-// DBMSConfig defines the local multi-database management system config.
-type DBMSConfig struct {
-	RootDir       string
-	Server        *rpc.Server
-	MaxReqTimeGap time.Duration
-}

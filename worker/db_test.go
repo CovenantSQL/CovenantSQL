@@ -17,6 +17,8 @@
 package worker
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -28,6 +30,7 @@ import (
 
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -42,6 +45,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -58,13 +62,9 @@ func TestSingleDatabase(t *testing.T) {
 		cleanup, server, err = initNode()
 		So(err, ShouldBeNil)
 
-		defer cleanup()
-
 		var rootDir string
 		rootDir, err = ioutil.TempDir("", "db_test_")
 		So(err, ShouldBeNil)
-
-		defer os.RemoveAll(rootDir)
 
 		// create mux service
 		service := ka.NewMuxService("DBKayak", server)
@@ -279,6 +279,12 @@ func TestSingleDatabase(t *testing.T) {
 			err = db.UpdatePeers(peers)
 			So(err, ShouldBeNil)
 		})
+
+		Reset(func() {
+			db.Shutdown()
+			os.RemoveAll(rootDir)
+			cleanup()
+		})
 	})
 }
 
@@ -419,7 +425,7 @@ func TestDatabaseRecycle(t *testing.T) {
 func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -462,7 +468,7 @@ func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64
 func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -509,7 +515,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 func getPeers(term uint64) (peers *kayak.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -534,19 +540,6 @@ func getPeers(term uint64) (peers *kayak.Peers, err error) {
 		PubKey:  pubKey,
 	}
 	err = peers.Sign(privateKey)
-	return
-}
-
-func getNodeID() (nodeID proto.NodeID, err error) {
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
 	return
 }
 
@@ -575,10 +568,14 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
 	os.Remove(pubKeyStoreFile + "_c")
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
+	dupConfFile := filepath.Join(d, "config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	if err = dupConf(confFile, dupConfFile); err != nil {
+		return
+	}
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
-	conf.GConf, _ = conf.LoadConfig(confFile)
+	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	// reset the once
 	route.Once = sync.Once{}
 	route.InitKMS(pubKeyStoreFile + "_c")
@@ -596,21 +593,26 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		return
 	}
 
+	// register bpdb service
+	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+		return
+	}
+
 	// init private key
 	masterKey := []byte("")
-	addr := "127.0.0.1:0"
-	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	if err = server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey); err != nil {
+		return
+	}
 
 	// start server
 	go server.Serve()
-
-	// fixme: force set the bp addr to this server
-	route.SetNodeAddrCache(&conf.GConf.BP.RawNodeID, server.Listener.Addr().String())
 
 	cleanupFunc = func() {
 		os.RemoveAll(d)
 		server.Listener.Close()
 		server.Stop()
+		// clear the connection pool
+		rpc.GetSessionPoolInstance().Close()
 	}
 
 	return
@@ -673,4 +675,86 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 
 	err = b.PackAndSignBlock(priv)
 	return
+}
+
+// fake BPDB service
+type stubBPDBService struct{}
+
+func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
+	resp.InstanceMeta, err = s.getInstanceMeta("db2")
+	return
+}
+
+func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.DropDatabaseRequest) (err error) {
+	return
+}
+
+func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
+	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
+	return
+}
+
+func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
+	resp.Instances = make([]wt.ServiceInstance, 1)
+	resp.Instances[0], err = s.getInstanceMeta("db2")
+	return
+}
+
+func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	var nodeID proto.NodeID
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	instance.DatabaseID = proto.DatabaseID(dbID)
+	instance.Peers = &kayak.Peers{
+		Term: 1,
+		Leader: &kayak.Server{
+			Role:   conf.Leader,
+			ID:     nodeID,
+			PubKey: pubKey,
+		},
+		Servers: []*kayak.Server{
+			{
+				Role:   conf.Leader,
+				ID:     nodeID,
+				PubKey: pubKey,
+			},
+		},
+		PubKey: pubKey,
+	}
+	if err = instance.Peers.Sign(privKey); err != nil {
+		return
+	}
+	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
+
+	return
+}
+
+// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+func dupConf(confFile string, newConfFile string) (err error) {
+	// replace port in confFile
+	var fileBytes []byte
+	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
+		return
+	}
+
+	var ports []int
+	if ports, err = utils.GetRandomPorts("127.0.0.1", 5000, 6000, 1); err != nil {
+		return
+	}
+
+	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
+
+	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

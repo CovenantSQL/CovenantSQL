@@ -27,15 +27,15 @@ import (
 
 func TestCollectServer_FilterNode(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	filterTrue := func(key proto.NodeID, value metricMap) bool {
+	filterTrue := func(key proto.NodeID, value MetricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
 		return true
 	}
-	filterFalse := func(key proto.NodeID, value metricMap) bool {
+	filterFalse := func(key proto.NodeID, value MetricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
 		return false
 	}
-	filterMem1MB := func(key proto.NodeID, value metricMap) bool {
+	filterMem1MB := func(key proto.NodeID, value MetricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
 		var v *dto.MetricFamily
 		v, ok := value["node_memory_bytes_total"]
@@ -55,7 +55,7 @@ func TestCollectServer_FilterNode(t *testing.T) {
 	Convey("filter node", t, func() {
 		cc := NewCollectClient()
 		mfs, _ := cc.Registry.Gather()
-		mm := make(metricMap, 0)
+		mm := make(MetricMap, 0)
 		for _, mf := range mfs {
 			mm[*mf.Name] = mf
 			log.Debugf("Gathered node: %v", mf)

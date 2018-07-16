@@ -33,7 +33,7 @@ import (
 // HashBSize is the size of HashB
 const HashBSize = sha256.Size
 
-// HashSuite contains the hash length and the func handler
+// HashSuite contains the hash length and the func handler.
 type HashSuite struct {
 	HashLen  int
 	HashFunc func([]byte) []byte

@@ -14,22 +14,5 @@
  * limitations under the License.
  */
 
-package worker
-
-import (
-	"time"
-
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-)
-
-var (
-	// DefaultMaxReqTimeGap defines max time gap between request and server.
-	DefaultMaxReqTimeGap = time.Second * 5
-)
-
-// DBMSConfig defines the local multi-database management system config.
-type DBMSConfig struct {
-	RootDir       string
-	Server        *rpc.Server
-	MaxReqTimeGap time.Duration
-}
+// Package blockproducer implements blockproducer node block genreation and database management logics.
+package blockproducer

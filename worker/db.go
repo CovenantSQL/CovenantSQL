@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
@@ -60,6 +59,11 @@ type Database struct {
 func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
+		return
+	}
+
+	if peers == nil || genesisBlock == nil {
+		err = ErrInvalidDBConfig
 		return
 	}
 
@@ -98,7 +102,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	// init chain
 	var nodeID proto.NodeID
 	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
-	if nodeID, err = getLocalNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -176,19 +180,25 @@ func (db *Database) Ack(ack *wt.Ack) (err error) {
 
 // Shutdown stop database handles and stop service the database.
 func (db *Database) Shutdown() (err error) {
-	// shutdown, stop kayak
-	if err = db.kayakRuntime.Shutdown(); err != nil {
-		return
+	if db.kayakRuntime != nil {
+		// shutdown, stop kayak
+		if err = db.kayakRuntime.Shutdown(); err != nil {
+			return
+		}
 	}
 
-	// stop chain
-	if err = db.chain.Stop(); err != nil {
-		return
+	if db.chain != nil {
+		// stop chain
+		if err = db.chain.Stop(); err != nil {
+			return
+		}
 	}
 
-	// stop storage
-	if err = db.storage.Close(); err != nil {
-		return
+	if db.storage != nil {
+		// stop storage
+		if err = db.storage.Close(); err != nil {
+			return
+		}
 	}
 
 	return
@@ -240,7 +250,7 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 	// build response
 	response = new(wt.Response)
 	response.Header.Request = request.Header
-	if response.Header.NodeID, err = getLocalNodeID(); err != nil {
+	if response.Header.NodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 	response.Header.Timestamp = getLocalTime()
@@ -288,20 +298,6 @@ func (db *Database) saveAck(ack *wt.Ack) (err error) {
 func getLocalTime() time.Time {
 	// TODO(xq262144), to use same time coordination logic with sqlchain
 	return time.Now().UTC()
-}
-
-func getLocalNodeID() (nodeID proto.NodeID, err error) {
-	// TODO(xq262144), to use refactored node id interface by kms
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
-	return
 }
 
 func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {

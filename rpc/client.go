@@ -59,7 +59,7 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 	}
 
 	// send NodeID + Uint256 Nonce
-	nodeID, err := kms.GetLocalNodeID()
+	nodeID, err := kms.GetLocalNodeIDBytes()
 	if err != nil {
 		log.Errorf("get local node id failed: %s", err)
 		return

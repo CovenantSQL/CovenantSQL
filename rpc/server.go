@@ -61,7 +61,6 @@ func (s *Server) InitRPCServer(
 	masterKey []byte,
 ) (err error) {
 	//route.InitResolver()
-	fmt.Println("called")
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {

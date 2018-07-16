@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -114,5 +115,23 @@ func TestCaller_CallNode(t *testing.T) {
 		log.Fatal(err)
 	}
 	log.Debugf("respA2: %v", respA)
+
+	// call with canceled context
+	ctx, contextCancel := context.WithCancel(context.Background())
+	contextCancel()
+	err = client.CallNodeWithContext(ctx, conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	if err == nil {
+		log.Fatal("this call should failed, but actually not")
+	} else {
+		log.Debugf("err: %v", err)
+	}
+
+	// call with empty context
+	err = client.CallNodeWithContext(context.Background(), conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("respA2: %v", respA)
+
 	server.Stop()
 }

@@ -47,7 +47,7 @@ type RawNodeID struct {
 type NodeID string
 
 // AccountAddress is wallet address, will be generated from Hash(nodePublicKey)
-type AccountAddress string
+type AccountAddress hash.Hash
 
 // NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
 type NodeKey RawNodeID

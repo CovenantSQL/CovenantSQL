@@ -17,20 +17,17 @@
 package worker
 
 import (
-	"bytes"
 	"io/ioutil"
-	"net"
 	"os"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -47,9 +44,9 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		cfg := &DBMSConfig{
-			RootDir:         rootDir,
-			Server:          server,
-			MaxWriteTimeGap: time.Second * 5,
+			RootDir:       rootDir,
+			Server:        server,
+			MaxReqTimeGap: time.Second * 5,
 		}
 
 		var dbms *DBMS
@@ -72,21 +69,19 @@ func TestDBMS(t *testing.T) {
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
-		var blockBuffer *bytes.Buffer
-		blockBuffer, err = utils.EncodeMsgPack(block)
-		So(err, ShouldBeNil)
-
 		// get peers
 		peers, err = getPeers(1)
 		So(err, ShouldBeNil)
 
 		// call with no BP privilege
-		req, err = buildUpdateRequest(wt.CreateDB, &wt.ServiceInstance{
-			DatabaseID:   dbID,
-			Peers:        peers,
-			GenesisBlock: blockBuffer.Bytes(),
-		})
-		So(err, ShouldBeNil)
+		req = &wt.UpdateService{
+			Op: wt.CreateDB,
+			Instance: wt.ServiceInstance{
+				DatabaseID:   dbID,
+				Peers:        peers,
+				GenesisBlock: block,
+			},
+		}
 
 		Convey("with bp privilege", func() {
 			// send update again
@@ -142,7 +137,7 @@ func TestDBMS(t *testing.T) {
 				var writeQuery *wt.Request
 				var queryRes *wt.Response
 				writeQuery, err = buildQueryWithDatabaseID(wt.WriteQuery, 1, 1,
-					proto.DatabaseID("db2"), []string{
+					proto.DatabaseID("db_not_exists"), []string{
 						"create table test (test int)",
 						"insert into test values(1)",
 					})
@@ -157,21 +152,26 @@ func TestDBMS(t *testing.T) {
 				peers, err = getPeers(2)
 				So(err, ShouldBeNil)
 
-				req, err = buildUpdateRequest(wt.UpdateDB, &wt.ServiceInstance{
-					DatabaseID: dbID,
-					Peers:      peers,
-				})
-				So(err, ShouldBeNil)
+				req = &wt.UpdateService{
+					Op: wt.UpdateDB,
+					Instance: wt.ServiceInstance{
+						DatabaseID: dbID,
+						Peers:      peers,
+					},
+				}
+
 				err = testRequest("Update", req, &res)
 				So(err, ShouldBeNil)
 			})
 
 			Convey("drop database before shutdown", func() {
 				// drop database
-				req, err = buildUpdateRequest(wt.DropDB, &wt.ServiceInstance{
-					DatabaseID: dbID,
-				})
-				So(err, ShouldBeNil)
+				req = &wt.UpdateService{
+					Op: wt.DropDB,
+					Instance: wt.ServiceInstance{
+						DatabaseID: dbID,
+					},
+				}
 				err = testRequest("Update", req, &res)
 				So(err, ShouldBeNil)
 
@@ -193,51 +193,14 @@ func TestDBMS(t *testing.T) {
 	})
 }
 
-func buildUpdateRequest(opType wt.UpdateType, instance *wt.ServiceInstance) (req *wt.UpdateService, err error) {
-	// get private/public key
-	var pubKey *asymmetric.PublicKey
-	var privateKey *asymmetric.PrivateKey
-
-	if privateKey, pubKey, err = getKeys(); err != nil {
-		return
-	}
-
-	req = &wt.UpdateService{
-		Header: wt.SignedUpdateServiceHeader{
-			UpdateServiceHeader: wt.UpdateServiceHeader{
-				Op:       opType,
-				Instance: *instance,
-			},
-			Signee: pubKey,
-		},
-	}
-
-	err = req.Sign(privateKey)
-
-	return
-}
-
 func testRequest(method string, req interface{}, response interface{}) (err error) {
 	realMethod := DBServiceRPCName + "." + method
 
 	// get node id
 	var nodeID proto.NodeID
-	if nodeID, err = getNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
-	var conn net.Conn
-	if conn, err = rpc.DialToNode(nodeID, nil); err != nil {
-		return
-	}
-
-	var client *rpc.Client
-	if client, err = rpc.InitClientConn(conn); err != nil {
-		conn.Close()
-		return
-	}
-
-	defer client.Close()
-
-	return client.Call(realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
 }

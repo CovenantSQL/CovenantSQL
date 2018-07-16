@@ -253,6 +253,45 @@ func (s simpleSerializer) readStrings(r io.Reader, order binary.ByteOrder, ret *
 	return
 }
 
+// readDatabaseIDs reads databaseIDs from reader with the following format:
+//
+// 0          4       8          8+len_0
+// +----------+-------+--------------+---------+-------+--------------+
+// | sliceLen | len_0 | databaseID_0 |   ...   | len_n | databaseID_n |
+// +----------+-------+--------------+---------+-------+--------------+
+//
+func (s simpleSerializer) readDatabaseIDs(r io.Reader, order binary.ByteOrder, ret *[]proto.DatabaseID) (
+	err error) {
+	var retLen uint32
+
+	if retLen, err = s.readUint32(r, order); err != nil {
+		return
+	}
+
+	if retLen > maxSliceLength {
+		err = ErrSliceLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	if *ret == nil || cap(*ret) < int(retLen) {
+		*ret = make([]proto.DatabaseID, retLen)
+	} else {
+		*ret = (*ret)[:retLen]
+	}
+
+	for i := range *ret {
+		if err = s.readString(r, order, (*string)(&((*ret)[i]))); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 // readHashes reads hashes from reader with the following format:
 //
 // 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
@@ -403,6 +442,29 @@ func (s simpleSerializer) writeStrings(w io.Writer, order binary.ByteOrder, val 
 	return
 }
 
+// writeDatabaseIDs writes databaseIDs to writer with the following format:
+//
+// 0          4       8          8+len_0
+// +----------+-------+--------------+---------+-------+--------------+
+// | sliceLen | len_0 | databaseID_0 |   ...   | len_n | databaseID_n |
+// +----------+-------+--------------+---------+-------+--------------+
+//
+func (s simpleSerializer) writeDatabaseIDs(w io.Writer,
+	order binary.ByteOrder,
+	val []proto.DatabaseID) (err error) {
+	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return
+	}
+
+	for i := range val {
+		if err = s.writeString(w, order, (*string)(&val[i])); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 // writeHashes writes hashes to writer with the following format:
 //
 // 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
@@ -519,6 +581,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 
 	case *[]*hash.Hash:
 		err = serializer.readHashes(r, order, e)
+
+	case *[]proto.DatabaseID:
+		err = serializer.readDatabaseIDs(r, order, e)
 
 	default:
 		// Fallback to BinaryUnmarshaler interface
@@ -693,6 +758,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *[]*hash.Hash:
 		err = serializer.writeHashes(w, order, *e)
+
+	case []proto.DatabaseID:
+		err = serializer.writeDatabaseIDs(w, order, e)
+
+	case *[]proto.DatabaseID:
+		err = serializer.writeDatabaseIDs(w, order, *e)
 
 	default:
 		// Fallback to BinaryMarshaler interface

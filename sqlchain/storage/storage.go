@@ -310,22 +310,27 @@ func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64
 
 	defer tx.Rollback()
 
-	q := queries[0]
+	for _, q := range queries {
+		// convert arguments types
+		args := make([]interface{}, len(q.Args))
 
-	// convert arguments types
-	args := make([]interface{}, len(q.Args))
+		for i, v := range q.Args {
+			args[i] = v
+		}
 
-	for i, v := range q.Args {
-		args[i] = v
+		var result sql.Result
+		if result, err = tx.Exec(q.Pattern, args...); err != nil {
+			return
+		}
+
+		var affected int64
+		affected, err = result.RowsAffected()
+
+		rowsAffected += affected
 	}
 
-	var result sql.Result
-	if result, err = tx.Exec(q.Pattern, args...); err != nil {
-		return
-	}
 	tx.Commit()
 
-	rowsAffected, err = result.RowsAffected()
 	return
 }
 

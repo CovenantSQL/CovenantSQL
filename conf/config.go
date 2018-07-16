@@ -18,6 +18,7 @@ package conf
 
 import (
 	"io/ioutil"
+	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -26,8 +27,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// ServerRole define the role of node to be leader/coordinator in peer set.
+// ServerRole defines the role of node to be leader/coordinator in peer set.
 type ServerRole int
+
+// these const specify the role of this app, which can be "miner", "blockProducer"
+const (
+	MinerBuildTag         = "M"
+	BlockProducerBuildTag = "B"
+	ClientBuildTag        = "C"
+	UnknownBuildTag       = "U"
+)
+
+// RoleTag indicate which role the daemon is playing
+var RoleTag = UnknownBuildTag
 
 const (
 	// Leader is a server that have the ability to organize committing requests.
@@ -77,9 +89,31 @@ type NodeInfo struct {
 	Role      ServerRole
 }
 
+// MinerDatabaseFixture config.
+type MinerDatabaseFixture struct {
+	DatabaseID               proto.DatabaseID
+	Term                     uint64
+	Leader                   proto.NodeID
+	Servers                  []proto.NodeID
+	GenesisBlockFile         string
+	AutoGenerateGenesisBlock bool `yaml:",omitempty"`
+}
+
+// MinerConfig for miner config.
+type MinerInfo struct {
+	// node basic config
+	RootDir               string
+	MaxReqTimeGap         time.Duration `yaml:",omitempty"`
+	MetricCollectInterval time.Duration `yaml:",omitempty"`
+
+	// test mode config
+	IsTestMode   bool // when test mode, fixture database config is used.
+	TestFixtures []*MinerDatabaseFixture
+}
+
 // Config holds all the config read from yaml config file
 type Config struct {
-	IsTestMode      bool //when testMode use default empty masterKey
+	IsTestMode      bool // when testMode use default empty masterKey
 	GenerateKeyPair bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
 	WorkingRoot     string
@@ -90,7 +124,8 @@ type Config struct {
 	ThisNodeID      proto.NodeID
 	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 
-	BP *BPInfo `yaml:"BlockProducer"`
+	BP    *BPInfo    `yaml:"BlockProducer"`
+	Miner *MinerInfo `yaml:"Miner,omitempty"`
 
 	KnownNodes *[]NodeInfo
 }

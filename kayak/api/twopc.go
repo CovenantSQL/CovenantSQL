@@ -21,7 +21,6 @@ import (
 	"net"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
@@ -72,9 +71,7 @@ func NewTwoPCOptions() *TwoPCOptions {
 // NewDefaultTwoPCOptions creates twopc configuration options with default settings.
 func NewDefaultTwoPCOptions() *TwoPCOptions {
 	// TODO(xq262144), node id hack
-	rawNodeID, _ := kms.GetLocalNodeID()
-	rawNodeHash, _ := hash.NewHash(rawNodeID)
-	nodeID := proto.NodeID(rawNodeHash.String())
+	nodeID, _ := kms.GetLocalNodeID()
 	return NewTwoPCOptions().WithNodeID(nodeID)
 }
 

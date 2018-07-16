@@ -161,7 +161,11 @@ func (r *runtime) getQueryGas(t wt.QueryType) uint32 {
 // stop sends a signal to the Runtime stop channel by closing it.
 func (r *runtime) stop() {
 	r.stopService()
-	close(r.stopCh)
+	select {
+	case <-r.stopCh:
+	default:
+		close(r.stopCh)
+	}
 	r.wg.Wait()
 }
 

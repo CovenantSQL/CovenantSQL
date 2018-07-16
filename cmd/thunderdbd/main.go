@@ -24,7 +24,6 @@ import (
 	"runtime"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/common"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -61,9 +60,6 @@ var (
 	clientOperation string
 )
 
-// Role specifies the role of this app, which can be "miner", "blockProducer"
-const Role = common.BlockProducer
-
 const name = `thunderdbd`
 const desc = `ThunderDB is a Distributed Database running on BlockChain`
 
@@ -89,7 +85,7 @@ func init() {
 func initLogs() {
 	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
 	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
-	log.Infof("role: %s", conf.Role)
+	log.Infof("role: %s", conf.RoleTag)
 }
 
 func main() {

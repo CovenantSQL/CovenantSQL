@@ -45,7 +45,7 @@ func NewDNSClient() *DNSClient {
 	//TODO(auxten) append dns server from conf
 	config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil || config == nil {
-		log.Errorf("Cannot initialize the local resolver: %s\n", err)
+		log.Errorf("can not initialize the local resolver: %s", err)
 	}
 	//TODO(auxten) use 1.1.1.1 just for testing now!
 	config.Servers[0] = testDNS
@@ -68,16 +68,16 @@ func (dc *DNSClient) Query(qname string, qtype uint16) (*dns.Msg, error) {
 		if r.Rcode == dns.RcodeSuccess {
 			return r, err
 		}
-		return r, fmt.Errorf("DNS query failed with Rcode %v\n", r.Rcode)
+		return r, fmt.Errorf("DNS query failed with Rcode %v", r.Rcode)
 	}
-	return nil, fmt.Errorf("No available name server")
+	return nil, fmt.Errorf("no available name server")
 }
 
 // GetKey returns the DNSKey for a nameserver
 func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 	r, err := dc.Query(name, dns.TypeDNSKEY)
 	if err != nil {
-		return nil, fmt.Errorf("DNSKEY record query failed: %v\n", err)
+		return nil, fmt.Errorf("DNSKEY record query failed: %v", err)
 	}
 	for _, k := range r.Answer {
 		if k1, ok := k.(*dns.DNSKEY); ok {
@@ -99,22 +99,22 @@ func (dc *DNSClient) VerifySection(set []dns.RR) error {
 			rrset := GetRRSet(set, rr.Header().Name, rr.(*dns.RRSIG).TypeCovered)
 			key, err := dc.GetKey(rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag)
 			if err != nil {
-				return fmt.Errorf(";? DNSKEY %s/%d not found, error: %v\n", rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag, err)
+				return fmt.Errorf(";? DNSKEY %s/%d not found, error: %v", rr.(*dns.RRSIG).SignerName, rr.(*dns.RRSIG).KeyTag, err)
 			}
 			domain, validDNSKey := conf.GConf.ValidDNSKeys[key.PublicKey]
 			if !validDNSKey {
 				return fmt.Errorf("DNSKEY %s not valid", key.PublicKey)
 			}
 			log.Debugf("valid DNSKEY %s of %s", key.PublicKey, domain)
-			if err := rr.(*dns.RRSIG).Verify(key, rrset); err == nil {
-				log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)\n", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
-			} else {
-				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]\n",
+			if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
+				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]",
 					shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
 			}
+			log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
+			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("not DNSSEC record")
 }
 
 // GetRRSet returns the RRset belonging to the signature with name and type t
@@ -137,9 +137,12 @@ func shortSig(sig *dns.RRSIG) string {
 func (dc *DNSClient) GetBPIDAddrMap(BPDomain string) (idAddrMap NodeIDAddressMap, err error) {
 	srvRR := dc.GetSRVRecords(BPDomain)
 	if srvRR == nil {
-		return nil, fmt.Errorf("got empty SRV records set")
+		err = fmt.Errorf("got empty SRV records set")
+		log.Error(err)
+		return
 	}
 	if err = dc.VerifySection(srvRR.Answer); err != nil {
+		log.Errorf("record verify failed: %s", err)
 		return
 	}
 	idAddrMap = make(NodeIDAddressMap)
@@ -176,7 +179,7 @@ func (dc *DNSClient) GetBPIDAddrMap(BPDomain string) (idAddrMap NodeIDAddressMap
 func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeSRV)
 	if err != nil {
-		log.Errorf("SRV record query failed: %v\n", err)
+		log.Errorf("SRV record query failed: %v", err)
 		return nil
 	}
 	return in
@@ -186,7 +189,7 @@ func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
 func (dc *DNSClient) GetARecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeA)
 	if err != nil {
-		log.Errorf("A record query failed: %v\n", err)
+		log.Errorf("A record query failed: %v", err)
 		return nil
 	}
 	return in

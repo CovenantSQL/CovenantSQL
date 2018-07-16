@@ -23,11 +23,14 @@ import (
 	"path/filepath"
 	"sync"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -147,7 +150,7 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 
 	for _, instanceConf := range conf {
 		currentInstance[instanceConf.DatabaseID] = true
-		if err = dbms.create(&instanceConf, false); err != nil {
+		if err = dbms.Create(&instanceConf, false); err != nil {
 			return
 		}
 	}
@@ -163,7 +166,7 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 
 	// drop database
 	for dbID := range toDropInstance {
-		if err = dbms.drop(dbID); err != nil {
+		if err = dbms.Drop(dbID); err != nil {
 			return
 		}
 	}
@@ -171,7 +174,8 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 	return
 }
 
-func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error) {
+// Create add new database to the miner dbms.
+func (dbms *DBMS) Create(instance *wt.ServiceInstance, cleanup bool) (err error) {
 	if _, alreadyExists := dbms.getMeta(instance.DatabaseID); alreadyExists {
 		return ErrAlreadyExists
 	}
@@ -205,19 +209,10 @@ func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error)
 		DataDir:         rootDir,
 		KayakMux:        dbms.kayakMux,
 		ChainMux:        dbms.chainMux,
-		MaxWriteTimeGap: dbms.cfg.MaxWriteTimeGap,
+		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
 	}
 
-	// parse genesis block
-	var block *ct.Block
-
-	// TODO(xq262144), temporary using msgpack marshal/unmarshal
-	// TODO(xq262144), to be refined later using optimal sqlchain api
-	if err = utils.DecodeMsgPack(instance.GenesisBlock, &block); err != nil {
-		return
-	}
-
-	if db, err = NewDatabase(dbCfg, instance.Peers, block); err != nil {
+	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {
 		return
 	}
 
@@ -227,7 +222,8 @@ func (dbms *DBMS) create(instance *wt.ServiceInstance, cleanup bool) (err error)
 	return
 }
 
-func (dbms *DBMS) drop(dbID proto.DatabaseID) (err error) {
+// Drop remove database from the miner dbms.
+func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	var db *Database
 	var exists bool
 
@@ -244,7 +240,8 @@ func (dbms *DBMS) drop(dbID proto.DatabaseID) (err error) {
 	return dbms.removeMeta(dbID)
 }
 
-func (dbms *DBMS) update(instance *wt.ServiceInstance) (err error) {
+// Update apply the new peers config to dbms.
+func (dbms *DBMS) Update(instance *wt.ServiceInstance) (err error) {
 	var db *Database
 	var exists bool
 
@@ -256,7 +253,8 @@ func (dbms *DBMS) update(instance *wt.ServiceInstance) (err error) {
 	return db.UpdatePeers(instance.Peers)
 }
 
-func (dbms *DBMS) query(req *wt.Request) (res *wt.Response, err error) {
+// Query handles query request in dbms.
+func (dbms *DBMS) Query(req *wt.Request) (res *wt.Response, err error) {
 	var db *Database
 	var exists bool
 
@@ -270,7 +268,8 @@ func (dbms *DBMS) query(req *wt.Request) (res *wt.Response, err error) {
 	return db.Query(req)
 }
 
-func (dbms *DBMS) ack(ack *wt.Ack) (err error) {
+// Ack handles ack of previous response.
+func (dbms *DBMS) Ack(ack *wt.Ack) (err error) {
 	var db *Database
 	var exists bool
 
@@ -310,7 +309,24 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 }
 
 func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err error) {
-	// TODO(xq262144), wait for block producer api ready
+	// get bp nodes
+	var nonce *cpuminer.Uint256
+	if nonce, err = kms.GetLocalNonce(); err != nil {
+		return
+	}
+
+	// TODO(xq262144), unify block producer calls
+	bps := route.GetBPs()
+	bpID := bps[int(nonce.A%uint64(len(bps)))]
+	req := &wt.InitService{}
+	res := new(wt.InitServiceResponse)
+	// TODO(xq262144), maybe we should define service name convention to a single location
+	if err = rpc.NewCaller().CallNode(bpID, "BPDB.GetNodeDatabases", req, res); err != nil {
+		return
+	}
+
+	instances = res.Instances
+
 	return
 }
 

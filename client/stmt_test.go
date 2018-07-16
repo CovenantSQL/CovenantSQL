@@ -25,11 +25,13 @@ import (
 
 func TestStmt(t *testing.T) {
 	Convey("test statement", t, func() {
-		startTestService()
+		var stopTestService func()
+		var err error
+		stopTestService, err = startTestService()
+		So(err, ShouldBeNil)
 		defer stopTestService()
 
 		var db *sql.DB
-		var err error
 		db, err = sql.Open("thunderdb", "thunderdb://db")
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)

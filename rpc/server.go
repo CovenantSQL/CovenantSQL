@@ -17,18 +17,18 @@
 package rpc
 
 import (
+	"io"
 	"net"
 	"net/rpc"
 
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"fmt"
 )
 
 // ServiceMap maps service name to service instance
@@ -60,6 +60,7 @@ func (s *Server) InitRPCServer(
 	masterKey []byte,
 ) (err error) {
 	//route.InitResolver()
+	fmt.Println("called")
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
@@ -135,16 +136,21 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
+sessionLoop:
 	for {
 		select {
-		//TODO(auxten) stop loop here
-		//case <-s.stopCh:
-		//	log.Info("Stopping Server Loop")
-		//	break sessionLoop
+		case <-s.stopCh:
+			log.Info("Stopping Session Loop")
+			break sessionLoop
 		default:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
+				if err == io.EOF {
+					log.Info("session connection closed")
+					break sessionLoop
+				}
 				log.Errorf("session accept failed: %s", err)
+
 				continue
 			}
 			log.Debugf("session accepted %d", muxConn.StreamID())
@@ -153,15 +159,6 @@ func (s *Server) handleConn(conn net.Conn) {
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}
-
-	//muxConn, err := sess.Accept()
-	//if err != nil {
-	//	log.Error(err)
-	//	return
-	//}
-	//msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
-	//nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
-	//s.rpcServer.ServeCodec(nodeAwareCodec)
 
 	log.Debugf("Server.handleConn finished for %s", conn.RemoteAddr())
 }
@@ -190,29 +187,17 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 
 	// headerBuf len is hash.HashBSize, so there won't be any error
 	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
-	nodeID := proto.NodeID(idHash.String())
+	rawNodeID := &proto.RawNodeID{Hash: *idHash}
 	// TODO(auxten): compute the nonce and check difficulty
 	// cpuminer.FromBytes(headerBuf[hash.HashBSize:])
 
-	publicKey, err := kms.GetPublicKey(nodeID)
+	symmetricKey, err := GetSharedSecretWith(rawNodeID)
 	if err != nil {
-		if conf.Role[0] == 'M' && err == kms.ErrKeyNotFound {
-			// TODO(auxten): if Miner running and key not found, ask BlockProducer
-		}
-		log.Errorf("get public key failed, node id: %s, err: %s", nodeID, err)
+		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
 		return
 	}
-	privateKey, err := kms.GetLocalPrivateKey()
-	if err != nil {
-		log.Errorf("get local private key failed: %s", err)
-		return
-	}
-
-	symmetricKey := asymmetric.GenECDHSharedSecret(privateKey, publicKey)
 	cipher := etls.NewCipher(symmetricKey)
-	cryptoConn = etls.NewConn(conn, cipher, &(proto.RawNodeID{
-		Hash: *idHash,
-	}))
+	cryptoConn = etls.NewConn(conn, cipher, rawNodeID)
 
 	return
 }

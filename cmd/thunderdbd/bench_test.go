@@ -25,15 +25,148 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
-func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
+var (
+	baseDir        = utils.GetProjectSrcDir()
+	testWorkingDir = FJ(baseDir, "./test/")
+	logDir         = FJ(testWorkingDir, "./log/")
+)
+
+var FJ = filepath.Join
+
+func TestBuild(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+	utils.Build()
+}
+
+func start3BPs() {
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
+		"leader", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml")},
+		"follower1", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml")},
+		"follower2", testWorkingDir, logDir, false,
+	)
+}
+
+func TestStartBP_CallRPC(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	start3BPs()
+	time.Sleep(5 * time.Second)
 
 	var err error
-	conf.GConf, err = conf.LoadConfig(configFile)
+	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
+	if err != nil {
+		t.Fatalf("load config from %s failed: %s", configFile, err)
+	}
+	rootPath := conf.GConf.WorkingRoot
+	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
+	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
+
+	route.InitKMS(pubKeyStorePath)
+	var masterKey []byte
+
+	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	if err != nil {
+		t.Errorf("init local key pair failed: %s", err)
+		return
+	}
+
+	leaderNodeID := kms.BP.NodeID
+	var conn net.Conn
+	var RPCClient *rpc.Client
+
+	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance()); err != nil {
+		t.Fatal(err)
+	}
+	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
+		t.Fatal(err)
+	}
+
+	nodePayload := proto.NewNode()
+	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
+	nodePayload.Addr = "nodePayloadAddr"
+
+	var reqType = "Ping"
+	reqPing := &proto.PingReq{
+		Node: *nodePayload,
+	}
+	respPing := new(proto.PingResp)
+	err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
+	log.Debugf("respPing %s: %##v", reqType, respPing)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqType = "FindNeighbor"
+
+	reqFindNeighbor := &proto.FindNeighborReq{
+		NodeID: proto.NodeID(nodePayload.ID),
+		Count:  1,
+	}
+	respFindNeighbor := new(proto.FindNeighborResp)
+	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
+	err = RPCClient.Call("DHT."+reqType, reqFindNeighbor, respFindNeighbor)
+	log.Debugf("respFindNeighbor %s: %##v", reqType, respFindNeighbor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqType = "Ping"
+	reqPing = &proto.PingReq{
+		Node: *nodePayload,
+	}
+	respPing = new(proto.PingResp)
+	err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
+	log.Debugf("respPing %s: %##v", reqType, respPing)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqType = "FindNode"
+	reqFN := &proto.FindNodeReq{
+		NodeID: nodePayload.ID,
+	}
+	respFN := new(proto.FindNodeResp)
+	err = RPCClient.Call("DHT."+reqType, reqFN, respFN)
+	log.Debugf("respFN %s: %##v", reqType, respFN.Node)
+	if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
+		t.Fatal(err)
+	}
+
+	caller := rpc.NewCaller()
+	for _, n := range (*conf.GConf.KnownNodes)[:] {
+		if n.Role == conf.Follower {
+			err = caller.CallNode(n.ID, "DHT."+reqType, reqFN, respFN)
+			log.Debugf("respFN %s: %##v", reqType, respFN.Node)
+			if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
+	log.SetLevel(log.DebugLevel)
+	start3BPs()
+
+	time.Sleep(5 * time.Second)
+
+	var err error
+	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
 	if err != nil {
 		log.Fatalf("load config from %s failed: %s", configFile, err)
 	}
@@ -85,18 +218,19 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 
 	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
-	var client *rpc.Client
+	var RPCClient *rpc.Client
 
-	//if len(reqType) > 0 && strings.Title(reqType[:1]) == "P" {
-	if conn, err = rpc.DialToNode(leaderNodeID, nil); err != nil {
+	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance()); err != nil {
 		return
 	}
-	if client, err = rpc.InitClientConn(conn); err != nil {
+	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
 		return
 	}
+
 	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
+	nodePayload.Addr = "nodePayloadAddr"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
 		NodeID: proto.NodeID(nodePayload.ID),
@@ -104,11 +238,10 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
-
 	b.Run("benchmark "+reqType, func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err = client.Call("DHT."+reqType, reqFindNeighbor, respFindNeighbor)
+			err = RPCClient.Call("DHT."+reqType, reqFindNeighbor, respFindNeighbor)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -117,21 +250,34 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	})
 
 	reqType = "Ping"
-
 	reqPing := &proto.PingReq{
 		Node: *nodePayload,
 	}
-
 	respPing := new(proto.PingResp)
-
 	b.Run("benchmark "+reqType, func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err = client.Call("DHT."+reqType, reqPing, respPing)
+			err = RPCClient.Call("DHT."+reqType, reqPing, respPing)
 			if err != nil {
 				log.Fatal(err)
 			}
-			//log.Debugf("respPing %s: %v", reqType, respPing)
 		}
 	})
+	log.Debugf("respPing %s: %##v", reqType, respPing)
+
+	reqType = "FindNode"
+	reqFN := &proto.FindNodeReq{
+		NodeID: nodePayload.ID,
+	}
+	respFN := new(proto.FindNodeResp)
+	b.Run("benchmark "+reqType, func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err = RPCClient.Call("DHT."+reqType, reqFN, respFN)
+			if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
+				log.Fatal(err)
+			}
+		}
+	})
+	log.Debugf("respFN %s: %##v", reqType, respFN.Node)
 }

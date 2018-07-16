@@ -47,7 +47,7 @@ type RawNodeID struct {
 type NodeID string
 
 // AccountAddress is wallet address, will be generated from Hash(nodePublicKey)
-type AccountAddress string
+type AccountAddress hash.Hash
 
 // NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
 type NodeKey RawNodeID
@@ -114,4 +114,9 @@ func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
 	node.Nonce = nonce.Nonce
 	log.Debugf("Node: %v", node)
 	return
+}
+
+// ToNodeID converts RawNodeID to NodeID
+func (id *RawNodeID) ToNodeID() NodeID {
+	return NodeID(id.String())
 }

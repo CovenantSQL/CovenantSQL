@@ -45,15 +45,19 @@ const (
 	DebugLevel
 )
 
+// Logger wraps logrus logger type.
 type Logger logrus.Logger
 
+// CallerHook defines caller awareness hook for logrus.
 type CallerHook struct{}
 
+// Fire defines hook event handler.
 func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 	entry.Data["caller"] = hook.caller()
 	return nil
 }
 
+// Levels define hook applicable level.
 func (hook *CallerHook) Levels() []logrus.Level {
 	return []logrus.Level{
 		logrus.PanicLevel,
@@ -93,6 +97,7 @@ func init() {
 //	std = logrus.New()
 //)
 
+// StandardLogger returns the standard logger.
 func StandardLogger() *Logger {
 	return (*Logger)(logrus.StandardLogger())
 }
@@ -206,65 +211,65 @@ func Infof(format string, args ...interface{}) {
 
 // Warnf logs a message at level Warn on the standard logger.
 func Warnf(format string, args ...interface{}) {
-	logrus.Warnf(format, args)
+	logrus.Warnf(format, args...)
 }
 
 // Warningf logs a message at level Warn on the standard logger.
 func Warningf(format string, args ...interface{}) {
-	logrus.Warningf(format, args)
+	logrus.Warningf(format, args...)
 }
 
 // Errorf logs a message at level Error on the standard logger.
 func Errorf(format string, args ...interface{}) {
-	logrus.Errorf(format, args)
+	logrus.Errorf(format, args...)
 }
 
 // Panicf logs a message at level Panic on the standard logger.
 func Panicf(format string, args ...interface{}) {
-	logrus.Panicf(format, args)
+	logrus.Panicf(format, args...)
 }
 
 // Fatalf logs a message at level Fatal on the standard logger.
 func Fatalf(format string, args ...interface{}) {
-	logrus.Panicf(format, args)
+	logrus.Panicf(format, args...)
 }
 
 // Debugln logs a message at level Debug on the standard logger.
 func Debugln(args ...interface{}) {
-	logrus.Debugln(args)
+	logrus.Debugln(args...)
 }
 
 // Println logs a message at level Info on the standard logger.
 func Println(args ...interface{}) {
-	logrus.Println(args)
+	logrus.Println(args...)
 }
 
 // Infoln logs a message at level Info on the standard logger.
 func Infoln(args ...interface{}) {
-	logrus.Infoln(args)
+	logrus.Infoln(args...)
 }
 
 // Warnln logs a message at level Warn on the standard logger.
 func Warnln(args ...interface{}) {
-	logrus.Warnln(args)
+	logrus.Warnln(args...)
 }
 
 // Warningln logs a message at level Warn on the standard logger.
 func Warningln(args ...interface{}) {
-	logrus.Warningln(args)
+	logrus.Warningln(args...)
 }
 
 // Errorln logs a message at level Error on the standard logger.
 func Errorln(args ...interface{}) {
-	logrus.Errorln(args)
+	logrus.Errorln(args...)
 }
 
 // Panicln logs a message at level Panic on the standard logger.
 func Panicln(args ...interface{}) {
-	logrus.Panicln(args)
+	logrus.Panicln(args...)
 }
 
 // Fatalln logs a message at level Fatal on the standard logger.
 func Fatalln(args ...interface{}) {
-	logrus.Fatalln(args)
+	logrus.Fatalln(args...)
 }

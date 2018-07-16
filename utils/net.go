@@ -21,15 +21,24 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync"
 )
 
 var (
 	// ErrNotEnoughPorts defines error indicating random port allocation failure.
 	ErrNotEnoughPorts = errors.New("not enough ports in port range")
+
+	allocatedPorts sync.Map
+	allocateLock   sync.Mutex
 )
 
 func testPort(bindAddr string, port int) bool {
 	addr := net.JoinHostPort(bindAddr, fmt.Sprint(port))
+
+	if _, ok := allocatedPorts.Load(addr); ok {
+		return false
+	}
+
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return false
@@ -40,7 +49,22 @@ func testPort(bindAddr string, port int) bool {
 
 // GetRandomPorts returns available random ports, previously allocated ports will be ignored.
 func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, err error) {
+	allocateLock.Lock()
+	defer allocateLock.Unlock()
+
 	ports = make([]int, 0, count)
+
+	defer func() {
+		// save the allocated ports
+		if err == nil {
+			for _, port := range ports {
+				addr := net.JoinHostPort(bindAddr, fmt.Sprint(port))
+				allocatedPorts.Store(addr, true)
+				addr = net.JoinHostPort("0.0.0.0", fmt.Sprint(port))
+				allocatedPorts.Store(addr, true)
+			}
+		}
+	}()
 
 	if count == 0 {
 		return
@@ -55,7 +79,10 @@ func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, 
 		return
 	}
 
-	pivotPort := rand.Intn(maxPort-minPort) + minPort
+	pivotPort := minPort
+	if maxPort != minPort {
+		pivotPort = rand.Intn(maxPort-minPort) + minPort
+	}
 
 	for i := pivotPort; i <= maxPort; i++ {
 		if testPort(bindAddr, i) {

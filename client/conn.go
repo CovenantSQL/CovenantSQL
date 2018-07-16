@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -41,14 +42,16 @@ type conn struct {
 	connectionID uint64
 	seqNo        uint64
 
-	queries []storage.Query
-	peers   *kayak.Peers
-	nodeID  proto.NodeID
-	privKey *asymmetric.PrivateKey
-	pubKey  *asymmetric.PublicKey
+	queries   []storage.Query
+	peers     *kayak.Peers
+	peersLock sync.RWMutex
+	nodeID    proto.NodeID
+	privKey   *asymmetric.PrivateKey
+	pubKey    *asymmetric.PublicKey
 
 	inTransaction bool
 	closed        int32
+	closeCh       chan struct{}
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
@@ -87,6 +90,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 		privKey:      privKey,
 		pubKey:       pubKey,
 		queries:      make([]storage.Query, 0),
+		closeCh:      make(chan struct{}),
 	}
 
 	c.log("new conn database ", c.dbID)
@@ -95,6 +99,24 @@ func newConn(cfg *Config) (c *conn, err error) {
 	if err = c.getPeers(); err != nil {
 		return
 	}
+
+	// start peers update routine
+	go func() {
+		ticker := time.NewTicker(cfg.PeersUpdateInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-c.closeCh:
+				return
+			case <-ticker.C:
+			}
+
+			if err = c.getPeers(); err != nil {
+				c.log("update peers failed ", err.Error())
+			}
+		}
+	}()
 
 	return
 }
@@ -113,6 +135,12 @@ func (c *conn) Close() error {
 	// close the meta connection
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.log("closed connection")
+	}
+
+	select {
+	case <-c.closeCh:
+	default:
+		close(c.closeCh)
 	}
 
 	return nil
@@ -248,6 +276,9 @@ func (c *conn) addQuery(queryType wt.QueryType, query *storage.Query) (rows driv
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows driver.Rows, err error) {
+	c.peersLock.RLock()
+	defer c.peersLock.RUnlock()
+
 	// build request
 	seqNo := atomic.AddUint64(&c.seqNo, 1)
 	req := &wt.Request{
@@ -310,6 +341,9 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 }
 
 func (c *conn) getPeers() (err error) {
+	c.peersLock.Lock()
+	defer c.peersLock.Unlock()
+
 	// TODO(xq262144)consider periodic calling this or implement Pinger interface for instance peers update.
 	req := &bp.GetDatabaseRequest{
 		DatabaseID: c.dbID,

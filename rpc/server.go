@@ -21,6 +21,8 @@ import (
 	"net"
 	"net/rpc"
 
+	"fmt"
+
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
@@ -28,7 +30,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"fmt"
 )
 
 // ServiceMap maps service name to service instance

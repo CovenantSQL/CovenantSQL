@@ -28,13 +28,14 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
+	"sync"
+
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"sync"
 )
 
 // PublicKeyStore holds db and bucket name

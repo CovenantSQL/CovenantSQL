@@ -25,12 +25,12 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/metric"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
-	"gitlab.com/thunderdb/ThunderDB/metric"
-	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 const logo = `

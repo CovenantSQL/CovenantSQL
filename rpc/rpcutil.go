@@ -17,6 +17,9 @@
 package rpc
 
 import (
+	"context"
+	"net/rpc"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -38,6 +41,12 @@ func NewCaller() *Caller {
 // CallNode invokes the named function, waits for it to complete, and returns its error status.
 func (c *Caller) CallNode(
 	node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
+	return c.CallNodeWithContext(context.Background(), node, method, args, reply)
+}
+
+// CallNodeWithContext invokes the named function, waits for it to complete or context timeout, and returns its error status.
+func (c *Caller) CallNodeWithContext(
+	ctx context.Context, node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
 	conn, err := DialToNode(node, c.pool)
 	if err != nil {
 		log.Errorf("dialing to node: %s failed: %s", node, err)
@@ -58,7 +67,17 @@ func (c *Caller) CallNode(
 	//		stream.Close()
 	//	}
 	//}()
-	return client.Call(method, args, reply)
+
+	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))
+
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case call := <-ch.Done:
+		err = call.Error
+	}
+
+	return
 }
 
 // GetNodeAddr tries best to get node addr

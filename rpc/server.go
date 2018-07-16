@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"net/rpc"
@@ -28,7 +29,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"fmt"
 )
 
 // ServiceMap maps service name to service instance

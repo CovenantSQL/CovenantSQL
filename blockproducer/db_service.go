@@ -207,7 +207,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 		Data:      reqNodeID.CloneBytes(),
 		NonceChan: nonceCh,
 		Stop:      nil,
-	}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
+	}, cpuminer.Uint256{}, 4)
 
 	defer close(nonceCh)
 	defer close(quitCh)

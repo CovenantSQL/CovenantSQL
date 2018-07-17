@@ -18,11 +18,9 @@ package rpc
 
 import (
 	"encoding/hex"
-	"testing"
-
 	"net"
-
 	"os"
+	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"

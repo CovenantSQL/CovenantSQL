@@ -33,7 +33,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID) (symmetricKey []byte, err erro
 	} else if conf.RoleTag[0] == 'B' {
 		remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
 		if err != nil {
-			log.Errorf("get public key locally failed, node id: %x, err: %s", nodeID, err)
+			log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
 			return
 		}
 	} else {
@@ -41,7 +41,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID) (symmetricKey []byte, err erro
 		var nodeInfo *proto.Node
 		nodeInfo, err = GetNodeInfo(nodeID)
 		if err != nil {
-			log.Errorf("get public key failed, node id: %x, err: %s", nodeID, err)
+			log.Errorf("get public key failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
 			return
 		}
 		remotePublicKey = nodeInfo.PublicKey

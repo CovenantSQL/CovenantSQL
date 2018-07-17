@@ -36,7 +36,7 @@ func TestUint256(t *testing.T) {
 	Convey("convert", t, func() {
 		i := Uint256{math.MaxUint64, 3, 444, 1230}
 		log.Print(i.Bytes())
-		j, err := FromBytes(i.Bytes())
+		j, err := Uint256FromBytes(i.Bytes())
 
 		So(err, ShouldBeNil)
 		So(j.A == math.MaxUint64, ShouldBeTrue)
@@ -45,7 +45,7 @@ func TestUint256(t *testing.T) {
 		So(j.D, ShouldEqual, 1230)
 	})
 	Convey("convert error", t, func() {
-		i, err := FromBytes([]byte("aaa"))
+		i, err := Uint256FromBytes([]byte("aaa"))
 		So(err, ShouldEqual, ErrBytesLen)
 		So(i, ShouldBeNil)
 	})

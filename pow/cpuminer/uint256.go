@@ -52,8 +52,8 @@ func (i *Uint256) Bytes() []byte {
 	return binBuf.Bytes()
 }
 
-// FromBytes converts []byte to Uint256
-func FromBytes(b []byte) (*Uint256, error) {
+// Uint256FromBytes converts []byte to Uint256
+func Uint256FromBytes(b []byte) (*Uint256, error) {
 	if len(b) != 32 {
 		return nil, ErrBytesLen
 	}

@@ -24,6 +24,7 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
@@ -593,4 +594,8 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	}
 
 	return c.pushAckedQuery(ack)
+}
+
+func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
+	return c.rt.updatePeers(peers)
 }

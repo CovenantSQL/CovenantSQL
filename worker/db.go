@@ -148,8 +148,12 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 }
 
 // UpdatePeers defines peers update query interface.
-func (db *Database) UpdatePeers(peers *kayak.Peers) error {
-	return db.kayakRuntime.UpdatePeers(peers)
+func (db *Database) UpdatePeers(peers *kayak.Peers) (err error) {
+	if err = db.kayakRuntime.UpdatePeers(peers); err != nil {
+		return
+	}
+
+	return db.chain.UpdatePeers(peers)
 }
 
 // Query defines database query interface.

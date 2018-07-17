@@ -49,10 +49,6 @@ type runtime struct {
 	queryTTL int32
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
-	// peers is the peer list of the sql-chain.
-	peers *kayak.Peers
-	// server is the local peer service instance.
-	server *kayak.Server
 	// price sets query price in gases.
 	price map[wt.QueryType]uint32
 
@@ -62,6 +58,10 @@ type runtime struct {
 	total int32
 
 	sync.RWMutex // Protects following fields.
+	// peers is the peer list of the sql-chain.
+	peers *kayak.Peers
+	// server is the local peer service instance.
+	server *kayak.Server
 	// nextTurn is the height of the next block.
 	nextTurn int32
 	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
@@ -183,6 +183,28 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 
 	if d > r.tick {
 		d = r.tick
+	}
+
+	return
+}
+
+func (c *runtime) updatePeers(peers *kayak.Peers) (err error) {
+	found := false
+	c.Lock()
+	defer c.Unlock()
+
+	for _, s := range peers.Servers {
+		if c.server.ID == s.ID {
+			found = true
+			c.server = s
+			c.peers = peers
+			break
+		}
+	}
+
+	if !found {
+		// Just clear the server list, and the database instance should call chain.Stop() later
+		c.peers.Servers = c.peers.Servers[:0]
 	}
 
 	return

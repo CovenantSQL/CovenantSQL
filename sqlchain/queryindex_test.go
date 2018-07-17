@@ -32,6 +32,12 @@ const (
 	testQueryWorkerNumber    = 3
 )
 
+func (i *heightIndex) mustGet(k int32) *multiIndex {
+	i.Lock()
+	defer i.Unlock()
+	return i.index[k]
+}
+
 func TestCorruptedIndex(t *testing.T) {
 	ack, err := createRandomNodesAndAck()
 
@@ -62,7 +68,7 @@ func TestCorruptedIndex(t *testing.T) {
 	}
 
 	// Test corrupted index
-	qi.heightIndex[0].respIndex[resp.HeaderHash].response = nil
+	qi.heightIndex.mustGet(0).respIndex[resp.HeaderHash].response = nil
 
 	if err = qi.addResponse(0, resp); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
@@ -72,7 +78,7 @@ func TestCorruptedIndex(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	qi.heightIndex[0].respIndex[resp.HeaderHash] = nil
+	qi.heightIndex.mustGet(0).respIndex[resp.HeaderHash] = nil
 
 	if err = qi.addResponse(0, resp); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
@@ -97,7 +103,7 @@ func TestSingleAck(t *testing.T) {
 	}
 
 	// Check not signed ack
-	qi.heightIndex[0].checkBeforeExpire()
+	qi.heightIndex.mustGet(0).checkBeforeExpire()
 }
 
 func TestEnsureRange(t *testing.T) {
@@ -105,7 +111,7 @@ func TestEnsureRange(t *testing.T) {
 	qi.heightIndex.ensureRange(0, 10)
 
 	for i := 0; i < 10; i++ {
-		if _, ok := qi.heightIndex[int32(i)]; !ok {
+		if _, ok := qi.heightIndex.get(int32(i)); !ok {
 			t.Fatalf("Failed to ensure height %d", i)
 		}
 	}
@@ -219,7 +225,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	// Revert index state for the first block, and test checking again
-	qi.heightIndex[height].seqIndex[req.SeqNo].firstAck.signedBlock = nil
+	qi.heightIndex.mustGet(height).seqIndex[req.SeqNo].firstAck.signedBlock = nil
 
 	if _, err = qi.checkAckFromBlock(
 		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
@@ -228,7 +234,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	// Test corrupted index
-	qi.heightIndex[height].seqIndex[req.SeqNo] = nil
+	qi.heightIndex.mustGet(height).seqIndex[req.SeqNo] = nil
 
 	if _, err = qi.checkAckFromBlock(
 		height, &b2.SignedHeader.BlockHash, b2.Queries[0],

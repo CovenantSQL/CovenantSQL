@@ -119,7 +119,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 			ID: nodeID,
 		},
 
-		// TODO(xq261244), currently using fixed period/resolution from sqlchain test case
+		// TODO(xq262144), currently using fixed period/resolution from sqlchain test case
 		Period:   1 * time.Second,
 		Tick:     100 * time.Millisecond,
 		QueryTTL: 10,

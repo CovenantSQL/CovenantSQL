@@ -14,14 +14,5 @@
  * limitations under the License.
  */
 
-package conf
-
-import (
-	"gitlab.com/thunderdb/ThunderDB/common"
-)
-
-// Role indicate which role the daemon is playing
-// 	Unknown       = "U"
-//	Miner         = "M"
-//	BlockProducer = "B"
-var Role = common.Unknown
+// Package blockproducer implements blockproducer node block genreation and database management logics.
+package blockproducer

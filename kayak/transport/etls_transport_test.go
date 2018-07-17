@@ -19,10 +19,10 @@ package transport
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"io/ioutil"
-	"net"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -30,16 +30,15 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-)
-
-var (
-	pass = "DU>p~[/dd2iImUs*"
 )
 
 type mockRes struct {
@@ -50,91 +49,73 @@ type mockRes struct {
 	listenAddr string
 }
 
-func cipherHandler(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
-	nodeIDBuf := make([]byte, hash.HashBSize)
-	rCount, err := conn.Read(nodeIDBuf)
-	if err != nil || rCount != hash.HashBSize {
-		return
-	}
-	cipher := etls.NewCipher([]byte(pass))
-	h, _ := hash.NewHash(nodeIDBuf)
-	nodeID := &proto.RawNodeID{
-		Hash: *h,
-	}
-
-	cryptoConn = etls.NewConn(conn, cipher, nodeID)
-	return
-}
-
-func getNodeDialer(reqNodeID proto.NodeID, nodeMap *sync.Map) ETLSRPCClientBuilder {
-	return func(ctx context.Context, nodeID proto.NodeID) (client *rpc.Client, err error) {
-		cipher := etls.NewCipher([]byte(pass))
-
-		var ok bool
-		var addr interface{}
-
-		if addr, ok = nodeMap.Load(nodeID); !ok {
-			return nil, errors.New("could not connect to " + string(nodeID))
-		}
-
-		var conn net.Conn
-		conn, err = net.Dial("tcp", addr.(string))
-		if err != nil {
-			return
-		}
-
-		// convert node id to raw node id
-		rawNodeID := reqNodeID.ToRawNodeID()
-		wCount, err := conn.Write(rawNodeID.Hash[:])
-		if err != nil || wCount != hash.HashBSize {
-			return
-		}
-
-		cryptConn := etls.NewConn(conn, cipher, rawNodeID)
-		return rpc.InitClientConn(cryptConn)
-	}
-}
-
-func testWithNewNode(nodeMap *sync.Map) (mock *mockRes, err error) {
+func testWithNewNode() (mock *mockRes, err error) {
 	// mock etls transport without kms server
 	mock = &mockRes{}
 	addr := "127.0.0.1:0"
-	var l *etls.CryptoListener
-	l, err = etls.NewCryptoListener("tcp", addr, cipherHandler)
-	if err != nil {
-		return
-	}
-	mock.listenAddr = l.Addr().String()
 
 	// random node id
 	randBytes := make([]byte, 4)
 	rand.Read(randBytes)
 	mock.nodeID = proto.NodeID(hash.THashH(randBytes).String())
+	kms.SetLocalNodeIDNonce(mock.nodeID.ToRawNodeID().CloneBytes(), &cpuminer.Uint256{})
 	mock.service = &ETLSTransportService{}
 	mock.transport = NewETLSTransport(&ETLSTransportConfig{
 		NodeID:           mock.nodeID,
 		TransportID:      "test",
 		TransportService: mock.service,
 		ServiceName:      "Kayak",
-		ClientBuilder:    getNodeDialer(mock.nodeID, nodeMap),
 	})
 	mock.server, err = rpc.NewServerWithService(rpc.ServiceMap{"Kayak": mock.service})
 	if err != nil {
 		return
 	}
-	mock.server.SetListener(l)
-	nodeMap.Store(mock.nodeID, mock.listenAddr)
+	_, testFile, _, _ := runtime.Caller(0)
+	privKeyPath := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/private.key")
+	if err = mock.server.InitRPCServer(addr, privKeyPath, []byte("")); err != nil {
+		return
+	}
+	mock.listenAddr = mock.server.Listener.Addr().String()
+	route.SetNodeAddrCache(mock.nodeID.ToRawNodeID(), mock.listenAddr)
+	var nonce *cpuminer.Uint256
+	if nonce, err = kms.GetLocalNonce(); err != nil {
+		return
+	}
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if err = kms.SetPublicKey(mock.nodeID, *nonce, pubKey); err != nil {
+		return
+	}
+
+	log.Infof("fake node with node id: %v", mock.nodeID)
+	return
+}
+
+func initKMS() (err error) {
+	var f *os.File
+	f, err = ioutil.TempFile("", "keystore_")
+	f.Close()
+	os.Remove(f.Name())
+	route.InitKMS(f.Name())
+
+	// flag as test
+	kms.Unittest = true
+
 	return
 }
 
 func TestETLSTransport(t *testing.T) {
 	Convey("full test", t, FailureContinues, func(c C) {
-		var nodeMap sync.Map
 		var err error
 
-		mock1, err := testWithNewNode(&nodeMap)
+		err = initKMS()
 		So(err, ShouldBeNil)
-		mock2, err := testWithNewNode(&nodeMap)
+
+		mock1, err := testWithNewNode()
+		So(err, ShouldBeNil)
+		mock2, err := testWithNewNode()
 		So(err, ShouldBeNil)
 
 		var wgServer, wgRequest sync.WaitGroup
@@ -159,6 +140,9 @@ func TestETLSTransport(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		testLog := testLogFixture([]byte("test request"))
+
+		// make request issuer as node 1
+		kms.SetLocalNodeIDNonce(mock1.nodeID.ToRawNodeID().CloneBytes(), &cpuminer.Uint256{})
 
 		wgRequest.Add(1)
 		go func() {
@@ -208,9 +192,6 @@ func TestETLSIntegration(t *testing.T) {
 		etlsMock  *mockRes
 	}
 
-	// test node map/routine map
-	var nodeMap sync.Map
-
 	// create mock returns basic arguments to prepare for a server
 	createMock := func(etlsMock *mockRes, peers *kayak.Peers) (res *createMockRes) {
 		res = &createMockRes{}
@@ -250,11 +231,14 @@ func TestETLSIntegration(t *testing.T) {
 	Convey("integration test", t, FailureContinues, func(c C) {
 		var err error
 
-		lNodeEtls, err := testWithNewNode(&nodeMap)
+		err = initKMS()
 		So(err, ShouldBeNil)
-		f1NodeEtls, err := testWithNewNode(&nodeMap)
+
+		lNodeEtls, err := testWithNewNode()
 		So(err, ShouldBeNil)
-		f2NodeEtls, err := testWithNewNode(&nodeMap)
+		f1NodeEtls, err := testWithNewNode()
+		So(err, ShouldBeNil)
+		f2NodeEtls, err := testWithNewNode()
 		So(err, ShouldBeNil)
 
 		// peers is a simple 3-node peer configuration
@@ -290,6 +274,9 @@ func TestETLSIntegration(t *testing.T) {
 
 		// payload to send
 		testPayload := []byte("test data")
+
+		// make request issuer as leader node
+		kms.SetLocalNodeIDNonce(lMock.config.LocalID.ToRawNodeID().CloneBytes(), &cpuminer.Uint256{})
 
 		// underlying worker mock, prepare/commit/rollback with be received the decoded data
 		callOrder := &CallCollector{}

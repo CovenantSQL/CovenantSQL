@@ -23,8 +23,6 @@ import (
 
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -187,29 +185,17 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 
 	// headerBuf len is hash.HashBSize, so there won't be any error
 	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
-	nodeID := proto.NodeID(idHash.String())
+	rawNodeID := &proto.RawNodeID{Hash: *idHash}
 	// TODO(auxten): compute the nonce and check difficulty
 	// cpuminer.FromBytes(headerBuf[hash.HashBSize:])
 
-	publicKey, err := kms.GetPublicKey(nodeID)
+	symmetricKey, err := GetSharedSecretWith(rawNodeID)
 	if err != nil {
-		if conf.Role[0] == 'M' && err == kms.ErrKeyNotFound {
-			// TODO(auxten): if Miner running and key not found, ask BlockProducer
-		}
-		log.Errorf("get public key failed, node id: %s, err: %s", nodeID, err)
+		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
 		return
 	}
-	privateKey, err := kms.GetLocalPrivateKey()
-	if err != nil {
-		log.Errorf("get local private key failed: %s", err)
-		return
-	}
-
-	symmetricKey := asymmetric.GenECDHSharedSecret(privateKey, publicKey)
 	cipher := etls.NewCipher(symmetricKey)
-	cryptoConn = etls.NewConn(conn, cipher, &(proto.RawNodeID{
-		Hash: *idHash,
-	}))
+	cryptoConn = etls.NewConn(conn, cipher, rawNodeID)
 
 	return
 }

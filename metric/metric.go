@@ -26,13 +26,19 @@ import (
 
 const (
 	// KB is 1024 Bytes
-	KB int = 1024
+	KB int64 = 1024
 	// MB is 1024 KB
-	MB int = KB * 1024
+	MB int64 = KB * 1024
 	// GB is 1024 MB
-	GB int = MB * 1024
+	GB int64 = MB * 1024
 	// TB is 1024 GB
-	TB int = GB * 1024
+	TB int64 = GB * 1024
+	// PB is 1024 TB
+	PB int64 = TB * 1024
+	// EB is 1024 PB
+	EB int64 = TB * 1024
+	// ZB is 1024 EB
+	ZB int64 = TB * 1024
 )
 
 func init() {

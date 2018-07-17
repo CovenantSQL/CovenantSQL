@@ -45,15 +45,19 @@ const (
 	DebugLevel
 )
 
+// Logger wraps logrus logger type.
 type Logger logrus.Logger
 
+// CallerHook defines caller awareness hook for logrus.
 type CallerHook struct{}
 
+// Fire defines hook event handler.
 func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 	entry.Data["caller"] = hook.caller()
 	return nil
 }
 
+// Levels define hook applicable level.
 func (hook *CallerHook) Levels() []logrus.Level {
 	return []logrus.Level{
 		logrus.PanicLevel,
@@ -93,6 +97,7 @@ func init() {
 //	std = logrus.New()
 //)
 
+// StandardLogger returns the standard logger.
 func StandardLogger() *Logger {
 	return (*Logger)(logrus.StandardLogger())
 }

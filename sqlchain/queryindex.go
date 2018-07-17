@@ -348,16 +348,21 @@ func (i *multiIndex) markAndCollectUnsignedAcks(qs *[]*hash.Hash) {
 }
 
 // heightIndex defines a MultiIndex index using height as key.
-type heightIndex map[int32]*multiIndex
+type heightIndex struct {
+	sync.Mutex
+	index map[int32]*multiIndex
+}
 
 // ensureHeight returns the *MultiIndex associated with the given height. It creates a new item if
 // the key doesn't exist.
-func (i heightIndex) ensureHeight(h int32) (v *multiIndex) {
-	v, ok := i[h]
+func (i *heightIndex) ensureHeight(h int32) (v *multiIndex) {
+	i.Lock()
+	defer i.Unlock()
+	v, ok := i.index[h]
 
 	if !ok {
 		v = newMultiIndex()
-		i[h] = v
+		i.index[h] = v
 	}
 
 	return
@@ -365,24 +370,42 @@ func (i heightIndex) ensureHeight(h int32) (v *multiIndex) {
 
 // ensureRange creates new *multiIndex items associated within the given height range [l, h) for
 // those don't exist.
-func (i heightIndex) ensureRange(l, h int32) {
+func (i *heightIndex) ensureRange(l, h int32) {
+	i.Lock()
+	defer i.Unlock()
+
 	for x := l; x < h; x++ {
-		if _, ok := i[x]; !ok {
-			i[x] = newMultiIndex()
+		if _, ok := i.index[x]; !ok {
+			i.index[x] = newMultiIndex()
 		}
 	}
+}
+
+func (i *heightIndex) get(k int32) (v *multiIndex, ok bool) {
+	i.Lock()
+	defer i.Unlock()
+	v, ok = i.index[k]
+	return
+}
+
+func (i *heightIndex) del(k int32) {
+	i.Lock()
+	defer i.Unlock()
+	delete(i.index, k)
 }
 
 // queryIndex defines a query index maintainer.
 type queryIndex struct {
 	barrier     int32
-	heightIndex heightIndex
+	heightIndex *heightIndex
 }
 
 // newQueryIndex returns a new queryIndex reference.
 func newQueryIndex() *queryIndex {
 	return &queryIndex{
-		heightIndex: make(map[int32]*multiIndex),
+		heightIndex: &heightIndex{
+			index: make(map[int32]*multiIndex),
+		},
 	}
 }
 
@@ -437,9 +460,9 @@ func (i *queryIndex) getAck(h int32, header *hash.Hash) (
 // expired, and all the queries which are not packed in these buckets will be reported.
 func (i *queryIndex) advanceBarrier(height int32) {
 	for x := i.barrier; x < height; x++ {
-		if hi, ok := i.heightIndex[x]; ok {
+		if hi, ok := i.heightIndex.get(x); ok {
 			hi.checkBeforeExpire()
-			delete(i.heightIndex, x)
+			i.heightIndex.del(x)
 		}
 	}
 
@@ -452,7 +475,7 @@ func (i *queryIndex) markAndCollectUnsignedAcks(height int32) (qs []*hash.Hash) 
 	qs = make([]*hash.Hash, 0, 1024)
 
 	for x := i.barrier; x < height; x++ {
-		if hi, ok := i.heightIndex[x]; ok {
+		if hi, ok := i.heightIndex.get(x); ok {
 			hi.markAndCollectUnsignedAcks(&qs)
 		}
 	}

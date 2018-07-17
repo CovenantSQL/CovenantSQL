@@ -17,16 +17,12 @@
 package api
 
 import (
-	"context"
-	"net"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -43,21 +39,7 @@ type TwoPCOptions struct {
 	ProcessTimeout time.Duration
 	NodeID         proto.NodeID
 	TransportID    string
-	ClientBuilder  kt.ETLSRPCClientBuilder
 	Logger         *log.Logger
-}
-
-// DefaultClientBuilder defines default etls dialer and creates rpc client.
-func DefaultClientBuilder(ctx context.Context, nodeID proto.NodeID) (client *rpc.Client, err error) {
-	var conn net.Conn
-	conn, err = rpc.DialToNode(nodeID, nil)
-	if err != nil {
-		return
-	}
-
-	client, err = rpc.InitClientConn(conn)
-
-	return
 }
 
 // NewTwoPCOptions creates empty twopc configuration options.
@@ -65,16 +47,13 @@ func NewTwoPCOptions() *TwoPCOptions {
 	return &TwoPCOptions{
 		ProcessTimeout: DefaultProcessTimeout,
 		TransportID:    DefaultTransportID,
-		ClientBuilder:  DefaultClientBuilder,
 	}
 }
 
 // NewDefaultTwoPCOptions creates twopc configuration options with default settings.
 func NewDefaultTwoPCOptions() *TwoPCOptions {
 	// TODO(xq262144), node id hack
-	rawNodeID, _ := kms.GetLocalNodeID()
-	rawNodeHash, _ := hash.NewHash(rawNodeID)
-	nodeID := proto.NodeID(rawNodeHash.String())
+	nodeID, _ := kms.GetLocalNodeID()
 	return NewTwoPCOptions().WithNodeID(nodeID)
 }
 
@@ -93,12 +72,6 @@ func (o *TwoPCOptions) WithNodeID(nodeID proto.NodeID) *TwoPCOptions {
 // WithTransportID set custom transport id to options.
 func (o *TwoPCOptions) WithTransportID(id string) *TwoPCOptions {
 	o.TransportID = id
-	return o
-}
-
-// WithClientBuilder set custom client builder to options.
-func (o *TwoPCOptions) WithClientBuilder(builder kt.ETLSRPCClientBuilder) *TwoPCOptions {
-	o.ClientBuilder = builder
 	return o
 }
 
@@ -127,7 +100,6 @@ func NewTwoPCConfigWithOptions(rootDir string, service *kt.ETLSTransportService,
 		NodeID:           options.NodeID,
 		TransportID:      options.TransportID,
 		ServiceName:      service.ServiceName,
-		ClientBuilder:    options.ClientBuilder,
 	}
 	xpt := kt.NewETLSTransport(xptCfg)
 	cfg := &kayak.TwoPCConfig{

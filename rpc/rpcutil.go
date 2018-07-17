@@ -17,6 +17,10 @@
 package rpc
 
 import (
+	"context"
+	"net/rpc"
+
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -37,6 +41,12 @@ func NewCaller() *Caller {
 // CallNode invokes the named function, waits for it to complete, and returns its error status.
 func (c *Caller) CallNode(
 	node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
+	return c.CallNodeWithContext(context.Background(), node, method, args, reply)
+}
+
+// CallNodeWithContext invokes the named function, waits for it to complete or context timeout, and returns its error status.
+func (c *Caller) CallNodeWithContext(
+	ctx context.Context, node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
 	conn, err := DialToNode(node, c.pool)
 	if err != nil {
 		log.Errorf("dialing to node: %s failed: %s", node, err)
@@ -57,7 +67,17 @@ func (c *Caller) CallNode(
 	//		stream.Close()
 	//	}
 	//}()
-	return client.Call(method, args, reply)
+
+	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))
+
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case call := <-ch.Done:
+		err = call.Error
+	}
+
+	return
 }
 
 // GetNodeAddr tries best to get node addr
@@ -90,6 +110,49 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			if err == nil {
 				route.SetNodeAddrCache(id, respFN.Node.Addr)
 				addr = respFN.Node.Addr
+			}
+		}
+	}
+	return
+}
+
+// GetNodeInfo tries best to get node info
+func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
+	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
+	if err != nil {
+		log.Infof("get node info from KMS for %s failed: %s", id, err)
+		if err == kms.ErrKeyNotFound {
+			BPs := route.GetBPs()
+			if len(BPs) == 0 {
+				log.Errorf("no available BP")
+				return
+			}
+			client := NewCaller()
+			reqFN := &proto.FindNodeReq{
+				NodeID: proto.NodeID(id.String()),
+			}
+			respFN := new(proto.FindNodeResp)
+
+			// TODO(auxten) add some random here for bp selection
+			for _, bp := range BPs {
+				method := "DHT.FindNode"
+				err = client.CallNode(bp, method, reqFN, respFN)
+				if err != nil {
+					log.Errorf("call %s %s failed: %s", bp, method, err)
+					continue
+				}
+				break
+			}
+			if err == nil {
+				nodeInfo = respFN.Node
+				errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
+				if errSet != nil {
+					log.Warnf("set node addr cache failed: %v", errSet)
+				}
+				errSet = kms.SetNode(nodeInfo)
+				if errSet != nil {
+					log.Warnf("set node to kms failed: %v", errSet)
+				}
 			}
 		}
 	}

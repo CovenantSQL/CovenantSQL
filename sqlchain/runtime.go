@@ -49,14 +49,19 @@ type runtime struct {
 	queryTTL int32
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
+	// price sets query price in gases.
+	price map[wt.QueryType]uint32
+
+	// index is the index of the current server in the peer list.
+	index int32
+	// total is the total peer number of the sql-chain.
+	total int32
+
+	sync.RWMutex // Protects following fields.
 	// peers is the peer list of the sql-chain.
 	peers *kayak.Peers
 	// server is the local peer service instance.
 	server *kayak.Server
-	// price sets query price in gases.
-	price map[wt.QueryType]uint32
-
-	sync.RWMutex // Protects following fields.
 	// nextTurn is the height of the next block.
 	nextTurn int32
 	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
@@ -76,9 +81,18 @@ func newRunTime(c *Config) (r *runtime) {
 		muxService: c.MuxService,
 		peers:      c.Peers,
 		server:     c.Server,
-		price:      c.Price,
-		nextTurn:   1,
-		offset:     time.Duration(0),
+		index: func() int32 {
+			for i, s := range c.Peers.Servers {
+				if c.Server.ID == s.ID {
+					return int32(i)
+				}
+			}
+			return -1
+		}(),
+		total:    int32(len(c.Peers.Servers)),
+		price:    c.Price,
+		nextTurn: 1,
+		offset:   time.Duration(0),
 	}
 
 	if c.Genesis != nil {
@@ -107,6 +121,8 @@ func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
 	// has expired.
 	//
+	r.RLock()
+	defer r.RUnlock()
 	return r.getHeightFromTime(t) < r.nextTurn-r.queryTTL
 }
 
@@ -145,7 +161,11 @@ func (r *runtime) getQueryGas(t wt.QueryType) uint32 {
 // stop sends a signal to the Runtime stop channel by closing it.
 func (r *runtime) stop() {
 	r.stopService()
-	close(r.stopCh)
+	select {
+	case <-r.stopCh:
+	default:
+		close(r.stopCh)
+	}
 	r.wg.Wait()
 }
 
@@ -168,10 +188,38 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 	return
 }
 
+func (c *runtime) updatePeers(peers *kayak.Peers) (err error) {
+	found := false
+	c.Lock()
+	defer c.Unlock()
+
+	for _, s := range peers.Servers {
+		if c.server.ID == s.ID {
+			found = true
+			c.server = s
+			c.peers = peers
+			break
+		}
+	}
+
+	if !found {
+		// Just clear the server list, and the database instance should call chain.Stop() later
+		c.peers.Servers = c.peers.Servers[:0]
+	}
+
+	return
+}
+
 func (r *runtime) startService(chain *Chain) {
 	r.muxService.register(r.databaseID, &ChainRPCService{chain: chain})
 }
 
 func (r *runtime) stopService() {
 	r.muxService.unregister(r.databaseID)
+}
+
+func (r *runtime) isMyTurn() bool {
+	r.Lock()
+	defer r.Unlock()
+	return r.nextTurn%r.total == r.index
 }

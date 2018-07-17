@@ -21,12 +21,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"math/rand"
-	"net"
 	"sync/atomic"
 	"time"
 
+	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -65,7 +64,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 
 	// get local node id
 	var nodeID proto.NodeID
-	if nodeID, err = getLocalNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -90,7 +89,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 		queries:      make([]storage.Query, 0),
 	}
 
-	c.log("new conn database %s", c.dbID)
+	c.log("new conn database ", c.dbID)
 
 	// get peers from BP
 	if err = c.getPeers(); err != nil {
@@ -131,7 +130,7 @@ func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	}
 
 	// start transaction
-	c.log("begin transaction tx=%t", c.inTransaction)
+	c.log("begin transaction tx=", c.inTransaction)
 
 	if c.inTransaction {
 		return nil, sql.ErrTxDone
@@ -249,22 +248,6 @@ func (c *conn) addQuery(queryType wt.QueryType, query *storage.Query) (rows driv
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows driver.Rows, err error) {
-	// dial remote node
-	var conn net.Conn
-	// TODO(xq262144), add connection pool support
-	// currently connection pool server endpoint is not fully functional
-	if conn, err = rpc.DialToNode(c.peers.Leader.ID, nil); err != nil {
-		return
-	}
-	defer conn.Close()
-
-	// dial
-	var client *rpc.Client
-	if client, err = rpc.InitClientConn(conn); err != nil {
-		return
-	}
-	defer client.Close()
-
 	// build request
 	seqNo := atomic.AddUint64(&c.seqNo, 1)
 	req := &wt.Request{
@@ -289,7 +272,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 	}
 
 	var response wt.Response
-	if err = client.Call("DBS.Query", req, &response); err != nil {
+	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, "DBS.Query", req, &response); err != nil {
 		return
 	}
 
@@ -317,7 +300,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 	var ackRes wt.AckResponse
 
 	// send ack back
-	if err = client.Call("DBS.Ack", ack, &ackRes); err != nil {
+	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, "DBS.Ack", ack, &ackRes); err != nil {
 		return
 	}
 
@@ -327,33 +310,17 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows 
 }
 
 func (c *conn) getPeers() (err error) {
-	// TODO(xq262144), update local peers setting from BP
-	// currently set static peers to localhost
-	var nodeID proto.NodeID
-	if nodeID, err = getLocalNodeID(); err != nil {
+	// TODO(xq262144)consider periodic calling this or implement Pinger interface for instance peers update.
+	req := &bp.GetDatabaseRequest{
+		DatabaseID: c.dbID,
+	}
+	res := new(bp.GetDatabaseResponse)
+	if err = requestBP(bp.DBServiceName+".GetDatabase", req, res); err != nil {
 		return
 	}
 
-	c.peers = &kayak.Peers{
-		Leader: &kayak.Server{
-			ID: nodeID,
-		},
-	}
+	c.peers = res.InstanceMeta.Peers
 
-	return
-}
-
-func getLocalNodeID() (nodeID proto.NodeID, err error) {
-	// TODO(xq262144), to use refactored node id interface by kms
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
 	return
 }
 

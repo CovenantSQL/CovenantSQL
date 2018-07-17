@@ -19,10 +19,12 @@ package metric
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -49,7 +51,7 @@ func NewCollectClient() *CollectClient {
 
 // CollectServer is the Metric receiver side
 type CollectServer struct {
-	NodeMetric NodeMetricMap // map[proto.NodeID]metricMap
+	NodeMetric NodeMetricMap // map[proto.NodeID]MetricMap
 }
 
 // NewCollectServer returns a new CollectServer
@@ -67,7 +69,14 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		log.Errorln(resp.Msg)
 		return
 	}
-	mfm := make(metricMap, len(req.MFBytes))
+	if !route.IsPermitted(req.NodeID, route.MetricUploadMetrics) {
+		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
+		resp.Msg = fmt.Sprint(err)
+		log.Error(err)
+		return
+	}
+
+	mfm := make(MetricMap, len(req.MFBytes))
 	log.Debugf("RPC received MFS len %d", len(req.MFBytes))
 	for _, mf := range req.MFBytes[:] {
 		bufReader := bytes.NewReader(mf)
@@ -103,7 +112,7 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 	}
 	mfb = make([][]byte, 0, len(mfs))
 	for _, mf := range mfs[:] {
-		log.Debugf("mf: %s", *mf)
+		log.Debugf("mf: %#v", *mf)
 		buf := new(bytes.Buffer)
 		//enc := expfmt.NewEncoder(buf, expfmt.FmtProtoCompact)
 		//err = enc.Encode(mf)

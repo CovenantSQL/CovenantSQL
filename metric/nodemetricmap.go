@@ -23,26 +23,26 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-// metricMap is map from metric name to MetricFamily
-type metricMap map[string]*dto.MetricFamily
+// MetricMap is map from metric name to MetricFamily.
+type MetricMap map[string]*dto.MetricFamily
 
 // FilterFunc is a function that knows how to filter a specific node
-// that match the metric limits. if node picked return true else false
-type FilterFunc func(key proto.NodeID, value metricMap) bool
+// that match the metric limits. if node picked return true else false.
+type FilterFunc func(key proto.NodeID, value MetricMap) bool
 
-// NodeMetricMap is sync.Map version of map[proto.NodeID]metricMap
+// NodeMetricMap is sync.Map version of map[proto.NodeID]MetricMap.
 type NodeMetricMap struct {
-	sync.Map // map[proto.NodeID]metricMap
+	sync.Map // map[proto.NodeID]MetricMap
 }
 
-// FilterNode return node id slice make filterFunc return true
+// FilterNode return node id slice make filterFunc return true.
 func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) (ret []proto.NodeID) {
 	nodePicker := func(key, value interface{}) bool {
 		id, ok := key.(proto.NodeID)
 		if !ok {
 			return true // continue iteration
 		}
-		metrics, ok := value.(metricMap)
+		metrics, ok := value.(MetricMap)
 		if !ok {
 			return true // continue iteration
 		}
@@ -52,5 +52,29 @@ func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) (ret []proto.NodeID)
 		return true
 	}
 	nmm.Range(nodePicker)
+	return
+}
+
+// GetMetrics returns nodes metrics.
+func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.NodeID]MetricMap) {
+	metrics = make(map[proto.NodeID]MetricMap)
+
+	for _, node := range nodes {
+		var ok bool
+		var rawNodeMetrics interface{}
+
+		if rawNodeMetrics, ok = nmm.Load(node); !ok {
+			continue
+		}
+
+		var nodeMetrics MetricMap
+
+		if nodeMetrics, ok = rawNodeMetrics.(MetricMap); !ok {
+			continue
+		}
+
+		metrics[node] = nodeMetrics
+	}
+
 	return
 }

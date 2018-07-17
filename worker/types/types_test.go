@@ -709,158 +709,69 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 	})
 }
 
-func TestInitServiceResponse_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
-
-	Convey("sign", t, func() {
-		var err error
-
-		initServiceResponse := &InitServiceResponse{
-			Header: SignedInitServiceResponseHeader{
-				InitServiceResponseHeader: InitServiceResponseHeader{
-					Instances: []ServiceInstance{
-						{
-							DatabaseID: proto.DatabaseID("db1"),
-							Peers: &kayak.Peers{
-								Term: uint64(1),
-								Leader: &kayak.Server{
-									Role: conf.Leader,
-									ID:   proto.NodeID("node3"),
-								},
-								Servers: []*kayak.Server{
-									{
-										Role: conf.Leader,
-										ID:   proto.NodeID("node3"),
-									},
-									{
-										Role: conf.Follower,
-										ID:   proto.NodeID("node2"),
-									},
-								},
-								PubKey:    pubKey,
-								Signature: nil,
-							},
-							// TODO(xq262144), should integrated with genesis block serialization test
-							GenesisBlock: nil,
+func TestInitService(t *testing.T) {
+	Convey("test create", t, func() {
+		_ = &InitService{}
+		_ = &InitServiceResponse{
+			Instances: []ServiceInstance{
+				{
+					DatabaseID: proto.DatabaseID("db1"),
+					Peers: &kayak.Peers{
+						Term: uint64(1),
+						Leader: &kayak.Server{
+							Role: conf.Leader,
+							ID:   proto.NodeID("node3"),
 						},
-					},
-				},
-				Signee: pubKey,
-			},
-		}
-
-		// sign
-		err = initServiceResponse.Sign(privKey)
-
-		Convey("serialize", func() {
-			So(initServiceResponse.Serialize(), ShouldNotBeEmpty)
-			So((*ServiceInstance)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*InitServiceResponse)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*InitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*SignedInitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-
-			// test nils
-			initServiceResponse.Header.Signee = nil
-			initServiceResponse.Header.Signature = nil
-
-			So(initServiceResponse.Serialize(), ShouldNotBeEmpty)
-		})
-
-		Convey("verify", func() {
-			err = initServiceResponse.Verify()
-			So(err, ShouldBeNil)
-
-			Convey("header change", func() {
-				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
-
-				err = initServiceResponse.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change without signing", func() {
-				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
-
-				buildHash(&initServiceResponse.Header.InitServiceResponseHeader, &initServiceResponse.Header.HeaderHash)
-
-				err = initServiceResponse.Verify()
-				So(err, ShouldNotBeNil)
-			})
-		})
-	})
-}
-
-func TestUpdateService_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
-
-	Convey("sign", t, func() {
-		var err error
-
-		updateServiceReq := &UpdateService{
-			Header: SignedUpdateServiceHeader{
-				UpdateServiceHeader: UpdateServiceHeader{
-					Op: CreateDB,
-					Instance: ServiceInstance{
-						DatabaseID: proto.DatabaseID("db1"),
-						Peers: &kayak.Peers{
-							Term: uint64(1),
-							Leader: &kayak.Server{
+						Servers: []*kayak.Server{
+							{
 								Role: conf.Leader,
 								ID:   proto.NodeID("node3"),
 							},
-							Servers: []*kayak.Server{
-								{
-									Role: conf.Leader,
-									ID:   proto.NodeID("node3"),
-								},
-								{
-									Role: conf.Follower,
-									ID:   proto.NodeID("node2"),
-								},
+							{
+								Role: conf.Follower,
+								ID:   proto.NodeID("node2"),
 							},
-							PubKey:    pubKey,
-							Signature: nil,
 						},
-						// TODO(xq262144), should integrated with genesis block serialization test
-						GenesisBlock: nil,
+						PubKey:    nil,
+						Signature: nil,
 					},
+					// TODO(xq262144), should integrated with genesis block serialization test
+					GenesisBlock: nil,
 				},
-				Signee: pubKey,
 			},
 		}
+	})
+}
 
-		// sign
-		err = updateServiceReq.Sign(privKey)
-
-		Convey("serialize", func() {
-			So(updateServiceReq.Serialize(), ShouldNotBeEmpty)
-			So((*UpdateService)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*UpdateServiceHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-			So((*SignedUpdateServiceHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
-
-			updateServiceReq.Header.Signee = nil
-			updateServiceReq.Header.Signature = nil
-
-			So(updateServiceReq.Serialize(), ShouldNotBeEmpty)
-		})
-
-		Convey("verify", func() {
-			err = updateServiceReq.Verify()
-			So(err, ShouldBeNil)
-
-			Convey("header change", func() {
-				updateServiceReq.Header.Instance.DatabaseID = proto.DatabaseID("db2")
-
-				err = updateServiceReq.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change without signing", func() {
-				updateServiceReq.Header.Instance.DatabaseID = proto.DatabaseID("db2")
-				buildHash(&updateServiceReq.Header.UpdateServiceHeader, &updateServiceReq.Header.HeaderHash)
-
-				err = updateServiceReq.Verify()
-				So(err, ShouldNotBeNil)
-			})
-		})
+func TestUpdateService(t *testing.T) {
+	Convey("test create", t, func() {
+		_ = &UpdateService{
+			Op: CreateDB,
+			Instance: ServiceInstance{
+				DatabaseID: proto.DatabaseID("db1"),
+				Peers: &kayak.Peers{
+					Term: uint64(1),
+					Leader: &kayak.Server{
+						Role: conf.Leader,
+						ID:   proto.NodeID("node3"),
+					},
+					Servers: []*kayak.Server{
+						{
+							Role: conf.Leader,
+							ID:   proto.NodeID("node3"),
+						},
+						{
+							Role: conf.Follower,
+							ID:   proto.NodeID("node2"),
+						},
+					},
+					PubKey:    nil,
+					Signature: nil,
+				},
+				// TODO(xq262144), should integrated with genesis block serialization test
+				GenesisBlock: nil,
+			},
+		}
+		_ = &UpdateServiceResponse{}
 	})
 }

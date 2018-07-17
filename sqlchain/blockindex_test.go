@@ -24,13 +24,14 @@ import (
 )
 
 var (
-	testBlocks []*ct.Block
+	testBlocks      []*ct.Block
+	testBlockNumber = 50
 )
 
 func generateTestBlocks() (err error) {
-	testBlocks = make([]*ct.Block, 0, testHeight)
+	testBlocks = make([]*ct.Block, 0, testBlockNumber)
 
-	for index, prev := int32(0), genesisHash; index < testHeight; index++ {
+	for i, prev := 0, genesisHash; i < testBlockNumber; i++ {
 		b, err := createRandomBlock(prev, false)
 
 		if err != nil {

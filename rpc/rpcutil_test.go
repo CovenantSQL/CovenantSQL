@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,6 +28,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -93,10 +95,45 @@ func TestCaller_CallNode(t *testing.T) {
 		So(node1addr, ShouldEqual, node1.Addr)
 	})
 
+	node2, err := GetNodeInfo(node1.ID.ToRawNodeID())
+	Convey("test GetNodeInfo", t, func() {
+		So(err, ShouldBeNil)
+		So(node2.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)
+		log.Debugf("\nnode1 %##v \nnode2 %##v", node1, node2)
+	})
+
+	kms.DelNode(node2.ID)
+	node2, err = GetNodeInfo(node1.ID.ToRawNodeID())
+	Convey("test GetNodeInfo", t, func() {
+		So(err, ShouldBeNil)
+		So(node2.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)
+		log.Debugf("\nnode1 %##v \nnode2 %##v", node1, node2)
+	})
+
 	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Debugf("respA2: %v", respA)
+
+	// call with canceled context
+	ctx, contextCancel := context.WithCancel(context.Background())
+	contextCancel()
+	err = client.CallNodeWithContext(ctx, conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	if err == nil {
+		log.Fatal("this call should failed, but actually not")
+	} else {
+		log.Debugf("err: %v", err)
+	}
+	// FIXME(leventeliu): DATA RACE detected between these successive calls.
+	time.Sleep(10 * time.Millisecond)
+
+	// call with empty context
+	err = client.CallNodeWithContext(context.Background(), conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("respA2: %v", respA)
+
 	server.Stop()
 }

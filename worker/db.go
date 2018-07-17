@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
@@ -60,6 +59,11 @@ type Database struct {
 func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
+		return
+	}
+
+	if peers == nil || genesisBlock == nil {
+		err = ErrInvalidDBConfig
 		return
 	}
 
@@ -98,7 +102,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	// init chain
 	var nodeID proto.NodeID
 	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
-	if nodeID, err = getLocalNodeID(); err != nil {
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -144,8 +148,12 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 }
 
 // UpdatePeers defines peers update query interface.
-func (db *Database) UpdatePeers(peers *kayak.Peers) error {
-	return db.kayakRuntime.UpdatePeers(peers)
+func (db *Database) UpdatePeers(peers *kayak.Peers) (err error) {
+	if err = db.kayakRuntime.UpdatePeers(peers); err != nil {
+		return
+	}
+
+	return db.chain.UpdatePeers(peers)
 }
 
 // Query defines database query interface.
@@ -171,24 +179,30 @@ func (db *Database) Ack(ack *wt.Ack) (err error) {
 		return
 	}
 
-	return db.saveAck(ack)
+	return db.saveAck(&ack.Header)
 }
 
 // Shutdown stop database handles and stop service the database.
 func (db *Database) Shutdown() (err error) {
-	// shutdown, stop kayak
-	if err = db.kayakRuntime.Shutdown(); err != nil {
-		return
+	if db.kayakRuntime != nil {
+		// shutdown, stop kayak
+		if err = db.kayakRuntime.Shutdown(); err != nil {
+			return
+		}
 	}
 
-	// stop chain
-	if err = db.chain.Stop(); err != nil {
-		return
+	if db.chain != nil {
+		// stop chain
+		if err = db.chain.Stop(); err != nil {
+			return
+		}
 	}
 
-	// stop storage
-	if err = db.storage.Close(); err != nil {
-		return
+	if db.storage != nil {
+		// stop storage
+		if err = db.storage.Close(); err != nil {
+			return
+		}
 	}
 
 	return
@@ -240,7 +254,7 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 	// build response
 	response = new(wt.Response)
 	response.Header.Request = request.Header
-	if response.Header.NodeID, err = getLocalNodeID(); err != nil {
+	if response.Header.NodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 	response.Header.Timestamp = getLocalTime()
@@ -268,40 +282,21 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 	}
 
 	// record response for future ack process
-	err = db.saveRequest(request)
-
+	err = db.saveResponse(&response.Header)
 	return
 }
 
-// TODO(xq262144), following are function to be filled and revised for integration in the future
-
-func (db *Database) saveRequest(request *wt.Request) (err error) {
-	// TODO(xq262144), to be integrated with sqlchain
-	return
+func (db *Database) saveResponse(respHeader *wt.SignedResponseHeader) (err error) {
+	return db.chain.VerifyAndPushResponsedQuery(respHeader)
 }
 
-func (db *Database) saveAck(ack *wt.Ack) (err error) {
-	// TODO(xq262144), to be integrated with sqlchain
-	return
+func (db *Database) saveAck(ackHeader *wt.SignedAckHeader) (err error) {
+	return db.chain.VerifyAndPushAckedQuery(ackHeader)
 }
 
 func getLocalTime() time.Time {
 	// TODO(xq262144), to use same time coordination logic with sqlchain
 	return time.Now().UTC()
-}
-
-func getLocalNodeID() (nodeID proto.NodeID, err error) {
-	// TODO(xq262144), to use refactored node id interface by kms
-	var rawNodeID []byte
-	if rawNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	var h *hash.Hash
-	if h, err = hash.NewHash(rawNodeID); err != nil {
-		return
-	}
-	nodeID = proto.NodeID(h.String())
-	return
 }
 
 func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {

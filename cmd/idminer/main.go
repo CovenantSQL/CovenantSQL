@@ -151,6 +151,7 @@ func runMiner() {
 }
 
 func runKeygen() {
+	os.Remove(privateKeyFile)
 	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		log.Fatalf("generate key pair failed: %v", err)

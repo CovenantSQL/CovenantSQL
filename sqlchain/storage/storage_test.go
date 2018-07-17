@@ -168,7 +168,6 @@ func TestStorage(t *testing.T) {
 		t.Fatalf("Error result count: %v, should be 3", len(data))
 	} else {
 		// compare rows
-		// FIXME(xq262144), this version of go-sqlite3 driver returns text field in bytes array type
 		should1 := []interface{}{[]byte("k0"), nil}
 		should2 := []interface{}{[]byte("k1"), []byte("v1")}
 		should3 := []interface{}{[]byte("k3"), []byte("v3-2")}
@@ -201,7 +200,6 @@ func TestStorage(t *testing.T) {
 		t.Fatalf("Error result count: %v, should be 3", len(data))
 	} else {
 		// compare rows
-		// FIXME(xq262144), this version of go-sqlite3 driver returns text field in bytes array type
 		should1 := []interface{}{[]byte("k0")}
 		should2 := []interface{}{[]byte("k1")}
 		should3 := []interface{}{[]byte("k3")}
@@ -234,7 +232,6 @@ func TestStorage(t *testing.T) {
 		t.Fatalf("Error result count: %v, should be 3", len(data))
 	} else {
 		// compare rows
-		// FIXME(xq262144), this version of go-sqlite3 driver returns text field in bytes array type
 		should1 := []interface{}{[]byte("k1")}
 		should2 := []interface{}{[]byte("k3")}
 		t.Logf("Rows: %v", data)
@@ -274,7 +271,6 @@ func TestStorage(t *testing.T) {
 	if err != nil || affected != 0 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
-	// FIXME(xq262144), storage should return err on non-read query
 
 	// test again
 	columns, types, data, err = st.Query(context.Background(), []Query{newQuery("SELECT `key` FROM `kv`")})
@@ -325,7 +321,6 @@ func TestStorage(t *testing.T) {
 		if len(types) != 1 {
 			t.Fatalf("Query result should contain only one column, now %v", len(types))
 		} else {
-			// FIXME(xq262144), dynamic function type is not analyzed sqlite3 itself nor the golang-sqlite3 driver
 			t.Logf("Query result type is: %v", types[0])
 		}
 		if len(data) != 1 || len(data[0]) != 1 {

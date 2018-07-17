@@ -72,7 +72,7 @@ type Request struct {
 
 // Serialize returns byte based binary form of struct.
 func (p *RequestPayload) Serialize() []byte {
-	// FIXME(xq262144), currently use idiomatic serialization for hash generation
+	// HACK(xq262144): currently use idiomatic serialization for hash generation
 	buf, _ := utils.EncodeMsgPack(p)
 
 	return buf.Bytes()

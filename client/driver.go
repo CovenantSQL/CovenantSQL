@@ -105,7 +105,7 @@ func Drop(dsn string) (err error) {
 }
 
 func requestBP(method string, request interface{}, response interface{}) (err error) {
-	// TODO(xq262144), unify block producer calls
+	// TODO(xq262144): unify block producer selection and calls
 	// get bp node
 	var nonce *cpuminer.Uint256
 	nonce, err = kms.GetLocalNonce()

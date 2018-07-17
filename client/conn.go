@@ -164,7 +164,7 @@ func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		return nil, sql.ErrTxDone
 	}
 
-	// TODO(xq262144), make use of the ctx argument
+	// TODO(xq262144): make use of the ctx argument
 	c.inTransaction = true
 	c.queries = c.queries[:0]
 
@@ -188,7 +188,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		return
 	}
 
-	// TODO(xq262144), make use of the ctx argument
+	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
 	if _, err = c.addQuery(wt.WriteQuery, sq); err != nil {
 		return
@@ -206,7 +206,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return
 	}
 
-	// TODO(xq262144), make use of the ctx argument
+	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
 	return c.addQuery(wt.ReadQuery, sq)
 }
@@ -344,7 +344,6 @@ func (c *conn) getPeers() (err error) {
 	c.peersLock.Lock()
 	defer c.peersLock.Unlock()
 
-	// TODO(xq262144)consider periodic calling this or implement Pinger interface for instance peers update.
 	req := &bp.GetDatabaseRequest{
 		DatabaseID: c.dbID,
 	}

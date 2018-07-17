@@ -106,20 +106,20 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		return
 	}
 
-	// TODO(xq262144), make sqlchain config use of global config object
+	// TODO(xq262144): make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
 		DataFile: chainFile,
 		Genesis:  genesisBlock,
 		Peers:    peers,
 
-		// TODO(xq262144), should refactor server/node definition to conf/proto package
+		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
 		MuxService: cfg.ChainMux,
 		Server: &kayak.Server{
 			ID: nodeID,
 		},
 
-		// TODO(xq262144), currently using fixed period/resolution from sqlchain test case
+		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
 		Period:   1 * time.Second,
 		Tick:     100 * time.Millisecond,
 		QueryTTL: 10,
@@ -168,7 +168,7 @@ func (db *Database) Query(request *wt.Request) (response *wt.Response, err error
 	case wt.WriteQuery:
 		return db.writeQuery(request)
 	default:
-		// TODO(xq262144) verbose errors with custom error structure
+		// TODO(xq262144): verbose errors with custom error structure
 		return nil, ErrInvalidRequest
 	}
 }
@@ -214,7 +214,7 @@ func (db *Database) Destroy() (err error) {
 		return
 	}
 
-	// TODO(xq262144), remove database files, now simply remove whole root dir
+	// TODO(xq262144): remove database files, now simply remove whole root dir
 	os.RemoveAll(db.cfg.DataDir)
 
 	return
@@ -238,7 +238,7 @@ func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err 
 
 func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err error) {
 	// call storage query directly
-	// TODO(xq262144), add timeout logic basic of client options
+	// TODO(xq262144): add timeout logic basic of client options
 	var columns, types []string
 	var data [][]interface{}
 
@@ -295,7 +295,6 @@ func (db *Database) saveAck(ackHeader *wt.SignedAckHeader) (err error) {
 }
 
 func getLocalTime() time.Time {
-	// TODO(xq262144), to use same time coordination logic with sqlchain
 	return time.Now().UTC()
 }
 

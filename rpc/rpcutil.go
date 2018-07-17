@@ -71,7 +71,7 @@ func (c *Caller) CallNodeWithContext(
 
 	defer client.Close()
 
-	// TODO(xq262144), golang net/rpc does not support cancel in progress calls
+	// TODO(xq262144): golang net/rpc does not support cancel in progress calls
 	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))
 
 	select {

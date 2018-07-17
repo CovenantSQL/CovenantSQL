@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package types
+package blockproducer
 
 import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -27,6 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 )
 
 var (
@@ -37,26 +38,6 @@ var (
 const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
-
-func generateRandomAccount() *Account {
-	n := rand.Int31n(100) + 1
-	sqlChains := generateRandomDatabaseID(n)
-	roles := generateRandomBytes(n)
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	account := &Account{
-		Address: proto.AccountAddress(h),
-		StableCoinBalance: rand.Uint64(),
-		ThunderCoinBalance: rand.Uint64(),
-		SQLChains: sqlChains,
-		Roles: roles,
-		Rating: rand.Float64(),
-	}
-
-	return account
-}
 
 func generateRandomBytes(n int32) []byte {
 	s := make([]byte, n)
@@ -82,7 +63,7 @@ func randStringBytes(n int) string {
 	return string(b)
 }
 
-func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
+func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -93,9 +74,9 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &Block{
-		SignedHeader: SignedHeader{
-			Header: Header{
+	b = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version: 0x01000000,
 				Producer: proto.AccountAddress(h),
 				ParentHash: parent,

@@ -17,8 +17,15 @@
 package main
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/utils"
+	"database/sql"
 	"path/filepath"
+	"testing"
+	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/client"
+	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (
@@ -29,9 +36,87 @@ var (
 
 var FJ = filepath.Join
 
-func startNodes() {
-	// start 3bps
-
-	// start 3miners
+func _TestBuild(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	utils.Build()
 }
 
+func startNodes() {
+	// start 3bps
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
+		"leader", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml")},
+		"follower1", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderdbd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml")},
+		"follower2", testWorkingDir, logDir, false,
+	)
+
+	time.Sleep(time.Second * 3)
+
+	// start 3miners
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderminerd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_miner_0/config.yaml")},
+		"miner1", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderminerd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_miner_1/config.yaml")},
+		"miner2", testWorkingDir, logDir, false,
+	)
+	go utils.RunCommand(
+		FJ(baseDir, "./bin/thunderminerd"),
+		[]string{"-config", FJ(testWorkingDir, "./node_miner_2/config.yaml")},
+		"miner3", testWorkingDir, logDir, false,
+	)
+
+}
+
+func _TestFullProcess(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	Convey("test full process", t, func() {
+		startNodes()
+		time.Sleep(5 * time.Second)
+
+		var err error
+		err = client.Init(FJ(testWorkingDir, "./node_c/config.yaml"), []byte(""))
+		So(err, ShouldBeNil)
+
+		// create
+		dsn, err := client.Create(client.ResourceMeta{Node: 1})
+		So(err, ShouldBeNil)
+
+		log.Infof("the created database dsn is %v", dsn)
+
+		db, err := sql.Open("thunderdb", dsn)
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("CREATE TABLE test (test int)")
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("INSERT INTO test VALUES(?)", 4)
+		So(err, ShouldBeNil)
+
+		row := db.QueryRow("SELECT * FROM test LIMIT 1")
+
+		var result int
+		err = row.Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 4)
+
+		err = db.Close()
+		So(err, ShouldBeNil)
+
+		err = client.Drop(dsn)
+		So(err, ShouldBeNil)
+	})
+}

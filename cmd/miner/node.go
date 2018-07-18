@@ -25,13 +25,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"golang.org/x/crypto/ssh/terminal"
-	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 func initNode() (server *rpc.Server, err error) {
-	kms.InitBP()
 	keyPairRootPath := conf.GConf.WorkingRoot
 	pubKeyPath := filepath.Join(keyPairRootPath, conf.GConf.PubKeyStoreFile)
 	privKeyPath := filepath.Join(keyPairRootPath, conf.GConf.PrivateKeyFile)

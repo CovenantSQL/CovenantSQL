@@ -91,24 +91,24 @@ type NodeInfo struct {
 
 // MinerDatabaseFixture config.
 type MinerDatabaseFixture struct {
-	DatabaseID               proto.DatabaseID
-	Term                     uint64
-	Leader                   proto.NodeID
-	Servers                  []proto.NodeID
-	GenesisBlockFile         string
-	AutoGenerateGenesisBlock bool `yaml:",omitempty"`
+	DatabaseID               proto.DatabaseID `yaml:"DatabaseID"`
+	Term                     uint64           `yaml:"Term"`
+	Leader                   proto.NodeID     `yaml:"Leader"`
+	Servers                  []proto.NodeID   `yaml:"Servers"`
+	GenesisBlockFile         string           `yaml:"GenesisBlockFile"`
+	AutoGenerateGenesisBlock bool             `yaml:"AutoGenerateGenesisBlock,omitempty"`
 }
 
 // MinerConfig for miner config.
 type MinerInfo struct {
 	// node basic config
-	RootDir               string
-	MaxReqTimeGap         time.Duration `yaml:",omitempty"`
-	MetricCollectInterval time.Duration `yaml:",omitempty"`
+	RootDir               string        `yaml:"RootDir"`
+	MaxReqTimeGap         time.Duration `yaml:"MaxReqTimeGap,omitempty"`
+	MetricCollectInterval time.Duration `yaml:"MetricCollectInterval,omitempty"`
 
-	// test mode config
-	IsTestMode   bool // when test mode, fixture database config is used.
-	TestFixtures []*MinerDatabaseFixture
+	// when test mode, fixture database config is used.
+	IsTestMode   bool                    `yaml:"IsTestMode,omitempty"`
+	TestFixtures []*MinerDatabaseFixture `yaml:"TestFixtures,omitempty"`
 }
 
 // Config holds all the config read from yaml config file

@@ -123,6 +123,8 @@ type Config struct {
 	ListenAddr      string
 	ThisNodeID      proto.NodeID
 	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
+	// Check By BP DHT.Ping
+	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
 
 	BP    *BPInfo    `yaml:"BlockProducer"`
 	Miner *MinerInfo `yaml:"Miner,omitempty"`

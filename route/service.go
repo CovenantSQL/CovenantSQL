@@ -19,7 +19,9 @@ package route
 import (
 	"fmt"
 
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -51,14 +53,13 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp) (err error) {
 	if !IsPermitted(&req.Envelope, DHTFindNode) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
-		resp.Msg = fmt.Sprint(err)
 		log.Error(err)
 		return
 	}
 	node, err := DHT.Consistent.GetNode(string(req.NodeID))
 	if err != nil {
-		log.Errorf("get node %s from DHT failed: %s", req.NodeID, err)
-		resp.Msg = fmt.Sprint(err)
+		err = fmt.Errorf("get node %s from DHT failed: %s", req.NodeID, err)
+		log.Error(err)
 		return
 	}
 	resp.Node = node
@@ -69,15 +70,14 @@ func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp
 func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
 	if !IsPermitted(&req.Envelope, DHTFindNeighbor) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
-		resp.Msg = fmt.Sprint(err)
 		log.Error(err)
 		return
 	}
 
 	nodes, err := DHT.Consistent.GetNeighbors(string(req.NodeID), req.Count)
 	if err != nil {
-		log.Errorf("get nodes from DHT failed: %s", err)
-		resp.Msg = fmt.Sprint(err)
+		err = fmt.Errorf("get nodes from DHT failed: %s", err)
+		log.Error(err)
 		return
 	}
 	resp.Nodes = nodes
@@ -88,17 +88,28 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
 	if !IsPermitted(&req.Envelope, DHTPing) {
-		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
-		resp.Msg = fmt.Sprint(err)
+		err = fmt.Errorf("calling Ping from node %s is not permitted", req.NodeID)
 		log.Error(err)
 		return
 	}
 
-	//TODO(auxten) nonce verification here is very necessary
+	// Checking if ID Nonce Pubkey matched
+	if !kms.IsIDPubNonceValid(req.Node.ID.ToRawNodeID(), &req.Node.Nonce, req.Node.PublicKey) {
+		err = fmt.Errorf("node: %s nonce public key not match", req.Node.ID)
+		log.Error(err)
+		return
+	}
+
+	// Checking MinNodeIDDifficulty
+	if req.Node.ID.Difficulty() < conf.GConf.MinNodeIDDifficulty {
+		err = fmt.Errorf("node: %s difficulty too low", req.Node.ID)
+		log.Error(err)
+		return
+	}
+
 	err = DHT.Consistent.Add(req.Node)
 	if err != nil {
-		log.Errorf("DHT.Consistent.Add %v failed: %s", req.Node, err)
-		resp.Msg = err.Error()
+		err = fmt.Errorf("DHT.Consistent.Add %v failed: %s", req.Node, err)
 	} else {
 		resp.Msg = "Pong"
 	}

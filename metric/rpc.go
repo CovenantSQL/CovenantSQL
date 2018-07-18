@@ -65,13 +65,11 @@ func NewCollectServer() *CollectServer {
 func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.UploadMetricsResp) (err error) {
 	if req.NodeID == "" {
 		err = errors.New("empty node id")
-		resp.Msg = "empty node id"
-		log.Errorln(resp.Msg)
+		log.Error(err)
 		return
 	}
 	if !route.IsPermitted(&req.Envelope, route.MetricUploadMetrics) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
-		resp.Msg = fmt.Sprint(err)
 		log.Error(err)
 		return
 	}
@@ -99,6 +97,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		cs.NodeMetric.Store(req.NodeID, mfm)
 	} else {
 		err = errors.New("no valid metric received")
+		log.Error(err)
 	}
 	return
 }

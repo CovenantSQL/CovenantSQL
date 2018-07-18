@@ -21,11 +21,11 @@ import (
 	"testing"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	hash2 "gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 var (
-	peerNum int32 = 32
+	peerNum uint32 = 32
 )
 
 func TestBillingRequestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -53,17 +53,17 @@ func TestBillingRequestHeader_PackAndSignRequest(t *testing.T) {
 		t.Fatalf("generate key pair failed: %v", err)
 	}
 	reqHeader := generateRandomBillingRequestHeader()
-	hash, signature, err := reqHeader.PackAndSignRequestHeader(priv)
+	h, signature, err := reqHeader.PackAndSignRequestHeader(priv)
 
 	b, err := reqHeader.MarshalBinary()
 	if err != nil {
 		t.Fatalf("unexpect error when marshal request header: %v", err)
 	}
-	newHash := hash2.THashH(b)
-	if !hash.IsEqual(&newHash) {
-		t.Fatalf("values not match: \n\thash0=%+v\n\thash1=%+v", hash, newHash)
+	newHash := hash.THashH(b)
+	if !h.IsEqual(&newHash) {
+		t.Fatalf("values not match: \n\thash0=%+v\n\thash1=%+v", h, newHash)
 	}
-	if !signature.Verify(hash[:], pub) {
+	if !signature.Verify(h[:], pub) {
 		t.Fatalf("signature not match the hash and public key")
 	}
 }

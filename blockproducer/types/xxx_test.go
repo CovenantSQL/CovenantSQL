@@ -67,6 +67,12 @@ func generateRandomBytes(n int32) []byte {
 	return s
 }
 
+func generateRandomHash() hash.Hash {
+	h := hash.Hash{}
+	rand.Read(h[:])
+	return h
+}
+
 func generateRandomDatabaseID() *proto.DatabaseID {
 	id := proto.DatabaseID(randStringBytes(uuidLen))
 	return &id
@@ -138,8 +144,22 @@ func generateRandomBillingRequestHeader() *BillingRequestHeader {
 		DatabaseID:  *generateRandomDatabaseID(),
 		BlockHash:   block.SignedHeader.BlockHash,
 		BlockHeight: rand.Int31(),
-		GasAmounts:  generateRandomUint32s(peerNum),
+		GasAmounts:  generateRandomGasAmount(peerNum),
 	}
+}
+
+func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
+	gasAmount := make([]*proto.AddrAndGas, n)
+
+	for i := range gasAmount {
+		gasAmount[i] = &proto.AddrAndGas{
+			AccountAddress: proto.AccountAddress(generateRandomHash()),
+			RawNodeID:      proto.RawNodeID{generateRandomHash()},
+			GasAmount:      rand.Uint32(),
+		}
+	}
+
+	return gasAmount
 }
 
 func setup() {

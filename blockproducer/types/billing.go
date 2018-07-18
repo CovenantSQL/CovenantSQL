@@ -31,7 +31,7 @@ type BillingRequestHeader struct {
 	DatabaseID  proto.DatabaseID
 	BlockHash   hash.Hash
 	BlockHeight int32
-	GasAmounts  []uint32
+	GasAmounts  []*proto.AddrAndGas
 }
 
 // MarshalBinary implements BinaryMarshaler.
@@ -86,7 +86,7 @@ func (bh *BillingRequestHeader) PackAndSignRequestHeader(signee *asymmetric.Priv
 
 // BillingRequest defines periodically Billing sync
 type BillingRequest struct {
-	header      BillingRequestHeader
+	Header      BillingRequestHeader
 	RequestHash hash.Hash
 	Signees     []*asymmetric.PublicKey
 	Signatures  []*asymmetric.Signature

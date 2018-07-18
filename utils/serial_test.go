@@ -53,20 +53,22 @@ type innerStruct struct {
 
 type testStruct struct {
 	innerStruct
-	Int64Field      int64
-	Uint64Field     uint64
-	StringField     string
-	BytesField      []byte
-	Uint32s         []uint32
-	DatabaseIDs     []proto.DatabaseID
-	TimeField       time.Time
-	NodeIDField     proto.NodeID
-	DatabaseIDField proto.DatabaseID
-	HashField       hash.Hash
-	PublicKeyField  *asymmetric.PublicKey
-	SignatureField  *asymmetric.Signature
-	StringsField    []string
-	HashesField     []*hash.Hash
+	Int64Field         int64
+	Uint64Field        uint64
+	StringField        string
+	BytesField         []byte
+	Uint32sField       []uint32
+	DatabaseIDsField   []proto.DatabaseID
+	AddrAndGaseseField []proto.AddrAndGas
+	TimeField          time.Time
+	NodeIDField        proto.NodeID
+	DatabaseIDField    proto.DatabaseID
+	AddrAndGasField    proto.AddrAndGas
+	HashField          hash.Hash
+	PublicKeyField     *asymmetric.PublicKey
+	SignatureField     *asymmetric.Signature
+	StringsField       []string
+	HashesField        []*hash.Hash
 }
 
 func (s *testStruct) randomize() {

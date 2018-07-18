@@ -69,6 +69,8 @@ type runtime struct {
 	nextTurn int32
 	// head is the current head of the best chain.
 	head *state
+	// forks if the alternative head of the sql-chain.
+	forks []*state
 
 	// timeMutex protects following time-relative fields.
 	timeMutex sync.Mutex
@@ -87,6 +89,7 @@ func newRunTime(c *Config) (r *runtime) {
 		tick:       c.Tick,
 		queryTTL:   c.QueryTTL,
 		muxService: c.MuxService,
+		price:      c.Price,
 		peers:      c.Peers,
 		server:     c.Server,
 		index: func() int32 {
@@ -97,7 +100,6 @@ func newRunTime(c *Config) (r *runtime) {
 			return -1
 		}(),
 		total:    int32(len(c.Peers.Servers)),
-		price:    c.Price,
 		nextTurn: 1,
 		head:     &state{},
 		offset:   time.Duration(0),

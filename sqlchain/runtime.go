@@ -52,18 +52,22 @@ type runtime struct {
 	// price sets query price in gases.
 	price map[wt.QueryType]uint32
 
-	// index is the index of the current server in the peer list.
-	index int32
-	// total is the total peer number of the sql-chain.
-	total int32
+	// TODO(leventeliu): reduce locking granularity.
 
 	sync.RWMutex // Protects following fields.
 	// peers is the peer list of the sql-chain.
 	peers *kayak.Peers
 	// server is the local peer service instance.
 	server *kayak.Server
+	// index is the index of the current server in the peer list.
+	index int32
+	// total is the total peer number of the sql-chain.
+	total int32
 	// nextTurn is the height of the next block.
 	nextTurn int32
+	// head is the current head of the best chain.
+	head *state
+	//
 	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
 	//
 	// TODO(leventeliu): update offset in ping cycle.
@@ -82,16 +86,16 @@ func newRunTime(c *Config) (r *runtime) {
 		peers:      c.Peers,
 		server:     c.Server,
 		index: func() int32 {
-			for i, s := range c.Peers.Servers {
-				if c.Server.ID == s.ID {
-					return int32(i)
-				}
+			if index, found := c.Peers.Find(c.Server.ID); found {
+				return index
 			}
+
 			return -1
 		}(),
 		total:    int32(len(c.Peers.Servers)),
 		price:    c.Price,
 		nextTurn: 1,
+		head:     &state{},
 		offset:   time.Duration(0),
 	}
 
@@ -105,6 +109,17 @@ func newRunTime(c *Config) (r *runtime) {
 func (r *runtime) setGenesis(b *ct.Block) {
 	r.chainInitTime = b.SignedHeader.Timestamp
 	r.genesisHash = b.SignedHeader.BlockHash
+	r.head = &state{
+		node:   nil,
+		Head:   b.SignedHeader.GenesisHash,
+		Height: -1,
+	}
+}
+
+func (r *runtime) getMinValidHeight() int32 {
+	r.RLock()
+	defer r.RUnlock()
+	return r.nextTurn - r.queryTTL
 }
 
 func (r *runtime) queryTimeIsExpired(t time.Time) bool {
@@ -121,9 +136,7 @@ func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
 	// has expired.
 	//
-	r.RLock()
-	defer r.RUnlock()
-	return r.getHeightFromTime(t) < r.nextTurn-r.queryTTL
+	return r.getHeightFromTime(t) < r.getMinValidHeight()
 }
 
 // updateTime updates the current coodinated chain time.
@@ -188,23 +201,23 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 	return
 }
 
-func (c *runtime) updatePeers(peers *kayak.Peers) (err error) {
-	found := false
-	c.Lock()
-	defer c.Unlock()
+func (r *runtime) updatePeers(peers *kayak.Peers) (err error) {
+	r.Lock()
+	defer r.Unlock()
 
-	for _, s := range peers.Servers {
-		if c.server.ID == s.ID {
-			found = true
-			c.server = s
-			c.peers = peers
-			break
-		}
-	}
+	// TODO(leventeliu): get local node ID.
+	index, found := peers.Find(r.server.ID)
 
-	if !found {
+	if found {
+		r.index = index
+		r.total = int32(len(peers.Servers))
+		r.peers = peers
+		r.server = peers.Servers[index]
+	} else {
 		// Just clear the server list, and the database instance should call chain.Stop() later
-		c.peers.Servers = c.peers.Servers[:0]
+		r.index = -1
+		r.total = 0
+		r.peers.Servers = r.peers.Servers[:0]
 	}
 
 	return
@@ -218,8 +231,45 @@ func (r *runtime) stopService() {
 	r.muxService.unregister(r.databaseID)
 }
 
-func (r *runtime) isMyTurn() bool {
+func (r *runtime) isMyTurn() (ret bool) {
 	r.Lock()
 	defer r.Unlock()
-	return r.nextTurn%r.total == r.index
+
+	if r.total <= 0 {
+		ret = false
+	} else {
+		ret = (r.nextTurn%r.total == r.index)
+	}
+
+	return
+}
+
+func (r *runtime) getNextProducerIndex() int32 {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.total > 0 {
+		return (r.head.Height + 1) % r.total
+	}
+
+	return -1
+}
+
+func (r *runtime) getPeers() *kayak.Peers {
+	r.Lock()
+	defer r.Unlock()
+	peers := r.peers.Clone()
+	return &peers
+}
+
+func (r *runtime) getHead() *state {
+	r.Lock()
+	defer r.Unlock()
+	return r.head
+}
+
+func (r *runtime) setHead(head *state) {
+	r.Lock()
+	defer r.Unlock()
+	r.head = head
 }

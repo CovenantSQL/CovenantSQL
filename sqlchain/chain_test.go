@@ -120,7 +120,7 @@ func TestChain(t *testing.T) {
 	peers := &kayak.Peers{
 		Term:    0,
 		Leader:  servers[0],
-		Servers: servers[:0],
+		Servers: servers[:],
 		PubKey:  pub,
 	}
 
@@ -140,9 +140,6 @@ func TestChain(t *testing.T) {
 		Peers:      peers,
 	})
 
-	// Hack for signle instance test
-	chain.rt.total = 5
-
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
@@ -154,11 +151,12 @@ func TestChain(t *testing.T) {
 
 	// Push blocks
 	for {
+		isMyTurn := chain.rt.isMyTurn()
 		t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-			chain.st.Head, chain.st.Height, chain.rt.nextTurn,
+			chain.rt.head.Head, chain.rt.head.Height, chain.rt.nextTurn,
 			chain.rt.chainInitTime.Add(
 				chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
-			chain.rt.isMyTurn())
+			isMyTurn)
 		acks, err := createRandomQueries(10)
 
 		if err != nil {
@@ -177,42 +175,48 @@ func TestChain(t *testing.T) {
 
 		for {
 			now, d = chain.rt.nextTick()
-
 			t.Logf("Wake up at: now = %s, d = %.9f secs",
 				now.Format(time.RFC3339Nano), d.Seconds())
 
 			if d > 0 {
 				time.Sleep(d)
 			} else {
+				if !isMyTurn {
+					index := chain.rt.getNextProducerIndex()
+					block, err := createRandomBlockWithQueries(
+						genesis.SignedHeader.BlockHash, chain.rt.head.Head, acks)
+
+					if err != nil {
+						t.Fatalf("Error occurred: %v", err)
+					}
+
+					servers[index].ID = block.SignedHeader.Producer
+
+					if err = chain.CheckAndPushNewBlock(block); err != nil {
+						t.Fatalf("Error occurred: %v, block = %+v", err, block)
+					}
+
+					t.Logf("Pushed new block: height = %d, %s <- %s",
+						chain.rt.head.Height,
+						block.SignedHeader.ParentHash,
+						block.SignedHeader.BlockHash)
+				}
+
+				chain.rt.peers.Servers = []*kayak.Server{}
 				chain.runCurrentTurn(now)
+				chain.rt.peers.Servers = servers[:]
 				break
 			}
 		}
 
 		// Advise block if it's not my turn
-		if !chain.rt.isMyTurn() {
-			block, err := createRandomBlockWithQueries(
-				genesis.SignedHeader.BlockHash, chain.st.Head, acks)
-
-			if err != nil {
-				t.Fatalf("Error occurred: %v", err)
-			}
-
-			if err = chain.CheckAndPushNewBlock(block); err != nil {
-				t.Fatalf("Error occurred: %v, block = %+v", err, block)
-			}
-
-			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.st.Height,
-				block.SignedHeader.ParentHash,
-				block.SignedHeader.BlockHash)
-		} else {
+		if isMyTurn {
 			var enc []byte
 			var block ct.Block
 
 			if err = chain.db.View(func(tx *bolt.Tx) (err error) {
 				enc = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(
-					chain.st.node.indexKey())
+					chain.rt.head.node.indexKey())
 				return
 			}); err != nil {
 				t.Fatalf("Error occurred: %v", err)
@@ -223,12 +227,12 @@ func TestChain(t *testing.T) {
 			}
 
 			t.Logf("Produced new block: height = %d, %s <- %s",
-				chain.st.Height,
+				chain.rt.head.Height,
 				block.SignedHeader.ParentHash,
 				block.SignedHeader.BlockHash)
 		}
 
-		if chain.st.Height >= testPeriodNumber {
+		if chain.rt.head.Height >= testPeriodNumber {
 			break
 		}
 	}

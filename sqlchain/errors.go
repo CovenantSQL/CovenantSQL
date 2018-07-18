@@ -47,8 +47,8 @@ var (
 	// ErrBlockTimestampOutOfPeriod indicates a block producing timestamp verification failure.
 	ErrBlockTimestampOutOfPeriod = errors.New("block timestamp is out of producing period")
 
-	// ErrMultipleAckOfResponse indicates that multiple acknowledgements for a same query response is
-	// detected.
+	// ErrMultipleAckOfResponse indicates that multiple acknowledgements for a same query response
+	// is detected.
 	ErrMultipleAckOfResponse = errors.New("multiple acknowledgements of same response")
 
 	// ErrMultipleAckOfSeqNo indicates that multiple acknowledgements for a same sequence number is
@@ -70,4 +70,10 @@ var (
 
 	// ErrUnknownMuxRequest indicates that the a multiplexing request endpoint is not found.
 	ErrUnknownMuxRequest = errors.New("unknown multiplexing request")
+
+	// ErrUnknownProducer indicates that the block has an unknown producer.
+	ErrUnknownProducer = errors.New("unknown block producer")
+
+	// ErrInvalidProducer indicates that the block has an invalid producer.
+	ErrInvalidProducer = errors.New("invalid block producer")
 )

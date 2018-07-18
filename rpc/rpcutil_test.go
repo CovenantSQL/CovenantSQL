@@ -125,8 +125,6 @@ func TestCaller_CallNode(t *testing.T) {
 	} else {
 		log.Debugf("err: %v", err)
 	}
-	// FIXME(leventeliu): DATA RACE detected between these successive calls.
-	time.Sleep(10 * time.Millisecond)
 
 	// call with empty context
 	err = client.CallNodeWithContext(context.Background(), conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)

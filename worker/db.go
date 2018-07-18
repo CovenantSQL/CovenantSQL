@@ -148,8 +148,12 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 }
 
 // UpdatePeers defines peers update query interface.
-func (db *Database) UpdatePeers(peers *kayak.Peers) error {
-	return db.kayakRuntime.UpdatePeers(peers)
+func (db *Database) UpdatePeers(peers *kayak.Peers) (err error) {
+	if err = db.kayakRuntime.UpdatePeers(peers); err != nil {
+		return
+	}
+
+	return db.chain.UpdatePeers(peers)
 }
 
 // Query defines database query interface.
@@ -175,7 +179,7 @@ func (db *Database) Ack(ack *wt.Ack) (err error) {
 		return
 	}
 
-	return db.saveAck(ack)
+	return db.saveAck(&ack.Header)
 }
 
 // Shutdown stop database handles and stop service the database.
@@ -278,21 +282,16 @@ func (db *Database) buildQueryResponse(request *wt.Request, columns []string, ty
 	}
 
 	// record response for future ack process
-	err = db.saveRequest(request)
-
+	err = db.saveResponse(&response.Header)
 	return
 }
 
-// TODO(xq262144), following are function to be filled and revised for integration in the future
-
-func (db *Database) saveRequest(request *wt.Request) (err error) {
-	// TODO(xq262144), to be integrated with sqlchain
-	return
+func (db *Database) saveResponse(respHeader *wt.SignedResponseHeader) (err error) {
+	return db.chain.VerifyAndPushResponsedQuery(respHeader)
 }
 
-func (db *Database) saveAck(ack *wt.Ack) (err error) {
-	// TODO(xq262144), to be integrated with sqlchain
-	return
+func (db *Database) saveAck(ackHeader *wt.SignedAckHeader) (err error) {
+	return db.chain.VerifyAndPushAckedQuery(ackHeader)
 }
 
 func getLocalTime() time.Time {

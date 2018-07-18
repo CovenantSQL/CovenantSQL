@@ -20,12 +20,16 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
+	"sync"
 	"testing"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
@@ -35,8 +39,14 @@ import (
 )
 
 var (
-	testHeight  = int32(50)
-	genesisHash = hash.Hash{}
+	genesisHash     = hash.Hash{}
+	testDifficulty  = 4
+	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
+	testDataDir     string
+	testPrivKeyFile string
+	testPubKeysFile string
+	testPrivKey     *asymmetric.PrivateKey
+	testPubKey      *asymmetric.PublicKey
 )
 
 type nodeProfile struct {
@@ -71,33 +81,6 @@ func newRandomNodes(n int) (nodes []*nodeProfile, err error) {
 	}
 
 	return
-}
-
-func setup() {
-	rand.Seed(time.Now().UnixNano())
-	rand.Read(genesisHash[:])
-	f, err := ioutil.TempFile("", "keystore")
-
-	if err != nil {
-		panic(err)
-	}
-
-	f.Close()
-
-	if err = kms.InitPublicKeyStore(f.Name(), nil); err != nil {
-		panic(err)
-	}
-
-	kms.Unittest = true
-
-	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
-		kms.SetLocalKeyPair(priv, pub)
-	} else {
-		panic(err)
-	}
-
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
 }
 
 func createRandomString(offset, length int, s *string) {
@@ -303,6 +286,44 @@ func createRandomNodesAndAck() (r *wt.SignedAckHeader, err error) {
 	return createRandomQueryAck(cli, worker)
 }
 
+func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
+	nis []cpuminer.NonceInfo, err error) {
+	nis = make([]cpuminer.NonceInfo, num)
+
+	miner := cpuminer.NewCPUMiner(nil)
+	nCh := make(chan cpuminer.NonceInfo)
+	defer close(nCh)
+	block := cpuminer.MiningBlock{
+		Data:      pub.Serialize(),
+		NonceChan: nCh,
+		Stop:      nil,
+	}
+	next := cpuminer.Uint256{}
+	wg := &sync.WaitGroup{}
+
+	for i := range nis {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			miner.ComputeBlockNonce(block, next, diff)
+		}()
+		n := <-nCh
+		nis[i] = n
+		next = n.Nonce
+		next.Inc()
+
+		if err = kms.SetPublicKey(proto.NodeID(n.Hash.String()), n.Nonce, pub); err != nil {
+			return
+		}
+
+		wg.Wait()
+	}
+
+	// Register a local nonce, don't know what is the matter though
+	kms.SetLocalNodeIDNonce(nis[0].Hash[:], &nis[0].Nonce)
+	return
+}
+
 func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
@@ -335,28 +356,16 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	}
 
 	if isGenesis {
-		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.NonceInfo)
-		quitCh := make(chan struct{})
-		miner := cpuminer.NewCPUMiner(quitCh)
-		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.Serialize(),
-			NonceChan: nonceCh,
-			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
-		nonce := <-nonceCh
-		close(quitCh)
-		close(nonceCh)
-		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
+		// Register node for genesis verification
+		var nis []cpuminer.NonceInfo
+		nis, err = registerNodesWithPublicKey(pub, testDifficulty, 1)
 
-		if err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub); err != nil {
-			return nil, err
+		if err != nil {
+			return
 		}
 
-		// Set genesis hash as zero value
 		b.SignedHeader.GenesisHash = hash.Hash{}
+		b.SignedHeader.Header.Producer = proto.NodeID(nis[0].Hash.String())
 	}
 
 	err = b.PackAndSignBlock(priv)
@@ -409,6 +418,103 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*wt.SignedAc
 
 	err = b.PackAndSignBlock(priv)
 	return
+}
+
+func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err error) {
+	if num <= 0 {
+		return
+	}
+
+	// Use a same key pair for all the servers, so that we can run multiple instances of sql-chain
+	// locally without breaking the LocalKeyStore
+	pub, err := kms.GetLocalPublicKey()
+
+	if err != nil {
+		return
+	}
+
+	priv, err := kms.GetLocalPrivateKey()
+
+	if err != nil {
+		return
+	}
+
+	nis, err = registerNodesWithPublicKey(pub, testDifficulty, num)
+
+	if err != nil {
+		return
+	}
+
+	s := make([]*kayak.Server, num)
+	h := &hash.Hash{}
+
+	for i := range s {
+		rand.Read(h[:])
+		s[i] = &kayak.Server{
+			Role: func() conf.ServerRole {
+				if i == 0 {
+					return conf.Leader
+				}
+				return conf.Follower
+			}(),
+			ID:     proto.NodeID(nis[i].Hash.String()),
+			PubKey: pub,
+		}
+	}
+
+	p = &kayak.Peers{
+		Term:      0,
+		Leader:    s[0],
+		Servers:   s,
+		PubKey:    pub,
+		Signature: nil,
+	}
+
+	if err = p.Sign(priv); err != nil {
+		return
+	}
+
+	return
+}
+
+func setup() {
+	// Setup RNG
+	rand.Seed(time.Now().UnixNano())
+	rand.Read(genesisHash[:])
+
+	// Create temp dir
+	var err error
+	testDataDir, err = ioutil.TempDir("", "thunderdb")
+
+	if err != nil {
+		panic(err)
+	}
+
+	testPubKeysFile = path.Join(testDataDir, "pub")
+	testPrivKeyFile = path.Join(testDataDir, "priv")
+
+	// Setup public key store
+	if err = kms.InitPublicKeyStore(testPubKeysFile, nil); err != nil {
+		panic(err)
+	}
+
+	// Setup local key store
+	kms.Unittest = true
+	testPrivKey, testPubKey, err = asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		panic(err)
+	}
+
+	kms.SetLocalKeyPair(testPrivKey, testPubKey)
+
+	if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
+		panic(err)
+	}
+
+	// Setup logging
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
 }
 
 func TestMain(m *testing.M) {

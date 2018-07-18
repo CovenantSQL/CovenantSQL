@@ -18,11 +18,14 @@ package sqlchain
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	bolt "github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -59,9 +62,6 @@ type Chain struct {
 	cl *rpc.Caller
 	rt *runtime
 	st *state
-
-	// Only for test
-	tIsMyTurn bool
 }
 
 // NewChain creates a new sql-chain struct.
@@ -365,13 +365,6 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	})
 }
 
-// isMyTurn returns whether it's my turn to produce block or not.
-//
-// TODO(leventliu): need implementation.
-func (c *Chain) isMyTurn() bool {
-	return c.tIsMyTurn
-}
-
 // produceBlock prepares, signs and advises the pending block to the orther peers.
 func (c *Chain) produceBlock(now time.Time) (err error) {
 	// Retrieve local key pair
@@ -413,8 +406,27 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 
-	// TODO(leventeliu): advise new block
-	// ...
+	// Advise new block to the other peers
+	req := &MuxAdviseNewBlockReq{
+		Envelope: proto.Envelope{
+			// TODO(leventeliu): Add fields.
+		},
+		DatabaseID: c.rt.databaseID,
+		AdviseNewBlockReq: AdviseNewBlockReq{
+			Block: block,
+		},
+	}
+	resp := &MuxAdviseAckedQueryResp{}
+	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "AdviseNewBlock")
+
+	for _, p := range c.rt.peers.Servers {
+		if p.ID != c.rt.server.ID {
+			if err = c.cl.CallNode(p.ID, method, req, resp); err != nil {
+				log.WithField("node", string(p.ID)).WithError(err).Errorln(
+					"Failed to advise new block")
+			}
+		}
+	}
 
 	return
 }
@@ -423,13 +435,13 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 func (c *Chain) runCurrentTurn(now time.Time) {
 	defer c.rt.setNextTurn()
 
-	if !c.isMyTurn() {
+	if !c.rt.isMyTurn() {
 		return
 	}
 
 	if err := c.produceBlock(now); err != nil {
-		log.Errorf("Failed to produce block: err = %v, now = %s", err, now.Format(time.RFC3339Nano))
-		c.Stop()
+		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
+			"Failed to produce block")
 	}
 }
 
@@ -582,4 +594,8 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	}
 
 	return c.pushAckedQuery(ack)
+}
+
+func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
+	return c.rt.updatePeers(peers)
 }

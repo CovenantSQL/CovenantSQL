@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/rpc"
 
+	"github.com/hashicorp/yamux"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -54,22 +55,24 @@ func (c *Caller) CallNodeWithContext(
 		return
 	}
 
+	defer func() {
+		// call the yamux stream Close explicitly
+		//TODO(auxten) maybe a rpc client pool will gain much more performance
+		stream, ok := conn.(*yamux.Stream)
+		if ok {
+			stream.Close()
+		}
+	}()
+
 	client, err := InitClientConn(conn)
 	if err != nil {
 		log.Errorf("init RPC client failed: %s", err)
 		return
 	}
 
-	//FIXME(auxten): connection leaks
-	//defer func() {
-	//	// call the yamux stream Close explicitly
-	//
-	//	stream, ok := conn.(*yamux.Stream)
-	//	if ok {
-	//		stream.Close()
-	//	}
-	//}()
+	defer client.Close()
 
+	// TODO(xq262144), golang net/rpc does not support cancel in progress calls
 	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))
 
 	select {

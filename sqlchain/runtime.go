@@ -188,7 +188,7 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 	return
 }
 
-func (c *runtime) updatePeers(peers *kayak.Peers) (err error) {
+func (r *runtime) updatePeers(peers *kayak.Peers) (err error) {
 	found := false
 	c.Lock()
 	defer c.Unlock()

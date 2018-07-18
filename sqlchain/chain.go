@@ -596,6 +596,7 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	return c.pushAckedQuery(ack)
 }
 
+// UpdatePeers updates peer list of the sql-chain.
 func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
 	return c.rt.updatePeers(peers)
 }

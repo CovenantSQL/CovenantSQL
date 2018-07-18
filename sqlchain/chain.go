@@ -61,7 +61,6 @@ type Chain struct {
 	qi *queryIndex
 	cl *rpc.Caller
 	rt *runtime
-	st *state
 }
 
 // NewChain creates a new sql-chain struct.
@@ -104,11 +103,6 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		qi: newQueryIndex(),
 		cl: rpc.NewCaller(),
 		rt: newRunTime(c),
-		st: &state{
-			node:   nil,
-			Head:   c.Genesis.SignedHeader.GenesisHash,
-			Height: -1,
-		},
 	}
 
 	if err = chain.pushBlock(c.Genesis); err != nil {
@@ -137,17 +131,19 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		qi: newQueryIndex(),
 		cl: rpc.NewCaller(),
 		rt: newRunTime(c),
-		st: &state{},
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		meta := tx.Bucket(metaBucket[:])
-		err = chain.st.UnmarshalBinary(meta.Get(metaStateKey))
+		st := &state{}
+		err = st.UnmarshalBinary(meta.Get(metaStateKey))
 
 		if err != nil {
 			return err
 		}
+
+		chain.rt.setHead(st)
 
 		// Read blocks and rebuild memory index
 		var last *blockNode
@@ -245,7 +241,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	// Prepare and encode
 	h := c.rt.getHeightFromTime(b.SignedHeader.Timestamp)
-	node := newBlockNode(b, c.st.node)
+	node := newBlockNode(b, c.rt.getHead().node)
 	st := &state{
 		node:   node,
 		Head:   node.hash,
@@ -272,7 +268,7 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 			return
 		}
 
-		c.st = st
+		c.rt.setHead(st)
 		c.bi.addBlock(node)
 		c.qi.setSignedBlock(h, b)
 
@@ -387,7 +383,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 				Version:     0x01000000,
 				Producer:    c.rt.server.ID,
 				GenesisHash: c.rt.genesisHash,
-				ParentHash:  c.st.Head,
+				ParentHash:  c.rt.getHead().Head,
 				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
 				Timestamp: now,
 			},
@@ -418,11 +414,12 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	}
 	resp := &MuxAdviseAckedQueryResp{}
 	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "AdviseNewBlock")
+	peers := c.rt.getPeers()
 
-	for _, p := range c.rt.peers.Servers {
-		if p.ID != c.rt.server.ID {
-			if err = c.cl.CallNode(p.ID, method, req, resp); err != nil {
-				log.WithField("node", string(p.ID)).WithError(err).Errorln(
+	for _, s := range peers.Servers {
+		if s.ID != c.rt.server.ID {
+			if err = c.cl.CallNode(s.ID, method, req, resp); err != nil {
+				log.WithField("node", string(s.ID)).WithError(err).Errorln(
 					"Failed to advise new block")
 			}
 		}
@@ -433,7 +430,10 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
-	defer c.rt.setNextTurn()
+	defer func() {
+		c.rt.setNextTurn()
+		c.qi.advanceBarrier(c.rt.getMinValidHeight())
+	}()
 
 	if !c.rt.isMyTurn() {
 		return
@@ -505,7 +505,7 @@ func (c *Chain) Stop() (err error) {
 
 // FetchBlock fetches the block at specified height from local cache.
 func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
-	if n := c.st.node.ancestor(height); n != nil {
+	if n := c.rt.getHead().node.ancestor(height); n != nil {
 		k := n.indexKey()
 
 		err = c.db.View(func(tx *bolt.Tx) (err error) {
@@ -528,12 +528,20 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
 func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	// Pushed block must extend the best chain
-	if !block.SignedHeader.ParentHash.IsEqual(&c.st.Head) {
+	if !block.SignedHeader.ParentHash.IsEqual(&c.rt.getHead().Head) {
 		return ErrInvalidBlock
 	}
 
-	// TODO(leventeliu): verify that block.SignedHeader.Producer is the rightful producer of the
-	// block.
+	// Check block producer
+	index, found := c.rt.peers.Find(block.SignedHeader.Producer)
+
+	if !found {
+		return ErrUnknownProducer
+	}
+
+	if index != c.rt.getNextProducerIndex() {
+		return ErrInvalidProducer
+	}
 
 	// Check block existence
 	if c.bi.hasBlock(&block.SignedHeader.BlockHash) {
@@ -543,7 +551,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	// Block must produced within [start, end)
 	h := c.rt.getHeightFromTime(block.SignedHeader.Timestamp)
 
-	if h != c.st.Height+1 {
+	if h != c.rt.getHead().Height+1 {
 		return ErrBlockTimestampOutOfPeriod
 	}
 

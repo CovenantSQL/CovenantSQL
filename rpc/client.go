@@ -25,6 +25,7 @@ import (
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -51,25 +52,31 @@ func init() {
 
 // dial connects to a address with a Cipher
 // address should be in the form of host:port
-func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher) (c *etls.CryptoConn, err error) {
+func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher, isAnonymous bool) (c *etls.CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		log.Errorf("connect to %s failed: %s", address, err)
 		return
 	}
-
-	// send NodeID + Uint256 Nonce
-	nodeID, err := kms.GetLocalNodeIDBytes()
-	if err != nil {
-		log.Errorf("get local node id failed: %s", err)
-		return
+	var writeBuf []byte
+	if isAnonymous {
+		writeBuf = append(kms.AnonymousRawNodeID.CloneBytes(), (&cpuminer.Uint256{}).Bytes()...)
+	} else {
+		// send NodeID + Uint256 Nonce
+		var nodeIDBytes []byte
+		var nonce *cpuminer.Uint256
+		nodeIDBytes, err = kms.GetLocalNodeIDBytes()
+		if err != nil {
+			log.Errorf("get local node id failed: %s", err)
+			return
+		}
+		nonce, err = kms.GetLocalNonce()
+		if err != nil {
+			log.Errorf("get local nonce failed: %s", err)
+			return
+		}
+		writeBuf = append(nodeIDBytes, nonce.Bytes()...)
 	}
-	nonce, err := kms.GetLocalNonce()
-	if err != nil {
-		log.Errorf("get local nonce failed: %s", err)
-		return
-	}
-	writeBuf := append(nodeID, nonce.Bytes()...)
 	wrote, err := conn.Write(writeBuf)
 	if err != nil || wrote != len(writeBuf) {
 		log.Errorf("write node id and nonce failed: %s", err)
@@ -81,11 +88,11 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 }
 
 // DialToNode ties use connection in pool, if fails then connects to the node with nodeID
-func DialToNode(nodeID proto.NodeID, pool *SessionPool) (conn net.Conn, err error) {
-	if pool == nil {
+func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn net.Conn, err error) {
+	if pool == nil || isAnonymous {
 		var ETLSConn net.Conn
 		var sess *yamux.Session
-		ETLSConn, err = dialToNode(nodeID)
+		ETLSConn, err = dialToNodeEx(nodeID, isAnonymous)
 		if err != nil {
 			log.Errorf("dialToNode failed: %s", err)
 			return
@@ -97,7 +104,7 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool) (conn net.Conn, err erro
 		}
 		conn, err = sess.Open()
 		if err != nil {
-			log.Errorf("open new session failed", err)
+			log.Errorf("open new session failed: %s", err)
 		}
 		return
 	}
@@ -106,9 +113,15 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool) (conn net.Conn, err erro
 
 // dialToNode connects to the node with nodeID
 func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
+	//Fixme(auxten) DefaultDialer issue
+	return dialToNodeEx(nodeID, false)
+}
+
+// dialToNodeEx connects to the node with nodeID
+func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	var rawNodeID = nodeID.ToRawNodeID()
 
-	symmetricKey, err := GetSharedSecretWith(rawNodeID)
+	symmetricKey, err := GetSharedSecretWith(rawNodeID, isAnonymous)
 	if err != nil {
 		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
 		return
@@ -121,7 +134,7 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
-	conn, err = dial("tcp", nodeAddr, rawNodeID, cipher)
+	conn, err = dial("tcp", nodeAddr, rawNodeID, cipher, isAnonymous)
 	if err != nil {
 		log.Errorf("connect to %s: %s", nodeAddr, err)
 		return

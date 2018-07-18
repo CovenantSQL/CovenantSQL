@@ -39,7 +39,7 @@ var (
 )
 
 func main() {
-	// TODO(auxten): keypair and nodeID generator
+	// HACK(auxten): keypair and nodeID generator
 	log.Infof("idminer build: %s", version)
 	if len(os.Args) != 2 {
 		log.Error("usage: ./idminer publicKeyHex")

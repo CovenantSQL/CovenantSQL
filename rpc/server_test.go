@@ -162,7 +162,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil)
+	cryptoConn, err := DialToNode(serverNodeID, nil, false)
 	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)
@@ -177,10 +177,6 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 
 	client.Close()
 	server.Stop()
-}
-
-func TestServer_InitRPCServer(t *testing.T) {
-
 }
 
 func TestEncPingFindNeighbor(t *testing.T) {
@@ -207,7 +203,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil)
+	cryptoConn, err := DialToNode(serverNodeID, nil, false)
 	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)

@@ -17,7 +17,9 @@
 package route
 
 import (
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 /*
@@ -86,9 +88,25 @@ func (s RemoteFunc) String() string {
 }
 
 // IsPermitted returns if the node is permitted to call the RPC func
-func IsPermitted(caller proto.NodeID, funcName RemoteFunc) (ok bool) {
-	//TODO(auxten) collect all RPC call, filter permission
-	if !IsBPNodeID(caller.ToRawNodeID()) {
+func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) {
+	//FIXME(auxten,xq262144,leventeliu,lambda) collect all RPC call server side
+	// implementations, add Envelope to the Request struct and call this func
+	// to filter permission
+
+	callerETLSNodeID := callerEnvelope.GetNodeID()
+	// strict anonymous ETLS only used for Ping
+	// the envelope node id is set at NodeAwareServerCodec and CryptoListener.CHandler
+	// if callerETLSNodeID == nil here indicates that ETLS is not used, just ignore it
+	if callerETLSNodeID != nil {
+		if callerETLSNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash) {
+			if funcName != DHTPing {
+				log.Warnf("anonymous ETLS connection can not used by %s", funcName)
+				return false
+			}
+		}
+	}
+
+	if !IsBPNodeID(callerETLSNodeID) {
 		// non BP
 		switch funcName {
 		case DHTPing, DHTFindNode, DHTFindNeighbor, MetricUploadMetrics:

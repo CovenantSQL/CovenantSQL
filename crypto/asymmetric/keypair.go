@@ -18,10 +18,9 @@ package asymmetric
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"time"
-
-	"errors"
 
 	ec "github.com/btcsuite/btcd/btcec"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"

@@ -94,8 +94,6 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 		}
 		if _, ok := err.(*os.PathError); (ok || err == os.ErrNotExist) && conf.GConf.GenerateKeyPair {
 			log.Info("private key file not exist, generating one")
-			// TODO(auxten): generate public key and use cpu miner to
-			// 	generate a nonce to match the difficulty at idminer
 			privateKey, publicKey, err = asymmetric.GenSecp256k1KeyPair()
 			if err != nil {
 				log.Errorf("generate private key failed: %s", err)

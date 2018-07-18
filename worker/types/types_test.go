@@ -228,7 +228,7 @@ func TestResponse_Sign(t *testing.T) {
 					"test_string",
 				},
 				DeclTypes: []string{
-					// TODO, currently in sqlite3 dialect decltypes
+					// TODO(xq262144), currently in sqlite3 dialect decltypes
 					"INTEGER",
 					"BOOLEAN",
 					"DATETIME",

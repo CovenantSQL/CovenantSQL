@@ -26,34 +26,39 @@ import (
 )
 
 // GetSharedSecretWith gets shared symmetric key with ECDH
-func GetSharedSecretWith(nodeID *proto.RawNodeID) (symmetricKey []byte, err error) {
-	var remotePublicKey *asymmetric.PublicKey
-	if route.IsBPNodeID(nodeID) {
-		remotePublicKey = kms.BP.PublicKey
-	} else if conf.RoleTag[0] == 'B' {
-		remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
-		if err != nil {
-			log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
-			return
-		}
+func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKey []byte, err error) {
+	if isAnonymous {
+		symmetricKey = []byte(`!&\\!qEyey*\cbLc,aKl`)
+		log.Debug("using anonymous ETLS")
 	} else {
-		// if non BP running and key not found, ask BlockProducer
-		var nodeInfo *proto.Node
-		nodeInfo, err = GetNodeInfo(nodeID)
+		//log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
+		var remotePublicKey *asymmetric.PublicKey
+		if route.IsBPNodeID(nodeID) {
+			remotePublicKey = kms.BP.PublicKey
+		} else if conf.RoleTag[0] == 'B' {
+			remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
+			if err != nil {
+				log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+				return
+			}
+		} else {
+			// if non BP running and key not found, ask BlockProducer
+			var nodeInfo *proto.Node
+			nodeInfo, err = GetNodeInfo(nodeID)
+			if err != nil {
+				log.Errorf("get public key failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+				return
+			}
+			remotePublicKey = nodeInfo.PublicKey
+		}
+
+		var localPrivateKey *asymmetric.PrivateKey
+		localPrivateKey, err = kms.GetLocalPrivateKey()
 		if err != nil {
-			log.Errorf("get public key failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+			log.Errorf("get local private key failed: %s", err)
 			return
 		}
-		remotePublicKey = nodeInfo.PublicKey
+		symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
 	}
-
-	var localPrivateKey *asymmetric.PrivateKey
-	localPrivateKey, err = kms.GetLocalPrivateKey()
-	if err != nil {
-		log.Errorf("get local private key failed: %s", err)
-		return
-	}
-	//log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
-	symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
 	return
 }

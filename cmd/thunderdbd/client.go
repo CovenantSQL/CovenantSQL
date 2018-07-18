@@ -94,7 +94,7 @@ func clientRequest(reqType string, sql string) (err error) {
 	var client *rpc.Client
 
 	if len(reqType) > 0 && strings.Title(reqType[:1]) == "P" {
-		if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance()); err != nil {
+		if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance(), false); err != nil {
 			return
 		}
 		if client, err = rpc.InitClientConn(conn); err != nil {
@@ -118,7 +118,7 @@ func clientRequest(reqType string, sql string) (err error) {
 	} else {
 		for _, bp := range (*conf.GConf.KnownNodes)[:] {
 			if bp.Role == conf.Leader || bp.Role == conf.Follower {
-				if conn, err = rpc.DialToNode(bp.ID, rpc.GetSessionPoolInstance()); err != nil {
+				if conn, err = rpc.DialToNode(bp.ID, rpc.GetSessionPoolInstance(), false); err != nil {
 					return
 				}
 				if client, err = rpc.InitClientConn(conn); err != nil {

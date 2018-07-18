@@ -47,10 +47,12 @@ func TestIsPermitted(t *testing.T) {
 	InitKMS(PubKeyStorePath)
 
 	Convey("test IsPermitted", t, func() {
-		So(IsPermitted(conf.GConf.BP.NodeID, KayakCall), ShouldBeTrue)
-		So(IsPermitted(proto.NodeID("0000"), KayakCall), ShouldBeFalse)
-		So(IsPermitted(proto.NodeID("0000"), DHTFindNode), ShouldBeTrue)
-		So(IsPermitted(proto.NodeID("0000"), RemoteFunc(9999)), ShouldBeFalse)
+		nodeID := proto.NodeID("0000")
+		testEnv := &proto.Envelope{NodeID: nodeID.ToRawNodeID()}
+		So(IsPermitted(&proto.Envelope{NodeID: &conf.GConf.BP.RawNodeID}, KayakCall), ShouldBeTrue)
+		So(IsPermitted(testEnv, KayakCall), ShouldBeFalse)
+		So(IsPermitted(testEnv, DHTFindNode), ShouldBeTrue)
+		So(IsPermitted(testEnv, RemoteFunc(9999)), ShouldBeFalse)
 	})
 
 	Convey("string RemoteFunc", t, func() {

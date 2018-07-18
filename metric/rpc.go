@@ -69,7 +69,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		log.Errorln(resp.Msg)
 		return
 	}
-	if !route.IsPermitted(req.NodeID, route.MetricUploadMetrics) {
+	if !route.IsPermitted(&req.Envelope, route.MetricUploadMetrics) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
 		resp.Msg = fmt.Sprint(err)
 		log.Error(err)
@@ -138,7 +138,7 @@ func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID, connPool *rpc.Sess
 		return
 	}
 
-	conn, err := rpc.DialToNode(BPNodeID, connPool)
+	conn, err := rpc.DialToNode(BPNodeID, connPool, false)
 	if err != nil {
 		log.Errorf("dial to %s failed: %s", BPNodeID, err)
 		return

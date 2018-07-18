@@ -21,13 +21,12 @@ import (
 	"net"
 	"net/rpc"
 
-	"fmt"
-
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -189,9 +188,12 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
 	rawNodeID := &proto.RawNodeID{Hash: *idHash}
 	// TODO(auxten): compute the nonce and check difficulty
-	// cpuminer.FromBytes(headerBuf[hash.HashBSize:])
+	cpuminer.Uint256FromBytes(headerBuf[hash.HashBSize:])
 
-	symmetricKey, err := GetSharedSecretWith(rawNodeID)
+	symmetricKey, err := GetSharedSecretWith(
+		rawNodeID,
+		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
+	)
 	if err != nil {
 		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
 		return

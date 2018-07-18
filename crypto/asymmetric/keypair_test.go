@@ -83,7 +83,9 @@ func TestGetPubKeyNonce(t *testing.T) {
 		// sometimes nonce difficulty can be little bit higher than expected
 		So(nonce.Difficulty, ShouldBeLessThanOrEqualTo, 120)
 	})
+	Convey("translate key error", t, func() {
 
+	})
 }
 
 func TestGetThePubKeyNonce(t *testing.T) {

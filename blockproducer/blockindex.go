@@ -17,13 +17,13 @@
 package blockproducer
 
 import (
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"sync"
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 )
 
 type blockNode struct {
-	hash hash.Hash
+	hash   hash.Hash
 	parent *blockNode
 	height uint64
 }
@@ -37,7 +37,7 @@ func newBlockNode(block *types.Block, parent *blockNode) *blockNode {
 		height = 0
 	}
 	bn := &blockNode{
-		hash: block.SignedHeader.BlockHash,
+		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
 		height: height,
 	}
@@ -48,27 +48,27 @@ func newBlockNode(block *types.Block, parent *blockNode) *blockNode {
 type blockIndex struct {
 	cfg *Config
 
-	mu sync.RWMutex
+	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode
 }
 
 func newBlockIndex(config *Config) *blockIndex {
 	bi := &blockIndex{
-		cfg: config,
+		cfg:   config,
 		index: make(map[hash.Hash]*blockNode),
 	}
 
 	return bi
 }
 
-func (bi *blockIndex)addBlock(b *blockNode) {
+func (bi *blockIndex) addBlock(b *blockNode) {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 
 	bi.index[b.hash] = b
 }
 
-func (bi *blockIndex)hasBlock(h hash.Hash) bool {
+func (bi *blockIndex) hasBlock(h hash.Hash) bool {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 

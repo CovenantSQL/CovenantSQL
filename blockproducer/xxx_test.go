@@ -17,22 +17,22 @@
 package blockproducer
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"math/rand"
-	"time"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"testing"
-	"os"
-	"io/ioutil"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
 )
 
 var (
 	genesisHash = hash.Hash{}
-	uuidLen = 32
+	uuidLen     = 32
 )
 
 const (
@@ -77,10 +77,10 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err 
 	b = &types.Block{
 		SignedHeader: types.SignedHeader{
 			Header: types.Header{
-				Version: 0x01000000,
-				Producer: proto.AccountAddress(h),
+				Version:    0x01000000,
+				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
-				Timestamp: time.Now().UTC(),
+				Timestamp:  time.Now().UTC(),
 			},
 			Signee: pub,
 		},

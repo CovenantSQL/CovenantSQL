@@ -17,24 +17,26 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"time"
 	"bytes"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"encoding/binary"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/merkle"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
+	"time"
 )
 
+// Header defines the main chain block header
 type Header struct {
-	Version int32
-	Producer proto.AccountAddress
+	Version    int32
+	Producer   proto.AccountAddress
 	MerkleRoot hash.Hash
 	ParentHash hash.Hash
-	Timestamp time.Time
+	Timestamp  time.Time
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (h *Header) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
@@ -53,6 +55,7 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (h *Header) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 
@@ -65,13 +68,15 @@ func (h *Header) UnmarshalBinary(b []byte) error {
 	)
 }
 
+// SignedHeader defines the main chain header with the signature
 type SignedHeader struct {
 	Header
 	BlockHash hash.Hash
-	Signee *asymmetric.PublicKey
+	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
@@ -93,6 +98,7 @@ func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (s *SignedHeader) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 
@@ -108,6 +114,7 @@ func (s *SignedHeader) UnmarshalBinary(b []byte) error {
 	)
 }
 
+// Verify verifies the signature
 func (s *SignedHeader) Verify() error {
 	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
 		return ErrSignVerification
@@ -116,11 +123,13 @@ func (s *SignedHeader) Verify() error {
 	return nil
 }
 
+// Block defines the main chain block
 type Block struct {
 	SignedHeader SignedHeader
 	Transactions []*hash.Hash
 }
 
+// PackAndSignBlock computes block's hash and sign it
 func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Transactions).GetRoot()
 	enc, err := b.SignedHeader.Header.MarshalBinary()
@@ -139,6 +148,7 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (b *Block) MarshalBinary() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
@@ -154,6 +164,7 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (b *Block) UnmarshalBinary(buf []byte) error {
 	reader := bytes.NewReader(buf)
 
@@ -163,6 +174,7 @@ func (b *Block) UnmarshalBinary(buf []byte) error {
 	)
 }
 
+// PushTx pushes txes into block
 func (b *Block) PushTx(tx *hash.Hash) {
 	if b.Transactions != nil {
 		// TODO(lambda): set appropriate capacity.
@@ -172,6 +184,7 @@ func (b *Block) PushTx(tx *hash.Hash) {
 	b.Transactions = append(b.Transactions, tx)
 }
 
+// Verify verifies whether the block is valid
 func (b *Block) Verify() error {
 	merkleRoot := *merkle.NewMerkle(b.Transactions).GetRoot()
 	if !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {

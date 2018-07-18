@@ -18,10 +18,10 @@ package blockproducer
 
 // Config is the main chain configuration
 type Config struct {
-
 }
 
-func newConfig() *Config {
+// NewConfig creates new config
+func NewConfig() *Config {
 	config := Config{}
 	return &config
 }

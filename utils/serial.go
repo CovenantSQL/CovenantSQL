@@ -203,6 +203,50 @@ func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]
 	return
 }
 
+// readUint32s reads bytes from reader with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             uint32s             |
+// +-----+---------------------------------+
+//
+func (s simpleSerializer) readUint32s(r io.Reader, order binary.ByteOrder, ret *[]uint32) (err error) {
+	lenBuffer := s.borrowBuffer(4)
+	defer s.returnBuffer(lenBuffer)
+
+	if _, err = io.ReadFull(r, lenBuffer); err != nil {
+		return
+	}
+
+	retLen := order.Uint32(lenBuffer)
+
+	if retLen > maxBufferLength {
+		err = ErrBufferLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	retBuffer := s.borrowBuffer(int(retLen) * 4)
+	defer s.returnBuffer(retBuffer)
+
+	if _, err = io.ReadFull(r, retBuffer); err == nil {
+		if *ret == nil || cap(*ret) < int(retLen) {
+			*ret = make([]uint32, retLen)
+		} else {
+			*ret = (*ret)[:retLen]
+		}
+
+		for i := range *ret {
+			(*ret)[i] = order.Uint32(retBuffer[i*4 : i*4+4])
+		}
+	}
+
+	return
+}
+
 // readFixedSizeBytes reads fixed-size bytes from reader. It's used to read fixed-size array such
 // as Hash, which is a [32]byte array.
 func (s simpleSerializer) readFixedSizeBytes(r io.Reader, lenToRead int, ret []byte) (err error) {
@@ -409,6 +453,26 @@ func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []
 	return
 }
 
+// writeBytes writes bytes to writer with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             uint32s             |
+// +-----+---------------------------------+
+//
+func (s simpleSerializer) writeUint32s(w io.Writer, order binary.ByteOrder, val []uint32) (err error) {
+	buffer := s.borrowBuffer(4 + len(val)*4)
+	defer s.returnBuffer(buffer)
+
+	valLen := uint32(len(val))
+	order.PutUint32(buffer, valLen)
+	for i := range val {
+		order.PutUint32(buffer[4+i*4:], val[i])
+	}
+	_, err = w.Write(buffer)
+	return
+}
+
 // writeFixedSizeBytes writes fixed-size bytes to wirter. It's used to write fixed-size array such
 // as Hash, which is a [32]byte array.
 func (s simpleSerializer) writeFixedSizeBytes(w io.Writer, lenToPut int, val []byte) (err error) {
@@ -548,6 +612,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 
 	case *[]byte:
 		err = serializer.readBytes(r, order, e)
+
+	case *[]uint32:
+		err = serializer.readUint32s(r, order, e)
 
 	case *proto.NodeID:
 		err = serializer.readString(r, order, (*string)(e))
@@ -694,6 +761,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *[]byte:
 		err = serializer.writeBytes(w, order, *e)
+
+	case []uint32:
+		err = serializer.writeUint32s(w, order, e)
+
+	case *[]uint32:
+		err = serializer.writeUint32s(w, order, *e)
 
 	case time.Time:
 		err = serializer.writeUint64(w, order, (uint64)(e.UnixNano()))

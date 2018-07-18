@@ -17,21 +17,21 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"math/rand"
-	"time"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"testing"
-	"os"
-	"io/ioutil"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
 )
 
 var (
 	genesisHash = hash.Hash{}
-	uuidLen = 32
+	uuidLen     = 32
 )
 
 const (
@@ -40,19 +40,19 @@ const (
 
 func generateRandomAccount() *Account {
 	n := rand.Int31n(100) + 1
-	sqlChains := generateRandomDatabaseID(n)
+	sqlChains := generateRandomDatabaseIDs(n)
 	roles := generateRandomBytes(n)
 
 	h := hash.Hash{}
 	rand.Read(h[:])
 
 	account := &Account{
-		Address: proto.AccountAddress(h),
-		StableCoinBalance: rand.Uint64(),
+		Address:            proto.AccountAddress(h),
+		StableCoinBalance:  rand.Uint64(),
 		ThunderCoinBalance: rand.Uint64(),
-		SQLChains: sqlChains,
-		Roles: roles,
-		Rating: rand.Float64(),
+		SQLChains:          sqlChains,
+		Roles:              roles,
+		Rating:             rand.Float64(),
 	}
 
 	return account
@@ -66,7 +66,12 @@ func generateRandomBytes(n int32) []byte {
 	return s
 }
 
-func generateRandomDatabaseID(n int32) []proto.DatabaseID {
+func generateRandomDatabaseID() *proto.DatabaseID {
+	id := proto.DatabaseID(randStringBytes(uuidLen))
+	return &id
+}
+
+func generateRandomDatabaseIDs(n int32) []proto.DatabaseID {
 	s := make([]proto.DatabaseID, n)
 	for i := range s {
 		s[i] = proto.DatabaseID(randStringBytes(uuidLen))
@@ -80,6 +85,14 @@ func randStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+func generateRandomUint32s(n int32) []uint32 {
+	s := make([]uint32, n)
+	for i := range s {
+		s[i] = (uint32)(rand.Int31())
+	}
+	return s
 }
 
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
@@ -96,10 +109,10 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 	b = &Block{
 		SignedHeader: SignedHeader{
 			Header: Header{
-				Version: 0x01000000,
-				Producer: proto.AccountAddress(h),
+				Version:    0x01000000,
+				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
-				Timestamp: time.Now().UTC(),
+				Timestamp:  time.Now().UTC(),
 			},
 			Signee: pub,
 		},
@@ -113,6 +126,19 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 
 	err = b.PackAndSignBlock(priv)
 	return
+}
+
+func generateRandomBillingRequestHeader() *BillingRequestHeader {
+	block, err := generateRandomBlock(genesisHash, false)
+	if err != nil {
+		panic(err)
+	}
+	return &BillingRequestHeader{
+		DatabaseID:  *generateRandomDatabaseID(),
+		BlockHash:   block.SignedHeader.BlockHash,
+		BlockHeight: rand.Int31(),
+		GasAmounts:  generateRandomUint32s(peerNum),
+	}
 }
 
 func setup() {

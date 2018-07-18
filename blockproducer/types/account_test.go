@@ -17,9 +17,9 @@
 package types
 
 import (
-	"testing"
-	"reflect"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"reflect"
+	"testing"
 )
 
 func TestAccount_MarshalUnmarshaler(t *testing.T) {
@@ -54,13 +54,13 @@ func TestAccount_AppendSQLChainAndRole(t *testing.T) {
 		t.Fatalf("length not match: %+v", account)
 	}
 
-	if account.Roles[len(account.Roles) - 1] != role {
+	if account.Roles[len(account.Roles)-1] != role {
 		t.Fatalf("value not math:\n\tv1 = %+v\n\tv2 = %+v",
-			account.Roles[len(account.Roles) - 1], role)
+			account.Roles[len(account.Roles)-1], role)
 	}
 
-	if account.SQLChains[len(account.SQLChains) - 1] != databaseID {
+	if account.SQLChains[len(account.SQLChains)-1] != databaseID {
 		t.Fatalf("value not math:\n\tv1 = %+v\n\tv2 = %+v",
-			account.SQLChains[len(account.SQLChains) - 1], databaseID)
+			account.SQLChains[len(account.SQLChains)-1], databaseID)
 	}
 }

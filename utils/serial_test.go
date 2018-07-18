@@ -57,6 +57,8 @@ type testStruct struct {
 	Uint64Field     uint64
 	StringField     string
 	BytesField      []byte
+	Uint32s         []uint32
+	DatabaseIDs     []proto.DatabaseID
 	TimeField       time.Time
 	NodeIDField     proto.NodeID
 	DatabaseIDField proto.DatabaseID

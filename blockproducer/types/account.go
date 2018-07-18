@@ -17,10 +17,10 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/proto"
 	"bytes"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"encoding/binary"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // SQL Chain role type
@@ -31,14 +31,15 @@ const (
 
 // Account store its balance, and other mate data
 type Account struct {
-	Address proto.AccountAddress
-	StableCoinBalance uint64
+	Address            proto.AccountAddress
+	StableCoinBalance  uint64
 	ThunderCoinBalance uint64
-	SQLChains []proto.DatabaseID
-	Roles []byte
-	Rating float64
+	SQLChains          []proto.DatabaseID
+	Roles              []byte
+	Rating             float64
 }
 
+// MarshalBinary implements BinaryMarshaler.
 func (a *Account) MarshalBinary() ([]byte, error) {
 
 	buffer := bytes.NewBuffer(nil)
@@ -59,6 +60,7 @@ func (a *Account) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// UnmarshalBinary implements BinaryUnmarshaler.
 func (a *Account) UnmarshalBinary(b []byte) error {
 	reader := bytes.NewReader(b)
 	return utils.ReadElements(reader, binary.BigEndian,
@@ -71,6 +73,7 @@ func (a *Account) UnmarshalBinary(b []byte) error {
 	)
 }
 
+// AppendSQLChainAndRole add the sql chain include the account and its related role
 func (a *Account) AppendSQLChainAndRole(sqlChain *proto.DatabaseID, role byte) {
 	a.SQLChains = append(a.SQLChains, *sqlChain)
 	a.Roles = append(a.Roles, role)

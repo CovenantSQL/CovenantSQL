@@ -17,9 +17,9 @@
 package blockproducer
 
 import (
-	"testing"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"reflect"
+	"testing"
 )
 
 func TestNewBlockNode(t *testing.T) {
@@ -45,7 +45,7 @@ func TestNewBlockNode(t *testing.T) {
 		t.Fatalf("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", parent.parent)
-	} else if child.height != parent.height + 1 {
+	} else if child.height != parent.height+1 {
 		t.Fatalf("unexpected height: %d", parent.height)
 	}
 }
@@ -93,4 +93,3 @@ func TestIndexBlock(t *testing.T) {
 		t.Fatalf("two values should be equal: \n\tv0=%+v\n\tv1=%+v", bn0, bn3)
 	}
 }
-

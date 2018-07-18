@@ -17,10 +17,10 @@
 package types
 
 import (
-	"testing"
-	"reflect"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"encoding"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"reflect"
+	"testing"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {

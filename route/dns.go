@@ -20,12 +20,12 @@ import (
 	"errors"
 	"sync"
 
+	"encoding/hex"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"encoding/hex"
 )
 
 // NodeIDAddressMap is the map of proto.RawNodeID to node address

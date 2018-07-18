@@ -101,12 +101,10 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	}
 
 	// verify timestamp
-	// TODO(xq262144), maybe using central time service
 	nowTime := getLocalTime()
 	minTime := nowTime.Add(-db.cfg.MaxWriteTimeGap)
 	maxTime := nowTime.Add(db.cfg.MaxWriteTimeGap)
 
-	// TODO(xq262144), need refactor, response to connection attacks
 	if req.Header.Timestamp.Before(minTime) || req.Header.Timestamp.After(maxTime) {
 		err = ErrInvalidRequest
 		return

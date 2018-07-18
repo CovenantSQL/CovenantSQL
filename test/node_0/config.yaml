@@ -49,3 +49,27 @@ knownnodes:
     d: 0
   addr: ""
   role: 3
+- id: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
+  nonce:
+    a: 567323
+    b: 0
+    c: 0
+    d: 3104982049
+  addr: 127.0.0.1:2144
+  role: 2
+- id: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
+  nonce:
+    a: 240524
+    b: 0
+    c: 0
+    d: 2305843010430351476
+  addr: 127.0.0.1:2145
+  role: 2
+- id: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
+  nonce:
+    a: 606016
+    b: 0
+    c: 0
+    d: 13835058056920509601
+  addr: 127.0.0.1:2146
+  role: 2

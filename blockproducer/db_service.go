@@ -66,7 +66,7 @@ type DBService struct {
 
 // CreateDatabase defines block producer create database logic.
 func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatabaseResponse) (err error) {
-	// TODO(xq262144), verify identity
+	// TODO(xq262144): verify identity
 	// verify identity
 
 	// create random DatabaseID
@@ -81,7 +81,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		return
 	}
 
-	// TODO(xq262144), call accounting features, top up deposit
+	// TODO(lambda): call accounting features, top up deposit
 	var genesisBlock *ct.Block
 	if genesisBlock, err = s.generateGenesisBlock(dbID, req.ResourceMeta); err != nil {
 		return
@@ -89,7 +89,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	defer func() {
 		if err != nil {
-			// TODO(xq262144), release deposit on error
+			// TODO(lambda): release deposit on error
 		}
 	}()
 
@@ -123,7 +123,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	if err = s.ServiceMap.Set(instanceMeta); err != nil {
 		// critical error
-		// TODO(xq262144), critical error recover
+		// TODO(xq262144): critical error recover
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 // DropDatabase defines block producer drop database logic.
 func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseResponse) (err error) {
-	// TODO(xq262144), verify identity
+	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
 	// get database peers
@@ -157,12 +157,12 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	}
 
 	// withdraw deposit from sqlchain
-	// TODO(xq262144)
+	// TODO(lambda): withdraw deposit
 
 	// remove from meta
 	if err = s.ServiceMap.Delete(req.DatabaseID); err != nil {
 		// critical error
-		// TODO(xq262144), critical error recover
+		// TODO(xq262144): critical error recover
 		return
 	}
 
@@ -174,7 +174,7 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 
 // GetDatabase defines block producer get database logic.
 func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseResponse) (err error) {
-	// TODO(xq262144), verify identity
+	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
 	// fetch from meta
@@ -254,12 +254,11 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		// clear previous allocated
 		allocated = allocated[:0]
 
-		// TODO(xq262144), filter roles that is not miner
 		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
 
 		log.Debugf("found %d neighbour nodes", len(nodes))
 
-		// TODO(xq262144), brute force implementation to be optimized
+		// TODO(xq262144): brute force implementation to be optimized
 		var nodeIDs []proto.NodeID
 
 		for _, node := range nodes {
@@ -291,8 +290,8 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 				continue
 			}
 
-			// TODO(xq262144), left reserved resources check is required
-			// TODO(xq262144), filesystem check to be implemented
+			// TODO(xq262144): left reserved resources check is required
+			// TODO(xq262144): filesystem check to be implemented
 
 			if resourceMeta.Memory < metricValue {
 				// can allocate
@@ -373,7 +372,7 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 		Servers: make([]*kayak.Server, len(allocated)),
 	}
 
-	// TODO(xq262144), more practical leader selection, now random select node as leader
+	// TODO(xq262144): more practical leader selection, now random select node as leader
 	// random choice leader
 	leaderIdx := rand.Intn(len(allocated))
 
@@ -398,7 +397,7 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 }
 
 func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (genesisBlock *ct.Block, err error) {
-	// TODO(xq262144), following is stub code, real logic should be implemented in the future
+	// TODO(xq262144): following is stub code, real logic should be implemented in the future
 	emptyHash := hash.Hash{}
 
 	var pubKey *asymmetric.PublicKey

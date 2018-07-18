@@ -315,12 +315,12 @@ func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err erro
 		return
 	}
 
-	// TODO(xq262144), unify block producer calls
+	// TODO(xq262144): unify block producer calls
 	bps := route.GetBPs()
 	bpID := bps[int(nonce.A%uint64(len(bps)))]
 	req := &wt.InitService{}
 	res := new(wt.InitServiceResponse)
-	// TODO(xq262144), maybe we should define service name convention to a single location
+	// TODO(xq262144): maybe we should define service name convention to a single location
 	if err = rpc.NewCaller().CallNode(bpID, "BPDB.GetNodeDatabases", req, res); err != nil {
 		return
 	}
@@ -335,7 +335,7 @@ func (dbms *DBMS) Shutdown() (err error) {
 	dbms.dbMap.Range(func(_, rawDB interface{}) bool {
 		db := rawDB.(*Database)
 
-		// TODO(xq262144), more error handling
+		// TODO(xq262144): more database shutdown error handling
 		db.Shutdown()
 
 		return true

@@ -18,6 +18,7 @@ package client
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -29,9 +30,22 @@ func TestConfig(t *testing.T) {
 		var err error
 
 		cfg, err = ParseDSN("thunderdb://db")
-
 		So(err, ShouldBeNil)
 		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
 		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db")
+
+		// test with parameters
+		cfg, err = ParseDSN("thunderdb://db?debug=true&update_interval=1s")
+		So(err, ShouldBeNil)
+		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
+		So(cfg.Debug, ShouldBeTrue)
+		So(cfg.PeersUpdateInterval, ShouldEqual, time.Second)
+
+		cfg.Debug = false
+		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db?update_interval=1s")
+
+		cfg.Debug = true
+		cfg.PeersUpdateInterval = DefaultPeersUpdateInterval
+		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db?debug=true")
 	})
 }

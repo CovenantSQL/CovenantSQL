@@ -26,6 +26,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -49,10 +50,12 @@ func TestIsPermitted(t *testing.T) {
 	Convey("test IsPermitted", t, func() {
 		nodeID := proto.NodeID("0000")
 		testEnv := &proto.Envelope{NodeID: nodeID.ToRawNodeID()}
+		testAnonymous := &proto.Envelope{NodeID: kms.AnonymousRawNodeID}
 		So(IsPermitted(&proto.Envelope{NodeID: &conf.GConf.BP.RawNodeID}, KayakCall), ShouldBeTrue)
 		So(IsPermitted(testEnv, KayakCall), ShouldBeFalse)
 		So(IsPermitted(testEnv, DHTFindNode), ShouldBeTrue)
 		So(IsPermitted(testEnv, RemoteFunc(9999)), ShouldBeFalse)
+		So(IsPermitted(testAnonymous, DHTFindNode), ShouldBeFalse)
 	})
 
 	Convey("string RemoteFunc", t, func() {

@@ -52,7 +52,6 @@ func NewTwoPCOptions() *TwoPCOptions {
 
 // NewDefaultTwoPCOptions creates twopc configuration options with default settings.
 func NewDefaultTwoPCOptions() *TwoPCOptions {
-	// TODO(xq262144), node id hack
 	nodeID, _ := kms.GetLocalNodeID()
 	return NewTwoPCOptions().WithNodeID(nodeID)
 }

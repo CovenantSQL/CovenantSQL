@@ -34,7 +34,7 @@ func TestConn(t *testing.T) {
 		defer stopTestService()
 
 		var db *sql.DB
-		db, err = sql.Open("thunderdb", "thunderdb://db")
+		db, err = sql.Open("thunderdb", "thunderdb://db?update_interval=400ms")
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 

@@ -20,12 +20,13 @@ import (
 	"errors"
 	"sync"
 
+	"encoding/hex"
+
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"encoding/hex"
 )
 
 // NodeIDAddressMap is the map of proto.RawNodeID to node address
@@ -166,7 +167,7 @@ func InitKMS(PubKeyStoreFile string) {
 	if conf.GConf.KnownNodes != nil {
 		for i, n := range (*conf.GConf.KnownNodes)[:] {
 			if n.Role == conf.Leader || n.Role == conf.Follower {
-				//TODO(auxten): put PublicKey to yaml
+				//HACK(auxten): put PublicKey to yaml
 				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
 				log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
 			}

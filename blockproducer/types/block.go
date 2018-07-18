@@ -1,22 +1,23 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"time"
 	"bytes"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"encoding/binary"
+	"time"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/merkle"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 type Header struct {
-	Version int32
-	Producer proto.AccountAddress
+	Version    int32
+	Producer   proto.AccountAddress
 	MerkleRoot hash.Hash
 	ParentHash hash.Hash
-	Timestamp time.Time
+	Timestamp  time.Time
 }
 
 func (h *Header) MarshalBinary() ([]byte, error) {
@@ -52,7 +53,7 @@ func (h *Header) UnmarshalBinary(b []byte) error {
 type SignedHeader struct {
 	Header
 	BlockHash hash.Hash
-	Signee *asymmetric.PublicKey
+	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
 }
 

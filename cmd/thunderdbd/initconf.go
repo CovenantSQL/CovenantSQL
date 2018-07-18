@@ -76,7 +76,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 				log.Errorf("parse clientPublicKey error: %s", err)
 				return
 			}
-			//FIXME
+			//FIXME(auxten): read public key from conf
 			(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
 		}
 	}

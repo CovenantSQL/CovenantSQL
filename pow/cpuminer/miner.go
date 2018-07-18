@@ -62,7 +62,7 @@ func HashBlock(data []byte, nonce Uint256) hash.Hash {
 
 // ComputeBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
 // if interrupted or stopped highest difficulty nonce will be sent to the NonceCh
-//  TODO(auxten): make calculation parallel
+//  HACK(auxten): make calculation parallel
 func (miner *CPUMiner) ComputeBlockNonce(
 	block MiningBlock,
 	startNonce Uint256,

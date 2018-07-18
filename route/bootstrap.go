@@ -47,7 +47,7 @@ func NewDNSClient() *DNSClient {
 	if err != nil || config == nil {
 		log.Errorf("can not initialize the local resolver: %s", err)
 	}
-	//TODO(auxten) use 1.1.1.1 just for testing now!
+	//HACK(auxten) use 1.1.1.1 just for testing now!
 	config.Servers[0] = testDNS
 
 	return &DNSClient{

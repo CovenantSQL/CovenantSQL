@@ -31,7 +31,6 @@ import (
 )
 
 func initNode() (server *rpc.Server, err error) {
-	kms.InitBP()
 	keyPairRootPath := conf.GConf.WorkingRoot
 	pubKeyPath := filepath.Join(keyPairRootPath, conf.GConf.PubKeyStoreFile)
 	privKeyPath := filepath.Join(keyPairRootPath, conf.GConf.PrivateKeyFile)

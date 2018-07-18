@@ -157,7 +157,6 @@ func (r *NetworkRequest) GetLog() *kayak.Log {
 
 // SendResponse implements kayak.Request.SendResponse.
 func (r *NetworkRequest) SendResponse(resp []byte, err error) error {
-	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
 	case <-r.respAvailable:
@@ -171,7 +170,6 @@ func (r *NetworkRequest) SendResponse(resp []byte, err error) error {
 }
 
 func (r *NetworkRequest) getResponse() ([]byte, error) {
-	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
 	case <-r.respAvailable:
@@ -215,7 +213,6 @@ func (t *NetworkTransport) Request(ctx context.Context, nodeID proto.NodeID,
 	client := rpc.NewClientWithCodec(t.config.ClientCodec(conn))
 	req := NewRequest(t.config.NodeID, method, log)
 	res := NewResponse()
-	// TODO(xq262144), too tricky
 	err = client.Call("Service.Call", req, res)
 
 	return res.get(), err
@@ -242,7 +239,6 @@ func (t *NetworkTransport) enqueue(req *NetworkRequest) {
 
 // Call hand-off request from remote rpc server.
 func (p *NetworkTransportRequestProxy) Call(req *NetworkRequest, res *NetworkResponse) error {
-	// TODO(xq262144), too tricky
 	// verify node id
 	if p.conn.GetPeerNodeID() != req.NodeID {
 		return kayak.ErrInvalidRequest
@@ -266,7 +262,6 @@ func (t *NetworkTransport) run() {
 		default:
 			conn, err := t.config.StreamLayer.Accept()
 			if err != nil {
-				// TODO, log
 				continue
 			}
 

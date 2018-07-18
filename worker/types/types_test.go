@@ -228,7 +228,6 @@ func TestResponse_Sign(t *testing.T) {
 					"test_string",
 				},
 				DeclTypes: []string{
-					// TODO(xq262144), currently in sqlite3 dialect decltypes
 					"INTEGER",
 					"BOOLEAN",
 					"DATETIME",
@@ -735,7 +734,6 @@ func TestInitService(t *testing.T) {
 						PubKey:    nil,
 						Signature: nil,
 					},
-					// TODO(xq262144), should integrated with genesis block serialization test
 					GenesisBlock: nil,
 				},
 			},
@@ -768,7 +766,6 @@ func TestUpdateService(t *testing.T) {
 					PubKey:    nil,
 					Signature: nil,
 				},
-				// TODO(xq262144), should integrated with genesis block serialization test
 				GenesisBlock: nil,
 			},
 		}

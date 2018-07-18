@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/metric"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
@@ -107,6 +108,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config from %s failed: %s", configFile, err)
 	}
+
+	if conf.GConf.Miner == nil {
+		log.Fatalf("miner config does not exists")
+	}
+	if conf.GConf.Miner.MetricCollectInterval.Seconds() <= 0 {
+		log.Fatalf("miner metric collect interval is invalid")
+	}
+	if conf.GConf.Miner.MaxReqTimeGap.Seconds() <= 0 {
+		log.Fatalf("miner request time gap is invalid")
+	}
+
+	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
 
 	// init log
@@ -144,12 +157,6 @@ func main() {
 		defer tick.Stop()
 
 		for {
-			select {
-			case <-metricCh:
-				return
-			case <-tick.C:
-			}
-
 			// choose block producer
 			bp := route.GetBPs()
 
@@ -159,6 +166,12 @@ func main() {
 
 			bpID := bp[rand.Intn(len(bp))]
 			mc.UploadMetrics(bpID, nil)
+
+			select {
+			case <-metricCh:
+				return
+			case <-tick.C:
+			}
 		}
 	}()
 

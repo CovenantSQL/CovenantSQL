@@ -29,7 +29,6 @@ import (
 
 // ResponseRow defines single row of query response.
 type ResponseRow struct {
-	// TODO(xq262144), currently use as-is type from golang sqlite3 driver
 	Values []interface{}
 }
 
@@ -65,7 +64,7 @@ type Response struct {
 
 // Serialize structure to bytes.
 func (r *ResponseRow) Serialize() []byte {
-	// FIXME(xq262144), currently use idiomatic serialization for hash generation
+	// HACK(xq262144), currently use idiomatic serialization for hash generation
 	buf, _ := utils.EncodeMsgPack(r)
 
 	return buf.Bytes()

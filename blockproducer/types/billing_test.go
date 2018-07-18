@@ -17,10 +17,11 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	hash2 "gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"reflect"
 	"testing"
+
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	hash2 "gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 var (

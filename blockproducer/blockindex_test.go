@@ -17,9 +17,10 @@
 package blockproducer
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"reflect"
 	"testing"
+
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestNewBlockNode(t *testing.T) {

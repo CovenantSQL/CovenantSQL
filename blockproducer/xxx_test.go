@@ -17,17 +17,15 @@
 package blockproducer
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 var (
@@ -99,28 +97,6 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err 
 func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
-	f, err := ioutil.TempFile("", "keystore")
-
-	if err != nil {
-		panic(err)
-	}
-
-	f.Close()
-
-	if err = kms.InitPublicKeyStore(f.Name(), nil); err != nil {
-		panic(err)
-	}
-
-	kms.Unittest = true
-
-	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
-		kms.SetLocalKeyPair(priv, pub)
-	} else {
-		panic(err)
-	}
-
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
 }
 
 func TestMain(m *testing.M) {

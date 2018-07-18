@@ -17,9 +17,10 @@
 package blockproducer
 
 import (
+	"sync"
+
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"sync"
 )
 
 type blockNode struct {

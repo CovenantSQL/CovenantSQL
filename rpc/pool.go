@@ -60,7 +60,7 @@ var (
 
 // Close closes the session
 func (s *Session) Close() {
-	//TODO(auxten) stream.Close() puts the given connects back to the pool instead of closing it.
+	//FIXME(auxten) stream.Close() puts the given connects back to the pool instead of closing it.
 	// like https://github.com/fatih/pool/blob/f83b9d975e4dbf8d73f9abeae43caa3bd654b9cb/conn.go#L17
 	s.Sess.Close()
 }

@@ -1,10 +1,11 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/proto"
 	"bytes"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"encoding/binary"
+
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // SQL Chain role type
@@ -15,12 +16,12 @@ const (
 
 // Account store its balance, and other mate data
 type Account struct {
-	Address proto.AccountAddress
-	StableCoinBalance uint64
+	Address            proto.AccountAddress
+	StableCoinBalance  uint64
 	ThunderCoinBalance uint64
-	SQLChains []proto.DatabaseID
-	Roles []byte
-	Rating float64
+	SQLChains          []proto.DatabaseID
+	Roles              []byte
+	Rating             float64
 }
 
 func (a *Account) MarshalBinary() ([]byte, error) {

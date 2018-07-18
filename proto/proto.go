@@ -139,4 +139,3 @@ func (e *Envelope) SetNodeID(nodeID *RawNodeID) {
 
 // DatabaseID is database name, will be generated from UUID
 type DatabaseID string
-

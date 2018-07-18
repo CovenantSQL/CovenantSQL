@@ -110,11 +110,12 @@ func TestCaller_CallNode(t *testing.T) {
 		log.Debugf("\nnode1 %##v \nnode2 %##v", node1, node2)
 	})
 
-	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	err = PingBP(node1, conf.GConf.BP.NodeID)
+	//err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Debugf("respA2: %v", respA)
+	//log.Debugf("respA2: %v", respA)
 
 	// call with canceled context
 	ctx, contextCancel := context.WithCancel(context.Background())

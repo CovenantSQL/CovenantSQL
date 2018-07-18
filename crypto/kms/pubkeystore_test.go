@@ -93,7 +93,7 @@ func TestDB(t *testing.T) {
 		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
 
 		err = SetPublicKey(proto.NodeID("0"+BP.NodeID), BP.Nonce, BP.PublicKey)
-		So(err, ShouldEqual, ErrNotValidNodeID)
+		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
 
 		pubk, err = GetPublicKey(proto.NodeID("node1"))
 		So(pubk, ShouldNotBeNil)

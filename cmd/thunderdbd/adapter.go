@@ -109,8 +109,7 @@ func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err err
 
 	err = s.consistent.AddCache(nodeToSet)
 	if err != nil {
-		//TODO(auxten) log the error but not return, may cause some inconsistency
-		// need sync periodly
+		//TODO(auxten) even no error will be returned, there may be some inconsistency need sync periodically
 		log.Errorf("compile exec log failed: %s", err)
 	}
 

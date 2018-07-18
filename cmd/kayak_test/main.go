@@ -268,7 +268,7 @@ func runClient() (err error) {
 func clientRequest(leader *NodeInfo, reqType string, sql string) (err error) {
 	leaderNodeID := proto.NodeID(leader.Nonce.Hash.String())
 	var conn net.Conn
-	if conn, err = rpc.DialToNode(leaderNodeID, nil); err != nil {
+	if conn, err = rpc.DialToNode(leaderNodeID, nil, false); err != nil {
 		return
 	}
 

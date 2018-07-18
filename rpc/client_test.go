@@ -37,30 +37,30 @@ const pass = "abc"
 
 func TestDial(t *testing.T) {
 	Convey("dial error case", t, func() {
-		c, err := dial("tcp", "wrongaddr", nil, nil)
+		c, err := dial("tcp", "wrongaddr", nil, nil, false)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		var l net.Listener
 		l, _ = net.Listen("tcp", "127.0.0.1:0")
-		c, err = dial("tcp", l.Addr().String(), nil, nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.SetLocalNodeIDNonce([]byte(nodeID), nil)
-		c, err = dial("tcp", l.Addr().String(), nil, nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{1, 1, 1, 1})
-		c, err = dial("tcp", l.Addr().String(), nil, nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 
 		go func() {
 			l.Accept()
 		}()
-		c, err = dial("tcp", l.Addr().String(), nil, nil)
+		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 	})
@@ -70,7 +70,7 @@ func TestDialToNode(t *testing.T) {
 	Convey("DialToNode error case", t, func() {
 		defer os.Remove(publicKeyStore)
 		defer os.Remove(privateKey)
-		c, err := DialToNode(kms.BP.NodeID, nil)
+		c, err := DialToNode(kms.BP.NodeID, nil, false)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
@@ -84,20 +84,20 @@ func TestDialToNode(t *testing.T) {
 		}
 
 		kms.InitPublicKeyStore(publicKeyStore, BPNode)
-		c, err = DialToNode(proto.NodeID(nodeID), nil)
+		c, err = DialToNode(proto.NodeID(nodeID), nil, false)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		kms.InitLocalKeyPair(privateKey, []byte(pass))
 		//route.initResolver()
-		c, err = DialToNode(kms.BP.NodeID, nil)
+		c, err = DialToNode(kms.BP.NodeID, nil, false)
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
 		l, _ := net.Listen("tcp", "127.0.0.1:0")
 
 		route.SetNodeAddrCache(&kms.BP.RawNodeID, l.Addr().String())
-		c, err = DialToNode(kms.BP.NodeID, nil)
+		c, err = DialToNode(kms.BP.NodeID, nil, false)
 		So(err, ShouldBeNil)
 		So(c, ShouldNotBeNil)
 	})

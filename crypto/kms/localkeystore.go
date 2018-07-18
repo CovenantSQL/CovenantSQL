@@ -21,9 +21,9 @@ import (
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 // LocalKeyStore is the type hold local private & public key

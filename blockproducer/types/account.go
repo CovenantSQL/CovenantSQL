@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )

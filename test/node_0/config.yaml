@@ -8,6 +8,7 @@ thisnodeid: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
   mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
+MinNodeIDDifficulty: 2
 BlockProducer:
   PublicKeyStr: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
@@ -49,3 +50,27 @@ knownnodes:
     d: 0
   addr: ""
   role: 3
+- id: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
+  nonce:
+    a: 567323
+    b: 0
+    c: 0
+    d: 3104982049
+  addr: 127.0.0.1:2144
+  role: 2
+- id: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
+  nonce:
+    a: 240524
+    b: 0
+    c: 0
+    d: 2305843010430351476
+  addr: 127.0.0.1:2145
+  role: 2
+- id: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
+  nonce:
+    a: 606016
+    b: 0
+    c: 0
+    d: 13835058056920509601
+  addr: 127.0.0.1:2146
+  role: 2

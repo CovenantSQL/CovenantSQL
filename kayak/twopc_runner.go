@@ -236,12 +236,12 @@ func (r *TwoPCRunner) initState() error {
 }
 
 func (r *TwoPCRunner) reValidateLocalLogs() error {
-	// TODO(xq262144), maybe re-validating local log hashes
+	// TODO(xq262144): maybe re-validating local log hashes
 	return nil
 }
 
 func (r *TwoPCRunner) restoreUnderlying() error {
-	// TODO(xq262144), restore underlying from snapshot and replaying local logs
+	// TODO(xq262144): restore underlying from snapshot and replaying local logs
 	return nil
 }
 
@@ -251,7 +251,7 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 	defer r.updatePeersLock.Unlock()
 
 	// wait for transaction completion
-	// TODO(xq262144), support transaction timeout
+	// TODO(xq262144): support transaction timeout
 
 	if peers.Term == r.peers.Term {
 		// same term, ignore
@@ -307,13 +307,13 @@ func (r *TwoPCRunner) run() {
 	for {
 		select {
 		case <-r.shutdownCh:
-			// TODO(xq262144), cleanup logic
+			// TODO(xq262144): cleanup logic
 			return
 		case data := <-r.processReq:
 			r.processRes <- r.processNewLog(data)
 		case request := <-r.transport.Process():
 			r.processRequest(request)
-			// TODO(xq262144), support timeout logic for auto rollback prepared transaction on leader change
+			// TODO(xq262144): support timeout logic for auto rollback prepared transaction on leader change
 		case peersUpdate := <-r.safeForPeersUpdate():
 			r.processPeersUpdate(peersUpdate)
 		}
@@ -340,7 +340,6 @@ func (r *TwoPCRunner) processNewLog(data []byte) (err error) {
 	// compute hash
 	l.ComputeHash()
 
-	// TODO(xq262144), local prepare/rollback/commit should be re-organized
 	localPrepare := func(ctx context.Context) error {
 		// prepare local prepare node
 		if err := r.config.Storage.Prepare(ctx, l.Data); err != nil {
@@ -353,7 +352,6 @@ func (r *TwoPCRunner) processNewLog(data []byte) (err error) {
 
 	localRollback := func(ctx context.Context) error {
 		// prepare local rollback node
-		// TODO(xq262144), check log position
 		r.logStore.DeleteRange(r.lastLogIndex+1, l.Index)
 		return r.config.Storage.Rollback(ctx, l.Data)
 	}
@@ -441,7 +439,6 @@ func (r *TwoPCRunner) processRequest(req Request) {
 
 func (r *TwoPCRunner) processPeersUpdate(peersUpdate *Peers) {
 	// update peers
-	// TODO(xq262144), handle step down, promote up
 	var err error
 	if err = r.stableStore.SetUint64(keyCurrentTerm, peersUpdate.Term); err == nil {
 		r.peers = peersUpdate
@@ -470,7 +467,7 @@ func (r *TwoPCRunner) processPeersUpdate(peersUpdate *Peers) {
 }
 
 func (r *TwoPCRunner) verifyLeader(req Request) error {
-	// TODO(xq262144), verify call from current leader or from new leader containing new peers info
+	// TODO(xq262144): verify call from current leader or from new leader containing new peers info
 	if req.GetPeerNodeID() != r.peers.Leader.ID {
 		// not our leader
 		return ErrInvalidRequest
@@ -499,8 +496,8 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 	req.SendResponse(nil, func() (err error) {
 		// already in transaction, try abort previous
 		if r.getState() != Idle {
-			// TODO(xq262144), has running transaction
-			// TODO(xq262144), abort previous or failed current
+			// TODO(xq262144): has running transaction
+			// TODO(xq262144): abort previous or failed current
 		}
 
 		// init context
@@ -556,7 +553,7 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 func (r *TwoPCRunner) processCommit(req Request) {
 	// commit log
 	req.SendResponse(nil, func() (err error) {
-		// TODO(xq262144), check current running transaction index
+		// TODO(xq262144): check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
 			return ErrInvalidRequest
@@ -607,7 +604,7 @@ func (r *TwoPCRunner) processCommit(req Request) {
 func (r *TwoPCRunner) processRollback(req Request) {
 	// rollback log
 	req.SendResponse(nil, func() (err error) {
-		// TODO(xq262144), check current running transaction index
+		// TODO(xq262144): check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
 			return ErrInvalidRequest
@@ -705,7 +702,7 @@ func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatc
 }
 
 func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, log *Log) (err error) {
-	// TODO(xq262144), handle retry
+	// TODO(xq262144): handle retry
 	_, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, log)
 	return
 }

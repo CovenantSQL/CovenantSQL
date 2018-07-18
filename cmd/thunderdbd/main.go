@@ -66,7 +66,6 @@ const desc = `ThunderDB is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
@@ -101,7 +100,8 @@ func main() {
 	}
 	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
-	conf.GConf.GenerateKeyPair = genKeyPair
+	// BP DO NOT Generate new key pair
+	conf.GConf.GenerateKeyPair = false
 
 	// init log
 	initLogs()

@@ -17,9 +17,10 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/proto"
 	"reflect"
 	"testing"
+
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 func TestAccount_MarshalUnmarshaler(t *testing.T) {

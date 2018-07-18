@@ -605,7 +605,6 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// test call orders
 			// prepare failed, so no l_prepare is called
 			// since one prepare failed, only one f_rollback with be triggered
-			// TODO(xq262144), mixing coordinator role with worker role in leader node may be a bad idea, need code refactor
 			So(callOrder.Get(), ShouldResemble, []string{
 				"f_prepare",
 				"f_prepare",

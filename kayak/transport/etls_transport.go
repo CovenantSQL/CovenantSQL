@@ -134,7 +134,6 @@ func (r *ETLSTransportRequest) GetLog() *kayak.Log {
 // SendResponse implements kayak.Request.SendResponse.
 func (r *ETLSTransportRequest) SendResponse(resp []byte, err error) error {
 	// send response with transport id
-	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
 	case <-r.respAvailable:
@@ -152,7 +151,6 @@ func (r *ETLSTransportRequest) initChan() {
 }
 
 func (r *ETLSTransportRequest) getResponse() ([]byte, error) {
-	// TODO(xq262144), too tricky
 	r.respInit.Do(r.initChan)
 	select {
 	case <-r.respAvailable:
@@ -163,7 +161,7 @@ func (r *ETLSTransportRequest) getResponse() ([]byte, error) {
 // Call is the rpc entry of ETLS transport.
 func (s *ETLSTransportService) Call(req *ETLSTransportRequest, resp *ETLSTransportResponse) error {
 	// verify
-	// TODO(xq262144), unified NodeID types in project
+	// TODO(xq262144): unified NodeID types in project
 	if req.Envelope.NodeID.String() != string(req.NodeID) {
 		return kayak.ErrInvalidRequest
 	}

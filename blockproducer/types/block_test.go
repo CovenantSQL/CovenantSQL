@@ -18,9 +18,10 @@ package types
 
 import (
 	"encoding"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"reflect"
 	"testing"
+
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {

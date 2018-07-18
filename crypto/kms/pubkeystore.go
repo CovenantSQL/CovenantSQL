@@ -28,13 +28,14 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
+	"sync"
+
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"sync"
 )
 
 // PublicKeyStore holds db and bucket name
@@ -57,7 +58,7 @@ var (
 )
 
 var (
-	//TODO(auxten): maybe each BP uses distinct key pair is safer
+	//HACK(auxten): maybe each BP uses distinct key pair is safer
 
 	// BP hold the initial BP info
 	BP *conf.BPInfo
@@ -249,21 +250,24 @@ func SetNode(nodeInfo *proto.Node) (err error) {
 		return ErrNilNode
 	}
 	if !Unittest {
-		if nodeInfo.PublicKey == nil {
-			return ErrNilNode
-		}
-		keyHash := mine.HashBlock(nodeInfo.PublicKey.Serialize(), nodeInfo.Nonce)
-		id := nodeInfo.ID
-		idHash, err := hash.NewHashFromStr(string(id))
-		if err != nil {
-			return ErrNotValidNodeID
-		}
-		if !keyHash.IsEqual(idHash) {
+		if !IsIDPubNonceValid(nodeInfo.ID.ToRawNodeID(), &nodeInfo.Nonce, nodeInfo.PublicKey) {
 			return ErrNodeIDKeyNonceNotMatch
 		}
 	}
 
 	return setNode(nodeInfo)
+}
+
+// IsIDPubNonceValid returns if `id == HashBlock(key, nonce)`
+func IsIDPubNonceValid(id *proto.RawNodeID, nonce *mine.Uint256, key *asymmetric.PublicKey) bool {
+	if key == nil || id == nil || nonce == nil {
+		return false
+	}
+	keyHash := mine.HashBlock(key.Serialize(), *nonce)
+	if keyHash.IsEqual(&id.Hash) {
+		return true
+	}
+	return false
 }
 
 // setNode sets id and its publicKey

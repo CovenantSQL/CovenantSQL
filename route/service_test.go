@@ -19,16 +19,15 @@ package route
 import (
 	"fmt"
 	"net"
-	"testing"
-
 	"net/rpc"
-
 	"os"
-
+	"strings"
+	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	. "gitlab.com/thunderdb/ThunderDB/proto"
@@ -78,7 +77,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 
 	Convey("test FindNeighbor empty", t, func() {
 		So(resp.Nodes, ShouldBeEmpty)
-		So(err.Error(), ShouldEqual, consistent.ErrEmptyCircle.Error())
+		So(err.Error(), ShouldContainSubstring, consistent.ErrEmptyCircle.Error())
 	})
 
 	reqFN1 := &FindNodeReq{
@@ -92,7 +91,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	log.Debugf("respFN1: %v", respFN1)
 	Convey("test FindNode", t, func() {
 		So(respFN1.Node, ShouldBeNil)
-		So(err.Error(), ShouldEqual, consistent.ErrKeyNotFound.Error())
+		So(err.Error(), ShouldContainSubstring, consistent.ErrKeyNotFound.Error())
 	})
 
 	node1 := NewNode()
@@ -219,9 +218,35 @@ func TestDHTService_Ping(t *testing.T) {
 	}
 	respA := new(PingResp)
 	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(client, mh)
-	err = rpc.NewClientWithCodec(msgpackCodec).Call("DHT.Ping", reqA, respA)
+	rc := rpc.NewClientWithCodec(msgpackCodec)
+	err = rc.Call("DHT.Ping", reqA, respA)
 	if err != nil {
-		log.Error(err)
+		t.Error(err)
 	}
 	log.Debugf("respA: %v", respA)
+	rc.Close()
+
+	respA3 := new(PingResp)
+	conf.GConf.MinNodeIDDifficulty = 256
+	client, _ = net.Dial("tcp", ln.Addr().String())
+	msgpackCodec = codec.MsgpackSpecRpc.ClientCodec(client, mh)
+	rc = rpc.NewClientWithCodec(msgpackCodec)
+	err = rc.Call("DHT.Ping", reqA, respA3)
+	if err == nil || !strings.Contains(err.Error(), "difficulty too low") {
+		t.Error(err)
+	}
+	log.Debugf("respA3: %v", respA3)
+	rc.Close()
+
+	respA2 := new(PingResp)
+	reqA.Node.Nonce.A = ^uint64(0)
+	client, _ = net.Dial("tcp", ln.Addr().String())
+	msgpackCodec = codec.MsgpackSpecRpc.ClientCodec(client, mh)
+	rc = rpc.NewClientWithCodec(msgpackCodec)
+	err = rc.Call("DHT.Ping", reqA, respA2)
+	if err == nil || !strings.Contains(err.Error(), "nonce public key not match") {
+		t.Error(err)
+	}
+	log.Debugf("respA2: %v", respA2)
+	rc.Close()
 }

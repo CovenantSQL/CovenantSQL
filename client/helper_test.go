@@ -112,7 +112,6 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	return
 }
 
-// TODO(xq262144), to be replaced with standalone miner binary
 func startTestService() (stopTestService func(), err error) {
 	var server *rpc.Server
 	var cleanup func()

@@ -48,13 +48,10 @@ func (nc *NodeAwareServerCodec) ReadRequestBody(body interface{}) (err error) {
 		return
 	}
 
-	if _, ok := body.(proto.EnvelopeAPI); !ok {
-		return
+	if r, ok := body.(proto.EnvelopeAPI); ok {
+		// inject node id to rpc envelope
+		r.SetNodeID(nc.NodeID)
 	}
-
-	// inject node id to rpc envelope
-	r := body.(proto.EnvelopeAPI)
-	r.SetNodeID(nc.NodeID)
 
 	return
 }

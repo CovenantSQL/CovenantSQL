@@ -19,12 +19,13 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"time"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/merkle"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
-	"time"
 )
 
 // Header defines the main chain block header

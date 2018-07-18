@@ -51,13 +51,13 @@ func TestNewBlockNode(t *testing.T) {
 }
 
 func TestIndexBlock(t *testing.T) {
-	cfg := newConfig()
+	cfg := NewConfig()
 	bi := newBlockIndex(cfg)
 
 	if bi == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if bi.cfg == nil {
-		t.Fatalf("unexpected config: %")
+		t.Fatalf("unexpected config")
 	}
 
 	block0, err := generateRandomBlock(hash.Hash{}, true)

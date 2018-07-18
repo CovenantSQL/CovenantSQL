@@ -25,22 +25,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
-// RoleType define the remote server role.
-type RoleType int
-
-const (
-	// UnknownRole is node role can't be determined for now
-	UnknownRole = -1
-	// BPLeader is a server that have the ability to organize committing requests.
-	BPLeader RoleType = iota
-	// BPFollower is a server that follow the leader log commits.
-	BPFollower
-	// DBMiner is a server that run sql database
-	DBMiner
-	// DBClient is a client that send sql query to database
-	DBClient
-)
-
 // SessPool is the session pool interface
 type SessPool interface {
 	Get(proto.NodeID) (net.Conn, error)
@@ -59,7 +43,6 @@ type SessionMap map[proto.NodeID]*Session
 // Session is the Session type of SessionPool
 type Session struct {
 	ID   proto.NodeID
-	Role RoleType
 	Sess *yamux.Session
 }
 
@@ -77,7 +60,7 @@ var (
 
 // Close closes the session
 func (s *Session) Close() {
-	//TODO(auxten) stream.Close() puts the given connects back to the pool instead of closing it.
+	//FIXME(auxten) stream.Close() puts the given connects back to the pool instead of closing it.
 	// like https://github.com/fatih/pool/blob/f83b9d975e4dbf8d73f9abeae43caa3bd654b9cb/conn.go#L17
 	s.Sess.Close()
 }
@@ -109,7 +92,6 @@ func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
 	// Store it
 	sess = &Session{
 		ID:   id,
-		Role: UnknownRole,
 		Sess: newSess,
 	}
 	return

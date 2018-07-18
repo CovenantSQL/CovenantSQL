@@ -18,6 +18,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -40,6 +41,11 @@ import (
 var rootHash = hash.Hash{}
 
 func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
+	if conf.GConf.Miner == nil {
+		err = errors.New("invalid database config")
+		return
+	}
+
 	cfg := &worker.DBMSConfig{
 		RootDir:       conf.GConf.Miner.RootDir,
 		Server:        server,

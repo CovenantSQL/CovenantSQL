@@ -52,9 +52,8 @@ type runtime struct {
 	// price sets query price in gases.
 	price map[wt.QueryType]uint32
 
-	// TODO(leventeliu): reduce locking granularity.
-
-	sync.RWMutex // Protects following fields.
+	// peersMutex protects following peers-relative fields.
+	peersMutex sync.Mutex
 	// peers is the peer list of the sql-chain.
 	peers *kayak.Peers
 	// server is the local peer service instance.
@@ -63,11 +62,16 @@ type runtime struct {
 	index int32
 	// total is the total peer number of the sql-chain.
 	total int32
+
+	// stateMutex protects following turn-relative fields.
+	stateMutex sync.Mutex
 	// nextTurn is the height of the next block.
 	nextTurn int32
 	// head is the current head of the best chain.
 	head *state
-	//
+
+	// timeMutex protects following time-relative fields.
+	timeMutex sync.Mutex
 	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
 	//
 	// TODO(leventeliu): update offset in ping cycle.
@@ -117,8 +121,8 @@ func (r *runtime) setGenesis(b *ct.Block) {
 }
 
 func (r *runtime) getMinValidHeight() int32 {
-	r.RLock()
-	defer r.RUnlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	return r.nextTurn - r.queryTTL
 }
 
@@ -141,28 +145,28 @@ func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 
 // updateTime updates the current coodinated chain time.
 func (r *runtime) updateTime(now time.Time) {
-	r.Lock()
-	defer r.Unlock()
+	r.timeMutex.Lock()
+	defer r.timeMutex.Unlock()
 	r.offset = now.Sub(time.Now())
 }
 
 // now returns the current coodinated chain time.
 func (r *runtime) now() time.Time {
-	r.RLock()
-	defer r.RUnlock()
+	r.timeMutex.Lock()
+	defer r.timeMutex.Unlock()
 	return time.Now().Add(r.offset)
 }
 
 func (r *runtime) getNextTurn() int32 {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	return r.nextTurn
 }
 
 // setNextTurn prepares the runtime state for the next turn.
 func (r *runtime) setNextTurn() {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	r.nextTurn++
 }
 
@@ -191,6 +195,8 @@ func (r *runtime) getHeightFromTime(t time.Time) int32 {
 // is less or equal to 0, use the clock reading to run the next cycle - this avoids some problem
 // caused by concurrently time synchronization.
 func (r *runtime) nextTick() (t time.Time, d time.Duration) {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	t = r.now()
 	d = r.chainInitTime.Add(time.Duration(r.nextTurn) * r.period).Sub(t)
 
@@ -202,8 +208,8 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 }
 
 func (r *runtime) updatePeers(peers *kayak.Peers) (err error) {
-	r.Lock()
-	defer r.Unlock()
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
 
 	// TODO(leventeliu): get local node ID.
 	index, found := peers.Find(r.server.ID)
@@ -232,8 +238,8 @@ func (r *runtime) stopService() {
 }
 
 func (r *runtime) isMyTurn() (ret bool) {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 
 	if r.total <= 0 {
 		ret = false
@@ -245,8 +251,8 @@ func (r *runtime) isMyTurn() (ret bool) {
 }
 
 func (r *runtime) getNextProducerIndex() int32 {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 
 	if r.total > 0 {
 		return (r.head.Height + 1) % r.total
@@ -256,20 +262,20 @@ func (r *runtime) getNextProducerIndex() int32 {
 }
 
 func (r *runtime) getPeers() *kayak.Peers {
-	r.Lock()
-	defer r.Unlock()
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
 	peers := r.peers.Clone()
 	return &peers
 }
 
 func (r *runtime) getHead() *state {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	return r.head
 }
 
 func (r *runtime) setHead(head *state) {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	r.head = head
 }

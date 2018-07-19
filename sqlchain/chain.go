@@ -526,6 +526,28 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	return c.qi.getAck(height, header)
 }
 
+func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (err error) {
+	req := &MuxFetchAckedQueryReq{
+		Envelope: proto.Envelope{
+			// TODO(leventeliu): Add fields.
+		},
+		DatabaseID: c.rt.databaseID,
+		FetchAckedQueryReq: FetchAckedQueryReq{
+			Height:                height,
+			SignedAckedHeaderHash: ack,
+		},
+	}
+	resp := &MuxFetchAckedQueryResp{}
+	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "FetchAckedQuery")
+
+	if err = c.cl.CallNode(id, method, req, resp); err != nil {
+		log.WithField("node", string(id)).WithError(err).Errorln(
+			"Failed to fetch acked query")
+	}
+
+	return c.VerifyAndPushAckedQuery(resp.Ack)
+}
+
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
 func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	// Pushed block must extend the best chain
@@ -572,7 +594,13 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 		}
 
 		if !ok {
-			// TODO(leventeliu): call RPC.FetchAckedQuery from block.SignedHeader.Producer
+			if err = c.syncAckedQuery(h, q, block.SignedHeader.Producer); err != nil {
+				return
+			}
+
+			if _, err = c.qi.checkAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
+				return
+			}
 		}
 	}
 

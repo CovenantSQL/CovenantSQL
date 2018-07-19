@@ -127,3 +127,31 @@ type AddrAndGas struct {
 	RawNodeID      RawNodeID
 	GasAmount      uint32
 }
+
+// ServerRole defines the role of node to be leader/coordinator in peer set.
+type ServerRole int
+
+const (
+	// Leader is a server that have the ability to organize committing requests.
+	Leader ServerRole = iota
+	// Follower is a server that follow the leader log commits.
+	Follower
+	// Miner is a server that run sql database
+	Miner
+	// Client is a client that send sql query to database
+	Client
+)
+
+func (s ServerRole) String() string {
+	switch s {
+	case Leader:
+		return "Leader"
+	case Follower:
+		return "Follower"
+	case Miner:
+		return "Miner"
+	case Client:
+		return "Client"
+	}
+	return "Unknown"
+}

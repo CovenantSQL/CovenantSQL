@@ -29,7 +29,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -214,7 +213,7 @@ func testPeersFixture(term uint64, servers []*kayak.Server) *kayak.Peers {
 			PubKey: pubKey,
 		}
 		newServers = append(newServers, newS)
-		if newS.Role == conf.Leader {
+		if newS.Role == proto.Leader {
 			leaderNode = newS
 		}
 	}
@@ -254,15 +253,15 @@ func TestExampleTwoPCCommit(t *testing.T) {
 		// peers is a simple 3-node peer configuration
 		peers := testPeersFixture(1, []*kayak.Server{
 			{
-				Role: conf.Leader,
+				Role: proto.Leader,
 				ID:   lMock.nodeID,
 			},
 			{
-				Role: conf.Follower,
+				Role: proto.Follower,
 				ID:   f1Mock.nodeID,
 			},
 			{
-				Role: conf.Follower,
+				Role: proto.Follower,
 				ID:   f2Mock.nodeID,
 			},
 		})

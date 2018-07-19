@@ -117,7 +117,7 @@ func clientRequest(reqType string, sql string) (err error) {
 		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
 		for _, bp := range (*conf.GConf.KnownNodes)[:] {
-			if bp.Role == conf.Leader || bp.Role == conf.Follower {
+			if bp.Role == proto.Leader || bp.Role == proto.Follower {
 				if conn, err = rpc.DialToNode(bp.ID, rpc.GetSessionPoolInstance(), false); err != nil {
 					return
 				}

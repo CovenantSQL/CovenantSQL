@@ -276,8 +276,8 @@ func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error
 	return a, b, nil
 }
 
-// GetNeighbors returns the N closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
+// GetNeighborsEx returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetNeighborsEx(name string, n int, roles []proto.ServerRole) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -317,6 +317,11 @@ func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
 	}
 
 	return res, nil
+}
+
+// GetNeighbors returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
+	return c.GetNeighborsEx(name, n, nil)
 }
 
 func hashKey(key string) proto.NodeKey {

@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -451,11 +450,11 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 	for i := range s {
 		rand.Read(h[:])
 		s[i] = &kayak.Server{
-			Role: func() conf.ServerRole {
+			Role: func() proto.ServerRole {
 				if i == 0 {
-					return conf.Leader
+					return proto.Leader
 				}
-				return conf.Follower
+				return proto.Follower
 			}(),
 			ID:     proto.NodeID(nis[i].Hash.String()),
 			PubKey: pub,

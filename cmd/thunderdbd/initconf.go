@@ -40,7 +40,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 	}
 
 	leader := &kayak.Server{
-		Role:   conf.Leader,
+		Role:   proto.Leader,
 		ID:     conf.GConf.BP.NodeID,
 		PubKey: publicKey,
 	}
@@ -53,7 +53,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 	}
 
 	for i, n := range (*conf.GConf.KnownNodes)[:] {
-		if n.Role == conf.Leader || n.Role == conf.Follower {
+		if n.Role == proto.Leader || n.Role == proto.Follower {
 			//FIXME all KnownNodes
 			(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
 			peers.Servers = append(peers.Servers, &kayak.Server{
@@ -62,7 +62,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 				PubKey: publicKey,
 			})
 		}
-		if n.Role == conf.Client {
+		if n.Role == proto.Client {
 			var publicKeyBytes []byte
 			var clientPublicKey *asymmetric.PublicKey
 			//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4

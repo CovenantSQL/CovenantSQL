@@ -27,9 +27,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// ServerRole defines the role of node to be leader/coordinator in peer set.
-type ServerRole int
-
 // these const specify the role of this app, which can be "miner", "blockProducer"
 const (
 	MinerBuildTag         = "M"
@@ -40,31 +37,6 @@ const (
 
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag
-
-const (
-	// Leader is a server that have the ability to organize committing requests.
-	Leader ServerRole = iota
-	// Follower is a server that follow the leader log commits.
-	Follower
-	// Miner is a server that run sql database
-	Miner
-	// Client is a client that send sql query to database
-	Client
-)
-
-func (s ServerRole) String() string {
-	switch s {
-	case Leader:
-		return "Leader"
-	case Follower:
-		return "Follower"
-	case Miner:
-		return "Miner"
-	case Client:
-		return "Client"
-	}
-	return "Unknown"
-}
 
 // BPInfo hold all BP info fields
 type BPInfo struct {
@@ -86,7 +58,7 @@ type NodeInfo struct {
 	Nonce     cpuminer.Uint256
 	PublicKey *asymmetric.PublicKey `yaml:"-"`
 	Addr      string
-	Role      ServerRole
+	Role      proto.ServerRole
 }
 
 // MinerDatabaseFixture config.

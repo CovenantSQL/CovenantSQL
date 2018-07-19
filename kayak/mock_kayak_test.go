@@ -29,7 +29,6 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
@@ -293,7 +292,7 @@ func testPeersFixture(term uint64, servers []*Server) *Peers {
 			PubKey: pubKey,
 		}
 		newServers = append(newServers, newS)
-		if newS.Role == conf.Leader {
+		if newS.Role == proto.Leader {
 			leaderNode = newS
 		}
 	}

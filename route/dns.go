@@ -127,7 +127,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == conf.Leader || n.Role == conf.Follower {
+			if n.Role == proto.Leader || n.Role == proto.Follower {
 				rawID := n.ID.ToRawNodeID()
 				if rawID != nil {
 					setNodeAddrCache(rawID, n.Addr)
@@ -166,12 +166,12 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 func InitKMS(PubKeyStoreFile string) {
 	if conf.GConf.KnownNodes != nil {
 		for i, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == conf.Leader || n.Role == conf.Follower {
+			if n.Role == proto.Leader || n.Role == proto.Follower {
 				//HACK(auxten): put PublicKey to yaml
 				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
 				log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
 			}
-			if n.Role == conf.Client {
+			if n.Role == proto.Client {
 				var publicKeyBytes []byte
 				var clientPublicKey *asymmetric.PublicKey
 				//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4

@@ -160,13 +160,13 @@ func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance
 	instance.Peers = &kayak.Peers{
 		Term: 1,
 		Leader: &kayak.Server{
-			Role:   conf.Leader,
+			Role:   proto.Leader,
 			ID:     nodeID,
 			PubKey: pubKey,
 		},
 		Servers: []*kayak.Server{
 			{
-				Role:   conf.Leader,
+				Role:   proto.Leader,
 				ID:     nodeID,
 				PubKey: pubKey,
 			},

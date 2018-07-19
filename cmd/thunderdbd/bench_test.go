@@ -42,8 +42,6 @@ var FJ = filepath.Join
 func TestBuild(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	utils.Build()
-	start3BPs()
-	time.Sleep(time.Hour)
 }
 
 func start3BPs() {

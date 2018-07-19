@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The ThunderDB Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the “License”);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an “AS IS” BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package types
 
 import (
@@ -25,7 +41,7 @@ const (
 
 func generateRandomAccount() *Account {
 	n := rand.Int31n(100) + 1
-	sqlChains := generateRandomDatabaseID(n)
+	sqlChains := generateRandomDatabaseIDs(n)
 	roles := generateRandomBytes(n)
 
 	h := hash.Hash{}
@@ -51,7 +67,18 @@ func generateRandomBytes(n int32) []byte {
 	return s
 }
 
-func generateRandomDatabaseID(n int32) []proto.DatabaseID {
+func generateRandomHash() hash.Hash {
+	h := hash.Hash{}
+	rand.Read(h[:])
+	return h
+}
+
+func generateRandomDatabaseID() *proto.DatabaseID {
+	id := proto.DatabaseID(randStringBytes(uuidLen))
+	return &id
+}
+
+func generateRandomDatabaseIDs(n int32) []proto.DatabaseID {
 	s := make([]proto.DatabaseID, n)
 	for i := range s {
 		s[i] = proto.DatabaseID(randStringBytes(uuidLen))
@@ -65,6 +92,14 @@ func randStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+func generateRandomUint32s(n int32) []uint32 {
+	s := make([]uint32, n)
+	for i := range s {
+		s[i] = (uint32)(rand.Int31())
+	}
+	return s
 }
 
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
@@ -98,6 +133,33 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 
 	err = b.PackAndSignBlock(priv)
 	return
+}
+
+func generateRandomBillingRequestHeader() *BillingRequestHeader {
+	block, err := generateRandomBlock(genesisHash, false)
+	if err != nil {
+		panic(err)
+	}
+	return &BillingRequestHeader{
+		DatabaseID:  *generateRandomDatabaseID(),
+		BlockHash:   block.SignedHeader.BlockHash,
+		BlockHeight: rand.Int31(),
+		GasAmounts:  generateRandomGasAmount(peerNum),
+	}
+}
+
+func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
+	gasAmount := make([]*proto.AddrAndGas, n)
+
+	for i := range gasAmount {
+		gasAmount[i] = &proto.AddrAndGas{
+			AccountAddress: proto.AccountAddress(generateRandomHash()),
+			RawNodeID:      proto.RawNodeID{generateRandomHash()},
+			GasAmount:      rand.Uint32(),
+		}
+	}
+
+	return gasAmount
 }
 
 func setup() {

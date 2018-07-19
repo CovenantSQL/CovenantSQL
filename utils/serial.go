@@ -128,6 +128,38 @@ func (s simpleSerializer) readUint64(r io.Reader, order binary.ByteOrder) (ret u
 	return
 }
 
+// readAddrAndGas reads AddrAndGas from reader with the following format:
+//
+// 0             32             64          68
+// +--------------+--------------+----------+
+// |     hash     |     hash     |  uint32  |
+// +--------------+--------------+----------+
+//
+func (s simpleSerializer) readAddrAndGas(r io.Reader, order binary.ByteOrder, ret *proto.AddrAndGas) (err error) {
+	addr := hash.Hash{}
+	err = s.readFixedSizeBytes(r, hash.HashSize, addr[:])
+	if err != nil {
+		return err
+	}
+
+	nodeID := hash.Hash{}
+	err = s.readFixedSizeBytes(r, hash.HashSize, nodeID[:])
+	if err != nil {
+		return err
+	}
+
+	gasAmount, err := s.readUint32(r, order)
+	if err != nil {
+		return err
+	}
+
+	ret.GasAmount = gasAmount
+	ret.RawNodeID = proto.RawNodeID{nodeID}
+	ret.AccountAddress = proto.AccountAddress(addr)
+
+	return nil
+}
+
 // readString reads string from reader with the following format:
 //
 // 0     4                                 4+len
@@ -198,6 +230,50 @@ func (s simpleSerializer) readBytes(r io.Reader, order binary.ByteOrder, ret *[]
 		}
 
 		copy(*ret, retBuffer)
+	}
+
+	return
+}
+
+// readUint32s reads bytes from reader with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             uint32s             |
+// +-----+---------------------------------+
+//
+func (s simpleSerializer) readUint32s(r io.Reader, order binary.ByteOrder, ret *[]uint32) (err error) {
+	lenBuffer := s.borrowBuffer(4)
+	defer s.returnBuffer(lenBuffer)
+
+	if _, err = io.ReadFull(r, lenBuffer); err != nil {
+		return
+	}
+
+	retLen := order.Uint32(lenBuffer)
+
+	if retLen > maxBufferLength {
+		err = ErrBufferLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	retBuffer := s.borrowBuffer(int(retLen) * 4)
+	defer s.returnBuffer(retBuffer)
+
+	if _, err = io.ReadFull(r, retBuffer); err == nil {
+		if *ret == nil || cap(*ret) < int(retLen) {
+			*ret = make([]uint32, retLen)
+		} else {
+			*ret = (*ret)[:retLen]
+		}
+
+		for i := range *ret {
+			(*ret)[i] = order.Uint32(retBuffer[i*4 : i*4+4])
+		}
 	}
 
 	return
@@ -290,6 +366,44 @@ func (s simpleSerializer) readDatabaseIDs(r io.Reader, order binary.ByteOrder, r
 	}
 
 	return
+}
+
+// readAddrAndGases reads hashes from reader with the following format:
+//
+// 0          4
+// +----------+----------------+---------------+-------+----------------+
+// | sliceLen |  AddrAndGas_0  |  AddrAndGas_1 |  ...  |  AddrAndGas_2  |
+// +----------+----------------+---------------+-------+----------------+
+//
+func (s simpleSerializer) readAddrAndGases(r io.Reader, order binary.ByteOrder, ret *[]*proto.AddrAndGas) error {
+	retLen, err := s.readUint32(r, order)
+	if err != nil {
+		return err
+	}
+
+	if retLen > maxSliceLength {
+		return ErrSliceLengthExceedLimit
+	} else if retLen == 0 {
+		*ret = nil
+		return nil
+	}
+
+	if *ret == nil || cap(*ret) < int(retLen) {
+		*ret = make([]*proto.AddrAndGas, retLen)
+	} else {
+		*ret = (*ret)[:retLen]
+	}
+
+	for i := range *ret {
+		(*ret)[i] = new(proto.AddrAndGas)
+
+		err = s.readAddrAndGas(r, order, (*ret)[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // readHashes reads hashes from reader with the following format:
@@ -391,6 +505,30 @@ func (s simpleSerializer) writeString(w io.Writer, order binary.ByteOrder, val *
 	return
 }
 
+// writeAddrAndGas writes AddrAndGas to writer with the following format:
+//
+// 0             32             64          68
+// +--------------+--------------+----------+
+// |     hash     |     hash     |  uint32  |
+// +--------------+--------------+----------+
+//
+func (s simpleSerializer) writeAddrAndGas(w io.Writer, order binary.ByteOrder, val *proto.AddrAndGas) (err error) {
+	err = s.writeFixedSizeBytes(w, hash.HashSize, val.AccountAddress[:])
+	if err != nil {
+		return
+	}
+	err = s.writeFixedSizeBytes(w, hash.HashSize, val.RawNodeID.Hash[:])
+	if err != nil {
+		return
+	}
+	err = s.writeUint32(w, binary.BigEndian, val.GasAmount)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 // writeBytes writes bytes to writer with the following format:
 //
 // 0     4                                 4+len
@@ -405,6 +543,26 @@ func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []
 	valLen := uint32(len(val))
 	order.PutUint32(buffer, valLen)
 	copy(buffer[4:], []byte(val))
+	_, err = w.Write(buffer)
+	return
+}
+
+// writeBytes writes bytes to writer with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             uint32s             |
+// +-----+---------------------------------+
+//
+func (s simpleSerializer) writeUint32s(w io.Writer, order binary.ByteOrder, val []uint32) (err error) {
+	buffer := s.borrowBuffer(4 + len(val)*4)
+	defer s.returnBuffer(buffer)
+
+	valLen := uint32(len(val))
+	order.PutUint32(buffer, valLen)
+	for i := range val {
+		order.PutUint32(buffer[4+i*4:], val[i])
+	}
 	_, err = w.Write(buffer)
 	return
 }
@@ -487,6 +645,27 @@ func (s simpleSerializer) writeHashes(w io.Writer, order binary.ByteOrder, val [
 	return
 }
 
+// writeAddrAndGases writes hashes to writer with the following format:
+//
+// 0          4
+// +----------+----------------+---------------+-------+----------------+
+// | sliceLen |  AddrAndGas_0  |  AddrAndGas_1 |  ...  |  AddrAndGas_2  |
+// +----------+----------------+---------------+-------+----------------+
+//
+func (s simpleSerializer) writeAddrAndGases(w io.Writer, order binary.ByteOrder, val []*proto.AddrAndGas) error {
+	if err := s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return err
+	}
+
+	for _, v := range val {
+		if err := s.writeAddrAndGas(w, order, v); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err error) {
 	switch e := element.(type) {
 	case *bool:
@@ -549,6 +728,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case *[]byte:
 		err = serializer.readBytes(r, order, e)
 
+	case *[]uint32:
+		err = serializer.readUint32s(r, order, e)
+
 	case *proto.NodeID:
 		err = serializer.readString(r, order, (*string)(e))
 
@@ -584,6 +766,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 
 	case *[]proto.DatabaseID:
 		err = serializer.readDatabaseIDs(r, order, e)
+
+	case *[]*proto.AddrAndGas:
+		err = serializer.readAddrAndGases(r, order, e)
 
 	default:
 		// Fallback to BinaryUnmarshaler interface
@@ -695,6 +880,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 	case *[]byte:
 		err = serializer.writeBytes(w, order, *e)
 
+	case []uint32:
+		err = serializer.writeUint32s(w, order, e)
+
+	case *[]uint32:
+		err = serializer.writeUint32s(w, order, *e)
+
 	case time.Time:
 		err = serializer.writeUint64(w, order, (uint64)(e.UnixNano()))
 
@@ -764,6 +955,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *[]proto.DatabaseID:
 		err = serializer.writeDatabaseIDs(w, order, *e)
+
+	case []*proto.AddrAndGas:
+		err = serializer.writeAddrAndGases(w, order, e)
+
+	case *[]*proto.AddrAndGas:
+		err = serializer.writeAddrAndGases(w, order, *e)
 
 	default:
 		// Fallback to BinaryMarshaler interface

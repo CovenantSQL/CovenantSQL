@@ -120,3 +120,10 @@ func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
 func (id *RawNodeID) ToNodeID() NodeID {
 	return NodeID(id.String())
 }
+
+// AddrAndGas records each node's address, node id and gas that node receives
+type AddrAndGas struct {
+	AccountAddress AccountAddress
+	RawNodeID      RawNodeID
+	GasAmount      uint32
+}

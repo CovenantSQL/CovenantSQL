@@ -567,7 +567,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
-	os.Remove(pubKeyStoreFile + "_c")
+	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")
+	os.Remove(clientPubKeyStoreFile)
 	dupConfFile := filepath.Join(d, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
 	if err = dupConf(confFile, dupConfFile); err != nil {
@@ -578,7 +579,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	// reset the once
 	route.Once = sync.Once{}
-	route.InitKMS(pubKeyStoreFile + "_c")
+	route.InitKMS(clientPubKeyStoreFile)
 
 	var dht *route.DHTService
 

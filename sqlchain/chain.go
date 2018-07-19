@@ -552,9 +552,16 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	// Block must produced within [start, end)
 	h := c.rt.getHeightFromTime(block.SignedHeader.Timestamp)
 
-	if h != c.rt.getHead().Height+1 {
+	// TODO(leventeliu): this may go wrong if time difference between workers is greater than 1
+	// period.
+	if h <= c.rt.getHead().Height || h > c.rt.getNextTurn() {
 		return ErrBlockTimestampOutOfPeriod
 	}
+
+	// TODO(leventeliu): check if too many periods are skipped.
+	// if h-c.rt.getHead().Height > X {
+	// 	...
+	// }
 
 	// Check queries
 	for _, q := range block.Queries {

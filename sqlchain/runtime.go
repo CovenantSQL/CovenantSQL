@@ -69,7 +69,7 @@ type runtime struct {
 	nextTurn int32
 	// head is the current head of the best chain.
 	head *state
-	// forks if the alternative head of the sql-chain.
+	// forks is the alternative head of the sql-chain.
 	forks []*state
 
 	// timeMutex protects following time-relative fields.

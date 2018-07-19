@@ -175,8 +175,8 @@ func newMultiIndex() *multiIndex {
 	}
 }
 
-// AddResponse adds the responsed query to the index.
-func (i *multiIndex) AddResponse(resp *wt.SignedResponseHeader) (err error) {
+// addResponse adds the responsed query to the index.
+func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -267,6 +267,17 @@ func (i *multiIndex) setSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Ha
 
 	if v, ok := i.ackIndex[*ackHeaderHash]; ok {
 		v.signedBlock = blockHash
+	}
+}
+
+//  resetSignedBlock resets the signed block of the acknowledged query.
+func (i *multiIndex) resetSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
+	i.Lock()
+	defer i.Unlock()
+
+	if v, ok := i.ackIndex[*ackHeaderHash]; ok {
+		// TODO(leventeliu): check if v.signedBlock equals blockHash.
+		v.signedBlock = nil
 	}
 }
 
@@ -413,7 +424,7 @@ func newQueryIndex() *queryIndex {
 func (i *queryIndex) addResponse(h int32, resp *wt.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
-	return i.heightIndex.ensureHeight(h).AddResponse(resp)
+	return i.heightIndex.ensureHeight(h).addResponse(resp)
 }
 
 // addAck adds the acknowledged query to the index.
@@ -439,10 +450,16 @@ func (i *queryIndex) setSignedBlock(h int32, b *ct.Block) {
 	}
 }
 
+func (i *queryIndex) resetSignedBlock(h int32, b *ct.Block) {
+	hi := i.heightIndex.ensureHeight(h)
+
+	for _, v := range b.Queries {
+		hi.resetSignedBlock(&b.SignedHeader.BlockHash, v)
+	}
+}
+
 // getAck gets the acknowledged queries from the index.
-func (i *queryIndex) getAck(h int32, header *hash.Hash) (
-	ack *wt.SignedAckHeader, err error,
-) {
+func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *wt.SignedAckHeader, err error) {
 	if h >= i.barrier {
 		if q, ok := i.heightIndex.ensureHeight(h).ackIndex[*header]; ok {
 			ack = q.ack

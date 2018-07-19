@@ -27,16 +27,18 @@ import (
 type blockNode struct {
 	parent *blockNode
 	hash   hash.Hash
-	height int32
+	height int32 // height is the chain height of the head
+	count  int32 // count counts the blocks (except genesis) at this head
 }
 
-func newBlockNode(block *ct.Block, parent *blockNode) *blockNode {
+func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
 	return &blockNode{
 		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
-		height: func() int32 {
+		height: height,
+		count: func() int32 {
 			if parent != nil {
-				return parent.height + 1
+				return parent.count + 1
 			}
 
 			return 0
@@ -44,23 +46,24 @@ func newBlockNode(block *ct.Block, parent *blockNode) *blockNode {
 	}
 }
 
-func (bn *blockNode) initBlockNode(block *ct.Block, parent *blockNode) {
-	bn.hash = block.SignedHeader.BlockHash
-	bn.parent = nil
-	bn.height = 0
+func (n *blockNode) initBlockNode(height int32, block *ct.Block, parent *blockNode) {
+	n.hash = block.SignedHeader.BlockHash
+	n.parent = nil
+	n.height = 0
+	n.count = 0
 
 	if parent != nil {
-		bn.parent = parent
-		bn.height = parent.height + 1
+		n.parent = parent
+		n.count = parent.count + 1
 	}
 }
 
-func (bn *blockNode) ancestor(height int32) (ancestor *blockNode) {
-	if height < 0 || height > bn.height {
+func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
+	if height < 0 || height > n.height {
 		return nil
 	}
 
-	ancestor = bn
+	ancestor = n
 
 	for ancestor != nil && ancestor.height != height {
 		ancestor = ancestor.parent
@@ -69,10 +72,10 @@ func (bn *blockNode) ancestor(height int32) (ancestor *blockNode) {
 	return
 }
 
-func (bn *blockNode) indexKey() (key []byte) {
+func (n *blockNode) indexKey() (key []byte) {
 	key = make([]byte, hash.HashSize+4)
-	binary.BigEndian.PutUint32(key[0:4], uint32(bn.height))
-	copy(key[4:hash.HashSize], bn.hash[:])
+	binary.BigEndian.PutUint32(key[0:4], uint32(n.height))
+	copy(key[4:hash.HashSize], n.hash[:])
 	return
 }
 
@@ -92,22 +95,22 @@ func newBlockIndex(cfg *Config) (index *blockIndex) {
 	return index
 }
 
-func (bi *blockIndex) addBlock(newBlock *blockNode) {
-	bi.mu.Lock()
-	defer bi.mu.Unlock()
-	bi.index[newBlock.hash] = newBlock
+func (i *blockIndex) addBlock(newBlock *blockNode) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.index[newBlock.hash] = newBlock
 }
 
-func (bi *blockIndex) hasBlock(hash *hash.Hash) (hasBlock bool) {
-	bi.mu.RLock()
-	defer bi.mu.RUnlock()
-	_, hasBlock = bi.index[*hash]
+func (i *blockIndex) hasBlock(hash *hash.Hash) (hasBlock bool) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	_, hasBlock = i.index[*hash]
 	return
 }
 
-func (bi *blockIndex) lookupNode(hash *hash.Hash) (b *blockNode) {
-	bi.mu.RLock()
-	defer bi.mu.RUnlock()
-	b = bi.index[*hash]
+func (i *blockIndex) lookupNode(hash *hash.Hash) (b *blockNode) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	b = i.index[*hash]
 	return
 }

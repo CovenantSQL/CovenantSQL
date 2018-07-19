@@ -62,10 +62,8 @@ func TestIndexKey(t *testing.T) {
 		}
 
 		// Test partial order
-		bi1 := newBlockNode(b1, nil)
-		bi2 := newBlockNode(b2, nil)
-		bi1.height = rand.Int31()
-		bi2.height = rand.Int31()
+		bi1 := newBlockNode(rand.Int31(), b1, nil)
+		bi2 := newBlockNode(rand.Int31(), b2, nil)
 		k1 := bi1.indexKey()
 		k2 := bi2.indexKey()
 

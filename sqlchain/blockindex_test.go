@@ -54,24 +54,24 @@ func init() {
 }
 
 func TestNewBlockNode(t *testing.T) {
-	parent := newBlockNode(testBlocks[0], nil)
+	parent := newBlockNode(0, testBlocks[0], nil)
 
 	if parent == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if parent.parent != nil {
 		t.Fatalf("unexpected parent: %v", parent.parent)
-	} else if parent.height != 0 {
-		t.Fatalf("unexpected height: %d", parent.height)
+	} else if parent.count != 0 {
+		t.Fatalf("unexpected height: %d", parent.count)
 	}
 
-	child := newBlockNode(testBlocks[1], parent)
+	child := newBlockNode(1, testBlocks[1], parent)
 
 	if child == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", child.parent)
-	} else if child.height != parent.height+1 {
-		t.Fatalf("unexpected height: %d", child.height)
+	} else if child.count != parent.count+1 {
+		t.Fatalf("unexpected height: %d", child.count)
 	}
 }
 
@@ -79,33 +79,33 @@ func TestInitBlockNode(t *testing.T) {
 	parent := &blockNode{
 		parent: nil,
 		hash:   hash.Hash{},
-		height: -1,
+		count:  -1,
 	}
 
 	child := &blockNode{
 		parent: nil,
 		hash:   hash.Hash{},
-		height: -1,
+		count:  -1,
 	}
 
-	parent.initBlockNode(testBlocks[0], nil)
+	parent.initBlockNode(0, testBlocks[0], nil)
 
 	if parent == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if parent.parent != nil {
 		t.Fatalf("unexpected parent: %v", parent.parent)
-	} else if parent.height != 0 {
-		t.Fatalf("unexpected height: %d", parent.height)
+	} else if parent.count != 0 {
+		t.Fatalf("unexpected height: %d", parent.count)
 	}
 
-	child.initBlockNode(testBlocks[1], parent)
+	child.initBlockNode(1, testBlocks[1], parent)
 
 	if child == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", child.parent)
-	} else if child.height != parent.height+1 {
-		t.Fatalf("unexpected height: %d", child.height)
+	} else if child.count != parent.count+1 {
+		t.Fatalf("unexpected height: %d", child.count)
 	}
 }
 
@@ -114,8 +114,8 @@ func TestAncestor(t *testing.T) {
 	index := newBlockIndex(cfg)
 	parent := (*blockNode)(nil)
 
-	for _, b := range testBlocks {
-		bn := newBlockNode(b, parent)
+	for h, b := range testBlocks {
+		bn := newBlockNode(int32(h), b, parent)
 		index.addBlock(bn)
 		parent = bn
 	}
@@ -130,13 +130,13 @@ func TestAncestor(t *testing.T) {
 		for j := int32(i - 1); j < int32(i+1); j++ {
 			a := bn.ancestor(j)
 
-			if j < 0 || j > bn.height {
+			if j < 0 || j > bn.count {
 				if a != nil {
 					t.Fatalf("unexpected ancestor: %v", a)
 				}
 			} else {
-				if a.height != j {
-					t.Fatalf("unexpected ancestor height: got %d while expecting %d", a.height, j)
+				if a.count != j {
+					t.Fatalf("unexpected ancestor height: got %d while expecting %d", a.count, j)
 				}
 			}
 		}
@@ -148,8 +148,8 @@ func TestIndex(t *testing.T) {
 	index := newBlockIndex(cfg)
 	parent := (*blockNode)(nil)
 
-	for _, b := range testBlocks {
-		bn := newBlockNode(b, parent)
+	for h, b := range testBlocks {
+		bn := newBlockNode(int32(h), b, parent)
 		index.addBlock(bn)
 		parent = bn
 	}

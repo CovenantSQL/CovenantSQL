@@ -182,7 +182,8 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 				}
 			}
 
-			nodes[index].initBlockNode(block, parent)
+			height := chain.rt.getHeightFromTime(block.SignedHeader.Timestamp)
+			nodes[index].initBlockNode(height, block, parent)
 			last = &nodes[index]
 			index++
 			return
@@ -241,7 +242,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	// Prepare and encode
 	h := c.rt.getHeightFromTime(b.SignedHeader.Timestamp)
-	node := newBlockNode(b, c.rt.getHead().node)
+	node := newBlockNode(h, b, c.rt.getHead().node)
 	st := &state{
 		node:   node,
 		Head:   node.hash,
@@ -328,7 +329,7 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 	})
 }
 
-// pushAckedQuery pushed a acknowledged, signed and verified query into the chain.
+// pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := heightToKey(h)

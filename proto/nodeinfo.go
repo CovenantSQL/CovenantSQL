@@ -200,6 +200,7 @@ func parseServerRole(roleStr string) (role ServerRole, err error) {
 	return Unknown, nil
 }
 
+// ServerRoles is []ServerRole
 type ServerRoles []ServerRole
 
 // Contains returns if given role is in the ServerRoles

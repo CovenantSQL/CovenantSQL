@@ -71,7 +71,7 @@ type MinerDatabaseFixture struct {
 	AutoGenerateGenesisBlock bool             `yaml:"AutoGenerateGenesisBlock,omitempty"`
 }
 
-// MinerConfig for miner config.
+// MinerInfo for miner config.
 type MinerInfo struct {
 	// node basic config
 	RootDir               string        `yaml:"RootDir"`

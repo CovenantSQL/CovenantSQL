@@ -201,6 +201,7 @@ func InitKMS(PubKeyStoreFile string) {
 				Addr:      n.Addr,
 				PublicKey: n.PublicKey,
 				Nonce:     n.Nonce,
+				Role:      n.Role,
 			}
 			err := kms.SetNode(node)
 			if err != nil {

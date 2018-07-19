@@ -66,6 +66,18 @@ func TestNodeKey_Less(t *testing.T) {
 	})
 }
 
+func TestServerRoles_Contains(t *testing.T) {
+	Convey("ServerRoles Contains", t, func() {
+		ss := make(ServerRoles, 0)
+
+		So(ss.Contains(Follower), ShouldBeFalse)
+		So(ss.Contains(Unknown), ShouldBeFalse)
+		ss = append(ss, Leader)
+		ss = append(ss, Follower)
+		So(ss.Contains(Leader), ShouldBeTrue)
+	})
+}
+
 func unmarshalAndMarshal(str string) string {
 	var role ServerRole
 	yaml.Unmarshal([]byte(str), &role)

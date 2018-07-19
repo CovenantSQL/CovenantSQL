@@ -199,3 +199,15 @@ func parseServerRole(roleStr string) (role ServerRole, err error) {
 
 	return Unknown, nil
 }
+
+type ServerRoles []ServerRole
+
+// Contains returns if given role is in the ServerRoles
+func (ss *ServerRoles) Contains(role ServerRole) bool {
+	for _, s := range *ss {
+		if s == role {
+			return true
+		}
+	}
+	return false
+}

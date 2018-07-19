@@ -277,7 +277,7 @@ func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error
 }
 
 // GetNeighborsEx returns the N closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetNeighborsEx(name string, n int, roles []proto.ServerRole) ([]proto.Node, error) {
+func (c *Consistent) GetNeighborsEx(name string, n int, roles proto.ServerRoles) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -296,10 +296,13 @@ func (c *Consistent) GetNeighborsEx(name string, n int, roles []proto.ServerRole
 		res   = make([]proto.Node, 0, n)
 		elem  = *c.circle[c.sortedHashes[i]]
 	)
+	var noFilter = roles == nil || len(roles) == 0
 
-	res = append(res, elem)
+	if noFilter || roles.Contains(elem.Role) {
+		res = append(res, elem)
+	}
 
-	if len(res) == n {
+	if noFilter && len(res) == n {
 		return res, nil
 	}
 
@@ -308,8 +311,10 @@ func (c *Consistent) GetNeighborsEx(name string, n int, roles []proto.ServerRole
 			i = 0
 		}
 		elem = *c.circle[c.sortedHashes[i]]
-		if !sliceContainsMember(res, elem) {
-			res = append(res, elem)
+		if noFilter || roles.Contains(elem.Role) {
+			if !sliceContainsMember(res, elem) {
+				res = append(res, elem)
+			}
 		}
 		if len(res) == n {
 			break

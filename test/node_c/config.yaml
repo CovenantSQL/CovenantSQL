@@ -25,7 +25,7 @@ knownnodes:
     c: 0
     d: 0
   addr: 127.0.0.1:2122
-  role: 0
+  role: Leader
 - id: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
   nonce:
     a: 478373
@@ -33,7 +33,7 @@ knownnodes:
     c: 0
     d: 2305843009893772025
   addr: 127.0.0.1:2121
-  role: 1
+  role: Follower
 - id: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
   nonce:
     a: 259939
@@ -41,7 +41,7 @@ knownnodes:
     c: 0
     d: 2305843012544226372
   addr: 127.0.0.1:2120
-  role: 1
+  role: Follower
 - id: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
   nonce:
     a: 22403
@@ -49,7 +49,7 @@ knownnodes:
     c: 0
     d: 0
   addr: ""
-  role: 3
+  role: Client
 - id: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
   nonce:
     a: 567323
@@ -57,7 +57,7 @@ knownnodes:
     c: 0
     d: 3104982049
   addr: 127.0.0.1:2144
-  role: 2
+  role: Miner
 - id: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
   nonce:
     a: 240524
@@ -65,7 +65,7 @@ knownnodes:
     c: 0
     d: 2305843010430351476
   addr: 127.0.0.1:2145
-  role: 2
+  role: Miner
 - id: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
   nonce:
     a: 606016
@@ -73,4 +73,4 @@ knownnodes:
     c: 0
     d: 13835058056920509601
   addr: 127.0.0.1:2146
-  role: 2
+  role: Miner

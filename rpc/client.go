@@ -108,7 +108,9 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 		}
 		return
 	}
-	return pool.Get(nodeID)
+	conn, err = pool.Get(nodeID)
+	log.Debugf("session pool len: %d", pool.Len())
+	return
 }
 
 // dialToNode connects to the node with nodeID

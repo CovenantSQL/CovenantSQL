@@ -22,7 +22,6 @@ import (
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -378,14 +377,14 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 
 	for idx, node := range allocatedNodes {
 		peers.Servers[idx] = &kayak.Server{
-			Role:   conf.Follower,
+			Role:   proto.Follower,
 			ID:     node.ID,
 			PubKey: node.PublicKey,
 		}
 
 		if idx == leaderIdx {
 			// set as leader
-			peers.Servers[idx].Role = conf.Leader
+			peers.Servers[idx].Role = proto.Leader
 			peers.Leader = peers.Servers[idx]
 		}
 	}

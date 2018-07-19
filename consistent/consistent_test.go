@@ -454,6 +454,44 @@ func TestGetN(t *testing.T) {
 	}
 }
 
+func TestGetNFilterRole(t *testing.T) {
+	kms.Unittest = true
+	os.Remove(testStorePath)
+	kms.ResetBucket()
+
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
+	defer os.Remove(testStorePath)
+	n := NewNodeFromID("abcdefg")
+	n.Role = Leader
+	x.Add(n)
+	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromID("opqrstu"))
+	members, err := x.GetNeighborsEx("9999999", 3, ServerRoles{Unknown})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(members) != 2 {
+		t.Errorf("expected 3 members instead of %d", len(members))
+	}
+	if members[0].ID != "opqrstu" {
+		t.Errorf("wrong members[0]: %v", members[0])
+	}
+	if members[1].ID != "hijklmn" {
+		t.Errorf("wrong members[1]: %v", members[1])
+	}
+
+	members, err = x.GetNeighborsEx("9999999", 3, ServerRoles{Leader, Follower})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(members) != 1 {
+		t.Errorf("expected 3 members instead of %d", len(members))
+	}
+	if members[0].ID != "abcdefg" {
+		t.Errorf("wrong members[0]: %v", members[0])
+	}
+}
+
 func TestGetNLess(t *testing.T) {
 	kms.Unittest = true
 	os.Remove(testStorePath)

@@ -60,28 +60,29 @@ func TestConf(t *testing.T) {
 				"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",
 				"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",
 			},
-			BP: BP,
+			MinNodeIDDifficulty: 2,
+			BP:                  BP,
 			KnownNodes: &[]NodeInfo{
 				{
 					ID:        BP.NodeID,
 					Nonce:     BP.Nonce,
 					PublicKey: nil,
 					Addr:      "127.0.0.1:2122",
-					Role:      Leader,
+					Role:      proto.Leader,
 				},
 				{
 					ID:        proto.NodeID("000000000013fd4b3180dd424d5a895bc57b798e5315087b7198c926d8893f98"),
 					PublicKey: nil,
 					Nonce:     cpuminer.Uint256{789554103, 0, 0, 8070450536379825883},
 					Addr:      "127.0.0.1:2121",
-					Role:      Follower,
+					Role:      proto.Follower,
 				},
 				{
 					ID:        proto.NodeID("0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c"),
 					PublicKey: nil,
 					Nonce:     cpuminer.Uint256{746598970, 0, 0, 10808639108098016056},
 					Addr:      "127.0.0.1:2120",
-					Role:      Follower,
+					Role:      proto.Follower,
 				},
 				{
 					// {{22403 0 0 0} 20 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d}
@@ -89,7 +90,7 @@ func TestConf(t *testing.T) {
 					Nonce:     cpuminer.Uint256{22403, 0, 0, 0},
 					PublicKey: nil,
 					Addr:      "",
-					Role:      Client,
+					Role:      proto.Client,
 				},
 			},
 		}

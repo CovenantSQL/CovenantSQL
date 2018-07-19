@@ -21,7 +21,6 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -606,16 +605,16 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 					Peers: &kayak.Peers{
 						Term: uint64(1),
 						Leader: &kayak.Server{
-							Role: conf.Leader,
+							Role: proto.Leader,
 							ID:   proto.NodeID("node3"),
 						},
 						Servers: []*kayak.Server{
 							{
-								Role: conf.Leader,
+								Role: proto.Leader,
 								ID:   proto.NodeID("node3"),
 							},
 							{
-								Role: conf.Follower,
+								Role: proto.Follower,
 								ID:   proto.NodeID("node2"),
 							},
 						},
@@ -718,16 +717,16 @@ func TestInitService(t *testing.T) {
 					Peers: &kayak.Peers{
 						Term: uint64(1),
 						Leader: &kayak.Server{
-							Role: conf.Leader,
+							Role: proto.Leader,
 							ID:   proto.NodeID("node3"),
 						},
 						Servers: []*kayak.Server{
 							{
-								Role: conf.Leader,
+								Role: proto.Leader,
 								ID:   proto.NodeID("node3"),
 							},
 							{
-								Role: conf.Follower,
+								Role: proto.Follower,
 								ID:   proto.NodeID("node2"),
 							},
 						},
@@ -750,16 +749,16 @@ func TestUpdateService(t *testing.T) {
 				Peers: &kayak.Peers{
 					Term: uint64(1),
 					Leader: &kayak.Server{
-						Role: conf.Leader,
+						Role: proto.Leader,
 						ID:   proto.NodeID("node3"),
 					},
 					Servers: []*kayak.Server{
 						{
-							Role: conf.Leader,
+							Role: proto.Leader,
 							ID:   proto.NodeID("node3"),
 						},
 						{
-							Role: conf.Follower,
+							Role: proto.Follower,
 							ID:   proto.NodeID("node2"),
 						},
 					},

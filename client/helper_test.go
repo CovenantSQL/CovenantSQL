@@ -91,13 +91,13 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	instance.Peers = &kayak.Peers{
 		Term: 1,
 		Leader: &kayak.Server{
-			Role:   conf.Leader,
+			Role:   proto.Leader,
 			ID:     nodeID,
 			PubKey: pubKey,
 		},
 		Servers: []*kayak.Server{
 			{
-				Role:   conf.Leader,
+				Role:   proto.Leader,
 				ID:     nodeID,
 				PubKey: pubKey,
 			},
@@ -346,7 +346,7 @@ func getPeers(term uint64) (peers *kayak.Peers, err error) {
 
 	// generate peers and sign
 	server := &kayak.Server{
-		Role:   conf.Leader,
+		Role:   proto.Leader,
 		ID:     nodeID,
 		PubKey: pubKey,
 	}

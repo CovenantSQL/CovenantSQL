@@ -25,7 +25,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -54,7 +53,7 @@ func TestTwoPCRunner_Init(t *testing.T) {
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: conf.Leader,
+				Role: proto.Leader,
 				ID:   "happy",
 			},
 		})
@@ -95,7 +94,7 @@ func TestTwoPCRunner_Init(t *testing.T) {
 		}
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: conf.Leader,
+				Role: proto.Leader,
 				ID:   "happy",
 			},
 		})
@@ -260,11 +259,11 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 	}
 	peers := testPeersFixture(1, []*Server{
 		{
-			Role: conf.Leader,
+			Role: proto.Leader,
 			ID:   "leader",
 		},
 		{
-			Role: conf.Follower,
+			Role: proto.Follower,
 			ID:   "follower",
 		},
 	})
@@ -276,7 +275,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		err := mockRes.runner.Init(mockRes.config, peers, mockRes.logStore, mockRes.stableStore, mockRes.transport)
 
 		So(err, ShouldBeNil)
-		So(mockRes.runner.role, ShouldEqual, conf.Follower)
+		So(mockRes.runner.role, ShouldEqual, proto.Follower)
 		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		// try call process
@@ -292,7 +291,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		// change server id to leader and set peers to single node
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: conf.Leader,
+				Role: proto.Leader,
 				ID:   "leader",
 			},
 		})
@@ -301,7 +300,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 		err := mockRes.runner.Init(mockRes.config, peers, mockRes.logStore, mockRes.stableStore, mockRes.transport)
 
 		So(err, ShouldBeNil)
-		So(mockRes.runner.role, ShouldEqual, conf.Leader)
+		So(mockRes.runner.role, ShouldEqual, proto.Leader)
 		So(mockRes.runner.leader.ID, ShouldEqual, proto.NodeID("leader"))
 
 		Convey("commit", func() {
@@ -443,15 +442,15 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: conf.Leader,
+				Role: proto.Leader,
 				ID:   "leader",
 			},
 			{
-				Role: conf.Follower,
+				Role: proto.Follower,
 				ID:   "follower1",
 			},
 			{
-				Role: conf.Follower,
+				Role: proto.Follower,
 				ID:   "follower2",
 			},
 		})
@@ -621,15 +620,15 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 		peers := testPeersFixture(1, []*Server{
 			{
-				Role: conf.Leader,
+				Role: proto.Leader,
 				ID:   "leader",
 			},
 			{
-				Role: conf.Follower,
+				Role: proto.Follower,
 				ID:   "follower1",
 			},
 			{
-				Role: conf.Follower,
+				Role: proto.Follower,
 				ID:   "follower2",
 			},
 		})
@@ -757,15 +756,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 	}
 	peers := testPeersFixture(2, []*Server{
 		{
-			Role: conf.Leader,
+			Role: proto.Leader,
 			ID:   "leader",
 		},
 		{
-			Role: conf.Follower,
+			Role: proto.Follower,
 			ID:   "follower1",
 		},
 		{
-			Role: conf.Follower,
+			Role: proto.Follower,
 			ID:   "follower2",
 		},
 	})
@@ -805,15 +804,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("same peers term", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(2, []*Server{
 				{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -827,15 +826,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("invalid peers term", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(1, []*Server{
 				{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -850,15 +849,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 		Convey("invalid peers signature", FailureContinues, func(c C) {
 			newPeers := testPeersFixture(4, []*Server{
 				{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -883,15 +882,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower1",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -917,15 +916,15 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "leader",
 				},
 				{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   "follower1",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower2",
 				},
 			})
@@ -937,11 +936,11 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 				switch r.config.LocalID {
 				case "leader":
-					c.So(r.runner.role, ShouldEqual, conf.Follower)
+					c.So(r.runner.role, ShouldEqual, proto.Follower)
 				case "follower1":
-					c.So(r.runner.role, ShouldEqual, conf.Leader)
+					c.So(r.runner.role, ShouldEqual, proto.Leader)
 				case "follower2":
-					c.So(r.runner.role, ShouldEqual, conf.Follower)
+					c.So(r.runner.role, ShouldEqual, proto.Follower)
 				}
 
 				r.stableStore.AssertCalled(t, "SetUint64", keyCurrentTerm, uint64(3))
@@ -968,11 +967,11 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			newPeers := testPeersFixture(3, []*Server{
 				{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   "leader",
 				},
 				{
-					Role: conf.Follower,
+					Role: proto.Follower,
 					ID:   "follower1",
 				},
 			})

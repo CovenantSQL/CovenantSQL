@@ -80,7 +80,7 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 			dbPeers := &kayak.Peers{
 				Term: testFixture.Term,
 				Leader: &kayak.Server{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   testFixture.Leader,
 				},
 				Servers: (func(servers []proto.NodeID) (ks []*kayak.Server) {
@@ -88,11 +88,11 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 
 					for i, s := range servers {
 						ks[i] = &kayak.Server{
-							Role: conf.Follower,
+							Role: proto.Follower,
 							ID:   s,
 						}
 						if s == testFixture.Leader {
-							ks[i].Role = conf.Leader
+							ks[i].Role = proto.Leader
 						}
 					}
 

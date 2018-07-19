@@ -19,6 +19,7 @@ package sqlchain
 import (
 	"bytes"
 	"encoding/binary"
+	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -26,6 +27,7 @@ import (
 
 // state represents a snapshot of current best chain.
 type state struct {
+	mu     sync.Mutex
 	node   *blockNode
 	Head   hash.Hash
 	Height int32

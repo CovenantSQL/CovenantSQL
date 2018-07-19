@@ -241,6 +241,21 @@ func (c *Peers) String() string {
 		base64.StdEncoding.EncodeToString(c.Signature.Serialize()))
 }
 
+// Find finds the index of the server with the specified key in the server list.
+func (c *Peers) Find(key proto.NodeID) (index int32, found bool) {
+	if c.Servers != nil {
+		for i, s := range c.Servers {
+			if s.ID == key {
+				index = int32(i)
+				found = true
+				break
+			}
+		}
+	}
+
+	return
+}
+
 // RuntimeConfig defines minimal configuration fields for consensus runner.
 type RuntimeConfig struct {
 	// RootDir is the root dir for runtime

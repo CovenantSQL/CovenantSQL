@@ -39,8 +39,6 @@ func NewCaller() *Caller {
 	}
 }
 
-//TODO(auxten) maybe a rpc client pool will gain much more performance
-
 // CallNode invokes the named function, waits for it to complete, and returns its error status.
 func (c *Caller) CallNode(
 	node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {

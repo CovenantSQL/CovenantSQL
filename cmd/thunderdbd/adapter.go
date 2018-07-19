@@ -36,8 +36,11 @@ import (
 )
 
 const (
-	CmdSet            = "set"
-	CmdSetDatabase    = "set_database"
+	// CmdSet is the command to set node
+	CmdSet = "set"
+	// CmdSetDatabase is the command to set database
+	CmdSetDatabase = "set_database"
+	// CmdDeleteDatabase is the command to del database
 	CmdDeleteDatabase = "delete_database"
 )
 

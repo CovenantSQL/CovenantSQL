@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -145,7 +144,7 @@ func (s ServerState) String() string {
 // Server tracks the information about a single server in a configuration.
 type Server struct {
 	// Suffrage determines whether the server gets a vote.
-	Role conf.ServerRole
+	Role proto.ServerRole
 	// ID is a unique string identifying this server for all time.
 	ID proto.NodeID
 	// Public key

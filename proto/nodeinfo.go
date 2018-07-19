@@ -17,6 +17,7 @@
 package proto
 
 import (
+	"strings"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -66,6 +67,7 @@ func (k *NodeKey) Less(y *NodeKey) bool {
 // Node is all node info struct
 type Node struct {
 	ID        NodeID
+	Role      ServerRole
 	Addr      string
 	PublicKey *asymmetric.PublicKey
 	Nonce     mine.Uint256
@@ -126,4 +128,87 @@ type AddrAndGas struct {
 	AccountAddress AccountAddress
 	RawNodeID      RawNodeID
 	GasAmount      uint32
+}
+
+// ServerRole defines the role of node to be leader/coordinator in peer set.
+type ServerRole int
+
+const (
+	// Unknown is the zero value
+	Unknown ServerRole = iota
+	// Leader is a server that have the ability to organize committing requests.
+	Leader
+	// Follower is a server that follow the leader log commits.
+	Follower
+	// Miner is a server that run sql database
+	Miner
+	// Client is a client that send sql query to database
+	Client
+)
+
+func (s ServerRole) String() string {
+	switch s {
+	case Leader:
+		return "Leader"
+	case Follower:
+		return "Follower"
+	case Miner:
+		return "Miner"
+	case Client:
+		return "Client"
+	}
+	return "Unknown"
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (s ServerRole) MarshalYAML() (interface{}, error) {
+	return s.String(), nil
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (s *ServerRole) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+	dur, err := parseServerRole(str)
+	if err != nil {
+		return err
+	}
+	*s = dur
+
+	return nil
+}
+
+func parseServerRole(roleStr string) (role ServerRole, err error) {
+
+	switch strings.ToLower(roleStr) {
+	case "leader":
+		role = Leader
+		return
+	case "follower":
+		role = Follower
+		return
+	case "miner":
+		role = Miner
+		return
+	case "client":
+		role = Client
+		return
+	}
+
+	return Unknown, nil
+}
+
+// ServerRoles is []ServerRole
+type ServerRoles []ServerRole
+
+// Contains returns if given role is in the ServerRoles
+func (ss *ServerRoles) Contains(role ServerRole) bool {
+	for _, s := range *ss {
+		if s == role {
+			return true
+		}
+	}
+	return false
 }

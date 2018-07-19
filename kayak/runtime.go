@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 const (
@@ -60,7 +60,7 @@ func NewRuntime(config Config, peers *Peers) (*Runtime, error) {
 		if s.ID == runtime.config.LocalID {
 			serverInPeers = true
 
-			if s.Role == conf.Leader {
+			if s.Role == proto.Leader {
 				runtime.isLeader = true
 			}
 		}
@@ -147,7 +147,7 @@ func (r *Runtime) UpdatePeers(peers *Peers) error {
 	for _, s := range peers.Servers {
 		if s.ID == r.config.LocalID {
 			inPeers = true
-			isLeader = s.Role == conf.Leader
+			isLeader = s.Role == proto.Leader
 			break
 		}
 	}

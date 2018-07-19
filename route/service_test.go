@@ -97,6 +97,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	node1 := NewNode()
 	node1.InitNodeCryptoInfo(100 * time.Millisecond)
 	node1.Addr = "node1 addr"
+	node1.Role = Miner
 
 	reqA := &PingReq{
 		Node: *node1,
@@ -156,6 +157,27 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	Convey("test FindNeighbor", t, func() {
 		So(nodeIDList, ShouldContain, string(node1.ID))
 		So(nodeIDList, ShouldContain, string(node2.ID))
+	})
+
+	req = &FindNeighborReq{
+		NodeID: "123",
+		Count:  10,
+		Roles:  ServerRoles{Miner},
+	}
+	resp = new(FindNeighborResp)
+	err = client.Call("DHT.FindNeighbor", req, resp)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Debugf("resp filter: %v", resp)
+	nodeIDList = make([]string, 0)
+	for _, n := range resp.Nodes[:] {
+		nodeIDList = append(nodeIDList, string(n.ID))
+	}
+	log.Debugf("nodeIDList filter: %v", nodeIDList)
+	Convey("test FindNeighbor", t, func() {
+		So(nodeIDList, ShouldContain, string(node1.ID))
+		So(nodeIDList, ShouldNotContain, string(node2.ID))
 	})
 
 	reqFN3 := &FindNodeReq{

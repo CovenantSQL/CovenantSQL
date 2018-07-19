@@ -17,12 +17,14 @@
 package proto
 
 import (
+	"strings"
 	"testing"
 
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gopkg.in/yaml.v2"
 )
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {
@@ -61,6 +63,39 @@ func TestNodeKey_Less(t *testing.T) {
 		So(k1.Less(&k1), ShouldBeFalse)
 		So(k2.Less(&k1), ShouldBeFalse)
 		So(k1.Less(&k2), ShouldBeTrue)
+	})
+}
+
+func TestServerRoles_Contains(t *testing.T) {
+	Convey("ServerRoles Contains", t, func() {
+		ss := make(ServerRoles, 0)
+
+		So(ss.Contains(Follower), ShouldBeFalse)
+		So(ss.Contains(Unknown), ShouldBeFalse)
+		ss = append(ss, Leader)
+		ss = append(ss, Follower)
+		So(ss.Contains(Leader), ShouldBeTrue)
+	})
+}
+
+func unmarshalAndMarshal(str string) string {
+	var role ServerRole
+	yaml.Unmarshal([]byte(str), &role)
+	ret, _ := yaml.Marshal(role)
+
+	return strings.TrimSpace(string(ret))
+}
+
+func TestServerRole_MarshalYAML(t *testing.T) {
+	Convey("marshal unmarshal yaml", t, func() {
+		var role ServerRole
+		s, _ := role.MarshalYAML()
+		So(s, ShouldResemble, "Unknown")
+		So(unmarshalAndMarshal("unknown"), ShouldEqual, "Unknown")
+		So(unmarshalAndMarshal("leader"), ShouldEqual, "Leader")
+		So(unmarshalAndMarshal("follower"), ShouldEqual, "Follower")
+		So(unmarshalAndMarshal("miner"), ShouldEqual, "Miner")
+		So(unmarshalAndMarshal("client"), ShouldEqual, "Client")
 	})
 }
 

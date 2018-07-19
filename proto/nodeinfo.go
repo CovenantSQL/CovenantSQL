@@ -17,6 +17,7 @@
 package proto
 
 import (
+	"strings"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -66,6 +67,7 @@ func (k *NodeKey) Less(y *NodeKey) bool {
 // Node is all node info struct
 type Node struct {
 	ID        NodeID
+	Role      ServerRole
 	Addr      string
 	PublicKey *asymmetric.PublicKey
 	Nonce     mine.Uint256
@@ -132,8 +134,10 @@ type AddrAndGas struct {
 type ServerRole int
 
 const (
+	// Unknown is the zero value
+	Unknown ServerRole = iota
 	// Leader is a server that have the ability to organize committing requests.
-	Leader ServerRole = iota
+	Leader
 	// Follower is a server that follow the leader log commits.
 	Follower
 	// Miner is a server that run sql database
@@ -154,4 +158,44 @@ func (s ServerRole) String() string {
 		return "Client"
 	}
 	return "Unknown"
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (s ServerRole) MarshalYAML() (interface{}, error) {
+	return s.String(), nil
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (s *ServerRole) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+	dur, err := parseServerRole(str)
+	if err != nil {
+		return err
+	}
+	*s = dur
+
+	return nil
+}
+
+func parseServerRole(roleStr string) (role ServerRole, err error) {
+
+	switch strings.ToLower(roleStr) {
+	case "leader":
+		role = Leader
+		return
+	case "follower":
+		role = Follower
+		return
+	case "miner":
+		role = Miner
+		return
+	case "client":
+		role = Client
+		return
+	}
+
+	return Unknown, nil
 }

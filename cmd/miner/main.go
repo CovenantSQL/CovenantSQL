@@ -27,7 +27,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/metric"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -158,14 +157,12 @@ func main() {
 
 		for {
 			// choose block producer
-			bp := route.GetBPs()
-
-			if len(bp) <= 0 {
+			if bpID, err := rpc.GetCurrentBP(); err != nil {
+				log.Error(err)
 				continue
+			} else {
+				mc.UploadMetrics(bpID, nil)
 			}
-
-			bpID := bp[rand.Intn(len(bp))]
-			mc.UploadMetrics(bpID, nil)
 
 			select {
 			case <-metricCh:

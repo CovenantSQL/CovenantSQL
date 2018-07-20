@@ -24,7 +24,6 @@ import (
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
@@ -105,15 +104,10 @@ func Drop(dsn string) (err error) {
 }
 
 func requestBP(method string, request interface{}, response interface{}) (err error) {
-	// TODO(xq262144): unify block producer selection and calls
-	// get bp node
-	var nonce *cpuminer.Uint256
-	nonce, err = kms.GetLocalNonce()
-	var bps []proto.NodeID
-	bps = route.GetBPs()
+	var bpNodeID proto.NodeID
+	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
+		return
+	}
 
-	// choose bp node by nonce
-	bpIdx := int(nonce.A % uint64(len(bps)))
-
-	return rpc.NewCaller().CallNode(bps[bpIdx], method, request, response)
+	return rpc.NewCaller().CallNode(bpNodeID, method, request, response)
 }

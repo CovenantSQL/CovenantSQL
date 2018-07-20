@@ -19,12 +19,25 @@ package rpc
 import (
 	"context"
 	"net/rpc"
+	"sync"
+	"math/rand"
+	"errors"
 
 	"github.com/hashicorp/yamux"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+)
+
+var (
+	// ErrNoChiefBlockProducerAvailable defines failure on find chief block producer.
+	ErrNoChiefBlockProducerAvailable = errors.New("no chief block producer found")
+
+	// currentBP represents current chief block producer node.
+	currentBP proto.NodeID
+	// currentBPLock represents the chief block producer access lock.
+	currentBPLock sync.Mutex
 )
 
 // Caller is a wrapper for session pooling and RPC calling.
@@ -84,7 +97,7 @@ func (c *Caller) CallNodeWithContext(
 	return
 }
 
-// GetNodeAddr tries best to get node addr
+// GetNodeAddr tries best to get node addr.
 func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	addr, err = route.GetNodeAddrCache(id)
 	if err != nil {
@@ -120,7 +133,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	return
 }
 
-// GetNodeInfo tries best to get node info
+// GetNodeInfo tries best to get node info.
 func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
 	if err != nil {
@@ -163,7 +176,7 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	return
 }
 
-// PingBP Send DHT.Ping Request with Anonymous ETLS session
+// PingBP Send DHT.Ping Request with Anonymous ETLS session.
 func PingBP(node *proto.Node, BPNodeID proto.NodeID) (err error) {
 	client := NewCaller()
 
@@ -178,6 +191,67 @@ func PingBP(node *proto.Node, BPNodeID proto.NodeID) (err error) {
 		return
 	}
 	log.Debugf("PingBP resp: %v", resp)
+
+	return
+}
+
+// GetCurrentBP returns nearest hash distance block producer as current node chief block producer.
+func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
+	currentBPLock.Lock()
+	defer currentBPLock.Unlock()
+
+	if !currentBP.IsEmpty() {
+		bpNodeID = currentBP
+		return
+	}
+
+	var localNodeID proto.NodeID
+	if localNodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	// get random block producer first
+	bpList := route.GetBPs()
+	randomBP := bpList[rand.Intn(len(bpList))]
+
+	// call random block producer for nearest block producer node
+	req := &proto.FindNeighborReq{
+		NodeID: localNodeID,
+		Roles: []proto.ServerRole{
+			proto.Leader,
+			proto.Follower,
+		},
+		Count: 1,
+	}
+	res := new(proto.FindNeighborResp)
+	if err = NewCaller().CallNode(randomBP, "DHT.FindNeighbor", req, res); err != nil {
+		return
+	}
+
+	if len(res.Nodes) <= 0 {
+		// node not found
+		err = ErrNoChiefBlockProducerAvailable
+		return
+	}
+
+	if res.Nodes[0].Role != proto.Leader && res.Nodes[0].Role != proto.Follower {
+		// not block producer
+		err = ErrNoChiefBlockProducerAvailable
+		return
+	}
+
+	currentBP = res.Nodes[0].ID
+	bpNodeID = currentBP
+
+	return
+}
+
+// SetCurrentBP sets current node chief block producer.
+func SetCurrentBP(bpNodeID proto.NodeID) {
+	currentBPLock.Lock()
+	defer currentBPLock.Unlock()
+
+	currentBP = bpNodeID
 
 	return
 }

@@ -112,3 +112,15 @@ func TestNodeID_ToRawNodeID(t *testing.T) {
 		So(node.ToRawNodeID().String(), ShouldEqual, id)
 	})
 }
+
+func TestNodeID_IsEmpty(t *testing.T) {
+	Convey("NodeID is empty", t, func() {
+		var nodeID NodeID
+		So(nodeID.IsEmpty(), ShouldBeTrue)
+		var nodeIDPtr *NodeID
+		So(nodeIDPtr.IsEmpty(), ShouldBeTrue)
+		id := "00000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573"
+		node := NodeID(id)
+		So(node.IsEmpty(), ShouldBeFalse)
+	})
+}

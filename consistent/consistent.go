@@ -89,6 +89,7 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 			Addr:      "",
 			PublicKey: kms.BP.PublicKey,
 			Nonce:     kms.BP.Nonce,
+			Role:      proto.Leader,
 		}
 	}
 

@@ -212,6 +212,12 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 
 	// get random block producer first
 	bpList := route.GetBPs()
+
+	if len(bpList) == 0 {
+		err = ErrNoChiefBlockProducerAvailable
+		return
+	}
+
 	randomBP := bpList[rand.Intn(len(bpList))]
 
 	// call random block producer for nearest block producer node
@@ -229,12 +235,14 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 	}
 
 	if len(res.Nodes) <= 0 {
+		log.Error("get no hash nearest block producer nodes")
 		// node not found
 		err = ErrNoChiefBlockProducerAvailable
 		return
 	}
 
 	if res.Nodes[0].Role != proto.Leader && res.Nodes[0].Role != proto.Follower {
+		log.Error("no suitable nodes with proper block producer role")
 		// not block producer
 		err = ErrNoChiefBlockProducerAvailable
 		return

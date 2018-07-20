@@ -255,7 +255,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
 
-		log.Debugf("found %d neighbour nodes", len(nodes))
+		log.Debugf("found %d neighbor nodes", len(nodes))
 
 		// TODO(xq262144): brute force implementation to be optimized
 		var nodeIDs []proto.NodeID

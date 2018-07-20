@@ -44,7 +44,7 @@ var (
 	testDatabaseID           proto.DatabaseID = "tdb-test"
 	testChainService                          = "sql-chain.thunderdb.rpc"
 	testPeriodNumber         int32            = 10
-	testClientNumberPerChain                  = 10
+	testClientNumberPerChain                  = 3
 )
 
 func TestIndexKey(t *testing.T) {
@@ -274,6 +274,10 @@ func TestMultiChain(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
+	for i, p := range peers.Servers {
+		t.Logf("Peer #%d: %s", i, p.ID)
+	}
+
 	// Create sql-chain instances
 	chains := make([]*Chain, testPeersNumber)
 
@@ -360,7 +364,7 @@ func TestMultiChain(t *testing.T) {
 							t.Errorf("Error occurred: %v", err)
 						}
 
-						time.Sleep(time.Duration(rand.Int63n(100)+1) * time.Millisecond)
+						time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
 						ack, err := createRandomQueryAckWithResponse(resp, p)
 
 						if err != nil {

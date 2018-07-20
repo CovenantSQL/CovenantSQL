@@ -167,6 +167,7 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
 		return
 	}
 
+	b.SignedHeader.Signee = signer.PubKey()
 	b.SignedHeader.BlockHash = hash.THashH(buffer)
 	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
 

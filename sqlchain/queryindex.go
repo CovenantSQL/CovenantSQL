@@ -260,6 +260,18 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 	return
 }
 
+func (i *multiIndex) getAck(header *hash.Hash) (ack *wt.SignedAckHeader, ok bool) {
+	i.Lock()
+	defer i.Unlock()
+
+	var t *requestTracker
+	if t, ok = i.ackIndex[*header]; ok {
+		ack = t.ack
+	}
+
+	return
+}
+
 // setSignedBlock sets the signed block of the acknowledged query.
 func (i *multiIndex) setSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
 	i.Lock()
@@ -407,8 +419,22 @@ func (i *heightIndex) del(k int32) {
 
 // queryIndex defines a query index maintainer.
 type queryIndex struct {
-	barrier     int32
 	heightIndex *heightIndex
+
+	sync.Mutex
+	barrier int32
+}
+
+func (i *queryIndex) getBarrier() int32 {
+	i.Lock()
+	defer i.Unlock()
+	return i.barrier
+}
+
+func (i *queryIndex) setBarrier(b int32) {
+	i.Lock()
+	defer i.Unlock()
+	i.barrier = b
 }
 
 // newQueryIndex returns a new queryIndex reference.
@@ -433,12 +459,24 @@ func (i *queryIndex) addAck(h int32, ack *wt.SignedAckHeader) error {
 }
 
 // checkAckFromBlock checks a acknowledged query from a block at the given height.
-func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (bool, error) {
-	if h < i.barrier {
-		return false, ErrQueryExpired
+func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
+	isKnown bool, err error) {
+	l := i.getBarrier()
+
+	if h < l {
+		err = ErrQueryExpired
+		return
 	}
 
-	return i.heightIndex.ensureHeight(h).checkAckFromBlock(b, ack)
+	for x := l; x <= h; x++ {
+		if hi, ok := i.heightIndex.get(x); ok {
+			if isKnown, err = hi.checkAckFromBlock(b, ack); err != nil || isKnown {
+				return
+			}
+		}
+	}
+
+	return
 }
 
 // setSignedBlock updates the signed block in index for the acknowledged queries in the block.
@@ -460,38 +498,46 @@ func (i *queryIndex) resetSignedBlock(h int32, b *ct.Block) {
 
 // getAck gets the acknowledged queries from the index.
 func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *wt.SignedAckHeader, err error) {
-	if h >= i.barrier {
-		if q, ok := i.heightIndex.ensureHeight(h).ackIndex[*header]; ok {
-			ack = q.ack
-		} else {
-			err = ErrQueryNotCached
-		}
-	} else {
+	b := i.getBarrier()
+
+	if h < b {
 		err = ErrQueryExpired
+		return
 	}
 
+	for x := b; x <= h; x++ {
+		if hi, ok := i.heightIndex.get(x); ok {
+			if ack, ok = hi.getAck(header); ok {
+				return
+			}
+		}
+	}
+
+	err = ErrQueryNotCached
 	return
 }
 
 // advanceBarrier moves barrier to given height. All buckets lower than this height will be set as
 // expired, and all the queries which are not packed in these buckets will be reported.
 func (i *queryIndex) advanceBarrier(height int32) {
-	for x := i.barrier; x < height; x++ {
+	b := i.getBarrier()
+	i.setBarrier(height)
+
+	for x := b; x < height; x++ {
 		if hi, ok := i.heightIndex.get(x); ok {
 			hi.checkBeforeExpire()
 			i.heightIndex.del(x)
 		}
 	}
-
-	i.barrier = height
 }
 
 // markAndCollectUnsignedAcks marks and collects all the unsigned acknowledgements which can be
 // signed by a block at the given height.
 func (i *queryIndex) markAndCollectUnsignedAcks(height int32) (qs []*hash.Hash) {
+	b := i.getBarrier()
 	qs = make([]*hash.Hash, 0, 1024)
 
-	for x := i.barrier; x < height; x++ {
+	for x := b; x < height; x++ {
 		if hi, ok := i.heightIndex.get(x); ok {
 			hi.markAndCollectUnsignedAcks(&qs)
 		}

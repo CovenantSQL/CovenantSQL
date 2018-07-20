@@ -272,7 +272,11 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 		c.rt.setHead(st)
 		c.bi.addBlock(node)
 		c.qi.setSignedBlock(h, b)
-
+		log.Debugf("Pushed new block: localnode = %s producernode = %s block = %s blocktime = %s blockheight = %d headheight = %d",
+			c.rt.server.ID, b.SignedHeader.Producer, b.SignedHeader.BlockHash.String(),
+			b.SignedHeader.Timestamp.Format(time.RFC3339Nano),
+			c.rt.getHeightFromTime(b.SignedHeader.Timestamp),
+			c.rt.head.Height)
 		return
 	})
 }
@@ -371,12 +375,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 
-	pub, err := kms.GetLocalPublicKey()
-
-	if err != nil {
-		return
-	}
-
 	// Pack and sign block
 	block := &ct.Block{
 		SignedHeader: ct.SignedHeader{
@@ -388,9 +386,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
 				Timestamp: now,
 			},
-			// BlockHash: will be set by Block.PackAndSignBlock(PrivateKey)
-			Signee: pub,
-			// Signature: will be set by Block.PackAndSignBlock(PrivateKey)
+			// BlockHash/Signee/Signature: will be set by Block.PackAndSignBlock(PrivateKey)
 		},
 		Queries: c.qi.markAndCollectUnsignedAcks(c.rt.getNextTurn()),
 	}
@@ -543,6 +539,7 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 	if err = c.cl.CallNode(id, method, req, resp); err != nil {
 		log.WithField("node", string(id)).WithError(err).Errorln(
 			"Failed to fetch acked query")
+		return
 	}
 
 	return c.VerifyAndPushAckedQuery(resp.Ack)
@@ -550,6 +547,10 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
 func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
+	log.Debugf("Checking new block: localnode = %s producernode = %s block = %s blocktime = %s blockheight = %d",
+		c.rt.server.ID, block.SignedHeader.Producer, block.SignedHeader.BlockHash.String(),
+		block.SignedHeader.Timestamp.Format(time.RFC3339Nano),
+		c.rt.getHeightFromTime(block.SignedHeader.Timestamp))
 	// Pushed block must extend the best chain
 	if !block.SignedHeader.ParentHash.IsEqual(&c.rt.getHead().Head) {
 		return ErrInvalidBlock
@@ -563,6 +564,10 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	}
 
 	if index != c.rt.getNextProducerIndex() {
+		ri := c.rt.getNextProducerIndex()
+		ps := c.rt.getPeers()
+		log.Errorf("Bad producer: wanted #%d (%s) but get #%d (%s)",
+			ri, ps.Servers[ri], index, ps.Servers[index])
 		return ErrInvalidProducer
 	}
 

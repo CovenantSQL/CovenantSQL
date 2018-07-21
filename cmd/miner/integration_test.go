@@ -55,6 +55,8 @@ func startNodes() {
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
@@ -62,6 +64,8 @@ func startNodes() {
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
@@ -69,6 +73,8 @@ func startNodes() {
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
 	}
 
 	time.Sleep(time.Second * 3)
@@ -80,6 +86,8 @@ func startNodes() {
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd"),
@@ -87,6 +95,8 @@ func startNodes() {
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd"),
@@ -94,6 +104,8 @@ func startNodes() {
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
 	}
 }
 

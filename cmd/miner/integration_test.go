@@ -18,7 +18,9 @@ package main
 
 import (
 	"database/sql"
+	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,57 +36,88 @@ var (
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
+var nodeCmds []*exec.Cmd
+
 var FJ = filepath.Join
 
-func _TestBuild(t *testing.T) {
+func TestBuild(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	utils.Build()
 }
 
 func startNodes() {
 	// start 3bps
-	go utils.RunCommand(
+	var cmd *exec.Cmd
+	var err error
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
 		"leader", testWorkingDir, logDir, false,
-	)
-	go utils.RunCommand(
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	}
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml")},
 		"follower1", testWorkingDir, logDir, false,
-	)
-	go utils.RunCommand(
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	}
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml")},
 		"follower2", testWorkingDir, logDir, false,
-	)
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	}
 
 	time.Sleep(time.Second * 3)
 
 	// start 3miners
-	go utils.RunCommand(
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_miner_0/config.yaml")},
-		"miner1", testWorkingDir, logDir, false,
-	)
-	go utils.RunCommand(
+		"miner0", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	}
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_miner_1/config.yaml")},
-		"miner2", testWorkingDir, logDir, false,
-	)
-	go utils.RunCommand(
+		"miner1", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	}
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_miner_2/config.yaml")},
-		"miner3", testWorkingDir, logDir, false,
-	)
-
+		"miner2", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	}
 }
 
-func _TestFullProcess(t *testing.T) {
+func stopNodes() {
+	var wg sync.WaitGroup
+
+	for _, nodeCmd := range nodeCmds {
+		wg.Add(1)
+		go func(thisCmd *exec.Cmd) {
+			defer wg.Done()
+			thisCmd.Process.Kill()
+			thisCmd.Wait()
+		}(nodeCmd)
+	}
+
+	wg.Wait()
+}
+
+func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	Convey("test full process", t, func() {
 		startNodes()
+		defer stopNodes()
 		time.Sleep(5 * time.Second)
 
 		var err error

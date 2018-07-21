@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -231,6 +232,35 @@ func (r *runtime) updatePeers(peers *kayak.Peers) (err error) {
 	return
 }
 
+func (r *runtime) getIndex() int32 {
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
+	return r.index
+}
+
+func (r *runtime) getTotal() int32 {
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
+	return r.total
+}
+
+func (r *runtime) getIndexTotal() (int32, int32) {
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
+	return r.index, r.total
+}
+
+func (r *runtime) getIndexString() string {
+	index, total := r.getIndexTotal()
+	return fmt.Sprintf("[%d/%d]", index, total)
+}
+
+func (r *runtime) getServer() *kayak.Server {
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
+	return r.server
+}
+
 func (r *runtime) startService(chain *Chain) {
 	r.muxService.register(r.databaseID, &ChainRPCService{chain: chain})
 }
@@ -240,13 +270,14 @@ func (r *runtime) stopService() {
 }
 
 func (r *runtime) isMyTurn() (ret bool) {
+	index, total := r.getIndexTotal()
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 
 	if r.total <= 0 {
 		ret = false
 	} else {
-		ret = (r.nextTurn%r.total == r.index)
+		ret = (r.nextTurn%total == index)
 	}
 
 	return

@@ -158,7 +158,10 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 				return
 			}
 
-			log.Debugf("Read new block: %+v", block)
+			log.WithFields(log.Fields{
+				"index": chain.rt.getIndexString(),
+				"block": block,
+			}).Debugf("Read new block")
 			parent := (*blockNode)(nil)
 
 			if last == nil {
@@ -380,7 +383,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		SignedHeader: ct.SignedHeader{
 			Header: ct.Header{
 				Version:     0x01000000,
-				Producer:    c.rt.server.ID,
+				Producer:    c.rt.getServer().ID,
 				GenesisHash: c.rt.genesisHash,
 				ParentHash:  c.rt.getHead().Head,
 				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
@@ -414,7 +417,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	peers := c.rt.getPeers()
 
 	for _, s := range peers.Servers {
-		if s.ID != c.rt.server.ID {
+		if s.ID != c.rt.getServer().ID {
 			if err = c.cl.CallNode(s.ID, method, req, resp); err != nil {
 				log.WithField("node", string(s.ID)).WithError(err).Errorln(
 					"Failed to advise new block")
@@ -462,6 +465,11 @@ func (c *Chain) mainCycle() {
 
 // sync synchronizes blocks and queries from the other peers.
 func (c *Chain) sync() (err error) {
+	log.WithFields(log.Fields{
+		"index":  c.rt.getIndexString(),
+		"nodeid": c.rt.getServer().ID,
+	}).Debug("Synchronizing chain state")
+
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)

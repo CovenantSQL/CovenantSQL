@@ -43,7 +43,7 @@ var (
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"
 	testChainService                          = "sql-chain.thunderdb.rpc"
-	testPeriodNumber         int32            = 10
+	testPeriodNumber         int32            = 50
 	testClientNumberPerChain                  = 3
 )
 

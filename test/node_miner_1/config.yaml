@@ -17,6 +17,7 @@ BlockProducer:
     c: 0
     d: 0
 Miner:
+  IsTestMode: true
   RootDir: "./node_miner_1/data"
   MaxReqTimeGap: "2s"
   MetricCollectInterval: "5s"

@@ -31,6 +31,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
@@ -188,6 +189,41 @@ func main() {
 		}
 	}()
 
+	// start block producer pinger
+	go func() {
+		var localNodeID proto.NodeID
+		var err error
+
+		// get local node id
+		if localNodeID, err = kms.GetLocalNodeID(); err != nil {
+			return
+		}
+
+		// get local node info
+		var localNodeInfo *proto.Node
+		if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
+			return
+		}
+
+		log.Debugf("construct local node info: %v", localNodeInfo)
+
+		go func() {
+			for {
+				select {
+				case <-time.After(time.Second):
+				case <-stopCh:
+					return
+				}
+
+				// send ping requests to block producer
+				bpNodeIDs := route.GetBPs()
+
+				for _, bpNodeID := range bpNodeIDs {
+					rpc.PingBP(localNodeInfo, bpNodeID)
+				}
+			}
+		}()
+	}()
 
 	// start dbms
 	var dbms *worker.DBMS

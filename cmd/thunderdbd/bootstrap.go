@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -144,6 +145,9 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	// ping all known nodes
+	go periodicPingBlockProducer()
+
 	// start server
 	server.Serve()
 
@@ -198,4 +202,37 @@ func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer)
 	}
 
 	return
+}
+
+func periodicPingBlockProducer() {
+	var localNodeID proto.NodeID
+	var err error
+
+	// get local node id
+	if localNodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	// get local node info
+	var localNodeInfo *proto.Node
+	if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
+		return
+	}
+
+	log.Debugf("construct local node info: %v", localNodeInfo)
+
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second):
+			}
+
+			// send ping requests to block producer
+			bpNodeIDs := route.GetBPs()
+
+			for _, bpNodeID := range bpNodeIDs {
+				rpc.PingBP(localNodeInfo, bpNodeID)
+			}
+		}
+	}()
 }

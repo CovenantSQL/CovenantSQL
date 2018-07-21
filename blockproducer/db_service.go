@@ -120,6 +120,8 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		ResourceMeta: req.ResourceMeta,
 	}
 
+	log.Debugf("generated instance meta: %v", instanceMeta)
+
 	if err = s.ServiceMap.Set(instanceMeta); err != nil {
 		// critical error
 		// TODO(xq262144): critical error recover
@@ -196,6 +198,8 @@ func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceRe
 		return
 	}
 
+	log.Debugf("current instance for node %v: %v", req.GetNodeID().ToNodeID(), instances)
+
 	// send response to client
 	resp.Instances = instances
 
@@ -217,6 +221,8 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 
 	for nonce := range nonceCh {
 		dbID = proto.DatabaseID(nonce.Hash.String())
+
+		log.Debugf("try generated database id %v", dbID)
 
 		// check existence
 		if _, err = s.ServiceMap.Get(dbID); err == ErrNoSuchDatabase {
@@ -266,7 +272,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			}
 		}
 
-		log.Debugf("found %d suitable nodes", len(nodeIDs))
+		log.Debugf("found %d suitable nodes: %v", len(nodeIDs), nodeIDs)
 
 		if len(nodeIDs) < int(resourceMeta.Node) {
 			continue
@@ -341,6 +347,7 @@ func (s *DBService) getMetric(metric metric.MetricMap, keys []string) (value uin
 }
 
 func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []proto.NodeID) (peers *kayak.Peers, err error) {
+	log.Debugf("build peers for allocated nodes with term: %v, allocated nodes: %v", term, allocated)
 	// get local private key
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {

@@ -195,7 +195,7 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
 	// fetch from meta
 	var instances []wt.ServiceInstance
-	if instances, err = s.ServiceMap.GetDatabases(proto.NodeID(req.GetNodeID().String())); err != nil {
+	if instances, err = s.ServiceMap.GetDatabases(req.GetNodeID().ToNodeID()); err != nil {
 		return
 	}
 

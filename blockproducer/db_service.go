@@ -208,19 +208,25 @@ func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceRe
 }
 
 func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.DatabaseID, err error) {
-	nonceCh := make(chan cpuminer.NonceInfo)
-	quitCh := make(chan struct{})
-	miner := cpuminer.NewCPUMiner(quitCh)
-	go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-		Data:      reqNodeID.CloneBytes(),
-		NonceChan: nonceCh,
-		Stop:      nil,
-	}, cpuminer.Uint256{}, 4)
+	var startNonce cpuminer.Uint256
 
-	defer close(nonceCh)
-	defer close(quitCh)
+	for {
+		nonceCh := make(chan cpuminer.NonceInfo)
+		quitCh := make(chan struct{})
+		miner := cpuminer.NewCPUMiner(quitCh)
+		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
+			Data:      reqNodeID.CloneBytes(),
+			NonceChan: nonceCh,
+			Stop:      nil,
+		}, startNonce, 4)
 
-	for nonce := range nonceCh {
+		nonce := <-nonceCh
+		close(quitCh)
+		close(nonceCh)
+
+		// set start nonceCh
+		startNonce = nonce.Nonce
+		startNonce.Inc()
 		dbID = proto.DatabaseID(nonce.Hash.String())
 
 		log.Debugf("try generated database id %v", dbID)
@@ -259,8 +265,15 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 		// clear previous allocated
 		allocated = allocated[:0]
+		rolesFilter := []proto.ServerRole{
+			proto.Miner,
+		}
 
-		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
+		if s.includeBPNodesForAllocation {
+			rolesFilter = append(rolesFilter, proto.Leader, proto.Follower)
+		}
+
+		nodes, err = s.Consistent.GetNeighborsEx(string(dbID), curRange, proto.ServerRoles(rolesFilter))
 
 		log.Debugf("found %d neighbor nodes", len(nodes))
 

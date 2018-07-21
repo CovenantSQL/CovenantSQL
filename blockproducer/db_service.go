@@ -118,6 +118,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		DatabaseID:   dbID,
 		Peers:        peers,
 		ResourceMeta: req.ResourceMeta,
+		GenesisBlock: genesisBlock,
 	}
 
 	log.Debugf("generated instance meta: %v", instanceMeta)
@@ -369,7 +370,9 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 	allocatedNodes := make([]proto.Node, 0, len(allocated))
 
 	for _, node := range nodes {
-		allocatedNodes = append(allocatedNodes, node)
+		if allocatedMap[node.ID] {
+			allocatedNodes = append(allocatedNodes, node)
+		}
 	}
 
 	peers = &kayak.Peers{

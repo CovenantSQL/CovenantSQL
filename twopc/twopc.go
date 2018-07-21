@@ -170,8 +170,9 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 	err = c.commit(ctx, workers, wb)
 
 	if c.option.afterCommit != nil {
-		err = c.option.afterCommit(ctx)
-		log.Debug("after commit failed: err = %v", err)
+		if err = c.option.afterCommit(ctx); err != nil {
+			log.Debug("after commit failed: err = %v", err)
+		}
 	}
 
 	return

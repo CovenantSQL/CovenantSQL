@@ -28,6 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/client"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"context"
 )
 
 var (
@@ -46,9 +47,25 @@ func TestBuild(t *testing.T) {
 }
 
 func startNodes() {
+	// wait for ports to be available
+	var err error
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2122,
+		2121,
+		2120,
+		2144,
+		2145,
+		2146,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
 	// start 3bps
 	var cmd *exec.Cmd
-	var err error
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},

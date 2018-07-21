@@ -125,6 +125,9 @@ func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
 
 // ToNodeID converts RawNodeID to NodeID
 func (id *RawNodeID) ToNodeID() NodeID {
+	if id == nil {
+		return NodeID("")
+	}
 	return NodeID(id.String())
 }
 

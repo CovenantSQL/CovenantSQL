@@ -31,6 +31,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 const logo = `
@@ -147,32 +148,46 @@ func main() {
 		log.Fatalf("init node failed: %v", err)
 	}
 
-	// start metric collector
-	metricCh := make(chan struct{})
+	if conf.GConf.Miner.IsTestMode {
+		// miner test mode enabled
+		log.Debugf("miner test mode enabled")
+	}
 
+	// stop channel for all daemon routines
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	// start metric collector
 	go func() {
 		mc := metric.NewCollectClient()
 		tick := time.NewTicker(conf.GConf.Miner.MetricCollectInterval)
 		defer tick.Stop()
 
 		for {
-			// choose block producer
-			if bpID, err := rpc.GetCurrentBP(); err != nil {
-				log.Error(err)
-				continue
+			// if in test mode, upload metrics to all block producer
+			if conf.GConf.Miner.IsTestMode {
+				// upload to all block producer
+				for _, bpNodeID := range route.GetBPs() {
+					mc.UploadMetrics(bpNodeID)
+				}
 			} else {
-				mc.UploadMetrics(bpID, nil)
+				// choose block producer
+				if bpID, err := rpc.GetCurrentBP(); err != nil {
+					log.Error(err)
+					continue
+				} else {
+					mc.UploadMetrics(bpID)
+				}
 			}
 
 			select {
-			case <-metricCh:
+			case <-stopCh:
 				return
 			case <-tick.C:
 			}
 		}
 	}()
 
-	defer close(metricCh)
 
 	// start dbms
 	var dbms *worker.DBMS

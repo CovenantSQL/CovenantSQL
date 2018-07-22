@@ -17,12 +17,12 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"sync"
-	"context"
 	"time"
 )
 
@@ -51,7 +51,7 @@ func testPort(bindAddr string, port int, excludeAllocated bool) bool {
 	return true
 }
 
-// WaitForPort returns only when port is ready or canceled by context.
+// WaitForPorts returns only when port is ready or canceled by context.
 func WaitForPorts(ctx context.Context, bindAddr string, ports []int, interval time.Duration) (err error) {
 	for {
 	continueCheck:

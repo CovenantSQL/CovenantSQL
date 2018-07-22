@@ -81,7 +81,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	}
 
 	cfg := NewConfig()
-	cfg.DatabaseID = res.InstanceMeta.DatabaseID
+	cfg.DatabaseID = string(res.InstanceMeta.DatabaseID)
 	dsn = cfg.FormatDSN()
 
 	return
@@ -95,7 +95,7 @@ func Drop(dsn string) (err error) {
 	}
 
 	req := &bp.DropDatabaseRequest{
-		DatabaseID: cfg.DatabaseID,
+		DatabaseID: proto.DatabaseID(cfg.DatabaseID),
 	}
 	res := new(bp.DropDatabaseResponse)
 	err = requestBP(bp.DBServiceName+".DropDatabase", req, res)

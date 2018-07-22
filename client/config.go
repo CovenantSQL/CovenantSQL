@@ -19,8 +19,6 @@ package client
 import (
 	"net/url"
 	"time"
-
-	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 const (
@@ -35,7 +33,7 @@ var (
 
 // Config is a configuration parsed from a DSN string.
 type Config struct {
-	DatabaseID proto.DatabaseID
+	DatabaseID string
 
 	Debug               bool
 	PeersUpdateInterval time.Duration
@@ -59,7 +57,7 @@ func (cfg *Config) FormatDSN() string {
 
 	u := &url.URL{
 		Scheme: "thunderdb",
-		Host:   string(cfg.DatabaseID),
+		Host:   cfg.DatabaseID,
 	}
 
 	newQuery := u.Query()
@@ -85,7 +83,7 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 	}
 
 	cfg = NewConfig()
-	cfg.DatabaseID = proto.DatabaseID(u.Host)
+	cfg.DatabaseID = u.Host
 
 	urlQuery := u.Query()
 

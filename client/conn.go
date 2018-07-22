@@ -84,7 +84,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	}
 
 	c = &conn{
-		dbID:         cfg.DatabaseID,
+		dbID:         proto.DatabaseID(cfg.DatabaseID),
 		connectionID: uint64(connID),
 		nodeID:       nodeID,
 		privKey:      privKey,

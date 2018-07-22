@@ -35,6 +35,8 @@ const (
 	UnknownBuildTag       = "U"
 )
 
+const StartSucceedMessage = "ThunderDB Started Successfully"
+
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag
 

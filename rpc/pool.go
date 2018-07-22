@@ -115,8 +115,8 @@ func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Sess
 }
 
 func (p *SessionPool) getSessionFromPool(id proto.NodeID) (sess *Session, ok bool) {
-	p.Lock()
-	defer p.Unlock()
+	p.RLock()
+	defer p.RUnlock()
 	sess, ok = p.sessions[id]
 	return
 }
@@ -129,6 +129,7 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 		return cachedConn.Sess.Open()
 	}
 
+	log.Debugf("dial new session to %s", id)
 	// Can't find existing Session, try to dial one
 	newConn, err := p.nodeDialer(id)
 	if err != nil {

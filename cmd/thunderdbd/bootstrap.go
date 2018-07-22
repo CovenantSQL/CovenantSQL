@@ -144,6 +144,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	log.Info(conf.StartSucceedMessage)
 	// start server
 	server.Serve()
 

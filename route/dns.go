@@ -174,6 +174,7 @@ func InitKMS(PubKeyStoreFile string) {
 			if n.Role == proto.Client {
 				var publicKeyBytes []byte
 				var clientPublicKey *asymmetric.PublicKey
+				//FIXME(auxten) remove fixed client pub key
 				//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
 				publicKeyBytes, err := hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
 				if err != nil {

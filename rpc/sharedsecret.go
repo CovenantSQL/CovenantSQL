@@ -35,7 +35,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 		var remotePublicKey *asymmetric.PublicKey
 		if route.IsBPNodeID(nodeID) {
 			remotePublicKey = kms.BP.PublicKey
-		} else if conf.RoleTag[0] == 'B' {
+		} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
 			remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
 			if err != nil {
 				log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)

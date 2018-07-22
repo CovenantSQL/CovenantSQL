@@ -437,6 +437,7 @@ func TestGetN(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	members, err := x.GetNeighbors("9999999", 3)
+	//members, err := x.GetNeighbors("abcdefg", 3)
 	if err != nil {
 		t.Fatal(err)
 	}

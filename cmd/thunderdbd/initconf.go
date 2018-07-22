@@ -52,34 +52,37 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 		PubKey:  publicKey,
 	}
 
-	for i, n := range (*conf.GConf.KnownNodes)[:] {
-		if n.Role == proto.Leader || n.Role == proto.Follower {
-			//FIXME all KnownNodes
-			(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
-			peers.Servers = append(peers.Servers, &kayak.Server{
-				Role:   n.Role,
-				ID:     n.ID,
-				PubKey: publicKey,
-			})
-		}
-		if n.Role == proto.Client {
-			var publicKeyBytes []byte
-			var clientPublicKey *asymmetric.PublicKey
-			//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-			publicKeyBytes, err = hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
-			if err != nil {
-				log.Errorf("hex decode clientPublicKey error: %s", err)
-				return
+	if conf.GConf.KnownNodes != nil {
+		for i, n := range (*conf.GConf.KnownNodes)[:] {
+			if n.Role == proto.Leader || n.Role == proto.Follower {
+				//FIXME all KnownNodes
+				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
+				peers.Servers = append(peers.Servers, &kayak.Server{
+					Role:   n.Role,
+					ID:     n.ID,
+					PubKey: publicKey,
+				})
 			}
-			clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-			if err != nil {
-				log.Errorf("parse clientPublicKey error: %s", err)
-				return
+			if n.Role == proto.Client {
+				var publicKeyBytes []byte
+				var clientPublicKey *asymmetric.PublicKey
+				//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+				publicKeyBytes, err = hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
+				if err != nil {
+					log.Errorf("hex decode clientPublicKey error: %s", err)
+					return
+				}
+				clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+				if err != nil {
+					log.Errorf("parse clientPublicKey error: %s", err)
+					return
+				}
+				//FIXME(auxten): read public key from conf
+				(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
 			}
-			//FIXME(auxten): read public key from conf
-			(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
 		}
 	}
+
 	log.Debugf("AllNodes:\n %v\n", conf.GConf.KnownNodes)
 
 	err = peers.Sign(privateKey)
@@ -91,29 +94,33 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]con
 
 	//route.initResolver()
 	kms.InitPublicKeyStore(publicKeystorePath, nil)
+
 	// set p route and public keystore
-	for _, p := range (*conf.GConf.KnownNodes)[:] {
-		rawNodeIDHash, err := hash.NewHashFromStr(string(p.ID))
-		if err != nil {
-			log.Errorf("load hash from node id failed: %s", err)
-			return nil, nil, nil, err
-		}
-		log.Debugf("set node addr: %v, %v", rawNodeIDHash, p.Addr)
-		rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
-		route.SetNodeAddrCache(rawNodeID, p.Addr)
-		node := &proto.Node{
-			ID:        p.ID,
-			Addr:      p.Addr,
-			PublicKey: p.PublicKey,
-			Nonce:     p.Nonce,
-		}
-		err = kms.SetNode(node)
-		if err != nil {
-			log.Errorf("set node failed: %v\n %s", node, err)
-		}
-		if p.ID == nodeID {
-			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &p.Nonce)
-			thisNode = &p
+	if conf.GConf.KnownNodes != nil {
+		for _, p := range (*conf.GConf.KnownNodes)[:] {
+			rawNodeIDHash, err := hash.NewHashFromStr(string(p.ID))
+			if err != nil {
+				log.Errorf("load hash from node id failed: %s", err)
+				return nil, nil, nil, err
+			}
+			log.Debugf("set node addr: %v, %v", rawNodeIDHash, p.Addr)
+			rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
+			route.SetNodeAddrCache(rawNodeID, p.Addr)
+			node := &proto.Node{
+				ID:        p.ID,
+				Addr:      p.Addr,
+				PublicKey: p.PublicKey,
+				Nonce:     p.Nonce,
+				Role:      p.Role,
+			}
+			err = kms.SetNode(node)
+			if err != nil {
+				log.Errorf("set node failed: %v\n %s", node, err)
+			}
+			if p.ID == nodeID {
+				kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &p.Nonce)
+				thisNode = &p
+			}
 		}
 	}
 

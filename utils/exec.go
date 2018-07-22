@@ -85,7 +85,6 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 	stdoutIn, _ := cmd.StdoutPipe()
 	stderrIn, _ := cmd.StderrPipe()
 
-	var errStdout, errStderr error
 	var stdout, stderr io.Writer
 	if toStd {
 		stdout = io.MultiWriter(os.Stdout, logFD)
@@ -102,19 +101,17 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 	}
 
 	go func() {
-		_, errStdout = io.Copy(stdout, stdoutIn)
-		if errStdout != nil {
-			log.Errorf("failed to capture stdout %s", errStdout)
-			err = errStdout
+		_, err := io.Copy(stdout, stdoutIn)
+		if err != nil {
+			log.Errorf("failed to capture stdout %s", err)
 			return
 		}
 	}()
 
 	go func() {
-		_, errStderr = io.Copy(stderr, stderrIn)
-		if errStderr != nil {
-			log.Errorf("failed to capture stderr %s", errStderr)
-			err = errStderr
+		_, err := io.Copy(stderr, stderrIn)
+		if err != nil {
+			log.Errorf("failed to capture stderr %s", err)
 			return
 		}
 	}()

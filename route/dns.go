@@ -204,6 +204,7 @@ func InitKMS(PubKeyStoreFile string) {
 				Nonce:     n.Nonce,
 				Role:      n.Role,
 			}
+			log.Debugf("known node to set: %v", node)
 			err := kms.SetNode(node)
 			if err != nil {
 				log.Errorf("set node failed: %v\n %s", node, err)

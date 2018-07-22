@@ -89,6 +89,7 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 			Addr:      "",
 			PublicKey: kms.BP.PublicKey,
 			Nonce:     kms.BP.Nonce,
+			Role:      proto.Leader,
 		}
 	}
 
@@ -140,6 +141,7 @@ func (c *Consistent) nodeKey(nodeID proto.NodeID, idx int) string {
 
 // Add inserts a string node in the consistent hash.
 func (c *Consistent) Add(node proto.Node) (err error) {
+	log.Debugf("add node %v to consistent ring", node)
 	c.Lock()
 	defer c.Unlock()
 	return c.add(node)

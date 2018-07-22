@@ -21,7 +21,10 @@ import (
 
 	"net"
 
+	"context"
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"time"
 )
 
 func TestGetRandomPorts(t *testing.T) {
@@ -71,5 +74,37 @@ func TestGetRandomPorts(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ports, ShouldHaveLength, 1)
 		So(ports[0], ShouldEqual, lastAllocated)
+	})
+}
+
+func TestWaitForPorts(t *testing.T) {
+	Convey("test wait for ports", t, func() {
+		ports, err := GetRandomPorts("127.0.0.1", 1, 10000, 1)
+		So(ports, ShouldHaveLength, 1)
+		So(err, ShouldBeNil)
+
+		err = WaitForPorts(context.Background(), "127.0.0.1", ports, time.Millisecond*100)
+		So(err, ShouldBeNil)
+
+		// listen
+		ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprint(ports[0])))
+		So(ln, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+		defer ln.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*300)
+		defer cancel()
+		err = WaitForPorts(ctx, "127.0.0.1", ports, time.Millisecond*100)
+		So(err, ShouldNotBeNil)
+
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			ln.Close()
+		}()
+
+		ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*500)
+		defer cancel()
+		err = WaitForPorts(ctx, "127.0.0.1", ports, time.Millisecond*100)
+		So(err, ShouldBeNil)
 	})
 }

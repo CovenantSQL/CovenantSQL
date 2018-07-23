@@ -93,3 +93,37 @@ func TestUint256_Inc(t *testing.T) {
 		So(i.D, ShouldEqual, 0)
 	})
 }
+
+func TestUint256_ToIPv6(t *testing.T) {
+	Convey("uint256 to IPv6", t, func() {
+		src := Uint256{}
+		ab, cd, err := src.ToIPv6()
+		So(ab.IsUnspecified(), ShouldBeTrue)
+		So(cd.IsUnspecified(), ShouldBeTrue)
+
+		i, err := FromIPv6(ab, cd)
+		So(err, ShouldBeNil)
+		So(i.A, ShouldEqual, 0)
+		So(i.B, ShouldEqual, 0)
+		So(i.C, ShouldEqual, 0)
+		So(i.D, ShouldEqual, 0)
+
+		src = Uint256{math.MaxUint64, math.MaxUint64, math.MaxUint64, math.MaxUint64}
+		ab, cd, err = src.ToIPv6()
+		So(err, ShouldBeNil)
+		So(ab.String(), ShouldEqual, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
+		So(cd.String(), ShouldEqual, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
+
+		src = Uint256{math.MaxUint64, 0, math.MaxUint64, 0x10}
+		ab, cd, err = src.ToIPv6()
+		So(err, ShouldBeNil)
+		So(ab.String(), ShouldEqual, "ffff:ffff:ffff:ffff::")
+		So(cd.String(), ShouldEqual, "ffff:ffff:ffff:ffff::10")
+
+		src = Uint256{14396347928, 0, 0, 6148914694092305796}
+		ab, cd, err = src.ToIPv6()
+		So(err, ShouldBeNil)
+		So(ab.String(), ShouldEqual, "0:3:5a16:d618::")
+		So(cd.String(), ShouldEqual, "::5555:5555:ff8d:3584")
+	})
+}

@@ -23,6 +23,7 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -331,6 +332,12 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 
 	if q.signedBlock != nil && !q.signedBlock.IsEqual(b) {
 		err = ErrQuerySignedByAnotherBlock
+		log.WithFields(log.Fields{
+			"query":        ack.String(),
+			"block":        b.String(),
+			"signed_block": q.signedBlock.String(),
+		}).WithError(err).Error(
+			"Failed to check acknowledgement from block")
 		return
 	}
 
@@ -346,6 +353,12 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 	if qs.firstAck != q {
 		if qs.firstAck.signedBlock != nil {
 			err = ErrQuerySignedByAnotherBlock
+			log.WithFields(log.Fields{
+				"query":        ack.String(),
+				"block":        b.String(),
+				"signed_block": q.signedBlock.String(),
+			}).WithError(err).Error(
+				"Failed to check acknowledgement from block")
 			return
 		}
 
@@ -480,11 +493,15 @@ func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
 }
 
 // setSignedBlock updates the signed block in index for the acknowledged queries in the block.
-func (i *queryIndex) setSignedBlock(h int32, b *ct.Block) {
-	hi := i.heightIndex.ensureHeight(h)
+func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
+	b := i.getBarrier()
 
-	for _, v := range b.Queries {
-		hi.setSignedBlock(&b.SignedHeader.BlockHash, v)
+	for _, v := range block.Queries {
+		for x := b; x <= h; x++ {
+			if hi, ok := i.heightIndex.get(x); ok {
+				hi.setSignedBlock(&block.SignedHeader.BlockHash, v)
+			}
+		}
 	}
 }
 

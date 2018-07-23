@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	testPeersNumber                           = 2
+	testPeersNumber                           = 3
 	testPeriod                                = 1 * time.Second
 	testTick                                  = 100 * time.Millisecond
 	testQueryTTL             int32            = 10

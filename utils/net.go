@@ -17,11 +17,13 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"sync"
+	"time"
 )
 
 var (
@@ -32,19 +34,40 @@ var (
 	allocateLock   sync.Mutex
 )
 
-func testPort(bindAddr string, port int) bool {
+func testPort(bindAddr string, port int, excludeAllocated bool) bool {
 	addr := net.JoinHostPort(bindAddr, fmt.Sprint(port))
 
-	if _, ok := allocatedPorts.Load(addr); ok {
-		return false
+	if excludeAllocated {
+		if _, ok := allocatedPorts.Load(addr); ok {
+			return false
+		}
 	}
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return false
 	}
-	defer ln.Close()
+	ln.Close()
 	return true
+}
+
+// WaitForPorts returns only when port is ready or canceled by context.
+func WaitForPorts(ctx context.Context, bindAddr string, ports []int, interval time.Duration) (err error) {
+	for {
+	continueCheck:
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		case <-time.After(interval):
+			for _, port := range ports {
+				if !testPort(bindAddr, port, false) {
+					goto continueCheck
+				}
+			}
+			return
+		}
+	}
 }
 
 // GetRandomPorts returns available random ports, previously allocated ports will be ignored.
@@ -85,7 +108,7 @@ func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, 
 	}
 
 	for i := pivotPort; i <= maxPort; i++ {
-		if testPort(bindAddr, i) {
+		if testPort(bindAddr, i, true) {
 			ports = append(ports, i)
 		}
 
@@ -95,7 +118,7 @@ func GetRandomPorts(bindAddr string, minPort, maxPort, count int) (ports []int, 
 	}
 
 	for i := minPort; i < pivotPort; i++ {
-		if testPort(bindAddr, i) {
+		if testPort(bindAddr, i, true) {
 			ports = append(ports, i)
 		}
 

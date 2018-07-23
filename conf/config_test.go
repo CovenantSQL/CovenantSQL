@@ -17,11 +17,13 @@
 package conf
 
 import (
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -32,11 +34,22 @@ const testFile = "./.configtest"
 
 func TestConf(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+	var BPPubkey = new(asymmetric.PublicKey)
+	pubKeyBytes, err := hex.DecodeString("02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c")
+	if err != nil {
+		t.Errorf("decode pubkey failed: %v", err)
+	}
+	err = BPPubkey.UnmarshalBinary(pubKeyBytes)
+	if err != nil {
+		t.Errorf("unmarshal pubkey failed: %v", err)
+	}
+	log.Debugf("pubkey: %x", BPPubkey.Serialize())
+
+	log.SetLevel(log.DebugLevel)
 	BP := &BPInfo{
-		PublicKeyStr: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c",
-		PublicKey:    nil,
-		NodeID:       "00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8",
-		RawNodeID:    proto.RawNodeID{},
+		PublicKey: BPPubkey,
+		NodeID:    "00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8",
+		RawNodeID: proto.RawNodeID{},
 		Nonce: cpuminer.Uint256{
 			14396347928,
 			0,
@@ -101,7 +114,7 @@ func TestConf(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(configNew.BP.NodeID, ShouldResemble, config.BP.NodeID)
 		So(configNew.BP.Nonce, ShouldResemble, config.BP.Nonce)
-		So(configNew.BP.PublicKeyStr, ShouldResemble, config.BP.PublicKeyStr)
+		So(configNew.BP.PublicKey.Serialize(), ShouldResemble, config.BP.PublicKey.Serialize())
 
 		configNew, err = LoadConfig("notExistFile")
 		So(err, ShouldNotBeNil)

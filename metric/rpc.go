@@ -63,13 +63,14 @@ func NewCollectServer() *CollectServer {
 
 // UploadMetrics RPC uploads metric info
 func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.UploadMetricsResp) (err error) {
-	if req.NodeID == "" {
+	reqNodeID := req.GetNodeID().ToNodeID()
+	if reqNodeID.IsEmpty() {
 		err = errors.New("empty node id")
 		log.Error(err)
 		return
 	}
 	if !route.IsPermitted(&req.Envelope, route.MetricUploadMetrics) {
-		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
+		err = fmt.Errorf("calling from node %s is not permitted", reqNodeID)
 		log.Error(err)
 		return
 	}
@@ -92,9 +93,9 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 			mfm[k] = v
 		}
 	}
-	log.Debugf("MetricFamily uploaded: %v", mfm)
+	log.Debugf("MetricFamily uploaded: %v, %v", reqNodeID, mfm)
 	if len(mfm) > 0 {
-		cs.NodeMetric.Store(req.NodeID, mfm)
+		cs.NodeMetric.Store(reqNodeID, mfm)
 	} else {
 		err = errors.New("no valid metric received")
 		log.Error(err)
@@ -130,32 +131,20 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 }
 
 // UploadMetrics calls RPC UploadMetrics to upload its metric info
-func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID, connPool *rpc.SessionPool) (err error) {
+func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID) (err error) {
 	mfb, err := cc.GatherMetricBytes()
 	if err != nil {
 		log.Errorf("GatherMetricBytes failed: %s", err)
 		return
 	}
-
-	conn, err := rpc.DialToNode(BPNodeID, connPool, false)
-	if err != nil {
-		log.Errorf("dial to %s failed: %s", BPNodeID, err)
-		return
-	}
-	client, err := rpc.InitClientConn(conn)
-	if err != nil {
-		log.Errorf("init client conn failed: %s", err)
-		return
-	}
 	log.Debugf("Calling BP: %s", BPNodeID)
 	reqType := MetricServiceName + ".UploadMetrics"
 	req := &proto.UploadMetricsReq{
-		NodeID:  BPNodeID,
 		MFBytes: mfb,
 	}
 	resp := new(proto.UploadMetricsResp)
-	log.Debugf("req %s: %v", reqType, req)
-	err = client.Call(reqType, req, resp)
+	log.Debugf("req %s", reqType)
+	err = rpc.NewCaller().CallNode(BPNodeID, reqType, req, resp)
 	if err != nil {
 		log.Errorf("calling RPC %s failed: %s", reqType, err)
 	}

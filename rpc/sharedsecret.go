@@ -31,11 +31,10 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 		symmetricKey = []byte(`!&\\!qEyey*\cbLc,aKl`)
 		log.Debug("using anonymous ETLS")
 	} else {
-		//log.Debugf("ECDH for %v and %v", localPrivateKey, nodePublicKey)
 		var remotePublicKey *asymmetric.PublicKey
 		if route.IsBPNodeID(nodeID) {
 			remotePublicKey = kms.BP.PublicKey
-		} else if conf.RoleTag[0] == 'B' {
+		} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
 			remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
 			if err != nil {
 				log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
@@ -58,7 +57,12 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			log.Errorf("get local private key failed: %s", err)
 			return
 		}
+
 		symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
+		log.Debugf("ECDH for %s Public Key: %x, Session Key: %x",
+			nodeID.ToNodeID(), remotePublicKey.Serialize(), symmetricKey)
+		//log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",
+		//	nodeID.ToNodeID(), remotePublicKey.Serialize(), localPrivateKey.Serialize(), symmetricKey)
 	}
 	return
 }

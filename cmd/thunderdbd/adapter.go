@@ -20,14 +20,14 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
-	"fmt"
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -109,11 +109,18 @@ func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err err
 		log.Errorf("compile exec log failed: %s", err)
 		return
 	}
-
+	err = route.SetNodeAddrCache(nodeToSet.ID.ToRawNodeID(), nodeToSet.Addr)
+	if err != nil {
+		log.Errorf("set node addr cache failed: %v", err)
+	}
+	err = kms.SetNode(&nodeToSet)
+	if err != nil {
+		log.Errorf("kms set node failed: %v", err)
+	}
 	err = s.consistent.AddCache(nodeToSet)
 	if err != nil {
-		//TODO(auxten) even no error will be returned, there may be some inconsistency need sync periodically
-		log.Errorf("compile exec log failed: %s", err)
+		//TODO(auxten) even no error will be returned, there may be some inconsistency and needs sync periodically
+		log.Errorf("add consistent cache failed: %s", err)
 	}
 
 	return s.Storage.Commit(ctx, execLog)
@@ -144,34 +151,16 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 			log.Errorf("compileExecLog: unmarshal node from payload failed: %s", err)
 			return
 		}
-		/*
-		 * Add t prefix for node id, cause sqlite do not actually has a type.
-		 * execute queries below:
-		 *		create table t1(myint INTEGER, mystring STRING, mytext TEXT);
-		 *		insert into t1 values ('0110', '0220', '0330');
-		 *		insert into t1 values ('-0110', '-0220', '-0330');
-		 *		insert into t1 values ('+0110', '+0220', '+0330');
-		 *		insert into t1 values ('x0110', 'x0220', 'x0330');
-		 *		insert into t1 values ('011.0', '022.0', '033.0');
-		 *		select * from t1
-		 *
-		 * will output rows with values:
-		 * 		myint mystring mytext
-		 * 		  110      220   0330
-		 * 		 -110     -220  -0330
-		 * 		  110      220  +0330
-		 * 		x0110    x0220  x0330
-		 * 		   11       22  033.0
-		 * 	--from: https://stackoverflow.com/a/42264331/896026
-		 */
-		//TODO(auxten):filter SQL injection
-		sql := fmt.Sprintf("INSERT OR REPLACE INTO `dht`(`id`, `node`) VALUES ('t%s', '%s');",
-			nodeToSet.ID, base64.StdEncoding.EncodeToString(payload.Data))
-		log.Debugf("sql: %s", sql)
+		query := "INSERT OR REPLACE INTO `dht` (`id`, `node`) VALUES (?, ?);"
+		log.Debugf("sql: %s", query)
 		execLog = &storage.ExecLog{
 			Queries: []storage.Query{
 				{
-					Pattern: sql,
+					Pattern: query,
+					Args: []sql.NamedArg{
+						sql.Named("", nodeToSet.ID),
+						sql.Named("", payload.Data),
+					},
 				},
 			},
 		}
@@ -194,18 +183,20 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 			},
 		}
 	case CmdDeleteDatabase:
-		var dbID proto.DatabaseID
-		if err = utils.DecodeMsgPack(payload.Data, &dbID); err != nil {
+		var instance wt.ServiceInstance
+		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
 			log.Errorf("compileExecLog: unmarshal instance id failed: %v", err)
 			return
 		}
-		query := "DELETE FROM `databases` WHERE `id` = ? LIMIT 1"
+		// TODO(xq262144), should add additional limit 1 after delete clause
+		// however, currently the go-sqlite3
+		query := "DELETE FROM `databases` WHERE `id` = ?"
 		execLog = &storage.ExecLog{
 			Queries: []storage.Query{
 				{
 					Pattern: query,
 					Args: []sql.NamedArg{
-						sql.Named("", string(dbID)),
+						sql.Named("", string(instance.DatabaseID)),
 					},
 				},
 			},
@@ -351,13 +342,17 @@ func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
 
 // DeleteDatabase implements blockproducer.DBMetaPersistence.
 func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
-	var dataBuf *bytes.Buffer
-	if dataBuf, err = utils.EncodeMsgPack(dbID); err != nil {
+	meta := wt.ServiceInstance{
+		DatabaseID: dbID,
+	}
+
+	var metaBuf *bytes.Buffer
+	if metaBuf, err = utils.EncodeMsgPack(meta); err != nil {
 		return
 	}
 	payload := &KayakPayload{
 		Command: CmdDeleteDatabase,
-		Data:    dataBuf.Bytes(),
+		Data:    metaBuf.Bytes(),
 	}
 
 	writeData, err := utils.EncodeMsgPack(payload)
@@ -377,7 +372,7 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 // GetAllDatabases implements blockproducer.DBMetaPersistence.
 func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err error) {
 	var result [][]interface{}
-	query := "SELECT `meta` FROM `databases` LIMIT 1"
+	query := "SELECT `meta` FROM `databases`"
 	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
 		{
 			Pattern: query,
@@ -420,31 +415,27 @@ func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err e
 // GetAllNodeInfo implements consistent.Persistence
 func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	var result [][]interface{}
-	//sql := fmt.Sprintf("SELECT `node` FROM `dht` WHERE `id` = 't%s' LIMIT 1;", id)
-	sql := fmt.Sprintf("SELECT `node` FROM `dht`;")
+	query := "SELECT `node` FROM `dht`;"
 	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
 		{
-			Pattern: sql,
+			Pattern: query,
 		},
 	})
 	if err != nil {
-		log.Errorf("Query: %s failed: %s", sql, err)
+		log.Errorf("Query: %s failed: %s", query, err)
 		return
 	}
-	log.Debugf("SQL: %v\nResults: %s", sql, result)
+	log.Debugf("SQL: %v\nResults: %s", query, result)
+
+	nodes = make([]proto.Node, 0, len(result))
+
 	for _, r := range result {
-		nodes = make([]proto.Node, 0, len(result))
 		if len(r) == 0 {
 			continue
 		}
-		nodeSerial, ok := r[0].([]byte)
-		log.Debugf("nodeSerial: %s, %v", nodeSerial, ok)
+		nodeBytes, ok := r[0].([]byte)
+		log.Debugf("nodeBytes: %s, %v", nodeBytes, ok)
 		if !ok {
-			continue
-		}
-		nodeBytes, err := base64.StdEncoding.DecodeString(string(nodeSerial))
-		if err != nil {
-			log.Errorf("base64 decoding failed: %s", err)
 			continue
 		}
 

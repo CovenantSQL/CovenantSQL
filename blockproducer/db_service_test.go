@@ -91,7 +91,7 @@ func TestService(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		// trigger metrics, but does not allow block producer to service as miner
-		metric.NewCollectClient().UploadMetrics(nodeID, nil)
+		metric.NewCollectClient().UploadMetrics(nodeID)
 		createDBRes = new(CreateDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".CreateDatabase", createDBReq, createDBRes)
 		So(err, ShouldNotBeNil)

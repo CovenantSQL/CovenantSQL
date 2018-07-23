@@ -8,7 +8,9 @@ vendor/**/.gitignore
 node_*/
 kayak_test
 *.conf
-
+*.db
+*.db-shm
+*.db-wal
 
 # Binaries for programs and plugins
 bin/

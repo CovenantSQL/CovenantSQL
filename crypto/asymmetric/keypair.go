@@ -18,7 +18,9 @@ package asymmetric
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -56,6 +58,31 @@ func (k *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
 		*k = *pubNew
 	}
 	return
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (k PublicKey) MarshalYAML() (interface{}, error) {
+	return fmt.Sprintf("%x", k.Serialize()), nil
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (k *PublicKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+
+	// load public key string
+	pubKeyBytes, err := hex.DecodeString(str)
+	if err != nil {
+		return err
+	}
+
+	err = k.UnmarshalBinary(pubKeyBytes)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // IsEqual return true if two keys are equal

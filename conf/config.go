@@ -35,15 +35,16 @@ const (
 	UnknownBuildTag       = "U"
 )
 
+// StartSucceedMessage is printed when thunderDB started successfully
+const StartSucceedMessage = "ThunderDB Started Successfully"
+
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag
 
 // BPInfo hold all BP info fields
 type BPInfo struct {
-	// PublicKeyStr is the public key of Block Producer
-	PublicKeyStr string `yaml:"PublicKeyStr"`
 	// PublicKey point to BlockProducer public key
-	PublicKey *asymmetric.PublicKey `yaml:"-"`
+	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
 	// NodeID is the node id of Block Producer
 	NodeID proto.NodeID `yaml:"NodeID"`
 	// RawNodeID
@@ -56,7 +57,7 @@ type BPInfo struct {
 type NodeInfo struct {
 	ID        proto.NodeID
 	Nonce     cpuminer.Uint256
-	PublicKey *asymmetric.PublicKey `yaml:"-"`
+	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
 	Addr      string
 	Role      proto.ServerRole
 }
@@ -73,7 +74,7 @@ type MinerDatabaseFixture struct {
 
 // MinerInfo for miner config.
 type MinerInfo struct {
-	// node basic config
+	// node basic config.
 	RootDir               string        `yaml:"RootDir"`
 	MaxReqTimeGap         time.Duration `yaml:"MaxReqTimeGap,omitempty"`
 	MetricCollectInterval time.Duration `yaml:"MetricCollectInterval,omitempty"`
@@ -120,5 +121,6 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		log.Errorf("unmarshal config file failed: %s", err)
 		return
 	}
+
 	return
 }

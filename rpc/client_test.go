@@ -17,17 +17,12 @@
 package rpc
 
 import (
-	"encoding/hex"
 	"net"
-	"os"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 const nodeID = "0000"
@@ -66,39 +61,39 @@ func TestDial(t *testing.T) {
 	})
 }
 
-func TestDialToNode(t *testing.T) {
-	Convey("DialToNode error case", t, func() {
-		defer os.Remove(publicKeyStore)
-		defer os.Remove(privateKey)
-		c, err := DialToNode(kms.BP.NodeID, nil, false)
-		So(c, ShouldBeNil)
-		So(err, ShouldNotBeNil)
-
-		publicKeyBytes, _ := hex.DecodeString(kms.BP.PublicKeyStr)
-		kms.BP.PublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
-		BPNode := &proto.Node{
-			ID:        kms.BP.NodeID,
-			Addr:      "",
-			PublicKey: kms.BP.PublicKey,
-			Nonce:     kms.BP.Nonce,
-		}
-
-		kms.InitPublicKeyStore(publicKeyStore, BPNode)
-		c, err = DialToNode(proto.NodeID(nodeID), nil, false)
-		So(c, ShouldBeNil)
-		So(err, ShouldNotBeNil)
-
-		kms.InitLocalKeyPair(privateKey, []byte(pass))
-		//route.initResolver()
-		c, err = DialToNode(kms.BP.NodeID, nil, false)
-		So(c, ShouldBeNil)
-		So(err, ShouldNotBeNil)
-
-		l, _ := net.Listen("tcp", "127.0.0.1:0")
-
-		route.SetNodeAddrCache(&kms.BP.RawNodeID, l.Addr().String())
-		c, err = DialToNode(kms.BP.NodeID, nil, false)
-		So(err, ShouldBeNil)
-		So(c, ShouldNotBeNil)
-	})
-}
+//func TestDialToNode(t *testing.T) {
+//	Convey("DialToNode error case", t, func() {
+//		defer os.Remove(publicKeyStore)
+//		defer os.Remove(privateKey)
+//		c, err := DialToNode(kms.BP.NodeID, nil, false)
+//		So(c, ShouldBeNil)
+//		So(err, ShouldNotBeNil)
+//
+//		publicKeyBytes, _ := hex.DecodeString(kms.BP.PublicKeyStr)
+//		kms.BP.PublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
+//		BPNode := &proto.Node{
+//			ID:        kms.BP.NodeID,
+//			Addr:      "",
+//			PublicKey: kms.BP.PublicKey,
+//			Nonce:     kms.BP.Nonce,
+//		}
+//
+//		kms.InitPublicKeyStore(publicKeyStore, BPNode)
+//		c, err = DialToNode(proto.NodeID(nodeID), nil, false)
+//		So(c, ShouldBeNil)
+//		So(err, ShouldNotBeNil)
+//
+//		kms.InitLocalKeyPair(privateKey, []byte(pass))
+//		//route.initResolver()
+//		c, err = DialToNode(kms.BP.NodeID, nil, false)
+//		So(c, ShouldBeNil)
+//		So(err, ShouldNotBeNil)
+//
+//		l, _ := net.Listen("tcp", "127.0.0.1:0")
+//
+//		route.SetNodeAddrCache(&kms.BP.RawNodeID, l.Addr().String())
+//		c, err = DialToNode(kms.BP.NodeID, nil, false)
+//		So(err, ShouldBeNil)
+//		So(c, ShouldNotBeNil)
+//	})
+//}

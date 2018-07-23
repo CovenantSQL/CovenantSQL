@@ -103,6 +103,11 @@ func (id *NodeID) ToRawNodeID() *RawNodeID {
 	return &RawNodeID{*idHash}
 }
 
+// IsEmpty test if a nodeID is empty.
+func (id *NodeID) IsEmpty() bool {
+	return id == nil || "" == string(*id)
+}
+
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo
 // Node.ID = Node.NonceInfo.Hash
 func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
@@ -120,6 +125,9 @@ func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
 
 // ToNodeID converts RawNodeID to NodeID
 func (id *RawNodeID) ToNodeID() NodeID {
+	if id == nil {
+		return NodeID("")
+	}
 	return NodeID(id.String())
 }
 

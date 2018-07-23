@@ -118,7 +118,10 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		DatabaseID:   dbID,
 		Peers:        peers,
 		ResourceMeta: req.ResourceMeta,
+		GenesisBlock: genesisBlock,
 	}
+
+	log.Debugf("generated instance meta: %v", instanceMeta)
 
 	if err = s.ServiceMap.Set(instanceMeta); err != nil {
 		// critical error
@@ -192,9 +195,11 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
 	// fetch from meta
 	var instances []wt.ServiceInstance
-	if instances, err = s.ServiceMap.GetDatabases(proto.NodeID(req.GetNodeID().String())); err != nil {
+	if instances, err = s.ServiceMap.GetDatabases(req.GetNodeID().ToNodeID()); err != nil {
 		return
 	}
+
+	log.Debugf("current instance for node %v: %v", req.GetNodeID().ToNodeID(), instances)
 
 	// send response to client
 	resp.Instances = instances
@@ -203,20 +208,28 @@ func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceRe
 }
 
 func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.DatabaseID, err error) {
-	nonceCh := make(chan cpuminer.NonceInfo)
-	quitCh := make(chan struct{})
-	miner := cpuminer.NewCPUMiner(quitCh)
-	go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-		Data:      reqNodeID.CloneBytes(),
-		NonceChan: nonceCh,
-		Stop:      nil,
-	}, cpuminer.Uint256{}, 4)
+	var startNonce cpuminer.Uint256
 
-	defer close(nonceCh)
-	defer close(quitCh)
+	for {
+		nonceCh := make(chan cpuminer.NonceInfo)
+		quitCh := make(chan struct{})
+		miner := cpuminer.NewCPUMiner(quitCh)
+		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
+			Data:      reqNodeID.CloneBytes(),
+			NonceChan: nonceCh,
+			Stop:      nil,
+		}, startNonce, 4)
 
-	for nonce := range nonceCh {
+		nonce := <-nonceCh
+		close(quitCh)
+		close(nonceCh)
+
+		// set start nonceCh
+		startNonce = nonce.Nonce
+		startNonce.Inc()
 		dbID = proto.DatabaseID(nonce.Hash.String())
+
+		log.Debugf("try generated database id %v", dbID)
 
 		// check existence
 		if _, err = s.ServiceMap.Get(dbID); err == ErrNoSuchDatabase {
@@ -231,7 +244,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *kayak.Peers, err error) {
 	curRange := int(resourceMeta.Node)
 	excludeNodes := make(map[proto.NodeID]bool)
-	allocated := make([]proto.NodeID, 0)
+	var allocated []proto.NodeID
 
 	if resourceMeta.Node <= 0 {
 		err = ErrDatabaseAllocation
@@ -252,10 +265,17 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 		// clear previous allocated
 		allocated = allocated[:0]
+		rolesFilter := []proto.ServerRole{
+			proto.Miner,
+		}
 
-		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
+		if s.includeBPNodesForAllocation {
+			rolesFilter = append(rolesFilter, proto.Leader, proto.Follower)
+		}
 
-		log.Debugf("found %d neighbour nodes", len(nodes))
+		nodes, err = s.Consistent.GetNeighborsEx(string(dbID), curRange, proto.ServerRoles(rolesFilter))
+
+		log.Debugf("found %d neighbor nodes", len(nodes))
 
 		// TODO(xq262144): brute force implementation to be optimized
 		var nodeIDs []proto.NodeID
@@ -266,7 +286,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			}
 		}
 
-		log.Debugf("found %d suitable nodes", len(nodeIDs))
+		log.Debugf("found %d suitable nodes: %v", len(nodeIDs), nodeIDs)
 
 		if len(nodeIDs) < int(resourceMeta.Node) {
 			continue
@@ -341,6 +361,7 @@ func (s *DBService) getMetric(metric metric.MetricMap, keys []string) (value uin
 }
 
 func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []proto.NodeID) (peers *kayak.Peers, err error) {
+	log.Debugf("build peers for allocated nodes with term: %v, allocated nodes: %v", term, allocated)
 	// get local private key
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -362,7 +383,9 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 	allocatedNodes := make([]proto.Node, 0, len(allocated))
 
 	for _, node := range nodes {
-		allocatedNodes = append(allocatedNodes, node)
+		if allocatedMap[node.ID] {
+			allocatedNodes = append(allocatedNodes, node)
+		}
 	}
 
 	peers = &kayak.Peers{

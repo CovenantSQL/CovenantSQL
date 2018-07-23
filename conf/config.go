@@ -19,6 +19,7 @@ package conf
 import (
 	"io/ioutil"
 	"time"
+	"encoding/hex"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -59,6 +60,9 @@ type NodeInfo struct {
 	PublicKey *asymmetric.PublicKey `yaml:"-"`
 	Addr      string
 	Role      proto.ServerRole
+
+	// PublicKeyStr is the public key hex string.
+	PublicKeyStr string
 }
 
 // MinerDatabaseFixture config.
@@ -73,7 +77,7 @@ type MinerDatabaseFixture struct {
 
 // MinerInfo for miner config.
 type MinerInfo struct {
-	// node basic config
+	// node basic config.
 	RootDir               string        `yaml:"RootDir"`
 	MaxReqTimeGap         time.Duration `yaml:"MaxReqTimeGap,omitempty"`
 	MetricCollectInterval time.Duration `yaml:"MetricCollectInterval,omitempty"`
@@ -120,5 +124,26 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		log.Errorf("unmarshal config file failed: %s", err)
 		return
 	}
+
+	// load public key if exists
+	if config.KnownNodes != nil && len(*config.KnownNodes) > 0 {
+		for i := range *config.KnownNodes {
+			if (*config.KnownNodes)[i].PublicKeyStr != "" {
+				// load public key string
+				var pubKeyBytes []byte
+				if pubKeyBytes, err = hex.DecodeString((*config.KnownNodes)[i].PublicKeyStr); err != nil {
+					return
+				}
+
+				var pubKey *asymmetric.PublicKey
+				if pubKey, err = asymmetric.ParsePubKey(pubKeyBytes); err != nil {
+					return
+				}
+
+				(*config.KnownNodes)[i].PublicKey = pubKey
+			}
+		}
+	}
+
 	return
 }

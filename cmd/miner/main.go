@@ -27,11 +27,12 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/metric"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gitlab.com/thunderdb/ThunderDB/worker"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 const logo = `
@@ -148,34 +149,81 @@ func main() {
 		log.Fatalf("init node failed: %v", err)
 	}
 
-	// start metric collector
-	metricCh := make(chan struct{})
+	if conf.GConf.Miner.IsTestMode {
+		// miner test mode enabled
+		log.Debugf("miner test mode enabled")
+	}
 
+	// stop channel for all daemon routines
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	// start metric collector
 	go func() {
 		mc := metric.NewCollectClient()
 		tick := time.NewTicker(conf.GConf.Miner.MetricCollectInterval)
 		defer tick.Stop()
 
 		for {
-			// choose block producer
-			bp := route.GetBPs()
-
-			if len(bp) <= 0 {
-				continue
+			// if in test mode, upload metrics to all block producer
+			if conf.GConf.Miner.IsTestMode {
+				// upload to all block producer
+				for _, bpNodeID := range route.GetBPs() {
+					mc.UploadMetrics(bpNodeID)
+				}
+			} else {
+				// choose block producer
+				if bpID, err := rpc.GetCurrentBP(); err != nil {
+					log.Error(err)
+					continue
+				} else {
+					mc.UploadMetrics(bpID)
+				}
 			}
 
-			bpID := bp[rand.Intn(len(bp))]
-			mc.UploadMetrics(bpID, nil)
-
 			select {
-			case <-metricCh:
+			case <-stopCh:
 				return
 			case <-tick.C:
 			}
 		}
 	}()
 
-	defer close(metricCh)
+	// start block producer pinger
+	go func() {
+		var localNodeID proto.NodeID
+		var err error
+
+		// get local node id
+		if localNodeID, err = kms.GetLocalNodeID(); err != nil {
+			return
+		}
+
+		// get local node info
+		var localNodeInfo *proto.Node
+		if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
+			return
+		}
+
+		log.Debugf("construct local node info: %v", localNodeInfo)
+
+		go func() {
+			for {
+				select {
+				case <-time.After(time.Second):
+				case <-stopCh:
+					return
+				}
+
+				// send ping requests to block producer
+				bpNodeIDs := route.GetBPs()
+
+				for _, bpNodeID := range bpNodeIDs {
+					rpc.PingBP(localNodeInfo, bpNodeID)
+				}
+			}
+		}()
+	}()
 
 	// start dbms
 	var dbms *worker.DBMS

@@ -30,6 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
@@ -147,6 +148,9 @@ func runMiner() {
 			max = newNonce
 		}
 	}
+
+	// verify result
+	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: max.Hash}, &max.Nonce, publicKey))
 	log.Infof("nonce: %v", max)
 }
 

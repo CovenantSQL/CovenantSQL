@@ -201,7 +201,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 			Data:      pub.Serialize(),
 			NonceChan: nonceCh,
 			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
+		}, cpuminer.Uint256{}, 4)
 		nonce := <-nonceCh
 		close(quitCh)
 		close(nonceCh)

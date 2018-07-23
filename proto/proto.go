@@ -56,7 +56,6 @@ type PingResp struct {
 
 // UploadMetricsReq is UploadMetrics RPC request
 type UploadMetricsReq struct {
-	NodeID NodeID
 	// MetricFamily Bytes array
 	MFBytes [][]byte
 	Envelope

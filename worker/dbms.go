@@ -23,12 +23,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -309,19 +306,15 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 }
 
 func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err error) {
-	// get bp nodes
-	var nonce *cpuminer.Uint256
-	if nonce, err = kms.GetLocalNonce(); err != nil {
+	var bpNodeID proto.NodeID
+	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
 		return
 	}
 
-	// TODO(xq262144): unify block producer calls
-	bps := route.GetBPs()
-	bpID := bps[int(nonce.A%uint64(len(bps)))]
 	req := &wt.InitService{}
 	res := new(wt.InitServiceResponse)
 	// TODO(xq262144): maybe we should define service name convention to a single location
-	if err = rpc.NewCaller().CallNode(bpID, "BPDB.GetNodeDatabases", req, res); err != nil {
+	if err = rpc.NewCaller().CallNode(bpNodeID, "BPDB.GetNodeDatabases", req, res); err != nil {
 		return
 	}
 

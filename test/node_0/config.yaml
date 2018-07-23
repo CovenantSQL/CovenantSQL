@@ -10,7 +10,7 @@ ValidDNSKeys:
   mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
 MinNodeIDDifficulty: 2
 BlockProducer:
-  PublicKeyStr: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:
     a: 313283
@@ -49,6 +49,7 @@ knownnodes:
     c: 0
     d: 0
   addr: ""
+  PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
   role: Client
 - id: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
   nonce:
@@ -57,7 +58,7 @@ knownnodes:
     c: 0
     d: 3104982049
   addr: 127.0.0.1:2144
-  publickeystr: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
+  PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
   role: Miner
 - id: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
   nonce:
@@ -66,7 +67,7 @@ knownnodes:
     c: 0
     d: 2305843010430351476
   addr: 127.0.0.1:2145
-  publickeystr: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
+  PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
   role: Miner
 - id: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
   nonce:
@@ -75,5 +76,5 @@ knownnodes:
     c: 0
     d: 13835058056920509601
   addr: 127.0.0.1:2146
-  publickeystr: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
+  PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
   role: Miner

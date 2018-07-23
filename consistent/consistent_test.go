@@ -437,6 +437,7 @@ func TestGetN(t *testing.T) {
 	x.Add(NewNodeFromID("hijklmn"))
 	x.Add(NewNodeFromID("opqrstu"))
 	members, err := x.GetNeighbors("9999999", 3)
+	//members, err := x.GetNeighbors("abcdefg", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -471,7 +472,7 @@ func TestGetNFilterRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(members) != 2 {
-		t.Errorf("expected 3 members instead of %d", len(members))
+		t.Errorf("expected 2 members instead of %d", len(members))
 	}
 	if members[0].ID != "opqrstu" {
 		t.Errorf("wrong members[0]: %v", members[0])
@@ -485,7 +486,7 @@ func TestGetNFilterRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(members) != 1 {
-		t.Errorf("expected 3 members instead of %d", len(members))
+		t.Errorf("expected 1 members instead of %d", len(members))
 	}
 	if members[0].ID != "abcdefg" {
 		t.Errorf("wrong members[0]: %v", members[0])

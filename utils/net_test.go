@@ -21,10 +21,11 @@ import (
 
 	"net"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"context"
 	"fmt"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestGetRandomPorts(t *testing.T) {

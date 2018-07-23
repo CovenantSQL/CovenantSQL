@@ -150,7 +150,7 @@ func GetLocalPrivateKey() (private *asymmetric.PrivateKey, err error) {
 	}
 	localKey.RUnlock()
 
-	//// log the call stack
+	// log the call stack
 	//buf := make([]byte, 4096)
 	//count := runtime.Stack(buf, false)
 	//log.Debugf("###getting private key from###\n%s\n###getting private  key end###\n", buf[:count])

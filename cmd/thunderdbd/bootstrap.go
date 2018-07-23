@@ -145,7 +145,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
-	// ping all known nodes
+	log.Info(conf.StartSucceedMessage)
 	go periodicPingBlockProducer()
 
 	// start server
@@ -204,6 +204,7 @@ func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer)
 	return
 }
 
+//FIXME(auxten): clean up ugly periodicPingBlockProducer
 func periodicPingBlockProducer() {
 	var localNodeID proto.NodeID
 	var err error

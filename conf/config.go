@@ -19,7 +19,6 @@ package conf
 import (
 	"io/ioutil"
 	"time"
-	"encoding/hex"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -36,15 +35,16 @@ const (
 	UnknownBuildTag       = "U"
 )
 
+// StartSucceedMessage is printed when thunderDB started successfully
+const StartSucceedMessage = "ThunderDB Started Successfully"
+
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag
 
 // BPInfo hold all BP info fields
 type BPInfo struct {
-	// PublicKeyStr is the public key of Block Producer
-	PublicKeyStr string `yaml:"PublicKeyStr"`
 	// PublicKey point to BlockProducer public key
-	PublicKey *asymmetric.PublicKey `yaml:"-"`
+	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
 	// NodeID is the node id of Block Producer
 	NodeID proto.NodeID `yaml:"NodeID"`
 	// RawNodeID
@@ -57,12 +57,9 @@ type BPInfo struct {
 type NodeInfo struct {
 	ID        proto.NodeID
 	Nonce     cpuminer.Uint256
-	PublicKey *asymmetric.PublicKey `yaml:"-"`
+	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
 	Addr      string
 	Role      proto.ServerRole
-
-	// PublicKeyStr is the public key hex string.
-	PublicKeyStr string
 }
 
 // MinerDatabaseFixture config.
@@ -123,26 +120,6 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	if err != nil {
 		log.Errorf("unmarshal config file failed: %s", err)
 		return
-	}
-
-	// load public key if exists
-	if config.KnownNodes != nil && len(*config.KnownNodes) > 0 {
-		for i := range *config.KnownNodes {
-			if (*config.KnownNodes)[i].PublicKeyStr != "" {
-				// load public key string
-				var pubKeyBytes []byte
-				if pubKeyBytes, err = hex.DecodeString((*config.KnownNodes)[i].PublicKeyStr); err != nil {
-					return
-				}
-
-				var pubKey *asymmetric.PublicKey
-				if pubKey, err = asymmetric.ParsePubKey(pubKeyBytes); err != nil {
-					return
-				}
-
-				(*config.KnownNodes)[i].PublicKey = pubKey
-			}
-		}
 	}
 
 	return

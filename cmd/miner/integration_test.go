@@ -24,11 +24,12 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/client"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"context"
 )
 
 var (

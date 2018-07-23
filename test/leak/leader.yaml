@@ -1,9 +1,9 @@
 istestmode: true
-workingroot: "../test/node_standalone"
+workingroot: "../test/leak/leader"
 pubkeystorefile: "public.keystore"
 privatekeyfile: "private.key"
 dhtfilename: "dht.db"
-listenaddr: "127.0.0.1:2230"
+listenaddr: "127.0.0.1:2331"
 thisnodeid: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
@@ -24,5 +24,5 @@ knownnodes:
     b: 0
     c: 0
     d: 0
-  addr: 127.0.0.1:2230
+  addr: 127.0.0.1:2331
   role: Leader

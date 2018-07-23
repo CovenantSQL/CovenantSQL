@@ -143,7 +143,7 @@ func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID) (err error) {
 		MFBytes: mfb,
 	}
 	resp := new(proto.UploadMetricsResp)
-	log.Debugf("req %s: %v", reqType, req)
+	log.Debugf("req %s", reqType)
 	err = rpc.NewCaller().CallNode(BPNodeID, reqType, req, resp)
 	if err != nil {
 		log.Errorf("calling RPC %s failed: %s", reqType, err)

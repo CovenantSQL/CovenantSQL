@@ -35,6 +35,7 @@ const (
 	UnknownBuildTag       = "U"
 )
 
+// StartSucceedMessage is printed when thunderDB started successfully
 const StartSucceedMessage = "ThunderDB Started Successfully"
 
 // RoleTag indicate which role the daemon is playing

@@ -1,10 +1,10 @@
 istestmode: true
-workingroot: "../test/pool/leader"
+workingroot: "./leak"
 pubkeystorefile: "public.keystore"
 privatekeyfile: "private.key"
 dhtfilename: "dht.db"
-listenaddr: "127.0.0.1:2330"
-thisnodeid: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
+listenaddr: "127.0.0.1:2120"
+thisnodeid: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
   mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
@@ -24,5 +24,14 @@ knownnodes:
     b: 0
     c: 0
     d: 0
-  addr: 127.0.0.1:2330
+  addr: 127.0.0.1:2331
   role: Leader
+- id: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
+  nonce:
+    a: 22403
+    b: 0
+    c: 0
+    d: 0
+  addr: ""
+  role: Client
+

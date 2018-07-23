@@ -146,7 +146,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}
 
 	log.Info(conf.StartSucceedMessage)
-	go periodicPingBlockProducer()
+	//FIXME(auxten): temporarily comment periodicPingBlockProducer
+	//go periodicPingBlockProducer()
 
 	// start server
 	server.Serve()

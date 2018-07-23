@@ -126,20 +126,26 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// first try to get one session from pool
 	cachedConn, ok := p.getSessionFromPool(id)
 	if ok {
-		return cachedConn.Sess.Open()
+		conn, err = cachedConn.Sess.Open()
+		if err == nil {
+			log.Debugf("reusing session to %s", id)
+			return
+		}
+		log.Errorf("open session to %s from pool failed: %v", id, err)
+		p.Remove(id)
 	}
 
 	log.Debugf("dial new session to %s", id)
 	// Can't find existing Session, try to dial one
 	newConn, err := p.nodeDialer(id)
 	if err != nil {
-		log.Errorf("dial to new node %s failed: %s", id, err)
+		log.Errorf("dial new session to node %s failed: %v", id, err)
 		return
 	}
 	newSess, err := toSession(id, newConn)
 	if err != nil {
 		newConn.Close()
-		log.Errorf("dial to new node %s failed: %s", id, err)
+		log.Errorf("dial new session to node %s failed: %v", id, err)
 		return
 	}
 	sess, loaded := p.LoadOrStore(id, newSess)

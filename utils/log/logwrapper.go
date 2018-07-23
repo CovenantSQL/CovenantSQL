@@ -84,7 +84,7 @@ func (hook *CallerHook) caller() string {
 	}
 
 	relFuncName := strings.TrimPrefix(funcName, "gitlab.com/thunderdb/ThunderDB/")
-	funcLocation := fmt.Sprintf("%s:%d:%s", filepath.Base(file), line, relFuncName)
+	funcLocation := fmt.Sprintf("%s:%d %s", filepath.Base(file), line, relFuncName)
 	return funcLocation
 }
 

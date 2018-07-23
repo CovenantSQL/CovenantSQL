@@ -119,7 +119,7 @@ serverLoop:
 
 // handleConn do all the work
 func (s *Server) handleConn(conn net.Conn) {
-	//defer conn.Close()
+	defer conn.Close()
 
 	// remote remoteNodeID connection awareness
 	var remoteNodeID *proto.RawNodeID
@@ -134,6 +134,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		log.Error(err)
 		return
 	}
+	defer sess.Close()
 
 sessionLoop:
 	for {
@@ -145,12 +146,10 @@ sessionLoop:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
 				if err == io.EOF {
-					log.Info("session connection closed")
-					break sessionLoop
+					log.Infof("session %s connection closed", remoteNodeID)
 				}
-				log.Errorf("session accept failed: %s", err)
-
-				continue
+				log.Errorf("session %s accept failed: %s", remoteNodeID, err)
+				break sessionLoop
 			}
 			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
 			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{})
@@ -159,7 +158,7 @@ sessionLoop:
 		}
 	}
 
-	log.Debugf("Server.handleConn finished for %s", conn.RemoteAddr())
+	log.Debugf("Server.handleConn finished for %s %s", remoteNodeID, conn.RemoteAddr())
 }
 
 // RegisterService with a Service name, used by Client RPC

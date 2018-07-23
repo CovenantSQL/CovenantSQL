@@ -23,8 +23,9 @@ import (
 
 	"context"
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestGetRandomPorts(t *testing.T) {

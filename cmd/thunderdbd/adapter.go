@@ -24,8 +24,10 @@ import (
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -107,11 +109,18 @@ func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err err
 		log.Errorf("compile exec log failed: %s", err)
 		return
 	}
-
+	err = route.SetNodeAddrCache(nodeToSet.ID.ToRawNodeID(), nodeToSet.Addr)
+	if err != nil {
+		log.Errorf("set node addr cache failed: %v", err)
+	}
+	err = kms.SetNode(&nodeToSet)
+	if err != nil {
+		log.Errorf("kms set node failed: %v", err)
+	}
 	err = s.consistent.AddCache(nodeToSet)
 	if err != nil {
-		//TODO(auxten) even no error will be returned, there may be some inconsistency need sync periodically
-		log.Errorf("compile exec log failed: %s", err)
+		//TODO(auxten) even no error will be returned, there may be some inconsistency and needs sync periodically
+		log.Errorf("add consistent cache failed: %s", err)
 	}
 
 	return s.Storage.Commit(ctx, execLog)

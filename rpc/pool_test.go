@@ -20,16 +20,11 @@ import (
 	"net"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/yamux"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -191,79 +186,4 @@ func TestNewSessionPool(t *testing.T) {
 		So(GetSessionPoolInstance(), ShouldNotBeNil)
 		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
 	})
-}
-
-func TestSessionPool_Leak(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-	//utils.Build()
-	leader, err := utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./pool/leader.yaml")},
-		"leader", testWorkingDir, logDir, false,
-	)
-
-	defer func() {
-		leader.Process.Signal(syscall.SIGKILL)
-	}()
-
-	log.Debugf("leader pid %d", leader.Process.Pid)
-	time.Sleep(5 * time.Second)
-
-	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./pool/client.yaml"))
-	if err != nil {
-		t.Errorf("load config from %s failed: %s", FJ(testWorkingDir, "./pool/client.yaml"), err)
-	}
-	rootPath := conf.GConf.WorkingRoot
-	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
-	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
-
-	route.InitKMS(pubKeyStorePath)
-	var masterKey []byte
-
-	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
-	if err != nil {
-		t.Errorf("init local key pair failed: %s", err)
-		return
-	}
-
-	leaderNodeID := kms.BP.NodeID
-
-	nodePayload := proto.NewNode()
-	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
-	nodePayload.Addr = "nodePayloadAddr"
-
-	var reqType = "Ping"
-	reqPing := &proto.PingReq{
-		Node: *nodePayload,
-	}
-	respPing := new(proto.PingResp)
-	caller := NewCaller()
-	err = caller.CallNode(leaderNodeID, "DHT."+reqType, reqPing, respPing)
-	log.Debugf("respPing %s: %##v", reqType, respPing)
-	if err != nil {
-		t.Error(err)
-	}
-
-	reqType = "FindNode"
-	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
-	}
-	respFN := new(proto.FindNodeResp)
-	err = caller.CallNode(leaderNodeID, "DHT."+reqType, reqFN, respFN)
-	log.Debugf("respFN %s: %##v", reqType, respFN.Node)
-	if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
-		t.Error(err)
-	}
-
-	pool := GetSessionPoolInstance()
-	sess, _ := pool.getSessionFromPool(leaderNodeID)
-	log.Debugf("session for %s, %#v", leaderNodeID, sess)
-	//sess.Close()
-
-	err = caller.CallNode(leaderNodeID, "DHT."+reqType, reqPing, respPing)
-	log.Debugf("respPing %s: %##v", reqType, respPing)
-	if err != nil {
-		t.Error(err)
-	}
-
 }

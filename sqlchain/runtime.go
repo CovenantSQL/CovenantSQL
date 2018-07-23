@@ -250,9 +250,15 @@ func (r *runtime) getIndexTotal() (int32, int32) {
 	return r.index, r.total
 }
 
-func (r *runtime) getIndexString() string {
-	index, total := r.getIndexTotal()
-	return fmt.Sprintf("[%d/%d]", index, total)
+func (r *runtime) getIndexTotalServer() (int32, int32, *kayak.Server) {
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
+	return r.index, r.total, r.server
+}
+
+func (r *runtime) getPeerInfoString() string {
+	index, total, server := r.getIndexTotalServer()
+	return fmt.Sprintf("[%d/%d] %s", index, total, server.ID)
 }
 
 func (r *runtime) getServer() *kayak.Server {

@@ -159,9 +159,9 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 			}
 
 			log.WithFields(log.Fields{
-				"index": chain.rt.getIndexString(),
+				"peer":  chain.rt.getPeerInfoString(),
 				"block": block,
-			}).Debugf("Read new block")
+			}).Debug("Loading block from database")
 			parent := (*blockNode)(nil)
 
 			if last == nil {
@@ -275,11 +275,14 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 		c.rt.setHead(st)
 		c.bi.addBlock(node)
 		c.qi.setSignedBlock(h, b)
-		log.Debugf("Pushed new block: localnode = %s producernode = %s block = %s blocktime = %s blockheight = %d headheight = %d",
-			c.rt.server.ID, b.SignedHeader.Producer, b.SignedHeader.BlockHash.String(),
-			b.SignedHeader.Timestamp.Format(time.RFC3339Nano),
-			c.rt.getHeightFromTime(b.SignedHeader.Timestamp),
-			c.rt.head.Height)
+		log.WithFields(log.Fields{
+			"peer":        c.rt.getPeerInfoString(),
+			"block":       b.SignedHeader.BlockHash.String(),
+			"producer":    b.SignedHeader.Producer,
+			"blocktime":   b.SignedHeader.Timestamp.Format(time.RFC3339Nano),
+			"blockheight": c.rt.getHeightFromTime(b.SignedHeader.Timestamp),
+			"headheight":  c.rt.getHead().Height,
+		}).Debug("Pushed new block")
 		return
 	})
 }
@@ -419,7 +422,9 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	for _, s := range peers.Servers {
 		if s.ID != c.rt.getServer().ID {
 			if err = c.cl.CallNode(s.ID, method, req, resp); err != nil {
-				log.WithField("node", string(s.ID)).WithError(err).Errorln(
+				log.WithFields(log.Fields{
+					"peer": c.rt.getPeerInfoString(),
+				}).WithError(err).Error(
 					"Failed to advise new block")
 			}
 		}
@@ -440,7 +445,10 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	}
 
 	if err := c.produceBlock(now); err != nil {
-		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
+		log.WithFields(log.Fields{
+			"peer": c.rt.getPeerInfoString(),
+			"now":  now.Format(time.RFC3339Nano),
+		}).WithError(err).Error(
 			"Failed to produce block")
 	}
 }
@@ -454,6 +462,9 @@ func (c *Chain) mainCycle() {
 		case <-c.rt.stopCh:
 			return
 		default:
+			log.WithFields(log.Fields{
+				"peer": c.rt.getPeerInfoString(),
+			}).Debug("")
 			if t, d := c.rt.nextTick(); d > 0 {
 				time.Sleep(d)
 			} else {
@@ -466,8 +477,7 @@ func (c *Chain) mainCycle() {
 // sync synchronizes blocks and queries from the other peers.
 func (c *Chain) sync() (err error) {
 	log.WithFields(log.Fields{
-		"index":  c.rt.getIndexString(),
-		"nodeid": c.rt.getServer().ID,
+		"peer": c.rt.getPeerInfoString(),
 	}).Debug("Synchronizing chain state")
 
 	for {
@@ -501,10 +511,12 @@ func (c *Chain) Start() (err error) {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
+	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Stopping chain")
 	c.rt.stop()
-
+	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain service stopped")
 	// Close database file
 	err = c.db.Close()
+	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain database closed")
 	return
 }
 
@@ -545,7 +557,9 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "FetchAckedQuery")
 
 	if err = c.cl.CallNode(id, method, req, resp); err != nil {
-		log.WithField("node", string(id)).WithError(err).Errorln(
+		log.WithFields(log.Fields{
+			"peer": c.rt.getPeerInfoString(),
+		}).WithError(err).Error(
 			"Failed to fetch acked query")
 		return
 	}
@@ -555,10 +569,15 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
 func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
-	log.Debugf("Checking new block: localnode = %s producernode = %s block = %s blocktime = %s blockheight = %d",
-		c.rt.server.ID, block.SignedHeader.Producer, block.SignedHeader.BlockHash.String(),
-		block.SignedHeader.Timestamp.Format(time.RFC3339Nano),
-		c.rt.getHeightFromTime(block.SignedHeader.Timestamp))
+	log.WithFields(log.Fields{
+		"peer":        c.rt.getPeerInfoString(),
+		"block":       block.SignedHeader.BlockHash.String(),
+		"producer":    block.SignedHeader.Producer,
+		"blocktime":   block.SignedHeader.Timestamp.Format(time.RFC3339Nano),
+		"blockheight": c.rt.getHeightFromTime(block.SignedHeader.Timestamp),
+		"headheight":  c.rt.getHead().Height,
+	}).Debug("Checking new block from other peer")
+
 	// Pushed block must extend the best chain
 	if !block.SignedHeader.ParentHash.IsEqual(&c.rt.getHead().Head) {
 		return ErrInvalidBlock
@@ -572,10 +591,12 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	}
 
 	if index != c.rt.getNextProducerIndex() {
-		ri := c.rt.getNextProducerIndex()
-		ps := c.rt.getPeers()
-		log.Errorf("Bad producer: wanted #%d (%s) but get #%d (%s)",
-			ri, ps.Servers[ri], index, ps.Servers[index])
+		log.WithFields(log.Fields{
+			"peer":     c.rt.getPeerInfoString(),
+			"expected": c.rt.getNextProducerIndex(),
+			"actual":   index,
+		}).WithError(err).Error(
+			"Failed to check new block")
 		return ErrInvalidProducer
 	}
 

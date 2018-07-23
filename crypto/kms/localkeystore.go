@@ -18,14 +18,12 @@ package kms
 
 import (
 	"errors"
-	"runtime"
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // LocalKeyStore is the type hold local private & public key
@@ -153,8 +151,8 @@ func GetLocalPrivateKey() (private *asymmetric.PrivateKey, err error) {
 	localKey.RUnlock()
 
 	// log the call stack
-	buf := make([]byte, 4096)
-	count := runtime.Stack(buf, false)
-	log.Debugf("###getting private key from###\n%s\n###getting private  key end###\n", buf[:count])
+	//buf := make([]byte, 4096)
+	//count := runtime.Stack(buf, false)
+	//log.Debugf("###getting private key from###\n%s\n###getting private  key end###\n", buf[:count])
 	return
 }

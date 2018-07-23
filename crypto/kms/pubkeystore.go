@@ -18,17 +18,15 @@ package kms
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-
-	"sync"
 
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"
@@ -95,15 +93,6 @@ func InitBP() {
 	err := hash.Decode(&BP.RawNodeID.Hash, string(BP.NodeID))
 	if err != nil {
 		log.Fatalf("BP.NodeID error: %s", err)
-	}
-
-	publicKeyBytes, err := hex.DecodeString(BP.PublicKeyStr)
-	if err != nil {
-		log.Fatalf("hex decode BPPublicKeyStr error: %s", err)
-	}
-	BP.PublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-	if err != nil {
-		log.Fatalf("parse publicKeyBytes error: %s", err)
 	}
 }
 

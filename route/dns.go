@@ -161,32 +161,6 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 
 // InitKMS inits nasty stuff, only for testing
 func InitKMS(PubKeyStoreFile string) {
-	if conf.GConf.KnownNodes != nil {
-		for i, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == proto.Leader || n.Role == proto.Follower {
-				//HACK(auxten): put PublicKey to yaml
-				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
-				log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
-			}
-			//if n.Role == proto.Client {
-			//	var publicKeyBytes []byte
-			//	var clientPublicKey *asymmetric.PublicKey
-			//	//FIXME(auxten) remove fixed client pub key
-			//	//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-			//	publicKeyBytes, err := hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
-			//	if err != nil {
-			//		log.Errorf("hex decode clientPublicKey error: %s", err)
-			//		continue
-			//	}
-			//	clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-			//	if err != nil {
-			//		log.Errorf("parse clientPublicKey error: %s", err)
-			//		continue
-			//	}
-			//	(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
-			//}
-		}
-	}
 	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range (*conf.GConf.KnownNodes)[:] {

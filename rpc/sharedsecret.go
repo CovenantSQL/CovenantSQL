@@ -59,11 +59,10 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 		}
 
 		symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
-		//FIXME(auxten): hide private key
-		//log.Debugf("ECDH for %s Public Key: %x, Session Key: %x",
-		//	nodeID.ToNodeID(), remotePublicKey.Serialize(), symmetricKey)
-		log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",
-			nodeID.ToNodeID(), remotePublicKey.Serialize(), localPrivateKey.Serialize(), symmetricKey)
+		log.Debugf("ECDH for %s Public Key: %x, Session Key: %x",
+			nodeID.ToNodeID(), remotePublicKey.Serialize(), symmetricKey)
+		//log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",
+		//	nodeID.ToNodeID(), remotePublicKey.Serialize(), localPrivateKey.Serialize(), symmetricKey)
 	}
 	return
 }

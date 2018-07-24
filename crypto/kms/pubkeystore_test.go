@@ -60,7 +60,7 @@ func TestDB(t *testing.T) {
 		pks = nil
 		os.Remove(dbFile)
 		defer os.Remove(dbFile)
-		InitPublicKeyStore(dbFile, BPNode)
+		InitPublicKeyStore(dbFile, []proto.Node{*BPNode})
 		So(pks.bucket, ShouldNotBeNil)
 
 		nodeInfo, err := GetNodeInfo(BP.NodeID)

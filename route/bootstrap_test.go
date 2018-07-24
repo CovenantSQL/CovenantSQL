@@ -57,7 +57,7 @@ func TestGetBP(t *testing.T) {
 	log.Debugf("GConf: %v", conf.GConf)
 
 	dc := NewDNSClient()
-	ips, err := dc.GetBPIDAddrMap(BPDomain)
+	ips, err := dc.GetBPFromDNSSeed(BPDomain)
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	} else {
@@ -65,7 +65,7 @@ func TestGetBP(t *testing.T) {
 	}
 
 	// not DNSSEC domain
-	ips, err = dc.GetBPIDAddrMap("_bp._tcp.gridbase.io.")
+	ips, err = dc.GetBPFromDNSSeed("_bp._tcp.gridbase.io.")
 	if err == nil {
 		t.Fatal("should be error")
 	} else {

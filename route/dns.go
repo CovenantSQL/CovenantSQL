@@ -29,8 +29,8 @@ import (
 // NodeIDAddressMap is the map of proto.RawNodeID to node address
 type NodeIDAddressMap map[proto.RawNodeID]string
 
-// BPDomain is the default BP domain list
-const BPDomain = "_bp._tcp.gridb.io."
+// IDNodeMap is the map of proto.RawNodeID to node
+type IDNodeMap map[proto.RawNodeID]proto.Node
 
 var (
 	// resolver holds the singleton instance
@@ -122,35 +122,62 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	resolver.bpNodeIDs = make(NodeIDAddressMap)
 	bpNodeIDs = resolver.bpNodeIDs
 
-	if conf.GConf.KnownNodes != nil {
-		for _, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == proto.Leader || n.Role == proto.Follower {
-				rawID := n.ID.ToRawNodeID()
-				if rawID != nil {
-					setNodeAddrCache(rawID, n.Addr)
-					resolver.bpNodeIDs[*rawID] = n.Addr
-				}
-			}
-		}
-
-		return
+	if conf.GConf == nil {
+		log.Fatal("call conf.LoadConfig to init conf first")
 	}
 
-	dc := NewDNSClient()
-	addrs, err := dc.GetBPIDAddrMap(BPDomain)
-	if err == nil {
-		for id, addr := range addrs {
-			setNodeAddrCache(&id, addr)
-			resolver.bpNodeIDs[id] = addr
+	var BPNodes = make(IDNodeMap)
+
+	// ignore DNS seed in test mode
+	if !conf.GConf.IsTestMode {
+		dc := NewDNSClient()
+		var seedDomain = BPDomain
+		//seedDomain = TestBPDomain
+		var err error
+		BPNodes, err = dc.GetBPFromDNSSeed(seedDomain)
+		if err != nil {
+			log.Errorf("getting BP addr from DNS %s failed: %s", seedDomain, err)
+			return
 		}
-	} else {
-		log.Errorf("getting BP addr from DNS failed: %s", err)
+	}
+
+	if conf.GConf.KnownNodes != nil {
+		for _, n := range *conf.GConf.KnownNodes {
+			rawID := n.ID.ToRawNodeID()
+			if rawID != nil {
+				if n.Role == proto.Leader || n.Role == proto.Follower {
+					BPNodes[*rawID] = n
+				}
+				setNodeAddrCache(rawID, n.Addr)
+			}
+		}
+	}
+
+	extraBP := *conf.GConf.BP.NodeID.ToRawNodeID()
+	if _, exists := BPNodes[extraBP]; !exists {
+		BPNodes[extraBP] = proto.Node{
+			ID:        conf.GConf.BP.NodeID,
+			Role:      proto.Leader,
+			Addr:      "",
+			PublicKey: conf.GConf.BP.PublicKey,
+			Nonce:     conf.GConf.BP.Nonce,
+		}
+	}
+
+	conf.GConf.SeedBPNodes = make([]proto.Node, 0, len(BPNodes))
+	for _, n := range BPNodes {
+		rawID := n.ID.ToRawNodeID()
+		if rawID != nil {
+			conf.GConf.SeedBPNodes = append(conf.GConf.SeedBPNodes, n)
+			setNodeAddrCache(rawID, n.Addr)
+			resolver.bpNodeIDs[*rawID] = n.Addr
+		}
 	}
 
 	return resolver.bpNodeIDs
 }
 
-// GetBPs return the known BP node id list
+// GetBPs returns the known BP node id list
 func GetBPs() (BPAddrs []proto.NodeID) {
 	BPAddrs = make([]proto.NodeID, 0, len(resolver.bpNodeIDs))
 	for id := range resolver.bpNodeIDs {

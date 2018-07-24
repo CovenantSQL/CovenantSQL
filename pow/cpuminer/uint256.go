@@ -23,8 +23,12 @@ import (
 	"net"
 )
 
-// ErrBytesLen is an error type
-var ErrBytesLen = errors.New("byte length should be 32 for Uint256")
+var (
+	// ErrBytesLen is an error type
+	ErrBytesLen = errors.New("byte length should be 32 for Uint256")
+	// ErrEmptyIPv6Addr is an error type
+	ErrEmptyIPv6Addr = errors.New("nil or zero length IPv6")
+)
 
 // Uint256 is an unsigned 256 bit integer.
 type Uint256 struct {
@@ -75,6 +79,9 @@ func (i *Uint256) ToIPv6() (ab, cd net.IP, err error) {
 
 //FromIPv6 converts 2 IPv6 addresses to Uint256
 func FromIPv6(ab, cd net.IP) (ret *Uint256, err error) {
+	if ab == nil || cd == nil || len(ab) == 0 || len(cd) == 0 {
+		return nil, ErrEmptyIPv6Addr
+	}
 	buf := make([]byte, 0, 32)
 	buf = append(buf, ab...)
 	buf = append(buf, cd...)

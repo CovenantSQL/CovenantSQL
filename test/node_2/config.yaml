@@ -1,4 +1,4 @@
-istestmode: true
+IsTestMode: true
 workingroot: "./node_2"
 pubkeystorefile: "public.keystore"
 privatekeyfile: "private.key"

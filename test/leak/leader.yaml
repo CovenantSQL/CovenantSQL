@@ -1,4 +1,4 @@
-istestmode: true
+IsTestMode: true
 workingroot: "../test/leak/leader"
 pubkeystorefile: "public.keystore"
 privatekeyfile: "private.key"

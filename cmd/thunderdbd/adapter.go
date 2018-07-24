@@ -233,7 +233,8 @@ type KayakKVServer struct {
 }
 
 // Init implements consistent.Persistence
-func (s *KayakKVServer) Init(storePath string, initNode *proto.Node) (err error) {
+func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err error) {
+	//FIXME(auxten) implements KayakKVServer.Init
 	return
 }
 

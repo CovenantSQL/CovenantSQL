@@ -17,18 +17,35 @@
 package route
 
 import (
+	"encoding/hex"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/pkg/errors"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
-const testDNS = "1.1.1.1"
+const (
+	//HACK(auxten) use 1.1.1.1 just for testing now!
+	testDNS = "cory.ns.cloudflare.com"
+	nonceAB = "ab."
+	nonceCD = "cd."
+)
+
+// BPDomain is the default BP domain list
+const BPDomain = "_bp._tcp.gridb.io."
+
+// TestBPDomain is the default BP domain list for test
+const TestBPDomain = "_bp._tcp.test.gridb.io."
 
 // DNSClient contains tools for querying nameservers
 type DNSClient struct {
@@ -47,7 +64,6 @@ func NewDNSClient() *DNSClient {
 	if err != nil || config == nil {
 		log.Errorf("can not initialize the local resolver: %s", err)
 	}
-	//HACK(auxten) use 1.1.1.1 just for testing now!
 	config.Servers[0] = testDNS
 
 	return &DNSClient{
@@ -73,7 +89,7 @@ func (dc *DNSClient) Query(qname string, qtype uint16) (*dns.Msg, error) {
 	return nil, fmt.Errorf("no available name server")
 }
 
-// GetKey returns the DNSKey for a nameserver
+// GetKey returns the DNSKey for a name server
 func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 	r, err := dc.Query(name, dns.TypeDNSKEY)
 	if err != nil {
@@ -133,8 +149,8 @@ func shortSig(sig *dns.RRSIG) string {
 	return sig.Header().Name + " RRSIG(" + dns.TypeToString[sig.TypeCovered] + ")"
 }
 
-// GetBPIDAddrMap returns an array of the BP IP addresses listed at a domain
-func (dc *DNSClient) GetBPIDAddrMap(BPDomain string) (idAddrMap NodeIDAddressMap, err error) {
+// GetBPFromDNSSeed returns an array of the BP IP addresses listed at a domain
+func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err error) {
 	srvRR := dc.GetSRVRecords(BPDomain)
 	if srvRR == nil {
 		err = fmt.Errorf("got empty SRV records set")
@@ -145,30 +161,128 @@ func (dc *DNSClient) GetBPIDAddrMap(BPDomain string) (idAddrMap NodeIDAddressMap
 		log.Errorf("record verify failed: %s", err)
 		return
 	}
-	idAddrMap = make(NodeIDAddressMap)
-	var addr []string
+	BPNodes = make(IDNodeMap)
 	// For all SRV RRs returned, query for corresponding A RR
 	for _, rr := range srvRR.Answer {
-		if ss, ok := rr.(*dns.SRV); ok {
-			aRR := dc.GetARecord(ss.Target)
+		if srv, ok := rr.(*dns.SRV); ok {
+			var addr string
+			var nodeID proto.RawNodeID
+			aRR := dc.GetARecord(srv.Target)
 			if aRR != nil {
 				if err = dc.VerifySection(aRR.Answer); err != nil {
+					log.Errorf("verify SRV section failed: %v", err)
 					return
 				}
 				for _, rr1 := range aRR.Answer {
 					if ss1, ok := rr1.(*dns.A); ok {
-						addr = append(addr, fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port))
-						fields := strings.SplitN(ss.Target, ".", 2)
+						addr = fmt.Sprintf("%s:%d", ss1.A.String(), srv.Port)
+						fields := strings.SplitN(srv.Target, ".", 2)
 						if len(fields) > 0 && len(fields[0]) <= proto.NodeIDLen+len("th") && strings.HasPrefix(fields[0], "th") {
-							nodeID := strings.Repeat("0", proto.NodeIDLen-len(fields[0])+len("th")) + fields[0][len("th"):]
-							nodeH, err := hash.NewHashFromStr(nodeID)
+							nodeIDstr := strings.Repeat("0", proto.NodeIDLen-len(fields[0])+len("th")) + fields[0][len("th"):]
+							nodeH, err := hash.NewHashFromStr(nodeIDstr)
 							if err == nil {
-								idAddrMap[proto.RawNodeID{*nodeH}] = fmt.Sprintf("%s:%d", ss1.A.String(), ss.Port)
+								nodeID = proto.RawNodeID{*nodeH}
 							}
 						}
 
 					}
 				}
+			}
+
+			var ab, cd net.IP
+			target := nonceAB + srv.Target
+			ABIPv6R := dc.GetAAAARecord(target)
+			if ABIPv6R == nil {
+				err = errors.New("empty AAAA record")
+				log.Errorf("get AAAA section of %s failed: %v", target, err)
+				return
+			}
+			if err = dc.VerifySection(ABIPv6R.Answer); err != nil {
+				log.Errorf("verify ab AAAA section of %s failed: %v", target, err)
+				return
+			}
+			for _, rr := range ABIPv6R.Answer {
+				if ss, ok := rr.(*dns.AAAA); ok {
+					ab = ss.AAAA
+					break
+				}
+			}
+
+			target = nonceCD + srv.Target
+			CDIPv6R := dc.GetAAAARecord(target)
+			if CDIPv6R == nil {
+				err = errors.New("empty AAAA record")
+				log.Errorf("get AAAA section of %s failed: %v", target, err)
+				return
+			}
+
+			if err = dc.VerifySection(CDIPv6R.Answer); err != nil {
+				log.Errorf("verify cd AAAA section of %s failed: %v", target, err)
+				return
+			}
+			for _, rr := range CDIPv6R.Answer {
+				if ss, ok := rr.(*dns.AAAA); ok {
+					cd = ss.AAAA
+					break
+				}
+			}
+
+			var nonce *mine.Uint256
+			nonce, err = mine.FromIPv6(ab, cd)
+			if err != nil {
+				log.Errorf("convert IPv6 addr to nonce failed: %v", err)
+				return
+			}
+
+			var publicKey = new(asymmetric.PublicKey)
+			publicKeyTXTR := dc.GetTXTRecord(srv.Target)
+			if publicKeyTXTR == nil {
+				err = errors.New("empty TXT record")
+				log.Errorf("get TXT section of %s failed: %v", srv.Target, err)
+				return
+			}
+			if err = dc.VerifySection(publicKeyTXTR.Answer); err != nil {
+				log.Errorf("verify TXT section of %s failed: %v", srv.Target, err)
+				return
+			}
+			for _, rr := range publicKeyTXTR.Answer {
+				if ss, ok := rr.(*dns.TXT); ok {
+					if len(ss.Txt) == 0 {
+						err = errors.New("empty TXT record")
+						log.Errorf("%v for %s", err, srv.Target)
+						return
+					}
+					publicKeyStr := ss.Txt[0]
+					log.Debugf("TXT Record: %s", publicKeyStr)
+					var pubKeyBytes []byte
+					// load public key string
+					pubKeyBytes, err = hex.DecodeString(publicKeyStr)
+					if err != nil {
+						log.Errorf("decode TXT record to hex failed: %v", err)
+						return
+					}
+
+					err = publicKey.UnmarshalBinary(pubKeyBytes)
+					if err != nil {
+						log.Errorf("unmarshal TXT record to public key failed: %v", err)
+						return
+					}
+
+					break
+				}
+			}
+
+			if !kms.IsIDPubNonceValid(&nodeID, nonce, publicKey) {
+				err = fmt.Errorf("ID PubKey Nonce not identical: %s, %v, %x", nodeID.String(), *nonce, publicKey.Serialize())
+				log.Error(err)
+				return
+			}
+			BPNodes[nodeID] = proto.Node{
+				ID:        nodeID.ToNodeID(),
+				Role:      proto.Follower, // Default BP is Follower
+				Addr:      addr,
+				PublicKey: publicKey,
+				Nonce:     *nonce,
 			}
 		}
 	}
@@ -190,6 +304,26 @@ func (dc *DNSClient) GetARecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeA)
 	if err != nil {
 		log.Errorf("A record query failed: %v", err)
+		return nil
+	}
+	return in
+}
+
+// GetAAAARecord retrieves TypeAAAA(IPv6) RRs
+func (dc *DNSClient) GetAAAARecord(name string) *dns.Msg {
+	in, err := dc.Query(name, dns.TypeAAAA)
+	if err != nil {
+		log.Errorf("AAAA record query failed: %v", err)
+		return nil
+	}
+	return in
+}
+
+// GetTXTRecord retrieves TypeTXT RRs
+func (dc *DNSClient) GetTXTRecord(name string) *dns.Msg {
+	in, err := dc.Query(name, dns.TypeTXT)
+	if err != nil {
+		log.Errorf("TXT record query failed: %v", err)
 		return nil
 	}
 	return in

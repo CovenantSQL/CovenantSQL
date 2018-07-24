@@ -38,7 +38,7 @@ func generateTestBlocks() (err error) {
 			return err
 		}
 
-		prev = b.SignedHeader.BlockHash
+		prev = *b.BlockHash()
 		testBlocks = append(testBlocks, b)
 	}
 
@@ -121,7 +121,7 @@ func TestAncestor(t *testing.T) {
 	}
 
 	for i, b := range testBlocks {
-		bn := index.lookupNode(&b.SignedHeader.BlockHash)
+		bn := index.lookupNode(b.BlockHash())
 
 		if bn == nil {
 			t.Fatalf("unexpected loopup result: %v", bn)
@@ -155,13 +155,13 @@ func TestIndex(t *testing.T) {
 	}
 
 	for _, b := range testBlocks {
-		if !index.hasBlock(&b.SignedHeader.BlockHash) {
+		if !index.hasBlock(b.BlockHash()) {
 			t.Fatalf("unexpected loopup result: %v", false)
 		}
 	}
 
 	for _, b := range testBlocks {
-		bn := index.lookupNode(&b.SignedHeader.BlockHash)
+		bn := index.lookupNode(b.BlockHash())
 
 		if bn == nil {
 			t.Fatalf("unexpected loopup result: %v", bn)

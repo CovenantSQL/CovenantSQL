@@ -114,11 +114,11 @@ func newRunTime(c *Config) (r *runtime) {
 }
 
 func (r *runtime) setGenesis(b *ct.Block) {
-	r.chainInitTime = b.SignedHeader.Timestamp
-	r.genesisHash = b.SignedHeader.BlockHash
+	r.chainInitTime = b.Timestamp()
+	r.genesisHash = *b.BlockHash()
 	r.head = &state{
 		node:   nil,
-		Head:   b.SignedHeader.GenesisHash,
+		Head:   *b.GenesisHash(),
 		Height: -1,
 	}
 }

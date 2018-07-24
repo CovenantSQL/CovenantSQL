@@ -128,13 +128,13 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	if _, err := qi.checkAckFromBlock(
-		0, &b1.SignedHeader.BlockHash, b1.Queries[0],
+		0, b1.BlockHash(), b1.Queries[0],
 	); err != ErrQueryExpired {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	if isKnown, err := qi.checkAckFromBlock(
-		height, &b1.SignedHeader.BlockHash, b1.Queries[0],
+		height, b1.BlockHash(), b1.Queries[0],
 	); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	} else if isKnown {
@@ -210,7 +210,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	qi.setSignedBlock(height, b1)
 
 	if _, err := qi.checkAckFromBlock(
-		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+		height, b2.BlockHash(), b2.Queries[0],
 	); err != ErrQuerySignedByAnotherBlock {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	b2.Queries[0] = &ack2.HeaderHash
 
 	if _, err = qi.checkAckFromBlock(
-		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+		height, b2.BlockHash(), b2.Queries[0],
 	); err != ErrQuerySignedByAnotherBlock {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	qi.heightIndex.mustGet(height).seqIndex[req.SeqNo].firstAck.signedBlock = nil
 
 	if _, err = qi.checkAckFromBlock(
-		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+		height, b2.BlockHash(), b2.Queries[0],
 	); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	qi.heightIndex.mustGet(height).seqIndex[req.SeqNo] = nil
 
 	if _, err = qi.checkAckFromBlock(
-		height, &b2.SignedHeader.BlockHash, b2.Queries[0],
+		height, b2.BlockHash(), b2.Queries[0],
 	); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestQueryIndex(t *testing.T) {
 
 			for j := range block.Queries {
 				if isKnown, err := qi.checkAckFromBlock(
-					int32(i), &block.SignedHeader.BlockHash, block.Queries[j],
+					int32(i), block.BlockHash(), block.Queries[j],
 				); err != nil {
 					t.Fatalf("Error occurred: %v", err)
 				} else if !isKnown {

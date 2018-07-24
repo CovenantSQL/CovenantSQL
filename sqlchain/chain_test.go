@@ -38,7 +38,7 @@ import (
 
 var (
 	testPeersNumber                           = 5
-	testPeriod                                = 2 * time.Second
+	testPeriod                                = 1 * time.Second
 	testTick                                  = 100 * time.Millisecond
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"
@@ -79,7 +79,7 @@ func TestIndexKey(t *testing.T) {
 	}
 }
 
-func TestChain(t *testing.T) {
+func testChain(t *testing.T) {
 	fl, err := ioutil.TempFile("", "chain")
 
 	if err != nil {
@@ -143,7 +143,7 @@ func TestChain(t *testing.T) {
 	}
 
 	t.Logf("Create new chain: genesis = %s, inittime = %s, period = %.9f secs",
-		genesis.SignedHeader.BlockHash,
+		genesis.BlockHash(),
 		chain.rt.chainInitTime.Format(time.RFC3339Nano),
 		chain.rt.period.Seconds())
 
@@ -182,13 +182,13 @@ func TestChain(t *testing.T) {
 				if !isMyTurn {
 					index := chain.rt.getNextProducerIndex()
 					block, err := createRandomBlockWithQueries(
-						genesis.SignedHeader.BlockHash, chain.rt.head.Head, acks)
+						*genesis.BlockHash(), chain.rt.head.Head, acks)
 
 					if err != nil {
 						t.Fatalf("Error occurred: %v", err)
 					}
 
-					servers[index].ID = block.SignedHeader.Producer
+					servers[index].ID = block.Producer()
 
 					if err = chain.CheckAndPushNewBlock(block); err != nil {
 						t.Fatalf("Error occurred: %v, block = %+v", err, block)
@@ -196,8 +196,8 @@ func TestChain(t *testing.T) {
 
 					t.Logf("Pushed new block: height = %d, %s <- %s",
 						chain.rt.head.Height,
-						block.SignedHeader.ParentHash,
-						block.SignedHeader.BlockHash)
+						block.ParentHash(),
+						block.BlockHash())
 				}
 
 				chain.rt.peers.Servers = []*kayak.Server{}
@@ -226,8 +226,8 @@ func TestChain(t *testing.T) {
 
 			t.Logf("Produced new block: height = %d, %s <- %s",
 				chain.rt.head.Height,
-				block.SignedHeader.ParentHash,
-				block.SignedHeader.BlockHash)
+				block.ParentHash(),
+				block.BlockHash())
 		}
 
 		if chain.rt.head.Height >= testPeriodNumber {

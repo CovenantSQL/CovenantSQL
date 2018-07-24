@@ -354,9 +354,14 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 		if qs.firstAck.signedBlock != nil {
 			err = ErrQuerySignedByAnotherBlock
 			log.WithFields(log.Fields{
-				"query":        ack.String(),
-				"block":        b.String(),
-				"signed_block": q.signedBlock.String(),
+				"query": ack.String(),
+				"block": b.String(),
+				"signed_block": func() string {
+					if q.signedBlock != nil {
+						return q.signedBlock.String()
+					}
+					return "nil"
+				}(),
 			}).WithError(err).Error(
 				"Failed to check acknowledgement from block")
 			return
@@ -499,7 +504,7 @@ func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
 	for _, v := range block.Queries {
 		for x := b; x <= h; x++ {
 			if hi, ok := i.heightIndex.get(x); ok {
-				hi.setSignedBlock(&block.SignedHeader.BlockHash, v)
+				hi.setSignedBlock(block.BlockHash(), v)
 			}
 		}
 	}
@@ -509,7 +514,7 @@ func (i *queryIndex) resetSignedBlock(h int32, b *ct.Block) {
 	hi := i.heightIndex.ensureHeight(h)
 
 	for _, v := range b.Queries {
-		hi.resetSignedBlock(&b.SignedHeader.BlockHash, v)
+		hi.resetSignedBlock(b.BlockHash(), v)
 	}
 }
 

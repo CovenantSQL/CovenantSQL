@@ -33,7 +33,7 @@ type blockNode struct {
 
 func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
 	return &blockNode{
-		hash:   block.SignedHeader.BlockHash,
+		hash:   *block.BlockHash(),
 		parent: parent,
 		height: height,
 		count: func() int32 {
@@ -47,7 +47,7 @@ func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
 }
 
 func (n *blockNode) initBlockNode(height int32, block *ct.Block, parent *blockNode) {
-	n.hash = block.SignedHeader.BlockHash
+	n.hash = *block.BlockHash()
 	n.parent = nil
 	n.height = 0
 	n.count = 0

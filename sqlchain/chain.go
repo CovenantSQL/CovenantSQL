@@ -62,6 +62,11 @@ type Chain struct {
 	qi *queryIndex
 	cl *rpc.Caller
 	rt *runtime
+
+	stopCh    chan struct{}
+	blocks    chan *ct.Block
+	responses chan *wt.ResponseHeader
+	acks      chan *wt.AckHeader
 }
 
 // NewChain creates a new sql-chain struct.
@@ -99,19 +104,20 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		db: db,
-		bi: newBlockIndex(c),
-		qi: newQueryIndex(),
-		cl: rpc.NewCaller(),
-		rt: newRunTime(c),
+		db:        db,
+		bi:        newBlockIndex(c),
+		qi:        newQueryIndex(),
+		cl:        rpc.NewCaller(),
+		rt:        newRunTime(c),
+		stopCh:    make(chan struct{}),
+		blocks:    make(chan *ct.Block),
+		responses: make(chan *wt.ResponseHeader),
+		acks:      make(chan *wt.AckHeader),
 	}
 
 	if err = chain.pushBlock(c.Genesis); err != nil {
 		return nil, err
 	}
-
-	// Start service
-	chain.rt.startService(chain)
 
 	return
 }
@@ -127,11 +133,15 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		db: db,
-		bi: newBlockIndex(c),
-		qi: newQueryIndex(),
-		cl: rpc.NewCaller(),
-		rt: newRunTime(c),
+		db:        db,
+		bi:        newBlockIndex(c),
+		qi:        newQueryIndex(),
+		cl:        rpc.NewCaller(),
+		rt:        newRunTime(c),
+		stopCh:    make(chan struct{}),
+		blocks:    make(chan *ct.Block),
+		responses: make(chan *wt.ResponseHeader),
+		acks:      make(chan *wt.AckHeader),
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
@@ -235,9 +245,6 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 		return
 	})
-
-	// Start service
-	chain.rt.startService(chain)
 
 	return
 }
@@ -409,10 +416,8 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 
-	if err = c.pushBlock(block); err != nil {
-		return
-	}
-
+	// Send to pending list
+	c.blocks <- block
 	log.WithFields(log.Fields{
 		"peer":       c.rt.getPeerInfoString(),
 		"curr_turn":  c.rt.getNextTurn(),
@@ -457,23 +462,9 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	return
 }
 
-// runCurrentTurn does the check and runs block producing if its my turn.
-func (c *Chain) runCurrentTurn(now time.Time) {
-	defer func() {
-		c.rt.setNextTurn()
-		c.qi.advanceBarrier(c.rt.getMinValidHeight())
-	}()
-
-	log.WithFields(log.Fields{
-		"peer":        c.rt.getPeerInfoString(),
-		"curr_turn":   c.rt.getNextTurn(),
-		"head_height": c.rt.getHead().Height,
-		"head_block":  c.rt.getHead().Head.String(),
-		"now_time":    now.Format(time.RFC3339Nano),
-	}).Debug("Run current turn")
-
+func (c *Chain) syncBlock() {
 	// Try to fetch if the the block of the current turn is not advised yet
-	if h := c.rt.getNextTurn() - 1; c.rt.getHead().Height != h {
+	if h := c.rt.getNextTurn() - 1; c.rt.getHead().Height < h {
 		var err error
 		req := &MuxFetchBlockReq{
 			Envelope: proto.Envelope{
@@ -498,27 +489,16 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
-						"now_time":    now.Format(time.RFC3339Nano),
-					}).WithError(err).Error(
-						"Failed to fetch block from peer")
-				} else if err = c.CheckAndPushNewBlock(resp.Block); err != nil {
-					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().Height,
-						"head_block":  c.rt.getHead().Head.String(),
-						"now_time":    now.Format(time.RFC3339Nano),
 					}).WithError(err).Error(
 						"Failed to fetch block from peer")
 				} else {
+					c.blocks <- resp.Block
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
-						"now_time":    now.Format(time.RFC3339Nano),
 					}).Debug(
 						"Fetch block from remote peer successfully")
 					succ = true
@@ -533,12 +513,26 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 				"curr_turn":   c.rt.getNextTurn(),
 				"head_height": c.rt.getHead().Height,
 				"head_block":  c.rt.getHead().Head.String(),
-				"now_time":    now.Format(time.RFC3339Nano),
 			}).Error(
 				"Cannot get block from any peer")
 		}
-
 	}
+}
+
+// runCurrentTurn does the check and runs block producing if its my turn.
+func (c *Chain) runCurrentTurn(now time.Time) {
+	defer func() {
+		c.rt.setNextTurn()
+		c.qi.advanceBarrier(c.rt.getMinValidHeight())
+	}()
+
+	log.WithFields(log.Fields{
+		"peer":        c.rt.getPeerInfoString(),
+		"curr_turn":   c.rt.getNextTurn(),
+		"head_height": c.rt.getHead().Height,
+		"head_block":  c.rt.getHead().Head.String(),
+		"now_time":    now.Format(time.RFC3339Nano),
+	}).Debug("Run current turn")
 
 	if !c.rt.isMyTurn() {
 		return
@@ -556,13 +550,19 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 
 // mainCycle runs main cycle of the sql-chain.
 func (c *Chain) mainCycle() {
-	defer c.rt.wg.Done()
+	defer func() {
+		c.rt.wg.Done()
+		// Signal worker goroutines to stop
+		close(c.stopCh)
+	}()
 
 	for {
 		select {
 		case <-c.rt.stopCh:
 			return
 		default:
+			c.syncBlock()
+
 			if t, d := c.rt.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
@@ -603,6 +603,85 @@ func (c *Chain) sync() (err error) {
 	return
 }
 
+func (c *Chain) processBlocks() {
+	rsCh := make(chan struct{})
+	rsWG := &sync.WaitGroup{}
+	returnStash := func(stash []*ct.Block) {
+		defer rsWG.Done()
+		for _, block := range stash {
+			select {
+			case c.blocks <- block:
+			case <-rsCh:
+				return
+			}
+		}
+	}
+
+	defer func() {
+		close(rsCh)
+		rsWG.Wait()
+		c.rt.wg.Done()
+	}()
+
+	var stash []*ct.Block
+	for {
+		select {
+		case block := <-c.blocks:
+			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
+				// Stash newer blocks for later check
+				if stash == nil {
+					stash = make([]*ct.Block, 0)
+				}
+				stash = append(stash, block)
+			} else {
+				// Process block
+				if h < c.rt.getNextTurn()-1 {
+					// TODO(leventeliu): check and add to fork list.
+				} else {
+					if block.SignedHeader.Producer == c.rt.getServer().ID {
+						if err := c.pushBlock(block); err != nil {
+
+						}
+					} else {
+						if err := c.CheckAndPushNewBlock(block); err != nil {
+
+						}
+					}
+				}
+
+				// Return all stashed blocks to pending channel
+				if stash != nil {
+					rsWG.Add(1)
+					go returnStash(stash)
+					stash = nil
+				}
+			}
+		case <-c.stopCh:
+			return
+		}
+	}
+}
+
+func (c *Chain) processResponses() {
+	defer c.rt.wg.Done()
+	for {
+		select {
+		case <-c.stopCh:
+			return
+		}
+	}
+}
+
+func (c *Chain) processAcks() {
+	defer c.rt.wg.Done()
+	for {
+		select {
+		case <-c.stopCh:
+			return
+		}
+	}
+}
+
 // Start starts the main process of the sql-chain.
 func (c *Chain) Start() (err error) {
 	if err = c.sync(); err != nil {
@@ -610,7 +689,14 @@ func (c *Chain) Start() (err error) {
 	}
 
 	c.rt.wg.Add(1)
+	go c.processBlocks()
+	c.rt.wg.Add(1)
+	go c.processResponses()
+	c.rt.wg.Add(1)
+	go c.processAcks()
+	c.rt.wg.Add(1)
 	go c.mainCycle()
+	c.rt.startService(c)
 	return
 }
 
@@ -647,7 +733,27 @@ func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	return c.qi.getAck(height, header)
+	if ack, err = c.qi.getAck(height, header); err != nil {
+		err = c.db.View(func(tx *bolt.Tx) (err error) {
+			for i := height - c.rt.queryTTL; i <= height; i++ {
+				if b := tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket).Bucket(
+					heightToKey(height)); b != nil {
+					if v := b.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
+						dec := &wt.SignedAckHeader{}
+
+						if err = dec.UnmarshalBinary(v); err != nil {
+							ack = dec
+							break
+						}
+					}
+				}
+			}
+
+			return
+		})
+	}
+
+	return
 }
 
 func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (err error) {
@@ -679,12 +785,22 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	height := c.rt.getHeightFromTime(block.SignedHeader.Timestamp)
 	head := c.rt.getHead()
+	peers := c.rt.getPeers()
+	total := int32(len(peers.Servers))
+	next := func() int32 {
+		if total > 0 {
+			return (head.Height + 1) % total
+		}
+		return -1
+	}()
 	log.WithFields(log.Fields{
 		"peer":        c.rt.getPeerInfoString(),
 		"block":       block.SignedHeader.BlockHash.String(),
 		"producer":    block.SignedHeader.Producer,
 		"blocktime":   block.SignedHeader.Timestamp.Format(time.RFC3339Nano),
 		"blockheight": height,
+		"blockparent": block.SignedHeader.ParentHash.String(),
+		"headblock":   head.Head.String(),
 		"headheight":  head.Height,
 	}).Debug("Checking new block from other peer")
 
@@ -698,48 +814,34 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 			"block":       block.SignedHeader.BlockHash.String(),
 			"producer":    block.SignedHeader.Producer,
 			"blocktime":   block.SignedHeader.Timestamp.Format(time.RFC3339Nano),
-			"blockheight": c.rt.getHeightFromTime(block.SignedHeader.Timestamp),
+			"blockheight": height,
 			"blockparent": block.SignedHeader.ParentHash.String(),
-			"headheight":  c.rt.getHead().Height,
-			"headblock":   c.rt.getHead().Head.String(),
+			"headblock":   head.Head.String(),
+			"headheight":  height,
 		}).WithError(ErrInvalidBlock).Error(
 			"Failed to check new block")
 		return ErrInvalidBlock
 	}
 
 	// Check block producer
-	index, found := c.rt.peers.Find(block.SignedHeader.Producer)
+	index, found := peers.Find(block.SignedHeader.Producer)
 
 	if !found {
 		return ErrUnknownProducer
 	}
 
-	if index != c.rt.getNextProducerIndex() {
+	if index != next {
 		log.WithFields(log.Fields{
 			"peer":     c.rt.getPeerInfoString(),
-			"expected": c.rt.getNextProducerIndex(),
+			"expected": next,
 			"actual":   index,
 		}).WithError(err).Error(
 			"Failed to check new block")
 		return ErrInvalidProducer
 	}
 
-	// Check block existence
-	if c.bi.hasBlock(&block.SignedHeader.BlockHash) {
-		return ErrBlockExists
-	}
-
-	// Block must produced within [start, end)
-	h := c.rt.getHeightFromTime(block.SignedHeader.Timestamp)
-
-	// TODO(leventeliu): this may go wrong if time difference between workers is greater than 1
-	// period.
-	if h <= c.rt.getHead().Height || h > c.rt.getNextTurn() {
-		return ErrBlockTimestampOutOfPeriod
-	}
-
-	// TODO(leventeliu): check if too many periods are skipped.
-	// if h-c.rt.getHead().Height > X {
+	// TODO(leventeliu): check if too many periods are skipped or store block for future use.
+	// if height-c.rt.getHead().Height > X {
 	// 	...
 	// }
 
@@ -747,16 +849,16 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	for _, q := range block.Queries {
 		var ok bool
 
-		if ok, err = c.qi.checkAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
+		if ok, err = c.qi.checkAckFromBlock(height, &block.SignedHeader.BlockHash, q); err != nil {
 			return
 		}
 
 		if !ok {
-			if err = c.syncAckedQuery(h, q, block.SignedHeader.Producer); err != nil {
+			if err = c.syncAckedQuery(height, q, block.SignedHeader.Producer); err != nil {
 				return
 			}
 
-			if _, err = c.qi.checkAckFromBlock(h, &block.SignedHeader.BlockHash, q); err != nil {
+			if _, err = c.qi.checkAckFromBlock(height, &block.SignedHeader.BlockHash, q); err != nil {
 				return
 			}
 		}

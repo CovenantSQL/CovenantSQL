@@ -37,8 +37,8 @@ import (
 )
 
 var (
-	testPeersNumber                           = 3
-	testPeriod                                = 1 * time.Second
+	testPeersNumber                           = 5
+	testPeriod                                = 2 * time.Second
 	testTick                                  = 100 * time.Millisecond
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"

@@ -247,5 +247,10 @@ func (b *Block) VerifyAsGenesis() (err error) {
 	return b.Verify()
 }
 
+// Timestamp returns the timestamp field of the block header.
+func (b *Block) Timestamp() time.Time {
+	return b.SignedHeader.Timestamp
+}
+
 // Blocks is Block (reference) array.
 type Blocks []*Block

@@ -148,13 +148,14 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		// Read state struct
 		meta := tx.Bucket(metaBucket[:])
 		st := &state{}
-		err = st.UnmarshalBinary(meta.Get(metaStateKey))
-
-		if err != nil {
+		if err = st.UnmarshalBinary(meta.Get(metaStateKey)); err != nil {
 			return err
 		}
 
-		chain.rt.setHead(st)
+		log.WithFields(log.Fields{
+			"peer":  chain.rt.getPeerInfoString(),
+			"state": st,
+		}).Debug("Loading state from database")
 
 		// Read blocks and rebuild memory index
 		var last *blockNode
@@ -171,7 +172,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 			log.WithFields(log.Fields{
 				"peer":  chain.rt.getPeerInfoString(),
-				"block": block,
+				"block": block.BlockHash().String(),
 			}).Debug("Loading block from database")
 			parent := (*blockNode)(nil)
 
@@ -204,6 +205,10 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		}); err != nil {
 			return
 		}
+
+		// Set chain state
+		st.node = last
+		chain.rt.setHead(st)
 
 		// Read queries and rebuild memory index
 		heights := meta.Bucket(metaHeightIndexBucket)
@@ -374,7 +379,7 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 		// TODO(leventeliu): this doesn't seem right to use an error to detect key existence.
 		if err = b.Bucket(metaAckIndexBucket).Put(
 			ack.HeaderHash[:], enc,
-		); err != nil && err != bolt.ErrIncompatibleValue {
+		); err != nil {
 			return
 		}
 

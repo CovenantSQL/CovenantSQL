@@ -323,10 +323,26 @@ func TestMultiChain(t *testing.T) {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		defer func(c *Chain) {
+		defer func(c *Chain, db string) {
 			// Stop chain main process
 			c.Stop()
-		}(chains[i])
+			// Try to reload chain
+			if nc, err := LoadChain(&Config{
+				DatabaseID: testDatabaseID,
+				DataFile:   db,
+				Period:     testPeriod,
+				Tick:       testTick,
+				MuxService: mux,
+				Server:     peers.Servers[i],
+				Peers:      peers,
+				QueryTTL:   testQueryTTL,
+			}); err != nil {
+				t.Errorf("Error occurred: %v", err)
+			} else {
+				t.Logf("Load chain from file %s: head = %s height = %d",
+					db, nc.rt.getHead().Head, nc.rt.getHead().Height)
+			}
+		}(chains[i], dataFile)
 	}
 
 	// Create some random clients to push new queries

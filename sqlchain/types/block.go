@@ -252,5 +252,25 @@ func (b *Block) Timestamp() time.Time {
 	return b.SignedHeader.Timestamp
 }
 
+// Producer returns the producer field of the block header.
+func (b *Block) Producer() proto.NodeID {
+	return b.SignedHeader.Producer
+}
+
+// ParentHash returns the parent hash field of the block header.
+func (b *Block) ParentHash() *hash.Hash {
+	return &b.SignedHeader.ParentHash
+}
+
+// BlockHash returns the parent hash field of the block header.
+func (b *Block) BlockHash() *hash.Hash {
+	return &b.SignedHeader.BlockHash
+}
+
+// GenesisHash returns the parent hash field of the block header.
+func (b *Block) GenesisHash() *hash.Hash {
+	return &b.SignedHeader.GenesisHash
+}
+
 // Blocks is Block (reference) array.
 type Blocks []*Block

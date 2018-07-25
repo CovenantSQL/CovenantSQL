@@ -18,13 +18,13 @@ package route
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/pkg/errors"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"

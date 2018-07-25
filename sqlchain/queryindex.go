@@ -23,6 +23,7 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -175,8 +176,8 @@ func newMultiIndex() *multiIndex {
 	}
 }
 
-// AddResponse adds the responsed query to the index.
-func (i *multiIndex) AddResponse(resp *wt.SignedResponseHeader) (err error) {
+// addResponse adds the responsed query to the index.
+func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -260,6 +261,18 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 	return
 }
 
+func (i *multiIndex) getAck(header *hash.Hash) (ack *wt.SignedAckHeader, ok bool) {
+	i.Lock()
+	defer i.Unlock()
+
+	var t *requestTracker
+	if t, ok = i.ackIndex[*header]; ok {
+		ack = t.ack
+	}
+
+	return
+}
+
 // setSignedBlock sets the signed block of the acknowledged query.
 func (i *multiIndex) setSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
 	i.Lock()
@@ -267,6 +280,17 @@ func (i *multiIndex) setSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Ha
 
 	if v, ok := i.ackIndex[*ackHeaderHash]; ok {
 		v.signedBlock = blockHash
+	}
+}
+
+//  resetSignedBlock resets the signed block of the acknowledged query.
+func (i *multiIndex) resetSignedBlock(blockHash *hash.Hash, ackHeaderHash *hash.Hash) {
+	i.Lock()
+	defer i.Unlock()
+
+	if v, ok := i.ackIndex[*ackHeaderHash]; ok {
+		// TODO(leventeliu): check if v.signedBlock equals blockHash.
+		v.signedBlock = nil
 	}
 }
 
@@ -308,6 +332,12 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 
 	if q.signedBlock != nil && !q.signedBlock.IsEqual(b) {
 		err = ErrQuerySignedByAnotherBlock
+		log.WithFields(log.Fields{
+			"query":        ack.String(),
+			"block":        b.String(),
+			"signed_block": q.signedBlock.String(),
+		}).WithError(err).Error(
+			"Failed to check acknowledgement from block")
 		return
 	}
 
@@ -323,6 +353,17 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 	if qs.firstAck != q {
 		if qs.firstAck.signedBlock != nil {
 			err = ErrQuerySignedByAnotherBlock
+			log.WithFields(log.Fields{
+				"query": ack.String(),
+				"block": b.String(),
+				"signed_block": func() string {
+					if q.signedBlock != nil {
+						return q.signedBlock.String()
+					}
+					return "nil"
+				}(),
+			}).WithError(err).Error(
+				"Failed to check acknowledgement from block")
 			return
 		}
 
@@ -396,8 +437,22 @@ func (i *heightIndex) del(k int32) {
 
 // queryIndex defines a query index maintainer.
 type queryIndex struct {
-	barrier     int32
 	heightIndex *heightIndex
+
+	sync.Mutex
+	barrier int32
+}
+
+func (i *queryIndex) getBarrier() int32 {
+	i.Lock()
+	defer i.Unlock()
+	return i.barrier
+}
+
+func (i *queryIndex) setBarrier(b int32) {
+	i.Lock()
+	defer i.Unlock()
+	i.barrier = b
 }
 
 // newQueryIndex returns a new queryIndex reference.
@@ -413,7 +468,7 @@ func newQueryIndex() *queryIndex {
 func (i *queryIndex) addResponse(h int32, resp *wt.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
-	return i.heightIndex.ensureHeight(h).AddResponse(resp)
+	return i.heightIndex.ensureHeight(h).addResponse(resp)
 }
 
 // addAck adds the acknowledged query to the index.
@@ -422,59 +477,89 @@ func (i *queryIndex) addAck(h int32, ack *wt.SignedAckHeader) error {
 }
 
 // checkAckFromBlock checks a acknowledged query from a block at the given height.
-func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (bool, error) {
-	if h < i.barrier {
-		return false, ErrQueryExpired
+func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
+	isKnown bool, err error) {
+	l := i.getBarrier()
+
+	if h < l {
+		err = ErrQueryExpired
+		return
 	}
 
-	return i.heightIndex.ensureHeight(h).checkAckFromBlock(b, ack)
+	for x := l; x <= h; x++ {
+		if hi, ok := i.heightIndex.get(x); ok {
+			if isKnown, err = hi.checkAckFromBlock(b, ack); err != nil || isKnown {
+				return
+			}
+		}
+	}
+
+	return
 }
 
 // setSignedBlock updates the signed block in index for the acknowledged queries in the block.
-func (i *queryIndex) setSignedBlock(h int32, b *ct.Block) {
+func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
+	b := i.getBarrier()
+
+	for _, v := range block.Queries {
+		for x := b; x <= h; x++ {
+			if hi, ok := i.heightIndex.get(x); ok {
+				hi.setSignedBlock(block.BlockHash(), v)
+			}
+		}
+	}
+}
+
+func (i *queryIndex) resetSignedBlock(h int32, b *ct.Block) {
 	hi := i.heightIndex.ensureHeight(h)
 
 	for _, v := range b.Queries {
-		hi.setSignedBlock(&b.SignedHeader.BlockHash, v)
+		hi.resetSignedBlock(b.BlockHash(), v)
 	}
 }
 
 // getAck gets the acknowledged queries from the index.
-func (i *queryIndex) getAck(h int32, header *hash.Hash) (
-	ack *wt.SignedAckHeader, err error,
-) {
-	if h >= i.barrier {
-		if q, ok := i.heightIndex.ensureHeight(h).ackIndex[*header]; ok {
-			ack = q.ack
-		} else {
-			err = ErrQueryNotCached
-		}
-	} else {
+func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *wt.SignedAckHeader, err error) {
+	b := i.getBarrier()
+
+	if h < b {
 		err = ErrQueryExpired
+		return
 	}
 
+	for x := b; x <= h; x++ {
+		if hi, ok := i.heightIndex.get(x); ok {
+			if ack, ok = hi.getAck(header); ok {
+				return
+			}
+		}
+	}
+
+	err = ErrQueryNotCached
 	return
 }
 
 // advanceBarrier moves barrier to given height. All buckets lower than this height will be set as
 // expired, and all the queries which are not packed in these buckets will be reported.
 func (i *queryIndex) advanceBarrier(height int32) {
-	for x := i.barrier; x < height; x++ {
+	b := i.getBarrier()
+	i.setBarrier(height)
+
+	for x := b; x < height; x++ {
 		if hi, ok := i.heightIndex.get(x); ok {
 			hi.checkBeforeExpire()
 			i.heightIndex.del(x)
 		}
 	}
-
-	i.barrier = height
 }
 
 // markAndCollectUnsignedAcks marks and collects all the unsigned acknowledgements which can be
 // signed by a block at the given height.
 func (i *queryIndex) markAndCollectUnsignedAcks(height int32) (qs []*hash.Hash) {
+	b := i.getBarrier()
 	qs = make([]*hash.Hash, 0, 1024)
 
-	for x := i.barrier; x < height; x++ {
+	for x := b; x < height; x++ {
 		if hi, ok := i.heightIndex.get(x); ok {
 			hi.markAndCollectUnsignedAcks(&qs)
 		}

@@ -516,7 +516,16 @@ func setup() {
 	log.SetLevel(log.DebugLevel)
 }
 
+func teardown() {
+	if err := os.RemoveAll(testDataDir); err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
-	setup()
-	os.Exit(m.Run())
+	os.Exit(func() int {
+		setup()
+		defer teardown()
+		return m.Run()
+	}())
 }

@@ -25,7 +25,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 )
 
 func getCommKeys() (*asymmetric.PrivateKey, *asymmetric.PublicKey) {
@@ -122,7 +121,7 @@ func TestRequest_Sign(t *testing.T) {
 				Signee: pubKey,
 			},
 			Payload: RequestPayload{
-				Queries: []storage.Query{
+				Queries: []Query{
 					{
 						Pattern: "INSERT INTO test VALUES(1)",
 					},
@@ -180,7 +179,7 @@ func TestRequest_Sign(t *testing.T) {
 
 			Convey("header change with invalid queries hash", func() {
 				req.Payload.Queries = append(req.Payload.Queries,
-					storage.Query{
+					Query{
 						Pattern: "select 1",
 					},
 				)

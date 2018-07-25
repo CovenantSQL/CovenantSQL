@@ -27,7 +27,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -180,7 +179,7 @@ func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID 
 	tm := time.Now().UTC()
 
 	// build queries
-	realQueries := make([]storage.Query, len(queries))
+	realQueries := make([]wt.Query, len(queries))
 
 	for i, v := range queries {
 		realQueries[i].Pattern = v

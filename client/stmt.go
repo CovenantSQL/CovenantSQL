@@ -20,9 +20,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"sync/atomic"
-
-	// Register go-sqlite3 engine.
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type stmt struct {

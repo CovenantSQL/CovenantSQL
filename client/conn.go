@@ -31,7 +31,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -42,7 +41,7 @@ type conn struct {
 	connectionID uint64
 	seqNo        uint64
 
-	queries   []storage.Query
+	queries   []wt.Query
 	peers     *kayak.Peers
 	peersLock sync.RWMutex
 	nodeID    proto.NodeID
@@ -89,7 +88,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 		nodeID:       nodeID,
 		privKey:      privKey,
 		pubKey:       pubKey,
-		queries:      make([]storage.Query, 0),
+		queries:      make([]wt.Query, 0),
 		closeCh:      make(chan struct{}),
 	}
 
@@ -258,7 +257,7 @@ func (c *conn) Rollback() error {
 	return nil
 }
 
-func (c *conn) addQuery(queryType wt.QueryType, query *storage.Query) (rows driver.Rows, err error) {
+func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Rows, err error) {
 	if c.inTransaction {
 		// check query type, enqueue query
 		if queryType == wt.ReadQuery {
@@ -272,10 +271,10 @@ func (c *conn) addQuery(queryType wt.QueryType, query *storage.Query) (rows driv
 		return
 	}
 
-	return c.sendQuery(queryType, []storage.Query{*query})
+	return c.sendQuery(queryType, []wt.Query{*query})
 }
 
-func (c *conn) sendQuery(queryType wt.QueryType, queries []storage.Query) (rows driver.Rows, err error) {
+func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows driver.Rows, err error) {
 	c.peersLock.RLock()
 	defer c.peersLock.RUnlock()
 
@@ -361,9 +360,9 @@ func getLocalTime() time.Time {
 	return time.Now().UTC()
 }
 
-func convertQuery(query string, args []driver.NamedValue) (sq *storage.Query) {
+func convertQuery(query string, args []driver.NamedValue) (sq *wt.Query) {
 	// rebuild args to named args
-	sq = &storage.Query{
+	sq = &wt.Query{
 		Pattern: query,
 	}
 

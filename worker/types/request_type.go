@@ -18,13 +18,13 @@ package types
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/binary"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
@@ -38,9 +38,15 @@ const (
 	WriteQuery
 )
 
+// Query defines single query.
+type Query struct {
+	Pattern string
+	Args    []sql.NamedArg
+}
+
 // RequestPayload defines a queries payload.
 type RequestPayload struct {
-	Queries []storage.Query
+	Queries []Query
 }
 
 // RequestHeader defines a query request header.

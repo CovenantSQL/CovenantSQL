@@ -60,23 +60,6 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 					PubKey: publicKey,
 				})
 			}
-			//if n.Role == proto.Client {
-			//	var publicKeyBytes []byte
-			//	var clientPublicKey *asymmetric.PublicKey
-			//	//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-			//	publicKeyBytes, err = hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
-			//	if err != nil {
-			//		log.Errorf("hex decode clientPublicKey error: %s", err)
-			//		return
-			//	}
-			//	clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-			//	if err != nil {
-			//		log.Errorf("parse clientPublicKey error: %s", err)
-			//		return
-			//	}
-			//	//FIXME(auxten): read public key from conf
-			//	(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
-			//}
 		}
 	}
 

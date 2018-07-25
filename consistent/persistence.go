@@ -24,7 +24,7 @@ import (
 
 // Persistence is the interface for consistent persistence
 type Persistence interface {
-	Init(storePath string, initNode *proto.Node) (err error)
+	Init(storePath string, initNode []proto.Node) (err error)
 	SetNode(node *proto.Node) (err error)
 	DelNode(nodeID proto.NodeID) (err error)
 	Reset() error
@@ -35,8 +35,8 @@ type Persistence interface {
 type KMSStorage struct{}
 
 // Init implements Persistence interface
-func (s *KMSStorage) Init(storePath string, initNode *proto.Node) (err error) {
-	return kms.InitPublicKeyStore(storePath, initNode)
+func (s *KMSStorage) Init(storePath string, initNodes []proto.Node) (err error) {
+	return kms.InitPublicKeyStore(storePath, initNodes)
 }
 
 // SetNode implements Persistence interface

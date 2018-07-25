@@ -69,7 +69,7 @@ type Node struct {
 	ID        NodeID
 	Role      ServerRole
 	Addr      string
-	PublicKey *asymmetric.PublicKey
+	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
 	Nonce     mine.Uint256
 }
 

@@ -47,7 +47,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), false)
 	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 

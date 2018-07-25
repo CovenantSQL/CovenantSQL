@@ -1,4 +1,4 @@
-istestmode: true
+IsTestMode: true
 workingroot: "./node_miner_0"
 pubkeystorefile: "public.keystore"
 privatekeyfile: "private.key"
@@ -29,6 +29,7 @@ knownnodes:
     c: 0
     d: 0
   addr: 127.0.0.1:2122
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   role: Leader
 - id: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
   nonce:
@@ -37,6 +38,7 @@ knownnodes:
     c: 0
     d: 2305843009893772025
   addr: 127.0.0.1:2121
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   role: Follower
 - id: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
   nonce:
@@ -45,6 +47,7 @@ knownnodes:
     c: 0
     d: 2305843012544226372
   addr: 127.0.0.1:2120
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   role: Follower
 - id: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
   nonce:

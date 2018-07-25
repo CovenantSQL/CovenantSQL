@@ -69,7 +69,7 @@ func TestResolver(t *testing.T) {
 		log.Debugf("BPmap: %v", BPmap)
 		BPs := GetBPs()
 		dc := NewDNSClient()
-		ips, err := dc.GetBPIDAddrMap(BPDomain)
+		ips, err := dc.GetBPFromDNSSeed(BPDomain)
 
 		log.Debugf("BPs: %v", BPs)
 		So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))

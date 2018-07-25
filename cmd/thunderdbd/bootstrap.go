@@ -168,7 +168,7 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	return
 }
 
-func initKayakTwoPC(rootDir string, node *conf.NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
+func initKayakTwoPC(rootDir string, node *proto.Node, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
 	// create kayak config
 	log.Infof("create twopc config")
 	config = ka.NewTwoPCConfig(rootDir, service, worker)

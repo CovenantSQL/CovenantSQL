@@ -63,8 +63,7 @@ var (
 )
 
 func init() {
-
-	// if we were running go test
+	//HACK(auxten) if we were running go test
 	if strings.HasSuffix(os.Args[0], ".test") ||
 		strings.HasSuffix(os.Args[0], ".test.exe") ||
 		strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
@@ -78,7 +77,6 @@ func init() {
 		if err != nil {
 			log.Fatalf("load config for test in kms failed: %s", err)
 		}
-		conf.GConf.GenerateKeyPair = true
 		InitBP()
 	}
 }
@@ -113,7 +111,7 @@ var (
 
 // InitPublicKeyStore opens a db file, if not exist, creates it.
 // and creates a bucket if not exist
-func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
+func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	//testFlag := flag.Lookup("test")
 	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
 	pksLock.Lock()
@@ -148,8 +146,14 @@ func InitPublicKeyStore(dbPath string, initNode *proto.Node) (err error) {
 	}
 	pksLock.Unlock()
 
-	if initNode != nil {
-		err = setNode(initNode)
+	if initNodes != nil {
+		for _, n := range initNodes {
+			err = setNode(&n)
+			if err != nil {
+				log.Errorf("set init nodes failed: %v", err)
+				return
+			}
+		}
 	}
 
 	return

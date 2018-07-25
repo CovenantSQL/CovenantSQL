@@ -38,8 +38,8 @@ import (
 	"strconv"
 	"sync"
 
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -80,17 +80,14 @@ type Consistent struct {
 //
 // To change the number of replicas, set NumberOfReplicas before adding entries.
 func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *Consistent, err error) {
-	var BPNode *proto.Node
+	var BPNodes []proto.Node
 	if initBP {
 		// Load BlockProducer public key, set it in public key store
 		// as all kms.BP stuff is initialized on kms init()
-		BPNode = &proto.Node{
-			ID:        kms.BP.NodeID,
-			Addr:      "",
-			PublicKey: kms.BP.PublicKey,
-			Nonce:     kms.BP.Nonce,
-			Role:      proto.Leader,
+		if conf.GConf == nil {
+			log.Fatal("Must call conf.LoadConfig first")
 		}
+		BPNodes = conf.GConf.SeedBPNodes
 	}
 
 	// Create new public key store
@@ -110,7 +107,7 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		circle:           make(map[proto.NodeKey]*proto.Node),
 		persist:          persistImpl,
 	}
-	c.persist.Init(storePath, BPNode)
+	c.persist.Init(storePath, BPNodes)
 	nodes, err := c.persist.GetAllNodeInfo()
 	if err != nil {
 		log.Errorf("get all node id failed: %s", err)

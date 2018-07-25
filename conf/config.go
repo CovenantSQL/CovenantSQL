@@ -53,14 +53,14 @@ type BPInfo struct {
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
 }
 
-// NodeInfo for conf generation and load purpose.
-type NodeInfo struct {
-	ID        proto.NodeID
-	Nonce     cpuminer.Uint256
-	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
-	Addr      string
-	Role      proto.ServerRole
-}
+//// NodeInfo for conf generation and load purpose.
+//type NodeInfo struct {
+//	ID        proto.NodeID
+//	Nonce     cpuminer.Uint256
+//	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
+//	Addr      string
+//	Role      proto.ServerRole
+//}
 
 // MinerDatabaseFixture config.
 type MinerDatabaseFixture struct {
@@ -86,7 +86,7 @@ type MinerInfo struct {
 
 // Config holds all the config read from yaml config file
 type Config struct {
-	IsTestMode      bool // when testMode use default empty masterKey
+	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
 	GenerateKeyPair bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
 	WorkingRoot     string
@@ -102,7 +102,8 @@ type Config struct {
 	BP    *BPInfo    `yaml:"BlockProducer"`
 	Miner *MinerInfo `yaml:"Miner,omitempty"`
 
-	KnownNodes *[]NodeInfo
+	KnownNodes  *[]proto.Node
+	SeedBPNodes []proto.Node `yaml:"-"`
 }
 
 // GConf is the global config pointer

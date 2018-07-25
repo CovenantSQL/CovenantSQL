@@ -16,12 +16,14 @@
 
 package blockproducer
 
-// Config is the main chain configuration
-type Config struct {
+import "gitlab.com/thunderdb/ThunderDB/proto"
+
+type runtime struct {
+	accountAddress proto.AccountAddress
 }
 
-// NewConfig creates new config
-func NewConfig() *Config {
-	config := Config{}
-	return &config
+func newRuntime(cfg *config, accountAddress proto.AccountAddress) *runtime {
+	return &runtime{
+		accountAddress: accountAddress,
+	}
 }

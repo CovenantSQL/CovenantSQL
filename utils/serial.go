@@ -21,7 +21,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"reflect"
 	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -123,6 +126,95 @@ func (s simpleSerializer) readUint64(r io.Reader, order binary.ByteOrder) (ret u
 
 	if _, err = io.ReadFull(r, buffer); err == nil {
 		ret = order.Uint64(buffer)
+	}
+
+	return
+}
+
+func (s simpleSerializer) readPublicKey(r io.Reader, order binary.ByteOrder) (val *asymmetric.PublicKey, err error) {
+	var buffer []byte
+
+	if err = serializer.readBytes(r, order, &buffer); err == nil && len(buffer) > 0 {
+		val, err = asymmetric.ParsePubKey(buffer)
+	} else {
+		val = nil
+	}
+	return
+}
+
+func (s simpleSerializer) readPublicKeys(r io.Reader, order binary.ByteOrder, val *[]*asymmetric.PublicKey) (err error) {
+	lenBuffer := s.borrowBuffer(4)
+	defer s.returnBuffer(lenBuffer)
+
+	if _, err = io.ReadFull(r, lenBuffer); err != nil {
+		return
+	}
+
+	retLen := order.Uint32(lenBuffer)
+
+	if retLen > maxBufferLength {
+		err = ErrBufferLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*val = nil
+		return
+	}
+
+	if *val == nil || cap(*val) < int(retLen) {
+		*val = make([]*asymmetric.PublicKey, retLen)
+	} else {
+		*val = (*val)[:retLen]
+	}
+
+	for i := range *val {
+		(*val)[i], err = s.readPublicKey(r, order)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (s simpleSerializer) readSignature(r io.Reader, order binary.ByteOrder) (val *asymmetric.Signature, err error) {
+	var buffer []byte
+
+	if err = serializer.readBytes(r, order, &buffer); err == nil && len(buffer) > 0 {
+		val, err = asymmetric.ParseSignature(buffer)
+	} else {
+		val = nil
+	}
+	return
+}
+
+func (s simpleSerializer) readSignatures(r io.Reader, order binary.ByteOrder, val *[]*asymmetric.Signature) (err error) {
+	lenBuffer := s.borrowBuffer(4)
+	defer s.returnBuffer(lenBuffer)
+
+	if _, err = io.ReadFull(r, lenBuffer); err != nil {
+		return
+	}
+
+	retLen := order.Uint32(lenBuffer)
+
+	if retLen > maxBufferLength {
+		err = ErrBufferLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*val = nil
+		return
+	}
+
+	if *val == nil || cap(*val) < int(retLen) {
+		*val = make([]*asymmetric.Signature, retLen)
+	} else {
+		*val = (*val)[:retLen]
+	}
+
+	for i := range *val {
+		(*val)[i], err = s.readSignature(r, order)
 	}
 
 	return
@@ -273,6 +365,50 @@ func (s simpleSerializer) readUint32s(r io.Reader, order binary.ByteOrder, ret *
 
 		for i := range *ret {
 			(*ret)[i] = order.Uint32(retBuffer[i*4 : i*4+4])
+		}
+	}
+
+	return
+}
+
+// readUint64s reads bytes from reader with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             uint64s             |
+// +-----+---------------------------------+
+//
+func (s simpleSerializer) readUint64s(r io.Reader, order binary.ByteOrder, ret *[]uint64) (err error) {
+	lenBuffer := s.borrowBuffer(4)
+	defer s.returnBuffer(lenBuffer)
+
+	if _, err = io.ReadFull(r, lenBuffer); err != nil {
+		return
+	}
+
+	retLen := order.Uint32(lenBuffer)
+
+	if retLen > maxBufferLength {
+		err = ErrBufferLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	retBuffer := s.borrowBuffer(int(retLen) * 8)
+	defer s.returnBuffer(retBuffer)
+
+	if _, err = io.ReadFull(r, retBuffer); err == nil {
+		if *ret == nil || cap(*ret) < int(retLen) {
+			*ret = make([]uint64, retLen)
+		} else {
+			*ret = (*ret)[:retLen]
+		}
+
+		for i := range *ret {
+			(*ret)[i] = order.Uint64(retBuffer[i*8 : i*8+8])
 		}
 	}
 
@@ -447,6 +583,47 @@ func (s simpleSerializer) readHashes(r io.Reader, order binary.ByteOrder, ret *[
 	return
 }
 
+// readAccountAddresses reads hashes from reader with the following format:
+//
+// 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
+// +----------+------------+------------+------------+------------+
+// | sliceLen |   hash_0   |   hash_1   |    ...     |   hash_n   |
+// +----------+------------+------------+------------+------------+
+//
+func (s simpleSerializer) readAccountAddresses(r io.Reader, order binary.ByteOrder, ret *[]*proto.AccountAddress) (
+	err error) {
+	var retLen uint32
+
+	if retLen, err = s.readUint32(r, order); err != nil {
+		return
+	}
+
+	if retLen > maxSliceLength {
+		err = ErrSliceLengthExceedLimit
+		return
+	} else if retLen == 0 {
+		// Always return nil slice for a zero-length
+		*ret = nil
+		return
+	}
+
+	if *ret == nil || cap(*ret) < int(retLen) {
+		*ret = make([]*proto.AccountAddress, retLen)
+	} else {
+		*ret = (*ret)[:retLen]
+	}
+
+	for i := range *ret {
+		(*ret)[i] = new(proto.AccountAddress)
+
+		if err = s.readFixedSizeBytes(r, hash.HashSize, ((*ret)[i])[:]); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 func (s simpleSerializer) writeUint8(w io.Writer, val uint8) (err error) {
 	buffer := s.borrowBuffer(1)
 	defer s.returnBuffer(buffer)
@@ -483,6 +660,24 @@ func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val u
 
 	order.PutUint64(buffer, val)
 	_, err = w.Write(buffer)
+	return
+}
+
+func (s simpleSerializer) writeSignature(w io.Writer, order binary.ByteOrder, val *asymmetric.Signature) (err error) {
+	if val == nil {
+		err = s.writeBytes(w, order, nil)
+	} else {
+		err = s.writeBytes(w, order, val.Serialize())
+	}
+	return
+}
+
+func (s simpleSerializer) writePublicKey(w io.Writer, order binary.ByteOrder, val *asymmetric.PublicKey) (err error) {
+	if val == nil {
+		err = s.writeBytes(w, order, nil)
+	} else {
+		err = s.writeBytes(w, order, val.Serialize())
+	}
 	return
 }
 
@@ -547,7 +742,7 @@ func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []
 	return
 }
 
-// writeBytes writes bytes to writer with the following format:
+// writeUint32s writes bytes to writer with the following format:
 //
 // 0     4                                 4+len
 // +-----+---------------------------------+
@@ -562,6 +757,26 @@ func (s simpleSerializer) writeUint32s(w io.Writer, order binary.ByteOrder, val 
 	order.PutUint32(buffer, valLen)
 	for i := range val {
 		order.PutUint32(buffer[4+i*4:], val[i])
+	}
+	_, err = w.Write(buffer)
+	return
+}
+
+// writeUint64 writes bytes to writer with the following format:
+//
+// 0     4                                 4+len
+// +-----+---------------------------------+
+// | len |             uint64s             |
+// +-----+---------------------------------+
+//
+func (s simpleSerializer) writeUint64s(w io.Writer, order binary.ByteOrder, val []uint64) (err error) {
+	buffer := s.borrowBuffer(4 + len(val)*8)
+	defer s.returnBuffer(buffer)
+
+	valLen := uint32(len(val))
+	order.PutUint32(buffer, valLen)
+	for i := range val {
+		order.PutUint64(buffer[4+i*8:], val[i])
 	}
 	_, err = w.Write(buffer)
 	return
@@ -623,6 +838,50 @@ func (s simpleSerializer) writeDatabaseIDs(w io.Writer,
 	return
 }
 
+// writeSignatures writes signatures to writer with the following format:
+//
+// 0          4            4+signaturesize   4+2*signaturesize ...          4+(n+1)*signaturesize
+// +----------+-----------------+-----------------+------------+-----------------+
+// | sliceLen |   signature_0   |   signature_1   |    ...     |   signature_n   |
+// +----------+-----------------+-----------------+------------+-----------------+
+//
+func (s simpleSerializer) writeSignatures(w io.Writer, order binary.ByteOrder, val []*asymmetric.Signature) (
+	err error) {
+	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return
+	}
+
+	for _, v := range val {
+		if err = s.writeSignature(w, order, v); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
+// writePublicKeys writes public key to writer with the following format:
+//
+// 0          4            4+pubkeysize   4+2*pubkeysize ...          4+(n+1)*pubkeysize
+// +----------+-----------------+-----------------+------------+-----------------+
+// | sliceLen |   publickey_0   |   publickey_1   |    ...     |   publickey_n   |
+// +----------+-----------------+-----------------+------------+-----------------+
+//
+func (s simpleSerializer) writePublicKeys(w io.Writer, order binary.ByteOrder, val []*asymmetric.PublicKey) (
+	err error) {
+	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return
+	}
+
+	for _, v := range val {
+		if err = s.writePublicKey(w, order, v); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 // writeHashes writes hashes to writer with the following format:
 //
 // 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
@@ -632,6 +891,27 @@ func (s simpleSerializer) writeDatabaseIDs(w io.Writer,
 //
 func (s simpleSerializer) writeHashes(w io.Writer, order binary.ByteOrder, val []*hash.Hash) (
 	err error) {
+	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
+		return
+	}
+
+	for _, v := range val {
+		if err = s.writeFixedSizeBytes(w, hash.HashSize, v[:]); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
+// writeAccountAddresses writes hashes to writer with the following format:
+//
+// 0          4            4+hashsize   4+2*hashsize ...          4+(n+1)*hashsize
+// +----------+------------+------------+------------+------------+
+// | sliceLen |   hash_0   |   hash_1   |    ...     |   hash_n   |
+// +----------+------------+------------+------------+------------+
+//
+func (s simpleSerializer) writeAccountAddresses(w io.Writer, order binary.ByteOrder, val []*proto.AccountAddress) (err error) {
 	if err = s.writeUint32(w, order, uint32(len(val))); err != nil {
 		return
 	}
@@ -731,6 +1011,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case *[]uint32:
 		err = serializer.readUint32s(r, order, e)
 
+	case *[]uint64:
+		err = serializer.readUint64s(r, order, e)
+
 	case *proto.NodeID:
 		err = serializer.readString(r, order, (*string)(e))
 
@@ -740,29 +1023,32 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case *hash.Hash:
 		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
 
-	case **asymmetric.PublicKey:
-		var buffer []byte
+	case *proto.AccountAddress:
+		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
 
-		if err = serializer.readBytes(r, order, &buffer); err == nil && len(buffer) > 0 {
-			*e, err = asymmetric.ParsePubKey(buffer)
-		} else {
-			*e = nil
-		}
+	case *proto.AddrAndGas:
+		err = serializer.readAddrAndGas(r, order, e)
+
+	case **asymmetric.PublicKey:
+		*e, err = serializer.readPublicKey(r, order)
 
 	case **asymmetric.Signature:
-		var buffer []byte
+		*e, err = serializer.readSignature(r, order)
 
-		if err = serializer.readBytes(r, order, &buffer); err == nil && len(buffer) > 0 {
-			*e, err = asymmetric.ParseSignature(buffer)
-		} else {
-			*e = nil
-		}
+	case *[]*asymmetric.PublicKey:
+		serializer.readPublicKeys(r, order, e)
+
+	case *[]*asymmetric.Signature:
+		serializer.readSignatures(r, order, e)
 
 	case *[]string:
 		err = serializer.readStrings(r, order, e)
 
 	case *[]*hash.Hash:
 		err = serializer.readHashes(r, order, e)
+
+	case *[]*proto.AccountAddress:
+		err = serializer.readAccountAddresses(r, order, e)
 
 	case *[]proto.DatabaseID:
 		err = serializer.readDatabaseIDs(r, order, e)
@@ -782,8 +1068,8 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 			return i.UnmarshalBinary(buffer)
 		}
 
-		// Fallback to default read method
-		return binary.Read(r, order, element)
+		log.Debugf("element type is: %s", reflect.TypeOf(e))
+		return ErrInvalidType
 	}
 
 	return
@@ -886,6 +1172,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 	case *[]uint32:
 		err = serializer.writeUint32s(w, order, *e)
 
+	case []uint64:
+		err = serializer.writeUint64s(w, order, e)
+
+	case *[]uint64:
+		err = serializer.writeUint64s(w, order, *e)
+
 	case time.Time:
 		err = serializer.writeUint64(w, order, (uint64)(e.UnixNano()))
 
@@ -910,33 +1202,41 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 	case *hash.Hash:
 		err = serializer.writeFixedSizeBytes(w, hash.HashSize, (*e)[:])
 
+	case proto.AccountAddress:
+		err = serializer.writeFixedSizeBytes(w, hash.HashSize, e[:])
+
+	case *proto.AccountAddress:
+		err = serializer.writeFixedSizeBytes(w, hash.HashSize, (*e)[:])
+
+	case *proto.AddrAndGas:
+		serializer.writeAddrAndGas(w, order, e)
+
+	case proto.AddrAndGas:
+		serializer.writeAddrAndGas(w, order, &e)
+
 	case *asymmetric.PublicKey:
-		if e == nil {
-			err = serializer.writeBytes(w, order, nil)
-		} else {
-			err = serializer.writeBytes(w, order, e.Serialize())
-		}
+		serializer.writePublicKey(w, order, e)
 
 	case **asymmetric.PublicKey:
-		if *e == nil {
-			err = serializer.writeBytes(w, order, nil)
-		} else {
-			err = serializer.writeBytes(w, order, (*e).Serialize())
-		}
+		serializer.writePublicKey(w, order, *e)
 
 	case *asymmetric.Signature:
-		if e == nil {
-			err = serializer.writeBytes(w, order, nil)
-		} else {
-			err = serializer.writeBytes(w, order, e.Serialize())
-		}
+		serializer.writeSignature(w, order, e)
 
 	case **asymmetric.Signature:
-		if *e == nil {
-			err = serializer.writeBytes(w, order, nil)
-		} else {
-			err = serializer.writeBytes(w, order, (*e).Serialize())
-		}
+		serializer.writeSignature(w, order, *e)
+
+	case []*asymmetric.Signature:
+		err = serializer.writeSignatures(w, order, e)
+
+	case *[]*asymmetric.Signature:
+		err = serializer.writeSignatures(w, order, *e)
+
+	case []*asymmetric.PublicKey:
+		err = serializer.writePublicKeys(w, order, e)
+
+	case *[]*asymmetric.PublicKey:
+		err = serializer.writePublicKeys(w, order, *e)
 
 	case []string:
 		err = serializer.writeStrings(w, order, e)
@@ -949,6 +1249,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *[]*hash.Hash:
 		err = serializer.writeHashes(w, order, *e)
+
+	case []*proto.AccountAddress:
+		err = serializer.writeAccountAddresses(w, order, e)
+
+	case *[]*proto.AccountAddress:
+		err = serializer.writeAccountAddresses(w, order, *e)
 
 	case []proto.DatabaseID:
 		err = serializer.writeDatabaseIDs(w, order, e)
@@ -974,8 +1280,8 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 			return
 		}
 
-		// Fallback to default write method
-		return binary.Write(w, order, element)
+		log.Debugf("element type is: %s", reflect.TypeOf(e))
+		return ErrInvalidType
 	}
 
 	return

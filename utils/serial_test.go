@@ -53,22 +53,26 @@ type innerStruct struct {
 
 type testStruct struct {
 	innerStruct
-	Int64Field         int64
-	Uint64Field        uint64
-	StringField        string
-	BytesField         []byte
-	Uint32sField       []uint32
-	DatabaseIDsField   []proto.DatabaseID
-	AddrAndGaseseField []proto.AddrAndGas
-	TimeField          time.Time
-	NodeIDField        proto.NodeID
-	DatabaseIDField    proto.DatabaseID
-	AddrAndGasField    proto.AddrAndGas
-	HashField          hash.Hash
-	PublicKeyField     *asymmetric.PublicKey
-	SignatureField     *asymmetric.Signature
-	StringsField       []string
-	HashesField        []*hash.Hash
+	Int64Field            int64
+	Uint64Field           uint64
+	StringField           string
+	BytesField            []byte
+	Uint32sField          []uint32
+	Uint64sField          []uint64
+	TimeField             time.Time
+	NodeIDField           proto.NodeID
+	DatabaseIDField       proto.DatabaseID
+	AddrAndGasField       proto.AddrAndGas
+	HashField             hash.Hash
+	PublicKeyField        *asymmetric.PublicKey
+	SignatureField        *asymmetric.Signature
+	StringsField          []string
+	HashesField           []*hash.Hash
+	AccountAddressesField []*proto.AccountAddress
+	DatabaseIDsField      []proto.DatabaseID
+	AddrAndGaseseField    []*proto.AddrAndGas
+	PublicKeysField       []*asymmetric.PublicKey
+	SignaturesField       []*asymmetric.Signature
 }
 
 func (s *testStruct) randomize() {
@@ -100,6 +104,30 @@ func (s *testStruct) randomize() {
 
 	s.TimeField = time.Unix(0, rand.Int63()).UTC()
 
+	// Randomize uint32s field
+	slen = rand.Intn(1024)
+	if slen == 0 {
+		s.Uint32sField = nil
+	} else {
+		s.Uint32sField = make([]uint32, slen)
+	}
+
+	for i := range s.Uint32sField {
+		s.Uint32sField[i] = rand.Uint32()
+	}
+
+	// Randomize uint64s field
+	slen = rand.Intn(1024)
+	if slen == 0 {
+		s.Uint64sField = nil
+	} else {
+		s.Uint64sField = make([]uint64, slen)
+	}
+
+	for i := range s.Uint64sField {
+		s.Uint64sField[i] = rand.Uint64()
+	}
+
 	// Randomize NodeIDField
 	slen = rand.Intn(2 * pooledBufferLength)
 	buff = make([]byte, slen)
@@ -112,7 +140,14 @@ func (s *testStruct) randomize() {
 	rand.Read(buff)
 	s.DatabaseIDField = proto.DatabaseID(buff)
 
+	// Randomize hash field
 	rand.Read(s.HashField[:])
+
+	// Randomize AddrAndGas field
+	s.AddrAndGasField = proto.AddrAndGas{}
+	rand.Read(s.AddrAndGasField.AccountAddress[:])
+	rand.Read(s.AddrAndGasField.RawNodeID.Hash[:])
+	s.AddrAndGasField.GasAmount = rand.Uint32()
 
 	// Randomize PublicKeyField and SignatureField
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
@@ -157,6 +192,76 @@ func (s *testStruct) randomize() {
 		s.HashesField[i] = new(hash.Hash)
 		rand.Read(s.HashesField[i][:])
 	}
+
+	// Randomize accountAddresses field
+	slen = rand.Intn(1024)
+
+	if slen == 0 {
+		s.AccountAddressesField = nil // Watch out, a zero-length slice will is not deep equal to nil
+	} else {
+		s.AccountAddressesField = make([]*proto.AccountAddress, slen)
+	}
+
+	for i := range s.AccountAddressesField {
+		s.AccountAddressesField[i] = new(proto.AccountAddress)
+		rand.Read(s.AccountAddressesField[i][:])
+	}
+
+	// Randomize DatabaseIDs field
+	slen = rand.Intn(1024)
+	if slen == 0 {
+		s.DatabaseIDsField = nil
+	} else {
+		s.DatabaseIDsField = make([]proto.DatabaseID, slen)
+	}
+
+	for i := range s.DatabaseIDsField {
+		slen = rand.Intn(2 * pooledBufferLength)
+		buff = make([]byte, slen)
+		rand.Read(buff)
+		s.DatabaseIDsField[i] = proto.DatabaseID(string(buff))
+	}
+
+	// Randomize AddrAndGases field
+	slen = rand.Intn(1024)
+	if slen == 0 {
+		s.AddrAndGaseseField = nil
+	} else {
+		s.AddrAndGaseseField = make([]*proto.AddrAndGas, slen)
+	}
+	for i := range s.AddrAndGaseseField {
+		aag := proto.AddrAndGas{}
+		rand.Read(aag.AccountAddress[:])
+		rand.Read(aag.RawNodeID.Hash[:])
+		aag.GasAmount = rand.Uint32()
+		s.AddrAndGaseseField[i] = &aag
+	}
+
+	// Randomize PublicKeys filed
+	slen = rand.Intn(1024)
+	if slen == 0 {
+		s.PublicKeysField = nil
+		s.SignaturesField = nil
+	} else {
+		s.PublicKeysField = make([]*asymmetric.PublicKey, slen)
+		s.SignaturesField = make([]*asymmetric.Signature, slen)
+	}
+
+	for i := range s.PublicKeysField {
+		priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+		if err != nil {
+			panic(err)
+		}
+
+		s.PublicKeysField[i] = pub
+		s.SignaturesField[i], err = priv.Sign(s.HashField[:])
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
 }
 
 func (s *innerStruct) MarshalBinary() ([]byte, error) {
@@ -205,14 +310,22 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.Uint64Field,
 		s.StringField,
 		s.BytesField,
+		s.Uint32sField,
+		s.Uint64sField,
 		s.TimeField,
 		s.NodeIDField,
 		s.DatabaseIDField,
+		s.AddrAndGasField,
 		s.HashField,
 		s.PublicKeyField,
 		s.SignatureField,
 		s.StringsField,
 		s.HashesField,
+		s.DatabaseIDsField,
+		s.AddrAndGaseseField,
+		s.PublicKeysField,
+		s.SignaturesField,
+		s.AccountAddressesField,
 	); err != nil {
 		return nil, err
 	}
@@ -235,14 +348,22 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.Uint64Field,
 		&s.StringField,
 		&s.BytesField,
+		&s.Uint32sField,
+		&s.Uint64sField,
 		&s.TimeField,
 		&s.NodeIDField,
 		&s.DatabaseIDField,
+		&s.AddrAndGasField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
 		&s.HashesField,
+		&s.DatabaseIDsField,
+		&s.AddrAndGaseseField,
+		&s.PublicKeysField,
+		&s.SignaturesField,
+		&s.AccountAddressesField,
 	); err != nil {
 		return nil, err
 	}
@@ -259,14 +380,22 @@ func (s *testStruct) MarshalBinary3() ([]byte, error) {
 		&s.Uint64Field,
 		&s.StringField,
 		&s.BytesField,
+		&s.Uint32sField,
+		&s.Uint64sField,
 		&s.TimeField,
 		&s.NodeIDField,
 		&s.DatabaseIDField,
+		&s.AddrAndGasField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
 		&s.HashesField,
+		&s.DatabaseIDsField,
+		&s.AddrAndGaseseField,
+		&s.PublicKeysField,
+		&s.SignaturesField,
+		&s.AccountAddressesField,
 	); err != nil {
 		return nil, err
 	}
@@ -288,14 +417,22 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.Uint64Field,
 		&s.StringField,
 		&s.BytesField,
+		&s.Uint32sField,
+		&s.Uint64sField,
 		&s.TimeField,
 		&s.NodeIDField,
 		&s.DatabaseIDField,
+		&s.AddrAndGasField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
 		&s.HashesField,
+		&s.DatabaseIDsField,
+		&s.AddrAndGaseseField,
+		&s.PublicKeysField,
+		&s.SignaturesField,
+		&s.AccountAddressesField,
 	)
 }
 
@@ -307,14 +444,22 @@ func (s *testStruct) UnmarshalBinary2(b []byte) error {
 		&s.Uint64Field,
 		&s.StringField,
 		&s.BytesField,
+		&s.Uint32sField,
+		&s.Uint64sField,
 		&s.TimeField,
 		&s.NodeIDField,
 		&s.DatabaseIDField,
+		&s.AddrAndGasField,
 		&s.HashField,
 		&s.PublicKeyField,
 		&s.SignatureField,
 		&s.StringsField,
 		&s.HashesField,
+		&s.DatabaseIDsField,
+		&s.AddrAndGaseseField,
+		&s.PublicKeysField,
+		&s.SignaturesField,
+		&s.AccountAddressesField,
 	)
 }
 
@@ -392,7 +537,8 @@ func TestSerialization(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(ots, rts) {
-					t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+					// t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+					t.Errorf("Result not match")
 				}
 
 				renc, err := ots.MarshalBinary2()
@@ -429,7 +575,9 @@ func TestSerialization(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(ots, rts) {
-					t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+					// t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+
+					t.Errorf("Result not match")
 				}
 
 				renc, err = ots.MarshalBinary3()

@@ -27,4 +27,10 @@ var (
 	ErrDatabaseAllocation = errors.New("allocate database failed")
 	// ErrMetricNotCollected defines errors collected.
 	ErrMetricNotCollected = errors.New("metric not collected")
+
+	// Errors on main chain
+	// ErrCorruptedIndex defines index corrupted error.
+	ErrCorruptedIndex = errors.New("corrupted index item")
+	ErrParentNotFound = errors.New("previous block cannot be found")
+
 )

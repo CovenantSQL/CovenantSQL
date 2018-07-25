@@ -20,8 +20,6 @@ import (
 	"encoding"
 	"reflect"
 	"testing"
-
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -82,14 +80,14 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Log("dec hash BinaryMashaler interface")
 	}
 
-	enc, err := block.MarshalBinary()
+	enc, err := block.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
 	dec := Block{}
 
-	err = dec.UnmarshalBinary(enc)
+	err = dec.Deserialize(enc)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}
@@ -106,8 +104,8 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block.SignedHeader.Signee, dec.SignedHeader.Signee)
 	}
 
-	if !reflect.DeepEqual(block.Transactions, dec.Transactions) {
-		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block.Transactions, dec.Transactions)
+	if !reflect.DeepEqual(block.TxBillings, dec.TxBillings) {
+		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block.TxBillings, dec.TxBillings)
 	}
 }
 
@@ -128,7 +126,7 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	h := hash.Hash{}
+	h := TxBilling{}
 	block.PushTx(&h)
 	err = block.Verify()
 	if err != ErrMerkleRootVerification {

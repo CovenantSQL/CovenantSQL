@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"encoding/binary"
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
@@ -46,14 +47,31 @@ func newBlockNode(block *types.Block, parent *blockNode) *blockNode {
 	return bn
 }
 
+func (bn *blockNode) indexKey() (key []byte) {
+	key = make([]byte, hash.HashSize+4)
+	binary.BigEndian.PutUint32(key[0:4], uint32(bn.height))
+	copy(key[4:hash.HashSize], bn.hash[:])
+	return
+}
+
+func (bn *blockNode) initBlockNode(b *types.Block, p *blockNode) {
+	bn.hash = b.SignedHeader.BlockHash
+	bn.parent = nil
+	bn.height = 0
+	if p != nil {
+		bn.parent = p
+		bn.height = p.height + 1
+	}
+}
+
 type blockIndex struct {
-	cfg *Config
+	cfg *config
 
 	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode
 }
 
-func newBlockIndex(config *Config) *blockIndex {
+func newBlockIndex(config *config) *blockIndex {
 	bi := &blockIndex{
 		cfg:   config,
 		index: make(map[hash.Hash]*blockNode),

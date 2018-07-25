@@ -28,7 +28,8 @@ import (
 
 // BillingRequestHeader includes contents that need to be signed
 type BillingRequestHeader struct {
-	DatabaseID  proto.DatabaseID
+	DatabaseID proto.DatabaseID
+	// sqlchain block hash and its height
 	BlockHash   hash.Hash
 	BlockHeight int32
 	GasAmounts  []*proto.AddrAndGas
@@ -67,34 +68,116 @@ func (bh *BillingRequestHeader) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
-// PackAndSignRequestHeader first computes the hash of BillingRequestHeader, then signs the request
-func (bh *BillingRequestHeader) PackAndSignRequestHeader(signee *asymmetric.PrivateKey) (*hash.Hash,
-	*asymmetric.Signature,
-	error) {
-	b, err := bh.MarshalBinary()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	h := hash.THashH(b)
-	signature, err := signee.Sign(h[:])
-	if err != nil {
-		return nil, nil, err
-	}
-	return &h, signature, nil
-}
-
 // BillingRequest defines periodically Billing sync
 type BillingRequest struct {
 	Header      BillingRequestHeader
 	RequestHash hash.Hash
 	Signees     []*asymmetric.PublicKey
 	Signatures  []*asymmetric.Signature
+	encoded     []byte
 }
 
-// BillingResponse definies the the response for BillingRequest
+// MarshalBinary implements BinaryMarshaler.
+func (br *BillingRequest) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	err := utils.WriteElements(buffer, binary.BigEndian,
+		&br.Header,
+		&br.RequestHash,
+		&br.Signees,
+		&br.Signatures,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (br *BillingRequest) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+
+	err := utils.ReadElements(reader, binary.BigEndian,
+		&br.Header,
+		&br.RequestHash,
+		&br.Signees,
+		&br.Signatures,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// PackRequestHeader computes the hash of header
+func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
+	if br.encoded == nil || len(br.encoded) == 0 {
+		b, err := br.Header.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		br.encoded = b
+	}
+
+	h := hash.THashH(br.encoded)
+	return &h, nil
+}
+
+// PackAndSignRequestHeader first computes the hash of BillingRequestHeader, then signs the request
+func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asymmetric.Signature, error) {
+	if br.encoded == nil || len(br.encoded) == 0 {
+		b, err := br.Header.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		br.encoded = b
+	}
+
+	signature, err := signee.Sign(br.RequestHash[:])
+	if err != nil {
+		return nil, err
+	}
+	return signature, nil
+}
+
+// BillingResponse defines the the response for BillingRequest
 type BillingResponse struct {
-	RequestHash hash.Hash
-	Signee      *asymmetric.PublicKey
-	Signature   *asymmetric.Signature
+	AccountAddress proto.AccountAddress
+	RequestHash    hash.Hash
+	Signee         *asymmetric.PublicKey
+	Signature      *asymmetric.Signature
+}
+
+// MarshalBinary implements BinaryMarshaler.
+func (br *BillingResponse) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	err := utils.WriteElements(buffer, binary.BigEndian,
+		&br.AccountAddress,
+		&br.RequestHash,
+		&br.Signee,
+		&br.Signature,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalBinary implements BinaryUnmarshaler.
+func (br *BillingResponse) UnmarshalBinary(b []byte) error {
+	reader := bytes.NewReader(b)
+
+	err := utils.ReadElements(reader, binary.BigEndian,
+		&br.AccountAddress,
+		&br.RequestHash,
+		&br.Signee,
+		&br.Signature,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }

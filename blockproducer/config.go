@@ -14,26 +14,22 @@
  * limitations under the License.
  */
 
-package types
+package blockproducer
 
-import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+import "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+
+const (
+	blockVersion int32 = 0x01
 )
 
-// TxHeader defines the header of tx
-type TxHeader struct {
+// config is the main chain configuration
+type config struct {
+	genesis types.Block
+	dataFile string
 }
 
-// SignedTxHeader defines the signed header of tx
-type SignedTxHeader struct {
-	TxHeader
-	TxHash    *hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
-}
-
-// Transaction defines the transaction of main chain
-type Transaction struct {
-	SignedHeader SignedTxHeader
+// newconfig creates new config
+func newconfig() *config {
+	config := config{}
+	return &config
 }

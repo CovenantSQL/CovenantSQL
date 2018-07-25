@@ -31,7 +31,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -98,8 +97,8 @@ func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 	return
 }
 
-func createRandomStorageQueries(offset, length, soffset, slength int) (qs []storage.Query) {
-	qs = make([]storage.Query, rand.Intn(length)+offset)
+func createRandomStorageQueries(offset, length, soffset, slength int) (qs []wt.Query) {
+	qs = make([]wt.Query, rand.Intn(length)+offset)
 
 	for i := range qs {
 		createRandomString(soffset, slength, &qs[i].Pattern)

@@ -242,7 +242,7 @@ func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err e
 	var columns, types []string
 	var data [][]interface{}
 
-	columns, types, data, err = db.storage.Query(context.Background(), request.Payload.Queries)
+	columns, types, data, err = db.storage.Query(context.Background(), convertQuery(request.Payload.Queries))
 	if err != nil {
 		return
 	}
@@ -304,4 +304,12 @@ func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {
 
 func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
+}
+
+func convertQuery(inQuery []wt.Query) (outQuery []storage.Query) {
+	outQuery = make([]storage.Query, len(inQuery))
+	for i, q := range inQuery {
+		outQuery[i] = storage.Query(q)
+	}
+	return
 }

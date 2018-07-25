@@ -107,17 +107,17 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	// init kayak and consistent
 	log.Infof("init kayak and consistent runtime")
 	kvServer := &KayakKVServer{
-		Runtime: kayakRuntime,
-		Storage: st,
+		Runtime:   kayakRuntime,
+		KVStorage: st,
 	}
-	dht, err := route.NewDHTService(dbFile, kvServer, false)
+	dht, err := route.NewDHTService(dbFile, kvServer, true)
 	if err != nil {
 		log.Errorf("init consistent hash failed: %s", err)
 		return
 	}
 
 	// set consistent handler to kayak storage
-	kvServer.Storage.consistent = dht.Consistent
+	kvServer.KVStorage.consistent = dht.Consistent
 
 	// register service rpc
 	log.Infof("register dht service rpc")
@@ -146,7 +146,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}
 
 	log.Info(conf.StartSucceedMessage)
-	go periodicPingBlockProducer()
+	//go periodicPingBlockProducer()
 
 	// start server
 	server.Serve()
@@ -197,7 +197,7 @@ func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer)
 	dbService = &bp.DBService{
 		AllocationRounds: bp.DefaultAllocationRounds, //
 		ServiceMap:       serviceMap,
-		Consistent:       kvServer.Storage.consistent,
+		Consistent:       kvServer.KVStorage.consistent,
 		NodeMetrics:      &metricService.NodeMetric,
 	}
 

@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -40,8 +41,10 @@ var (
 var FJ = filepath.Join
 
 func TestBuild(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-	utils.Build()
+	Convey("build", t, func() {
+		log.SetLevel(log.DebugLevel)
+		So(utils.Build(), ShouldBeNil)
+	})
 }
 
 func start3BPs() {

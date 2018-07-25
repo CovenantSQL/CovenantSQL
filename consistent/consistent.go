@@ -77,8 +77,6 @@ type Consistent struct {
 }
 
 // InitConsistent creates a new Consistent object with a default setting of 20 replicas for each entry.
-//
-// To change the number of replicas, set NumberOfReplicas before adding entries.
 func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *Consistent, err error) {
 	var BPNodes []proto.Node
 	if initBP {
@@ -90,24 +88,19 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		BPNodes = conf.GConf.SeedBPNodes
 	}
 
-	// Create new public key store
-	//err = kms.InitPublicKeyStore(storePath, BPNode)
-	//if err != nil {
-	//	log.Errorf("init public keystore failed: %s", err)
-	//	return
-	//}
-	//IDs, err := kms.GetAllNodeID()
-	//if err != nil {
-	//	log.Errorf("get all node id failed: %s", err)
-	//	return
-	//}
 	c = &Consistent{
 		//TODO(auxten): reduce NumberOfReplicas
 		NumberOfReplicas: 20,
 		circle:           make(map[proto.NodeKey]*proto.Node),
 		persist:          persistImpl,
 	}
-	c.persist.Init(storePath, BPNodes)
+
+	err = c.persist.Init(storePath, BPNodes)
+	if err != nil {
+		log.Errorf("init persist BP nodes failed: %v", err)
+		return
+	}
+
 	nodes, err := c.persist.GetAllNodeInfo()
 	if err != nil {
 		log.Errorf("get all node id failed: %s", err)

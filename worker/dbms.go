@@ -318,7 +318,12 @@ func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err erro
 		return
 	}
 
-	instances = res.Instances
+	// verify response
+	if err = res.Verify(); err != nil {
+		return
+	}
+
+	instances = res.Header.Instances
 
 	return
 }

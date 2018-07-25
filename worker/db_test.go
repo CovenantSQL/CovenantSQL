@@ -695,8 +695,18 @@ func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDa
 }
 
 func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Instances = make([]wt.ServiceInstance, 1)
-	resp.Instances[0], err = s.getInstanceMeta("db2")
+	resp.Header.Instances = make([]wt.ServiceInstance, 1)
+	resp.Header.Instances[0], err = s.getInstanceMeta("db2")
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
+
 	return
 }
 

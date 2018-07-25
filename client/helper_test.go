@@ -67,7 +67,17 @@ func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDa
 }
 
 func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Instances = make([]wt.ServiceInstance, 0)
+	resp.Header.Instances = make([]wt.ServiceInstance, 0)
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if resp.Sign(privateKey); err != nil {
+		return
+	}
 	return
 }
 
@@ -168,13 +178,22 @@ func startTestService() (stopTestService func(), err error) {
 	}
 
 	// build create database request
-	req = &wt.UpdateService{
-		Op: wt.CreateDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID:   dbID,
-			Peers:        peers,
-			GenesisBlock: block,
-		},
+	req = new(wt.UpdateService)
+	req.Header.Op = wt.CreateDB
+	req.Header.Instance = wt.ServiceInstance{
+		DatabaseID:   dbID,
+		Peers:        peers,
+		GenesisBlock: block,
+	}
+	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = req.Sign(privateKey); err != nil {
+		return
 	}
 
 	// send create database request

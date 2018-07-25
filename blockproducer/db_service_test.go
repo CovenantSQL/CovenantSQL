@@ -76,8 +76,9 @@ func TestService(t *testing.T) {
 		getAllRes := new(wt.InitServiceResponse)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetNodeDatabases", getAllReq, getAllRes)
 		So(err, ShouldBeNil)
-		So(getAllRes.Instances, ShouldHaveLength, 1)
-		So(getAllRes.Instances[0].DatabaseID, ShouldResemble, proto.DatabaseID("db"))
+		So(getAllRes.Verify(), ShouldBeNil)
+		So(getAllRes.Header.Instances, ShouldHaveLength, 1)
+		So(getAllRes.Header.Instances[0].DatabaseID, ShouldResemble, proto.DatabaseID("db"))
 
 		// create database, no metric received, should failed
 		createDBReq := &CreateDatabaseRequest{
@@ -105,12 +106,13 @@ func TestService(t *testing.T) {
 		// get all databases, this new database should exists
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetNodeDatabases", getAllReq, getAllRes)
 		So(err, ShouldBeNil)
-		So(getAllRes.Instances, ShouldHaveLength, 2)
-		So(getAllRes.Instances[0].DatabaseID, ShouldBeIn, []proto.DatabaseID{
+		So(getAllRes.Verify(), ShouldBeNil)
+		So(getAllRes.Header.Instances, ShouldHaveLength, 2)
+		So(getAllRes.Header.Instances[0].DatabaseID, ShouldBeIn, []proto.DatabaseID{
 			proto.DatabaseID("db"),
 			createDBRes.InstanceMeta.DatabaseID,
 		})
-		So(getAllRes.Instances[1].DatabaseID, ShouldBeIn, []proto.DatabaseID{
+		So(getAllRes.Header.Instances[1].DatabaseID, ShouldBeIn, []proto.DatabaseID{
 			proto.DatabaseID("db"),
 			createDBRes.InstanceMeta.DatabaseID,
 		})

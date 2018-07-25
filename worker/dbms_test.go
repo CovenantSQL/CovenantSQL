@@ -23,6 +23,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -37,6 +38,13 @@ func TestDBMS(t *testing.T) {
 		var server *rpc.Server
 		var cleanup func()
 		cleanup, server, err = initNode()
+		So(err, ShouldBeNil)
+
+		var pubKey *asymmetric.PublicKey
+		pubKey, err = kms.GetLocalPublicKey()
+		So(err, ShouldBeNil)
+		var privateKey *asymmetric.PrivateKey
+		privateKey, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
 
 		var rootDir string
@@ -74,14 +82,16 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// call with no BP privilege
-		req = &wt.UpdateService{
-			Op: wt.CreateDB,
-			Instance: wt.ServiceInstance{
-				DatabaseID:   dbID,
-				Peers:        peers,
-				GenesisBlock: block,
-			},
+		req = new(wt.UpdateService)
+		req.Header.Op = wt.CreateDB
+		req.Header.Instance = wt.ServiceInstance{
+			DatabaseID:   dbID,
+			Peers:        peers,
+			GenesisBlock: block,
 		}
+		req.Header.Signee = pubKey
+		err = req.Header.Sign(privateKey)
+		So(err, ShouldBeNil)
 
 		Convey("with bp privilege", func() {
 			// send update again
@@ -152,13 +162,15 @@ func TestDBMS(t *testing.T) {
 				peers, err = getPeers(2)
 				So(err, ShouldBeNil)
 
-				req = &wt.UpdateService{
-					Op: wt.UpdateDB,
-					Instance: wt.ServiceInstance{
-						DatabaseID: dbID,
-						Peers:      peers,
-					},
+				req = new(wt.UpdateService)
+				req.Header.Op = wt.UpdateDB
+				req.Header.Instance = wt.ServiceInstance{
+					DatabaseID: dbID,
+					Peers:      peers,
 				}
+				req.Header.Signee = pubKey
+				err = req.Sign(privateKey)
+				So(err, ShouldBeNil)
 
 				err = testRequest("Update", req, &res)
 				So(err, ShouldBeNil)
@@ -166,12 +178,15 @@ func TestDBMS(t *testing.T) {
 
 			Convey("drop database before shutdown", func() {
 				// drop database
-				req = &wt.UpdateService{
-					Op: wt.DropDB,
-					Instance: wt.ServiceInstance{
-						DatabaseID: dbID,
-					},
+				req = new(wt.UpdateService)
+				req.Header.Op = wt.DropDB
+				req.Header.Instance = wt.ServiceInstance{
+					DatabaseID: dbID,
 				}
+				req.Header.Signee = pubKey
+				err = req.Sign(privateKey)
+				So(err, ShouldBeNil)
+
 				err = testRequest("Update", req, &res)
 				So(err, ShouldBeNil)
 

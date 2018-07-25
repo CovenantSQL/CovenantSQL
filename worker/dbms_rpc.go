@@ -88,14 +88,19 @@ func (rpc *DBMSRPCService) Update(req *wt.UpdateService, _ *wt.UpdateServiceResp
 		return
 	}
 
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// create/drop/update
-	switch req.Op {
+	switch req.Header.Op {
 	case wt.CreateDB:
-		err = rpc.dbms.Create(&req.Instance, true)
+		err = rpc.dbms.Create(&req.Header.Instance, true)
 	case wt.UpdateDB:
-		err = rpc.dbms.Update(&req.Instance)
+		err = rpc.dbms.Update(&req.Header.Instance)
 	case wt.DropDB:
-		err = rpc.dbms.Drop(req.Instance.DatabaseID)
+		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}
 
 	return

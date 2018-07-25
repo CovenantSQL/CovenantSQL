@@ -93,20 +93,36 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	}()
 
 	// call miner nodes to provide service
-	initSvcReq := &wt.UpdateService{
-		Op: wt.CreateDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID:   dbID,
-			Peers:        peers,
-			GenesisBlock: genesisBlock,
-		},
+	var privateKey *asymmetric.PrivateKey
+	var pubKey *asymmetric.PublicKey
+
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
 	}
 
-	rollbackReq := &wt.UpdateService{
-		Op: wt.DropDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID: dbID,
-		},
+	initSvcReq := new(wt.UpdateService)
+	initSvcReq.Header.Op = wt.CreateDB
+	initSvcReq.Header.Instance = wt.ServiceInstance{
+		DatabaseID:   dbID,
+		Peers:        peers,
+		GenesisBlock: genesisBlock,
+	}
+	initSvcReq.Header.Signee = pubKey
+	if err = initSvcReq.Sign(privateKey); err != nil {
+		return
+	}
+
+	rollbackReq := new(wt.UpdateService)
+	rollbackReq.Header.Op = wt.DropDB
+	rollbackReq.Header.Instance = wt.ServiceInstance{
+		DatabaseID: dbID,
+	}
+	rollbackReq.Header.Signee = pubKey
+	if err = rollbackReq.Sign(privateKey); err != nil {
+		return
 	}
 
 	if err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers)); err != nil {
@@ -147,11 +163,20 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	}
 
 	// call miner nodes to drop database
-	dropDBSvcReq := &wt.UpdateService{
-		Op: wt.DropDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID: req.DatabaseID,
-		},
+	dropDBSvcReq := new(wt.UpdateService)
+	dropDBSvcReq.Header.Op = wt.DropDB
+	dropDBSvcReq.Header.Instance = wt.ServiceInstance{
+		DatabaseID: req.DatabaseID,
+	}
+	if dropDBSvcReq.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if dropDBSvcReq.Sign(privateKey); err != nil {
+		return
 	}
 
 	if err = s.batchSendSvcReq(dropDBSvcReq, nil, s.peersToNodes(instanceMeta.Peers)); err != nil {
@@ -202,7 +227,15 @@ func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceRe
 	log.Debugf("current instance for node %v: %v", req.GetNodeID().ToNodeID(), instances)
 
 	// send response to client
-	resp.Instances = instances
+	resp.Header.Instances = instances
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
 
 	return
 }

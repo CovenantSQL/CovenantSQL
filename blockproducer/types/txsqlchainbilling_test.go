@@ -40,10 +40,6 @@ func TestTxContent_GetHashAndGetType(t *testing.T) {
 	if !h.IsEqual(&encHash) {
 		t.Fatalf("Hash not match: \n\tv1=%v,\n\tv2", h, encHash)
 	}
-
-	if tc.TxType != tc.GetType() {
-		t.Fatalf("TxType not match: \n\tv1=%v,\n\tv2", tc.TxType, tc.GetType())
-	}
 }
 
 func TestTxContent_MarshalUnmarshalBinary(t *testing.T) {
@@ -63,9 +59,6 @@ func TestTxContent_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	if tc.TxType != dec.TxType {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.TxType, tc.TxType)
-	}
 	if tc.SequenceID != dec.SequenceID {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.SequenceID, tc.SequenceID)
 	}
@@ -146,7 +139,7 @@ func TestTxBilling_PackAndSignTx(t *testing.T) {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", sign, tb.Signature)
 	}
 
-	err = tb.Verify()
+	err = tb.Verify(&h)
 	if err != nil {
 		t.Fatalf("Verify signature failed: %v", err)
 	}

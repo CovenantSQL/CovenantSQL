@@ -16,14 +16,23 @@
 
 package blockproducer
 
-import "gitlab.com/thunderdb/ThunderDB/proto"
+import (
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+)
+
 
 type runtime struct {
 	accountAddress proto.AccountAddress
+	server rpc.Server
 }
 
 func newRuntime(cfg *config, accountAddress proto.AccountAddress) *runtime {
 	return &runtime{
 		accountAddress: accountAddress,
 	}
+}
+
+func (r *runtime) startService(chain *Chain) {
+	r.server.RegisterService()
 }

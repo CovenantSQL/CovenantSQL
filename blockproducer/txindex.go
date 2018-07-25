@@ -23,7 +23,7 @@ func newTxIndex() *txIndex {
 }
 
 // AddTxBilling adds a checked TxBilling in the TxIndex.
-func (ti *txIndex) AddTxBilling(tb *types.TxBilling) (err error) {
+func (ti *txIndex) addTxBilling(tb *types.TxBilling) (err error) {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
 
@@ -39,7 +39,7 @@ func (ti *txIndex) AddTxBilling(tb *types.TxBilling) (err error) {
 	return nil
 }
 
-func (ti *txIndex) FetchTxBillings() []*types.TxBilling {
+func (ti *txIndex) fetchTxBillings() []*types.TxBilling {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
 
@@ -51,4 +51,9 @@ func (ti *txIndex) FetchTxBillings() []*types.TxBilling {
 		}
 	}
 	return txes
+}
+
+func (ti *txIndex) hasTxBilling(h *hash.Hash) bool {
+	_, ok := ti.hashIndex[*h]
+	return ok
 }

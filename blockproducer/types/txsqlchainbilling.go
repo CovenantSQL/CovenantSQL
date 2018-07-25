@@ -32,7 +32,6 @@ import (
 // TxContent defines the customer's billing and block rewards in transaction
 type TxContent struct {
 	SequenceID     uint64
-	TxType         byte
 	BillingRequest BillingRequest
 	Receivers      []*proto.AccountAddress
 	// Fee paid by stable coin
@@ -48,7 +47,6 @@ func (tb *TxContent) MarshalBinary() ([]byte, error) {
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
 		tb.SequenceID,
-		tb.TxType,
 		&tb.BillingRequest,
 		tb.Receivers,
 		tb.Fees,
@@ -67,7 +65,6 @@ func (tb *TxContent) UnmarshalBinary(b []byte) error {
 
 	err := utils.ReadElements(reader, binary.BigEndian,
 		&tb.SequenceID,
-		&tb.TxType,
 		&tb.BillingRequest,
 		&tb.Receivers,
 		&tb.Fees,
@@ -90,14 +87,10 @@ func (tb *TxContent) GetHash() (*hash.Hash, error) {
 	return &h, nil
 }
 
-// GetType returns the type of transaction
-func (tb *TxContent) GetType() byte {
-	return tb.TxType
-}
-
 // TxBilling is a type of tx, that is used to record sql chain billing and block rewards
 type TxBilling struct {
 	TxContent      TxContent
+	TxType         byte
 	AccountAddress *proto.AccountAddress
 	TxHash         *hash.Hash
 	Signee         *asymmetric.PublicKey
@@ -143,8 +136,8 @@ func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
 }
 
 // Verify verifies the signature of TxBilling
-func (tb *TxBilling) Verify() (err error) {
-	if !tb.Signature.Verify(tb.TxHash[:], tb.Signee) {
+func (tb *TxBilling) Verify(h *hash.Hash) (err error) {
+	if !tb.Signature.Verify(h, tb.Signee) {
 		err = ErrSignVerification
 	}
 	return

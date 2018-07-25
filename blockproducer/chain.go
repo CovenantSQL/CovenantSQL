@@ -19,6 +19,10 @@ package blockproducer
 import (
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/merkle"
+
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 
@@ -45,6 +49,7 @@ type Chain struct {
 	ti *txIndex
 	rt *runtime
 	st *state
+	cl *rpc.Caller
 }
 
 func NewChain(cfg *config) (*Chain, error) {
@@ -88,11 +93,13 @@ func NewChain(cfg *config) (*Chain, error) {
 			Head:   cfg.genesis.SignedHeader.BlockHash,
 			Height: -1,
 		},
+		cl: rpc.NewCaller(),
 	}
 
 	// TODO(lambda): push genesis block into the chain
 
 	// TODO(lambda): start the service
+
 	return chain, nil
 }
 
@@ -167,7 +174,7 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 			if err != nil {
 				return err
 			}
-			chain.ti.AddTxBilling(&txbilling)
+			chain.ti.addTxBilling(&txbilling)
 			return err
 		})
 
@@ -180,7 +187,81 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 	return chain, nil
 }
 
+// checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID
+func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
+	enc, err := tb.TxContent.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	h := hash.THashH(enc)
+	if !tb.TxHash.IsEqual(&h) {
+		return ErrInvalidHashTx
+	}
+
+	err = tb.Verify(&h)
+	if err != nil {
+		return err
+	}
+
+	if c.ti.hasTxBilling(tb.TxHash) {
+		err = c.db.View(func(tx *bolt.Tx) error {
+			meta := tx.Bucket(metaBucket[:])
+			decTx := meta.Bucket(metaTxBillingIndexBucket).Get(tb.TxHash[:])
+			if decTx != nil {
+				return ErrExistedTx
+			} else {
+				return nil
+			}
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		return ErrExistedTx
+	}
+
+	// TODO(lambda): check sequence ID to avoid double rewards and fees
+
+	return nil
+}
+
+// checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature
+func (c *Chain) checkBlock(b *types.Block) error {
+	// TODO(lambda): process block fork
+	if !b.SignedHeader.ParentHash.IsEqual(&c.st.Head) {
+		return ErrParentNotMatch
+	}
+	hashes := make([]*hash.Hash, len(b.TxBillings))
+	for i := range b.TxBillings {
+		err := c.checkTxBilling(b.TxBillings[i])
+		if err != nil {
+			return err
+		}
+		hashes[i] = b.TxBillings[i].TxHash
+	}
+
+	rootHash := merkle.NewMerkle(hashes).GetRoot()
+	if !b.SignedHeader.MerkleRoot.IsEqual(rootHash) {
+		return ErrInvalidMerkleTreeRoot
+	}
+
+	enc, err := b.SignedHeader.Header.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	h := hash.THashH(enc)
+	if !b.SignedHeader.BlockHash.IsEqual(&h) {
+		return ErrInvalidHash
+	}
+
+	return nil
+}
+
 func (c *Chain) pushBlock(b *types.Block) error {
+	err := c.checkBlock(b)
+	if err != nil {
+		return err
+	}
 	node := newBlockNode(b, c.st.node)
 	state := state{
 		node:   node,
@@ -218,6 +299,11 @@ func (c *Chain) pushBlock(b *types.Block) error {
 }
 
 func (c *Chain) pushTxBilling(tb *types.TxBilling) error {
+	err := c.checkTxBilling(tb)
+	if err != nil {
+		return err
+	}
+
 	encTx, err := tb.Serialize()
 	if err != nil {
 		return err
@@ -249,7 +335,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 				Timestamp:  now,
 			},
 		},
-		TxBillings: c.ti.FetchTxBillings(),
+		TxBillings: c.ti.fetchTxBillings(),
 	}
 
 	err = b.PackAndSignBlock(priv)

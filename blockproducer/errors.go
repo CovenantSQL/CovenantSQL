@@ -31,6 +31,14 @@ var (
 	// Errors on main chain
 	// ErrCorruptedIndex defines index corrupted error.
 	ErrCorruptedIndex = errors.New("corrupted index item")
+	// ErrParentNotFound defines that the parent block cannot be found.
 	ErrParentNotFound = errors.New("previous block cannot be found")
-
+	// ErrInvalidHash defines invalid hash error.
+	ErrInvalidHash = errors.New("Hash is invalid")
+	// ErrExistedTx defines existed tx error.
+	ErrExistedTx = errors.New("Tx existed")
+	// ErrInvalidMerkleTreeRoot defines invalid merkle tree root error.
+	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
+	// ErrParentNotMatch defines invalid parent hash.
+	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
 )

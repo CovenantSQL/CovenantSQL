@@ -236,8 +236,8 @@ func (s *LocalStorage) decodeLog(wb twopc.WriteBatch) (payload *KayakPayload, er
 
 // KayakKVServer holds kayak.Runtime and LocalStorage
 type KayakKVServer struct {
-	Runtime *kayak.Runtime
-	Storage *LocalStorage
+	Runtime   *kayak.Runtime
+	KVStorage *LocalStorage
 }
 
 // Init implements consistent.Persistence
@@ -254,9 +254,21 @@ func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err erro
 			Data:    nodeBuf.Bytes(),
 		}
 
-		err = s.Storage.commit(context.Background(), payload)
+		var execLog *storage.ExecLog
+		execLog, err = s.KVStorage.compileExecLog(payload)
 		if err != nil {
-			log.Errorf("init kayak KV node failed: %v", err)
+			log.Errorf("compile exec log failed: %s", err)
+			return
+		}
+		err = s.KVStorage.Storage.Prepare(context.Background(), execLog)
+		if err != nil {
+			log.Errorf("init kayak KV prepare node failed: %v", err)
+			return
+		}
+
+		err = s.KVStorage.commit(context.Background(), payload)
+		if err != nil {
+			log.Errorf("init kayak KV commit node failed: %v", err)
 			return
 		}
 	}
@@ -311,7 +323,7 @@ func (s *KayakKVServer) Reset() (err error) {
 func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
 	var result [][]interface{}
 	query := "SELECT `meta` FROM `databases` WHERE `id` = ? LIMIT 1"
-	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
+	_, _, result, err = s.KVStorage.Query(context.Background(), []storage.Query{
 		{
 			Pattern: query,
 			Args: []sql.NamedArg{
@@ -399,7 +411,7 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err error) {
 	var result [][]interface{}
 	query := "SELECT `meta` FROM `databases`"
-	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
+	_, _, result, err = s.KVStorage.Query(context.Background(), []storage.Query{
 		{
 			Pattern: query,
 		},
@@ -442,7 +454,7 @@ func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err e
 func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	var result [][]interface{}
 	query := "SELECT `node` FROM `dht`;"
-	_, _, result, err = s.Storage.Query(context.Background(), []storage.Query{
+	_, _, result, err = s.KVStorage.Query(context.Background(), []storage.Query{
 		{
 			Pattern: query,
 		},

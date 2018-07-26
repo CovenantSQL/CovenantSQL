@@ -17,7 +17,7 @@
 package blockproducer
 
 import (
-	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
@@ -51,6 +51,11 @@ var (
 		"node_memory_MemFree_bytes",    // linux
 	}
 )
+
+type allocatedNode struct {
+	NodeID       proto.NodeID
+	MemoryMetric uint64
+}
 
 // DBService defines block producer database service rpc endpoint.
 type DBService struct {
@@ -307,7 +312,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *kayak.Peers, err error) {
 	curRange := int(resourceMeta.Node)
 	excludeNodes := make(map[proto.NodeID]bool)
-	var allocated []proto.NodeID
+	var allocated []allocatedNode
 
 	if resourceMeta.Node <= 0 {
 		err = ErrDatabaseAllocation
@@ -377,7 +382,10 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 			if resourceMeta.Memory < metricValue {
 				// can allocate
-				allocated = append(allocated, nodeID)
+				allocated = append(allocated, allocatedNode{
+					NodeID:       nodeID,
+					MemoryMetric: metricValue,
+				})
 			} else {
 				log.Debugf("node %s memory metric does not meet requirements", nodeID)
 				excludeNodes[nodeID] = true
@@ -385,10 +393,22 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		}
 
 		if len(allocated) >= int(resourceMeta.Node) {
+			// sort allocated node by metric
+			sort.Slice(allocated, func(i, j int) bool {
+				return allocated[i].MemoryMetric > allocated[j].MemoryMetric
+			})
+
 			allocated = allocated[:int(resourceMeta.Node)]
 
+			// build plain allocated slice
+			nodeAllocated := make([]proto.NodeID, 0, len(allocated))
+
+			for _, node := range allocated {
+				nodeAllocated = append(nodeAllocated, node.NodeID)
+			}
+
 			// build peers
-			return s.buildPeers(lastTerm+1, nodes, allocated)
+			return s.buildPeers(lastTerm+1, nodes, nodeAllocated)
 		}
 
 		curRange += int(resourceMeta.Node)
@@ -457,23 +477,17 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 		Servers: make([]*kayak.Server, len(allocated)),
 	}
 
-	// TODO(xq262144): more practical leader selection, now random select node as leader
-	// random choice leader
-	leaderIdx := rand.Intn(len(allocated))
-
 	for idx, node := range allocatedNodes {
 		peers.Servers[idx] = &kayak.Server{
 			Role:   proto.Follower,
 			ID:     node.ID,
 			PubKey: node.PublicKey,
 		}
-
-		if idx == leaderIdx {
-			// set as leader
-			peers.Servers[idx].Role = proto.Leader
-			peers.Leader = peers.Servers[idx]
-		}
 	}
+
+	// choose the first node as leader, allocateNodes sort the allocated node list by memory size
+	peers.Servers[0].Role = proto.Leader
+	peers.Leader = peers.Servers[0]
 
 	// sign the peers structure
 	err = peers.Sign(privKey)

@@ -160,6 +160,13 @@ func (r *runtime) now() time.Time {
 	return time.Now().Add(r.offset)
 }
 
+func (r *runtime) getChainTimeSring() string {
+	diff := r.now().Sub(r.chainInitTime)
+	height := diff / r.period
+	offset := diff % r.period
+	return fmt.Sprintf("[@%d+%.9f]", int32(height), offset.Seconds())
+}
+
 func (r *runtime) getNextTurn() int32 {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
@@ -213,8 +220,6 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 func (r *runtime) updatePeers(peers *kayak.Peers) (err error) {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()
-
-	// TODO(leventeliu): get local node ID.
 	index, found := peers.Find(r.server.ID)
 
 	if found {

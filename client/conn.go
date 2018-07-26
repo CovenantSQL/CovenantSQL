@@ -343,15 +343,25 @@ func (c *conn) getPeers() (err error) {
 	c.peersLock.Lock()
 	defer c.peersLock.Unlock()
 
-	req := &bp.GetDatabaseRequest{
-		DatabaseID: c.dbID,
+	req := new(bp.GetDatabaseRequest)
+	req.Header.DatabaseID = c.dbID
+	req.Header.Signee = c.pubKey
+
+	if err = req.Sign(c.privKey); err != nil {
+		return
 	}
+
 	res := new(bp.GetDatabaseResponse)
 	if err = requestBP(bp.DBServiceName+".GetDatabase", req, res); err != nil {
 		return
 	}
 
-	c.peers = res.InstanceMeta.Peers
+	// verify response
+	if err = res.Verify(); err != nil {
+		return
+	}
+
+	c.peers = res.Header.InstanceMeta.Peers
 
 	return
 }

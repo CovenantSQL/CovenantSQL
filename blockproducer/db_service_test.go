@@ -42,6 +42,15 @@ func TestService(t *testing.T) {
 		cleanup, dht, metricService, server, err = initNode()
 		defer cleanup()
 
+		// get keys
+		var pubKey *asymmetric.PublicKey
+		pubKey, err = kms.GetLocalPublicKey()
+		So(err, ShouldBeNil)
+
+		var privateKey *asymmetric.PrivateKey
+		privateKey, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+
 		// create service
 		stubPersistence := &stubDBMetaPersistence{}
 		svcMap, err := InitServiceMap(stubPersistence)
@@ -63,13 +72,17 @@ func TestService(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// test get database
-		getReq := &GetDatabaseRequest{
-			DatabaseID: proto.DatabaseID("db"),
-		}
+		getReq := new(GetDatabaseRequest)
+		getReq.Header.DatabaseID = proto.DatabaseID("db")
+		getReq.Header.Signee = pubKey
+		err = getReq.Sign(privateKey)
+		So(err, ShouldBeNil)
+
 		getRes := new(GetDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetDatabase", getReq, getRes)
 		So(err, ShouldBeNil)
-		So(getRes.InstanceMeta.DatabaseID, ShouldResemble, proto.DatabaseID("db"))
+		So(getReq.Verify(), ShouldBeNil)
+		So(getRes.Header.InstanceMeta.DatabaseID, ShouldResemble, proto.DatabaseID("db"))
 
 		// get node databases
 		getAllReq := new(wt.InitService)
@@ -81,11 +94,13 @@ func TestService(t *testing.T) {
 		So(getAllRes.Header.Instances[0].DatabaseID, ShouldResemble, proto.DatabaseID("db"))
 
 		// create database, no metric received, should failed
-		createDBReq := &CreateDatabaseRequest{
-			ResourceMeta: wt.ResourceMeta{
-				Node: 1,
-			},
+		createDBReq := new(CreateDatabaseRequest)
+		createDBReq.Header.ResourceMeta = wt.ResourceMeta{
+			Node: 1,
 		}
+		createDBReq.Header.Signee = pubKey
+		err = createDBReq.Sign(privateKey)
+		So(err, ShouldBeNil)
 		createDBRes := new(CreateDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".CreateDatabase", createDBReq, createDBRes)
 		So(err, ShouldNotBeNil)
@@ -101,7 +116,8 @@ func TestService(t *testing.T) {
 		createDBRes = new(CreateDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".CreateDatabase", createDBReq, createDBRes)
 		So(err, ShouldBeNil)
-		So(createDBRes.InstanceMeta.DatabaseID, ShouldNotBeEmpty)
+		So(createDBRes.Verify(), ShouldBeNil)
+		So(createDBRes.Header.InstanceMeta.DatabaseID, ShouldNotBeEmpty)
 
 		// get all databases, this new database should exists
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetNodeDatabases", getAllReq, getAllRes)
@@ -110,16 +126,16 @@ func TestService(t *testing.T) {
 		So(getAllRes.Header.Instances, ShouldHaveLength, 2)
 		So(getAllRes.Header.Instances[0].DatabaseID, ShouldBeIn, []proto.DatabaseID{
 			proto.DatabaseID("db"),
-			createDBRes.InstanceMeta.DatabaseID,
+			createDBRes.Header.InstanceMeta.DatabaseID,
 		})
 		So(getAllRes.Header.Instances[1].DatabaseID, ShouldBeIn, []proto.DatabaseID{
 			proto.DatabaseID("db"),
-			createDBRes.InstanceMeta.DatabaseID,
+			createDBRes.Header.InstanceMeta.DatabaseID,
 		})
 
 		// use the database
-		serverID := createDBRes.InstanceMeta.Peers.Leader.ID
-		dbID := createDBRes.InstanceMeta.DatabaseID
+		serverID := createDBRes.Header.InstanceMeta.Peers.Leader.ID
+		dbID := createDBRes.Header.InstanceMeta.DatabaseID
 		var queryReq *wt.Request
 		queryReq, err = buildQuery(wt.WriteQuery, 1, 1, dbID, []string{
 			"create table test (test int)",
@@ -145,17 +161,21 @@ func TestService(t *testing.T) {
 		So(queryRes.Payload.Rows[0].Values[0], ShouldEqual, 1)
 
 		// drop database
-		dropDBReq := &DropDatabaseRequest{
-			DatabaseID: createDBRes.InstanceMeta.DatabaseID,
-		}
+		dropDBReq := new(DropDatabaseRequest)
+		dropDBReq.Header.DatabaseID = createDBRes.Header.InstanceMeta.DatabaseID
+		dropDBReq.Header.Signee = pubKey
+		err = dropDBReq.Sign(privateKey)
+		So(err, ShouldBeNil)
 		dropDBRes := new(DropDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".DropDatabase", dropDBReq, dropDBRes)
 		So(err, ShouldBeNil)
 
 		// get this database again to test if it is dropped
-		getReq = &GetDatabaseRequest{
-			DatabaseID: createDBRes.InstanceMeta.DatabaseID,
-		}
+		getReq = new(GetDatabaseRequest)
+		getReq.Header.DatabaseID = createDBRes.Header.InstanceMeta.DatabaseID
+		getReq.Header.Signee = pubKey
+		err = getReq.Sign(privateKey)
+		So(err, ShouldBeNil)
 		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetDatabase", getReq, getRes)
 		So(err, ShouldNotBeNil)
 	})

@@ -65,6 +65,11 @@ type DBService struct {
 
 // CreateDatabase defines block producer create database logic.
 func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatabaseResponse) (err error) {
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// TODO(xq262144): verify identity
 	// verify identity
 
@@ -76,13 +81,13 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	// allocate nodes
 	var peers *kayak.Peers
-	if peers, err = s.allocateNodes(0, dbID, req.ResourceMeta); err != nil {
+	if peers, err = s.allocateNodes(0, dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
 
 	// TODO(lambda): call accounting features, top up deposit
 	var genesisBlock *ct.Block
-	if genesisBlock, err = s.generateGenesisBlock(dbID, req.ResourceMeta); err != nil {
+	if genesisBlock, err = s.generateGenesisBlock(dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
 
@@ -133,7 +138,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	instanceMeta := wt.ServiceInstance{
 		DatabaseID:   dbID,
 		Peers:        peers,
-		ResourceMeta: req.ResourceMeta,
+		ResourceMeta: req.Header.ResourceMeta,
 		GenesisBlock: genesisBlock,
 	}
 
@@ -146,19 +151,28 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	}
 
 	// send response to client
-	resp.InstanceMeta = instanceMeta
+	resp.Header.InstanceMeta = instanceMeta
+	resp.Header.Signee = pubKey
+
+	// sign the response
+	err = resp.Sign(privateKey)
 
 	return
 }
 
 // DropDatabase defines block producer drop database logic.
 func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseResponse) (err error) {
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
 	// get database peers
 	var instanceMeta wt.ServiceInstance
-	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
+	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
 		return
 	}
 
@@ -166,7 +180,7 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	dropDBSvcReq := new(wt.UpdateService)
 	dropDBSvcReq.Header.Op = wt.DropDB
 	dropDBSvcReq.Header.Instance = wt.ServiceInstance{
-		DatabaseID: req.DatabaseID,
+		DatabaseID: req.Header.DatabaseID,
 	}
 	if dropDBSvcReq.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
 		return
@@ -184,10 +198,10 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	}
 
 	// withdraw deposit from sqlchain
-	// TODO(lambda): withdraw deposit
+	// TODO(lambda): withdraw deposit and record drop database request
 
 	// remove from meta
-	if err = s.ServiceMap.Delete(req.DatabaseID); err != nil {
+	if err = s.ServiceMap.Delete(req.Header.DatabaseID); err != nil {
 		// critical error
 		// TODO(xq262144): critical error recover
 		return
@@ -201,17 +215,33 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 
 // GetDatabase defines block producer get database logic.
 func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseResponse) (err error) {
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
 	// fetch from meta
 	var instanceMeta wt.ServiceInstance
-	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
+	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
 		return
 	}
 
 	// send response to client
-	resp.InstanceMeta = instanceMeta
+	resp.Header.InstanceMeta = instanceMeta
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	// sign the response
+	err = resp.Sign(privateKey)
 
 	return
 }

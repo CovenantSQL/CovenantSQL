@@ -53,7 +53,19 @@ var (
 type stubBPDBService struct{}
 
 func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db"))
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db")); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	err = resp.Sign(privateKey)
+
 	return
 }
 
@@ -62,7 +74,19 @@ func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.Dro
 }
 
 func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	err = resp.Sign(privateKey)
+
 	return
 }
 

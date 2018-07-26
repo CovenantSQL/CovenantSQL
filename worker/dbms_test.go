@@ -90,7 +90,7 @@ func TestDBMS(t *testing.T) {
 			GenesisBlock: block,
 		}
 		req.Header.Signee = pubKey
-		err = req.Header.Sign(privateKey)
+		err = req.Sign(privateKey)
 		So(err, ShouldBeNil)
 
 		Convey("with bp privilege", func() {

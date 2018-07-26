@@ -49,6 +49,17 @@ func TestBuild(t *testing.T) {
 }
 
 func start3BPs() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err := utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2122,
+		2121,
+		2120,
+	}, time.Millisecond*200)
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
 	go utils.RunCommand(
 		FJ(baseDir, "./bin/thunderdbd"),
 		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
@@ -69,15 +80,7 @@ func start3BPs() {
 func TestStartBP_CallRPC(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
 	var err error
-	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2122,
-		2121,
-		2120,
-	}, time.Millisecond*200)
-
 	start3BPs()
 	time.Sleep(5 * time.Second)
 

@@ -594,7 +594,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// register bpdb service
-	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
 		return
 	}
 

@@ -143,13 +143,13 @@ func TestService(t *testing.T) {
 		})
 		So(err, ShouldBeNil)
 		queryRes := new(wt.Response)
-		err = rpc.NewCaller().CallNode(serverID, "DBS.Query", queryReq, queryRes)
+		err = rpc.NewCaller().CallNode(serverID, route.DBSQuery.String(), queryReq, queryRes)
 		So(err, ShouldBeNil)
 		queryReq, err = buildQuery(wt.ReadQuery, 1, 2, dbID, []string{
 			"select * from test",
 		})
 		So(err, ShouldBeNil)
-		err = rpc.NewCaller().CallNode(serverID, "DBS.Query", queryReq, queryRes)
+		err = rpc.NewCaller().CallNode(serverID, route.DBSQuery.String(), queryReq, queryRes)
 		So(err, ShouldBeNil)
 		err = queryRes.Verify()
 		So(err, ShouldBeNil)

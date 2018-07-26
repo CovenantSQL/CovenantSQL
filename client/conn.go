@@ -30,6 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -302,7 +303,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	}
 
 	var response wt.Response
-	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, "DBS.Query", req, &response); err != nil {
+	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
 
@@ -330,7 +331,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	var ackRes wt.AckResponse
 
 	// send ack back
-	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, "DBS.Ack", ack, &ackRes); err != nil {
+	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSAck.String(), ack, &ackRes); err != nil {
 		return
 	}
 

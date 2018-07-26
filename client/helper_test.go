@@ -221,7 +221,7 @@ func startTestService() (stopTestService func(), err error) {
 	}
 
 	// send create database request
-	if err = testRequest("Update", req, &res); err != nil {
+	if err = testRequest(route.DBSUpdate, req, &res); err != nil {
 		return
 	}
 
@@ -267,7 +267,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// register bpdb service
-	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
 		return
 	}
 
@@ -348,16 +348,14 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	return
 }
 
-func testRequest(method string, req interface{}, response interface{}) (err error) {
-	realMethod := "DBS." + method
-
+func testRequest(method route.RemoteFunc, req interface{}, response interface{}) (err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
-	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, method.String(), req, response)
 }
 
 func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, err error) {

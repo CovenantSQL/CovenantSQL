@@ -26,6 +26,7 @@ import (
 	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
 	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -314,8 +315,8 @@ func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err erro
 
 	req := &wt.InitService{}
 	res := new(wt.InitServiceResponse)
-	// TODO(xq262144): maybe we should define service name convention to a single location
-	if err = rpc.NewCaller().CallNode(bpNodeID, "BPDB.GetNodeDatabases", req, res); err != nil {
+
+	if err = rpc.NewCaller().CallNode(bpNodeID, route.BPDBGetNodeDatabases.String(), req, res); err != nil {
 		return
 	}
 

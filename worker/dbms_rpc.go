@@ -83,7 +83,7 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 // Update rpc, called by BP to create/drop database and update peers.
 func (rpc *DBMSRPCService) Update(req *wt.UpdateService, _ *wt.UpdateServiceResponse) (err error) {
 	// verify request node is block producer
-	if !route.IsBPNodeID(req.Envelope.NodeID) {
+	if !route.IsPermitted(&req.Envelope, route.DBSUpdate) {
 		err = ErrInvalidRequest
 		return
 	}

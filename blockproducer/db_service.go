@@ -547,7 +547,7 @@ func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.N
 		go func(s proto.NodeID, ec chan error) {
 			defer wg.Done()
 			var resp wt.UpdateServiceResponse
-			ec <- rpc.NewCaller().CallNode(s, "DBS.Update", req, &resp)
+			ec <- rpc.NewCaller().CallNode(s, route.DBSUpdate.String(), req, &resp)
 		}(node, errCh)
 	}
 

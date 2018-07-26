@@ -75,8 +75,8 @@ const (
 	DBSQuery
 	// DBSAck is used by client to send acknowledge to the query response
 	DBSAck
-	// DBSUpdate is used by BP to create/drop/update database
-	DBSUpdate
+	// DBSDeploy is used by BP to create/drop/update database
+	DBSDeploy
 	// DBCCall is used by Miner for data consistency
 	DBCCall
 	// BPDBCreateDatabase is used by client to create database
@@ -118,8 +118,8 @@ func (s RemoteFunc) String() string {
 		return "DBS.Query"
 	case DBSAck:
 		return "DBS.Ack"
-	case DBSUpdate:
-		return "DBS.Update"
+	case DBSDeploy:
+		return "DBS.Deploy"
 	case DBCCall:
 		return "DBC.Call"
 	case BPDBCreateDatabase:
@@ -170,8 +170,8 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 			// Kayak related
 		case KayakCall:
 			return false
-			// DBSUpdate
-		case DBSUpdate:
+			// DBSDeploy
+		case DBSDeploy:
 			return false
 		default:
 			// calling Unspecified RPC is forbidden

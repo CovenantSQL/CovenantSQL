@@ -27,6 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -95,7 +96,7 @@ func TestDBMS(t *testing.T) {
 
 		Convey("with bp privilege", func() {
 			// send update again
-			err = testRequest("Update", req, &res)
+			err = testRequest(route.DBSDeploy, req, &res)
 			So(err, ShouldBeNil)
 
 			Convey("queries", func() {
@@ -108,7 +109,7 @@ func TestDBMS(t *testing.T) {
 				})
 				So(err, ShouldBeNil)
 
-				err = testRequest("Query", writeQuery, &queryRes)
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldBeNil)
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
@@ -121,7 +122,7 @@ func TestDBMS(t *testing.T) {
 				})
 				So(err, ShouldBeNil)
 
-				err = testRequest("Query", readQuery, &queryRes)
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
 				So(err, ShouldBeNil)
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
@@ -138,7 +139,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				var ackRes wt.AckResponse
-				err = testRequest("Ack", ack, &ackRes)
+				err = testRequest(route.DBSAck, ack, &ackRes)
 				So(err, ShouldBeNil)
 			})
 
@@ -153,7 +154,7 @@ func TestDBMS(t *testing.T) {
 					})
 				So(err, ShouldBeNil)
 
-				err = testRequest("Query", writeQuery, &queryRes)
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldNotBeNil)
 			})
 
@@ -172,7 +173,7 @@ func TestDBMS(t *testing.T) {
 				err = req.Sign(privateKey)
 				So(err, ShouldBeNil)
 
-				err = testRequest("Update", req, &res)
+				err = testRequest(route.DBSDeploy, req, &res)
 				So(err, ShouldBeNil)
 			})
 
@@ -187,7 +188,7 @@ func TestDBMS(t *testing.T) {
 				err = req.Sign(privateKey)
 				So(err, ShouldBeNil)
 
-				err = testRequest("Update", req, &res)
+				err = testRequest(route.DBSDeploy, req, &res)
 				So(err, ShouldBeNil)
 
 				// shutdown
@@ -208,14 +209,12 @@ func TestDBMS(t *testing.T) {
 	})
 }
 
-func testRequest(method string, req interface{}, response interface{}) (err error) {
-	realMethod := DBServiceRPCName + "." + method
-
+func testRequest(method route.RemoteFunc, req interface{}, response interface{}) (err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
-	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, method.String(), req, response)
 }

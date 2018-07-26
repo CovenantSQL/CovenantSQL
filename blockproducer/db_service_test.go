@@ -79,7 +79,7 @@ func TestService(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		getRes := new(GetDatabaseResponse)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetDatabase", getReq, getRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetDatabase.String(), getReq, getRes)
 		So(err, ShouldBeNil)
 		So(getReq.Verify(), ShouldBeNil)
 		So(getRes.Header.InstanceMeta.DatabaseID, ShouldResemble, proto.DatabaseID("db"))
@@ -87,7 +87,7 @@ func TestService(t *testing.T) {
 		// get node databases
 		getAllReq := new(wt.InitService)
 		getAllRes := new(wt.InitServiceResponse)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetNodeDatabases", getAllReq, getAllRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetNodeDatabases.String(), getAllReq, getAllRes)
 		So(err, ShouldBeNil)
 		So(getAllRes.Verify(), ShouldBeNil)
 		So(getAllRes.Header.Instances, ShouldHaveLength, 1)
@@ -102,25 +102,25 @@ func TestService(t *testing.T) {
 		err = createDBReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 		createDBRes := new(CreateDatabaseResponse)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".CreateDatabase", createDBReq, createDBRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBCreateDatabase.String(), createDBReq, createDBRes)
 		So(err, ShouldNotBeNil)
 
 		// trigger metrics, but does not allow block producer to service as miner
 		metric.NewCollectClient().UploadMetrics(nodeID)
 		createDBRes = new(CreateDatabaseResponse)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".CreateDatabase", createDBReq, createDBRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBCreateDatabase.String(), createDBReq, createDBRes)
 		So(err, ShouldNotBeNil)
 
 		// allow block producer to service as miner, only use this in test case
 		dbService.includeBPNodesForAllocation = true
 		createDBRes = new(CreateDatabaseResponse)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".CreateDatabase", createDBReq, createDBRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBCreateDatabase.String(), createDBReq, createDBRes)
 		So(err, ShouldBeNil)
 		So(createDBRes.Verify(), ShouldBeNil)
 		So(createDBRes.Header.InstanceMeta.DatabaseID, ShouldNotBeEmpty)
 
 		// get all databases, this new database should exists
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetNodeDatabases", getAllReq, getAllRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetNodeDatabases.String(), getAllReq, getAllRes)
 		So(err, ShouldBeNil)
 		So(getAllRes.Verify(), ShouldBeNil)
 		So(getAllRes.Header.Instances, ShouldHaveLength, 2)
@@ -167,7 +167,7 @@ func TestService(t *testing.T) {
 		err = dropDBReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 		dropDBRes := new(DropDatabaseResponse)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".DropDatabase", dropDBReq, dropDBRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBDropDatabase.String(), dropDBReq, dropDBRes)
 		So(err, ShouldBeNil)
 
 		// get this database again to test if it is dropped
@@ -176,7 +176,7 @@ func TestService(t *testing.T) {
 		getReq.Header.Signee = pubKey
 		err = getReq.Sign(privateKey)
 		So(err, ShouldBeNil)
-		err = rpc.NewCaller().CallNode(nodeID, DBServiceName+".GetDatabase", getReq, getRes)
+		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetDatabase.String(), getReq, getRes)
 		So(err, ShouldNotBeNil)
 	})
 }

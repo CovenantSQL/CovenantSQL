@@ -221,7 +221,7 @@ func startTestService() (stopTestService func(), err error) {
 	}
 
 	// send create database request
-	if err = testRequest(route.DBSUpdate, req, &res); err != nil {
+	if err = testRequest(route.DBSDeploy, req, &res); err != nil {
 		return
 	}
 

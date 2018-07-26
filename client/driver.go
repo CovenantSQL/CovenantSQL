@@ -86,7 +86,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	}
 	res := new(bp.CreateDatabaseResponse)
 
-	if err = requestBP(bp.DBServiceName+".CreateDatabase", req, res); err != nil {
+	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
 		return
 	}
 	if err = res.Verify(); err != nil {
@@ -120,16 +120,16 @@ func Drop(dsn string) (err error) {
 		return
 	}
 	res := new(bp.DropDatabaseResponse)
-	err = requestBP(bp.DBServiceName+".DropDatabase", req, res)
+	err = requestBP(route.BPDBDropDatabase, req, res)
 
 	return
 }
 
-func requestBP(method string, request interface{}, response interface{}) (err error) {
+func requestBP(method route.RemoteFunc, request interface{}, response interface{}) (err error) {
 	var bpNodeID proto.NodeID
 	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
 		return
 	}
 
-	return rpc.NewCaller().CallNode(bpNodeID, method, request, response)
+	return rpc.NewCaller().CallNode(bpNodeID, method.String(), request, response)
 }

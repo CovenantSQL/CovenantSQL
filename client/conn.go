@@ -353,7 +353,7 @@ func (c *conn) getPeers() (err error) {
 	}
 
 	res := new(bp.GetDatabaseResponse)
-	if err = requestBP(bp.DBServiceName+".GetDatabase", req, res); err != nil {
+	if err = requestBP(route.BPDBGetDatabase, req, res); err != nil {
 		return
 	}
 

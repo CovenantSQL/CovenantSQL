@@ -27,7 +27,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
@@ -129,7 +128,7 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 		return
 	}
 
-	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)
+	nodeAddr, err := GetNodeAddr(rawNodeID)
 	if err != nil {
 		log.Errorf("resolve node %x failed, err: %s", *rawNodeID, err)
 		return

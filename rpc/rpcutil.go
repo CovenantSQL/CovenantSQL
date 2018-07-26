@@ -121,10 +121,8 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 				log.Errorf("call %s %s failed: %s", bp, method, err)
 				return
 			}
-			if err == nil {
-				route.SetNodeAddrCache(id, respFN.Node.Addr)
-				addr = respFN.Node.Addr
-			}
+			route.SetNodeAddrCache(id, respFN.Node.Addr)
+			addr = respFN.Node.Addr
 		}
 	}
 	return
@@ -153,16 +151,14 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 				log.Errorf("call %s %s failed: %s", bp, method, err)
 				return
 			}
-			if err == nil {
-				nodeInfo = respFN.Node
-				errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
-				if errSet != nil {
-					log.Warnf("set node addr cache failed: %v", errSet)
-				}
-				errSet = kms.SetNode(nodeInfo)
-				if errSet != nil {
-					log.Warnf("set node to kms failed: %v", errSet)
-				}
+			nodeInfo = respFN.Node
+			errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
+			if errSet != nil {
+				log.Warnf("set node addr cache failed: %v", errSet)
+			}
+			errSet = kms.SetNode(nodeInfo)
+			if errSet != nil {
+				log.Warnf("set node to kms failed: %v", errSet)
 			}
 		}
 	}

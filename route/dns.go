@@ -142,7 +142,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	}
 
 	if conf.GConf.KnownNodes != nil {
-		for _, n := range *conf.GConf.KnownNodes {
+		for _, n := range conf.GConf.KnownNodes {
 			rawID := n.ID.ToRawNodeID()
 			if rawID != nil {
 				if n.Role == proto.Leader || n.Role == proto.Follower {
@@ -190,7 +190,7 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 func InitKMS(PubKeyStoreFile string) {
 	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
 	if conf.GConf.KnownNodes != nil {
-		for _, n := range (*conf.GConf.KnownNodes)[:] {
+		for _, n := range conf.GConf.KnownNodes {
 			rawNodeID := n.ID.ToRawNodeID()
 
 			log.Debugf("set node addr: %v, %v", rawNodeID, n.Addr)

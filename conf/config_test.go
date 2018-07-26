@@ -75,7 +75,7 @@ func TestConf(t *testing.T) {
 			},
 			MinNodeIDDifficulty: 2,
 			BP:                  BP,
-			KnownNodes: &[]proto.Node{
+			KnownNodes: []proto.Node{
 				{
 					ID:        BP.NodeID,
 					Nonce:     BP.Nonce,

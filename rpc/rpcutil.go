@@ -114,15 +114,12 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			}
 			respFN := new(proto.FindNodeResp)
 
-			// TODO(auxten) add some random here for bp selection
-			for _, bp := range BPs {
-				method := "DHT.FindNode"
-				err = client.CallNode(bp, method, reqFN, respFN)
-				if err != nil {
-					log.Errorf("call %s %s failed: %s", bp, method, err)
-					continue
-				}
-				break
+			bp := BPs[rand.Intn(len(BPs))]
+			method := "DHT.FindNode"
+			err = client.CallNode(bp, method, reqFN, respFN)
+			if err != nil {
+				log.Errorf("call %s %s failed: %s", bp, method, err)
+				return
 			}
 			if err == nil {
 				route.SetNodeAddrCache(id, respFN.Node.Addr)
@@ -149,16 +146,12 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 				NodeID: proto.NodeID(id.String()),
 			}
 			respFN := new(proto.FindNodeResp)
-
-			// TODO(auxten) add some random here for bp selection
-			for _, bp := range BPs {
-				method := "DHT.FindNode"
-				err = client.CallNode(bp, method, reqFN, respFN)
-				if err != nil {
-					log.Errorf("call %s %s failed: %s", bp, method, err)
-					continue
-				}
-				break
+			bp := BPs[rand.Intn(len(BPs))]
+			method := "DHT.FindNode"
+			err = client.CallNode(bp, method, reqFN, respFN)
+			if err != nil {
+				log.Errorf("call %s %s failed: %s", bp, method, err)
+				return
 			}
 			if err == nil {
 				nodeInfo = respFN.Node

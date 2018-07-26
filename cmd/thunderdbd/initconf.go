@@ -50,10 +50,10 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 	}
 
 	if conf.GConf.KnownNodes != nil {
-		for i, n := range (*conf.GConf.KnownNodes)[:] {
+		for i, n := range conf.GConf.KnownNodes {
 			if n.Role == proto.Leader || n.Role == proto.Follower {
 				//FIXME all KnownNodes
-				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
+				conf.GConf.KnownNodes[i].PublicKey = kms.BP.PublicKey
 				peers.Servers = append(peers.Servers, &kayak.Server{
 					Role:   n.Role,
 					ID:     n.ID,
@@ -77,7 +77,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 
 	// set p route and public keystore
 	if conf.GConf.KnownNodes != nil {
-		for _, p := range (*conf.GConf.KnownNodes)[:] {
+		for _, p := range conf.GConf.KnownNodes {
 			rawNodeIDHash, err := hash.NewHashFromStr(string(p.ID))
 			if err != nil {
 				log.Errorf("load hash from node id failed: %s", err)

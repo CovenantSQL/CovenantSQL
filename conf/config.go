@@ -89,12 +89,12 @@ type Config struct {
 	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
 	GenerateKeyPair bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
-	WorkingRoot     string
-	PubKeyStoreFile string
-	PrivateKeyFile  string
-	DHTFileName     string
-	ListenAddr      string
-	ThisNodeID      proto.NodeID
+	WorkingRoot     string            `yaml:"WorkingRoot"`
+	PubKeyStoreFile string            `yaml:"PubKeyStoreFile"`
+	PrivateKeyFile  string            `yaml:"PrivateKeyFile"`
+	DHTFileName     string            `yaml:"DHTFileName"`
+	ListenAddr      string            `yaml:"ListenAddr"`
+	ThisNodeID      proto.NodeID      `yaml:"ThisNodeID"`
 	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 	// Check By BP DHT.Ping
 	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
@@ -102,7 +102,7 @@ type Config struct {
 	BP    *BPInfo    `yaml:"BlockProducer"`
 	Miner *MinerInfo `yaml:"Miner,omitempty"`
 
-	KnownNodes  *[]proto.Node
+	KnownNodes  []proto.Node `yaml:"KnownNodes"`
 	SeedBPNodes []proto.Node `yaml:"-"`
 }
 

@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
@@ -138,7 +139,7 @@ func TestMultiChain(t *testing.T) {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		defer func(c *Chain, db string) {
+		defer func(c *Chain, s *kayak.Server, db string) {
 			// Stop chain main process
 			c.Stop()
 			// Try to reload chain
@@ -148,7 +149,7 @@ func TestMultiChain(t *testing.T) {
 				Period:     testPeriod,
 				Tick:       testTick,
 				MuxService: mux,
-				Server:     peers.Servers[i],
+				Server:     s,
 				Peers:      peers,
 				QueryTTL:   testQueryTTL,
 			}); err != nil {
@@ -157,7 +158,7 @@ func TestMultiChain(t *testing.T) {
 				t.Logf("Load chain from file %s: head = %s height = %d",
 					db, nc.rt.getHead().Head, nc.rt.getHead().Height)
 			}
-		}(chains[i], dataFile)
+		}(chains[i], peers.Servers[i], dataFile)
 	}
 
 	// Create some random clients to push new queries

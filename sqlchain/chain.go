@@ -290,7 +290,7 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 		c.qi.setSignedBlock(h, b)
 		log.WithFields(log.Fields{
 			"peer":        c.rt.getPeerInfoString(),
-			"time":        c.rt.getChainTimeSring(),
+			"time":        c.rt.getChainTimeString(),
 			"block":       b.BlockHash().String(),
 			"producer":    b.Producer(),
 			"blocktime":   b.Timestamp().Format(time.RFC3339Nano),
@@ -426,7 +426,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	c.blocks <- block
 	log.WithFields(log.Fields{
 		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeSring(),
+		"time":            c.rt.getChainTimeString(),
 		"curr_turn":       c.rt.getNextTurn(),
 		"using_timestamp": now.Format(time.RFC3339Nano),
 		"block_hash":      block.BlockHash().String(),
@@ -455,7 +455,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 				if err := c.cl.CallNode(id, method, req, resp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":            c.rt.getPeerInfoString(),
-						"time":            c.rt.getChainTimeSring(),
+						"time":            c.rt.getChainTimeString(),
 						"curr_turn":       c.rt.getNextTurn(),
 						"using_timestamp": now.Format(time.RFC3339Nano),
 						"block_hash":      block.BlockHash().String(),
@@ -493,7 +493,7 @@ func (c *Chain) syncHead() {
 				if err = c.cl.CallNode(s.ID, method, req, resp); err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
-						"time":        c.rt.getChainTimeSring(),
+						"time":        c.rt.getChainTimeString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
@@ -504,7 +504,7 @@ func (c *Chain) syncHead() {
 					c.blocks <- resp.Block
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
-						"time":        c.rt.getChainTimeSring(),
+						"time":        c.rt.getChainTimeString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
@@ -520,7 +520,7 @@ func (c *Chain) syncHead() {
 		if !succ {
 			log.WithFields(log.Fields{
 				"peer":        c.rt.getPeerInfoString(),
-				"time":        c.rt.getChainTimeSring(),
+				"time":        c.rt.getChainTimeString(),
 				"curr_turn":   c.rt.getNextTurn(),
 				"head_height": c.rt.getHead().Height,
 				"head_block":  c.rt.getHead().Head.String(),
@@ -539,7 +539,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 
 	log.WithFields(log.Fields{
 		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeSring(),
+		"time":            c.rt.getChainTimeString(),
 		"curr_turn":       c.rt.getNextTurn(),
 		"head_height":     c.rt.getHead().Height,
 		"head_block":      c.rt.getHead().Head.String(),
@@ -549,7 +549,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {
 		log.WithFields(log.Fields{
 			"peer":            c.rt.getPeerInfoString(),
-			"time":            c.rt.getChainTimeSring(),
+			"time":            c.rt.getChainTimeString(),
 			"curr_turn":       c.rt.getNextTurn(),
 			"head_height":     c.rt.getHead().Height,
 			"head_block":      c.rt.getHead().Head.String(),
@@ -564,7 +564,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	if err := c.produceBlock(now); err != nil {
 		log.WithFields(log.Fields{
 			"peer":            c.rt.getPeerInfoString(),
-			"time":            c.rt.getChainTimeSring(),
+			"time":            c.rt.getChainTimeString(),
 			"curr_turn":       c.rt.getNextTurn(),
 			"using_timestamp": now.Format(time.RFC3339Nano),
 		}).WithError(err).Error(
@@ -590,7 +590,7 @@ func (c *Chain) mainCycle() {
 			if t, d := c.rt.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
 					"peer":            c.rt.getPeerInfoString(),
-					"time":            c.rt.getChainTimeSring(),
+					"time":            c.rt.getChainTimeString(),
 					"next_turn":       c.rt.getNextTurn(),
 					"head_height":     c.rt.getHead().Height,
 					"head_block":      c.rt.getHead().Head.String(),
@@ -609,7 +609,7 @@ func (c *Chain) mainCycle() {
 func (c *Chain) sync() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeSring(),
+		"time": c.rt.getChainTimeString(),
 	}).Debug("Synchronizing chain state")
 
 	for {
@@ -656,7 +656,7 @@ func (c *Chain) processBlocks() {
 			height := c.rt.getHeightFromTime(block.Timestamp())
 			log.WithFields(log.Fields{
 				"peer":         c.rt.getPeerInfoString(),
-				"time":         c.rt.getChainTimeSring(),
+				"time":         c.rt.getChainTimeString(),
 				"curr_turn":    c.rt.getNextTurn(),
 				"head_height":  c.rt.getHead().Height,
 				"head_block":   c.rt.getHead().Head.String(),
@@ -680,7 +680,7 @@ func (c *Chain) processBlocks() {
 						if err := c.pushBlock(block); err != nil {
 							log.WithFields(log.Fields{
 								"peer":         c.rt.getPeerInfoString(),
-								"time":         c.rt.getChainTimeSring(),
+								"time":         c.rt.getChainTimeString(),
 								"curr_turn":    c.rt.getNextTurn(),
 								"head_height":  c.rt.getHead().Height,
 								"head_block":   c.rt.getHead().Head.String(),
@@ -692,7 +692,7 @@ func (c *Chain) processBlocks() {
 						if err := c.CheckAndPushNewBlock(block); err != nil {
 							log.WithFields(log.Fields{
 								"peer":         c.rt.getPeerInfoString(),
-								"time":         c.rt.getChainTimeSring(),
+								"time":         c.rt.getChainTimeString(),
 								"curr_turn":    c.rt.getNextTurn(),
 								"head_height":  c.rt.getHead().Height,
 								"head_block":   c.rt.getHead().Head.String(),
@@ -759,18 +759,18 @@ func (c *Chain) Stop() (err error) {
 	// Stop main process
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeSring(),
+		"time": c.rt.getChainTimeString(),
 	}).Debug("Stopping chain")
 	c.rt.stop()
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeSring(),
+		"time": c.rt.getChainTimeString(),
 	}).Debug("Chain service stopped")
 	// Close database file
 	err = c.db.Close()
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeSring(),
+		"time": c.rt.getChainTimeString(),
 	}).Debug("Chain database closed")
 	return
 }
@@ -836,7 +836,7 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 	if err = c.cl.CallNode(id, method, req, resp); err != nil {
 		log.WithFields(log.Fields{
 			"peer": c.rt.getPeerInfoString(),
-			"time": c.rt.getChainTimeSring(),
+			"time": c.rt.getChainTimeString(),
 		}).WithError(err).Error(
 			"Failed to fetch acked query")
 		return
@@ -859,7 +859,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	}()
 	log.WithFields(log.Fields{
 		"peer":        c.rt.getPeerInfoString(),
-		"time":        c.rt.getChainTimeSring(),
+		"time":        c.rt.getChainTimeString(),
 		"block":       block.BlockHash().String(),
 		"producer":    block.Producer(),
 		"blocktime":   block.Timestamp().Format(time.RFC3339Nano),
@@ -876,7 +876,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 		// Pushed block must extend the best chain
 		log.WithFields(log.Fields{
 			"peer":        c.rt.getPeerInfoString(),
-			"time":        c.rt.getChainTimeSring(),
+			"time":        c.rt.getChainTimeString(),
 			"block":       block.BlockHash().String(),
 			"producer":    block.Producer(),
 			"blocktime":   block.Timestamp().Format(time.RFC3339Nano),
@@ -899,7 +899,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	if index != next {
 		log.WithFields(log.Fields{
 			"peer":     c.rt.getPeerInfoString(),
-			"time":     c.rt.getChainTimeSring(),
+			"time":     c.rt.getChainTimeString(),
 			"expected": next,
 			"actual":   index,
 		}).WithError(err).Error(

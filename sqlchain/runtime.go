@@ -160,7 +160,7 @@ func (r *runtime) now() time.Time {
 	return time.Now().Add(r.offset)
 }
 
-func (r *runtime) getChainTimeSring() string {
+func (r *runtime) getChainTimeString() string {
 	diff := r.now().Sub(r.chainInitTime)
 	height := diff / r.period
 	offset := diff % r.period

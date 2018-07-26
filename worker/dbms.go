@@ -29,6 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
@@ -333,8 +334,9 @@ func (dbms *DBMS) Shutdown() (err error) {
 	dbms.dbMap.Range(func(_, rawDB interface{}) bool {
 		db := rawDB.(*Database)
 
-		// TODO(xq262144): more database shutdown error handling
-		db.Shutdown()
+		if err = db.Shutdown(); err != nil {
+			log.Errorf("shutdown database failed: %v", err)
+		}
 
 		return true
 	})

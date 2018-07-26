@@ -35,7 +35,7 @@ import (
 
 func runClient(nodeID proto.NodeID) (err error) {
 	var idx int
-	for i, n := range (*conf.GConf.KnownNodes)[:] {
+	for i, n := range conf.GConf.KnownNodes {
 		if n.ID == nodeID {
 			idx = i
 			break
@@ -63,7 +63,7 @@ func runClient(nodeID proto.NodeID) (err error) {
 		return
 	}
 
-	(*conf.GConf.KnownNodes)[idx].PublicKey, err = kms.GetLocalPublicKey()
+	conf.GConf.KnownNodes[idx].PublicKey, err = kms.GetLocalPublicKey()
 	if err != nil {
 		log.Errorf("get local public key failed: %s", err)
 		return
@@ -116,7 +116,7 @@ func clientRequest(reqType string, sql string) (err error) {
 		}
 		log.Debugf("resp %s: %v", reqType, respA)
 	} else {
-		for _, bp := range (*conf.GConf.KnownNodes)[:] {
+		for _, bp := range conf.GConf.KnownNodes {
 			if bp.Role == proto.Leader || bp.Role == proto.Follower {
 				if conn, err = rpc.DialToNode(bp.ID, rpc.GetSessionPoolInstance(), false); err != nil {
 					return

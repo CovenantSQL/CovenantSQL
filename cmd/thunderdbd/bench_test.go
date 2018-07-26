@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"net"
 	"path/filepath"
 	"testing"
@@ -67,10 +68,19 @@ func start3BPs() {
 
 func TestStartBP_CallRPC(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	var err error
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2122,
+		2121,
+		2120,
+	}, time.Millisecond*200)
+
 	start3BPs()
 	time.Sleep(5 * time.Second)
 
-	var err error
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
 	if err != nil {
 		t.Fatalf("load config from %s failed: %s", configFile, err)
@@ -151,7 +161,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 	}
 
 	caller := rpc.NewCaller()
-	for _, n := range (*conf.GConf.KnownNodes)[:] {
+	for _, n := range conf.GConf.KnownNodes {
 		if n.Role == proto.Follower {
 			err = caller.CallNode(n.ID, "DHT."+reqType, reqFN, respFN)
 			log.Debugf("respFN %s: %##v", reqType, respFN.Node)
@@ -180,7 +190,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	nodeID := conf.GConf.ThisNodeID
 
 	var idx int
-	for i, n := range (*conf.GConf.KnownNodes)[:] {
+	for i, n := range conf.GConf.KnownNodes {
 		if n.ID == nodeID {
 			idx = i
 			break
@@ -200,7 +210,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 		return
 	}
 
-	(*conf.GConf.KnownNodes)[idx].PublicKey, err = kms.GetLocalPublicKey()
+	conf.GConf.KnownNodes[idx].PublicKey, err = kms.GetLocalPublicKey()
 	if err != nil {
 		log.Errorf("get local public key failed: %s", err)
 		return

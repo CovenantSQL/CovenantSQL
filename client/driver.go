@@ -23,6 +23,7 @@ import (
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
@@ -71,17 +72,29 @@ func Init(configFile string, masterKey []byte) (err error) {
 
 // Create send create database operation to block producer.
 func Create(meta ResourceMeta) (dsn string, err error) {
-	req := &bp.CreateDatabaseRequest{
-		ResourceMeta: wt.ResourceMeta(meta),
+	req := new(bp.CreateDatabaseRequest)
+	req.Header.ResourceMeta = wt.ResourceMeta(meta)
+	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = req.Sign(privateKey); err != nil {
+		return
 	}
 	res := new(bp.CreateDatabaseResponse)
 
-	if err = requestBP(bp.DBServiceName+".CreateDatabase", req, res); err != nil {
+	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
+		return
+	}
+	if err = res.Verify(); err != nil {
 		return
 	}
 
 	cfg := NewConfig()
-	cfg.DatabaseID = string(res.InstanceMeta.DatabaseID)
+	cfg.DatabaseID = string(res.Header.InstanceMeta.DatabaseID)
 	dsn = cfg.FormatDSN()
 
 	return
@@ -94,20 +107,29 @@ func Drop(dsn string) (err error) {
 		return
 	}
 
-	req := &bp.DropDatabaseRequest{
-		DatabaseID: proto.DatabaseID(cfg.DatabaseID),
+	req := new(bp.DropDatabaseRequest)
+	req.Header.DatabaseID = proto.DatabaseID(cfg.DatabaseID)
+	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = req.Sign(privateKey); err != nil {
+		return
 	}
 	res := new(bp.DropDatabaseResponse)
-	err = requestBP(bp.DBServiceName+".DropDatabase", req, res)
+	err = requestBP(route.BPDBDropDatabase, req, res)
 
 	return
 }
 
-func requestBP(method string, request interface{}, response interface{}) (err error) {
+func requestBP(method route.RemoteFunc, request interface{}, response interface{}) (err error) {
 	var bpNodeID proto.NodeID
 	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
 		return
 	}
 
-	return rpc.NewCaller().CallNode(bpNodeID, method, request, response)
+	return rpc.NewCaller().CallNode(bpNodeID, method.String(), request, response)
 }

@@ -594,7 +594,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// register bpdb service
-	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
 		return
 	}
 
@@ -681,7 +681,17 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 type stubBPDBService struct{}
 
 func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta("db2")
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta("db2"); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
 	return
 }
 
@@ -690,13 +700,33 @@ func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.Dro
 }
 
 func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
 	return
 }
 
 func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Instances = make([]wt.ServiceInstance, 1)
-	resp.Instances[0], err = s.getInstanceMeta("db2")
+	resp.Header.Instances = make([]wt.ServiceInstance, 1)
+	resp.Header.Instances[0], err = s.getInstanceMeta("db2")
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
+
 	return
 }
 

@@ -66,11 +66,11 @@ func (k *NodeKey) Less(y *NodeKey) bool {
 
 // Node is all node info struct
 type Node struct {
-	ID        NodeID
-	Role      ServerRole
-	Addr      string
+	ID        NodeID                `yaml:"ID"`
+	Role      ServerRole            `yaml:"Role"`
+	Addr      string                `yaml:"Addr"`
 	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
-	Nonce     mine.Uint256
+	Nonce     mine.Uint256          `yaml:"Nonce"`
 }
 
 // NewNode just return a new node struct

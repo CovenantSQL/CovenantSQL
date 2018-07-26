@@ -53,7 +53,19 @@ var (
 type stubBPDBService struct{}
 
 func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db"))
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db")); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	err = resp.Sign(privateKey)
+
 	return
 }
 
@@ -62,12 +74,34 @@ func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.Dro
 }
 
 func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	err = resp.Sign(privateKey)
+
 	return
 }
 
 func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Instances = make([]wt.ServiceInstance, 0)
+	resp.Header.Instances = make([]wt.ServiceInstance, 0)
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if resp.Sign(privateKey); err != nil {
+		return
+	}
 	return
 }
 
@@ -168,17 +202,26 @@ func startTestService() (stopTestService func(), err error) {
 	}
 
 	// build create database request
-	req = &wt.UpdateService{
-		Op: wt.CreateDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID:   dbID,
-			Peers:        peers,
-			GenesisBlock: block,
-		},
+	req = new(wt.UpdateService)
+	req.Header.Op = wt.CreateDB
+	req.Header.Instance = wt.ServiceInstance{
+		DatabaseID:   dbID,
+		Peers:        peers,
+		GenesisBlock: block,
+	}
+	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = req.Sign(privateKey); err != nil {
+		return
 	}
 
 	// send create database request
-	if err = testRequest("Update", req, &res); err != nil {
+	if err = testRequest(route.DBSDeploy, req, &res); err != nil {
 		return
 	}
 
@@ -224,7 +267,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// register bpdb service
-	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
 		return
 	}
 
@@ -305,16 +348,14 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	return
 }
 
-func testRequest(method string, req interface{}, response interface{}) (err error) {
-	realMethod := "DBS." + method
-
+func testRequest(method route.RemoteFunc, req interface{}, response interface{}) (err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
-	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, method.String(), req, response)
 }
 
 func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, err error) {

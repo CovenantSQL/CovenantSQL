@@ -69,8 +69,36 @@ const (
 	DHTFindNode
 	// MetricUploadMetrics uploads node metrics
 	MetricUploadMetrics
-	// KayakCall is used by BP, Miner for data consistency
+	// KayakCall is used by BP for data consistency
 	KayakCall
+	// DBSQuery is used by client to read/write database
+	DBSQuery
+	// DBSAck is used by client to send acknowledge to the query response
+	DBSAck
+	// DBSDeploy is used by BP to create/drop/update database
+	DBSDeploy
+	// DBCCall is used by Miner for data consistency
+	DBCCall
+	// BPDBCreateDatabase is used by client to create database
+	BPDBCreateDatabase
+	// BPDBDropDatabase is used by client to drop database
+	BPDBDropDatabase
+	// BPDBGetDatabase is used by client to get database meta
+	BPDBGetDatabase
+	// BPDBGetNodeDatabases is used by miner to node residential databases
+	BPDBGetNodeDatabases
+	// SQLCAdviseNewBlock is used by sqlchain to advise new block between adjacent node
+	SQLCAdviseNewBlock
+	// SQLCAdviseBinLog is usd by sqlchain to advise binlog between adjacent node
+	SQLCAdviseBinLog
+	// SQLCAdviseResponsedQuery is used by sqlchain to advice response query between adjacent node
+	SQLCAdviseResponsedQuery
+	// SQLCAdviseAckedQuery is used by sqlchain to advise response ack between adjacent node
+	SQLCAdviseAckedQuery
+	// SQLCFetchBlock is used by sqlchain to fetch block from adjacent nodes
+	SQLCFetchBlock
+	// SQLCFetchAckedQuery is used by sqlchain to fetch response ack from adjacent nodes
+	SQLCFetchAckedQuery
 )
 
 // String returns the RemoteFunc string
@@ -86,16 +114,40 @@ func (s RemoteFunc) String() string {
 		return "Metric.UploadMetrics"
 	case KayakCall:
 		return "Kayak.Call"
+	case DBSQuery:
+		return "DBS.Query"
+	case DBSAck:
+		return "DBS.Ack"
+	case DBSDeploy:
+		return "DBS.Deploy"
+	case DBCCall:
+		return "DBC.Call"
+	case BPDBCreateDatabase:
+		return "BPDB.CreateDatabase"
+	case BPDBDropDatabase:
+		return "BPDB.DropDatabase"
+	case BPDBGetDatabase:
+		return "BPDB.GetDatabase"
+	case BPDBGetNodeDatabases:
+		return "BPDB.GetNodeDatabases"
+	case SQLCAdviseNewBlock:
+		return "SQLC.AdviseNewBlock"
+	case SQLCAdviseBinLog:
+		return "SQLC.AdviseBinLog"
+	case SQLCAdviseResponsedQuery:
+		return "SQLC.AdviseResponsedQuery"
+	case SQLCAdviseAckedQuery:
+		return "SQLC.AdviseAckedQuery"
+	case SQLCFetchBlock:
+		return "SQLC.FetchBlock"
+	case SQLCFetchAckedQuery:
+		return "SQLC.FetchAckedQuery"
 	}
 	return "Unknown"
 }
 
 // IsPermitted returns if the node is permitted to call the RPC func
 func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) {
-	//FIXME(auxten,xq262144,leventeliu,lambda) collect all RPC call server side
-	// implementations, add Envelope to the Request struct and call this func
-	// to filter permission
-
 	callerETLSNodeID := callerEnvelope.GetNodeID()
 	// strict anonymous ETLS only used for Ping
 	// the envelope node id is set at NodeAwareServerCodec and CryptoListener.CHandler
@@ -112,9 +164,14 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 	if !IsBPNodeID(callerETLSNodeID) {
 		// non BP
 		switch funcName {
+		// DHT related
 		case DHTPing, DHTFindNode, DHTFindNeighbor, MetricUploadMetrics:
 			return true
+			// Kayak related
 		case KayakCall:
+			return false
+			// DBSDeploy
+		case DBSDeploy:
 			return false
 		default:
 			// calling Unspecified RPC is forbidden

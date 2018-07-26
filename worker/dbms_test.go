@@ -23,9 +23,11 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -37,6 +39,13 @@ func TestDBMS(t *testing.T) {
 		var server *rpc.Server
 		var cleanup func()
 		cleanup, server, err = initNode()
+		So(err, ShouldBeNil)
+
+		var pubKey *asymmetric.PublicKey
+		pubKey, err = kms.GetLocalPublicKey()
+		So(err, ShouldBeNil)
+		var privateKey *asymmetric.PrivateKey
+		privateKey, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
 
 		var rootDir string
@@ -74,18 +83,20 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// call with no BP privilege
-		req = &wt.UpdateService{
-			Op: wt.CreateDB,
-			Instance: wt.ServiceInstance{
-				DatabaseID:   dbID,
-				Peers:        peers,
-				GenesisBlock: block,
-			},
+		req = new(wt.UpdateService)
+		req.Header.Op = wt.CreateDB
+		req.Header.Instance = wt.ServiceInstance{
+			DatabaseID:   dbID,
+			Peers:        peers,
+			GenesisBlock: block,
 		}
+		req.Header.Signee = pubKey
+		err = req.Sign(privateKey)
+		So(err, ShouldBeNil)
 
 		Convey("with bp privilege", func() {
 			// send update again
-			err = testRequest("Update", req, &res)
+			err = testRequest(route.DBSDeploy, req, &res)
 			So(err, ShouldBeNil)
 
 			Convey("queries", func() {
@@ -98,7 +109,7 @@ func TestDBMS(t *testing.T) {
 				})
 				So(err, ShouldBeNil)
 
-				err = testRequest("Query", writeQuery, &queryRes)
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldBeNil)
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
@@ -111,7 +122,7 @@ func TestDBMS(t *testing.T) {
 				})
 				So(err, ShouldBeNil)
 
-				err = testRequest("Query", readQuery, &queryRes)
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
 				So(err, ShouldBeNil)
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
@@ -128,7 +139,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				var ackRes wt.AckResponse
-				err = testRequest("Ack", ack, &ackRes)
+				err = testRequest(route.DBSAck, ack, &ackRes)
 				So(err, ShouldBeNil)
 			})
 
@@ -143,7 +154,7 @@ func TestDBMS(t *testing.T) {
 					})
 				So(err, ShouldBeNil)
 
-				err = testRequest("Query", writeQuery, &queryRes)
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldNotBeNil)
 			})
 
@@ -152,27 +163,32 @@ func TestDBMS(t *testing.T) {
 				peers, err = getPeers(2)
 				So(err, ShouldBeNil)
 
-				req = &wt.UpdateService{
-					Op: wt.UpdateDB,
-					Instance: wt.ServiceInstance{
-						DatabaseID: dbID,
-						Peers:      peers,
-					},
+				req = new(wt.UpdateService)
+				req.Header.Op = wt.UpdateDB
+				req.Header.Instance = wt.ServiceInstance{
+					DatabaseID: dbID,
+					Peers:      peers,
 				}
+				req.Header.Signee = pubKey
+				err = req.Sign(privateKey)
+				So(err, ShouldBeNil)
 
-				err = testRequest("Update", req, &res)
+				err = testRequest(route.DBSDeploy, req, &res)
 				So(err, ShouldBeNil)
 			})
 
 			Convey("drop database before shutdown", func() {
 				// drop database
-				req = &wt.UpdateService{
-					Op: wt.DropDB,
-					Instance: wt.ServiceInstance{
-						DatabaseID: dbID,
-					},
+				req = new(wt.UpdateService)
+				req.Header.Op = wt.DropDB
+				req.Header.Instance = wt.ServiceInstance{
+					DatabaseID: dbID,
 				}
-				err = testRequest("Update", req, &res)
+				req.Header.Signee = pubKey
+				err = req.Sign(privateKey)
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSDeploy, req, &res)
 				So(err, ShouldBeNil)
 
 				// shutdown
@@ -193,14 +209,12 @@ func TestDBMS(t *testing.T) {
 	})
 }
 
-func testRequest(method string, req interface{}, response interface{}) (err error) {
-	realMethod := DBServiceRPCName + "." + method
-
+func testRequest(method route.RemoteFunc, req interface{}, response interface{}) (err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
-	return rpc.NewCaller().CallNode(nodeID, realMethod, req, response)
+	return rpc.NewCaller().CallNode(nodeID, method.String(), req, response)
 }

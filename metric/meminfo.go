@@ -33,6 +33,8 @@ const (
 
 type meminfoCollector struct{}
 
+var ProcPath = "/proc"
+
 // NewMeminfoCollector returns a new Collector exposing memory stats.
 func NewMeminfoCollector() (Collector, error) {
 	return &meminfoCollector{}, nil
@@ -60,7 +62,7 @@ func (c *meminfoCollector) Update(ch chan<- prometheus.Metric) error {
 }
 
 func procFilePath(name string) string {
-	return path.Join("/proc", name)
+	return path.Join(ProcPath, name)
 }
 
 func sysFilePath(name string) string {

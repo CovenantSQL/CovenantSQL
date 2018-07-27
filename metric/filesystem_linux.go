@@ -20,6 +20,8 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (

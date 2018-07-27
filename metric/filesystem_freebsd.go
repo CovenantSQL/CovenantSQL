@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"unsafe"
 
-	"github.com/prometheus/common/log"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"golang.org/x/sys/unix"
 )
 

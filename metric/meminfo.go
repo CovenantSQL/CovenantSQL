@@ -33,6 +33,7 @@ const (
 
 type meminfoCollector struct{}
 
+// ProcPath is the proc system path, expose for test
 var ProcPath = "/proc"
 
 // NewMeminfoCollector returns a new Collector exposing memory stats.

@@ -36,8 +36,11 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-const DHTStorePath = "./DHTStore"
-const RPCConcurrent = 2
+const (
+	DHTStorePath  = "./DHTStore"
+	RPCConcurrent = 100
+	RPCCount      = 10
+)
 
 func TestCaller_CallNode(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
@@ -228,16 +231,22 @@ func TestNewPersistentCaller(t *testing.T) {
 	// close anonymous ETLS connection, and create new one
 	client.Close()
 
+	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
-
 	for i := 0; i < RPCConcurrent; i ++ {
-		err = client.Call("DHT.FindNeighbor", req, resp)
-		if err != nil {
-			t.Error(err)
-		} else {
-			log.Debugf("resp: %v", resp)
-		}
+		wg.Add(1)
+		go func(tt *testing.T, wg *sync.WaitGroup) {
+			for j := 0; j < RPCCount; j++ {
+				err = client.Call("DHT.FindNeighbor", req, resp)
+				if err != nil {
+					tt.Error(err)
+				}
+				log.Debugf("resp: %v", resp)
+			}
+			wg.Done()
+		}(t, &wg)
 	}
 
+	wg.Wait()
 	server.Stop()
 }

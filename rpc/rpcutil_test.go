@@ -250,3 +250,89 @@ func TestNewPersistentCaller(t *testing.T) {
 	wg.Wait()
 	server.Stop()
 }
+
+func BenchmarkPersistentCaller_Call(b *testing.B) {
+	log.SetLevel(log.InfoLevel)
+	os.Remove(PubKeyStorePath)
+	defer os.Remove(PubKeyStorePath)
+	os.Remove(publicKeyStore)
+	defer os.Remove(publicKeyStore)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err := utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2230,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %#v", conf.GConf)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(publicKeyStore)
+
+	addr := conf.GConf.ListenAddr // see ../test/node_standalone/config.yaml
+	masterKey := []byte("")
+	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+
+	server, err := NewServerWithService(ServiceMap{"DHT": dht})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	go server.Serve()
+
+	client := NewPersistentCaller(conf.GConf.BP.NodeID)
+	node1 := proto.NewNode()
+	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	node1.Addr = "1.1.1.1:1"
+
+	reqA := &proto.PingReq{
+		Node: *node1,
+	}
+
+	respA := new(proto.PingResp)
+	err = client.Call("DHT.Ping", reqA, respA)
+	if err != nil {
+		b.Fatal(err)
+	}
+	log.Debugf("respA: %v", respA)
+
+	req := &proto.FindNeighborReq{
+		NodeID: "1234",
+		Count:  10,
+	}
+	resp := new(proto.FindNeighborResp)
+
+
+	b.Run("benchmark Persistent", func(b *testing.B) {
+		client = NewPersistentCaller(conf.GConf.BP.NodeID)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err = client.Call("DHT.FindNeighbor", req, resp)
+			if err != nil {
+				b.Error(err)
+			}
+		}
+	})
+
+	b.Run("benchmark non-Persistent", func(b *testing.B) {
+		oldClient := NewCaller()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err = oldClient.CallNode(conf.GConf.BP.NodeID, "DHT.FindNeighbor", req, resp)
+			if err != nil {
+				b.Error(err)
+			}
+		}
+	})
+	server.Stop()
+}

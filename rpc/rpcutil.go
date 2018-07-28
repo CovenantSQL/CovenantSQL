@@ -28,6 +28,9 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"net"
+	"time"
+	"io"
 )
 
 var (
@@ -39,6 +42,71 @@ var (
 	// currentBPLock represents the chief block producer access lock.
 	currentBPLock sync.Mutex
 )
+
+// PersistentCaller is a wrapper for session pooling and RPC calling.
+type PersistentCaller struct {
+	pool       *SessionPool
+	client     *Client
+	TargetAddr string
+	TargetID   proto.NodeID
+	sync.Mutex
+}
+
+// NewPersistentCaller returns a persistent RPCCaller.
+func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
+	return &PersistentCaller{
+		pool:     GetSessionPoolInstance(),
+		TargetID: target,
+	}
+}
+
+func (c *PersistentCaller) initClient(method string) (err error) {
+	c.Lock()
+	defer c.Unlock()
+	if c.client == nil {
+		var conn net.Conn
+		conn, err = DialToNode(c.TargetID, c.pool, method == route.DHTPing.String())
+		if err != nil {
+			log.Errorf("dialing to node: %s failed: %s", c.TargetID, err)
+			return
+		}
+		conn.SetDeadline(time.Time{})
+		c.client, err = InitClientConn(conn)
+		if err != nil {
+			log.Errorf("init RPC client failed: %s", err)
+			return
+		}
+	}
+	return
+}
+
+func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
+	c.initClient(method)
+	err = c.client.Call(method, args, reply)
+	if err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			// if got EOF, retry once
+			c.Close()
+			c.Lock()
+			c.client = nil
+			c.Unlock()
+			c.initClient(method)
+			err = c.client.Call(method, args, reply)
+		}
+		log.Errorf("call RPC %s failed: %v", method, err)
+	}
+	return
+}
+
+// Close closes the stream and RPC client
+func (c *PersistentCaller) Close() {
+	stream, ok := c.client.Conn.(*yamux.Stream)
+	if ok {
+		stream.Close()
+	}
+	c.client.Close()
+	c.pool.Remove(c.TargetID)
+}
 
 // Caller is a wrapper for session pooling and RPC calling.
 type Caller struct {

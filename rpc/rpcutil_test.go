@@ -32,9 +32,12 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"strings"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const DHTStorePath = "./DHTStore"
+const RPCConcurrent = 2
 
 func TestCaller_CallNode(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
@@ -59,7 +62,7 @@ func TestCaller_CallNode(t *testing.T) {
 
 	server, err := NewServerWithService(ServiceMap{"DHT": dht})
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	server.InitRPCServer(addr, privateKeyPath, masterKey)
@@ -85,7 +88,7 @@ func TestCaller_CallNode(t *testing.T) {
 	respA := new(proto.PingResp)
 	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	log.Debugf("respA: %v", respA)
 
@@ -113,7 +116,7 @@ func TestCaller_CallNode(t *testing.T) {
 	err = PingBP(node1, conf.GConf.BP.NodeID)
 	//err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	//log.Debugf("respA2: %v", respA)
 
@@ -122,7 +125,7 @@ func TestCaller_CallNode(t *testing.T) {
 	contextCancel()
 	err = client.CallNodeWithContext(ctx, conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err == nil {
-		log.Fatal("this call should failed, but actually not")
+		t.Fatal("this call should failed, but actually not")
 	} else {
 		log.Debugf("err: %v", err)
 	}
@@ -130,14 +133,14 @@ func TestCaller_CallNode(t *testing.T) {
 	// call with empty context
 	err = client.CallNodeWithContext(context.Background(), conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	log.Debugf("respA2: %v", respA)
 
 	// test get current bp, should only be myself
 	chiefBPNodeID, err := GetCurrentBP()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	log.Debugf("current chief bp is: %v", chiefBPNodeID)
 
@@ -146,10 +149,94 @@ func TestCaller_CallNode(t *testing.T) {
 	SetCurrentBP(randomNode)
 	chiefBPNodeID, err = GetCurrentBP()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	if chiefBPNodeID != randomNode {
-		log.Fatalf("SetCurrentBP does not works, set: %v, current: %v", randomNode, chiefBPNodeID)
+		t.Fatalf("SetCurrentBP does not works, set: %v, current: %v", randomNode, chiefBPNodeID)
+	}
+
+	server.Stop()
+}
+
+func TestNewPersistentCaller(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	os.Remove(PubKeyStorePath)
+	defer os.Remove(PubKeyStorePath)
+	os.Remove(publicKeyStore)
+	defer os.Remove(publicKeyStore)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err := utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2230,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %#v", conf.GConf)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(publicKeyStore)
+
+	addr := conf.GConf.ListenAddr // see ../test/node_standalone/config.yaml
+	masterKey := []byte("")
+	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+
+	server, err := NewServerWithService(ServiceMap{"DHT": dht})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	go server.Serve()
+
+	client := NewPersistentCaller(conf.GConf.BP.NodeID)
+	node1 := proto.NewNode()
+	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	node1.Addr = "1.1.1.1:1"
+
+	reqA := &proto.PingReq{
+		Node: *node1,
+	}
+
+	respA := new(proto.PingResp)
+	err = client.Call("DHT.Ping", reqA, respA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Debugf("respA: %v", respA)
+
+	req := &proto.FindNeighborReq{
+		NodeID: "1234",
+		Count:  10,
+	}
+	resp := new(proto.FindNeighborResp)
+
+	err = client.Call("DHT.FindNeighbor", req, resp)
+	if err == nil || !strings.Contains(err.Error(), "not permitted") {
+		t.Fatal("anonymous ETLS connection used by " +
+			"RPC other than DHTPing shuold not permitted")
+	}
+
+	// close anonymous ETLS connection, and create new one
+	client.Close()
+
+	client = NewPersistentCaller(conf.GConf.BP.NodeID)
+
+	for i := 0; i < RPCConcurrent; i ++ {
+		err = client.Call("DHT.FindNeighbor", req, resp)
+		if err != nil {
+			t.Error(err)
+		} else {
+			log.Debugf("resp: %v", resp)
+		}
 	}
 
 	server.Stop()

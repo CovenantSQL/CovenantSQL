@@ -19,7 +19,6 @@ package etls
 import (
 	"net"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // CipherHandler is the func type for converting net.Conn to CryptoConn
@@ -44,7 +43,6 @@ func NewCryptoListener(network, addr string, handler CipherHandler) (*CryptoList
 func (l *CryptoListener) Accept() (net.Conn, error) {
 	c, err := l.Listener.Accept()
 	if err != nil {
-		log.Errorf("accept error: %s", err)
 		return nil, err
 	}
 

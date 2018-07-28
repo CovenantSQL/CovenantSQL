@@ -86,12 +86,16 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			// if got EOF, retry once
-			c.Close()
 			c.Lock()
+			c.Close()
 			c.client = nil
 			c.Unlock()
 			c.initClient(method)
 			err = c.client.Call(method, args, reply)
+			if err != nil {
+				log.Errorf("second time call RPC %s failed: %v", method, err)
+				return
+			}
 		}
 		log.Errorf("call RPC %s failed: %v", method, err)
 	}

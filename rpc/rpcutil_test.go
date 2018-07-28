@@ -38,7 +38,7 @@ import (
 
 const (
 	DHTStorePath  = "./DHTStore"
-	RPCConcurrent = 100
+	RPCConcurrent = 10
 	RPCCount      = 10
 )
 
@@ -237,11 +237,16 @@ func TestNewPersistentCaller(t *testing.T) {
 		wg.Add(1)
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
-				err = client.Call("DHT.FindNeighbor", req, resp)
+				reqF := &proto.FindNeighborReq{
+					NodeID: "1234",
+					Count:  10,
+				}
+				respF := new(proto.FindNeighborResp)
+				err := client.Call("DHT.FindNeighbor", reqF, respF)
 				if err != nil {
 					tt.Error(err)
 				}
-				log.Debugf("resp: %v", resp)
+				log.Debugf("resp: %v", respF)
 			}
 			wg.Done()
 		}(t, &wg)

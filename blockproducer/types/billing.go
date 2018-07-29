@@ -124,7 +124,7 @@ func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
 	return &h, nil
 }
 
-// PackAndSignRequestHeader first computes the hash of BillingRequestHeader, then signs the request
+// SignRequestHeader first computes the hash of BillingRequestHeader, then signs the request
 func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asymmetric.Signature, error) {
 	if br.encoded == nil || len(br.encoded) == 0 {
 		b, err := br.Header.MarshalBinary()

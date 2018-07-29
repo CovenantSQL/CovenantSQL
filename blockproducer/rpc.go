@@ -46,6 +46,16 @@ type AdviseTxBillingReq struct {
 type AdviseTxBillingResp struct {
 }
 
+// AdviseBillingReq defines a request of the AdviseBillingRequest RPC method.
+type AdviseBillingReq struct {
+	Req *types.BillingRequest
+}
+
+// AdviseBillingResp defines a request of the AdviseBillingRequest RPC method.
+type AdviseBillingResp struct {
+	Resp *types.BillingResponse
+}
+
 // FetchBlockReq defines a request of the FetchBlock RPC method
 type FetchBlockReq struct {
 	Height uint64
@@ -61,7 +71,7 @@ type FetchBlockResp struct {
 type FetchTxBillingReq struct {
 }
 
-// FetchTxBillingReq defines a response of the FetchTxBilling RPC method
+// FetchTxBillingResp defines a response of the FetchTxBilling RPC method
 type FetchTxBillingResp struct {
 }
 
@@ -75,6 +85,16 @@ func (s *ChainRPCService) AdviseTxBilling(req *AdviseTxBillingReq, resp *AdviseT
 	return s.chain.pushTxBilling(req.TxBilling)
 }
 
+// AdviseBillingRequest is the RPC method to advise a new billing request to main chain
+func (s *ChainRPCService) AdviseBillingRequest(req *AdviseBillingReq, resp *AdviseBillingResp) error {
+	response, err := s.chain.produceTxBilling(req.Req)
+	if err != nil {
+		return err
+	}
+	resp.Resp = response
+	return nil
+}
+
 // FetchBlock is the RPC method to fetch a known block form the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
 	resp.Height = req.Height
@@ -83,7 +103,7 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 	return err
 }
 
-// FetchBlock is the RPC method to fetch a known billing tx form the target server.
+// FetchTxBilling is the RPC method to fetch a known billing tx form the target server.
 func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
 	return nil
 }

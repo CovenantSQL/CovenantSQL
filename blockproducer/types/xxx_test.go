@@ -44,8 +44,14 @@ func generateRandomAccount() *Account {
 	sqlChains := generateRandomDatabaseIDs(n)
 	roles := generateRandomBytes(n)
 
-	h := hash.Hash{}
-	rand.Read(h[:])
+	h := generateRandomHash()
+
+	txBillings := make([]*hash.Hash, n)
+
+	for i := range txBillings {
+		tmpHash := generateRandomHash()
+		txBillings[i] = &tmpHash
+	}
 
 	account := &Account{
 		Address:            proto.AccountAddress(h),
@@ -54,6 +60,7 @@ func generateRandomAccount() *Account {
 		SQLChains:          sqlChains,
 		Roles:              roles,
 		Rating:             rand.Float64(),
+		TxBillings:         txBillings,
 	}
 
 	return account

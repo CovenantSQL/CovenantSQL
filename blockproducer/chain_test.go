@@ -155,7 +155,7 @@ func TestChain(t *testing.T) {
 				}
 
 				So(height, ShouldEqual, chain.st.Height)
-				height += 1
+				height++
 
 				t.Logf("Pushed new block: height = %d, %s <- %s",
 					chain.st.Height,
@@ -174,7 +174,7 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				So(height, ShouldEqual, chain.st.Height)
-				height += 1
+				height++
 
 				t.Logf("Produced new block: height = %d, %s <- %s",
 					chain.st.Height,

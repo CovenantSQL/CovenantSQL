@@ -29,6 +29,7 @@ var (
 	ErrMetricNotCollected = errors.New("metric not collected")
 
 	// Errors on main chain
+
 	// ErrCorruptedIndex defines index corrupted error.
 	ErrCorruptedIndex = errors.New("corrupted index item")
 	// ErrParentNotFound defines that the parent block cannot be found.
@@ -47,4 +48,8 @@ var (
 	ErrNoSuchTxBilling = errors.New("Cannot find such txbilling")
 	// ErrSmallerSequenceID defines that new sequence id is smaller the old one.
 	ErrSmallerSequenceID = errors.New("SequanceID should be bigger than the old one")
+	// ErrInvalidBillingRequest defines BillingRequest is invalid
+	ErrInvalidBillingRequest = errors.New("The BillingRequest is invalid")
+	// ErrSignVerification indicates a failed signature verification.
+	ErrSignVerification = errors.New("signature verification failed")
 )

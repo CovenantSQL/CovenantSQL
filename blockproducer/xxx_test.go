@@ -344,13 +344,14 @@ func setup() {
 
 	// Setup local key store
 	kms.Unittest = true
-	testPrivKey, testPubKey, err = asymmetric.GenSecp256k1KeyPair()
-
+	testPrivKey, err = kms.GetLocalPrivateKey()
 	if err != nil {
 		panic(err)
 	}
-
-	kms.SetLocalKeyPair(testPrivKey, testPubKey)
+	testPubKey, err = kms.GetLocalPublicKey()
+	if err != nil {
+		panic(err)
+	}
 
 	if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
 		panic(err)

@@ -42,9 +42,11 @@ var (
 	metaBlockIndexBucket         = []byte("thunderdb-block-index-bucket")
 	metaTxBillingIndexBucket     = []byte("thunderdb-tx-billing-index-bucket")
 	metaLastTxBillingIndexBucket = []byte("thunderdb-last-tx-billing-index-bucket")
+	metaAccountIndexBucket       = []byte("thunderdb-account-index-bucket")
 
 	accountAddress = proto.AccountAddress(hash.Hash{104, 36, 47, 65, 118, 196, 75, 11, 253, 85, 3, 128, 41, 109,
 		167, 180, 119, 64, 83, 185, 214, 103, 74, 9, 125, 14, 139, 16, 107, 112, 144, 55})
+	gasprice uint32 = 1
 )
 
 // Chain defines the main chain
@@ -57,6 +59,7 @@ type Chain struct {
 	cl *rpc.Caller
 }
 
+// NewChain creates a new blockchain
 func NewChain(cfg *config) (*Chain, error) {
 	// open db file
 	db, err := bolt.Open(cfg.dataFile, 0600, nil)
@@ -83,6 +86,11 @@ func NewChain(cfg *config) (*Chain, error) {
 		}
 
 		_, err = bucket.CreateBucketIfNotExists(metaLastTxBillingIndexBucket)
+		if err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaAccountIndexBucket)
 		return
 	})
 	if err != nil {
@@ -106,6 +114,7 @@ func NewChain(cfg *config) (*Chain, error) {
 	return chain, nil
 }
 
+// LoadChain rebuilds the chain from db
 func LoadChain(cfg *config) (chain *Chain, err error) {
 	// open db file
 	db, err := bolt.Open(cfg.dataFile, 0600, nil)
@@ -448,6 +457,127 @@ func (c *Chain) produceBlock(now time.Time) error {
 	err = c.pushBlock(b)
 
 	return err
+}
+
+func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingResponse, error) {
+	err := c.checkBillingRequest(br)
+	if err != nil {
+		return nil, err
+	}
+
+	// update stable coin's balance
+	// TODO(lambda): because there is no token distribution,
+	// we only increase miners' balance but not decrease customer's balance
+	accounts := make([]*types.Account, len(br.Header.GasAmounts))
+	err = c.db.View(func(tx *bolt.Tx) error {
+		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
+		for i, addrAndGas := range br.Header.GasAmounts {
+			enc := accountBucket.Get(addrAndGas.AccountAddress[:])
+			if len(enc) == 0 {
+				accounts[i] = &types.Account{
+					Address:            addrAndGas.AccountAddress,
+					StableCoinBalance:  uint64(addrAndGas.GasAmount * gasprice),
+					ThunderCoinBalance: 0,
+					SQLChains:          []proto.DatabaseID{br.Header.DatabaseID},
+					Roles:              []byte{types.Miner},
+					Rating:             0.0,
+				}
+			} else {
+				accounts[i].StableCoinBalance = accounts[i].StableCoinBalance + uint64(addrAndGas.GasAmount*gasprice)
+				included := false
+				for j := range accounts[i].SQLChains {
+					if accounts[i].SQLChains[j] == br.Header.DatabaseID {
+						included = true
+						break
+					}
+				}
+				if !included {
+					accounts[i].SQLChains = append(accounts[i].SQLChains, br.Header.DatabaseID)
+					accounts[i].Roles = append(accounts[i].Roles, types.Miner)
+				}
+			}
+			var dec types.Account
+			err = dec.UnmarshalBinary(enc)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// update accounts
+	err = c.db.Update(func(tx *bolt.Tx) error {
+		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
+		for _, account := range accounts {
+			enc, err := account.MarshalBinary()
+			if err != nil {
+				return err
+			}
+			accountBucket.Put(account.Address[:], enc)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	enc, err := br.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	// generate response
+	privKey, err := kms.GetLocalPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	h := hash.THashH(enc)
+	sign, err := privKey.Sign(h[:])
+	if err != nil {
+		return nil, err
+	}
+	resp := &types.BillingResponse{
+		AccountAddress: accountAddress,
+		RequestHash:    h,
+		Signee:         privKey.PubKey(),
+		Signature:      sign,
+	}
+	return resp, nil
+}
+
+// checkBillingRequest checks followings by order:
+// 1. period of sqlchain;
+// 2. request's hash
+// 3. miners' signatures
+func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
+	// period of sqlchain;
+	// TODO(lambda): get and check period and miner list of specific sqlchain
+
+	// request's hash
+	enc, err := br.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	h := hash.THashH(enc[:])
+	if !h.IsEqual(&br.RequestHash) {
+		return ErrInvalidHash
+	}
+
+	// miners' signatures
+	sLen := len(br.Signees)
+	if sLen != len(br.Signatures) {
+		return ErrInvalidBillingRequest
+	}
+	for i := range br.Signees {
+		if !br.Signatures[i].Verify(h[:], br.Signees[i]) {
+			return ErrSignVerification
+		}
+	}
+
+	return nil
 }
 
 func (c *Chain) fetchBlockByHeight(h uint64) (*types.Block, error) {

@@ -53,13 +53,11 @@ func (ti *txIndex) updateLastTxBilling(databaseID *proto.DatabaseID, sequenceID 
 	if v, ok := ti.lastBillingIndex[databaseID]; ok {
 		if v >= sequenceID {
 			return ErrSmallerSequenceID
-		} else {
-			ti.lastBillingIndex[databaseID] = sequenceID
 		}
-	} else {
 		ti.lastBillingIndex[databaseID] = sequenceID
 	}
-	return nil
+	ti.lastBillingIndex[databaseID] = sequenceID
+	return
 }
 
 // fetchUnpackedTxBillings fetch all txbillings in index
@@ -93,7 +91,6 @@ func (ti *txIndex) getTxBilling(h *hash.Hash) *types.TxBilling {
 func (ti *txIndex) lastSequenceID(databaseID *proto.DatabaseID) (uint64, error) {
 	if seqID, ok := ti.lastBillingIndex[databaseID]; ok {
 		return seqID, nil
-	} else {
-		return 0, ErrNoSuchTxBilling
 	}
+	return 0, ErrNoSuchTxBilling
 }

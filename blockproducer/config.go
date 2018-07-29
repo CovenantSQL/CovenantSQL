@@ -36,11 +36,11 @@ type config struct {
 
 	server *rpc.Server
 
-	peers      *kayak.Peers
-	nodeID 	proto.NodeID
+	peers  *kayak.Peers
+	nodeID proto.NodeID
 
-	period  time.Duration
-	tick    time.Duration
+	period time.Duration
+	tick   time.Duration
 }
 
 // newConfig creates new config
@@ -48,13 +48,13 @@ func newConfig(genesis *types.Block, dataFile string,
 	server *rpc.Server, peers *kayak.Peers,
 	nodeID proto.NodeID, period time.Duration, tick time.Duration) *config {
 	config := config{
-		genesis: genesis,
+		genesis:  genesis,
 		dataFile: dataFile,
-		server: server,
-		peers: peers,
-		nodeID: nodeID,
-		period: period,
-		tick: tick,
+		server:   server,
+		peers:    peers,
+		nodeID:   nodeID,
+		period:   period,
+		tick:     tick,
 	}
 	return &config
 }

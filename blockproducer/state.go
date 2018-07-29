@@ -27,7 +27,7 @@ type state struct {
 	Height uint64
 }
 
-func (s *state)serialize()([]byte, error) {
+func (s *state) serialize() ([]byte, error) {
 	buffer, err := utils.EncodeMsgPack(s)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (s *state)serialize()([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func(s *state)deserialize(b []byte) error {
+func (s *state) deserialize(b []byte) error {
 	err := utils.DecodeMsgPack(b, s)
 	return err
 }

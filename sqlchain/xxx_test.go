@@ -25,14 +25,12 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -99,8 +97,8 @@ func createRandomStrings(offset, length, soffset, slength int) (s []string) {
 	return
 }
 
-func createRandomStorageQueries(offset, length, soffset, slength int) (qs []storage.Query) {
-	qs = make([]storage.Query, rand.Intn(length)+offset)
+func createRandomStorageQueries(offset, length, soffset, slength int) (qs []wt.Query) {
+	qs = make([]wt.Query, rand.Intn(length)+offset)
 
 	for i := range qs {
 		createRandomString(soffset, slength, &qs[i].Pattern)
@@ -451,11 +449,11 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 	for i := range s {
 		rand.Read(h[:])
 		s[i] = &kayak.Server{
-			Role: func() conf.ServerRole {
+			Role: func() proto.ServerRole {
 				if i == 0 {
-					return conf.Leader
+					return proto.Leader
 				}
-				return conf.Follower
+				return proto.Follower
 			}(),
 			ID:     proto.NodeID(nis[i].Hash.String()),
 			PubKey: pub,
@@ -517,7 +515,16 @@ func setup() {
 	log.SetLevel(log.DebugLevel)
 }
 
+func teardown() {
+	if err := os.RemoveAll(testDataDir); err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
-	setup()
-	os.Exit(m.Run())
+	os.Exit(func() int {
+		setup()
+		defer teardown()
+		return m.Run()
+	}())
 }

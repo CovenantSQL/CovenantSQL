@@ -18,7 +18,6 @@ package kms
 
 import (
 	"bytes"
-	"encoding/hex"
 	"os"
 	"reflect"
 	"testing"
@@ -50,8 +49,6 @@ func TestDB(t *testing.T) {
 		PublicKey: pubKey2,
 		Nonce:     cpuminer.Uint256{},
 	}
-	publicKeyBytes, _ := hex.DecodeString(BP.PublicKeyStr)
-	BP.PublicKey, _ = asymmetric.ParsePubKey(publicKeyBytes)
 	BPNode := &proto.Node{
 		ID:        BP.NodeID,
 		Addr:      "",
@@ -63,7 +60,7 @@ func TestDB(t *testing.T) {
 		pks = nil
 		os.Remove(dbFile)
 		defer os.Remove(dbFile)
-		InitPublicKeyStore(dbFile, BPNode)
+		InitPublicKeyStore(dbFile, []proto.Node{*BPNode})
 		So(pks.bucket, ShouldNotBeNil)
 
 		nodeInfo, err := GetNodeInfo(BP.NodeID)

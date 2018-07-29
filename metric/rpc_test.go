@@ -40,7 +40,6 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 	masterKey := []byte("abc")
 
 	cc := NewCollectClient()
-
 	cs := NewCollectServer()
 
 	server, err := rpc.NewServerWithService(rpc.ServiceMap{MetricServiceName: cs})
@@ -48,7 +47,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), false)
 	server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
@@ -60,7 +59,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	Convey("get metric and upload by RPC", t, func() {
-		err = cc.UploadMetrics(serverNodeID, nil)
+		err = cc.UploadMetrics(serverNodeID)
 		v, ok := cs.NodeMetric.Load(serverNodeID)
 		So(ok, ShouldBeTrue)
 		//log.Debugf("NodeMetric：%#v", v)
@@ -72,14 +71,12 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 		So(len(m), ShouldBeGreaterThan, 2)
 	})
 
-	Convey("get metric and upload by RPC", t, func() {
+	Convey("get metric and upload by simply called without node id", t, func() {
 		req := &proto.UploadMetricsReq{
-			NodeID:   "",
 			MFBytes:  nil,
 			Envelope: proto.Envelope{},
 		}
 		err = cs.UploadMetrics(req, &proto.UploadMetricsResp{})
 		So(err, ShouldNotBeNil)
 	})
-
 }

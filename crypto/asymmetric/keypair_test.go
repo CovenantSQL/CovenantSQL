@@ -18,6 +18,7 @@ package asymmetric
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"time"
@@ -25,6 +26,7 @@ import (
 	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"gopkg.in/yaml.v2"
 )
 
 func TestGenSecp256k1Keypair(t *testing.T) {
@@ -147,5 +149,20 @@ func TestPublicKey_MarshalBinary(t *testing.T) {
 		publicKey2.UnmarshalBinary(buf)
 
 		So(publicKey.IsEqual(publicKey2), ShouldBeTrue)
+	})
+}
+
+func unmarshalAndMarshal(str string) string {
+	var key PublicKey
+	yaml.Unmarshal([]byte(str), &key)
+	ret, _ := yaml.Marshal(key)
+
+	return strings.TrimSpace(string(ret))
+}
+
+func TestServerRole_MarshalYAML(t *testing.T) {
+	Convey("marshal unmarshal yaml", t, func() {
+		So(unmarshalAndMarshal("029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efbcd"), ShouldEqual, "029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efbcd")
+		So(unmarshalAndMarshal("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24")
 	})
 }

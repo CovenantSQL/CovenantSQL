@@ -23,8 +23,8 @@ import (
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
@@ -72,17 +72,29 @@ func Init(configFile string, masterKey []byte) (err error) {
 
 // Create send create database operation to block producer.
 func Create(meta ResourceMeta) (dsn string, err error) {
-	req := &bp.CreateDatabaseRequest{
-		ResourceMeta: wt.ResourceMeta(meta),
+	req := new(bp.CreateDatabaseRequest)
+	req.Header.ResourceMeta = wt.ResourceMeta(meta)
+	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = req.Sign(privateKey); err != nil {
+		return
 	}
 	res := new(bp.CreateDatabaseResponse)
 
-	if err = requestBP(bp.DBServiceName+".CreateDatabase", req, res); err != nil {
+	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
+		return
+	}
+	if err = res.Verify(); err != nil {
 		return
 	}
 
 	cfg := NewConfig()
-	cfg.DatabaseID = res.InstanceMeta.DatabaseID
+	cfg.DatabaseID = string(res.Header.InstanceMeta.DatabaseID)
 	dsn = cfg.FormatDSN()
 
 	return
@@ -95,25 +107,29 @@ func Drop(dsn string) (err error) {
 		return
 	}
 
-	req := &bp.DropDatabaseRequest{
-		DatabaseID: cfg.DatabaseID,
+	req := new(bp.DropDatabaseRequest)
+	req.Header.DatabaseID = proto.DatabaseID(cfg.DatabaseID)
+	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if err = req.Sign(privateKey); err != nil {
+		return
 	}
 	res := new(bp.DropDatabaseResponse)
-	err = requestBP(bp.DBServiceName+".DropDatabase", req, res)
+	err = requestBP(route.BPDBDropDatabase, req, res)
 
 	return
 }
 
-func requestBP(method string, request interface{}, response interface{}) (err error) {
-	// TODO(xq262144): unify block producer selection and calls
-	// get bp node
-	var nonce *cpuminer.Uint256
-	nonce, err = kms.GetLocalNonce()
-	var bps []proto.NodeID
-	bps = route.GetBPs()
+func requestBP(method route.RemoteFunc, request interface{}, response interface{}) (err error) {
+	var bpNodeID proto.NodeID
+	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
+		return
+	}
 
-	// choose bp node by nonce
-	bpIdx := int(nonce.A % uint64(len(bps)))
-
-	return rpc.NewCaller().CallNode(bps[bpIdx], method, request, response)
+	return rpc.NewCaller().CallNode(bpNodeID, method.String(), request, response)
 }

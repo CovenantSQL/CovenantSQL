@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -106,17 +107,17 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	// init kayak and consistent
 	log.Infof("init kayak and consistent runtime")
 	kvServer := &KayakKVServer{
-		Runtime: kayakRuntime,
-		Storage: st,
+		Runtime:   kayakRuntime,
+		KVStorage: st,
 	}
-	dht, err := route.NewDHTService(dbFile, kvServer, false)
+	dht, err := route.NewDHTService(dbFile, kvServer, true)
 	if err != nil {
 		log.Errorf("init consistent hash failed: %s", err)
 		return
 	}
 
 	// set consistent handler to kayak storage
-	kvServer.Storage.consistent = dht.Consistent
+	kvServer.KVStorage.consistent = dht.Consistent
 
 	// register service rpc
 	log.Infof("register dht service rpc")
@@ -144,6 +145,9 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	log.Info(conf.StartSucceedMessage)
+	//go periodicPingBlockProducer()
+
 	// start server
 	server.Serve()
 
@@ -164,7 +168,7 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	return
 }
 
-func initKayakTwoPC(rootDir string, node *conf.NodeInfo, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
+func initKayakTwoPC(rootDir string, node *proto.Node, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
 	// create kayak config
 	log.Infof("create twopc config")
 	config = ka.NewTwoPCConfig(rootDir, service, worker)
@@ -193,9 +197,43 @@ func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer)
 	dbService = &bp.DBService{
 		AllocationRounds: bp.DefaultAllocationRounds, //
 		ServiceMap:       serviceMap,
-		Consistent:       kvServer.Storage.consistent,
+		Consistent:       kvServer.KVStorage.consistent,
 		NodeMetrics:      &metricService.NodeMetric,
 	}
 
 	return
+}
+
+//FIXME(auxten): clean up ugly periodicPingBlockProducer
+func periodicPingBlockProducer() {
+	var localNodeID proto.NodeID
+	var err error
+
+	// get local node id
+	if localNodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	// get local node info
+	var localNodeInfo *proto.Node
+	if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
+		return
+	}
+
+	log.Debugf("construct local node info: %v", localNodeInfo)
+
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second):
+			}
+
+			// send ping requests to block producer
+			bpNodeIDs := route.GetBPs()
+
+			for _, bpNodeID := range bpNodeIDs {
+				rpc.PingBP(localNodeInfo, bpNodeID)
+			}
+		}
+	}()
 }

@@ -17,12 +17,11 @@
 package blockproducer
 
 import (
-	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -53,6 +52,11 @@ var (
 	}
 )
 
+type allocatedNode struct {
+	NodeID       proto.NodeID
+	MemoryMetric uint64
+}
+
 // DBService defines block producer database service rpc endpoint.
 type DBService struct {
 	AllocationRounds int
@@ -66,6 +70,11 @@ type DBService struct {
 
 // CreateDatabase defines block producer create database logic.
 func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatabaseResponse) (err error) {
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// TODO(xq262144): verify identity
 	// verify identity
 
@@ -77,13 +86,13 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	// allocate nodes
 	var peers *kayak.Peers
-	if peers, err = s.allocateNodes(0, dbID, req.ResourceMeta); err != nil {
+	if peers, err = s.allocateNodes(0, dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
 
 	// TODO(lambda): call accounting features, top up deposit
 	var genesisBlock *ct.Block
-	if genesisBlock, err = s.generateGenesisBlock(dbID, req.ResourceMeta); err != nil {
+	if genesisBlock, err = s.generateGenesisBlock(dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
 
@@ -94,20 +103,36 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	}()
 
 	// call miner nodes to provide service
-	initSvcReq := &wt.UpdateService{
-		Op: wt.CreateDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID:   dbID,
-			Peers:        peers,
-			GenesisBlock: genesisBlock,
-		},
+	var privateKey *asymmetric.PrivateKey
+	var pubKey *asymmetric.PublicKey
+
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
 	}
 
-	rollbackReq := &wt.UpdateService{
-		Op: wt.DropDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID: dbID,
-		},
+	initSvcReq := new(wt.UpdateService)
+	initSvcReq.Header.Op = wt.CreateDB
+	initSvcReq.Header.Instance = wt.ServiceInstance{
+		DatabaseID:   dbID,
+		Peers:        peers,
+		GenesisBlock: genesisBlock,
+	}
+	initSvcReq.Header.Signee = pubKey
+	if err = initSvcReq.Sign(privateKey); err != nil {
+		return
+	}
+
+	rollbackReq := new(wt.UpdateService)
+	rollbackReq.Header.Op = wt.DropDB
+	rollbackReq.Header.Instance = wt.ServiceInstance{
+		DatabaseID: dbID,
+	}
+	rollbackReq.Header.Signee = pubKey
+	if err = rollbackReq.Sign(privateKey); err != nil {
+		return
 	}
 
 	if err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers)); err != nil {
@@ -118,8 +143,11 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	instanceMeta := wt.ServiceInstance{
 		DatabaseID:   dbID,
 		Peers:        peers,
-		ResourceMeta: req.ResourceMeta,
+		ResourceMeta: req.Header.ResourceMeta,
+		GenesisBlock: genesisBlock,
 	}
+
+	log.Debugf("generated instance meta: %v", instanceMeta)
 
 	if err = s.ServiceMap.Set(instanceMeta); err != nil {
 		// critical error
@@ -128,28 +156,46 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	}
 
 	// send response to client
-	resp.InstanceMeta = instanceMeta
+	resp.Header.InstanceMeta = instanceMeta
+	resp.Header.Signee = pubKey
+
+	// sign the response
+	err = resp.Sign(privateKey)
 
 	return
 }
 
 // DropDatabase defines block producer drop database logic.
 func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseResponse) (err error) {
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
 	// get database peers
 	var instanceMeta wt.ServiceInstance
-	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
+	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
 		return
 	}
 
 	// call miner nodes to drop database
-	dropDBSvcReq := &wt.UpdateService{
-		Op: wt.DropDB,
-		Instance: wt.ServiceInstance{
-			DatabaseID: req.DatabaseID,
-		},
+	dropDBSvcReq := new(wt.UpdateService)
+	dropDBSvcReq.Header.Op = wt.DropDB
+	dropDBSvcReq.Header.Instance = wt.ServiceInstance{
+		DatabaseID: req.Header.DatabaseID,
+	}
+	if dropDBSvcReq.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if dropDBSvcReq.Sign(privateKey); err != nil {
+		return
 	}
 
 	if err = s.batchSendSvcReq(dropDBSvcReq, nil, s.peersToNodes(instanceMeta.Peers)); err != nil {
@@ -157,10 +203,10 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	}
 
 	// withdraw deposit from sqlchain
-	// TODO(lambda): withdraw deposit
+	// TODO(lambda): withdraw deposit and record drop database request
 
 	// remove from meta
-	if err = s.ServiceMap.Delete(req.DatabaseID); err != nil {
+	if err = s.ServiceMap.Delete(req.Header.DatabaseID); err != nil {
 		// critical error
 		// TODO(xq262144): critical error recover
 		return
@@ -174,17 +220,33 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 
 // GetDatabase defines block producer get database logic.
 func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseResponse) (err error) {
+	// verify signature
+	if err = req.Verify(); err != nil {
+		return
+	}
+
 	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
 	// fetch from meta
 	var instanceMeta wt.ServiceInstance
-	if instanceMeta, err = s.ServiceMap.Get(req.DatabaseID); err != nil {
+	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
 		return
 	}
 
 	// send response to client
-	resp.InstanceMeta = instanceMeta
+	resp.Header.InstanceMeta = instanceMeta
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	// sign the response
+	err = resp.Sign(privateKey)
 
 	return
 }
@@ -193,31 +255,49 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
 	// fetch from meta
 	var instances []wt.ServiceInstance
-	if instances, err = s.ServiceMap.GetDatabases(proto.NodeID(req.GetNodeID().String())); err != nil {
+	if instances, err = s.ServiceMap.GetDatabases(req.GetNodeID().ToNodeID()); err != nil {
 		return
 	}
 
+	log.Debugf("current instance for node %v: %v", req.GetNodeID().ToNodeID(), instances)
+
 	// send response to client
-	resp.Instances = instances
+	resp.Header.Instances = instances
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
 
 	return
 }
 
 func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.DatabaseID, err error) {
-	nonceCh := make(chan cpuminer.NonceInfo)
-	quitCh := make(chan struct{})
-	miner := cpuminer.NewCPUMiner(quitCh)
-	go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-		Data:      reqNodeID.CloneBytes(),
-		NonceChan: nonceCh,
-		Stop:      nil,
-	}, cpuminer.Uint256{}, 4)
+	var startNonce cpuminer.Uint256
 
-	defer close(nonceCh)
-	defer close(quitCh)
+	for {
+		nonceCh := make(chan cpuminer.NonceInfo)
+		quitCh := make(chan struct{})
+		miner := cpuminer.NewCPUMiner(quitCh)
+		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
+			Data:      reqNodeID.CloneBytes(),
+			NonceChan: nonceCh,
+			Stop:      nil,
+		}, startNonce, 4)
 
-	for nonce := range nonceCh {
+		nonce := <-nonceCh
+		close(quitCh)
+		close(nonceCh)
+
+		// set start nonceCh
+		startNonce = nonce.Nonce
+		startNonce.Inc()
 		dbID = proto.DatabaseID(nonce.Hash.String())
+
+		log.Debugf("try generated database id %v", dbID)
 
 		// check existence
 		if _, err = s.ServiceMap.Get(dbID); err == ErrNoSuchDatabase {
@@ -232,7 +312,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *kayak.Peers, err error) {
 	curRange := int(resourceMeta.Node)
 	excludeNodes := make(map[proto.NodeID]bool)
-	allocated := make([]proto.NodeID, 0)
+	var allocated []allocatedNode
 
 	if resourceMeta.Node <= 0 {
 		err = ErrDatabaseAllocation
@@ -253,10 +333,17 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 		// clear previous allocated
 		allocated = allocated[:0]
+		rolesFilter := []proto.ServerRole{
+			proto.Miner,
+		}
 
-		nodes, err = s.Consistent.GetNeighbors(string(dbID), curRange)
+		if s.includeBPNodesForAllocation {
+			rolesFilter = append(rolesFilter, proto.Leader, proto.Follower)
+		}
 
-		log.Debugf("found %d neighbour nodes", len(nodes))
+		nodes, err = s.Consistent.GetNeighborsEx(string(dbID), curRange, proto.ServerRoles(rolesFilter))
+
+		log.Debugf("found %d neighbor nodes", len(nodes))
 
 		// TODO(xq262144): brute force implementation to be optimized
 		var nodeIDs []proto.NodeID
@@ -267,7 +354,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			}
 		}
 
-		log.Debugf("found %d suitable nodes", len(nodeIDs))
+		log.Debugf("found %d suitable nodes: %v", len(nodeIDs), nodeIDs)
 
 		if len(nodeIDs) < int(resourceMeta.Node) {
 			continue
@@ -295,7 +382,10 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 			if resourceMeta.Memory < metricValue {
 				// can allocate
-				allocated = append(allocated, nodeID)
+				allocated = append(allocated, allocatedNode{
+					NodeID:       nodeID,
+					MemoryMetric: metricValue,
+				})
 			} else {
 				log.Debugf("node %s memory metric does not meet requirements", nodeID)
 				excludeNodes[nodeID] = true
@@ -303,10 +393,22 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		}
 
 		if len(allocated) >= int(resourceMeta.Node) {
+			// sort allocated node by metric
+			sort.Slice(allocated, func(i, j int) bool {
+				return allocated[i].MemoryMetric > allocated[j].MemoryMetric
+			})
+
 			allocated = allocated[:int(resourceMeta.Node)]
 
+			// build plain allocated slice
+			nodeAllocated := make([]proto.NodeID, 0, len(allocated))
+
+			for _, node := range allocated {
+				nodeAllocated = append(nodeAllocated, node.NodeID)
+			}
+
 			// build peers
-			return s.buildPeers(lastTerm+1, nodes, allocated)
+			return s.buildPeers(lastTerm+1, nodes, nodeAllocated)
 		}
 
 		curRange += int(resourceMeta.Node)
@@ -342,6 +444,7 @@ func (s *DBService) getMetric(metric metric.MetricMap, keys []string) (value uin
 }
 
 func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []proto.NodeID) (peers *kayak.Peers, err error) {
+	log.Debugf("build peers for allocated nodes with term: %v, allocated nodes: %v", term, allocated)
 	// get local private key
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -363,7 +466,9 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 	allocatedNodes := make([]proto.Node, 0, len(allocated))
 
 	for _, node := range nodes {
-		allocatedNodes = append(allocatedNodes, node)
+		if allocatedMap[node.ID] {
+			allocatedNodes = append(allocatedNodes, node)
+		}
 	}
 
 	peers = &kayak.Peers{
@@ -372,23 +477,17 @@ func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []prot
 		Servers: make([]*kayak.Server, len(allocated)),
 	}
 
-	// TODO(xq262144): more practical leader selection, now random select node as leader
-	// random choice leader
-	leaderIdx := rand.Intn(len(allocated))
-
 	for idx, node := range allocatedNodes {
 		peers.Servers[idx] = &kayak.Server{
-			Role:   conf.Follower,
+			Role:   proto.Follower,
 			ID:     node.ID,
 			PubKey: node.PublicKey,
 		}
-
-		if idx == leaderIdx {
-			// set as leader
-			peers.Servers[idx].Role = conf.Leader
-			peers.Leader = peers.Servers[idx]
-		}
 	}
+
+	// choose the first node as leader, allocateNodes sort the allocated node list by memory size
+	peers.Servers[0].Role = proto.Leader
+	peers.Leader = peers.Servers[0]
 
 	// sign the peers structure
 	err = peers.Sign(privKey)
@@ -448,7 +547,7 @@ func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.N
 		go func(s proto.NodeID, ec chan error) {
 			defer wg.Done()
 			var resp wt.UpdateServiceResponse
-			ec <- rpc.NewCaller().CallNode(s, "DBS.Update", req, &resp)
+			ec <- rpc.NewCaller().CallNode(s, route.DBSDeploy.String(), req, &resp)
 		}(node, errCh)
 	}
 

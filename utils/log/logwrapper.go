@@ -48,6 +48,9 @@ const (
 // Logger wraps logrus logger type.
 type Logger logrus.Logger
 
+// Fields defines the field map to pass to `WithFields`.
+type Fields logrus.Fields
+
 // CallerHook defines caller awareness hook for logrus.
 type CallerHook struct{}
 
@@ -84,7 +87,7 @@ func (hook *CallerHook) caller() string {
 	}
 
 	relFuncName := strings.TrimPrefix(funcName, "gitlab.com/thunderdb/ThunderDB/")
-	funcLocation := fmt.Sprintf("%s:%d:%s", filepath.Base(file), line, relFuncName)
+	funcLocation := fmt.Sprintf("%s:%d %s", filepath.Base(file), line, relFuncName)
 	return funcLocation
 }
 
@@ -147,8 +150,8 @@ func WithField(key string, value interface{}) *logrus.Entry {
 //
 // Note that it doesn't log until you call Debug, Print, Info, Warn, Fatal
 // or Panic on the Entry it returns.
-func WithFields(fields logrus.Fields) *logrus.Entry {
-	return logrus.WithFields(fields)
+func WithFields(fields Fields) *logrus.Entry {
+	return logrus.WithFields(logrus.Fields(fields))
 }
 
 // Debug logs a message at level Debug on the standard logger.

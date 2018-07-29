@@ -74,13 +74,14 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 		return
 	}
 
-	nodes, err := DHT.Consistent.GetNeighbors(string(req.NodeID), req.Count)
+	nodes, err := DHT.Consistent.GetNeighborsEx(string(req.NodeID), req.Count, req.Roles)
 	if err != nil {
 		err = fmt.Errorf("get nodes from DHT failed: %s", err)
 		log.Error(err)
 		return
 	}
 	resp.Nodes = nodes
+	log.Debugf("found %v nodes for find neighbor request %v", len(nodes), req)
 	return
 }
 

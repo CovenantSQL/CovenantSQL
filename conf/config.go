@@ -27,9 +27,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// ServerRole defines the role of node to be leader/coordinator in peer set.
-type ServerRole int
-
 // these const specify the role of this app, which can be "miner", "blockProducer"
 const (
 	MinerBuildTag         = "M"
@@ -38,40 +35,16 @@ const (
 	UnknownBuildTag       = "U"
 )
 
+// StartSucceedMessage is printed when thunderDB started successfully
+const StartSucceedMessage = "ThunderDB Started Successfully"
+
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag
 
-const (
-	// Leader is a server that have the ability to organize committing requests.
-	Leader ServerRole = iota
-	// Follower is a server that follow the leader log commits.
-	Follower
-	// Miner is a server that run sql database
-	Miner
-	// Client is a client that send sql query to database
-	Client
-)
-
-func (s ServerRole) String() string {
-	switch s {
-	case Leader:
-		return "Leader"
-	case Follower:
-		return "Follower"
-	case Miner:
-		return "Miner"
-	case Client:
-		return "Client"
-	}
-	return "Unknown"
-}
-
 // BPInfo hold all BP info fields
 type BPInfo struct {
-	// PublicKeyStr is the public key of Block Producer
-	PublicKeyStr string `yaml:"PublicKeyStr"`
 	// PublicKey point to BlockProducer public key
-	PublicKey *asymmetric.PublicKey `yaml:"-"`
+	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
 	// NodeID is the node id of Block Producer
 	NodeID proto.NodeID `yaml:"NodeID"`
 	// RawNodeID
@@ -80,14 +53,14 @@ type BPInfo struct {
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
 }
 
-// NodeInfo for conf generation and load purpose.
-type NodeInfo struct {
-	ID        proto.NodeID
-	Nonce     cpuminer.Uint256
-	PublicKey *asymmetric.PublicKey `yaml:"-"`
-	Addr      string
-	Role      ServerRole
-}
+//// NodeInfo for conf generation and load purpose.
+//type NodeInfo struct {
+//	ID        proto.NodeID
+//	Nonce     cpuminer.Uint256
+//	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
+//	Addr      string
+//	Role      proto.ServerRole
+//}
 
 // MinerDatabaseFixture config.
 type MinerDatabaseFixture struct {
@@ -99,9 +72,9 @@ type MinerDatabaseFixture struct {
 	AutoGenerateGenesisBlock bool             `yaml:"AutoGenerateGenesisBlock,omitempty"`
 }
 
-// MinerConfig for miner config.
+// MinerInfo for miner config.
 type MinerInfo struct {
-	// node basic config
+	// node basic config.
 	RootDir               string        `yaml:"RootDir"`
 	MaxReqTimeGap         time.Duration `yaml:"MaxReqTimeGap,omitempty"`
 	MetricCollectInterval time.Duration `yaml:"MetricCollectInterval,omitempty"`
@@ -113,15 +86,15 @@ type MinerInfo struct {
 
 // Config holds all the config read from yaml config file
 type Config struct {
-	IsTestMode      bool // when testMode use default empty masterKey
+	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
 	GenerateKeyPair bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
-	WorkingRoot     string
-	PubKeyStoreFile string
-	PrivateKeyFile  string
-	DHTFileName     string
-	ListenAddr      string
-	ThisNodeID      proto.NodeID
+	WorkingRoot     string            `yaml:"WorkingRoot"`
+	PubKeyStoreFile string            `yaml:"PubKeyStoreFile"`
+	PrivateKeyFile  string            `yaml:"PrivateKeyFile"`
+	DHTFileName     string            `yaml:"DHTFileName"`
+	ListenAddr      string            `yaml:"ListenAddr"`
+	ThisNodeID      proto.NodeID      `yaml:"ThisNodeID"`
 	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 	// Check By BP DHT.Ping
 	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
@@ -129,7 +102,8 @@ type Config struct {
 	BP    *BPInfo    `yaml:"BlockProducer"`
 	Miner *MinerInfo `yaml:"Miner,omitempty"`
 
-	KnownNodes *[]NodeInfo
+	KnownNodes  []proto.Node `yaml:"KnownNodes"`
+	SeedBPNodes []proto.Node `yaml:"-"`
 }
 
 // GConf is the global config pointer
@@ -148,5 +122,6 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		log.Errorf("unmarshal config file failed: %s", err)
 		return
 	}
+
 	return
 }

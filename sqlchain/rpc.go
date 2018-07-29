@@ -75,8 +75,8 @@ type FetchBlockResp struct {
 
 // FetchAckedQueryReq defines a request of the FetchAckedQuery RPC method.
 type FetchAckedQueryReq struct {
-	height                   int32
-	SignedResponseHeaderHash *hash.Hash
+	Height                int32
+	SignedAckedHeaderHash *hash.Hash
 }
 
 // FetchAckedQueryResp defines a request of the FetchAckedQuery RPC method.
@@ -85,8 +85,10 @@ type FetchAckedQueryResp struct {
 }
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
-func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
-	return s.chain.CheckAndPushNewBlock(req.Block)
+func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
+	err error) {
+	s.chain.blocks <- req.Block
+	return
 }
 
 // AdviseBinLog is the RPC method to advise a new binary log to the target server.
@@ -117,6 +119,6 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (
 // FetchAckedQuery is the RPC method to fetch a known block form the target server.
 func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
 ) (err error) {
-	resp.Ack, err = s.chain.FetchAckedQuery(req.height, req.SignedResponseHeaderHash)
+	resp.Ack, err = s.chain.FetchAckedQuery(req.Height, req.SignedAckedHeaderHash)
 	return
 }

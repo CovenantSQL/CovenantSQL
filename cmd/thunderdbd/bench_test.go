@@ -17,11 +17,13 @@
 package main
 
 import (
+	"context"
 	"net"
 	"path/filepath"
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -40,8 +42,10 @@ var (
 var FJ = filepath.Join
 
 func TestBuild(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-	utils.Build()
+	Convey("build", t, func() {
+		log.SetLevel(log.DebugLevel)
+		So(utils.Build(), ShouldBeNil)
+	})
 }
 
 func start3BPs() {
@@ -64,10 +68,19 @@ func start3BPs() {
 
 func TestStartBP_CallRPC(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	var err error
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2122,
+		2121,
+		2120,
+	}, time.Millisecond*200)
+
 	start3BPs()
 	time.Sleep(5 * time.Second)
 
-	var err error
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
 	if err != nil {
 		t.Fatalf("load config from %s failed: %s", configFile, err)
@@ -148,8 +161,8 @@ func TestStartBP_CallRPC(t *testing.T) {
 	}
 
 	caller := rpc.NewCaller()
-	for _, n := range (*conf.GConf.KnownNodes)[:] {
-		if n.Role == conf.Follower {
+	for _, n := range conf.GConf.KnownNodes {
+		if n.Role == proto.Follower {
 			err = caller.CallNode(n.ID, "DHT."+reqType, reqFN, respFN)
 			log.Debugf("respFN %s: %##v", reqType, respFN.Node)
 			if err != nil || respFN.Node.Addr != "nodePayloadAddr" {
@@ -177,7 +190,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	nodeID := conf.GConf.ThisNodeID
 
 	var idx int
-	for i, n := range (*conf.GConf.KnownNodes)[:] {
+	for i, n := range conf.GConf.KnownNodes {
 		if n.ID == nodeID {
 			idx = i
 			break
@@ -197,7 +210,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 		return
 	}
 
-	(*conf.GConf.KnownNodes)[idx].PublicKey, err = kms.GetLocalPublicKey()
+	conf.GConf.KnownNodes[idx].PublicKey, err = kms.GetLocalPublicKey()
 	if err != nil {
 		log.Errorf("get local public key failed: %s", err)
 		return

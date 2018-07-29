@@ -38,8 +38,8 @@ import (
 	"strconv"
 	"sync"
 
+	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
@@ -77,39 +77,30 @@ type Consistent struct {
 }
 
 // InitConsistent creates a new Consistent object with a default setting of 20 replicas for each entry.
-//
-// To change the number of replicas, set NumberOfReplicas before adding entries.
 func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *Consistent, err error) {
-	var BPNode *proto.Node
+	var BPNodes []proto.Node
 	if initBP {
 		// Load BlockProducer public key, set it in public key store
 		// as all kms.BP stuff is initialized on kms init()
-		BPNode = &proto.Node{
-			ID:        kms.BP.NodeID,
-			Addr:      "",
-			PublicKey: kms.BP.PublicKey,
-			Nonce:     kms.BP.Nonce,
+		if conf.GConf == nil {
+			log.Fatal("Must call conf.LoadConfig first")
 		}
+		BPNodes = conf.GConf.SeedBPNodes
 	}
 
-	// Create new public key store
-	//err = kms.InitPublicKeyStore(storePath, BPNode)
-	//if err != nil {
-	//	log.Errorf("init public keystore failed: %s", err)
-	//	return
-	//}
-	//IDs, err := kms.GetAllNodeID()
-	//if err != nil {
-	//	log.Errorf("get all node id failed: %s", err)
-	//	return
-	//}
 	c = &Consistent{
 		//TODO(auxten): reduce NumberOfReplicas
 		NumberOfReplicas: 20,
 		circle:           make(map[proto.NodeKey]*proto.Node),
 		persist:          persistImpl,
 	}
-	c.persist.Init(storePath, BPNode)
+
+	err = c.persist.Init(storePath, BPNodes)
+	if err != nil {
+		log.Errorf("init persist BP nodes failed: %v", err)
+		return
+	}
+
 	nodes, err := c.persist.GetAllNodeInfo()
 	if err != nil {
 		log.Errorf("get all node id failed: %s", err)
@@ -140,6 +131,7 @@ func (c *Consistent) nodeKey(nodeID proto.NodeID, idx int) string {
 
 // Add inserts a string node in the consistent hash.
 func (c *Consistent) Add(node proto.Node) (err error) {
+	log.Debugf("add node %v to consistent ring", node)
 	c.Lock()
 	defer c.Unlock()
 	return c.add(node)
@@ -276,8 +268,8 @@ func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error
 	return a, b, nil
 }
 
-// GetNeighbors returns the N closest distinct nodes to the name input in the circle.
-func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
+// GetNeighborsEx returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetNeighborsEx(name string, n int, roles proto.ServerRoles) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -296,10 +288,13 @@ func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
 		res   = make([]proto.Node, 0, n)
 		elem  = *c.circle[c.sortedHashes[i]]
 	)
+	var noFilter = roles == nil || len(roles) == 0
 
-	res = append(res, elem)
+	if noFilter || roles.Contains(elem.Role) {
+		res = append(res, elem)
+	}
 
-	if len(res) == n {
+	if noFilter && len(res) == n {
 		return res, nil
 	}
 
@@ -308,8 +303,10 @@ func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
 			i = 0
 		}
 		elem = *c.circle[c.sortedHashes[i]]
-		if !sliceContainsMember(res, elem) {
-			res = append(res, elem)
+		if noFilter || roles.Contains(elem.Role) {
+			if !sliceContainsMember(res, elem) {
+				res = append(res, elem)
+			}
 		}
 		if len(res) == n {
 			break
@@ -317,6 +314,11 @@ func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
 	}
 
 	return res, nil
+}
+
+// GetNeighbors returns the N closest distinct nodes to the name input in the circle.
+func (c *Consistent) GetNeighbors(name string, n int) ([]proto.Node, error) {
+	return c.GetNeighborsEx(name, n, nil)
 }
 
 func hashKey(key string) proto.NodeKey {

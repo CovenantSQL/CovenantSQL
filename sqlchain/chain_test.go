@@ -20,20 +20,15 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"path"
 	"sync"
 	"testing"
 	"time"
 
-	bolt "github.com/coreos/bbolt"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 )
 
 var (
@@ -44,7 +39,7 @@ var (
 	testDatabaseID           proto.DatabaseID = "tdb-test"
 	testChainService                          = "sql-chain.thunderdb.rpc"
 	testPeriodNumber         int32            = 10
-	testClientNumberPerChain                  = 10
+	testClientNumberPerChain                  = 3
 )
 
 func TestIndexKey(t *testing.T) {
@@ -62,10 +57,8 @@ func TestIndexKey(t *testing.T) {
 		}
 
 		// Test partial order
-		bi1 := newBlockNode(b1, nil)
-		bi2 := newBlockNode(b2, nil)
-		bi1.height = rand.Int31()
-		bi2.height = rand.Int31()
+		bi1 := newBlockNode(rand.Int31(), b1, nil)
+		bi2 := newBlockNode(rand.Int31(), b2, nil)
 		k1 := bi1.indexKey()
 		k2 := bi2.indexKey()
 
@@ -78,182 +71,6 @@ func TestIndexKey(t *testing.T) {
 			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
 				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
 		}
-	}
-}
-
-func TestChain(t *testing.T) {
-	fl, err := ioutil.TempFile("", "chain")
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	fl.Close()
-
-	// Create new chain
-	genesis, err := createRandomBlock(genesisHash, true)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	pub, err := kms.GetLocalPublicKey()
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	priv, err := kms.GetLocalPrivateKey()
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	servers := [...]*kayak.Server{
-		&kayak.Server{ID: "X1"},
-		&kayak.Server{ID: "X2"},
-		&kayak.Server{ID: "X3"},
-		&kayak.Server{ID: "X4"},
-		&kayak.Server{ID: "X5"},
-	}
-
-	peers := &kayak.Peers{
-		Term:    0,
-		Leader:  servers[0],
-		Servers: servers[:0],
-		PubKey:  pub,
-	}
-
-	if err = peers.Sign(priv); err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	chain, err := NewChain(&Config{
-		DatabaseID: "tdb",
-		DataFile:   fl.Name(),
-		Genesis:    genesis,
-		Period:     testPeriod,
-		Tick:       testTick,
-		QueryTTL:   testQueryTTL,
-		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
-		Server:     servers[0],
-		Peers:      peers,
-	})
-
-	// Hack for signle instance test
-	chain.rt.total = 5
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	t.Logf("Create new chain: genesis = %s, inittime = %s, period = %.9f secs",
-		genesis.SignedHeader.BlockHash,
-		chain.rt.chainInitTime.Format(time.RFC3339Nano),
-		chain.rt.period.Seconds())
-
-	// Push blocks
-	for {
-		t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-			chain.st.Head, chain.st.Height, chain.rt.nextTurn,
-			chain.rt.chainInitTime.Add(
-				chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
-			chain.rt.isMyTurn())
-		acks, err := createRandomQueries(10)
-
-		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
-		}
-
-		for _, ack := range acks {
-			if err = chain.VerifyAndPushAckedQuery(ack); err != nil {
-				t.Fatalf("Error occurred: %v", err)
-			}
-		}
-
-		// Run main cycle
-		var now time.Time
-		var d time.Duration
-
-		for {
-			now, d = chain.rt.nextTick()
-
-			t.Logf("Wake up at: now = %s, d = %.9f secs",
-				now.Format(time.RFC3339Nano), d.Seconds())
-
-			if d > 0 {
-				time.Sleep(d)
-			} else {
-				chain.runCurrentTurn(now)
-				break
-			}
-		}
-
-		// Advise block if it's not my turn
-		if !chain.rt.isMyTurn() {
-			block, err := createRandomBlockWithQueries(
-				genesis.SignedHeader.BlockHash, chain.st.Head, acks)
-
-			if err != nil {
-				t.Fatalf("Error occurred: %v", err)
-			}
-
-			if err = chain.CheckAndPushNewBlock(block); err != nil {
-				t.Fatalf("Error occurred: %v, block = %+v", err, block)
-			}
-
-			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.st.Height,
-				block.SignedHeader.ParentHash,
-				block.SignedHeader.BlockHash)
-		} else {
-			var enc []byte
-			var block ct.Block
-
-			if err = chain.db.View(func(tx *bolt.Tx) (err error) {
-				enc = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(
-					chain.st.node.indexKey())
-				return
-			}); err != nil {
-				t.Fatalf("Error occurred: %v", err)
-			}
-
-			if err = block.UnmarshalBinary(enc); err != nil {
-				t.Fatalf("Error occurred: %v", err)
-			}
-
-			t.Logf("Produced new block: height = %d, %s <- %s",
-				chain.st.Height,
-				block.SignedHeader.ParentHash,
-				block.SignedHeader.BlockHash)
-		}
-
-		if chain.st.Height >= testPeriodNumber {
-			break
-		}
-	}
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	// Reload chain from DB file and rebuild memory cache
-	chain.db.Close()
-	chain, err = LoadChain(&Config{
-		DataFile:   fl.Name(),
-		Genesis:    genesis,
-		Period:     testPeriod,
-		Tick:       testTick,
-		QueryTTL:   testQueryTTL,
-		MuxService: NewMuxService("sqlchain", rpc.NewServer()),
-		Server: &kayak.Server{
-			ID: proto.NodeID("X1"),
-		},
-		Peers: peers,
-	})
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
 	}
 }
 
@@ -270,6 +87,10 @@ func TestMultiChain(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	}
+
+	for i, p := range peers.Servers {
+		t.Logf("Peer #%d: %s", i, p.ID)
 	}
 
 	// Create sql-chain instances
@@ -317,10 +138,26 @@ func TestMultiChain(t *testing.T) {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		defer func(c *Chain) {
+		defer func(c *Chain, db string) {
 			// Stop chain main process
 			c.Stop()
-		}(chains[i])
+			// Try to reload chain
+			if nc, err := LoadChain(&Config{
+				DatabaseID: testDatabaseID,
+				DataFile:   db,
+				Period:     testPeriod,
+				Tick:       testTick,
+				MuxService: mux,
+				Server:     peers.Servers[i],
+				Peers:      peers,
+				QueryTTL:   testQueryTTL,
+			}); err != nil {
+				t.Errorf("Error occurred: %v", err)
+			} else {
+				t.Logf("Load chain from file %s: head = %s height = %d",
+					db, nc.rt.getHead().Head, nc.rt.getHead().Height)
+			}
+		}(chains[i], dataFile)
 	}
 
 	// Create some random clients to push new queries
@@ -358,7 +195,7 @@ func TestMultiChain(t *testing.T) {
 							t.Errorf("Error occurred: %v", err)
 						}
 
-						time.Sleep(time.Duration(rand.Int63n(100)+1) * time.Millisecond)
+						time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
 						ack, err := createRandomQueryAckWithResponse(resp, p)
 
 						if err != nil {

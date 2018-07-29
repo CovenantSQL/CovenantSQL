@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -145,7 +144,7 @@ func (s ServerState) String() string {
 // Server tracks the information about a single server in a configuration.
 type Server struct {
 	// Suffrage determines whether the server gets a vote.
-	Role conf.ServerRole
+	Role proto.ServerRole
 	// ID is a unique string identifying this server for all time.
 	ID proto.NodeID
 	// Public key
@@ -239,6 +238,21 @@ func (c *Peers) String() string {
 	return fmt.Sprintf("Peers term:%v nodesCnt:%v leader:%s signature:%s",
 		c.Term, len(c.Servers), c.Leader.ID,
 		base64.StdEncoding.EncodeToString(c.Signature.Serialize()))
+}
+
+// Find finds the index of the server with the specified key in the server list.
+func (c *Peers) Find(key proto.NodeID) (index int32, found bool) {
+	if c.Servers != nil {
+		for i, s := range c.Servers {
+			if s.ID == key {
+				index = int32(i)
+				found = true
+				break
+			}
+		}
+	}
+
+	return
 }
 
 // RuntimeConfig defines minimal configuration fields for consensus runner.

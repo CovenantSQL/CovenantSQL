@@ -18,21 +18,31 @@ package rpc
 
 import (
 	"net"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/hashicorp/yamux"
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (
 	localAddr   = "127.0.0.1:4444"
 	localAddr2  = "127.0.0.1:4445"
-	concurrency = 10
+	concurrency = 4
 	packetCount = 100
 )
+
+var (
+	baseDir        = utils.GetProjectSrcDir()
+	testWorkingDir = FJ(baseDir, "./test/")
+	logDir         = FJ(testWorkingDir, "./log/")
+)
+
+var FJ = filepath.Join
 
 func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) error {
 	// Accept a TCP connection

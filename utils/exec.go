@@ -55,6 +55,21 @@ func Build() (err error) {
 // RunCommand runs a command and capture its output to a log file,
 //  if toStd is true also output to stdout and stderr
 func RunCommand(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (err error) {
+	cmd, err := RunCommandNB(bin, args, processName, workingDir, logDir, toStd)
+	if err != nil {
+		log.Errorf("start command failed: %v", err)
+		return
+	}
+	err = cmd.Wait()
+	if err != nil {
+		log.Errorf("cmd %s args %s failed with %v", cmd.Path, cmd.Args, err)
+		return
+	}
+	return
+}
+
+// RunCommandNB starts a non-blocking command
+func RunCommandNB(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (cmd *exec.Cmd, err error) {
 	logFD, err := os.Create(FJ(logDir, processName+".log"))
 	if err != nil {
 		log.Errorf("create log file failed: %s", err)
@@ -66,11 +81,10 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 		log.Errorf("change working dir failed: %s", err)
 		return
 	}
-	cmd := exec.Command(bin, args...)
+	cmd = exec.Command(bin, args...)
 	stdoutIn, _ := cmd.StdoutPipe()
 	stderrIn, _ := cmd.StderrPipe()
 
-	var errStdout, errStderr error
 	var stdout, stderr io.Writer
 	if toStd {
 		stdout = io.MultiWriter(os.Stdout, logFD)
@@ -87,27 +101,20 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 	}
 
 	go func() {
-		_, errStdout = io.Copy(stdout, stdoutIn)
-		if errStdout != nil {
-			log.Errorf("failed to capture stdout %s", errStdout)
-			err = errStdout
+		_, err := io.Copy(stdout, stdoutIn)
+		if err != nil {
+			log.Errorf("failed to capture stdout %s", err)
 			return
 		}
 	}()
 
 	go func() {
-		_, errStderr = io.Copy(stderr, stderrIn)
-		if errStderr != nil {
-			log.Errorf("failed to capture stderr %s", errStderr)
-			err = errStderr
+		_, err := io.Copy(stderr, stderrIn)
+		if err != nil {
+			log.Errorf("failed to capture stderr %s", err)
 			return
 		}
 	}()
 
-	err = cmd.Wait()
-	if err != nil {
-		log.Errorf("cmd %s args %s failed with %v", cmd.Path, cmd.Args, err)
-		return
-	}
 	return
 }

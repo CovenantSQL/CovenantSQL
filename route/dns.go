@@ -20,10 +20,7 @@ import (
 	"errors"
 	"sync"
 
-	"encoding/hex"
-
 	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -32,8 +29,8 @@ import (
 // NodeIDAddressMap is the map of proto.RawNodeID to node address
 type NodeIDAddressMap map[proto.RawNodeID]string
 
-// BPDomain is the default BP domain list
-const BPDomain = "_bp._tcp.gridb.io."
+// IDNodeMap is the map of proto.RawNodeID to node
+type IDNodeMap map[proto.RawNodeID]proto.Node
 
 var (
 	// resolver holds the singleton instance
@@ -125,35 +122,62 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	resolver.bpNodeIDs = make(NodeIDAddressMap)
 	bpNodeIDs = resolver.bpNodeIDs
 
-	if conf.GConf.KnownNodes != nil {
-		for _, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == conf.Leader || n.Role == conf.Follower {
-				rawID := n.ID.ToRawNodeID()
-				if rawID != nil {
-					setNodeAddrCache(rawID, n.Addr)
-					resolver.bpNodeIDs[*rawID] = n.Addr
-				}
-			}
-		}
-
-		return
+	if conf.GConf == nil {
+		log.Fatal("call conf.LoadConfig to init conf first")
 	}
 
-	dc := NewDNSClient()
-	addrs, err := dc.GetBPIDAddrMap(BPDomain)
-	if err == nil {
-		for id, addr := range addrs {
-			setNodeAddrCache(&id, addr)
-			resolver.bpNodeIDs[id] = addr
+	var BPNodes = make(IDNodeMap)
+
+	// ignore DNS seed in test mode
+	if !conf.GConf.IsTestMode {
+		dc := NewDNSClient()
+		var seedDomain = BPDomain
+		//seedDomain = TestBPDomain
+		var err error
+		BPNodes, err = dc.GetBPFromDNSSeed(seedDomain)
+		if err != nil {
+			log.Errorf("getting BP addr from DNS %s failed: %s", seedDomain, err)
+			return
 		}
-	} else {
-		log.Errorf("getting BP addr from DNS failed: %s", err)
+	}
+
+	if conf.GConf.KnownNodes != nil {
+		for _, n := range conf.GConf.KnownNodes {
+			rawID := n.ID.ToRawNodeID()
+			if rawID != nil {
+				if n.Role == proto.Leader || n.Role == proto.Follower {
+					BPNodes[*rawID] = n
+				}
+				setNodeAddrCache(rawID, n.Addr)
+			}
+		}
+	}
+
+	extraBP := *conf.GConf.BP.NodeID.ToRawNodeID()
+	if _, exists := BPNodes[extraBP]; !exists {
+		BPNodes[extraBP] = proto.Node{
+			ID:        conf.GConf.BP.NodeID,
+			Role:      proto.Leader,
+			Addr:      "",
+			PublicKey: conf.GConf.BP.PublicKey,
+			Nonce:     conf.GConf.BP.Nonce,
+		}
+	}
+
+	conf.GConf.SeedBPNodes = make([]proto.Node, 0, len(BPNodes))
+	for _, n := range BPNodes {
+		rawID := n.ID.ToRawNodeID()
+		if rawID != nil {
+			conf.GConf.SeedBPNodes = append(conf.GConf.SeedBPNodes, n)
+			setNodeAddrCache(rawID, n.Addr)
+			resolver.bpNodeIDs[*rawID] = n.Addr
+		}
 	}
 
 	return resolver.bpNodeIDs
 }
 
-// GetBPs return the known BP node id list
+// GetBPs returns the known BP node id list
 func GetBPs() (BPAddrs []proto.NodeID) {
 	BPAddrs = make([]proto.NodeID, 0, len(resolver.bpNodeIDs))
 	for id := range resolver.bpNodeIDs {
@@ -164,34 +188,9 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 
 // InitKMS inits nasty stuff, only for testing
 func InitKMS(PubKeyStoreFile string) {
-	if conf.GConf.KnownNodes != nil {
-		for i, n := range (*conf.GConf.KnownNodes)[:] {
-			if n.Role == conf.Leader || n.Role == conf.Follower {
-				//HACK(auxten): put PublicKey to yaml
-				(*conf.GConf.KnownNodes)[i].PublicKey = kms.BP.PublicKey
-				log.Debugf("node: %s, pubkey: %x", n.ID, kms.BP.PublicKey.Serialize())
-			}
-			if n.Role == conf.Client {
-				var publicKeyBytes []byte
-				var clientPublicKey *asymmetric.PublicKey
-				//02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-				publicKeyBytes, err := hex.DecodeString("02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4")
-				if err != nil {
-					log.Errorf("hex decode clientPublicKey error: %s", err)
-					continue
-				}
-				clientPublicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-				if err != nil {
-					log.Errorf("parse clientPublicKey error: %s", err)
-					continue
-				}
-				(*conf.GConf.KnownNodes)[i].PublicKey = clientPublicKey
-			}
-		}
-	}
 	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
 	if conf.GConf.KnownNodes != nil {
-		for _, n := range (*conf.GConf.KnownNodes)[:] {
+		for _, n := range conf.GConf.KnownNodes {
 			rawNodeID := n.ID.ToRawNodeID()
 
 			log.Debugf("set node addr: %v, %v", rawNodeID, n.Addr)
@@ -201,7 +200,9 @@ func InitKMS(PubKeyStoreFile string) {
 				Addr:      n.Addr,
 				PublicKey: n.PublicKey,
 				Nonce:     n.Nonce,
+				Role:      n.Role,
 			}
+			log.Debugf("known node to set: %v", node)
 			err := kms.SetNode(node)
 			if err != nil {
 				log.Errorf("set node failed: %v\n %s", node, err)

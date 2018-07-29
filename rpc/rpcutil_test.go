@@ -44,8 +44,8 @@ func TestCaller_CallNode(t *testing.T) {
 	defer os.Remove(publicKeyStore)
 
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_0/private.key")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
@@ -53,7 +53,7 @@ func TestCaller_CallNode(t *testing.T) {
 	route.Once = sync.Once{}
 	route.InitKMS(publicKeyStore)
 
-	addr := conf.GConf.ListenAddr // see ../test/node_c/config.yaml
+	addr := conf.GConf.ListenAddr // see ../test/node_standalone/config.yaml
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
@@ -126,8 +126,6 @@ func TestCaller_CallNode(t *testing.T) {
 	} else {
 		log.Debugf("err: %v", err)
 	}
-	// FIXME(leventeliu): DATA RACE detected between these successive calls.
-	time.Sleep(10 * time.Millisecond)
 
 	// call with empty context
 	err = client.CallNodeWithContext(context.Background(), conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
@@ -135,6 +133,24 @@ func TestCaller_CallNode(t *testing.T) {
 		log.Fatal(err)
 	}
 	log.Debugf("respA2: %v", respA)
+
+	// test get current bp, should only be myself
+	chiefBPNodeID, err := GetCurrentBP()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("current chief bp is: %v", chiefBPNodeID)
+
+	// set another random node as block producer
+	randomNode := proto.NodeID("00000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573")
+	SetCurrentBP(randomNode)
+	chiefBPNodeID, err = GetCurrentBP()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if chiefBPNodeID != randomNode {
+		log.Fatalf("SetCurrentBP does not works, set: %v, current: %v", randomNode, chiefBPNodeID)
+	}
 
 	server.Stop()
 }

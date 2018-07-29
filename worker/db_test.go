@@ -43,7 +43,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -484,7 +483,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 	tm = tm.Add(-timeShift)
 
 	// build queries
-	realQueries := make([]storage.Query, len(queries))
+	realQueries := make([]wt.Query, len(queries))
 
 	for i, v := range queries {
 		realQueries[i].Pattern = v
@@ -529,7 +528,7 @@ func getPeers(term uint64) (peers *kayak.Peers, err error) {
 
 	// generate peers and sign
 	server := &kayak.Server{
-		Role:   conf.Leader,
+		Role:   proto.Leader,
 		ID:     nodeID,
 		PubKey: pubKey,
 	}
@@ -567,7 +566,8 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
-	os.Remove(pubKeyStoreFile + "_c")
+	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")
+	os.Remove(clientPubKeyStoreFile)
 	dupConfFile := filepath.Join(d, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
 	if err = dupConf(confFile, dupConfFile); err != nil {
@@ -578,7 +578,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	// reset the once
 	route.Once = sync.Once{}
-	route.InitKMS(pubKeyStoreFile + "_c")
+	route.InitKMS(clientPubKeyStoreFile)
 
 	var dht *route.DHTService
 
@@ -594,7 +594,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// register bpdb service
-	if err = server.RegisterService("BPDB", &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
 		return
 	}
 
@@ -681,7 +681,17 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 type stubBPDBService struct{}
 
 func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta("db2")
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta("db2"); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
 	return
 }
 
@@ -690,13 +700,33 @@ func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.Dro
 }
 
 func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
-	resp.InstanceMeta, err = s.getInstanceMeta(req.DatabaseID)
+	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
+		return
+	}
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
 	return
 }
 
 func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Instances = make([]wt.ServiceInstance, 1)
-	resp.Instances[0], err = s.getInstanceMeta("db2")
+	resp.Header.Instances = make([]wt.ServiceInstance, 1)
+	resp.Header.Instances[0], err = s.getInstanceMeta("db2")
+	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	err = resp.Sign(privateKey)
+
 	return
 }
 
@@ -720,13 +750,13 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	instance.Peers = &kayak.Peers{
 		Term: 1,
 		Leader: &kayak.Server{
-			Role:   conf.Leader,
+			Role:   proto.Leader,
 			ID:     nodeID,
 			PubKey: pubKey,
 		},
 		Servers: []*kayak.Server{
 			{
-				Role:   conf.Leader,
+				Role:   proto.Leader,
 				ID:     nodeID,
 				PubKey: pubKey,
 			},

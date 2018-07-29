@@ -80,7 +80,7 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 			dbPeers := &kayak.Peers{
 				Term: testFixture.Term,
 				Leader: &kayak.Server{
-					Role: conf.Leader,
+					Role: proto.Leader,
 					ID:   testFixture.Leader,
 				},
 				Servers: (func(servers []proto.NodeID) (ks []*kayak.Server) {
@@ -88,11 +88,11 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 
 					for i, s := range servers {
 						ks[i] = &kayak.Server{
-							Role: conf.Follower,
+							Role: proto.Follower,
 							ID:   s,
 						}
 						if s == testFixture.Leader {
-							ks[i].Role = conf.Leader
+							ks[i].Role = proto.Leader
 						}
 					}
 
@@ -201,7 +201,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 			Data:      pub.Serialize(),
 			NonceChan: nonceCh,
 			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
+		}, cpuminer.Uint256{}, 4)
 		nonce := <-nonceCh
 		close(quitCh)
 		close(nonceCh)

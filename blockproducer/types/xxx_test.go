@@ -126,8 +126,11 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 	}
 
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
-		h := &TxBilling{}
-		b.PushTx(h)
+		tb, err := generateRandomTxBilling()
+		if err != nil {
+			return nil, err
+		}
+		b.PushTx(tb)
 	}
 
 	err = b.PackAndSignBlock(priv)
@@ -224,7 +227,6 @@ func generateRandomTxContent() (*TxContent, error) {
 
 	tc := &TxContent{
 		SequenceID:      rand.Uint64(),
-		TxType:          byte(rand.Int()),
 		BillingRequest:  *req,
 		BillingResponse: *resp,
 		Receivers:       receivers,

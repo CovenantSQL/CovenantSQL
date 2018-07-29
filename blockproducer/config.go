@@ -16,7 +16,13 @@
 
 package blockproducer
 
-import "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+import (
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"time"
+)
 
 const (
 	blockVersion int32 = 0x01
@@ -24,12 +30,31 @@ const (
 
 // config is the main chain configuration
 type config struct {
-	genesis types.Block
+	genesis *types.Block
+
 	dataFile string
+
+	server *rpc.Server
+
+	peers      *kayak.Peers
+	nodeID 	proto.NodeID
+
+	period  time.Duration
+	tick    time.Duration
 }
 
-// newconfig creates new config
-func newconfig() *config {
-	config := config{}
+// newConfig creates new config
+func newConfig(genesis *types.Block, dataFile string,
+	server *rpc.Server, peers *kayak.Peers,
+	nodeID proto.NodeID, period time.Duration, tick time.Duration) *config {
+	config := config{
+		genesis: genesis,
+		dataFile: dataFile,
+		server: server,
+		peers: peers,
+		nodeID: nodeID,
+		period: period,
+		tick: tick,
+	}
 	return &config
 }

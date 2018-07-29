@@ -38,7 +38,7 @@ func TestTxContent_GetHashAndGetType(t *testing.T) {
 	enc, err := tc.MarshalBinary()
 	encHash := hash.THashH(enc)
 	if !h.IsEqual(&encHash) {
-		t.Fatalf("Hash not match: \n\tv1=%v,\n\tv2", h, encHash)
+		t.Fatalf("Hash not match: \n\tv1=%v,\n\tv2=%v", h, encHash)
 	}
 }
 

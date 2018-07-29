@@ -55,6 +55,7 @@ type testStruct struct {
 	innerStruct
 	Int64Field            int64
 	Uint64Field           uint64
+	Float64Field          float64
 	StringField           string
 	BytesField            []byte
 	Uint32sField          []uint32
@@ -85,6 +86,7 @@ func (s *testStruct) randomize() {
 	s.Uint32Field = rand.Uint32()
 	s.Int64Field = rand.Int63()
 	s.Uint64Field = rand.Uint64()
+	s.Float64Field = rand.Float64()
 
 	// Randomize StringField
 	slen := rand.Intn(2 * pooledBufferLength)
@@ -308,6 +310,7 @@ func (s *testStruct) MarshalBinary() ([]byte, error) {
 		s.Uint32Field,
 		s.Int64Field,
 		s.Uint64Field,
+		s.Float64Field,
 		s.StringField,
 		s.BytesField,
 		s.Uint32sField,
@@ -346,6 +349,7 @@ func (s *testStruct) MarshalBinary2() ([]byte, error) {
 		&s.Uint32Field,
 		&s.Int64Field,
 		&s.Uint64Field,
+		&s.Float64Field,
 		&s.StringField,
 		&s.BytesField,
 		&s.Uint32sField,
@@ -378,6 +382,7 @@ func (s *testStruct) MarshalBinary3() ([]byte, error) {
 		&s.innerStruct,
 		&s.Int64Field,
 		&s.Uint64Field,
+		&s.Float64Field,
 		&s.StringField,
 		&s.BytesField,
 		&s.Uint32sField,
@@ -415,6 +420,7 @@ func (s *testStruct) UnmarshalBinary(b []byte) error {
 		&s.Uint32Field,
 		&s.Int64Field,
 		&s.Uint64Field,
+		&s.Float64Field,
 		&s.StringField,
 		&s.BytesField,
 		&s.Uint32sField,
@@ -442,6 +448,7 @@ func (s *testStruct) UnmarshalBinary2(b []byte) error {
 		&s.innerStruct,
 		&s.Int64Field,
 		&s.Uint64Field,
+		&s.Float64Field,
 		&s.StringField,
 		&s.BytesField,
 		&s.Uint32sField,
@@ -537,7 +544,7 @@ func TestSerialization(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(ots, rts) {
-					// t.Errorf("Result not match: t1=%+v, t2=%+v", ots, rts)
+					t.Errorf("Result not match: t1=%+v, t2=%+v", ots.Float64Field, rts.Float64Field)
 					t.Errorf("Result not match")
 				}
 

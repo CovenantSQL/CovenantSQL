@@ -54,26 +54,36 @@ func (bn *blockNode) indexKey() (key []byte) {
 	return
 }
 
-func (bn *blockNode) initBlockNode(b *types.Block, p *blockNode) {
-	bn.hash = b.SignedHeader.BlockHash
+func (bn *blockNode) initBlockNode(block *types.Block, parent *blockNode) {
+	bn.hash = block.SignedHeader.BlockHash
 	bn.parent = nil
 	bn.height = 0
-	if p != nil {
-		bn.parent = p
-		bn.height = p.height + 1
+
+	if parent != nil {
+		bn.parent = parent
+		bn.height = parent.height + 1
 	}
 }
 
-type blockIndex struct {
-	cfg *config
+func (bn *blockNode) ancestor(h uint64) *blockNode {
+	if h < 0 || h > bn.height {
+		return nil
+	}
 
+	ancestor := bn
+	for ancestor != nil && ancestor.height != h {
+		ancestor = ancestor.parent
+	}
+	return ancestor
+}
+
+type blockIndex struct {
 	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode
 }
 
-func newBlockIndex(config *config) *blockIndex {
+func newBlockIndex() *blockIndex {
 	bi := &blockIndex{
-		cfg:   config,
 		index: make(map[hash.Hash]*blockNode),
 	}
 

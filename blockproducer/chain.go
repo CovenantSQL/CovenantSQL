@@ -17,7 +17,11 @@
 package blockproducer
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/utils"
 
 	"gitlab.com/thunderdb/ThunderDB/merkle"
 
@@ -33,10 +37,11 @@ import (
 )
 
 var (
-	metaBucket               = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey             = []byte("thunderdb-state")
-	metaBlockIndexBucket     = []byte("thunderdb-block-index-bucket")
-	metaTxBillingIndexBucket = []byte("thunderdb-tx-billing-index-bucket")
+	metaBucket                   = [4]byte{0x0, 0x0, 0x0, 0x0}
+	metaStateKey                 = []byte("thunderdb-state")
+	metaBlockIndexBucket         = []byte("thunderdb-block-index-bucket")
+	metaTxBillingIndexBucket     = []byte("thunderdb-tx-billing-index-bucket")
+	metaLastTxBillingIndexBucket = []byte("thunderdb-last-tx-billing-index-bucket")
 
 	accountAddress = proto.AccountAddress(hash.Hash{104, 36, 47, 65, 118, 196, 75, 11, 253, 85, 3, 128, 41, 109,
 		167, 180, 119, 64, 83, 185, 214, 103, 74, 9, 125, 14, 139, 16, 107, 112, 144, 55})
@@ -47,7 +52,7 @@ type Chain struct {
 	db *bolt.DB
 	bi *blockIndex
 	ti *txIndex
-	rt *runtime
+	rt *rt
 	st *state
 	cl *rpc.Caller
 }
@@ -76,6 +81,8 @@ func NewChain(cfg *config) (*Chain, error) {
 		if err != nil {
 			return
 		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaLastTxBillingIndexBucket)
 		return
 	})
 	if err != nil {
@@ -85,20 +92,16 @@ func NewChain(cfg *config) (*Chain, error) {
 	// create chain
 	chain := &Chain{
 		db: db,
-		bi: newBlockIndex(cfg),
+		bi: newBlockIndex(),
 		ti: newTxIndex(),
 		rt: newRuntime(cfg, accountAddress),
-		st: &state{
-			node:   nil,
-			Head:   cfg.genesis.SignedHeader.BlockHash,
-			Height: -1,
-		},
+		st: &state{},
 		cl: rpc.NewCaller(),
 	}
 
-	// TODO(lambda): push genesis block into the chain
+	chain.pushGenesisBlock(cfg.genesis)
 
-	// TODO(lambda): start the service
+	chain.rt.server.RegisterService(MainChainRPCName, chain)
 
 	return chain, nil
 }
@@ -113,10 +116,11 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 
 	chain = &Chain{
 		db: db,
-		bi: newBlockIndex(cfg),
+		bi: newBlockIndex(),
 		ti: newTxIndex(),
 		rt: newRuntime(cfg, accountAddress),
 		st: &state{},
+		cl: rpc.NewCaller(),
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) error {
@@ -139,7 +143,6 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 				return err
 			}
 
-			log.Debugf("Read new block: %+v", block)
 			parent := (*blockNode)(nil)
 
 			if last == nil {
@@ -178,11 +181,36 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 			return err
 		})
 
+		lastTxBillings := meta.Bucket(metaLastTxBillingIndexBucket)
+		err = lastTxBillings.ForEach(func(k, v []byte) error {
+			var databaseID proto.DatabaseID
+			reader := bytes.NewReader(k)
+			err = utils.ReadElements(reader, binary.BigEndian, &databaseID)
+			if err != nil {
+				return err
+			}
+
+			var sequenceID uint64
+			reader = bytes.NewReader(v)
+			utils.ReadElements(reader, binary.BigEndian, &sequenceID)
+			if err != nil {
+				return err
+			}
+
+			chain.ti.updateLastTxBilling(&databaseID, sequenceID)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	chain.rt.server.RegisterService(MainChainRPCName, chain)
 
 	return chain, nil
 }
@@ -195,7 +223,7 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
 	}
 	h := hash.THashH(enc)
 	if !tb.TxHash.IsEqual(&h) {
-		return ErrInvalidHashTx
+		return ErrInvalidHash
 	}
 
 	err = tb.Verify(&h)
@@ -203,24 +231,40 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
 		return err
 	}
 
-	if c.ti.hasTxBilling(tb.TxHash) {
+	if val := c.ti.getTxBilling(tb.TxHash); val == nil {
 		err = c.db.View(func(tx *bolt.Tx) error {
 			meta := tx.Bucket(metaBucket[:])
-			decTx := meta.Bucket(metaTxBillingIndexBucket).Get(tb.TxHash[:])
-			if decTx != nil {
-				return ErrExistedTx
-			} else {
-				return nil
+			dec := meta.Bucket(metaTxBillingIndexBucket).Get(tb.TxHash[:])
+			if len(dec) != 0 {
+				decTx := &types.TxBilling{}
+				err = decTx.Deserialize(dec)
+				if err != nil {
+					return err
+				}
+
+				if decTx != nil && (!decTx.SignedBlock.IsEqual(tb.SignedBlock)) {
+					return ErrExistedTx
+				}
 			}
+			return nil
 		})
 		if err != nil {
 			return err
 		}
 	} else {
-		return ErrExistedTx
+		if val.SignedBlock != nil && (!val.SignedBlock.IsEqual(tb.SignedBlock)) {
+			return ErrExistedTx
+		}
 	}
 
-	// TODO(lambda): check sequence ID to avoid double rewards and fees
+	// check sequence ID to avoid double rewards and fees
+	databaseID := tb.GetDatabaseID()
+	sequenceID, err := c.ti.lastSequenceID(databaseID)
+	if err == nil {
+		if sequenceID >= tb.GetSequenceID() {
+			return ErrSmallerSequenceID
+		}
+	}
 
 	return nil
 }
@@ -257,11 +301,7 @@ func (c *Chain) checkBlock(b *types.Block) error {
 	return nil
 }
 
-func (c *Chain) pushBlock(b *types.Block) error {
-	err := c.checkBlock(b)
-	if err != nil {
-		return err
-	}
+func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	node := newBlockNode(b, c.st.node)
 	state := state{
 		node:   node,
@@ -296,6 +336,76 @@ func (c *Chain) pushBlock(b *types.Block) error {
 	c.st = &state
 	c.bi.addBlock(node)
 	return nil
+
+}
+
+func (c *Chain) pushGenesisBlock(b *types.Block) error {
+	err := c.pushBlockWithoutCheck(b)
+	return err
+}
+
+func (c *Chain) pushBlock(b *types.Block) error {
+	err := c.checkBlock(b)
+	if err != nil {
+		return err
+	}
+
+	err = c.pushBlockWithoutCheck(b)
+	if err != nil {
+		return err
+	}
+
+	for i := range b.TxBillings {
+		err = c.pushTxBillingWithoutCheck(b.TxBillings[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Chain) pushTxBillingWithoutCheck(tb *types.TxBilling) error {
+	encTx, err := tb.Serialize()
+	if err != nil {
+		return err
+	}
+
+	err = c.db.Update(func(tx *bolt.Tx) error {
+		meta := tx.Bucket(metaBucket[:])
+		err = meta.Bucket(metaTxBillingIndexBucket).Put(tb.TxHash[:], encTx)
+		if err != nil {
+			return err
+		}
+
+		// if the tx is packed in some block, its nonce should be stored to ensure nonce is monotone increasing
+		if tb.SignedBlock != nil {
+			buffer := bytes.NewBuffer(nil)
+			err := utils.WriteElements(buffer, binary.BigEndian, tb.GetDatabaseID())
+			if err != nil {
+				return err
+			}
+			databaseID := buffer.Bytes()
+
+			buffer.Reset()
+			err = utils.WriteElements(buffer, binary.BigEndian, tb.GetSequenceID())
+			if err != nil {
+				return err
+			}
+			sequenceID := buffer.Bytes()
+			err = meta.Bucket(metaLastTxBillingIndexBucket).Put(databaseID, sequenceID)
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	c.ti.addTxBilling(tb)
+	if tb.SignedBlock != nil {
+		c.ti.updateLastTxBilling(tb.GetDatabaseID(), tb.GetSequenceID())
+	}
+	return nil
 }
 
 func (c *Chain) pushTxBilling(tb *types.TxBilling) error {
@@ -304,20 +414,8 @@ func (c *Chain) pushTxBilling(tb *types.TxBilling) error {
 		return err
 	}
 
-	encTx, err := tb.Serialize()
-	if err != nil {
-		return err
-	}
-
-	err = c.db.Update(func(tx *bolt.Tx) error {
-		err = tx.Bucket(metaBucket[:]).Bucket(metaTxBillingIndexBucket).Put(tb.TxHash[:], encTx)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	c.ti.hashIndex[*tb.TxHash] = tb
-	return nil
+	err = c.pushTxBillingWithoutCheck(tb)
+	return err
 }
 
 func (c *Chain) produceBlock(now time.Time) error {
@@ -326,7 +424,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 		return err
 	}
 
-	b := types.Block{
+	b := &types.Block{
 		SignedHeader: types.SignedHeader{
 			Header: types.Header{
 				Version:    blockVersion,
@@ -335,13 +433,53 @@ func (c *Chain) produceBlock(now time.Time) error {
 				Timestamp:  now,
 			},
 		},
-		TxBillings: c.ti.fetchTxBillings(),
+		TxBillings: c.ti.fetchUnpackedTxBillings(),
 	}
 
 	err = b.PackAndSignBlock(priv)
-
 	if err != nil {
 		return err
 	}
-	return nil
+
+	for i := range b.TxBillings {
+		b.TxBillings[i].SignedBlock = &b.SignedHeader.BlockHash
+	}
+
+	err = c.pushBlock(b)
+
+	return err
+}
+
+func (c *Chain) fetchBlockByHeight(h uint64) (*types.Block, error) {
+	node := c.st.node.ancestor(h)
+	if node == nil {
+		return nil, ErrNoSuchBlock
+	}
+
+	b := &types.Block{}
+	k := node.indexKey()
+
+	err := c.db.View(func(tx *bolt.Tx) error {
+		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
+		return b.Deserialize(v)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+// runCurrentTurn does the check and runs block producing if its my turn.
+func (c *Chain) runCurrentTurn(now time.Time) {
+	defer c.rt.setNextTurn()
+
+	if !c.rt.isMyTurn() {
+		return
+	}
+
+	if err := c.produceBlock(now); err != nil {
+		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
+			"Failed to produce block")
+	}
 }

@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
@@ -58,27 +58,20 @@ func TestBillingRequest_MarshalUnmarshalBinary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	log.Debugf("len of enc: %d", len(enc))
 
-	dec := BillingRequest{}
+	dec := &BillingRequest{}
 	err = dec.UnmarshalBinary(enc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !reflect.DeepEqual(req.Header, dec.Header) {
-		t.Fatalf("request.Header not matched: \n\tv1=%v\n\tv2=%v", req.Header, dec.Header)
-	}
-	if !reflect.DeepEqual(req.RequestHash, dec.RequestHash) {
-		t.Fatalf("request.RequestHash not matched: \n\tv1=%v\n\tv2=%v", req.RequestHash, dec.RequestHash)
-	}
-	for i := range req.Signees {
-		if !req.Signees[i].IsEqual(dec.Signees[i]) {
-			t.Fatalf("request.Signees[%d] not matched: \n\tv1=%v\n\tv2=%v", i, req.Signees[i], dec.Signees[i])
-		}
-		if !req.Signatures[i].IsEqual(dec.Signatures[i]) {
-			t.Fatalf("request.Signatures[%d] not matched: \n\tv1=%v\n\tv2=%v", i, req.Signatures[i], dec.Signatures[i])
-		}
+	// clear cache
+	req.encoded = nil
+
+	if !reflect.DeepEqual(req, dec) {
+		log.Debug(req)
+		log.Debug(dec)
+		t.Fatal("values not match")
 	}
 }
 
@@ -143,7 +136,6 @@ func TestBillingResponse_MarshalUnmarshalBinary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	log.Debugf("len of enc: %d", len(enc))
 
 	dec := BillingResponse{}
 	err = dec.UnmarshalBinary(enc)

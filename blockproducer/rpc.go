@@ -23,47 +23,67 @@ const (
 	MainChainRPCName = "MCC"
 )
 
+// ChainRPCService defines a main chain RPC server.
 type ChainRPCService struct {
 	chain *Chain
 }
 
+// AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
 	Block *types.Block
 }
 
+// AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
 type AdviseNewBlockResp struct {
 }
 
+// AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
 type AdviseTxBillingReq struct {
+	TxBilling *types.TxBilling
 }
 
+// AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
 type AdviseTxBillingResp struct {
 }
 
+// FetchBlockReq defines a request of the FetchBlock RPC method
 type FetchBlockReq struct {
+	Height uint64
 }
 
+// FetchBlockResp defines a response of the FetchBlock RPC method
 type FetchBlockResp struct {
+	Height uint64
+	Block  *types.Block
 }
 
+// FetchTxBillingReq defines a request of the FetchTxBilling RPC method
 type FetchTxBillingReq struct {
 }
 
+// FetchTxBillingReq defines a response of the FetchTxBilling RPC method
 type FetchTxBillingResp struct {
 }
 
+// AdviseNewBlock is the RPC method to advise a new block to target server
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	return s.chain.pushBlock(req.Block)
 }
 
+// AdviseTxBilling is the RPC method to advise a new billing tx to target server
 func (s *ChainRPCService) AdviseTxBilling(req *AdviseTxBillingReq, resp *AdviseTxBillingResp) error {
-	return nil
+	return s.chain.pushTxBilling(req.TxBilling)
 }
 
+// FetchBlock is the RPC method to fetch a known block form the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
-	return nil
+	resp.Height = req.Height
+	block, err := s.chain.fetchBlockByHeight(req.Height)
+	resp.Block = block
+	return err
 }
 
+// FetchBlock is the RPC method to fetch a known billing tx form the target server.
 func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
 	return nil
 }

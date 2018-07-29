@@ -137,8 +137,18 @@ func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
 
 // Verify verifies the signature of TxBilling
 func (tb *TxBilling) Verify(h *hash.Hash) (err error) {
-	if !tb.Signature.Verify(h, tb.Signee) {
+	if !tb.Signature.Verify(h[:], tb.Signee) {
 		err = ErrSignVerification
 	}
 	return
+}
+
+// GetDatabaseID gets the database ID
+func (tb *TxBilling) GetDatabaseID() *proto.DatabaseID {
+	return &tb.TxContent.BillingRequest.Header.DatabaseID
+}
+
+// GetSequenceID gets the sequence ID
+func (tb *TxBilling) GetSequenceID() uint64 {
+	return tb.TxContent.SequenceID
 }

@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"reflect"
 	"time"
 
@@ -126,6 +127,18 @@ func (s simpleSerializer) readUint64(r io.Reader, order binary.ByteOrder) (ret u
 
 	if _, err = io.ReadFull(r, buffer); err == nil {
 		ret = order.Uint64(buffer)
+	}
+
+	return
+}
+
+func (s simpleSerializer) readFloat64(r io.Reader, order binary.ByteOrder) (ret float64, err error) {
+	buffer := s.borrowBuffer(8)
+	defer s.returnBuffer(buffer)
+
+	if _, err = io.ReadFull(r, buffer); err == nil {
+		val := order.Uint64(buffer)
+		ret = math.Float64frombits(val)
 	}
 
 	return
@@ -663,6 +676,17 @@ func (s simpleSerializer) writeUint64(w io.Writer, order binary.ByteOrder, val u
 	return
 }
 
+func (s simpleSerializer) writeFloat64(w io.Writer, order binary.ByteOrder, val float64) (
+	err error) {
+	buffer := s.borrowBuffer(8)
+	defer s.returnBuffer(buffer)
+
+	valToUint64 := math.Float64bits(val)
+	order.PutUint64(buffer, valToUint64)
+	_, err = w.Write(buffer)
+	return
+}
+
 func (s simpleSerializer) writeSignature(w io.Writer, order binary.ByteOrder, val *asymmetric.Signature) (err error) {
 	if val == nil {
 		err = s.writeBytes(w, order, nil)
@@ -995,6 +1019,9 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 	case *uint64:
 		*e, err = serializer.readUint64(r, order)
 
+	case *float64:
+		*e, err = serializer.readFloat64(r, order)
+
 	case *time.Time:
 		var ret uint64
 
@@ -1153,6 +1180,12 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	case *uint64:
 		err = serializer.writeUint64(w, order, *e)
+
+	case float64:
+		err = serializer.writeFloat64(w, order, e)
+
+	case *float64:
+		err = serializer.writeFloat64(w, order, *e)
 
 	case string:
 		err = serializer.writeString(w, order, &e)

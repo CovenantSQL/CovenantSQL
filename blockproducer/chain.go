@@ -44,9 +44,9 @@ var (
 	metaLastTxBillingIndexBucket = []byte("thunderdb-last-tx-billing-index-bucket")
 	metaAccountIndexBucket       = []byte("thunderdb-account-index-bucket")
 
-	accountAddress = proto.AccountAddress(hash.Hash{104, 36, 47, 65, 118, 196, 75, 11, 253, 85, 3, 128, 41, 109,
-		167, 180, 119, 64, 83, 185, 214, 103, 74, 9, 125, 14, 139, 16, 107, 112, 144, 55})
 	gasprice uint32 = 1
+
+	accountAddress proto.AccountAddress
 )
 
 // Chain defines the main chain
@@ -66,6 +66,17 @@ func NewChain(cfg *config) (*Chain, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// get accountAddress
+	pubKey, err := kms.GetLocalPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	enc, err := pubKey.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	// create bucket for meta data
 	err = db.Update(func(tx *bolt.Tx) (err error) {
@@ -118,10 +129,20 @@ func NewChain(cfg *config) (*Chain, error) {
 func LoadChain(cfg *config) (chain *Chain, err error) {
 	// open db file
 	db, err := bolt.Open(cfg.dataFile, 0600, nil)
-
 	if err != nil {
 		return nil, err
 	}
+
+	// get accountAddress
+	pubKey, err := kms.GetLocalPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	enc, err := pubKey.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	chain = &Chain{
 		db: db,
@@ -613,3 +634,15 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 			"Failed to produce block")
 	}
 }
+
+// Stop stops the main process of the sql-chain.
+// func (c *Chain) Stop() (err error) {
+// 	// Stop main process
+// 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Stopping chain")
+// 	c.rt.stop()
+// 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain service stopped")
+// 	// Close database file
+// 	err = c.db.Close()
+// 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain database closed")
+// 	return
+// }

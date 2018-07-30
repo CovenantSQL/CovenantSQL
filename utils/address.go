@@ -22,9 +22,14 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
+const (
+	MainNet byte = 0x0
+	TestNet byte = 0x6f
+)
+
 // PubKey2Addr converts the pubKey to a address
 // and the format refers to https://bitcoin.org/en/developer-guide#standard-transactions
-func PubKey2Addr(pubKey asymmetric.PublicKey, version byte) (string, error) {
+func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (string, error) {
 	enc, err := pubKey.MarshalBinary()
 	if err != nil {
 		return "", err

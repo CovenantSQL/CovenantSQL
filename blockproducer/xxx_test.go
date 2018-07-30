@@ -21,8 +21,12 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -38,8 +42,8 @@ var (
 	uuidLen            = 32
 	peerNum     uint32 = 32
 
-	testMasterKey = []byte(".9K.sgch!3;C>w0v")
-
+	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
+	testDifficulty  = 4
 	testDataDir     string
 	testPrivKeyFile string
 	testPubKeysFile string
@@ -320,6 +324,123 @@ func generateRandomHash() hash.Hash {
 	h := hash.Hash{}
 	rand.Read(h[:])
 	return h
+}
+
+func generateRandomNode() (node *nodeProfile, err error) {
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		return
+	}
+
+	node = &nodeProfile{
+		PrivateKey: priv,
+		PublicKey:  pub,
+	}
+
+	createRandomString(10, 10, (*string)(&node.NodeID))
+	return
+}
+
+func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
+	nis []cpuminer.NonceInfo, err error) {
+	nis = make([]cpuminer.NonceInfo, num)
+
+	miner := cpuminer.NewCPUMiner(nil)
+	nCh := make(chan cpuminer.NonceInfo)
+	defer close(nCh)
+	block := cpuminer.MiningBlock{
+		Data:      pub.Serialize(),
+		NonceChan: nCh,
+		Stop:      nil,
+	}
+	next := cpuminer.Uint256{}
+	wg := &sync.WaitGroup{}
+
+	for i := range nis {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			miner.ComputeBlockNonce(block, next, diff)
+		}()
+		n := <-nCh
+		nis[i] = n
+		next = n.Nonce
+		next.Inc()
+
+		if err = kms.SetPublicKey(proto.NodeID(n.Hash.String()), n.Nonce, pub); err != nil {
+			return
+		}
+
+		wg.Wait()
+	}
+
+	// Register a local nonce, don't know what is the matter though
+	kms.SetLocalNodeIDNonce(nis[0].Hash[:], &nis[0].Nonce)
+	return
+}
+
+func createRandomString(offset, length int, s *string) {
+	buff := make([]byte, rand.Intn(length)+offset)
+	rand.Read(buff)
+	*s = string(buff)
+}
+
+func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err error) {
+	if num <= 0 {
+		return
+	}
+
+	// Use a same key pair for all the servers, so that we can run multiple instances of sql-chain
+	// locally without breaking the LocalKeyStore
+	pub, err := kms.GetLocalPublicKey()
+
+	if err != nil {
+		return
+	}
+
+	priv, err := kms.GetLocalPrivateKey()
+
+	if err != nil {
+		return
+	}
+
+	nis, err = registerNodesWithPublicKey(pub, testDifficulty, num)
+
+	if err != nil {
+		return
+	}
+
+	s := make([]*kayak.Server, num)
+	h := &hash.Hash{}
+
+	for i := range s {
+		rand.Read(h[:])
+		s[i] = &kayak.Server{
+			Role: func() proto.ServerRole {
+				if i == 0 {
+					return proto.Leader
+				}
+				return proto.Follower
+			}(),
+			ID:     proto.NodeID(nis[i].Hash.String()),
+			PubKey: pub,
+		}
+	}
+
+	p = &kayak.Peers{
+		Term:      0,
+		Leader:    s[0],
+		Servers:   s,
+		PubKey:    pub,
+		Signature: nil,
+	}
+
+	if err = p.Sign(priv); err != nil {
+		return
+	}
+
+	return
 }
 
 func setup() {

@@ -14,6 +14,12 @@
   revision = "86fed781132ac890ee03e906e4ecd5d6fa180c64"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/btcsuite/btcutil"
+  packages = ["base58"]
+  revision = "ab6388e0c60ae4834a1f57511e20c17b5f78be4b"
+
+[[projects]]
   name = "github.com/coreos/bbolt"
   packages = ["."]
   revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
@@ -179,12 +185,6 @@
   version = "v2.2.6"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/thunderdb/logrus"
-  packages = ["."]
-  revision = "75215b3f466b7fb326c1403c6870cd0fc217b1ff"
-
-[[projects]]
   name = "github.com/ugorji/go"
   packages = ["codec"]
   revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
@@ -230,6 +230,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "99a05de971aef3f5a9b00873dc1c9245901a17673c40e1d070b25229d6ccf773"
+  inputs-digest = "9b2a5a4afcd6ae3a81daf28f7a7022bafeace5a1cd7af9d79fd6644c7d0f2bc7"
   solver-name = "gps-cdcl"
   solver-version = 1

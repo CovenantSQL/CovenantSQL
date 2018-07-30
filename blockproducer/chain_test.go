@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+
 	"github.com/coreos/bbolt"
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -43,6 +45,12 @@ var (
 	testPeriodNumber         uint64           = 10
 	testClientNumberPerChain                  = 10
 )
+
+type nodeProfile struct {
+	NodeID     proto.NodeID
+	PrivateKey *asymmetric.PrivateKey
+	PublicKey  *asymmetric.PublicKey
+}
 
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
@@ -193,3 +201,121 @@ func TestChain(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
+
+// func TestMultiNode(t *testing.T) {
+// 	Convey("test multi-nodes", t, func() {
+// 		// create genesis block
+// 		genesis, err := generateRandomBlock(genesisHash, true)
+// 		So(err, ShouldBeNil)
+//
+// 		pub, err := kms.GetLocalPublicKey()
+// 		So(err, ShouldBeNil)
+//
+// 		priv, err := kms.GetLocalPrivateKey()
+// 		So(err, ShouldBeNil)
+//
+// 		// Create peer list
+// 		nis, peers, err := createTestPeers(testPeersNumber)
+//
+// 		if err != nil {
+// 			t.Fatalf("Error occurred: %v", err)
+// 		}
+//
+// 		for i, p := range peers.Servers {
+// 			t.Logf("Peer #%d: %s", i, p.ID)
+// 		}
+//
+// 		// Create sql-chain instances
+// 		chains := make([]*Chain, testPeersNumber)
+//
+// 		for i := range chains {
+// 			// Create RPC server
+// 			server := rpc.NewServer()
+//
+// 			if err = server.InitRPCServer("127.0.0.1:0", testPrivKeyFile, testMasterKey); err != nil {
+// 				t.Fatalf("Error occurred: %v", err)
+// 			}
+//
+// 			go server.Serve()
+// 			defer server.Stop()
+//
+// 			// Register address
+// 			if err = route.SetNodeAddrCache(
+// 				&proto.RawNodeID{Hash: nis[i].Hash},
+// 				server.Listener.Addr().String(),
+// 			); err != nil {
+// 				t.Fatalf("Error occurred: %v", err)
+// 			}
+//
+// 			// Create sql-chain instance
+// 			dataFile := path.Join(testDataDir, fmt.Sprintf("%s-%02d", t.Name(), i))
+// 			cfg := newConfig(
+// 				genesis,
+// 				dataFile,
+// 				server,
+// 				peers,
+// 				peers.Servers[i].ID,
+// 				testPeriod,
+// 				testTick,
+// 			)
+// 			chains[i], err = NewChain(cfg)
+// 			So(err, ShouldBeNil)
+// 		}
+//
+// 		// Create some random clients to push new queries
+// 		for i := range chains {
+// 			sC := make(chan struct{})
+// 			wg := &sync.WaitGroup{}
+// 			wk := &nodeProfile{
+// 				NodeID:     peers.Servers[i].ID,
+// 				PrivateKey: testPrivKey,
+// 				PublicKey:  testPubKey,
+// 			}
+//
+// 			for j := 0; j < testClientNumberPerChain; j++ {
+// 				cli, err := generateRandomNode()
+//
+// 				if err != nil {
+// 					t.Fatalf("Error occurred: %v", err)
+// 				}
+//
+// 				wg.Add(1)
+// 				go func(c *Chain, p *nodeProfile) {
+// 					defer wg.Done()
+// 				foreverLoop:
+// 					for {
+// 						select {
+// 						case <-sC:
+// 							break foreverLoop
+// 						default:
+// 							// Send a random query
+// 							resp, err := createRandomQueryResponse(p, wk)
+//
+// 							if err != nil {
+// 								t.Errorf("Error occurred: %v", err)
+// 							} else if err = c.VerifyAndPushResponsedQuery(resp); err != nil {
+// 								t.Errorf("Error occurred: %v", err)
+// 							}
+//
+// 							time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
+// 							ack, err := createRandomQueryAckWithResponse(resp, p)
+//
+// 							if err != nil {
+// 								t.Errorf("Error occurred: %v", err)
+// 							} else if err = c.VerifyAndPushAckedQuery(ack); err != nil {
+// 								t.Errorf("Error occurred: %v", err)
+// 							}
+// 						}
+// 					}
+// 				}(chains[i], cli)
+// 			}
+//
+// 			defer func() {
+// 				// Quit client goroutines
+// 				close(sC)
+// 				wg.Wait()
+// 			}()
+// 		}
+//	})
+//
+// }

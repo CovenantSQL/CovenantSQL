@@ -119,3 +119,4 @@ func (r *rt) setNextTurn() {
 	defer r.Unlock()
 	r.nextTurn++
 }
+

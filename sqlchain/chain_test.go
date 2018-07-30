@@ -37,7 +37,7 @@ var (
 	testTick                                  = 100 * time.Millisecond
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testChainService                          = "sql-chain.thunderdb.rpc"
+	testChainService                          = "SQLC"
 	testPeriodNumber         int32            = 10
 	testClientNumberPerChain                  = 3
 )

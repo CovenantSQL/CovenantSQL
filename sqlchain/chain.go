@@ -27,6 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -442,7 +443,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 			Block: block,
 		},
 	}
-	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "AdviseNewBlock")
 	peers := c.rt.getPeers()
 	wg := &sync.WaitGroup{}
 
@@ -452,7 +452,8 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 			go func(id proto.NodeID) {
 				defer wg.Done()
 				resp := &MuxAdviseAckedQueryResp{}
-				if err := c.cl.CallNode(id, method, req, resp); err != nil {
+				if err := c.cl.CallNode(
+					id, route.SQLCAdviseNewBlock.String(), req, resp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":            c.rt.getPeerInfoString(),
 						"time":            c.rt.getChainTimeString(),
@@ -484,13 +485,14 @@ func (c *Chain) syncHead() {
 			},
 		}
 		resp := &MuxFetchBlockResp{}
-		method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "FetchBlock")
 		peers := c.rt.getPeers()
 		succ := false
 
 		for i, s := range peers.Servers {
 			if s.ID != c.rt.getServer().ID {
-				if err = c.cl.CallNode(s.ID, method, req, resp); err != nil || resp.Block == nil {
+				if err = c.cl.CallNode(
+					s.ID, route.SQLCFetchBlock.String(), req, resp,
+				); err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"time":        c.rt.getChainTimeString(),
@@ -831,9 +833,8 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 		},
 	}
 	resp := &MuxFetchAckedQueryResp{}
-	method := fmt.Sprintf("%s.%s", c.rt.muxService.ServiceName, "FetchAckedQuery")
 
-	if err = c.cl.CallNode(id, method, req, resp); err != nil {
+	if err = c.cl.CallNode(id, route.SQLCFetchAckedQuery.String(), req, resp); err != nil {
 		log.WithFields(log.Fields{
 			"peer": c.rt.getPeerInfoString(),
 			"time": c.rt.getChainTimeString(),

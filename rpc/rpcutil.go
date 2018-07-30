@@ -23,14 +23,15 @@ import (
 	"net/rpc"
 	"sync"
 
+	"io"
+	"net"
+	"time"
+
 	"github.com/hashicorp/yamux"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"net"
-	"time"
-	"io"
 )
 
 var (
@@ -80,6 +81,7 @@ func (c *PersistentCaller) initClient(method string) (err error) {
 	return
 }
 
+// Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
 	c.initClient(method)
 	err = c.client.Call(method, args, reply)

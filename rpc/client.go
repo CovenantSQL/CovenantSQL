@@ -27,7 +27,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
@@ -35,6 +34,7 @@ import (
 type Client struct {
 	*rpc.Client
 	RemoteAddr string
+	Conn       net.Conn
 }
 
 var (
@@ -115,7 +115,6 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 
 // dialToNode connects to the node with nodeID
 func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
-	//Fixme(auxten) DefaultDialer issue
 	return dialToNodeEx(nodeID, false)
 }
 
@@ -129,7 +128,7 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 		return
 	}
 
-	nodeAddr, err := route.GetNodeAddrCache(rawNodeID)
+	nodeAddr, err := GetNodeAddr(rawNodeID)
 	if err != nil {
 		log.Errorf("resolve node %x failed, err: %s", *rawNodeID, err)
 		return
@@ -165,16 +164,20 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 	var muxConn *yamux.Stream
 	muxConn, ok := conn.(*yamux.Stream)
 	if !ok {
-		sess, err := yamux.Client(conn, YamuxConfig)
+		var sess *yamux.Session
+		sess, err = yamux.Client(conn, YamuxConfig)
 		if err != nil {
-			log.Panic(err)
+			log.Errorf("init yamux client failed: %v", err)
+			return
 		}
 
 		muxConn, err = sess.OpenStream()
 		if err != nil {
-			log.Panic(err)
+			log.Errorf("open stream failed: %v", err)
+			return
 		}
 	}
+	client.Conn = muxConn
 	mh := &codec.MsgpackHandle{}
 	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(muxConn, mh)
 	client.Client = rpc.NewClientWithCodec(msgpackCodec)

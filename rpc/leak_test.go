@@ -30,7 +30,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
-func TestSessionPool_Leak(t *testing.T) {
+func TestSessionPool_SessionBroken(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	utils.Build()
 	var err error

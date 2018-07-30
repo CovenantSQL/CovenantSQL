@@ -53,6 +53,9 @@ func NewNodeCollector() (*NodeCollector, error) {
 	collectors["meminfo"], _ = NewMeminfoCollector()
 	collectors["cpu"], _ = NewCPUCollector()
 	collectors["diskstats"], _ = NewDiskstatsCollector()
+	collectors["filesystem"], _ = NewFilesystemCollector()
+	collectors["ntp"], _ = NewNtpCollector()
+
 	return &NodeCollector{Collectors: collectors}, nil
 }
 

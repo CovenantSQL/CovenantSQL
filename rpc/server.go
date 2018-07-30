@@ -109,7 +109,7 @@ serverLoop:
 		default:
 			conn, err := s.Listener.Accept()
 			if err != nil {
-				log.Error(err)
+				log.Info(err)
 				continue
 			}
 			go s.handleConn(conn)

@@ -55,12 +55,21 @@ func startNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2122,
-		2121,
-		2120,
 		2144,
 		2145,
 		2146,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2122,
+		2121,
+		2120,
 	}, time.Millisecond*200)
 
 	if err != nil {

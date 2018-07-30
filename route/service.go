@@ -52,7 +52,7 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 // FindNode RPC returns node with requested node id from DHT
 func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp) (err error) {
 	if !IsPermitted(&req.Envelope, DHTFindNode) {
-		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
+		err = fmt.Errorf("calling from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
 	}
@@ -69,7 +69,7 @@ func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp
 // FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT
 func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
 	if !IsPermitted(&req.Envelope, DHTFindNeighbor) {
-		err = fmt.Errorf("calling from node %s is not permitted", req.NodeID)
+		err = fmt.Errorf("calling from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
 	}
@@ -89,7 +89,7 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
 	if !IsPermitted(&req.Envelope, DHTPing) {
-		err = fmt.Errorf("calling Ping from node %s is not permitted", req.NodeID)
+		err = fmt.Errorf("calling Ping from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
 	}

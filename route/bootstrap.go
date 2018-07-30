@@ -36,7 +36,7 @@ import (
 
 const (
 	//HACK(auxten) use 1.1.1.1 just for testing now!
-	testDNS = "cory.ns.cloudflare.com"
+	testDNS = "1.1.1.1"
 	nonceAB = "ab."
 	nonceCD = "cd."
 )

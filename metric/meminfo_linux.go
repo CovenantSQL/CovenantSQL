@@ -19,7 +19,20 @@ func (c *meminfoCollector) getMemInfo() (map[string]float64, error) {
 	}
 	defer file.Close()
 
-	return parseMemInfo(file)
+	info, err := parseMemInfo(file)
+	if err == nil {
+		free, ok := info["MemFree_bytes"]
+		if ok {
+			buf, ok := info["Buffers_bytes"]
+			if ok {
+				cache, ok := info["Cached_bytes"]
+				if ok {
+					info["MemAvailable_bytes"] = free + buf + cache
+				}
+			}
+		}
+	}
+	return info, err
 }
 
 func parseMemInfo(r io.Reader) (map[string]float64, error) {

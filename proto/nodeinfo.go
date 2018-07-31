@@ -135,7 +135,7 @@ func (id *RawNodeID) ToNodeID() NodeID {
 type AddrAndGas struct {
 	AccountAddress AccountAddress
 	RawNodeID      RawNodeID
-	GasAmount      uint32
+	GasAmount      uint64
 }
 
 // ServerRole defines the role of node to be leader/coordinator in peer set.

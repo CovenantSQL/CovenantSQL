@@ -19,6 +19,8 @@ package blockproducer
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"sync"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -57,6 +59,10 @@ type Chain struct {
 	rt *rt
 	st *state
 	cl *rpc.Caller
+
+	blocks     chan *types.Block
+	txbillings chan *types.TxBilling
+	stopCh     chan struct{}
 }
 
 // NewChain creates a new blockchain
@@ -220,7 +226,7 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 				return err
 			}
 
-			var sequenceID uint64
+			var sequenceID uint32
 			reader = bytes.NewReader(v)
 			utils.ReadElements(reader, binary.BigEndian, &sequenceID)
 			if err != nil {
@@ -475,12 +481,44 @@ func (c *Chain) produceBlock(now time.Time) error {
 		b.TxBillings[i].SignedBlock = &b.SignedHeader.BlockHash
 	}
 
-	err = c.pushBlock(b)
+	err = c.pushBlockWithoutCheck(b)
+	if err != nil {
+		return err
+	}
+
+	blockReq := &AdviseNewBlockReq{
+		Envelope: proto.Envelope{
+			// TODO(lambda): Add fields.
+		},
+		Block: b,
+	}
+	method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseNewBlock")
+	peers := c.rt.getPeers()
+	wg := &sync.WaitGroup{}
+	for _, s := range peers.Servers {
+		if s.ID != c.rt.nodeID {
+			wg.Add(1)
+			go func(id proto.NodeID) {
+				defer wg.Done()
+				blockResp := &AdviseNewBlockResp{}
+				if err = c.cl.CallNode(id, method, blockReq, blockResp); err != nil {
+					log.WithFields(log.Fields{
+						"peer":       c.rt.getPeerInfoString(),
+						"curr_turn":  c.rt.getNextTurn(),
+						"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
+						"block_hash": b.SignedHeader.BlockHash,
+					}).WithError(err).Error(
+						"Failed to advise new block")
+				}
+			}(s.ID)
+		}
+	}
 
 	return err
 }
 
 func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingResponse, error) {
+	// TODO(lambda): simplify the function
 	err := c.checkBillingRequest(br)
 	if err != nil {
 		return nil, err
@@ -489,22 +527,31 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 	// update stable coin's balance
 	// TODO(lambda): because there is no token distribution,
 	// we only increase miners' balance but not decrease customer's balance
-	accounts := make([]*types.Account, len(br.Header.GasAmounts))
+	accountNumber := len(br.Header.GasAmounts)
+	receivers := make([]*proto.AccountAddress, accountNumber)
+	fees := make([]uint64, accountNumber)
+	rewards := make([]uint64, accountNumber)
+	accounts := make([]*types.Account, accountNumber)
+
 	err = c.db.View(func(tx *bolt.Tx) error {
 		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
 		for i, addrAndGas := range br.Header.GasAmounts {
+			receivers[i] = &addrAndGas.AccountAddress
+			fees[i] = addrAndGas.GasAmount * uint64(gasprice)
+			rewards[i] = 0
+
 			enc := accountBucket.Get(addrAndGas.AccountAddress[:])
 			if len(enc) == 0 {
 				accounts[i] = &types.Account{
 					Address:            addrAndGas.AccountAddress,
-					StableCoinBalance:  uint64(addrAndGas.GasAmount * gasprice),
+					StableCoinBalance:  addrAndGas.GasAmount * uint64(gasprice),
 					ThunderCoinBalance: 0,
 					SQLChains:          []proto.DatabaseID{br.Header.DatabaseID},
 					Roles:              []byte{types.Miner},
 					Rating:             0.0,
 				}
 			} else {
-				accounts[i].StableCoinBalance = accounts[i].StableCoinBalance + uint64(addrAndGas.GasAmount*gasprice)
+				accounts[i].StableCoinBalance = accounts[i].StableCoinBalance + addrAndGas.GasAmount*uint64(gasprice)
 				included := false
 				for j := range accounts[i].SQLChains {
 					if accounts[i].SQLChains[j] == br.Header.DatabaseID {
@@ -566,6 +613,92 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 		Signee:         privKey.PubKey(),
 		Signature:      sign,
 	}
+
+	// generate and push the txbilling
+	// 1. generate txbilling
+	var seqID uint32
+	var tc *types.TxContent
+	var tb *types.TxBilling
+	err = c.db.Update(func(tx *bolt.Tx) error {
+		meta := tx.Bucket(metaBucket[:])
+		metaLastTB := meta.Bucket(metaLastTxBillingIndexBucket)
+		metaTB := meta.Bucket(metaTxBillingIndexBucket)
+
+		// generate unique seqID
+		buffer := bytes.NewBuffer(nil)
+		err := utils.WriteElements(buffer, binary.BigEndian, br.Header.DatabaseID)
+		if err != nil {
+			return err
+		}
+		encDatabaseID := buffer.Bytes()
+		oldSeqIDRaw := metaLastTB.Get(encDatabaseID)
+		if oldSeqIDRaw != nil {
+			var oldSeqID uint32
+			reader := bytes.NewReader(oldSeqIDRaw)
+			utils.ReadElements(reader, binary.BigEndian, &oldSeqID)
+			seqID = oldSeqID + 1
+		} else {
+			seqID = 0
+		}
+
+		// generate txbilling
+		tc = types.NewTxContent(seqID, br, receivers, fees, rewards, resp)
+		tb = types.NewTxBilling(tc, types.TxTypeBilling, &c.rt.accountAddress)
+		tb.PackAndSignTx(privKey)
+
+		// serialize and store in db
+		buffer.Reset()
+		err = utils.WriteElements(buffer, binary.BigEndian, seqID)
+		if err != nil {
+			return err
+		}
+		encSequenceID := buffer.Bytes()
+		encTxBilling, err := tb.Serialize()
+		if err != nil {
+			return err
+		}
+
+		metaLastTB.Put(encDatabaseID, encSequenceID)
+		metaTB.Put(tb.TxHash[:], encTxBilling)
+
+		// index in mempool
+		c.ti.addTxBilling(tb)
+		c.ti.updateLastTxBilling(tb.GetDatabaseID(), tb.GetSequenceID())
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	// 2. push tx
+	tbReq := &AdviseTxBillingReq{
+		Envelope: proto.Envelope{
+			// TODO(lambda): Add fields.
+		},
+		TxBilling: tb,
+	}
+	method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseTxBilling")
+	peers := c.rt.getPeers()
+	wg := &sync.WaitGroup{}
+	for _, s := range peers.Servers {
+		if s.ID != c.rt.nodeID {
+			wg.Add(1)
+			go func(id proto.NodeID) {
+				defer wg.Done()
+				tbResp := &AdviseTxBillingResp{}
+				if err = c.cl.CallNode(id, method, tbReq, tbResp); err != nil {
+					log.WithFields(log.Fields{
+						"peer":      c.rt.getPeerInfoString(),
+						"curr_turn": c.rt.getNextTurn(),
+						"now_time":  time.Now().UTC().Format(time.RFC3339Nano),
+						"tx_hash":   tb.TxHash,
+					}).WithError(err).Error(
+						"Failed to advise new block")
+				}
+			}(s.ID)
+		}
+	}
+
 	return resp, nil
 }
 
@@ -601,7 +734,7 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 	return nil
 }
 
-func (c *Chain) fetchBlockByHeight(h uint64) (*types.Block, error) {
+func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
 	node := c.st.node.ancestor(h)
 	if node == nil {
 		return nil, ErrNoSuchBlock
@@ -635,14 +768,215 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	}
 }
 
+// sync synchronizes blocks and queries from the other peers.
+func (c *Chain) sync() error {
+	log.WithFields(log.Fields{
+		"peer": c.rt.getPeerInfoString(),
+	}).Debug("Synchronizing chain state")
+
+	for {
+		now := c.rt.now()
+		height := c.rt.getHeightFromTime(now)
+
+		if c.rt.getNextTurn() >= height {
+			break
+		}
+
+		for c.rt.getNextTurn() <= height {
+			// TODO(lambda): fetch blocks and txes.
+			c.rt.setNextTurn()
+		}
+	}
+
+	return nil
+}
+
+// Start starts the chain by step:
+// 1. sync the chain
+// 2. goroutine for getting blocks
+// 3. goroutine for getting txes
+func (c *Chain) Start() error {
+	err := c.sync()
+	if err != nil {
+		return err
+	}
+
+	c.rt.wg.Add(1)
+	go c.processBlocks()
+	c.rt.wg.Add(1)
+	go c.processTxBillings()
+	c.rt.wg.Add(1)
+	go c.mainCycle()
+	c.rt.startService(c)
+
+	return nil
+}
+
+func (c *Chain) processBlocks() {
+	rsCh := make(chan struct{})
+	rsWG := &sync.WaitGroup{}
+	returnStash := func(stash []*types.Block) {
+		defer rsWG.Done()
+		for _, block := range stash {
+			select {
+			case c.blocks <- block:
+			case <-rsCh:
+				return
+			}
+		}
+	}
+
+	defer func() {
+		close(rsCh)
+		rsWG.Wait()
+		c.rt.wg.Done()
+	}()
+
+	var stash []*types.Block
+	for {
+		select {
+		case block := <-c.blocks:
+			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
+				// Stash newer blocks for later check
+				if stash == nil {
+					stash = make([]*types.Block, 0)
+				}
+				stash = append(stash, block)
+			} else {
+				// Process block
+				if h < c.rt.getNextTurn()-1 {
+					// TODO(lambda): check and add to fork list.
+				} else {
+					// TODO(lambda): change nodeID to accountAddress
+					if block.Producer() == c.rt.accountAddress {
+						if err := c.pushBlockWithoutCheck(block); err != nil {
+
+						}
+					} else {
+						if err := c.pushBlock(block); err != nil {
+
+						}
+					}
+				}
+
+				// Return all stashed blocks to pending channel
+				if stash != nil {
+					rsWG.Add(1)
+					go returnStash(stash)
+					stash = nil
+				}
+			}
+		case <-c.stopCh:
+			return
+		}
+	}
+
+}
+
+func (c *Chain) processTxBillings() {
+	defer c.rt.wg.Done()
+	for {
+		select {
+		case <-c.stopCh:
+			return
+		}
+	}
+}
+
+func (c *Chain) mainCycle() {
+	defer func() {
+		c.rt.wg.Done()
+		// Signal worker goroutines to stop
+		close(c.stopCh)
+	}()
+
+	for {
+		select {
+		case <-c.rt.stopCh:
+			return
+		default:
+			c.syncHead()
+
+			if t, d := c.rt.nextTick(); d > 0 {
+				log.WithFields(log.Fields{
+					"peer":        c.rt.getPeerInfoString(),
+					"next_turn":   c.rt.getNextTurn(),
+					"head_height": c.st.Height,
+					"head_block":  c.st.Head.String(),
+					"now_time":    t.Format(time.RFC3339Nano),
+					"duration":    d,
+				}).Debug("Main cycle")
+				time.Sleep(d)
+			} else {
+				c.runCurrentTurn(t)
+			}
+		}
+	}
+}
+
+func (c *Chain) syncHead() {
+	// Try to fetch if the the block of the current turn is not advised yet
+	if h := c.rt.getNextTurn() - 1; c.st.Height < h {
+		var err error
+		req := &FetchBlockReq{
+			Envelope: proto.Envelope{
+				// TODO(lambda): Add fields.
+			},
+			Height: h,
+		}
+		resp := &FetchBlockResp{}
+		method := fmt.Sprintf("%s.%s", MainChainRPCName, "FetchBlock")
+		peers := c.rt.getPeers()
+		succ := false
+
+		for i, s := range peers.Servers {
+			if s.ID != c.rt.nodeID {
+				if err = c.cl.CallNode(s.ID, method, req, resp); err != nil || resp.Block == nil {
+					log.WithFields(log.Fields{
+						"peer":        c.rt.getPeerInfoString(),
+						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
+						"curr_turn":   c.rt.getNextTurn(),
+						"head_height": c.st.Height,
+						"head_block":  c.st.Head.String(),
+					}).WithError(err).Debug(
+						"Failed to fetch block from peer")
+				} else {
+					c.blocks <- resp.Block
+					log.WithFields(log.Fields{
+						"peer":        c.rt.getPeerInfoString(),
+						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
+						"curr_turn":   c.rt.getNextTurn(),
+						"head_height": c.st.Height,
+						"head_block":  c.st.Head.String(),
+					}).Debug(
+						"Fetch block from remote peer successfully")
+					succ = true
+					break
+				}
+			}
+		}
+
+		if !succ {
+			log.WithFields(log.Fields{
+				"peer":        c.rt.getPeerInfoString(),
+				"curr_turn":   c.rt.getNextTurn(),
+				"head_height": c.st.Height,
+				"head_block":  c.st.Head.String(),
+			}).Debug(
+				"Cannot get block from any peer")
+		}
+	}
+
+}
+
 // Stop stops the main process of the sql-chain.
-// func (c *Chain) Stop() (err error) {
-// 	// Stop main process
-// 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Stopping chain")
-// 	c.rt.stop()
-// 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain service stopped")
-// 	// Close database file
-// 	err = c.db.Close()
-// 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain database closed")
-// 	return
-// }
+func (c *Chain) Stop() (err error) {
+	// Stop main process
+	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Stopping chain")
+	c.rt.stop()
+	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain service stopped")
+	// Close database file
+	err = c.db.Close()
+	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain database closed")
+	return
+}

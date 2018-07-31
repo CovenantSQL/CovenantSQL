@@ -31,7 +31,7 @@ import (
 
 // TxContent defines the customer's billing and block rewards in transaction
 type TxContent struct {
-	SequenceID     uint64
+	SequenceID     uint32
 	BillingRequest BillingRequest
 	Receivers      []*proto.AccountAddress
 	// Fee paid by stable coin
@@ -39,6 +39,23 @@ type TxContent struct {
 	// Reward is share coin
 	Rewards         []uint64
 	BillingResponse BillingResponse
+}
+
+// NewTxContent generates new TxContent
+func NewTxContent(seqID uint32,
+	bReq *BillingRequest,
+	receivers []*proto.AccountAddress,
+	fees []uint64,
+	rewards []uint64,
+	bResp *BillingResponse) *TxContent {
+		return &TxContent{
+			SequenceID: seqID,
+			BillingRequest: *bReq,
+			Receivers: receivers,
+			Fees: fees,
+			Rewards: rewards,
+			BillingResponse: *bResp,
+		}
 }
 
 // MarshalBinary implements BinaryMarshaler.
@@ -98,6 +115,15 @@ type TxBilling struct {
 	SignedBlock    *hash.Hash
 }
 
+// NewTxBilling generates a new TxBilling
+func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddress) *TxBilling {
+	return &TxBilling{
+		TxContent: *txContent,
+		TxType: txType.ToByte(),
+		AccountAddress: addr,
+	}
+}
+
 // Serialize serializes TxBilling using msgpack
 func (tb *TxBilling) Serialize() ([]byte, error) {
 	b, err := utils.EncodeMsgPack(tb)
@@ -149,6 +175,6 @@ func (tb *TxBilling) GetDatabaseID() *proto.DatabaseID {
 }
 
 // GetSequenceID gets the sequence ID
-func (tb *TxBilling) GetSequenceID() uint64 {
+func (tb *TxBilling) GetSequenceID() uint32 {
 	return tb.TxContent.SequenceID
 }

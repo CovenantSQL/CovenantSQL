@@ -14,29 +14,23 @@
  * limitations under the License.
  */
 
-package blockproducer
+package types
 
-import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/utils"
+type TxType byte
+
+const (
+	TxTypeBilling TxType = 0
 )
 
-type state struct {
-	node   *blockNode
-	Head   hash.Hash
-	Height uint32
-}
-
-func (s *state) serialize() ([]byte, error) {
-	buffer, err := utils.EncodeMsgPack(s)
-	if err != nil {
-		return nil, err
+func (tt *TxType) String() string {
+	switch *tt {
+	case TxTypeBilling:
+		return "TxBilling"
+	default:
+		return "TxUnknown"
 	}
-
-	return buffer.Bytes(), nil
 }
 
-func (s *state) deserialize(b []byte) error {
-	err := utils.DecodeMsgPack(b, s)
-	return err
+func (tt *TxType) ToByte() byte {
+	return byte(*tt)
 }

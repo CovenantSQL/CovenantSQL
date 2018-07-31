@@ -16,7 +16,10 @@
 
 package blockproducer
 
-import "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+import (
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+)
 
 const (
 	// MainChainRPCName defines rpc service name of main chain internal consensus.
@@ -30,49 +33,59 @@ type ChainRPCService struct {
 
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
+	proto.Envelope
 	Block *types.Block
 }
 
 // AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
 type AdviseNewBlockResp struct {
+	proto.Envelope
 }
 
 // AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
 type AdviseTxBillingReq struct {
+	proto.Envelope
 	TxBilling *types.TxBilling
 }
 
 // AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
 type AdviseTxBillingResp struct {
+	proto.Envelope
 }
 
 // AdviseBillingReq defines a request of the AdviseBillingRequest RPC method.
 type AdviseBillingReq struct {
+	proto.Envelope
 	Req *types.BillingRequest
 }
 
 // AdviseBillingResp defines a request of the AdviseBillingRequest RPC method.
 type AdviseBillingResp struct {
+	proto.Envelope
 	Resp *types.BillingResponse
 }
 
 // FetchBlockReq defines a request of the FetchBlock RPC method
 type FetchBlockReq struct {
-	Height uint64
+	proto.Envelope
+	Height uint32
 }
 
 // FetchBlockResp defines a response of the FetchBlock RPC method
 type FetchBlockResp struct {
-	Height uint64
+	proto.Envelope
+	Height uint32
 	Block  *types.Block
 }
 
 // FetchTxBillingReq defines a request of the FetchTxBilling RPC method
 type FetchTxBillingReq struct {
+	proto.Envelope
 }
 
 // FetchTxBillingResp defines a response of the FetchTxBilling RPC method
 type FetchTxBillingResp struct {
+	proto.Envelope
 }
 
 // AdviseNewBlock is the RPC method to advise a new block to target server

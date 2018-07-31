@@ -242,7 +242,7 @@ func generateRandomTxContent() (*types.TxContent, error) {
 	}
 
 	tc := &types.TxContent{
-		SequenceID:      rand.Uint64(),
+		SequenceID:      rand.Uint32(),
 		BillingRequest:  *req,
 		BillingResponse: *resp,
 		Receivers:       receivers,
@@ -277,7 +277,7 @@ func generateRandomTxBilling() (*types.TxBilling, error) {
 	return txBilling, nil
 }
 
-func generateRandomTxBillingWithSeqID(seqID uint64) (*types.TxBilling, error) {
+func generateRandomTxBillingWithSeqID(seqID uint32) (*types.TxBilling, error) {
 	txContent, err := generateRandomTxContent()
 	txContent.SequenceID = seqID
 	if err != nil {
@@ -313,7 +313,7 @@ func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
 		gasAmount[i] = &proto.AddrAndGas{
 			AccountAddress: proto.AccountAddress(generateRandomHash()),
 			RawNodeID:      proto.RawNodeID{Hash: generateRandomHash()},
-			GasAmount:      rand.Uint32(),
+			GasAmount:      rand.Uint64(),
 		}
 	}
 
@@ -465,18 +465,32 @@ func setup() {
 
 	// Setup local key store
 	kms.Unittest = true
-	testPrivKey, err = kms.GetLocalPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-	testPubKey, err = kms.GetLocalPublicKey()
+	testPrivKey, testPubKey, err = asymmetric.GenSecp256k1KeyPair()
+
 	if err != nil {
 		panic(err)
 	}
 
+	kms.SetLocalKeyPair(testPrivKey, testPubKey)
+
 	if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
 		panic(err)
 	}
+
+	// Setup local key store
+	// kms.Unittest = true
+	// testPrivKey, err = kms.GetLocalPrivateKey()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// testPubKey, err = kms.GetLocalPublicKey()
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
+	// 	panic(err)
+	// }
 
 	// Setup logging
 	log.SetOutput(os.Stdout)

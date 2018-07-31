@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -47,12 +48,18 @@ type rt struct {
 	// tick defines the maximum duration between each cycle.
 	tick time.Duration
 
+	// peersMutex protects following peers-relative fields.
+	peersMutex sync.Mutex
+	peers      *kayak.Peers
+	nodeID     proto.NodeID
+
 	// TODO(lambda): why need this lock, and why not include index?
-	sync.RWMutex // Protects following fields.
-	peers        *kayak.Peers
-	nodeID       proto.NodeID
+	stateMutex sync.Mutex // Protects following fields.
 	// nextTurn is the height of the next block.
 	nextTurn uint32
+
+	// timeMutex protects following time-relative fields.
+	timeMutex sync.Mutex
 	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
 	//
 	// TODO(leventeliu): update offset in ping cycle.
@@ -61,8 +68,8 @@ type rt struct {
 
 // now returns the current coodinated chain time.
 func (r *rt) now() time.Time {
-	r.RLock()
-	defer r.RUnlock()
+	r.timeMutex.Lock()
+	defer r.timeMutex.Unlock()
 	// TODO(lambda): why does sqlchain not need UTC
 	return time.Now().UTC().Add(r.offset)
 }
@@ -108,15 +115,56 @@ func (r *rt) nextTick() (t time.Time, d time.Duration) {
 }
 
 func (r *rt) isMyTurn() bool {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	return r.nextTurn%r.bpNum == r.index
 }
 
 // setNextTurn prepares the runtime state for the next turn.
 func (r *rt) setNextTurn() {
-	r.Lock()
-	defer r.Unlock()
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
 	r.nextTurn++
 }
 
+func (r *rt) getIndexTotalServer() (uint32, uint32, proto.NodeID) {
+	return r.index, r.bpNum, r.nodeID
+}
+
+func (r *rt) getPeerInfoString() string {
+	index, bpNum, nodeID := r.getIndexTotalServer()
+	return fmt.Sprintf("[%d/%d] %s", index, bpNum, nodeID)
+}
+
+// getHeightFromTime calculates the height with this sql-chain config of a given time reading.
+func (r *rt) getHeightFromTime(t time.Time) uint32 {
+	return uint32(t.Sub(r.chainInitTime) / r.period)
+}
+
+func (r *rt) getNextTurn() uint32 {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+
+	return r.nextTurn
+}
+
+func (r *rt) getPeers() *kayak.Peers {
+	r.peersMutex.Lock()
+	defer r.peersMutex.Unlock()
+	peers := r.peers.Clone()
+	return &peers
+}
+
+func (r *rt) stop() {
+	r.stopService()
+	select {
+	case <-r.stopCh:
+	default:
+		close(r.stopCh)
+	}
+	r.wg.Wait()
+}
+
+func (r *rt) stopService() {
+
+}

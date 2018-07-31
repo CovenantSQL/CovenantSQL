@@ -73,6 +73,13 @@ services:
     network:
       default:
         ipv4_address: 172.254.1.7
+  thunderdb_adapter:
+    image: thunderdb.io/thunderdb-adapter
+    container_name: thunderdb_adapter
+    restat: always
+    volumes:
+      - ./test/service/node_c/:/app/
+      - ./test/service/node_c/:/app/node_c/
 
 networks:
   default:

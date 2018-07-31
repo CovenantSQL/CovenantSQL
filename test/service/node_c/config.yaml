@@ -89,3 +89,14 @@ KnownNodes:
   Addr: 172.254.1.7:4661
   PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
   Role: Miner
+Adapter:
+  ListenAddr: 0.0.0.0:4662
+  CertificatePath: server.test.covenantsql.io.pem
+  PrivateKeyPath: server.test.covenantsql.io-key.pem
+  VerifyCertificate: true
+  ClientCAPath: rootCA.pem
+  AdminCerts:
+    - admin.test.thunderdb.io.pem
+  WriteCerts:
+    - write.test.thunderdb.io.pem
+  StorageDriver: thunderdb

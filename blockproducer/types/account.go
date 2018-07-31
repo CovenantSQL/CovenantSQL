@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -38,6 +39,7 @@ type Account struct {
 	SQLChains          []proto.DatabaseID
 	Roles              []byte
 	Rating             float64
+	TxBillings         []*hash.Hash
 }
 
 // MarshalBinary implements BinaryMarshaler.
@@ -52,6 +54,7 @@ func (a *Account) MarshalBinary() ([]byte, error) {
 		&a.SQLChains,
 		&a.Roles,
 		a.Rating,
+		&a.TxBillings,
 	)
 
 	if err != nil {
@@ -71,6 +74,7 @@ func (a *Account) UnmarshalBinary(b []byte) error {
 		&a.SQLChains,
 		&a.Roles,
 		&a.Rating,
+		&a.TxBillings,
 	)
 }
 

@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-package types
+package utils
 
 import (
+	"github.com/btcsuite/btcutil/base58"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// TxHeader defines the header of tx
-type TxHeader struct {
-}
+const (
+	MainNet byte = 0x0
+	TestNet byte = 0x6f
+)
 
-// SignedTxHeader defines the signed header of tx
-type SignedTxHeader struct {
-	TxHeader
-	TxHash    *hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
-}
-
-// Transaction defines the transaction of main chain
-type Transaction struct {
-	SignedHeader SignedTxHeader
+// PubKey2Addr converts the pubKey to a address
+// and the format refers to https://bitcoin.org/en/developer-guide#standard-transactions
+func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (string, error) {
+	enc, err := pubKey.MarshalBinary()
+	if err != nil {
+		return "", err
+	}
+	h := hash.THashB(enc[:])
+	return base58.CheckEncode(h[:], version), nil
 }

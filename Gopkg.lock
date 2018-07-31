@@ -26,6 +26,12 @@
   revision = "9a2f9524024889e129a5422aca2cff73cb3eabf6"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/btcsuite/btcutil"
+  packages = ["base58"]
+  revision = "ab6388e0c60ae4834a1f57511e20c17b5f78be4b"
+
+[[projects]]
   digest = "1:c28625428387b63dd7154eb857f51e700465cfbf7c06f619e71f2da33cefe47e"
   name = "github.com/coreos/bbolt"
   packages = ["."]

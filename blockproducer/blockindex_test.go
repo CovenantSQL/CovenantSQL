@@ -17,13 +17,14 @@
 package blockproducer
 
 import (
+	"encoding/binary"
 	"reflect"
 	"testing"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-func TestNewBlockNode(t *testing.T) {
+func TestNewBlockNodeAndIndexKey(t *testing.T) {
 	block, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
@@ -49,16 +50,64 @@ func TestNewBlockNode(t *testing.T) {
 	} else if child.height != parent.height+1 {
 		t.Fatalf("unexpected height: %d", parent.height)
 	}
+
+	// index key
+	key1Raw := parent.indexKey()
+	key1 := binary.BigEndian.Uint32(key1Raw[0:4])
+	key2Raw := child.indexKey()
+	key2 := binary.BigEndian.Uint32(key2Raw[0:4])
+	if key2 <= key1 {
+		t.Fatalf("key2's first byte should be larger than key1's first byte: \n\tkey1[0]=%d\n\tkey2[0]=%d",
+			key1, key2)
+	}
+}
+
+func TestAncestor(t *testing.T) {
+	block, err := generateRandomBlock(hash.Hash{}, true)
+	if err != nil {
+		t.Fatalf("Unexcepted error: %v", err)
+	}
+	parent := newBlockNode(block, nil)
+	if parent == nil {
+		t.Fatalf("unexpected result: nil")
+	} else if parent.parent != nil {
+		t.Fatalf("unexpected parent: %v", parent.parent)
+	} else if parent.height != 0 {
+		t.Fatalf("unexpected height: %d", parent.height)
+	}
+
+	block2, err := generateRandomBlock(block.SignedHeader.BlockHash, false)
+	if err != nil {
+		t.Fatalf("Unexcepted error: %v", err)
+	}
+	child := newBlockNode(block2, parent)
+	if child == nil {
+		t.Fatalf("unexpected result: nil")
+	} else if child.parent != parent {
+		t.Fatalf("unexpected parent: %v", parent.parent)
+	} else if child.height != parent.height+1 {
+		t.Fatalf("unexpected height: %d", parent.height)
+	}
+
+	bn := child.ancestor(2)
+	if bn != nil {
+		t.Fatalf("should return nil, but get a block node: %v", bn)
+	}
+	bn = child.ancestor(1)
+	if bn == nil || bn.height != 1 {
+		t.Fatal("block node should not be nil and its height should be 1")
+	}
+	bn = child.ancestor(0)
+	if bn == nil || bn.height != 0 {
+		t.Fatal("block node should not be nil and its height should be 0")
+	}
 }
 
 func TestIndexBlock(t *testing.T) {
-	cfg := NewConfig()
-	bi := newBlockIndex(cfg)
+	bi := newBlockIndex()
 
 	if bi == nil {
 		t.Fatalf("unexpected result: nil")
-	} else if bi.cfg == nil {
-		t.Fatalf("unexpected config")
 	}
 
 	block0, err := generateRandomBlock(hash.Hash{}, true)

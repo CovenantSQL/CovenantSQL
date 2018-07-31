@@ -16,12 +16,27 @@
 
 package blockproducer
 
-// Config is the main chain configuration
-type Config struct {
+import (
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/utils"
+)
+
+type state struct {
+	node   *blockNode
+	Head   hash.Hash
+	Height uint64
 }
 
-// NewConfig creates new config
-func NewConfig() *Config {
-	config := Config{}
-	return &config
+func (s *state) serialize() ([]byte, error) {
+	buffer, err := utils.EncodeMsgPack(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (s *state) deserialize(b []byte) error {
+	err := utils.DecodeMsgPack(b, s)
+	return err
 }

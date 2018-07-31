@@ -19,6 +19,7 @@ package route
 import (
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -43,6 +44,7 @@ func TestGetSRV(t *testing.T) {
 				log.Printf("string: %v", ss.Target)
 			}
 		}
+
 		log.Debugf("ns: %v", in.Ns)
 		log.Debugf("extra: %v", in.Extra)
 	}
@@ -66,7 +68,7 @@ func TestGetBP(t *testing.T) {
 
 	// not DNSSEC domain
 	ips, err = dc.GetBPFromDNSSeed("_bp._tcp.gridbase.io.")
-	if err == nil {
+	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
 		t.Fatal("should be error")
 	} else {
 		log.Debugf("Error: %v", err)

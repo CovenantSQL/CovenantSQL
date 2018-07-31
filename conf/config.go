@@ -53,15 +53,6 @@ type BPInfo struct {
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
 }
 
-//// NodeInfo for conf generation and load purpose.
-//type NodeInfo struct {
-//	ID        proto.NodeID
-//	Nonce     cpuminer.Uint256
-//	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
-//	Addr      string
-//	Role      proto.ServerRole
-//}
-
 // MinerDatabaseFixture config.
 type MinerDatabaseFixture struct {
 	DatabaseID               proto.DatabaseID `yaml:"DatabaseID"`
@@ -84,6 +75,12 @@ type MinerInfo struct {
 	TestFixtures []*MinerDatabaseFixture `yaml:"TestFixtures,omitempty"`
 }
 
+// DNSSeed stuff
+type DNSSeed struct {
+	EnforcedDNSSEC bool     `yaml:"EnforcedDNSSEC"`
+	DNSServers     []string `yaml:"DNSServers"`
+}
+
 // Config holds all the config read from yaml config file
 type Config struct {
 	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
@@ -98,6 +95,8 @@ type Config struct {
 	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 	// Check By BP DHT.Ping
 	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
+
+	DNSSeed DNSSeed `yaml:"DNSSeed"`
 
 	BP    *BPInfo    `yaml:"BlockProducer"`
 	Miner *MinerInfo `yaml:"Miner,omitempty"`

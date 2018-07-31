@@ -32,7 +32,7 @@ func NewDSN(s string) (*DSN, error) {
 	parts := strings.SplitN(s, "?", 2)
 
 	dsn := &DSN{
-		filename: strings.TrimLeft(parts[0], "file:"),
+		filename: strings.TrimPrefix(parts[0], "file:"),
 		params:   make(map[string]string),
 	}
 

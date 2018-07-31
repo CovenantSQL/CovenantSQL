@@ -67,9 +67,9 @@ func startNodes() {
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2122,
-		2121,
-		2120,
+		3122,
+		3121,
+		3120,
 	}, time.Millisecond*200)
 
 	if err != nil {
@@ -80,7 +80,7 @@ func startNodes() {
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml")},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -89,7 +89,7 @@ func startNodes() {
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml")},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml")},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -98,7 +98,7 @@ func startNodes() {
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml")},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml")},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -162,7 +162,7 @@ func TestFullProcess(t *testing.T) {
 		time.Sleep(5 * time.Second)
 
 		var err error
-		err = client.Init(FJ(testWorkingDir, "./node_c/config.yaml"), []byte(""))
+		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
 		// create

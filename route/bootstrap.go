@@ -59,17 +59,28 @@ func NewDNSClient() *DNSClient {
 	m := new(dns.Msg)
 	m.SetEdns0(4096, true)
 
-	//TODO(auxten) append dns server from conf
-	config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-	if err != nil || config == nil {
+	var clientConfig *dns.ClientConfig
+	var err error
+	if conf.GConf != nil && len(conf.GConf.DNSSeed.DNSServers) > 0 {
+		clientConfig = &dns.ClientConfig{
+			Servers:  conf.GConf.DNSSeed.DNSServers,
+			Search:   make([]string, 0),
+			Port:     "53",
+			Ndots:    1,
+			Timeout:  8,
+			Attempts: 3,
+		}
+	}
+	clientConfig, err = dns.ClientConfigFromFile("/etc/resolv.conf")
+	if err != nil || clientConfig == nil {
 		log.Errorf("can not initialize the local resolver: %s", err)
 	}
-	config.Servers[0] = testDNS
+	clientConfig.Servers[0] = testDNS
 
 	return &DNSClient{
 		msg:  m,
 		clt:  new(dns.Client),
-		conf: config,
+		conf: clientConfig,
 	}
 }
 
@@ -107,6 +118,10 @@ func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 
 // VerifySection checks RRSIGs to make sure the name server is authentic
 func (dc *DNSClient) VerifySection(set []dns.RR) error {
+	if conf.GConf != nil && !conf.GConf.DNSSeed.EnforcedDNSSEC {
+		log.Debug("DNSSEC not enforced, just pass verification")
+		return nil
+	}
 	for _, rr := range set {
 		if rr.Header().Rrtype == dns.TypeRRSIG {
 			if !rr.(*dns.RRSIG).ValidityPeriod(time.Now().UTC()) {

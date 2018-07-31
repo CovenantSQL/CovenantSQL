@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
@@ -65,7 +66,8 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 		},
 	})
 	if err != nil {
-		log.Errorf("create dht table failed: %s", err)
+		wd, _ := os.Getwd()
+		log.Errorf("create dht table %s failed: %s", utils.FJ(wd, dbFile), err)
 		return
 	}
 

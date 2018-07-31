@@ -74,7 +74,16 @@ func TestConf(t *testing.T) {
 				"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",
 			},
 			MinNodeIDDifficulty: 2,
-			BP:                  BP,
+			DNSSeed: DNSSeed{
+				EnforcedDNSSEC: true,
+				DNSServers: []string{
+					"1.1.1.1",
+					"202.46.34.74",
+					"202.46.34.75",
+					"202.46.34.76",
+				},
+			},
+			BP: BP,
 			KnownNodes: []proto.Node{
 				{
 					ID:        BP.NodeID,

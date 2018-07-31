@@ -51,7 +51,8 @@ type runtime struct {
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
 	// price sets query price in gases.
-	price map[wt.QueryType]uint32
+	price          map[wt.QueryType]uint32
+	billingPeriods int32
 
 	// peersMutex protects following peers-relative fields.
 	peersMutex sync.Mutex
@@ -84,15 +85,16 @@ type runtime struct {
 // newRunTime returns a new sql-chain runtime instance with the specified config.
 func newRunTime(c *Config) (r *runtime) {
 	r = &runtime{
-		stopCh:     make(chan struct{}),
-		databaseID: c.DatabaseID,
-		period:     c.Period,
-		tick:       c.Tick,
-		queryTTL:   c.QueryTTL,
-		muxService: c.MuxService,
-		price:      c.Price,
-		peers:      c.Peers,
-		server:     c.Server,
+		stopCh:         make(chan struct{}),
+		databaseID:     c.DatabaseID,
+		period:         c.Period,
+		tick:           c.Tick,
+		queryTTL:       c.QueryTTL,
+		muxService:     c.MuxService,
+		price:          c.Price,
+		billingPeriods: c.BillingPeriods,
+		peers:          c.Peers,
+		server:         c.Server,
 		index: func() int32 {
 			if index, found := c.Peers.Find(c.Server.ID); found {
 				return index

@@ -46,9 +46,7 @@ func generateTestBlocks() (err error) {
 }
 
 func init() {
-	err := generateTestBlocks()
-
-	if err != nil {
+	if err := generateTestBlocks(); err != nil {
 		panic(err)
 	}
 }

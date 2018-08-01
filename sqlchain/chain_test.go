@@ -37,7 +37,7 @@ var (
 	testTick                                  = 100 * time.Millisecond
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testChainService                          = "sql-chain.thunderdb.rpc"
+	testChainService                          = "SQLC"
 	testPeriodNumber         int32            = 10
 	testClientNumberPerChain                  = 3
 )
@@ -97,6 +97,29 @@ func TestMultiChain(t *testing.T) {
 	chains := make([]*Chain, testPeersNumber)
 
 	for i := range chains {
+		dataFile := path.Join(testDataDir, fmt.Sprintf("%s-%02d", t.Name(), i))
+
+		defer func(c *Chain, db string) {
+			// Try to reload chain
+			if nc, err := LoadChain(&Config{
+				DatabaseID: testDatabaseID,
+				DataFile:   db,
+				Period:     testPeriod,
+				Tick:       testTick,
+				MuxService: NewMuxService(testChainService, rpc.NewServer()),
+				Server:     peers.Servers[i],
+				Peers:      peers,
+				QueryTTL:   testQueryTTL,
+			}); err != nil {
+				t.Errorf("Error occurred: %v", err)
+			} else {
+				t.Logf("Load chain from file %s: head = %s height = %d",
+					db, nc.rt.getHead().Head, nc.rt.getHead().Height)
+			}
+		}(chains[i], dataFile)
+	}
+
+	for i := range chains {
 		// Create RPC server
 		server := rpc.NewServer()
 
@@ -138,26 +161,10 @@ func TestMultiChain(t *testing.T) {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		defer func(c *Chain, db string) {
+		defer func(c *Chain) {
 			// Stop chain main process
 			c.Stop()
-			// Try to reload chain
-			if nc, err := LoadChain(&Config{
-				DatabaseID: testDatabaseID,
-				DataFile:   db,
-				Period:     testPeriod,
-				Tick:       testTick,
-				MuxService: mux,
-				Server:     peers.Servers[i],
-				Peers:      peers,
-				QueryTTL:   testQueryTTL,
-			}); err != nil {
-				t.Errorf("Error occurred: %v", err)
-			} else {
-				t.Logf("Load chain from file %s: head = %s height = %d",
-					db, nc.rt.getHead().Head, nc.rt.getHead().Height)
-			}
-		}(chains[i], dataFile)
+		}(chains[i])
 	}
 
 	// Create some random clients to push new queries

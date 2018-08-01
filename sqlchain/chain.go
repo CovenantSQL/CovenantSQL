@@ -1001,6 +1001,13 @@ func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
 func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 	pub *asymmetric.PublicKey, signature *asymmetric.Signature, err error,
 ) {
+	defer log.WithFields(log.Fields{
+		"peer": c.rt.getPeerInfoString(),
+		"time": c.rt.getChainTimeString(),
+		"low":  low,
+		"high": high,
+	}).WithError(err).Debug("Processing sign billing request")
+
 	if c.rt.getNextTurn() < high {
 		err = ErrUnavailableBillingRang
 		return
@@ -1015,13 +1022,11 @@ func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 	}
 
 	// Verify gas amounts
-	head := c.rt.getHead()
+	var n *blockNode
 
-	if head == nil {
-		return
+	if head := c.rt.getHead(); head != nil {
+		n = head.node
 	}
-
-	n := head.node
 
 	for ; n != nil && n.height >= high; n = n.parent {
 	}

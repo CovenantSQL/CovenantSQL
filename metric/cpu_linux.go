@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -214,6 +215,8 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(c.cpuGuest, prometheus.CounterValue, cpuStat.Guest, cpuNum, "user")
 		ch <- prometheus.MustNewConstMetric(c.cpuGuest, prometheus.CounterValue, cpuStat.GuestNice, cpuNum, "nice")
 	}
+
+	ch <- prometheus.MustNewConstMetric(nodeCPUCountDesc, prometheus.GaugeValue, float64(runtime.NumCPU()))
 
 	return nil
 }

@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"runtime"
 	"strconv"
 	"unsafe"
 
@@ -107,5 +108,6 @@ func (c *statCollector) Update(ch chan<- prometheus.Metric) error {
 			ch <- prometheus.MustNewConstMetric(c.cpu, prometheus.CounterValue, float64(cpuTicks[v])/ClocksPerSec, strconv.Itoa(i), k)
 		}
 	}
+	ch <- prometheus.MustNewConstMetric(nodeCPUCountDesc, prometheus.GaugeValue, float64(runtime.NumCPU()))
 	return nil
 }

@@ -29,4 +29,9 @@ var (
 		"Seconds the cpus spent in each mode.",
 		[]string{"cpu", "mode"}, nil,
 	)
+	nodeCPUCountDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "count"),
+		"CPU count",
+		nil, nil,
+	)
 )

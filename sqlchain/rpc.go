@@ -92,7 +92,7 @@ type SignBillingReq struct {
 	Billing   pt.BillingRequest
 }
 
-// SignBillingReq defines a response of the SignBilling RPC method.
+// SignBillingResp defines a response of the SignBilling RPC method.
 type SignBillingResp struct {
 	Low, High int32
 	Signee    *asymmetric.PublicKey
@@ -138,7 +138,7 @@ func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAc
 	return
 }
 
-// FetchAckedQuery is the RPC method to get signature for a billing request form the target server.
+// SignBilling is the RPC method to get signature for a billing request form the target server.
 func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp) (err error) {
 	resp.Low = req.Low
 	resp.High = req.High

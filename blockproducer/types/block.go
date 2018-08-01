@@ -1,14 +1,14 @@
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
- * Licensed under the Apache License, Version 2.0 (the “License”);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an “AS IS” BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -127,12 +127,25 @@ func (s *SignedHeader) Verify() error {
 // Block defines the main chain block
 type Block struct {
 	SignedHeader SignedHeader
-	Transactions []*hash.Hash
+	TxBillings   []*TxBilling
+}
+
+// GetTxHashes returns all hashes of tx in block.{TxBillings, ...}
+func (b *Block) GetTxHashes() []*hash.Hash {
+	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
+	// get hashes in block.TxBillings
+	hs := make([]*hash.Hash, len(b.TxBillings))
+	for i := range hs {
+		hs[i] = b.TxBillings[i].TxHash
+	}
+	return hs
 }
 
 // PackAndSignBlock computes block's hash and sign it
 func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
-	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Transactions).GetRoot()
+	hs := b.GetTxHashes()
+
+	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(hs).GetRoot()
 	enc, err := b.SignedHeader.Header.MarshalBinary()
 
 	if err != nil {
@@ -141,6 +154,7 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 
 	b.SignedHeader.BlockHash = hash.THashH(enc)
 	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
+	b.SignedHeader.Signee = signer.PubKey()
 
 	if err != nil {
 		return err
@@ -149,45 +163,35 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (b *Block) MarshalBinary() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		&b.SignedHeader,
-		b.Transactions,
-	)
-
+// Serialize converts block to bytes
+func (b *Block) Serialize() ([]byte, error) {
+	buf, err := utils.EncodeMsgPack(b)
 	if err != nil {
 		return nil, err
 	}
 
-	return buffer.Bytes(), nil
+	return buf.Bytes(), nil
 }
 
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (b *Block) UnmarshalBinary(buf []byte) error {
-	reader := bytes.NewReader(buf)
-
-	return utils.ReadElements(reader, binary.BigEndian,
-		&b.SignedHeader,
-		&b.Transactions,
-	)
+// Deserialize converts bytes to block
+func (b *Block) Deserialize(buf []byte) error {
+	return utils.DecodeMsgPack(buf, b)
 }
 
 // PushTx pushes txes into block
-func (b *Block) PushTx(tx *hash.Hash) {
-	if b.Transactions != nil {
+func (b *Block) PushTx(tx *TxBilling) {
+	if b.TxBillings != nil {
 		// TODO(lambda): set appropriate capacity.
-		b.Transactions = make([]*hash.Hash, 0, 100)
+		b.TxBillings = make([]*TxBilling, 0, 100)
 	}
 
-	b.Transactions = append(b.Transactions, tx)
+	b.TxBillings = append(b.TxBillings, tx)
 }
 
 // Verify verifies whether the block is valid
 func (b *Block) Verify() error {
-	merkleRoot := *merkle.NewMerkle(b.Transactions).GetRoot()
+	hs := b.GetTxHashes()
+	merkleRoot := *merkle.NewMerkle(hs).GetRoot()
 	if !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
 		return ErrMerkleRootVerification
 	}

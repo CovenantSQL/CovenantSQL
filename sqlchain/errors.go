@@ -76,4 +76,10 @@ var (
 
 	// ErrInvalidProducer indicates that the block has an invalid producer.
 	ErrInvalidProducer = errors.New("invalid block producer")
+
+	// ErrUnavailableBillingRang indicates that the billing range is not abailable now.
+	ErrUnavailableBillingRang = errors.New("Unabailable billing range")
+
+	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
+	ErrBillingNotMatch = errors.New("Billing request doesn't match")
 )

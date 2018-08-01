@@ -66,10 +66,12 @@ func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
 		return nil
 	}
 
-	ancestor = n
+	for ancestor = n; ancestor != nil && ancestor.height > height; ancestor = ancestor.parent {
+	}
 
-	for ancestor != nil && ancestor.height != height {
-		ancestor = ancestor.parent
+	// The block at this height may not exist
+	if ancestor.height < height {
+		ancestor = nil
 	}
 
 	return

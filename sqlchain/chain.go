@@ -19,10 +19,13 @@ package sqlchain
 import (
 	"encoding/binary"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
 	bolt "github.com/coreos/bbolt"
+	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -30,6 +33,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -821,7 +825,10 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	return
 }
 
-func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (err error) {
+// syncAckedQuery uses RPC call to synchronize an acknowledged query from a remote node.
+func (c *Chain) syncAckedQuery(height int32, header *hash.Hash, id proto.NodeID) (
+	ack *wt.SignedAckHeader, err error,
+) {
 	req := &MuxFetchAckedQueryReq{
 		Envelope: proto.Envelope{
 			// TODO(leventeliu): Add fields.
@@ -829,7 +836,7 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 		DatabaseID: c.rt.databaseID,
 		FetchAckedQueryReq: FetchAckedQueryReq{
 			Height:                height,
-			SignedAckedHeaderHash: ack,
+			SignedAckedHeaderHash: header,
 		},
 	}
 	resp := &MuxFetchAckedQueryResp{}
@@ -843,7 +850,24 @@ func (c *Chain) syncAckedQuery(height int32, ack *hash.Hash, id proto.NodeID) (e
 		return
 	}
 
-	return c.VerifyAndPushAckedQuery(resp.Ack)
+	if err = c.VerifyAndPushAckedQuery(resp.Ack); err != nil {
+		return
+	}
+
+	ack = resp.Ack
+	return
+}
+
+// queryOrSyncAckedQuery tries to query an acknowledged query from local index, and also tries to
+// synchronize it from a remote node if not found locally.
+func (c *Chain) queryOrSyncAckedQuery(height int32, header *hash.Hash, id proto.NodeID) (
+	ack *wt.SignedAckHeader, err error,
+) {
+	if ack, err = c.FetchAckedQuery(height, header); err != nil || ack != nil || id == c.rt.getServer().ID {
+		return
+	}
+
+	return c.syncAckedQuery(height, header, id)
 }
 
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
@@ -922,7 +946,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 		}
 
 		if !ok {
-			if err = c.syncAckedQuery(height, q, block.Producer()); err != nil {
+			if _, err = c.syncAckedQuery(height, q, block.Producer()); err != nil {
 				return
 			}
 
@@ -971,4 +995,78 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 // UpdatePeers updates peer list of the sql-chain.
 func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
 	return c.rt.updatePeers(peers)
+}
+
+// SignBilling signs a billing request.
+func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
+	pub *asymmetric.PublicKey, signature *asymmetric.Signature, err error,
+) {
+	if c.rt.getNextTurn() < high {
+		err = ErrUnavailableBillingRang
+		return
+	}
+
+	// Build map for later test
+	actualAmounts := make(map[proto.AccountAddress]uint32)
+	expectAmounts := make(map[proto.AccountAddress]uint32)
+
+	for _, v := range unsigned.Header.GasAmounts {
+		actualAmounts[v.AccountAddress] += v.GasAmount
+	}
+
+	// Verify gas amounts
+	head := c.rt.getHead()
+
+	if head == nil {
+		return
+	}
+
+	n := head.node
+
+	for ; n != nil && n.height >= high; n = n.parent {
+	}
+
+	var (
+		addr proto.AccountAddress
+		ack  *wt.SignedAckHeader
+	)
+
+	for ; n != nil && n.height >= low; n = n.parent {
+		if addr, err = utils.PubKeyHash(n.block.Signee()); err != nil {
+			return
+		}
+
+		expectAmounts[addr] += c.rt.producingReward
+
+		for _, v := range n.block.Queries {
+			if ack, err = c.queryOrSyncAckedQuery(n.height, v, n.block.Producer()); err != nil {
+				return
+			}
+
+			if addr, err = utils.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
+				return
+			}
+
+			expectAmounts[addr] += c.rt.price[ack.SignedRequestHeader().QueryType]
+		}
+	}
+
+	if !reflect.DeepEqual(actualAmounts, expectAmounts) {
+		err = ErrBillingNotMatch
+		return
+	}
+
+	// Sign block with private key
+	priv, err := kms.GetLocalPrivateKey()
+
+	if err != nil {
+		return
+	}
+
+	if signature, err = unsigned.SignRequestHeader(priv); err != nil {
+		return
+	}
+
+	pub = priv.PubKey()
+	return
 }

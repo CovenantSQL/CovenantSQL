@@ -1,14 +1,14 @@
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
- * Licensed under the Apache License, Version 2.0 (the “License”);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an “AS IS” BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -44,8 +44,14 @@ func generateRandomAccount() *Account {
 	sqlChains := generateRandomDatabaseIDs(n)
 	roles := generateRandomBytes(n)
 
-	h := hash.Hash{}
-	rand.Read(h[:])
+	h := generateRandomHash()
+
+	txBillings := make([]*hash.Hash, n)
+
+	for i := range txBillings {
+		tmpHash := generateRandomHash()
+		txBillings[i] = &tmpHash
+	}
 
 	account := &Account{
 		Address:            proto.AccountAddress(h),
@@ -54,6 +60,7 @@ func generateRandomAccount() *Account {
 		SQLChains:          sqlChains,
 		Roles:              roles,
 		Rating:             rand.Float64(),
+		TxBillings:         txBillings,
 	}
 
 	return account
@@ -126,9 +133,11 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 	}
 
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
-		h := &hash.Hash{}
-		rand.Read(h[:])
-		b.PushTx(h)
+		tb, err := generateRandomTxBilling()
+		if err != nil {
+			return nil, err
+		}
+		b.PushTx(tb)
 	}
 
 	err = b.PackAndSignBlock(priv)
@@ -136,16 +145,127 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 }
 
 func generateRandomBillingRequestHeader() *BillingRequestHeader {
-	block, err := generateRandomBlock(genesisHash, false)
-	if err != nil {
-		panic(err)
-	}
 	return &BillingRequestHeader{
 		DatabaseID:  *generateRandomDatabaseID(),
-		BlockHash:   block.SignedHeader.BlockHash,
+		BlockHash:   generateRandomHash(),
 		BlockHeight: rand.Int31(),
 		GasAmounts:  generateRandomGasAmount(peerNum),
 	}
+}
+
+func generateRandomBillingRequest() (*BillingRequest, error) {
+	reqHeader := generateRandomBillingRequestHeader()
+	req := BillingRequest{
+		Header: *reqHeader,
+	}
+	h, err := req.PackRequestHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	signees := make([]*asymmetric.PublicKey, peerNum)
+	signatures := make([]*asymmetric.Signature, peerNum)
+
+	for i := range signees {
+		// Generate key pair
+		priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+		if err != nil {
+			return nil, err
+		}
+		signees[i] = pub
+		signatures[i], err = priv.Sign(h[:])
+		if err != nil {
+			return nil, err
+		}
+	}
+	req.RequestHash = *h
+	req.Signatures = signatures
+	req.Signees = signees
+
+	return &req, nil
+}
+
+func generateRandomBillingResponse() (*BillingResponse, error) {
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		return nil, err
+	}
+	h := generateRandomHash()
+	sign, err := priv.Sign(h[:])
+	if err != nil {
+		return nil, err
+	}
+	resp := BillingResponse{
+		AccountAddress: proto.AccountAddress(generateRandomHash()),
+		RequestHash:    h,
+		Signee:         pub,
+		Signature:      sign,
+	}
+	return &resp, nil
+}
+
+func generateRandomTxContent() (*TxContent, error) {
+	req, err := generateRandomBillingRequest()
+	if err != nil {
+		return nil, err
+	}
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	sign, err := priv.Sign(req.RequestHash[:])
+	if err != nil {
+		return nil, err
+	}
+	resp := &BillingResponse{
+		AccountAddress: proto.AccountAddress(generateRandomHash()),
+		RequestHash:    req.RequestHash,
+		Signee:         pub,
+		Signature:      sign,
+	}
+
+	receivers := make([]*proto.AccountAddress, peerNum)
+	fees := make([]uint64, peerNum)
+	rewards := make([]uint64, peerNum)
+	for i := range fees {
+		h := generateRandomHash()
+		accountAddress := proto.AccountAddress(h)
+		receivers[i] = &accountAddress
+		fees[i] = rand.Uint64()
+		rewards[i] = rand.Uint64()
+	}
+
+	tc := &TxContent{
+		SequenceID:      rand.Uint64(),
+		BillingRequest:  *req,
+		BillingResponse: *resp,
+		Receivers:       receivers,
+		Fees:            fees,
+		Rewards:         rewards,
+	}
+	return tc, nil
+}
+
+func generateRandomTxBilling() (*TxBilling, error) {
+	txContent, err := generateRandomTxContent()
+	if err != nil {
+		return nil, err
+	}
+	accountAddress := proto.AccountAddress(generateRandomHash())
+	txHash := generateRandomHash()
+	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	sign, err := priv.Sign(txHash[:])
+	if err != nil {
+		return nil, err
+	}
+	blockHash := generateRandomHash()
+
+	txBilling := &TxBilling{
+		TxContent:      *txContent,
+		AccountAddress: &accountAddress,
+		TxHash:         &txHash,
+		Signee:         pub,
+		Signature:      sign,
+		SignedBlock:    &blockHash,
+	}
+	return txBilling, nil
 }
 
 func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
@@ -154,7 +274,7 @@ func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
 	for i := range gasAmount {
 		gasAmount[i] = &proto.AddrAndGas{
 			AccountAddress: proto.AccountAddress(generateRandomHash()),
-			RawNodeID:      proto.RawNodeID{generateRandomHash()},
+			RawNodeID:      proto.RawNodeID{Hash: generateRandomHash()},
 			GasAmount:      rand.Uint32(),
 		}
 	}

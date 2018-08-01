@@ -1,14 +1,14 @@
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
- * Licensed under the Apache License, Version 2.0 (the “License”);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an “AS IS” BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -20,13 +20,12 @@ import (
 	"encoding"
 	"reflect"
 	"testing"
-
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
+
 	block, err := generateRandomBlock(genesisHash, false)
-	header := block.SignedHeader.Header
+	header := &block.SignedHeader.Header
 	if err != nil {
 		t.Fatalf("Failed to generate block: %v", err)
 	}
@@ -36,7 +35,7 @@ func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
-	dec := Header{}
+	dec := &Header{}
 	err = dec.UnmarshalBinary(enc)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
@@ -49,7 +48,7 @@ func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
 
 func TestSignedHeader_MarshalUnmashalBinary(t *testing.T) {
 	block, err := generateRandomBlock(genesisHash, false)
-	signedHeader := block.SignedHeader
+	signedHeader := &block.SignedHeader
 	if err != nil {
 		t.Fatalf("Failed to generate block: %v", err)
 	}
@@ -59,7 +58,7 @@ func TestSignedHeader_MarshalUnmashalBinary(t *testing.T) {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
-	dec := SignedHeader{}
+	dec := &SignedHeader{}
 	err = dec.UnmarshalBinary(enc)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
@@ -82,32 +81,26 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Log("dec hash BinaryMashaler interface")
 	}
 
-	enc, err := block.MarshalBinary()
+	enc, err := block.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
-	dec := Block{}
+	dec := &Block{}
 
-	err = dec.UnmarshalBinary(enc)
+	err = dec.Deserialize(enc)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}
 
-	if !reflect.DeepEqual(block.SignedHeader.Header, dec.SignedHeader.Header) {
-		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block, dec)
+	// clear the encoded cache in BillingRequest.encoded
+	for i := range block.TxBillings {
+		block.TxBillings[i].TxContent.BillingRequest.encoded = nil
+		dec.TxBillings[i].TxContent.BillingRequest.encoded = nil
 	}
 
-	if !block.SignedHeader.Signature.IsEqual(dec.SignedHeader.Signature) {
-		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block.SignedHeader.Signature, dec.SignedHeader.Signature)
-	}
-
-	if !block.SignedHeader.Signee.IsEqual(dec.SignedHeader.Signee) {
-		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block.SignedHeader.Signee, dec.SignedHeader.Signee)
-	}
-
-	if !reflect.DeepEqual(block.Transactions, dec.Transactions) {
-		t.Fatalf("Value not match:\n\tv1 = %+v\n\tv2 = %+v", block.Transactions, dec.Transactions)
+	if !reflect.DeepEqual(block, dec) {
+		t.Fatalf("value not match")
 	}
 }
 
@@ -125,13 +118,16 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 	block.SignedHeader.BlockHash[0]++
 	err = block.Verify()
 	if err != ErrHashVerification {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	h := hash.Hash{}
-	block.PushTx(&h)
+	tb, err := generateRandomTxBilling()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	block.PushTx(tb)
 	err = block.Verify()
 	if err != ErrMerkleRootVerification {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }

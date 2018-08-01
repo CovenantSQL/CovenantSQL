@@ -26,6 +26,7 @@ import (
 
 type blockNode struct {
 	parent *blockNode
+	block  *ct.Block // TODO(leventeliu): cleanup history blocks to release memory.
 	hash   hash.Hash
 	height int32 // height is the chain height of the head
 	count  int32 // count counts the blocks (except genesis) at this head
@@ -35,6 +36,7 @@ func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
 	return &blockNode{
 		hash:   *block.BlockHash(),
 		parent: parent,
+		block:  block,
 		height: height,
 		count: func() int32 {
 			if parent != nil {
@@ -47,6 +49,7 @@ func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
 }
 
 func (n *blockNode) initBlockNode(height int32, block *ct.Block, parent *blockNode) {
+	n.block = block
 	n.hash = *block.BlockHash()
 	n.parent = nil
 	n.height = 0
@@ -63,10 +66,12 @@ func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
 		return nil
 	}
 
-	ancestor = n
+	for ancestor = n; ancestor != nil && ancestor.height > height; ancestor = ancestor.parent {
+	}
 
-	for ancestor != nil && ancestor.height != height {
-		ancestor = ancestor.parent
+	// The block at this height may not exist
+	if ancestor.height < height {
+		ancestor = nil
 	}
 
 	return

@@ -17,6 +17,8 @@
 package sqlchain
 
 import (
+	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -84,6 +86,19 @@ type FetchAckedQueryResp struct {
 	Ack *wt.SignedAckHeader
 }
 
+// SignBillingReq defines a request of the SignBilling RPC method.
+type SignBillingReq struct {
+	Low, High int32 // Billing to be verified and signed within height [Low, High).
+	Billing   pt.BillingRequest
+}
+
+// SignBillingResp defines a response of the SignBilling RPC method.
+type SignBillingResp struct {
+	Low, High int32
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
+}
+
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
 	err error) {
@@ -120,5 +135,13 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (
 func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
 ) (err error) {
 	resp.Ack, err = s.chain.FetchAckedQuery(req.Height, req.SignedAckedHeaderHash)
+	return
+}
+
+// SignBilling is the RPC method to get signature for a billing request form the target server.
+func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp) (err error) {
+	resp.Low = req.Low
+	resp.High = req.High
+	resp.Signee, resp.Signature, err = s.chain.SignBilling(req.Low, req.High, &req.Billing)
 	return
 }

@@ -272,5 +272,10 @@ func (b *Block) GenesisHash() *hash.Hash {
 	return &b.SignedHeader.GenesisHash
 }
 
+// Signee returns the signee field  of the block signed header.
+func (b *Block) Signee() *asymmetric.PublicKey {
+	return b.SignedHeader.Signee
+}
+
 // Blocks is Block (reference) array.
 type Blocks []*Block

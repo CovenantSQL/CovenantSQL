@@ -1,14 +1,14 @@
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
- * Licensed under the Apache License, Version 2.0 (the “License”);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an “AS IS” BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"encoding/binary"
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
@@ -46,16 +47,43 @@ func newBlockNode(block *types.Block, parent *blockNode) *blockNode {
 	return bn
 }
 
-type blockIndex struct {
-	cfg *Config
+func (bn *blockNode) indexKey() (key []byte) {
+	key = make([]byte, hash.HashSize+4)
+	binary.BigEndian.PutUint32(key[0:4], uint32(bn.height))
+	copy(key[4:hash.HashSize], bn.hash[:])
+	return
+}
 
+func (bn *blockNode) initBlockNode(block *types.Block, parent *blockNode) {
+	bn.hash = block.SignedHeader.BlockHash
+	bn.parent = nil
+	bn.height = 0
+
+	if parent != nil {
+		bn.parent = parent
+		bn.height = parent.height + 1
+	}
+}
+
+func (bn *blockNode) ancestor(h uint64) *blockNode {
+	if h < 0 || h > bn.height {
+		return nil
+	}
+
+	ancestor := bn
+	for ancestor != nil && ancestor.height != h {
+		ancestor = ancestor.parent
+	}
+	return ancestor
+}
+
+type blockIndex struct {
 	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode
 }
 
-func newBlockIndex(config *Config) *blockIndex {
+func newBlockIndex() *blockIndex {
 	bi := &blockIndex{
-		cfg:   config,
 		index: make(map[hash.Hash]*blockNode),
 	}
 

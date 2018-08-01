@@ -91,12 +91,12 @@ KnownNodes:
   Role: Miner
 Adapter:
   ListenAddr: 0.0.0.0:4662
-  CertificatePath: server.test.covenantsql.io.pem
-  PrivateKeyPath: server.test.covenantsql.io-key.pem
+  CertificatePath: ./node_c/server.test.covenantsql.io.pem
+  PrivateKeyPath: ./node_c/server.test.covenantsql.io-key.pem
   VerifyCertificate: true
-  ClientCAPath: rootCA.pem
+  ClientCAPath: ./node_c/rootCA.pem
   AdminCerts:
-    - admin.test.thunderdb.io.pem
+    - ./node_c/admin.test.thunderdb.io.pem
   WriteCerts:
-    - write.test.thunderdb.io.pem
+    - ./node_c/write.test.thunderdb.io.pem
   StorageDriver: thunderdb

@@ -131,7 +131,7 @@ type MuxFetchAckedQueryResp struct {
 	FetchAckedQueryResp
 }
 
-// MuxFetchAckedQueryReq defines a request of the SignBilling RPC method.
+// MuxSignBillingReq defines a request of the SignBilling RPC method.
 type MuxSignBillingReq struct {
 	proto.Envelope
 	proto.DatabaseID
@@ -217,7 +217,7 @@ func (s *MuxService) FetchAckedQuery(
 	return ErrUnknownMuxRequest
 }
 
-// FetchAckedQuery is the RPC method to get signature for a billing request form the target server.
+// SignBilling is the RPC method to get signature for a billing request form the target server.
 func (s *MuxService) SignBilling(req *MuxSignBillingReq, resp *MuxSignBillingResp) (err error) {
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope

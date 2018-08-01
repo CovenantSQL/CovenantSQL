@@ -30,5 +30,12 @@ endif
 	docker save $(IMAGE):$(SHIP_VERSION) > $(IMAGE_TAR)
 	tar zcf $(IMAGE_TAR_GZ) $(IMAGE_TAR)
 
+start:
+	docker-compose down
+	docker-compose up --no-start
+	docker-compose start
+
 logs:
 	docker-compose logs -f --tail=10
+
+.PHONY: status build save start logs

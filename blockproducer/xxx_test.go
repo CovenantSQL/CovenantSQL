@@ -17,10 +17,8 @@
 package blockproducer
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
-	"path"
 	"sync"
 	"testing"
 	"time"
@@ -446,37 +444,6 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
-
-	// Create temp dir
-	var err error
-	testDataDir, err = ioutil.TempDir("", "thunderdb")
-
-	if err != nil {
-		panic(err)
-	}
-
-	testPubKeysFile = path.Join(testDataDir, "pub")
-	testPrivKeyFile = path.Join(testDataDir, "priv")
-
-	// Setup public key store
-	if err = kms.InitPublicKeyStore(testPubKeysFile, nil); err != nil {
-		panic(err)
-	}
-
-	// Setup local key store
-	kms.Unittest = true
-	testPrivKey, err = kms.GetLocalPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-	testPubKey, err = kms.GetLocalPublicKey()
-	if err != nil {
-		panic(err)
-	}
-
-	if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
-		panic(err)
-	}
 
 	// Setup logging
 	log.SetOutput(os.Stdout)

@@ -110,6 +110,7 @@ func (cc *ThunderDBCollector) updateThunderDBStat() error {
 func ThunderDBIdle(cc *ThunderDBCollector) float64 {
 	cc.RLock()
 	defer cc.RUnlock()
+	//TODO(auxten): implement ThunderDB Idle metric
 	return float64(cc.thunderDBStatHistory[0] - cc.thunderDBStatHistory[1])
 }
 

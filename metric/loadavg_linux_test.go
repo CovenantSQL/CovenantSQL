@@ -1,4 +1,4 @@
-// Copyright 2016 The Prometheus Authors
+// Copyright 2015 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,27 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !nocpu
-
 package metric
 
-import (
-	"github.com/prometheus/client_golang/prometheus"
-)
+import "testing"
 
-const (
-	cpuCollectorSubsystem = "cpu"
-)
+func TestLoad(t *testing.T) {
+	want := []float64{0.21, 0.37, 0.39}
+	loads, err := parseLoad("0.21 0.37 0.39 1/719 19737")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-var (
-	nodeCPUSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "seconds_total"),
-		"Seconds the cpus spent in each mode.",
-		[]string{"cpu", "mode"}, nil,
-	)
-	nodeCPUCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "count"),
-		"CPU count",
-		nil, nil,
-	)
-)
+	for i, load := range loads {
+		if want[i] != load {
+			t.Fatalf("want load %f, got %f", want[i], load)
+		}
+	}
+}

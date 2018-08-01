@@ -21,10 +21,14 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // MetricMap is map from metric name to MetricFamily.
 type MetricMap map[string]*dto.MetricFamily
+
+// NodeCrucialMetricMap is map[NodeID][MetricName]Value
+type NodeCrucialMetricMap map[proto.NodeID]map[string]float64
 
 // FilterFunc is a function that knows how to filter a specific node
 // that match the metric limits. if node picked return true else false.
@@ -75,6 +79,69 @@ func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.No
 
 		metrics[node] = nodeMetrics
 	}
+
+	return
+}
+
+// FilterCrucialMetrics filters crucial metrics and also add cpu_count
+func (mfm *MetricMap) FilterCrucialMetrics() (ret map[string]float64) {
+	crucialMetricNameMap := map[string]string{
+		"node_memory_MemAvailable_bytes": "mem_avail",
+		"node_load1":                     "load1",
+		"node_load5":                     "load5",
+		"node_load15":                    "load15",
+		"node_ntp_offset_seconds":        "ntp_offset",
+		"node_filesystem_free_bytes":     "fs_avail",
+		"node_cpu_count":                 "cpu_count",
+	}
+	ret = make(map[string]float64)
+	for _, v := range *mfm {
+		if newName, ok := crucialMetricNameMap[*v.Name]; ok {
+			var metricVal float64
+			switch v.GetType() {
+			case dto.MetricType_GAUGE:
+				metricVal = v.GetMetric()[0].GetGauge().GetValue()
+				break
+			case dto.MetricType_COUNTER:
+				metricVal = v.GetMetric()[0].GetCounter().GetValue()
+				break
+			case dto.MetricType_HISTOGRAM:
+				metricVal = v.GetMetric()[0].GetHistogram().GetBucket()[0].GetUpperBound()
+				break
+			case dto.MetricType_SUMMARY:
+				metricVal = v.GetMetric()[0].GetSummary().GetQuantile()[0].GetValue()
+				break
+			case dto.MetricType_UNTYPED:
+				metricVal = v.GetMetric()[0].GetUntyped().GetValue()
+				break
+			default:
+				continue
+			}
+			ret[newName] = metricVal
+		}
+	}
+	log.Debugf("Crucial Metric added: %v", ret)
+
+	return
+}
+
+// GetCrucialMetrics gets NodeCrucialMetricMap from NodeMetricMap
+func (nmm *NodeMetricMap) GetCrucialMetrics() (ret NodeCrucialMetricMap) {
+	ret = make(NodeCrucialMetricMap)
+	metricsPicker := func(key, value interface{}) bool {
+		nodeID, ok := key.(proto.NodeID)
+		if !ok {
+			return true // continue iteration
+		}
+		mfm, ok := value.(MetricMap)
+		if !ok {
+			return true // continue iteration
+		}
+
+		ret[nodeID] = mfm.FilterCrucialMetrics()
+		return true // continue iteration
+	}
+	nmm.Range(metricsPicker)
 
 	return
 }

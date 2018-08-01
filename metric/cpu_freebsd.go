@@ -18,6 +18,7 @@ package metric
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"strconv"
 	"unsafe"
 
@@ -152,5 +153,7 @@ func (c *statCollector) Update(ch chan<- prometheus.Metric) error {
 		//   #define TZ_ZEROC            2732
 		ch <- c.temp.mustNewConstMetric(float64(int32(temp)-2732)/10, lcpu)
 	}
+	ch <- prometheus.MustNewConstMetric(nodeCPUCountDesc, prometheus.GaugeValue, float64(runtime.NumCPU()))
+
 	return err
 }

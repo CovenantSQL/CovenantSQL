@@ -90,13 +90,13 @@ KnownNodes:
   PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
   Role: Miner
 Adapter:
-  ListenAddr: 0.0.0.0:4662
+  ListenAddr: 0.0.0.0:4661
   CertificatePath: ./node_c/server.test.covenantsql.io.pem
   PrivateKeyPath: ./node_c/server.test.covenantsql.io-key.pem
   VerifyCertificate: true
   ClientCAPath: ./node_c/rootCA.pem
   AdminCerts:
-    - ./node_c/admin.test.thunderdb.io.pem
+    - ./node_c/admin.test.covenantsql.io.pem
   WriteCerts:
-    - ./node_c/write.test.thunderdb.io.pem
+    - ./node_c/write.test.covenantsql.io.pem
   StorageDriver: thunderdb

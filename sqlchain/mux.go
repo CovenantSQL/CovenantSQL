@@ -131,6 +131,20 @@ type MuxFetchAckedQueryResp struct {
 	FetchAckedQueryResp
 }
 
+// MuxFetchAckedQueryReq defines a request of the SignBilling RPC method.
+type MuxSignBillingReq struct {
+	proto.Envelope
+	proto.DatabaseID
+	SignBillingReq
+}
+
+// MuxSignBillingResp defines a response of the SignBilling RPC method.
+type MuxSignBillingResp struct {
+	proto.Envelope
+	proto.DatabaseID
+	SignBillingResp
+}
+
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *MuxService) AdviseNewBlock(req *MuxAdviseNewBlockReq, resp *MuxAdviseNewBlockResp) error {
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
@@ -198,6 +212,17 @@ func (s *MuxService) FetchAckedQuery(
 		resp.DatabaseID = req.DatabaseID
 		return v.(*ChainRPCService).FetchAckedQuery(
 			&req.FetchAckedQueryReq, &resp.FetchAckedQueryResp)
+	}
+
+	return ErrUnknownMuxRequest
+}
+
+// FetchAckedQuery is the RPC method to get signature for a billing request form the target server.
+func (s *MuxService) SignBilling(req *MuxSignBillingReq, resp *MuxSignBillingResp) (err error) {
+	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
+		resp.Envelope = req.Envelope
+		resp.DatabaseID = req.DatabaseID
+		return v.(*ChainRPCService).SignBilling(&req.SignBillingReq, &resp.SignBillingResp)
 	}
 
 	return ErrUnknownMuxRequest

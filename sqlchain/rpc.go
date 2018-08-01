@@ -138,7 +138,7 @@ func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAc
 	return
 }
 
-// SignBilling signs a billing request.
+// FetchAckedQuery is the RPC method to get signature for a billing request form the target server.
 func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp) (err error) {
 	resp.Low = req.Low
 	resp.High = req.High

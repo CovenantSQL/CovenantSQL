@@ -1,7 +1,7 @@
 # Stage: builder
 FROM golang:1.10.3-stretch as builder
 
-WORKDIR /go/src/gitlab.com/thunderdb/thunderdb
+WORKDIR /go/src/gitlab.com/thunderdb/ThunderDB
 COPY . .
 RUN ./build.sh
 
@@ -13,7 +13,7 @@ ARG VERSION
 
 LABEL \
     name="covenantsql" \
-    homepage="https://gitlab.com/thunderdb/thunderdb.git" \
+    homepage="https://gitlab.com/thunderdb/ThunderDB.git" \
     maintainer="qi.xiao@covenantsql.io" \
     authors="CovenantSQL Team" \
     commit="${COMMIT}" \
@@ -26,6 +26,6 @@ ENV COVENANT_CONF=config.yaml
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
-COPY --from=builder /go/src/gitlab.com/thunderdb/thunderdb/bin/* /app/
+COPY --from=builder /go/src/gitlab.com/thunderdb/ThunderDB/bin/* /app/
 ENTRYPOINT [ "./docker-entry.sh" ]
 EXPOSE 4661

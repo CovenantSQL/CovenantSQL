@@ -3,7 +3,7 @@ FROM golang:1.10.3-stretch as builder
 
 WORKDIR /go/src/gitlab.com/thunderdb/ThunderDB
 COPY . .
-RUN ./build.sh
+RUN CGO_ENABLED=1 GOOS=linux GOLDFLAGS="-linkmode external -extldflags -static" ./build.sh
 
 # Stage: runner
 FROM alpine:3.7

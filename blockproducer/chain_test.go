@@ -54,6 +54,9 @@ type nodeProfile struct {
 
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
+		cleanup, _, _, _, err := initNode()
+		defer cleanup()
+
 		fl, err := ioutil.TempFile("", "mainchain")
 		So(err, ShouldBeNil)
 

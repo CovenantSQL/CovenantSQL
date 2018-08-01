@@ -20,23 +20,19 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcutil/base58"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 )
 
-func TestPubKey2Addr(t *testing.T) {
-	Convey("test the address generation", t, func() {
+func TestPubKeyHashAndAddressing(t *testing.T) {
+	Convey("Randomly generate some key pairs and calculate public key hash values", t, func() {
 		for i := 0; i < 20; i++ {
 			_, pub, err := asymmetric.GenSecp256k1KeyPair()
 			So(err, ShouldBeNil)
-			enc, err := pub.MarshalBinary()
+			h, err := PubKeyHash(pub)
 			So(err, ShouldBeNil)
 			addr, err := PubKey2Addr(pub, MainNet)
 			So(err, ShouldBeNil)
-			h := hash.THashB(enc[:])
 			targetAddr := base58.CheckEncode(h[:], MainNet)
 			So(addr, ShouldEqual, targetAddr)
 			t.Logf("main net address: %s", targetAddr)

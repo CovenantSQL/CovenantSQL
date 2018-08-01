@@ -20,6 +20,7 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 const (
@@ -36,4 +37,15 @@ func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (string, error) {
 	}
 	h := hash.THashB(enc[:])
 	return base58.CheckEncode(h[:], version), nil
+}
+
+func PubKeyHash(pubKey *asymmetric.PublicKey) (addr proto.AccountAddress, err error) {
+	var enc []byte
+
+	if enc, err = pubKey.MarshalBinary(); err != nil {
+		return
+	}
+
+	addr = proto.AccountAddress(hash.THashH(enc))
+	return
 }

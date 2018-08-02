@@ -104,9 +104,11 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_adapter:
-    image: covenentsql.io/covenantsql_adapter:latest
+    image: covenantsql.io/covenantsql_adapter:latest
     container_name: covenantsql_adapter
     restart: always
+    ports:
+      - "11105:4661"
     volumes:
       - ./test/service/node_c/config.yaml:/app/config.yaml
       - ./test/service/node_c/private.key:/app/private.key

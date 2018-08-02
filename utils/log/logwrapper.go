@@ -19,6 +19,7 @@ package log
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -45,6 +46,12 @@ const (
 	DebugLevel
 )
 
+// PkgDebugLogFilter is the log filter
+// if package name exists and log level is more verbose, the log will be dropped
+var PkgDebugLogFilter = map[string]logrus.Level{
+	"metric": InfoLevel,
+}
+
 // Logger wraps logrus logger type.
 type Logger logrus.Logger
 
@@ -56,7 +63,16 @@ type CallerHook struct{}
 
 // Fire defines hook event handler.
 func (hook *CallerHook) Fire(entry *logrus.Entry) error {
-	entry.Data["caller"] = hook.caller()
+	funcDesc, caller := hook.caller()
+	fields := strings.SplitN(funcDesc, ".", 2)
+	if len(fields) > 0 {
+		level, ok := PkgDebugLogFilter[fields[0]]
+		if ok && entry.Level > level {
+			entry.Logger.Out = ioutil.Discard
+			return nil
+		}
+	}
+	entry.Data["caller"] = caller
 	return nil
 }
 
@@ -72,7 +88,7 @@ func (hook *CallerHook) Levels() []logrus.Level {
 	}
 }
 
-func (hook *CallerHook) caller() string {
+func (hook *CallerHook) caller() (relFuncName, caller string) {
 	var (
 		file     = "unknown"
 		line     = 0
@@ -86,9 +102,9 @@ func (hook *CallerHook) caller() string {
 		funcName = details.Name()
 	}
 
-	relFuncName := strings.TrimPrefix(funcName, "gitlab.com/thunderdb/ThunderDB/")
+	relFuncName = strings.TrimPrefix(funcName, "gitlab.com/thunderdb/ThunderDB/")
 	funcLocation := fmt.Sprintf("%s:%d %s", filepath.Base(file), line, relFuncName)
-	return funcLocation
+	return relFuncName, funcLocation
 }
 
 func init() {

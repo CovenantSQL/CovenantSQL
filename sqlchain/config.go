@@ -39,7 +39,9 @@ type Config struct {
 	Server     *kayak.Server
 
 	// Price sets query price in gases.
-	Price map[wt.QueryType]uint32
+	Price           map[wt.QueryType]uint32
+	ProducingReward uint32
+	BillingPeriods  int32
 
 	// QueryTTL sets the unacknowledged query TTL in block periods.
 	QueryTTL int32

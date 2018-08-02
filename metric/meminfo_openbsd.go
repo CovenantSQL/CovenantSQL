@@ -48,5 +48,6 @@ func (c *meminfoCollector) getMemInfo() (map[string]float64, error) {
 		"swapped_in_pages_bytes_total":  ps * float64(uvmexp.pgswapin),
 		"swapped_out_pages_bytes_total": ps * float64(uvmexp.pgswapout),
 		"wired_bytes":                   ps * float64(uvmexp.wired),
+		"MemAvailable_bytes":            ps * float64(uvmexp.free+uvmexp.vnodepages+uvmexp.inactive),
 	}, nil
 }

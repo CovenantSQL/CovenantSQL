@@ -16,6 +16,7 @@
 package metric
 
 import (
+	"runtime"
 	"strconv"
 	"unsafe"
 
@@ -69,5 +70,7 @@ func (c *cpuCollector) Update(ch chan<- prometheus.Metric) (err error) {
 		ch <- c.cpu.mustNewConstMetric(float64(time[C.CP_INTR])/hz, lcpu, "interrupt")
 		ch <- c.cpu.mustNewConstMetric(float64(time[C.CP_IDLE])/hz, lcpu, "idle")
 	}
+	ch <- prometheus.MustNewConstMetric(nodeCPUCountDesc, prometheus.GaugeValue, float64(runtime.NumCPU()))
+
 	return err
 }

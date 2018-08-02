@@ -21,6 +21,7 @@ package collector
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"unsafe"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -141,6 +142,7 @@ func (c *statCollector) Update(ch chan<- prometheus.Metric) error {
 		cpux := fmt.Sprintf("%d", i/fieldsCount)
 		ch <- prometheus.MustNewConstMetric(c.cpu, prometheus.CounterValue, value, cpux, cpuFields[i%fieldsCount])
 	}
+	ch <- prometheus.MustNewConstMetric(nodeCPUCountDesc, prometheus.GaugeValue, float64(runtime.NumCPU()))
 
 	return nil
 }

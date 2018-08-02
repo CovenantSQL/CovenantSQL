@@ -329,4 +329,21 @@ func TestStorage(t *testing.T) {
 			t.Fatalf("Query result should be table row count 3, but: %v", data[0])
 		}
 	}
+
+	// test with timestmap fields
+	_, err = st.Exec(context.Background(), []Query{
+		newQuery("CREATE TABLE `tm` (tm TIMESTAMP)"),
+		newQuery("INSERT INTO `tm` VALUES(DATE('NOW'))"),
+	})
+	if err != nil {
+		t.Fatalf("Query failed: %v", err.Error())
+	} else {
+		// query for values
+		_, _, data, err = st.Query(context.Background(), []Query{newQuery("SELECT `tm` FROM `tm`")})
+		if len(data) != 1 || len(data[0]) != 1 {
+			t.Fatalf("Query result should contain only one row and one column, now %v", data)
+		} else if !reflect.TypeOf(data[0][0]).AssignableTo(reflect.TypeOf(time.Time{})) {
+			t.Fatalf("Query result should be time.Time type, but: %v", reflect.TypeOf(data[0][0]).String())
+		}
+	}
 }

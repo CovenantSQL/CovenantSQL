@@ -33,7 +33,7 @@ func DecodeMsgPack(buf []byte, out interface{}) error {
 // EncodeMsgPack writes an encoded object to a new bytes buffer.
 func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
-	hd := codec.MsgpackHandle{}
+	hd := codec.MsgpackHandle{WriteExt: true}
 	enc := codec.NewEncoder(buf, &hd)
 	err := enc.Encode(in)
 	return buf, err

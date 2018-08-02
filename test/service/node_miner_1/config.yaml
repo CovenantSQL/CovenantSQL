@@ -20,7 +20,7 @@ Miner:
   IsTestMode: true
   RootDir: "./node_miner_1/data"
   MaxReqTimeGap: "2s"
-  MetricCollectInterval: "5s"
+  MetricCollectInterval: "60s"
 KnownNodes:
 - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:

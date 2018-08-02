@@ -76,4 +76,21 @@ func TestCollectServer_FilterNode(t *testing.T) {
 		ids2 := nmm.FilterNode(filterFalse)
 		So(len(ids2), ShouldEqual, 0)
 	})
+	Convey("filter metrics", t, func() {
+		cc := NewCollectClient()
+		mfs, _ := cc.Registry.Gather()
+		mm := make(MetricMap, 0)
+		for _, mf := range mfs {
+			mm[*mf.Name] = mf
+			log.Debugf("Gathered node: %v", mf)
+		}
+		nmm := NodeMetricMap{}
+		nmm.Store(proto.NodeID("node1"), mm)
+		nmm.Store(proto.NodeID("node2"), nil)
+
+		cmm := nmm.GetCrucialMetrics()
+		So(len(cmm), ShouldEqual, 1)
+		So(len(cmm["node1"]), ShouldBeGreaterThanOrEqualTo, 6)
+	})
+
 }

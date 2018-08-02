@@ -1,14 +1,14 @@
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
- * Licensed under the Apache License, Version 2.0 (the “License”);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an “AS IS” BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -17,10 +17,8 @@
 package blockproducer
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
-	"path"
 	"sync"
 	"testing"
 	"time"
@@ -446,51 +444,6 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
-
-	// Create temp dir
-	var err error
-	testDataDir, err = ioutil.TempDir("", "thunderdb")
-
-	if err != nil {
-		panic(err)
-	}
-
-	testPubKeysFile = path.Join(testDataDir, "pub")
-	testPrivKeyFile = path.Join(testDataDir, "priv")
-
-	// Setup public key store
-	if err = kms.InitPublicKeyStore(testPubKeysFile, nil); err != nil {
-		panic(err)
-	}
-
-	// Setup local key store
-	kms.Unittest = true
-	testPrivKey, testPubKey, err = asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		panic(err)
-	}
-
-	kms.SetLocalKeyPair(testPrivKey, testPubKey)
-
-	if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
-		panic(err)
-	}
-
-	// Setup local key store
-	// kms.Unittest = true
-	// testPrivKey, err = kms.GetLocalPrivateKey()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// testPubKey, err = kms.GetLocalPublicKey()
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// if err = kms.SavePrivateKey(testPrivKeyFile, testPrivKey, testMasterKey); err != nil {
-	// 	panic(err)
-	// }
 
 	// Setup logging
 	log.SetOutput(os.Stdout)

@@ -11,27 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !nocpu
+// +build !noloadavg
 
 package metric
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
-const (
-	cpuCollectorSubsystem = "cpu"
-)
-
-var (
-	nodeCPUSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "seconds_total"),
-		"Seconds the cpus spent in each mode.",
-		[]string{"cpu", "mode"}, nil,
-	)
-	nodeCPUCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "count"),
-		"CPU count",
-		nil, nil,
-	)
-)
+func getLoad() ([]float64, error) {
+	type loadavg struct {
+		load  [3]uint32
+		scale int
+	}
+	b, err := unix.SysctlRaw("vm.loadavg")
+	if err != nil {
+		return nil, err
+	}
+	load := *(*loadavg)(unsafe.Pointer((&b[0])))
+	scale := float64(load.scale)
+	return []float64{
+		float64(load.load[0]) / scale,
+		float64(load.load[1]) / scale,
+		float64(load.load[2]) / scale,
+	}, nil
+}

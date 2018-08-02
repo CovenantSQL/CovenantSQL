@@ -47,9 +47,9 @@ const (
 )
 
 // PkgDebugLogFilter is the log filter
-// if package name exists and value is true, all debug log of this package will be dropped
-var PkgDebugLogFilter = map[string]bool{
-	"metric": true,
+// if package name exists and log level is more verbose, the log will be dropped
+var PkgDebugLogFilter = map[string]logrus.Level{
+	"metric": InfoLevel,
 }
 
 // Logger wraps logrus logger type.
@@ -64,15 +64,12 @@ type CallerHook struct{}
 // Fire defines hook event handler.
 func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 	funcDesc, caller := hook.caller()
-	if entry.Level == DebugLevel {
-		fields := strings.SplitN(funcDesc, ".", 2)
-		if len(fields) > 0 {
-			var isFiltered bool
-			isFiltered, _ = PkgDebugLogFilter[fields[0]]
-			if isFiltered {
-				entry.Logger.Out = ioutil.Discard
-				return nil
-			}
+	fields := strings.SplitN(funcDesc, ".", 2)
+	if len(fields) > 0 {
+		level, ok := PkgDebugLogFilter[fields[0]]
+		if ok && entry.Level > level {
+			entry.Logger.Out = ioutil.Discard
+			return nil
 		}
 	}
 	entry.Data["caller"] = caller

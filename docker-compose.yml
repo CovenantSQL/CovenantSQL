@@ -103,9 +103,9 @@ services:
       options:
         max-size: "1m"
         max-file: "10"
-  thunderdb_adapter:
-    image: thunderdb.io/thunderdb-adapter:latest
-    container_name: thunderdb_adapter
+  covenantsql_adapter:
+    image: covenentsql.io/covenantsql_adapter:latest
+    container_name: covenantsql_adapter
     restart: always
     volumes:
       - ./test/service/node_c/config.yaml:/app/config.yaml

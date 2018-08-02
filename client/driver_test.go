@@ -17,6 +17,7 @@
 package client
 
 import (
+	"path/filepath"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -26,8 +27,13 @@ import (
 func TestInit(t *testing.T) {
 	// test init
 	Convey("test init", t, func() {
+		var stopTestService func()
+		var confDir string
 		var err error
-		err = Init("../test/node_standalone/config.yaml", []byte(""))
+		stopTestService, confDir, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 		// test loaded block producer nodes
 		bps := route.GetBPs()
@@ -40,7 +46,7 @@ func TestCreate(t *testing.T) {
 	Convey("test create", t, func() {
 		var stopTestService func()
 		var err error
-		stopTestService, err = startTestService()
+		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
 		var dsn string
@@ -54,7 +60,7 @@ func TestDrop(t *testing.T) {
 	Convey("test drop", t, func() {
 		var stopTestService func()
 		var err error
-		stopTestService, err = startTestService()
+		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
 		err = Drop("thunderdb://db")

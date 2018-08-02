@@ -66,7 +66,13 @@ func Init(configFile string, masterKey []byte) (err error) {
 	pubKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, PubKeyStorePath)
 	route.InitKMS(pubKeyFilePath)
 	privKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, conf.GConf.PrivateKeyFile)
-	err = kms.InitLocalKeyPair(privKeyFilePath, masterKey)
+	if err = kms.InitLocalKeyPair(privKeyFilePath, masterKey); err != nil {
+		return
+	}
+
+	// ping block producer to register node
+	err = registerNode()
+
 	return
 }
 
@@ -132,4 +138,21 @@ func requestBP(method route.RemoteFunc, request interface{}, response interface{
 	}
 
 	return rpc.NewCaller().CallNode(bpNodeID, method.String(), request, response)
+}
+
+func registerNode() (err error) {
+	var nodeID proto.NodeID
+
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	var nodeInfo *proto.Node
+	if nodeInfo, err = kms.GetNodeInfo(nodeID); err != nil {
+		return
+	}
+
+	err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
+
+	return
 }

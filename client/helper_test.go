@@ -146,10 +146,10 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	return
 }
 
-func startTestService() (stopTestService func(), err error) {
+func startTestService() (stopTestService func(), tempDir string, err error) {
 	var server *rpc.Server
 	var cleanup func()
-	if cleanup, server, err = initNode(); err != nil {
+	if cleanup, tempDir, server, err = initNode(); err != nil {
 		return
 	}
 
@@ -228,20 +228,19 @@ func startTestService() (stopTestService func(), err error) {
 	return
 }
 
-func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
-	var d string
-	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
+func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err error) {
+	if tempDir, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
 	}
-	log.Debugf("temp dir: %s", d)
+	log.Debugf("temp dir: %s", tempDir)
 
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
-	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
+	pubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
-	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")
+	clientPubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_c")
 	os.Remove(clientPubKeyStoreFile)
-	dupConfFile := filepath.Join(d, "config.yaml")
+	dupConfFile := filepath.Join(tempDir, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
 	if err = dupConf(confFile, dupConfFile); err != nil {
 		return
@@ -281,7 +280,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	go server.Serve()
 
 	cleanupFunc = func() {
-		os.RemoveAll(d)
+		os.RemoveAll(tempDir)
 		server.Listener.Close()
 		server.Stop()
 	}

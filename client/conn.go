@@ -332,7 +332,8 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 
 	// send ack back
 	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSAck.String(), ack, &ackRes); err != nil {
-		return
+		log.Warningf("ack query failed: %v", err)
+		err = nil
 	}
 
 	rows = newRows(&response)

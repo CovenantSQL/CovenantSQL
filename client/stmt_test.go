@@ -27,7 +27,7 @@ func TestStmt(t *testing.T) {
 	Convey("test statement", t, func() {
 		var stopTestService func()
 		var err error
-		stopTestService, err = startTestService()
+		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
 

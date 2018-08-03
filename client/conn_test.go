@@ -29,7 +29,7 @@ func TestConn(t *testing.T) {
 	Convey("test connection", t, func() {
 		var stopTestService func()
 		var err error
-		stopTestService, err = startTestService()
+		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
 
@@ -149,7 +149,7 @@ func TestTransaction(t *testing.T) {
 	Convey("test transaction", t, func() {
 		var stopTestService func()
 		var err error
-		stopTestService, err = startTestService()
+		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
 

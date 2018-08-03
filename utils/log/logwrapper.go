@@ -19,7 +19,6 @@ package log
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -68,7 +67,9 @@ func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 	if len(fields) > 0 {
 		level, ok := PkgDebugLogFilter[fields[0]]
 		if ok && entry.Level > level {
-			entry.Logger.Out = ioutil.Discard
+			nilLogger := logrus.New()
+			nilLogger.Formatter = &NilFormatter{}
+			entry.Logger = nilLogger
 			return nil
 		}
 	}

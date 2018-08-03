@@ -31,13 +31,13 @@ const (
 
 var (
 	ntpServer          = "127.0.0.1" // "collector.ntp.server", "NTP server to use for ntp collector"
-	ntpProtocolVersion = 4 // "collector.ntp.protocol-version", "NTP protocol version"
-	ntpServerIsLocal   = false // "collector.ntp.server-is-local", "Certify that collector.ntp.server address is the same local host as this collector."
-	ntpIPTTL           = 1 // "collector.ntp.ip-ttl", "IP TTL to use while sending NTP query"
+	ntpProtocolVersion = 4           // "collector.ntp.protocol-version", "NTP protocol version"
+	ntpServerIsLocal   = false       // "collector.ntp.server-is-local", "Certify that collector.ntp.server address is the same local host as this collector."
+	ntpIPTTL           = 1           // "collector.ntp.ip-ttl", "IP TTL to use while sending NTP query"
 	// 3.46608s ~ 1.5s + PHI * (1 << maxPoll), where 1.5s is MAXDIST from ntp.org, it is 1.0 in RFC5905
 	// max-distance option is used as-is without phi*(1<<poll)
 	ntpMaxDistance     = 3466080 * time.Microsecond // "collector.ntp.max-distance", "Max accumulated distance to the root"
-	ntpOffsetTolerance = 1 * time.Millisecond // "collector.ntp.local-offset-tolerance", "Offset between local clock and local ntpd time to tolerate"
+	ntpOffsetTolerance = 1 * time.Millisecond       // "collector.ntp.local-offset-tolerance", "Offset between local clock and local ntpd time to tolerate"
 
 	leapMidnight time.Time
 )

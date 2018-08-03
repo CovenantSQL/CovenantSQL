@@ -16,12 +16,14 @@
 
 package types
 
+// TxType represents the type of tx
 type TxType byte
 
 const (
 	TxTypeBilling TxType = 0
 )
 
+// String returns the TxType name
 func (tt *TxType) String() string {
 	switch *tt {
 	case TxTypeBilling:
@@ -31,6 +33,7 @@ func (tt *TxType) String() string {
 	}
 }
 
+// ToByte returns the the that represents the TxType
 func (tt *TxType) ToByte() byte {
 	return byte(*tt)
 }

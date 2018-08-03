@@ -1052,7 +1052,10 @@ func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 				return
 			}
 
-			expectAmounts[addr] += c.rt.price[ack.SignedRequestHeader().QueryType]
+			// TODO(leventeliu): use uint64 for all billing fields. This shound be done by merging
+			// branch from @lambda.
+			expectAmounts[addr] += c.rt.price[ack.SignedRequestHeader().QueryType] *
+				uint32(ack.SignedRequestHeader().BatchCount)
 		}
 	}
 

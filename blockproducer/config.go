@@ -17,11 +17,12 @@
 package blockproducer
 
 import (
+	"time"
+
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"time"
 )
 
 const (

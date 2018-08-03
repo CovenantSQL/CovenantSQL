@@ -219,7 +219,10 @@ func main() {
 				bpNodeIDs := route.GetBPs()
 
 				for _, bpNodeID := range bpNodeIDs {
-					rpc.PingBP(localNodeInfo, bpNodeID)
+					err := rpc.PingBP(localNodeInfo, bpNodeID)
+					if err == nil {
+						return
+					}
 				}
 			}
 		}()

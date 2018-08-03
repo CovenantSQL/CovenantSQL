@@ -187,6 +187,20 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(result, ShouldEqual, 4)
 
+		// test timestamp fields
+		_, err = db.Exec("CREATE TABLE test_time (test timestamp)")
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("INSERT INTO test_time VALUES(DATE('NOW'))")
+		So(err, ShouldBeNil)
+
+		row = db.QueryRow("SELECT * FROM test_time LIMIT 1")
+
+		var tmResult time.Time
+		err = row.Scan(&tmResult)
+		So(err, ShouldBeNil)
+		So(tmResult, ShouldHappenBefore, time.Now())
+
 		err = db.Close()
 		So(err, ShouldBeNil)
 

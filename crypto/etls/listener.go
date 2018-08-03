@@ -18,7 +18,6 @@ package etls
 
 import (
 	"net"
-
 )
 
 // CipherHandler is the func type for converting net.Conn to CryptoConn

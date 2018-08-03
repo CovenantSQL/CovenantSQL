@@ -19,13 +19,11 @@ package rpc
 import (
 	"context"
 	"errors"
+	"io"
 	"math/rand"
+	"net"
 	"net/rpc"
 	"sync"
-
-	"io"
-	"net"
-	"time"
 
 	"github.com/hashicorp/yamux"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -71,7 +69,7 @@ func (c *PersistentCaller) initClient(method string) (err error) {
 			log.Errorf("dialing to node: %s failed: %s", c.TargetID, err)
 			return
 		}
-		conn.SetDeadline(time.Time{})
+		//conn.SetDeadline(time.Time{})
 		c.client, err = InitClientConn(conn)
 		if err != nil {
 			log.Errorf("init RPC client failed: %s", err)

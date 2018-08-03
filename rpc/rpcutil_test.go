@@ -25,15 +25,16 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	"strings"
 	"gitlab.com/thunderdb/ThunderDB/utils"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (
@@ -233,7 +234,7 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
-	for i := 0; i < RPCConcurrent; i ++ {
+	for i := 0; i < RPCConcurrent; i++ {
 		wg.Add(1)
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
@@ -316,7 +317,6 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 		Count:  10,
 	}
 	resp := new(proto.FindNeighborResp)
-
 
 	b.Run("benchmark Persistent", func(b *testing.B) {
 		client = NewPersistentCaller(conf.GConf.BP.NodeID)

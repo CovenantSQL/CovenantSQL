@@ -30,7 +30,7 @@ import (
 
 var (
 	ignoredMountPoints = defIgnoredMountPoints
-	ignoredFSTypes = defIgnoredFSTypes
+	ignoredFSTypes     = defIgnoredFSTypes
 
 	filesystemLabelNames = []string{"device", "mountpoint", "fstype"}
 )

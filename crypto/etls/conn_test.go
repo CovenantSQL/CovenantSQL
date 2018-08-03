@@ -21,7 +21,6 @@ import (
 	"net/rpc"
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -86,9 +85,9 @@ func client(pass string) (ret int, err error) {
 		return 0, err
 	}
 	defer conn.Close()
-	conn.SetDeadline(time.Time{})
-	conn.SetReadDeadline(time.Time{})
-	conn.SetWriteDeadline(time.Time{})
+	//conn.SetDeadline(time.Time{})
+	//conn.SetReadDeadline(time.Time{})
+	//conn.SetWriteDeadline(time.Time{})
 
 	log.Println("client: connected to: ", conn.RemoteAddr())
 	log.Println("client: LocalAddr: ", conn.LocalAddr())

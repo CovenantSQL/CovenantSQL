@@ -1014,8 +1014,8 @@ func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 	}
 
 	// Build map for later test
-	actualAmounts := make(map[proto.AccountAddress]uint32)
-	expectAmounts := make(map[proto.AccountAddress]uint32)
+	actualAmounts := make(map[proto.AccountAddress]uint64)
+	expectAmounts := make(map[proto.AccountAddress]uint64)
 
 	for _, v := range unsigned.Header.GasAmounts {
 		actualAmounts[v.AccountAddress] += v.GasAmount
@@ -1052,10 +1052,8 @@ func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 				return
 			}
 
-			// TODO(leventeliu): use uint64 for all billing fields. This shound be done by merging
-			// branch from @lambda.
 			expectAmounts[addr] += c.rt.price[ack.SignedRequestHeader().QueryType] *
-				uint32(ack.SignedRequestHeader().BatchCount)
+				ack.SignedRequestHeader().BatchCount
 		}
 	}
 

@@ -1,0 +1,37 @@
+IsTestMode: true
+WorkingRoot: "../test/mainchain/node_multi_2"
+PubKeyStoreFile: "public.keystore"
+PrivateKeyFile: "private.key"
+DHTFileName: "dht.db"
+ListenAddr: "127.0.0.1:5232"
+ThisNodeID: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
+ValidDNSKeys:
+  koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
+  mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
+MinNodeIDDifficulty: 2
+DNSSeed:
+  EnforcedDNSSEC: false
+  DNSServers:
+  - 1.1.1.1
+  - 202.46.34.74
+  - 202.46.34.75
+  - 202.46.34.76
+
+BlockProducer:
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+KnownNodes:
+- ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+  Addr: 127.0.0.1:5230
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  Role: Leader

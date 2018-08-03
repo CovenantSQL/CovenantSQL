@@ -39,7 +39,10 @@ func TestService(t *testing.T) {
 		var server *rpc.Server
 		var err error
 
-		cleanup, dht, metricService, server, err = initNode()
+		cleanup, dht, metricService, server, err = initNode(
+			"../test/node_standalone/config.yaml",
+			"../test/node_standalone/private.key",
+		)
 		defer cleanup()
 
 		// get keys

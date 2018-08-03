@@ -208,3 +208,13 @@ func (b *Block) Verify() error {
 
 	return b.SignedHeader.Verify()
 }
+
+// Timestamp returns timestamp of block
+func (b *Block) Timestamp() time.Time {
+	return b.SignedHeader.Timestamp
+}
+
+// Producer returns the producer of block
+func (b *Block) Producer() proto.AccountAddress {
+	return b.SignedHeader.Producer
+}

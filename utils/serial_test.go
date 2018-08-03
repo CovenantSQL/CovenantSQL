@@ -149,7 +149,7 @@ func (s *testStruct) randomize() {
 	s.AddrAndGasField = proto.AddrAndGas{}
 	rand.Read(s.AddrAndGasField.AccountAddress[:])
 	rand.Read(s.AddrAndGasField.RawNodeID.Hash[:])
-	s.AddrAndGasField.GasAmount = rand.Uint32()
+	s.AddrAndGasField.GasAmount = rand.Uint64()
 
 	// Randomize PublicKeyField and SignatureField
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
@@ -235,7 +235,7 @@ func (s *testStruct) randomize() {
 		aag := proto.AddrAndGas{}
 		rand.Read(aag.AccountAddress[:])
 		rand.Read(aag.RawNodeID.Hash[:])
-		aag.GasAmount = rand.Uint32()
+		aag.GasAmount = rand.Uint64()
 		s.AddrAndGaseseField[i] = &aag
 	}
 

@@ -24,7 +24,7 @@ import (
 type state struct {
 	node   *blockNode
 	Head   hash.Hash
-	Height uint64
+	Height uint32
 }
 
 func (s *state) serialize() ([]byte, error) {

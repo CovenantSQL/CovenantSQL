@@ -235,9 +235,9 @@ func (s simpleSerializer) readSignatures(r io.Reader, order binary.ByteOrder, va
 
 // readAddrAndGas reads AddrAndGas from reader with the following format:
 //
-// 0             32             64          68
+// 0             32             64          72
 // +--------------+--------------+----------+
-// |     hash     |     hash     |  uint32  |
+// |     hash     |     hash     |  uint64  |
 // +--------------+--------------+----------+
 //
 func (s simpleSerializer) readAddrAndGas(r io.Reader, order binary.ByteOrder, ret *proto.AddrAndGas) (err error) {
@@ -253,7 +253,7 @@ func (s simpleSerializer) readAddrAndGas(r io.Reader, order binary.ByteOrder, re
 		return err
 	}
 
-	gasAmount, err := s.readUint32(r, order)
+	gasAmount, err := s.readUint64(r, order)
 	if err != nil {
 		return err
 	}
@@ -726,9 +726,9 @@ func (s simpleSerializer) writeString(w io.Writer, order binary.ByteOrder, val *
 
 // writeAddrAndGas writes AddrAndGas to writer with the following format:
 //
-// 0             32             64          68
+// 0             32             64          72
 // +--------------+--------------+----------+
-// |     hash     |     hash     |  uint32  |
+// |     hash     |     hash     |  uint64  |
 // +--------------+--------------+----------+
 //
 func (s simpleSerializer) writeAddrAndGas(w io.Writer, order binary.ByteOrder, val *proto.AddrAndGas) (err error) {
@@ -740,7 +740,7 @@ func (s simpleSerializer) writeAddrAndGas(w io.Writer, order binary.ByteOrder, v
 	if err != nil {
 		return
 	}
-	err = s.writeUint32(w, binary.BigEndian, val.GasAmount)
+	err = s.writeUint64(w, binary.BigEndian, val.GasAmount)
 	if err != nil {
 		return
 	}

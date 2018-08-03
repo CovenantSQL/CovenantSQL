@@ -61,6 +61,13 @@ type RequestHeader struct {
 	QueriesHash  hash.Hash // hash of query payload
 }
 
+// QueryKey defines an unique query key of a request.
+type QueryKey struct {
+	NodeID       proto.NodeID
+	ConnectionID uint64
+	SeqNo        uint64
+}
+
 // SignedRequestHeader defines a signed query request header.
 type SignedRequestHeader struct {
 	RequestHeader
@@ -231,4 +238,13 @@ func (sh *SignedRequestHeader) UnmarshalBinary(b []byte) error {
 		&sh.Signee,
 		&sh.Signature,
 	)
+}
+
+// GetQueryKey returns a unique query key of this request.
+func (sh *SignedRequestHeader) GetQueryKey() QueryKey {
+	return QueryKey{
+		NodeID:       sh.NodeID,
+		ConnectionID: sh.ConnectionID,
+		SeqNo:        sh.SeqNo,
+	}
 }

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd $TEST_WD/../../; pwd)

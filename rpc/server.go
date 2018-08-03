@@ -129,7 +129,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		remoteNodeID = c.NodeID
 	}
 
-	sess, err := yamux.Server(conn, nil)
+	sess, err := yamux.Server(conn, YamuxConfig)
 	if err != nil {
 		log.Error(err)
 		return

@@ -43,7 +43,7 @@ network:
     groups:
       - bp
       - miner
-    delay: "200ms 10ms 1%"
+    delay: "2000ms 1000ms 10%"
     corrupt: "0.2%"
     rate: "10mbit"
 

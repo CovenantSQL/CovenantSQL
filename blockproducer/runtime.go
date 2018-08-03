@@ -82,6 +82,7 @@ func newRuntime(cfg *config, accountAddress proto.AccountAddress) *rt {
 		}
 	}
 	return &rt{
+		stopCh:         make(chan struct{}),
 		chainInitTime:  cfg.genesis.SignedHeader.Timestamp,
 		accountAddress: accountAddress,
 		server:         cfg.server,
@@ -166,5 +167,4 @@ func (r *rt) stop() {
 }
 
 func (r *rt) stopService() {
-
 }

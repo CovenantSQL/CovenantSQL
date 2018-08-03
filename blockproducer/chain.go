@@ -60,9 +60,11 @@ type Chain struct {
 	st *state
 	cl *rpc.Caller
 
-	blocks     chan *types.Block
-	txbillings chan *types.TxBilling
-	stopCh     chan struct{}
+	blocksFromSelf    chan *types.Block
+	blocksFromRPC     chan *types.Block
+	txBillingFromSelf chan *types.TxBilling
+	txBillingFromPRC  chan *types.TxBilling
+	stopCh            chan struct{}
 }
 
 // NewChain creates a new blockchain
@@ -116,17 +118,20 @@ func NewChain(cfg *config) (*Chain, error) {
 
 	// create chain
 	chain := &Chain{
-		db: db,
-		bi: newBlockIndex(),
-		ti: newTxIndex(),
-		rt: newRuntime(cfg, accountAddress),
-		st: &state{},
-		cl: rpc.NewCaller(),
+		db:                db,
+		bi:                newBlockIndex(),
+		ti:                newTxIndex(),
+		rt:                newRuntime(cfg, accountAddress),
+		st:                &state{},
+		cl:                rpc.NewCaller(),
+		blocksFromSelf:    make(chan *types.Block),
+		blocksFromRPC:     make(chan *types.Block),
+		txBillingFromSelf: make(chan *types.TxBilling),
+		txBillingFromPRC:  make(chan *types.TxBilling),
+		stopCh:            make(chan struct{}),
 	}
 
 	chain.pushGenesisBlock(cfg.genesis)
-
-	chain.rt.server.RegisterService(MainChainRPCName, chain)
 
 	return chain, nil
 }
@@ -151,12 +156,17 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	chain = &Chain{
-		db: db,
-		bi: newBlockIndex(),
-		ti: newTxIndex(),
-		rt: newRuntime(cfg, accountAddress),
-		st: &state{},
-		cl: rpc.NewCaller(),
+		db:                db,
+		bi:                newBlockIndex(),
+		ti:                newTxIndex(),
+		rt:                newRuntime(cfg, accountAddress),
+		st:                &state{},
+		cl:                rpc.NewCaller(),
+		blocksFromSelf:    make(chan *types.Block),
+		blocksFromRPC:     make(chan *types.Block),
+		txBillingFromSelf: make(chan *types.TxBilling),
+		txBillingFromPRC:  make(chan *types.TxBilling),
+		stopCh:            make(chan struct{}),
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) error {
@@ -245,8 +255,6 @@ func LoadChain(cfg *config) (chain *Chain, err error) {
 	if err != nil {
 		return nil, err
 	}
-
-	chain.rt.server.RegisterService(MainChainRPCName, chain)
 
 	return chain, nil
 }
@@ -541,7 +549,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 			rewards[i] = 0
 
 			enc := accountBucket.Get(addrAndGas.AccountAddress[:])
-			if len(enc) == 0 {
+			if enc == nil {
 				accounts[i] = &types.Account{
 					Address:            addrAndGas.AccountAddress,
 					StableCoinBalance:  addrAndGas.GasAmount * uint64(gasprice),
@@ -551,7 +559,12 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 					Rating:             0.0,
 				}
 			} else {
-				accounts[i].StableCoinBalance = accounts[i].StableCoinBalance + addrAndGas.GasAmount*uint64(gasprice)
+				var dec types.Account
+				err = dec.UnmarshalBinary(enc)
+				if err != nil {
+					return err
+				}
+				accounts[i].StableCoinBalance = dec.StableCoinBalance + addrAndGas.GasAmount*uint64(gasprice)
 				included := false
 				for j := range accounts[i].SQLChains {
 					if accounts[i].SQLChains[j] == br.Header.DatabaseID {
@@ -563,11 +576,6 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 					accounts[i].SQLChains = append(accounts[i].SQLChains, br.Header.DatabaseID)
 					accounts[i].Roles = append(accounts[i].Roles, types.Miner)
 				}
-			}
-			var dec types.Account
-			err = dec.UnmarshalBinary(enc)
-			if err != nil {
-				return err
 			}
 		}
 		return nil
@@ -619,10 +627,9 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 	var seqID uint32
 	var tc *types.TxContent
 	var tb *types.TxBilling
-	err = c.db.Update(func(tx *bolt.Tx) error {
+	err = c.db.View(func(tx *bolt.Tx) error {
 		meta := tx.Bucket(metaBucket[:])
 		metaLastTB := meta.Bucket(metaLastTxBillingIndexBucket)
-		metaTB := meta.Bucket(metaTxBillingIndexBucket)
 
 		// generate unique seqID
 		buffer := bytes.NewBuffer(nil)
@@ -646,31 +653,14 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 		tb = types.NewTxBilling(tc, types.TxTypeBilling, &c.rt.accountAddress)
 		tb.PackAndSignTx(privKey)
 
-		// serialize and store in db
-		buffer.Reset()
-		err = utils.WriteElements(buffer, binary.BigEndian, seqID)
-		if err != nil {
-			return err
-		}
-		encSequenceID := buffer.Bytes()
-		encTxBilling, err := tb.Serialize()
-		if err != nil {
-			return err
-		}
-
-		metaLastTB.Put(encDatabaseID, encSequenceID)
-		metaTB.Put(tb.TxHash[:], encTxBilling)
-
-		// index in mempool
-		c.ti.addTxBilling(tb)
-		c.ti.updateLastTxBilling(tb.GetDatabaseID(), tb.GetSequenceID())
-
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	log.Debugf("response is %s", resp.RequestHash)
 	// 2. push tx
+	c.txBillingFromSelf <- tb
 	tbReq := &AdviseTxBillingReq{
 		Envelope: proto.Envelope{
 			// TODO(lambda): Add fields.
@@ -698,6 +688,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 			}(s.ID)
 		}
 	}
+	wg.Wait()
 
 	return resp, nil
 }
@@ -711,7 +702,7 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 	// TODO(lambda): get and check period and miner list of specific sqlchain
 
 	// request's hash
-	enc, err := br.MarshalBinary()
+	enc, err := br.Header.MarshalBinary()
 	if err != nil {
 		return err
 	}
@@ -819,7 +810,7 @@ func (c *Chain) processBlocks() {
 		defer rsWG.Done()
 		for _, block := range stash {
 			select {
-			case c.blocks <- block:
+			case c.blocksFromRPC <- block:
 			case <-rsCh:
 				return
 			}
@@ -835,7 +826,15 @@ func (c *Chain) processBlocks() {
 	var stash []*types.Block
 	for {
 		select {
-		case block := <-c.blocks:
+		case block := <-c.blocksFromSelf:
+			h := c.rt.getHeightFromTime(block.Timestamp())
+			if h == c.rt.getNextTurn()-1 {
+				err := c.pushBlockWithoutCheck(block)
+				if err != nil {
+					log.Error(err)
+				}
+			}
+		case block := <-c.blocksFromRPC:
 			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
 				if stash == nil {
@@ -847,15 +846,9 @@ func (c *Chain) processBlocks() {
 				if h < c.rt.getNextTurn()-1 {
 					// TODO(lambda): check and add to fork list.
 				} else {
-					// TODO(lambda): change nodeID to accountAddress
-					if block.Producer() == c.rt.accountAddress {
-						if err := c.pushBlockWithoutCheck(block); err != nil {
-
-						}
-					} else {
-						if err := c.pushBlock(block); err != nil {
-
-						}
+					err := c.pushBlock(block)
+					if err != nil {
+						log.Error(err)
 					}
 				}
 
@@ -877,6 +870,28 @@ func (c *Chain) processTxBillings() {
 	defer c.rt.wg.Done()
 	for {
 		select {
+		case tb := <-c.txBillingFromSelf:
+			err := c.pushTxBillingWithoutCheck(tb)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"peer":        c.rt.getPeerInfoString(),
+					"next_turn":   c.rt.getNextTurn(),
+					"head_height": c.st.Height,
+					"head_block":  c.st.Head.String(),
+					"tx_hash":     tb.TxHash,
+				}).Debugf("Failed to push self-producing tx billing with error: %v", err)
+			}
+		case tb := <-c.txBillingFromPRC:
+			err := c.pushTxBilling(tb)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"peer":        c.rt.getPeerInfoString(),
+					"next_turn":   c.rt.getNextTurn(),
+					"head_height": c.st.Height,
+					"head_block":  c.st.Head.String(),
+					"tx_hash":     tb.TxHash,
+				}).Debugf("Failed to push rpc tx billing with error: %v", err)
+			}
 		case <-c.stopCh:
 			return
 		}
@@ -931,7 +946,8 @@ func (c *Chain) syncHead() {
 
 		for i, s := range peers.Servers {
 			if s.ID != c.rt.nodeID {
-				if err = c.cl.CallNode(s.ID, method, req, resp); err != nil || resp.Block == nil {
+				err = c.cl.CallNode(s.ID, method, req, resp)
+				if err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
@@ -941,7 +957,7 @@ func (c *Chain) syncHead() {
 					}).WithError(err).Debug(
 						"Failed to fetch block from peer")
 				} else {
-					c.blocks <- resp.Block
+					c.blocksFromRPC <- resp.Block
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),

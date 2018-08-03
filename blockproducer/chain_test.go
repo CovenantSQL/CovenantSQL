@@ -40,14 +40,11 @@ import (
 )
 
 var (
-	testPeersNumber                           = 1
-	testPeriod                                = 1 * time.Second
-	testTick                                  = 100 * time.Millisecond
-	testQueryTTL             int32            = 10
-	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testChainService                          = "main-chain.thunderdb.rpc"
-	testPeriodNumber         uint32           = 10
-	testClientNumberPerChain                  = 10
+	testPeersNumber                 = 1
+	testPeriod                      = 1 * time.Second
+	testTick                        = 100 * time.Millisecond
+	testPeriodNumber         uint32 = 10
+	testClientNumberPerChain        = 10
 )
 
 type nodeProfile struct {
@@ -291,7 +288,7 @@ func TestMultiNode(t *testing.T) {
 
 							bReq := &AdviseBillingReq{
 								Envelope: proto.Envelope{
-									// TODO(lambda): Add fields.
+								// TODO(lambda): Add fields.
 								},
 								Req: br,
 							}

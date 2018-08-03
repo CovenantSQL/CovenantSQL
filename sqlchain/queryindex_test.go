@@ -225,7 +225,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	// Revert index state for the first block, and test checking again
-	qi.heightIndex.mustGet(height).seqIndex[req.SeqNo].firstAck.signedBlock = nil
+	qi.heightIndex.mustGet(height).seqIndex[req.GetQueryKey()].firstAck.signedBlock = nil
 
 	if _, err = qi.checkAckFromBlock(
 		height, b2.BlockHash(), b2.Queries[0],
@@ -234,7 +234,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	// Test corrupted index
-	qi.heightIndex.mustGet(height).seqIndex[req.SeqNo] = nil
+	qi.heightIndex.mustGet(height).seqIndex[req.GetQueryKey()] = nil
 
 	if _, err = qi.checkAckFromBlock(
 		height, b2.BlockHash(), b2.Queries[0],
@@ -303,8 +303,8 @@ func TestQueryIndex(t *testing.T) {
 					t.Fatalf("Error occurred: %v", err)
 				}
 
-				t.Logf("i = %d, j = %d, k = %d\n\tseqno = %d, req = %v, resp = %v", i, j, k,
-					resp.Request.SeqNo, &req.HeaderHash, &resp.HeaderHash)
+				t.Logf("i = %d, j = %d, k = %d\n\tseqno = %+v, req = %v, resp = %v", i, j, k,
+					resp.Request.GetQueryKey(), &req.HeaderHash, &resp.HeaderHash)
 
 				if err = qi.addResponse(int32(i), resp); err != nil {
 					t.Fatalf("Error occurred: %v", err)
@@ -316,10 +316,10 @@ func TestQueryIndex(t *testing.T) {
 					for l := 0; l < dupAckNumber; l++ {
 						ack, err := createRandomQueryAckWithResponse(resp, cli)
 
-						t.Logf("i = %d, j = %d, k = %d, l = %d\n\tseqno = %d, "+
+						t.Logf("i = %d, j = %d, k = %d, l = %d\n\tseqno = %+v, "+
 							"req = %v, resp = %v, ack = %v",
 							i, j, k, l,
-							ack.SignedRequestHeader().SeqNo,
+							ack.SignedRequestHeader().GetQueryKey(),
 							&ack.SignedRequestHeader().HeaderHash,
 							&ack.SignedResponseHeader().HeaderHash,
 							&ack.HeaderHash,
@@ -372,6 +372,18 @@ func TestQueryIndex(t *testing.T) {
 					t.Fatalf("Error occurred: %v", err)
 				} else if !isKnown {
 					t.Logf("Failed to check known ack: %s", block.Queries[j])
+				}
+			}
+
+			qi.resetSignedBlock(int32(i), block)
+
+			for j := range block.Queries {
+				if isKnown, err := qi.checkAckFromBlock(
+					int32(i), block.BlockHash(), block.Queries[j],
+				); err != nil {
+					t.Fatalf("Error occurred: %v", err)
+				} else if !isKnown {
+					t.Fatalf("Unexpected result: block is known")
 				}
 			}
 		}

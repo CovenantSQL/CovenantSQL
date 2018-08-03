@@ -90,6 +90,7 @@ type FetchTxBillingResp struct {
 
 // AdviseNewBlock is the RPC method to advise a new block to target server
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
+	s.chain.blocksFromRPC <- req.Block
 	return s.chain.pushBlock(req.Block)
 }
 

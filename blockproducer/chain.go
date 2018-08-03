@@ -446,7 +446,7 @@ func (c *Chain) pushTxBillingWithoutCheck(tb *types.TxBilling) error {
 		return err
 	}
 	c.ti.addTxBilling(tb)
-	if tb.SignedBlock != nil {
+	if tb.IsSigned() {
 		c.ti.updateLastTxBilling(tb.GetDatabaseID(), tb.GetSequenceID())
 	}
 	return nil
@@ -486,7 +486,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	}
 
 	for i := range b.TxBillings {
-		b.TxBillings[i].SignedBlock = &b.SignedHeader.BlockHash
+		b.TxBillings[i].SetSignedBlock(&b.SignedHeader.BlockHash)
 	}
 
 	err = c.pushBlockWithoutCheck(b)

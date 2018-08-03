@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 
@@ -48,14 +49,14 @@ func NewTxContent(seqID uint32,
 	fees []uint64,
 	rewards []uint64,
 	bResp *BillingResponse) *TxContent {
-		return &TxContent{
-			SequenceID: seqID,
-			BillingRequest: *bReq,
-			Receivers: receivers,
-			Fees: fees,
-			Rewards: rewards,
-			BillingResponse: *bResp,
-		}
+	return &TxContent{
+		SequenceID:      seqID,
+		BillingRequest:  *bReq,
+		Receivers:       receivers,
+		Fees:            fees,
+		Rewards:         rewards,
+		BillingResponse: *bResp,
+	}
 }
 
 // MarshalBinary implements BinaryMarshaler.
@@ -106,6 +107,7 @@ func (tb *TxContent) GetHash() (*hash.Hash, error) {
 
 // TxBilling is a type of tx, that is used to record sql chain billing and block rewards
 type TxBilling struct {
+	sync.Mutex
 	TxContent      TxContent
 	TxType         byte
 	AccountAddress *proto.AccountAddress
@@ -118,8 +120,8 @@ type TxBilling struct {
 // NewTxBilling generates a new TxBilling
 func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddress) *TxBilling {
 	return &TxBilling{
-		TxContent: *txContent,
-		TxType: txType.ToByte(),
+		TxContent:      *txContent,
+		TxType:         txType.ToByte(),
 		AccountAddress: addr,
 	}
 }
@@ -177,4 +179,25 @@ func (tb *TxBilling) GetDatabaseID() *proto.DatabaseID {
 // GetSequenceID gets the sequence ID
 func (tb *TxBilling) GetSequenceID() uint32 {
 	return tb.TxContent.SequenceID
+}
+
+// IsSigned shows whether the tx billing is signed
+func (tb *TxBilling) IsSigned() bool {
+	tb.Lock()
+	defer tb.Unlock()
+	return tb.SignedBlock != nil
+}
+
+// SetSignedBlock sets the tx billing with block hash
+func (tb *TxBilling) SetSignedBlock(h *hash.Hash) {
+	tb.Lock()
+	defer tb.Unlock()
+	tb.SignedBlock = h
+}
+
+// GetSignedBlock gets the block hash
+func (tb *TxBilling) GetSignedBlock() *hash.Hash {
+	tb.Lock()
+	defer tb.Unlock()
+	return tb.SignedBlock
 }

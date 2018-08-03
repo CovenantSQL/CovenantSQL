@@ -23,7 +23,7 @@ func TestMountPointDetails(t *testing.T) {
 	//if _, err := kingpin.CommandLine.Parse([]string{"--path.procfs", "./fixtures/proc"}); err != nil {
 	//	t.Fatal(err)
 	//}
-	ProcPath =  "./fixtures/proc"
+	ProcPath = "./fixtures/proc"
 	expected := map[string]string{
 		"/":                               "",
 		"/sys":                            "",

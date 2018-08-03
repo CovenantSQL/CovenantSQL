@@ -246,6 +246,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 		os.RemoveAll(d)
 		server.Listener.Close()
 		server.Stop()
+		rpc.GetSessionPoolInstance().Close()
 	}
 
 	return

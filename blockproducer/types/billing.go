@@ -26,7 +26,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-// BillingRequestHeader includes contents that need to be signed
+// BillingRequestHeader includes contents that need to be signed. Billing blocks should be within
+// height range [low, high] (inclusive).
 type BillingRequestHeader struct {
 	DatabaseID proto.DatabaseID
 	// sqlchain block hash and its height

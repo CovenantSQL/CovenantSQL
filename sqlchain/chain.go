@@ -975,6 +975,108 @@ func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
 	return c.rt.updatePeers(peers)
 }
 
+// getBilling returns a billing request from the blocks within height range [low, high].
+func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) {
+	// Height `n` is ensured (or skipped) if `Next Turn` > `n` + 1
+	if c.rt.getNextTurn() <= high+1 {
+		err = ErrUnavailableBillingRang
+		return
+	}
+
+	var (
+		n                   *blockNode
+		addr                proto.AccountAddress
+		ack                 *wt.SignedAckHeader
+		lowBlock, highBlock *ct.Block
+		billings            = make(map[proto.AccountAddress]*proto.AddrAndGas)
+	)
+
+	if head := c.rt.getHead(); head != nil {
+		n = head.node
+	}
+
+	for ; n != nil && n.height > high; n = n.parent {
+	}
+
+	for ; n != nil && n.height >= low; n = n.parent {
+		if lowBlock == nil {
+			lowBlock = n.block
+		}
+
+		highBlock = n.block
+
+		if addr, err = utils.PubKeyHash(n.block.Signee()); err != nil {
+			return
+		}
+
+		if billing, ok := billings[addr]; ok {
+			billing.GasAmount = c.rt.producingReward
+		} else {
+			producer := n.block.Producer()
+			billings[addr] = &proto.AddrAndGas{
+				AccountAddress: addr,
+				RawNodeID:      *producer.ToRawNodeID(),
+				GasAmount:      c.rt.producingReward,
+			}
+		}
+
+		for _, v := range n.block.Queries {
+			if ack, err = c.queryOrSyncAckedQuery(n.height, v, n.block.Producer()); err != nil {
+				return
+			}
+
+			if addr, err = utils.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
+				return
+			}
+
+			if billing, ok := billings[addr]; ok {
+				billing.GasAmount += c.rt.price[ack.SignedRequestHeader().QueryType] *
+					ack.SignedRequestHeader().BatchCount
+			} else {
+				billings[addr] = &proto.AddrAndGas{
+					AccountAddress: addr,
+					RawNodeID:      *ack.SignedResponseHeader().NodeID.ToRawNodeID(),
+					GasAmount:      c.rt.producingReward,
+				}
+			}
+		}
+	}
+
+	if lowBlock == nil || highBlock == nil {
+		err = ErrUnavailableBillingRang
+		return
+	}
+
+	// Make request
+	gasAmounts := make([]*proto.AddrAndGas, 0, len(billings))
+
+	for _, v := range billings {
+		gasAmounts = append(gasAmounts, v)
+	}
+
+	req = &pt.BillingRequest{
+		Header: pt.BillingRequestHeader{
+			DatabaseID: c.rt.databaseID,
+			LowBlock:   *lowBlock.BlockHash(),
+			LowHeight:  low,
+			HighBlock:  *highBlock.BlockHash(),
+			HighHeight: high,
+			GasAmounts: gasAmounts,
+		},
+	}
+	return
+}
+
+func (c *Chain) LaunchBilling(low, high int32) (err error) {
+	defer log.WithFields(log.Fields{
+		"peer": c.rt.getPeerInfoString(),
+		"time": c.rt.getChainTimeString(),
+		"low":  low,
+		"high": high,
+	}).WithError(err).Debug("Launched billing process")
+	return
+}
+
 // SignBilling signs a billing request.
 func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 	pub *asymmetric.PublicKey, signature *asymmetric.Signature, err error,
@@ -1000,19 +1102,18 @@ func (c *Chain) SignBilling(low, high int32, unsigned *pt.BillingRequest) (
 	}
 
 	// Verify gas amounts
-	var n *blockNode
+	var (
+		n    *blockNode
+		addr proto.AccountAddress
+		ack  *wt.SignedAckHeader
+	)
 
 	if head := c.rt.getHead(); head != nil {
 		n = head.node
 	}
 
-	for ; n != nil && n.height >= high; n = n.parent {
+	for ; n != nil && n.height > high; n = n.parent {
 	}
-
-	var (
-		addr proto.AccountAddress
-		ack  *wt.SignedAckHeader
-	)
 
 	for ; n != nil && n.height >= low; n = n.parent {
 		if addr, err = utils.PubKeyHash(n.block.Signee()); err != nil {

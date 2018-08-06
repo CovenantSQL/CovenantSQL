@@ -153,10 +153,12 @@ func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling)
 
 func generateRandomBillingRequestHeader() *types.BillingRequestHeader {
 	return &types.BillingRequestHeader{
-		DatabaseID:  *generateRandomDatabaseID(),
-		BlockHash:   generateRandomHash(),
-		BlockHeight: rand.Int31(),
-		GasAmounts:  generateRandomGasAmount(peerNum),
+		DatabaseID: *generateRandomDatabaseID(),
+		LowBlock:   generateRandomHash(),
+		LowHeight:  rand.Int31(),
+		HighBlock:  generateRandomHash(),
+		HighHeight: rand.Int31(),
+		GasAmounts: generateRandomGasAmount(peerNum),
 	}
 }
 

@@ -681,31 +681,16 @@ func (c *Chain) processBlocks() {
 				if height < c.rt.getNextTurn()-1 {
 					// TODO(leventeliu): check and add to fork list.
 				} else {
-					if block.Producer() == c.rt.getServer().ID {
-						// TODO(leventeliu): it's not safe to skip checking here.
-						if err := c.pushBlock(block); err != nil {
-							log.WithFields(log.Fields{
-								"peer":         c.rt.getPeerInfoString(),
-								"time":         c.rt.getChainTimeString(),
-								"curr_turn":    c.rt.getNextTurn(),
-								"head_height":  c.rt.getHead().Height,
-								"head_block":   c.rt.getHead().Head.String(),
-								"block_height": height,
-								"block_hash":   block.BlockHash().String(),
-							}).Error("Failed to push new block")
-						}
-					} else {
-						if err := c.CheckAndPushNewBlock(block); err != nil {
-							log.WithFields(log.Fields{
-								"peer":         c.rt.getPeerInfoString(),
-								"time":         c.rt.getChainTimeString(),
-								"curr_turn":    c.rt.getNextTurn(),
-								"head_height":  c.rt.getHead().Height,
-								"head_block":   c.rt.getHead().Head.String(),
-								"block_height": height,
-								"block_hash":   block.BlockHash().String(),
-							}).Error("Failed to check and push new block")
-						}
+					if err := c.CheckAndPushNewBlock(block); err != nil {
+						log.WithFields(log.Fields{
+							"peer":         c.rt.getPeerInfoString(),
+							"time":         c.rt.getChainTimeString(),
+							"curr_turn":    c.rt.getNextTurn(),
+							"head_height":  c.rt.getHead().Height,
+							"head_block":   c.rt.getHead().Head.String(),
+							"block_height": height,
+							"block_hash":   block.BlockHash().String(),
+						}).Error("Failed to check and push new block")
 					}
 				}
 
@@ -892,26 +877,24 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 		"blockparent": block.ParentHash().String(),
 		"headblock":   head.Head.String(),
 		"headheight":  head.Height,
-	}).Debug("Checking new block from other peer")
+	}).WithError(err).Debug("Checking new block from other peer")
 
 	if head.Height == height && head.Head.IsEqual(block.BlockHash()) {
 		// Maybe already set by FetchBlock
 		return nil
 	} else if !block.ParentHash().IsEqual(&head.Head) {
 		// Pushed block must extend the best chain
-		log.WithFields(log.Fields{
-			"peer":        c.rt.getPeerInfoString(),
-			"time":        c.rt.getChainTimeString(),
-			"block":       block.BlockHash().String(),
-			"producer":    block.Producer(),
-			"blocktime":   block.Timestamp().Format(time.RFC3339Nano),
-			"blockheight": height,
-			"blockparent": block.ParentHash().String(),
-			"headblock":   head.Head.String(),
-			"headheight":  height,
-		}).WithError(ErrInvalidBlock).Error(
-			"Failed to check new block")
 		return ErrInvalidBlock
+	}
+
+	// Verify block signatures
+	if err = block.Verify(); err != nil {
+		return
+	}
+
+	// Short circuit the checking process if it's a self-produced block
+	if block.Producer() == c.rt.server.ID {
+		return c.pushBlock(block)
 	}
 
 	// Check block producer
@@ -954,11 +937,6 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 				return
 			}
 		}
-	}
-
-	// Verify block signatures
-	if err = block.Verify(); err != nil {
-		return
 	}
 
 	return c.pushBlock(block)

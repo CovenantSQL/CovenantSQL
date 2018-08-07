@@ -19,6 +19,7 @@ package sqlchain
 import (
 	"sync"
 
+	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
@@ -135,14 +136,26 @@ type MuxFetchAckedQueryResp struct {
 type MuxSignBillingReq struct {
 	proto.Envelope
 	proto.DatabaseID
-	SignBillingReq
+	pt.BillingRequest
 }
 
 // MuxSignBillingResp defines a response of the SignBilling RPC method.
 type MuxSignBillingResp struct {
 	proto.Envelope
 	proto.DatabaseID
-	SignBillingResp
+	pt.BillingResponse
+}
+
+type MuxLaunchBillingReq struct {
+	proto.Envelope
+	proto.DatabaseID
+	LaunchBillingReq
+}
+
+type MuxLaunchBillingResp struct {
+	proto.Envelope
+	proto.DatabaseID
+	LaunchBillingResp
 }
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
@@ -193,7 +206,7 @@ func (s *MuxService) AdviseAckedQuery(
 	return ErrUnknownMuxRequest
 }
 
-// FetchBlock is the RPC method to fetch a known block form the target server.
+// FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *MuxService) FetchBlock(req *MuxFetchBlockReq, resp *MuxFetchBlockResp) (err error) {
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
@@ -204,7 +217,7 @@ func (s *MuxService) FetchBlock(req *MuxFetchBlockReq, resp *MuxFetchBlockResp) 
 	return ErrUnknownMuxRequest
 }
 
-// FetchAckedQuery is the RPC method to fetch a known block form the target server.
+// FetchAckedQuery is the RPC method to fetch a known block from the target server.
 func (s *MuxService) FetchAckedQuery(
 	req *MuxFetchAckedQueryReq, resp *MuxFetchAckedQueryResp) (err error) {
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
@@ -217,12 +230,25 @@ func (s *MuxService) FetchAckedQuery(
 	return ErrUnknownMuxRequest
 }
 
-// SignBilling is the RPC method to get signature for a billing request form the target server.
+// SignBilling is the RPC method to get signature for a billing request from the target server.
 func (s *MuxService) SignBilling(req *MuxSignBillingReq, resp *MuxSignBillingResp) (err error) {
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).SignBilling(&req.SignBillingReq, &resp.SignBillingResp)
+		return v.(*ChainRPCService).SignBilling(&req.BillingRequest, &resp.BillingResponse)
+	}
+
+	return ErrUnknownMuxRequest
+}
+
+// LaunchBilling is the RPC method to launch a new billing process in the target server.
+func (s *MuxService) LaunchBilling(req *MuxLaunchBillingReq, resp *MuxLaunchBillingResp) (
+	err error,
+) {
+	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
+		resp.Envelope = req.Envelope
+		resp.DatabaseID = req.DatabaseID
+		return v.(*ChainRPCService).LaunchBilling(&req.LaunchBillingReq, &resp.LaunchBillingResp)
 	}
 
 	return ErrUnknownMuxRequest

@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"gitlab.com/thunderdb/ThunderDB/utils"
@@ -30,22 +31,27 @@ var (
 	baseDir        = utils.GetProjectSrcDir()
 	testWorkingDir = FJ(baseDir, "./test/GNTE/conf")
 	logDir         = FJ(testWorkingDir, "./log/")
+	once           sync.Once
 )
 
 var FJ = filepath.Join
 
 func BenchmarkThunderDBDriver(b *testing.B) {
 	var err error
+	log.SetLevel(log.DebugLevel)
 	err = os.Chdir(testWorkingDir)
 	if err != nil {
 		log.Errorf("change working dir failed: %s", err)
 		return
 	}
 
-	err = Init(FJ(testWorkingDir, "./node_c/config.yaml"), []byte(""))
-	if err != nil {
-		b.Fatal(err)
-	}
+	once.Do(func() {
+		log.Debug("benchmarking")
+		err = Init(FJ(testWorkingDir, "./node_c/config.yaml"), []byte(""))
+		if err != nil {
+			b.Fatal(err)
+		}
+	})
 
 	// create
 	dsn, err := Create(ResourceMeta{Node: 3})
@@ -77,8 +83,8 @@ func BenchmarkThunderDBDriver(b *testing.B) {
 		if err != nil || result != 4 {
 			b.Fatal(err)
 		}
+		log.Debugf("result %d", result)
 	}
-
 	err = db.Close()
 	if err != nil {
 		b.Fatal(err)

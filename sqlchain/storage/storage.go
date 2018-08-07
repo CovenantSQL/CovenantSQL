@@ -340,6 +340,14 @@ func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64
 
 // Close implements database safe close feature.
 func (s *Storage) Close() (err error) {
+	d, err := NewDSN(s.dsn)
+	if err != nil {
+		return
+	}
+
+	index.Lock()
+	defer index.Unlock()
+	delete(index.db, d.filename)
 	return s.db.Close()
 }
 

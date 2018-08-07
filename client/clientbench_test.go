@@ -18,10 +18,9 @@ package client
 
 import (
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
-	"time"
-	"os"
 
 	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -42,7 +41,6 @@ func BenchmarkThunderDBDriver(b *testing.B) {
 		log.Errorf("change working dir failed: %s", err)
 		return
 	}
-
 
 	err = Init(FJ(testWorkingDir, "./node_c/config.yaml"), []byte(""))
 	if err != nil {
@@ -70,27 +68,23 @@ func BenchmarkThunderDBDriver(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	row := db.QueryRow("SELECT * FROM test LIMIT 1")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		row := db.QueryRow("SELECT * FROM test LIMIT 1")
 
-	var result int
-	err = row.Scan(&result)
-
-	// test timestamp fields
-	_, err = db.Exec("CREATE TABLE test_time (test timestamp)")
-
-	_, err = db.Exec("INSERT INTO test_time VALUES(DATE('NOW'))")
-
-	row = db.QueryRow("SELECT * FROM test_time LIMIT 1")
-
-	var tmResult time.Time
-	err = row.Scan(&tmResult)
+		var result int
+		err = row.Scan(&result)
+		if err != nil || result != 4 {
+			b.Fatal(err)
+		}
+	}
 
 	err = db.Close()
-
+	if err != nil {
+		b.Fatal(err)
+	}
 	err = Drop(dsn)
-
-	//b.ResetTimer()
-	//for i := 0; i < b.N; i++ {
-	//}
+	if err != nil {
+		b.Fatal(err)
+	}
 }
-

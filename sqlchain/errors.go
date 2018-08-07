@@ -78,8 +78,12 @@ var (
 	ErrInvalidProducer = errors.New("invalid block producer")
 
 	// ErrUnavailableBillingRang indicates that the billing range is not abailable now.
-	ErrUnavailableBillingRang = errors.New("Unabailable billing range")
+	ErrUnavailableBillingRang = errors.New("unabailable billing range")
+
+	// ErrHashNotMatch indicates that a message hash value doesn't match the original hash value
+	// given in its hash field.
+	ErrHashNotMatch = errors.New("hash value doesn't match")
 
 	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
-	ErrBillingNotMatch = errors.New("Billing request doesn't match")
+	ErrBillingNotMatch = errors.New("uilling request doesn't match")
 )

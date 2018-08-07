@@ -86,10 +86,12 @@ type FetchAckedQueryResp struct {
 	Ack *wt.SignedAckHeader
 }
 
+// SignBillingReq defines a request of the SignBilling RPC method.
 type SignBillingReq struct {
 	pt.BillingRequest
 }
 
+// SignBillingResp defines a response of the SignBilling RPC method.
 type SignBillingResp struct {
 	HeaderHash hash.Hash
 	Signee     *asymmetric.PublicKey
@@ -101,7 +103,7 @@ type LaunchBillingReq struct {
 	Low, High int32
 }
 
-// LaunchBillingReq defines a response of LaunchBilling RPC method.
+// LaunchBillingResp defines a response of LaunchBilling RPC method.
 type LaunchBillingResp struct {
 }
 

@@ -1142,6 +1142,8 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 	}
 }
 
+// LaunchBilling launches a new billing process for the blocks within height range [low, high]
+// (inclusive).
 func (c *Chain) LaunchBilling(low, high int32) (err error) {
 	var (
 		req *pt.BillingRequest

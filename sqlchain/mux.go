@@ -145,12 +145,14 @@ type MuxSignBillingResp struct {
 	SignBillingResp
 }
 
+// MuxLaunchBillingReq defines a request of the LaunchBilling RPC method.
 type MuxLaunchBillingReq struct {
 	proto.Envelope
 	proto.DatabaseID
 	LaunchBillingReq
 }
 
+// MuxLaunchBillingResp defines a response of the LaunchBilling RPC method.
 type MuxLaunchBillingResp struct {
 	proto.Envelope
 	proto.DatabaseID

@@ -1065,11 +1065,9 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 }
 
 func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
-	// Send sign billing request to the other peers and collect responses
-	peers := c.rt.getPeers()
-	respC := make(chan *SignBillingResp)
-	proWG := &sync.WaitGroup{}
-	rpcWG := &sync.WaitGroup{}
+	defer c.rt.wg.Done()
+	// Process sign billing responses, note that range iterating over channel will only break if
+	// the channle is closed
 	req := &MuxSignBillingReq{
 		Envelope: proto.Envelope{
 			// TODO(leventeliu): Add fields.
@@ -1079,14 +1077,9 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 			BillingRequest: *billings,
 		},
 	}
-
-	defer func() {
-		rpcWG.Wait()
-		close(respC)
-		proWG.Wait()
-		c.rt.wg.Done()
-	}()
-
+	proWG := &sync.WaitGroup{}
+	respC := make(chan *SignBillingResp)
+	defer proWG.Wait()
 	proWG.Add(1)
 	go func() {
 		defer proWG.Done()
@@ -1118,6 +1111,14 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 		if err = c.cl.CallNode(bp, "MCC.AdviseBillingRequest", req, resp); err != nil {
 			return
 		}
+	}()
+
+	// Send requests and push responses to response channel
+	peers := c.rt.getPeers()
+	rpcWG := &sync.WaitGroup{}
+	defer func() {
+		rpcWG.Wait()
+		close(respC)
 	}()
 
 	for _, s := range peers.Servers {

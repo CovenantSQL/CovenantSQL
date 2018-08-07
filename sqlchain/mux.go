@@ -19,7 +19,6 @@ package sqlchain
 import (
 	"sync"
 
-	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 )
@@ -136,14 +135,14 @@ type MuxFetchAckedQueryResp struct {
 type MuxSignBillingReq struct {
 	proto.Envelope
 	proto.DatabaseID
-	pt.BillingRequest
+	SignBillingReq
 }
 
 // MuxSignBillingResp defines a response of the SignBilling RPC method.
 type MuxSignBillingResp struct {
 	proto.Envelope
 	proto.DatabaseID
-	pt.BillingResponse
+	SignBillingResp
 }
 
 type MuxLaunchBillingReq struct {
@@ -235,7 +234,7 @@ func (s *MuxService) SignBilling(req *MuxSignBillingReq, resp *MuxSignBillingRes
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).SignBilling(&req.BillingRequest, &resp.BillingResponse)
+		return v.(*ChainRPCService).SignBilling(&req.SignBillingReq, &resp.SignBillingResp)
 	}
 
 	return ErrUnknownMuxRequest

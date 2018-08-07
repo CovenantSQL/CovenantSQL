@@ -1067,15 +1067,17 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 	// Send sign billing request to the other peers and collect responses
 	peers := c.rt.getPeers()
-	respC := make(chan *pt.BillingResponse)
+	respC := make(chan *SignBillingResp)
 	proWG := &sync.WaitGroup{}
 	rpcWG := &sync.WaitGroup{}
 	req := &MuxSignBillingReq{
 		Envelope: proto.Envelope{
 			// TODO(leventeliu): Add fields.
 		},
-		DatabaseID:     c.rt.databaseID,
-		BillingRequest: *billings,
+		DatabaseID: c.rt.databaseID,
+		SignBillingReq: SignBillingReq{
+			BillingRequest: *billings,
+		},
 	}
 
 	defer func() {
@@ -1092,7 +1094,30 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 			req.Signees = append(req.Signees, resp.Signee)
 			req.Signatures = append(req.Signatures, resp.Signature)
 		}
-		// TODO(leventeliu): send billing result to BP.
+
+		var (
+			bp  proto.NodeID
+			err error
+		)
+
+		defer log.WithFields(log.Fields{
+			"peer":             c.rt.getPeerInfoString(),
+			"time":             c.rt.getChainTimeString(),
+			"signees_count":    len(req.Signees),
+			"signatures_count": len(req.Signatures),
+			"bp":               bp,
+		}).WithError(err).Debug(
+			"Sent billing request")
+
+		if bp, err = rpc.GetCurrentBP(); err != nil {
+			return
+		}
+
+		resp := &pt.BillingResponse{}
+
+		if err = c.cl.CallNode(bp, "MCC.AdviseBillingRequest", req, resp); err != nil {
+			return
+		}
 	}()
 
 	for _, s := range peers.Servers {
@@ -1110,7 +1135,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 						"Failed to send sign billing request")
 				}
 
-				respC <- &resp.BillingResponse
+				respC <- &resp.SignBillingResp
 			}(s.ID)
 		}
 	}

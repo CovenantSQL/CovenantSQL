@@ -18,6 +18,7 @@ package sqlchain
 
 import (
 	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
@@ -85,6 +86,16 @@ type FetchAckedQueryResp struct {
 	Ack *wt.SignedAckHeader
 }
 
+type SignBillingReq struct {
+	pt.BillingRequest
+}
+
+type SignBillingResp struct {
+	HeaderHash hash.Hash
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
+}
+
 // LaunchBillingReq defines a request of LaunchBilling RPC method.
 type LaunchBillingReq struct {
 	Low, High int32
@@ -134,11 +145,9 @@ func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAc
 }
 
 // SignBilling is the RPC method to get signature for a billing request from the target server.
-func (s *ChainRPCService) SignBilling(req *pt.BillingRequest, resp *pt.BillingResponse) (
-	err error,
-) {
-	resp.RequestHash = req.RequestHash
-	resp.Signee, resp.Signature, err = s.chain.SignBilling(req)
+func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp) (err error) {
+	resp.HeaderHash = req.BillingRequest.RequestHash
+	resp.Signee, resp.Signature, err = s.chain.SignBilling(&req.BillingRequest)
 	return
 }
 

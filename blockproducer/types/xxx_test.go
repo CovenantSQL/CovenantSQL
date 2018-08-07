@@ -150,7 +150,7 @@ func generateRandomBillingRequestHeader() *BillingRequestHeader {
 		LowBlock:   generateRandomHash(),
 		LowHeight:  rand.Int31(),
 		HighBlock:  generateRandomHash(),
-		HighHeight: rand.int31(),
+		HighHeight: rand.Int31(),
 		GasAmounts: generateRandomGasAmount(peerNum),
 	}
 }

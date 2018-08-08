@@ -366,6 +366,13 @@ func TestAck_Sign(t *testing.T) {
 		var err error
 		var rack Ack
 
+		Convey("get query key", func() {
+			key := ack.Header.SignedRequestHeader().GetQueryKey()
+			So(key.NodeID, ShouldEqual, ack.Header.SignedRequestHeader().NodeID)
+			So(key.ConnectionID, ShouldEqual, ack.Header.SignedRequestHeader().ConnectionID)
+			So(key.SeqNo, ShouldEqual, ack.Header.SignedRequestHeader().SeqNo)
+		})
+
 		// sign directly, embedded original response is not filled
 		err = ack.Sign(privKey)
 		So(err, ShouldNotBeNil)

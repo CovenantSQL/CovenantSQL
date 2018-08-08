@@ -153,10 +153,12 @@ func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling)
 
 func generateRandomBillingRequestHeader() *types.BillingRequestHeader {
 	return &types.BillingRequestHeader{
-		DatabaseID:  *generateRandomDatabaseID(),
-		BlockHash:   generateRandomHash(),
-		BlockHeight: rand.Int31(),
-		GasAmounts:  generateRandomGasAmount(peerNum),
+		DatabaseID: *generateRandomDatabaseID(),
+		LowBlock:   generateRandomHash(),
+		LowHeight:  rand.Int31(),
+		HighBlock:  generateRandomHash(),
+		HighHeight: rand.Int31(),
+		GasAmounts: generateRandomGasAmount(peerNum),
 	}
 }
 
@@ -240,7 +242,7 @@ func generateRandomTxContent() (*types.TxContent, error) {
 	}
 
 	tc := &types.TxContent{
-		SequenceID:      rand.Uint64(),
+		SequenceID:      rand.Uint32(),
 		BillingRequest:  *req,
 		BillingResponse: *resp,
 		Receivers:       receivers,
@@ -275,7 +277,7 @@ func generateRandomTxBilling() (*types.TxBilling, error) {
 	return txBilling, nil
 }
 
-func generateRandomTxBillingWithSeqID(seqID uint64) (*types.TxBilling, error) {
+func generateRandomTxBillingWithSeqID(seqID uint32) (*types.TxBilling, error) {
 	txContent, err := generateRandomTxContent()
 	txContent.SequenceID = seqID
 	if err != nil {
@@ -311,7 +313,7 @@ func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
 		gasAmount[i] = &proto.AddrAndGas{
 			AccountAddress: proto.AccountAddress(generateRandomHash()),
 			RawNodeID:      proto.RawNodeID{Hash: generateRandomHash()},
-			GasAmount:      rand.Uint32(),
+			GasAmount:      rand.Uint64(),
 		}
 	}
 
@@ -382,6 +384,62 @@ func createRandomString(offset, length int, s *string) {
 	buff := make([]byte, rand.Intn(length)+offset)
 	rand.Read(buff)
 	*s = string(buff)
+}
+
+// createNodes assign Node asymmetric key pair and generate Node.NonceInfo
+// Node.ID = Node.NonceInfo.Hash
+func createNodes(pubKey *asymmetric.PublicKey, timeThreshold time.Duration) *proto.Node {
+	node := proto.NewNode()
+	nonce := asymmetric.GetPubKeyNonce(pubKey, proto.NewNodeIDDifficulty, timeThreshold, nil)
+	node.ID = proto.NodeID(nonce.Hash.String())
+	node.Nonce = nonce.Nonce
+	log.Debugf("Node: %v", node)
+	return node
+}
+
+func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err error) {
+	if num <= 0 {
+		return
+	}
+
+	pub := priv.PubKey()
+
+	nis, err = registerNodesWithPublicKey(pub, testDifficulty, num)
+
+	if err != nil {
+		return
+	}
+
+	s := make([]*kayak.Server, num)
+	h := &hash.Hash{}
+
+	for i := range s {
+		rand.Read(h[:])
+		s[i] = &kayak.Server{
+			Role: func() proto.ServerRole {
+				if i == 0 {
+					return proto.Leader
+				}
+				return proto.Follower
+			}(),
+			ID:     proto.NodeID(nis[i].Hash.String()),
+			PubKey: pub,
+		}
+	}
+
+	p = &kayak.Peers{
+		Term:      0,
+		Leader:    s[0],
+		Servers:   s,
+		PubKey:    pub,
+		Signature: nil,
+	}
+
+	if err = p.Sign(priv); err != nil {
+		return
+	}
+
+	return
 }
 
 func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err error) {

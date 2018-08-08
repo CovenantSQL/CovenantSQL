@@ -88,15 +88,23 @@ type FetchAckedQueryResp struct {
 
 // SignBillingReq defines a request of the SignBilling RPC method.
 type SignBillingReq struct {
-	Low, High int32 // Billing to be verified and signed within height [Low, High).
-	Billing   pt.BillingRequest
+	pt.BillingRequest
 }
 
 // SignBillingResp defines a response of the SignBilling RPC method.
 type SignBillingResp struct {
+	HeaderHash hash.Hash
+	Signee     *asymmetric.PublicKey
+	Signature  *asymmetric.Signature
+}
+
+// LaunchBillingReq defines a request of LaunchBilling RPC method.
+type LaunchBillingReq struct {
 	Low, High int32
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+}
+
+// LaunchBillingResp defines a response of LaunchBilling RPC method.
+type LaunchBillingResp struct {
 }
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
@@ -124,24 +132,28 @@ func (s *ChainRPCService) AdviseAckedQuery(
 	return s.chain.VerifyAndPushAckedQuery(req.Query)
 }
 
-// FetchBlock is the RPC method to fetch a known block form the target server.
+// FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
 	resp.Height = req.Height
 	resp.Block, err = s.chain.FetchBlock(req.Height)
 	return
 }
 
-// FetchAckedQuery is the RPC method to fetch a known block form the target server.
+// FetchAckedQuery is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
 ) (err error) {
 	resp.Ack, err = s.chain.FetchAckedQuery(req.Height, req.SignedAckedHeaderHash)
 	return
 }
 
-// SignBilling is the RPC method to get signature for a billing request form the target server.
+// SignBilling is the RPC method to get signature for a billing request from the target server.
 func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp) (err error) {
-	resp.Low = req.Low
-	resp.High = req.High
-	resp.Signee, resp.Signature, err = s.chain.SignBilling(req.Low, req.High, &req.Billing)
+	resp.HeaderHash = req.BillingRequest.RequestHash
+	resp.Signee, resp.Signature, err = s.chain.SignBilling(&req.BillingRequest)
 	return
+}
+
+// LaunchBilling is the RPC method to launch a new billing process in the target server.
+func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingResp) error {
+	return s.chain.LaunchBilling(req.Low, req.High)
 }

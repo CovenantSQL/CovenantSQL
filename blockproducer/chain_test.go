@@ -17,9 +17,16 @@
 package blockproducer
 
 import (
+	"fmt"
 	"io/ioutil"
+	"sync"
 	"testing"
 	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 
@@ -27,23 +34,17 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
-	testPeersNumber                           = 5
-	testPeriod                                = 1 * time.Second
-	testTick                                  = 100 * time.Millisecond
-	testQueryTTL             int32            = 10
-	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testChainService                          = "sql-chain.thunderdb.rpc"
-	testPeriodNumber         uint64           = 10
-	testClientNumberPerChain                  = 10
+	testPeersNumber                 = 1
+	testPeriod                      = 1 * time.Second
+	testTick                        = 100 * time.Millisecond
+	testPeriodNumber         uint32 = 10
+	testClientNumberPerChain        = 10
 )
 
 type nodeProfile struct {
@@ -54,8 +55,14 @@ type nodeProfile struct {
 
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
-		cleanup, _, _, _, err := initNode()
+		confDir := "../test/mainchain/node_standalone/config.yaml"
+		privDir := "../test/mainchain/node_standalone/private.key"
+		cleanup, _, _, rpcServer, err := initNode(
+			confDir,
+			privDir,
+		)
 		defer cleanup()
+		So(err, ShouldBeNil)
 
 		fl, err := ioutil.TempFile("", "mainchain")
 		So(err, ShouldBeNil)
@@ -66,30 +73,11 @@ func TestChain(t *testing.T) {
 		genesis, err := generateRandomBlock(genesisHash, true)
 		So(err, ShouldBeNil)
 
-		pub, err := kms.GetLocalPublicKey()
-		So(err, ShouldBeNil)
-
 		priv, err := kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
+		_, peers, err := createTestPeersWithPrivKeys(priv, testPeersNumber)
 
-		servers := [...]*kayak.Server{
-			&kayak.Server{ID: "X1"},
-			&kayak.Server{ID: "X2"},
-			&kayak.Server{ID: "X3"},
-			&kayak.Server{ID: "X4"},
-			&kayak.Server{ID: "X5"},
-		}
-
-		peers := &kayak.Peers{
-			Term:    0,
-			Leader:  servers[0],
-			Servers: servers[:0],
-			PubKey:  pub,
-		}
-		err = peers.Sign(priv)
-		So(err, ShouldBeNil)
-
-		cfg := newConfig(genesis, fl.Name(), rpc.NewServer(), peers, servers[0].ID, testPeriod, testTick)
+		cfg := newConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0].ID, testPeriod, testTick)
 		chain, err := NewChain(cfg)
 		So(err, ShouldBeNil)
 
@@ -99,7 +87,7 @@ func TestChain(t *testing.T) {
 		// Run main cycle
 		var now time.Time
 		var d time.Duration
-		var height uint64 = 1
+		var height uint32 = 1
 
 		for {
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
@@ -205,120 +193,131 @@ func TestChain(t *testing.T) {
 	})
 }
 
-// func TestMultiNode(t *testing.T) {
-// 	Convey("test multi-nodes", t, func() {
-// 		// create genesis block
-// 		genesis, err := generateRandomBlock(genesisHash, true)
-// 		So(err, ShouldBeNil)
-//
-// 		pub, err := kms.GetLocalPublicKey()
-// 		So(err, ShouldBeNil)
-//
-// 		priv, err := kms.GetLocalPrivateKey()
-// 		So(err, ShouldBeNil)
-//
-// 		// Create peer list
-// 		nis, peers, err := createTestPeers(testPeersNumber)
-//
-// 		if err != nil {
-// 			t.Fatalf("Error occurred: %v", err)
-// 		}
-//
-// 		for i, p := range peers.Servers {
-// 			t.Logf("Peer #%d: %s", i, p.ID)
-// 		}
-//
-// 		// Create sql-chain instances
-// 		chains := make([]*Chain, testPeersNumber)
-//
-// 		for i := range chains {
-// 			// Create RPC server
-// 			server := rpc.NewServer()
-//
-// 			if err = server.InitRPCServer("127.0.0.1:0", testPrivKeyFile, testMasterKey); err != nil {
-// 				t.Fatalf("Error occurred: %v", err)
-// 			}
-//
-// 			go server.Serve()
-// 			defer server.Stop()
-//
-// 			// Register address
-// 			if err = route.SetNodeAddrCache(
-// 				&proto.RawNodeID{Hash: nis[i].Hash},
-// 				server.Listener.Addr().String(),
-// 			); err != nil {
-// 				t.Fatalf("Error occurred: %v", err)
-// 			}
-//
-// 			// Create sql-chain instance
-// 			dataFile := path.Join(testDataDir, fmt.Sprintf("%s-%02d", t.Name(), i))
-// 			cfg := newConfig(
-// 				genesis,
-// 				dataFile,
-// 				server,
-// 				peers,
-// 				peers.Servers[i].ID,
-// 				testPeriod,
-// 				testTick,
-// 			)
-// 			chains[i], err = NewChain(cfg)
-// 			So(err, ShouldBeNil)
-// 		}
-//
-// 		// Create some random clients to push new queries
-// 		for i := range chains {
-// 			sC := make(chan struct{})
-// 			wg := &sync.WaitGroup{}
-// 			wk := &nodeProfile{
-// 				NodeID:     peers.Servers[i].ID,
-// 				PrivateKey: testPrivKey,
-// 				PublicKey:  testPubKey,
-// 			}
-//
-// 			for j := 0; j < testClientNumberPerChain; j++ {
-// 				cli, err := generateRandomNode()
-//
-// 				if err != nil {
-// 					t.Fatalf("Error occurred: %v", err)
-// 				}
-//
-// 				wg.Add(1)
-// 				go func(c *Chain, p *nodeProfile) {
-// 					defer wg.Done()
-// 				foreverLoop:
-// 					for {
-// 						select {
-// 						case <-sC:
-// 							break foreverLoop
-// 						default:
-// 							// Send a random query
-// 							resp, err := createRandomQueryResponse(p, wk)
-//
-// 							if err != nil {
-// 								t.Errorf("Error occurred: %v", err)
-// 							} else if err = c.VerifyAndPushResponsedQuery(resp); err != nil {
-// 								t.Errorf("Error occurred: %v", err)
-// 							}
-//
-// 							time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
-// 							ack, err := createRandomQueryAckWithResponse(resp, p)
-//
-// 							if err != nil {
-// 								t.Errorf("Error occurred: %v", err)
-// 							} else if err = c.VerifyAndPushAckedQuery(ack); err != nil {
-// 								t.Errorf("Error occurred: %v", err)
-// 							}
-// 						}
-// 					}
-// 				}(chains[i], cli)
-// 			}
-//
-// 			defer func() {
-// 				// Quit client goroutines
-// 				close(sC)
-// 				wg.Wait()
-// 			}()
-// 		}
-//	})
-//
-// }
+func TestMultiNode(t *testing.T) {
+	Convey("test multi-nodes", t, func(c C) {
+		// create genesis block
+		genesis, err := generateRandomBlock(genesisHash, true)
+		So(err, ShouldBeNil)
+
+		// Create sql-chain instances
+		chains := make([]*Chain, testPeersNumber)
+		configs := []string{
+			"../test/mainchain/node_multi_0/config.yaml",
+			// "../test/mainchain/node_multi_1/config.yaml",
+			// "../test/mainchain/node_multi_2/config.yaml",
+		}
+		privateKeys := []string{
+			"../test/mainchain/node_multi_0/private.key",
+			// "../test/mainchain/node_multi_1/private.key",
+			// "../test/mainchain/node_multi_2/private.key",
+		}
+
+		var nis []cpuminer.NonceInfo
+		var peers *kayak.Peers
+		peerInited := false
+		for i := range chains {
+			// create tmp file
+			fl, err := ioutil.TempFile("", "mainchain")
+			So(err, ShouldBeNil)
+
+			// init config
+			cleanup, dht, _, server, err := initNode(configs[i], privateKeys[i])
+			So(err, ShouldBeNil)
+			defer cleanup()
+
+			// Create peer list
+			if !peerInited {
+				nis, peers, err = createTestPeers(testPeersNumber)
+				So(err, ShouldBeNil)
+
+				for i, p := range peers.Servers {
+					t.Logf("Peer #%d: %s", i, p.ID)
+				}
+
+				peerInited = true
+			}
+
+			cfg := newConfig(genesis, fl.Name(), server, peers, peers.Servers[i].ID, testPeriod, testTick)
+
+			// init chain
+			chains[i], err = NewChain(cfg)
+			So(err, ShouldBeNil)
+
+			// Register address
+			pub, err := kms.GetLocalPublicKey()
+			So(err, ShouldBeNil)
+			node := proto.Node{
+				ID:        peers.Servers[i].ID,
+				Role:      peers.Servers[i].Role,
+				Addr:      server.Listener.Addr().String(),
+				PublicKey: pub,
+				Nonce:     nis[i].Nonce,
+			}
+			req := proto.PingReq{
+				Node:     node,
+				Envelope: proto.Envelope{},
+			}
+			var resp proto.PingResp
+			dht.Ping(&req, &resp)
+			log.Debugf("ping response: %v", resp)
+
+			err = chains[i].Start()
+			So(err, ShouldBeNil)
+			defer func(c *Chain) {
+				chains[i].Stop()
+			}(chains[i])
+		}
+
+		for i := range chains {
+			wg := &sync.WaitGroup{}
+			sC := make(chan struct{})
+
+			for j := 0; j < testClientNumberPerChain; j++ {
+				wg.Add(1)
+				go func(val int) {
+					defer wg.Done()
+				foreverLoop:
+					for {
+						select {
+						case <-sC:
+							break foreverLoop
+						default:
+							// test AdviseBillingRequest RPC
+							br, err := generateRandomBillingRequest()
+							c.So(err, ShouldBeNil)
+
+							bReq := &AdviseBillingReq{
+								Envelope: proto.Envelope{
+								// TODO(lambda): Add fields.
+								},
+								Req: br,
+							}
+							bResp := &AdviseBillingResp{}
+							method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseBillingRequest")
+							log.Debugf("CallNode %d hash is %s", val, br.RequestHash)
+							err = chains[i].cl.CallNode(chains[i].rt.nodeID, method, bReq, bResp)
+							if err != nil {
+								log.WithFields(log.Fields{
+									"peer":         chains[i].rt.getPeerInfoString(),
+									"curr_turn":    chains[i].rt.getNextTurn(),
+									"now_time":     time.Now().UTC().Format(time.RFC3339Nano),
+									"request_hash": br.RequestHash,
+								}).WithError(err).Error("Failed to advise new billing request")
+							}
+							c.So(err, ShouldBeNil)
+							log.Debugf("response %d hash is %s", val, bResp.Resp.RequestHash)
+
+						}
+					}
+				}(j)
+			}
+			defer func() {
+				close(sC)
+				wg.Wait()
+			}()
+		}
+		time.Sleep(time.Duration(testPeriodNumber) * testPeriod)
+	})
+
+	return
+}

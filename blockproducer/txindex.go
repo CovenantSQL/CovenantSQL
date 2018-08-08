@@ -16,14 +16,14 @@ type txIndex struct {
 	billingHashIndex map[hash.Hash]*types.TxBilling
 	// lastBillingIndex indexes last appearing txBilling of DatabaseID
 	// to ensure the nonce of txbilling monotone increasing
-	lastBillingIndex map[*proto.DatabaseID]uint64
+	lastBillingIndex map[*proto.DatabaseID]uint32
 }
 
 // newTxIndex creates a new TxIndex.
 func newTxIndex() *txIndex {
 	txIndex := txIndex{
 		billingHashIndex: make(map[hash.Hash]*types.TxBilling),
-		lastBillingIndex: make(map[*proto.DatabaseID]uint64),
+		lastBillingIndex: make(map[*proto.DatabaseID]uint32),
 	}
 	return &txIndex
 }
@@ -46,7 +46,7 @@ func (ti *txIndex) addTxBilling(tb *types.TxBilling) (err error) {
 }
 
 // updateLatTxBilling updates the last billing index of specific databaseID
-func (ti *txIndex) updateLastTxBilling(databaseID *proto.DatabaseID, sequenceID uint64) (err error) {
+func (ti *txIndex) updateLastTxBilling(databaseID *proto.DatabaseID, sequenceID uint32) (err error) {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
 
@@ -88,7 +88,7 @@ func (ti *txIndex) getTxBilling(h *hash.Hash) *types.TxBilling {
 }
 
 // lastSequenceID look up the last sequenceID of specific databaseID
-func (ti *txIndex) lastSequenceID(databaseID *proto.DatabaseID) (uint64, error) {
+func (ti *txIndex) lastSequenceID(databaseID *proto.DatabaseID) (uint32, error) {
 	if seqID, ok := ti.lastBillingIndex[databaseID]; ok {
 		return seqID, nil
 	}

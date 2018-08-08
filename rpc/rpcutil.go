@@ -320,8 +320,5 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 func SetCurrentBP(bpNodeID proto.NodeID) {
 	currentBPLock.Lock()
 	defer currentBPLock.Unlock()
-
 	currentBP = bpNodeID
-
-	return
 }

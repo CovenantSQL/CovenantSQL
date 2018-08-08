@@ -66,7 +66,7 @@ func (bn *blockNode) initBlockNode(block *types.Block, parent *blockNode) {
 }
 
 func (bn *blockNode) ancestor(h uint64) *blockNode {
-	if h < 0 || h > bn.height {
+	if h > bn.height {
 		return nil
 	}
 

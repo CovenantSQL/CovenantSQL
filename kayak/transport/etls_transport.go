@@ -152,9 +152,7 @@ func (r *ETLSTransportRequest) initChan() {
 
 func (r *ETLSTransportRequest) getResponse() ([]byte, error) {
 	r.respInit.Do(r.initChan)
-	select {
-	case <-r.respAvailable:
-	}
+	<-r.respAvailable
 	return r.Response, r.Error
 }
 

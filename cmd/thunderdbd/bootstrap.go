@@ -57,7 +57,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	if !conf.GConf.IsTestMode {
 		// read master key
 		fmt.Print("Type in Master key to continue: ")
-		masterKey, err = terminal.ReadPassword(int(syscall.Stdin))
+		masterKey, err = terminal.ReadPassword(syscall.Stdin)
 		if err != nil {
 			fmt.Printf("Failed to read Master Key: %v", err)
 		}
@@ -224,9 +224,7 @@ func periodicPingBlockProducer() {
 
 	go func() {
 		for {
-			select {
-			case <-time.After(time.Second):
-			}
+			time.Sleep(time.Second)
 
 			// send ping requests to block producer
 			bpNodeIDs := route.GetBPs()

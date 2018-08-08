@@ -146,10 +146,12 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 
 func generateRandomBillingRequestHeader() *BillingRequestHeader {
 	return &BillingRequestHeader{
-		DatabaseID:  *generateRandomDatabaseID(),
-		BlockHash:   generateRandomHash(),
-		BlockHeight: rand.Int31(),
-		GasAmounts:  generateRandomGasAmount(peerNum),
+		DatabaseID: *generateRandomDatabaseID(),
+		LowBlock:   generateRandomHash(),
+		LowHeight:  rand.Int31(),
+		HighBlock:  generateRandomHash(),
+		HighHeight: rand.Int31(),
+		GasAmounts: generateRandomGasAmount(peerNum),
 	}
 }
 
@@ -232,14 +234,7 @@ func generateRandomTxContent() (*TxContent, error) {
 		rewards[i] = rand.Uint64()
 	}
 
-	tc := &TxContent{
-		SequenceID:      rand.Uint64(),
-		BillingRequest:  *req,
-		BillingResponse: *resp,
-		Receivers:       receivers,
-		Fees:            fees,
-		Rewards:         rewards,
-	}
+	tc := NewTxContent(rand.Uint32(), req, receivers, fees, rewards, resp)
 	return tc, nil
 }
 
@@ -257,14 +252,11 @@ func generateRandomTxBilling() (*TxBilling, error) {
 	}
 	blockHash := generateRandomHash()
 
-	txBilling := &TxBilling{
-		TxContent:      *txContent,
-		AccountAddress: &accountAddress,
-		TxHash:         &txHash,
-		Signee:         pub,
-		Signature:      sign,
-		SignedBlock:    &blockHash,
-	}
+	txBilling := NewTxBilling(txContent, TxTypeBilling, &accountAddress)
+	txBilling.TxHash = &txHash
+	txBilling.Signee = pub
+	txBilling.Signature = sign
+	txBilling.SignedBlock = &blockHash
 	return txBilling, nil
 }
 
@@ -275,7 +267,7 @@ func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
 		gasAmount[i] = &proto.AddrAndGas{
 			AccountAddress: proto.AccountAddress(generateRandomHash()),
 			RawNodeID:      proto.RawNodeID{Hash: generateRandomHash()},
-			GasAmount:      rand.Uint32(),
+			GasAmount:      rand.Uint64(),
 		}
 	}
 

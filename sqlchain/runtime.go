@@ -51,8 +51,8 @@ type runtime struct {
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
 	// price sets query price in gases.
-	price           map[wt.QueryType]uint32
-	producingReward uint32
+	price           map[wt.QueryType]uint64
+	producingReward uint64
 	billingPeriods  int32
 
 	// peersMutex protects following peers-relative fields.
@@ -185,7 +185,7 @@ func (r *runtime) setNextTurn() {
 }
 
 // getQueryGas gets the consumption of gas for a specified query type.
-func (r *runtime) getQueryGas(t wt.QueryType) uint32 {
+func (r *runtime) getQueryGas(t wt.QueryType) uint64 {
 	return r.price[t]
 }
 

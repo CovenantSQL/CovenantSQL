@@ -27,11 +27,11 @@ import (
 type blockNode struct {
 	hash   hash.Hash
 	parent *blockNode
-	height uint64
+	height uint32
 }
 
 func newBlockNode(block *types.Block, parent *blockNode) *blockNode {
-	var height uint64
+	var height uint32
 
 	if parent != nil {
 		height = parent.height + 1

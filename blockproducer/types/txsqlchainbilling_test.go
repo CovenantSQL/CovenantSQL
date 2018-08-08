@@ -115,6 +115,27 @@ func TestTxBilling_SerializeDeserialize(t *testing.T) {
 	}
 }
 
+func TestTxBilling_GetSet(t *testing.T) {
+	tb, err := generateRandomTxBilling()
+	if err != nil {
+		t.Fatalf("Unexpeted error: %v", err)
+	}
+
+	tb.GetSequenceID()
+	if tb.GetDatabaseID() == nil {
+		t.Fatalf("String should not be nil: %v", tb)
+	}
+
+	if !tb.IsSigned() {
+		t.Fatalf("BlockHash should not be nil: %v", tb)
+	}
+	h := generateRandomHash()
+	tb.SetSignedBlock(&h)
+	if !h.IsEqual(tb.GetSignedBlock()) {
+		t.Fatalf("BlockHash should be the same: v1=%s, v2=%s", h.String(), tb.GetSignedBlock().String())
+	}
+}
+
 func TestTxBilling_PackAndSignTx(t *testing.T) {
 	tb, err := generateRandomTxBilling()
 	if err != nil {

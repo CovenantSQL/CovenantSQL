@@ -81,11 +81,11 @@ func (s *requestTracker) updateAck(ack *wt.SignedAckHeader) (isNew bool, err err
 type hashIndex map[hash.Hash]*requestTracker
 
 // seqIndex defines a queryTracker index using sequence number as key.
-type seqIndex map[uint64]*queryTracker
+type seqIndex map[wt.QueryKey]*queryTracker
 
 // ensure returns the *queryTracker associated with the given key. It creates a new item if the
 // key doesn't exist.
-func (i seqIndex) ensure(k uint64) (v *queryTracker) {
+func (i seqIndex) ensure(k wt.QueryKey) (v *queryTracker) {
 	var ok bool
 
 	if v, ok = i[k]; !ok {
@@ -172,7 +172,7 @@ func newMultiIndex() *multiIndex {
 	return &multiIndex{
 		respIndex: make(map[hash.Hash]*requestTracker),
 		ackIndex:  make(map[hash.Hash]*requestTracker),
-		seqIndex:  make(map[uint64]*queryTracker),
+		seqIndex:  make(map[wt.QueryKey]*queryTracker),
 	}
 }
 
@@ -202,7 +202,7 @@ func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
 	}
 
 	i.respIndex[resp.HeaderHash] = s
-	q := i.seqIndex.ensure(resp.Request.SeqNo)
+	q := i.seqIndex.ensure(resp.Request.GetQueryKey())
 	q.queries = append(q.queries, s)
 
 	return nil
@@ -214,7 +214,7 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 	defer i.Unlock()
 	var v *requestTracker
 	var ok bool
-	q := i.seqIndex.ensure(ack.SignedRequestHeader().SeqNo)
+	q := i.seqIndex.ensure(ack.SignedRequestHeader().GetQueryKey())
 
 	if v, ok = i.respIndex[ack.ResponseHeaderHash()]; ok {
 		if v == nil || v.response == nil {
@@ -341,7 +341,7 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 		return
 	}
 
-	qs := i.seqIndex[q.ack.SignedRequestHeader().SeqNo]
+	qs := i.seqIndex[q.ack.SignedRequestHeader().GetQueryKey()]
 
 	// Check it as a first acknowledgement
 	if i.respIndex[q.response.HeaderHash] != q || qs == nil || qs.firstAck == nil {
@@ -510,11 +510,15 @@ func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
 	}
 }
 
-func (i *queryIndex) resetSignedBlock(h int32, b *ct.Block) {
-	hi := i.heightIndex.ensureHeight(h)
+func (i *queryIndex) resetSignedBlock(h int32, block *ct.Block) {
+	b := i.getBarrier()
 
-	for _, v := range b.Queries {
-		hi.resetSignedBlock(b.BlockHash(), v)
+	for _, v := range block.Queries {
+		for x := b; x <= h; x++ {
+			if hi, ok := i.heightIndex.get(x); ok {
+				hi.resetSignedBlock(block.BlockHash(), v)
+			}
+		}
 	}
 }
 

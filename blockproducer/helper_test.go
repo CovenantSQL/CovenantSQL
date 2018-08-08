@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
+
 	"gitlab.com/thunderdb/ThunderDB/consistent"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -181,7 +182,7 @@ func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance
 	return
 }
 
-func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metric.CollectServer, server *rpc.Server, err error) {
+func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTService, metricService *metric.CollectServer, server *rpc.Server, err error) {
 	var d string
 	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
@@ -195,11 +196,11 @@ func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metri
 	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")
 	os.Remove(clientPubKeyStoreFile)
 	dupConfFile := filepath.Join(d, "config.yaml")
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), confRP)
 	if err = dupConf(confFile, dupConfFile); err != nil {
 		return
 	}
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), privateKeyRP)
 
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
@@ -245,6 +246,7 @@ func initNode() (cleanupFunc func(), dht *route.DHTService, metricService *metri
 		os.RemoveAll(d)
 		server.Listener.Close()
 		server.Stop()
+		rpc.GetSessionPoolInstance().Close()
 	}
 
 	return

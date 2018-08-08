@@ -37,14 +37,15 @@ import (
 )
 
 var (
-	genesisHash     = hash.Hash{}
-	testDifficulty  = 4
-	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
-	testDataDir     string
-	testPrivKeyFile string
-	testPubKeysFile string
-	testPrivKey     *asymmetric.PrivateKey
-	testPubKey      *asymmetric.PublicKey
+	genesisHash      = hash.Hash{}
+	testDifficulty   = 4
+	testMasterKey    = []byte(".9K.sgch!3;C>w0v")
+	testDataDir      string
+	testPrivKeyFile  string
+	testPubKeysFile  string
+	testDHTStoreFile string
+	testPrivKey      *asymmetric.PrivateKey
+	testPubKey       *asymmetric.PublicKey
 )
 
 type nodeProfile struct {
@@ -496,8 +497,9 @@ func setup() {
 		panic(err)
 	}
 
-	testPubKeysFile = path.Join(testDataDir, "pub")
-	testPrivKeyFile = path.Join(testDataDir, "priv")
+	testPubKeysFile = path.Join(testDataDir, "public.keystore")
+	testPrivKeyFile = path.Join(testDataDir, "private.key")
+	testDHTStoreFile = path.Join(testDataDir, "dht.db")
 
 	// Setup public key store
 	if err = kms.InitPublicKeyStore(testPubKeysFile, nil); err != nil {

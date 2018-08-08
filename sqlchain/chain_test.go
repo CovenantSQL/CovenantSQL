@@ -26,6 +26,10 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/consistent"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"gitlab.com/thunderdb/ThunderDB/metric"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/route"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
@@ -41,6 +45,14 @@ var (
 	testPeriodNumber         int32            = 10
 	testClientNumberPerChain                  = 3
 )
+
+type chainParams struct {
+	dbfile string
+	server *rpc.Server
+	mux    *MuxService
+	config *Config
+	chain  *Chain
+}
 
 func TestIndexKey(t *testing.T) {
 	for i := 0; i < 10; i++ {
@@ -82,8 +94,14 @@ func TestMultiChain(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	// Create peer list
-	nis, peers, err := createTestPeers(testPeersNumber)
+	gnonce, err := kms.GetNodeInfo(genesis.Producer())
+
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	// Create peer list: `testPeersNumber` miners + 1 block producer
+	nis, peers, err := createTestPeers(testPeersNumber + 1)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -93,34 +111,40 @@ func TestMultiChain(t *testing.T) {
 		t.Logf("Peer #%d: %s", i, p.ID)
 	}
 
-	// Create sql-chain instances
-	chains := make([]*Chain, testPeersNumber)
+	// Create config info from created nodes
+	bpinfo := &conf.BPInfo{
+		PublicKey: testPubKey,
+		NodeID:    peers.Servers[testPeersNumber].ID,
+		Nonce:     nis[testPeersNumber].Nonce,
+	}
+	knownnodes := make([]proto.Node, 0, testPeersNumber+1)
 
-	for i := range chains {
-		dataFile := path.Join(testDataDir, fmt.Sprintf("%s-%02d", t.Name(), i))
-
-		defer func(c *Chain, db string) {
-			// Try to reload chain
-			if nc, err := LoadChain(&Config{
-				DatabaseID: testDatabaseID,
-				DataFile:   db,
-				Period:     testPeriod,
-				Tick:       testTick,
-				MuxService: NewMuxService(testChainService, rpc.NewServer()),
-				Server:     peers.Servers[i],
-				Peers:      peers,
-				QueryTTL:   testQueryTTL,
-			}); err != nil {
-				t.Errorf("Error occurred: %v", err)
-			} else {
-				t.Logf("Load chain from file %s: head = %s height = %d",
-					db, nc.rt.getHead().Head, nc.rt.getHead().Height)
-			}
-		}(chains[i], dataFile)
+	for i, v := range peers.Servers {
+		knownnodes = append(knownnodes, proto.Node{
+			ID: v.ID,
+			Role: func() proto.ServerRole {
+				if i < testPeersNumber {
+					return proto.Miner
+				}
+				return proto.Leader
+			}(),
+			Addr:      "",
+			PublicKey: testPubKey,
+			Nonce:     nis[i].Nonce,
+		})
 	}
 
+	// Rip BP from peer list
+	peers.Servers = peers.Servers[:testPeersNumber]
+
+	// Create sql-chain instances
+	chains := make([]*chainParams, testPeersNumber)
+
 	for i := range chains {
-		// Create RPC server
+		// Combine data file path
+		dbfile := path.Join(testDataDir, fmt.Sprintf("%s-%02d", t.Name(), i))
+
+		// Create new RPC server
 		server := rpc.NewServer()
 
 		if err = server.InitRPCServer("127.0.0.1:0", testPrivKeyFile, testMasterKey); err != nil {
@@ -129,21 +153,14 @@ func TestMultiChain(t *testing.T) {
 
 		go server.Serve()
 		defer server.Stop()
+
+		// Create multiplexing service from RPC server
 		mux := NewMuxService(testChainService, server)
 
-		// Register address
-		if err = route.SetNodeAddrCache(
-			&proto.RawNodeID{Hash: nis[i].Hash},
-			server.Listener.Addr().String(),
-		); err != nil {
-			t.Fatalf("Error occurred: %v", err)
-		}
-
-		// Create sql-chain instance
-		dataFile := path.Join(testDataDir, fmt.Sprintf("%s-%02d", t.Name(), i))
-		chains[i], err = NewChain(&Config{
+		// Create chain instance
+		config := &Config{
 			DatabaseID: testDatabaseID,
-			DataFile:   dataFile,
+			DataFile:   dbfile,
 			Genesis:    genesis,
 			Period:     testPeriod,
 			Tick:       testTick,
@@ -151,24 +168,130 @@ func TestMultiChain(t *testing.T) {
 			Server:     peers.Servers[i],
 			Peers:      peers,
 			QueryTTL:   testQueryTTL,
-		})
+		}
+		chain, err := NewChain(config)
 
 		if err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
-		if err = chains[i].Start(); err != nil {
+		// Set chain parameters
+		chains[i] = &chainParams{
+			dbfile: dbfile,
+			server: server,
+			mux:    mux,
+			config: config,
+			chain:  chain,
+		}
+	}
+
+	// Create a master BP for RPC test
+	bpsvr := rpc.NewServer()
+
+	if err = bpsvr.InitRPCServer("127.0.0.1:0", testPrivKeyFile, testMasterKey); err != nil {
+		return
+	}
+
+	go bpsvr.Serve()
+	defer bpsvr.Stop()
+
+	// Create global config and initialize route table
+	knownnodes[testPeersNumber].Addr = bpsvr.Listener.Addr().String()
+
+	for i, v := range chains {
+		knownnodes[i].Addr = v.server.Listener.Addr().String()
+	}
+
+	conf.GConf = &conf.Config{
+		IsTestMode:      true,
+		GenerateKeyPair: false,
+		WorkingRoot:     testDataDir,
+		PubKeyStoreFile: "public.keystore",
+		PrivateKeyFile:  "private.key",
+		DHTFileName:     "dht.db",
+		ListenAddr:      bpsvr.Listener.Addr().String(),
+		ThisNodeID:      bpinfo.NodeID,
+		ValidDNSKeys: map[string]string{
+			"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",
+			"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",
+		},
+		MinNodeIDDifficulty: 2,
+		DNSSeed: conf.DNSSeed{
+			EnforcedDNSSEC: false,
+			DNSServers: []string{
+				"1.1.1.1",
+				"202.46.34.74",
+				"202.46.34.75",
+				"202.46.34.76",
+			},
+		},
+		BP:         bpinfo,
+		KnownNodes: knownnodes,
+	}
+
+	// Start BP
+	if dht, err := route.NewDHTService(testDHTStoreFile, new(consistent.KMSStorage), true); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if err = bpsvr.RegisterService("DHT", dht); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if err = bpsvr.RegisterService(metric.MetricServiceName, metric.NewCollectServer()); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	for _, n := range conf.GConf.KnownNodes {
+		rawNodeID := n.ID.ToRawNodeID()
+		route.SetNodeAddrCache(rawNodeID, n.Addr)
+		node := &proto.Node{
+			ID:        n.ID,
+			Addr:      n.Addr,
+			PublicKey: n.PublicKey,
+			Nonce:     n.Nonce,
+			Role:      n.Role,
+		}
+
+		if err = kms.SetNode(node); err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
+
+		if n.ID == conf.GConf.ThisNodeID {
+			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
+		}
+	}
+
+	// Test chain data reloading before exit
+	for _, v := range chains {
+		defer func(p *chainParams) {
+			if _, err := kms.GetPublicKey(genesis.Producer()); err != nil {
+				if err = kms.SetPublicKey(genesis.Producer(), gnonce.Nonce, genesis.Signee()); err != nil {
+					t.Errorf("Error occurred: %v", err)
+				}
+			}
+
+			if chain, err := LoadChain(p.config); err != nil {
+				t.Errorf("Error occurred: %v", err)
+			} else {
+				t.Logf("Load chain from file %s: head = %s height = %d",
+					p.dbfile, chain.rt.getHead().Head, chain.rt.getHead().Height)
+			}
+		}(v)
+	}
+
+	// Start all chain instances
+	for _, v := range chains {
+		if err = v.chain.Start(); err != nil {
 			t.Fatalf("Error occurred: %v", err)
 		}
 
 		defer func(c *Chain) {
-			// Stop chain main process
+			// Stop chain main process before exit
 			c.Stop()
-		}(chains[i])
+		}(v.chain)
 	}
 
 	// Create some random clients to push new queries
-	for i := range chains {
+	for i, v := range chains {
 		sC := make(chan struct{})
 		wg := &sync.WaitGroup{}
 		wk := &nodeProfile{
@@ -212,7 +335,7 @@ func TestMultiChain(t *testing.T) {
 						}
 					}
 				}
-			}(chains[i], cli)
+			}(v.chain, cli)
 		}
 
 		defer func() {

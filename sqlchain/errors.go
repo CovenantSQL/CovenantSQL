@@ -85,5 +85,5 @@ var (
 	ErrHashNotMatch = errors.New("hash value doesn't match")
 
 	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
-	ErrBillingNotMatch = errors.New("uilling request doesn't match")
+	ErrBillingNotMatch = errors.New("billing request doesn't match")
 )

@@ -12,8 +12,8 @@ group:
       - # node_2
         ip: 10.250.1.4/32
         cmd: "cd /scripts && ./bin/thunderdbd -config ./node_2/config.yaml"
-    delay: "100ms 10ms 30%"
-    loss: "1% 10%"
+    delay: "100ms 1ms 1%"
+    rate: "100mbit"
   -
     name: miner
     nodes:
@@ -26,16 +26,15 @@ group:
       - # miner_2
         ip: 10.250.1.7/32
         cmd: "cd /scripts && ./bin/thunderminerd -config ./node_miner_2/config.yaml"
-    delay: "10ms 5ms 30%"
-    loss: "1% 10%"
+    delay: "100ms 1ms 1%"
+    rate: "100mbit"
   -
     name: client
     nodes:
       - # node_c
         ip: 10.250.1.8/32
         cmd: "ping -c3 g.cn"
-    delay: "100ms 10ms 30%"
-    duplicate: "1%"
+    delay: "100ms 1ms 1%"
     rate: "100mbit"
 
 network:
@@ -43,21 +42,20 @@ network:
     groups:
       - bp
       - miner
-    delay: "200ms 10ms 1%"
-    corrupt: "0.2%"
+    delay: "100ms 1ms 1%"
     rate: "10mbit"
 
   -
     groups:
       - bp
       - client
-    delay: "100ms 10ms 1%"
+    delay: "100ms 1ms 1%"
     rate: "10mbit"
 
   -
     groups:
       - client
       - miner
-    delay: "30ms 5ms 1%"
-    rate: "100mbit"
+    delay: "100ms 1ms 1%"
+    rate: "10mbit"
 

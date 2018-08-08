@@ -117,11 +117,11 @@ func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err e
 	}
 	err = route.SetNodeAddrCache(nodeToSet.ID.ToRawNodeID(), nodeToSet.Addr)
 	if err != nil {
-		log.Errorf("set node addr cache failed: %v", err)
+		log.Errorf("set node addr %s %s cache failed: %v", nodeToSet.ID, nodeToSet.Addr, err)
 	}
 	err = kms.SetNode(&nodeToSet)
 	if err != nil {
-		log.Errorf("kms set node failed: %v", err)
+		log.Errorf("kms set node %v failed: %v", nodeToSet, err)
 	}
 
 	// if s.consistent == nil, it is called during Init. and AddCache will be called by consistent.InitConsistent

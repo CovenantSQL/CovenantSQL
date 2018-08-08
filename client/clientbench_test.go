@@ -69,22 +69,30 @@ func BenchmarkThunderDBDriver(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	_, err = db.Exec("INSERT INTO test VALUES(?)", 4)
-	if err != nil {
-		b.Fatal(err)
-	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		row := db.QueryRow("SELECT * FROM test LIMIT 1")
-
-		var result int
-		err = row.Scan(&result)
-		if err != nil || result != 4 {
-			b.Fatal(err)
+	b.Run("benchmark insert", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err = db.Exec("INSERT INTO test VALUES(?)", i)
+			if err != nil {
+				b.Fatal(err)
+			}
 		}
-		log.Debugf("result %d", result)
-	}
+	})
+
+	b.Run("benchmark select", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			row := db.QueryRow("SELECT * FROM test LIMIT 1")
+
+			var result int
+			err = row.Scan(&result)
+			if err != nil || result < 0 {
+				b.Fatal(err)
+			}
+			log.Debugf("result %d", result)
+		}
+	})
 	err = db.Close()
 	if err != nil {
 		b.Fatal(err)

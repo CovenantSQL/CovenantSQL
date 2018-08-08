@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 
 BUILD_IMG="thunderdb/build"
@@ -31,7 +31,7 @@ docker run -itd \
     -v ${PROJECT_DIR}/../:${INSIDE_GOPATH}/src/gitlab.com/thunderdb/ \
     ${BUILD_IMG} tail -f /dev/null
 
-docker exec -it ${BENCH_CONTAIN} bash -c "cd ${INSIDE_GOPATH}/src/gitlab.com/thunderdb/ThunderDB/rpc && go test -v -run TestSessionPool_SessionBroken"
+docker exec -it ${BENCH_CONTAIN} bash -c "cd ${INSIDE_GOPATH}/src/gitlab.com/thunderdb/ThunderDB/client && go test -bench . -run BenchmarkThunderDBDriver"
 
 docker rm -f ${BENCH_CONTAIN}
 

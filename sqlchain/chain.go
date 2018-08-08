@@ -129,7 +129,6 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
 func LoadChain(c *Config) (chain *Chain, err error) {
-	defer log.WithError(err).Debug("Reloaded chain")
 	// Open DB file
 	db, err := bolt.Open(c.DataFile, 0600, nil)
 

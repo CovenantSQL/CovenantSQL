@@ -60,12 +60,15 @@ func newRandomNode() (node *nodeProfile, err error) {
 		return
 	}
 
+	h := &hash.Hash{}
+	rand.Read(h[:])
+
 	node = &nodeProfile{
+		NodeID:     proto.NodeID(h.String()),
 		PrivateKey: priv,
 		PublicKey:  pub,
 	}
 
-	createRandomString(10, 10, (*string)(&node.NodeID))
 	return
 }
 
@@ -84,6 +87,11 @@ func newRandomNodes(n int) (nodes []*nodeProfile, err error) {
 func createRandomString(offset, length int, s *string) {
 	buff := make([]byte, rand.Intn(length)+offset)
 	rand.Read(buff)
+
+	for i, v := range buff {
+		buff[i] = v%(0x7f-0x20) + 0x20
+	}
+
 	*s = string(buff)
 }
 

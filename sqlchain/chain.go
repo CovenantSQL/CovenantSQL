@@ -723,6 +723,7 @@ func (c *Chain) processBlocks() {
 }
 
 func (c *Chain) processResponses() {
+	// TODO(leventeliu): implement that
 	defer c.rt.wg.Done()
 	for {
 		select {
@@ -733,6 +734,7 @@ func (c *Chain) processResponses() {
 }
 
 func (c *Chain) processAcks() {
+	// TODO(leventeliu): implement that
 	defer c.rt.wg.Done()
 	for {
 		select {

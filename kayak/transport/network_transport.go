@@ -171,9 +171,7 @@ func (r *NetworkRequest) SendResponse(resp []byte, err error) error {
 
 func (r *NetworkRequest) getResponse() ([]byte, error) {
 	r.respInit.Do(r.initChan)
-	select {
-	case <-r.respAvailable:
-	}
+	<-r.respAvailable
 	return r.Response, r.Error
 }
 

@@ -59,7 +59,7 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	}
 
 	computedHash := hash.DoubleHashB(decData[hash.HashBSize:])
-	if bytes.Compare(computedHash, decData[:hash.HashBSize]) != 0 {
+	if !bytes.Equal(computedHash, decData[:hash.HashBSize]) {
 		return nil, ErrHashNotMatch
 	}
 

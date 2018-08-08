@@ -63,7 +63,6 @@ func initResolver() {
 		}
 		initBPNodeIDs()
 	})
-	return
 }
 
 // IsBPNodeID returns if it is Block Producer node id

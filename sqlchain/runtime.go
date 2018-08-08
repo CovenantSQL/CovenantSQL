@@ -154,7 +154,7 @@ func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 func (r *runtime) updateTime(now time.Time) {
 	r.timeMutex.Lock()
 	defer r.timeMutex.Unlock()
-	r.offset = now.Sub(time.Now())
+	r.offset = time.Until(now)
 }
 
 // now returns the current coodinated chain time.

@@ -120,8 +120,8 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		},
 
 		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
-		Period:   1 * time.Second,
-		Tick:     100 * time.Millisecond,
+		Period:   60 * time.Second,
+		Tick:     10 * time.Second,
 		QueryTTL: 10,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {

@@ -25,6 +25,8 @@ import (
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/twopc"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
+
 	// Register go-sqlite3 engine.
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -185,6 +187,7 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 				_, err = s.tx.ExecContext(ctx, q.Pattern, args...)
 
 				if err != nil {
+					log.Debugf("commit query failed: %v", err)
 					s.tx.Rollback()
 					s.tx = nil
 					s.queries = nil
@@ -320,6 +323,7 @@ func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64
 
 		var result sql.Result
 		if result, err = tx.Exec(q.Pattern, args...); err != nil {
+			log.Debugf("execute query failed: %v", err)
 			return
 		}
 
@@ -336,6 +340,14 @@ func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64
 
 // Close implements database safe close feature.
 func (s *Storage) Close() (err error) {
+	d, err := NewDSN(s.dsn)
+	if err != nil {
+		return
+	}
+
+	index.Lock()
+	defer index.Unlock()
+	delete(index.db, d.filename)
 	return s.db.Close()
 }
 

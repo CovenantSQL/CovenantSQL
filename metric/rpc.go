@@ -88,12 +88,12 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 			log.Warnf("decode MetricFamily failed: %s", err)
 			continue
 		}
-		log.Debugf("RPC received MF: %#v", mf)
+		//log.Debugf("RPC received MF: %#v", mf)
 		for k, v := range mf {
 			mfm[k] = v
 		}
 	}
-	log.Debugf("MetricFamily uploaded: %v, %v", reqNodeID, mfm)
+	//log.Debugf("MetricFamily uploaded: %v, %v", reqNodeID, mfm)
 	if len(mfm) > 0 {
 		cs.NodeMetric.Store(reqNodeID, mfm)
 	} else {
@@ -112,7 +112,7 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 	}
 	mfb = make([][]byte, 0, len(mfs))
 	for _, mf := range mfs[:] {
-		log.Debugf("mf: %s", mf.String())
+		//log.Debugf("mf: %s", mf.String())
 		buf := new(bytes.Buffer)
 		//enc := expfmt.NewEncoder(buf, expfmt.FmtProtoCompact)
 		//err = enc.Encode(mf)
@@ -143,7 +143,6 @@ func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID) (err error) {
 		MFBytes: mfb,
 	}
 	resp := new(proto.UploadMetricsResp)
-	log.Debugf("req %s", reqType)
 	err = rpc.NewCaller().CallNode(BPNodeID, reqType, req, resp)
 	if err != nil {
 		log.Errorf("calling RPC %s failed: %s", reqType, err)

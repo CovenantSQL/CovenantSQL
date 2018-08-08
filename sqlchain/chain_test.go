@@ -346,5 +346,4 @@ func TestMultiChain(t *testing.T) {
 	}
 
 	time.Sleep(time.Duration(testPeriodNumber) * testPeriod)
-	return
 }

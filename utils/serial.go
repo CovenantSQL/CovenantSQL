@@ -761,7 +761,7 @@ func (s simpleSerializer) writeBytes(w io.Writer, order binary.ByteOrder, val []
 
 	valLen := uint32(len(val))
 	order.PutUint32(buffer, valLen)
-	copy(buffer[4:], []byte(val))
+	copy(buffer[4:], val)
 	_, err = w.Write(buffer)
 	return
 }

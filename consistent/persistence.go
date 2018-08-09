@@ -63,16 +63,14 @@ func (s *KMSStorage) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	}
 	nodes = make([]proto.Node, 0, len(IDs))
 
-	if IDs != nil {
-		for _, id := range IDs {
-			node, err := kms.GetNodeInfo(id)
-			if err != nil {
-				// this may happen, just continue
-				log.Errorf("get node info for %s failed: %s", id, err)
-				continue
-			}
-			nodes = append(nodes, *node)
+	for _, id := range IDs {
+		node, err := kms.GetNodeInfo(id)
+		if err != nil {
+			// this may happen, just continue
+			log.Errorf("get node info for %s failed: %s", id, err)
+			continue
 		}
+		nodes = append(nodes, *node)
 	}
 	return
 }

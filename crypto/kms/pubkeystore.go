@@ -126,7 +126,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	}
 
 	name := []byte(kmsBucketName)
-	err = (*bolt.DB)(bdb).Update(func(tx *bolt.Tx) error {
+	err = bdb.Update(func(tx *bolt.Tx) error {
 		if _, err := tx.CreateBucketIfNotExists(name); err != nil {
 			log.Errorf("could not create bucket: %s", err)
 			return err
@@ -146,13 +146,11 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	}
 	pksLock.Unlock()
 
-	if initNodes != nil {
-		for _, n := range initNodes {
-			err = setNode(&n)
-			if err != nil {
-				log.Errorf("set init nodes failed: %v", err)
-				return
-			}
+	for _, n := range initNodes {
+		err = setNode(&n)
+		if err != nil {
+			log.Errorf("set init nodes failed: %v", err)
+			return
 		}
 	}
 
@@ -178,7 +176,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		return nil, ErrPKSNotInitialized
 	}
 
-	err = (*bolt.DB)(pks.db).View(func(tx *bolt.Tx) error {
+	err = pks.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
 			return ErrBucketNotInitialized
@@ -207,7 +205,7 @@ func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 		return nil, ErrPKSNotInitialized
 	}
 
-	err = (*bolt.DB)(pks.db).View(func(tx *bolt.Tx) error {
+	err = pks.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
 			return ErrBucketNotInitialized
@@ -257,10 +255,7 @@ func IsIDPubNonceValid(id *proto.RawNodeID, nonce *mine.Uint256, key *asymmetric
 		return false
 	}
 	keyHash := mine.HashBlock(key.Serialize(), *nonce)
-	if keyHash.IsEqual(&id.Hash) {
-		return true
-	}
-	return false
+	return keyHash.IsEqual(&id.Hash)
 }
 
 // setNode sets id and its publicKey
@@ -281,7 +276,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 	}
 	log.Debugf("set node: %v", nodeInfo)
 
-	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+	err = pks.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
 			return ErrBucketNotInitialized
@@ -303,7 +298,7 @@ func DelNode(id proto.NodeID) (err error) {
 		return ErrPKSNotInitialized
 	}
 
-	err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+	err = pks.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
 		if bucket == nil {
 			return ErrBucketNotInitialized
@@ -321,7 +316,7 @@ func removeBucket() (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
 	if pks != nil {
-		err = (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+		err = pks.db.Update(func(tx *bolt.Tx) error {
 			return tx.DeleteBucket([]byte(kmsBucketName))
 		})
 		if err != nil {
@@ -342,7 +337,7 @@ func ResetBucket() error {
 	pksLock.Lock()
 	defer pksLock.Unlock()
 	bucketName := []byte(kmsBucketName)
-	err := (*bolt.DB)(pks.db).Update(func(tx *bolt.Tx) error {
+	err := pks.db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(bucketName)
 		return err
 	})

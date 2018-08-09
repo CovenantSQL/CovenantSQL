@@ -196,7 +196,7 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 							nodeIDstr := strings.Repeat("0", proto.NodeIDLen-len(fields[0])+len("th")) + fields[0][len("th"):]
 							nodeH, err := hash.NewHashFromStr(nodeIDstr)
 							if err == nil {
-								nodeID = proto.RawNodeID{*nodeH}
+								nodeID = proto.RawNodeID{Hash: *nodeH}
 							}
 						}
 

@@ -39,7 +39,7 @@ func initNode() (server *rpc.Server, err error) {
 	if !conf.GConf.IsTestMode {
 		// read master key
 		fmt.Print("Type in Master key to continue: ")
-		masterKey, err = terminal.ReadPassword(int(syscall.Stdin))
+		masterKey, err = terminal.ReadPassword(syscall.Stdin)
 		if err != nil {
 			fmt.Printf("Failed to read Master Key: %v", err)
 		}

@@ -95,7 +95,6 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 // SetListener set the service loop listener, used by func Serve main loop
 func (s *Server) SetListener(l net.Listener) {
 	s.Listener = l
-	return
 }
 
 // Serve start the Server main loop,

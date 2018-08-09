@@ -129,7 +129,7 @@ func runMiner() {
 				NonceChan: nonceCh,
 				Stop:      nil,
 			}
-			start := mine.Uint256{0, 0, 0, step*uint64(i) + uint64(rand.Uint32())}
+			start := mine.Uint256{D: step*uint64(i) + uint64(rand.Uint32())}
 			log.Infof("miner #%d start: %v", i, start)
 			miner.ComputeBlockNonce(block, start, difficulty)
 		}(i)

@@ -37,14 +37,15 @@ import (
 )
 
 var (
-	genesisHash     = hash.Hash{}
-	testDifficulty  = 4
-	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
-	testDataDir     string
-	testPrivKeyFile string
-	testPubKeysFile string
-	testPrivKey     *asymmetric.PrivateKey
-	testPubKey      *asymmetric.PublicKey
+	genesisHash      = hash.Hash{}
+	testDifficulty   = 4
+	testMasterKey    = []byte(".9K.sgch!3;C>w0v")
+	testDataDir      string
+	testPrivKeyFile  string
+	testPubKeysFile  string
+	testDHTStoreFile string
+	testPrivKey      *asymmetric.PrivateKey
+	testPubKey       *asymmetric.PublicKey
 )
 
 type nodeProfile struct {
@@ -60,12 +61,15 @@ func newRandomNode() (node *nodeProfile, err error) {
 		return
 	}
 
+	h := &hash.Hash{}
+	rand.Read(h[:])
+
 	node = &nodeProfile{
+		NodeID:     proto.NodeID(h.String()),
 		PrivateKey: priv,
 		PublicKey:  pub,
 	}
 
-	createRandomString(10, 10, (*string)(&node.NodeID))
 	return
 }
 
@@ -84,6 +88,11 @@ func newRandomNodes(n int) (nodes []*nodeProfile, err error) {
 func createRandomString(offset, length int, s *string) {
 	buff := make([]byte, rand.Intn(length)+offset)
 	rand.Read(buff)
+
+	for i, v := range buff {
+		buff[i] = v%(0x7f-0x20) + 0x20
+	}
+
 	*s = string(buff)
 }
 
@@ -488,8 +497,9 @@ func setup() {
 		panic(err)
 	}
 
-	testPubKeysFile = path.Join(testDataDir, "pub")
-	testPrivKeyFile = path.Join(testDataDir, "priv")
+	testPubKeysFile = path.Join(testDataDir, "public.keystore")
+	testPrivKeyFile = path.Join(testDataDir, "private.key")
+	testDHTStoreFile = path.Join(testDataDir, "dht.db")
 
 	// Setup public key store
 	if err = kms.InitPublicKeyStore(testPubKeysFile, nil); err != nil {

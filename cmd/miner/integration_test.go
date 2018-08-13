@@ -201,6 +201,26 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(tmResult, ShouldHappenBefore, time.Now())
 
+		// test string fields
+		row = db.QueryRow("SELECT name FROM sqlite_master WHERE type = ? LIMIT 1", "table")
+		var resultString string
+		err = row.Scan(&resultString)
+		So(err, ShouldBeNil)
+		So(resultString, ShouldBeIn, []string{"test", "test_time"})
+
+		// try raw bytes
+		_, err = db.Exec("CREATE TABLE test_raw (test blob)")
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("INSERT INTO test_raw VALUES(?)", []byte("ha\001ppy"))
+		So(err, ShouldBeNil)
+
+		row = db.QueryRow("SELECT * FROM test_raw LIMIT 1")
+		var resultBytes []byte
+		err = row.Scan(&resultBytes)
+		So(err, ShouldBeNil)
+		So(resultBytes, ShouldResemble, []byte("ha\001ppy"))
+
 		err = db.Close()
 		So(err, ShouldBeNil)
 

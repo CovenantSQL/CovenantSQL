@@ -151,7 +151,10 @@ sessionLoop:
 				break sessionLoop
 			}
 			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
-			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{WriteExt: true})
+			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{
+				WriteExt:    true,
+				RawToString: true,
+			})
 			nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}

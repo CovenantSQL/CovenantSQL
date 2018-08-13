@@ -280,7 +280,7 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	}
 
 	// Update in transaction
-	return c.db.Update(func(tx *bolt.Tx) (err error) {
+	err = c.db.Update(func(tx *bolt.Tx) (err error) {
 		if err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState); err != nil {
 			return
 		}
@@ -293,24 +293,30 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 		c.rt.setHead(st)
 		c.bi.addBlock(node)
 		c.qi.setSignedBlock(h, b)
+		return
+	})
+
+	if err == nil {
 		log.WithFields(log.Fields{
-			"peer":        c.rt.getPeerInfoString(),
+			"peer":        c.rt.getPeerInfoString()[:14],
 			"time":        c.rt.getChainTimeString(),
-			"block":       b.BlockHash().String(),
-			"producer":    b.Producer(),
+			"block":       b.BlockHash().String()[:8],
+			"producer":    b.Producer()[:8],
+			"querycount":  len(b.Queries),
 			"blocktime":   b.Timestamp().Format(time.RFC3339Nano),
 			"blockheight": c.rt.getHeightFromTime(b.Timestamp()),
 			"headblock": fmt.Sprintf("%s <- %s",
 				func() string {
 					if st.node.parent != nil {
-						return st.node.parent.hash.String()
+						return st.node.parent.hash.String()[:8]
 					}
 					return "|"
-				}(), st.Head.String()),
+				}(), st.Head.String()[:8]),
 			"headheight": c.rt.getHead().Height,
-		}).Debug("Pushed new block")
-		return
-	})
+		}).Info("Pushed new block")
+	}
+
+	return
 }
 
 func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {

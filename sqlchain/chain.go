@@ -302,6 +302,7 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 			"time":        c.rt.getChainTimeString(),
 			"block":       b.BlockHash().String()[:8],
 			"producer":    b.Producer()[:8],
+			"querycount":  len(b.Queries),
 			"blocktime":   b.Timestamp().Format(time.RFC3339Nano),
 			"blockheight": c.rt.getHeightFromTime(b.Timestamp()),
 			"headblock": fmt.Sprintf("%s <- %s",

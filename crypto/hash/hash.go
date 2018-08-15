@@ -20,6 +20,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/bits"
+
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // HashSize of array used to store hashes.  See Hash.
@@ -97,6 +99,33 @@ func (hash *Hash) Difficulty() (difficulty int) {
 		}
 	}
 	return HashSize * 8
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (hash Hash) MarshalYAML() (interface{}, error) {
+	return hash.String(), nil
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (hash *Hash) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+
+	log.Infof("Unmarshal hash is: %v", str)
+	// load hash
+	dec, err := hex.DecodeString(str)
+	if err != nil {
+		log.Fatal("Error in UnmarshalYAML: %v", err)
+		return err
+	}
+	err = hash.SetBytes(dec)
+	if err != nil {
+		log.Fatal("Error in UnmarshalYAML: %v, dec string is %v", err, dec)
+		return err
+	}
+	return nil
 }
 
 // NewHash returns a new Hash from a byte slice.  An error is returned if

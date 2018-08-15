@@ -68,9 +68,9 @@ type Chain struct {
 }
 
 // NewChain creates a new blockchain
-func NewChain(cfg *config) (*Chain, error) {
+func NewChain(cfg *Config) (*Chain, error) {
 	// open db file
-	db, err := bolt.Open(cfg.dataFile, 0600, nil)
+	db, err := bolt.Open(cfg.DataFile, 0600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -131,15 +131,21 @@ func NewChain(cfg *config) (*Chain, error) {
 		stopCh:            make(chan struct{}),
 	}
 
-	chain.pushGenesisBlock(cfg.genesis)
+	chain.pushGenesisBlock(cfg.Genesis)
+	log.WithFields(log.Fields{
+		"index":     chain.rt.index,
+		"bp_number": chain.rt.bpNum,
+		"period":    chain.rt.period.String(),
+		"tick":      chain.rt.tick.String(),
+	}).Debugf("current chain state: {hash: %s, height: %d}", chain.st.Head.String(), chain.st.Height)
 
 	return chain, nil
 }
 
 // LoadChain rebuilds the chain from db
-func LoadChain(cfg *config) (chain *Chain, err error) {
+func LoadChain(cfg *Config) (chain *Chain, err error) {
 	// open db file
-	db, err := bolt.Open(cfg.dataFile, 0600, nil)
+	db, err := bolt.Open(cfg.DataFile, 0600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -317,6 +323,7 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
 func (c *Chain) checkBlock(b *types.Block) error {
 	// TODO(lambda): process block fork
 	if !b.SignedHeader.ParentHash.IsEqual(&c.st.Head) {
+		log.Debugf("chain's parent hash is %s, and height is %d. But received block's hash is %s", c.st.Head, c.st.Height, b.SignedHeader.ParentHash)
 		return ErrParentNotMatch
 	}
 	hashes := make([]*hash.Hash, len(b.TxBillings))
@@ -346,7 +353,8 @@ func (c *Chain) checkBlock(b *types.Block) error {
 }
 
 func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
-	node := newBlockNode(b, c.st.node)
+	h := c.rt.getHeightFromTime(b.Timestamp())
+	node := newBlockNode(h, b, c.st.node)
 	state := state{
 		node:   node,
 		Head:   node.hash,
@@ -489,6 +497,8 @@ func (c *Chain) produceBlock(now time.Time) error {
 		b.TxBillings[i].SetSignedBlock(&b.SignedHeader.BlockHash)
 	}
 
+	log.Debugf("generate new block: %v", b)
+
 	err = c.pushBlockWithoutCheck(b)
 	if err != nil {
 		return err
@@ -504,7 +514,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	peers := c.rt.getPeers()
 	wg := &sync.WaitGroup{}
 	for _, s := range peers.Servers {
-		if s.ID != c.rt.nodeID {
+		if !s.ID.IsEqual(&c.rt.nodeID) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
@@ -517,6 +527,8 @@ func (c *Chain) produceBlock(now time.Time) error {
 						"block_hash": b.SignedHeader.BlockHash,
 					}).WithError(err).Error(
 						"Failed to advise new block")
+				} else {
+					log.Debugf("Success to advising #%d height block to %s", c.st.Height, id)
 				}
 			}(s.ID)
 		}
@@ -671,7 +683,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 	peers := c.rt.getPeers()
 	wg := &sync.WaitGroup{}
 	for _, s := range peers.Servers {
-		if s.ID != c.rt.nodeID {
+		if !s.ID.IsEqual(&c.rt.nodeID) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
@@ -747,12 +759,18 @@ func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
 
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
+	log.WithFields(log.Fields{
+		"next_turn":  c.rt.getNextTurn(),
+		"bp_number":  c.rt.bpNum,
+		"node_index": c.rt.index,
+	}).Info("check turns")
 	defer c.rt.setNextTurn()
 
 	if !c.rt.isMyTurn() {
 		return
 	}
 
+	log.Infof("produce a new block with height %d", c.rt.getNextTurn())
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
 			"Failed to produce block")
@@ -769,13 +787,17 @@ func (c *Chain) sync() error {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)
 
+		log.Infof("current height is %d, next turn is %d", height, c.rt.getNextTurn())
 		if c.rt.getNextTurn() >= height {
+			log.Infof("return with height %d, next turn is %d", height, c.rt.getNextTurn())
 			break
 		}
 
 		for c.rt.getNextTurn() <= height {
 			// TODO(lambda): fetch blocks and txes.
 			c.rt.setNextTurn()
+			// TODO(lambda): remove it after implementing fetch
+			c.st.Height++
 		}
 	}
 
@@ -931,6 +953,12 @@ func (c *Chain) mainCycle() {
 
 func (c *Chain) syncHead() {
 	// Try to fetch if the the block of the current turn is not advised yet
+	log.WithFields(log.Fields{
+		"index":     c.rt.index,
+		"next_turn": c.rt.getNextTurn(),
+		"height":    c.st.Height,
+		"count":     c.st.node.count,
+	}).Debugf("sync header")
 	if h := c.rt.getNextTurn() - 1; c.st.Height < h {
 		var err error
 		req := &FetchBlockReq{
@@ -945,7 +973,7 @@ func (c *Chain) syncHead() {
 		succ := false
 
 		for i, s := range peers.Servers {
-			if s.ID != c.rt.nodeID {
+			if !s.ID.IsEqual(&c.rt.nodeID) {
 				err = c.cl.CallNode(s.ID, method, req, resp)
 				if err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{

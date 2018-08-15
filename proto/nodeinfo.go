@@ -108,6 +108,11 @@ func (id *NodeID) IsEmpty() bool {
 	return id == nil || "" == string(*id)
 }
 
+// IsEqual returns if two node id is equal
+func (id *NodeID) IsEqual(target *NodeID) bool {
+	return strings.Compare(string(*id), string(*target)) == 0
+}
+
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo
 // Node.ID = Node.NonceInfo.Hash
 func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {

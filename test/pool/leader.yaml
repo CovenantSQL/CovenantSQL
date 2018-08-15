@@ -3,7 +3,7 @@ WorkingRoot: "../test/pool/leader"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
-ListenAddr: "127.0.0.1:2330"
+ListenAddr: "127.0.0.1:2530"
 ThisNodeID: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
@@ -32,6 +32,6 @@ KnownNodes:
     b: 0
     c: 0
     d: 0
-  Addr: 127.0.0.1:2330
+  Addr: 127.0.0.1:2530
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Leader

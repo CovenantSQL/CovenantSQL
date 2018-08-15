@@ -23,6 +23,8 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
@@ -51,7 +53,10 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	rootPath := conf.GConf.WorkingRoot
 	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
 	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
-	dbFile := filepath.Join(rootPath, conf.GConf.DHTFileName)
+	dhtDbFile := filepath.Join(rootPath, conf.GConf.DHTFileName)
+	chainDbFile := filepath.Join(rootPath, conf.GConf.BP.ChainFileName)
+
+	genesis := loadGenesis()
 
 	var masterKey []byte
 	if !conf.GConf.IsTestMode {
@@ -91,7 +96,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	// init storage
 	log.Infof("init storage")
 	var st *LocalStorage
-	if st, err = initStorage(dbFile); err != nil {
+	if st, err = initStorage(dhtDbFile); err != nil {
 		log.Errorf("init storage failed: %s", err)
 		return
 	}
@@ -110,7 +115,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		Runtime:   kayakRuntime,
 		KVStorage: st,
 	}
-	dht, err := route.NewDHTService(dbFile, kvServer, true)
+	dht, err := route.NewDHTService(dhtDbFile, kvServer, true)
 	if err != nil {
 		log.Errorf("init consistent hash failed: %s", err)
 		return
@@ -128,6 +133,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}
 
 	// init metrics
+	log.Infof("register metric service rpc")
 	metricService := metric.NewCollectServer()
 	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
 		log.Errorf("init metric service failed: %v", err)
@@ -135,6 +141,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}
 
 	// init block producer database service
+	log.Infof("register block producer database service rpc")
 	var dbService *bp.DBService
 	if dbService, err = initDBService(kvServer, metricService); err != nil {
 		log.Errorf("init block producer db service failed: %v", err)
@@ -144,6 +151,25 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		log.Error("init block producer db service failed: %v", err)
 		return
 	}
+
+	// init main chain service
+	log.Infof("register main chain service rpc")
+	chainConfig := bp.NewConfig(
+		genesis,
+		chainDbFile,
+		server,
+		peers,
+		nodeID,
+		2*time.Second,
+		100*time.Millisecond,
+	)
+	chain, err := bp.NewChain(chainConfig)
+	if err != nil {
+		log.Errorf("init chain failed: %v", err)
+		return
+	}
+	chain.Start()
+	defer chain.Stop()
 
 	log.Info(conf.StartSucceedMessage)
 	//go periodicPingBlockProducer()
@@ -236,4 +262,24 @@ func periodicPingBlockProducer() {
 			}
 		}
 	}()
+}
+
+func loadGenesis() *types.Block {
+	genesisInfo := conf.GConf.BP.BPGenesis
+	log.Infof("genesis config: %v", genesisInfo)
+
+	genesis := &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
+				Version:    genesisInfo.Version,
+				Producer:   proto.AccountAddress(genesisInfo.Producer),
+				MerkleRoot: genesisInfo.MerkleRoot,
+				ParentHash: genesisInfo.ParentHash,
+				Timestamp:  genesisInfo.Timestamp,
+			},
+			BlockHash: genesisInfo.BlockHash,
+		},
+	}
+
+	return genesis
 }

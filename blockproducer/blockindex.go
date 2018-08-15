@@ -28,20 +28,22 @@ type blockNode struct {
 	hash   hash.Hash
 	parent *blockNode
 	height uint32
+	count  uint32
 }
 
-func newBlockNode(block *types.Block, parent *blockNode) *blockNode {
-	var height uint32
+func newBlockNode(h uint32, block *types.Block, parent *blockNode) *blockNode {
+	var count uint32
 
 	if parent != nil {
-		height = parent.height + 1
+		count = parent.height + 1
 	} else {
-		height = 0
+		count = 0
 	}
 	bn := &blockNode{
 		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
-		height: height,
+		height: h,
+		count: count,
 	}
 
 	return bn

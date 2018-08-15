@@ -21,6 +21,9 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
+
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -44,6 +47,8 @@ func TestConf(t *testing.T) {
 		t.Errorf("unmarshal pubkey failed: %v", err)
 	}
 	log.Debugf("pubkey: %x", BPPubkey.Serialize())
+	rawBytes := []byte("Space Cowboy")
+	h := hash.THashH(rawBytes)
 
 	log.SetLevel(log.DebugLevel)
 	BP := &BPInfo{
@@ -55,6 +60,15 @@ func TestConf(t *testing.T) {
 			0,
 			0,
 			6148914694092305796,
+		},
+		ChainFileName: "",
+		BPGenesis: BPGenesisInfo{
+			Version:    1,
+			Producer:   h,
+			MerkleRoot: h,
+			ParentHash: h,
+			Timestamp:  time.Now().UTC(),
+			BlockHash:  h,
 		},
 	}
 	Convey("LoadConfig", t, func() {
@@ -117,6 +131,8 @@ func TestConf(t *testing.T) {
 			},
 		}
 		sConfig, _ := yaml.Marshal(config)
+		hConfig, _ := yaml.Marshal(h)
+		log.Debugf("hash: \n %s", hConfig)
 		log.Debugf("config:\n%s", sConfig)
 		ioutil.WriteFile(testFile, sConfig, 0600)
 		configNew, err := LoadConfig(testFile)

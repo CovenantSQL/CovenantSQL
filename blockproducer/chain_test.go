@@ -288,7 +288,7 @@ func TestMultiNode(t *testing.T) {
 
 							bReq := &AdviseBillingReq{
 								Envelope: proto.Envelope{
-								// TODO(lambda): Add fields.
+									// TODO(lambda): Add fields.
 								},
 								Req: br,
 							}

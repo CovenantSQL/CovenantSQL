@@ -187,9 +187,9 @@ func TestRuntimeAll(t *testing.T) {
 			So(r.logStore, ShouldNotBeNil)
 
 			// run process
-			runner.On("Apply", mock.Anything).Return(nil)
+			runner.On("Apply", mock.Anything).Return(uint64(1), nil)
 
-			err = r.Apply([]byte("test"))
+			_, err = r.Apply([]byte("test"))
 			So(err, ShouldBeNil)
 
 			// call shutdowns
@@ -234,13 +234,13 @@ func TestRuntimeAll(t *testing.T) {
 		).Return(nil)
 		runner.On("Shutdown", mock.Anything).
 			Return(nil)
-		runner.On("Apply", mock.Anything).Return(nil)
+		runner.On("Apply", mock.Anything).Return(uint64(1), nil)
 
 		err = r.Init()
 		So(err, ShouldBeNil)
 		defer r.Shutdown()
 
-		err = r.Apply([]byte("test"))
+		_, err = r.Apply([]byte("test"))
 		So(err, ShouldNotBeNil)
 		So(err, ShouldEqual, ErrNotLeader)
 	})

@@ -301,7 +301,7 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 		return err
 	}
 
-	err = s.Runtime.Apply(writeData.Bytes())
+	_, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
 		log.Errorf("Apply set node failed: %s\nPayload:\n	%s", err, writeData)
 	}
@@ -372,7 +372,7 @@ func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
 		return err
 	}
 
-	err = s.Runtime.Apply(writeData.Bytes())
+	_, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
 		log.Errorf("Apply set database failed: %s\nPayload:\n	%s", err, writeData)
 	}
@@ -401,7 +401,7 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 		return err
 	}
 
-	err = s.Runtime.Apply(writeData.Bytes())
+	_, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
 		log.Errorf("Apply set database failed: %s\nPayload:\n	%s", err, writeData)
 	}

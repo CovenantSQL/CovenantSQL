@@ -119,18 +119,18 @@ func (r *Runtime) Shutdown() (err error) {
 }
 
 // Apply defines common process logic.
-func (r *Runtime) Apply(data []byte) error {
+func (r *Runtime) Apply(data []byte) (offset uint64, err error) {
 	// validate if myself is leader
 	if !r.isLeader {
-		return ErrNotLeader
+		return 0, ErrNotLeader
 	}
 
-	err := r.config.Runner.Apply(data)
+	offset, err = r.config.Runner.Apply(data)
 	if err != nil {
-		return fmt.Errorf("process log: %s", err.Error())
+		return 0, err
 	}
 
-	return nil
+	return
 }
 
 // UpdatePeers defines common peers update logic.

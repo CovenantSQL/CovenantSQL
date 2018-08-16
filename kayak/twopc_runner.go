@@ -44,6 +44,11 @@ type TwoPCConfig struct {
 	Storage twopc.Worker
 }
 
+type logProcessResult struct {
+	offset uint64
+	err error
+}
+
 // TwoPCRunner is a Runner implementation organizing two phase commit mutation.
 type TwoPCRunner struct {
 	config      *TwoPCConfig
@@ -70,7 +75,7 @@ type TwoPCRunner struct {
 	// Lock/events
 	processLock     sync.Mutex
 	processReq      chan []byte
-	processRes      chan error
+	processRes      chan logProcessResult
 	updatePeersLock sync.Mutex
 	updatePeersReq  chan *Peers
 	updatePeersRes  chan error
@@ -94,7 +99,7 @@ func NewTwoPCRunner() *TwoPCRunner {
 	return &TwoPCRunner{
 		shutdownCh:     make(chan struct{}),
 		processReq:     make(chan []byte),
-		processRes:     make(chan error),
+		processRes:     make(chan logProcessResult),
 		updatePeersReq: make(chan *Peers),
 		updatePeersRes: make(chan error),
 	}
@@ -272,17 +277,19 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 }
 
 // Apply implements Runner.Apply.
-func (r *TwoPCRunner) Apply(data []byte) error {
+func (r *TwoPCRunner) Apply(data []byte) (uint64, error) {
 	r.processLock.Lock()
 	defer r.processLock.Unlock()
 
 	// check leader privilege
 	if r.role != proto.Leader {
-		return ErrNotLeader
+		return 0, ErrNotLeader
 	}
 
 	r.processReq <- data
-	return <-r.processRes
+	res := <-r.processRes
+
+	return res.offset, res.err
 }
 
 // Shutdown implements Runner.Shutdown.
@@ -327,7 +334,7 @@ func (r *TwoPCRunner) safeForPeersUpdate() chan *Peers {
 	return nil
 }
 
-func (r *TwoPCRunner) processNewLog(data []byte) (err error) {
+func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
 	// build Log
 	l := &Log{
 		Index:    r.lastLogIndex + 1,
@@ -385,7 +392,8 @@ func (r *TwoPCRunner) processNewLog(data []byte) (err error) {
 			localCommit,   // after all remote nodes commit
 		))
 
-		err = c.Put(nodes, l)
+		res.err = c.Put(nodes, l)
+		res.offset = r.lastLogIndex
 	} else {
 		// single node short cut
 		// init context
@@ -394,12 +402,14 @@ func (r *TwoPCRunner) processNewLog(data []byte) (err error) {
 
 		if err := localPrepare(ctx); err != nil {
 			localRollback(ctx)
-			return err
+			res.err = err
+			return
 		}
 
 		// Commit myself
 		// return commit err but still commit
-		err = localCommit(ctx)
+		res.err = localCommit(ctx)
+		res.offset = r.lastLogIndex
 	}
 
 	return

@@ -227,7 +227,7 @@ func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err 
 		return
 	}
 
-	err = db.kayakRuntime.Apply(buf.Bytes())
+	_, err = db.kayakRuntime.Apply(buf.Bytes())
 
 	if err != nil {
 		return

@@ -192,6 +192,17 @@ func TestRuntimeAll(t *testing.T) {
 			_, err = r.Apply([]byte("test"))
 			So(err, ShouldBeNil)
 
+			// test get log
+			var l Log
+			l.Data = []byte("test")
+			l.Index = uint64(1)
+			err = r.logStore.StoreLog(&l)
+			So(err, ShouldBeNil)
+
+			data, err := r.GetLog(1)
+			So(err, ShouldBeNil)
+			So(data, ShouldResemble, []byte("test"))
+
 			// call shutdowns
 			err = r.Shutdown()
 			So(err, ShouldBeNil)

@@ -133,6 +133,18 @@ func (r *Runtime) Apply(data []byte) (offset uint64, err error) {
 	return
 }
 
+// GetLog fetches runtime log produced by runner.
+func (r *Runtime) GetLog(offset uint64) (data []byte, err error) {
+	var l Log
+	if err = r.logStore.GetLog(offset, &l); err != nil {
+		return
+	}
+
+	data = l.Data
+
+	return
+}
+
 // UpdatePeers defines common peers update logic.
 func (r *Runtime) UpdatePeers(peers *Peers) error {
 	// Verify peers

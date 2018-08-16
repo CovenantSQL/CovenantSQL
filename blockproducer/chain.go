@@ -252,11 +252,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			chain.ti.updateLastTxBilling(&databaseID, sequenceID)
 			return nil
 		})
-		if err != nil {
-			return err
-		}
 
-		return nil
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -367,7 +364,7 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	}
 
 	encState, err := c.st.serialize()
-	if err != err {
+	if err != nil {
 		return err
 	}
 
@@ -377,9 +374,6 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 			return err
 		}
 		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock)
-		if err != nil {
-			return err
-		}
 		return err
 	})
 	if err != nil {

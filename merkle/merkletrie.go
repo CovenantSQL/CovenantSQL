@@ -30,12 +30,12 @@ type Merkle struct {
 // https://web.archive.org/web/20180327073507/graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
 func upperPowOfTwo(n uint64) uint64 {
 	n--
-	n |= (n >> 1)
-	n |= (n >> 2)
-	n |= (n >> 4)
-	n |= (n >> 8)
-	n |= (n >> 16)
-	n |= (n >> 32)
+	n |= n >> 1
+	n |= n >> 2
+	n |= n >> 4
+	n |= n >> 8
+	n |= n >> 16
+	n |= n >> 32
 	n++
 	return n
 }
@@ -43,8 +43,8 @@ func upperPowOfTwo(n uint64) uint64 {
 // NewMerkle generate a merkle tree according
 // to some hashable values like transactions or blocks
 func NewMerkle(items []*hash.Hash) *Merkle {
-	if items == nil || len(items) == 0 {
-		items = []*hash.Hash{&hash.Hash{}}
+	if len(items) == 0 {
+		items = []*hash.Hash{{}}
 	}
 
 	// the max number of merkle tree node = len(items) * 2 + 2
@@ -53,9 +53,7 @@ func NewMerkle(items []*hash.Hash) *Merkle {
 	hashArray := make([]*hash.Hash, maxMerkleSize)
 
 	// generate merkle tree
-	for i, item := range items {
-		hashArray[i] = item
-	}
+	copy(hashArray, items)
 	offset := upperPoT
 	for i := uint64(0); i < maxMerkleSize-1; i += 2 {
 		if hashArray[i] != nil && hashArray[i+1] != nil {

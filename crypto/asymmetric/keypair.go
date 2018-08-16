@@ -79,10 +79,8 @@ func (k *PublicKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	err = k.UnmarshalBinary(pubKeyBytes)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
 }
 
 // IsEqual return true if two keys are equal

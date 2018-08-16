@@ -122,7 +122,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 }
 
 func (c *conn) log(msg ...interface{}) {
-	log.Println(msg...)
+	log.Debug(msg...)
 }
 
 // Prepare implements the driver.Conn.Prepare method.

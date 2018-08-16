@@ -305,8 +305,6 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 			return
 		}
 	}
-
-	return
 }
 
 func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *kayak.Peers, err error) {
@@ -366,6 +364,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		log.Debugf("get %d metric records for %d nodes", len(metrics), len(nodeIDs))
 
 		for nodeID, nodeMetric := range metrics {
+			log.Debugf("parse metric of node %v", nodeID)
 			var metricValue uint64
 
 			// get metric

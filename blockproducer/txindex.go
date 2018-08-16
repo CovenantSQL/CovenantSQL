@@ -25,7 +25,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// TxIndex indexes the tx blockchain receive.
+// txIndex indexes the tx blockchain receive.
 type txIndex struct {
 	mu sync.Mutex
 
@@ -37,22 +37,22 @@ type txIndex struct {
 
 // newTxIndex creates a new TxIndex.
 func newTxIndex() *txIndex {
-	txIndex := txIndex{
+	ti := txIndex{
 		billingHashIndex: make(map[hash.Hash]*types.TxBilling),
 		lastBillingIndex: make(map[*proto.DatabaseID]uint32),
 	}
-	return &txIndex
+	return &ti
 }
 
 // addTxBilling adds a checked TxBilling in the TxIndex.
-func (ti *txIndex) addTxBilling(tb *types.TxBilling) (err error) {
+func (ti *txIndex) addTxBilling(tb *types.TxBilling) error {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
 
 	if v, ok := ti.billingHashIndex[*tb.TxHash]; ok {
 		// TODO(lambda): ensure whether the situation will happen
 		if v == nil {
-			err = ErrCorruptedIndex
+			return ErrCorruptedIndex
 		}
 	}
 

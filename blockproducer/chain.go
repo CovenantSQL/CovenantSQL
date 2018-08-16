@@ -57,7 +57,7 @@ type Chain struct {
 	bi *blockIndex
 	ti *txIndex
 	rt *rt
-	st *state
+	st *State
 	cl *rpc.Caller
 
 	blocksFromSelf    chan *types.Block
@@ -122,7 +122,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
-		st:                &state{},
+		st:                &State{},
 		cl:                rpc.NewCaller(),
 		blocksFromSelf:    make(chan *types.Block),
 		blocksFromRPC:     make(chan *types.Block),
@@ -166,7 +166,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
-		st:                &state{},
+		st:                &State{},
 		cl:                rpc.NewCaller(),
 		blocksFromSelf:    make(chan *types.Block),
 		blocksFromRPC:     make(chan *types.Block),
@@ -351,9 +351,9 @@ func (c *Chain) checkBlock(b *types.Block) error {
 
 func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
-	node := newBlockNode(h, b, c.st.node)
-	state := state{
-		node:   node,
+	node := newBlockNode(h, b, c.st.Node)
+	state := State{
+		Node:   node,
 		Head:   node.hash,
 		Height: node.height,
 	}
@@ -732,7 +732,7 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
-	node := c.st.node.ancestor(h)
+	node := c.st.Node.ancestor(h)
 	if node == nil {
 		return nil, ErrNoSuchBlock
 	}
@@ -951,7 +951,7 @@ func (c *Chain) syncHead() {
 		"index":     c.rt.index,
 		"next_turn": c.rt.getNextTurn(),
 		"height":    c.st.Height,
-		"count":     c.st.node.count,
+		"count":     c.st.Node.count,
 	}).Debugf("sync header")
 	if h := c.rt.getNextTurn() - 1; c.st.Height < h {
 		var err error

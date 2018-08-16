@@ -47,6 +47,7 @@ type ResponseHeader struct {
 	NodeID    proto.NodeID // response node id
 	Timestamp time.Time    // time in UTC zone
 	RowCount  uint64       // response row count of payload
+	LogOffset uint64       // request log offset
 	DataHash  hash.Hash    // hash of query response
 }
 
@@ -111,6 +112,7 @@ func (h *ResponseHeader) Serialize() []byte {
 	buf.WriteString(string(h.NodeID))
 	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
 	binary.Write(buf, binary.LittleEndian, h.RowCount)
+	binary.Write(buf, binary.LittleEndian, h.LogOffset)
 	buf.Write(h.DataHash[:])
 
 	return buf.Bytes()

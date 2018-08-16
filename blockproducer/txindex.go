@@ -99,7 +99,7 @@ func (ti *txIndex) hasTxBilling(h *hash.Hash) bool {
 
 // getTxBilling look up the specific txbilling in index
 func (ti *txIndex) getTxBilling(h *hash.Hash) *types.TxBilling {
-	val, _ := ti.billingHashIndex[*h]
+	val := ti.billingHashIndex[*h]
 	return val
 }
 

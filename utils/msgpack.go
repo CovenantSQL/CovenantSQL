@@ -25,7 +25,10 @@ import (
 // DecodeMsgPack reverses the encode operation on a byte slice input.
 func DecodeMsgPack(buf []byte, out interface{}) error {
 	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{}
+	hd := codec.MsgpackHandle{
+		WriteExt:    true,
+		RawToString: true,
+	}
 	dec := codec.NewDecoder(r, &hd)
 	return dec.Decode(out)
 }
@@ -33,7 +36,10 @@ func DecodeMsgPack(buf []byte, out interface{}) error {
 // EncodeMsgPack writes an encoded object to a new bytes buffer.
 func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
-	hd := codec.MsgpackHandle{WriteExt: true}
+	hd := codec.MsgpackHandle{
+		WriteExt:    true,
+		RawToString: true,
+	}
 	enc := codec.NewEncoder(buf, &hd)
 	err := enc.Encode(in)
 	return buf, err

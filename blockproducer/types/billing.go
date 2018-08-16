@@ -26,13 +26,16 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-// BillingRequestHeader includes contents that need to be signed
+// BillingRequestHeader includes contents that need to be signed. Billing blocks should be within
+// height range [low, high] (inclusive).
 type BillingRequestHeader struct {
 	DatabaseID proto.DatabaseID
 	// sqlchain block hash and its height
-	BlockHash   hash.Hash
-	BlockHeight int32
-	GasAmounts  []*proto.AddrAndGas
+	LowBlock   hash.Hash
+	LowHeight  int32
+	HighBlock  hash.Hash
+	HighHeight int32
+	GasAmounts []*proto.AddrAndGas
 }
 
 // MarshalBinary implements BinaryMarshaler.
@@ -41,8 +44,10 @@ func (bh *BillingRequestHeader) MarshalBinary() ([]byte, error) {
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
 		&bh.DatabaseID,
-		&bh.BlockHash,
-		&bh.BlockHeight,
+		&bh.LowBlock,
+		&bh.LowHeight,
+		&bh.HighBlock,
+		&bh.HighHeight,
 		&bh.GasAmounts,
 	)
 
@@ -58,8 +63,10 @@ func (bh *BillingRequestHeader) UnmarshalBinary(b []byte) error {
 
 	err := utils.ReadElements(reader, binary.BigEndian,
 		&bh.DatabaseID,
-		&bh.BlockHash,
-		&bh.BlockHeight,
+		&bh.LowBlock,
+		&bh.LowHeight,
+		&bh.HighBlock,
+		&bh.HighHeight,
 		&bh.GasAmounts,
 	)
 	if err != nil {

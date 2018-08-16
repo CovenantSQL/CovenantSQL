@@ -178,7 +178,10 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 		}
 	}
 	client.Conn = muxConn
-	mh := &codec.MsgpackHandle{}
+	mh := &codec.MsgpackHandle{
+		WriteExt:    true,
+		RawToString: true,
+	}
 	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(muxConn, mh)
 	client.Client = rpc.NewClientWithCodec(msgpackCodec)
 	client.RemoteAddr = conn.RemoteAddr().String()

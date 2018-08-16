@@ -101,19 +101,14 @@ func (mfm *MetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 			switch v.GetType() {
 			case dto.MetricType_GAUGE:
 				metricVal = v.GetMetric()[0].GetGauge().GetValue()
-				break
 			case dto.MetricType_COUNTER:
 				metricVal = v.GetMetric()[0].GetCounter().GetValue()
-				break
 			case dto.MetricType_HISTOGRAM:
 				metricVal = v.GetMetric()[0].GetHistogram().GetBucket()[0].GetUpperBound()
-				break
 			case dto.MetricType_SUMMARY:
 				metricVal = v.GetMetric()[0].GetSummary().GetQuantile()[0].GetValue()
-				break
 			case dto.MetricType_UNTYPED:
 				metricVal = v.GetMetric()[0].GetUntyped().GetValue()
-				break
 			default:
 				continue
 			}

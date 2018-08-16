@@ -146,10 +146,12 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 
 func generateRandomBillingRequestHeader() *BillingRequestHeader {
 	return &BillingRequestHeader{
-		DatabaseID:  *generateRandomDatabaseID(),
-		BlockHash:   generateRandomHash(),
-		BlockHeight: rand.Int31(),
-		GasAmounts:  generateRandomGasAmount(peerNum),
+		DatabaseID: *generateRandomDatabaseID(),
+		LowBlock:   generateRandomHash(),
+		LowHeight:  rand.Int31(),
+		HighBlock:  generateRandomHash(),
+		HighHeight: rand.Int31(),
+		GasAmounts: generateRandomGasAmount(peerNum),
 	}
 }
 

@@ -138,7 +138,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 	)
 
 	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(proto.NodeID(s.Header.Producer[:]))
+	pk, err := kms.GetPublicKey(s.Producer)
 
 	if err != nil {
 		return
@@ -234,7 +234,7 @@ func (b *Block) Verify() (err error) {
 // VerifyAsGenesis verifies the block as a genesis block.
 func (b *Block) VerifyAsGenesis() (err error) {
 	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(proto.NodeID(b.SignedHeader.Header.Producer[:]))
+	pk, err := kms.GetPublicKey(b.Producer())
 
 	if err != nil {
 		return

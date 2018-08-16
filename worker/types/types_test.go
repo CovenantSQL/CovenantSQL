@@ -17,6 +17,7 @@
 package types
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -123,10 +124,20 @@ func TestRequest_Sign(t *testing.T) {
 			Payload: RequestPayload{
 				Queries: []Query{
 					{
-						Pattern: "INSERT INTO test VALUES(1)",
+						Pattern: "INSERT INTO test VALUES(?)",
+						Args: []sql.NamedArg{
+							{
+								Value: 1,
+							},
+						},
 					},
 					{
-						Pattern: "INSERT INTO test VALUES(2)",
+						Pattern: "INSERT INTO test VALUES(?)",
+						Args: []sql.NamedArg{
+							{
+								Value: "happy",
+							},
+						},
 					},
 				},
 			},

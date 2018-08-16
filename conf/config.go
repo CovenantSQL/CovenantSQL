@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/proto"
@@ -41,6 +43,22 @@ const StartSucceedMessage = "ThunderDB Started Successfully"
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag
 
+// BPGenesisInfo hold all genesis info fields
+type BPGenesisInfo struct {
+	// Version defines the block version
+	Version int32 `yaml:"Version"`
+	// Producer defines the block producer
+	Producer hash.Hash `yaml:"Producer"`
+	// MerkleRoot defines the transaction merkle tree's root
+	MerkleRoot hash.Hash `yaml:"MerkleRoot"`
+	// ParentHash defines the parent block's hash
+	ParentHash hash.Hash `yaml:"ParentHash"`
+	// Timestamp defines the initial time of chain
+	Timestamp time.Time `yaml:"Timestamp"`
+	// BlockHash defines the the block hash of genesis block
+	BlockHash hash.Hash `yaml:"BlockHash"`
+}
+
 // BPInfo hold all BP info fields
 type BPInfo struct {
 	// PublicKey point to BlockProducer public key
@@ -51,6 +69,10 @@ type BPInfo struct {
 	RawNodeID proto.RawNodeID `yaml:"-"`
 	// Nonce is the nonce, SEE: cmd/idminer for more
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
+	// ChainFileName is the chain db's name
+	ChainFileName string `yaml:"ChainFileName"`
+	// BPGenesisInfo is the genesis block filed
+	BPGenesis BPGenesisInfo `yaml:"BPGenesisInfo"`
 }
 
 // MinerDatabaseFixture config.

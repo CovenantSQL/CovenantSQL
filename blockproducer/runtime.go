@@ -74,24 +74,24 @@ func (r *rt) now() time.Time {
 	return time.Now().UTC().Add(r.offset)
 }
 
-func newRuntime(cfg *config, accountAddress proto.AccountAddress) *rt {
+func newRuntime(cfg *Config, accountAddress proto.AccountAddress) *rt {
 	var index uint32
-	for i, s := range cfg.peers.Servers {
-		if cfg.nodeID == s.ID {
+	for i, s := range cfg.Peers.Servers {
+		if cfg.NodeID.IsEqual(&s.ID) {
 			index = uint32(i)
 		}
 	}
 	return &rt{
 		stopCh:         make(chan struct{}),
-		chainInitTime:  cfg.genesis.SignedHeader.Timestamp,
+		chainInitTime:  cfg.Genesis.SignedHeader.Timestamp,
 		accountAddress: accountAddress,
-		server:         cfg.server,
-		bpNum:          uint32(len(cfg.peers.Servers)),
+		server:         cfg.Server,
+		bpNum:          uint32(len(cfg.Peers.Servers)),
 		index:          index,
-		period:         cfg.period,
-		tick:           cfg.tick,
-		peers:          cfg.peers,
-		nodeID:         cfg.nodeID,
+		period:         cfg.Period,
+		tick:           cfg.Tick,
+		peers:          cfg.Peers,
+		nodeID:         cfg.NodeID,
 		nextTurn:       1,
 		offset:         time.Duration(0),
 	}

@@ -29,33 +29,33 @@ const (
 	blockVersion int32 = 0x01
 )
 
-// config is the main chain configuration
-type config struct {
-	genesis *types.Block
+// Config is the main chain configuration
+type Config struct {
+	Genesis *types.Block
 
-	dataFile string
+	DataFile string
 
-	server *rpc.Server
+	Server *rpc.Server
 
-	peers  *kayak.Peers
-	nodeID proto.NodeID
+	Peers  *kayak.Peers
+	NodeID proto.NodeID
 
-	period time.Duration
-	tick   time.Duration
+	Period time.Duration
+	Tick   time.Duration
 }
 
-// newConfig creates new config
-func newConfig(genesis *types.Block, dataFile string,
+// NewConfig creates new config
+func NewConfig(genesis *types.Block, dataFile string,
 	server *rpc.Server, peers *kayak.Peers,
-	nodeID proto.NodeID, period time.Duration, tick time.Duration) *config {
-	config := config{
-		genesis:  genesis,
-		dataFile: dataFile,
-		server:   server,
-		peers:    peers,
-		nodeID:   nodeID,
-		period:   period,
-		tick:     tick,
+	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
+	config := Config{
+		Genesis:  genesis,
+		DataFile: dataFile,
+		Server:   server,
+		Peers:    peers,
+		NodeID:   nodeID,
+		Period:   period,
+		Tick:     tick,
 	}
 	return &config
 }

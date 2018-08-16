@@ -35,7 +35,7 @@ func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	h := hash.THashB(enc[:])
+	h := hash.THashH(enc[:])
 	return base58.CheckEncode(h[:], version), nil
 }
 

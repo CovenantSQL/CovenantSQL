@@ -326,9 +326,10 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			})
 
 			// try call process
-			_, err = mockRes.runner.Apply(testPayload)
-
+			var offset uint64
+			offset, err = mockRes.runner.Apply(testPayload)
 			So(err, ShouldBeNil)
+			So(offset, ShouldEqual, uint64(1))
 
 			// test call orders
 			So(callOrder.Get(), ShouldResemble, []string{

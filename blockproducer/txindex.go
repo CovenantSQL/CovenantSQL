@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The ThunderDB Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package blockproducer
 
 import (
@@ -9,7 +25,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
-// TxIndex indexes the tx blockchain receive.
+// txIndex indexes the tx blockchain receive.
 type txIndex struct {
 	mu sync.Mutex
 
@@ -21,22 +37,22 @@ type txIndex struct {
 
 // newTxIndex creates a new TxIndex.
 func newTxIndex() *txIndex {
-	txIndex := txIndex{
+	ti := txIndex{
 		billingHashIndex: make(map[hash.Hash]*types.TxBilling),
 		lastBillingIndex: make(map[*proto.DatabaseID]uint32),
 	}
-	return &txIndex
+	return &ti
 }
 
 // addTxBilling adds a checked TxBilling in the TxIndex.
-func (ti *txIndex) addTxBilling(tb *types.TxBilling) (err error) {
+func (ti *txIndex) addTxBilling(tb *types.TxBilling) error {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
 
 	if v, ok := ti.billingHashIndex[*tb.TxHash]; ok {
 		// TODO(lambda): ensure whether the situation will happen
 		if v == nil {
-			err = ErrCorruptedIndex
+			return ErrCorruptedIndex
 		}
 	}
 

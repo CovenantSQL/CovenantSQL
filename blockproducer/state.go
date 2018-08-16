@@ -21,13 +21,15 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-type state struct {
-	node   *blockNode
+// State store the node info of chain
+type State struct {
+	Node   *blockNode
 	Head   hash.Hash
 	Height uint32
 }
 
-func (s *state) serialize() ([]byte, error) {
+// serialize serializes the state
+func (s *State) serialize() ([]byte, error) {
 	buffer, err := utils.EncodeMsgPack(s)
 	if err != nil {
 		return nil, err
@@ -36,7 +38,8 @@ func (s *state) serialize() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *state) deserialize(b []byte) error {
+// deserialize deserializes the state
+func (s *State) deserialize(b []byte) error {
 	err := utils.DecodeMsgPack(b, s)
 	return err
 }

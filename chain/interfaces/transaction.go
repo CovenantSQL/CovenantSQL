@@ -29,7 +29,7 @@ type Transaction interface {
 	GetHash() hash.Hash
 	GetIndexKey() interface{}
 	GetPersistenceKey() []byte
-	GetSequenceID() uint64
+	GetSequenceID() uint32
 	GetTime() time.Time
 	Verify() error
 	encoding.BinaryMarshaler

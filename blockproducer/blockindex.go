@@ -43,7 +43,7 @@ func newBlockNode(h uint32, block *types.Block, parent *blockNode) *blockNode {
 		hash:   block.SignedHeader.BlockHash,
 		parent: parent,
 		height: h,
-		count: count,
+		count:  count,
 	}
 
 	return bn
@@ -51,7 +51,7 @@ func newBlockNode(h uint32, block *types.Block, parent *blockNode) *blockNode {
 
 func (bn *blockNode) indexKey() (key []byte) {
 	key = make([]byte, hash.HashSize+4)
-	binary.BigEndian.PutUint32(key[0:4], uint32(bn.height))
+	binary.BigEndian.PutUint32(key[0:4], bn.height)
 	copy(key[4:hash.HashSize], bn.hash[:])
 	return
 }

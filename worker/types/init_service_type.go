@@ -25,6 +25,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // InitService defines worker service init request.
@@ -93,8 +94,8 @@ func (i *ServiceInstance) Serialize() []byte {
 	buf.Write(i.Peers.Serialize())
 	buf.Write(i.ResourceMeta.Serialize())
 	if i.GenesisBlock != nil {
-		genesisBlock, _ := i.GenesisBlock.MarshalBinary()
-		buf.Write(genesisBlock)
+		genesisBlock, _ := utils.EncodeMsgPack(i.GenesisBlock)
+		buf.Write(genesisBlock.Bytes())
 	} else {
 		buf.Write([]byte{'\000'})
 	}

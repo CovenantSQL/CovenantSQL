@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 type msgpackNestedStruct struct {
@@ -33,8 +34,10 @@ type msgpackTestStruct struct {
 
 func TestMsgPack_EncodeDecode(t *testing.T) {
 	Convey("primitive value encode decode test", t, func() {
+		log.SetLevel(log.DebugLevel)
 		i := uint64(1)
 		buf, err := EncodeMsgPack(i)
+		log.Debugf("uint64 1 encoded len %d to %x", len(buf.Bytes()), buf.Bytes())
 		So(err, ShouldBeNil)
 		var value uint64
 		err = DecodeMsgPack(buf.Bytes(), &value)

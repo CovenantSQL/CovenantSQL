@@ -20,6 +20,8 @@ import (
 	"encoding"
 	"reflect"
 	"testing"
+
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -30,13 +32,13 @@ func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Failed to generate block: %v", err)
 	}
 
-	enc, err := header.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(header)
 	if err != nil {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
 	dec := &Header{}
-	err = dec.UnmarshalBinary(enc)
+	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}
@@ -53,13 +55,13 @@ func TestSignedHeader_MarshalUnmashalBinary(t *testing.T) {
 		t.Fatalf("Failed to generate block: %v", err)
 	}
 
-	enc, err := signedHeader.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(signedHeader)
 	if err != nil {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
 	dec := &SignedHeader{}
-	err = dec.UnmarshalBinary(enc)
+	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}

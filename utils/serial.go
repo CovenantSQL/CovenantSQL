@@ -17,7 +17,6 @@
 package utils
 
 import (
-	"encoding"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -42,6 +41,12 @@ const (
 // simpleSerializer is just a simple serializer with its own []byte pool, which is done by a
 // buffered []byte channel.
 type simpleSerializer chan []byte
+
+// HashMarshaler is the interface implemented by an object that can
+// marshal itself into a binary form, just for stable hash
+type HashMarshaler interface {
+	MarshalHash() (data []byte, err error)
+}
 
 var (
 	serializer simpleSerializer = make(chan []byte, maxPooledBufferNumber)
@@ -970,148 +975,148 @@ func (s simpleSerializer) writeAddrAndGases(w io.Writer, order binary.ByteOrder,
 	return nil
 }
 
-func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err error) {
-	switch e := element.(type) {
-	case *bool:
-		var ret uint8
-
-		if ret, err = serializer.readUint8(r); err == nil {
-			*e = (ret != 0x00)
-		}
-
-	case *int8:
-		var ret uint8
-
-		if ret, err = serializer.readUint8(r); err == nil {
-			*e = int8(ret)
-		}
-
-	case *uint8:
-		*e, err = serializer.readUint8(r)
-
-	case *int16:
-		var ret uint16
-
-		if ret, err = serializer.readUint16(r, order); err == nil {
-			*e = int16(ret)
-		}
-
-	case *uint16:
-		*e, err = serializer.readUint16(r, order)
-
-	case *int32:
-		var ret uint32
-
-		if ret, err = serializer.readUint32(r, order); err == nil {
-			*e = int32(ret)
-		}
-
-	case *uint32:
-		*e, err = serializer.readUint32(r, order)
-
-	case *int64:
-		var ret uint64
-
-		if ret, err = serializer.readUint64(r, order); err == nil {
-			*e = int64(ret)
-		}
-
-	case *uint64:
-		*e, err = serializer.readUint64(r, order)
-
-	case *float64:
-		*e, err = serializer.readFloat64(r, order)
-
-	case *time.Time:
-		var ret uint64
-
-		if ret, err = serializer.readUint64(r, order); err == nil {
-			*e = time.Unix(0, int64(ret)).UTC()
-		}
-
-	case *string:
-		err = serializer.readString(r, order, e)
-
-	case *[]byte:
-		err = serializer.readBytes(r, order, e)
-
-	case *[]uint32:
-		err = serializer.readUint32s(r, order, e)
-
-	case *[]uint64:
-		err = serializer.readUint64s(r, order, e)
-
-	case *proto.NodeID:
-		err = serializer.readString(r, order, (*string)(e))
-
-	case *proto.DatabaseID:
-		err = serializer.readString(r, order, (*string)(e))
-
-	case *hash.Hash:
-		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
-
-	case *proto.AccountAddress:
-		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
-
-	case *proto.AddrAndGas:
-		err = serializer.readAddrAndGas(r, order, e)
-
-	case **asymmetric.PublicKey:
-		*e, err = serializer.readPublicKey(r, order)
-
-	case **asymmetric.Signature:
-		*e, err = serializer.readSignature(r, order)
-
-	case *[]*asymmetric.PublicKey:
-		serializer.readPublicKeys(r, order, e)
-
-	case *[]*asymmetric.Signature:
-		serializer.readSignatures(r, order, e)
-
-	case *[]string:
-		err = serializer.readStrings(r, order, e)
-
-	case *[]*hash.Hash:
-		err = serializer.readHashes(r, order, e)
-
-	case *[]*proto.AccountAddress:
-		err = serializer.readAccountAddresses(r, order, e)
-
-	case *[]proto.DatabaseID:
-		err = serializer.readDatabaseIDs(r, order, e)
-
-	case *[]*proto.AddrAndGas:
-		err = serializer.readAddrAndGases(r, order, e)
-
-	default:
-		// Fallback to BinaryUnmarshaler interface
-		if i, ok := e.(encoding.BinaryUnmarshaler); ok {
-			var buffer []byte
-
-			if err = serializer.readBytes(r, order, &buffer); err != nil {
-				return
-			}
-
-			return i.UnmarshalBinary(buffer)
-		}
-
-		log.Debugf("element type is: %s", reflect.TypeOf(e))
-		return ErrInvalidType
-	}
-
-	return
-}
-
-// ReadElements reads the element list in order from the given reader.
-func ReadElements(r io.Reader, order binary.ByteOrder, elements ...interface{}) (err error) {
-	for _, element := range elements {
-		if err = readElement(r, order, element); err != nil {
-			break
-		}
-	}
-
-	return
-}
+//func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err error) {
+//	switch e := element.(type) {
+//	case *bool:
+//		var ret uint8
+//
+//		if ret, err = serializer.readUint8(r); err == nil {
+//			*e = (ret != 0x00)
+//		}
+//
+//	case *int8:
+//		var ret uint8
+//
+//		if ret, err = serializer.readUint8(r); err == nil {
+//			*e = int8(ret)
+//		}
+//
+//	case *uint8:
+//		*e, err = serializer.readUint8(r)
+//
+//	case *int16:
+//		var ret uint16
+//
+//		if ret, err = serializer.readUint16(r, order); err == nil {
+//			*e = int16(ret)
+//		}
+//
+//	case *uint16:
+//		*e, err = serializer.readUint16(r, order)
+//
+//	case *int32:
+//		var ret uint32
+//
+//		if ret, err = serializer.readUint32(r, order); err == nil {
+//			*e = int32(ret)
+//		}
+//
+//	case *uint32:
+//		*e, err = serializer.readUint32(r, order)
+//
+//	case *int64:
+//		var ret uint64
+//
+//		if ret, err = serializer.readUint64(r, order); err == nil {
+//			*e = int64(ret)
+//		}
+//
+//	case *uint64:
+//		*e, err = serializer.readUint64(r, order)
+//
+//	case *float64:
+//		*e, err = serializer.readFloat64(r, order)
+//
+//	case *time.Time:
+//		var ret uint64
+//
+//		if ret, err = serializer.readUint64(r, order); err == nil {
+//			*e = time.Unix(0, int64(ret)).UTC()
+//		}
+//
+//	case *string:
+//		err = serializer.readString(r, order, e)
+//
+//	case *[]byte:
+//		err = serializer.readBytes(r, order, e)
+//
+//	case *[]uint32:
+//		err = serializer.readUint32s(r, order, e)
+//
+//	case *[]uint64:
+//		err = serializer.readUint64s(r, order, e)
+//
+//	case *proto.NodeID:
+//		err = serializer.readString(r, order, (*string)(e))
+//
+//	case *proto.DatabaseID:
+//		err = serializer.readString(r, order, (*string)(e))
+//
+//	case *hash.Hash:
+//		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
+//
+//	case *proto.AccountAddress:
+//		err = serializer.readFixedSizeBytes(r, hash.HashSize, (*e)[:])
+//
+//	case *proto.AddrAndGas:
+//		err = serializer.readAddrAndGas(r, order, e)
+//
+//	case **asymmetric.PublicKey:
+//		*e, err = serializer.readPublicKey(r, order)
+//
+//	case **asymmetric.Signature:
+//		*e, err = serializer.readSignature(r, order)
+//
+//	case *[]*asymmetric.PublicKey:
+//		serializer.readPublicKeys(r, order, e)
+//
+//	case *[]*asymmetric.Signature:
+//		serializer.readSignatures(r, order, e)
+//
+//	case *[]string:
+//		err = serializer.readStrings(r, order, e)
+//
+//	case *[]*hash.Hash:
+//		err = serializer.readHashes(r, order, e)
+//
+//	case *[]*proto.AccountAddress:
+//		err = serializer.readAccountAddresses(r, order, e)
+//
+//	case *[]proto.DatabaseID:
+//		err = serializer.readDatabaseIDs(r, order, e)
+//
+//	case *[]*proto.AddrAndGas:
+//		err = serializer.readAddrAndGases(r, order, e)
+//
+//	default:
+//		// Fallback to BinaryUnmarshaler interface
+//		if i, ok := e.(encoding.BinaryUnmarshaler); ok {
+//			var buffer []byte
+//
+//			if err = serializer.readBytes(r, order, &buffer); err != nil {
+//				return
+//			}
+//
+//			return i.UnmarshalBinary(buffer)
+//		}
+//
+//		log.Debugf("element type is: %s", reflect.TypeOf(e))
+//		return ErrInvalidType
+//	}
+//
+//	return
+//}
+//
+//// ReadElements reads the element list in order from the given reader.
+//func ReadElements(r io.Reader, order binary.ByteOrder, elements ...interface{}) (err error) {
+//	for _, element := range elements {
+//		if err = readElement(r, order, element); err != nil {
+//			break
+//		}
+//	}
+//
+//	return
+//}
 
 func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err error) {
 	switch e := element.(type) {
@@ -1303,10 +1308,10 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 
 	default:
 		// Fallback to BinaryMarshaler interface
-		if i, ok := e.(encoding.BinaryMarshaler); ok {
+		if i, ok := e.(HashMarshaler); ok {
 			var data []byte
 
-			if data, err = i.MarshalBinary(); err == nil {
+			if data, err = i.MarshalHash(); err == nil {
 				err = serializer.writeBytes(w, order, data)
 			}
 

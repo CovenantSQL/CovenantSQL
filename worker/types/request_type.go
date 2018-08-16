@@ -199,8 +199,8 @@ func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return r.Header.Sign(signer)
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (sh *SignedRequestHeader) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (sh *SignedRequestHeader) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -220,24 +220,6 @@ func (sh *SignedRequestHeader) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (sh *SignedRequestHeader) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		(*int32)(&sh.QueryType),
-		&sh.NodeID,
-		&sh.DatabaseID,
-		&sh.ConnectionID,
-		&sh.SeqNo,
-		&sh.Timestamp,
-		&sh.BatchCount,
-		&sh.QueriesHash,
-		&sh.HeaderHash,
-		&sh.Signee,
-		&sh.Signature,
-	)
 }
 
 // GetQueryKey returns a unique query key of this request.

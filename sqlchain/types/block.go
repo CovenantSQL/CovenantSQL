@@ -41,8 +41,8 @@ type Header struct {
 	Timestamp   time.Time
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (h *Header) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (h *Header) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -59,19 +59,6 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (h *Header) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&h.Version,
-		&h.Producer,
-		&h.GenesisHash,
-		&h.ParentHash,
-		&h.MerkleRoot,
-		&h.Timestamp,
-	)
-}
-
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
@@ -80,8 +67,8 @@ type SignedHeader struct {
 	Signature *asymmetric.Signature
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (s *SignedHeader) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash.
+func (s *SignedHeader) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -99,22 +86,6 @@ func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (s *SignedHeader) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&s.Version,
-		&s.Producer,
-		&s.GenesisHash,
-		&s.ParentHash,
-		&s.MerkleRoot,
-		&s.Timestamp,
-		&s.BlockHash,
-		&s.Signee,
-		&s.Signature,
-	)
 }
 
 // Verify verifies the signature of the signed header.
@@ -161,8 +132,7 @@ type Block struct {
 func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
 	// Calculate merkle root
 	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Queries).GetRoot()
-	buffer, err := b.SignedHeader.Header.MarshalBinary()
-
+	buffer, err := b.SignedHeader.Header.MarshalHash()
 	if err != nil {
 		return
 	}
@@ -174,8 +144,8 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (b *Block) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (b *Block) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -186,15 +156,6 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (b *Block) UnmarshalBinary(data []byte) error {
-	reader := bytes.NewReader(data)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&b.SignedHeader,
-		&b.Queries,
-	)
 }
 
 // PushAckedQuery pushes a acknowledged and verified query into the block.
@@ -217,8 +178,7 @@ func (b *Block) Verify() (err error) {
 	}
 
 	// Verify block hash
-	buffer, err := b.SignedHeader.Header.MarshalBinary()
-
+	buffer, err := b.SignedHeader.Header.MarshalHash()
 	if err != nil {
 		return
 	}

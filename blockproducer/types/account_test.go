@@ -21,17 +21,18 @@ import (
 	"testing"
 
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 func TestAccount_MarshalUnmarshaler(t *testing.T) {
 	account := generateRandomAccount()
-	b, err := account.MarshalBinary()
+	b, err := utils.EncodeMsgPack(account)
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
 	dec := &Account{}
-	err = dec.UnmarshalBinary(b)
+	err = utils.DecodeMsgPack(b.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}

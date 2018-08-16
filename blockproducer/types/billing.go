@@ -81,7 +81,6 @@ type BillingRequest struct {
 	RequestHash hash.Hash
 	Signees     []*asymmetric.PublicKey
 	Signatures  []*asymmetric.Signature
-	encoded     []byte
 }
 
 // MarshalBinary implements BinaryMarshaler.
@@ -119,28 +118,17 @@ func (br *BillingRequest) UnmarshalBinary(b []byte) error {
 
 // PackRequestHeader computes the hash of header
 func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
-	if br.encoded == nil || len(br.encoded) == 0 {
-		b, err := br.Header.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		br.encoded = b
+	b, err := br.Header.MarshalBinary()
+	if err != nil {
+		return nil, err
 	}
 
-	h := hash.THashH(br.encoded)
+	h := hash.THashH(b)
 	return &h, nil
 }
 
 // SignRequestHeader first computes the hash of BillingRequestHeader, then signs the request
 func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asymmetric.Signature, error) {
-	if br.encoded == nil || len(br.encoded) == 0 {
-		b, err := br.Header.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		br.encoded = b
-	}
-
 	signature, err := signee.Sign(br.RequestHash[:])
 	if err != nil {
 		return nil, err

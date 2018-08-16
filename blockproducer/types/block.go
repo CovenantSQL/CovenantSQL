@@ -37,8 +37,8 @@ type Header struct {
 	Timestamp  time.Time
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (h *Header) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (h *Header) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
@@ -56,19 +56,6 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (h *Header) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-
-	return utils.ReadElements(reader, binary.BigEndian,
-		&h.Version,
-		&h.Producer,
-		&h.MerkleRoot,
-		&h.ParentHash,
-		&h.Timestamp,
-	)
-}
-
 // SignedHeader defines the main chain header with the signature
 type SignedHeader struct {
 	Header
@@ -77,8 +64,8 @@ type SignedHeader struct {
 	Signature *asymmetric.Signature
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (s *SignedHeader) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (s *SignedHeader) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
@@ -97,22 +84,6 @@ func (s *SignedHeader) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (s *SignedHeader) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-
-	return utils.ReadElements(reader, binary.BigEndian,
-		&s.Version,
-		&s.Producer,
-		&s.MerkleRoot,
-		&s.ParentHash,
-		&s.Timestamp,
-		&s.BlockHash,
-		&s.Signee,
-		&s.Signature,
-	)
 }
 
 // Verify verifies the signature
@@ -146,7 +117,7 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	hs := b.GetTxHashes()
 
 	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(hs).GetRoot()
-	enc, err := b.SignedHeader.Header.MarshalBinary()
+	enc, err := b.SignedHeader.Header.MarshalHash()
 
 	if err != nil {
 		return err
@@ -196,7 +167,7 @@ func (b *Block) Verify() error {
 		return ErrMerkleRootVerification
 	}
 
-	enc, err := b.SignedHeader.Header.MarshalBinary()
+	enc, err := b.SignedHeader.Header.MarshalHash()
 	if err != nil {
 		return err
 	}

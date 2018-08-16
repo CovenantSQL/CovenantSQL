@@ -23,6 +23,7 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 func TestSignAndVerify(t *testing.T) {
@@ -58,15 +59,14 @@ func TestHeaderMarshalUnmarshaler(t *testing.T) {
 	}
 
 	origin := &block.SignedHeader.Header
-	enc, err := origin.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(origin)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
 	dec := &Header{}
-
-	if err = dec.UnmarshalBinary(enc); err != nil {
+	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 	}
 
 	origin := &block.SignedHeader
-	enc, err := origin.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(origin)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -91,15 +91,8 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 
 	dec := &SignedHeader{}
 
-	if err = dec.UnmarshalBinary(enc); err != nil {
+	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
 		t.Fatalf("Error occurred: %v", err)
-	}
-
-	// Test unmarshaling nil buffer
-	if err = dec.UnmarshalBinary(nil); err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
 	}
 
 	if !reflect.DeepEqual(origin.Header, dec.Header) {
@@ -122,7 +115,7 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	enc, err := origin.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(origin)
 
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
@@ -130,7 +123,7 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 
 	dec := &Block{}
 
-	if err = dec.UnmarshalBinary(enc); err != nil {
+	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 

@@ -59,8 +59,8 @@ func NewTxContent(seqID uint32,
 	}
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (tb *TxContent) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (tb *TxContent) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
@@ -77,27 +77,9 @@ func (tb *TxContent) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (tb *TxContent) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-
-	err := utils.ReadElements(reader, binary.BigEndian,
-		&tb.SequenceID,
-		&tb.BillingRequest,
-		&tb.Receivers,
-		&tb.Fees,
-		&tb.Rewards,
-		&tb.BillingResponse,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetHash returns the hash of transaction
 func (tb *TxContent) GetHash() (*hash.Hash, error) {
-	b, err := tb.MarshalBinary()
+	b, err := tb.MarshalHash()
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +126,7 @@ func (tb *TxBilling) Deserialize(enc []byte) error {
 
 // PackAndSignTx computes tx of TxContent and signs it
 func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
-	enc, err := tb.TxContent.MarshalBinary()
+	enc, err := tb.TxContent.MarshalHash()
 	if err != nil {
 		return err
 	}

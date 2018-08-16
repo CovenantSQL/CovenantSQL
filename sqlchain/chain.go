@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"reflect"
@@ -152,8 +153,12 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		// Read state struct
 		meta := tx.Bucket(metaBucket[:])
+		metaEnc := meta.Get(metaStateKey)
+		if metaEnc == nil {
+			return ErrMetaStateNotFound
+		}
 		st := &state{}
-		if err = st.UnmarshalBinary(meta.Get(metaStateKey)); err != nil {
+		if err = utils.DecodeMsgPack(metaEnc, st); err != nil {
 			return err
 		}
 
@@ -171,7 +176,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
 			block := &ct.Block{}
 
-			if err = block.UnmarshalBinary(v); err != nil {
+			if err = utils.DecodeMsgPack(v, block); err != nil {
 				return
 			}
 
@@ -226,7 +231,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 			if resps := heights.Bucket(k).Bucket(
 				metaResponseIndexBucket); resps != nil {
 				if err = resps.ForEach(func(k []byte, v []byte) (err error) {
-					if err = resp.UnmarshalBinary(v); err != nil {
+					if err = utils.DecodeMsgPack(v, resp); err != nil {
 						return
 					}
 
@@ -238,7 +243,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 			if acks := heights.Bucket(k).Bucket(metaAckIndexBucket); acks != nil {
 				if err = acks.ForEach(func(k []byte, v []byte) (err error) {
-					if err = ack.UnmarshalBinary(v); err != nil {
+					if err = utils.DecodeMsgPack(v, ack); err != nil {
 						return
 					}
 
@@ -269,24 +274,24 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 		Head:   node.hash,
 		Height: node.height,
 	}
-	var encBlock, encState []byte
+	var encBlock, encState *bytes.Buffer
 
-	if encBlock, err = b.MarshalBinary(); err != nil {
+	if encBlock, err = utils.EncodeMsgPack(b); err != nil {
 		return
 	}
 
-	if encState, err = st.MarshalBinary(); err != nil {
+	if encState, err = utils.EncodeMsgPack(st); err != nil {
 		return
 	}
 
 	// Update in transaction
 	err = c.db.Update(func(tx *bolt.Tx) (err error) {
-		if err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState); err != nil {
+		if err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState.Bytes()); err != nil {
 			return
 		}
 
 		if err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(
-			node.indexKey(), encBlock); err != nil {
+			node.indexKey(), encBlock.Bytes()); err != nil {
 			return
 		}
 
@@ -348,9 +353,9 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 	h := c.rt.getHeightFromTime(resp.Request.Timestamp)
 	k := heightToKey(h)
-	var enc []byte
+	var enc *bytes.Buffer
 
-	if enc, err = resp.MarshalBinary(); err != nil {
+	if enc, err = utils.EncodeMsgPack(resp); err != nil {
 		return
 	}
 
@@ -362,7 +367,7 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 		}
 
 		if err = heightBucket.Bucket(metaResponseIndexBucket).Put(
-			resp.HeaderHash[:], enc); err != nil {
+			resp.HeaderHash[:], enc.Bytes()); err != nil {
 			return
 		}
 
@@ -375,9 +380,9 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := heightToKey(h)
-	var enc []byte
+	var enc *bytes.Buffer
 
-	if enc, err = ack.MarshalBinary(); err != nil {
+	if enc, err = utils.EncodeMsgPack(ack); err != nil {
 		return
 	}
 
@@ -390,7 +395,7 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 
 		// TODO(leventeliu): this doesn't seem right to use an error to detect key existence.
 		if err = b.Bucket(metaAckIndexBucket).Put(
-			ack.HeaderHash[:], enc,
+			ack.HeaderHash[:], enc.Bytes(),
 		); err != nil {
 			return
 		}
@@ -778,7 +783,7 @@ func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 		err = c.db.View(func(tx *bolt.Tx) (err error) {
 			if v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k); v != nil {
 				b = &ct.Block{}
-				err = b.UnmarshalBinary(v)
+				err = utils.DecodeMsgPack(v, b)
 			}
 
 			return
@@ -800,7 +805,7 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 					if v := b.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
 						dec := &wt.SignedAckHeader{}
 
-						if err = dec.UnmarshalBinary(v); err != nil {
+						if err = utils.DecodeMsgPack(v, dec); err != nil {
 							ack = dec
 							break
 						}

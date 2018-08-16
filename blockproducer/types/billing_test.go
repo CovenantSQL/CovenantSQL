@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -32,13 +33,13 @@ var (
 
 func TestBillingRequestHeader_MarshalUnmarshalBinary(t *testing.T) {
 	reqHeader := generateRandomBillingRequestHeader()
-	b, err := reqHeader.MarshalBinary()
+	b, err := utils.EncodeMsgPack(reqHeader)
 	if err != nil {
 		t.Fatalf("unexpect error when marshal request header: %v", err)
 	}
 
 	newReqHeader := &BillingRequestHeader{}
-	err = newReqHeader.UnmarshalBinary(b)
+	err = utils.DecodeMsgPack(b.Bytes(), newReqHeader)
 	if err != nil {
 		t.Fatalf("unexpect error when unmashll request header: %v", err)
 	}
@@ -54,19 +55,16 @@ func TestBillingRequest_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	enc, err := req.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	dec := &BillingRequest{}
-	err = dec.UnmarshalBinary(enc)
+	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	// clear cache
-	req.encoded = nil
 
 	if !reflect.DeepEqual(req, dec) {
 		log.Debug(req)
@@ -81,7 +79,7 @@ func TestBillingRequest_PackRequestHeader(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	enc, err := req.Header.MarshalBinary()
+	enc, err := req.Header.MarshalHash()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -98,7 +96,7 @@ func TestBillingRequest_SignRequestHeader(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	enc, err := req.Header.MarshalBinary()
+	enc, err := req.Header.MarshalHash()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -119,7 +117,6 @@ func TestBillingRequest_SignRequestHeader(t *testing.T) {
 	if !sign.Verify(req.RequestHash[:], pub) {
 		t.Fatalf("signature cannot match the hash and public key: %v", req)
 	}
-	req.encoded = nil
 	sign, err = req.SignRequestHeader(priv)
 	if !sign.Verify(req.RequestHash[:], pub) {
 		t.Fatalf("signature cannot match the hash and public key: %v", req)
@@ -132,13 +129,13 @@ func TestBillingResponse_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	enc, err := resp.MarshalBinary()
+	enc, err := utils.EncodeMsgPack(resp)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	dec := BillingResponse{}
-	err = dec.UnmarshalBinary(enc)
+	dec := &BillingResponse{}
+	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

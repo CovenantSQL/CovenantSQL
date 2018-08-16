@@ -40,6 +40,11 @@ type PrivateKey ec.PrivateKey
 // public key without having to directly import the ecdsa package.
 type PublicKey ec.PublicKey
 
+// MarshalHash marshals for hash
+func (k *PublicKey) MarshalHash() (keyBytes []byte, err error) {
+	return k.MarshalBinary()
+}
+
 // MarshalBinary does the serialization
 func (k *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
 	if k == nil {

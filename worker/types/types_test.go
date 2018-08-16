@@ -17,6 +17,7 @@
 package types
 
 import (
+	"bytes"
 	"database/sql"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
 	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 func getCommKeys() (*asymmetric.PrivateKey, *asymmetric.PublicKey) {
@@ -261,7 +263,7 @@ func TestResponse_Sign(t *testing.T) {
 			},
 		}
 
-		var data []byte
+		var data *bytes.Buffer
 		var err error
 		var rres Response
 
@@ -293,9 +295,9 @@ func TestResponse_Sign(t *testing.T) {
 			So((*ResponsePayload)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
-			data, err = res.Header.MarshalBinary()
+			data, err = utils.EncodeMsgPack(res.Header)
 			So(err, ShouldBeNil)
-			err = rres.Header.UnmarshalBinary(data)
+			err = utils.DecodeMsgPack(data.Bytes(), &rres.Header)
 			So(err, ShouldBeNil)
 			So(&res.Header, ShouldResemble, &rres.Header)
 
@@ -373,7 +375,7 @@ func TestAck_Sign(t *testing.T) {
 			},
 		}
 
-		var data []byte
+		var data *bytes.Buffer
 		var err error
 		var rack Ack
 
@@ -408,9 +410,9 @@ func TestAck_Sign(t *testing.T) {
 			So((*AckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedAckHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
-			data, err = ack.Header.MarshalBinary()
+			data, err = utils.EncodeMsgPack(ack.Header)
 			So(err, ShouldBeNil)
-			err = rack.Header.UnmarshalBinary(data)
+			err = utils.DecodeMsgPack(data.Bytes(), &rack.Header)
 			So(err, ShouldBeNil)
 			So(&ack.Header, ShouldResemble, &rack.Header)
 

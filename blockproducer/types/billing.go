@@ -38,8 +38,8 @@ type BillingRequestHeader struct {
 	GasAmounts []*proto.AddrAndGas
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (bh *BillingRequestHeader) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (bh *BillingRequestHeader) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
@@ -55,24 +55,6 @@ func (bh *BillingRequestHeader) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (bh *BillingRequestHeader) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-
-	err := utils.ReadElements(reader, binary.BigEndian,
-		&bh.DatabaseID,
-		&bh.LowBlock,
-		&bh.LowHeight,
-		&bh.HighBlock,
-		&bh.HighHeight,
-		&bh.GasAmounts,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // BillingRequest defines periodically Billing sync
@@ -83,8 +65,8 @@ type BillingRequest struct {
 	Signatures  []*asymmetric.Signature
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (br *BillingRequest) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (br *BillingRequest) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
@@ -100,25 +82,9 @@ func (br *BillingRequest) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (br *BillingRequest) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-
-	err := utils.ReadElements(reader, binary.BigEndian,
-		&br.Header,
-		&br.RequestHash,
-		&br.Signees,
-		&br.Signatures,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // PackRequestHeader computes the hash of header
 func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
-	b, err := br.Header.MarshalBinary()
+	b, err := br.Header.MarshalHash()
 	if err != nil {
 		return nil, err
 	}
@@ -144,8 +110,8 @@ type BillingResponse struct {
 	Signature      *asymmetric.Signature
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (br *BillingResponse) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (br *BillingResponse) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := utils.WriteElements(buffer, binary.BigEndian,
@@ -159,20 +125,4 @@ func (br *BillingResponse) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (br *BillingResponse) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-
-	err := utils.ReadElements(reader, binary.BigEndian,
-		&br.AccountAddress,
-		&br.RequestHash,
-		&br.Signee,
-		&br.Signature,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
 }

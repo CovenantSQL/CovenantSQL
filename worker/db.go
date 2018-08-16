@@ -227,13 +227,14 @@ func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err 
 		return
 	}
 
-	_, err = db.kayakRuntime.Apply(buf.Bytes())
+	var logOffset uint64
+	logOffset, err = db.kayakRuntime.Apply(buf.Bytes())
 
 	if err != nil {
 		return
 	}
 
-	return db.buildQueryResponse(request, []string{}, []string{}, [][]interface{}{})
+	return db.buildQueryResponse(request, logOffset, []string{}, []string{}, [][]interface{}{})
 }
 
 func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err error) {
@@ -247,16 +248,18 @@ func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err e
 		return
 	}
 
-	return db.buildQueryResponse(request, columns, types, data)
+	return db.buildQueryResponse(request, 0, columns, types, data)
 }
 
-func (db *Database) buildQueryResponse(request *wt.Request, columns []string, types []string, data [][]interface{}) (response *wt.Response, err error) {
+func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
+	columns []string, types []string, data [][]interface{}) (response *wt.Response, err error) {
 	// build response
 	response = new(wt.Response)
 	response.Header.Request = request.Header
 	if response.Header.NodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
+	response.Header.LogOffset = offset
 	response.Header.Timestamp = getLocalTime()
 	response.Header.RowCount = uint64(len(data))
 	if response.Header.Signee, err = getLocalPubKey(); err != nil {

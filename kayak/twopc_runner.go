@@ -46,7 +46,7 @@ type TwoPCConfig struct {
 
 type logProcessResult struct {
 	offset uint64
-	err error
+	err    error
 }
 
 // TwoPCRunner is a Runner implementation organizing two phase commit mutation.

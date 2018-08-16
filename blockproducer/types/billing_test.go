@@ -65,9 +65,6 @@ func TestBillingRequest_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// clear cache
-	req.encoded = nil
-
 	if !reflect.DeepEqual(req, dec) {
 		log.Debug(req)
 		log.Debug(dec)
@@ -119,7 +116,6 @@ func TestBillingRequest_SignRequestHeader(t *testing.T) {
 	if !sign.Verify(req.RequestHash[:], pub) {
 		t.Fatalf("signature cannot match the hash and public key: %v", req)
 	}
-	req.encoded = nil
 	sign, err = req.SignRequestHeader(priv)
 	if !sign.Verify(req.RequestHash[:], pub) {
 		t.Fatalf("signature cannot match the hash and public key: %v", req)

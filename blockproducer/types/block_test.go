@@ -93,12 +93,6 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}
 
-	// clear the encoded cache in BillingRequest.encoded
-	for i := range block.TxBillings {
-		block.TxBillings[i].TxContent.BillingRequest.encoded = nil
-		dec.TxBillings[i].TxContent.BillingRequest.encoded = nil
-	}
-
 	if !reflect.DeepEqual(block, dec) {
 		t.Fatalf("value not match")
 	}

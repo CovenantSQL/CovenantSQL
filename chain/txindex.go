@@ -29,7 +29,7 @@ type txCache struct {
 }
 
 type TxIndex struct {
-	sync.Map
+	index sync.Map
 }
 
 func NewTxIndex() *TxIndex {
@@ -37,20 +37,20 @@ func NewTxIndex() *TxIndex {
 }
 
 func (i *TxIndex) StoreTx(tx ci.Transaction) {
-	i.Store(tx.GetHash(), &txCache{tx: tx})
+	i.index.Store(tx.GetIndexKey(), &txCache{tx: tx})
 }
 
-func (i *TxIndex) HasTx(th hash.Hash) (ok bool) {
-	_, ok = i.Load(th)
+func (i *TxIndex) HasTx(key interface{}) (ok bool) {
+	_, ok = i.index.Load(key)
 	return
 }
 
-func (i *TxIndex) LoadTx(th hash.Hash) (tx ci.Transaction, ok bool) {
+func (i *TxIndex) LoadTx(key interface{}) (tx ci.Transaction, ok bool) {
 	var (
 		val interface{}
 		tc  *txCache
 	)
-	if val, ok = i.Load(th); ok {
+	if val, ok = i.index.Load(key); ok {
 		if tc = val.(*txCache); tc != nil {
 			tx = tc.tx
 		}
@@ -58,12 +58,12 @@ func (i *TxIndex) LoadTx(th hash.Hash) (tx ci.Transaction, ok bool) {
 	return
 }
 
-func (i *TxIndex) SetBlock(th hash.Hash, bh hash.Hash) (ok bool) {
+func (i *TxIndex) SetBlock(key interface{}, bh hash.Hash) (ok bool) {
 	var (
 		val interface{}
 		tc  *txCache
 	)
-	if val, ok = i.Load(th); ok {
+	if val, ok = i.index.Load(key); ok {
 		if tc = val.(*txCache); tc != nil {
 			tc.bh = &bh
 		}
@@ -71,12 +71,16 @@ func (i *TxIndex) SetBlock(th hash.Hash, bh hash.Hash) (ok bool) {
 	return
 }
 
-func (i *TxIndex) ResetBlock(th hash.Hash) (ok bool) {
+func (i *TxIndex) DelTx(key interface{}) {
+	i.index.Delete(key)
+}
+
+func (i *TxIndex) ResetBlock(key interface{}) (ok bool) {
 	var (
 		val interface{}
 		tc  *txCache
 	)
-	if val, ok = i.Load(th); ok {
+	if val, ok = i.index.Load(key); ok {
 		if tc = val.(*txCache); tc != nil {
 			tc.bh = nil
 		}
@@ -85,7 +89,7 @@ func (i *TxIndex) ResetBlock(th hash.Hash) (ok bool) {
 }
 
 func (i *TxIndex) FetchUnpackedTxes() (txes []ci.Transaction) {
-	i.Range(func(key interface{}, val interface{}) bool {
+	i.index.Range(func(key interface{}, val interface{}) bool {
 		if tc := val.(*txCache); tc != nil && tc.bh == nil {
 			txes = append(txes, tc.tx)
 		}

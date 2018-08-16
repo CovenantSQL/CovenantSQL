@@ -73,3 +73,32 @@ func (p *TxPersistence) DelTransaction(key []byte) (err error) {
 		return tx.Bucket(metaBucket[:]).Bucket(metaTxIndexBucket).Delete(key)
 	})
 }
+
+func (p *TxPersistence) PutTransactionAndUpdateIndex(tx ci.Transaction, ti *TxIndex) (err error) {
+	var (
+		key []byte = tx.GetPersistenceKey()
+		val []byte
+	)
+	if val, err = tx.MarshalBinary(); err != nil {
+		return
+	}
+	return p.db.Update(func(dbtx *bolt.Tx) (err error) {
+		if err = dbtx.Bucket(metaBucket[:]).Bucket(metaTxIndexBucket).Put(key, val); err != nil {
+			return
+		}
+		ti.StoreTx(tx)
+		return
+	})
+}
+
+func (p *TxPersistence) DelTransactionAndUpdateIndex(
+	ikey interface{}, pkey []byte, ti *TxIndex) (err error,
+) {
+	return p.db.Update(func(dbtx *bolt.Tx) (err error) {
+		if err = dbtx.Bucket(metaBucket[:]).Bucket(metaTxIndexBucket).Delete(pkey); err != nil {
+			return
+		}
+		ti.DelTx(ikey)
+		return
+	})
+}

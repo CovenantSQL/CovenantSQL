@@ -17,8 +17,6 @@
 package blockproducer
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
@@ -80,7 +78,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 	if err != nil {
 		return nil, err
 	}
-	enc, err := pubKey.MarshalBinary()
+	enc, err := pubKey.MarshalHash()
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +153,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	if err != nil {
 		return nil, err
 	}
-	enc, err := pubKey.MarshalBinary()
+	enc, err := pubKey.MarshalHash()
 	if err != nil {
 		return nil, err
 	}
@@ -236,15 +234,13 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		lastTxBillings := meta.Bucket(metaLastTxBillingIndexBucket)
 		err = lastTxBillings.ForEach(func(k, v []byte) error {
 			var databaseID proto.DatabaseID
-			reader := bytes.NewReader(k)
-			err = utils.ReadElements(reader, binary.BigEndian, &databaseID)
+			err = utils.DecodeMsgPack(k, &databaseID)
 			if err != nil {
 				return err
 			}
 
 			var sequenceID uint32
-			reader = bytes.NewReader(v)
-			utils.ReadElements(reader, binary.BigEndian, &sequenceID)
+			err = utils.DecodeMsgPack(v, &sequenceID)
 			if err != nil {
 				return err
 			}
@@ -264,7 +260,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 // checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID
 func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
-	enc, err := tb.TxContent.MarshalBinary()
+	enc, err := tb.TxContent.MarshalHash()
 	if err != nil {
 		return err
 	}
@@ -337,7 +333,7 @@ func (c *Chain) checkBlock(b *types.Block) error {
 		return ErrInvalidMerkleTreeRoot
 	}
 
-	enc, err := b.SignedHeader.Header.MarshalBinary()
+	enc, err := b.SignedHeader.Header.MarshalHash()
 	if err != nil {
 		return err
 	}
@@ -426,20 +422,16 @@ func (c *Chain) pushTxBillingWithoutCheck(tb *types.TxBilling) error {
 
 		// if the tx is packed in some block, its nonce should be stored to ensure nonce is monotone increasing
 		if tb.SignedBlock != nil {
-			buffer := bytes.NewBuffer(nil)
-			err := utils.WriteElements(buffer, binary.BigEndian, tb.GetDatabaseID())
+			databaseID, err := utils.EncodeMsgPack(tb.GetDatabaseID())
 			if err != nil {
 				return err
 			}
-			databaseID := buffer.Bytes()
 
-			buffer.Reset()
-			err = utils.WriteElements(buffer, binary.BigEndian, tb.GetSequenceID())
+			sequenceID, err := utils.EncodeMsgPack(tb.GetSequenceID())
 			if err != nil {
 				return err
 			}
-			sequenceID := buffer.Bytes()
-			err = meta.Bucket(metaLastTxBillingIndexBucket).Put(databaseID, sequenceID)
+			err = meta.Bucket(metaLastTxBillingIndexBucket).Put(databaseID.Bytes(), sequenceID.Bytes())
 			return err
 		}
 		return nil
@@ -566,7 +558,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 				}
 			} else {
 				var dec types.Account
-				err = dec.UnmarshalBinary(enc)
+				err = utils.DecodeMsgPack(enc, &dec)
 				if err != nil {
 					return err
 				}
@@ -594,11 +586,11 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 	err = c.db.Update(func(tx *bolt.Tx) error {
 		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
 		for _, account := range accounts {
-			enc, err := account.MarshalBinary()
+			enc, err := utils.EncodeMsgPack(account)
 			if err != nil {
 				return err
 			}
-			accountBucket.Put(account.Address[:], enc)
+			accountBucket.Put(account.Address[:], enc.Bytes())
 		}
 		return nil
 	})
@@ -606,17 +598,17 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 		return nil, err
 	}
 
-	enc, err := br.MarshalBinary()
+	enc, err := br.MarshalHash()
 	if err != nil {
 		return nil, err
 	}
+	h := hash.THashH(enc)
 
 	// generate response
 	privKey, err := kms.GetLocalPrivateKey()
 	if err != nil {
 		return nil, err
 	}
-	h := hash.THashH(enc)
 	sign, err := privKey.Sign(h[:])
 	if err != nil {
 		return nil, err
@@ -638,17 +630,17 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 		metaLastTB := meta.Bucket(metaLastTxBillingIndexBucket)
 
 		// generate unique seqID
-		buffer := bytes.NewBuffer(nil)
-		err := utils.WriteElements(buffer, binary.BigEndian, br.Header.DatabaseID)
+		encDatabaseID, err := utils.EncodeMsgPack(br.Header.DatabaseID)
 		if err != nil {
 			return err
 		}
-		encDatabaseID := buffer.Bytes()
-		oldSeqIDRaw := metaLastTB.Get(encDatabaseID)
+		oldSeqIDRaw := metaLastTB.Get(encDatabaseID.Bytes())
 		if oldSeqIDRaw != nil {
 			var oldSeqID uint32
-			reader := bytes.NewReader(oldSeqIDRaw)
-			utils.ReadElements(reader, binary.BigEndian, &oldSeqID)
+			err = utils.DecodeMsgPack(oldSeqIDRaw, oldSeqID)
+			if err != nil {
+				return err
+			}
 			seqID = oldSeqID + 1
 		} else {
 			seqID = 0
@@ -708,7 +700,7 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 	// TODO(lambda): get and check period and miner list of specific sqlchain
 
 	// request's hash
-	enc, err := br.Header.MarshalBinary()
+	enc, err := br.Header.MarshalHash()
 	if err != nil {
 		return err
 	}

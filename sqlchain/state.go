@@ -31,8 +31,8 @@ type state struct {
 	Height int32
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (s *state) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (s *state) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -43,13 +43,4 @@ func (s *state) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (s *state) UnmarshalBinary(b []byte) (err error) {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&s.Head,
-		&s.Height,
-	)
 }

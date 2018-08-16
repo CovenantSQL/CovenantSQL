@@ -158,8 +158,8 @@ func (sh *SignedAckHeader) SignedResponseHeader() *SignedResponseHeader {
 	return &sh.Response
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (sh *SignedAckHeader) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (sh *SignedAckHeader) MarshalHash() ([]byte, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	if err := utils.WriteElements(buffer, binary.BigEndian,
@@ -174,17 +174,4 @@ func (sh *SignedAckHeader) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (sh *SignedAckHeader) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&sh.Response,
-		&sh.NodeID,
-		&sh.Timestamp,
-		&sh.HeaderHash,
-		&sh.Signee,
-		&sh.Signature,
-	)
 }

@@ -43,8 +43,8 @@ type Account struct {
 	TxBillings         []*hash.Hash
 }
 
-// MarshalBinary implements BinaryMarshaler.
-func (a *Account) MarshalBinary() ([]byte, error) {
+// MarshalHash marshals for hash
+func (a *Account) MarshalHash() ([]byte, error) {
 
 	buffer := bytes.NewBuffer(nil)
 
@@ -63,20 +63,6 @@ func (a *Account) MarshalBinary() ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
-}
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (a *Account) UnmarshalBinary(b []byte) error {
-	reader := bytes.NewReader(b)
-	return utils.ReadElements(reader, binary.BigEndian,
-		&a.Address,
-		&a.StableCoinBalance,
-		&a.ThunderCoinBalance,
-		&a.SQLChains,
-		&a.Roles,
-		&a.Rating,
-		&a.TxBillings,
-	)
 }
 
 // AppendSQLChainAndRole add the sql chain include the account and its related role

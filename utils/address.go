@@ -31,18 +31,18 @@ const (
 // PubKey2Addr converts the pubKey to a address
 // and the format refers to https://bitcoin.org/en/developer-guide#standard-transactions
 func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (string, error) {
-	enc, err := pubKey.MarshalBinary()
+	enc, err := pubKey.MarshalHash()
 	if err != nil {
 		return "", err
 	}
-	h := hash.THashB(enc[:])
+	h := hash.THashH(enc[:])
 	return base58.CheckEncode(h[:], version), nil
 }
 
 func PubKeyHash(pubKey *asymmetric.PublicKey) (addr proto.AccountAddress, err error) {
 	var enc []byte
 
-	if enc, err = pubKey.MarshalBinary(); err != nil {
+	if enc, err = pubKey.MarshalHash(); err != nil {
 		return
 	}
 

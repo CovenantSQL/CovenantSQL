@@ -21,17 +21,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
-
-	"github.com/CovenantSQL/CovenantSQL/merkle"
-
-	"github.com/CovenantSQL/CovenantSQL/rpc"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/chain"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/merkle"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
 )
@@ -51,12 +48,14 @@ var (
 
 // Chain defines the main chain
 type Chain struct {
-	db *bolt.DB
-	bi *blockIndex
-	ti *txIndex
-	rt *rt
-	st *State
-	cl *rpc.Caller
+	db  *bolt.DB
+	bi  *blockIndex
+	ti  *txIndex
+	rt  *rt
+	st  *State
+	cl  *rpc.Caller
+	txp *chain.TxPersistence
+	txi *chain.TxIndex
 
 	blocksFromSelf    chan *types.Block
 	blocksFromRPC     chan *types.Block
@@ -259,17 +258,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID
-func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
-	enc, err := tb.TxContent.MarshalHash()
-	if err != nil {
-		return err
-	}
-	h := hash.THashH(enc)
-	if !tb.TxHash.IsEqual(&h) {
-		return ErrInvalidHash
-	}
-
-	err = tb.Verify(&h)
+func (c *Chain) checkTxBilling(tb *types.TxBilling) (err error) {
+	err = tb.Verify()
 	if err != nil {
 		return err
 	}

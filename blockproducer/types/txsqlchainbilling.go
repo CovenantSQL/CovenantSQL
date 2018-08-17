@@ -18,14 +18,12 @@ package types
 
 import (
 	"sync"
+	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-
-	"github.com/CovenantSQL/CovenantSQL/utils"
-
-	"github.com/CovenantSQL/CovenantSQL/proto"
+	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
+	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 //go:generate hsp
@@ -91,6 +89,22 @@ func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddres
 	}
 }
 
+func (tb *TxBilling) GetHash() hash.Hash {
+	return *tb.TxHash
+}
+
+func (tb *TxBilling) GetIndexKey() interface{} {
+	return *tb.TxHash
+}
+
+func (tb *TxBilling) GetPersistenceKey() []byte {
+	return tb.TxHash[:]
+}
+
+func (tb *TxBilling) GetTime() time.Time {
+	return time.Time{}
+}
+
 // Serialize serializes TxBilling using msgpack
 func (tb *TxBilling) Serialize() ([]byte, error) {
 	b, err := utils.EncodeMsgPack(tb)
@@ -103,8 +117,7 @@ func (tb *TxBilling) Serialize() ([]byte, error) {
 
 // Deserialize desrializes TxBilling using msgpack
 func (tb *TxBilling) Deserialize(enc []byte) error {
-	err := utils.DecodeMsgPack(enc, tb)
-	return err
+	return utils.DecodeMsgPack(enc, tb)
 }
 
 // PackAndSignTx computes tx of TxContent and signs it
@@ -129,9 +142,14 @@ func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
 }
 
 // Verify verifies the signature of TxBilling
-func (tb *TxBilling) Verify(h *hash.Hash) (err error) {
-	if !tb.Signature.Verify(h[:], tb.Signee) {
-		err = ErrSignVerification
+func (tb *TxBilling) Verify() (err error) {
+	var enc []byte
+	if enc, err = tb.TxContent.MarshalHash(); err != nil {
+		return
+	} else if h := hash.THashH(enc); !tb.TxHash.IsEqual(&h) {
+		return
+	} else if !tb.Signature.Verify(h[:], tb.Signee) {
+		return
 	}
 	return
 }

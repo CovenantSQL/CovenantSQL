@@ -17,21 +17,28 @@
 package interfaces
 
 import (
-	"encoding"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+type Serializer interface {
+	Serialize() ([]byte, error)
+}
+
+type Deserializer interface {
+	Deserialize(enc []byte) error
+}
+
 type Transaction interface {
-	GetDatabaseID() proto.DatabaseID
+	Serializer
+	Deserializer
+	GetDatabaseID() *proto.DatabaseID
 	GetHash() hash.Hash
 	GetIndexKey() interface{}
 	GetPersistenceKey() []byte
 	GetSequenceID() uint32
 	GetTime() time.Time
 	Verify() error
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
 }

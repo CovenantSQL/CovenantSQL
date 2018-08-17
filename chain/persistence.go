@@ -49,7 +49,7 @@ func NewTxPersistence(db *bolt.DB) (ins *TxPersistence, err error) {
 func (p *TxPersistence) PutTransaction(tx ci.Transaction) (err error) {
 	var key, value []byte
 	key = tx.GetPersistenceKey()
-	if value, err = tx.MarshalBinary(); err != nil {
+	if value, err = tx.Serialize(); err != nil {
 		return
 	}
 	return p.db.Update(func(tx *bolt.Tx) error {
@@ -65,7 +65,7 @@ func (p *TxPersistence) GetTransaction(key []byte, tx ci.Transaction) (err error
 	}); err != nil {
 		return
 	}
-	return tx.UnmarshalBinary(value)
+	return tx.Deserialize(value)
 }
 
 func (p *TxPersistence) DelTransaction(key []byte) (err error) {
@@ -79,7 +79,7 @@ func (p *TxPersistence) PutTransactionAndUpdateIndex(tx ci.Transaction, ti *TxIn
 		key []byte = tx.GetPersistenceKey()
 		val []byte
 	)
-	if val, err = tx.MarshalBinary(); err != nil {
+	if val, err = tx.Serialize(); err != nil {
 		return
 	}
 	return p.db.Update(func(dbtx *bolt.Tx) (err error) {

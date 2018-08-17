@@ -20,6 +20,7 @@ import (
 	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -107,6 +108,36 @@ type LaunchBillingReq struct {
 type LaunchBillingResp struct {
 }
 
+// FetchTransactionReq defines a request of FetchTransaction RPC method.
+type FetchTransactionReq struct {
+	QueryHash hash.Hash
+}
+
+// FetchTransactionResp defines a response of FetchTransaction RPC method.
+type FetchTransactionResp struct {
+	Height   int32
+	Block    *ct.Block
+	Request  *wt.Query
+	Response *wt.SignedResponseHeader
+	Ack      *wt.SignedAckHeader
+}
+
+// SubscribeTransactionReq defines a request of SubscribeTransactionReq RPC method.
+type SubscribeTransactionReq struct {
+	NodeID proto.NodeID
+	Height int32
+	Hash   *hash.Hash
+}
+
+// SubscribeTransactionResp defines a request of SubscribeTransactionResp RPC method.
+type SubscribeTransactionResp struct {
+}
+
+type CancelSubscriptionReq struct {
+	NodeID proto.NodeID
+}
+type CancelSubscriptionRes struct{}
+
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
 	err error) {
@@ -156,4 +187,19 @@ func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp
 // LaunchBilling is the RPC method to launch a new billing process in the target server.
 func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingResp) error {
 	return s.chain.LaunchBilling(req.Low, req.High)
+}
+
+// FetchTransaction is the RPC method to fetch a known transaction from the target server.
+func (s *ChainRPCService) FetchTransaction(req *FetchTransactionReq, _ *FetchTransactionResp) error {
+	return nil
+}
+
+// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
+func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionReq, _ *SubscribeTransactionResp) error {
+	return nil
+}
+
+// CancelSubscription is the RPC method to cancel subscription in the target server.
+func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionRes) error {
+	return nil
 }

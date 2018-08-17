@@ -59,7 +59,7 @@ func (s *SignedHeader) Verify() error {
 type Block struct {
 	SignedHeader SignedHeader
 	TxBillings   []*TxBilling
-	Transactions []*ci.Transaction
+	Transactions []ci.Transaction
 }
 
 // GetTxHashes returns all hashes of tx in block.{TxBillings, ...}

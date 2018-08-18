@@ -17,8 +17,6 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -37,53 +35,12 @@ type Header struct {
 	Timestamp  time.Time
 }
 
-// MarshalHash marshals for hash
-func (h *Header) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		h.Version,
-		&h.Producer,
-		&h.MerkleRoot,
-		&h.ParentHash,
-		h.Timestamp,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
 // SignedHeader defines the main chain header with the signature
 type SignedHeader struct {
 	Header
 	BlockHash hash.Hash
 	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
-}
-
-// MarshalHash marshals for hash
-func (s *SignedHeader) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		s.Version,
-		&s.Producer,
-		&s.MerkleRoot,
-		&s.ParentHash,
-		s.Timestamp,
-		&s.BlockHash,
-		s.Signee,
-		s.Signature,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
 }
 
 // Verify verifies the signature

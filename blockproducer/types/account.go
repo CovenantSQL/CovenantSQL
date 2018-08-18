@@ -17,13 +17,9 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
-
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // SQL Chain role type
@@ -41,28 +37,6 @@ type Account struct {
 	Roles              []byte
 	Rating             float64
 	TxBillings         []*hash.Hash
-}
-
-// MarshalHash marshals for hash
-func (a *Account) MarshalHash() ([]byte, error) {
-
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		&a.Address,
-		a.StableCoinBalance,
-		a.ThunderCoinBalance,
-		&a.SQLChains,
-		&a.Roles,
-		a.Rating,
-		&a.TxBillings,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
 }
 
 // AppendSQLChainAndRole add the sql chain include the account and its related role

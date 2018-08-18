@@ -17,8 +17,6 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
 	"reflect"
 	"time"
 
@@ -27,7 +25,6 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/merkle"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
@@ -41,23 +38,23 @@ type Header struct {
 	Timestamp   time.Time
 }
 
-// MarshalHash marshals for hash
-func (h *Header) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		h.Version,
-		h.Producer,
-		&h.GenesisHash,
-		&h.ParentHash,
-		&h.MerkleRoot,
-		h.Timestamp,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
+//// MarshalHash marshals for hash
+//func (h *Header) MarshalHash() ([]byte, error) {
+//	buffer := bytes.NewBuffer(nil)
+//
+//	if err := utils.WriteElements(buffer, binary.BigEndian,
+//		h.Version,
+//		h.Producer,
+//		&h.GenesisHash,
+//		&h.ParentHash,
+//		&h.MerkleRoot,
+//		h.Timestamp,
+//	); err != nil {
+//		return nil, err
+//	}
+//
+//	return buffer.Bytes(), nil
+//}
 
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
@@ -67,26 +64,26 @@ type SignedHeader struct {
 	Signature *asymmetric.Signature
 }
 
-// MarshalHash marshals for hash.
-func (s *SignedHeader) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		s.Version,
-		s.Producer,
-		&s.GenesisHash,
-		&s.ParentHash,
-		&s.MerkleRoot,
-		s.Timestamp,
-		&s.BlockHash,
-		s.Signee,
-		s.Signature,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
+//// MarshalHash marshals for hash.
+//func (s *SignedHeader) MarshalHash() ([]byte, error) {
+//	buffer := bytes.NewBuffer(nil)
+//
+//	if err := utils.WriteElements(buffer, binary.BigEndian,
+//		s.Version,
+//		s.Producer,
+//		&s.GenesisHash,
+//		&s.ParentHash,
+//		&s.MerkleRoot,
+//		s.Timestamp,
+//		&s.BlockHash,
+//		s.Signee,
+//		s.Signature,
+//	); err != nil {
+//		return nil, err
+//	}
+//
+//	return buffer.Bytes(), nil
+//}
 
 // Verify verifies the signature of the signed header.
 func (s *SignedHeader) Verify() error {
@@ -144,19 +141,19 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
-// MarshalHash marshals for hash
-func (b *Block) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		&b.SignedHeader,
-		b.Queries,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
+//// MarshalHash marshals for hash
+//func (b *Block) MarshalHash() ([]byte, error) {
+//	buffer := bytes.NewBuffer(nil)
+//
+//	if err := utils.WriteElements(buffer, binary.BigEndian,
+//		&b.SignedHeader,
+//		b.Queries,
+//	); err != nil {
+//		return nil, err
+//	}
+//
+//	return buffer.Bytes(), nil
+//}
 
 // PushAckedQuery pushes a acknowledged and verified query into the block.
 func (b *Block) PushAckedQuery(h *hash.Hash) {

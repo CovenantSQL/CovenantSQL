@@ -20,6 +20,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/bits"
+
+	"github.com/CovenantSQL/HashStablePack/msgp"
 )
 
 // HashSize of array used to store hashes.  See Hash.
@@ -55,6 +57,16 @@ func (hash *Hash) CloneBytes() []byte {
 	copy(newHash, hash[:])
 
 	return newHash
+}
+
+// MarshalHash marshals for hash
+func (h *Hash) MarshalHash() (o []byte, err error) {
+	return h.CloneBytes(), nil
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (h *Hash) Msgsize() (s int) {
+	return msgp.BytesPrefixSize + HashSize
 }
 
 // SetBytes sets the bytes which represent the hash.  An error is returned if

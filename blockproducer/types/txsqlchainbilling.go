@@ -17,8 +17,6 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
 	"sync"
 
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
@@ -29,6 +27,8 @@ import (
 
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
+
+//msgp:ignore sync.Mutex Mutex
 
 // TxContent defines the customer's billing and block rewards in transaction
 type TxContent struct {
@@ -59,24 +59,6 @@ func NewTxContent(seqID uint32,
 	}
 }
 
-// MarshalHash marshals for hash
-func (tb *TxContent) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		tb.SequenceID,
-		&tb.BillingRequest,
-		tb.Receivers,
-		tb.Fees,
-		tb.Rewards,
-		&tb.BillingResponse,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
-}
-
 // GetHash returns the hash of transaction
 func (tb *TxContent) GetHash() (*hash.Hash, error) {
 	b, err := tb.MarshalHash()
@@ -89,7 +71,7 @@ func (tb *TxContent) GetHash() (*hash.Hash, error) {
 
 // TxBilling is a type of tx, that is used to record sql chain billing and block rewards
 type TxBilling struct {
-	sync.Mutex
+	mutex          sync.Mutex
 	TxContent      TxContent
 	TxType         byte
 	AccountAddress *proto.AccountAddress
@@ -165,21 +147,21 @@ func (tb *TxBilling) GetSequenceID() uint32 {
 
 // IsSigned shows whether the tx billing is signed
 func (tb *TxBilling) IsSigned() bool {
-	tb.Lock()
-	defer tb.Unlock()
+	tb.mutex.Lock()
+	defer tb.mutex.Unlock()
 	return tb.SignedBlock != nil
 }
 
 // SetSignedBlock sets the tx billing with block hash
 func (tb *TxBilling) SetSignedBlock(h *hash.Hash) {
-	tb.Lock()
-	defer tb.Unlock()
+	tb.mutex.Lock()
+	defer tb.mutex.Unlock()
 	tb.SignedBlock = h
 }
 
 // GetSignedBlock gets the block hash
 func (tb *TxBilling) GetSignedBlock() *hash.Hash {
-	tb.Lock()
-	defer tb.Unlock()
+	tb.mutex.Lock()
+	defer tb.mutex.Unlock()
 	return tb.SignedBlock
 }

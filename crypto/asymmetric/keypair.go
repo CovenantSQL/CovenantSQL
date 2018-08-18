@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/CovenantSQL/HashStablePack/msgp"
 	ec "github.com/btcsuite/btcd/btcec"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -39,6 +40,12 @@ type PrivateKey ec.PrivateKey
 // PublicKey wraps an ec.PublicKey as a convenience mainly verifying signatures with the the
 // public key without having to directly import the ecdsa package.
 type PublicKey ec.PublicKey
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (k PublicKey) Msgsize() (s int) {
+	s = msgp.BytesPrefixSize + ec.PubKeyBytesLenCompressed
+	return
+}
 
 // MarshalHash marshals for hash
 func (k *PublicKey) MarshalHash() (keyBytes []byte, err error) {

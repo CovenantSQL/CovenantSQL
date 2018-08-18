@@ -207,23 +207,3 @@ func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// sign the request
 	return sh.Header.Sign(signer)
 }
-
-// MarshalHash marshals for hash
-func (sh *SignedResponseHeader) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		&sh.Request,
-		&sh.NodeID,
-		sh.Timestamp,
-		sh.RowCount,
-		&sh.DataHash,
-		&sh.HeaderHash,
-		sh.Signee,
-		sh.Signature,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}

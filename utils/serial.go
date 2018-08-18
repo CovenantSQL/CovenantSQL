@@ -758,7 +758,7 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 		err = serializer.writeAddrAndGases(w, order, *e)
 
 	default:
-		// Fallback to BinaryMarshaler interface
+		// Fallback to HashMarshaler interface
 		if i, ok := e.(HashMarshaler); ok {
 			var data []byte
 
@@ -769,7 +769,7 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 			return
 		}
 
-		log.Debugf("element type is: %s", reflect.TypeOf(e))
+		log.Debugf("can not handle element type: %s", reflect.TypeOf(e))
 		return ErrInvalidType
 	}
 

@@ -28,6 +28,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
+//msgp:ignore Query Queries Payload RequestPayload Request
+
 // QueryType enumerates available query type, currently read/write.
 type QueryType int32
 
@@ -197,29 +199,6 @@ func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	buildHash(&r.Payload, &r.Header.QueriesHash)
 
 	return r.Header.Sign(signer)
-}
-
-// MarshalHash marshals for hash
-func (sh *SignedRequestHeader) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		int32(sh.QueryType),
-		&sh.NodeID,
-		&sh.DatabaseID,
-		sh.ConnectionID,
-		sh.SeqNo,
-		sh.Timestamp,
-		sh.BatchCount,
-		&sh.QueriesHash,
-		&sh.HeaderHash,
-		sh.Signee,
-		sh.Signature,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
 }
 
 // GetQueryKey returns a unique query key of this request.

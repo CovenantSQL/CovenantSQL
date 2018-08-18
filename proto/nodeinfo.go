@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tinylib/msgp/msgp"
+	"github.com/CovenantSQL/HashStablePack/msgp"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"

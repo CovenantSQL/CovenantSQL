@@ -22,7 +22,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/tinylib/msgp/msgp"
+	"github.com/CovenantSQL/HashStablePack/msgp"
 )
 
 var (

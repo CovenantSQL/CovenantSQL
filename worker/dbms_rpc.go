@@ -105,3 +105,10 @@ func (rpc *DBMSRPCService) Deploy(req *wt.UpdateService, _ *wt.UpdateServiceResp
 
 	return
 }
+
+// GetRequest rpc, called by observer to fetch original request by log offset.
+func (rpc *DBMSRPCService) GetRequest(req *wt.GetRequestReq, resp *wt.GetRequestResp) (err error) {
+	// TODO(xq262144), check permission
+	resp.Request, err = rpc.dbms.GetRequest(req.DatabaseID, req.LogOffset)
+	return
+}

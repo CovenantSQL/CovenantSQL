@@ -101,6 +101,10 @@ const (
 	SQLCFetchBlock
 	// SQLCFetchAckedQuery is used by sqlchain to fetch response ack from adjacent nodes
 	SQLCFetchAckedQuery
+	// OBSAdviseAckedQuery is used by sqlchain to push acked query to observers
+	OBSAdviseAckedQuery
+	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
+	OBSAdviseNewBlock
 )
 
 // String returns the RemoteFunc string
@@ -146,6 +150,10 @@ func (s RemoteFunc) String() string {
 		return "SQLC.FetchBlock"
 	case SQLCFetchAckedQuery:
 		return "SQLC.FetchAckedQuery"
+	case OBSAdviseAckedQuery:
+		return "OBS.AdviseAckedQuery"
+	case OBSAdviseNewBlock:
+		return "OBS.AdviseNewBlock"
 	}
 	return "Unknown"
 }

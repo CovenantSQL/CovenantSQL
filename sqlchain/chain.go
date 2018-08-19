@@ -44,7 +44,7 @@ var (
 	metaStateKey            = []byte("thunderdb-state")
 	metaBlockIndexBucket    = []byte("thunderdb-block-index-bucket")
 	metaHeightIndexBucket   = []byte("thunderdb-query-height-index-bucket")
-	metaRequestIndexBucket  = []byte("thunderdb-query-reqeust-index-bucket")
+	metaRequestIndexBucket  = []byte("thunderdb-query-request-index-bucket")
 	metaResponseIndexBucket = []byte("thunderdb-query-response-index-bucket")
 	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
 )
@@ -466,7 +466,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
-				resp := &MuxAdviseAckedQueryResp{}
+				resp := &MuxAdviseNewBlockResp{}
 				if err := c.cl.CallNode(
 					id, route.SQLCAdviseNewBlock.String(), req, resp); err != nil {
 					log.WithFields(log.Fields{

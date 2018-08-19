@@ -108,34 +108,22 @@ type LaunchBillingReq struct {
 type LaunchBillingResp struct {
 }
 
-// FetchTransactionReq defines a request of FetchTransaction RPC method.
-type FetchTransactionReq struct {
-	QueryHash hash.Hash
-}
-
-// FetchTransactionResp defines a response of FetchTransaction RPC method.
-type FetchTransactionResp struct {
-	Height   int32
-	Block    *ct.Block
-	Request  *wt.Query
-	Response *wt.SignedResponseHeader
-	Ack      *wt.SignedAckHeader
-}
-
-// SubscribeTransactionReq defines a request of SubscribeTransactionReq RPC method.
+// SubscribeTransactionReq defines a request of SubscribeTransaction RPC method.
 type SubscribeTransactionReq struct {
 	NodeID proto.NodeID
 	Height int32
-	Hash   *hash.Hash
 }
 
-// SubscribeTransactionResp defines a request of SubscribeTransactionResp RPC method.
+// SubscribeTransactionResp defines a response of SubscribeTransaction RPC method.
 type SubscribeTransactionResp struct {
 }
 
+// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
 type CancelSubscriptionReq struct {
 	NodeID proto.NodeID
 }
+
+// CancelSubscriptionRes defines a response of CancelSubscription RPC method.
 type CancelSubscriptionRes struct{}
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
@@ -189,17 +177,12 @@ func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingR
 	return s.chain.LaunchBilling(req.Low, req.High)
 }
 
-// FetchTransaction is the RPC method to fetch a known transaction from the target server.
-func (s *ChainRPCService) FetchTransaction(req *FetchTransactionReq, _ *FetchTransactionResp) error {
-	return nil
-}
-
 // SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
 func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionReq, _ *SubscribeTransactionResp) error {
-	return nil
+	return s.chain.addSubscription(req.NodeID, req.Height)
 }
 
 // CancelSubscription is the RPC method to cancel subscription in the target server.
 func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionRes) error {
-	return nil
+	return s.chain.cancelSubscription(req.NodeID)
 }

@@ -26,10 +26,13 @@ var (
 	metaTxIndexBucket = []byte("covenantsql-tx-index-bucket")
 )
 
+// TxPersistence defines a persistence storage for blockchain transactions.
 type TxPersistence struct {
 	db *bolt.DB
 }
 
+// NewTxPersistence returns a new TxPersistence instance using the given bolt database as
+// underlying storage engine.
 func NewTxPersistence(db *bolt.DB) (ins *TxPersistence, err error) {
 	// Initialize buckets
 	if err = db.Update(func(tx *bolt.Tx) (err error) {
@@ -46,6 +49,7 @@ func NewTxPersistence(db *bolt.DB) (ins *TxPersistence, err error) {
 	return
 }
 
+// PutTransaction serializes and puts the transaction tx into the storage.
 func (p *TxPersistence) PutTransaction(tx ci.Transaction) (err error) {
 	var key, value []byte
 	key = tx.GetPersistenceKey()
@@ -57,6 +61,11 @@ func (p *TxPersistence) PutTransaction(tx ci.Transaction) (err error) {
 	})
 }
 
+// GetTransaction gets the transaction binary representation from the storage with key and
+// deserialize to tx.
+//
+// It is important that tx must provide an interface with corresponding concrete value, or the
+// deserialization will cause unexpected error.
 func (p *TxPersistence) GetTransaction(key []byte, tx ci.Transaction) (err error) {
 	var value []byte
 	if err = p.db.View(func(tx *bolt.Tx) error {
@@ -68,12 +77,15 @@ func (p *TxPersistence) GetTransaction(key []byte, tx ci.Transaction) (err error
 	return tx.Deserialize(value)
 }
 
+// DelTransaction deletes the transaction from the storage with key.
 func (p *TxPersistence) DelTransaction(key []byte) (err error) {
 	return p.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(metaBucket[:]).Bucket(metaTxIndexBucket).Delete(key)
 	})
 }
 
+// PutTransactionAndUpdateIndex serializes and puts the transaction from the storage with key
+// and updates transaction index ti in a single database transaction.
 func (p *TxPersistence) PutTransactionAndUpdateIndex(tx ci.Transaction, ti *TxIndex) (err error) {
 	var (
 		key = tx.GetPersistenceKey()
@@ -91,6 +103,8 @@ func (p *TxPersistence) PutTransactionAndUpdateIndex(tx ci.Transaction, ti *TxIn
 	})
 }
 
+// DelTransactionAndUpdateIndex deletes the transaction from the storage with key and updates
+// transaction index ti in a single database transaction.
 func (p *TxPersistence) DelTransactionAndUpdateIndex(
 	ikey interface{}, pkey []byte, ti *TxIndex) (err error,
 ) {

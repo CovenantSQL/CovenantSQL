@@ -28,23 +28,28 @@ type txCache struct {
 	tx ci.Transaction
 }
 
+// TxIndex defines transaction index.
 type TxIndex struct {
 	index sync.Map
 }
 
+// NewTxIndex returns a new TxIndex instance.
 func NewTxIndex() *TxIndex {
 	return &TxIndex{}
 }
 
+// StoreTx stores tx in the transaction index.
 func (i *TxIndex) StoreTx(tx ci.Transaction) {
 	i.index.Store(tx.GetIndexKey(), &txCache{tx: tx})
 }
 
+// HasTx returns a boolean value indicating wether the transaction index has key or not.
 func (i *TxIndex) HasTx(key interface{}) (ok bool) {
 	_, ok = i.index.Load(key)
 	return
 }
 
+// LoadTx loads a transaction with key.
 func (i *TxIndex) LoadTx(key interface{}) (tx ci.Transaction, ok bool) {
 	var (
 		val interface{}
@@ -58,6 +63,7 @@ func (i *TxIndex) LoadTx(key interface{}) (tx ci.Transaction, ok bool) {
 	return
 }
 
+// SetBlock sets the block hash filed of txCache with key in the transaction index.
 func (i *TxIndex) SetBlock(key interface{}, bh hash.Hash) (ok bool) {
 	var (
 		val interface{}
@@ -71,10 +77,12 @@ func (i *TxIndex) SetBlock(key interface{}, bh hash.Hash) (ok bool) {
 	return
 }
 
+// DelTx deletes transaction with key in the transaction index.
 func (i *TxIndex) DelTx(key interface{}) {
 	i.index.Delete(key)
 }
 
+// ResetBlock resets the block hash field of txCache with key in the transaction index.
 func (i *TxIndex) ResetBlock(key interface{}) (ok bool) {
 	var (
 		val interface{}
@@ -88,7 +96,8 @@ func (i *TxIndex) ResetBlock(key interface{}) (ok bool) {
 	return
 }
 
-func (i *TxIndex) IsTxUnpacked(key interface{}) error {
+// CheckTxState checks the transaction state for block packing with key in the transaction index.
+func (i *TxIndex) CheckTxState(key interface{}) error {
 	var (
 		ok  bool
 		val interface{}
@@ -104,6 +113,7 @@ func (i *TxIndex) IsTxUnpacked(key interface{}) error {
 	return nil
 }
 
+// FetchUnpackedTxes fetches all unpacked tranactions and returns them as a slice.
 func (i *TxIndex) FetchUnpackedTxes() (txes []ci.Transaction) {
 	i.index.Range(func(key interface{}, val interface{}) bool {
 		if tc := val.(*txCache); tc != nil && tc.bh == nil {

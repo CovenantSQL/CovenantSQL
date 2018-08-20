@@ -23,14 +23,19 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+// Serializer is the interface implemented by an object that can serialize itself into binary form.
 type Serializer interface {
 	Serialize() ([]byte, error)
 }
 
+// Deserializer is the interface implemented by an object that can deserialize a binary
+// representation of itself.
 type Deserializer interface {
 	Deserialize(enc []byte) error
 }
 
+// Transaction is the interface implemented by an object that can be verified and processed by
+// a blockchain as a transaction.
 type Transaction interface {
 	Serializer
 	Deserializer

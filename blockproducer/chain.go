@@ -321,7 +321,7 @@ func (c *Chain) checkTx(tx ci.Transaction) (err error) {
 	if _, ok := c.txi.LoadTx(tx.GetIndexKey()); !ok {
 		c.txi.StoreTx(tx)
 	}
-	if err = c.txi.IsTxUnpacked(tx.GetIndexKey()); err != nil {
+	if err = c.txi.CheckTxState(tx.GetIndexKey()); err != nil {
 		return
 	}
 	return
@@ -1032,6 +1032,7 @@ func (c *Chain) Stop() (err error) {
 	return
 }
 
+// AddTx adds a new transaction into the chain index.
 func (c *Chain) AddTx(tx ci.Transaction) (err error) {
 	if err = tx.Verify(); err != nil {
 		return

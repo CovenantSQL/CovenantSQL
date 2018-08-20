@@ -90,11 +90,13 @@ type FetchTxBillingResp struct {
 	proto.Envelope
 }
 
+// FetchTxReq defines a request of the FetchTx RPC method.
 type FetchTxReq struct {
 	proto.Envelope
 	Hash hash.Hash
 }
 
+// FetchTxResp defines a response of the FetchTx RPC method.
 type FetchTxResp struct {
 	proto.Envelope
 	Tx ci.Transaction
@@ -134,6 +136,7 @@ func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBi
 	return nil
 }
 
+// FetchTx is the RPC method to fetch a transaction from the target server.
 func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) error {
 	return s.chain.fetchTx(req.Hash, resp.Tx)
 }

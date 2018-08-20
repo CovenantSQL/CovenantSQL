@@ -19,7 +19,10 @@ package chain
 import "errors"
 
 var (
-	ErrUnknownTx      = errors.New("unknown transaction")
-	ErrDuplicateTx    = errors.New("duplicate transaction")
+	// ErrUnknownTx indicates that the transaction is unknown.
+	ErrUnknownTx = errors.New("unknown transaction")
+	// ErrDuplicateTx indicates that the transaction will be duplicate in the new block.
+	ErrDuplicateTx = errors.New("duplicate transaction")
+	// ErrCorruptedIndex indicates that a corrupted index item is detected.
 	ErrCorruptedIndex = errors.New("corrupted index")
 )

@@ -88,8 +88,8 @@ func (s *Signature) MarshalHash() (keyBytes []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z Signature) Msgsize() (s int) {
-	s = msgp.BytesPrefixSize + 70
+func (s Signature) Msgsize() (sz int) {
+	sz = msgp.BytesPrefixSize + 70
 	return
 }
 

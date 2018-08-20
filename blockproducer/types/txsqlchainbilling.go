@@ -28,8 +28,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-//go:generate HashStablePack
-//msgp:ignore sync.Mutex Mutex
+//go:generate hsp
+//hsp:ignore sync.Mutex Mutex
 
 // TxContent defines the customer's billing and block rewards in transaction
 type TxContent struct {

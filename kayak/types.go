@@ -29,7 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-//msgp:ignore RuntimeConfig
+//hsp:ignore RuntimeConfig
 
 // Log entries are replicated to all members of the Kayak cluster
 // and form the heart of the replicated state machine.

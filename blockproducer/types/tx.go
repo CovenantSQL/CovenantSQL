@@ -16,7 +16,7 @@
 
 package types
 
-//go:generate HashStablePack
+//go:generate hsp
 
 // TxType represents the type of tx
 type TxType byte

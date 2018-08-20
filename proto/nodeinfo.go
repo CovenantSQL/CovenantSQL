@@ -27,7 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
-//go:generate HashStablePack
+//go:generate hsp
 
 var (
 	// NewNodeIDDifficulty is exposed for easy testing

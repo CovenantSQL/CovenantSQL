@@ -27,7 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-//go:generate HashStablePack
+//go:generate hsp
 
 // NoAckReportHeader defines worker issued client no ack report.
 type NoAckReportHeader struct {

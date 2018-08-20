@@ -66,9 +66,14 @@ type Block struct {
 func (b *Block) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
 	// get hashes in block.TxBillings
-	hs := make([]*hash.Hash, len(b.TxBillings))
-	for i := range hs {
-		hs[i] = b.TxBillings[i].TxHash
+	bl := len(b.TxBillings)
+	hs := make([]*hash.Hash, len(b.TxBillings)+len(b.Transactions))
+	for i, v := range b.TxBillings {
+		hs[i] = v.TxHash
+	}
+	for i, v := range b.Transactions {
+		h := v.GetHash()
+		hs[bl+i] = &h
 	}
 	return hs
 }

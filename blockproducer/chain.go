@@ -23,6 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/chain"
+	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
@@ -302,23 +303,53 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) (err error) {
 	return nil
 }
 
+func (c *Chain) fetchTx(h hash.Hash, tx ci.Transaction) (err error) {
+	var ok bool
+	if tx, ok = c.txi.LoadTx(h); ok {
+		return
+	}
+	if err = c.txp.GetTransaction(h[:], tx); err != nil {
+		return
+	}
+	return
+}
+
+func (c *Chain) checkTx(tx ci.Transaction) (err error) {
+	if err = tx.Verify(); err != nil {
+		return
+	}
+	if _, ok := c.txi.LoadTx(tx.GetIndexKey()); !ok {
+		c.txi.StoreTx(tx)
+	}
+	if err = c.txi.IsTxUnpacked(tx.GetIndexKey()); err != nil {
+		return
+	}
+	return
+}
+
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature
-func (c *Chain) checkBlock(b *types.Block) error {
+func (c *Chain) checkBlock(b *types.Block) (err error) {
 	// TODO(lambda): process block fork
 	if !b.SignedHeader.ParentHash.IsEqual(c.st.getHeader()) {
 		log.Debugf("chain's parent hash is %s, and height is %d. But received block's hash is %s", c.st.getHeader(), c.st.getHeight(), b.SignedHeader.ParentHash)
 		return ErrParentNotMatch
 	}
-	hashes := make([]*hash.Hash, len(b.TxBillings))
+
+	// TODO(leventeliu): merge transactiions checking
 	for i := range b.TxBillings {
-		err := c.checkTxBilling(b.TxBillings[i])
-		if err != nil {
+		if err = c.checkTxBilling(b.TxBillings[i]); err != nil {
 			return err
 		}
-		hashes[i] = b.TxBillings[i].TxHash
 	}
 
-	rootHash := merkle.NewMerkle(hashes).GetRoot()
+	// Check transactions in TxIndex
+	for _, v := range b.Transactions {
+		if err = c.checkTx(v); err != nil {
+			return err
+		}
+	}
+
+	rootHash := merkle.NewMerkle(b.GetTxHashes()).GetRoot()
 	if !b.SignedHeader.MerkleRoot.IsEqual(rootHash) {
 		return ErrInvalidMerkleTreeRoot
 	}
@@ -999,4 +1030,21 @@ func (c *Chain) Stop() (err error) {
 	err = c.db.Close()
 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain database closed")
 	return
+}
+
+func (c *Chain) AddTx(tx ci.Transaction) (err error) {
+	if err = tx.Verify(); err != nil {
+		return
+	}
+
+	// Special check and process for specific types
+	switch val := tx.(type) {
+	case *types.TxBilling:
+	default:
+		log.WithFields(log.Fields{
+			"tx": val,
+		}).Debug("Checking Transaction type")
+	}
+
+	return c.txp.PutTransactionAndUpdateIndex(tx, c.txi)
 }

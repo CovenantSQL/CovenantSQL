@@ -18,6 +18,8 @@ package blockproducer
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -88,6 +90,16 @@ type FetchTxBillingResp struct {
 	proto.Envelope
 }
 
+type FetchTxReq struct {
+	proto.Envelope
+	Hash hash.Hash
+}
+
+type FetchTxResp struct {
+	proto.Envelope
+	Tx ci.Transaction
+}
+
 // AdviseNewBlock is the RPC method to advise a new block to target server
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	s.chain.blocksFromRPC <- req.Block
@@ -120,4 +132,8 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 // FetchTxBilling is the RPC method to fetch a known billing tx form the target server.
 func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
 	return nil
+}
+
+func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) error {
+	return s.chain.fetchTx(req.Hash, resp.Tx)
 }

@@ -17,14 +17,12 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
-
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
+
+//go:generate HashStablePack
 
 // SQL Chain role type
 const (
@@ -43,26 +41,15 @@ type Account struct {
 	TxBillings         []*hash.Hash
 }
 
-// MarshalHash marshals for hash
-func (a *Account) MarshalHash() ([]byte, error) {
-
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		&a.Address,
-		a.StableCoinBalance,
-		a.ThunderCoinBalance,
-		&a.SQLChains,
-		&a.Roles,
-		a.Rating,
-		&a.TxBillings,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
+// Account4test store its balance, and other mate data
+type Account4test struct {
+	Address1            proto.AccountAddress
+	StableCoinBalance1  uint64
+	ThunderCoinBalance1 uint64
+	SQLChains1          []proto.DatabaseID
+	Roles1              []byte
+	Rating1             float64
+	TxBillings1         []*hash.Hash
 }
 
 // AppendSQLChainAndRole add the sql chain include the account and its related role

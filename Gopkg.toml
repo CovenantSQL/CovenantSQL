@@ -35,6 +35,10 @@
   branch = "master"
 
 [[override]]
+  name = "github.com/CovenantSQL/HashStablePack"
+  branch = "master"
+
+[[override]]
   name = "github.com/thunderdb/rqlite"
   branch = "master"
 

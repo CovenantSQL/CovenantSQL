@@ -29,6 +29,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+//go:generate hsp
 //hsp:ignore RuntimeConfig
 
 // Log entries are replicated to all members of the Kayak cluster

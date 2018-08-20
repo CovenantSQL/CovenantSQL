@@ -22,7 +22,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/CovenantSQL/HashStablePack/msgp"
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
 )
 
@@ -89,7 +89,7 @@ func (s *Signature) MarshalHash() (keyBytes []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (s Signature) Msgsize() (sz int) {
-	sz = msgp.BytesPrefixSize + 70
+	sz = hsp.BytesPrefixSize + 70
 	return
 }
 

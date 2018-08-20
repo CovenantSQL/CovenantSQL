@@ -22,7 +22,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/CovenantSQL/HashStablePack/msgp"
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 )
 
 var (
@@ -66,7 +66,7 @@ func (i *Uint256) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (i *Uint256) Msgsize() (s int) {
-	return msgp.BytesPrefixSize + 32
+	return hsp.BytesPrefixSize + 32
 }
 
 // Uint256FromBytes converts []byte to Uint256

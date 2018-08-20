@@ -25,6 +25,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+//go:generate HashStablePack
+
 // UpdateType defines service update type.
 type UpdateType int32
 

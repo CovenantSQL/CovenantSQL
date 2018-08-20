@@ -22,6 +22,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+//go:generate HashStablePack
+
 // BillingRequestHeader includes contents that need to be signed. Billing blocks should be within
 // height range [low, high] (inclusive).
 type BillingRequestHeader struct {

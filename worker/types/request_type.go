@@ -28,6 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
+//go:generate HashStablePack
 //msgp:ignore Query Queries Payload RequestPayload Request
 
 // QueryType enumerates available query type, currently read/write.

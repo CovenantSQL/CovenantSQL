@@ -27,6 +27,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
+//go:generate HashStablePack
+
 var (
 	// NewNodeIDDifficulty is exposed for easy testing
 	NewNodeIDDifficulty = 40

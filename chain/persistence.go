@@ -76,7 +76,7 @@ func (p *TxPersistence) DelTransaction(key []byte) (err error) {
 
 func (p *TxPersistence) PutTransactionAndUpdateIndex(tx ci.Transaction, ti *TxIndex) (err error) {
 	var (
-		key []byte = tx.GetPersistenceKey()
+		key = tx.GetPersistenceKey()
 		val []byte
 	)
 	if val, err = tx.Serialize(); err != nil {

@@ -88,6 +88,22 @@ func (i *TxIndex) ResetBlock(key interface{}) (ok bool) {
 	return
 }
 
+func (i *TxIndex) IsTxUnpacked(key interface{}) error {
+	var (
+		ok  bool
+		val interface{}
+	)
+	if val, ok = i.index.Load(key); !ok {
+		return ErrUnknownTx
+	}
+	if tc := val.(*txCache); tc != nil {
+		return ErrCorruptedIndex
+	} else if tc.bh != nil {
+		return ErrDuplicateTx
+	}
+	return nil
+}
+
 func (i *TxIndex) FetchUnpackedTxes() (txes []ci.Transaction) {
 	i.index.Range(func(key interface{}, val interface{}) bool {
 		if tc := val.(*txCache); tc != nil && tc.bh == nil {

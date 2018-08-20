@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 import (
 	"fmt"
@@ -32,12 +32,12 @@ type Error interface {
 
 type errShort struct{}
 
-func (e errShort) Error() string   { return "msgp: too few bytes left to read object" }
+func (e errShort) Error() string   { return "hsp: too few bytes left to read object" }
 func (e errShort) Resumable() bool { return false }
 
 type errFatal struct{}
 
-func (f errFatal) Error() string   { return "msgp: fatal decoding error (unreachable code)" }
+func (f errFatal) Error() string   { return "hsp: fatal decoding error (unreachable code)" }
 func (f errFatal) Resumable() bool { return false }
 
 // ArrayError is an error returned
@@ -50,7 +50,7 @@ type ArrayError struct {
 
 // Error implements the error interface
 func (a ArrayError) Error() string {
-	return fmt.Sprintf("msgp: wanted array of size %d; got %d", a.Wanted, a.Got)
+	return fmt.Sprintf("hsp: wanted array of size %d; got %d", a.Wanted, a.Got)
 }
 
 // Resumable is always 'true' for ArrayErrors
@@ -66,7 +66,7 @@ type IntOverflow struct {
 
 // Error implements the error interface
 func (i IntOverflow) Error() string {
-	return fmt.Sprintf("msgp: %d overflows int%d", i.Value, i.FailedBitsize)
+	return fmt.Sprintf("hsp: %d overflows int%d", i.Value, i.FailedBitsize)
 }
 
 // Resumable is always 'true' for overflows
@@ -82,7 +82,7 @@ type UintOverflow struct {
 
 // Error implements the error interface
 func (u UintOverflow) Error() string {
-	return fmt.Sprintf("msgp: %d overflows uint%d", u.Value, u.FailedBitsize)
+	return fmt.Sprintf("hsp: %d overflows uint%d", u.Value, u.FailedBitsize)
 }
 
 // Resumable is always 'true' for overflows
@@ -97,7 +97,7 @@ type UintBelowZero struct {
 
 // Error implements the error interface
 func (u UintBelowZero) Error() string {
-	return fmt.Sprintf("msgp: attempted to cast int %d to unsigned", u.Value)
+	return fmt.Sprintf("hsp: attempted to cast int %d to unsigned", u.Value)
 }
 
 // Resumable is always 'true' for overflows
@@ -113,7 +113,7 @@ type TypeError struct {
 
 // Error implements the error interface
 func (t TypeError) Error() string {
-	return fmt.Sprintf("msgp: attempted to decode type %q with method for %q", t.Encoded, t.Method)
+	return fmt.Sprintf("hsp: attempted to decode type %q with method for %q", t.Encoded, t.Method)
 }
 
 // Resumable returns 'true' for TypeErrors
@@ -137,7 +137,7 @@ type InvalidPrefixError byte
 
 // Error implements the error interface
 func (i InvalidPrefixError) Error() string {
-	return fmt.Sprintf("msgp: unrecognized type prefix 0x%x", byte(i))
+	return fmt.Sprintf("hsp: unrecognized type prefix 0x%x", byte(i))
 }
 
 // Resumable returns 'false' for InvalidPrefixErrors
@@ -151,7 +151,7 @@ type ErrUnsupportedType struct {
 }
 
 // Error implements error
-func (e *ErrUnsupportedType) Error() string { return fmt.Sprintf("msgp: type %q not supported", e.T) }
+func (e *ErrUnsupportedType) Error() string { return fmt.Sprintf("hsp: type %q not supported", e.T) }
 
 // Resumable returns 'true' for ErrUnsupportedType
 func (e *ErrUnsupportedType) Resumable() bool { return true }

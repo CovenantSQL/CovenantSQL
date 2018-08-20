@@ -1,6 +1,6 @@
 // +build purego appengine
 
-package msgp
+package marshalhash
 
 // let's just assume appengine
 // uses 64-bit hardware...

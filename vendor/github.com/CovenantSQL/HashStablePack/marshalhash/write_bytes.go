@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 import (
 	"math"
@@ -320,8 +320,8 @@ func AppendMapStrIntf(b []byte, m map[string]interface{}) ([]byte, error) {
 //  - A map[string]interface{} or map[string]string
 //  - A []T, where T is another supported type
 //  - A *T, where T is another supported type
-//  - A type that satisfieds the msgp.Marshaler interface
-//  - A type that satisfies the msgp.Extension interface
+//  - A type that satisfieds the hsp.Marshaler interface
+//  - A type that satisfies the hsp.Extension interface
 func AppendIntf(b []byte, i interface{}) ([]byte, error) {
 	if i == nil {
 		return AppendNil(b), nil

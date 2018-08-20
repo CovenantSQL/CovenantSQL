@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 import (
 	"math"
@@ -100,7 +100,7 @@ func (n *Number) Type() Type {
 	return n.typ
 }
 
-// DecodeMsg implements msgp.Decodable
+// DecodeMsg implements hsp.Decodable
 func (n *Number) DecodeMsg(r *Reader) error {
 	typ, err := r.NextType()
 	if err != nil {
@@ -140,7 +140,7 @@ func (n *Number) DecodeMsg(r *Reader) error {
 	}
 }
 
-// UnmarshalMsg implements msgp.Unmarshaler
+// UnmarshalMsg implements hsp.Unmarshaler
 func (n *Number) UnmarshalMsg(b []byte) ([]byte, error) {
 	typ := NextType(b)
 	switch typ {
@@ -177,7 +177,7 @@ func (n *Number) UnmarshalMsg(b []byte) ([]byte, error) {
 	}
 }
 
-// MarshalMsg implements msgp.Marshaler
+// MarshalMsg implements hsp.Marshaler
 func (n *Number) MarshalMsg(b []byte) ([]byte, error) {
 	switch n.typ {
 	case IntType:
@@ -193,7 +193,7 @@ func (n *Number) MarshalMsg(b []byte) ([]byte, error) {
 	}
 }
 
-// EncodeMsg implements msgp.Encodable
+// EncodeMsg implements hsp.Encodable
 func (n *Number) EncodeMsg(w *Writer) error {
 	switch n.typ {
 	case IntType:
@@ -209,7 +209,7 @@ func (n *Number) EncodeMsg(w *Writer) error {
 	}
 }
 
-// Msgsize implements msgp.Sizer
+// Msgsize implements hsp.Sizer
 func (n *Number) Msgsize() int {
 	switch n.typ {
 	case Float32Type:

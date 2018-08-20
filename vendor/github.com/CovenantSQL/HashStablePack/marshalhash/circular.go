@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 type timer interface {
 	StartTimer()

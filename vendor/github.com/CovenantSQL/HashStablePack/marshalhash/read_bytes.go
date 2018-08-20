@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 import (
 	"bytes"
@@ -55,7 +55,7 @@ func IsNil(b []byte) bool {
 // data without interpreting its contents.
 type Raw []byte
 
-// MarshalMsg implements msgp.Marshaler.
+// MarshalMsg implements hsp.Marshaler.
 // It appends the raw contents of 'raw'
 // to the provided byte slice. If 'raw'
 // is 0 bytes, 'nil' will be appended instead.
@@ -69,7 +69,7 @@ func (r Raw) MarshalMsg(b []byte) ([]byte, error) {
 	return o, nil
 }
 
-// UnmarshalMsg implements msgp.Unmarshaler.
+// UnmarshalMsg implements hsp.Unmarshaler.
 // It sets the contents of *Raw to be the next
 // object in the provided byte slice.
 func (r *Raw) UnmarshalMsg(b []byte) ([]byte, error) {
@@ -91,7 +91,7 @@ func (r *Raw) UnmarshalMsg(b []byte) ([]byte, error) {
 	return out, nil
 }
 
-// EncodeMsg implements msgp.Encodable.
+// EncodeMsg implements hsp.Encodable.
 // It writes the raw bytes to the writer.
 // If r is empty, it writes 'nil' instead.
 func (r Raw) EncodeMsg(w *Writer) error {
@@ -102,7 +102,7 @@ func (r Raw) EncodeMsg(w *Writer) error {
 	return err
 }
 
-// DecodeMsg implements msgp.Decodable.
+// DecodeMsg implements hsp.Decodable.
 // It sets the value of *Raw to be the
 // next object on the wire.
 func (r *Raw) DecodeMsg(f *Reader) error {
@@ -114,7 +114,7 @@ func (r *Raw) DecodeMsg(f *Reader) error {
 	return err
 }
 
-// Msgsize implements msgp.Sizer
+// Msgsize implements hsp.Sizer
 func (r Raw) Msgsize() int {
 	l := len(r)
 	if l == 0 {

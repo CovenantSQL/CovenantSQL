@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/CovenantSQL/HashStablePack/msgp"
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
@@ -67,7 +67,7 @@ func (h *Hash) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (h *Hash) Msgsize() (s int) {
-	return msgp.BytesPrefixSize + HashSize
+	return hsp.BytesPrefixSize + HashSize
 }
 
 // SetBytes sets the bytes which represent the hash.  An error is returned if

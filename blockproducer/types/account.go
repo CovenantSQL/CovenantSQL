@@ -22,7 +22,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
-//go:generate HashStablePack
+//go:generate hsp
 
 // SQL Chain role type
 const (

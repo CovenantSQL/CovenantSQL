@@ -26,7 +26,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-//go:generate HashStablePack
+//go:generate hsp
 
 // Header defines the main chain block header
 type Header struct {

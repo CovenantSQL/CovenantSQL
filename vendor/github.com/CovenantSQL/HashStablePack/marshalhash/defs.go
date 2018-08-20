@@ -1,7 +1,7 @@
-// This package is the support library for the msgp code generator (http://github.com/CovenantSQL/HashStablePack).
+// This package is the support library for the hsp code generator (http://github.com/CovenantSQL/HashStablePack).
 //
-// This package defines the utilites used by the msgp code generator for encoding and decoding MessagePack
-// from []byte and io.Reader/io.Writer types. Much of this package is devoted to helping the msgp code
+// This package defines the utilites used by the hsp code generator for encoding and decoding MessagePack
+// from []byte and io.Reader/io.Writer types. Much of this package is devoted to helping the hsp code
 // generator implement the Marshaler/Unmarshaler and Encodable/Decodable interfaces.
 //
 // This package defines four "families" of functions:
@@ -12,16 +12,16 @@
 //
 // Once a type has satisfied the `Encodable` and `Decodable` interfaces,
 // it can be written and read from arbitrary `io.Writer`s and `io.Reader`s using
-// 		msgp.Encode(io.Writer, msgp.Encodable)
+// 		hsp.Encode(io.Writer, hsp.Encodable)
 // and
-//		msgp.Decode(io.Reader, msgp.Decodable)
+//		hsp.Decode(io.Reader, hsp.Decodable)
 //
 // There are also methods for converting MessagePack to JSON without
 // an explicit de-serialization step.
 //
 // For additional tips, tricks, and gotchas, please visit
 // the wiki at http://github.com/CovenantSQL/HashStablePack
-package msgp
+package marshalhash
 
 const last4 = 0x0f
 const first4 = 0xf0
@@ -91,7 +91,7 @@ func wfixarray(u uint8) byte {
 
 // These are all the byte
 // prefixes defined by the
-// msgpack standard
+// hspack standard
 const (
 	// 0XXXXXXX
 	mfixint uint8 = 0x00

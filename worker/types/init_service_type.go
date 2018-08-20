@@ -28,7 +28,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-//go:generate HashStablePack
+//go:generate hsp
 
 // InitService defines worker service init request.
 type InitService struct {

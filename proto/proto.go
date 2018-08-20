@@ -21,8 +21,8 @@ import (
 	"time"
 )
 
-//go:generate HashStablePack
-//msgp:shim time.Duration as:int64 using:int64/int64 mode:cast
+//go:generate hsp
+//hsp:shim time.Duration as:int64 using:int64/int64 mode:cast
 
 // EnvelopeAPI defines envelope access functions for rpc Request/Response
 type EnvelopeAPI interface {

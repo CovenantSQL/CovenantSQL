@@ -1,7 +1,7 @@
 // +build linux darwin dragonfly freebsd netbsd openbsd
 // +build !appengine
 
-package msgp
+package marshalhash
 
 import (
 	"os"
@@ -13,7 +13,7 @@ import (
 // the file must be mmap-able, and the
 // Unmarshaler should never write to
 // the source memory. (Methods generated
-// by the msgp tool obey that constraint, but
+// by the hsp tool obey that constraint, but
 // user-defined implementations may not.)
 //
 // Reading and writing through file mappings

@@ -27,7 +27,7 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
-//go:generate HashStablePack
+//go:generate hsp
 
 // ResponseRow defines single row of query response.
 type ResponseRow struct {

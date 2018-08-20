@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ var extensionReg = make(map[int8]func() Extension)
 //
 // For example, if you wanted to register a user-defined struct:
 //
-//  msgp.RegisterExtension(10, func() msgp.Extension { &MyExtension{} })
+//  hsp.RegisterExtension(10, func() hsp.Extension { &MyExtension{} })
 //
 // RegisterExtension will panic if you call it multiple times
 // with the same 'typ' argument, or if you use a reserved
@@ -38,10 +38,10 @@ var extensionReg = make(map[int8]func() Extension)
 func RegisterExtension(typ int8, f func() Extension) {
 	switch typ {
 	case Complex64Extension, Complex128Extension, TimeExtension:
-		panic(fmt.Sprint("msgp: forbidden extension type:", typ))
+		panic(fmt.Sprint("hsp: forbidden extension type:", typ))
 	}
 	if _, ok := extensionReg[typ]; ok {
-		panic(fmt.Sprint("msgp: RegisterExtension() called with typ", typ, "more than once"))
+		panic(fmt.Sprint("hsp: RegisterExtension() called with typ", typ, "more than once"))
 	}
 	extensionReg[typ] = f
 }
@@ -56,7 +56,7 @@ type ExtensionTypeError struct {
 
 // Error implements the error interface
 func (e ExtensionTypeError) Error() string {
-	return fmt.Sprintf("msgp: error decoding extension: wanted type %d; got type %d", e.Want, e.Got)
+	return fmt.Sprintf("hsp: error decoding extension: wanted type %d; got type %d", e.Want, e.Got)
 }
 
 // Resumable returns 'true' for ExtensionTypeErrors

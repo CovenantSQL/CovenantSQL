@@ -1,6 +1,6 @@
 // +build windows appengine
 
-package msgp
+package marshalhash
 
 import (
 	"io/ioutil"

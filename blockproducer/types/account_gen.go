@@ -12,29 +12,6 @@ func (z *Account) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 7
 	o = append(o, 0x87, 0x87)
-	if oTemp, err := z.Address.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x87)
-	o = hsp.AppendUint64(o, z.StableCoinBalance)
-	o = append(o, 0x87)
-	o = hsp.AppendUint64(o, z.ThunderCoinBalance)
-	o = append(o, 0x87)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.SQLChains)))
-	for za0001 := range z.SQLChains {
-		if oTemp, err := z.SQLChains[za0001].MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x87)
-	o = hsp.AppendBytes(o, z.Roles)
-	o = append(o, 0x87)
-	o = hsp.AppendFloat64(o, z.Rating)
-	o = append(o, 0x87)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.TxBillings)))
 	for za0002 := range z.TxBillings {
 		if z.TxBillings[za0002] == nil {
@@ -47,16 +24,35 @@ func (z *Account) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
+	o = append(o, 0x87)
+	o = hsp.AppendBytes(o, z.Roles)
+	o = append(o, 0x87)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.SQLChains)))
+	for za0001 := range z.SQLChains {
+		if oTemp, err := z.SQLChains[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x87)
+	o = hsp.AppendFloat64(o, z.Rating)
+	o = append(o, 0x87)
+	if oTemp, err := z.Address.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x87)
+	o = hsp.AppendUint64(o, z.StableCoinBalance)
+	o = append(o, 0x87)
+	o = hsp.AppendUint64(o, z.ThunderCoinBalance)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Account) Msgsize() (s int) {
-	s = 1 + 8 + z.Address.Msgsize() + 18 + hsp.Uint64Size + 19 + hsp.Uint64Size + 10 + hsp.ArrayHeaderSize
-	for za0001 := range z.SQLChains {
-		s += z.SQLChains[za0001].Msgsize()
-	}
-	s += 6 + hsp.BytesPrefixSize + len(z.Roles) + 7 + hsp.Float64Size + 11 + hsp.ArrayHeaderSize
+	s = 1 + 11 + hsp.ArrayHeaderSize
 	for za0002 := range z.TxBillings {
 		if z.TxBillings[za0002] == nil {
 			s += hsp.NilSize
@@ -64,6 +60,11 @@ func (z *Account) Msgsize() (s int) {
 			s += z.TxBillings[za0002].Msgsize()
 		}
 	}
+	s += 6 + hsp.BytesPrefixSize + len(z.Roles) + 10 + hsp.ArrayHeaderSize
+	for za0001 := range z.SQLChains {
+		s += z.SQLChains[za0001].Msgsize()
+	}
+	s += 7 + hsp.Float64Size + 8 + z.Address.Msgsize() + 18 + hsp.Uint64Size + 19 + hsp.Uint64Size
 	return
 }
 
@@ -73,29 +74,6 @@ func (z *Account4test) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 7
 	o = append(o, 0x87, 0x87)
-	if oTemp, err := z.Address1.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x87)
-	o = hsp.AppendUint64(o, z.StableCoinBalance1)
-	o = append(o, 0x87)
-	o = hsp.AppendUint64(o, z.ThunderCoinBalance1)
-	o = append(o, 0x87)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.SQLChains1)))
-	for za0001 := range z.SQLChains1 {
-		if oTemp, err := z.SQLChains1[za0001].MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x87)
-	o = hsp.AppendBytes(o, z.Roles1)
-	o = append(o, 0x87)
-	o = hsp.AppendFloat64(o, z.Rating1)
-	o = append(o, 0x87)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.TxBillings1)))
 	for za0002 := range z.TxBillings1 {
 		if z.TxBillings1[za0002] == nil {
@@ -108,16 +86,35 @@ func (z *Account4test) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
+	o = append(o, 0x87)
+	o = hsp.AppendBytes(o, z.Roles1)
+	o = append(o, 0x87)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.SQLChains1)))
+	for za0001 := range z.SQLChains1 {
+		if oTemp, err := z.SQLChains1[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x87)
+	o = hsp.AppendFloat64(o, z.Rating1)
+	o = append(o, 0x87)
+	if oTemp, err := z.Address1.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x87)
+	o = hsp.AppendUint64(o, z.StableCoinBalance1)
+	o = append(o, 0x87)
+	o = hsp.AppendUint64(o, z.ThunderCoinBalance1)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Account4test) Msgsize() (s int) {
-	s = 1 + 9 + z.Address1.Msgsize() + 19 + hsp.Uint64Size + 20 + hsp.Uint64Size + 11 + hsp.ArrayHeaderSize
-	for za0001 := range z.SQLChains1 {
-		s += z.SQLChains1[za0001].Msgsize()
-	}
-	s += 7 + hsp.BytesPrefixSize + len(z.Roles1) + 8 + hsp.Float64Size + 12 + hsp.ArrayHeaderSize
+	s = 1 + 12 + hsp.ArrayHeaderSize
 	for za0002 := range z.TxBillings1 {
 		if z.TxBillings1[za0002] == nil {
 			s += hsp.NilSize
@@ -125,5 +122,10 @@ func (z *Account4test) Msgsize() (s int) {
 			s += z.TxBillings1[za0002].Msgsize()
 		}
 	}
+	s += 7 + hsp.BytesPrefixSize + len(z.Roles1) + 11 + hsp.ArrayHeaderSize
+	for za0001 := range z.SQLChains1 {
+		s += z.SQLChains1[za0001].Msgsize()
+	}
+	s += 8 + hsp.Float64Size + 9 + z.Address1.Msgsize() + 19 + hsp.Uint64Size + 20 + hsp.Uint64Size
 	return
 }

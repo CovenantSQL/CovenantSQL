@@ -12,34 +12,6 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 7
 	o = append(o, 0x87, 0x87)
-	if oTemp, err := z.TxContent.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x87)
-	o = hsp.AppendByte(o, z.TxType)
-	o = append(o, 0x87)
-	if z.AccountAddress == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x87)
-	if z.TxHash == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.TxHash.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x87)
 	if z.Signee == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -69,24 +41,40 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
+	o = append(o, 0x87)
+	if z.TxHash == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.TxHash.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x87)
+	if z.AccountAddress == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x87)
+	if oTemp, err := z.TxContent.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x87)
+	o = hsp.AppendByte(o, z.TxType)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *TxBilling) Msgsize() (s int) {
-	s = 1 + 10 + z.TxContent.Msgsize() + 7 + hsp.ByteSize + 15
-	if z.AccountAddress == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.AccountAddress.Msgsize()
-	}
-	s += 7
-	if z.TxHash == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.TxHash.Msgsize()
-	}
-	s += 7
+	s = 1 + 7
 	if z.Signee == nil {
 		s += hsp.NilSize
 	} else {
@@ -104,6 +92,19 @@ func (z *TxBilling) Msgsize() (s int) {
 	} else {
 		s += z.SignedBlock.Msgsize()
 	}
+	s += 7
+	if z.TxHash == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.TxHash.Msgsize()
+	}
+	s += 15
+	if z.AccountAddress == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.AccountAddress.Msgsize()
+	}
+	s += 10 + z.TxContent.Msgsize() + 7 + hsp.ByteSize
 	return
 }
 
@@ -113,9 +114,13 @@ func (z *TxContent) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 6
 	o = append(o, 0x86, 0x86)
-	o = hsp.AppendUint32(o, z.SequenceID)
-	o = append(o, 0x86)
 	if oTemp, err := z.BillingRequest.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x86)
+	if oTemp, err := z.BillingResponse.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -144,17 +149,13 @@ func (z *TxContent) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendUint64(o, z.Rewards[za0003])
 	}
 	o = append(o, 0x86)
-	if oTemp, err := z.BillingResponse.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
+	o = hsp.AppendUint32(o, z.SequenceID)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *TxContent) Msgsize() (s int) {
-	s = 1 + 11 + hsp.Uint32Size + 15 + z.BillingRequest.Msgsize() + 10 + hsp.ArrayHeaderSize
+	s = 1 + 15 + z.BillingRequest.Msgsize() + 16 + z.BillingResponse.Msgsize() + 10 + hsp.ArrayHeaderSize
 	for za0001 := range z.Receivers {
 		if z.Receivers[za0001] == nil {
 			s += hsp.NilSize
@@ -162,6 +163,6 @@ func (z *TxContent) Msgsize() (s int) {
 			s += z.Receivers[za0001].Msgsize()
 		}
 	}
-	s += 5 + hsp.ArrayHeaderSize + (len(z.Fees) * (hsp.Uint64Size)) + 8 + hsp.ArrayHeaderSize + (len(z.Rewards) * (hsp.Uint64Size)) + 16 + z.BillingResponse.Msgsize()
+	s += 5 + hsp.ArrayHeaderSize + (len(z.Fees) * (hsp.Uint64Size)) + 8 + hsp.ArrayHeaderSize + (len(z.Rewards) * (hsp.Uint64Size)) + 11 + hsp.Uint32Size
 	return
 }

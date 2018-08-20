@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CovenantSQL/HashStablePack/msgp"
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
@@ -63,7 +63,7 @@ func (z *AccountAddress) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *AccountAddress) Msgsize() (s int) {
-	return msgp.BytesPrefixSize + hash.HashSize
+	return hsp.BytesPrefixSize + hash.HashSize
 }
 
 // Less return true if k is less than y

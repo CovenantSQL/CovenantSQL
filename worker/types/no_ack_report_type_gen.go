@@ -12,13 +12,13 @@ func (z *AggrNoAckReport) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
 	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Envelope.MarshalHash(); err != nil {
+	if oTemp, err := z.Header.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	if oTemp, err := z.Envelope.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -28,7 +28,7 @@ func (z *AggrNoAckReport) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *AggrNoAckReport) Msgsize() (s int) {
-	s = 1 + 9 + z.Envelope.Msgsize() + 7 + z.Header.Msgsize()
+	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -38,13 +38,15 @@ func (z *AggrNoAckReportHeader) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
 	o = append(o, 0x84, 0x84)
-	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
-		return nil, err
+	if z.Peers == nil {
+		o = hsp.AppendNil(o)
 	} else {
-		o = hsp.AppendBytes(o, oTemp)
+		if oTemp, err := z.Peers.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
 	}
-	o = append(o, 0x84)
-	o = hsp.AppendTime(o, z.Timestamp)
 	o = append(o, 0x84)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Reports)))
 	for za0001 := range z.Reports {
@@ -55,30 +57,29 @@ func (z *AggrNoAckReportHeader) MarshalHash() (o []byte, err error) {
 		}
 	}
 	o = append(o, 0x84)
-	if z.Peers == nil {
-		o = hsp.AppendNil(o)
+	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
+		return nil, err
 	} else {
-		if oTemp, err := z.Peers.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
+		o = hsp.AppendBytes(o, oTemp)
 	}
+	o = append(o, 0x84)
+	o = hsp.AppendTime(o, z.Timestamp)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *AggrNoAckReportHeader) Msgsize() (s int) {
-	s = 1 + 7 + z.NodeID.Msgsize() + 10 + hsp.TimeSize + 8 + hsp.ArrayHeaderSize
-	for za0001 := range z.Reports {
-		s += z.Reports[za0001].Msgsize()
-	}
-	s += 6
+	s = 1 + 6
 	if z.Peers == nil {
 		s += hsp.NilSize
 	} else {
 		s += z.Peers.Msgsize()
 	}
+	s += 8 + hsp.ArrayHeaderSize
+	for za0001 := range z.Reports {
+		s += z.Reports[za0001].Msgsize()
+	}
+	s += 7 + z.NodeID.Msgsize() + 10 + hsp.TimeSize
 	return
 }
 
@@ -88,13 +89,13 @@ func (z *NoAckReport) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
 	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Envelope.MarshalHash(); err != nil {
+	if oTemp, err := z.Header.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	if oTemp, err := z.Envelope.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -104,7 +105,7 @@ func (z *NoAckReport) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *NoAckReport) Msgsize() (s int) {
-	s = 1 + 9 + z.Envelope.Msgsize() + 7 + z.Header.Msgsize()
+	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -114,6 +115,12 @@ func (z *NoAckReportHeader) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
 	o = append(o, 0x83, 0x83)
+	if oTemp, err := z.Response.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x83)
 	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -121,18 +128,12 @@ func (z *NoAckReportHeader) MarshalHash() (o []byte, err error) {
 	}
 	o = append(o, 0x83)
 	o = hsp.AppendTime(o, z.Timestamp)
-	o = append(o, 0x83)
-	if oTemp, err := z.Response.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *NoAckReportHeader) Msgsize() (s int) {
-	s = 1 + 7 + z.NodeID.Msgsize() + 10 + hsp.TimeSize + 9 + z.Response.Msgsize()
+	s = 1 + 9 + z.Response.Msgsize() + 7 + z.NodeID.Msgsize() + 10 + hsp.TimeSize
 	return
 }
 
@@ -142,18 +143,6 @@ func (z *SignedAggrNoAckReportHeader) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
 	o = append(o, 0x84, 0x84)
-	if oTemp, err := z.AggrNoAckReportHeader.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x84)
-	if oTemp, err := z.HeaderHash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x84)
 	if z.Signee == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -173,12 +162,24 @@ func (z *SignedAggrNoAckReportHeader) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
+	o = append(o, 0x84)
+	if oTemp, err := z.AggrNoAckReportHeader.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x84)
+	if oTemp, err := z.HeaderHash.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedAggrNoAckReportHeader) Msgsize() (s int) {
-	s = 1 + 22 + z.AggrNoAckReportHeader.Msgsize() + 11 + z.HeaderHash.Msgsize() + 7
+	s = 1 + 7
 	if z.Signee == nil {
 		s += hsp.NilSize
 	} else {
@@ -190,6 +191,7 @@ func (z *SignedAggrNoAckReportHeader) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
+	s += 22 + z.AggrNoAckReportHeader.Msgsize() + 11 + z.HeaderHash.Msgsize()
 	return
 }
 
@@ -198,8 +200,28 @@ func (z *SignedNoAckReportHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
+	o = append(o, 0x84, 0x84)
+	if z.Signee == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.Signee.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x84)
+	if z.Signature == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.Signature.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
 	// map header, size 3
-	o = append(o, 0x84, 0x84, 0x83, 0x83)
+	o = append(o, 0x84, 0x83, 0x83)
 	if oTemp, err := z.NoAckReportHeader.NodeID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -219,32 +241,12 @@ func (z *SignedNoAckReportHeader) MarshalHash() (o []byte, err error) {
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedNoAckReportHeader) Msgsize() (s int) {
-	s = 1 + 18 + 1 + 7 + z.NoAckReportHeader.NodeID.Msgsize() + 10 + hsp.TimeSize + 9 + z.NoAckReportHeader.Response.Msgsize() + 11 + z.HeaderHash.Msgsize() + 7
+	s = 1 + 7
 	if z.Signee == nil {
 		s += hsp.NilSize
 	} else {
@@ -256,5 +258,6 @@ func (z *SignedNoAckReportHeader) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
+	s += 18 + 1 + 7 + z.NoAckReportHeader.NodeID.Msgsize() + 10 + hsp.TimeSize + 9 + z.NoAckReportHeader.Response.Msgsize() + 11 + z.HeaderHash.Msgsize()
 	return
 }

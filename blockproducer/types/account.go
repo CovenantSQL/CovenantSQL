@@ -39,6 +39,17 @@ type Account struct {
 	TxBillings         []*hash.Hash
 }
 
+// Account4test store its balance, and other mate data
+type Account4test struct {
+	Address1            proto.AccountAddress
+	StableCoinBalance1  uint64
+	ThunderCoinBalance1 uint64
+	SQLChains1          []proto.DatabaseID
+	Roles1              []byte
+	Rating1             float64
+	TxBillings1         []*hash.Hash
+}
+
 // AppendSQLChainAndRole add the sql chain include the account and its related role
 func (a *Account) AppendSQLChainAndRole(sqlChain *proto.DatabaseID, role byte) {
 	a.SQLChains = append(a.SQLChains, *sqlChain)

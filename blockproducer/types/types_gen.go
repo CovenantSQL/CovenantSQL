@@ -68,6 +68,67 @@ func (z *Account) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
+func (z *Account4test) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 7
+	o = append(o, 0x87, 0x87)
+	if oTemp, err := z.Address1.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = msgp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x87)
+	o = msgp.AppendUint64(o, z.StableCoinBalance1)
+	o = append(o, 0x87)
+	o = msgp.AppendUint64(o, z.ThunderCoinBalance1)
+	o = append(o, 0x87)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.SQLChains1)))
+	for za0001 := range z.SQLChains1 {
+		if oTemp, err := z.SQLChains1[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = msgp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x87)
+	o = msgp.AppendBytes(o, z.Roles1)
+	o = append(o, 0x87)
+	o = msgp.AppendFloat64(o, z.Rating1)
+	o = append(o, 0x87)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.TxBillings1)))
+	for za0002 := range z.TxBillings1 {
+		if z.TxBillings1[za0002] == nil {
+			o = msgp.AppendNil(o)
+		} else {
+			if oTemp, err := z.TxBillings1[za0002].MarshalHash(); err != nil {
+				return nil, err
+			} else {
+				o = msgp.AppendBytes(o, oTemp)
+			}
+		}
+	}
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *Account4test) Msgsize() (s int) {
+	s = 1 + 9 + z.Address1.Msgsize() + 19 + msgp.Uint64Size + 20 + msgp.Uint64Size + 11 + msgp.ArrayHeaderSize
+	for za0001 := range z.SQLChains1 {
+		s += z.SQLChains1[za0001].Msgsize()
+	}
+	s += 7 + msgp.BytesPrefixSize + len(z.Roles1) + 8 + msgp.Float64Size + 12 + msgp.ArrayHeaderSize
+	for za0002 := range z.TxBillings1 {
+		if z.TxBillings1[za0002] == nil {
+			s += msgp.NilSize
+		} else {
+			s += z.TxBillings1[za0002].Msgsize()
+		}
+	}
+	return
+}
+
+// MarshalHash marshals for hash
 func (z *BillingRequest) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = msgp.Require(b, z.Msgsize())

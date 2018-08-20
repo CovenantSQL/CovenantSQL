@@ -29,7 +29,7 @@ func TestNewBlockNodeAndIndexKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	parent := newBlockNode(block, nil)
+	parent := newBlockNode(0, block, nil)
 	if parent == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if parent.parent != nil {
@@ -42,7 +42,7 @@ func TestNewBlockNodeAndIndexKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	child := newBlockNode(block2, parent)
+	child := newBlockNode(1, block2, parent)
 	if child == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if child.parent != parent {
@@ -67,7 +67,7 @@ func TestAncestor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	parent := newBlockNode(block, nil)
+	parent := newBlockNode(0, block, nil)
 	if parent == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if parent.parent != nil {
@@ -80,7 +80,7 @@ func TestAncestor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	child := newBlockNode(block2, parent)
+	child := newBlockNode(1, block2, parent)
 	if child == nil {
 		t.Fatalf("unexpected result: nil")
 	} else if child.parent != parent {
@@ -114,19 +114,19 @@ func TestIndexBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	bn0 := newBlockNode(block0, nil)
+	bn0 := newBlockNode(0, block0, nil)
 
 	block1, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	bn1 := newBlockNode(block1, bn0)
+	bn1 := newBlockNode(1, block1, bn0)
 
 	block2, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	bn2 := newBlockNode(block2, bn1)
+	bn2 := newBlockNode(2, block2, bn1)
 
 	bi.addBlock(bn0)
 	bi.addBlock(bn1)

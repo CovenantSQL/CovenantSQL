@@ -98,6 +98,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config from %s failed: %s", configFile, err)
 	}
+
 	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
 	// BP DO NOT Generate new key pair

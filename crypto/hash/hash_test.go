@@ -33,6 +33,11 @@ var mainNetGenesisHash = Hash([HashSize]byte{ // Make go vet happy.
 
 // TestHash tests the Hash API.
 func TestHash(t *testing.T) {
+	// genesisBlockHash := "SEE YOU SPACE COWBOY"
+	// b := []byte(genesisBlockHash)
+	// h := THashH(b)
+	// log.Info(h.String())
+
 	// Hash of block 234439.
 	blockHashStr := "14a0810ac680a3eb3f82edc878cea25ec41d6b790744e5daeef"
 	blockHash, err := NewHashFromStr(blockHashStr)

@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:99e95dfd72ba2f1ca8fce06db593dfeb5f7dac78aff7e207f83d3c52c66122a7"
+  name = "github.com/CovenantSQL/HashStablePack"
+  packages = ["msgp"]
+  pruneopts = "UT"
+  revision = "114c674c07ecd494d24c7651f159f22b0e761b59"
+
+[[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
   name = "github.com/beevik/ntp"
   packages = ["."]
@@ -27,8 +35,10 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:95f4fdfbc8d7723bd21e467aabe98d86f06d3e2557b1ba92bf9df8aea6706784"
   name = "github.com/btcsuite/btcutil"
   packages = ["base58"]
+  pruneopts = "UT"
   revision = "ab6388e0c60ae4834a1f57511e20c17b5f78be4b"
 
 [[projects]]
@@ -134,6 +144,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "3f5f724cb5b182a5c278d6d3d55b40e7f8c2efb4"
+
+[[projects]]
+  digest = "1:5e73b34a27d827212102605789de00bd411b2e434812133c83935fe9897c75e1"
+  name = "github.com/philhofer/fwd"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bb6d471dc95d4fe11e432687f8b70ff496cf3136"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
@@ -301,8 +319,10 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/CovenantSQL/HashStablePack/msgp",
     "github.com/beevik/ntp",
     "github.com/btcsuite/btcd/btcec",
+    "github.com/btcsuite/btcutil/base58",
     "github.com/coreos/bbolt",
     "github.com/fortytw2/leaktest",
     "github.com/golang/protobuf/proto",

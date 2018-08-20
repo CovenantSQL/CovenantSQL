@@ -17,14 +17,12 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
-
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
+
+//go:generate HashStablePack
 
 // BillingRequestHeader includes contents that need to be signed. Billing blocks should be within
 // height range [low, high] (inclusive).
@@ -38,24 +36,25 @@ type BillingRequestHeader struct {
 	GasAmounts []*proto.AddrAndGas
 }
 
-// MarshalHash marshals for hash
-func (bh *BillingRequestHeader) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		&bh.DatabaseID,
-		&bh.LowBlock,
-		&bh.LowHeight,
-		&bh.HighBlock,
-		&bh.HighHeight,
-		&bh.GasAmounts,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
-}
+//
+//// MarshalHash marshals for hash
+//func (bh *BillingRequestHeader) MarshalHash() ([]byte, error) {
+//	buffer := bytes.NewBuffer(nil)
+//
+//	err := utils.WriteElements(buffer, binary.BigEndian,
+//		&bh.DatabaseID,
+//		&bh.LowBlock,
+//		&bh.LowHeight,
+//		&bh.HighBlock,
+//		&bh.HighHeight,
+//		&bh.GasAmounts,
+//	)
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//	return buffer.Bytes(), nil
+//}
 
 // BillingRequest defines periodically Billing sync
 type BillingRequest struct {
@@ -65,22 +64,22 @@ type BillingRequest struct {
 	Signatures  []*asymmetric.Signature
 }
 
-// MarshalHash marshals for hash
-func (br *BillingRequest) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		&br.Header,
-		&br.RequestHash,
-		&br.Signees,
-		&br.Signatures,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
-}
+//// MarshalHash marshals for hash
+//func (br *BillingRequest) MarshalHash() ([]byte, error) {
+//	buffer := bytes.NewBuffer(nil)
+//
+//	err := utils.WriteElements(buffer, binary.BigEndian,
+//		&br.Header,
+//		&br.RequestHash,
+//		&br.Signees,
+//		&br.Signatures,
+//	)
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//	return buffer.Bytes(), nil
+//}
 
 // PackRequestHeader computes the hash of header
 func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
@@ -108,21 +107,4 @@ type BillingResponse struct {
 	RequestHash    hash.Hash
 	Signee         *asymmetric.PublicKey
 	Signature      *asymmetric.Signature
-}
-
-// MarshalHash marshals for hash
-func (br *BillingResponse) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	err := utils.WriteElements(buffer, binary.BigEndian,
-		&br.AccountAddress,
-		&br.RequestHash,
-		&br.Signee,
-		&br.Signature,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
 }

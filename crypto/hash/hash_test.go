@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
-
 )
 
 // mainNetGenesisHash is the hash of the first block in the block chain for the

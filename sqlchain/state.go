@@ -17,11 +17,7 @@
 package sqlchain
 
 import (
-	"bytes"
-	"encoding/binary"
-
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // state represents a snapshot of current best chain.
@@ -31,16 +27,16 @@ type state struct {
 	Height int32
 }
 
-// MarshalHash marshals for hash
-func (s *state) MarshalHash() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := utils.WriteElements(buffer, binary.BigEndian,
-		s.Head,
-		s.Height,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
+//// MarshalHash marshals for hash
+//func (s *state) MarshalHash() ([]byte, error) {
+//	buffer := bytes.NewBuffer(nil)
+//
+//	if err := utils.WriteElements(buffer, binary.BigEndian,
+//		s.Head,
+//		s.Height,
+//	); err != nil {
+//		return nil, err
+//	}
+//
+//	return buffer.Bytes(), nil
+//}

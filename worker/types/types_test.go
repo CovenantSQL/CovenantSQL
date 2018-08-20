@@ -40,9 +40,9 @@ func getCommKeys() (*asymmetric.PrivateKey, *asymmetric.PublicKey) {
 	return asymmetric.PrivKeyFromBytes(testPriv)
 }
 
-type MyTestBytes []byte
+type myTestBytes []byte
 
-func (bytes MyTestBytes) Serialize() (res []byte) {
+func (bytes myTestBytes) Serialize() (res []byte) {
 	res = make([]byte, len(bytes))
 	copy(res, bytes[:])
 	return
@@ -51,7 +51,7 @@ func (bytes MyTestBytes) Serialize() (res []byte) {
 func Test_buildHash(t *testing.T) {
 	Convey("build", t, func() {
 		var a, b hash.Hash
-		var tb MyTestBytes = []byte("test")
+		var tb myTestBytes = []byte("test")
 		buildHash(tb, &a)
 		b = hash.THashH([]byte("test"))
 		So(a, ShouldResemble, b)
@@ -59,7 +59,7 @@ func Test_buildHash(t *testing.T) {
 
 	Convey("test verify", t, func() {
 		var a, b hash.Hash
-		var tb MyTestBytes = []byte("test")
+		var tb myTestBytes = []byte("test")
 		var err error
 		buildHash(tb, &a)
 		err = verifyHash(tb, &a)

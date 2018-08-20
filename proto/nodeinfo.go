@@ -20,11 +20,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CovenantSQL/HashStablePack/msgp"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
+
+//go:generate HashStablePack
 
 var (
 	// NewNodeIDDifficulty is exposed for easy testing
@@ -52,6 +55,16 @@ type AccountAddress hash.Hash
 
 // NodeKey is node key on consistent hash ring, generate from Hash(NodeID)
 type NodeKey RawNodeID
+
+// MarshalHash marshals for hash
+func (z *AccountAddress) MarshalHash() (o []byte, err error) {
+	return (*hash.Hash)(z).MarshalHash()
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *AccountAddress) Msgsize() (s int) {
+	return msgp.BytesPrefixSize + hash.HashSize
+}
 
 // Less return true if k is less than y
 func (k *NodeKey) Less(y *NodeKey) bool {

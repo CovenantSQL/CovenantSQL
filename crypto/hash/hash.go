@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/bits"
 
+	"github.com/CovenantSQL/HashStablePack/msgp"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
@@ -40,11 +41,11 @@ type Hash [HashSize]byte
 
 // String returns the Hash as the hexadecimal string of the byte-reversed
 // hash.
-func (hash Hash) String() string {
+func (h Hash) String() string {
 	for i := 0; i < HashSize/2; i++ {
-		hash[i], hash[HashSize-1-i] = hash[HashSize-1-i], hash[i]
+		h[i], h[HashSize-1-i] = h[HashSize-1-i], h[i]
 	}
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString(h[:])
 }
 
 // CloneBytes returns a copy of the bytes which represent the hash as a byte
@@ -52,46 +53,56 @@ func (hash Hash) String() string {
 //
 // NOTE: It is generally cheaper to just slice the hash directly thereby reusing
 // the same bytes rather than calling this method.
-func (hash *Hash) CloneBytes() []byte {
+func (h *Hash) CloneBytes() []byte {
 	newHash := make([]byte, HashSize)
-	copy(newHash, hash[:])
+	copy(newHash, h[:])
 
 	return newHash
 }
 
+// MarshalHash marshals for hash
+func (h *Hash) MarshalHash() (o []byte, err error) {
+	return h.CloneBytes(), nil
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (h *Hash) Msgsize() (s int) {
+	return msgp.BytesPrefixSize + HashSize
+}
+
 // SetBytes sets the bytes which represent the hash.  An error is returned if
 // the number of bytes passed in is not HashSize.
-func (hash *Hash) SetBytes(newHash []byte) error {
+func (h *Hash) SetBytes(newHash []byte) error {
 	nhlen := len(newHash)
 	if nhlen != HashSize {
 		return fmt.Errorf("invalid hash length of %v, want %v", nhlen,
 			HashSize)
 	}
-	copy(hash[:], newHash)
+	copy(h[:], newHash)
 
 	return nil
 }
 
 // IsEqual returns true if target is the same as hash.
-func (hash *Hash) IsEqual(target *Hash) bool {
-	if hash == nil && target == nil {
+func (h *Hash) IsEqual(target *Hash) bool {
+	if h == nil && target == nil {
 		return true
 	}
-	if hash == nil || target == nil {
+	if h == nil || target == nil {
 		return false
 	}
-	return *hash == *target
+	return *h == *target
 }
 
 // Difficulty returns the leading Zero **bit** count of Hash in binary.
 //  return -1 indicate the Hash pointer is nil
-func (hash *Hash) Difficulty() (difficulty int) {
-	if hash == nil {
+func (h *Hash) Difficulty() (difficulty int) {
+	if h == nil {
 		return -1
 	}
 
-	for i := range *hash {
-		v := (*hash)[HashSize-i-1]
+	for i := range *h {
+		v := (*h)[HashSize-i-1]
 		if v != byte(0) {
 			difficulty = 8 * i
 			difficulty += bits.LeadingZeros8(v)

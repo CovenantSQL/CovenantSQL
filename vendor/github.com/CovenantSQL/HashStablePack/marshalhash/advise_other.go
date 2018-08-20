@@ -1,6 +1,6 @@
 // +build !linux appengine
 
-package msgp
+package marshalhash
 
 import (
 	"os"

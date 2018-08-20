@@ -1,6 +1,6 @@
 // +build !purego,!appengine
 
-package msgp
+package marshalhash
 
 import (
 	"reflect"

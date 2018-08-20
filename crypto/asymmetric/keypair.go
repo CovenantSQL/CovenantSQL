@@ -24,7 +24,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/CovenantSQL/HashStablePack/msgp"
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
 	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -43,7 +43,7 @@ type PublicKey ec.PublicKey
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (k PublicKey) Msgsize() (s int) {
-	s = msgp.BytesPrefixSize + ec.PubKeyBytesLenCompressed
+	s = hsp.BytesPrefixSize + ec.PubKeyBytesLenCompressed
 	return
 }
 

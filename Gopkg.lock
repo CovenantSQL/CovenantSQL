@@ -3,11 +3,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:99e95dfd72ba2f1ca8fce06db593dfeb5f7dac78aff7e207f83d3c52c66122a7"
+  digest = "1:13749560a469f9e2eb39a2798d9aae94c77a751254d8a48f4ed954dfe9e664a7"
   name = "github.com/CovenantSQL/HashStablePack"
-  packages = ["msgp"]
+  packages = ["marshalhash"]
   pruneopts = "UT"
-  revision = "114c674c07ecd494d24c7651f159f22b0e761b59"
+  revision = "f82da37fa214bff0a716f8703aaff789b411a227"
 
 [[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
@@ -31,7 +31,7 @@
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "9a2f9524024889e129a5422aca2cff73cb3eabf6"
+  revision = "f899737d7f2764dc13e4d01ff00108ec58f766a9"
 
 [[projects]]
   branch = "master"
@@ -50,12 +50,12 @@
   version = "v1.3.0"
 
 [[projects]]
-  digest = "1:a2c1d0e43bd3baaa071d1b9ed72c27d78169b2b269f71c105ac4ba34b1be4a39"
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   pruneopts = "UT"
-  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
-  version = "v1.1.0"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:544229a3ca0fb2dd5ebc2896d3d2ff7ce096d9751635301e44e37e761349ee70"
@@ -79,7 +79,7 @@
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
   pruneopts = "UT"
-  revision = "0892b62f0d9fb5857760c3cfca837207185117ee"
+  revision = "89baedc74dd74098df0c4ba8792e3cf6d722d4d0"
 
 [[projects]]
   branch = "master"
@@ -163,11 +163,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9efc85e51f8f7a35ace31c0670856670aee605d37d1ceaad97cebb5e71102bbc"
+  digest = "1:868dd22a198e876fe9f3137aaa35fab27d2f53b7d38ed174e1662d3235a39c71"
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
   pruneopts = "UT"
-  revision = "bcbbc08eb2ddff3af83bbf11e7ec13b4fd730b6e"
+  revision = "5b23715facdef1452016bae512489c3cdf82458c"
 
 [[projects]]
   branch = "master"
@@ -179,7 +179,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:07d47107cc3cea73329366ca398b0fcc890cd5a852b59e05e949476937d1ea90"
+  digest = "1:9b2b68310a7555601c28980840f4d6966f8ff5443e11f4f78d227dbf73205132"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -188,7 +188,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "7600349dcfe1abd18d72d3a1770870d9800a7801"
+  revision = "c7de2306084e37d54b8be01f3541a8464345e9a5"
 
 [[projects]]
   branch = "master"
@@ -280,11 +280,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "c126467f60eb25f8f27e5a981f32a87e3965053f"
+  revision = "aabede6cba87e37f413b3e60ebfc214f8eeca1b0"
 
 [[projects]]
   branch = "master"
-  digest = "1:8132d9551639ef2fa937775599077c95b1e9343ff5e9146c280c7920cb7cc994"
+  digest = "1:7679523acab7ab7d18ac9e00b46991470a212a1e3dc653027db8f331b02397a2"
   name = "golang.org/x/net"
   packages = [
     "bpf",
@@ -294,18 +294,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "3673e40ba22529d22c3fd7c93e97b0ce50fa7bdd"
+  revision = "aaf60122140d3fcf75376d319f0554393160eb50"
 
 [[projects]]
   branch = "master"
-  digest = "1:be95d758fc4d9216e5d41ff5b98b46938fba85ca5bc2ddc45a1b03e2bb10fe7c"
+  digest = "1:2f71657f09ff05e4567909e9e0de7ad799828c96d402c540b41dc044a6590fb2"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "e072cadbbdc8dd3d3ffa82b8b4b9304c261d9311"
+  revision = "1c9583448a9c3aa0f9a6a5241bf73c0bd8aafded"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -319,13 +319,12 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/CovenantSQL/HashStablePack/msgp",
+    "github.com/CovenantSQL/HashStablePack/marshalhash",
     "github.com/beevik/ntp",
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
     "github.com/coreos/bbolt",
     "github.com/fortytw2/leaktest",
-    "github.com/golang/protobuf/proto",
     "github.com/hashicorp/yamux",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",
@@ -339,7 +338,6 @@
     "github.com/prometheus/procfs",
     "github.com/sirupsen/logrus",
     "github.com/smartystreets/goconvey/convey",
-    "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/tchap/go-patricia/patricia",
     "github.com/ugorji/go/codec",

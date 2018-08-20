@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 // The sizes provided
 // are the worst-case

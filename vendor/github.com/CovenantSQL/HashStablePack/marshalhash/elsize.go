@@ -1,4 +1,4 @@
-package msgp
+package marshalhash
 
 // size of every object on the wire,
 // plus type information. gives us

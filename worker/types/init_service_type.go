@@ -28,6 +28,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
+//go:generate HashStablePack
+
 // InitService defines worker service init request.
 type InitService struct {
 	proto.Envelope

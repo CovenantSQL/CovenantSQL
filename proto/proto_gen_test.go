@@ -9,43 +9,6 @@ import (
 	"testing"
 )
 
-func TestMarshalHashAddrAndGas(t *testing.T) {
-	v := AddrAndGas{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashAddrAndGas(b *testing.B) {
-	v := AddrAndGas{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgAddrAndGas(b *testing.B) {
-	v := AddrAndGas{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
 func TestMarshalHashEnvelope(t *testing.T) {
 	v := Envelope{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
@@ -231,80 +194,6 @@ func BenchmarkAppendMsgFindNodeResp(b *testing.B) {
 	}
 }
 
-func TestMarshalHashNode(t *testing.T) {
-	v := Node{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashNode(b *testing.B) {
-	v := Node{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgNode(b *testing.B) {
-	v := Node{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
-func TestMarshalHashNodeKey(t *testing.T) {
-	v := NodeKey{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashNodeKey(b *testing.B) {
-	v := NodeKey{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgNodeKey(b *testing.B) {
-	v := NodeKey{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
 func TestMarshalHashPingReq(t *testing.T) {
 	v := PingReq{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
@@ -369,80 +258,6 @@ func BenchmarkMarshalHashPingResp(b *testing.B) {
 
 func BenchmarkAppendMsgPingResp(b *testing.B) {
 	v := PingResp{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
-func TestMarshalHashRawNodeID(t *testing.T) {
-	v := RawNodeID{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashRawNodeID(b *testing.B) {
-	v := RawNodeID{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgRawNodeID(b *testing.B) {
-	v := RawNodeID{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
-func TestMarshalHashServerRoles(t *testing.T) {
-	v := ServerRoles{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashServerRoles(b *testing.B) {
-	v := ServerRoles{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgServerRoles(b *testing.B) {
-	v := ServerRoles{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

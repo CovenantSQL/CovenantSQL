@@ -26,6 +26,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+//go:generate HashStablePack
+
 // AckHeader defines client ack entity.
 type AckHeader struct {
 	Response  SignedResponseHeader

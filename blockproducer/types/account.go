@@ -22,6 +22,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
+//go:generate HashStablePack
+
 // SQL Chain role type
 const (
 	Miner byte = iota

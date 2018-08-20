@@ -7,35 +7,6 @@ import (
 )
 
 // MarshalHash marshals for hash
-func (z *AddrAndGas) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	// map header, size 3
-	o = append(o, 0x83, 0x83)
-	if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = msgp.AppendBytes(o, oTemp)
-	}
-	// map header, size 1
-	o = append(o, 0x83, 0x81, 0x81)
-	if oTemp, err := z.RawNodeID.Hash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = msgp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x83)
-	o = msgp.AppendUint64(o, z.GasAmount)
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *AddrAndGas) Msgsize() (s int) {
-	s = 1 + 15 + z.AccountAddress.Msgsize() + 10 + 1 + 5 + z.RawNodeID.Hash.Msgsize() + 10 + msgp.Uint64Size
-	return
-}
-
-// MarshalHash marshals for hash
 func (z DatabaseID) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = msgp.Require(b, z.Msgsize())
@@ -64,9 +35,7 @@ func (z *Envelope) MarshalHash() (o []byte, err error) {
 	if z.NodeID == nil {
 		o = msgp.AppendNil(o)
 	} else {
-		// map header, size 1
-		o = append(o, 0x81, 0x81)
-		if oTemp, err := z.NodeID.Hash.MarshalHash(); err != nil {
+		if oTemp, err := z.NodeID.MarshalHash(); err != nil {
 			return nil, err
 		} else {
 			o = msgp.AppendBytes(o, oTemp)
@@ -81,7 +50,7 @@ func (z *Envelope) Msgsize() (s int) {
 	if z.NodeID == nil {
 		s += msgp.NilSize
 	} else {
-		s += 1 + 5 + z.NodeID.Hash.Msgsize()
+		s += z.NodeID.Msgsize()
 	}
 	return
 }
@@ -92,11 +61,19 @@ func (z *FindNeighborReq) MarshalHash() (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// map header, size 4
 	o = append(o, 0x84, 0x84)
-	o = msgp.AppendString(o, string(z.NodeID))
+	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = msgp.AppendBytes(o, oTemp)
+	}
 	o = append(o, 0x84)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.Roles)))
 	for za0001 := range z.Roles {
-		o = msgp.AppendInt(o, int(z.Roles[za0001]))
+		if oTemp, err := z.Roles[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = msgp.AppendBytes(o, oTemp)
+		}
 	}
 	o = append(o, 0x84)
 	o = msgp.AppendInt(o, z.Count)
@@ -111,7 +88,11 @@ func (z *FindNeighborReq) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *FindNeighborReq) Msgsize() (s int) {
-	s = 1 + 7 + msgp.StringPrefixSize + len(string(z.NodeID)) + 6 + msgp.ArrayHeaderSize + (len(z.Roles) * (msgp.IntSize)) + 6 + msgp.IntSize + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + z.NodeID.Msgsize() + 6 + msgp.ArrayHeaderSize
+	for za0001 := range z.Roles {
+		s += z.Roles[za0001].Msgsize()
+	}
+	s += 6 + msgp.IntSize + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -156,7 +137,11 @@ func (z *FindNodeReq) MarshalHash() (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// map header, size 2
 	o = append(o, 0x82, 0x82)
-	o = msgp.AppendString(o, string(z.NodeID))
+	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = msgp.AppendBytes(o, oTemp)
+	}
 	o = append(o, 0x82)
 	if oTemp, err := z.Envelope.MarshalHash(); err != nil {
 		return nil, err
@@ -168,7 +153,7 @@ func (z *FindNodeReq) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *FindNodeReq) Msgsize() (s int) {
-	s = 1 + 7 + msgp.StringPrefixSize + len(string(z.NodeID)) + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + z.NodeID.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -207,82 +192,6 @@ func (z *FindNodeResp) Msgsize() (s int) {
 		s += z.Node.Msgsize()
 	}
 	s += 4 + msgp.StringPrefixSize + len(z.Msg) + 9 + z.Envelope.Msgsize()
-	return
-}
-
-// MarshalHash marshals for hash
-func (z *Node) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
-	o = msgp.AppendString(o, string(z.ID))
-	o = append(o, 0x85)
-	o = msgp.AppendInt(o, int(z.Role))
-	o = append(o, 0x85)
-	o = msgp.AppendString(o, z.Addr)
-	o = append(o, 0x85)
-	if z.PublicKey == nil {
-		o = msgp.AppendNil(o)
-	} else {
-		if oTemp, err := z.PublicKey.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = msgp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x85)
-	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = msgp.AppendBytes(o, oTemp)
-	}
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *Node) Msgsize() (s int) {
-	s = 1 + 3 + msgp.StringPrefixSize + len(string(z.ID)) + 5 + msgp.IntSize + 5 + msgp.StringPrefixSize + len(z.Addr) + 10
-	if z.PublicKey == nil {
-		s += msgp.NilSize
-	} else {
-		s += z.PublicKey.Msgsize()
-	}
-	s += 6 + z.Nonce.Msgsize()
-	return
-}
-
-// MarshalHash marshals for hash
-func (z NodeID) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	o = msgp.AppendString(o, string(z))
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z NodeID) Msgsize() (s int) {
-	s = msgp.StringPrefixSize + len(string(z))
-	return
-}
-
-// MarshalHash marshals for hash
-func (z *NodeKey) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	// map header, size 1
-	o = append(o, 0x81, 0x81)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = msgp.AppendBytes(o, oTemp)
-	}
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *NodeKey) Msgsize() (s int) {
-	s = 1 + 5 + z.Hash.Msgsize()
 	return
 }
 
@@ -331,57 +240,6 @@ func (z *PingResp) MarshalHash() (o []byte, err error) {
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *PingResp) Msgsize() (s int) {
 	s = 1 + 4 + msgp.StringPrefixSize + len(z.Msg) + 9 + z.Envelope.Msgsize()
-	return
-}
-
-// MarshalHash marshals for hash
-func (z *RawNodeID) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	// map header, size 1
-	o = append(o, 0x81, 0x81)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = msgp.AppendBytes(o, oTemp)
-	}
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *RawNodeID) Msgsize() (s int) {
-	s = 1 + 5 + z.Hash.Msgsize()
-	return
-}
-
-// MarshalHash marshals for hash
-func (z ServerRole) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	o = msgp.AppendInt(o, int(z))
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z ServerRole) Msgsize() (s int) {
-	s = msgp.IntSize
-	return
-}
-
-// MarshalHash marshals for hash
-func (z ServerRoles) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = msgp.Require(b, z.Msgsize())
-	o = msgp.AppendArrayHeader(o, uint32(len(z)))
-	for za0001 := range z {
-		o = msgp.AppendInt(o, int(z[za0001]))
-	}
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z ServerRoles) Msgsize() (s int) {
-	s = msgp.ArrayHeaderSize + (len(z) * (msgp.IntSize))
 	return
 }
 

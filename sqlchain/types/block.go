@@ -28,6 +28,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
+//go:generate HashStablePack
+
 // Header is a block header.
 type Header struct {
 	Version     int32

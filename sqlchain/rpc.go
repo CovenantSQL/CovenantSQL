@@ -108,14 +108,14 @@ type LaunchBillingReq struct {
 type LaunchBillingResp struct {
 }
 
-// SubscribeTransactionReq defines a request of SubscribeTransaction RPC method.
-type SubscribeTransactionReq struct {
+// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
+type SubscribeTransactionsReq struct {
 	NodeID proto.NodeID
 	Height int32
 }
 
-// SubscribeTransactionResp defines a response of SubscribeTransaction RPC method.
-type SubscribeTransactionResp struct {
+// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
+type SubscribeTransactionsResp struct {
 }
 
 // CancelSubscriptionReq defines a request of CancelSubscription RPC method.
@@ -123,8 +123,8 @@ type CancelSubscriptionReq struct {
 	NodeID proto.NodeID
 }
 
-// CancelSubscriptionRes defines a response of CancelSubscription RPC method.
-type CancelSubscriptionRes struct{}
+// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
+type CancelSubscriptionResp struct{}
 
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
@@ -178,11 +178,11 @@ func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingR
 }
 
 // SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
-func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionReq, _ *SubscribeTransactionResp) error {
+func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, _ *SubscribeTransactionsResp) error {
 	return s.chain.addSubscription(req.NodeID, req.Height)
 }
 
 // CancelSubscription is the RPC method to cancel subscription in the target server.
-func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionRes) error {
+func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) error {
 	return s.chain.cancelSubscription(req.NodeID)
 }

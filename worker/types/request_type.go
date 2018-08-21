@@ -38,13 +38,24 @@ const (
 	// ReadQuery defines a read query type.
 	ReadQuery QueryType = iota
 	// WriteQuery defines a write query type.
-	WriteQuery
+	WriteQuery 
 )
 
 // Query defines single query.
 type Query struct {
 	Pattern string
 	Args    []sql.NamedArg
+}
+
+func (t QueryType) String() string {
+	switch t {
+	case ReadQuery:
+		return "read"
+	case WriteQuery:
+		return "write"
+	default:
+		return "unknown"
+	}
 }
 
 // RequestPayload defines a queries payload.

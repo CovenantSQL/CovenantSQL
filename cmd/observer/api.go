@@ -291,10 +291,10 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	}
 	v1Router := router.PathPrefix("/v1").Subrouter()
 	v1Router.HandleFunc("/ack/{db}/{hash}", api.GetAck).Methods("GET")
-	v1Router.HandleFunc("/offset/{db}/{offset:\\d+}", api.GetRequestByOffset).Methods("GET")
+	v1Router.HandleFunc("/offset/{db}/{offset:[0-9]+}", api.GetRequestByOffset).Methods("GET")
 	v1Router.HandleFunc("/request/{db}/{hash}", api.GetRequest).Methods("GET")
 	v1Router.HandleFunc("/block/{db}/{hash}", api.GetBlock).Methods("GET")
-	v1Router.HandleFunc("/height/{db}/{height:\\d+}", api.GetBlockByHeight).Methods("GET")
+	v1Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeight).Methods("GET")
 
 	server = &http.Server{
 		Addr:         listenAddr,

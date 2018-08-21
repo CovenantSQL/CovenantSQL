@@ -133,6 +133,10 @@ func NewService() (service *Service, err error) {
 		if _, err = tx.CreateBucketIfNotExists(subscriptionBucket); err != nil {
 			return
 		}
+		if _, err = tx.CreateBucketIfNotExists(blockHeightBucket); err != nil {
+			return
+		}
+		_, err = tx.CreateBucketIfNotExists(logOffsetBucket)
 		return
 	}); err != nil {
 		return
@@ -293,9 +297,7 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 	req.Height = s.subscription[dbID]
 	req.DatabaseID = dbID
 
-	if err = s.minerRequest(dbID, route.SQLCSubscribeTransactions.String(), req, resp); err != nil {
-		return
-	}
+	err = s.minerRequest(dbID, route.SQLCSubscribeTransactions.String(), req, resp)
 
 	return
 }
@@ -436,6 +438,8 @@ func (s *Service) minerRequest(dbID proto.DatabaseID, method string, request int
 }
 
 func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstance, err error) {
+	log.Infof("get peers info for database: %v", dbID)
+
 	if iInstance, exists := s.upstreamServers.Load(dbID); exists {
 		instance = iInstance.(*wt.ServiceInstance)
 		return

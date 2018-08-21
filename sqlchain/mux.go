@@ -288,7 +288,7 @@ func (s *MuxService) SubscribeTransactions(req *MuxSubscribeTransactionsReq, res
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
-		req.SubscribeTransactionsReq.NodeID = req.GetNodeID().ToNodeID()
+		req.SubscribeTransactionsReq.SubscriberID = req.GetNodeID().ToNodeID()
 		return v.(*ChainRPCService).SubscribeTransactions(&req.SubscribeTransactionsReq, &resp.SubscribeTransactionsResp)
 	}
 
@@ -300,7 +300,7 @@ func (s *MuxService) CancelSubscription(req *MuxCancelSubscriptionReq, resp *Mux
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
-		req.CancelSubscriptionReq.NodeID = req.GetNodeID().ToNodeID()
+		req.CancelSubscriptionReq.SubscriberID = req.GetNodeID().ToNodeID()
 		return v.(*ChainRPCService).CancelSubscription(&req.CancelSubscriptionReq, &resp.CancelSubscriptionResp)
 	}
 

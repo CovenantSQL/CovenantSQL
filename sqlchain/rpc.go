@@ -110,8 +110,8 @@ type LaunchBillingResp struct {
 
 // SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
 type SubscribeTransactionsReq struct {
-	NodeID proto.NodeID
-	Height int32
+	SubscriberID proto.NodeID
+	Height       int32
 }
 
 // SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
@@ -120,7 +120,7 @@ type SubscribeTransactionsResp struct {
 
 // CancelSubscriptionReq defines a request of CancelSubscription RPC method.
 type CancelSubscriptionReq struct {
-	NodeID proto.NodeID
+	SubscriberID proto.NodeID
 }
 
 // CancelSubscriptionResp defines a response of CancelSubscription RPC method.
@@ -179,10 +179,10 @@ func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingR
 
 // SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
 func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, _ *SubscribeTransactionsResp) error {
-	return s.chain.addSubscription(req.NodeID, req.Height)
+	return s.chain.addSubscription(req.SubscriberID, req.Height)
 }
 
 // CancelSubscription is the RPC method to cancel subscription in the target server.
 func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) error {
-	return s.chain.cancelSubscription(req.NodeID)
+	return s.chain.cancelSubscription(req.SubscriberID)
 }

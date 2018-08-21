@@ -46,7 +46,7 @@ func initNode() (server *rpc.Server, err error) {
 	}
 
 	if err = kms.InitLocalKeyPair(privKeyPath, masterKey); err != nil {
-		log.Error("init local key pair failed: %v", err)
+		log.Errorf("init local key pair failed: %v", err)
 		return
 	}
 

@@ -101,6 +101,10 @@ const (
 	SQLCFetchBlock
 	// SQLCFetchAckedQuery is used by sqlchain to fetch response ack from adjacent nodes
 	SQLCFetchAckedQuery
+	// SQLCSubscribeTransactions is used by sqlchain to handle observer subscription request
+	SQLCSubscribeTransactions
+	// SQLCCancelSubscription is used by sqlchain to handle observer subscription cancellation request
+	SQLCCancelSubscription
 	// OBSAdviseAckedQuery is used by sqlchain to push acked query to observers
 	OBSAdviseAckedQuery
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
@@ -150,6 +154,10 @@ func (s RemoteFunc) String() string {
 		return "SQLC.FetchBlock"
 	case SQLCFetchAckedQuery:
 		return "SQLC.FetchAckedQuery"
+	case SQLCSubscribeTransactions:
+		return "SQLC.SubscribeTransactions"
+	case SQLCCancelSubscription:
+		return "SQLC.CancelSubscription"
 	case OBSAdviseAckedQuery:
 		return "OBS.AdviseAckedQuery"
 	case OBSAdviseNewBlock:

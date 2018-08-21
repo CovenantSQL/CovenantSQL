@@ -66,12 +66,20 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:15042ad3498153684d09f393bbaec6b216c8eec6d61f63dff711de7d64ed8861"
+  digest = "1:bbadccf3d3317ea03c0dac0b45b673b4b397c8f91a1d2eff550a3c51c4ad770e"
+  name = "github.com/gogo/protobuf"
+  packages = ["proto"]
+  pruneopts = "UT"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
+
+[[projects]]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "UT"
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
   branch = "master"
@@ -82,12 +90,36 @@
   revision = "89baedc74dd74098df0c4ba8792e3cf6d722d4d0"
 
 [[projects]]
+  digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
+  name = "github.com/gorilla/context"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
+
+[[projects]]
+  digest = "1:e73f5b0152105f18bc131fba127d9949305c8693f8a762588a82a48f61756f5f"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
+
+[[projects]]
   branch = "master"
   digest = "1:89658943622e6bc5e76b4da027ee9583fa0b321db0c797bd554edab96c1ca2b1"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   pruneopts = "UT"
   revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:438016f7d4af8e5a7010b6d0705b267a7607ddc0decad051e83a9458c6b9a523"
+  name = "github.com/jmoiron/jsonq"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e874b168d07ecc7808bc950a17998a8aa3141d82"
 
 [[projects]]
   branch = "master"
@@ -163,11 +195,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:868dd22a198e876fe9f3137aaa35fab27d2f53b7d38ed174e1662d3235a39c71"
+  digest = "1:fc92ffba85459d43915ec30fd7e19d34405eead6aaa1080b6d8722aebc385489"
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
   pruneopts = "UT"
-  revision = "5b23715facdef1452016bae512489c3cdf82458c"
+  revision = "29e6500a95d6ab373cae935d8615527ca38be74f"
 
 [[projects]]
   branch = "master"
@@ -280,7 +312,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "aabede6cba87e37f413b3e60ebfc214f8eeca1b0"
+  revision = "614d502a4dac94afa3a6ce146bd1736da82514c6"
 
 [[projects]]
   branch = "master"
@@ -294,18 +326,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "aaf60122140d3fcf75376d319f0554393160eb50"
+  revision = "922f4815f713f213882e8ef45e0d315b164d705c"
 
 [[projects]]
   branch = "master"
-  digest = "1:2f71657f09ff05e4567909e9e0de7ad799828c96d402c540b41dc044a6590fb2"
+  digest = "1:48774faa158e9eaee1ba45aad66434bb0345927b43756a24d4fe4c44ad79e307"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "1c9583448a9c3aa0f9a6a5241bf73c0bd8aafded"
+  revision = "3b58ed4ad3395d483fc92d5d14123ce2c3581fec"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -325,7 +357,9 @@
     "github.com/btcsuite/btcutil/base58",
     "github.com/coreos/bbolt",
     "github.com/fortytw2/leaktest",
+    "github.com/gorilla/mux",
     "github.com/hashicorp/yamux",
+    "github.com/jmoiron/jsonq",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",
     "github.com/mattn/go-sqlite3",

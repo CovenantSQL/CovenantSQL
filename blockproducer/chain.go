@@ -303,12 +303,11 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) (err error) {
 	return nil
 }
 
-func (c *Chain) fetchTx(h hash.Hash, tx ci.Transaction) (err error) {
-	var ok bool
+func (c *Chain) fetchTx(h hash.Hash, tx ci.Transaction) (ok bool, err error) {
 	if tx, ok = c.txi.LoadTx(h); ok {
 		return
 	}
-	if err = c.txp.GetTransaction(h[:], tx); err != nil {
+	if ok, err = c.txp.GetTransaction(h[:], tx); err != nil {
 		return
 	}
 	return

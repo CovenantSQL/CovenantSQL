@@ -99,6 +99,7 @@ type FetchTxReq struct {
 // FetchTxResp defines a response of the FetchTx RPC method.
 type FetchTxResp struct {
 	proto.Envelope
+	Ok bool
 	Tx ci.Transaction
 }
 
@@ -137,6 +138,7 @@ func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBi
 }
 
 // FetchTx is the RPC method to fetch a transaction from the target server.
-func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) error {
-	return s.chain.fetchTx(req.Hash, resp.Tx)
+func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) (err error) {
+	resp.Ok, err = s.chain.fetchTx(req.Hash, resp.Tx)
+	return
 }

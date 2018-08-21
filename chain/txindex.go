@@ -105,7 +105,7 @@ func (i *TxIndex) CheckTxState(key interface{}) error {
 	if val, ok = i.index.Load(key); !ok {
 		return ErrUnknownTx
 	}
-	if tc := val.(*txCache); tc != nil {
+	if tc := val.(*txCache); tc == nil {
 		return ErrCorruptedIndex
 	} else if tc.bh != nil {
 		return ErrDuplicateTx

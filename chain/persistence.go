@@ -43,9 +43,10 @@ func NewTxPersistence(db *bolt.DB) (ins *TxPersistence, err error) {
 		_, err = meta.CreateBucketIfNotExists(metaTxIndexBucket)
 		return
 	}); err != nil {
-		// Create instance if succeed
-		ins = &TxPersistence{db: db}
+		return
 	}
+	// Create instance if succeed
+	ins = &TxPersistence{db: db}
 	return
 }
 
@@ -66,7 +67,7 @@ func (p *TxPersistence) PutTransaction(tx ci.Transaction) (err error) {
 //
 // It is important that tx must provide an interface with corresponding concrete value, or the
 // deserialization will cause unexpected error.
-func (p *TxPersistence) GetTransaction(key []byte, tx ci.Transaction) (err error) {
+func (p *TxPersistence) GetTransaction(key []byte, tx ci.Transaction) (ok bool, err error) {
 	var value []byte
 	if err = p.db.View(func(tx *bolt.Tx) error {
 		value = tx.Bucket(metaBucket[:]).Bucket(metaTxIndexBucket).Get(key)
@@ -74,7 +75,12 @@ func (p *TxPersistence) GetTransaction(key []byte, tx ci.Transaction) (err error
 	}); err != nil {
 		return
 	}
-	return tx.Deserialize(value)
+	if value != nil {
+		ok = true
+		err = tx.Deserialize(value)
+		return
+	}
+	return
 }
 
 // DelTransaction deletes the transaction from the storage with key.
@@ -106,7 +112,7 @@ func (p *TxPersistence) PutTransactionAndUpdateIndex(tx ci.Transaction, ti *TxIn
 // DelTransactionAndUpdateIndex deletes the transaction from the storage with key and updates
 // transaction index ti in a single database transaction.
 func (p *TxPersistence) DelTransactionAndUpdateIndex(
-	ikey interface{}, pkey []byte, ti *TxIndex) (err error,
+	pkey []byte, ikey interface{}, ti *TxIndex) (err error,
 ) {
 	return p.db.Update(func(dbtx *bolt.Tx) (err error) {
 		if err = dbtx.Bucket(metaBucket[:]).Bucket(metaTxIndexBucket).Delete(pkey); err != nil {

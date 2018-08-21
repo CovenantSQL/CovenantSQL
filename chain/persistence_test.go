@@ -15,3 +15,145 @@
  */
 
 package chain
+
+import (
+	"fmt"
+	"path"
+	"reflect"
+	"testing"
+
+	bolt "github.com/coreos/bbolt"
+	ci "gitlab.com/thunderdb/ThunderDB/chain/interfaces"
+)
+
+func TestBadNewTxPersistence(t *testing.T) {
+	fl := path.Join(testDataDir, fmt.Sprintf("%s.db", t.Name()))
+	db, err := bolt.Open(fl, 0600, nil)
+	if err = db.Close(); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	if _, err = NewTxPersistence(db); err == nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestTxPersistenceWithClosedDB(t *testing.T) {
+	fl := path.Join(testDataDir, fmt.Sprintf("%s.db", t.Name()))
+	db, err := bolt.Open(fl, 0600, nil)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	tp, err := NewTxPersistence(db)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	var (
+		otx ci.Transaction = newRandomDemoTxImpl()
+		rtx ci.Transaction = &DemoTxImpl{}
+	)
+	if _, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err == nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err = tp.PutTransaction(otx); err == nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err = tp.DelTransaction(otx.GetPersistenceKey()); err == nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestTxPersistence(t *testing.T) {
+	fl := path.Join(testDataDir, fmt.Sprintf("%s.db", t.Name()))
+	db, err := bolt.Open(fl, 0600, nil)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	tp, err := NewTxPersistence(db)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	// Test operations: Get -> Put -> Get -> Del -> Get
+	var (
+		otx ci.Transaction = newRandomDemoTxImpl()
+		rtx ci.Transaction = &DemoTxImpl{}
+	)
+	if ok, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	}
+	if err = tp.PutTransaction(otx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	if ok, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if !ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	} else if !reflect.DeepEqual(otx, rtx) {
+		t.Fatalf("Unexpected result:\n\torigin = %v\n\toutput = %v", otx, rtx)
+	}
+	if err = tp.DelTransaction(otx.GetPersistenceKey()); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	if ok, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	}
+}
+
+func TestTxPersistenceWithIndex(t *testing.T) {
+	fl := path.Join(testDataDir, fmt.Sprintf("%s.db", t.Name()))
+	db, err := bolt.Open(fl, 0600, nil)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	tp, err := NewTxPersistence(db)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	ti := NewTxIndex()
+
+	// Test operations: Get -> Put -> Get -> Del -> Get
+	var (
+		otx ci.Transaction = newRandomDemoTxImpl()
+		rtx ci.Transaction = &DemoTxImpl{}
+	)
+	if ok, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	}
+	if err = tp.PutTransactionAndUpdateIndex(otx, ti); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	if ok, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if !ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	} else if !reflect.DeepEqual(otx, rtx) {
+		t.Fatalf("Unexpected result:\n\torigin = %v\n\toutput = %v", otx, rtx)
+	}
+	if xtx, ok := ti.LoadTx(otx.GetIndexKey()); !ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	} else if !reflect.DeepEqual(otx, xtx) {
+		t.Fatalf("Unexpected result:\n\torigin = %v\n\toutput = %v", otx, xtx)
+	}
+	if err = tp.DelTransactionAndUpdateIndex(
+		otx.GetPersistenceKey(), otx.GetIndexKey(), ti,
+	); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	if ok, err := tp.GetTransaction(otx.GetPersistenceKey(), rtx); err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	} else if ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	}
+	if _, ok := ti.LoadTx(otx.GetIndexKey()); ok {
+		t.Fatalf("Unexpected query result: %v", ok)
+	}
+}

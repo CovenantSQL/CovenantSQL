@@ -26,6 +26,7 @@ import (
 	"syscall"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
+	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/proto"
 	"gitlab.com/thunderdb/ThunderDB/rpc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
@@ -63,6 +64,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config from %s failed: %s", configFile, err)
 	}
+
+	kms.InitBP()
 
 	// start rpc
 	var server *rpc.Server

@@ -108,9 +108,10 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// TODO(xq262144): make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
-		DataFile: chainFile,
-		Genesis:  genesisBlock,
-		Peers:    peers,
+		DatabaseID: cfg.DatabaseID,
+		DataFile:   chainFile,
+		Genesis:    genesisBlock,
+		Peers:      peers,
 
 		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id

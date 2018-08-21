@@ -38,7 +38,7 @@ const (
 	// ReadQuery defines a read query type.
 	ReadQuery QueryType = iota
 	// WriteQuery defines a write query type.
-	WriteQuery 
+	WriteQuery
 )
 
 // Query defines single query.

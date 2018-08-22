@@ -79,7 +79,7 @@ func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
 	sendResponse(200, true, "", map[string]interface{}{
 		"ack": map[string]interface{}{
 			"request": map[string]interface{}{
-				"hash":      ack.Response.Request.HeaderHash,
+				"hash":      ack.Response.Request.HeaderHash.String(),
 				"timestamp": a.formatTime(ack.Response.Request.Timestamp),
 				"node":      ack.Response.Request.NodeID,
 				"type":      ack.Response.Request.QueryType.String(),

@@ -1,3 +1,5 @@
+// +build !testbinary
+
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
@@ -25,11 +27,10 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 	"testing"
 	"time"
-
-	"runtime/debug"
 
 	"github.com/jmoiron/jsonq"
 	. "github.com/smartystreets/goconvey/convey"
@@ -82,8 +83,10 @@ func startNodes() {
 	// start 3bps
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml")},
+		FJ(baseDir, "./bin/thunderdbd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/leader.out"),
+		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -91,8 +94,10 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml")},
+		FJ(baseDir, "./bin/thunderdbd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower1.out"),
+		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -100,8 +105,10 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml")},
+		FJ(baseDir, "./bin/thunderdbd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower2.out"),
+		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -113,8 +120,10 @@ func startNodes() {
 
 	// start 3miners
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_0/config.yaml")},
+		FJ(baseDir, "./bin/thunderminerd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./node_miner_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner0.out"),
+		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -122,8 +131,10 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_1/config.yaml")},
+		FJ(baseDir, "./bin/thunderminerd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./node_miner_1/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner1.out"),
+		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -131,8 +142,10 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_2/config.yaml")},
+		FJ(baseDir, "./bin/thunderminerd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./node_miner_2/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner2.out"),
+		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -198,7 +211,7 @@ func TestFullProcess(t *testing.T) {
 	Convey("test full process", t, func() {
 		startNodes()
 		defer stopNodes()
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 
 		var err error
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))

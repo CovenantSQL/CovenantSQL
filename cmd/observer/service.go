@@ -303,6 +303,8 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 }
 
 func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) (err error) {
+	log.Debugf("add ack query %v: %v", dbID, ack.HeaderHash.String())
+
 	if atomic.LoadInt32(&s.stopped) == 1 {
 		// stopped
 		return ErrStopped
@@ -329,6 +331,9 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 
 		key := offsetToBytes(req.LogOffset)
 		key = append(key, resp.Request.Header.HeaderHash.CloneBytes()...)
+
+		log.Debugf("add write request, offset: %v, %v, %v",
+			req.LogOffset, resp.Request.Header.HeaderHash.String(), resp.Request.Payload.Queries)
 
 		var reqBytes *bytes.Buffer
 		if reqBytes, err = utils.EncodeMsgPack(resp.Request); err != nil {
@@ -370,6 +375,8 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 }
 
 func (s *Service) addBlock(dbID proto.DatabaseID, b *ct.Block) (err error) {
+	log.Debugf("add block %v, %v -> %v, %v", dbID, b.BlockHash(), b.ParentHash(), b.Producer())
+
 	instance, err := s.getUpstream(dbID)
 	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / blockProducePeriod)
 	key := heightToBytes(h)
@@ -534,7 +541,7 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *wt.R
 
 func (s *Service) getRequestByOffset(dbID proto.DatabaseID, offset uint64) (request *wt.Request, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(ackBucket).Bucket([]byte(dbID))
+		bucket := tx.Bucket(requestBucket).Bucket([]byte(dbID))
 
 		if bucket == nil {
 			return ErrNotFound

@@ -59,8 +59,7 @@ func TestBuild(t *testing.T) {
 func startNodes() {
 	// wait for ports to be available
 	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
+	ctx := context.Background()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
 		2144,
 		2145,
@@ -70,9 +69,6 @@ func startNodes() {
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
-
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
 		3122,
 		3121,

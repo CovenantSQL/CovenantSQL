@@ -89,18 +89,22 @@ func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddres
 	}
 }
 
+// GetHash implements chain/Transaction.GetHash.
 func (tb *TxBilling) GetHash() hash.Hash {
 	return *tb.TxHash
 }
 
+// GetIndexKey implements chain/Transaction.GetIndexKey.
 func (tb *TxBilling) GetIndexKey() interface{} {
 	return *tb.TxHash
 }
 
+// GetPersistenceKey implements chain/Transaction.GetPersistenceKey.
 func (tb *TxBilling) GetPersistenceKey() []byte {
 	return tb.TxHash[:]
 }
 
+// GetTime implements chain/Transaction.GetTime.
 func (tb *TxBilling) GetTime() time.Time {
 	return time.Time{}
 }

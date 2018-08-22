@@ -22,6 +22,7 @@ package types
 type TxType byte
 
 const (
+	// TxTypeBilling defines TxType for database service billing.
 	TxTypeBilling TxType = 0
 )
 

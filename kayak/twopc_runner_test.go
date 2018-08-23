@@ -280,7 +280,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 		// try call process
 		testPayload := []byte("test data")
-		err = mockRes.runner.Apply(testPayload)
+		_, err = mockRes.runner.Apply(testPayload)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldEqual, ErrNotLeader)
 	})
@@ -326,9 +326,10 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			})
 
 			// try call process
-			err = mockRes.runner.Apply(testPayload)
-
+			var offset uint64
+			offset, err = mockRes.runner.Apply(testPayload)
 			So(err, ShouldBeNil)
+			So(offset, ShouldEqual, uint64(1))
 
 			// test call orders
 			So(callOrder.Get(), ShouldResemble, []string{
@@ -363,7 +364,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			})
 
 			// try call process
-			err = mockRes.runner.Apply(testPayload)
+			_, err = mockRes.runner.Apply(testPayload)
 			So(err, ShouldNotBeNil)
 
 			// no log should be written to local log store after failed preparing
@@ -387,7 +388,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).Return(nil)
 
 			// try call process
-			err = mockRes.runner.Apply(testPayload)
+			_, err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 		})
@@ -408,7 +409,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				Return(nil)
 
 			// try call process
-			err = mockRes.runner.Apply(testPayload)
+			_, err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 		})
@@ -429,7 +430,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).Return(nil)
 
 			// try call process
-			err = mockRes.runner.Apply(testPayload)
+			_, err = mockRes.runner.Apply(testPayload)
 
 			// rollback error is ignored
 			So(err, ShouldNotBeNil)
@@ -499,7 +500,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			})
 
 			// try call process
-			err := lMock.runner.Apply(testPayload)
+			_, err := lMock.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
@@ -534,7 +535,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// commit second log
 			callOrder.Reset()
 
-			err = lMock.runner.Apply(testPayload)
+			_, err = lMock.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
@@ -596,7 +597,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			})
 
 			// try call process
-			err := lMock.runner.Apply(testPayload)
+			_, err := lMock.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 			So(err, ShouldEqual, unknownErr)
@@ -950,7 +951,7 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			// test call process
 			testPayload := []byte("test data")
-			err := lMock.runner.Apply(testPayload)
+			_, err := lMock.runner.Apply(testPayload)
 
 			// no longer leader
 			So(err, ShouldNotBeNil)

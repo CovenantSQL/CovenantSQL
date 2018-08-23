@@ -19,13 +19,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-
 	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
+	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/conf"
 	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
 	"gitlab.com/thunderdb/ThunderDB/kayak"
@@ -175,7 +175,23 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	//go periodicPingBlockProducer()
 
 	// start server
-	server.Serve()
+	go func() {
+		server.Serve()
+	}()
+	defer func() {
+		server.Listener.Close()
+		server.Stop()
+	}()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(
+		signalCh,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
+
+	<-signalCh
 
 	return
 }

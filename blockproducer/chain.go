@@ -135,7 +135,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 		"bp_number": chain.rt.bpNum,
 		"period":    chain.rt.period.String(),
 		"tick":      chain.rt.tick.String(),
-	}).Debugf("current chain state: {hash: %s, height: %d}", chain.st.Head.String(), chain.st.Height)
+	}).Debugf("current chain state: {hash: %s, height: %d}", chain.st.getHeader().String(), chain.st.getHeight())
 
 	return chain, nil
 }
@@ -315,8 +315,8 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature
 func (c *Chain) checkBlock(b *types.Block) error {
 	// TODO(lambda): process block fork
-	if !b.SignedHeader.ParentHash.IsEqual(&c.st.Head) {
-		log.Debugf("chain's parent hash is %s, and height is %d. But received block's hash is %s", c.st.Head, c.st.Height, b.SignedHeader.ParentHash)
+	if !b.SignedHeader.ParentHash.IsEqual(c.st.getHeader()) {
+		log.Debugf("chain's parent hash is %s, and height is %d. But received block's hash is %s", c.st.getHeader(), c.st.getHeight(), b.SignedHeader.ParentHash)
 		return ErrParentNotMatch
 	}
 	hashes := make([]*hash.Hash, len(b.TxBillings))
@@ -347,7 +347,7 @@ func (c *Chain) checkBlock(b *types.Block) error {
 
 func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
-	node := newBlockNode(h, b, c.st.Node)
+	node := newBlockNode(h, b, c.st.getNode())
 	state := State{
 		Node:   node,
 		Head:   node.hash,
@@ -467,7 +467,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 			Header: types.Header{
 				Version:    blockVersion,
 				Producer:   c.rt.accountAddress,
-				ParentHash: c.st.Head,
+				ParentHash: *c.st.getHeader(),
 				Timestamp:  now,
 			},
 		},
@@ -514,7 +514,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 					}).WithError(err).Error(
 						"Failed to advise new block")
 				} else {
-					log.Debugf("Success to advising #%d height block to %s", c.st.Height, id)
+					log.Debugf("Success to advising #%d height block to %s", c.st.getHeight(), id)
 				}
 			}(s.ID)
 		}
@@ -724,7 +724,7 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
-	node := c.st.Node.ancestor(h)
+	node := c.st.getNode().ancestor(h)
 	if node == nil {
 		return nil, ErrNoSuchBlock
 	}
@@ -783,7 +783,8 @@ func (c *Chain) sync() error {
 			// TODO(lambda): fetch blocks and txes.
 			c.rt.setNextTurn()
 			// TODO(lambda): remove it after implementing fetch
-			c.st.Height++
+			h := c.st.getHeight()
+			c.st.setHeight(h + 1)
 		}
 	}
 
@@ -884,8 +885,8 @@ func (c *Chain) processTxBillings() {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.st.Height,
-					"head_block":  c.st.Head.String(),
+					"head_height": c.st.getHeight(),
+					"head_block":  c.st.getHeader().String(),
 					"tx_hash":     tb.TxHash,
 				}).Debugf("Failed to push self-producing tx billing with error: %v", err)
 			}
@@ -895,8 +896,8 @@ func (c *Chain) processTxBillings() {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.st.Height,
-					"head_block":  c.st.Head.String(),
+					"head_height": c.st.getHeight(),
+					"head_block":  c.st.getHeader().String(),
 					"tx_hash":     tb.TxHash,
 				}).Debugf("Failed to push rpc tx billing with error: %v", err)
 			}
@@ -924,8 +925,8 @@ func (c *Chain) mainCycle() {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.st.Height,
-					"head_block":  c.st.Head.String(),
+					"head_height": c.st.getHeight(),
+					"head_block":  c.st.getHeader().String(),
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
 				}).Debug("Main cycle")
@@ -942,10 +943,10 @@ func (c *Chain) syncHead() {
 	log.WithFields(log.Fields{
 		"index":     c.rt.index,
 		"next_turn": c.rt.getNextTurn(),
-		"height":    c.st.Height,
-		"count":     c.st.Node.count,
+		"height":    c.st.getHeight(),
+		"count":     c.st.getNode().count,
 	}).Debugf("sync header")
-	if h := c.rt.getNextTurn() - 1; c.st.Height < h {
+	if h := c.rt.getNextTurn() - 1; c.st.getHeight() < h {
 		var err error
 		req := &FetchBlockReq{
 			Envelope: proto.Envelope{
@@ -966,8 +967,8 @@ func (c *Chain) syncHead() {
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.st.Height,
-						"head_block":  c.st.Head.String(),
+						"head_height": c.st.getHeight(),
+						"head_block":  c.st.getHeader().String(),
 					}).WithError(err).Debug(
 						"Failed to fetch block from peer")
 				} else {
@@ -976,8 +977,8 @@ func (c *Chain) syncHead() {
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.st.Height,
-						"head_block":  c.st.Head.String(),
+						"head_height": c.st.getHeight(),
+						"head_block":  c.st.getHeader().String(),
 					}).Debug(
 						"Fetch block from remote peer successfully")
 					succ = true
@@ -990,8 +991,8 @@ func (c *Chain) syncHead() {
 			log.WithFields(log.Fields{
 				"peer":        c.rt.getPeerInfoString(),
 				"curr_turn":   c.rt.getNextTurn(),
-				"head_height": c.st.Height,
-				"head_block":  c.st.Head.String(),
+				"head_height": c.st.getHeight(),
+				"head_block":  c.st.getHeader().String(),
 			}).Debug(
 				"Cannot get block from any peer")
 		}

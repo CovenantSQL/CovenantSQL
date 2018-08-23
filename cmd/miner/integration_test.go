@@ -162,7 +162,7 @@ func stopNodes() {
 		wg.Add(1)
 		go func(thisCmd *exec.Cmd) {
 			defer wg.Done()
-			thisCmd.Process.Kill()
+			thisCmd.Process.Signal(os.Interrupt)
 			thisCmd.Wait()
 		}(nodeCmd)
 	}

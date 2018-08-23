@@ -10,6 +10,14 @@
   revision = "f82da37fa214bff0a716f8703aaff789b411a227"
 
 [[projects]]
+  branch = "master"
+  digest = "1:85a26c0f2acc7596a55174ac9072a82eaba0c5ebc5f833b0d0bab81243696fd3"
+  name = "github.com/CovenantSQL/go-sqlite3-encrypt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "db26bf90b0d1d8628d4ea3a734276548a6d27477"
+
+[[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
   name = "github.com/beevik/ntp"
   packages = ["."]
@@ -31,7 +39,7 @@
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "f899737d7f2764dc13e4d01ff00108ec58f766a9"
+  revision = "d81d8877b8f327112e94e814937143a71d1692a7"
 
 [[projects]]
   branch = "master"
@@ -66,12 +74,20 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:15042ad3498153684d09f393bbaec6b216c8eec6d61f63dff711de7d64ed8861"
+  digest = "1:bbadccf3d3317ea03c0dac0b45b673b4b397c8f91a1d2eff550a3c51c4ad770e"
+  name = "github.com/gogo/protobuf"
+  packages = ["proto"]
+  pruneopts = "UT"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
+
+[[projects]]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "UT"
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
   branch = "master"
@@ -112,14 +128,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "9f7362b77ad333b26c01c99de52a11bdb650ded2"
-
-[[projects]]
-  digest = "1:3cafc6a5a1b8269605d9df4c6956d43d8011fc57f266ca6b9d04da6c09dee548"
-  name = "github.com/mattn/go-sqlite3"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
-  version = "v1.9.0"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -163,11 +171,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:868dd22a198e876fe9f3137aaa35fab27d2f53b7d38ed174e1662d3235a39c71"
+  digest = "1:807c9fe0be3321781b6922b6659ad7f938864b475d581c802f46de981ad48e3b"
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
   pruneopts = "UT"
-  revision = "5b23715facdef1452016bae512489c3cdf82458c"
+  revision = "ebce7d0078c0109cbb4de5d50a2b799920b0f0d0"
 
 [[projects]]
   branch = "master"
@@ -280,7 +288,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "aabede6cba87e37f413b3e60ebfc214f8eeca1b0"
+  revision = "614d502a4dac94afa3a6ce146bd1736da82514c6"
 
 [[projects]]
   branch = "master"
@@ -294,18 +302,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "aaf60122140d3fcf75376d319f0554393160eb50"
+  revision = "922f4815f713f213882e8ef45e0d315b164d705c"
 
 [[projects]]
   branch = "master"
-  digest = "1:2f71657f09ff05e4567909e9e0de7ad799828c96d402c540b41dc044a6590fb2"
+  digest = "1:48774faa158e9eaee1ba45aad66434bb0345927b43756a24d4fe4c44ad79e307"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "1c9583448a9c3aa0f9a6a5241bf73c0bd8aafded"
+  revision = "3b58ed4ad3395d483fc92d5d14123ce2c3581fec"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -320,6 +328,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/CovenantSQL/HashStablePack/marshalhash",
+    "github.com/CovenantSQL/go-sqlite3-encrypt",
     "github.com/beevik/ntp",
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
@@ -328,7 +337,6 @@
     "github.com/hashicorp/yamux",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",
-    "github.com/mattn/go-sqlite3",
     "github.com/miekg/dns",
     "github.com/minio/blake2b-simd",
     "github.com/prometheus/client_golang/prometheus",

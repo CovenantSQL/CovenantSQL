@@ -5,6 +5,12 @@ branch=`git rev-parse --abbrev-ref HEAD`
 commitid=`git rev-parse --short HEAD`
 builddate=`date +%Y%m%d%H%M%S`
 
+platform=''
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   platform='linux'
+fi
+
 function getversion() {
     echo $branch-$commitid-$builddate
 }
@@ -17,10 +23,10 @@ idminer_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/idminer"
 go build -ldflags "-X main.version=${version} ${GOLDFLAGS}"  -o bin/idminer ${idminer_pkgpath}
 
 thunderdbd_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/thunderdbd"
-go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=B ${GOLDFLAGS}"  -o bin/thunderdbd ${thunderdbd_pkgpath}
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=B ${GOLDFLAGS}" --tags "${platform} sqlite_omit_load_extension" -o bin/thunderdbd ${thunderdbd_pkgpath}
 
 miner_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/miner"
-go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=M ${GOLDFLAGS}"  -o bin/thunderminerd ${miner_pkgpath}
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=M ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/thunderminerd ${miner_pkgpath}
 
 #echo "build thunderdbd-linux"
 #GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd-linux ${pkgpath}

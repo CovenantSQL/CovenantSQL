@@ -24,6 +24,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"fmt"
+	"bytes"
 )
 
 var (
@@ -796,12 +798,13 @@ func TestDBError(t *testing.T) {
 func TestDataPersistence(t *testing.T) {
 	// Open storage
 	fl, err := ioutil.TempFile("", "db")
+	dsn := fmt.Sprintf("file:%s", fl.Name())
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
 
-	st, err := OpenStorage(fl.Name(), "test-data-persistence")
+	st, err := OpenStorage(dsn, "test-data-persistence")
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
@@ -832,13 +835,86 @@ func TestDataPersistence(t *testing.T) {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
 
-	delete(index.db, fl.Name())
+	delete(index.db, dsn)
 
 	// Now reopen the storage and verify the data
-	st, err = OpenStorage(fl.Name(), "test-data-persistence")
+	st, err = OpenStorage(dsn, "test-data-persistence")
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+
+	content, _ := ioutil.ReadFile(fl.Name())
+	if !bytes.Contains(content, []byte(sampleTexts[0].Key)) {
+		t.Fatal("db is corrupted")
+	}
+
+	for k, v := range replacedSampleTexts {
+		ov, err := st.GetValue(k)
+
+		if err != nil {
+			t.Fatalf("Error occurred: %s", err.Error())
+		}
+
+		if !reflect.DeepEqual(v, ov) {
+			t.Fatalf("Unexpected output result: input = %v, output = %v", v, ov)
+		}
+	}
+}
+
+func TestCipherDBDataPersistence(t *testing.T) {
+	// Open storage
+	fl, err := ioutil.TempFile("", "db")
+	dsn := fmt.Sprintf("file:%s_crypto_key=auxten", fl.Name())
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	st, err := OpenStorage(dsn, "test-data-persistence")
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	// Set values
+	for _, row := range sampleTexts {
+		if err = st.SetValue(row.Key, row.Value); err != nil {
+			t.Fatalf("Error occurred: %s", err.Error())
+		}
+	}
+
+	// Verify values
+	for k, v := range replacedSampleTexts {
+		ov, err := st.GetValue(k)
+
+		if err != nil {
+			t.Fatalf("Error occurred: %s", err.Error())
+		}
+
+		if !reflect.DeepEqual(v, ov) {
+			t.Fatalf("Unexpected output result: input = %v, output = %v", v, ov)
+		}
+	}
+
+	// Hack the internal structs to close the database
+	if err = st.db.Close(); err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	delete(index.db, dsn)
+
+	// Now reopen the storage and verify the data
+	st, err = OpenStorage(dsn, "test-data-persistence")
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	content, _ := ioutil.ReadFile(fl.Name())
+	if bytes.Contains(content, []byte(sampleTexts[0].Key)) {
+		t.Fatal("db not ciphered")
 	}
 
 	for k, v := range replacedSampleTexts {
@@ -903,4 +979,39 @@ func TestConcurrency(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestCipherDBConcurrency(t *testing.T) {
+	// Open storage
+	fl, err := ioutil.TempFile("", "db")
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+	dsn := fmt.Sprintf("file:%s_crypto_key=auxten", fl.Name())
+
+	st, err := OpenStorage(dsn, "test-data-persistence")
+
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	// Set values
+	if err = st.SetValuesTx(sampleTexts); err != nil {
+		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	// Run concurrent GetValue
+	var wg sync.WaitGroup
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go randomGetValue(&wg, st, t)
+	}
+
+	wg.Wait()
+
+	content, _ := ioutil.ReadFile(fl.Name())
+	if bytes.Contains(content, []byte(sampleTexts[0].Key)) {
+		t.Fatal("db not ciphered")
+	}
 }

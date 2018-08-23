@@ -20,6 +20,7 @@ import (
 	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"gitlab.com/thunderdb/ThunderDB/proto"
 	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
 	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
@@ -107,6 +108,24 @@ type LaunchBillingReq struct {
 type LaunchBillingResp struct {
 }
 
+// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
+type SubscribeTransactionsReq struct {
+	SubscriberID proto.NodeID
+	Height       int32
+}
+
+// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
+type SubscribeTransactionsResp struct {
+}
+
+// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
+type CancelSubscriptionReq struct {
+	SubscriberID proto.NodeID
+}
+
+// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
+type CancelSubscriptionResp struct{}
+
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
 	err error) {
@@ -156,4 +175,14 @@ func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp
 // LaunchBilling is the RPC method to launch a new billing process in the target server.
 func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingResp) error {
 	return s.chain.LaunchBilling(req.Low, req.High)
+}
+
+// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
+func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, _ *SubscribeTransactionsResp) error {
+	return s.chain.addSubscription(req.SubscriberID, req.Height)
+}
+
+// CancelSubscription is the RPC method to cancel subscription in the target server.
+func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) error {
+	return s.chain.cancelSubscription(req.SubscriberID)
 }

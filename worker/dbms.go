@@ -282,6 +282,32 @@ func (dbms *DBMS) Ack(ack *wt.Ack) (err error) {
 	return db.Ack(ack)
 }
 
+// GetRequest handles fetching original request of previous transactions.
+func (dbms *DBMS) GetRequest(dbID proto.DatabaseID, offset uint64) (query *wt.Request, err error) {
+	var db *Database
+	var exists bool
+
+	if db, exists = dbms.getMeta(dbID); !exists {
+		err = ErrNotExists
+		return
+	}
+
+	var reqBytes []byte
+	if reqBytes, err = db.kayakRuntime.GetLog(offset); err != nil {
+		return
+	}
+
+	// decode requests
+	var q wt.Request
+	if err = utils.DecodeMsgPack(reqBytes, &q); err != nil {
+		return
+	}
+
+	query = &q
+
+	return
+}
+
 func (dbms *DBMS) getMeta(dbID proto.DatabaseID) (db *Database, exists bool) {
 	var rawDB interface{}
 

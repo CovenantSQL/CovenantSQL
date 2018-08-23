@@ -17,12 +17,15 @@
 package blockproducer
 
 import (
+	"sync"
+
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 // State store the node info of chain
 type State struct {
+	sync.Mutex
 	Node   *blockNode
 	Head   hash.Hash
 	Height uint32
@@ -42,4 +45,34 @@ func (s *State) serialize() ([]byte, error) {
 func (s *State) deserialize(b []byte) error {
 	err := utils.DecodeMsgPack(b, s)
 	return err
+}
+
+func (s *State) getNode() *blockNode {
+	s.Lock()
+	defer s.Unlock()
+	return s.Node
+}
+
+func (s *State) getHeight() uint32 {
+	s.Lock()
+	defer s.Unlock()
+	return s.Height
+}
+
+func (s *State) setHeight(h uint32) {
+	s.Lock()
+	defer s.Unlock()
+	s.Height = h
+}
+
+func (s *State) increaseHeightByOne() {
+	s.Lock()
+	defer s.Unlock()
+	s.Height++
+}
+
+func (s *State) getHeader() *hash.Hash {
+	s.Lock()
+	defer s.Unlock()
+	return &s.Head
 }

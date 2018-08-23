@@ -1,3 +1,5 @@
+// +build !testbinary
+
 /*
  * Copyright 2018 The ThunderDB Authors.
  *
@@ -61,18 +63,24 @@ func start3BPs() {
 	}
 
 	go utils.RunCommand(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml")},
+		FJ(baseDir, "./bin/thunderdbd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/thunderdbd/leader.cover.out"),
+		},
 		"leader", testWorkingDir, logDir, false,
 	)
 	go utils.RunCommand(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml")},
+		FJ(baseDir, "./bin/thunderdbd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/thunderdbd/follower1.cover.out"),
+		},
 		"follower1", testWorkingDir, logDir, false,
 	)
 	go utils.RunCommand(
-		FJ(baseDir, "./bin/thunderdbd"),
-		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml")},
+		FJ(baseDir, "./bin/thunderdbd.test"),
+		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/thunderdbd/follower2.cover.out"),
+		},
 		"follower2", testWorkingDir, logDir, false,
 	)
 }

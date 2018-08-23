@@ -77,6 +77,8 @@ const (
 	DBSAck
 	// DBSDeploy is used by BP to create/drop/update database
 	DBSDeploy
+	// DBSGetRequest is used by observer to view original request
+	DBSGetRequest
 	// DBCCall is used by Miner for data consistency
 	DBCCall
 	// BPDBCreateDatabase is used by client to create database
@@ -99,6 +101,14 @@ const (
 	SQLCFetchBlock
 	// SQLCFetchAckedQuery is used by sqlchain to fetch response ack from adjacent nodes
 	SQLCFetchAckedQuery
+	// SQLCSubscribeTransactions is used by sqlchain to handle observer subscription request
+	SQLCSubscribeTransactions
+	// SQLCCancelSubscription is used by sqlchain to handle observer subscription cancellation request
+	SQLCCancelSubscription
+	// OBSAdviseAckedQuery is used by sqlchain to push acked query to observers
+	OBSAdviseAckedQuery
+	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
+	OBSAdviseNewBlock
 )
 
 // String returns the RemoteFunc string
@@ -120,6 +130,8 @@ func (s RemoteFunc) String() string {
 		return "DBS.Ack"
 	case DBSDeploy:
 		return "DBS.Deploy"
+	case DBSGetRequest:
+		return "DBS.GetRequest"
 	case DBCCall:
 		return "DBC.Call"
 	case BPDBCreateDatabase:
@@ -142,6 +154,14 @@ func (s RemoteFunc) String() string {
 		return "SQLC.FetchBlock"
 	case SQLCFetchAckedQuery:
 		return "SQLC.FetchAckedQuery"
+	case SQLCSubscribeTransactions:
+		return "SQLC.SubscribeTransactions"
+	case SQLCCancelSubscription:
+		return "SQLC.CancelSubscription"
+	case OBSAdviseAckedQuery:
+		return "OBS.AdviseAckedQuery"
+	case OBSAdviseNewBlock:
+		return "OBS.AdviseNewBlock"
 	}
 	return "Unknown"
 }

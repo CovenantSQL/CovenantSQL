@@ -26,7 +26,7 @@ test-my-project:
   script:
     - bash build.sh
     - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
-    - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt
+    - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
     - bash <(curl -s https://codecov.io/bash)
     - >-
       golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=gitlab-mr-commit || true

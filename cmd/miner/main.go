@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"gitlab.com/thunderdb/ThunderDB/conf"
@@ -237,7 +239,23 @@ func main() {
 	defer dbms.Shutdown()
 
 	// start rpc server
-	server.Serve()
+	go func() {
+		server.Serve()
+	}()
+	defer func() {
+		server.Listener.Close()
+		server.Stop()
+	}()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(
+		signalCh,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
+
+	<-signalCh
 
 	log.Info("miner stopped")
 }

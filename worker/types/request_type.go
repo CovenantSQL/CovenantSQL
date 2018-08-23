@@ -47,6 +47,17 @@ type Query struct {
 	Args    []sql.NamedArg
 }
 
+func (t QueryType) String() string {
+	switch t {
+	case ReadQuery:
+		return "read"
+	case WriteQuery:
+		return "write"
+	default:
+		return "unknown"
+	}
+}
+
 // RequestPayload defines a queries payload.
 type RequestPayload struct {
 	Queries []Query

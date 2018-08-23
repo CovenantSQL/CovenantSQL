@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	bolt "github.com/coreos/bbolt"
+	"github.com/coreos/bbolt"
 	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
 	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
@@ -44,7 +44,7 @@ var (
 	metaStateKey            = []byte("thunderdb-state")
 	metaBlockIndexBucket    = []byte("thunderdb-block-index-bucket")
 	metaHeightIndexBucket   = []byte("thunderdb-query-height-index-bucket")
-	metaRequestIndexBucket  = []byte("thunderdb-query-reqeust-index-bucket")
+	metaRequestIndexBucket  = []byte("thunderdb-query-request-index-bucket")
 	metaResponseIndexBucket = []byte("thunderdb-query-response-index-bucket")
 	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
 )
@@ -73,6 +73,17 @@ type Chain struct {
 	blocks    chan *ct.Block
 	responses chan *wt.ResponseHeader
 	acks      chan *wt.AckHeader
+
+	// observerLock defines the lock of observer update operations.
+	observerLock sync.Mutex
+	// observers defines the observer nodes of current chain.
+	observers map[proto.NodeID]int32
+	// observerReplicators defines the observer states of current chain.
+	observerReplicators map[proto.NodeID]*observerReplicator
+	// replCh defines the replication trigger channel for replication check.
+	replCh chan struct{}
+	// replWg defines the waitGroups for running replications.
+	replWg sync.WaitGroup
 }
 
 // NewChain creates a new sql-chain struct.
@@ -119,6 +130,11 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		blocks:    make(chan *ct.Block),
 		responses: make(chan *wt.ResponseHeader),
 		acks:      make(chan *wt.AckHeader),
+
+		// observer related
+		observers:           make(map[proto.NodeID]int32),
+		observerReplicators: make(map[proto.NodeID]*observerReplicator),
+		replCh:              make(chan struct{}),
 	}
 
 	if err = chain.pushBlock(c.Genesis); err != nil {
@@ -466,7 +482,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
-				resp := &MuxAdviseAckedQueryResp{}
+				resp := &MuxAdviseNewBlockResp{}
 				if err := c.cl.CallNode(
 					id, route.SQLCAdviseNewBlock.String(), req, resp); err != nil {
 					log.WithFields(log.Fields{
@@ -483,6 +499,10 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	}
 
 	wg.Wait()
+
+	// fire replication to observers
+	c.startStopReplication()
+
 	return
 }
 
@@ -709,6 +729,8 @@ func (c *Chain) processBlocks() {
 					stash = nil
 				}
 			}
+			// fire replication to observers
+			c.startStopReplication()
 		case <-c.stopCh:
 			return
 		}
@@ -751,6 +773,8 @@ func (c *Chain) Start() (err error) {
 	go c.processAcks()
 	c.rt.wg.Add(1)
 	go c.mainCycle()
+	c.rt.wg.Add(1)
+	go c.replicationCycle()
 	c.rt.startService(c)
 	return
 }
@@ -1248,4 +1272,84 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 
 	pub = priv.PubKey()
 	return
+}
+
+func (c *Chain) addSubscription(nodeID proto.NodeID, startHeight int32) (err error) {
+	// send previous height and transactions using AdviseAckedQuery/AdviseNewBlock RPC method
+	// add node to subscriber list
+	c.observerLock.Lock()
+	defer c.observerLock.Unlock()
+	c.observers[nodeID] = startHeight
+	c.startStopReplication()
+	return
+}
+
+func (c *Chain) cancelSubscription(nodeID proto.NodeID) (err error) {
+	// remove node from subscription list
+	c.observerLock.Lock()
+	defer c.observerLock.Unlock()
+	delete(c.observers, nodeID)
+	c.startStopReplication()
+	return
+}
+
+func (c *Chain) startStopReplication() {
+	if c.replCh != nil {
+		select {
+		case c.replCh <- struct{}{}:
+		case <-c.stopCh:
+		default:
+		}
+	}
+}
+
+func (c *Chain) populateObservers() {
+	c.observerLock.Lock()
+	defer c.observerLock.Unlock()
+
+	// handle replication threads
+	for nodeID, startHeight := range c.observers {
+		if replicator, exists := c.observerReplicators[nodeID]; exists {
+			// already started
+			if startHeight >= 0 {
+				replicator.setNewHeight(startHeight)
+				c.observers[nodeID] = int32(-1)
+			}
+		} else {
+			// start new replication routine
+			c.replWg.Add(1)
+			replicator := newObserverReplicator(nodeID, startHeight, c)
+			c.observerReplicators[nodeID] = replicator
+			go replicator.run()
+		}
+	}
+
+	// stop replicators
+	for nodeID, replicator := range c.observerReplicators {
+		if _, exists := c.observers[nodeID]; !exists {
+			replicator.stop()
+			delete(c.observerReplicators, nodeID)
+		}
+	}
+}
+
+func (c *Chain) replicationCycle() {
+	defer func() {
+		c.replWg.Wait()
+		c.rt.wg.Done()
+	}()
+
+	for {
+		select {
+		case <-c.replCh:
+			// populateObservers
+			c.populateObservers()
+			// send triggers to replicators
+			for _, replicator := range c.observerReplicators {
+				replicator.tick()
+			}
+		case <-c.stopCh:
+			return
+		}
+	}
 }

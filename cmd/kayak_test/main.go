@@ -162,7 +162,7 @@ func (s *stubServer) Write(sql string, _ *responseRows) (err error) {
 		return err
 	}
 
-	err = s.runtime.Apply(writeData)
+	_, err = s.runtime.Apply(writeData)
 
 	return
 }

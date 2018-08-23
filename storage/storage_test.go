@@ -866,7 +866,7 @@ func TestDataPersistence(t *testing.T) {
 func TestCipherDBDataPersistence(t *testing.T) {
 	// Open storage
 	fl, err := ioutil.TempFile("", "db")
-	dsn := fmt.Sprintf("file:%s_crypto_key=auxten", fl.Name())
+	dsn := fmt.Sprintf("file:%s?_crypto_key=auxten", fl.Name())
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
@@ -987,7 +987,7 @@ func TestCipherDBConcurrency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
-	dsn := fmt.Sprintf("file:%s_crypto_key=auxten", fl.Name())
+	dsn := fmt.Sprintf("file:%s?_crypto_key=auxten", fl.Name())
 
 	st, err := OpenStorage(dsn, "test-data-persistence")
 

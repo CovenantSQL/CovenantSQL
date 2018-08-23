@@ -65,6 +65,12 @@ func (s *State) setHeight(h uint32) {
 	s.Height = h
 }
 
+func (s *State) increaseHeightByOne() {
+	s.Lock()
+	defer s.Unlock()
+	s.Height++
+}
+
 func (s *State) getHeader() *hash.Hash {
 	s.Lock()
 	defer s.Unlock()

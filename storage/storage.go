@@ -33,8 +33,8 @@ import (
 	"fmt"
 	"sync"
 
-	// Register go-sqlite3 engine.
-	_ "github.com/mattn/go-sqlite3"
+	// Register CovenantSQL/go-sqlite3-encrypt engine.
+	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 var (
@@ -54,7 +54,6 @@ func openDB(dsn string) (db *sql.DB, err error) {
 	db = index.db[dsn]
 	if db == nil {
 		db, err = sql.Open("sqlite3", dsn)
-
 		if err != nil {
 			return nil, err
 		}

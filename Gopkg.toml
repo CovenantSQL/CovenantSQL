@@ -33,6 +33,10 @@
   branch = "master"
 
 [[override]]
+  name = "github.com/CovenantSQL/go-sqlite3-encrypt"
+  branch = "master"
+
+[[override]]
   name = "github.com/prometheus/client_golang"
   branch = "master"
 

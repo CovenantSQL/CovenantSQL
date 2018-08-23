@@ -13,6 +13,7 @@ before_script:
 #  - go get github.com/haya14busa/goverage
 #  - go get github.com/golang/lint/golint
 #  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
+  - go get github.com/wadey/gocovmerge
   - mkdir -p $GOPATH/src/gitlab.com/
   - cp -r /builds/thunderdb $GOPATH/src/gitlab.com/
   - cd $GOPATH/src/gitlab.com/thunderdb/ThunderDB
@@ -23,11 +24,9 @@ before_script:
 test-my-project:
   stage: test
   script:
-    # Remove buggy wifi_linux.go
-    - rm -f vendor/github.com/prometheus/node_exporter/collector/wifi_linux.go
     - bash build.sh
-    - go test -v -race $(go list ./... | grep -v "/vendor/")
-    - goverage -coverprofile=coverage.txt ./...
+    - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+    - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt
     - bash <(curl -s https://codecov.io/bash)
     - >-
       golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=gitlab-mr-commit || true

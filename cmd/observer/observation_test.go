@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
@@ -84,8 +85,8 @@ func startNodes() {
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/leader.out"),
+		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -95,8 +96,8 @@ func startNodes() {
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower1.out"),
+		[]string{"-config", FJ(testWorkingDir, "./observation/node_1/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -106,8 +107,8 @@ func startNodes() {
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower2.out"),
+		[]string{"-config", FJ(testWorkingDir, "./observation/node_2/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -119,10 +120,11 @@ func startNodes() {
 	time.Sleep(time.Second * 3)
 
 	// start 3miners
+	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner0.out"),
+		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner0.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -130,10 +132,12 @@ func startNodes() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+
+	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner1.out"),
+		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner1.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -141,10 +145,12 @@ func startNodes() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+
+	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner2.out"),
+		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner2.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -214,7 +220,7 @@ func TestFullProcess(t *testing.T) {
 		time.Sleep(10 * time.Second)
 
 		var err error
-		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
 		// create
@@ -283,22 +289,27 @@ func TestFullProcess(t *testing.T) {
 		cfg, err := client.ParseDSN(dsn)
 		dbID := cfg.DatabaseID
 
+		// remove previous observation result
+		os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
+
 		var observerCmd *exec.Cmd
 		observerCmd, err = utils.RunCommandNB(
-			FJ(baseDir, "./bin/thunderobserver"),
-			[]string{"-config", FJ(testWorkingDir, "./integration/node_observer/config.yaml"),
-				"-database", dbID, "-reset", "oldest"},
+			FJ(baseDir, "./bin/thunderobserver.test"),
+			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
+				"-database", dbID, "-reset", "oldest",
+				"-test.coverprofile", FJ(baseDir, "./cmd/observer/observer.cover.out"),
+			},
 			"observer", testWorkingDir, logDir, true,
 		)
 		So(err, ShouldBeNil)
 
 		defer func() {
-			observerCmd.Process.Kill()
+			observerCmd.Process.Signal(os.Interrupt)
 			observerCmd.Wait()
 		}()
 
-		// wait for the observer to collect blocks
-		time.Sleep(blockProducePeriod * 3 / 2)
+		// wait for the observer to collect blocks, two periods is enough
+		time.Sleep(blockProducePeriod * 2)
 
 		// test get genesis block by height
 		res, err := getJSON("height/%v/0", dbID)

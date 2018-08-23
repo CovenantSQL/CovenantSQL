@@ -783,8 +783,7 @@ func (c *Chain) sync() error {
 			// TODO(lambda): fetch blocks and txes.
 			c.rt.setNextTurn()
 			// TODO(lambda): remove it after implementing fetch
-			h := c.st.getHeight()
-			c.st.setHeight(h + 1)
+			c.st.increaseHeightByOne()
 		}
 	}
 

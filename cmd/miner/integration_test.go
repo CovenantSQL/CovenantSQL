@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -80,7 +81,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -91,7 +92,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -102,7 +103,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderdbd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -114,10 +115,11 @@ func startNodes() {
 	time.Sleep(time.Second * 3)
 
 	// start 3miners
+	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner0.out"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner0.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -125,10 +127,12 @@ func startNodes() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+
+	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner1.out"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner1.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -136,10 +140,12 @@ func startNodes() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+
+	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/thunderminerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./node_miner_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner2.out"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner2.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {

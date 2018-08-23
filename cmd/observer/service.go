@@ -161,8 +161,6 @@ func NewService() (service *Service, err error) {
 		return
 	}
 
-	// start subscription
-
 	return
 }
 

@@ -27,8 +27,8 @@ import (
 	"gitlab.com/thunderdb/ThunderDB/twopc"
 	"gitlab.com/thunderdb/ThunderDB/utils/log"
 
-	// Register go-sqlite3 engine.
-	_ "github.com/mattn/go-sqlite3"
+	// Register CovenantSQL/go-sqlite3-encrypt engine.
+	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 var (

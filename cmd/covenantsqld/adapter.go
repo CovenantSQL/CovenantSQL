@@ -438,7 +438,7 @@ func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err e
 			continue
 		}
 
-		if err = utils.DecodeMsgPack(rawInstanceMeta, &instance); err != nil {
+		if err = utils.DecodeMsgPackPlain(rawInstanceMeta, &instance); err != nil {
 			continue
 		}
 

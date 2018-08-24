@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -158,6 +159,9 @@ func main() {
 					log.Fatalf("decode msgpack failed: %v", err)
 					return
 				}
+
+				// set genesis block to now
+				newInstance.GenesisBlock.SignedHeader.Timestamp = time.Now().UTC()
 
 				if err := newInstance.GenesisBlock.PackAndSignBlock(privateKey); err != nil {
 					log.Fatalf("sign genesis block failed: %v", err)

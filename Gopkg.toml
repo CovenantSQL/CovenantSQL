@@ -25,12 +25,6 @@
 #   unused-packages = true
 
 [[override]]
-  name = "github.com/rqlite/rqlite"
-  source = "https://github.com/thunderdb/rqlite.git"
-  branch = "master"
-#  revision = "4188c50"
-
-[[override]]
   name = "github.com/thunderdb/logrus"
   branch = "master"
 
@@ -39,7 +33,7 @@
   branch = "master"
 
 [[override]]
-  name = "github.com/thunderdb/rqlite"
+  name = "github.com/CovenantSQL/go-sqlite3-encrypt"
   branch = "master"
 
 [[override]]
@@ -48,10 +42,6 @@
 
 [[override]]
   name = "github.com/prometheus/node_exporter"
-  branch = "master"
-
-[[override]]
-  name = "github.com/hashicorp/raft"
   branch = "master"
 
 [prune]

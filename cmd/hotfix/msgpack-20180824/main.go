@@ -17,15 +17,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"flag"
 	"os/exec"
 
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 var (
@@ -34,6 +39,52 @@ var (
 
 func init() {
 	flag.StringVar(&dhtFile, "dhtFile", "dht.db", "dht database file to fix")
+}
+
+type OldBlock ct.Block
+
+func (b *OldBlock) MarshalBinary() ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+
+	if err := WriteElements(buffer, binary.BigEndian,
+		b.SignedHeader.Version,
+		b.SignedHeader.Producer,
+		&b.SignedHeader.GenesisHash,
+		&b.SignedHeader.ParentHash,
+		&b.SignedHeader.MerkleRoot,
+		b.SignedHeader.Timestamp,
+		&b.SignedHeader.BlockHash,
+		b.SignedHeader.Signee,
+		b.SignedHeader.Signature,
+		b.Queries,
+	); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+
+}
+
+func (b *OldBlock) UnmarshalBinary(data []byte) error {
+	reader := bytes.NewReader(data)
+	return ReadElements(reader, binary.BigEndian,
+		&b.SignedHeader.Version,
+		&b.SignedHeader.Producer,
+		&b.SignedHeader.GenesisHash,
+		&b.SignedHeader.ParentHash,
+		&b.SignedHeader.MerkleRoot,
+		&b.SignedHeader.Timestamp,
+		&b.SignedHeader.BlockHash,
+		&b.SignedHeader.Signee,
+		&b.SignedHeader.Signature,
+		&b.Queries)
+}
+
+type ServiceInstance struct {
+	DatabaseID   proto.DatabaseID
+	Peers        *kayak.Peers
+	ResourceMeta wt.ResourceMeta
+	GenesisBlock *OldBlock
 }
 
 func main() {
@@ -69,7 +120,7 @@ func main() {
 			continue
 		}
 
-		var instance wt.ServiceInstance
+		var instance ServiceInstance
 
 		id := string(row[0].([]byte))
 		rawInstance := row[1].([]byte)
@@ -81,8 +132,19 @@ func main() {
 
 		log.Infof("database is: %v -> %v", id, instance)
 
+		// copy instance to new type
+		var newInstance wt.ServiceInstance
+
+		newInstance.DatabaseID = instance.DatabaseID
+		newInstance.Peers = instance.Peers
+		newInstance.ResourceMeta = instance.ResourceMeta
+		newInstance.GenesisBlock = &ct.Block{
+			SignedHeader: instance.GenesisBlock.SignedHeader,
+			Queries:      instance.GenesisBlock.Queries,
+		}
+
 		// encode and put back to database
-		rawInstanceBuffer, err := utils.EncodeMsgPack(rawInstance)
+		rawInstanceBuffer, err := utils.EncodeMsgPack(newInstance)
 		if err != nil {
 			log.Fatalf("encode msgpack failed: %v", err)
 			return

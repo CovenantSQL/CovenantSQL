@@ -11,6 +11,7 @@ kayak_test
 *.db
 *.db-shm
 *.db-wal
+.DS_Store
 
 # Binaries for programs and plugins
 bin/

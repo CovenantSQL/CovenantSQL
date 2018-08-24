@@ -22,8 +22,11 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"flag"
+	"fmt"
 	"os/exec"
+	"strings"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
@@ -34,40 +37,30 @@ import (
 )
 
 var (
-	dhtFile string
+	dhtFile    string
+	privateKey string
 )
 
 func init() {
 	flag.StringVar(&dhtFile, "dhtFile", "dht.db", "dht database file to fix")
+	flag.StringVar(&privateKey, "private", "private.key", "private key to use for signing")
 }
 
 type OldBlock ct.Block
 
 func (b *OldBlock) MarshalBinary() ([]byte, error) {
-	buffer := bytes.NewBuffer(nil)
-
-	if err := WriteElements(buffer, binary.BigEndian,
-		b.SignedHeader.Version,
-		b.SignedHeader.Producer,
-		&b.SignedHeader.GenesisHash,
-		&b.SignedHeader.ParentHash,
-		&b.SignedHeader.MerkleRoot,
-		b.SignedHeader.Timestamp,
-		&b.SignedHeader.BlockHash,
-		b.SignedHeader.Signee,
-		b.SignedHeader.Signature,
-		b.Queries,
-	); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-
+	return nil, nil
 }
 
-func (b *OldBlock) UnmarshalBinary(data []byte) error {
+func (b *OldBlock) UnmarshalBinary(data []byte) (err error) {
 	reader := bytes.NewReader(data)
-	return ReadElements(reader, binary.BigEndian,
+	var headerBuf []byte
+
+	if err = ReadElements(reader, binary.BigEndian, &headerBuf); err != nil {
+		return
+	}
+
+	if err = ReadElements(bytes.NewReader(headerBuf), binary.BigEndian,
 		&b.SignedHeader.Version,
 		&b.SignedHeader.Producer,
 		&b.SignedHeader.GenesisHash,
@@ -76,8 +69,12 @@ func (b *OldBlock) UnmarshalBinary(data []byte) error {
 		&b.SignedHeader.Timestamp,
 		&b.SignedHeader.BlockHash,
 		&b.SignedHeader.Signee,
-		&b.SignedHeader.Signature,
-		&b.Queries)
+		&b.SignedHeader.Signature); err != nil {
+		return
+	}
+
+	err = ReadElements(reader, binary.BigEndian, &b.Queries)
+	return
 }
 
 type ServiceInstance struct {
@@ -91,6 +88,13 @@ func main() {
 	flag.Parse()
 
 	log.Infof("start hotfix")
+
+	// load private key
+	privateKey, err := kms.LoadPrivateKey(privateKey, []byte(""))
+	if err != nil {
+		log.Fatalf("load private key failed: %v", err)
+		return
+	}
 
 	// backup dht file
 	if err := exec.Command("cp", "-av", dhtFile, dhtFile+".bak").Run(); err != nil {
@@ -113,35 +117,55 @@ func main() {
 		return
 	}
 
-	log.Infof("rows: %v", rows)
-
 	for _, row := range rows {
 		if len(row) <= 0 {
 			continue
 		}
 
-		var instance ServiceInstance
-
 		id := string(row[0].([]byte))
 		rawInstance := row[1].([]byte)
 
-		if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {
-			log.Fatalf("decode msgpack failed: %v", err)
-			return
-		}
-
-		log.Infof("database is: %v -> %v", id, instance)
+		// test decode
+		var testDecode interface{}
 
 		// copy instance to new type
 		var newInstance wt.ServiceInstance
 
-		newInstance.DatabaseID = instance.DatabaseID
-		newInstance.Peers = instance.Peers
-		newInstance.ResourceMeta = instance.ResourceMeta
-		newInstance.GenesisBlock = &ct.Block{
-			SignedHeader: instance.GenesisBlock.SignedHeader,
-			Queries:      instance.GenesisBlock.Queries,
+		if err := utils.DecodeMsgPackPlain(rawInstance, &testDecode); err != nil {
+			log.Fatalf("test decode failed: %v", err)
+		} else {
+			// detect if the genesis block is in old version
+			if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"GenesisBlock\":[]uint8") {
+				log.Info("detected old version")
+				var instance ServiceInstance
+
+				if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {
+					log.Fatalf("decode msgpack failed: %v", err)
+					return
+				}
+
+				newInstance.DatabaseID = instance.DatabaseID
+				newInstance.Peers = instance.Peers
+				newInstance.ResourceMeta = instance.ResourceMeta
+				newInstance.GenesisBlock = &ct.Block{
+					SignedHeader: instance.GenesisBlock.SignedHeader,
+					Queries:      instance.GenesisBlock.Queries,
+				}
+			} else {
+				log.Info("detected new version, need re-signature")
+
+				if err := utils.DecodeMsgPack(rawInstance, &newInstance); err != nil {
+					log.Fatalf("decode msgpack failed: %v", err)
+					return
+				}
+
+				if err := newInstance.GenesisBlock.PackAndSignBlock(privateKey); err != nil {
+					log.Fatalf("sign genesis block failed: %v", err)
+				}
+			}
 		}
+
+		log.Infof("database is: %v -> %v", id, newInstance)
 
 		// encode and put back to database
 		rawInstanceBuffer, err := utils.EncodeMsgPack(newInstance)
@@ -154,7 +178,7 @@ func main() {
 
 		if _, err := st.Exec(context.Background(), []storage.Query{
 			{
-				Pattern: "UPDATE `database` SET `meta` = ? WHERE `id` = ?",
+				Pattern: "UPDATE `databases` SET `meta` = ? WHERE `id` = ?",
 				Args: []sql.NamedArg{
 					{
 						Value: rawInstance,

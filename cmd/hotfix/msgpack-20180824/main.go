@@ -71,7 +71,7 @@ func main() {
 
 		var instance wt.ServiceInstance
 
-		id := row[0].(string)
+		id := string(row[0].([]byte))
 		rawInstance := row[1].([]byte)
 
 		if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {

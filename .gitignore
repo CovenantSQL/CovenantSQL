@@ -12,6 +12,7 @@ kayak_test
 *.db-shm
 *.db-wal
 .DS_Store
+msgpack-20180824
 
 # Binaries for programs and plugins
 bin/

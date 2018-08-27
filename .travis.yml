@@ -4,7 +4,7 @@ env:
     - secure: "CNZXODvXHMB0z6Z+Jd8MjzP+RYgRzkykRNpZdCDCo6AC57BpV5U20Mn9o2MGhTA9lMgtyNXXEaQxeIGZMFp3iB2UHiPif1UD4C0uDttytTuCcmHMlBIVP8GiNcAexi1Zv2SchM1k8z3tw5zDhkYMwjs/4ZsGVXHa1ip/UzpZaJBPl9D64wedJxZGBjS/Kn9IZTrMkL2otr8rKk0ZFMtwDkHKdjfikZ+PAlkYpX2a2Dp69HTLbEtx+ugocNj02hzgVYNpFXA1K0CulyCYJq7oqdx0UFbtKEd3urYFWfmxEZSg6SoHcIujC+/BKfZELFyA3uomp+cLpGaRlEp/iAlj/ixTo4iFtu6XdDOim4J9ZVtNSg6DdDstL9uhxCu+vca/ntViGfyw6CF0hKcHTZvlH2awiV1njmHFdRvoaMy/1fdw1JAV9O7ylU3bV5GrF6fMQ1CpweYCnF3IMpvvwdeUnGR6NPvqjybcnyXoTXZ139PxfWzbUzSG8KbOvzt1aVhWF5184b8fqhN3768Y1stke+FjFpARqlPVsfzS7fnn5kx8zZ5nfmwZjnL/WFob24mvm+/9e7IsfWmeEQdFspD+spBE4WOta7tegqh5ANNfM2owd9evtH5kqlCLeAVD3LMs69ZQW45KS0rDJpY8+ffMWRJRmoM/pweW3CmbHPeb468="
     # https://codecov.io/gh/CovenantSQL/CovenantSQL
     - secure: "iJVHTJ8NNzb3UKgh8VRXZg+XVXxcnH10dPDyg44Osp67bkwB46nIDAgDvPRZCX4Kr2Q7FCip1DT1DzkcxCBqCD7XgSsvtoP05kckWZf5dUp2qdaaBgFBR5F2ijhTgpqSG2/MZyY/9DRZhfd/DTywo4K4cGRGpjUYm7BSmR/5ou1Dk6CksoPFMwkE0zHVdRBkRoMaqqVGl9uxFyU6ssZ9IFsLbbSiJ+/iFZDbfBMuzhpxziJ4Oli1LrveEMCCnwKFgVURD3bVUtHrpdQ1RNJQzjkM8tvtilrh3Sf5X9+sJ8K+N1NnzDJiPnEZfkd69vDSh5gEivgIg3j9zIgQGfreDoKCOTfEgzGxRaPusokLQUyDGcU0ZMtLV3mzikeWJ1nUv7jOR8RF97KoJL/ZEgK5Owh5w3WhA+EcvuWC5gggi5Lx2mf7AK6zbm5JiOomBZLINKnygT+tHOKbuglDgP2UL7OBDE3xCI+WT4q3Zz6VKuNdwEFv81Qg925QFr9ifZlCPSzaNHkepEGji++3yFaEPTEtS3TzM+DTqOefU/I1q4IFvgHRMh4M7AbYQPx1m6H/2kk9xwycMD6HtHHwA9Yk2jnMUM085lL1W3A2gEn3V73lm99jQuECW8AgYQ3o9J8BpuVuZnH9n5uXjyFPrhc2tCUPDrBes/phFfJycSrGq0Y="
-    - REVIEWDOG_VERSION=0.9.8
+    - REVIEWDOG_VERSION=0.9.9
 language: go
 go:
   - '1.10'
@@ -15,12 +15,12 @@ matrix:
   fast_finish: true
 install:
   # Setup dependency management tool
-  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
-  - chmod +x $GOPATH/bin/dep
-  - go get github.com/mattn/goveralls
-  - go get github.com/haya14busa/goverage
+#  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
+#  - chmod +x $GOPATH/bin/dep
+#  - go get github.com/mattn/goveralls
+  - go get github.com/wadey/gocovmerge
   - go get github.com/golang/lint/golint
-  - dep ensure
+#  - dep ensure
   - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
   - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 before_script:
@@ -33,8 +33,8 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - bash build.sh
-  - go test -v -race $(go list ./... | grep -v "/vendor/")
-  - goverage -coverprofile=coverage.txt ./...
+  - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+  - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -ci=travis

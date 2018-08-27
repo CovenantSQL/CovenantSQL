@@ -8,7 +8,7 @@
 # Or direct overwrite:
 #   ./fmtGoDoc.sed -i path/to/files/*.go
 
-/^\/\/ .*\w\+$/ b init
+/^\/\/ .*$/ b init
 p
 b
 
@@ -25,7 +25,7 @@ b loop
 # Pull next line and branch to next/exit/default
 :loop
 n
-/^\/\/ .*\w\+$/ b next
+/^\/\/ .*$/ b next
 /^\w\+.*$/ b exit
 x
 p
@@ -36,7 +36,7 @@ b
 # Exiting godoc block
 :exit
 x
-s/^\(.*\)$/\1\./
+s/^\(.*[^.]\)$/\1\./
 p
 x
 p

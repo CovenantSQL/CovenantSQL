@@ -330,7 +330,7 @@ func TestStorage(t *testing.T) {
 		}
 	}
 
-	// test with timestmap fields
+	// test with timestamp fields
 	_, err = st.Exec(context.Background(), []Query{
 		newQuery("CREATE TABLE `tm` (tm TIMESTAMP)"),
 		newQuery("INSERT INTO `tm` VALUES(DATE('NOW'))"),

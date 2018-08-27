@@ -135,7 +135,7 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 
 // AdviseBinLog is the RPC method to advise a new binary log to the target server.
 func (s *ChainRPCService) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
-	// TOOD(leventeliu): need implementation.
+	// TODO(leventeliu): need implementation.
 	return nil
 }
 

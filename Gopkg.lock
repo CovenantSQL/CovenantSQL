@@ -11,11 +11,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:85a26c0f2acc7596a55174ac9072a82eaba0c5ebc5f833b0d0bab81243696fd3"
+  digest = "1:c4f4e04fb1f4b1d24f237407834067f297d618913bd4229dee138df863ffdddc"
   name = "github.com/CovenantSQL/go-sqlite3-encrypt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "db26bf90b0d1d8628d4ea3a734276548a6d27477"
+  revision = "88abdaae46b3314973c1746beeff14722dbd73fa"
 
 [[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
@@ -39,7 +39,7 @@
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "d81d8877b8f327112e94e814937143a71d1692a7"
+  revision = "79e00513b1011888b1e675157ab89f527f901cae"
 
 [[projects]]
   branch = "master"
@@ -95,7 +95,7 @@
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
   pruneopts = "UT"
-  revision = "89baedc74dd74098df0c4ba8792e3cf6d722d4d0"
+  revision = "0210a2f0f73c96103378b0b935f39868e5731809"
 
 [[projects]]
   digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
@@ -115,11 +115,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:89658943622e6bc5e76b4da027ee9583fa0b321db0c797bd554edab96c1ca2b1"
+  digest = "1:8090c1e604762fca030d3d9a909e130a3e500389a1567eaf3fefbf24e6134d39"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
+  revision = "cc6d2ea263b2471faabce371255777a365bf8306"
 
 [[projects]]
   branch = "master"
@@ -199,7 +199,7 @@
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
   pruneopts = "UT"
-  revision = "ebce7d0078c0109cbb4de5d50a2b799920b0f0d0"
+  revision = "4eb539fa85a2688054063c3b01d9e86eb01bf999"
 
 [[projects]]
   branch = "master"
@@ -326,18 +326,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "922f4815f713f213882e8ef45e0d315b164d705c"
+  revision = "8a410e7b638dca158bf9e766925842f6651ff828"
 
 [[projects]]
   branch = "master"
-  digest = "1:48774faa158e9eaee1ba45aad66434bb0345927b43756a24d4fe4c44ad79e307"
+  digest = "1:0dafafed83f125cdc945a014b2dec15e5b5d8cd2d77a2d1e3763120b08ab381b"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "3b58ed4ad3395d483fc92d5d14123ce2c3581fec"
+  revision = "4910a1d54f876d7b22162a85f4d066d3ee649450"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"

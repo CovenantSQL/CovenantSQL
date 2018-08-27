@@ -142,7 +142,7 @@ func (r *runtime) queryTimeIsExpired(t time.Time) bool {
 	//
 	// NOTE(leventeliu): as a result, a TTL=1 requires any query to be acknowledged and received
 	// immediately.
-	// Consider the case that a query has happended right before period h, which has height h.
+	// Consider the case that a query has happened right before period h, which has height h.
 	// If its ACK+Roundtrip time>0, it will be seemed as acknowledged in period h+1, or even later.
 	// So, period h+1 has NextHeight h+2, and TimeLived of this query will be 2 at that time - it
 	// has expired.

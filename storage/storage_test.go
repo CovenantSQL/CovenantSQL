@@ -17,6 +17,8 @@
 package storage
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -24,8 +26,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"fmt"
-	"bytes"
 )
 
 var (
@@ -843,7 +843,6 @@ func TestDataPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
-
 
 	content, _ := ioutil.ReadFile(fl.Name())
 	if !bytes.Contains(content, []byte(sampleTexts[0].Key)) {

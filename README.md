@@ -1,12 +1,12 @@
 <img src="logo/logo_blue.png" width=350>
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/thunderdb/ThunderDB?style=flat-square)](https://goreportcard.com/report/github.com/thunderdb/ThunderDB)
+[![Go Report Card](https://goreportcard.com/badge/github.com/CovenantSQL/CovenantSQL?style=flat-square)](https://goreportcard.com/report/github.com/CovenantSQL/CovenantSQL)
 [![pipeline status](https://github.com/CovenantSQL/CovenantSQL/badges/develop/pipeline.svg)](https://github.com/CovenantSQL/CovenantSQL/commits/develop)
 [![Coverage gitlab](https://github.com/CovenantSQL/CovenantSQL/badges/develop/coverage.svg)](https://github.com/CovenantSQL/CovenantSQL/commits/develop)
 [![Coverage](https://codecov.io/gl/thunderdb/ThunderDB/branch/develop/graph/badge.svg)](https://codecov.io/gl/thunderdb/ThunderDB)
 [![Build Status](https://travis-ci.org/thunderdb/ThunderDB.png?branch=develop)](https://travis-ci.org/thunderdb/ThunderDB)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/thunderdb/ThunderDB)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CovenantSQL/CovenantSQL)
 
 ## What is ThunderDB?
 
@@ -42,7 +42,7 @@ In addition, [dep](https://github.com/golang/dep) is required to manage dependen
 Clone the ThunderDB repo:
 
 ```
-git clone https://github.com/thunderdb/ThunderDB.git
+git clone https://github.com/CovenantSQL/CovenantSQL.git
 cd ThunderDB
 ```
 
@@ -54,7 +54,7 @@ dep ensure -v
 ```
 
 ## API
-- The source code is periodically indexed: [ThunderDB API](https://godoc.org/github.com/thunderdb/ThunderDB)
+- The source code is periodically indexed: [ThunderDB API](https://godoc.org/github.com/CovenantSQL/CovenantSQL)
 
 ## Key Technologies Explaination
 
@@ -76,7 +76,7 @@ dep ensure -v
 ## Support
 
 - [mail us](mailto:webmaster@thunderdb.io)
-- [submit issue](https://github.com/thunderdb/ThunderDB/issues/new)
+- [submit issue](https://github.com/CovenantSQL/CovenantSQL/issues/new)
 
 
 

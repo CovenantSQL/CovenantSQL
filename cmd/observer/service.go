@@ -194,7 +194,7 @@ func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string
 	shouldStartSubscribe := false
 
 	if resetSubscribePosition != "" {
-		fromPos := ct.ReplicateFromNewest
+		var fromPos int32
 
 		switch resetSubscribePosition {
 		case "newest":

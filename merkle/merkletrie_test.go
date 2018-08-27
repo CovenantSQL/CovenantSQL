@@ -27,25 +27,10 @@ func TestMergeTwoHash(t *testing.T) {
 
 func TestNewMerkle(t *testing.T) {
 	tests := [][]*hash.Hash{
-		[]*hash.Hash{},
-		[]*hash.Hash{
-			&hash.Hash{},
-			&hash.Hash{},
-			&hash.Hash{},
-		},
-		[]*hash.Hash{
-			&hash.Hash{},
-			&hash.Hash{},
-			&hash.Hash{},
-			&hash.Hash{},
-		},
-		[]*hash.Hash{
-			&hash.Hash{},
-			&hash.Hash{},
-			&hash.Hash{},
-			&hash.Hash{},
-			&hash.Hash{},
-		},
+		{},
+		{{}, {}, {}},
+		{{}, {}, {}, {}},
+		{{}, {}, {}, {}, {}},
 	}
 	Convey("Two root hashes should be the same", t, func() {
 		for i := range tests {
@@ -85,7 +70,7 @@ func buildMerkleTreeStore(hashes []*hash.Hash) []*hash.Hash {
 	// Calculate how many entries are required to hold the binary merkle
 	// tree as a linear array and create an array of that size.
 	if hashes == nil || len(hashes) == 0 {
-		hashes = []*hash.Hash{&hash.Hash{}}
+		hashes = []*hash.Hash{{}}
 	}
 
 	nextPoT := nextPowerOfTwo(len(hashes))

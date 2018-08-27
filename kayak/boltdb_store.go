@@ -49,7 +49,7 @@ type BoltStore struct {
 	path string
 }
 
-// Options contains all the configuraiton used to open the BoltDB
+// Options contains all the configuration used to open the BoltDB
 type Options struct {
 	// Path is the file path to the BoltDB to use
 	Path string

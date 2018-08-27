@@ -37,4 +37,4 @@ script:
   - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)
   - >-
-    golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -ci=travis
+    golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true

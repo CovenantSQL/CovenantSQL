@@ -2,10 +2,10 @@
 
 case "${COVENANT_ROLE}" in
 miner)
-    exec /app/thunderminerd -config "${COVENANT_CONF}"
+    exec /app/covenantminerd -config "${COVENANT_CONF}"
     ;;
 blockproducer)
-    exec /app/thunderdbd -config "${COVENANT_CONF}"
+    exec /app/covenantsqld -config "${COVENANT_CONF}"
     ;;
 esac
 

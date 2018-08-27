@@ -10,12 +10,12 @@ import (
 
 func TestMarshalHashAccountStable(t *testing.T) {
 	v := Account{
-		Address:            proto.AccountAddress{0x10},
-		StableCoinBalance:  10,
-		ThunderCoinBalance: 10,
-		SQLChains:          []proto.DatabaseID{"aaa", "bbb"},
-		Roles:              []byte{0x10, 0x10},
-		Rating:             1110,
+		Address:             proto.AccountAddress{0x10},
+		StableCoinBalance:   10,
+		CovenantCoinBalance: 10,
+		SQLChains:           []proto.DatabaseID{"aaa", "bbb"},
+		Roles:               []byte{0x10, 0x10},
+		Rating:              1110,
 		TxBillings: []*hash.Hash{
 			{0x10},
 			{0x20},
@@ -37,24 +37,24 @@ func TestMarshalHashAccountStable(t *testing.T) {
 // test different type and member name but same data type and content hash identical
 func TestMarshalHashAccountStable2(t *testing.T) {
 	v1 := Account{
-		Address:            proto.AccountAddress{0x10},
-		StableCoinBalance:  10,
-		ThunderCoinBalance: 10,
-		SQLChains:          []proto.DatabaseID{"aaa", "bbb"},
-		Roles:              []byte{0x10, 0x10},
-		Rating:             1110,
+		Address:             proto.AccountAddress{0x10},
+		StableCoinBalance:   10,
+		CovenantCoinBalance: 10,
+		SQLChains:           []proto.DatabaseID{"aaa", "bbb"},
+		Roles:               []byte{0x10, 0x10},
+		Rating:              1110,
 		TxBillings: []*hash.Hash{
 			{0x10},
 			{0x20},
 		},
 	}
 	v2 := Account4test{
-		Address1:            proto.AccountAddress{0x10},
-		StableCoinBalance1:  10,
-		ThunderCoinBalance1: 10,
-		SQLChains1:          []proto.DatabaseID{"aaa", "bbb"},
-		Roles1:              []byte{0x10, 0x10},
-		Rating1:             1110,
+		Address1:             proto.AccountAddress{0x10},
+		StableCoinBalance1:   10,
+		CovenantCoinBalance1: 10,
+		SQLChains1:           []proto.DatabaseID{"aaa", "bbb"},
+		Roles1:               []byte{0x10, 0x10},
+		Rating1:              1110,
 		TxBillings1: []*hash.Hash{
 			{0x10},
 			{0x20},

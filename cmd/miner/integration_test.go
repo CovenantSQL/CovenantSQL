@@ -79,7 +79,7 @@ func startNodes() {
 	// start 3bps
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd.test"),
+		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
 		},
@@ -90,7 +90,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd.test"),
+		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
 		},
@@ -101,7 +101,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd.test"),
+		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
 		},
@@ -117,7 +117,7 @@ func startNodes() {
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner0.cover.out"),
 		},
@@ -130,7 +130,7 @@ func startNodes() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner1.cover.out"),
 		},
@@ -143,7 +143,7 @@ func startNodes() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner2.cover.out"),
 		},

@@ -32,24 +32,24 @@ const (
 
 // Account store its balance, and other mate data
 type Account struct {
-	Address            proto.AccountAddress
-	StableCoinBalance  uint64
-	ThunderCoinBalance uint64
-	SQLChains          []proto.DatabaseID
-	Roles              []byte
-	Rating             float64
-	TxBillings         []*hash.Hash
+	Address             proto.AccountAddress
+	StableCoinBalance   uint64
+	CovenantCoinBalance uint64
+	SQLChains           []proto.DatabaseID
+	Roles               []byte
+	Rating              float64
+	TxBillings          []*hash.Hash
 }
 
 // Account4test store its balance, and other mate data
 type Account4test struct {
-	Address1            proto.AccountAddress
-	StableCoinBalance1  uint64
-	ThunderCoinBalance1 uint64
-	SQLChains1          []proto.DatabaseID
-	Roles1              []byte
-	Rating1             float64
-	TxBillings1         []*hash.Hash
+	Address1             proto.AccountAddress
+	StableCoinBalance1   uint64
+	CovenantCoinBalance1 uint64
+	SQLChains1           []proto.DatabaseID
+	Roles1               []byte
+	Rating1              float64
+	TxBillings1          []*hash.Hash
 }
 
 // AppendSQLChainAndRole add the sql chain include the account and its related role

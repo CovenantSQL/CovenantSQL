@@ -37,15 +37,15 @@ const (
 )
 
 func init() {
-	sql.Register("covenantsql", new(thunderDBDriver))
+	sql.Register("covenantsql", new(covenantSQLDriver))
 }
 
-// thunderDBDriver implements sql.Driver interface.
-type thunderDBDriver struct {
+// covenantSQLDriver implements sql.Driver interface.
+type covenantSQLDriver struct {
 }
 
 // Open returns new db connection.
-func (d *thunderDBDriver) Open(dsn string) (conn driver.Conn, err error) {
+func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 	var cfg *Config
 	if cfg, err = ParseDSN(dsn); err != nil {
 		return

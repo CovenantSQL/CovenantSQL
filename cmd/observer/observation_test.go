@@ -84,7 +84,7 @@ func startNodes() {
 	// start 3bps
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd.test"),
+		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/observer/leader.cover.out"),
 		},
@@ -95,7 +95,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd.test"),
+		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower1.cover.out"),
 		},
@@ -106,7 +106,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd.test"),
+		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower2.cover.out"),
 		},
@@ -122,7 +122,7 @@ func startNodes() {
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner0.cover.out"),
 		},
@@ -135,7 +135,7 @@ func startNodes() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner1.cover.out"),
 		},
@@ -148,7 +148,7 @@ func startNodes() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner2.cover.out"),
 		},
@@ -294,7 +294,7 @@ func TestFullProcess(t *testing.T) {
 
 		var observerCmd *exec.Cmd
 		observerCmd, err = utils.RunCommandNB(
-			FJ(baseDir, "./bin/thunderobserver.test"),
+			FJ(baseDir, "./bin/covenantobserver.test"),
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-database", dbID, "-reset", "oldest",
 				"-test.coverprofile", FJ(baseDir, "./cmd/observer/observer.cover.out"),

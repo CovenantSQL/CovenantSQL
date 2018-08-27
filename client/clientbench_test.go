@@ -36,7 +36,7 @@ var (
 
 var FJ = filepath.Join
 
-func BenchmarkThunderDBDriver(b *testing.B) {
+func BenchmarkCovenantSQLDriver(b *testing.B) {
 	var err error
 	log.SetLevel(log.DebugLevel)
 	err = os.Chdir(testWorkingDir)

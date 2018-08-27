@@ -54,13 +54,13 @@ func generateRandomAccount() *Account {
 	}
 
 	account := &Account{
-		Address:            proto.AccountAddress(h),
-		StableCoinBalance:  rand.Uint64(),
-		ThunderCoinBalance: rand.Uint64(),
-		SQLChains:          sqlChains,
-		Roles:              roles,
-		Rating:             rand.Float64(),
-		TxBillings:         txBillings,
+		Address:             proto.AccountAddress(h),
+		StableCoinBalance:   rand.Uint64(),
+		CovenantCoinBalance: rand.Uint64(),
+		SQLChains:           sqlChains,
+		Roles:               roles,
+		Rating:              rand.Float64(),
+		TxBillings:          txBillings,
 	}
 
 	return account

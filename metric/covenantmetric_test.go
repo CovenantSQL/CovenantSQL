@@ -30,8 +30,8 @@ func TestMetrics(t *testing.T) {
 	flag.Parse()
 	log.SetLevel(log.DebugLevel)
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(NewThunderDBCollector())
-	log.Debugf("Gauge Collector 'ThunderDBCollector' registered.")
+	reg.MustRegister(NewCovenantSQLCollector())
+	log.Debugf("Gauge Collector 'CovenantSQLCollector' registered.")
 
 	time.Sleep(1100 * time.Millisecond)
 	Convey("get metric", t, func() {

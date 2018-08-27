@@ -32,7 +32,7 @@ docker run -itd \
     ${BUILD_IMG} tail -f /dev/null
 
 docker exec -it ${BENCH_CONTAIN} bash -c \
-    "cd ${INSIDE_GOPATH}/src/github.com/CovenantSQL/CovenantSQL/client && go test -bench . -run BenchmarkThunderDBDriver"
+    "cd ${INSIDE_GOPATH}/src/github.com/CovenantSQL/CovenantSQL/client && go test -bench . -run BenchmarkCovenantSQLDriver"
 
 docker rm -f ${BENCH_CONTAIN}
 

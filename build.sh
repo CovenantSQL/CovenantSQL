@@ -22,26 +22,26 @@ version=`getversion`
 idminer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/idminer"
 go build -ldflags "-X main.version=${version} ${GOLDFLAGS}"  -o bin/idminer ${idminer_pkgpath}
 
-thunderdbd_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/thunderdbd"
-CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -tags "${platform} sqlite_omit_load_extension" -o bin/thunderdbd ${thunderdbd_pkgpath}
-CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -o bin/thunderdbd.test ${thunderdbd_pkgpath}
+covenantsqld_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/covenantsqld"
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -tags "${platform} sqlite_omit_load_extension" -o bin/covenantsqld ${covenantsqld_pkgpath}
+CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -o bin/covenantsqld.test ${covenantsqld_pkgpath}
 
 miner_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/miner"
-CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/thunderminerd ${miner_pkgpath}
-CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" -o bin/thunderminerd.test ${miner_pkgpath}
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/covenantminerd ${miner_pkgpath}
+CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" -o bin/covenantminerd.test ${miner_pkgpath}
 
 observer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/observer"
-go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/thunderobserver ${observer_pkgpath}
-go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/thunderobserver.test ${observer_pkgpath}
+go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/covenantobserver ${observer_pkgpath}
+go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/covenantobserver.test ${observer_pkgpath}
 
-#echo "build thunderdbd-linux"
-#GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd-linux ${pkgpath}
+#echo "build covenantsqld-linux"
+#GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/covenantsqld-linux ${pkgpath}
 
-#echo "build thunderdbd-osx"
-#GOOS=darwin GOARCH=amd64  go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd-osx ${pkgpath}
+#echo "build covenantsqld-osx"
+#GOOS=darwin GOARCH=amd64  go build -ldflags "-X main.version=${version}"  -o bin/covenantsqld-osx ${pkgpath}
 
-#echo "build thunderdbd-windows"
-#GOOS=windows GOARCH=386  go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd-win ${pkgpath}
+#echo "build covenantsqld-windows"
+#GOOS=windows GOARCH=386  go build -ldflags "-X main.version=${version}"  -o bin/covenantsqld-win ${pkgpath}
 
 echo "done"
 

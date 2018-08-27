@@ -549,12 +549,12 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 			enc := accountBucket.Get(addrAndGas.AccountAddress[:])
 			if enc == nil {
 				accounts[i] = &types.Account{
-					Address:            addrAndGas.AccountAddress,
-					StableCoinBalance:  addrAndGas.GasAmount * uint64(gasprice),
-					ThunderCoinBalance: 0,
-					SQLChains:          []proto.DatabaseID{br.Header.DatabaseID},
-					Roles:              []byte{types.Miner},
-					Rating:             0.0,
+					Address:             addrAndGas.AccountAddress,
+					StableCoinBalance:   addrAndGas.GasAmount * uint64(gasprice),
+					CovenantCoinBalance: 0,
+					SQLChains:           []proto.DatabaseID{br.Header.DatabaseID},
+					Roles:               []byte{types.Miner},
+					Rating:              0.0,
 				}
 			} else {
 				var dec types.Account

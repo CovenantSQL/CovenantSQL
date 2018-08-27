@@ -49,7 +49,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	os.Remove(FJ(testWorkingDir, "./leak/leader/kayak.db"))
 
 	leader, err := utils.RunCommandNB(
-		FJ(baseDir, "./bin/thunderdbd"),
+		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./leak/leader.yaml")},
 		"leak", testWorkingDir, logDir, false,
 	)

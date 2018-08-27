@@ -61,7 +61,7 @@ func (ti *txIndex) addTxBilling(tb *types.TxBilling) error {
 	return nil
 }
 
-// updateLatTxBilling updates the last billing index of specific databaseID
+// updateLatTxBilling updates the last billing index of specific databaseID.
 func (ti *txIndex) updateLastTxBilling(databaseID *proto.DatabaseID, sequenceID uint32) (err error) {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
@@ -76,7 +76,7 @@ func (ti *txIndex) updateLastTxBilling(databaseID *proto.DatabaseID, sequenceID 
 	return
 }
 
-// fetchUnpackedTxBillings fetch all txbillings in index
+// fetchUnpackedTxBillings fetch all txbillings in index.
 func (ti *txIndex) fetchUnpackedTxBillings() []*types.TxBilling {
 	ti.mu.Lock()
 	defer ti.mu.Unlock()
@@ -91,19 +91,19 @@ func (ti *txIndex) fetchUnpackedTxBillings() []*types.TxBilling {
 	return txes
 }
 
-// hasTxBilling look up the specific txbilling in index
+// hasTxBilling look up the specific txbilling in index.
 func (ti *txIndex) hasTxBilling(h *hash.Hash) bool {
 	_, ok := ti.billingHashIndex[*h]
 	return ok
 }
 
-// getTxBilling look up the specific txbilling in index
+// getTxBilling look up the specific txbilling in index.
 func (ti *txIndex) getTxBilling(h *hash.Hash) *types.TxBilling {
 	val := ti.billingHashIndex[*h]
 	return val
 }
 
-// lastSequenceID look up the last sequenceID of specific databaseID
+// lastSequenceID look up the last sequenceID of specific databaseID.
 func (ti *txIndex) lastSequenceID(databaseID *proto.DatabaseID) (uint32, error) {
 	if seqID, ok := ti.lastBillingIndex[databaseID]; ok {
 		return seqID, nil

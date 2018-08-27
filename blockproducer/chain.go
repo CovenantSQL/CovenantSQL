@@ -47,7 +47,7 @@ var (
 	accountAddress proto.AccountAddress
 )
 
-// Chain defines the main chain
+// Chain defines the main chain.
 type Chain struct {
 	db  *bolt.DB
 	bi  *blockIndex
@@ -65,7 +65,7 @@ type Chain struct {
 	stopCh            chan struct{}
 }
 
-// NewChain creates a new blockchain
+// NewChain creates a new blockchain.
 func NewChain(cfg *Config) (*Chain, error) {
 	// open db file
 	db, err := bolt.Open(cfg.DataFile, 0600, nil)
@@ -140,7 +140,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 	return chain, nil
 }
 
-// LoadChain rebuilds the chain from db
+// LoadChain rebuilds the chain from db.
 func LoadChain(cfg *Config) (chain *Chain, err error) {
 	// open db file
 	db, err := bolt.Open(cfg.DataFile, 0600, nil)
@@ -258,7 +258,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	return chain, nil
 }
 
-// checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID
+// checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID.
 func (c *Chain) checkTxBilling(tb *types.TxBilling) (err error) {
 	err = tb.Verify()
 	if err != nil {
@@ -326,7 +326,7 @@ func (c *Chain) checkTx(tx ci.Transaction) (err error) {
 	return
 }
 
-// checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature
+// checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
 func (c *Chain) checkBlock(b *types.Block) (err error) {
 	// TODO(lambda): process block fork
 	if !b.SignedHeader.ParentHash.IsEqual(c.st.getHeader()) {
@@ -714,7 +714,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 // checkBillingRequest checks followings by order:
 // 1. period of sqlchain;
 // 2. request's hash
-// 3. miners' signatures
+// 3. miners' signatures.
 func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 	// period of sqlchain;
 	// TODO(lambda): get and check period and miner list of specific sqlchain
@@ -813,7 +813,7 @@ func (c *Chain) sync() error {
 // Start starts the chain by step:
 // 1. sync the chain
 // 2. goroutine for getting blocks
-// 3. goroutine for getting txes
+// 3. goroutine for getting txes.
 func (c *Chain) Start() error {
 	err := c.sync()
 	if err != nil {

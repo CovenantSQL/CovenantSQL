@@ -29,7 +29,7 @@ import (
 //go:generate hsp
 //hsp:ignore sync.Mutex Mutex
 
-// TxContent defines the customer's billing and block rewards in transaction
+// TxContent defines the customer's billing and block rewards in transaction.
 type TxContent struct {
 	SequenceID     uint32
 	BillingRequest BillingRequest
@@ -41,7 +41,7 @@ type TxContent struct {
 	BillingResponse BillingResponse
 }
 
-// NewTxContent generates new TxContent
+// NewTxContent generates new TxContent.
 func NewTxContent(seqID uint32,
 	bReq *BillingRequest,
 	receivers []*proto.AccountAddress,
@@ -58,7 +58,7 @@ func NewTxContent(seqID uint32,
 	}
 }
 
-// GetHash returns the hash of transaction
+// GetHash returns the hash of transaction.
 func (tb *TxContent) GetHash() (*hash.Hash, error) {
 	b, err := tb.MarshalHash()
 	if err != nil {
@@ -68,7 +68,7 @@ func (tb *TxContent) GetHash() (*hash.Hash, error) {
 	return &h, nil
 }
 
-// TxBilling is a type of tx, that is used to record sql chain billing and block rewards
+// TxBilling is a type of tx, that is used to record sql chain billing and block rewards.
 type TxBilling struct {
 	mutex          sync.Mutex
 	TxContent      TxContent
@@ -80,7 +80,7 @@ type TxBilling struct {
 	SignedBlock    *hash.Hash
 }
 
-// NewTxBilling generates a new TxBilling
+// NewTxBilling generates a new TxBilling.
 func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddress) *TxBilling {
 	return &TxBilling{
 		TxContent:      *txContent,
@@ -109,7 +109,7 @@ func (tb *TxBilling) GetTime() time.Time {
 	return time.Time{}
 }
 
-// Serialize serializes TxBilling using msgpack
+// Serialize serializes TxBilling using msgpack.
 func (tb *TxBilling) Serialize() ([]byte, error) {
 	b, err := utils.EncodeMsgPack(tb)
 	if err != nil {
@@ -119,12 +119,12 @@ func (tb *TxBilling) Serialize() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// Deserialize desrializes TxBilling using msgpack
+// Deserialize desrializes TxBilling using msgpack.
 func (tb *TxBilling) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, tb)
 }
 
-// PackAndSignTx computes tx of TxContent and signs it
+// PackAndSignTx computes tx of TxContent and signs it.
 func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
 	enc, err := tb.TxContent.MarshalHash()
 	if err != nil {
@@ -145,7 +145,7 @@ func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
-// Verify verifies the signature of TxBilling
+// Verify verifies the signature of TxBilling.
 func (tb *TxBilling) Verify() (err error) {
 	var enc []byte
 	if enc, err = tb.TxContent.MarshalHash(); err != nil {
@@ -158,31 +158,31 @@ func (tb *TxBilling) Verify() (err error) {
 	return
 }
 
-// GetDatabaseID gets the database ID
+// GetDatabaseID gets the database ID.
 func (tb *TxBilling) GetDatabaseID() *proto.DatabaseID {
 	return &tb.TxContent.BillingRequest.Header.DatabaseID
 }
 
-// GetSequenceID gets the sequence ID
+// GetSequenceID gets the sequence ID.
 func (tb *TxBilling) GetSequenceID() uint32 {
 	return tb.TxContent.SequenceID
 }
 
-// IsSigned shows whether the tx billing is signed
+// IsSigned shows whether the tx billing is signed.
 func (tb *TxBilling) IsSigned() bool {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()
 	return tb.SignedBlock != nil
 }
 
-// SetSignedBlock sets the tx billing with block hash
+// SetSignedBlock sets the tx billing with block hash.
 func (tb *TxBilling) SetSignedBlock(h *hash.Hash) {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()
 	tb.SignedBlock = h
 }
 
-// GetSignedBlock gets the block hash
+// GetSignedBlock gets the block hash.
 func (tb *TxBilling) GetSignedBlock() *hash.Hash {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()

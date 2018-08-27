@@ -387,7 +387,7 @@ func createRandomString(offset, length int, s *string) {
 }
 
 // createNodes assign Node asymmetric key pair and generate Node.NonceInfo
-// Node.ID = Node.NonceInfo.Hash
+// Node.ID = Node.NonceInfo.Hash.
 func createNodes(pubKey *asymmetric.PublicKey, timeThreshold time.Duration) *proto.Node {
 	node := proto.NewNode()
 	nonce := asymmetric.GetPubKeyNonce(pubKey, proto.NewNodeIDDifficulty, timeThreshold, nil)

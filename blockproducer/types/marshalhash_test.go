@@ -34,7 +34,7 @@ func TestMarshalHashAccountStable(t *testing.T) {
 	}
 }
 
-// test different type and member name but same data type and content hash identical
+// test different type and member name but same data type and content hash identical.
 func TestMarshalHashAccountStable2(t *testing.T) {
 	v1 := Account{
 		Address:             proto.AccountAddress{0x10},

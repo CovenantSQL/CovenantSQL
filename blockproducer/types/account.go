@@ -24,13 +24,13 @@ import (
 
 //go:generate hsp
 
-// SQL Chain role type
+// SQL Chain role type.
 const (
 	Miner byte = iota
 	Customer
 )
 
-// Account store its balance, and other mate data
+// Account store its balance, and other mate data.
 type Account struct {
 	Address             proto.AccountAddress
 	StableCoinBalance   uint64
@@ -41,7 +41,7 @@ type Account struct {
 	TxBillings          []*hash.Hash
 }
 
-// Account4test store its balance, and other mate data
+// Account4test store its balance, and other mate data.
 type Account4test struct {
 	Address1             proto.AccountAddress
 	StableCoinBalance1   uint64
@@ -52,7 +52,7 @@ type Account4test struct {
 	TxBillings1          []*hash.Hash
 }
 
-// AppendSQLChainAndRole add the sql chain include the account and its related role
+// AppendSQLChainAndRole add the sql chain include the account and its related role.
 func (a *Account) AppendSQLChainAndRole(sqlChain *proto.DatabaseID, role byte) {
 	a.SQLChains = append(a.SQLChains, *sqlChain)
 	a.Roles = append(a.Roles, role)

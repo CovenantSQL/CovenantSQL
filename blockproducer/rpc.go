@@ -67,25 +67,25 @@ type AdviseBillingResp struct {
 	Resp *types.BillingResponse
 }
 
-// FetchBlockReq defines a request of the FetchBlock RPC method
+// FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	proto.Envelope
 	Height uint32
 }
 
-// FetchBlockResp defines a response of the FetchBlock RPC method
+// FetchBlockResp defines a response of the FetchBlock RPC method.
 type FetchBlockResp struct {
 	proto.Envelope
 	Height uint32
 	Block  *types.Block
 }
 
-// FetchTxBillingReq defines a request of the FetchTxBilling RPC method
+// FetchTxBillingReq defines a request of the FetchTxBilling RPC method.
 type FetchTxBillingReq struct {
 	proto.Envelope
 }
 
-// FetchTxBillingResp defines a response of the FetchTxBilling RPC method
+// FetchTxBillingResp defines a response of the FetchTxBilling RPC method.
 type FetchTxBillingResp struct {
 	proto.Envelope
 }
@@ -103,18 +103,18 @@ type FetchTxResp struct {
 	Tx ci.Transaction
 }
 
-// AdviseNewBlock is the RPC method to advise a new block to target server
+// AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	s.chain.blocksFromRPC <- req.Block
 	return s.chain.pushBlock(req.Block)
 }
 
-// AdviseTxBilling is the RPC method to advise a new billing tx to target server
+// AdviseTxBilling is the RPC method to advise a new billing tx to target server.
 func (s *ChainRPCService) AdviseTxBilling(req *AdviseTxBillingReq, resp *AdviseTxBillingResp) error {
 	return s.chain.pushTxBilling(req.TxBilling)
 }
 
-// AdviseBillingRequest is the RPC method to advise a new billing request to main chain
+// AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
 func (s *ChainRPCService) AdviseBillingRequest(req *AdviseBillingReq, resp *AdviseBillingResp) error {
 	response, err := s.chain.produceTxBilling(req.Req)
 	if err != nil {

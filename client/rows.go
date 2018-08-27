@@ -21,7 +21,7 @@ import (
 	"io"
 	"strings"
 
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 type rows struct {

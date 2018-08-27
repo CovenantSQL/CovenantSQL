@@ -21,13 +21,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 func TestServiceMap(t *testing.T) {

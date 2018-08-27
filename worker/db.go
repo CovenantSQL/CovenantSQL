@@ -24,16 +24,16 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 const (

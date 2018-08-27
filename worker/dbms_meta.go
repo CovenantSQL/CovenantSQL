@@ -16,7 +16,7 @@
 
 package worker
 
-import "gitlab.com/thunderdb/ThunderDB/proto"
+import "github.com/CovenantSQL/CovenantSQL/proto"
 
 // DBMSMeta defines the meta structure.
 type DBMSMeta struct {

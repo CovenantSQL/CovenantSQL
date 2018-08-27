@@ -20,8 +20,8 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 type blockNode struct {

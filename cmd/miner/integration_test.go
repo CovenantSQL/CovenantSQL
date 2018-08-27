@@ -28,10 +28,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/client"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (

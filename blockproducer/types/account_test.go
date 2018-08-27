@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func TestAccount_MarshalUnmarshaler(t *testing.T) {

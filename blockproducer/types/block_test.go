@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {

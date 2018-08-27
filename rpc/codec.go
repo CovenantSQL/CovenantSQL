@@ -19,7 +19,7 @@ package rpc
 import (
 	"net/rpc"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // NodeAwareServerCodec wraps normal rpc.ServerCodec and inject node id during request process

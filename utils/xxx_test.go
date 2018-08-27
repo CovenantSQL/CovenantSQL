@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func testSetup() {

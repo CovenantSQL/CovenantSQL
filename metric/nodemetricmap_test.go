@@ -19,10 +19,10 @@ package metric
 import (
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	dto "github.com/prometheus/client_model/go"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestCollectServer_FilterNode(t *testing.T) {

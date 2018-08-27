@@ -17,11 +17,11 @@
 package main
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 )
 
 func registerNode() (err error) {

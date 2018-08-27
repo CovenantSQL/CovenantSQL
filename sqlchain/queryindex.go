@@ -21,10 +21,10 @@ package sqlchain
 import (
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 var (

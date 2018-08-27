@@ -16,7 +16,7 @@
 
 package types
 
-import "gitlab.com/thunderdb/ThunderDB/proto"
+import "github.com/CovenantSQL/CovenantSQL/proto"
 
 // GetRequestReq defines GetRequest RPC request entity.
 type GetRequestReq struct {

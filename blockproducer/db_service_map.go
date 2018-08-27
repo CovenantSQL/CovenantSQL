@@ -19,8 +19,8 @@ package blockproducer
 import (
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 // DBMetaPersistence defines database meta persistence api.

@@ -19,8 +19,8 @@ package merkle
 import (
 	"errors"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/tchap/go-patricia/patricia"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 // Trie is a patricia trie

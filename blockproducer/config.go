@@ -19,10 +19,10 @@ package blockproducer
 import (
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 const (

@@ -28,9 +28,9 @@ import (
 
 	"errors"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type RaftTxState int

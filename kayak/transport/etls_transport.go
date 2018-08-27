@@ -20,9 +20,9 @@ import (
 	"context"
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // ETLSTransportConfig defines a transport config with transport id and rpc service related config.

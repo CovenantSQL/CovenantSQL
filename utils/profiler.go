@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var prof struct {

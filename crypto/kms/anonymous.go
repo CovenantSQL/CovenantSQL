@@ -19,7 +19,7 @@ package kms
 import (
 	"strings"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // AnonymousXXX is only used for DHT.Ping

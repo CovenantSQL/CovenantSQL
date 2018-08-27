@@ -17,8 +17,8 @@
 package api
 
 import (
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // NewMuxService create a new transport mux service and register to rpc server.

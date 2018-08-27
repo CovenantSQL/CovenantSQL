@@ -27,10 +27,10 @@ import (
 	"testing/quick"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
-	. "gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	. "github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 const testStorePath = "./test.store"

@@ -19,20 +19,20 @@ cd `dirname $0`
 
 version=`getversion`
 
-idminer_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/idminer"
+idminer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/idminer"
 go build -ldflags "-X main.version=${version} ${GOLDFLAGS}"  -o bin/idminer ${idminer_pkgpath}
 
-thunderdbd_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/thunderdbd"
-CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=B ${GOLDFLAGS}" -tags "${platform} sqlite_omit_load_extension" -o bin/thunderdbd ${thunderdbd_pkgpath}
-CGO_ENABLED=1 go test -coverpkg gitlab.com/thunderdb/ThunderDB/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=B ${GOLDFLAGS}" -o bin/thunderdbd.test ${thunderdbd_pkgpath}
+thunderdbd_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/thunderdbd"
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -tags "${platform} sqlite_omit_load_extension" -o bin/thunderdbd ${thunderdbd_pkgpath}
+CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -o bin/thunderdbd.test ${thunderdbd_pkgpath}
 
-miner_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/miner"
-CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=M ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/thunderminerd ${miner_pkgpath}
-CGO_ENABLED=1 go test -coverpkg gitlab.com/thunderdb/ThunderDB/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=M ${GOLDFLAGS}" -o bin/thunderminerd.test ${miner_pkgpath}
+miner_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/miner"
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/thunderminerd ${miner_pkgpath}
+CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" -o bin/thunderminerd.test ${miner_pkgpath}
 
-observer_pkgpath="gitlab.com/thunderdb/ThunderDB/cmd/observer"
-go build -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=C ${GOLDFLAGS}" -o bin/thunderobserver ${observer_pkgpath}
-go test -coverpkg gitlab.com/thunderdb/ThunderDB/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X gitlab.com/thunderdb/ThunderDB/conf.RoleTag=C ${GOLDFLAGS}" -o bin/thunderobserver.test ${observer_pkgpath}
+observer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/observer"
+go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/thunderobserver ${observer_pkgpath}
+go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/thunderobserver.test ${observer_pkgpath}
 
 #echo "build thunderdbd-linux"
 #GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/thunderdbd-linux ${pkgpath}

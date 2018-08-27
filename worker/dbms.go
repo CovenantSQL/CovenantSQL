@@ -23,15 +23,15 @@ import (
 	"path/filepath"
 	"sync"
 
-	ka "gitlab.com/thunderdb/ThunderDB/kayak/api"
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 const (

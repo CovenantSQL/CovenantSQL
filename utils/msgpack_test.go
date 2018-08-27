@@ -19,8 +19,8 @@ package utils
 import (
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 type msgpackNestedStruct struct {

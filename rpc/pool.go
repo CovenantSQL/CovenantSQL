@@ -20,9 +20,9 @@ import (
 	"net"
 	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/hashicorp/yamux"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // SessPool is the session pool interface

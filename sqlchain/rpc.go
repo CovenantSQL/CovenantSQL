@@ -17,12 +17,12 @@
 package sqlchain
 
 import (
-	pt "gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 // ChainRPCService defines a sql-chain RPC server.

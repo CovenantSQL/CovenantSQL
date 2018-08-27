@@ -16,7 +16,7 @@ before_script:
   - go get github.com/wadey/gocovmerge
   - mkdir -p $GOPATH/src/gitlab.com/
   - cp -r /builds/thunderdb $GOPATH/src/gitlab.com/
-  - cd $GOPATH/src/gitlab.com/thunderdb/ThunderDB
+  - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
 #  - dep ensure
   - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
 #  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog

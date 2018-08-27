@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/route"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/route"
 )
 
 func TestInit(t *testing.T) {

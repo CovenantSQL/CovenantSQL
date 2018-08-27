@@ -17,8 +17,8 @@
 package blockproducer
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 const (

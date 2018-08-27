@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 func TestNewBlockNodeAndIndexKey(t *testing.T) {

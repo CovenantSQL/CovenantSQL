@@ -9,8 +9,8 @@ import (
 
 	"math"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestMergeTwoHash(t *testing.T) {

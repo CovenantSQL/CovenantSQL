@@ -21,14 +21,14 @@ import (
 	"net"
 	"net/rpc"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
-	"gitlab.com/thunderdb/ThunderDB/crypto/etls"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // ServiceMap maps service name to service instance

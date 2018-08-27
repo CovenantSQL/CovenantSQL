@@ -23,17 +23,17 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

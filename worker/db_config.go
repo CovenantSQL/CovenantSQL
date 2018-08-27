@@ -19,9 +19,9 @@ package worker
 import (
 	"time"
 
-	kt "gitlab.com/thunderdb/ThunderDB/kayak/transport"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 )
 
 // DBConfig defines the database config.

@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 )
 
 func Test_AddAndHasTxBilling(t *testing.T) {

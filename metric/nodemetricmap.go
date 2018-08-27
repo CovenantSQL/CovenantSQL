@@ -19,9 +19,9 @@ package metric
 import (
 	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	dto "github.com/prometheus/client_model/go"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // MetricMap is map from metric name to MetricFamily.

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 const (

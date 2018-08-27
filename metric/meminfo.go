@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 const (

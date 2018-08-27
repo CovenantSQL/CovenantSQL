@@ -22,8 +22,8 @@ import (
 	"crypto/rand"
 	"io"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	ec "github.com/btcsuite/btcd/btcec"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 // KeyDerivation .according to ANSI X9.63 we should do a key derivation before using

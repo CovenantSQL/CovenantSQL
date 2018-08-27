@@ -23,9 +23,9 @@ import (
 
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 	"gopkg.in/yaml.v2"
 )
 

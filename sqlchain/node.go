@@ -16,7 +16,7 @@
 
 package sqlchain
 
-import "gitlab.com/thunderdb/ThunderDB/proto"
+import "github.com/CovenantSQL/CovenantSQL/proto"
 
 // BlockID is the hash of block content
 type BlockID string

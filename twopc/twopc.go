@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // Hook are called during 2PC running

@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 func TestConfig(t *testing.T) {

@@ -23,17 +23,17 @@ import (
 	"errors"
 	"os"
 
-	bp "gitlab.com/thunderdb/ThunderDB/blockproducer"
-	"gitlab.com/thunderdb/ThunderDB/consistent"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/route"
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
-	"gitlab.com/thunderdb/ThunderDB/twopc"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	"github.com/CovenantSQL/CovenantSQL/twopc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 const (

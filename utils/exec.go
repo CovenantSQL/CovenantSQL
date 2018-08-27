@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // FJ is short for filepath.Join

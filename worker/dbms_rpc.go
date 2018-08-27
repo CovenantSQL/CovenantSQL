@@ -17,9 +17,9 @@
 package worker
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/route"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 // DBMSRPCService is the rpc endpoint of database management.

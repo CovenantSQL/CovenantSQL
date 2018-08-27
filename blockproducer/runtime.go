@@ -21,10 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/kayak"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // copy from /sqlchain/runtime.go

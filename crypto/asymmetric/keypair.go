@@ -24,10 +24,10 @@ import (
 	"math/big"
 	"time"
 
+	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
-	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // PrivateKeyBytesLen defines the length in bytes of a serialized private key.

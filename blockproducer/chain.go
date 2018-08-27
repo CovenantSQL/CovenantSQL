@@ -21,19 +21,19 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 
-	"gitlab.com/thunderdb/ThunderDB/merkle"
+	"github.com/CovenantSQL/CovenantSQL/merkle"
 
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
-	"gitlab.com/thunderdb/ThunderDB/blockproducer/types"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 var (

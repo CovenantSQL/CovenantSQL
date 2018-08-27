@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"math/bits"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 // HashSize of array used to store hashes.  See Hash.

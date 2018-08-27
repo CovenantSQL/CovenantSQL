@@ -25,8 +25,8 @@ import (
 
 	"errors"
 
-	"gitlab.com/thunderdb/ThunderDB/crypto"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 const (

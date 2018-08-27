@@ -20,7 +20,7 @@ import (
 	"math"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 
 	"unsafe"
 

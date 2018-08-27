@@ -19,8 +19,8 @@ package sqlchain
 import (
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // MuxService defines multiplexing service of sql-chain.

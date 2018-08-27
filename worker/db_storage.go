@@ -19,10 +19,10 @@ package worker
 import (
 	"context"
 
-	"gitlab.com/thunderdb/ThunderDB/sqlchain/storage"
-	"gitlab.com/thunderdb/ThunderDB/twopc"
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	"github.com/CovenantSQL/CovenantSQL/twopc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 // Following contains storage related logic extracted from main database instance definition.

@@ -17,7 +17,7 @@
 package sqlchain
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 // state represents a snapshot of current best chain.

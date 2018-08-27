@@ -21,9 +21,9 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/kms"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const testStorePath1 = "./test.store1"

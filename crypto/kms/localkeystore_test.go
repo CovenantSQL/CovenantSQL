@@ -20,10 +20,10 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
-	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 func TestLocalKeyStore(t *testing.T) {

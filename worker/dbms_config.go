@@ -19,7 +19,7 @@ package worker
 import (
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 var (

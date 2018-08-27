@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"unsafe"
 
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
 

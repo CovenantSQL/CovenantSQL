@@ -17,9 +17,9 @@
 package types
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 
-	"gitlab.com/thunderdb/ThunderDB/proto"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 //go:generate hsp

@@ -19,8 +19,8 @@ package kayak
 import (
 	"errors"
 
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
-	"gitlab.com/thunderdb/ThunderDB/utils"
 )
 
 const (

@@ -25,12 +25,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/gorilla/mux"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
 )
 
 var (

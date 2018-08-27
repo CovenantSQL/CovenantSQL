@@ -103,7 +103,7 @@ func (hook *CallerHook) caller() (relFuncName, caller string) {
 		funcName = details.Name()
 	}
 
-	relFuncName = strings.TrimPrefix(funcName, "gitlab.com/thunderdb/ThunderDB/")
+	relFuncName = strings.TrimPrefix(funcName, "github.com/CovenantSQL/CovenantSQL/")
 	funcLocation := fmt.Sprintf("%s:%d %s", filepath.Base(file), line, relFuncName)
 	return relFuncName, funcLocation
 }

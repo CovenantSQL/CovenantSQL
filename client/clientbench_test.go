@@ -23,8 +23,8 @@ import (
 	"sync"
 	"testing"
 
-	"gitlab.com/thunderdb/ThunderDB/utils"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (

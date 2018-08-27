@@ -22,8 +22,8 @@ import (
 
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 	"gopkg.in/yaml.v2"
 )
 

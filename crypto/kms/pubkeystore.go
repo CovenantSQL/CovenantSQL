@@ -25,15 +25,15 @@ import (
 	"strings"
 	"sync"
 
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/coreos/bbolt"
 	"github.com/ugorji/go/codec"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
-	mine "gitlab.com/thunderdb/ThunderDB/pow/cpuminer"
-	"gitlab.com/thunderdb/ThunderDB/proto"
 )
 
 // PublicKeyStore holds db and bucket name

@@ -8,8 +8,8 @@ import (
 
 	"strings"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func serialize(item interface{}) []byte {

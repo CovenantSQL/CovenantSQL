@@ -22,9 +22,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/miekg/dns"
-	"gitlab.com/thunderdb/ThunderDB/conf"
-	"gitlab.com/thunderdb/ThunderDB/utils/log"
 )
 
 func TestGetSRV(t *testing.T) {

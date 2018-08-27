@@ -17,7 +17,7 @@
 package merkle
 
 import (
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 // Merkle is a merkle tree implementation (https://en.wikipedia.org/wiki/Merkle_tree)

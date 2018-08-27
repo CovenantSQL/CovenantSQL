@@ -21,8 +21,8 @@ import (
 
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/hash"
 )
 
 func TestEnvelope_GetSet(t *testing.T) {

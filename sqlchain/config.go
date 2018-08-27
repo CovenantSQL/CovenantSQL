@@ -19,10 +19,10 @@ package sqlchain
 import (
 	"time"
 
-	"gitlab.com/thunderdb/ThunderDB/kayak"
-	"gitlab.com/thunderdb/ThunderDB/proto"
-	ct "gitlab.com/thunderdb/ThunderDB/sqlchain/types"
-	wt "gitlab.com/thunderdb/ThunderDB/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 // Config represents a sql-chain config.

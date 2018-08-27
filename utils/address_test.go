@@ -19,9 +19,9 @@ package utils
 import (
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/btcsuite/btcutil/base58"
 	. "github.com/smartystreets/goconvey/convey"
-	"gitlab.com/thunderdb/ThunderDB/crypto/asymmetric"
 )
 
 func TestPubKeyHashAndAddressing(t *testing.T) {

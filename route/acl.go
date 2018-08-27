@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ NOTE:
 	1. NodeID = Hash(NodePublicKey + Nonce)
 	1. Every node holds BP's Public Key and gets other node's Public Key from BP
     1. PubKey is verified by ETLS with ECDH
-	1. For more about ETLS: https://github.com/thunderdb/research/wiki/ETLS(Enhanced-Transport-Layer-Security)
+	1. For more about ETLS: https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security)
 
 ACLs:
 	Client -> BP, Request for Allocating DB:

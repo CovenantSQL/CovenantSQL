@@ -107,4 +107,4 @@ Adapter:
     - ./node_c/admin.test.covenantsql.io.pem
   WriteCerts:
     - ./node_c/write.test.covenantsql.io.pem
-  StorageDriver: thunderdb
+  StorageDriver: covenantsql

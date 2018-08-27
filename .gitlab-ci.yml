@@ -1,4 +1,4 @@
-image: thunderdb/build
+image: covenantsql/build
 
 variables:
   REVIEWDOG_VERSION: 0.9.9
@@ -14,8 +14,8 @@ before_script:
 #  - go get github.com/golang/lint/golint
 #  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
   - go get github.com/wadey/gocovmerge
-  - mkdir -p $GOPATH/src/gitlab.com/
-  - cp -r /builds/thunderdb $GOPATH/src/gitlab.com/
+  - mkdir -p $GOPATH/src/github.com/
+  - cp -r /builds/CovenantSQL $GOPATH/src/github.com/
   - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
 #  - dep ensure
   - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
@@ -29,5 +29,5 @@ test-my-project:
     - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
     - bash <(curl -s https://codecov.io/bash)
     - >-
-      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=gitlab-mr-commit || true
+      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-mr-commit || true
 

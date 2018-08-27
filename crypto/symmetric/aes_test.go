@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-const password = "ThunderDB.io"
+const password = "CovenantSQL.io"
 
 func TestEncryptDecryptWithPassword(t *testing.T) {
 	Convey("encrypt & decrypt 0 length bytes with aes256", t, func() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,12 +41,12 @@ import (
 
 var (
 	metaBucket              = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey            = []byte("thunderdb-state")
-	metaBlockIndexBucket    = []byte("thunderdb-block-index-bucket")
-	metaHeightIndexBucket   = []byte("thunderdb-query-height-index-bucket")
-	metaRequestIndexBucket  = []byte("thunderdb-query-request-index-bucket")
-	metaResponseIndexBucket = []byte("thunderdb-query-response-index-bucket")
-	metaAckIndexBucket      = []byte("thunderdb-query-ack-index-bucket")
+	metaStateKey            = []byte("covenantsql-state")
+	metaBlockIndexBucket    = []byte("covenantsql-block-index-bucket")
+	metaHeightIndexBucket   = []byte("covenantsql-query-height-index-bucket")
+	metaRequestIndexBucket  = []byte("covenantsql-query-request-index-bucket")
+	metaResponseIndexBucket = []byte("covenantsql-query-response-index-bucket")
+	metaAckIndexBucket      = []byte("covenantsql-query-ack-index-bucket")
 )
 
 // heightToKey converts a height in int32 to a key in bytes.

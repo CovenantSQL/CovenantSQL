@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,23 +29,23 @@ func TestConfig(t *testing.T) {
 		var cfg *Config
 		var err error
 
-		cfg, err = ParseDSN("thunderdb://db")
+		cfg, err = ParseDSN("covenantsql://db")
 		So(err, ShouldBeNil)
 		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
-		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db")
+		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db")
 
 		// test with parameters
-		cfg, err = ParseDSN("thunderdb://db?debug=true&update_interval=1s")
+		cfg, err = ParseDSN("covenantsql://db?debug=true&update_interval=1s")
 		So(err, ShouldBeNil)
 		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
 		So(cfg.Debug, ShouldBeTrue)
 		So(cfg.PeersUpdateInterval, ShouldEqual, time.Second)
 
 		cfg.Debug = false
-		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db?update_interval=1s")
+		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db?update_interval=1s")
 
 		cfg.Debug = true
 		cfg.PeersUpdateInterval = DefaultPeersUpdateInterval
-		So(cfg.FormatDSN(), ShouldEqual, "thunderdb://db?debug=true")
+		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db?debug=true")
 	})
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,14 +28,14 @@ const historyCount = 2
 
 const updateInterval = 5 * time.Minute
 
-// thunderDBStatsMetrics provide description, value, and value type for thunderDB stat metrics.
+// thunderDBStatsMetrics provide description, value, and value type for CovenantSQL stat metrics.
 type thunderDBStatsMetrics []struct {
 	desc    *prometheus.Desc
 	eval    func(*ThunderDBCollector) float64
 	valType prometheus.ValueType
 }
 
-// ThunderDBCollector collects ThunderDB metrics
+// ThunderDBCollector collects CovenantSQL metrics
 type ThunderDBCollector struct {
 	thunderDBStatHistory [historyCount]int64
 	sync.RWMutex
@@ -57,7 +57,7 @@ func NewThunderDBCollector() prometheus.Collector {
 			{
 				desc: prometheus.NewDesc(
 					thunderDBStatNamespace("db_random"),
-					"ThunderDB random",
+					"CovenantSQL random",
 					nil,
 					nil,
 				),
@@ -110,7 +110,7 @@ func (cc *ThunderDBCollector) updateThunderDBStat() error {
 func ThunderDBIdle(cc *ThunderDBCollector) float64 {
 	cc.RLock()
 	defer cc.RUnlock()
-	//TODO(auxten): implement ThunderDB Idle metric
+	//TODO(auxten): implement CovenantSQL Idle metric
 	return float64(cc.thunderDBStatHistory[0] - cc.thunderDBStatHistory[1])
 }
 

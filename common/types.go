@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package common
 
 const (
-	// AddressLength is the fixed length of a ThunderDB node address.
+	// AddressLength is the fixed length of a CovenantSQL node address.
 	AddressLength = 64
 	// UUIDLength is the fixed length of a UUID.
 	UUIDLength = 16

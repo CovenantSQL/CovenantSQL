@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ func TestStmt(t *testing.T) {
 		defer stopTestService()
 
 		var db *sql.DB
-		db, err = sql.Open("thunderdb", "thunderdb://db")
+		db, err = sql.Open("covenantsql", "covenantsql://db")
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@ import (
 
 var (
 	metaBucket                   = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey                 = []byte("thunderdb-state")
-	metaBlockIndexBucket         = []byte("thunderdb-block-index-bucket")
-	metaTxBillingIndexBucket     = []byte("thunderdb-tx-billing-index-bucket")
-	metaLastTxBillingIndexBucket = []byte("thunderdb-last-tx-billing-index-bucket")
-	metaAccountIndexBucket       = []byte("thunderdb-account-index-bucket")
+	metaStateKey                 = []byte("covenantsql-state")
+	metaBlockIndexBucket         = []byte("covenantsql-block-index-bucket")
+	metaTxBillingIndexBucket     = []byte("covenantsql-tx-billing-index-bucket")
+	metaLastTxBillingIndexBucket = []byte("covenantsql-last-tx-billing-index-bucket")
+	metaAccountIndexBucket       = []byte("covenantsql-account-index-bucket")
 
 	gasprice uint32 = 1
 

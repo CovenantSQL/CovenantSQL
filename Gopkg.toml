@@ -25,7 +25,7 @@
 #   unused-packages = true
 
 [[override]]
-  name = "github.com/thunderdb/logrus"
+  name = "github.com/CovenantSQL/logrus"
   branch = "master"
 
 [[override]]

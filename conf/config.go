@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,8 @@ const (
 	UnknownBuildTag       = "U"
 )
 
-// StartSucceedMessage is printed when thunderDB started successfully
-const StartSucceedMessage = "ThunderDB Started Successfully"
+// StartSucceedMessage is printed when CovenantSQL started successfully
+const StartSucceedMessage = "CovenantSQL Started Successfully"
 
 // RoleTag indicate which role the daemon is playing
 var RoleTag = UnknownBuildTag

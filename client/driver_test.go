@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The ThunderDB Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ func TestCreate(t *testing.T) {
 		var dsn string
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
-		So(dsn, ShouldEqual, "thunderdb://db")
+		So(dsn, ShouldEqual, "covenantsql://db")
 	})
 }
 
@@ -63,7 +63,7 @@ func TestDrop(t *testing.T) {
 		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
-		err = Drop("thunderdb://db")
+		err = Drop("covenantsql://db")
 		So(err, ShouldBeNil)
 	})
 }

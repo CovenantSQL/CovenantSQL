@@ -35,8 +35,6 @@ import (
 )
 
 const (
-	//HACK(auxten) use 1.1.1.1 just for testing now!
-	testDNS = "1.1.1.1"
 	nonceAB = "ab."
 	nonceCD = "cd."
 )
@@ -70,12 +68,12 @@ func NewDNSClient() *DNSClient {
 			Timeout:  8,
 			Attempts: 3,
 		}
+	} else {
+		clientConfig, err = dns.ClientConfigFromFile("/etc/resolv.conf")
+		if err != nil || clientConfig == nil {
+			log.Errorf("can not initialize the local resolver: %s", err)
+		}
 	}
-	clientConfig, err = dns.ClientConfigFromFile("/etc/resolv.conf")
-	if err != nil || clientConfig == nil {
-		log.Errorf("can not initialize the local resolver: %s", err)
-	}
-	clientConfig.Servers[0] = testDNS
 
 	return &DNSClient{
 		msg:  m,

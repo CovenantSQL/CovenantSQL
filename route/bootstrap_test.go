@@ -50,10 +50,62 @@ func TestGetSRV(t *testing.T) {
 	}
 }
 
+func TestDNSClient_GetRecord_failed(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_c/config.yaml")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %v", conf.GConf)
+
+	dc := NewDNSClient()
+	in := dc.GetAAAARecord("non-exist.xxxx")
+	if in != nil {
+		t.Fatal("get AAAA Record should failed")
+	}
+	in = dc.GetARecord("non-exist.xxxx")
+	if in != nil {
+		t.Fatal("get A Record should failed")
+	}
+	in = dc.GetTXTRecord("non-exist.xxxx")
+	if in != nil {
+		t.Fatal("get TXT Record should failed")
+	}
+	in = dc.GetSRVRecords("non-exist.xxxx")
+	if in != nil {
+		t.Fatal("get SRV Record should failed")
+	}
+}
+
 func TestGetBP(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	_, testFile, _, _ := runtime.Caller(0)
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_c/config.yaml")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %v", conf.GConf)
+
+	dc := NewDNSClient()
+	ips, err := dc.GetBPFromDNSSeed(BPDomain)
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	} else {
+		log.Debugf("BP addresses: %v", ips)
+	}
+
+	// not DNSSEC domain
+	ips, err = dc.GetBPFromDNSSeed("_bp._tcp.gridbase.io.")
+	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
+		t.Fatal("should be error")
+	} else {
+		log.Debugf("Error: %v", err)
+	}
+}
+
+func TestGetBPEnforced(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/bootstrap.yaml")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %v", conf.GConf)

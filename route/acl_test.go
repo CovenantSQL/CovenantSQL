@@ -59,11 +59,9 @@ func TestIsPermitted(t *testing.T) {
 	})
 
 	Convey("string RemoteFunc", t, func() {
-		So(fmt.Sprintf("%s", DHTFindNode), ShouldContainSubstring, ".")
-		So(fmt.Sprintf("%s", DHTFindNeighbor), ShouldContainSubstring, ".")
-		So(fmt.Sprintf("%s", DHTPing), ShouldContainSubstring, ".")
-		So(fmt.Sprintf("%s", MetricUploadMetrics), ShouldContainSubstring, ".")
-		So(fmt.Sprintf("%s", KayakCall), ShouldContainSubstring, ".")
+		for i := DHTPing; i <= OBSAdviseNewBlock; i++ {
+			So(fmt.Sprintf("%s", RemoteFunc(i)), ShouldContainSubstring, ".")
+		}
 		So(fmt.Sprintf("%s", RemoteFunc(9999)), ShouldContainSubstring, "Unknown")
 	})
 

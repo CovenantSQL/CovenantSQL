@@ -35,24 +35,6 @@ const (
 	NumberOfRoles
 )
 
-// SQLChainProfile defines a SQLChainProfile related to an account.
-type SQLChainProfile struct {
-	ID      proto.DatabaseID
-	Role    SQLChainRole
-	Deposit uint64
-}
-
-// Account store its balance, and other mate data.
-type Account struct {
-	mu                 sync.Mutex
-	Address            proto.AccountAddress
-	StableCoinBalance  uint64
-	ThunderCoinBalance uint64
-	Rating             float64
-	Profiles           []*SQLChainProfile
-	TxBillings         []*hash.Hash
-}
-
 // safeAdd provides a safe add method with upper overflow check for uint64.
 func safeAdd(x, y *uint64) (err error) {
 	if *x+*y < *x {
@@ -69,6 +51,24 @@ func safeSub(x, y *uint64) (err error) {
 	}
 	*x -= *y
 	return
+}
+
+// SQLChainProfile defines a SQLChainProfile related to an account.
+type SQLChainProfile struct {
+	ID      proto.DatabaseID
+	Role    SQLChainRole
+	Deposit uint64
+}
+
+// Account store its balance, and other mate data.
+type Account struct {
+	mu                 sync.Mutex
+	Address            proto.AccountAddress
+	StableCoinBalance  uint64
+	ThunderCoinBalance uint64
+	Rating             float64
+	Profiles           []*SQLChainProfile
+	TxBillings         []*hash.Hash
 }
 
 // IncreaseAccountStableBalance increases account stable balance by amount.

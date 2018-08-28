@@ -176,12 +176,12 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		stopCh:            make(chan struct{}),
 	}
 
-	err = chain.db.View(func(tx *bolt.Tx) error {
+	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		meta := tx.Bucket(metaBucket[:])
 		err = chain.st.deserialize(meta.Get(metaStateKey))
 
 		if err != nil {
-			return err
+			return
 		}
 
 		var last *blockNode
@@ -189,7 +189,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		blocks := meta.Bucket(metaBlockIndexBucket)
 		nodes := make([]blockNode, blocks.Stats().KeyN)
 
-		err = blocks.ForEach(func(k, v []byte) (err error) {
+		if err = blocks.ForEach(func(k, v []byte) (err error) {
 			block := &types.Block{}
 
 			if err = block.Deserialize(v); err != nil {
@@ -218,41 +218,56 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			last = &nodes[index]
 			index++
 			return err
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 
 		txbillings := meta.Bucket(metaTxBillingIndexBucket)
-		err = txbillings.ForEach(func(k, v []byte) error {
+		if err = txbillings.ForEach(func(k, v []byte) (err error) {
 			txbilling := types.TxBilling{}
 			err = txbilling.Deserialize(v)
 			if err != nil {
-				return err
+				return
 			}
 			chain.ti.addTxBilling(&txbilling)
-			return err
-		})
+			return
+		}); err != nil {
+			return
+		}
 
 		lastTxBillings := meta.Bucket(metaLastTxBillingIndexBucket)
-		err = lastTxBillings.ForEach(func(k, v []byte) error {
+		if err = lastTxBillings.ForEach(func(k, v []byte) (err error) {
 			var databaseID proto.DatabaseID
 			err = utils.DecodeMsgPack(k, &databaseID)
 			if err != nil {
-				return err
+				return
 			}
 
 			var sequenceID uint32
 			err = utils.DecodeMsgPack(v, &sequenceID)
 			if err != nil {
-				return err
+				return
 			}
 
 			chain.ti.updateLastTxBilling(&databaseID, sequenceID)
-			return nil
-		})
+			return
+		}); err != nil {
+			return
+		}
 
-		return err
+		accounts := meta.Bucket(metaAccountIndexBucket)
+		if err = accounts.ForEach(func(k, v []byte) (err error) {
+			acc := &types.Account{}
+			if err = utils.DecodeMsgPack(v, acc); err != nil {
+				return
+			}
+			chain.ai.storeAccount(acc)
+			return
+		}); err != nil {
+			return
+		}
+
+		return
 	})
 	if err != nil {
 		return nil, err

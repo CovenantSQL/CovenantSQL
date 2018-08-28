@@ -21,6 +21,8 @@ import (
 	"reflect"
 	"testing"
 
+	"bytes"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -70,6 +72,20 @@ func TestHeaderMarshalUnmarshaler(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
+	bts1, err := origin.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	bts2, err := dec.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
+	}
+
 	if !reflect.DeepEqual(origin, dec) {
 		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
 	}
@@ -95,6 +111,20 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
+	bts1, err := origin.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	bts2, err := dec.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
+	}
+
 	if !reflect.DeepEqual(origin.Header, dec.Header) {
 		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin.Header, dec.Header)
 	}
@@ -110,9 +140,36 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 
 func TestBlockMarshalUnmarshaler(t *testing.T) {
 	origin, err := createRandomBlock(genesisHash, false)
-
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	}
+	origin2, err := createRandomBlock(genesisHash, false)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	blocks := make(Blocks, 0, 2)
+	blocks = append(blocks, origin)
+	blocks = append(blocks, origin2)
+	blocks = append(blocks, nil)
+
+	blocks2 := make(Blocks, 0, 2)
+	blocks2 = append(blocks2, origin)
+	blocks2 = append(blocks2, origin2)
+	blocks2 = append(blocks2, nil)
+
+	bts1, err := blocks.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	bts2, err := blocks2.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
 	}
 
 	enc, err := utils.EncodeMsgPack(origin)
@@ -125,6 +182,20 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 
 	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	}
+
+	bts1, err = origin.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	bts2, err = dec.MarshalHash()
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
 	}
 
 	if !reflect.DeepEqual(origin, dec) {

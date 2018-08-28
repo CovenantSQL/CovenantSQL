@@ -21,7 +21,10 @@ import (
 	"reflect"
 	"testing"
 
+	"bytes"
+
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -95,6 +98,18 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}
 
+	bts1, err := block.MarshalHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bts2, err := dec.MarshalHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
+	}
+
 	if !reflect.DeepEqual(block, dec) {
 		t.Fatalf("value not match")
 	}
@@ -126,4 +141,18 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 	if err != ErrMerkleRootVerification {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+}
+
+func TestOther_MarshalHash(t *testing.T) {
+	Convey("marshal hash", t, func() {
+		tm := TxType(1)
+		s, err := tm.MarshalHash()
+		So(err, ShouldBeNil)
+		So(s, ShouldNotBeEmpty)
+
+		So(tm.String(), ShouldResemble, "TxUnknown")
+
+		tm = TxType(0)
+		So(tm.String(), ShouldResemble, "TxBilling")
+	})
 }

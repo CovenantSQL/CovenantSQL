@@ -103,6 +103,10 @@ func TestSignedRequestHeader_Sign(t *testing.T) {
 
 			err = req.Verify()
 			So(err, ShouldNotBeNil)
+
+			s, err := req.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 		})
 	})
 }
@@ -163,9 +167,17 @@ func TestRequest_Sign(t *testing.T) {
 			So((*RequestPayload)(nil).Serialize(), ShouldNotBeEmpty)
 			So((*SignedRequestHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
+			s, err := req.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			// test nils
 			req.Header.Signee = nil
 			req.Header.Signature = nil
+
+			s, err = req.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(req.Serialize(), ShouldNotBeEmpty)
 		})
@@ -301,9 +313,17 @@ func TestResponse_Sign(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(&res.Header, ShouldResemble, &rres.Header)
 
+			s, err := res.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			// test nils
 			res.Header.Signee = nil
 			res.Header.Signature = nil
+
+			s, err = res.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(res.Serialize(), ShouldNotBeEmpty)
 		})
@@ -416,9 +436,17 @@ func TestAck_Sign(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(&ack.Header, ShouldResemble, &rack.Header)
 
+			s, err := ack.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			// test nils
 			ack.Header.Signee = nil
 			ack.Header.Signature = nil
+
+			s, err = ack.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(ack.Serialize(), ShouldNotBeEmpty)
 		})
@@ -514,9 +542,17 @@ func TestNoAckReport_Sign(t *testing.T) {
 			So((*NoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
+			s, err := noAck.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			// test nils
 			noAck.Header.Signee = nil
 			noAck.Header.Signature = nil
+
+			s, err = noAck.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(noAck.Serialize(), ShouldNotBeEmpty)
 		})
@@ -675,9 +711,17 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 			So((*AggrNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedAggrNoAckReportHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
+			s, err := aggrNoAck.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			// test nils
 			aggrNoAck.Header.Signee = nil
 			aggrNoAck.Header.Signature = nil
+
+			s, err = aggrNoAck.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(aggrNoAck.Serialize(), ShouldNotBeEmpty)
 		})
@@ -776,9 +820,17 @@ func TestInitServiceResponse_Sign(t *testing.T) {
 			So((*InitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedInitServiceResponseHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
+			s, err := initServiceResponse.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			// test nils
 			initServiceResponse.Header.Signee = nil
 			initServiceResponse.Header.Signature = nil
+
+			s, err = initServiceResponse.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(initServiceResponse.Serialize(), ShouldNotBeEmpty)
 		})
@@ -798,6 +850,10 @@ func TestInitServiceResponse_Sign(t *testing.T) {
 				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
 
 				buildHash(&initServiceResponse.Header.InitServiceResponseHeader, &initServiceResponse.Header.HeaderHash)
+
+				s, err := initServiceResponse.Header.InitServiceResponseHeader.MarshalHash()
+				So(err, ShouldBeNil)
+				So(s, ShouldNotBeEmpty)
 
 				err = initServiceResponse.Verify()
 				So(err, ShouldNotBeNil)
@@ -855,8 +911,16 @@ func TestUpdateService_Sign(t *testing.T) {
 			So((*UpdateServiceHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 			So((*SignedUpdateServiceHeader)(nil).Serialize(), ShouldResemble, []byte{'\000'})
 
+			s, err := updateServiceReq.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
+
 			updateServiceReq.Header.Signee = nil
 			updateServiceReq.Header.Signature = nil
+
+			s, err = updateServiceReq.MarshalHash()
+			So(err, ShouldBeNil)
+			So(s, ShouldNotBeEmpty)
 
 			So(updateServiceReq.Serialize(), ShouldNotBeEmpty)
 		})
@@ -880,5 +944,19 @@ func TestUpdateService_Sign(t *testing.T) {
 				So(err, ShouldNotBeNil)
 			})
 		})
+	})
+}
+
+func TestOther_MarshalHash(t *testing.T) {
+	Convey("marshal hash", t, func() {
+		tm := UpdateType(1)
+		s, err := tm.MarshalHash()
+		So(err, ShouldBeNil)
+		So(s, ShouldNotBeEmpty)
+
+		tm2 := QueryType(1)
+		s, err = tm2.MarshalHash()
+		So(err, ShouldBeNil)
+		So(s, ShouldNotBeEmpty)
 	})
 }

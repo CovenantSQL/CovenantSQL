@@ -48,20 +48,32 @@ func TestAccountBalanceOverflow(t *testing.T) {
 	if err := account.DecreaseAccountStableBalance(1); err != ErrInsufficientBalance {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	if balance := account.GetStableCoinBalance(); balance != 0 {
+		t.Fatalf("Unexpected balance: %d", balance)
+	}
 
 	account.StableCoinBalance = math.MaxUint64
 	if err := account.IncreaseAccountStableBalance(1); err != ErrBalanceOverflow {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+	if balance := account.GetStableCoinBalance(); balance != math.MaxUint64 {
+		t.Fatalf("Unexpected balance: %d", balance)
 	}
 
 	account.ThunderCoinBalance = 0
 	if err := account.DecreaseAccountThunderBalance(1); err != ErrInsufficientBalance {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	if balance := account.GetThunderCoinBalance(); balance != 0 {
+		t.Fatalf("Unexpected balance: %d", balance)
+	}
 
 	account.ThunderCoinBalance = math.MaxUint64
 	if err := account.IncreaseAccountThunderBalance(1); err != ErrBalanceOverflow {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+	if balance := account.GetThunderCoinBalance(); balance != math.MaxUint64 {
+		t.Fatalf("Unexpected balance: %d", balance)
 	}
 
 	account.StableCoinBalance = 0
@@ -147,7 +159,7 @@ func TestAccountStableBalance(t *testing.T) {
 		go account.testDecreaseAccountStableBalance(t, wg, 1)
 	}
 	wg.Wait()
-	if account.StableCoinBalance != 0 {
-		t.Fatalf("Unexpected result: %d", account.StableCoinBalance)
+	if balance := account.GetStableCoinBalance(); balance != 0 {
+		t.Fatalf("Unexpected balance: %d", balance)
 	}
 }

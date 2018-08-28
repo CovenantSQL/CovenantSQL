@@ -21,6 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 //go:generate hsp
@@ -69,6 +70,25 @@ type Account struct {
 	Rating             float64
 	Profiles           []*SQLChainProfile
 	TxBillings         []*hash.Hash
+}
+
+// Serialize implements Serializer.
+func (a *Account) Serialize() (enc []byte, err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	buf, err := utils.EncodeMsgPack(a)
+	if err != nil {
+		return
+	}
+	enc = buf.Bytes()
+	return
+}
+
+// Deserialize implements Deserializer.
+func (a *Account) Deserialize(enc []byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return utils.DecodeMsgPack(enc, a)
 }
 
 // IncreaseAccountStableBalance increases account stable balance by amount.

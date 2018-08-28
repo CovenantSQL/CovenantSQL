@@ -22,24 +22,21 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-func TestAccount_MarshalUnmarshaler(t *testing.T) {
+func TestAccountSerializeDeserializer(t *testing.T) {
 	account := generateRandomAccount()
-	b, err := utils.EncodeMsgPack(account)
+	enc, err := account.Serialize()
 	if err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
-
 	dec := &Account{}
-	err = utils.DecodeMsgPack(b.Bytes(), dec)
-	if err != nil {
+	if err = dec.Deserialize(enc); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
-
 	if !reflect.DeepEqual(account, dec) {
-		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", account, dec)
+		t.Fatalf("Values don't match:\n\tv1 = %v\n\tv2 = %v", account, dec)
 	}
 }
 

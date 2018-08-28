@@ -50,6 +50,7 @@ var (
 // Chain defines the main chain.
 type Chain struct {
 	db  *bolt.DB
+	ai  *accountIndex
 	bi  *blockIndex
 	ti  *txIndex
 	rt  *rt
@@ -117,6 +118,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 	// create chain
 	chain := &Chain{
 		db:                db,
+		ai:                newAccountIndex(),
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
@@ -161,6 +163,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 	chain = &Chain{
 		db:                db,
+		ai:                newAccountIndex(),
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
@@ -543,95 +546,66 @@ func (c *Chain) produceBlock(now time.Time) error {
 	return err
 }
 
-func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingResponse, error) {
+func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResponse, err error) {
 	// TODO(lambda): simplify the function
-	err := c.checkBillingRequest(br)
-	if err != nil {
-		return nil, err
+	if err = c.checkBillingRequest(br); err != nil {
+		return
 	}
 
 	// update stable coin's balance
 	// TODO(lambda): because there is no token distribution,
 	// we only increase miners' balance but not decrease customer's balance
-	accountNumber := len(br.Header.GasAmounts)
-	receivers := make([]*proto.AccountAddress, accountNumber)
-	fees := make([]uint64, accountNumber)
-	rewards := make([]uint64, accountNumber)
-	accounts := make([]*types.Account, accountNumber)
+	var (
+		ok            bool
+		acc           *types.Account
+		enc           []byte
+		accountNumber = len(br.Header.GasAmounts)
+		receivers     = make([]*proto.AccountAddress, accountNumber)
+		fees          = make([]uint64, accountNumber)
+		rewards       = make([]uint64, accountNumber)
+	)
 
-	err = c.db.View(func(tx *bolt.Tx) error {
+	if err = c.db.Update(func(tx *bolt.Tx) (err error) {
 		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
 		for i, addrAndGas := range br.Header.GasAmounts {
 			receivers[i] = &addrAndGas.AccountAddress
 			fees[i] = addrAndGas.GasAmount * uint64(gasprice)
 			rewards[i] = 0
 
-			enc := accountBucket.Get(addrAndGas.AccountAddress[:])
-			if enc == nil {
-				accounts[i] = &types.Account{
-					Address:             addrAndGas.AccountAddress,
-					StableCoinBalance:   addrAndGas.GasAmount * uint64(gasprice),
-					CovenantCoinBalance: 0,
-					SQLChains:           []proto.DatabaseID{br.Header.DatabaseID},
-					Roles:               []byte{types.Miner},
-					Rating:              0.0,
-				}
-			} else {
-				var dec types.Account
-				err = utils.DecodeMsgPack(enc, &dec)
-				if err != nil {
-					return err
-				}
-				accounts[i].StableCoinBalance = dec.StableCoinBalance + addrAndGas.GasAmount*uint64(gasprice)
-				included := false
-				for j := range accounts[i].SQLChains {
-					if accounts[i].SQLChains[j] == br.Header.DatabaseID {
-						included = true
-						break
-					}
-				}
-				if !included {
-					accounts[i].SQLChains = append(accounts[i].SQLChains, br.Header.DatabaseID)
-					accounts[i].Roles = append(accounts[i].Roles, types.Miner)
-				}
+			// TODO(leventeliu): deal with account nonexistence/overflow error and continue.
+			if acc, ok = c.ai.loadAccount(addrAndGas.AccountAddress); !ok {
+				return
+			}
+			if err = acc.IncreaseAccountStableBalance(
+				addrAndGas.GasAmount * uint64(gasprice),
+			); err != nil {
+				return
+			}
+
+			if enc, err = acc.Serialize(); err != nil {
+				return
+			} else if err = accountBucket.Put(addrAndGas.AccountAddress[:], enc); err != nil {
+				return
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		return
+	}); err != nil {
+		return
 	}
 
-	// update accounts
-	err = c.db.Update(func(tx *bolt.Tx) error {
-		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-		for _, account := range accounts {
-			enc, err := utils.EncodeMsgPack(account)
-			if err != nil {
-				return err
-			}
-			accountBucket.Put(account.Address[:], enc.Bytes())
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	enc, err := br.MarshalHash()
-	if err != nil {
-		return nil, err
+	if enc, err = br.MarshalHash(); err != nil {
+		return
 	}
 	h := hash.THashH(enc)
 
 	// generate response
 	privKey, err := kms.GetLocalPrivateKey()
 	if err != nil {
-		return nil, err
+		return
 	}
 	sign, err := privKey.Sign(h[:])
 	if err != nil {
-		return nil, err
+		return
 	}
 	resp := &types.BillingResponse{
 		AccountAddress: accountAddress,

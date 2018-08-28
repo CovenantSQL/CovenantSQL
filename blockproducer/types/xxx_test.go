@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018 The ThunderDB Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,31 +39,34 @@ const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
+func generateRandomProfile() *SQLChainProfile {
+	return &SQLChainProfile{
+		ID:      *generateRandomDatabaseID(),
+		Role:    SQLChainRole(rand.Intn(int(NumberOfRoles))),
+		Deposit: rand.Uint64(),
+	}
+}
+
 func generateRandomAccount() *Account {
 	n := rand.Int31n(100) + 1
-	sqlChains := generateRandomDatabaseIDs(n)
-	roles := generateRandomBytes(n)
-
-	h := generateRandomHash()
-
+	profiles := make([]*SQLChainProfile, n)
+	for i := range profiles {
+		profiles[i] = generateRandomProfile()
+	}
+	n = rand.Int31n(100) + 1
 	txBillings := make([]*hash.Hash, n)
-
 	for i := range txBillings {
 		tmpHash := generateRandomHash()
 		txBillings[i] = &tmpHash
 	}
-
-	account := &Account{
-		Address:             proto.AccountAddress(h),
-		StableCoinBalance:   rand.Uint64(),
-		CovenantCoinBalance: rand.Uint64(),
-		SQLChains:           sqlChains,
-		Roles:               roles,
-		Rating:              rand.Float64(),
-		TxBillings:          txBillings,
+	h := generateRandomHash()
+	return &Account{
+		Address:            proto.AccountAddress(h),
+		StableCoinBalance:  rand.Uint64(),
+		ThunderCoinBalance: rand.Uint64(),
+		Rating:             rand.Float64(),
+		TxBillings:         txBillings,
 	}
-
-	return account
 }
 
 func generateRandomBytes(n int32) []byte {

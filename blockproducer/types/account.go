@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018 The ThunderDB Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,43 +17,124 @@
 package types
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 //go:generate hsp
 
+// SQLChainRole defines roles of account in a SQLChain.
+type SQLChainRole byte
+
 // SQL Chain role type.
 const (
-	Miner byte = iota
+	Miner SQLChainRole = iota
 	Customer
+	NumberOfRoles
 )
+
+// SQLChainProfile defines a SQLChainProfile related to an account.
+type SQLChainProfile struct {
+	ID      proto.DatabaseID
+	Role    SQLChainRole
+	Deposit uint64
+}
 
 // Account store its balance, and other mate data.
 type Account struct {
-	Address             proto.AccountAddress
-	StableCoinBalance   uint64
-	CovenantCoinBalance uint64
-	SQLChains           []proto.DatabaseID
-	Roles               []byte
-	Rating              float64
-	TxBillings          []*hash.Hash
+	mu                 sync.Mutex
+	Address            proto.AccountAddress
+	StableCoinBalance  uint64
+	ThunderCoinBalance uint64
+	Rating             float64
+	Profiles           []*SQLChainProfile
+	TxBillings         []*hash.Hash
 }
 
-// Account4test store its balance, and other mate data.
-type Account4test struct {
-	Address1             proto.AccountAddress
-	StableCoinBalance1   uint64
-	CovenantCoinBalance1 uint64
-	SQLChains1           []proto.DatabaseID
-	Roles1               []byte
-	Rating1              float64
-	TxBillings1          []*hash.Hash
+// safeAdd provides a safe add method with upper overflow check for uint64.
+func safeAdd(x, y *uint64) (err error) {
+	if *x+*y < *x {
+		return ErrBalanceOverflow
+	}
+	*x += *y
+	return
 }
 
-// AppendSQLChainAndRole add the sql chain include the account and its related role.
-func (a *Account) AppendSQLChainAndRole(sqlChain *proto.DatabaseID, role byte) {
-	a.SQLChains = append(a.SQLChains, *sqlChain)
-	a.Roles = append(a.Roles, role)
+// safeAdd provides a safe sub method with lower overflow check for uint64.
+func safeSub(x, y *uint64) (err error) {
+	if *x < *y {
+		return ErrInsufficientBalance
+	}
+	*x -= *y
+	return
+}
+
+// IncreaseAccountStableBalance increases account stable balance by amount.
+func (a *Account) IncreaseAccountStableBalance(amount uint64) (err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return safeAdd(&a.StableCoinBalance, &amount)
+}
+
+// DecreaseAccountStableBalance decreases account stable balance by amount.
+func (a *Account) DecreaseAccountStableBalance(amount uint64) (err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return safeSub(&a.StableCoinBalance, &amount)
+}
+
+// IncreaseAccountThunderBalance increases account thunder balance by amount.
+func (a *Account) IncreaseAccountThunderBalance(amount uint64) (err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return safeAdd(&a.ThunderCoinBalance, &amount)
+}
+
+// DecreaseAccountThunderBalance decreases account thunder balance by amount.
+func (a *Account) DecreaseAccountThunderBalance(amount uint64) (err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return safeSub(&a.ThunderCoinBalance, &amount)
+}
+
+// SendDeposit sends deposit of amount from account balance to SQLChain with id.
+func (a *Account) SendDeposit(id proto.DatabaseID, role SQLChainRole, amount uint64) (err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if err = safeSub(&a.StableCoinBalance, &amount); err != nil {
+		return
+	}
+	for _, v := range a.Profiles {
+		if v.ID == id && v.Role == role {
+			if err = safeAdd(&v.Deposit, &amount); err != nil {
+				a.StableCoinBalance += amount
+			}
+			return
+		}
+	}
+	a.Profiles = append(a.Profiles, &SQLChainProfile{
+		ID:      id,
+		Role:    role,
+		Deposit: amount,
+	})
+	return
+}
+
+// WithdrawDeposit withdraws deposit from SQLChain with id to account balance.
+func (a *Account) WithdrawDeposit(id proto.DatabaseID) (err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, v := range a.Profiles {
+		if v.ID == id {
+			if err = safeAdd(&a.StableCoinBalance, &v.Deposit); err != nil {
+				return
+			}
+			a.Profiles[i] = a.Profiles[len(a.Profiles)-1]
+			a.Profiles = a.Profiles[:len(a.Profiles)-1]
+			break
+		}
+	}
+	return
 }

@@ -46,8 +46,8 @@ func BenchmarkAppendMsgAccount(b *testing.B) {
 	}
 }
 
-func TestMarshalHashAccount4test(t *testing.T) {
-	v := Account4test{}
+func TestMarshalHashSQLChainProfile(t *testing.T) {
+	v := SQLChainProfile{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashAccount4test(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashAccount4test(b *testing.B) {
-	v := Account4test{}
+func BenchmarkMarshalHashSQLChainProfile(b *testing.B) {
+	v := SQLChainProfile{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,8 +71,8 @@ func BenchmarkMarshalHashAccount4test(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgAccount4test(b *testing.B) {
-	v := Account4test{}
+func BenchmarkAppendMsgSQLChainProfile(b *testing.B) {
+	v := SQLChainProfile{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

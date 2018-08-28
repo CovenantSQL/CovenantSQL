@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018 The ThunderDB Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,4 +33,10 @@ var (
 	// ErrNodePublicKeyNotMatch indicates that the public key given with a node does not match the
 	// one in the key store.
 	ErrNodePublicKeyNotMatch = errors.New("node publick key doesn't match")
+
+	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
+	ErrBalanceOverflow = errors.New("balance overflow")
+
+	// ErrInsufficientBalance indicates that an account has insufficient balance.
+	ErrInsufficientBalance = errors.New("insufficient balance")
 )

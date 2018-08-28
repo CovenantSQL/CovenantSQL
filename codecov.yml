@@ -28,6 +28,4 @@ comment:
   require_changes: no
 
 ignore:
-  - "types"
-  - "cmd"
-  - "conf"
+  - "vendor"

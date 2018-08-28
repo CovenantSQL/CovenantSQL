@@ -91,6 +91,20 @@ func (a *Account) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, a)
 }
 
+// GetStableCoinBalance returns the stable coin balance of account.
+func (a *Account) GetStableCoinBalance() uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.StableCoinBalance
+}
+
+// GetThunderCoinBalance returns the thunder coin balance of account.
+func (a *Account) GetThunderCoinBalance() uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.ThunderCoinBalance
+}
+
 // IncreaseAccountStableBalance increases account stable balance by amount.
 func (a *Account) IncreaseAccountStableBalance(amount uint64) (err error) {
 	a.mu.Lock()

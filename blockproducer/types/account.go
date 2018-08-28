@@ -123,11 +123,11 @@ func (a *Account) SendDeposit(id proto.DatabaseID, role SQLChainRole, amount uin
 }
 
 // WithdrawDeposit withdraws deposit from SQLChain with id to account balance.
-func (a *Account) WithdrawDeposit(id proto.DatabaseID) (err error) {
+func (a *Account) WithdrawDeposit(id proto.DatabaseID, role SQLChainRole) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	for i, v := range a.Profiles {
-		if v.ID == id {
+		if v.ID == id && v.Role == role {
 			if err = safeAdd(&a.StableCoinBalance, &v.Deposit); err != nil {
 				return
 			}

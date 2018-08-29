@@ -48,7 +48,7 @@ func (z *Account) MarshalHash() (o []byte, err error) {
 	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.StableCoinBalance)
 	o = append(o, 0x86)
-	o = hsp.AppendUint64(o, z.ThunderCoinBalance)
+	o = hsp.AppendUint64(o, z.CovenantCoinBalance)
 	return
 }
 

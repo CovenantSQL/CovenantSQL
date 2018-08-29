@@ -13,7 +13,7 @@ func TestMarshalHashAccountStable(t *testing.T) {
 	v := Account{
 		Address:            proto.AccountAddress{0x10},
 		StableCoinBalance:  10,
-		ThunderCoinBalance: 10,
+		CovenantCoinBalance: 10,
 		Rating:             1110,
 		Profiles: []*SQLChainProfile{
 			&SQLChainProfile{
@@ -44,7 +44,7 @@ func TestMarshalHashAccountStable2(t *testing.T) {
 	v1 := Account{
 		Address:            proto.AccountAddress{0x10},
 		StableCoinBalance:  10,
-		ThunderCoinBalance: 10,
+		CovenantCoinBalance: 10,
 		Profiles: []*SQLChainProfile{
 			&SQLChainProfile{
 				ID:      "database#1",

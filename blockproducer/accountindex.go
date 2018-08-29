@@ -59,18 +59,18 @@ func (i *accountIndex) decreaseAccountStableBalance(addr proto.AccountAddress, a
 	return
 }
 
-func (i *accountIndex) increaseAccountThunderBalance(addr proto.AccountAddress, amount uint64) (ok bool, err error) {
+func (i *accountIndex) increaseAccountCovenantBalance(addr proto.AccountAddress, amount uint64) (ok bool, err error) {
 	var value interface{}
 	if value, ok = i.index.Load(addr); ok {
-		err = value.(*bt.Account).IncreaseAccountThunderBalance(amount)
+		err = value.(*bt.Account).IncreaseAccountCovenantBalance(amount)
 	}
 	return
 }
 
-func (i *accountIndex) decreaseAccountThunderBalance(addr proto.AccountAddress, amount uint64) (ok bool, err error) {
+func (i *accountIndex) decreaseAccountCovenantBalance(addr proto.AccountAddress, amount uint64) (ok bool, err error) {
 	var value interface{}
 	if value, ok = i.index.Load(addr); ok {
-		err = value.(*bt.Account).DecreaseAccountThunderBalance(amount)
+		err = value.(*bt.Account).DecreaseAccountCovenantBalance(amount)
 	}
 	return
 }

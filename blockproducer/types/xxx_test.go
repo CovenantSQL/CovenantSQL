@@ -63,7 +63,7 @@ func generateRandomAccount() *Account {
 	return &Account{
 		Address:            proto.AccountAddress(h),
 		StableCoinBalance:  rand.Uint64(),
-		ThunderCoinBalance: rand.Uint64(),
+		CovenantCoinBalance: rand.Uint64(),
 		Rating:             rand.Float64(),
 		TxBillings:         txBillings,
 	}

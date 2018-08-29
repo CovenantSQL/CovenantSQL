@@ -60,19 +60,19 @@ func TestAccountBalanceOverflow(t *testing.T) {
 		t.Fatalf("Unexpected balance: %d", balance)
 	}
 
-	account.ThunderCoinBalance = 0
-	if err := account.DecreaseAccountThunderBalance(1); err != ErrInsufficientBalance {
+	account.CovenantCoinBalance = 0
+	if err := account.DecreaseAccountCovenantBalance(1); err != ErrInsufficientBalance {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if balance := account.GetThunderCoinBalance(); balance != 0 {
+	if balance := account.GetCovenantCoinBalance(); balance != 0 {
 		t.Fatalf("Unexpected balance: %d", balance)
 	}
 
-	account.ThunderCoinBalance = math.MaxUint64
-	if err := account.IncreaseAccountThunderBalance(1); err != ErrBalanceOverflow {
+	account.CovenantCoinBalance = math.MaxUint64
+	if err := account.IncreaseAccountCovenantBalance(1); err != ErrBalanceOverflow {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if balance := account.GetThunderCoinBalance(); balance != math.MaxUint64 {
+	if balance := account.GetCovenantCoinBalance(); balance != math.MaxUint64 {
 		t.Fatalf("Unexpected balance: %d", balance)
 	}
 
@@ -102,16 +102,16 @@ func TestAccountBalanceOverflow(t *testing.T) {
 	}
 }
 
-func (a *Account) testIncreaseAccountThunderBalance(t *testing.T, wg *sync.WaitGroup, amount uint64) {
+func (a *Account) testIncreaseAccountCovenantBalance(t *testing.T, wg *sync.WaitGroup, amount uint64) {
 	defer wg.Done()
-	if err := a.IncreaseAccountThunderBalance(amount); err != nil {
+	if err := a.IncreaseAccountCovenantBalance(amount); err != nil {
 		t.Errorf("Error occurred: %v", err)
 	}
 }
 
-func (a *Account) testDecreaseAccountThunderBalance(t *testing.T, wg *sync.WaitGroup, amount uint64) {
+func (a *Account) testDecreaseAccountCovenantBalance(t *testing.T, wg *sync.WaitGroup, amount uint64) {
 	defer wg.Done()
-	if err := a.DecreaseAccountThunderBalance(amount); err != nil {
+	if err := a.DecreaseAccountCovenantBalance(amount); err != nil {
 		t.Errorf("Error occurred: %v", err)
 	}
 }
@@ -130,20 +130,20 @@ func (a *Account) testDecreaseAccountStableBalance(t *testing.T, wg *sync.WaitGr
 	}
 }
 
-func TestAccountThunderBalance(t *testing.T) {
+func TestAccountCovenantBalance(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	account := &Account{}
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
-		go account.testIncreaseAccountThunderBalance(t, wg, 1)
+		go account.testIncreaseAccountCovenantBalance(t, wg, 1)
 	}
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
-		go account.testDecreaseAccountThunderBalance(t, wg, 1)
+		go account.testDecreaseAccountCovenantBalance(t, wg, 1)
 	}
 	wg.Wait()
-	if account.ThunderCoinBalance != 0 {
-		t.Fatalf("Unexpected result: %d", account.ThunderCoinBalance)
+	if account.CovenantCoinBalance != 0 {
+		t.Fatalf("Unexpected result: %d", account.CovenantCoinBalance)
 	}
 }
 

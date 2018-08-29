@@ -66,7 +66,7 @@ type Account struct {
 	mu                 sync.Mutex
 	Address            proto.AccountAddress
 	StableCoinBalance  uint64
-	ThunderCoinBalance uint64
+	CovenantCoinBalance uint64
 	Rating             float64
 	Profiles           []*SQLChainProfile
 	TxBillings         []*hash.Hash
@@ -98,11 +98,11 @@ func (a *Account) GetStableCoinBalance() uint64 {
 	return a.StableCoinBalance
 }
 
-// GetThunderCoinBalance returns the thunder coin balance of account.
-func (a *Account) GetThunderCoinBalance() uint64 {
+// GetCovenantCoinBalance returns the covenant coin balance of account.
+func (a *Account) GetCovenantCoinBalance() uint64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.ThunderCoinBalance
+	return a.CovenantCoinBalance
 }
 
 // IncreaseAccountStableBalance increases account stable balance by amount.
@@ -119,18 +119,18 @@ func (a *Account) DecreaseAccountStableBalance(amount uint64) (err error) {
 	return safeSub(&a.StableCoinBalance, &amount)
 }
 
-// IncreaseAccountThunderBalance increases account thunder balance by amount.
-func (a *Account) IncreaseAccountThunderBalance(amount uint64) (err error) {
+// IncreaseAccountCovenantBalance increases account covenant balance by amount.
+func (a *Account) IncreaseAccountCovenantBalance(amount uint64) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return safeAdd(&a.ThunderCoinBalance, &amount)
+	return safeAdd(&a.CovenantCoinBalance, &amount)
 }
 
-// DecreaseAccountThunderBalance decreases account thunder balance by amount.
-func (a *Account) DecreaseAccountThunderBalance(amount uint64) (err error) {
+// DecreaseAccountCovenantBalance decreases account covenant balance by amount.
+func (a *Account) DecreaseAccountCovenantBalance(amount uint64) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return safeSub(&a.ThunderCoinBalance, &amount)
+	return safeSub(&a.CovenantCoinBalance, &amount)
 }
 
 // SendDeposit sends deposit of amount from account balance to SQLChain with id.

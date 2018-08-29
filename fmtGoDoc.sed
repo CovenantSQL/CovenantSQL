@@ -4,7 +4,7 @@
 #
 # Write to new file:
 #   ./fmtGoDoc.sed path/to/file/xxx.go >xxx_fmt.go
-# 
+#
 # Or direct overwrite:
 #   ./fmtGoDoc.sed -i path/to/files/*.go
 

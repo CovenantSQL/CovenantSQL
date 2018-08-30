@@ -10,12 +10,52 @@
   revision = "f82da37fa214bff0a716f8703aaff789b411a227"
 
 [[projects]]
-  branch = "master"
-  digest = "1:c4f4e04fb1f4b1d24f237407834067f297d618913bd4229dee138df863ffdddc"
+  branch = "develop"
+  digest = "1:9691c7a98f7d559cf573a98dd19c26f0859d30343e59a6a30e91c3d187a8ad37"
   name = "github.com/CovenantSQL/go-sqlite3-encrypt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "88abdaae46b3314973c1746beeff14722dbd73fa"
+  revision = "43e89c9e6ba4ec912425e667d6689fb3ef3c7d45"
+
+[[projects]]
+  digest = "1:9253f97cfbbe049b631877c80badecc69620711b3e335f6cf97a7809681da388"
+  name = "github.com/alecthomas/chroma"
+  packages = [
+    ".",
+    "formatters",
+    "formatters/html",
+    "lexers",
+    "lexers/a",
+    "lexers/b",
+    "lexers/c",
+    "lexers/circular",
+    "lexers/d",
+    "lexers/e",
+    "lexers/f",
+    "lexers/g",
+    "lexers/h",
+    "lexers/i",
+    "lexers/internal",
+    "lexers/j",
+    "lexers/k",
+    "lexers/l",
+    "lexers/m",
+    "lexers/n",
+    "lexers/o",
+    "lexers/p",
+    "lexers/q",
+    "lexers/r",
+    "lexers/s",
+    "lexers/t",
+    "lexers/v",
+    "lexers/w",
+    "lexers/x",
+    "lexers/y",
+    "styles",
+  ]
+  pruneopts = "UT"
+  revision = "5d7fef2ae60b501bbf28d476c3f273b8017d8261"
+  version = "v0.5.0"
 
 [[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
@@ -58,12 +98,31 @@
   version = "v1.3.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:710109527a119c813d4fac773712dd92f449ed7c2f7b81f49822f94d290c8f72"
+  name = "github.com/danwakefield/fnmatch"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cbb64ac3d964b81592e64f957ad53df015803288"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   pruneopts = "UT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
+
+[[projects]]
+  digest = "1:72dc2b6056e7097f829260e4a2ff08d32fec6017df1982a66e110ab4128486f8"
+  name = "github.com/dlclark/regexp2"
+  packages = [
+    ".",
+    "syntax",
+  ]
+  pruneopts = "UT"
+  revision = "487489b64fb796de2e55f4e8a4ad1e145f80e957"
+  version = "v1.1.6"
 
 [[projects]]
   digest = "1:544229a3ca0fb2dd5ebc2896d3d2ff7ce096d9751635301e44e37e761349ee70"
@@ -80,6 +139,14 @@
   pruneopts = "UT"
   revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
   version = "v1.1.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:48c0fa64e80c089a88d30ab5b826c106af79eb3c65d48e2280f22aa4d61d7a84"
+  name = "github.com/gohxs/readline"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a780388e6e7cb475327da556ecfda0edbb374d80"
 
 [[projects]]
   digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
@@ -147,11 +214,43 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:901625a0300fa83074dcf2510424c26a19dc3edadf67b34ca45a78f879ac4b0c"
+  name = "github.com/knq/snaker"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d9ad1e7f342a5b58202aa92c5f1106d7bb8b9c73"
+
+[[projects]]
+  branch = "master"
   digest = "1:9e23318fb92c60935e4de2ce13710979f1dffd5c7a4ec4b29a740c27da9b735c"
   name = "github.com/lufia/iostat"
   packages = ["."]
   pruneopts = "UT"
   revision = "9f7362b77ad333b26c01c99de52a11bdb650ded2"
+
+[[projects]]
+  digest = "1:0981502f9816113c9c8c4ac301583841855c8cf4da8c72f696b3ebedf6d0e4e5"
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c"
+  version = "v0.0.4"
+
+[[projects]]
+  digest = "1:cdb899c199f907ac9fb50495ec71212c95cb5b0e0a8ee0800da0238036091033"
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ce7b0b5c7b45a81508558cd1dba6bb1e4ddb51bb"
+  version = "v0.0.3"
+
+[[projects]]
+  digest = "1:3cafc6a5a1b8269605d9df4c6956d43d8011fc57f266ca6b9d04da6c09dee548"
+  name = "github.com/mattn/go-sqlite3"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
+  version = "v1.9.0"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -195,11 +294,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:807c9fe0be3321781b6922b6659ad7f938864b475d581c802f46de981ad48e3b"
+  digest = "1:8049255596af29cc88c2862acd944692ecb677b3b137b47ef0a36ddf763b4d09"
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
   pruneopts = "UT"
-  revision = "4eb539fa85a2688054063c3b01d9e86eb01bf999"
+  revision = "676eaf6b948046fcd9dbbcf5cc9ff5077921aa81"
 
 [[projects]]
   branch = "master"
@@ -304,6 +403,63 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:4904b183bb8ac483dbebc13ff8df5cc35b27f2ab726ca52477d7f05231f52685"
+  name = "github.com/xo/dburl"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cd61869a0c089d2d6fa2f73676dceeaa958132ca"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8a2f7991e954f07bfc8b9f693b110c3ac035dc11aa4b5925feb61abd0c2152e7"
+  name = "github.com/xo/tblfmt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2f8d72e9c74c759623e6988058db8a60a9f6cc40"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f7078a085c09e48542f25bd1e44e715bbfc6563972203c978456dc698ac6f886"
+  name = "github.com/xo/terminfo"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "be18a85ebefc4593a0920d4141c9bd2c9b3d8ef7"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6162124bb1bdabe76e3da4a734a5109e8979e8cf4ddcc5c0efeb0a50bd3c1ef5"
+  name = "github.com/xo/usql"
+  packages = [
+    "drivers",
+    "env",
+    "handler",
+    "metacmd",
+    "rline",
+    "stmt",
+    "styles",
+    "text",
+  ]
+  pruneopts = "UT"
+  revision = "36907728b48b1753ef85dba0fa7c8e1e3a17bc41"
+
+[[projects]]
+  branch = "master"
+  digest = "1:ad32fccba8dee9b2d13b44776036683d088a63c4071443aa3c60e9dd60861e70"
+  name = "github.com/xo/xoutil"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "46189f4026a5a53537a3d5b99092accf968d572b"
+
+[[projects]]
+  digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"
+  name = "github.com/zaf/temp"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "94e385923345495c4add5c23df1efc6d66964479"
+  version = "v1.0"
+
+[[projects]]
+  branch = "master"
   digest = "1:583f2f436bab7b59a7bd3e759f1375b06f460760ed1f9235604d143eaab83009"
   name = "golang.org/x/crypto"
   packages = [
@@ -312,7 +468,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "614d502a4dac94afa3a6ce146bd1736da82514c6"
+  revision = "182538f80094b6a8efaade63a8fd8e0d9d5843dd"
 
 [[projects]]
   branch = "master"
@@ -330,14 +486,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0dafafed83f125cdc945a014b2dec15e5b5d8cd2d77a2d1e3763120b08ab381b"
+  digest = "1:9c99029818a3d4f53bcfd6c0158ca068aeacfecb29283f82a1f9c79b8d2a7da4"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "4910a1d54f876d7b22162a85f4d066d3ee649450"
+  revision = "49385e6e15226593f68b26af201feec29d5bba22"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -375,6 +531,13 @@
     "github.com/stretchr/testify/mock",
     "github.com/tchap/go-patricia/patricia",
     "github.com/ugorji/go/codec",
+    "github.com/xo/dburl",
+    "github.com/xo/usql/drivers",
+    "github.com/xo/usql/env",
+    "github.com/xo/usql/handler",
+    "github.com/xo/usql/rline",
+    "github.com/xo/usql/text",
+    "github.com/xo/xoutil",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
     "gopkg.in/yaml.v2",

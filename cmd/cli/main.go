@@ -106,6 +106,35 @@ func init() {
 			log.Infof("connecting to %v", url.DSN)
 			return sql.Open, nil
 		},
+		Process: func(prefix string, sqlstr string) (typ string, processSqlStr string, isQuery bool, err error) {
+			// override describe query
+			// split prefix
+			words := strings.Split(prefix, " ")
+
+			if len(words) == 2 {
+				if words[0] == "SHOW" && words[1] == "TABLES" {
+					// show tables command
+					sqlstr = "SELECT name FROM sqlite_master WHERE type = \"table\";"
+					prefix = "SELECT"
+				} else if words[0] == "DESC" || words[0] == "DESCRIBE" {
+					// table describe command
+					// case in-sensitive
+					sqlstr = "PRAGMA table_info(" + words[1] + ");"
+					prefix = "SELECT"
+				}
+			} else if len(words) == 4 && words[0] == "SHOW" && words[1] == "CREATE" && words[2] == "TABLE" {
+				// show create table
+				// simple escape
+				name := strings.Replace(words[3], "\\", "\\\\", -1)
+				name = strings.Replace(name, "\"", "\\\"", -1)
+				sqlstr = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" + words[3] + "\""
+				prefix = "SELECT"
+			}
+
+			typ, isQuery = drivers.QueryExecType(prefix, sqlstr)
+			processSqlStr = sqlstr
+			return
+		},
 	})
 
 	// register covenantsql:// scheme to dburl

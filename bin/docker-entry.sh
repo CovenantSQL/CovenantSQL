@@ -7,5 +7,8 @@ miner)
 blockproducer)
     exec /app/covenantsqld -config "${COVENANT_CONF}"
     ;;
+observer)
+    exec /app/covenantobserver -config "${COVENANT_CONF}" "${@}"
+    ;;
 esac
 

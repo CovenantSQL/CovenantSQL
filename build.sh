@@ -34,6 +34,9 @@ observer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/observer"
 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/covenantobserver ${observer_pkgpath}
 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/covenantobserver.test ${observer_pkgpath}
 
+hotfix_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/hotfix/msgpack-20180824"
+CGO_ENABLED=1 go build -ldflags "${GOLDFLAGS}" -o bin/hotfix_msgpack_20180824 ${hotfix_pkgpath}
+
 #echo "build covenantsqld-linux"
 #GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/covenantsqld-linux ${pkgpath}
 

@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/user"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -54,6 +55,10 @@ var (
 	// DML variables
 	createDB string // as a instance meta json string or simply a node count
 	dropDB   string // database id to drop
+
+	// regex for special sql statement
+	descTableRegex       = regexp.MustCompile("(?i)^desc(?:ribe)?\\s+(\\w+)\\s*;?\\s*$")
+	showCreateTableRegex = regexp.MustCompile("(?i)^show\\s+create\\s+table\\s+(\\w+)\\s*;\\s*?$")
 )
 
 type Variables struct {
@@ -111,24 +116,26 @@ func init() {
 			// split prefix
 			words := strings.Split(prefix, " ")
 
-			if len(words) == 2 {
-				if words[0] == "SHOW" && words[1] == "TABLES" {
+			if len(words) >= 1 && words[0] == "SHOW" {
+				if len(words) == 2 && words[1] == "TABLES" {
 					// show tables command
 					sqlstr = "SELECT name FROM sqlite_master WHERE type = \"table\";"
 					prefix = "SELECT"
-				} else if words[0] == "DESC" || words[0] == "DESCRIBE" {
-					// table describe command
-					// case in-sensitive
-					sqlstr = "PRAGMA table_info(" + words[1] + ");"
+				}
+				if len(words) >= 3 && words[1] == "CREATE" && words[2] == "TABLE" {
+					// show create table
+					// extract table name from sqlstr
+					if matches := showCreateTableRegex.FindStringSubmatch(sqlstr); len(matches) > 0 {
+						sqlstr = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" + matches[1] + "\";"
+						prefix = "SELECT"
+					}
+				}
+			} else if len(words) >= 1 && (words[0] == "DESC" || words[0] == "DESCRIBE") {
+				if matches := descTableRegex.FindStringSubmatch(sqlstr); len(matches) > 0 {
+					// valid desc statement
+					sqlstr = "PRAGMA table_info(" + matches[1] + ");"
 					prefix = "SELECT"
 				}
-			} else if len(words) == 4 && words[0] == "SHOW" && words[1] == "CREATE" && words[2] == "TABLE" {
-				// show create table
-				// simple escape
-				name := strings.Replace(words[3], "\\", "\\\\", -1)
-				name = strings.Replace(name, "\"", "\\\"", -1)
-				sqlstr = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" + words[3] + "\""
-				prefix = "SELECT"
 			}
 
 			typ, isQuery = drivers.QueryExecType(prefix, sqlstr)

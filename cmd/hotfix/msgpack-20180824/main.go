@@ -47,12 +47,15 @@ func init() {
 	flag.StringVar(&privateKey, "private", "private.key", "private key to use for signing")
 }
 
+// OldBlock type mocks current sqlchain block type for custom serialization.
 type OldBlock ct.Block
 
+// MarshalBinary implements custom binary marshaller for OldBlock.
 func (b *OldBlock) MarshalBinary() ([]byte, error) {
 	return nil, nil
 }
 
+// UnmarshalBinary implements custom binary unmarshaller for OldBlock.
 func (b *OldBlock) UnmarshalBinary(data []byte) (err error) {
 	reader := bytes.NewReader(data)
 	var headerBuf []byte
@@ -78,6 +81,7 @@ func (b *OldBlock) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
+// ServiceInstance defines the old service instance type before marshaller updates.
 type ServiceInstance struct {
 	DatabaseID   proto.DatabaseID
 	Peers        *kayak.Peers

@@ -41,6 +41,7 @@ var (
 	metaTxBillingIndexBucket     = []byte("covenantsql-tx-billing-index-bucket")
 	metaLastTxBillingIndexBucket = []byte("covenantsql-last-tx-billing-index-bucket")
 	metaAccountIndexBucket       = []byte("covenantsql-account-index-bucket")
+	metaSQLChainIndexBucket      = []byte("covenantsql-sqlchain-index-bucket")
 
 	gasprice uint32 = 1
 
@@ -50,7 +51,7 @@ var (
 // Chain defines the main chain.
 type Chain struct {
 	db  *bolt.DB
-	ai  *accountIndex
+	mi  *metaIndex
 	bi  *blockIndex
 	ti  *txIndex
 	rt  *rt
@@ -118,7 +119,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 	// create chain
 	chain := &Chain{
 		db:                db,
-		ai:                newAccountIndex(),
+		mi:                newMetaIndex(),
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
@@ -163,7 +164,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 	chain = &Chain{
 		db:                db,
-		ai:                newAccountIndex(),
+		mi:                newMetaIndex(),
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
@@ -257,11 +258,23 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 		accounts := meta.Bucket(metaAccountIndexBucket)
 		if err = accounts.ForEach(func(k, v []byte) (err error) {
-			acc := &types.Account{}
-			if err = utils.DecodeMsgPack(v, acc); err != nil {
+			o := &accountObject{}
+			if err = utils.DecodeMsgPack(v, &o.Account); err != nil {
 				return
 			}
-			chain.ai.storeAccount(acc)
+			chain.mi.storeAccountObject(o)
+			return
+		}); err != nil {
+			return
+		}
+
+		sqlchains := meta.Bucket(metaSQLChainIndexBucket)
+		if err = sqlchains.ForEach(func(k, v []byte) (err error) {
+			o := &sqlchainObject{}
+			if err = utils.DecodeMsgPack(v, &o.SQLChainProfile); err != nil {
+				return
+			}
+			chain.mi.storeSQLChainObject(o)
 			return
 		}); err != nil {
 			return

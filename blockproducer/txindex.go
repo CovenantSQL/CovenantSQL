@@ -19,10 +19,9 @@ package blockproducer
 import (
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
-
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // txIndex indexes the tx blockchain receive.

@@ -52,4 +52,11 @@ var (
 	ErrInvalidBillingRequest = errors.New("The BillingRequest is invalid")
 	// ErrSignVerification indicates a failed signature verification.
 	ErrSignVerification = errors.New("signature verification failed")
+
+	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
+	ErrBalanceOverflow = errors.New("balance overflow")
+	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.
+	ErrInsufficientBalance = errors.New("insufficient balance")
+	// ErrAccountNotFound indicates that an account is not found.
+	ErrAccountNotFound = errors.New("account not found")
 )

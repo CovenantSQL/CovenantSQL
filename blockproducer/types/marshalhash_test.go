@@ -4,28 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func TestMarshalHashAccountStable(t *testing.T) {
 	v := Account{
-		Address:            proto.AccountAddress{0x10},
-		StableCoinBalance:  10,
+		Address:             proto.AccountAddress{0x10},
+		StableCoinBalance:   10,
 		CovenantCoinBalance: 10,
-		Rating:             1110,
-		Profiles: []*SQLChainProfile{
-			&SQLChainProfile{
-				ID:      "database#1",
-				Role:    Customer,
-				Deposit: 1000,
-			},
-		},
-		TxBillings: []*hash.Hash{
-			{0x10},
-			{0x20},
-		},
+		Rating:              1110,
+		NextNonce:           1,
 	}
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -42,21 +31,11 @@ func TestMarshalHashAccountStable(t *testing.T) {
 
 func TestMarshalHashAccountStable2(t *testing.T) {
 	v1 := Account{
-		Address:            proto.AccountAddress{0x10},
-		StableCoinBalance:  10,
+		Address:             proto.AccountAddress{0x10},
+		StableCoinBalance:   10,
 		CovenantCoinBalance: 10,
-		Profiles: []*SQLChainProfile{
-			&SQLChainProfile{
-				ID:      "database#1",
-				Role:    Customer,
-				Deposit: 1000,
-			},
-		},
-		Rating: 1110,
-		TxBillings: []*hash.Hash{
-			{0x10},
-			{0x20},
-		},
+		Rating:              1110,
+		NextNonce:           1,
 	}
 	enc, err := utils.EncodeMsgPack(&v1)
 	if err != nil {

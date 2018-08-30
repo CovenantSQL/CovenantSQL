@@ -6,9 +6,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
-	"path"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,75 +28,6 @@ type meminfoMetric struct {
 
 type meminfoNumaCollector struct {
 	metricDescs map[string]*prometheus.Desc
-}
-
-// NewMeminfoNumaCollector returns a new Collector exposing memory stats.
-func NewMeminfoNumaCollector() (Collector, error) {
-	return &meminfoNumaCollector{
-		metricDescs: map[string]*prometheus.Desc{},
-	}, nil
-}
-
-func (c *meminfoNumaCollector) Update(ch chan<- prometheus.Metric) error {
-	metrics, err := getMemInfoNuma()
-	if err != nil {
-		return fmt.Errorf("couldn't get NUMA meminfo: %s", err)
-	}
-	for _, v := range metrics {
-		desc, ok := c.metricDescs[v.metricName]
-		if !ok {
-			desc = prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, memInfoNumaSubsystem, v.metricName),
-				fmt.Sprintf("Memory information field %s.", v.metricName),
-				[]string{"node"}, nil)
-			c.metricDescs[v.metricName] = desc
-		}
-		ch <- prometheus.MustNewConstMetric(desc, v.metricType, v.value, v.numaNode)
-	}
-	return nil
-}
-
-func getMemInfoNuma() ([]meminfoMetric, error) {
-	var (
-		metrics []meminfoMetric
-	)
-
-	nodes, err := filepath.Glob(sysFilePath("devices/system/node/node[0-9]*"))
-	if err != nil {
-		return nil, err
-	}
-	for _, node := range nodes {
-		meminfoFile, err := os.Open(path.Join(node, "meminfo"))
-		if err != nil {
-			return nil, err
-		}
-		defer meminfoFile.Close()
-
-		numaInfo, err := parseMemInfoNuma(meminfoFile)
-		if err != nil {
-			return nil, err
-		}
-		metrics = append(metrics, numaInfo...)
-
-		numastatFile, err := os.Open(path.Join(node, "numastat"))
-		if err != nil {
-			return nil, err
-		}
-		defer numastatFile.Close()
-
-		nodeNumber := meminfoNodeRE.FindStringSubmatch(node)
-		if nodeNumber == nil {
-			return nil, fmt.Errorf("device node string didn't match regexp: %s", node)
-		}
-
-		numaStat, err := parseMemInfoNumaStat(numastatFile, nodeNumber[1])
-		if err != nil {
-			return nil, err
-		}
-		metrics = append(metrics, numaStat...)
-	}
-
-	return metrics, nil
 }
 
 func parseMemInfoNuma(r io.Reader) ([]meminfoMetric, error) {

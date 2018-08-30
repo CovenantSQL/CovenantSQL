@@ -8,7 +8,7 @@
 
 ## What is CovenantSQL?
 
-CovenantSQL is a distributed database running on BlockChain for ĐApps and traditional Apps. 
+CovenantSQL is a decentralized, history immutable, and crowdsourcing database that supports DApps on blockchain and also traditional Apps. CovenantSQL aims to build a high performance infrastructure which allows users to have full control over their data. The migration cost is minimized by providing standard database driver and SQL API so that developers could migrate to CovenantSQL easily.
 
 Traditional databases run on expensive servers hosted
 by IDCs and must be maintained by experienced engineers and DBAs. Also, high availability and scalability are expensive to achieve. CovenantSQL is a paid database service that addresses these problems using a sharing economy with the following features:

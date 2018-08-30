@@ -50,7 +50,7 @@ var (
 	configFile        string
 	password          string
 	singleTransaction bool
-	variables         Variables
+	variables         varsFlag
 
 	// DML variables
 	createDB string // as a instance meta json string or simply a node count
@@ -61,20 +61,20 @@ var (
 	showCreateTableRegex = regexp.MustCompile("(?i)^show\\s+create\\s+table\\s+(\\w+)\\s*;\\s*?$")
 )
 
-type Variables struct {
+type varsFlag struct {
 	flag.Value
 	vars []string
 }
 
-func (v *Variables) Get() []string {
+func (v *varsFlag) Get() []string {
 	return append([]string{}, v.vars...)
 }
 
-func (v *Variables) String() string {
+func (v *varsFlag) String() string {
 	return fmt.Sprintf("%#v", v.vars)
 }
 
-func (v *Variables) Set(value string) error {
+func (v *varsFlag) Set(value string) error {
 	v.vars = append(v.vars, value)
 	return nil
 }

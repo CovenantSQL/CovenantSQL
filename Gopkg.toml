@@ -44,6 +44,14 @@
   name = "github.com/prometheus/node_exporter"
   branch = "master"
 
+[[override]]
+  name = "github.com/gohxs/readline"
+  branch = "master"
+
+[[override]]
+  name = "github.com/xo/usql"
+  branch = "master"
+
 [prune]
   go-tests = true
   unused-packages = true

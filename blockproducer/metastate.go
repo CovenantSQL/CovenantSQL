@@ -17,9 +17,11 @@
 package blockproducer
 
 import (
+	"bytes"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
 )
 
@@ -107,24 +109,47 @@ func (s *metaState) deleteSQLChainObject(k proto.DatabaseID) {
 
 func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 	return func(tx *bolt.Tx) (err error) {
+		var (
+			enc *bytes.Buffer
+			ab  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
+			cb  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
+		)
 		s.Lock()
 		defer s.Unlock()
 		for k, v := range s.dirty.accounts {
 			if v != nil {
 				// New/update object
 				s.readonly.accounts[k] = v
+				if enc, err = utils.EncodeMsgPack(v.Account); err != nil {
+					return
+				}
+				if err = ab.Put(v.Address[:], enc.Bytes()); err != nil {
+					return
+				}
 			} else {
 				// Delete object
 				delete(s.readonly.accounts, k)
+				if err = ab.Delete(v.Address[:]); err != nil {
+					return
+				}
 			}
 		}
 		for k, v := range s.dirty.databases {
 			if v != nil {
 				// New/update object
 				s.readonly.databases[k] = v
+				if enc, err = utils.EncodeMsgPack(v.SQLChainProfile); err != nil {
+					return
+				}
+				if err = cb.Put([]byte(k), enc.Bytes()); err != nil {
+					return
+				}
 			} else {
 				// Delete object
 				delete(s.readonly.databases, k)
+				if err = cb.Delete([]byte(k)); err != nil {
+					return
+				}
 			}
 		}
 		// Clean dirty map

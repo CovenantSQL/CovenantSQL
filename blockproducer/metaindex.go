@@ -33,7 +33,6 @@ func safeAdd(x, y *uint64) (err error) {
 	}
 	*x += *y
 	return
-
 }
 
 // safeAdd provides a safe sub method with lower overflow check for uint64.

@@ -38,7 +38,6 @@ import (
 	"github.com/xo/usql/handler"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
-	"github.com/xo/xoutil"
 )
 
 var (
@@ -115,7 +114,7 @@ func init() {
 			// does, then return a formatted time string.
 			s := string(buf)
 			if s != "" && strings.TrimSpace(s) != "" {
-				t := new(xoutil.SqTime)
+				t := new(SqTime)
 				if err := t.Scan(buf); err == nil {
 					return t.Format(tfmt), nil
 				}
@@ -138,7 +137,7 @@ func init() {
 			// does, then return a formatted time string.
 			s := string(buf)
 			if s != "" && strings.TrimSpace(s) != "" {
-				t := new(xoutil.SqTime)
+				t := new(SqTime)
 				if err := t.Scan(buf); err == nil {
 					return t.Format(tfmt), nil
 				}

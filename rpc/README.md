@@ -17,6 +17,10 @@ CovenantSQL is built on DH-RPC, including:
 - Metric Collect
 - Blocks sync
 
+
+Demo Code see [Example](#example) below
+<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
+
 ## Features
 
 - 75%+ code testing coverage.
@@ -39,9 +43,10 @@ CovenantSQL is built on DH-RPC, including:
 
 ## Example
 
-<img align="middle" width=600 src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
+Complete code can be found [here](_example/)
 
 #### Tracker
+
 ```golang
 package main
 

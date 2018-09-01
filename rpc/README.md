@@ -33,10 +33,12 @@ CovenantSQL is built on DH-RPC, including:
     - ECDH for Key Exchange
     - PKCS#7 for padding
     - AES-256-CBC for Symmetric Encryption
-    - private key protected by master key
+    - Private key protected by master key
+    - Annoymous connection is also supported
 - DHT persistence layer has 2 implementations:
     - BoltDB based simple traditional DHT
     - Kayak based 2PC strong consistent DHT
+- Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
     
 ## Main Sequence
 

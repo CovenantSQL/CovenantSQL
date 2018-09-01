@@ -194,7 +194,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		return err // return from View func
 	})
 	if err != nil {
-		log.Errorf("get node info failed: %s", err)
+		log.Infof("get node info failed: %s", err)
 	}
 	return
 }

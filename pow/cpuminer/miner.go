@@ -75,11 +75,11 @@ func (miner *CPUMiner) ComputeBlockNonce(
 	for i := startNonce; ; i.Inc() {
 		select {
 		case <-block.Stop:
-			log.Info("Stop mining job")
+			log.Info("Stop block nonce job")
 			block.NonceChan <- bestNonce
 			return errors.New("mining job stopped")
 		case <-miner.quit:
-			log.Info("Stop mining worker")
+			log.Info("Stop block nonce worker")
 			block.NonceChan <- bestNonce
 			return errors.New("miner interrupted")
 		default:

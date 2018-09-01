@@ -1,0 +1,25 @@
+IsTestMode: true
+ListenAddr: "127.0.0.1:2230"
+ThisNodeID: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
+PubKeyStoreFile: "./tracker.public.keystore"
+PrivateKeyFile: "./tracker.private.key"
+DHTFileName: "./tracker.dht.db"
+BlockProducer:
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+
+KnownNodes:
+- ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+  Addr: 127.0.0.1:2230
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  Role: Leader

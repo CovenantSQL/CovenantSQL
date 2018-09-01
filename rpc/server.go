@@ -146,8 +146,9 @@ sessionLoop:
 			if err != nil {
 				if err == io.EOF {
 					log.Infof("session %s connection closed", remoteNodeID)
+				} else {
+					log.Errorf("session %s accept failed: %s", remoteNodeID, err)
 				}
-				log.Errorf("session %s accept failed: %s", remoteNodeID, err)
 				break sessionLoop
 			}
 			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
@@ -196,7 +197,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
 	)
 	if err != nil {
-		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
+		log.Errorf("get shared secret for %s failed: %s", rawNodeID.ToNodeID(), err)
 		return
 	}
 	cipher := etls.NewCipher(symmetricKey)

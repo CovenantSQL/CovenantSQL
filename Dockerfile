@@ -1,5 +1,5 @@
 # Stage: builder
-FROM golang:1.10.3-stretch as builder
+FROM golang:1.10-stretch as builder
 
 WORKDIR /go/src/github.com/CovenantSQL/CovenantSQL
 COPY . .

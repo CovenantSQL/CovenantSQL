@@ -51,7 +51,7 @@ var (
 // Chain defines the main chain.
 type Chain struct {
 	db  *bolt.DB
-	mi  *metaIndex
+	ms  *metaState
 	bi  *blockIndex
 	ti  *txIndex
 	rt  *rt
@@ -110,6 +110,11 @@ func NewChain(cfg *Config) (*Chain, error) {
 		}
 
 		_, err = bucket.CreateBucketIfNotExists(metaAccountIndexBucket)
+		if err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaSQLChainIndexBucket)
 		return
 	})
 	if err != nil {
@@ -119,7 +124,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 	// create chain
 	chain := &Chain{
 		db:                db,
-		mi:                newMetaIndex(),
+		ms:                newMetaState(),
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
@@ -164,7 +169,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 	chain = &Chain{
 		db:                db,
-		mi:                newMetaIndex(),
+		ms:                newMetaState(),
 		bi:                newBlockIndex(),
 		ti:                newTxIndex(),
 		rt:                newRuntime(cfg, accountAddress),
@@ -256,27 +261,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			return
 		}
 
-		accounts := meta.Bucket(metaAccountIndexBucket)
-		if err = accounts.ForEach(func(k, v []byte) (err error) {
-			o := &accountObject{}
-			if err = utils.DecodeMsgPack(v, &o.Account); err != nil {
-				return
-			}
-			chain.mi.storeAccountObject(o)
-			return
-		}); err != nil {
-			return
-		}
-
-		sqlchains := meta.Bucket(metaSQLChainIndexBucket)
-		if err = sqlchains.ForEach(func(k, v []byte) (err error) {
-			o := &sqlchainObject{}
-			if err = utils.DecodeMsgPack(v, &o.SQLChainProfile); err != nil {
-				return
-			}
-			chain.mi.storeSQLChainObject(o)
-			return
-		}); err != nil {
+		if err = chain.ms.reloadProcedure()(tx); err != nil {
 			return
 		}
 
@@ -584,8 +569,6 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 	// TODO(lambda): because there is no token distribution,
 	// we only increase miners' balance but not decrease customer's balance
 	var (
-		ok            bool
-		acc           *types.Account
 		enc           []byte
 		accountNumber = len(br.Header.GasAmounts)
 		receivers     = make([]*proto.AccountAddress, accountNumber)
@@ -593,33 +576,18 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		rewards       = make([]uint64, accountNumber)
 	)
 
-	if err = c.db.Update(func(tx *bolt.Tx) (err error) {
-		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-		for i, addrAndGas := range br.Header.GasAmounts {
-			receivers[i] = &addrAndGas.AccountAddress
-			fees[i] = addrAndGas.GasAmount * uint64(gasprice)
-			rewards[i] = 0
-
-			// TODO(leventeliu): deal with account nonexistence/overflow error and continue.
-			if acc, ok = c.ai.loadAccount(addrAndGas.AccountAddress); !ok {
-				return
-			}
-			if err = acc.IncreaseAccountStableBalance(
-				addrAndGas.GasAmount * uint64(gasprice),
-			); err != nil {
-				return
-			}
-
-			if enc, err = acc.Serialize(); err != nil {
-				return
-			} else if err = accountBucket.Put(addrAndGas.AccountAddress[:], enc); err != nil {
-				return
-			}
+	for i, addrAndGas := range br.Header.GasAmounts {
+		receivers[i] = &addrAndGas.AccountAddress
+		fees[i] = addrAndGas.GasAmount * uint64(gasprice)
+		rewards[i] = 0
+		if err = c.ms.increaseAccountStableBalance(
+			addrAndGas.AccountAddress,
+			addrAndGas.GasAmount*uint64(gasprice),
+		); err != nil {
+			return
 		}
-		return
-	}); err != nil {
-		return
 	}
+	return
 
 	if enc, err = br.MarshalHash(); err != nil {
 		return

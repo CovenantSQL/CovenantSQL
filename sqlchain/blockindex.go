@@ -70,7 +70,7 @@ func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
 	}
 
 	// The block at this height may not exist
-	if ancestor.height < height {
+	if ancestor != nil && ancestor.height < height {
 		ancestor = nil
 	}
 
@@ -80,7 +80,7 @@ func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
 func (n *blockNode) indexKey() (key []byte) {
 	key = make([]byte, hash.HashSize+4)
 	binary.BigEndian.PutUint32(key[0:4], uint32(n.height))
-	copy(key[4:hash.HashSize], n.hash[:])
+	copy(key[4:hash.HashSize+4], n.hash[:])
 	return
 }
 

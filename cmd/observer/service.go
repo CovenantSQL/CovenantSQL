@@ -233,6 +233,11 @@ func (s *Service) AdviseNewBlock(req *sqlchain.MuxAdviseNewBlockReq, resp *sqlch
 		return ErrStopped
 	}
 
+	if req.Block == nil {
+		log.Infof("received empty block from node %v", req.GetNodeID().String())
+		return
+	}
+
 	return s.addBlock(req.DatabaseID, req.Block)
 }
 
@@ -241,6 +246,11 @@ func (s *Service) AdviseAckedQuery(req *sqlchain.MuxAdviseAckedQueryReq, resp *s
 	if atomic.LoadInt32(&s.stopped) == 1 {
 		// stopped
 		return ErrStopped
+	}
+
+	if req.Query == nil {
+		log.Infof("received empty acked query from node %v", req.GetNodeID().String())
+		return
 	}
 
 	return s.addAckedQuery(req.DatabaseID, req.Query)

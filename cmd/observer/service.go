@@ -570,6 +570,27 @@ func (s *Service) getRequestByOffset(dbID proto.DatabaseID, offset uint64) (requ
 	return
 }
 
+func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *ct.Block, err error) {
+	err = s.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))
+
+		if bucket == nil {
+			return ErrNotFound
+		}
+
+		cur := bucket.Cursor()
+		if last, blockData := cur.Last(); last != nil {
+			// decode bytes
+			height = bytesToHeight(last[:4])
+			return utils.DecodeMsgPack(blockData, &b)
+		}
+
+		return ErrNotFound
+	})
+
+	return
+}
+
 func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (b *ct.Block, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))

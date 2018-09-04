@@ -106,6 +106,12 @@ dep ensure -v
 
 ## Key Technologies Explaination
 
+- DH-RPC
+  - [DH-RPC is RPC framework powered CovenantSQL](rpc/)
+  
+- GNTE
+  - [Global Network Topology Emulator](https://github.com/CovenantSQL/GNTE) is used to test CovenantSQL
+  
 - Crypto
   - [ETLS Explaination](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
 

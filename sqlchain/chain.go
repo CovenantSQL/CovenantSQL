@@ -238,6 +238,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 			height := chain.rt.getHeightFromTime(block.Timestamp())
 			nodes[index].initBlockNode(height, block, parent)
+			chain.bi.addBlock(&nodes[index])
 			last = &nodes[index]
 			index++
 			return

@@ -269,7 +269,7 @@ func TestMultiChain(t *testing.T) {
 				}
 			}
 
-			if chain, err := LoadChain(p.config); err != nil {
+			if chain, err := NewChain(p.config); err != nil {
 				t.Errorf("Error occurred: %v", err)
 			} else {
 				t.Logf("Load chain from file %s: head = %s height = %d",

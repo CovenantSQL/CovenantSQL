@@ -56,14 +56,14 @@ Blockchain developers seem to be aware of the same problem. The new generation o
 The architecture of CovenantSQL is mainly divided into three layers:
 
 1. Global consensus layer (the main chain, the middle ring in the architecture diagram):
-  - There will only be one main chain throughout the network.
-  - Mainly responsible for database Miner and the user’s contract matching, transaction settlement, anti-cheating, side chain lock hash and other global consensus matters.
-2. SQL consensus layer (sidechain, rings on both sides):
-  - Each database will have its own separate sidechain.
-  - Mainly responsible for: the signature, delivery and consistency of the various Transactions of the database. The data history of the permanent traceability is mainly implemented here, and the hash lock is performed in the main chain.
-3. Database layer:
-  - Each Database has its own independent distributed engine.
-  - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
+    - There will only be one main chain throughout the network.
+    - Mainly responsible for database Miner and the user’s contract matching, transaction settlement, anti-cheating, side chain lock hash and other global consensus matters.
+1. SQL consensus layer (sidechain, rings on both sides):
+    - Each database will have its own separate sidechain.
+    - Mainly responsible for: the signature, delivery and consistency of the various Transactions of the database. The data history of the permanent traceability is mainly implemented here, and the hash lock is performed in the main chain.
+1. Database layer:
+    - Each Database has its own independent distributed engine.
+    - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
 The three-layer design is hash locked with each other to ensure that the data cannot be falsified. From top to bottom, according to different requirements, different consensus algorithms and smaller consensus ranges are adopted to achieve higher consensus efficiency and performance.
 

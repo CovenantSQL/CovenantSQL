@@ -304,6 +304,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:8fa03cb74ac5c89555750948a9f225a73bf34c9aa87ee9202b8e88c9f3b5d6fb"
+  name = "github.com/ulule/deepcopier"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ca99b135e50f526fde9cd88705f0ff2f3f95b77c"
+
+[[projects]]
+  branch = "master"
   digest = "1:583f2f436bab7b59a7bd3e759f1375b06f460760ed1f9235604d143eaab83009"
   name = "golang.org/x/crypto"
   packages = [
@@ -375,6 +383,7 @@
     "github.com/stretchr/testify/mock",
     "github.com/tchap/go-patricia/patricia",
     "github.com/ugorji/go/codec",
+    "github.com/ulule/deepcopier",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
     "gopkg.in/yaml.v2",

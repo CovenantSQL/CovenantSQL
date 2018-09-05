@@ -51,7 +51,7 @@ NodeID := sha256(blake2b-512(NodePublicKey + Uint256Nonce))
 
 DHT is used to hold the `NodeID`:`PublicKey` `NodeID`:`Addr` map. A RPC connection will do ECDH to get shared secret after TCP connection established.
 ```go
-GenECDHSharedSecret(Trackerub, APriv) == GenECDHSharedSecret(APub, Trackerriv)
+GenECDHSharedSecret(APub, BPriv) == GenECDHSharedSecret(BPub, APriv)
 ```
 
 The main procedure is described as sequence chart below:

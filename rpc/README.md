@@ -20,7 +20,6 @@ CovenantSQL is built on DH-RPC, including:
 
 ## Features
 
-- 75%+ code testing coverage.
 - 100% compatible with Go [net/rpc](https://golang.org/pkg/net/rpc/) standard.
 - ID based routing and Key exchange built on Secure Enhanced DHT.
 - use MessagePack for serialization which support most types without writing `Marshal` and `Unmarshal`.
@@ -33,7 +32,7 @@ CovenantSQL is built on DH-RPC, including:
     - Annoymous connection is also supported
 - DHT persistence layer has 2 implementations:
     - BoltDB based simple traditional DHT
-    - Kayak based 2PC strong consistent DHT
+    - [Kayak](https://godoc.org/github.com/CovenantSQL/CovenantSQL/kayak) based 2PC strong consistent DHT
 - Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
 
 
@@ -44,12 +43,11 @@ The example below is 1 tracker and 2 nodes.
 <img src="../logo/rpc.png" width=600>
 
 Complete code can be found [here](_example/)
-<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
 
 
-#### Tracker
+#### Tracker Code
 
-```golang
+```go
 package main
 
 import (
@@ -90,7 +88,7 @@ func main() {
 }
 ```
 
-#### Node
+#### Node Code
 ```go
 package main
 
@@ -184,7 +182,7 @@ func main() {
 }
 ```
 
-Start
+Start tracker and node1, node2
 ```bash
 $ ./runTracker.sh &
 $ ./runNode2.sh &
@@ -192,4 +190,6 @@ $ ./runNode1.sh
 $ Input target node ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade #node2
 $ Input msg: abcdefg
 ```
+
+<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
 

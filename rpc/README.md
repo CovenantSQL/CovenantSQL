@@ -17,10 +17,6 @@ CovenantSQL is built on DH-RPC, including:
 - Metric Collect
 - Blocks sync
 
-<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
-
-
-**Demo Code see [Example](#example)**
 
 ## Features
 
@@ -39,14 +35,17 @@ CovenantSQL is built on DH-RPC, including:
     - BoltDB based simple traditional DHT
     - Kayak based 2PC strong consistent DHT
 - Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
-    
-## Main Sequence
 
-<img src="../logo/rpc.png" width=600>
 
 ## Example
 
+The example below is 1 tracker and 2 nodes.
+
+<img src="../logo/rpc.png" width=600>
+
 Complete code can be found [here](_example/)
+<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
+
 
 #### Tracker
 

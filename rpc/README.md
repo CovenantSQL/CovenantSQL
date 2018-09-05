@@ -40,7 +40,7 @@ CovenantSQL is built on DH-RPC, including:
 
 The example below is 1 tracker and 2 nodes.
 
-<img src="../logo/rpc.png" width=600>
+<img src="../logo/rpc.png" width=900>
 
 Complete code can be found [here](_example/)
 

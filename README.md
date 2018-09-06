@@ -57,11 +57,11 @@ The architecture of CovenantSQL is mainly divided into three layers:
 
 1. Global consensus layer (the main chain, the middle ring in the architecture diagram):
     - There will only be one main chain throughout the network.
-    - Mainly responsible for database Miner and the user’s contract matching, transaction settlement, anti-cheating, side chain lock hash and other global consensus matters.
-1. SQL consensus layer (sidechain, rings on both sides):
-    - Each database will have its own separate sidechain.
+    - Mainly responsible for database Miner and the user’s contract matching, transaction settlement, anti-cheating, shard chain lock hash and other global consensus matters.
+1. SQL consensus layer (shard chain, rings on both sides):
+    - Each database will have its own separate shard chain.
     - Mainly responsible for: the signature, delivery and consistency of the various Transactions of the database. The data history of the permanent traceability is mainly implemented here, and the hash lock is performed in the main chain.
-1. Database layer:
+1. Datastore layer:
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 

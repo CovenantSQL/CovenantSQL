@@ -95,7 +95,16 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// init storage
 	storageFile := filepath.Join(cfg.DataDir, StorageFileName)
-	if db.storage, err = storage.New(storageFile); err != nil {
+	storageDSN, err := storage.NewDSN(storageFile)
+	if err != nil {
+		return
+	}
+
+	if cfg.EncryptionKey != "" {
+		storageDSN.AddParam("_crypto_key", cfg.EncryptionKey)
+	}
+
+	if db.storage, err = storage.New(storageDSN.Format()); err != nil {
 		return
 	}
 

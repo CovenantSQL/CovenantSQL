@@ -65,4 +65,9 @@ var (
 	ErrDatabaseExists = errors.New("database already exists")
 	// ErrDatabaseUserExists indicates that the database user already exists.
 	ErrDatabaseUserExists = errors.New("database user already exists")
+	// ErrInvalidAccountNonce indicates that a transaction has a invalid account nonce.
+	ErrInvalidAccountNonce = errors.New("invalid account nonce")
+	// ErrUnknownTransactionType indicates that a transaction has a unknown type and cannot be
+	// further processed.
+	ErrUnknownTransactionType = errors.New("unknown transaction type")
 )

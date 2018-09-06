@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"sync"
 
+	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	bt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -29,9 +30,14 @@ import (
 
 // TODO(leventeliu): lock optimization.
 
+var (
+	metaTransactionBucket = []byte("covenantsql-tx-index-bucket")
+)
+
 type metaState struct {
 	sync.RWMutex
 	dirty, readonly *metaIndex
+	pool            *txPool
 }
 
 func newMetaState() *metaState {
@@ -381,4 +387,79 @@ func (s *metaState) alterSQLChainUser(
 		}
 	}
 	return
+}
+
+func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce bi.AccountNonce, err error) {
+	s.Lock()
+	defer s.Unlock()
+	if e, ok := s.pool.getTxEntries(addr); ok {
+		nonce = e.nextNonce()
+		return
+	}
+	if o, ok := s.loadAccountObject(addr); ok {
+		nonce = o.Account.NextNonce
+		return
+	}
+	err = ErrAccountNotFound
+	return
+}
+
+func (s *metaState) applyTransaction(tx bi.Transaction) (err error) {
+	switch tx.(type) {
+	default:
+		err = ErrUnknownTransactionType
+	}
+	return
+}
+
+// applyTransaction tries to apply t to the metaState and push t to the memory pool if and
+// only if it can be applied correctly.
+func (s *metaState) applyTransactionProcedure(t bi.Transaction) (_ func(*bolt.Tx) error) {
+	var (
+		err     error
+		errPass = func(*bolt.Tx) error {
+			return err
+		}
+	)
+	// Static checks, which have no relation with metaState
+	if err = t.Verify(); err != nil {
+		return errPass
+	}
+
+	var (
+		enc   []byte
+		hash  = t.GetHash()
+		addr  = t.GetAccountAddress()
+		nonce = t.GetAccountNonce()
+		ttype = t.GetTransactionType()
+	)
+	if enc, err = t.Serialize(); err != nil {
+		return errPass
+	}
+
+	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
+	return func(tx *bolt.Tx) (err error) {
+		// Check account nonce
+		nextNonce, err := s.nextNonce(addr)
+		if err != nil {
+			return
+		}
+		if nextNonce != nonce {
+			err = ErrInvalidAccountNonce
+			return
+		}
+		// Try to put transaction before any state change, will be rolled back later
+		// if transaction doesn't apply
+		tb := tx.Bucket(metaBucket[:]).Bucket(metaTransactionBucket).Bucket(ttype.Bytes())
+		if err = tb.Put(hash[:], enc); err != nil {
+			return
+		}
+		// Try to apply transaction to metaState
+		if err = s.applyTransaction(t); err != nil {
+			return
+		}
+		// Push to pool
+		s.pool.addTx(t, nextNonce)
+		return
+	}
 }

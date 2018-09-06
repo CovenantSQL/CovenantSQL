@@ -350,16 +350,9 @@ func (c *Chain) checkBlock(b *types.Block) (err error) {
 		return ErrParentNotMatch
 	}
 
-	// TODO(leventeliu): merge transactiions checking
+	// TODO(leventeliu): merge transactions checking.
 	for i := range b.TxBillings {
 		if err = c.checkTxBilling(b.TxBillings[i]); err != nil {
-			return err
-		}
-	}
-
-	// Check transactions in TxIndex
-	for _, v := range b.Transactions {
-		if err = c.checkTx(v); err != nil {
 			return err
 		}
 	}

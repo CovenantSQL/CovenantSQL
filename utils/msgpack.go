@@ -33,6 +33,16 @@ func DecodeMsgPack(buf []byte, out interface{}) error {
 	return dec.Decode(out)
 }
 
+// DecodeMsgPackPlain reverses the encode operation on a byte slice input without RawToString setting.
+func DecodeMsgPackPlain(buf []byte, out interface{}) error {
+	r := bytes.NewBuffer(buf)
+	hd := codec.MsgpackHandle{
+		WriteExt: true,
+	}
+	dec := codec.NewDecoder(r, &hd)
+	return dec.Decode(out)
+}
+
 // EncodeMsgPack writes an encoded object to a new bytes buffer.
 func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)

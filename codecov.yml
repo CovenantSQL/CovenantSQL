@@ -30,3 +30,4 @@ comment:
 ignore:
   - "vendor"
   - "cmd"
+  - "_example/**/*"

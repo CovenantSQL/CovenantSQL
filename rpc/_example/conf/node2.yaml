@@ -1,0 +1,34 @@
+IsTestMode: true
+ListenAddr: "127.0.0.1:12231"
+ThisNodeID: "000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade"
+PubKeyStoreFile: "./node2.public.keystore"
+PrivateKeyFile: "./node2.private.key"
+DHTFileName: "./node2.dht.db"
+BlockProducer:
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+
+KnownNodes:
+- ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+  Addr: 127.0.0.1:2230
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  Role: Leader
+- ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
+  Nonce:
+    a: 567323
+    b: 0
+    c: 0
+    d: 3104982049
+  Addr: 127.0.0.1:12231
+  PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
+

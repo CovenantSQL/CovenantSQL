@@ -124,7 +124,7 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 
 	symmetricKey, err := GetSharedSecretWith(rawNodeID, isAnonymous)
 	if err != nil {
-		log.Errorf("get shared secret for %x failed: %s", *rawNodeID, err)
+		log.Errorf("get shared secret for %s failed: %s", rawNodeID.ToNodeID(), err)
 		return
 	}
 

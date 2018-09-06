@@ -116,6 +116,26 @@ services:
     networks:
       default:
         ipv4_address: 172.254.1.8
+  covenantsql_observer:
+    image: covenantsql.io/covenantsql:latest
+    container_name: covenantsql_observer
+    restart: always
+    ports:
+      - "11106:4663"
+    command: ["-database", "057e55460f501ad071383c95f691293f2f0a7895988e22593669ceeb52a6452a", "-reset", "oldest", "-listen", "0.0.0.0:4663"]
+    environment:
+      COVENANT_ROLE: observer
+      COVENANT_CONF: ./node_observer/config.yaml
+    volumes:
+      - ./test/service/node_observer/:/app/node_observer/
+    networks:
+      default:
+        ipv4_address: 172.254.1.9
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "10"
 
 networks:
   default:

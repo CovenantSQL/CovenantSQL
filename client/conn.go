@@ -40,6 +40,7 @@ import (
 var (
 	connectionID uint64
 	seqNo        uint64
+	randSource   = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 // conn implements an interface sql.Conn.
@@ -63,14 +64,8 @@ func newConn(cfg *Config) (c *conn, err error) {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// generate random connection id
-	connID := rand.Int63()
-	if connID < 0 {
-		connID = -connID
-	}
-
 	// init connectionID to random id
-	atomic.CompareAndSwapUint64(&connectionID, 0, uint64(connID))
+	atomic.CompareAndSwapUint64(&connectionID, 0, randSource.Uint64())
 
 	// get local node id
 	var nodeID proto.NodeID
@@ -312,12 +307,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSQuery.String(), req, &response); err != nil {
 		if strings.Contains(err.Error(), "invalid request sequence") {
 			// request sequence failure, try again
-			connID := rand.Int63()
-			if connID < 0 {
-				connID = -connID
-			}
-
-			atomic.StoreUint64(&connectionID, uint64(connID))
+			atomic.StoreUint64(&connectionID, randSource.Uint64())
 			req.Header.ConnectionID = atomic.LoadUint64(&connectionID)
 			req.Header.SeqNo = atomic.AddUint64(&seqNo, 1)
 

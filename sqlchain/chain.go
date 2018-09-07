@@ -689,11 +689,14 @@ func (c *Chain) sync() (err error) {
 func (c *Chain) processBlocks() {
 	rsCh := make(chan struct{})
 	rsWG := &sync.WaitGroup{}
-	returnStash := func(block *ct.Block) {
+	returnStash := func(stash []*ct.Block) {
 		defer rsWG.Done()
-		select {
-		case c.blocks <- block:
-		case <-rsCh:
+		for _, block := range stash {
+			select {
+			case c.blocks <- block:
+			case <-rsCh:
+				return
+			}
 		}
 	}
 
@@ -703,6 +706,7 @@ func (c *Chain) processBlocks() {
 		c.rt.wg.Done()
 	}()
 
+	var stash []*ct.Block
 	for {
 		select {
 		case block := <-c.blocks:
@@ -719,8 +723,7 @@ func (c *Chain) processBlocks() {
 
 			if height > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
-				rsWG.Add(1)
-				go returnStash(block)
+				stash = append(stash, block)
 			} else {
 				// Process block
 				if height < c.rt.getNextTurn()-1 {
@@ -738,8 +741,14 @@ func (c *Chain) processBlocks() {
 						}).Error("Failed to check and push new block")
 					}
 				}
-			}
 
+				// Return all stashed blocks to pending channel
+				if stash != nil {
+					rsWG.Add(1)
+					go returnStash(stash)
+					stash = nil
+				}
+			}
 			// fire replication to observers
 			c.startStopReplication()
 		case <-c.stopCh:

@@ -72,6 +72,7 @@ type Chain struct {
 
 	stopCh    chan struct{}
 	blocks    chan *ct.Block
+	heights   chan int32
 	responses chan *wt.ResponseHeader
 	acks      chan *wt.AckHeader
 
@@ -136,6 +137,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		rt:        newRunTime(c),
 		stopCh:    make(chan struct{}),
 		blocks:    make(chan *ct.Block),
+		heights:   make(chan int32, 1),
 		responses: make(chan *wt.ResponseHeader),
 		acks:      make(chan *wt.AckHeader),
 
@@ -170,6 +172,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		rt:        newRunTime(c),
 		stopCh:    make(chan struct{}),
 		blocks:    make(chan *ct.Block),
+		heights:   make(chan int32, 1),
 		responses: make(chan *wt.ResponseHeader),
 		acks:      make(chan *wt.AckHeader),
 
@@ -592,6 +595,9 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	defer func() {
 		c.rt.setNextTurn()
 		c.qi.advanceBarrier(c.rt.getMinValidHeight())
+		// Info the block processing goroutine that the chain height has grown, so please return
+		// any stashed blocks for further check.
+		c.heights <- c.rt.getHead().Height
 	}()
 
 	log.WithFields(log.Fields{
@@ -709,6 +715,17 @@ func (c *Chain) processBlocks() {
 	var stash []*ct.Block
 	for {
 		select {
+		case h := <-c.heights:
+			// Return all stashed blocks to pending channel
+			log.WithFields(log.Fields{
+				"height": h,
+				"stashs": len(stash),
+			}).Debug("Read new height from channel")
+			if stash != nil {
+				rsWG.Add(1)
+				go returnStash(stash)
+				stash = nil
+			}
 		case block := <-c.blocks:
 			height := c.rt.getHeightFromTime(block.Timestamp())
 			log.WithFields(log.Fields{
@@ -740,13 +757,6 @@ func (c *Chain) processBlocks() {
 							"block_hash":   block.BlockHash().String(),
 						}).Error("Failed to check and push new block")
 					}
-				}
-
-				// Return all stashed blocks to pending channel
-				if stash != nil {
-					rsWG.Add(1)
-					go returnStash(stash)
-					stash = nil
 				}
 			}
 			// fire replication to observers

@@ -210,6 +210,7 @@ func (dbms *DBMS) Create(instance *wt.ServiceInstance, cleanup bool) (err error)
 		ChainMux:        dbms.chainMux,
 		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
 		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
+		SpaceLimit:      instance.ResourceMeta.Space,
 	}
 
 	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {

@@ -251,6 +251,23 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err error) {
+	// check database size first, wal/kayak/chain database size is not included
+	if db.cfg.SpaceLimit > 0 {
+		path := filepath.Join(db.cfg.DataDir, StorageFileName)
+		var statInfo os.FileInfo
+		if statInfo, err = os.Stat(path); err != nil {
+			if !os.IsNotExist(err) {
+				return
+			}
+		} else {
+			if uint64(statInfo.Size()) > db.cfg.SpaceLimit {
+				// rejected
+				err = ErrSpaceLimitExceeded
+				return
+			}
+		}
+	}
+
 	// call kayak runtime Process
 	var buf *bytes.Buffer
 	if buf, err = utils.EncodeMsgPack(request); err != nil {

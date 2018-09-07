@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,11 +37,14 @@ import (
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
-// conn implements an interface sql.Conn.
-type conn struct {
-	dbID         proto.DatabaseID
+var (
 	connectionID uint64
 	seqNo        uint64
+)
+
+// conn implements an interface sql.Conn.
+type conn struct {
+	dbID proto.DatabaseID
 
 	queries   []wt.Query
 	peers     *kayak.Peers
@@ -65,6 +69,9 @@ func newConn(cfg *Config) (c *conn, err error) {
 		connID = -connID
 	}
 
+	// init connectionID to random id
+	atomic.CompareAndSwapUint64(&connectionID, 0, uint64(connID))
+
 	// get local node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -84,13 +91,12 @@ func newConn(cfg *Config) (c *conn, err error) {
 	}
 
 	c = &conn{
-		dbID:         proto.DatabaseID(cfg.DatabaseID),
-		connectionID: uint64(connID),
-		nodeID:       nodeID,
-		privKey:      privKey,
-		pubKey:       pubKey,
-		queries:      make([]wt.Query, 0),
-		closeCh:      make(chan struct{}),
+		dbID:    proto.DatabaseID(cfg.DatabaseID),
+		nodeID:  nodeID,
+		privKey: privKey,
+		pubKey:  pubKey,
+		queries: make([]wt.Query, 0),
+		closeCh: make(chan struct{}),
 	}
 
 	c.log("new conn database ", c.dbID)
@@ -280,14 +286,14 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	defer c.peersLock.RUnlock()
 
 	// build request
-	seqNo := atomic.AddUint64(&c.seqNo, 1)
+	seqNo := atomic.AddUint64(&seqNo, 1)
 	req := &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
 				QueryType:    queryType,
 				NodeID:       c.nodeID,
 				DatabaseID:   c.dbID,
-				ConnectionID: c.connectionID,
+				ConnectionID: atomic.LoadUint64(&connectionID),
 				SeqNo:        seqNo,
 				Timestamp:    getLocalTime(),
 			},
@@ -304,7 +310,28 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 
 	var response wt.Response
 	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSQuery.String(), req, &response); err != nil {
-		return
+		if strings.Contains(err.Error(), "invalid request sequence") {
+			// request sequence failure, try again
+			connID := rand.Int63()
+			if connID < 0 {
+				connID = -connID
+			}
+
+			atomic.StoreUint64(&connectionID, uint64(connID))
+			req.Header.ConnectionID = atomic.LoadUint64(&connectionID)
+			req.Header.SeqNo = atomic.AddUint64(&seqNo, 1)
+
+			if err = req.Sign(c.privKey); err != nil {
+				return
+			}
+
+			// send request again
+			if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSQuery.String(), req, &response); err != nil {
+				return
+			}
+		} else {
+			return
+		}
 	}
 
 	// verify response

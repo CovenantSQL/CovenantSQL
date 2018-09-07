@@ -42,17 +42,21 @@ const (
 
 	// SQLChainFileName defines sqlchain storage file name.
 	SQLChainFileName = "chain.db"
+
+	// MaxRecordedConnectionSequences defines the max connection slots to anti reply attack.
+	MaxRecordedConnectionSequences = 1000
 )
 
 // Database defines a single database instance in worker runtime.
 type Database struct {
-	cfg          *DBConfig
-	dbID         proto.DatabaseID
-	storage      *storage.Storage
-	kayakRuntime *kayak.Runtime
-	kayakConfig  kayak.Config
-	connSeqs     sync.Map
-	chain        *sqlchain.Chain
+	cfg            *DBConfig
+	dbID           proto.DatabaseID
+	storage        *storage.Storage
+	kayakRuntime   *kayak.Runtime
+	kayakConfig    kayak.Config
+	connSeqs       sync.Map
+	connSeqEvictCh chan uint64
+	chain          *sqlchain.Chain
 }
 
 // NewDatabase create a single database instance using config.
@@ -69,8 +73,9 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// init database
 	db = &Database{
-		cfg:  cfg,
-		dbID: cfg.DatabaseID,
+		cfg:            cfg,
+		dbID:           cfg.DatabaseID,
+		connSeqEvictCh: make(chan uint64, 1),
 	}
 
 	defer func() {
@@ -154,6 +159,9 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		return
 	}
 
+	// init sequence eviction processor
+	go db.evictSequences()
+
 	return
 }
 
@@ -212,6 +220,18 @@ func (db *Database) Shutdown() (err error) {
 		// stop storage
 		if err = db.storage.Close(); err != nil {
 			return
+		}
+	}
+
+	if db.connSeqEvictCh != nil {
+		// stop connection sequence evictions
+		select {
+		case _, ok := <-db.connSeqEvictCh:
+			if ok {
+				close(db.connSeqEvictCh)
+			}
+		default:
+			close(db.connSeqEvictCh)
 		}
 	}
 

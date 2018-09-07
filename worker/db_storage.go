@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"container/list"
 	"context"
 
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
@@ -123,4 +124,29 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	}
 
 	return
+}
+
+func (db *Database) evictSequences() {
+	m := make(map[uint64]*list.Element)
+	l := list.New()
+
+	for connSeq := range db.connSeqEvictCh {
+		if e, ok := m[connSeq]; ok {
+			l.MoveToFront(e)
+			return
+		}
+
+		e := l.PushFront(connSeq)
+		m[connSeq] = e
+
+		if l.Len() > MaxRecordedConnectionSequences {
+			e = l.Back()
+			if e != nil {
+				l.Remove(e)
+				evictSeq := e.Value.(uint64)
+				delete(m, evictSeq)
+				db.connSeqs.Delete(evictSeq)
+			}
+		}
+	}
 }

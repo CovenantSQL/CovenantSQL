@@ -17,9 +17,10 @@
 package types
 
 import (
+	"bytes"
 	"sync"
-	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -89,39 +90,37 @@ func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddres
 	}
 }
 
-// GetHash implements chain/Transaction.GetHash.
-func (tb *TxBilling) GetHash() hash.Hash {
-	return *tb.TxHash
-}
-
-// GetIndexKey implements chain/Transaction.GetIndexKey.
-func (tb *TxBilling) GetIndexKey() interface{} {
-	return *tb.TxHash
-}
-
-// GetPersistenceKey implements chain/Transaction.GetPersistenceKey.
-func (tb *TxBilling) GetPersistenceKey() []byte {
-	return tb.TxHash[:]
-}
-
-// GetTime implements chain/Transaction.GetTime.
-func (tb *TxBilling) GetTime() time.Time {
-	return time.Time{}
-}
-
 // Serialize serializes TxBilling using msgpack.
-func (tb *TxBilling) Serialize() ([]byte, error) {
-	b, err := utils.EncodeMsgPack(tb)
-	if err != nil {
-		return nil, err
+func (tb *TxBilling) Serialize() (b []byte, err error) {
+	var enc *bytes.Buffer
+	if enc, err = utils.EncodeMsgPack(tb); err != nil {
+		b = enc.Bytes()
 	}
-
-	return b.Bytes(), nil
+	return
 }
 
 // Deserialize desrializes TxBilling using msgpack.
 func (tb *TxBilling) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, tb)
+}
+
+// GetHash implements interfaces/Transaction.GetAccountAddress.
+func (tb *TxBilling) GetAccountAddress() proto.AccountAddress {
+	return *tb.AccountAddress
+}
+
+// GetHash implements interfaces/Transaction.GetAccountNonce.
+func (tb *TxBilling) GetAccountNonce() pi.AccountNonce {
+	return pi.AccountNonce(tb.TxContent.SequenceID)
+}
+
+// GetHash implements interfaces/Transaction.GetHash.
+func (tb *TxBilling) GetHash() hash.Hash {
+	return *tb.TxHash
+}
+
+func (tb *TxBilling) GetTransactionType() pi.TransactionType {
+	return pi.TransactionTypeBilling
 }
 
 // PackAndSignTx computes tx of TxContent and signs it.

@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/chain"
 	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
@@ -60,11 +61,10 @@ type Chain struct {
 	txp *chain.TxPersistence
 	txi *chain.TxIndex
 
-	blocksFromSelf    chan *types.Block
-	blocksFromRPC     chan *types.Block
-	txBillingFromSelf chan *types.TxBilling
-	txBillingFromPRC  chan *types.TxBilling
-	stopCh            chan struct{}
+	blocksFromSelf chan *types.Block
+	blocksFromRPC  chan *types.Block
+	pendingTxs     chan pi.Transaction
+	stopCh         chan struct{}
 }
 
 // NewChain creates a new blockchain.
@@ -123,18 +123,17 @@ func NewChain(cfg *Config) (*Chain, error) {
 
 	// create chain
 	chain := &Chain{
-		db:                db,
-		ms:                newMetaState(),
-		bi:                newBlockIndex(),
-		ti:                newTxIndex(),
-		rt:                newRuntime(cfg, accountAddress),
-		st:                &State{},
-		cl:                rpc.NewCaller(),
-		blocksFromSelf:    make(chan *types.Block),
-		blocksFromRPC:     make(chan *types.Block),
-		txBillingFromSelf: make(chan *types.TxBilling),
-		txBillingFromPRC:  make(chan *types.TxBilling),
-		stopCh:            make(chan struct{}),
+		db:             db,
+		ms:             newMetaState(),
+		bi:             newBlockIndex(),
+		ti:             newTxIndex(),
+		rt:             newRuntime(cfg, accountAddress),
+		st:             &State{},
+		cl:             rpc.NewCaller(),
+		blocksFromSelf: make(chan *types.Block),
+		blocksFromRPC:  make(chan *types.Block),
+		pendingTxs:     make(chan pi.Transaction),
+		stopCh:         make(chan struct{}),
 	}
 
 	chain.pushGenesisBlock(cfg.Genesis)
@@ -168,18 +167,17 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	chain = &Chain{
-		db:                db,
-		ms:                newMetaState(),
-		bi:                newBlockIndex(),
-		ti:                newTxIndex(),
-		rt:                newRuntime(cfg, accountAddress),
-		st:                &State{},
-		cl:                rpc.NewCaller(),
-		blocksFromSelf:    make(chan *types.Block),
-		blocksFromRPC:     make(chan *types.Block),
-		txBillingFromSelf: make(chan *types.TxBilling),
-		txBillingFromPRC:  make(chan *types.TxBilling),
-		stopCh:            make(chan struct{}),
+		db:             db,
+		ms:             newMetaState(),
+		bi:             newBlockIndex(),
+		ti:             newTxIndex(),
+		rt:             newRuntime(cfg, accountAddress),
+		st:             &State{},
+		cl:             rpc.NewCaller(),
+		blocksFromSelf: make(chan *types.Block),
+		blocksFromRPC:  make(chan *types.Block),
+		pendingTxs:     make(chan pi.Transaction),
+		stopCh:         make(chan struct{}),
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
@@ -641,7 +639,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 	}
 	log.Debugf("response is %s", resp.RequestHash)
 	// 2. push tx
-	c.txBillingFromSelf <- tb
+	c.pendingTxs <- tb
 	tbReq := &AdviseTxBillingReq{
 		Envelope: proto.Envelope{
 			// TODO(lambda): Add fields.
@@ -786,7 +784,7 @@ func (c *Chain) Start() error {
 	c.rt.wg.Add(1)
 	go c.processBlocks()
 	c.rt.wg.Add(1)
-	go c.processTxBillings()
+	go c.processTxs()
 	c.rt.wg.Add(1)
 	go c.mainCycle()
 	c.rt.startService(c)
@@ -857,31 +855,23 @@ func (c *Chain) processBlocks() {
 
 }
 
-func (c *Chain) processTxBillings() {
+func (c *Chain) processTx(tx pi.Transaction) (err error) {
+	return c.db.Update(c.ms.applyTransactionProcedure(tx))
+}
+
+func (c *Chain) processTxs() {
 	defer c.rt.wg.Done()
 	for {
 		select {
-		case tb := <-c.txBillingFromSelf:
-			err := c.pushTxBillingWithoutCheck(tb)
-			if err != nil {
+		case tx := <-c.pendingTxs:
+			if err := c.processTx(tx); err != nil {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
 					"head_height": c.st.getHeight(),
 					"head_block":  c.st.getHeader().String(),
-					"tx_hash":     tb.TxHash,
-				}).Debugf("Failed to push self-producing tx billing with error: %v", err)
-			}
-		case tb := <-c.txBillingFromPRC:
-			err := c.pushTxBilling(tb)
-			if err != nil {
-				log.WithFields(log.Fields{
-					"peer":        c.rt.getPeerInfoString(),
-					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.st.getHeight(),
-					"head_block":  c.st.getHeader().String(),
-					"tx_hash":     tb.TxHash,
-				}).Debugf("Failed to push rpc tx billing with error: %v", err)
+					"transaction": tx.GetHash().String(),
+				}).Debugf("Failed to push tx with error: %v", err)
 			}
 		case <-c.stopCh:
 			return
@@ -979,7 +969,6 @@ func (c *Chain) syncHead() {
 				"Cannot get block from any peer")
 		}
 	}
-
 }
 
 // Stop stops the main process of the sql-chain.
@@ -1002,7 +991,6 @@ func (c *Chain) AddTx(tx ci.Transaction) (err error) {
 
 	// Special check and process for specific types
 	switch val := tx.(type) {
-	case *types.TxBilling:
 	default:
 		log.WithFields(log.Fields{
 			"tx": val,

@@ -402,6 +402,10 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 			return err
 		}
 		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock)
+		if err != nil {
+			return err
+		}
+		err = c.ms.commitProcedure()(tx)
 		return err
 	})
 	if err != nil {

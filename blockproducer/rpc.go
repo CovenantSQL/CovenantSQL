@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -103,6 +104,26 @@ type FetchTxResp struct {
 	Tx ci.Transaction
 }
 
+type NextAccountNonceReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+type NextAccountNonceResp struct {
+	proto.Envelope
+	Addr  proto.AccountAddress
+	Nonce pi.AccountNonce
+}
+
+type AddTxReq struct {
+	proto.Envelope
+	Tx pi.Transaction
+}
+
+type AddTxResp struct {
+	proto.Envelope
+}
+
 // AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	s.chain.blocksFromRPC <- req.Block
@@ -140,5 +161,20 @@ func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBi
 // FetchTx is the RPC method to fetch a transaction from the target server.
 func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) (err error) {
 	resp.Ok, err = s.chain.fetchTx(req.Hash, resp.Tx)
+	return
+}
+
+func (s *ChainRPCService) NextAccountNonce(
+	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
+) {
+	if resp.Nonce, err = s.chain.ms.nextNonce(req.Addr); err != nil {
+		return
+	}
+	resp.Addr = req.Addr
+	return
+}
+
+func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
+	s.chain.pendingTxs <- req.Tx
 	return
 }

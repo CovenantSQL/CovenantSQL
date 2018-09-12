@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/kayak"
-
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )

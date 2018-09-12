@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"sync"
 
-	bt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
@@ -46,12 +46,12 @@ func safeSub(x, y *uint64) (err error) {
 
 type accountObject struct {
 	sync.RWMutex
-	bt.Account
+	pt.Account
 }
 
 type sqlchainObject struct {
 	sync.RWMutex
-	bt.SQLChainProfile
+	pt.SQLChainProfile
 }
 
 type metaIndex struct {
@@ -252,7 +252,7 @@ func (i *metaIndex) CreateSQLChain(
 		}
 		// Create new sqlchainProfile
 		co = &sqlchainObject{
-			SQLChainProfile: bt.SQLChainProfile{
+			SQLChainProfile: pt.SQLChainProfile{
 				ID:    id,
 				Owner: addr,
 			},

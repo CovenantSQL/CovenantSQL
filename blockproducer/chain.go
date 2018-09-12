@@ -36,17 +36,16 @@ import (
 )
 
 var (
-	metaBucket                   = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey                 = []byte("covenantsql-state")
-	metaBlockIndexBucket         = []byte("covenantsql-block-index-bucket")
-	metaTxBillingIndexBucket     = []byte("covenantsql-tx-billing-index-bucket")
-	metaLastTxBillingIndexBucket = []byte("covenantsql-last-tx-billing-index-bucket")
-	metaAccountIndexBucket       = []byte("covenantsql-account-index-bucket")
-	metaSQLChainIndexBucket      = []byte("covenantsql-sqlchain-index-bucket")
-
-	gasprice uint32 = 1
-
-	accountAddress proto.AccountAddress
+	metaBucket                          = [4]byte{0x0, 0x0, 0x0, 0x0}
+	metaStateKey                        = []byte("covenantsql-state")
+	metaBlockIndexBucket                = []byte("covenantsql-block-index-bucket")
+	metaTransactionBucket               = []byte("covenantsql-tx-index-bucket")
+	metaTxBillingIndexBucket            = []byte("covenantsql-tx-billing-index-bucket")
+	metaLastTxBillingIndexBucket        = []byte("covenantsql-last-tx-billing-index-bucket")
+	metaAccountIndexBucket              = []byte("covenantsql-account-index-bucket")
+	metaSQLChainIndexBucket             = []byte("covenantsql-sqlchain-index-bucket")
+	gasprice                     uint32 = 1
+	accountAddress               proto.AccountAddress
 )
 
 // Chain defines the main chain.
@@ -95,6 +94,11 @@ func NewChain(cfg *Config) (*Chain, error) {
 		}
 
 		_, err = bucket.CreateBucketIfNotExists(metaBlockIndexBucket)
+		if err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaTransactionBucket)
 		if err != nil {
 			return
 		}
@@ -259,6 +263,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			return
 		}
 
+		// Reload state
 		if err = chain.ms.reloadProcedure()(tx); err != nil {
 			return
 		}
@@ -852,7 +857,6 @@ func (c *Chain) processBlocks() {
 			return
 		}
 	}
-
 }
 
 func (c *Chain) processTx(tx pi.Transaction) (err error) {

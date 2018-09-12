@@ -23,18 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

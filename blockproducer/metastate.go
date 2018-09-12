@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"sync"
 
-	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	bt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
@@ -29,10 +29,6 @@ import (
 )
 
 // TODO(leventeliu): lock optimization.
-
-var (
-	metaTransactionBucket = []byte("covenantsql-tx-index-bucket")
-)
 
 type metaState struct {
 	sync.RWMutex
@@ -244,6 +240,64 @@ func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount 
 	return safeSub(&dst.Account.StableCoinBalance, &amount)
 }
 
+func (s *metaState) transferAccountStableBalance(
+	sender, receiver proto.AccountAddress, amount uint64) (err error,
+) {
+	if sender == receiver {
+		return
+	}
+
+	s.Lock()
+	defer s.Unlock()
+	var (
+		so, ro     *accountObject
+		sd, rd, ok bool
+	)
+
+	// Load sender and receiver objects
+	if so, sd = s.dirty.accounts[sender]; !sd {
+		if so, ok = s.readonly.accounts[sender]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+	if ro, rd = s.dirty.accounts[receiver]; !rd {
+		if ro, ok = s.readonly.accounts[receiver]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+
+	// Try transfer
+	var (
+		sb = so.StableCoinBalance
+		rb = ro.StableCoinBalance
+	)
+	if err = safeSub(&sb, &amount); err != nil {
+		return
+	}
+	if err = safeAdd(&rb, &amount); err != nil {
+		return
+	}
+
+	// Proceed transfer
+	if !sd {
+		var cpy = &accountObject{}
+		deepcopier.Copy(&so.Account).To(&cpy.Account)
+		so = cpy
+		s.dirty.accounts[sender] = cpy
+	}
+	if !rd {
+		var cpy = &accountObject{}
+		deepcopier.Copy(&ro.Account).To(&cpy.Account)
+		ro = cpy
+		s.dirty.accounts[receiver] = cpy
+	}
+	so.StableCoinBalance = sb
+	ro.StableCoinBalance = rb
+	return
+}
+
 func (s *metaState) increaseAccountcovenantBalance(k proto.AccountAddress, amount uint64) error {
 	s.Lock()
 	defer s.Unlock()
@@ -294,14 +348,14 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 		return ErrDatabaseExists
 	}
 	s.dirty.databases[id] = &sqlchainObject{
-		SQLChainProfile: bt.SQLChainProfile{
+		SQLChainProfile: pt.SQLChainProfile{
 			ID:     id,
 			Owner:  addr,
 			Miners: make([]proto.AccountAddress, 0),
-			Users: []*bt.SQLChainUser{
-				&bt.SQLChainUser{
+			Users: []*pt.SQLChainUser{
+				&pt.SQLChainUser{
 					Address:    addr,
-					Permission: bt.Admin,
+					Permission: pt.Admin,
 				},
 			},
 		},
@@ -310,7 +364,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 }
 
 func (s *metaState) addSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm bt.UserPermission) (_ error,
+	k proto.DatabaseID, addr proto.AccountAddress, perm pt.UserPermission) (_ error,
 ) {
 	s.Lock()
 	defer s.Unlock()
@@ -331,7 +385,7 @@ func (s *metaState) addSQLChainUser(
 			return ErrDatabaseUserExists
 		}
 	}
-	dst.SQLChainProfile.Users = append(dst.SQLChainProfile.Users, &bt.SQLChainUser{
+	dst.SQLChainProfile.Users = append(dst.SQLChainProfile.Users, &pt.SQLChainUser{
 		Address:    addr,
 		Permission: perm,
 	})
@@ -365,7 +419,7 @@ func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAdd
 }
 
 func (s *metaState) alterSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm bt.UserPermission) (_ error,
+	k proto.DatabaseID, addr proto.AccountAddress, perm pt.UserPermission) (_ error,
 ) {
 	s.Lock()
 	defer s.Unlock()
@@ -389,7 +443,7 @@ func (s *metaState) alterSQLChainUser(
 	return
 }
 
-func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce bi.AccountNonce, err error) {
+func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce, err error) {
 	s.Lock()
 	defer s.Unlock()
 	if e, ok := s.pool.getTxEntries(addr); ok {
@@ -404,8 +458,10 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce bi.AccountNonce,
 	return
 }
 
-func (s *metaState) applyTransaction(tx bi.Transaction) (err error) {
-	switch tx.(type) {
+func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
+	switch t := tx.(type) {
+	case *pt.Transfer:
+		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
 	default:
 		err = ErrUnknownTransactionType
 	}
@@ -414,7 +470,7 @@ func (s *metaState) applyTransaction(tx bi.Transaction) (err error) {
 
 // applyTransaction tries to apply t to the metaState and push t to the memory pool if and
 // only if it can be applied correctly.
-func (s *metaState) applyTransactionProcedure(t bi.Transaction) (_ func(*bolt.Tx) error) {
+func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx) error) {
 	var (
 		err     error
 		errPass = func(*bolt.Tx) error {

@@ -17,18 +17,18 @@
 package blockproducer
 
 import (
-	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 type accountTxEntries struct {
 	account     proto.AccountAddress
-	baseNonce   bi.AccountNonce
-	transacions []bi.Transaction
+	baseNonce   pi.AccountNonce
+	transacions []pi.Transaction
 }
 
 func newAccountTxEntries(
-	addr proto.AccountAddress, baseNonce bi.AccountNonce) (_ *accountTxEntries,
+	addr proto.AccountAddress, baseNonce pi.AccountNonce) (_ *accountTxEntries,
 ) {
 	return &accountTxEntries{
 		account:     addr,
@@ -37,11 +37,11 @@ func newAccountTxEntries(
 	}
 }
 
-func (e *accountTxEntries) nextNonce() bi.AccountNonce {
-	return e.baseNonce + bi.AccountNonce(len(e.transacions))
+func (e *accountTxEntries) nextNonce() pi.AccountNonce {
+	return e.baseNonce + pi.AccountNonce(len(e.transacions))
 }
 
-func (e *accountTxEntries) addTx(tx bi.Transaction) {
+func (e *accountTxEntries) addTx(tx pi.Transaction) {
 	e.transacions = append(e.transacions, tx)
 }
 
@@ -49,7 +49,7 @@ type txPool struct {
 	entries map[proto.AccountAddress]*accountTxEntries
 }
 
-func (p *txPool) addTx(tx bi.Transaction, baseNonce bi.AccountNonce) {
+func (p *txPool) addTx(tx pi.Transaction, baseNonce pi.AccountNonce) {
 	addr := tx.GetAccountAddress()
 	e, ok := p.entries[addr]
 	if !ok {

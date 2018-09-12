@@ -19,7 +19,7 @@ package types
 import (
 	"time"
 
-	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
@@ -59,7 +59,7 @@ func (s *SignedHeader) Verify() error {
 type Block struct {
 	SignedHeader SignedHeader
 	TxBillings   []*TxBilling
-	Transactions []bi.Transaction
+	Transactions []pi.Transaction
 }
 
 // GetTxHashes returns all hashes of tx in block.{TxBillings, ...}

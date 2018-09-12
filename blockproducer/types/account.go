@@ -17,7 +17,7 @@
 package types
 
 import (
-	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -70,5 +70,5 @@ type Account struct {
 	StableCoinBalance   uint64
 	CovenantCoinBalance uint64
 	Rating              float64
-	NextNonce           bi.AccountNonce
+	NextNonce           pi.AccountNonce
 }

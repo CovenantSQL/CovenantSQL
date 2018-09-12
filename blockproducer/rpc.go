@@ -104,22 +104,26 @@ type FetchTxResp struct {
 	Tx ci.Transaction
 }
 
+// NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
 type NextAccountNonceReq struct {
 	proto.Envelope
 	Addr proto.AccountAddress
 }
 
+// NextAccountNonceResp defines a response of the NextAccountNonce RPC method.
 type NextAccountNonceResp struct {
 	proto.Envelope
 	Addr  proto.AccountAddress
 	Nonce pi.AccountNonce
 }
 
+// AddTxReq defines a request of the AddTx RPC method.
 type AddTxReq struct {
 	proto.Envelope
 	Tx pi.Transaction
 }
 
+// AddTxResp defines a response of the AddTx RPC method.
 type AddTxResp struct {
 	proto.Envelope
 }
@@ -164,6 +168,7 @@ func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) (err error
 	return
 }
 
+// NextAccountNonce is the RPC method to query the next nonce of an account.
 func (s *ChainRPCService) NextAccountNonce(
 	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
 ) {
@@ -174,6 +179,7 @@ func (s *ChainRPCService) NextAccountNonce(
 	return
 }
 
+// AddTx is the RPC method to add a transaction.
 func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
 	s.chain.pendingTxs <- req.Tx
 	return

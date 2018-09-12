@@ -27,8 +27,11 @@ import (
 type SQLChainRole byte
 
 const (
+	// Miner defines the miner role as a SQLChain user.
 	Miner SQLChainRole = iota
+	// Customer defines the customer role as a SQLChain user.
 	Customer
+	// NumberOfRoles defines the SQLChain roles number.
 	NumberOfRoles
 )
 
@@ -36,9 +39,13 @@ const (
 type UserPermission int32
 
 const (
+	// Admin defines the admin user permission.
 	Admin UserPermission = iota
+	// Read defines the reader user permission.
 	Read
+	// ReadWrite defines the reader/writer user permission.
 	ReadWrite
+	// NumberOfUserPermission defines the user permission number.
 	NumberOfUserPermission
 )
 

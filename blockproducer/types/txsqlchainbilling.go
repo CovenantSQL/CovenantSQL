@@ -104,12 +104,12 @@ func (tb *TxBilling) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, tb)
 }
 
-// GetHash implements interfaces/Transaction.GetAccountAddress.
+// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
 func (tb *TxBilling) GetAccountAddress() proto.AccountAddress {
 	return *tb.AccountAddress
 }
 
-// GetHash implements interfaces/Transaction.GetAccountNonce.
+// GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
 func (tb *TxBilling) GetAccountNonce() pi.AccountNonce {
 	return pi.AccountNonce(tb.TxContent.SequenceID)
 }
@@ -119,6 +119,7 @@ func (tb *TxBilling) GetHash() hash.Hash {
 	return *tb.TxHash
 }
 
+// GetTransactionType implements interfaces/Transaction.GetTransactionType.
 func (tb *TxBilling) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeBilling
 }

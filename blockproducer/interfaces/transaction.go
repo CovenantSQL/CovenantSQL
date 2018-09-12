@@ -25,27 +25,40 @@ import (
 
 //go:generate hsp
 
+// AccountNonce defines the an account nonce.
 type AccountNonce uint32
+
+// TransactionType defines an transaction type.
 type TransactionType uint32
 
+// Bytes encodes a TransactionType to a byte slice.
 func (t TransactionType) Bytes() (b []byte) {
 	b = make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(t))
 	return
 }
 
+// FromBytes decodes a TransactionType from a byte slice.
 func FromBytes(b []byte) TransactionType {
 	return TransactionType(binary.BigEndian.Uint32(b))
 }
 
 const (
+	// TransactionTypeBilling defines billing transaction type.
 	TransactionTypeBilling TransactionType = iota + 1
+	// TransactionTypeTransfer defines transfer transaction type.
 	TransactionTypeTransfer
+	// TransactionTypeCreateAccount defines account creation transaction type.
 	TransactionTypeCreateAccount
+	// TransactionTypeDeleteAccount defines account deletion transaction type.
 	TransactionTypeDeleteAccount
+	// TransactionTypeAddDatabaseUser defines database user addition transaction type.
 	TransactionTypeAddDatabaseUser
+	// TransactionTypeAlterDatabaseUser defines database user alteration transaction type.
 	TransactionTypeAlterDatabaseUser
+	// TransactionTypeDeleteDatabaseUser defines database user deletion transaction type.
 	TransactionTypeDeleteDatabaseUser
+	// TransactionTypeNumber defines transaction types number.
 	TransactionTypeNumber
 )
 

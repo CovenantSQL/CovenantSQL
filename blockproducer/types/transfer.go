@@ -28,12 +28,14 @@ import (
 
 //go:generate hsp
 
+// TransferHeader defines the transfer transaction header.
 type TransferHeader struct {
 	Sender, Receiver proto.AccountAddress
 	Nonce            pi.AccountNonce
 	Amount           uint64
 }
 
+// Transfer defines the transfer transaction.
 type Transfer struct {
 	TransferHeader
 	HeaderHash hash.Hash
@@ -55,12 +57,12 @@ func (t *Transfer) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, t)
 }
 
-// GetHash implements interfaces/Transaction.GetAccountAddress.
+// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
 func (t *Transfer) GetAccountAddress() proto.AccountAddress {
 	return t.Sender
 }
 
-// GetHash implements interfaces/Transaction.GetAccountNonce.
+// GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
 func (t *Transfer) GetAccountNonce() pi.AccountNonce {
 	return t.Nonce
 }
@@ -70,6 +72,7 @@ func (t *Transfer) GetHash() hash.Hash {
 	return t.HeaderHash
 }
 
+// GetTransactionType implements interfaces/Transaction.GetTransactionType.
 func (t *Transfer) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeTransfer
 }

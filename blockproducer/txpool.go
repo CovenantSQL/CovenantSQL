@@ -49,6 +49,12 @@ type txPool struct {
 	entries map[proto.AccountAddress]*accountTxEntries
 }
 
+func newTxPool() *txPool {
+	return &txPool{
+		entries: make(map[proto.AccountAddress]*accountTxEntries),
+	}
+}
+
 func (p *txPool) addTx(tx pi.Transaction, baseNonce pi.AccountNonce) {
 	addr := tx.GetAccountAddress()
 	e, ok := p.entries[addr]

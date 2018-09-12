@@ -40,6 +40,7 @@ func newMetaState() *metaState {
 	return &metaState{
 		dirty:    newMetaIndex(),
 		readonly: newMetaIndex(),
+		pool:     newTxPool(),
 	}
 }
 
@@ -156,8 +157,9 @@ func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 				}
 			}
 		}
-		// Clean dirty map
+		// Clean dirty map and tx pool
 		s.dirty = newMetaIndex()
+		s.pool = newTxPool()
 		return
 	}
 }

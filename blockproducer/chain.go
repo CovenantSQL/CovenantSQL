@@ -405,6 +405,7 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		if err != nil {
 			return err
 		}
+		// TODO(leventeliu): verify that block tx list matches tx pool.
 		err = c.ms.commitProcedure()(tx)
 		return err
 	})

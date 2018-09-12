@@ -47,8 +47,9 @@ type Transfer struct {
 func (t *Transfer) Serialize() (b []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(t); err != nil {
-		b = enc.Bytes()
+		return
 	}
+	b = enc.Bytes()
 	return
 }
 

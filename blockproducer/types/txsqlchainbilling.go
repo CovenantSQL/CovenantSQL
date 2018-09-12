@@ -94,8 +94,9 @@ func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddres
 func (tb *TxBilling) Serialize() (b []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(tb); err != nil {
-		b = enc.Bytes()
+		return
 	}
+	b = enc.Bytes()
 	return
 }
 

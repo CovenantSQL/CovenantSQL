@@ -23,7 +23,7 @@
             alt="follow on Twitter"></a>
 </p>
 
-## What
+## 
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with Features:
 
@@ -32,20 +32,13 @@ CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with F
 - **Privacy**: access with granted permission and Encryption Pass.
 - **Immutable**: query history in CovenantSQL is immutable and trackable.
 
+We believe [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
 #### One line makes App to ĐApp
 ```go
 sql.Open("CovenantSQL", dbURI)
 ```
 
-
-But CovenantSQL is Still Under Construction(U know..). Test net will be released till Oct. 
-
-Star or follow us [@CovenantLabs](https://twitter.com/CovenantLabs), we will *Wake U Up When September Ends*
-
-## Why
-
-[On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
 ## Arch
 
@@ -65,9 +58,10 @@ Star or follow us [@CovenantLabs](https://twitter.com/CovenantLabs), we will *Wa
 ## Tech
 
 #### Network Stack
-<img src="logo/DH-RPC-Layer.png" width=350>
 
   - [DH-RPC](rpc/) = TLS - Cert + DHT.
+  <img src="logo/DH-RPC-Layer.png" width=350>
+
     - [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security)): the Transport Layer Security.
   
 #### Test Tools
@@ -75,6 +69,10 @@ Star or follow us [@CovenantLabs](https://twitter.com/CovenantLabs), we will *Wa
 
 
 #### Connector
+
+CovenantSQL is Still Under Construction(U know..). Test net will be released till Oct. 
+
+Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) we will *Wake U Up When September Ends*
 
 - [Golang](client/)
 - [Java](https://github.com/CovenantSQL/covenant-connector)

@@ -69,8 +69,10 @@ that inspired us:
 
 ## Tech
 
-#### Network Stack
-  <img src="logo/DH-RPC-Layer.png" width=350>
+### Network Stack
+<p align="left">
+    <img src="logo/DH-RPC-Layer.png" width=600>
+</p>
 
   - [DH-RPC](rpc/) = TLS - Cert + DHT
     - RPC Layer: compatible with golang `net/rpc`
@@ -79,7 +81,8 @@ that inspired us:
     - Multiplex Layer: Yamux by Hashicorp
     - Transport Security Layer: [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
     - Network Layer: TCP or KCP for optional later
-  
+
+
 #### Test Tools
   -  [(**G**lobal **N**etwork **T**opology **E**mulator)](https://github.com/CovenantSQL/GNTE) is used for network emulating.
   - [Liner Consistency Test]()

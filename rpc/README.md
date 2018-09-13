@@ -36,15 +36,18 @@ CovenantSQL is built on DH-RPC, including:
 - Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
 
 ## Stack
-  <img src="../logo/DH-RPC-Layer.png" width=350>
+<p align="left">
+    <img src="../logo/DH-RPC-Layer.png" width=600>
+</p>
 
-- [DH-RPC](rpc/) = TLS - Cert + DHT
+  - [DH-RPC](rpc/) = TLS - Cert + DHT
     - RPC Layer: compatible with golang `net/rpc`
     - Naming Layer: [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)
     - Pooling Layer: session pool built on Yamux
     - Multiplex Layer: Yamux by Hashicorp
     - Transport Security Layer: [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
     - Network Layer: TCP or KCP for optional later
+
 
 ## How it worked
 

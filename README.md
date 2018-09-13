@@ -23,7 +23,6 @@
             alt="follow on Twitter"></a>
 </p>
 
-## 
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with Features:
 
@@ -84,8 +83,8 @@ that inspired us:
 
 
 #### Test Tools
-  -  [(**G**lobal **N**etwork **T**opology **E**mulator)](https://github.com/CovenantSQL/GNTE) is used for network emulating.
-  - [Liner Consistency Test]()
+  - [**G**lobal **N**etwork **T**opology **E**mulator](https://github.com/CovenantSQL/GNTE) is used for network emulating.
+  - [Liner Consistency Test](https://github.com/anishathalye/porcupine)
 
 
 #### Connector

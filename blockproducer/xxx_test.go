@@ -17,22 +17,21 @@
 package blockproducer
 
 import (
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/kayak"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -500,15 +499,31 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 }
 
 func setup() {
+	var err error
+
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
+
+	// Create temp dir for test data
+	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+		panic(err)
+	}
 
 	// Setup logging
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }
 
+func teardown() {
+	if err := os.RemoveAll(testDataDir); err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
-	setup()
-	os.Exit(m.Run())
+	os.Exit(func() int {
+		setup()
+		defer teardown()
+		return m.Run()
+	}())
 }

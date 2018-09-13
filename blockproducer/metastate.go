@@ -48,6 +48,9 @@ func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *accountObject,
 	s.RLock()
 	defer s.RUnlock()
 	if o, loaded = s.dirty.accounts[k]; loaded {
+		if o == nil {
+			loaded = false
+		}
 		return
 	}
 	if o, loaded = s.readonly.accounts[k]; loaded {
@@ -61,7 +64,7 @@ func (s *metaState) loadOrStoreAccountObject(
 ) {
 	s.Lock()
 	defer s.Unlock()
-	if o, loaded = s.dirty.accounts[k]; loaded {
+	if o, loaded = s.dirty.accounts[k]; loaded && o != nil {
 		return
 	}
 	if o, loaded = s.readonly.accounts[k]; loaded {
@@ -75,6 +78,9 @@ func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, l
 	s.RLock()
 	defer s.RUnlock()
 	if o, loaded = s.dirty.databases[k]; loaded {
+		if o == nil {
+			loaded = false
+		}
 		return
 	}
 	if o, loaded = s.readonly.databases[k]; loaded {
@@ -88,7 +94,7 @@ func (s *metaState) loadOrStoreSQLChainObject(
 ) {
 	s.Lock()
 	defer s.Unlock()
-	if o, loaded = s.dirty.databases[k]; loaded {
+	if o, loaded = s.dirty.databases[k]; loaded && o != nil {
 		return
 	}
 	if o, loaded = s.readonly.databases[k]; loaded {

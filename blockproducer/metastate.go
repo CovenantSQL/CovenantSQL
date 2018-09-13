@@ -249,6 +249,18 @@ func (s *metaState) transferAccountStableBalance(
 		return
 	}
 
+	// TODO(leventeliu): user transaction to add account.
+	s.loadOrStoreAccountObject(sender, &accountObject{
+		Account: pt.Account{
+			Address: sender,
+		},
+	})
+	s.loadOrStoreAccountObject(receiver, &accountObject{
+		Account: pt.Account{
+			Address: receiver,
+		},
+	})
+
 	s.Lock()
 	defer s.Unlock()
 	var (
@@ -452,11 +464,17 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 		nonce = e.nextNonce()
 		return
 	}
-	if o, ok := s.loadAccountObject(addr); ok {
-		nonce = o.Account.NextNonce
-		return
+	var (
+		o      *accountObject
+		loaded bool
+	)
+	if o, loaded = s.dirty.accounts[addr]; !loaded {
+		if o, loaded = s.readonly.accounts[addr]; loaded {
+			err = ErrAccountNotFound
+			return
+		}
 	}
-	err = ErrAccountNotFound
+	nonce = o.Account.NextNonce
 	return
 }
 

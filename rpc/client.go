@@ -21,6 +21,8 @@ import (
 	"net"
 	"net/rpc"
 
+	"io/ioutil"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -46,7 +48,7 @@ var (
 
 func init() {
 	YamuxConfig = yamux.DefaultConfig()
-	YamuxConfig.LogOutput = log.StandardLogger().Out
+	YamuxConfig.LogOutput = ioutil.Discard
 	DefaultDialer = dialToNode
 }
 

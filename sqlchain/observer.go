@@ -101,11 +101,16 @@ func (r *observerReplicator) replicate() {
 		return
 	}
 
+	log.Debugf("try replicating block %v for observer %v", r.height, r.nodeID)
+
 	// replicate one record
 	var block *ct.Block
 	if block, err = r.c.FetchBlock(r.height); err != nil {
 		// fetch block failed
 		log.Warningf("fetch block with height %v failed: %v", r.height, err)
+		return
+	} else if block == nil {
+		log.Debugf("no block of height %v for observer %v", r.height, r.nodeID)
 		return
 	}
 

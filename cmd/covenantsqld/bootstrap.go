@@ -148,7 +148,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 	if err = server.RegisterService(bp.DBServiceName, dbService); err != nil {
-		log.Error("init block producer db service failed: %v", err)
+		log.Errorf("init block producer db service failed: %v", err)
 		return
 	}
 

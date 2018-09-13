@@ -19,18 +19,11 @@
         <img src="https://img.shields.io/badge/godoc-reference-blue.svg"
             alt="GoDoc"></a>
     <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs">
-        <img src="https://platform.twitter.com/widgets/follow_button.b510f289fb017e5dfdc7fdb287a0ae4b.en.html#dnt=false&id=twitter-widget-2&lang=en&screen_name=CovenantLabs&show_count=false&show_screen_name=true&size=m"
+        <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
             alt="follow on Twitter"></a>
 </p>
 
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/CovenantSQL/CovenantSQL?style=flat-square)](https://goreportcard.com/report/github.com/CovenantSQL/CovenantSQL)
-[![Coverage](https://codecov.io/gh/CovenantSQL/CovenantSQL/branch/develop/graph/badge.svg)](https://codecov.io/gh/CovenantSQL/CovenantSQL)
-[![Build Status](https://travis-ci.org/CovenantSQL/CovenantSQL.png?branch=develop)](https://travis-ci.org/CovenantSQL/CovenantSQL)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CovenantSQL/CovenantSQL)
-
-## What is CovenantSQL?
+## What
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with Features:
 
@@ -39,9 +32,8 @@ CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with F
 - **Privacy**: access with granted permission and Encryption Pass.
 - **Immutable**: query history in CovenantSQL is immutable and trackable.
 
-## Howto
 
-#### 1 line makes App to ĐApp
+#### One line makes App to ĐApp
 ```go
 sql.Open("CovenantSQL", dbURI)
 ```
@@ -55,7 +47,7 @@ Star or follow us [@CovenantLabs](https://twitter.com/CovenantLabs), we will *Wa
 
 [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
-## Architecture
+## Arch
 
 ![CovenantSQL 3 Layer design](logo/arch.png)
 
@@ -70,15 +62,13 @@ Star or follow us [@CovenantLabs](https://twitter.com/CovenantLabs), we will *Wa
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
 
-## Technically
+## Tech
 
 #### Network Stack
-
 <img src="logo/DH-RPC-Layer.png" width=350>
 
   - [DH-RPC](rpc/) = TLS - Cert + DHT.
     - [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security)): the Transport Layer Security.
-
   
 #### Test Tools
   -  [(**G**lobal **N**etwork **T**opology **E**mulator)](https://github.com/CovenantSQL/GNTE) is used for network emulating.
@@ -93,9 +83,8 @@ Star or follow us [@CovenantLabs](https://twitter.com/CovenantLabs), we will *Wa
 ## Contact
 
 - [mail us](mailto:webmaster@covenantsql.io)
-- [submit issue](https://github.com/CovenantSQL/CovenantSQL/issues/new)
 - <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs">
-          <img src="https://platform.twitter.com/widgets/follow_button.b510f289fb017e5dfdc7fdb287a0ae4b.en.html#dnt=false&id=twitter-widget-2&lang=en&screen_name=CovenantLabs&show_count=false&show_screen_name=true&size=m"
+          <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
               alt="follow on Twitter"></a>
 
 

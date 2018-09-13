@@ -239,7 +239,6 @@ func runRPC() {
 	if resBytes, err := json.MarshalIndent(resp, "", "  "); err != nil {
 		log.Fatalf("marshal response failed: %v", err)
 		os.Exit(-1)
-		return
 	} else {
 		fmt.Println(string(resBytes))
 	}

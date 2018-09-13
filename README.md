@@ -34,38 +34,55 @@ CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with F
 
 We believe [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
-#### One line makes App to ĐApp
+#### One Line Makes Data on Blockchain
 ```go
 sql.Open("CovenantSQL", dbURI)
 ```
-
 
 ## Arch
 
 ![CovenantSQL 3 Layer design](logo/arch.png)
 
-1. **Global Consensus Layer** (the main chain, the middle ring in the architecture diagram):
+- Layer 1: **Global Consensus Layer** (the main chain, the middle ring in the architecture diagram):
     - There will only be one main chain throughout the network.
     - Mainly responsible for database Miner and the user’s contract matching, transaction settlement, anti-cheating, shard chain lock hash and other global consensus matters.
-1. **SQL Consensus Layer** (shard chain, rings on both sides):
+- Layer 2: **SQL Consensus Layer** (shard chain, rings on both sides):
     - Each database will have its own separate shard chain.
     - Mainly responsible for: the signature, delivery and consistency of the various Transactions of the database. The data history of the permanent traceability is mainly implemented here, and the hash lock is performed in the main chain.
-1. **Datastore Layer** (database engine with SQL-92 support):
+- Layer 3: **Datastore Layer** (database engine with SQL-92 support):
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
+## Papers
+Our team members published:
+
+- [Thunder crystal: a novel crowdsourcing-based content distribution platform](https://dl.acm.org/citation.cfm?id=2736085)
+- [Analyzing streaming performance in crowdsourcing-based video service systems](https://ieeexplore.ieee.org/abstract/document/7114727/)
+- [Performance Analysis of Thunder Crystal: A Crowdsourcing-Based Video Distribution Platform](https://ieeexplore.ieee.org/abstract/document/7762143/)
+
+that inspired us:
+
+- [Bitcoin: A Peer-to-Peer Electronic Cash System](https://bitcoin.org/bitcoin.pdf)
+- [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
+    - [S/Kademlia: A practicable approach towards secure key-based routing](https://ieeexplore.ieee.org/document/4447808/)
+- [vSQL: Verifying arbitrary SQL queries over dynamic outsourced databases](https://ieeexplore.ieee.org/abstract/document/7958614/)
 
 ## Tech
 
 #### Network Stack
-
-  - [DH-RPC](rpc/) = TLS - Cert + DHT.
   <img src="logo/DH-RPC-Layer.png" width=350>
 
-    - [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security)): the Transport Layer Security.
+  - [DH-RPC](rpc/) = TLS - Cert + DHT
+    - RPC Layer: compatible with golang `net/rpc`
+    - Naming Layer: [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)
+    - Pooling Layer: session pool built on Yamux
+    - Multiplex Layer: Yamux by Hashicorp
+    - Transport Security Layer: [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
+    - Network Layer: TCP or KCP for optional later
   
 #### Test Tools
   -  [(**G**lobal **N**etwork **T**opology **E**mulator)](https://github.com/CovenantSQL/GNTE) is used for network emulating.
+  - [Liner Consistency Test]()
 
 
 #### Connector

@@ -17,8 +17,7 @@ CovenantSQL is built on DH-RPC, including:
 - DB API
 - Metric Collect
 - Blocks sync
-
-
+    
 ## Features
 
 - 100% compatible with Go [net/rpc](https://golang.org/pkg/net/rpc/) standard.
@@ -35,6 +34,20 @@ CovenantSQL is built on DH-RPC, including:
     - BoltDB based simple traditional DHT
     - [Kayak](https://godoc.org/github.com/CovenantSQL/CovenantSQL/kayak) based 2PC strong consistent DHT
 - Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
+
+## Stack
+<p align="left">
+    <img src="../logo/DH-RPC-Layer.png" width=600>
+</p>
+
+  - [DH-RPC](rpc/) = TLS - Cert + DHT
+    - RPC Layer: compatible with golang `net/rpc`
+    - Naming Layer: [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)
+    - Pooling Layer: session pool built on Yamux
+    - Multiplex Layer: Yamux by Hashicorp
+    - Transport Security Layer: [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
+    - Network Layer: TCP or KCP for optional later
+
 
 ## How it worked
 

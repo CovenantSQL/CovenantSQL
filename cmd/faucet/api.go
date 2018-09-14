@@ -62,7 +62,6 @@ func corsHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 type tokenDispenser struct {
-	v *Verifier
 	p *Persistence
 }
 
@@ -84,6 +83,13 @@ func (d *tokenDispenser) application(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := d.p.enqueueApplication(address, mediaURL); err != nil {
+		sendResponse(http.StatusBadRequest, false, err.Error(), nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, nil, rw)
+	return
 }
 
 func startAPI(v *Verifier, p *Persistence, listenAddr string) (server *http.Server, err error) {
@@ -93,7 +99,6 @@ func startAPI(v *Verifier, p *Persistence, listenAddr string) (server *http.Serv
 	}).Methods("GET")
 
 	dispenser := &tokenDispenser{
-		v: v,
 		p: p,
 	}
 

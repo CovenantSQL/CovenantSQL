@@ -21,6 +21,12 @@ import (
 	"strings"
 )
 
+const (
+	platformFacebook = "facebook"
+	platformTwitter  = "twitter"
+	platformWeibo    = "weibo"
+)
+
 type urlMeta struct {
 	platform string
 	account  string
@@ -34,7 +40,7 @@ func extractPlatformInURL(mediaURL string) (meta urlMeta, err error) {
 	u, err := url.Parse(mediaURL)
 	if strings.Contains(u.Hostname(), "facebook") {
 		// facebook
-		meta.platform = "facebook"
+		meta.platform = platformFacebook
 		pathSegs := strings.Split(u.Path, "/")
 		// account in first path seg
 		if len(pathSegs) >= 2 {
@@ -42,7 +48,7 @@ func extractPlatformInURL(mediaURL string) (meta urlMeta, err error) {
 		}
 	} else if strings.Contains(u.Hostname(), "twitter") {
 		// twitter
-		meta.platform = "twitter"
+		meta.platform = platformTwitter
 		pathSegs := strings.Split(u.Path, "/")
 		// account in first path seg
 		if len(pathSegs) >= 2 {
@@ -50,7 +56,7 @@ func extractPlatformInURL(mediaURL string) (meta urlMeta, err error) {
 		}
 	} else if strings.Contains(u.Hostname(), "weibo") {
 		// weibo
-		meta.platform = "weibo"
+		meta.platform = platformWeibo
 		pathSegs := strings.Split(u.Path, "/")
 		// account in first path seg
 		if len(pathSegs) >= 2 {

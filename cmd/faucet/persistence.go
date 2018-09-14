@@ -36,6 +36,8 @@ const (
 	StateDispensed
 	// StateFailed represents the application is invalid or maybe quota exceeded.
 	StateFailed
+	// StateUnknown represents invalid state
+	StateUnknown
 )
 
 // Persistence defines the persistence api for faucet service.
@@ -44,13 +46,25 @@ type Persistence struct {
 	quota int
 }
 
+// applicationRecord defines single record for verification.
+type applicationRecord struct {
+	rowID       int64
+	platform    string
+	address     string
+	mediaURL    string
+	account     string
+	state       State
+	tokenAmount float64
+	failReason  string
+}
+
 // NewPersistence returns a new application persistence api.
 func NewPersistence() (p *Persistence, err error) {
 	return
 }
 
-// EnqueueApplication record a new token application to CovenantSQL database.
-func (p *Persistence) EnqueueApplication(address string, mediaURL string) (err error) {
+// enqueueApplication record a new token application to CovenantSQL database.
+func (p *Persistence) enqueueApplication(address string, mediaURL string) (err error) {
 	// resolve account name in address
 	var meta urlMeta
 	meta, err = extractPlatformInURL(mediaURL)
@@ -66,7 +80,7 @@ func (p *Persistence) EnqueueApplication(address string, mediaURL string) (err e
 	timeOfDayStart := time.Now().In(time.FixedZone("PRC", 8*60*60)).Format("2006-01-02 00:00:00")
 
 	row := p.db.QueryRowContext(context.Background(),
-		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND platform = ? AND account = ? AND address = ?",
+		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND platform = ? AND account = ?",
 		timeOfDayStart, meta.platform, meta.account, address)
 
 	var result int
@@ -87,7 +101,7 @@ func (p *Persistence) EnqueueApplication(address string, mediaURL string) (err e
 
 	// enqueue
 	_, err = p.db.ExecContext(context.Background(),
-		"INSERT INTO faucet_records (platform, account, url, address, state) VALUES(?, ?, ?, ?)",
+		"INSERT INTO faucet_records (platform, account, url, address, state, reason, tokenAmount) VALUES(?, ?, ?, ?, '', 0.0)",
 		meta.platform, meta.account, mediaURL, address, StateApplication)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -100,11 +114,57 @@ func (p *Persistence) EnqueueApplication(address string, mediaURL string) (err e
 	return
 }
 
-// GetToVerifyRecords fetch records need to be processed.
-func (p *Persistence) GetToVerifyRecords(startRowID int, platform string, limitCount int) (err error) {
-	_, err = p.db.QueryContext(context.Background(),
-		"SELECT rowid, * FROM faucet_records WHERE rowid >= ? AND platform = ? LIMIT ?",
-		startRowID, platform, limitCount)
+// getRecords fetch records need to be processed.
+func (p *Persistence) getRecords(startRowID int64, platform string, state State, limitCount int) (records []*applicationRecord, err error) {
+	var rows *sql.Rows
 
+	args := make([]interface{}, 0)
+	baseSQL := "SELECT rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 1=1 "
+
+	if startRowID > 0 {
+		baseSQL += " AND rowid >= ? "
+		args = append(args, startRowID)
+	}
+	if platform != "" {
+		baseSQL += " AND platform = ? "
+		args = append(args, platform)
+	}
+	if state != StateUnknown {
+		baseSQL += " AND state = ? "
+		args = append(args, state)
+	}
+	if limitCount > 0 {
+		baseSQL += " LIMIT ?"
+		args = append(args, limitCount)
+	}
+
+	rows, err = p.db.QueryContext(context.Background(), baseSQL, args...)
+
+	for rows.Next() {
+		r := &applicationRecord{}
+
+		if err = rows.Scan(&r.rowID, &r.platform, &r.address, &r.mediaURL, &r.tokenAmount); err != nil {
+			return
+		}
+
+		records = append(records, r)
+	}
+
+	return
+}
+
+// updateRecord updates application record.
+func (p *Persistence) updateRecord(record *applicationRecord) (err error) {
+	_, err = p.db.ExecContext(context.Background(),
+		"UPDATE faucet_records SET platform = ?, address = ?, url = ?, account = ?, state = ?, reason = ? amount = ? WHERE rowid = ?",
+		record.platform,
+		record.address,
+		record.mediaURL,
+		record.account,
+		record.state,
+		record.failReason,
+		record.rowID,
+		record.tokenAmount,
+	)
 	return
 }

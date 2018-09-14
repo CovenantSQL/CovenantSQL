@@ -25,4 +25,6 @@ var (
 	ErrQuotaExceeded = errors.New("application quota exceeded")
 	// ErrEnqueueApplication represents failing to enqueue the application request.
 	ErrEnqueueApplication = errors.New("enqueue application failed")
+	// ErrInvalidApplication represents invalid application which contains no advertising content.
+	ErrInvalidApplication = errors.New("invalid application")
 )

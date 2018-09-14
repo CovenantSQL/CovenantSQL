@@ -356,7 +356,6 @@ func runNonce() {
 					currentHash := hash.THashH(append(publicKeyBytes, j.Bytes()...))
 					currentDifficulty := currentHash.Difficulty()
 					if currentDifficulty >= difficulty {
-						close(stopCh)
 						nonce := mine.NonceInfo{
 							Nonce: j,
 							Difficulty: currentDifficulty,
@@ -370,6 +369,7 @@ func runNonce() {
 	}
 
 	nonce := <- nonceCh
+	close(stopCh)
 
 	// verify result
 	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))

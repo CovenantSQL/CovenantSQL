@@ -34,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -42,7 +43,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 var (
@@ -339,13 +339,13 @@ func runNonce() {
 			shift := uint(startBit % 64)
 			var start mine.Uint256
 			if position == 0 {
-				start = mine.Uint256{A: uint64(1 << shift) + uint64(rand.Uint32())}
+				start = mine.Uint256{A: uint64(1<<shift) + uint64(rand.Uint32())}
 			} else if position == 1 {
-				start = mine.Uint256{B: uint64(1 << shift) + uint64(rand.Uint32())}
+				start = mine.Uint256{B: uint64(1<<shift) + uint64(rand.Uint32())}
 			} else if position == 2 {
-				start = mine.Uint256{C: uint64(1 << shift) + uint64(rand.Uint32())}
+				start = mine.Uint256{C: uint64(1<<shift) + uint64(rand.Uint32())}
 			} else if position == 3 {
-				start = mine.Uint256{D: uint64(1 << shift) + uint64(rand.Uint32())}
+				start = mine.Uint256{D: uint64(1<<shift) + uint64(rand.Uint32())}
 			}
 
 			for j := start; ; j.Inc() {
@@ -357,9 +357,9 @@ func runNonce() {
 					currentDifficulty := currentHash.Difficulty()
 					if currentDifficulty >= difficulty {
 						nonce := mine.NonceInfo{
-							Nonce: j,
+							Nonce:      j,
 							Difficulty: currentDifficulty,
-							Hash: currentHash,
+							Hash:       currentHash,
 						}
 						nonceCh <- nonce
 					}
@@ -368,7 +368,7 @@ func runNonce() {
 		}(i)
 	}
 
-	nonce := <- nonceCh
+	nonce := <-nonceCh
 	close(stopCh)
 
 	// verify result

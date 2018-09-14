@@ -52,7 +52,7 @@ func (n *blockNode) initBlockNode(height int32, block *ct.Block, parent *blockNo
 	n.block = block
 	n.hash = *block.BlockHash()
 	n.parent = nil
-	n.height = 0
+	n.height = height
 	n.count = 0
 
 	if parent != nil {

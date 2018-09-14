@@ -233,6 +233,11 @@ func (s *Service) AdviseNewBlock(req *sqlchain.MuxAdviseNewBlockReq, resp *sqlch
 		return ErrStopped
 	}
 
+	if req.Block == nil {
+		log.Infof("received empty block from node %v", req.GetNodeID().String())
+		return
+	}
+
 	return s.addBlock(req.DatabaseID, req.Block)
 }
 
@@ -241,6 +246,11 @@ func (s *Service) AdviseAckedQuery(req *sqlchain.MuxAdviseAckedQueryReq, resp *s
 	if atomic.LoadInt32(&s.stopped) == 1 {
 		// stopped
 		return ErrStopped
+	}
+
+	if req.Query == nil {
+		log.Infof("received empty acked query from node %v", req.GetNodeID().String())
+		return
 	}
 
 	return s.addAckedQuery(req.DatabaseID, req.Query)
@@ -552,6 +562,27 @@ func (s *Service) getRequestByOffset(dbID proto.DatabaseID, offset uint64) (requ
 			if v != nil {
 				return utils.DecodeMsgPack(v, &request)
 			}
+		}
+
+		return ErrNotFound
+	})
+
+	return
+}
+
+func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *ct.Block, err error) {
+	err = s.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))
+
+		if bucket == nil {
+			return ErrNotFound
+		}
+
+		cur := bucket.Cursor()
+		if last, blockData := cur.Last(); last != nil {
+			// decode bytes
+			height = bytesToHeight(last[:4])
+			return utils.DecodeMsgPack(blockData, &b)
 		}
 
 		return ErrNotFound

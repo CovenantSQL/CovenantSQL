@@ -44,11 +44,11 @@ func Build() (err error) {
 		return
 	}
 	cmd := exec.Command("./build.sh")
-
-	err = cmd.Run()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Errorf("build failed: %s", err)
 	}
+	log.Debugf("build output info: %s", string(output))
 	return
 }
 

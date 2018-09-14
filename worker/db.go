@@ -42,17 +42,21 @@ const (
 
 	// SQLChainFileName defines sqlchain storage file name.
 	SQLChainFileName = "chain.db"
+
+	// MaxRecordedConnectionSequences defines the max connection slots to anti reply attack.
+	MaxRecordedConnectionSequences = 1000
 )
 
 // Database defines a single database instance in worker runtime.
 type Database struct {
-	cfg          *DBConfig
-	dbID         proto.DatabaseID
-	storage      *storage.Storage
-	kayakRuntime *kayak.Runtime
-	kayakConfig  kayak.Config
-	connSeqs     sync.Map
-	chain        *sqlchain.Chain
+	cfg            *DBConfig
+	dbID           proto.DatabaseID
+	storage        *storage.Storage
+	kayakRuntime   *kayak.Runtime
+	kayakConfig    kayak.Config
+	connSeqs       sync.Map
+	connSeqEvictCh chan uint64
+	chain          *sqlchain.Chain
 }
 
 // NewDatabase create a single database instance using config.
@@ -69,8 +73,9 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// init database
 	db = &Database{
-		cfg:  cfg,
-		dbID: cfg.DatabaseID,
+		cfg:            cfg,
+		dbID:           cfg.DatabaseID,
+		connSeqEvictCh: make(chan uint64, 1),
 	}
 
 	defer func() {
@@ -95,7 +100,16 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 
 	// init storage
 	storageFile := filepath.Join(cfg.DataDir, StorageFileName)
-	if db.storage, err = storage.New(storageFile); err != nil {
+	storageDSN, err := storage.NewDSN(storageFile)
+	if err != nil {
+		return
+	}
+
+	if cfg.EncryptionKey != "" {
+		storageDSN.AddParam("_crypto_key", cfg.EncryptionKey)
+	}
+
+	if db.storage, err = storage.New(storageDSN.Format()); err != nil {
 		return
 	}
 
@@ -144,6 +158,9 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	if err = db.kayakRuntime.Init(); err != nil {
 		return
 	}
+
+	// init sequence eviction processor
+	go db.evictSequences()
 
 	return
 }
@@ -206,6 +223,18 @@ func (db *Database) Shutdown() (err error) {
 		}
 	}
 
+	if db.connSeqEvictCh != nil {
+		// stop connection sequence evictions
+		select {
+		case _, ok := <-db.connSeqEvictCh:
+			if ok {
+				close(db.connSeqEvictCh)
+			}
+		default:
+			close(db.connSeqEvictCh)
+		}
+	}
+
 	return
 }
 
@@ -222,6 +251,23 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err error) {
+	// check database size first, wal/kayak/chain database size is not included
+	if db.cfg.SpaceLimit > 0 {
+		path := filepath.Join(db.cfg.DataDir, StorageFileName)
+		var statInfo os.FileInfo
+		if statInfo, err = os.Stat(path); err != nil {
+			if !os.IsNotExist(err) {
+				return
+			}
+		} else {
+			if uint64(statInfo.Size()) > db.cfg.SpaceLimit {
+				// rejected
+				err = ErrSpaceLimitExceeded
+				return
+			}
+		}
+	}
+
 	// call kayak runtime Process
 	var buf *bytes.Buffer
 	if buf, err = utils.EncodeMsgPack(request); err != nil {

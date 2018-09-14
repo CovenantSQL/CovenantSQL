@@ -18,20 +18,31 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"math"
 	"math/rand"
 	"os"
 	"os/signal"
+	"reflect"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/worker"
 )
 
 var (
@@ -40,13 +51,27 @@ var (
 	publicKeyHex   string
 	privateKeyFile string
 	difficulty     int
+	rpcName        string
+	rpcEndpoint    string
+	rpcReq         string
+	configFile     string
+	rpcServiceMap  = map[string]interface{}{
+		"DHT":  &route.DHTService{},
+		"DBS":  &worker.DBMSRPCService{},
+		"BPDB": &blockproducer.DBService{},
+		"SQLC": &sqlchain.MuxService{},
+	}
 )
 
 func init() {
-	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool")
+	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "", "private key file to generate/show")
-	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes")
+	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes and generating nonce")
+	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
+	flag.StringVar(&rpcEndpoint, "endpoint", "", "rpc endpoint to do test call")
+	flag.StringVar(&rpcReq, "req", "", "rpc request to do test call, in json format")
+	flag.StringVar(&configFile, "config", "", "rpc config file")
 }
 
 func main() {
@@ -75,11 +100,24 @@ func main() {
 			os.Exit(1)
 		}
 		runKeytool()
+	case "rpc":
+		if configFile == "" {
+			// error
+			log.Error("config file path is required for rpc tool")
+			os.Exit(1)
+		}
+		if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
+			// error
+			log.Error("rpc payload is required for rpc tool")
+			os.Exit(1)
+		}
+		runRPC()
+	case "nonce":
+		runNonce()
 	default:
 		flag.Usage()
 		os.Exit(1)
 	}
-
 }
 
 func runMiner() {
@@ -175,4 +213,165 @@ func runKeytool() {
 	}
 
 	log.Infof("pubkey hex is: %s", hex.EncodeToString(privateKey.PubKey().Serialize()))
+}
+
+func runRPC() {
+	if err := client.Init(configFile, []byte("")); err != nil {
+		log.Fatalf("init rpc client failed: %v", err)
+		os.Exit(-1)
+		return
+	}
+
+	req, resp := resolveRPCEntities()
+
+	// fill the req with request body
+	if err := json.Unmarshal([]byte(rpcReq), req); err != nil {
+		log.Fatalf("decode request body failed: %v", err)
+		os.Exit(-1)
+		return
+	}
+
+	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
+		// send request failed
+		log.Fatalf("call rpc failed: %v", err)
+		os.Exit(-1)
+		return
+	}
+
+	// print the response
+	if resBytes, err := json.MarshalIndent(resp, "", "  "); err != nil {
+		log.Fatalf("marshal response failed: %v", err)
+		os.Exit(-1)
+	} else {
+		fmt.Println(string(resBytes))
+	}
+}
+
+func resolveRPCEntities() (req interface{}, resp interface{}) {
+	rpcParts := strings.SplitN(rpcName, ".", 2)
+
+	if len(rpcParts) != 2 {
+		// error rpc name
+		log.Fatalf("%v is not a valid rpc name", rpcName)
+		os.Exit(-1)
+		return
+	}
+
+	rpcService := rpcParts[0]
+
+	if s, supported := rpcServiceMap[rpcService]; supported {
+		typ := reflect.TypeOf(s)
+
+		// traversing methods
+		for m := 0; m < typ.NumMethod(); m++ {
+			method := typ.Method(m)
+			mtype := method.Type
+
+			if method.Name == rpcParts[1] {
+				// name matched
+				if mtype.PkgPath() != "" || mtype.NumIn() != 3 || mtype.NumOut() != 1 {
+					log.Fatalf("%v is not a valid rpc endpoint method", rpcName)
+					os.Exit(-1)
+					return
+				}
+
+				argType := mtype.In(1)
+				replyType := mtype.In(2)
+
+				if argType.Kind() == reflect.Ptr {
+					req = reflect.New(argType.Elem()).Interface()
+				} else {
+					req = reflect.New(argType).Interface()
+
+				}
+
+				resp = reflect.New(replyType.Elem()).Interface()
+
+				return
+			}
+		}
+	}
+
+	// not found
+	log.Fatalf("rpc method %v not found", rpcName)
+	os.Exit(-1)
+
+	return
+}
+
+func runNonce() {
+	var publicKey *asymmetric.PublicKey
+
+	if publicKeyHex != "" {
+		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+		if err != nil {
+			log.Fatalf("error converting hex: %s", err)
+		}
+		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+		if err != nil {
+			log.Fatalf("error converting public key: %s", err)
+		}
+	} else if privateKeyFile != "" {
+		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(""))
+		if err != nil {
+			log.Fatalf("load private key file fail: %v", err)
+		}
+		publicKey = privateKey.PubKey()
+	} else {
+		log.Fatalf("can neither convert public key nor load private key")
+		os.Exit(-1)
+		return
+	}
+
+	publicKeyBytes := publicKey.Serialize()
+
+	cpuCount := runtime.NumCPU()
+	log.Infof("cpu: %d", cpuCount)
+	stopCh := make(chan struct{})
+	nonceCh := make(chan mine.NonceInfo)
+
+	rand.Seed(time.Now().UnixNano())
+	step := 256 / cpuCount
+	for i := 0; i < cpuCount; i++ {
+		go func(i int) {
+			startBit := i * step
+			position := startBit / 64
+			shift := uint(startBit % 64)
+			var start mine.Uint256
+			if position == 0 {
+				start = mine.Uint256{A: uint64(1<<shift) + uint64(rand.Uint32())}
+			} else if position == 1 {
+				start = mine.Uint256{B: uint64(1<<shift) + uint64(rand.Uint32())}
+			} else if position == 2 {
+				start = mine.Uint256{C: uint64(1<<shift) + uint64(rand.Uint32())}
+			} else if position == 3 {
+				start = mine.Uint256{D: uint64(1<<shift) + uint64(rand.Uint32())}
+			}
+
+			for j := start; ; j.Inc() {
+				select {
+				case <-stopCh:
+					break
+				default:
+					currentHash := hash.THashH(append(publicKeyBytes, j.Bytes()...))
+					currentDifficulty := currentHash.Difficulty()
+					if currentDifficulty >= difficulty {
+						nonce := mine.NonceInfo{
+							Nonce:      j,
+							Difficulty: currentDifficulty,
+							Hash:       currentHash,
+						}
+						nonceCh <- nonce
+					}
+				}
+			}
+		}(i)
+	}
+
+	nonce := <-nonceCh
+	close(stopCh)
+
+	// verify result
+	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))
+	log.Infof("nonce: %v", nonce)
 }

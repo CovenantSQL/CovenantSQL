@@ -162,7 +162,7 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 	if c.option.beforeCommit != nil {
 		if err := c.option.beforeCommit(ctx); err != nil {
 			returnErr = err
-			log.Debug("before commit failed: err = %v", err)
+			log.Debugf("before commit failed: err = %v", err)
 			goto ROLLBACK
 		}
 	}
@@ -171,7 +171,7 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 
 	if c.option.afterCommit != nil {
 		if err = c.option.afterCommit(ctx); err != nil {
-			log.Debug("after commit failed: err = %v", err)
+			log.Debugf("after commit failed: err = %v", err)
 		}
 	}
 

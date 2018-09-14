@@ -326,7 +326,7 @@ func runNonce() {
 	publicKeyBytes := publicKey.Serialize()
 
 	cpuCount := runtime.NumCPU()
-	log.Info("cpu: %d", cpuCount)
+	log.Infof("cpu: %d", cpuCount)
 	stopCh := make(chan struct{})
 	nonceCh := make(chan mine.NonceInfo)
 
@@ -355,7 +355,7 @@ func runNonce() {
 				default:
 					currentHash := hash.THashH(append(publicKeyBytes, j.Bytes()...))
 					currentDifficulty := currentHash.Difficulty()
-					if currentDifficulty > difficulty {
+					if currentDifficulty >= difficulty {
 						close(stopCh)
 						nonce := mine.NonceInfo{
 							Nonce: j,

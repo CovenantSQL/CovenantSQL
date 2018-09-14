@@ -34,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -63,10 +64,10 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc")
+	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "", "private key file to generate/show")
-	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes")
+	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes and generating nonce")
 	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
 	flag.StringVar(&rpcEndpoint, "endpoint", "", "rpc endpoint to do test call")
 	flag.StringVar(&rpcReq, "req", "", "rpc request to do test call, in json format")
@@ -111,6 +112,8 @@ func main() {
 			os.Exit(1)
 		}
 		runRPC()
+	case "nonce":
+		runNonce()
 	default:
 		flag.Usage()
 		os.Exit(1)
@@ -294,4 +297,81 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 	os.Exit(-1)
 
 	return
+}
+
+func runNonce() {
+	var publicKey *asymmetric.PublicKey
+
+	if publicKeyHex != "" {
+		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+		if err != nil {
+			log.Fatalf("error converting hex: %s", err)
+		}
+		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+		if err != nil {
+			log.Fatalf("error converting public key: %s", err)
+		}
+	} else if privateKeyFile != "" {
+		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(""))
+		if err != nil {
+			log.Fatalf("load private key file fail: %v", err)
+		}
+		publicKey = privateKey.PubKey()
+	} else {
+		log.Fatalf("can neither convert public key nor load private key")
+		os.Exit(-1)
+		return
+	}
+
+	publicKeyBytes := publicKey.Serialize()
+
+	cpuCount := runtime.NumCPU()
+	log.Infof("cpu: %d", cpuCount)
+	stopCh := make(chan struct{})
+	nonceCh := make(chan mine.NonceInfo)
+
+	rand.Seed(time.Now().UnixNano())
+	step := 256 / cpuCount
+	for i := 0; i < cpuCount; i++ {
+		go func(i int) {
+			startBit := i * step
+			position := startBit / 64
+			shift := uint(startBit % 64)
+			var start mine.Uint256
+			if position == 0 {
+				start = mine.Uint256{A: uint64(1<<shift) + uint64(rand.Uint32())}
+			} else if position == 1 {
+				start = mine.Uint256{B: uint64(1<<shift) + uint64(rand.Uint32())}
+			} else if position == 2 {
+				start = mine.Uint256{C: uint64(1<<shift) + uint64(rand.Uint32())}
+			} else if position == 3 {
+				start = mine.Uint256{D: uint64(1<<shift) + uint64(rand.Uint32())}
+			}
+
+			for j := start; ; j.Inc() {
+				select {
+				case <-stopCh:
+					break
+				default:
+					currentHash := hash.THashH(append(publicKeyBytes, j.Bytes()...))
+					currentDifficulty := currentHash.Difficulty()
+					if currentDifficulty >= difficulty {
+						nonce := mine.NonceInfo{
+							Nonce:      j,
+							Difficulty: currentDifficulty,
+							Hash:       currentHash,
+						}
+						nonceCh <- nonce
+					}
+				}
+			}
+		}(i)
+	}
+
+	nonce := <-nonceCh
+	close(stopCh)
+
+	// verify result
+	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))
+	log.Infof("nonce: %v", nonce)
 }

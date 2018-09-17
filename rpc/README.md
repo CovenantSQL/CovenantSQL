@@ -17,25 +17,12 @@ CovenantSQL is built on DH-RPC, including:
 - DB API
 - Metric Collect
 - Blocks sync
-    
-## Features
 
-- 100% compatible with Go [net/rpc](https://golang.org/pkg/net/rpc/) standard.
-- ID based routing and Key exchange built on Secure Enhanced DHT.
-- use MessagePack for serialization which support most types without writing `Marshal` and `Unmarshal`.
-- Crypto Schema
-    - Use Elliptic Curve Secp256k1 for Asymmetric Encryption
-    - ECDH for Key Exchange
-    - PKCS#7 for padding
-    - AES-256-CFB for Symmetric Encryption
-    - Private key protected by master key
-    - Annoymous connection is also supported
-- DHT persistence layer has 2 implementations:
-    - BoltDB based simple traditional DHT
-    - [Kayak](https://godoc.org/github.com/CovenantSQL/CovenantSQL/kayak) based 2PC strong consistent DHT
-- Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
 
 ## Usage
+
+![](https://cdn.rawgit.com/CovenantSQL/CovenantSQL/develop/logo/dh-rpc.svg)
+
 
 Bob Server:
 ```go
@@ -84,6 +71,23 @@ fmt.Printf("Response msg: %s", *respSimple)
 ```
 
 Tracker stuff can refer to the Example section below
+    
+## Features
+
+- 100% compatible with Go [net/rpc](https://golang.org/pkg/net/rpc/) standard.
+- ID based routing and Key exchange built on Secure Enhanced DHT.
+- use MessagePack for serialization which support most types without writing `Marshal` and `Unmarshal`.
+- Crypto Schema
+    - Use Elliptic Curve Secp256k1 for Asymmetric Encryption
+    - ECDH for Key Exchange
+    - PKCS#7 for padding
+    - AES-256-CFB for Symmetric Encryption
+    - Private key protected by master key
+    - Annoymous connection is also supported
+- DHT persistence layer has 2 implementations:
+    - BoltDB based simple traditional DHT
+    - [Kayak](https://godoc.org/github.com/CovenantSQL/CovenantSQL/kayak) based 2PC strong consistent DHT
+- Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
 
 ## Stack
 <p align="left">
@@ -276,5 +280,4 @@ $ Input target node ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634
 $ Input msg: abcdefg
 ```
 
-<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
 

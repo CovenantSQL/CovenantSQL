@@ -40,6 +40,8 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
+
 	// init client
 	var err error
 	if err = client.Init(configFile, []byte(password)); err != nil {

@@ -17,6 +17,60 @@ CovenantSQL is built on DH-RPC, including:
 - DB API
 - Metric Collect
 - Blocks sync
+
+
+## Usage
+
+![](https://cdn.rawgit.com/CovenantSQL/CovenantSQL/develop/logo/dh-rpc.svg)
+
+
+Alice Client:
+```go
+// Init Key Management System
+route.InitKMS(PubKeyStoreFile)
+
+// Register Node public key, addr to Tracker
+reqA := &proto.PingReq{
+    Node: AliceNode,
+}
+respA := new(proto.PingResp)
+rpc.NewCaller().CallNode(Tracker.NodeID, "DHT.Ping", reqA, respA)
+
+pc := rpc.NewPersistentCaller(BobNodeID)
+respSimple := new(string)
+pc.Call("Test.Talk", "Hi there", respSimple)
+fmt.Printf("Response msg: %s", *respSimple)
+```
+
+Bob Server:
+```go
+// RPC logic
+// TestService to be register to RPC server
+type TestService struct {}
+
+func (s *TestService) Talk(msg string, ret *string) error {
+	fmt.Println(msg)
+	resp := fmt.Sprintf("got msg %s", msg)
+	*ret = resp
+	return nil
+}
+
+// Init Key Management System
+route.InitKMS(PubKeyStoreFile)
+
+// Register DHT service
+server, err := rpc.NewServerWithService(rpc.ServiceMap{
+    "Test": &TestService{},
+})
+
+// Init RPC server with an empty master key, which is not recommend
+server.InitRPCServer("0.0.0.0:2120", PrivateKeyFile, "")
+
+// Start Node RPC server
+server.Serve()
+```
+
+Tracker stuff can refer to the Example section below
     
 ## Features
 
@@ -27,7 +81,7 @@ CovenantSQL is built on DH-RPC, including:
     - Use Elliptic Curve Secp256k1 for Asymmetric Encryption
     - ECDH for Key Exchange
     - PKCS#7 for padding
-    - AES-256-CBC for Symmetric Encryption
+    - AES-256-CFB for Symmetric Encryption
     - Private key protected by master key
     - Annoymous connection is also supported
 - DHT persistence layer has 2 implementations:
@@ -226,5 +280,4 @@ $ Input target node ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634
 $ Input msg: abcdefg
 ```
 
-<img align="middle" src="https://github.com/CovenantSQL/research/raw/master/images/rpc-small.gif">
 

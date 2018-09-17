@@ -19,6 +19,7 @@ package interfaces
 import (
 	"encoding/binary"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -82,5 +83,6 @@ type Transaction interface {
 	GetAccountNonce() AccountNonce
 	GetHash() hash.Hash
 	GetTransactionType() TransactionType
+	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error
 }

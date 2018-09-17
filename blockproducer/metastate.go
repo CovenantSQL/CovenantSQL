@@ -134,13 +134,13 @@ func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 				if enc, err = utils.EncodeMsgPack(v.Account); err != nil {
 					return
 				}
-				if err = ab.Put(v.Address[:], enc.Bytes()); err != nil {
+				if err = ab.Put(k[:], enc.Bytes()); err != nil {
 					return
 				}
 			} else {
 				// Delete object
 				delete(s.readonly.accounts, k)
-				if err = ab.Delete(v.Address[:]); err != nil {
+				if err = ab.Delete(k[:]); err != nil {
 					return
 				}
 			}
@@ -475,7 +475,7 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 		loaded bool
 	)
 	if o, loaded = s.dirty.accounts[addr]; !loaded {
-		if o, loaded = s.readonly.accounts[addr]; loaded {
+		if o, loaded = s.readonly.accounts[addr]; !loaded {
 			err = ErrAccountNotFound
 			return
 		}
@@ -522,8 +522,8 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
 	return func(tx *bolt.Tx) (err error) {
 		// Check account nonce
-		nextNonce, err := s.nextNonce(addr)
-		if err != nil {
+		var nextNonce pi.AccountNonce
+		if nextNonce, err = s.nextNonce(addr); err != nil {
 			return
 		}
 		if nextNonce != nonce {

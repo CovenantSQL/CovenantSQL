@@ -640,7 +640,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		// generate txbilling
 		tc = types.NewTxContent(seqID, br, receivers, fees, rewards, resp)
 		tb = types.NewTxBilling(tc, types.TxTypeBilling, &c.rt.accountAddress)
-		tb.PackAndSignTx(privKey)
+		tb.Sign(privKey)
 
 		return nil
 	})

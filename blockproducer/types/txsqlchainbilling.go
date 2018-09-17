@@ -125,8 +125,8 @@ func (tb *TxBilling) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeBilling
 }
 
-// PackAndSignTx computes tx of TxContent and signs it.
-func (tb *TxBilling) PackAndSignTx(signer *asymmetric.PrivateKey) error {
+// Sign computes tx of TxContent and signs it.
+func (tb *TxBilling) Sign(signer *asymmetric.PrivateKey) error {
 	enc, err := tb.TxContent.MarshalHash()
 	if err != nil {
 		return err
@@ -152,8 +152,10 @@ func (tb *TxBilling) Verify() (err error) {
 	if enc, err = tb.TxContent.MarshalHash(); err != nil {
 		return
 	} else if h := hash.THashH(enc); !tb.TxHash.IsEqual(&h) {
+		err = ErrSignVerification
 		return
 	} else if !tb.Signature.Verify(h[:], tb.Signee) {
+		err = ErrSignVerification
 		return
 	}
 	return

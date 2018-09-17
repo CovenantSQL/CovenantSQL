@@ -78,14 +78,31 @@ func (t *Transfer) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeTransfer
 }
 
+// Sign implements interfaces/Transaction.Sign.
+func (t *Transfer) Sign(signer *asymmetric.PrivateKey) (err error) {
+	var enc []byte
+	if enc, err = t.TransferHeader.MarshalHash(); err != nil {
+		return
+	}
+	var h = hash.THashH(enc)
+	if t.Signature, err = signer.Sign(h[:]); err != nil {
+		return
+	}
+	t.HeaderHash = h
+	t.Signee = signer.PubKey()
+	return
+}
+
 // Verify verifies the signature of TxBilling.
 func (t *Transfer) Verify() (err error) {
 	var enc []byte
 	if enc, err = t.TransferHeader.MarshalHash(); err != nil {
 		return
 	} else if h := hash.THashH(enc); !t.HeaderHash.IsEqual(&h) {
+		err = ErrSignVerification
 		return
 	} else if !t.Signature.Verify(h[:], t.Signee) {
+		err = ErrSignVerification
 		return
 	}
 	return

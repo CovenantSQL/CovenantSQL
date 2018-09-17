@@ -24,6 +24,24 @@ CovenantSQL is built on DH-RPC, including:
 ![](https://cdn.rawgit.com/CovenantSQL/CovenantSQL/develop/logo/dh-rpc.svg)
 
 
+Alice Client:
+```go
+// Init Key Management System
+route.InitKMS(PubKeyStoreFile)
+
+// Register Node public key, addr to Tracker
+reqA := &proto.PingReq{
+    Node: AliceNode,
+}
+respA := new(proto.PingResp)
+rpc.NewCaller().CallNode(Tracker.NodeID, "DHT.Ping", reqA, respA)
+
+pc := rpc.NewPersistentCaller(BobNodeID)
+respSimple := new(string)
+pc.Call("Test.Talk", "Hi there", respSimple)
+fmt.Printf("Response msg: %s", *respSimple)
+```
+
 Bob Server:
 ```go
 // RPC logic
@@ -50,24 +68,6 @@ server.InitRPCServer("0.0.0.0:2120", PrivateKeyFile, "")
 
 // Start Node RPC server
 server.Serve()
-```
-
-Alice Client:
-```go
-// Init Key Management System
-route.InitKMS(PubKeyStoreFile)
-
-// Register Node public key, addr to Tracker
-reqA := &proto.PingReq{
-    Node: AliceNode,
-}
-respA := new(proto.PingResp)
-rpc.NewCaller().CallNode(Tracker.NodeID, "DHT.Ping", reqA, respA)
-
-pc := rpc.NewPersistentCaller(BobNodeID)
-respSimple := new(string)
-pc.Call("Test.Talk", "Hi there", respSimple)
-fmt.Printf("Response msg: %s", *respSimple)
 ```
 
 Tracker stuff can refer to the Example section below

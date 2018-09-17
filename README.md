@@ -23,7 +23,6 @@
             alt="follow on Twitter"></a>
 </p>
 
-## 
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with Features:
 
@@ -39,7 +38,7 @@ We believe [On the next Internet, everyone should have a complete **Data Rights*
 sql.Open("CovenantSQL", dbURI)
 ```
 
-## Arch
+## 
 
 ![CovenantSQL 3 Layer design](logo/arch.png)
 
@@ -67,14 +66,14 @@ that inspired us:
     - [S/Kademlia: A practicable approach towards secure key-based routing](https://ieeexplore.ieee.org/document/4447808/)
 - [vSQL: Verifying arbitrary SQL queries over dynamic outsourced databases](https://ieeexplore.ieee.org/abstract/document/7958614/)
 
-## Tech
+## Libs
 
 ### Network Stack
 <p align="left">
     <img src="logo/DH-RPC-Layer.png" width=600>
 </p>
 
-  - [DH-RPC](rpc/) = TLS - Cert + DHT
+  - [DH-RPC](rpc/) := TLS - Cert + DHT
     - RPC Layer: compatible with golang `net/rpc`
     - Naming Layer: [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)
     - Pooling Layer: session pool built on Yamux
@@ -84,8 +83,8 @@ that inspired us:
 
 
 #### Test Tools
-  -  [(**G**lobal **N**etwork **T**opology **E**mulator)](https://github.com/CovenantSQL/GNTE) is used for network emulating.
-  - [Liner Consistency Test]()
+  - [**G**lobal **N**etwork **T**opology **E**mulator](https://github.com/CovenantSQL/GNTE) is used for network emulating.
+  - [Liner Consistency Test](https://github.com/anishathalye/porcupine)
 
 
 #### Connector

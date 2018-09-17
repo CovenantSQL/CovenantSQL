@@ -36,4 +36,7 @@ var (
 
 	// ErrInvalidDBConfig defines errors on received invalid db config from block producer.
 	ErrInvalidDBConfig = errors.New("invalid database configuration")
+
+	// ErrSpaceLimitExceeded defines errors on disk space exceeding limit.
+	ErrSpaceLimitExceeded = errors.New("space limit exceeded")
 )

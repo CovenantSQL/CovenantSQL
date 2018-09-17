@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -71,6 +72,7 @@ type Chain struct {
 
 	stopCh    chan struct{}
 	blocks    chan *ct.Block
+	heights   chan int32
 	responses chan *wt.ResponseHeader
 	acks      chan *wt.AckHeader
 
@@ -88,6 +90,13 @@ type Chain struct {
 
 // NewChain creates a new sql-chain struct.
 func NewChain(c *Config) (chain *Chain, err error) {
+	// TODO(leventeliu): this is a rough solution, you may also want to clean database file and
+	// force rebuilding.
+	var fi os.FileInfo
+	if fi, err = os.Stat(c.DataFile); err == nil && fi.Mode().IsRegular() {
+		return LoadChain(c)
+	}
+
 	err = c.Genesis.VerifyAsGenesis()
 
 	if err != nil {
@@ -128,10 +137,11 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		rt:        newRunTime(c),
 		stopCh:    make(chan struct{}),
 		blocks:    make(chan *ct.Block),
+		heights:   make(chan int32, 1),
 		responses: make(chan *wt.ResponseHeader),
 		acks:      make(chan *wt.AckHeader),
 
-		// observer related
+		// Observer related
 		observers:           make(map[proto.NodeID]int32),
 		observerReplicators: make(map[proto.NodeID]*observerReplicator),
 		replCh:              make(chan struct{}),
@@ -162,8 +172,14 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		rt:        newRunTime(c),
 		stopCh:    make(chan struct{}),
 		blocks:    make(chan *ct.Block),
+		heights:   make(chan int32, 1),
 		responses: make(chan *wt.ResponseHeader),
 		acks:      make(chan *wt.AckHeader),
+
+		// Observer related
+		observers:           make(map[proto.NodeID]int32),
+		observerReplicators: make(map[proto.NodeID]*observerReplicator),
+		replCh:              make(chan struct{}),
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
@@ -225,6 +241,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 			height := chain.rt.getHeightFromTime(block.Timestamp())
 			nodes[index].initBlockNode(height, block, parent)
+			chain.bi.addBlock(&nodes[index])
 			last = &nodes[index]
 			index++
 			return
@@ -238,8 +255,6 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 		// Read queries and rebuild memory index
 		heights := meta.Bucket(metaHeightIndexBucket)
-		resp := &wt.SignedResponseHeader{}
-		ack := &wt.SignedAckHeader{}
 
 		if err = heights.ForEach(func(k, v []byte) (err error) {
 			h := keyToHeight(k)
@@ -247,10 +262,14 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 			if resps := heights.Bucket(k).Bucket(
 				metaResponseIndexBucket); resps != nil {
 				if err = resps.ForEach(func(k []byte, v []byte) (err error) {
+					var resp = &wt.SignedResponseHeader{}
 					if err = utils.DecodeMsgPack(v, resp); err != nil {
 						return
 					}
-
+					log.WithFields(log.Fields{
+						"height": h,
+						"header": resp.HeaderHash.String(),
+					}).Debug("Loaded new resp header")
 					return chain.qi.addResponse(h, resp)
 				}); err != nil {
 					return
@@ -259,10 +278,14 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 			if acks := heights.Bucket(k).Bucket(metaAckIndexBucket); acks != nil {
 				if err = acks.ForEach(func(k []byte, v []byte) (err error) {
+					var ack = &wt.SignedAckHeader{}
 					if err = utils.DecodeMsgPack(v, ack); err != nil {
 						return
 					}
-
+					log.WithFields(log.Fields{
+						"height": h,
+						"header": ack.HeaderHash.String(),
+					}).Debug("Loaded new ack header")
 					return chain.qi.addAck(h, ack)
 				}); err != nil {
 					return
@@ -572,6 +595,9 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	defer func() {
 		c.rt.setNextTurn()
 		c.qi.advanceBarrier(c.rt.getMinValidHeight())
+		// Info the block processing goroutine that the chain height has grown, so please return
+		// any stashed blocks for further check.
+		c.heights <- c.rt.getHead().Height
 	}()
 
 	log.WithFields(log.Fields{
@@ -689,6 +715,17 @@ func (c *Chain) processBlocks() {
 	var stash []*ct.Block
 	for {
 		select {
+		case h := <-c.heights:
+			// Return all stashed blocks to pending channel
+			log.WithFields(log.Fields{
+				"height": h,
+				"stashs": len(stash),
+			}).Debug("Read new height from channel")
+			if stash != nil {
+				rsWG.Add(1)
+				go returnStash(stash)
+				stash = nil
+			}
 		case block := <-c.blocks:
 			height := c.rt.getHeightFromTime(block.Timestamp())
 			log.WithFields(log.Fields{
@@ -720,13 +757,6 @@ func (c *Chain) processBlocks() {
 							"block_hash":   block.BlockHash().String(),
 						}).Error("Failed to check and push new block")
 					}
-				}
-
-				// Return all stashed blocks to pending channel
-				if stash != nil {
-					rsWG.Add(1)
-					go returnStash(stash)
-					stash = nil
 				}
 			}
 			// fire replication to observers

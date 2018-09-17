@@ -41,6 +41,7 @@ type ResourceMeta struct {
 	Space         uint64 // reserved storage space in bytes
 	Memory        uint64 // reserved memory in bytes
 	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
+	EncryptionKey string `hspack:"-"` // encryption key for database instance
 }
 
 // ServiceInstance defines single instance to be initialized.

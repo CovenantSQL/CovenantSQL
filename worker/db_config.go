@@ -31,4 +31,6 @@ type DBConfig struct {
 	KayakMux        *kt.ETLSTransportService
 	ChainMux        *sqlchain.MuxService
 	MaxWriteTimeGap time.Duration
+	EncryptionKey   string
+	SpaceLimit      uint64
 }

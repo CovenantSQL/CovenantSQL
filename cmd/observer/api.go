@@ -208,6 +208,27 @@ func (a *explorerAPI) GetBlockByHeight(rw http.ResponseWriter, r *http.Request) 
 	sendResponse(200, true, "", a.formatBlock(height, block), rw)
 }
 
+func (a *explorerAPI) getHighestBlock(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	dbID, err := a.getDBID(vars)
+	if err != nil {
+		sendResponse(400, false, err, nil, rw)
+		return
+	}
+
+	height, block, err := a.service.getHighestBlock(dbID)
+	if err == ErrNotFound {
+		sendResponse(400, false, err, nil, rw)
+		return
+	} else if err != nil {
+		sendResponse(500, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(200, true, "", a.formatBlock(height, block), rw)
+}
+
 func (a *explorerAPI) formatBlock(height int32, b *ct.Block) map[string]interface{} {
 	queries := make([]string, 0, len(b.Queries))
 
@@ -295,6 +316,7 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	v1Router.HandleFunc("/request/{db}/{hash}", api.GetRequest).Methods("GET")
 	v1Router.HandleFunc("/block/{db}/{hash}", api.GetBlock).Methods("GET")
 	v1Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeight).Methods("GET")
+	v1Router.HandleFunc("/head/{db}", api.getHighestBlock).Methods("GET")
 
 	server = &http.Server{
 		Addr:         listenAddr,

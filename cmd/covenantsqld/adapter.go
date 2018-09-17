@@ -334,7 +334,7 @@ func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceI
 		},
 	})
 	if err != nil {
-		log.Errorf("Query database %v instance meta failed", dbID, err)
+		log.Errorf("Query database %v instance meta failed: %v", dbID, err)
 		return
 	}
 
@@ -419,7 +419,7 @@ func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err e
 		},
 	})
 	if err != nil {
-		log.Errorf("Query all database instance meta failed", err)
+		log.Errorf("Query all database instance meta failed: %v", err)
 		return
 	}
 

@@ -27,4 +27,6 @@ var (
 	ErrEnqueueApplication = errors.New("enqueue application failed")
 	// ErrInvalidApplication represents invalid application which contains no advertising content.
 	ErrInvalidApplication = errors.New("invalid application")
+	// ErrInvalidFaucetConfig represents invalid faucet config without enough configurations.
+	ErrInvalidFaucetConfig = errors.New("invalid faucet config")
 )

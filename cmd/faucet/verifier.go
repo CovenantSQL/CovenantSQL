@@ -27,6 +27,13 @@ import (
 	"sync"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/dyatlov/go-opengraph/opengraph"
 	"mvdan.cc/xurls"
@@ -54,20 +61,65 @@ type Verifier struct {
 	lastDispensed   int64
 	contentRequired string
 	urlRequired     string
+	vaultAddress    proto.AccountAddress
+	privateKey      *asymmetric.PrivateKey
+	publicKey       *asymmetric.PublicKey
 
 	// persistence
 	p *Persistence
+
+	stopCh chan struct{}
+}
+
+// NewVerifier returns a new verifier instance.
+func NewVerifier(cfg *Config, p *Persistence) (v *Verifier, err error) {
+	v = &Verifier{
+		interval:        cfg.VerificationInterval,
+		lastVerified:    0,
+		lastDispensed:   0,
+		contentRequired: cfg.ContentRequired,
+		urlRequired:     cfg.URLRequired,
+		p:               p,
+		stopCh:          make(chan struct{}),
+	}
+
+	if v.publicKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	if v.privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	// generate source account address
+	if v.vaultAddress, err = utils.PubKeyHash(v.publicKey); err != nil {
+		return
+	}
+
+	return
 }
 
 func (v *Verifier) run() {
 	for {
+		select {
+		case <-time.After(v.interval):
+		case <-v.stopCh:
+			return
+		}
+
 		// fetch records
 		v.verify()
 
 		// dispense
 		v.dispense()
+	}
+}
 
-		time.Sleep(v.interval)
+func (v *Verifier) stop() {
+	select {
+	case <-v.stopCh:
+	default:
+		close(v.stopCh)
 	}
 }
 
@@ -135,7 +187,69 @@ func (v *Verifier) dispense() (err error) {
 	}
 
 	// dispense
-	_ = records
+	for _, record := range records {
+		if err = v.dispenseOne(record); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
+	// allocate nonce
+	nonceReq := &bp.NextAccountNonceReq{}
+	nonceResp := &bp.NextAccountNonceResp{}
+	nonceReq.Addr = v.vaultAddress
+
+	if err = requestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+		// allocate nonce failed
+		log.Warningf("allocate nonce for transaction failed: %v", err)
+		return
+	}
+
+	// decode target account address
+	var targetAddress proto.AccountAddress
+	if _, targetAddress, err = utils.Addr2Hash(r.address); err != nil {
+		// log error
+		log.Warningf("decode transfer target address failed: %v", err)
+
+		// mark failed
+		r.failReason = err.Error()
+		r.state = StateFailed
+		if err = v.p.updateRecord(r); err != nil {
+			return
+		}
+
+		// skip invalid address faucet application
+		err = nil
+		return
+	}
+
+	req := &bp.AddTxReq{}
+	resp := &bp.AddTxResp{}
+	xferTx := &pt.Transfer{
+		TransferHeader: pt.TransferHeader{
+			Sender:   v.vaultAddress,
+			Receiver: targetAddress,
+			Amount:   uint64(r.tokenAmount),
+		},
+		Signee: v.publicKey,
+	}
+	if err = xferTx.Sign(v.privateKey); err != nil {
+		// sign failed?
+		return
+	}
+
+	if err = requestBP(route.MCCAddTx.String(), req, resp); err != nil {
+		// add transaction failed, try again
+		log.Warningf("send transaction failed: %v", err)
+
+		return
+	}
+
+	// save dispense result
+	r.state = StateDispensed
 
 	return
 }

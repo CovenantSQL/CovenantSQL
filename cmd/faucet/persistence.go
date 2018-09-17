@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -42,8 +43,10 @@ const (
 
 // Persistence defines the persistence api for faucet service.
 type Persistence struct {
-	db    *sql.Conn
-	quota int
+	db                *sql.DB
+	accountDailyLimit uint
+	addressDailyLimit uint
+	tokenAmount       int64
 }
 
 // applicationRecord defines single record for verification.
@@ -54,12 +57,79 @@ type applicationRecord struct {
 	mediaURL    string
 	account     string
 	state       State
-	tokenAmount float64
+	tokenAmount int64 // covenantsql could store uint64 value, use int64 instead
 	failReason  string
 }
 
 // NewPersistence returns a new application persistence api.
-func NewPersistence() (p *Persistence, err error) {
+func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
+	// connect database
+	cfg := client.NewConfig()
+	cfg.DatabaseID = faucetCfg.DatabaseID
+
+	p = &Persistence{
+		accountDailyLimit: faucetCfg.AccountDailyLimit,
+		addressDailyLimit: faucetCfg.AddressDailyLimit,
+		tokenAmount:       faucetCfg.FaucetAmount,
+	}
+
+	p.db, err = sql.Open("covenantsql", cfg.FormatDSN())
+
+	return
+}
+
+func (p *Persistence) checkAccountLimit(platform string, account string) (err error) {
+	// TODO, consider cache the limits in memory?
+	timeOfDayStart := time.Now().In(time.FixedZone("PRC", 8*60*60)).Format("2006-01-02 00:00:00")
+
+	// account limit check
+	row := p.db.QueryRowContext(context.Background(),
+		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND platform = ? AND account = ?",
+		timeOfDayStart, platform, account)
+
+	var result uint
+
+	err = row.Scan(&result)
+	if err != nil {
+		return
+	}
+
+	if result > p.accountDailyLimit {
+		// quota exceeded
+		log.WithFields(log.Fields{
+			"account":  account,
+			"platform": platform,
+		}).Errorf("daily account limit exceeded")
+		return ErrQuotaExceeded
+	}
+
+	return
+}
+
+func (p *Persistence) checkAddressLimit(address string) (err error) {
+	// TODO, consider cache the limits in memory?
+	timeOfDayStart := time.Now().In(time.FixedZone("PRC", 8*60*60)).Format("2006-01-02 00:00:00")
+
+	// account limit check
+	row := p.db.QueryRowContext(context.Background(),
+		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND address = ?",
+		timeOfDayStart, address)
+
+	var result uint
+
+	err = row.Scan(&result)
+	if err != nil {
+		return
+	}
+
+	if result > p.accountDailyLimit {
+		// quota exceeded
+		log.WithFields(log.Fields{
+			"address": address,
+		}).Errorf("daily address limit exceeded")
+		return ErrQuotaExceeded
+	}
+
 	return
 }
 
@@ -76,33 +146,18 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (err e
 		return
 	}
 
-	// check previous applications
-	timeOfDayStart := time.Now().In(time.FixedZone("PRC", 8*60*60)).Format("2006-01-02 00:00:00")
-
-	row := p.db.QueryRowContext(context.Background(),
-		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND platform = ? AND account = ?",
-		timeOfDayStart, meta.platform, meta.account, address)
-
-	var result int
-
-	err = row.Scan(&result)
-	if err != nil {
+	// check limits
+	if err = p.checkAccountLimit(meta.platform, meta.account); err != nil {
 		return
 	}
-
-	if result > p.quota {
-		// quota exceeded
-		log.WithFields(log.Fields{
-			"address":  address,
-			"mediaURL": mediaURL,
-		}).Errorf("")
-		return ErrQuotaExceeded
+	if err = p.checkAddressLimit(address); err != nil {
+		return
 	}
 
 	// enqueue
 	_, err = p.db.ExecContext(context.Background(),
-		"INSERT INTO faucet_records (platform, account, url, address, state, reason, tokenAmount) VALUES(?, ?, ?, ?, '', 0.0)",
-		meta.platform, meta.account, mediaURL, address, StateApplication)
+		"INSERT INTO faucet_records (platform, account, url, address, state, amount, reason) VALUES(?, ?, ?, ?, ?, '')",
+		meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"address":  address,

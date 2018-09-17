@@ -27,7 +27,7 @@ CovenantSQL is built on DH-RPC, including:
     - Use Elliptic Curve Secp256k1 for Asymmetric Encryption
     - ECDH for Key Exchange
     - PKCS#7 for padding
-    - AES-256-CBC for Symmetric Encryption
+    - AES-256-CFB for Symmetric Encryption
     - Private key protected by master key
     - Annoymous connection is also supported
 - DHT persistence layer has 2 implementations:

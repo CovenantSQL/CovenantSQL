@@ -123,7 +123,21 @@ func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 // dialToNodeEx connects to the node with nodeID
 func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	var rawNodeID = nodeID.ToRawNodeID()
+	/*
+		As a common practice of PKI, we should add some randomness to the ECDHed pre-master-key
+		we did that at the [ETLS](../crypto/etls) layer with a non-deterministic authenticated
+		encryption input vector(random IV).
 
+		To understand that and func "rpc.GetSharedSecretWith"
+		Please refer to:
+			- RFC 5297: Synthetic Initialization Vector (SIV) Authenticated Encryption
+				Using the Advanced Encryption Standard (AES)
+			- RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2
+		Useful links:
+			- https://tools.ietf.org/html/rfc5297#section-3
+			- https://tools.ietf.org/html/rfc5246#section-5
+			- https://www.cryptologie.net/article/340/tls-pre-master-secrets-and-master-secrets/
+	*/
 	symmetricKey, err := GetSharedSecretWith(rawNodeID, isAnonymous)
 	if err != nil {
 		log.Errorf("get shared secret for %s failed: %s", rawNodeID.ToNodeID(), err)

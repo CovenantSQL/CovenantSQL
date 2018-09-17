@@ -109,6 +109,10 @@ const (
 	OBSAdviseAckedQuery
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
 	OBSAdviseNewBlock
+	// MCCNextAccountNonce is used by block producer main chain to allocate next nonce for transactions
+	MCCNextAccountNonce
+	// MCCAddTx is used by block producer main chain to upload transaction
+	MCCAddTx
 )
 
 // String returns the RemoteFunc string
@@ -162,6 +166,10 @@ func (s RemoteFunc) String() string {
 		return "OBS.AdviseAckedQuery"
 	case OBSAdviseNewBlock:
 		return "OBS.AdviseNewBlock"
+	case MCCNextAccountNonce:
+		return "MCC.NextAccountNonce"
+	case MCCAddTx:
+		return "MCC.AddTx"
 	}
 	return "Unknown"
 }

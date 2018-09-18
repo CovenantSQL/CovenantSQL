@@ -581,14 +581,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		receivers[i] = &addrAndGas.AccountAddress
 		fees[i] = addrAndGas.GasAmount * uint64(gasprice)
 		rewards[i] = 0
-		if err = c.ms.increaseAccountStableBalance(
-			addrAndGas.AccountAddress,
-			addrAndGas.GasAmount*uint64(gasprice),
-		); err != nil {
-			return
-		}
 	}
-	return
 
 	if enc, err = br.MarshalHash(); err != nil {
 		return
@@ -613,41 +606,19 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 
 	// generate and push the txbilling
 	// 1. generate txbilling
-	var seqID uint32
-	var tc *types.TxContent
-	var tb *types.TxBilling
-	err = c.db.View(func(tx *bolt.Tx) error {
-		meta := tx.Bucket(metaBucket[:])
-		metaLastTB := meta.Bucket(metaLastTxBillingIndexBucket)
-
-		// generate unique seqID
-		encDatabaseID, err := utils.EncodeMsgPack(br.Header.DatabaseID)
-		if err != nil {
-			return err
-		}
-		oldSeqIDRaw := metaLastTB.Get(encDatabaseID.Bytes())
-		if oldSeqIDRaw != nil {
-			var oldSeqID uint32
-			err = utils.DecodeMsgPack(oldSeqIDRaw, oldSeqID)
-			if err != nil {
-				return err
-			}
-			seqID = oldSeqID + 1
-		} else {
-			seqID = 0
-		}
-
-		// generate txbilling
-		tc = types.NewTxContent(seqID, br, receivers, fees, rewards, resp)
+	var nc pi.AccountNonce
+	if nc, err = c.ms.nextNonce(accountAddress); err != nil {
+		return
+	}
+	var (
+		tc = types.NewTxContent(uint32(nc), br, receivers, fees, rewards, resp)
 		tb = types.NewTxBilling(tc, types.TxTypeBilling, &c.rt.accountAddress)
-		tb.Sign(privKey)
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	)
+	if err = tb.Sign(privKey); err != nil {
+		return
 	}
 	log.Debugf("response is %s", resp.RequestHash)
+
 	// 2. push tx
 	c.pendingTxs <- tb
 	tbReq := &AdviseTxBillingReq{

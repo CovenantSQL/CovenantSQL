@@ -484,10 +484,24 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 	return
 }
 
+func (s *metaState) applyBilling(tx *pt.TxBilling) (err error) {
+	for i, v := range tx.TxContent.Receivers {
+		if err = s.increaseAccountcovenantBalance(*v, tx.TxContent.Fees[i]); err != nil {
+			return
+		}
+		if err = s.increaseAccountStableBalance(*v, tx.TxContent.Rewards[i]); err != nil {
+			return
+		}
+	}
+	return
+}
+
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *pt.Transfer:
 		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
+	case *pt.TxBilling:
+		err = s.applyBilling(t)
 	default:
 		err = ErrUnknownTransactionType
 	}

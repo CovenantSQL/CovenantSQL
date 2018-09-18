@@ -74,12 +74,12 @@ func (d *tokenDispenser) poll(rw http.ResponseWriter, r *http.Request) {
 
 	// validate args
 	if !regexAddress.MatchString(address) {
-		sendResponse(http.StatusBadRequest, false, "invalid address", nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAddress.Error(), nil, rw)
 		return
 	}
 
 	if !regexApplicationID.MatchString(applicationID) {
-		sendResponse(http.StatusBadRequest, false, "invalid application id", nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidApplicationID.Error(), nil, rw)
 		return
 	}
 
@@ -107,13 +107,13 @@ func (d *tokenDispenser) application(rw http.ResponseWriter, r *http.Request) {
 	// validate args
 	if !regexAddress.MatchString(address) {
 		// error
-		sendResponse(http.StatusBadRequest, false, "invalid address", nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAddress.Error(), nil, rw)
 		return
 	}
 
 	if !regexMediaURL.MatchString(mediaURL) {
 		// error
-		sendResponse(http.StatusBadRequest, false, "invalid social media url", nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidURL, nil, rw)
 		return
 	}
 

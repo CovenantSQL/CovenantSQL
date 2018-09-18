@@ -67,8 +67,8 @@ func (s State) String() string {
 // Persistence defines the persistence api for faucet service.
 type Persistence struct {
 	db                *sql.DB
-	accountDailyLimit uint
-	addressDailyLimit uint
+	accountDailyQuota uint
+	addressDailyQuota uint
 	tokenAmount       int64
 }
 
@@ -104,8 +104,8 @@ func (r *applicationRecord) asMap() (result map[string]interface{}) {
 // NewPersistence returns a new application persistence api.
 func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 	p = &Persistence{
-		accountDailyLimit: faucetCfg.AccountDailyLimit,
-		addressDailyLimit: faucetCfg.AddressDailyLimit,
+		accountDailyQuota: faucetCfg.AccountDailyQuota,
+		addressDailyQuota: faucetCfg.AddressDailyQuota,
 		tokenAmount:       faucetCfg.FaucetAmount,
 	}
 
@@ -163,13 +163,13 @@ func (p *Persistence) checkAccountLimit(platform string, account string) (err er
 		return
 	}
 
-	if result >= p.accountDailyLimit {
+	if result >= p.accountDailyQuota {
 		// quota exceeded
 		log.WithFields(log.Fields{
 			"account":  account,
 			"platform": platform,
-		}).Errorf("daily account limit exceeded")
-		return ErrQuotaExceeded
+		}).Errorf("daily account quota exceeded")
+		return ErrAccountQuotaExceeded
 	}
 
 	return
@@ -191,12 +191,12 @@ func (p *Persistence) checkAddressLimit(address string) (err error) {
 		return
 	}
 
-	if result >= p.accountDailyLimit {
+	if result >= p.addressDailyQuota {
 		// quota exceeded
 		log.WithFields(log.Fields{
 			"address": address,
-		}).Errorf("daily address limit exceeded")
-		return ErrQuotaExceeded
+		}).Errorf("daily address quota exceeded")
+		return ErrAddressQuotaExceeded
 	}
 
 	return
@@ -256,12 +256,12 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (appli
 // queryState returns faucet application state.
 func (p *Persistence) queryState(address string, applicationID string) (record *applicationRecord, err error) {
 	row := p.db.QueryRowContext(context.Background(),
-		`SELECT id, rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 
+		`SELECT id, rowid, platform, address, url, account, state, amount, reason FROM faucet_records WHERE 
 				address = ? AND id = ? LIMIT 1`, address, applicationID)
 
 	record = &applicationRecord{}
 	err = row.Scan(&record.applicationID, &record.rowID, &record.platform, &record.address, &record.mediaURL,
-		&record.account, &record.state, &record.tokenAmount)
+		&record.account, &record.state, &record.tokenAmount, &record.failReason)
 
 	return
 }

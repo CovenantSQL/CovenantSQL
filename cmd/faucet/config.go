@@ -33,8 +33,8 @@ type Config struct {
 	FaucetAmount         int64         `yaml:"FaucetAmount"`
 	DatabaseID           string        `yaml:"DatabaseID"`       // database id for persistence
 	LocalDatabase        bool          `yaml:"UseLocalDatabase"` // use local sqlite3 database for persistence
-	AddressDailyLimit    uint          `yaml:"AddressDailyLimit"`
-	AccountDailyLimit    uint          `yaml:"AccountDailyLimit"`
+	AddressDailyQuota    uint          `yaml:"AddressDailyQuota"`
+	AccountDailyQuota    uint          `yaml:"AccountDailyQuota"`
 	VerificationInterval time.Duration `yaml:"VerificationInterval"`
 }
 
@@ -89,14 +89,14 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
-	if config.AddressDailyLimit == 0 || config.AccountDailyLimit == 0 {
-		log.Warningf("AddressDailyLimit & AccountDailyLimit should be valid positive number, 1 assumed")
+	if config.AddressDailyQuota == 0 || config.AccountDailyQuota == 0 {
+		log.Warningf("AddressDailyQuota & AccountDailyQuota should be valid positive number, 1 assumed")
 
-		if config.AddressDailyLimit == 0 {
-			config.AddressDailyLimit = 1
+		if config.AddressDailyQuota == 0 {
+			config.AddressDailyQuota = 1
 		}
-		if config.AccountDailyLimit == 0 {
-			config.AccountDailyLimit = 1
+		if config.AccountDailyQuota == 0 {
+			config.AccountDailyQuota = 1
 		}
 
 		return

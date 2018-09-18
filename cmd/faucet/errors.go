@@ -19,16 +19,27 @@ package main
 import "errors"
 
 var (
+	// user errors
+
 	// ErrInvalidURL represents the invalid media url error.
-	ErrInvalidURL = errors.New("invalid social media url")
-	// ErrQuotaExceeded represents the applicant has exceeded the daily token quota.
-	ErrQuotaExceeded = errors.New("application quota exceeded")
+	ErrInvalidURL = errors.New("INVALID_URL")
+	// ErrInvalidAddress represents address is not a valid test net address.
+	ErrInvalidAddress = errors.New("INVALID_ADDRESS")
+	// ErrInvalidApplicationID represents the application id provided is invalid.
+	ErrInvalidApplicationID = errors.New("INVALID_APPLICATION_ID")
+	// ErrAccountQuotaExceeded represents the applicant has exceeded the account daily application quota.
+	ErrAccountQuotaExceeded = errors.New("ACCOUNT_QUOTA_EXCEEDED")
+	// ErrAddressQuotaExceeded represents the applicant has exceeded the address daily application quota.
+	ErrAddressQuotaExceeded = errors.New("ADDRESS_QUOTA_EXCEEDED")
 	// ErrEnqueueApplication represents failing to enqueue the application request.
-	ErrEnqueueApplication = errors.New("enqueue application failed")
-	// ErrInvalidApplication represents invalid application which contains no advertising content.
-	ErrInvalidApplication = errors.New("invalid application")
+	ErrEnqueueApplication = errors.New("ENQUEUE_FAILED")
+	// ErrRequiredContentNotExists represents invalid application which contains no advertising content.
+	ErrRequiredContentNotExists = errors.New("NO_REQUIRED_CONTENT")
+	// ErrRequiredURLNotExists represents invalid application which contains no advertising url.
+	ErrRequiredURLNotExists = errors.New("NO_REQUIRED_LINK")
+
+	// system errors
+
 	// ErrInvalidFaucetConfig represents invalid faucet config without enough configurations.
 	ErrInvalidFaucetConfig = errors.New("invalid faucet config")
-	// ErrNotTestNetAddress represents address is not a valid test net address.
-	ErrNotTestNetAddress = errors.New("invalid test net address")
 )

@@ -219,7 +219,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	var addrVersion byte
 	if addrVersion, targetAddress, err = utils.Addr2Hash(r.address); err != nil || addrVersion != utils.TestNet {
 		if err == nil && addrVersion != utils.TestNet {
-			err = ErrNotTestNetAddress
+			err = ErrInvalidAddress
 		}
 
 		// log error
@@ -305,9 +305,11 @@ func verifyFacebook(mediaURL string, contentRequired string, urlRequired string)
 	}
 
 	// description contains sharing content
-	if !strings.Contains(og.Description, contentRequired) || !strings.Contains(og.Description, urlRequired) {
-		// error
-		return ErrInvalidApplication
+	if !strings.Contains(og.Description, contentRequired) {
+		return ErrRequiredContentNotExists
+	}
+	if !strings.Contains(og.Description, urlRequired) {
+		return ErrRequiredURLNotExists
 	}
 
 	return nil
@@ -323,7 +325,7 @@ func verifyTwitter(mediaURL string, contentRequired string, urlRequired string) 
 
 	// description contains sharing content
 	if !strings.Contains(og.Description, contentRequired) {
-		return ErrInvalidApplication
+		return ErrRequiredContentNotExists
 	}
 
 	// check url
@@ -342,7 +344,7 @@ func verifyWeibo(mediaURL string, contentRequired string, urlRequired string) (e
 	matches := regexpTextContent.FindStringSubmatch(resp)
 	if len(matches) <= 1 {
 		// parser err
-		return ErrInvalidApplication
+		return ErrRequiredContentNotExists
 	}
 
 	// unquote json
@@ -352,8 +354,11 @@ func verifyWeibo(mediaURL string, contentRequired string, urlRequired string) (e
 	}
 
 	// test
-	if !strings.Contains(textContent, contentRequired) || !strings.Contains(textContent, urlRequired) {
-		return ErrInvalidApplication
+	if !strings.Contains(textContent, contentRequired) {
+		return ErrRequiredContentNotExists
+	}
+	if !strings.Contains(textContent, urlRequired) {
+		return ErrRequiredURLNotExists
 	}
 
 	return nil
@@ -375,7 +380,7 @@ func containsURL(content string, url string, retry int) (err error) {
 		}
 	}
 
-	return ErrInvalidApplication
+	return ErrRequiredURLNotExists
 }
 
 func makeRequest(reqURL string, ua string, retry int) (response string, err error) {

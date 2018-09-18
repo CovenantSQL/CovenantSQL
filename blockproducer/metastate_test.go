@@ -311,7 +311,7 @@ func TestMetaState(t *testing.T) {
 						},
 					)
 					Convey(
-						"The metaState should copy object when stable balance transfered",
+						"The metaState should copy object when stable balance transferred",
 						func() {
 							err = ms.transferAccountStableBalance(addr1, addr3, incSta+1)
 							So(err, ShouldEqual, ErrInsufficientBalance)

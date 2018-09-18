@@ -373,7 +373,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 			Owner:  addr,
 			Miners: make([]proto.AccountAddress, 0),
 			Users: []*pt.SQLChainUser{
-				&pt.SQLChainUser{
+				{
 					Address:    addr,
 					Permission: pt.Admin,
 				},

@@ -220,7 +220,7 @@ func TestMultiNode(t *testing.T) {
 			err = chains[i].Start()
 			So(err, ShouldBeNil)
 			defer func(c *Chain) {
-				chains[i].Stop()
+				c.Stop()
 			}(chains[i])
 		}
 

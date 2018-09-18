@@ -165,11 +165,11 @@ func TestPeers_Clone(t *testing.T) {
 func TestPeers_Find(t *testing.T) {
 	samplePeersConf := &Peers{
 		Servers: []*Server{
-			&Server{ID: "X1"},
-			&Server{ID: "X2"},
-			&Server{ID: "X3"},
-			&Server{ID: "X4"},
-			&Server{ID: "X5"},
+			{ID: "X1"},
+			{ID: "X2"},
+			{ID: "X3"},
+			{ID: "X4"},
+			{ID: "X5"},
 		},
 	}
 

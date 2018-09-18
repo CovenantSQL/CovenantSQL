@@ -17,8 +17,8 @@
 package chain
 
 import (
-	bolt "github.com/coreos/bbolt"
 	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
+	"github.com/coreos/bbolt"
 )
 
 var (

@@ -29,4 +29,6 @@ var (
 	ErrInvalidApplication = errors.New("invalid application")
 	// ErrInvalidFaucetConfig represents invalid faucet config without enough configurations.
 	ErrInvalidFaucetConfig = errors.New("invalid faucet config")
+	// ErrNotTestNetAddress represents address is not a valid test net address.
+	ErrNotTestNetAddress = errors.New("invalid test net address")
 )

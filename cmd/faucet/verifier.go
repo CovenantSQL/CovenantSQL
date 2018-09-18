@@ -216,7 +216,12 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	// decode target account address
 	var targetAddress proto.AccountAddress
-	if _, targetAddress, err = utils.Addr2Hash(r.address); err != nil {
+	var addrVersion byte
+	if addrVersion, targetAddress, err = utils.Addr2Hash(r.address); err != nil || addrVersion != utils.TestNet {
+		if err == nil && addrVersion != utils.TestNet {
+			err = ErrNotTestNetAddress
+		}
+
 		// log error
 		log.Warningf("decode transfer target address failed: %v", err)
 

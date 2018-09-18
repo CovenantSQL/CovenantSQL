@@ -44,6 +44,23 @@ const (
 	StateUnknown
 )
 
+func (s State) String() string {
+	switch s {
+	case StateApplication:
+		return "StateApplication"
+	case StateVerified:
+		return "StateVerified"
+	case StateDispensed:
+		return "StateDispensed"
+	case StateFailed:
+		return "StateFailed"
+	case StateUnknown:
+		return "StateUnknown"
+	}
+
+	return ""
+}
+
 // Persistence defines the persistence api for faucet service.
 type Persistence struct {
 	db                *sql.DB
@@ -62,6 +79,21 @@ type applicationRecord struct {
 	state       State
 	tokenAmount int64 // covenantsql could store uint64 value, use int64 instead
 	failReason  string
+}
+
+func (r *applicationRecord) asMap() (result map[string]interface{}) {
+	result = make(map[string]interface{})
+
+	result["rowID"] = r.rowID
+	result["platform"] = r.platform
+	result["address"] = r.address
+	result["mediaURL"] = r.mediaURL
+	result["account"] = r.account
+	result["state"] = r.state.String()
+	result["tokenAmount"] = r.tokenAmount
+	result["failReason"] = r.failReason
+
+	return
 }
 
 // NewPersistence returns a new application persistence api.
@@ -186,7 +218,16 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (err e
 
 	// enqueue
 	_, err = p.db.ExecContext(context.Background(),
-		"INSERT INTO faucet_records (platform, account, url, address, state, amount, reason, ctime) VALUES(?, ?, ?, ?, ?, '', CURRENT_TIME)",
+		`INSERT INTO faucet_records (
+				platform,
+				account,
+				url,
+				address,
+				state,
+				amount,
+				reason,
+				ctime
+			  ) VALUES (?, ?, ?, ?, ?, ?, '', CURRENT_TIMESTAMP)`,
 		meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -228,7 +269,8 @@ func (p *Persistence) getRecords(startRowID int64, platform string, state State,
 	for rows.Next() {
 		r := &applicationRecord{}
 
-		if err = rows.Scan(&r.rowID, &r.platform, &r.address, &r.mediaURL, &r.tokenAmount); err != nil {
+		if err = rows.Scan(&r.rowID, &r.platform, &r.address, &r.mediaURL,
+			&r.account, &r.state, &r.tokenAmount); err != nil {
 			return
 		}
 
@@ -241,15 +283,24 @@ func (p *Persistence) getRecords(startRowID int64, platform string, state State,
 // updateRecord updates application record.
 func (p *Persistence) updateRecord(record *applicationRecord) (err error) {
 	_, err = p.db.ExecContext(context.Background(),
-		"UPDATE faucet_records SET platform = ?, address = ?, url = ?, account = ?, state = ?, reason = ? amount = ? WHERE rowid = ?",
+		`UPDATE faucet_records SET
+				platform = ?,
+				address = ?,
+				url = ?,
+				account = ?,
+				state = ?,
+				reason = ?,
+				amount = ?
+			  WHERE rowid = ?`,
 		record.platform,
 		record.address,
 		record.mediaURL,
 		record.account,
-		record.state,
+		int(record.state),
 		record.failReason,
-		record.rowID,
 		record.tokenAmount,
+		record.rowID,
 	)
+
 	return
 }

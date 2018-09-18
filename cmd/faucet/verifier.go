@@ -101,17 +101,21 @@ func NewVerifier(cfg *Config, p *Persistence) (v *Verifier, err error) {
 
 func (v *Verifier) run() {
 	for {
-		select {
-		case <-time.After(v.interval):
-		case <-v.stopCh:
-			return
-		}
+		log.Infof("begin verification iteration")
 
 		// fetch records
 		v.verify()
 
 		// dispense
 		v.dispense()
+
+		log.Infof("end verification iteration")
+
+		select {
+		case <-time.After(v.interval):
+		case <-v.stopCh:
+			return
+		}
 	}
 }
 
@@ -127,7 +131,6 @@ func (v *Verifier) verify() {
 	wg := &sync.WaitGroup{}
 	ch := make(chan int64, 3)
 	runTask := func(wg *sync.WaitGroup, ch chan int64, f func() (int64, error)) {
-		wg.Add(1)
 		defer wg.Done()
 		verified, err := f()
 		if err != nil {
@@ -136,8 +139,11 @@ func (v *Verifier) verify() {
 		}
 	}
 
+	wg.Add(1)
 	go runTask(wg, ch, v.verifyFacebook)
+	wg.Add(1)
 	go runTask(wg, ch, v.verifyTwitter)
+	wg.Add(1)
 	go runTask(wg, ch, v.verifyWeibo)
 
 	wg.Wait()
@@ -221,6 +227,8 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 			return
 		}
 
+		log.WithFields(log.Fields(r.asMap())).Infof("dispensed application record failed")
+
 		// skip invalid address faucet application
 		err = nil
 		return
@@ -251,6 +259,13 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	// save dispense result
 	r.state = StateDispensed
 
+	if err = v.p.updateRecord(r); err != nil {
+		// failed
+		return
+	}
+
+	log.WithFields(log.Fields(r.asMap())).Infof("dispensed application record")
+
 	return
 }
 
@@ -267,6 +282,8 @@ func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string
 			// failed
 			return
 		}
+
+		log.WithFields(log.Fields(r.asMap())).Infof("verified application record")
 
 		verified = r.rowID
 	}

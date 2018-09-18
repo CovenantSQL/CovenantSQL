@@ -33,7 +33,7 @@ type urlMeta struct {
 }
 
 func extractPlatformInURL(mediaURL string) (meta urlMeta, err error) {
-	if !strings.HasPrefix("http", mediaURL) {
+	if !strings.HasPrefix(mediaURL, "http") {
 		mediaURL = "http://" + mediaURL
 	}
 

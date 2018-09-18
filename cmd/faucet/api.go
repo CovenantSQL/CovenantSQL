@@ -89,9 +89,10 @@ func (d *tokenDispenser) poll(rw http.ResponseWriter, r *http.Request) {
 	} else {
 		// build response
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
-			"id":     r.applicationID,
-			"state":  r.state.String(),
-			"reason": r.failReason,
+			"id":         r.applicationID,
+			"state":      int(r.state),
+			"state_desc": r.state.String(),
+			"reason":     r.failReason,
 		}, rw)
 	}
 

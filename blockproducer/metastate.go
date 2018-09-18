@@ -484,6 +484,25 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 	return
 }
 
+func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
+	s.Lock()
+	defer s.Unlock()
+	var (
+		src, dst *accountObject
+		ok       bool
+	)
+	if dst, ok = s.dirty.accounts[addr]; !ok {
+		if src, ok = s.readonly.accounts[addr]; !ok {
+			return ErrAccountNotFound
+		}
+		dst = &accountObject{}
+		deepcopier.Copy(&src.Account).To(&dst.Account)
+		s.dirty.accounts[addr] = dst
+	}
+	dst.NextNonce++
+	return
+}
+
 func (s *metaState) applyBilling(tx *pt.TxBilling) (err error) {
 	for i, v := range tx.TxContent.Receivers {
 		if err = s.increaseAccountCovenantBalance(*v, tx.TxContent.Fees[i]); err != nil {
@@ -552,6 +571,9 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		}
 		// Try to apply transaction to metaState
 		if err = s.applyTransaction(t); err != nil {
+			return
+		}
+		if err = s.increaseNonce(addr); err != nil {
 			return
 		}
 		// Push to pool

@@ -88,6 +88,8 @@ func TestMetaState(t *testing.T) {
 		Convey("The nonce state should be empty", func() {
 			_, err = ms.nextNonce(addr1)
 			So(err, ShouldEqual, ErrAccountNotFound)
+			err = ms.increaseNonce(addr1)
+			So(err, ShouldEqual, ErrAccountNotFound)
 		})
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
 			err = ms.createSQLChain(addr1, dbid1)
@@ -325,6 +327,13 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 						},
 					)
+					Convey(
+						"The metaState should copy object when nonce increased",
+						func() {
+							err = ms.increaseNonce(addr1)
+							So(err, ShouldBeNil)
+						},
+					)
 				})
 			})
 			Convey("When a new account key slot is overwritten", func() {
@@ -534,7 +543,7 @@ func TestMetaState(t *testing.T) {
 			Convey("When transacions are added", func() {
 				var (
 					n  pi.AccountNonce
-					tx = &pt.Transfer{
+					t1 = &pt.Transfer{
 						TransferHeader: pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
@@ -542,27 +551,41 @@ func TestMetaState(t *testing.T) {
 							Amount:   0,
 						},
 					}
+					t2 = &pt.TxBilling{
+						TxContent: pt.TxContent{
+							SequenceID: 1,
+							Receivers:  []*proto.AccountAddress{&addr2},
+							Fees:       []uint64{1},
+							Rewards:    []uint64{1},
+						},
+						AccountAddress: &addr1,
+					}
 				)
-				err = tx.Sign(testPrivKey)
+				err = t1.Sign(testPrivKey)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(tx))
+				err = t2.Sign(testPrivKey)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(t1))
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(t2))
 				So(err, ShouldBeNil)
 				Convey("The metaState should report error if tx fails verification", func() {
-					err = db.Update(ms.applyTransactionProcedure(tx))
+					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
-					tx.Nonce, err = ms.nextNonce(addr1)
+					t1.Nonce, err = ms.nextNonce(addr1)
 					So(err, ShouldBeNil)
-					err = db.Update(ms.applyTransactionProcedure(tx))
+					So(t1.Nonce, ShouldEqual, ms.dirty.accounts[addr1].NextNonce)
+					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldNotBeNil)
-					err = tx.Sign(testPrivKey)
+					err = t1.Sign(testPrivKey)
 					So(err, ShouldBeNil)
-					err = db.Update(ms.applyTransactionProcedure(tx))
+					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldBeNil)
 				})
 				Convey("The metaState should automatically increase nonce", func() {
 					n, err = ms.nextNonce(addr1)
 					So(err, ShouldBeNil)
-					So(n, ShouldEqual, 1)
+					So(n, ShouldEqual, 2)
 				})
 				Convey("The metaState should report error on unknown transaction type", func() {
 					err = ms.applyTransaction(nil)

@@ -17,22 +17,21 @@
 package blockproducer
 
 import (
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/kayak"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -387,7 +386,7 @@ func createRandomString(offset, length int, s *string) {
 }
 
 // createNodes assign Node asymmetric key pair and generate Node.NonceInfo
-// Node.ID = Node.NonceInfo.Hash
+// Node.ID = Node.NonceInfo.Hash.
 func createNodes(pubKey *asymmetric.PublicKey, timeThreshold time.Duration) *proto.Node {
 	node := proto.NewNode()
 	nonce := asymmetric.GetPubKeyNonce(pubKey, proto.NewNodeIDDifficulty, timeThreshold, nil)
@@ -500,15 +499,36 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 }
 
 func setup() {
+	var err error
+
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
+
+	// Create key paire for test
+	if testPrivKey, testPubKey, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+		panic(err)
+	}
+
+	// Create temp dir for test data
+	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+		panic(err)
+	}
 
 	// Setup logging
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }
 
+func teardown() {
+	if err := os.RemoveAll(testDataDir); err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
-	setup()
-	os.Exit(m.Run())
+	os.Exit(func() int {
+		setup()
+		defer teardown()
+		return m.Run()
+	}())
 }

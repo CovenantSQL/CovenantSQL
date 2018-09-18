@@ -39,31 +39,46 @@ const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
-func generateRandomAccount() *Account {
-	n := rand.Int31n(100) + 1
-	sqlChains := generateRandomDatabaseIDs(n)
-	roles := generateRandomBytes(n)
-
-	h := generateRandomHash()
-
-	txBillings := make([]*hash.Hash, n)
-
-	for i := range txBillings {
-		tmpHash := generateRandomHash()
-		txBillings[i] = &tmpHash
+func generateRandomSQLChainUser() *SQLChainUser {
+	return &SQLChainUser{
+		Address:    proto.AccountAddress(generateRandomHash()),
+		Permission: UserPermission(rand.Int31n(int32(NumberOfUserPermission))),
 	}
+}
 
-	account := &Account{
-		Address:             proto.AccountAddress(h),
+func generateRandomSQLChainUsers(n int) (users []*SQLChainUser) {
+	users = make([]*SQLChainUser, n)
+	for i := range users {
+		users[i] = generateRandomSQLChainUser()
+	}
+	return
+}
+
+func generateRandomAccountAddresses(n int) (s []proto.AccountAddress) {
+	s = make([]proto.AccountAddress, n)
+	for i := range s {
+		s[i] = proto.AccountAddress(generateRandomHash())
+	}
+	return
+}
+
+func generateRandomProfile() *SQLChainProfile {
+	return &SQLChainProfile{
+		ID:      *generateRandomDatabaseID(),
+		Deposit: rand.Uint64(),
+		Owner:   proto.AccountAddress(generateRandomHash()),
+		Miners:  generateRandomAccountAddresses(rand.Intn(10) + 1),
+		Users:   generateRandomSQLChainUsers(rand.Intn(10) + 1),
+	}
+}
+
+func generateRandomAccount() *Account {
+	return &Account{
+		Address:             proto.AccountAddress(generateRandomHash()),
 		StableCoinBalance:   rand.Uint64(),
 		CovenantCoinBalance: rand.Uint64(),
-		SQLChains:           sqlChains,
-		Roles:               roles,
 		Rating:              rand.Float64(),
-		TxBillings:          txBillings,
 	}
-
-	return account
 }
 
 func generateRandomBytes(n int32) []byte {

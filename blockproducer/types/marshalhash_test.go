@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func TestMarshalHashAccountStable(t *testing.T) {
@@ -13,13 +13,8 @@ func TestMarshalHashAccountStable(t *testing.T) {
 		Address:             proto.AccountAddress{0x10},
 		StableCoinBalance:   10,
 		CovenantCoinBalance: 10,
-		SQLChains:           []proto.DatabaseID{"aaa", "bbb"},
-		Roles:               []byte{0x10, 0x10},
 		Rating:              1110,
-		TxBillings: []*hash.Hash{
-			{0x10},
-			{0x20},
-		},
+		NextNonce:           1,
 	}
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -34,31 +29,21 @@ func TestMarshalHashAccountStable(t *testing.T) {
 	}
 }
 
-// test different type and member name but same data type and content hash identical
 func TestMarshalHashAccountStable2(t *testing.T) {
 	v1 := Account{
 		Address:             proto.AccountAddress{0x10},
 		StableCoinBalance:   10,
 		CovenantCoinBalance: 10,
-		SQLChains:           []proto.DatabaseID{"aaa", "bbb"},
-		Roles:               []byte{0x10, 0x10},
 		Rating:              1110,
-		TxBillings: []*hash.Hash{
-			{0x10},
-			{0x20},
-		},
+		NextNonce:           1,
 	}
-	v2 := Account4test{
-		Address1:             proto.AccountAddress{0x10},
-		StableCoinBalance1:   10,
-		CovenantCoinBalance1: 10,
-		SQLChains1:           []proto.DatabaseID{"aaa", "bbb"},
-		Roles1:               []byte{0x10, 0x10},
-		Rating1:              1110,
-		TxBillings1: []*hash.Hash{
-			{0x10},
-			{0x20},
-		},
+	enc, err := utils.EncodeMsgPack(&v1)
+	if err != nil {
+		t.Fatalf("Error occurred: %v", err)
+	}
+	v2 := Account{}
+	if err = utils.DecodeMsgPack(enc.Bytes(), &v2); err != nil {
+		t.Fatalf("Error occurred: %v", err)
 	}
 	bts1, err := v1.MarshalHash()
 	if err != nil {

@@ -29,7 +29,7 @@ const (
 	blockVersion int32 = 0x01
 )
 
-// Config is the main chain configuration
+// Config is the main chain configuration.
 type Config struct {
 	Genesis *types.Block
 
@@ -44,7 +44,7 @@ type Config struct {
 	Tick   time.Duration
 }
 
-// NewConfig creates new config
+// NewConfig creates new config.
 func NewConfig(genesis *types.Block, dataFile string,
 	server *rpc.Server, peers *kayak.Peers,
 	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {

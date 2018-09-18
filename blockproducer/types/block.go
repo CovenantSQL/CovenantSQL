@@ -19,6 +19,7 @@ package types
 import (
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
@@ -28,7 +29,7 @@ import (
 
 //go:generate hsp
 
-// Header defines the main chain block header
+// Header defines the main chain block header.
 type Header struct {
 	Version    int32
 	Producer   proto.AccountAddress
@@ -37,7 +38,7 @@ type Header struct {
 	Timestamp  time.Time
 }
 
-// SignedHeader defines the main chain header with the signature
+// SignedHeader defines the main chain header with the signature.
 type SignedHeader struct {
 	Header
 	BlockHash hash.Hash
@@ -45,7 +46,7 @@ type SignedHeader struct {
 	Signature *asymmetric.Signature
 }
 
-// Verify verifies the signature
+// Verify verifies the signature.
 func (s *SignedHeader) Verify() error {
 	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
 		return ErrSignVerification
@@ -54,24 +55,30 @@ func (s *SignedHeader) Verify() error {
 	return nil
 }
 
-// Block defines the main chain block
+// Block defines the main chain block.
 type Block struct {
 	SignedHeader SignedHeader
 	TxBillings   []*TxBilling
+	Transactions []pi.Transaction
 }
 
 // GetTxHashes returns all hashes of tx in block.{TxBillings, ...}
 func (b *Block) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
 	// get hashes in block.TxBillings
-	hs := make([]*hash.Hash, len(b.TxBillings))
-	for i := range hs {
-		hs[i] = b.TxBillings[i].TxHash
+	bl := len(b.TxBillings)
+	hs := make([]*hash.Hash, len(b.TxBillings)+len(b.Transactions))
+	for i, v := range b.TxBillings {
+		hs[i] = v.TxHash
+	}
+	for i, v := range b.Transactions {
+		h := v.GetHash()
+		hs[bl+i] = &h
 	}
 	return hs
 }
 
-// PackAndSignBlock computes block's hash and sign it
+// PackAndSignBlock computes block's hash and sign it.
 func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	hs := b.GetTxHashes()
 
@@ -93,7 +100,7 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
-// Serialize converts block to bytes
+// Serialize converts block to bytes.
 func (b *Block) Serialize() ([]byte, error) {
 	buf, err := utils.EncodeMsgPack(b)
 	if err != nil {
@@ -103,12 +110,12 @@ func (b *Block) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Deserialize converts bytes to block
+// Deserialize converts bytes to block.
 func (b *Block) Deserialize(buf []byte) error {
 	return utils.DecodeMsgPack(buf, b)
 }
 
-// PushTx pushes txes into block
+// PushTx pushes txes into block.
 func (b *Block) PushTx(tx *TxBilling) {
 	if b.TxBillings != nil {
 		// TODO(lambda): set appropriate capacity.
@@ -118,7 +125,7 @@ func (b *Block) PushTx(tx *TxBilling) {
 	b.TxBillings = append(b.TxBillings, tx)
 }
 
-// Verify verifies whether the block is valid
+// Verify verifies whether the block is valid.
 func (b *Block) Verify() error {
 	hs := b.GetTxHashes()
 	merkleRoot := *merkle.NewMerkle(hs).GetRoot()
@@ -139,12 +146,12 @@ func (b *Block) Verify() error {
 	return b.SignedHeader.Verify()
 }
 
-// Timestamp returns timestamp of block
+// Timestamp returns timestamp of block.
 func (b *Block) Timestamp() time.Time {
 	return b.SignedHeader.Timestamp
 }
 
-// Producer returns the producer of block
+// Producer returns the producer of block.
 func (b *Block) Producer() proto.AccountAddress {
 	return b.SignedHeader.Producer
 }

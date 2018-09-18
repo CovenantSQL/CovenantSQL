@@ -867,6 +867,10 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 				}
 			}
 
+			if ack == nil {
+				err = ErrAckQueryNotFound
+			}
+
 			return
 		})
 	}

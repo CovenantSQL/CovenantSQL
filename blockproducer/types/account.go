@@ -17,43 +17,58 @@
 package types
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 //go:generate hsp
 
-// SQL Chain role type
+// SQLChainRole defines roles of account in a SQLChain.
+type SQLChainRole byte
+
 const (
-	Miner byte = iota
+	// Miner defines the miner role as a SQLChain user.
+	Miner SQLChainRole = iota
+	// Customer defines the customer role as a SQLChain user.
 	Customer
+	// NumberOfRoles defines the SQLChain roles number.
+	NumberOfRoles
 )
 
-// Account store its balance, and other mate data
+// UserPermission defines permissions of a SQLChain user.
+type UserPermission int32
+
+const (
+	// Admin defines the admin user permission.
+	Admin UserPermission = iota
+	// Read defines the reader user permission.
+	Read
+	// ReadWrite defines the reader/writer user permission.
+	ReadWrite
+	// NumberOfUserPermission defines the user permission number.
+	NumberOfUserPermission
+)
+
+// SQLChainUser defines a SQLChain user.
+type SQLChainUser struct {
+	Address    proto.AccountAddress
+	Permission UserPermission
+}
+
+// SQLChainProfile defines a SQLChainProfile related to an account.
+type SQLChainProfile struct {
+	ID      proto.DatabaseID
+	Deposit uint64
+	Owner   proto.AccountAddress
+	Miners  []proto.AccountAddress
+	Users   []*SQLChainUser
+}
+
+// Account store its balance, and other mate data.
 type Account struct {
 	Address             proto.AccountAddress
 	StableCoinBalance   uint64
 	CovenantCoinBalance uint64
-	SQLChains           []proto.DatabaseID
-	Roles               []byte
 	Rating              float64
-	TxBillings          []*hash.Hash
-}
-
-// Account4test store its balance, and other mate data
-type Account4test struct {
-	Address1             proto.AccountAddress
-	StableCoinBalance1   uint64
-	CovenantCoinBalance1 uint64
-	SQLChains1           []proto.DatabaseID
-	Roles1               []byte
-	Rating1              float64
-	TxBillings1          []*hash.Hash
-}
-
-// AppendSQLChainAndRole add the sql chain include the account and its related role
-func (a *Account) AppendSQLChainAndRole(sqlChain *proto.DatabaseID, role byte) {
-	a.SQLChains = append(a.SQLChains, *sqlChain)
-	a.Roles = append(a.Roles, role)
+	NextNonce           pi.AccountNonce
 }

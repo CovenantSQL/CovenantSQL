@@ -403,6 +403,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:8fa03cb74ac5c89555750948a9f225a73bf34c9aa87ee9202b8e88c9f3b5d6fb"
+  name = "github.com/ulule/deepcopier"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ca99b135e50f526fde9cd88705f0ff2f3f95b77c"
+
+[[projects]]
+  branch = "master"
   digest = "1:4904b183bb8ac483dbebc13ff8df5cc35b27f2ab726ca52477d7f05231f52685"
   name = "github.com/xo/dburl"
   packages = ["."]
@@ -531,6 +539,7 @@
     "github.com/stretchr/testify/mock",
     "github.com/tchap/go-patricia/patricia",
     "github.com/ugorji/go/codec",
+    "github.com/ulule/deepcopier",
     "github.com/xo/dburl",
     "github.com/xo/usql/drivers",
     "github.com/xo/usql/env",

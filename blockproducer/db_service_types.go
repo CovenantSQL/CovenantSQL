@@ -338,7 +338,7 @@ func (r *GetDatabaseResponse) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return r.Header.Sign(signer)
 }
 
-// FIXIT(xq262144) remove duplicated interface in utils package
+// FIXIT(xq262144) remove duplicated interface in utils package.
 type canSerialize interface {
 	Serialize() []byte
 }

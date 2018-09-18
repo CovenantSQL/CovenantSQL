@@ -93,7 +93,7 @@ func (t *Transfer) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
-// Verify verifies the signature of TxBilling.
+// Sign implements interfaces/Transaction.Verify.
 func (t *Transfer) Verify() (err error) {
 	var enc []byte
 	if enc, err = t.TransferHeader.MarshalHash(); err != nil {

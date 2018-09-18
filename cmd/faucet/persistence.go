@@ -23,6 +23,9 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
+	// Load sqlite3 database driver.
+	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 // State defines the token application request state.
@@ -63,24 +66,51 @@ type applicationRecord struct {
 
 // NewPersistence returns a new application persistence api.
 func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
-	// connect database
-	cfg := client.NewConfig()
-	cfg.DatabaseID = faucetCfg.DatabaseID
-
 	p = &Persistence{
 		accountDailyLimit: faucetCfg.AccountDailyLimit,
 		addressDailyLimit: faucetCfg.AddressDailyLimit,
 		tokenAmount:       faucetCfg.FaucetAmount,
 	}
 
-	p.db, err = sql.Open("covenantsql", cfg.FormatDSN())
+	// connect database
+	if faucetCfg.LocalDatabase {
+		// treat DatabaseID as sqlite3 file
+		if p.db, err = sql.Open("sqlite3", faucetCfg.DatabaseID); err != nil {
+			return
+		}
+	} else {
+		cfg := client.NewConfig()
+		cfg.DatabaseID = faucetCfg.DatabaseID
 
+		if p.db, err = sql.Open("covenantsql", cfg.FormatDSN()); err != nil {
+			return
+		}
+	}
+
+	// init database
+	err = p.initDB()
+
+	return
+}
+
+func (p *Persistence) initDB() (err error) {
+	_, err = p.db.ExecContext(context.Background(),
+		`CREATE TABLE IF NOT EXISTS faucet_records (
+				platform string,
+				account string, 
+				url string,
+				address string, 
+				state int, 
+				amount bigint, 
+				reason string, 
+				ctime datetime
+			  )`)
 	return
 }
 
 func (p *Persistence) checkAccountLimit(platform string, account string) (err error) {
 	// TODO, consider cache the limits in memory?
-	timeOfDayStart := time.Now().In(time.FixedZone("PRC", 8*60*60)).Format("2006-01-02 00:00:00")
+	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
 	row := p.db.QueryRowContext(context.Background(),
@@ -108,7 +138,7 @@ func (p *Persistence) checkAccountLimit(platform string, account string) (err er
 
 func (p *Persistence) checkAddressLimit(address string) (err error) {
 	// TODO, consider cache the limits in memory?
-	timeOfDayStart := time.Now().In(time.FixedZone("PRC", 8*60*60)).Format("2006-01-02 00:00:00")
+	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
 	row := p.db.QueryRowContext(context.Background(),
@@ -156,7 +186,7 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (err e
 
 	// enqueue
 	_, err = p.db.ExecContext(context.Background(),
-		"INSERT INTO faucet_records (platform, account, url, address, state, amount, reason) VALUES(?, ?, ?, ?, ?, '')",
+		"INSERT INTO faucet_records (platform, account, url, address, state, amount, reason, ctime) VALUES(?, ?, ?, ?, ?, '', CURRENT_TIME)",
 		meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
 	if err != nil {
 		log.WithFields(log.Fields{

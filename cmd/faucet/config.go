@@ -31,7 +31,8 @@ type Config struct {
 	URLRequired          string        `yaml:"URLRequired"` // can be a part of a valid url
 	ContentRequired      string        `yaml:"ContentRequired"`
 	FaucetAmount         int64         `yaml:"FaucetAmount"`
-	DatabaseID           string        `yaml:"DatabaseID"` // database id for persistence
+	DatabaseID           string        `yaml:"DatabaseID"`       // database id for persistence
+	LocalDatabase        bool          `yaml:"UseLocalDatabase"` // use local sqlite3 database for persistence
 	AddressDailyLimit    uint          `yaml:"AddressDailyLimit"`
 	AccountDailyLimit    uint          `yaml:"AccountDailyLimit"`
 	VerificationInterval time.Duration `yaml:"VerificationInterval"`

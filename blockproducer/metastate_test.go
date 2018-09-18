@@ -66,11 +66,10 @@ func TestMetaState(t *testing.T) {
 			}
 			if txbk, err = meta.CreateBucket(metaTransactionBucket); err != nil {
 				return
-			} else {
-				for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
-					if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
-						return
-					}
+			}
+			for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
+				if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
+					return
 				}
 			}
 			return
@@ -225,14 +224,14 @@ func TestMetaState(t *testing.T) {
 				)
 				err = ms.increaseAccountStableBalance(addr1, incSta)
 				So(err, ShouldBeNil)
-				err = ms.increaseAccountcovenantBalance(addr1, incCov)
+				err = ms.increaseAccountCovenantBalance(addr1, incCov)
 				So(err, ShouldBeNil)
 				Convey("The state should report error when the account balance is increased"+
 					" by an impossible amount",
 					func() {
 						err = ms.increaseAccountStableBalance(addr1, math.MaxUint64)
 						So(err, ShouldEqual, ErrBalanceOverflow)
-						err = ms.increaseAccountcovenantBalance(addr1, math.MaxUint64)
+						err = ms.increaseAccountCovenantBalance(addr1, math.MaxUint64)
 						So(err, ShouldEqual, ErrBalanceOverflow)
 					},
 				)
@@ -294,9 +293,9 @@ func TestMetaState(t *testing.T) {
 					Convey(
 						"The metaState should copy object when covenant balance increased",
 						func() {
-							err = ms.increaseAccountcovenantBalance(addr3, 1)
+							err = ms.increaseAccountCovenantBalance(addr3, 1)
 							So(err, ShouldEqual, ErrAccountNotFound)
-							err = ms.increaseAccountcovenantBalance(addr1, 1)
+							err = ms.increaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
 					)

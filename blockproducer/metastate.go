@@ -318,7 +318,7 @@ func (s *metaState) transferAccountStableBalance(
 	return
 }
 
-func (s *metaState) increaseAccountcovenantBalance(k proto.AccountAddress, amount uint64) error {
+func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
 	s.Lock()
 	defer s.Unlock()
 	var (
@@ -486,7 +486,7 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 
 func (s *metaState) applyBilling(tx *pt.TxBilling) (err error) {
 	for i, v := range tx.TxContent.Receivers {
-		if err = s.increaseAccountcovenantBalance(*v, tx.TxContent.Fees[i]); err != nil {
+		if err = s.increaseAccountCovenantBalance(*v, tx.TxContent.Fees[i]); err != nil {
 			return
 		}
 		if err = s.increaseAccountStableBalance(*v, tx.TxContent.Rewards[i]); err != nil {

@@ -19,9 +19,11 @@ package main
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 
 	// Load sqlite3 database driver.
@@ -107,7 +109,8 @@ func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 	// connect database
 	if faucetCfg.LocalDatabase {
 		// treat DatabaseID as sqlite3 file
-		if p.db, err = sql.Open("sqlite3", faucetCfg.DatabaseID); err != nil {
+		dbPath := filepath.Join(conf.GConf.WorkingRoot, faucetCfg.DatabaseID)
+		if p.db, err = sql.Open("sqlite3", dbPath); err != nil {
 			return
 		}
 	} else {

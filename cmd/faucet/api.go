@@ -35,7 +35,7 @@ const (
 
 var (
 	apiTimeout         = time.Second * 10
-	regexAddress       = regexp.MustCompile("^4j[a-zA-Z0-9]{49}$")
+	regexAddress       = regexp.MustCompile("^4[a-zA-Z0-9]{50}$")
 	regexMediaURL      = regexp.MustCompile("^(http|ftp|https)://([\\w\\-_]+(?:(?:\\.[\\w\\-_]+)+))([\\w\\-\\.,@?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?$")
 	regexApplicationID = regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[8|9|aA|bB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$")
 )

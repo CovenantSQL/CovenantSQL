@@ -46,7 +46,7 @@ func FromBytes(b []byte) TransactionType {
 
 const (
 	// TransactionTypeBilling defines billing transaction type.
-	TransactionTypeBilling TransactionType = iota + 1
+	TransactionTypeBilling TransactionType = iota
 	// TransactionTypeTransfer defines transfer transaction type.
 	TransactionTypeTransfer
 	// TransactionTypeCreateAccount defines account creation transaction type.

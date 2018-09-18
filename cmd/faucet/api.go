@@ -28,14 +28,16 @@ import (
 )
 
 const (
-	argAddress  = "address"
-	argMediaURL = "media_url"
+	argAddress       = "address"
+	argMediaURL      = "media_url"
+	argApplicationID = "id"
 )
 
 var (
-	apiTimeout    = time.Second * 10
-	regexAddress  = regexp.MustCompile("4[a-zA-Z0-9]{49}")
-	regexMediaURL = regexp.MustCompile("(http|ftp|https)://([\\w\\-_]+(?:(?:\\.[\\w\\-_]+)+))([\\w\\-\\.,@?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?")
+	apiTimeout         = time.Second * 10
+	regexAddress       = regexp.MustCompile("^4j[a-zA-Z0-9]{49}$")
+	regexMediaURL      = regexp.MustCompile("^(http|ftp|https)://([\\w\\-_]+(?:(?:\\.[\\w\\-_]+)+))([\\w\\-\\.,@?^=%&amp;:/~\\+#]*[\\w\\-\\@?^=%&amp;/~\\+#])?$")
+	regexApplicationID = regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[8|9|aA|bB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$")
 )
 
 func sendResponse(code int, success bool, msg interface{}, data interface{}, rw http.ResponseWriter) {
@@ -65,6 +67,37 @@ type tokenDispenser struct {
 	p *Persistence
 }
 
+func (d *tokenDispenser) poll(rw http.ResponseWriter, r *http.Request) {
+	// get args
+	applicationID := r.FormValue(argApplicationID)
+	address := r.FormValue(argAddress)
+
+	// validate args
+	if !regexAddress.MatchString(address) {
+		sendResponse(http.StatusBadRequest, false, "invalid address", nil, rw)
+		return
+	}
+
+	if !regexApplicationID.MatchString(applicationID) {
+		sendResponse(http.StatusBadRequest, false, "invalid application id", nil, rw)
+		return
+	}
+
+	if r, err := d.p.queryState(address, applicationID); err != nil {
+		// error
+		sendResponse(http.StatusBadRequest, false, err.Error(), nil, rw)
+	} else {
+		// build response
+		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+			"id":     r.applicationID,
+			"state":  r.state.String(),
+			"reason": r.failReason,
+		}, rw)
+	}
+
+	return
+}
+
 func (d *tokenDispenser) application(rw http.ResponseWriter, r *http.Request) {
 	// get args
 	address := r.FormValue(argAddress)
@@ -83,12 +116,14 @@ func (d *tokenDispenser) application(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := d.p.enqueueApplication(address, mediaURL); err != nil {
+	if applicationID, err := d.p.enqueueApplication(address, mediaURL); err != nil {
 		sendResponse(http.StatusBadRequest, false, err.Error(), nil, rw)
-		return
+	} else {
+		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+			"id": applicationID,
+		}, rw)
 	}
 
-	sendResponse(http.StatusOK, true, nil, nil, rw)
 	return
 }
 
@@ -104,6 +139,7 @@ func startAPI(v *Verifier, p *Persistence, listenAddr string) (server *http.Serv
 
 	v1Router := router.PathPrefix("/v1").Subrouter()
 	v1Router.HandleFunc("/faucet", dispenser.application).Methods("POST")
+	v1Router.HandleFunc("/faucet", dispenser.poll).Methods("GET")
 	v1Router.HandleFunc("/faucet", corsHandler).Methods("OPTIONS")
 
 	server = &http.Server{

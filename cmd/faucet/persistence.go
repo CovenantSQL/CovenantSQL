@@ -25,6 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/satori/go.uuid"
 
 	// Load sqlite3 database driver.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -73,20 +74,22 @@ type Persistence struct {
 
 // applicationRecord defines single record for verification.
 type applicationRecord struct {
-	rowID       int64
-	platform    string
-	address     string
-	mediaURL    string
-	account     string
-	state       State
-	tokenAmount int64 // covenantsql could store uint64 value, use int64 instead
-	failReason  string
+	rowID         int64
+	applicationID string
+	platform      string
+	address       string
+	mediaURL      string
+	account       string
+	state         State
+	tokenAmount   int64 // covenantsql could store uint64 value, use int64 instead
+	failReason    string
 }
 
 func (r *applicationRecord) asMap() (result map[string]interface{}) {
 	result = make(map[string]interface{})
 
 	result["rowID"] = r.rowID
+	result["applicationID"] = r.applicationID
 	result["platform"] = r.platform
 	result["address"] = r.address
 	result["mediaURL"] = r.mediaURL
@@ -131,6 +134,7 @@ func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 func (p *Persistence) initDB() (err error) {
 	_, err = p.db.ExecContext(context.Background(),
 		`CREATE TABLE IF NOT EXISTS faucet_records (
+				id string unique,
 				platform string,
 				account string, 
 				url string,
@@ -199,7 +203,7 @@ func (p *Persistence) checkAddressLimit(address string) (err error) {
 }
 
 // enqueueApplication record a new token application to CovenantSQL database.
-func (p *Persistence) enqueueApplication(address string, mediaURL string) (err error) {
+func (p *Persistence) enqueueApplication(address string, mediaURL string) (applicationID string, err error) {
 	// resolve account name in address
 	var meta urlMeta
 	meta, err = extractPlatformInURL(mediaURL)
@@ -219,9 +223,13 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (err e
 		return
 	}
 
+	// generate uuid
+	applicationID = uuid.Must(uuid.NewV4()).String()
+
 	// enqueue
 	_, err = p.db.ExecContext(context.Background(),
 		`INSERT INTO faucet_records (
+				id,
 				platform,
 				account,
 				url,
@@ -230,15 +238,30 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (err e
 				amount,
 				reason,
 				ctime
-			  ) VALUES (?, ?, ?, ?, ?, ?, '', CURRENT_TIMESTAMP)`,
-		meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
+			  ) VALUES (?, ?, ?, ?, ?, ?, ?, '', CURRENT_TIMESTAMP)`,
+		applicationID, meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"address":  address,
 			"mediaURL": mediaURL,
 		}).Errorf("enqueue application failed: %v", err)
-		return ErrEnqueueApplication
+
+		err = ErrEnqueueApplication
 	}
+
+	return
+}
+
+// queryState returns faucet application state.
+func (p *Persistence) queryState(address string, applicationID string) (record *applicationRecord, err error) {
+	row := p.db.QueryRowContext(context.Background(),
+		`SELECT id, rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 
+				address = ? AND id = ? LIMIT 1`, address, applicationID)
+
+	record = &applicationRecord{}
+	err = row.Scan(&record.applicationID, &record.rowID, &record.platform, &record.address, &record.mediaURL,
+		&record.account, &record.state, &record.tokenAmount)
 
 	return
 }
@@ -248,7 +271,7 @@ func (p *Persistence) getRecords(startRowID int64, platform string, state State,
 	var rows *sql.Rows
 
 	args := make([]interface{}, 0)
-	baseSQL := "SELECT rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 1=1 "
+	baseSQL := "SELECT id, rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 1=1 "
 
 	if startRowID > 0 {
 		baseSQL += " AND rowid >= ? "
@@ -272,7 +295,7 @@ func (p *Persistence) getRecords(startRowID int64, platform string, state State,
 	for rows.Next() {
 		r := &applicationRecord{}
 
-		if err = rows.Scan(&r.rowID, &r.platform, &r.address, &r.mediaURL,
+		if err = rows.Scan(&r.applicationID, &r.rowID, &r.platform, &r.address, &r.mediaURL,
 			&r.account, &r.state, &r.tokenAmount); err != nil {
 			return
 		}
@@ -287,6 +310,7 @@ func (p *Persistence) getRecords(startRowID int64, platform string, state State,
 func (p *Persistence) updateRecord(record *applicationRecord) (err error) {
 	_, err = p.db.ExecContext(context.Background(),
 		`UPDATE faucet_records SET
+				id = ?,
 				platform = ?,
 				address = ?,
 				url = ?,
@@ -295,6 +319,7 @@ func (p *Persistence) updateRecord(record *applicationRecord) (err error) {
 				reason = ?,
 				amount = ?
 			  WHERE rowid = ?`,
+		record.applicationID,
 		record.platform,
 		record.address,
 		record.mediaURL,

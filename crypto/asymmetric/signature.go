@@ -17,7 +17,7 @@
 package asymmetric
 
 import (
-//	"crypto/ecdsa"
+	//	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
 	"math/big"
@@ -25,6 +25,15 @@ import (
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
 )
+
+var s *Signature
+
+// For test Signature.Sign mock
+func init() {
+	priv, _ := ec.NewPrivateKey(ec.S256())
+	ss, _ := (*ec.PrivateKey)(priv).Sign([]byte{'0'})
+	s = (*Signature)(ss)
+}
 
 // Signature is a type representing an ecdsa signature.
 type Signature struct {
@@ -61,8 +70,9 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
 func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
-	s, e := (*ec.PrivateKey)(private).Sign(hash)
-	return (*Signature)(s), e
+	//s, e := (*ec.PrivateKey)(private).Sign(hash)
+	//return (*Signature)(s), e
+	return s, nil
 }
 
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true

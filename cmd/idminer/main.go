@@ -30,8 +30,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
 	"bufio"
+	"io/ioutil"
+	"path"
+
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -44,8 +46,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"io/ioutil"
-	"path"
 )
 
 var (

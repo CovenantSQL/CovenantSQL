@@ -25,9 +25,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
-
+	
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -221,9 +222,8 @@ func startNodesProfile() {
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
-			"-test.cpuprofile", FJ(baseDir, "./cmd/miner/miner0.profile.out"),
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -234,9 +234,8 @@ func startNodesProfile() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
-			"-test.cpuprofile", FJ(baseDir, "./cmd/miner/miner1.profile.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -247,9 +246,8 @@ func startNodesProfile() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd.test"),
+		FJ(baseDir, "./bin/covenantminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
-			"-test.cpuprofile", FJ(baseDir, "./cmd/miner/miner2.profile.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -266,7 +264,7 @@ func stopNodes() {
 		wg.Add(1)
 		go func(thisCmd *exec.Cmd) {
 			defer wg.Done()
-			thisCmd.Process.Signal(os.Interrupt)
+			thisCmd.Process.Signal(syscall.SIGTERM)
 			thisCmd.Wait()
 		}(nodeCmd)
 	}
@@ -353,7 +351,6 @@ func TestFullProcess(t *testing.T) {
 func BenchmarkSingleMiner(b *testing.B) {
 	Convey("bench single node", b, func() {
 		startNodesProfile()
-		//defer stopNodes()
 		time.Sleep(5 * time.Second)
 
 		var err error
@@ -428,5 +425,7 @@ func BenchmarkSingleMiner(b *testing.B) {
 
 		err = client.Drop(dsn)
 		So(err, ShouldBeNil)
+		time.Sleep(5 * time.Second)
+		stopNodes()
 	})
 }

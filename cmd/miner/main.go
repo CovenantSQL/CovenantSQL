@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/profile"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
@@ -102,6 +103,9 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
+	// CPU profiling by default
+	defer profile.Start().Stop()
+
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 

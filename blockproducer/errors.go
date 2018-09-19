@@ -59,6 +59,8 @@ var (
 	ErrInsufficientBalance = errors.New("insufficient balance")
 	// ErrAccountNotFound indicates that an account is not found.
 	ErrAccountNotFound = errors.New("account not found")
+	// ErrAccountExists indicates that the an account already exists.
+	ErrAccountExists = errors.New("account already exists")
 	// ErrDatabaseNotFound indicates that a database is not found.
 	ErrDatabaseNotFound = errors.New("database not found")
 	// ErrDatabaseExists indicates that the database already exists.

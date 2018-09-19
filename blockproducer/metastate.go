@@ -74,6 +74,14 @@ func (s *metaState) loadOrStoreAccountObject(
 	return
 }
 
+func (s *metaState) mustStoreAccountObject(k proto.AccountAddress, v *accountObject) (err error) {
+	if _, ok := s.loadOrStoreAccountObject(k, v); ok {
+		err = ErrAccountExists
+		return
+	}
+	return
+}
+
 func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, loaded bool) {
 	s.RLock()
 	defer s.RUnlock()
@@ -521,6 +529,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
 	case *pt.TxBilling:
 		err = s.applyBilling(t)
+	case *pt.BaseAccount:
+		err = s.mustStoreAccountObject(t.Address, &accountObject{Account: t.Account})
 	default:
 		err = ErrUnknownTransactionType
 	}
@@ -557,7 +567,9 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		// Check account nonce
 		var nextNonce pi.AccountNonce
 		if nextNonce, err = s.nextNonce(addr); err != nil {
-			return
+			if _, ok := t.(*pt.BaseAccount); !ok {
+				return
+			}
 		}
 		if nextNonce != nonce {
 			err = ErrInvalidAccountNonce

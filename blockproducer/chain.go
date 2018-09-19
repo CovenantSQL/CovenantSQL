@@ -98,9 +98,14 @@ func NewChain(cfg *Config) (*Chain, error) {
 			return
 		}
 
-		_, err = bucket.CreateBucketIfNotExists(metaTransactionBucket)
+		txbk, err := bucket.CreateBucketIfNotExists(metaTransactionBucket)
 		if err != nil {
 			return
+		}
+		for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
+			if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
+				return
+			}
 		}
 
 		_, err = bucket.CreateBucketIfNotExists(metaTxBillingIndexBucket)
@@ -140,7 +145,10 @@ func NewChain(cfg *Config) (*Chain, error) {
 		stopCh:         make(chan struct{}),
 	}
 
-	chain.pushGenesisBlock(cfg.Genesis)
+	if err = chain.pushGenesisBlock(cfg.Genesis); err != nil {
+		return nil, err
+	}
+
 	log.WithFields(log.Fields{
 		"index":     chain.rt.index,
 		"bp_number": chain.rt.bpNum,
@@ -201,6 +209,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			block := &types.Block{}
 
 			if err = block.Deserialize(v); err != nil {
+				log.Errorf("loadeing block: %v", err)
 				return err
 			}
 
@@ -415,12 +424,16 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	c.st = &state
 	c.bi.addBlock(node)
 	return nil
-
 }
 
-func (c *Chain) pushGenesisBlock(b *types.Block) error {
-	err := c.pushBlockWithoutCheck(b)
-	return err
+func (c *Chain) pushGenesisBlock(b *types.Block) (err error) {
+	for _, v := range b.Transactions {
+		if err = c.db.Update(c.ms.applyTransactionProcedure(v)); err != nil {
+			return
+		}
+	}
+	err = c.pushBlockWithoutCheck(b)
+	return
 }
 
 func (c *Chain) pushBlock(b *types.Block) error {

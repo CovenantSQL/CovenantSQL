@@ -28,6 +28,7 @@ import (
 
 //go:generate hsp
 
+// BaseAccount defines the base account type header.
 type BaseAccount struct {
 	Account
 	AccountHash hash.Hash

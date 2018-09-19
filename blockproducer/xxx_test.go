@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -39,6 +40,8 @@ var (
 	uuidLen            = 32
 	peerNum     uint32 = 32
 
+	testAddress     = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
+	testInitBalance = uint64(10000)
 	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
 	testDifficulty  = 4
 	testDataDir     string
@@ -112,6 +115,19 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err 
 			}
 			b.PushTx(tb)
 		}
+	} else {
+		// Create base accounts
+		var ba = &pt.BaseAccount{
+			Account: pt.Account{
+				Address:             testAddress,
+				StableCoinBalance:   testInitBalance,
+				CovenantCoinBalance: testInitBalance,
+			},
+		}
+		if err = ba.Sign(testPrivKey); err != nil {
+			return
+		}
+		b.Transactions = append(b.Transactions, ba)
 	}
 
 	err = b.PackAndSignBlock(priv)

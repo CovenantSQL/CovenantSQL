@@ -69,3 +69,24 @@ func (p *txPool) getTxEntries(addr proto.AccountAddress) (e *accountTxEntries, o
 	e, ok = p.entries[addr]
 	return
 }
+
+func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
+	var te *accountTxEntries
+	if te, ok = p.entries[tx.GetAccountAddress()]; !ok {
+		return
+	}
+	// Out of range
+	var (
+		nonce = tx.GetAccountNonce()
+		index = int(nonce - te.baseNonce)
+	)
+	if ok = (nonce < te.baseNonce || index >= len(te.transacions)); !ok {
+		return
+	}
+	// Check transaction hash
+	if ok = (tx.GetHash() != te.transacions[index].GetHash()); !ok {
+		return
+	}
+
+	return
+}

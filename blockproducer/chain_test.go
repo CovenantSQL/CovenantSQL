@@ -154,6 +154,7 @@ func TestMultiNode(t *testing.T) {
 		// create genesis block
 		genesis, err := generateRandomBlock(genesisHash, true)
 		So(err, ShouldBeNil)
+		So(genesis.Transactions, ShouldNotBeEmpty)
 
 		// Create sql-chain instances
 		chains := make([]*Chain, testPeersNumber)

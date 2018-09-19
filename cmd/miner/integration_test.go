@@ -381,7 +381,7 @@ func BenchmarkSingleMiner(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-					"(?, ?),(?, ?),(?, ?),(?, ?),(?, ?)", i, i, i*10, i*10, i*10, i*10, i*10, i*10, i*10, i*10,
+					"(?, ?)", i, i,
 				)
 				if err != nil {
 					b.Fatal(err)
@@ -400,16 +400,13 @@ func BenchmarkSingleMiner(b *testing.B) {
 		//	}
 		//})
 
+	
 		b.Run("benchmark SELECT", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", 4)
+				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i)
 				var result int
-				err = row.Scan(&result)
-				if err != nil || result < 0 {
-					b.Fatal(err)
-				}
-				log.Debugf("result %d", result)
+				row.Scan(&result)
 			}
 		})
 

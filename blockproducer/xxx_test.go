@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -40,13 +41,15 @@ var (
 	uuidLen            = 32
 	peerNum     uint32 = 32
 
-	testAddress     = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
+	testAddress1    = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
+	testAddress2    = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
 	testInitBalance = uint64(10000)
 	testMasterKey   = []byte(".9K.sgch!3;C>w0v")
 	testDifficulty  = 4
 	testDataDir     string
 	testPrivKeyFile string
 	testPubKeysFile string
+	testNonce       pi.AccountNonce
 	testPrivKey     *asymmetric.PrivateKey
 	testPubKey      *asymmetric.PublicKey
 )
@@ -117,17 +120,30 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err 
 		}
 	} else {
 		// Create base accounts
-		var ba = &pt.BaseAccount{
-			Account: pt.Account{
-				Address:             testAddress,
-				StableCoinBalance:   testInitBalance,
-				CovenantCoinBalance: testInitBalance,
-			},
-		}
-		if err = ba.Sign(testPrivKey); err != nil {
+		var (
+			ba1 = &pt.BaseAccount{
+				Account: pt.Account{
+					Address:             testAddress1,
+					StableCoinBalance:   testInitBalance,
+					CovenantCoinBalance: testInitBalance,
+				},
+			}
+			ba2 = &pt.BaseAccount{
+				Account: pt.Account{
+					Address:             testAddress2,
+					StableCoinBalance:   testInitBalance,
+					CovenantCoinBalance: testInitBalance,
+				},
+			}
+		)
+		if err = ba1.Sign(testPrivKey); err != nil {
 			return
 		}
-		b.Transactions = append(b.Transactions, ba)
+		if err = ba2.Sign(testPrivKey); err != nil {
+			return
+		}
+		b.Transactions = append(b.Transactions, ba1)
+		b.Transactions = append(b.Transactions, ba2)
 	}
 
 	err = b.PackAndSignBlock(priv)
@@ -159,10 +175,25 @@ func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling)
 
 	b.TxBillings = tbs
 
+	testNonce++
+	var tr = &pt.Transfer{
+		TransferHeader: pt.TransferHeader{
+			Sender:   testAddress1,
+			Receiver: testAddress2,
+			Nonce:    testNonce,
+			Amount:   1,
+		},
+	}
+	if err = tr.Sign(priv); err != nil {
+		return
+	}
+	b.Transactions = append(b.Transactions, tr)
+
 	err = b.PackAndSignBlock(priv)
 	for i := range b.TxBillings {
 		b.TxBillings[i].SignedBlock = &b.SignedHeader.BlockHash
 	}
+
 	return
 }
 

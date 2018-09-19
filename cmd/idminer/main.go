@@ -17,22 +17,22 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"os"
 	"os/signal"
+	"path"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
-	"bufio"
-	"io/ioutil"
-	"path"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"

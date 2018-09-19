@@ -329,7 +329,7 @@ func generateRandomTxBillingWithSeqID(seqID uint32) (*types.TxBilling, error) {
 	if err != nil {
 		return nil, err
 	}
-	accountAddress := proto.AccountAddress(generateRandomHash())
+	accountAddress := testAddress1
 	enc, err := txContent.MarshalHash()
 	if err != nil {
 		return nil, err

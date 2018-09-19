@@ -564,6 +564,11 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 
 	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
 	return func(tx *bolt.Tx) (err error) {
+		// Check tx existense
+		// TODO(leventeliu): maybe move outside?
+		if s.pool.hasTx(t) {
+			return
+		}
 		// Check account nonce
 		var nextNonce pi.AccountNonce
 		if nextNonce, err = s.nextNonce(addr); err != nil {

@@ -32,8 +32,6 @@ import (
 type BaseAccount struct {
 	Account
 	AccountHash hash.Hash
-	Signee      *asymmetric.PublicKey
-	Signature   *asymmetric.Signature
 }
 
 // Serialize serializes TxBilling using msgpack.
@@ -74,30 +72,10 @@ func (b *BaseAccount) GetTransactionType() pi.TransactionType {
 
 // Sign implements interfaces/Transaction.Sign.
 func (b *BaseAccount) Sign(signer *asymmetric.PrivateKey) (err error) {
-	var enc []byte
-	if enc, err = b.Account.MarshalHash(); err != nil {
-		return
-	}
-	var h = hash.THashH(enc)
-	if b.Signature, err = signer.Sign(h[:]); err != nil {
-		return
-	}
-	b.AccountHash = h
-	b.Signee = signer.PubKey()
 	return
 }
 
 // Verify implements interfaces/Transaction.Verify.
 func (b *BaseAccount) Verify() (err error) {
-	var enc []byte
-	if enc, err = b.Account.MarshalHash(); err != nil {
-		return
-	} else if h := hash.THashH(enc); !b.AccountHash.IsEqual(&h) {
-		err = ErrSignVerification
-		return
-	} else if !b.Signature.Verify(h[:], b.Signee) {
-		err = ErrSignVerification
-		return
-	}
 	return
 }

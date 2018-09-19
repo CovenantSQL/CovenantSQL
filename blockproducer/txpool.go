@@ -80,7 +80,7 @@ func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
 		nonce = tx.GetAccountNonce()
 		index = int(nonce - te.baseNonce)
 	)
-	if ok = (nonce < te.baseNonce || index >= len(te.transacions)); !ok {
+	if ok = (nonce >= te.baseNonce && index < len(te.transacions)); !ok {
 		return
 	}
 	// Check transaction hash

@@ -295,5 +295,9 @@ func loadGenesis() *types.Block {
 		},
 	}
 
+	for _, ba := range genesisInfo.BaseAccounts {
+		genesis.Transactions = append(genesis.Transactions, &ba)
+	}
+
 	return genesis
 }

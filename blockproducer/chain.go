@@ -405,6 +405,12 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		return err
 	}
 
+	for _, v := range b.Transactions {
+		if c.ms.pool.hasTx(v) {
+
+		}
+	}
+
 	err = c.db.Update(func(tx *bolt.Tx) error {
 		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState)
 		if err != nil {
@@ -413,6 +419,11 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock)
 		if err != nil {
 			return err
+		}
+		for _, v := range b.Transactions {
+			if err = c.ms.applyTransactionProcedure(v)(tx); err != nil {
+				return err
+			}
 		}
 		// TODO(leventeliu): verify that block tx list matches tx pool.
 		err = c.ms.commitProcedure()(tx)
@@ -427,11 +438,6 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 }
 
 func (c *Chain) pushGenesisBlock(b *types.Block) (err error) {
-	for _, v := range b.Transactions {
-		if err = c.db.Update(c.ms.applyTransactionProcedure(v)); err != nil {
-			return
-		}
-	}
 	err = c.pushBlockWithoutCheck(b)
 	return
 }

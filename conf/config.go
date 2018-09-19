@@ -20,9 +20,9 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -55,8 +55,10 @@ type BPGenesisInfo struct {
 	ParentHash hash.Hash `yaml:"ParentHash"`
 	// Timestamp defines the initial time of chain
 	Timestamp time.Time `yaml:"Timestamp"`
-	// BlockHash defines the the block hash of genesis block
+	// BlockHash defines the block hash of genesis block
 	BlockHash hash.Hash `yaml:"BlockHash"`
+	// BaseAccounts defines the base accounts for testnet
+	BaseAccounts []pt.BaseAccount `yaml:"BaseAccounts"`
 }
 
 // BPInfo hold all BP info fields
@@ -71,8 +73,8 @@ type BPInfo struct {
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
 	// ChainFileName is the chain db's name
 	ChainFileName string `yaml:"ChainFileName"`
-	// BPGenesisInfo is the genesis block filed
-	BPGenesis BPGenesisInfo `yaml:"BPGenesisInfo"`
+	// BPGenesis is the genesis block filed
+	BPGenesis BPGenesisInfo `yaml:"BPGenesisInfo,omitempty"`
 }
 
 // MinerDatabaseFixture config.

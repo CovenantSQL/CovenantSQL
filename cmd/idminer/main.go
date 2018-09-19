@@ -31,6 +31,7 @@ import (
 	"syscall"
 	"time"
 
+	"bufio"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -43,9 +44,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"bufio"
-	"path"
 	"io/ioutil"
+	"path"
 )
 
 var (
@@ -58,8 +58,8 @@ var (
 	rpcEndpoint    string
 	rpcReq         string
 	configFile     string
-	workingRoot		string
-	isTestNet bool
+	workingRoot    string
+	isTestNet      bool
 	rpcServiceMap  = map[string]interface{}{
 		"DHT":  &route.DHTService{},
 		"DBS":  &worker.DBMSRPCService{},
@@ -84,7 +84,6 @@ func init() {
 func main() {
 	log.Infof("idminer build: %s", version)
 	flag.Parse()
-
 
 	switch tool {
 	case "miner":
@@ -484,7 +483,7 @@ BlockProducer:
 	if isTestNet {
 		// TODO(lambda): download the certificates
 		adaptorCertificatePath := path.Join(workingRoot, "server.test.covenantsql.io.pem")
-	 	adaptorPrivateKeyPath := path.Join(workingRoot, "server.test.covenantsql.io-key.pem")
+		adaptorPrivateKeyPath := path.Join(workingRoot, "server.test.covenantsql.io-key.pem")
 		adaptorClientCAPath := path.Join(workingRoot, "rootCA.pem")
 		adaptorAdminCerts := path.Join(workingRoot, "admin.test.covenantsql.io.pem")
 		adaptorWriteCerts := path.Join(workingRoot, "write.test.covenantsql.io.pem")
@@ -517,4 +516,3 @@ func readMasterKey() (string, error) {
 	fmt.Println("Enter master key(default: \"\"): ")
 	return reader.ReadString('\n')
 }
-

@@ -303,8 +303,9 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 
+	pCaller := rpc.NewPersistentCaller(c.peers.Leader.ID)
 	var response wt.Response
-	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSQuery.String(), req, &response); err != nil {
+	if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		if strings.Contains(err.Error(), "invalid request sequence") {
 			// request sequence failure, try again
 			atomic.StoreUint64(&connectionID, randSource.Uint64())
@@ -316,7 +317,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 			}
 
 			// send request again
-			if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSQuery.String(), req, &response); err != nil {
+			if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 				return
 			}
 		} else {
@@ -348,7 +349,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	var ackRes wt.AckResponse
 
 	// send ack back
-	if err = rpc.NewCaller().CallNode(c.peers.Leader.ID, route.DBSAck.String(), ack, &ackRes); err != nil {
+	if err = pCaller.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
 		log.Warningf("ack query failed: %v", err)
 		err = nil
 	}

@@ -245,3 +245,84 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
+
+func BenchmarkSingleMiner(b *testing.B) {
+	Convey("bench single node", b, func() {
+		startNodes()
+		defer stopNodes()
+		time.Sleep(5 * time.Second)
+
+		var err error
+		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+		So(err, ShouldBeNil)
+
+		// create
+		dsn, err := client.Create(client.ResourceMeta{Node: 1})
+		So(err, ShouldBeNil)
+
+		log.Infof("the created database dsn is %v", dsn)
+
+		db, err := sql.Open("covenantsql", dsn)
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("DROP TABLE IF EXISTS test;")
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+		So(err, ShouldBeNil)
+
+		_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+		So(err, ShouldBeNil)
+		b.Run("benchmark INSERT", func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+					"(?, ?),(?, ?),(?, ?),(?, ?),(?, ?)", i, i, i*10, i*10, i*10, i*10, i*10, i*10, i*10, i*10,
+				)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+
+		//b.RunParallel(func(pb *testing.PB) {
+		//	for pb.Next() {
+		//		_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+		//			"(?, ?),(?, ?),(?, ?),(?, ?),(?, ?)", 1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
+		//		)
+		//		if err != nil {
+		//			b.Fatal(err)
+		//		}
+		//	}
+		//})
+
+		b.Run("benchmark SELECT", func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", 4)
+				var result int
+				err = row.Scan(&result)
+				if err != nil || result < 0 {
+					b.Fatal(err)
+				}
+				log.Debugf("result %d", result)
+			}
+		})
+
+		row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
+
+		var result int
+		err = row.Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 4)
+
+		err = db.Close()
+		So(err, ShouldBeNil)
+
+		err = client.Drop(dsn)
+		So(err, ShouldBeNil)
+	})
+}

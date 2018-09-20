@@ -14,29 +14,15 @@
  * limitations under the License.
  */
 
-package types
+package chain
 
-//go:generate hsp
+import "errors"
 
-// TxType represents the type of tx.
-type TxType byte
-
-const (
-	// TxTypeBilling defines TxType for database service billing.
-	TxTypeBilling TxType = 0
+var (
+	// ErrUnknownTx indicates that the transaction is unknown.
+	ErrUnknownTx = errors.New("unknown transaction")
+	// ErrDuplicateTx indicates that the transaction will be duplicate in the new block.
+	ErrDuplicateTx = errors.New("duplicate transaction")
+	// ErrCorruptedIndex indicates that a corrupted index item is detected.
+	ErrCorruptedIndex = errors.New("corrupted index")
 )
-
-// String returns the TxType name.
-func (tt *TxType) String() string {
-	switch *tt {
-	case TxTypeBilling:
-		return "TxBilling"
-	default:
-		return "TxUnknown"
-	}
-}
-
-// ToByte returns the the that represents the TxType.
-func (tt *TxType) ToByte() byte {
-	return byte(*tt)
-}

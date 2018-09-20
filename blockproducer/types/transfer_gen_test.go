@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashAccount(t *testing.T) {
-	v := Account{}
+func TestMarshalHashTransfer(t *testing.T) {
+	v := Transfer{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashAccount(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashAccount(b *testing.B) {
-	v := Account{}
+func BenchmarkMarshalHashTransfer(b *testing.B) {
+	v := Transfer{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashAccount(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgAccount(b *testing.B) {
-	v := Account{}
+func BenchmarkAppendMsgTransfer(b *testing.B) {
+	v := Transfer{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgAccount(b *testing.B) {
 	}
 }
 
-func TestMarshalHashSQLChainProfile(t *testing.T) {
-	v := SQLChainProfile{}
+func TestMarshalHashTransferHeader(t *testing.T) {
+	v := TransferHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashSQLChainProfile(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashSQLChainProfile(b *testing.B) {
-	v := SQLChainProfile{}
+func BenchmarkMarshalHashTransferHeader(b *testing.B) {
+	v := TransferHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,45 +71,8 @@ func BenchmarkMarshalHashSQLChainProfile(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgSQLChainProfile(b *testing.B) {
-	v := SQLChainProfile{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
-func TestMarshalHashSQLChainUser(t *testing.T) {
-	v := SQLChainUser{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashSQLChainUser(b *testing.B) {
-	v := SQLChainUser{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgSQLChainUser(b *testing.B) {
-	v := SQLChainUser{}
+func BenchmarkAppendMsgTransferHeader(b *testing.B) {
+	v := TransferHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

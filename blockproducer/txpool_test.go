@@ -14,29 +14,4 @@
  * limitations under the License.
  */
 
-package types
-
-//go:generate hsp
-
-// TxType represents the type of tx.
-type TxType byte
-
-const (
-	// TxTypeBilling defines TxType for database service billing.
-	TxTypeBilling TxType = 0
-)
-
-// String returns the TxType name.
-func (tt *TxType) String() string {
-	switch *tt {
-	case TxTypeBilling:
-		return "TxBilling"
-	default:
-		return "TxUnknown"
-	}
-}
-
-// ToByte returns the the that represents the TxType.
-func (tt *TxType) ToByte() byte {
-	return byte(*tt)
-}
+package blockproducer

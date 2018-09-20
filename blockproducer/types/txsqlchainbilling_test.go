@@ -147,7 +147,7 @@ func TestTxBilling_PackAndSignTx(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
-	tb.PackAndSignTx(priv)
+	tb.Sign(priv)
 	enc, err := tb.TxContent.MarshalHash()
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
@@ -161,7 +161,7 @@ func TestTxBilling_PackAndSignTx(t *testing.T) {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", sign, tb.Signature)
 	}
 
-	err = tb.Verify(&h)
+	err = tb.Verify()
 	if err != nil {
 		t.Fatalf("Verify signature failed: %v", err)
 	}

@@ -383,12 +383,12 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 }
 
 func (s *Service) addBlock(dbID proto.DatabaseID, b *ct.Block) (err error) {
-	log.Debugf("add block %v, %v -> %v, %v", dbID, b.BlockHash(), b.ParentHash(), b.Producer())
-
 	instance, err := s.getUpstream(dbID)
 	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / blockProducePeriod)
 	key := heightToBytes(h)
 	key = append(key, b.BlockHash().CloneBytes()...)
+
+	log.Debugf("add block %v, height: %v, %v -> %v, %v", dbID, h, b.BlockHash(), b.ParentHash(), b.Producer())
 
 	return s.db.Update(func(tx *bolt.Tx) (err error) {
 		bb, err := tx.Bucket(blockBucket).CreateBucketIfNotExists([]byte(dbID))

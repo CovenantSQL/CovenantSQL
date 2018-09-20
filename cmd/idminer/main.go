@@ -95,33 +95,33 @@ func main() {
 		if publicKeyHex == "" && privateKeyFile == "" {
 			// error
 			log.Error("publicKey or privateKey is required in miner mode")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		runMiner()
 	case "keygen":
 		if privateKeyFile == "" {
 			// error
 			log.Error("privateKey path is required for keygen")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		runKeygen()
 	case "keytool":
 		if privateKeyFile == "" {
 			// error
 			log.Error("privateKey path is required for keytool")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		runKeytool()
 	case "rpc":
 		if configFile == "" {
 			// error
 			log.Error("config file path is required for rpc tool")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
 			// error
 			log.Error("rpc payload is required for rpc tool")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		runRPC()
 	case "nonce":
@@ -129,13 +129,13 @@ func main() {
 	case "confgen":
 		if workingRoot == "" {
 			log.Error("root directory is required for confgen")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		runConfgen()
 	case "addrgen":
 		if privateKeyFile == "" && publicKeyHex == "" {
 			log.Error("privateKey path or publicKey hex is required for addrgen")
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		runAddrgen()
 	default:
@@ -148,7 +148,7 @@ func runMiner() {
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.Fatalf("read master key failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	var publicKey *asymmetric.PublicKey
@@ -247,7 +247,7 @@ func runKeytool() {
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.Fatalf("read master key failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
@@ -261,7 +261,7 @@ func runKeytool() {
 func runRPC() {
 	if err := client.Init(configFile, []byte("")); err != nil {
 		log.Fatalf("init rpc client failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
@@ -270,21 +270,21 @@ func runRPC() {
 	// fill the req with request body
 	if err := json.Unmarshal([]byte(rpcReq), req); err != nil {
 		log.Fatalf("decode request body failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
 		log.Fatalf("call rpc failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
 	// print the response
 	if resBytes, err := json.MarshalIndent(resp, "", "  "); err != nil {
 		log.Fatalf("marshal response failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	} else {
 		fmt.Println(string(resBytes))
 	}
@@ -296,7 +296,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 	if len(rpcParts) != 2 {
 		// error rpc name
 		log.Fatalf("%v is not a valid rpc name", rpcName)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
@@ -314,7 +314,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 				// name matched
 				if mtype.PkgPath() != "" || mtype.NumIn() != 3 || mtype.NumOut() != 1 {
 					log.Fatalf("%v is not a valid rpc endpoint method", rpcName)
-					os.Exit(-1)
+					os.Exit(1)
 					return
 				}
 
@@ -337,7 +337,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 
 	// not found
 	log.Fatalf("rpc method %v not found", rpcName)
-	os.Exit(-1)
+	os.Exit(1)
 
 	return
 }
@@ -346,7 +346,7 @@ func runNonce() {
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.Fatalf("read master key failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	var publicKey *asymmetric.PublicKey
@@ -440,7 +440,7 @@ func runConfgen() {
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {
 		log.Errorf("The directory has already existed.")
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	log.Info("Generating key pair...")
@@ -536,7 +536,7 @@ func runAddrgen() {
 		masterKey, err := readMasterKey()
 		if err != nil {
 			log.Fatalf("read master key failed: %v", err)
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
@@ -545,7 +545,7 @@ func runAddrgen() {
 		publicKey = privateKey.PubKey()
 	} else {
 		log.Error("privateKey path or publicKey hex is required for addrgen")
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)

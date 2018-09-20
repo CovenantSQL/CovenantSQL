@@ -64,6 +64,8 @@ func newObserverReplicator(nodeID proto.NodeID, startHeight int32, c *Chain) *ob
 func (r *observerReplicator) setNewHeight(newHeight int32) {
 	r.replLock.Lock()
 	defer r.replLock.Unlock()
+
+	r.height = newHeight
 }
 
 func (r *observerReplicator) stop() {
@@ -111,7 +113,64 @@ func (r *observerReplicator) replicate() {
 		return
 	} else if block == nil {
 		log.Debugf("no block of height %v for observer %v", r.height, r.nodeID)
-		return
+
+		// black hole in chain?
+		// find last available block
+		log.Debug("start block height hole detection")
+
+		var lastBlock, nextBlock *ct.Block
+		var lastHeight, nextHeight int32
+
+		for h := r.height - 1; h >= 0; h-- {
+			if lastBlock, err = r.c.FetchBlock(h); err == nil && lastBlock != nil {
+				lastHeight = h
+				log.Debugf("found last available block %v with height %v",
+					lastBlock.BlockHash().String(), lastHeight)
+				break
+			}
+		}
+
+		if lastBlock == nil {
+			// could not find last available block, this should be a fatal issue
+			log.Warning("could not found last available block during hole detection")
+			return
+		}
+
+		// find next available block
+		for h := r.height + 1; h <= curHeight; h++ {
+			if nextBlock, err = r.c.FetchBlock(h); err == nil && nextBlock != nil {
+				if !nextBlock.ParentHash().IsEqual(lastBlock.BlockHash()) {
+					// inconsistency
+					log.Warningf("inconsistency detected during hole detection, "+
+						"last block height: %v, hash: %v, next block height: %v, hash: %v, parent hash: %v",
+						lastBlock.BlockHash().String(), lastHeight,
+						nextBlock.BlockHash().String(), h, nextBlock.ParentHash().String())
+
+					return
+				}
+
+				nextHeight = h
+				log.Debugf("found next available block %v with height %v",
+					nextBlock.BlockHash().String(), nextHeight)
+				break
+			}
+		}
+
+		if nextBlock == nil {
+			// could not find next available block, try next time
+			log.Debug("could not found next available block during hole detection")
+			return
+		}
+
+		// successfully found a hole in chain
+		log.Debugf("found a hole in chain, started with block: %v, height: %v to block: %v, height: %v, skipped %v blocks",
+			lastBlock.BlockHash().String(), lastHeight, nextBlock.BlockHash().String(), nextHeight, nextHeight-lastHeight-1)
+
+		r.height = nextHeight
+		block = nextBlock
+
+		log.Debugf("finish block height hole detection, skipping to block: %v, height: %v",
+			block.BlockHash().String(), r.height)
 	}
 
 	// fetch acks in block

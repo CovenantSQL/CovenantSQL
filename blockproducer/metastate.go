@@ -74,6 +74,36 @@ func (s *metaState) loadOrStoreAccountObject(
 	return
 }
 
+func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
+	var o *accountObject
+	s.Lock()
+	defer s.Unlock()
+	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
+		b = o.StableCoinBalance
+		return
+	}
+	if o, loaded = s.readonly.accounts[addr]; loaded {
+		b = o.StableCoinBalance
+		return
+	}
+	return
+}
+
+func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
+	var o *accountObject
+	s.Lock()
+	defer s.Unlock()
+	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
+		b = o.CovenantCoinBalance
+		return
+	}
+	if o, loaded = s.readonly.accounts[addr]; loaded {
+		b = o.CovenantCoinBalance
+		return
+	}
+	return
+}
+
 func (s *metaState) mustStoreAccountObject(k proto.AccountAddress, v *accountObject) (err error) {
 	if _, ok := s.loadOrStoreAccountObject(k, v); ok {
 		err = ErrAccountExists

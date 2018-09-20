@@ -405,12 +405,6 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		return err
 	}
 
-	for _, v := range b.Transactions {
-		if c.ms.pool.hasTx(v) {
-
-		}
-	}
-
 	err = c.db.Update(func(tx *bolt.Tx) error {
 		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState)
 		if err != nil {

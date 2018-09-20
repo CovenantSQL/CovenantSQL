@@ -60,7 +60,7 @@ var (
 	rpcReq         string
 	configFile     string
 	workingRoot    string
-	isTestnetAddr		bool
+	isTestnetAddr  bool
 	isTestNet      bool
 	rpcServiceMap  = map[string]interface{}{
 		"DHT":  &route.DHTService{},

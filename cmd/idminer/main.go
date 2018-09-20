@@ -17,7 +17,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -44,8 +43,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -59,6 +61,7 @@ var (
 	rpcReq         string
 	configFile     string
 	workingRoot    string
+	isTestnetAddr  bool
 	isTestNet      bool
 	rpcServiceMap  = map[string]interface{}{
 		"DHT":  &route.DHTService{},
@@ -69,7 +72,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce, confgen")
+	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "", "private key file to generate/show")
 	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes and generating nonce")
@@ -79,6 +82,8 @@ func init() {
 	flag.StringVar(&configFile, "config", "", "rpc config file")
 	flag.StringVar(&workingRoot, "root", "node", "confgen root is the working root directory containing all auto-generating keys and certifications")
 	flag.BoolVar(&isTestNet, "testnet", false, "use confgen with testnet will download the testnet certification from our testnet")
+	flag.BoolVar(&isTestnetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
+
 }
 
 func main() {
@@ -127,6 +132,12 @@ func main() {
 			os.Exit(1)
 		}
 		runConfgen()
+	case "addrgen":
+		if privateKeyFile == "" && publicKeyHex == "" {
+			log.Error("privateKey path or publicKey hex is required for addrgen")
+			os.Exit(1)
+		}
+		runAddrgen()
 	default:
 		flag.Usage()
 		os.Exit(1)
@@ -137,7 +148,7 @@ func runMiner() {
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.Fatalf("read master key failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	var publicKey *asymmetric.PublicKey
@@ -236,7 +247,7 @@ func runKeytool() {
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.Fatalf("read master key failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
@@ -250,7 +261,7 @@ func runKeytool() {
 func runRPC() {
 	if err := client.Init(configFile, []byte("")); err != nil {
 		log.Fatalf("init rpc client failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
@@ -259,21 +270,21 @@ func runRPC() {
 	// fill the req with request body
 	if err := json.Unmarshal([]byte(rpcReq), req); err != nil {
 		log.Fatalf("decode request body failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
 		log.Fatalf("call rpc failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
 	// print the response
 	if resBytes, err := json.MarshalIndent(resp, "", "  "); err != nil {
 		log.Fatalf("marshal response failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	} else {
 		fmt.Println(string(resBytes))
 	}
@@ -285,7 +296,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 	if len(rpcParts) != 2 {
 		// error rpc name
 		log.Fatalf("%v is not a valid rpc name", rpcName)
-		os.Exit(-1)
+		os.Exit(1)
 		return
 	}
 
@@ -303,7 +314,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 				// name matched
 				if mtype.PkgPath() != "" || mtype.NumIn() != 3 || mtype.NumOut() != 1 {
 					log.Fatalf("%v is not a valid rpc endpoint method", rpcName)
-					os.Exit(-1)
+					os.Exit(1)
 					return
 				}
 
@@ -326,7 +337,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 
 	// not found
 	log.Fatalf("rpc method %v not found", rpcName)
-	os.Exit(-1)
+	os.Exit(1)
 
 	return
 }
@@ -335,7 +346,7 @@ func runNonce() {
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.Fatalf("read master key failed: %v", err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	var publicKey *asymmetric.PublicKey
@@ -357,8 +368,6 @@ func runNonce() {
 		publicKey = privateKey.PubKey()
 	} else {
 		log.Fatalf("can neither convert public key nor load private key")
-		os.Exit(-1)
-		return
 	}
 
 	noncegen(publicKey)
@@ -431,7 +440,7 @@ func runConfgen() {
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {
 		log.Errorf("The directory has already existed.")
-		os.Exit(-1)
+		os.Exit(1)
 	}
 
 	log.Info("Generating key pair...")
@@ -511,8 +520,44 @@ BlockProducer:
 	log.Info("Generated nonce.")
 }
 
+func runAddrgen() {
+	var publicKey *asymmetric.PublicKey
+
+	if publicKeyHex != "" {
+		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+		if err != nil {
+			log.Fatalf("error converting hex: %s", err)
+		}
+		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+		if err != nil {
+			log.Fatalf("error converting public key: %s", err)
+		}
+	} else if privateKeyFile != "" {
+		masterKey, err := readMasterKey()
+		if err != nil {
+			log.Fatalf("read master key failed: %v", err)
+			os.Exit(1)
+		}
+		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
+		if err != nil {
+			log.Fatalf("load private key file fail: %v", err)
+		}
+		publicKey = privateKey.PubKey()
+	} else {
+		log.Error("privateKey path or publicKey hex is required for addrgen")
+		os.Exit(1)
+	}
+
+	addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+	log.Infof("test net address: %s", addr)
+}
+
 func readMasterKey() (string, error) {
-	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Enter master key(default: \"\"): ")
-	return reader.ReadString('\n')
+	bytePwd, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println()
+	return string(bytePwd), err
 }

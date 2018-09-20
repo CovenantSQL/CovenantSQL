@@ -44,6 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )
@@ -59,6 +60,7 @@ var (
 	rpcReq         string
 	configFile     string
 	workingRoot    string
+	isTestnetAddr		bool
 	isTestNet      bool
 	rpcServiceMap  = map[string]interface{}{
 		"DHT":  &route.DHTService{},
@@ -69,7 +71,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce, confgen")
+	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "", "private key file to generate/show")
 	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes and generating nonce")
@@ -79,6 +81,8 @@ func init() {
 	flag.StringVar(&configFile, "config", "", "rpc config file")
 	flag.StringVar(&workingRoot, "root", "node", "confgen root is the working root directory containing all auto-generating keys and certifications")
 	flag.BoolVar(&isTestNet, "testnet", false, "use confgen with testnet will download the testnet certification from our testnet")
+	flag.BoolVar(&isTestnetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
+
 }
 
 func main() {
@@ -90,33 +94,33 @@ func main() {
 		if publicKeyHex == "" && privateKeyFile == "" {
 			// error
 			log.Error("publicKey or privateKey is required in miner mode")
-			os.Exit(1)
+			os.Exit(-1)
 		}
 		runMiner()
 	case "keygen":
 		if privateKeyFile == "" {
 			// error
 			log.Error("privateKey path is required for keygen")
-			os.Exit(1)
+			os.Exit(-1)
 		}
 		runKeygen()
 	case "keytool":
 		if privateKeyFile == "" {
 			// error
 			log.Error("privateKey path is required for keytool")
-			os.Exit(1)
+			os.Exit(-1)
 		}
 		runKeytool()
 	case "rpc":
 		if configFile == "" {
 			// error
 			log.Error("config file path is required for rpc tool")
-			os.Exit(1)
+			os.Exit(-1)
 		}
 		if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
 			// error
 			log.Error("rpc payload is required for rpc tool")
-			os.Exit(1)
+			os.Exit(-1)
 		}
 		runRPC()
 	case "nonce":
@@ -124,9 +128,15 @@ func main() {
 	case "confgen":
 		if workingRoot == "" {
 			log.Error("root directory is required for confgen")
-			os.Exit(1)
+			os.Exit(-1)
 		}
 		runConfgen()
+	case "addrgen":
+		if privateKeyFile == "" && publicKeyHex == "" {
+			log.Error("privateKey path or publicKey hex is required for addrgen")
+			os.Exit(-1)
+		}
+		runAddrgen()
 	default:
 		flag.Usage()
 		os.Exit(1)
@@ -357,8 +367,6 @@ func runNonce() {
 		publicKey = privateKey.PubKey()
 	} else {
 		log.Fatalf("can neither convert public key nor load private key")
-		os.Exit(-1)
-		return
 	}
 
 	noncegen(publicKey)
@@ -509,6 +517,41 @@ BlockProducer:
 		os.Exit(1)
 	}
 	log.Info("Generated nonce.")
+}
+
+func runAddrgen() {
+	var publicKey *asymmetric.PublicKey
+
+	if publicKeyHex != "" {
+		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+		if err != nil {
+			log.Fatalf("error converting hex: %s", err)
+		}
+		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+		if err != nil {
+			log.Fatalf("error converting public key: %s", err)
+		}
+	} else if privateKeyFile != "" {
+		masterKey, err := readMasterKey()
+		if err != nil {
+			log.Fatalf("read master key failed: %v", err)
+			os.Exit(-1)
+		}
+		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
+		if err != nil {
+			log.Fatalf("load private key file fail: %v", err)
+		}
+		publicKey = privateKey.PubKey()
+	} else {
+		log.Error("privateKey path or publicKey hex is required for addrgen")
+		os.Exit(-1)
+	}
+
+	addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+	log.Infof("test net address: %s", addr)
 }
 
 func readMasterKey() (string, error) {

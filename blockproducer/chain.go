@@ -23,8 +23,6 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/chain"
-	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
@@ -50,15 +48,13 @@ var (
 
 // Chain defines the main chain.
 type Chain struct {
-	db  *bolt.DB
-	ms  *metaState
-	bi  *blockIndex
-	ti  *txIndex
-	rt  *rt
-	st  *State
-	cl  *rpc.Caller
-	txp *chain.TxPersistence
-	txi *chain.TxIndex
+	db *bolt.DB
+	ms *metaState
+	bi *blockIndex
+	ti *txIndex
+	rt *rt
+	st *State
+	cl *rpc.Caller
 
 	blocksFromSelf chan *types.Block
 	blocksFromRPC  chan *types.Block
@@ -329,29 +325,6 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) (err error) {
 	}
 
 	return nil
-}
-
-func (c *Chain) fetchTx(h hash.Hash, tx ci.Transaction) (ok bool, err error) {
-	if tx, ok = c.txi.LoadTx(h); ok {
-		return
-	}
-	if ok, err = c.txp.GetTransaction(h[:], tx); err != nil {
-		return
-	}
-	return
-}
-
-func (c *Chain) checkTx(tx ci.Transaction) (err error) {
-	if err = tx.Verify(); err != nil {
-		return
-	}
-	if _, ok := c.txi.LoadTx(tx.GetIndexKey()); !ok {
-		c.txi.StoreTx(tx)
-	}
-	if err = c.txi.CheckTxState(tx.GetIndexKey()); err != nil {
-		return
-	}
-	return
 }
 
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
@@ -974,21 +947,4 @@ func (c *Chain) Stop() (err error) {
 	err = c.db.Close()
 	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain database closed")
 	return
-}
-
-// AddTx adds a new transaction into the chain index.
-func (c *Chain) AddTx(tx ci.Transaction) (err error) {
-	if err = tx.Verify(); err != nil {
-		return
-	}
-
-	// Special check and process for specific types
-	switch val := tx.(type) {
-	default:
-		log.WithFields(log.Fields{
-			"tx": val,
-		}).Debug("Checking Transaction type")
-	}
-
-	return c.txp.PutTransactionAndUpdateIndex(tx, c.txi)
 }

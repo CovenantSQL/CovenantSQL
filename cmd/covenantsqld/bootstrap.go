@@ -26,6 +26,7 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -296,7 +297,13 @@ func loadGenesis() *types.Block {
 	}
 
 	for _, ba := range genesisInfo.BaseAccounts {
-		genesis.Transactions = append(genesis.Transactions, &ba)
+		genesis.Transactions = append(genesis.Transactions, &pt.BaseAccount{
+			Account: pt.Account{
+				Address:             ba.Address,
+				StableCoinBalance:   ba.StableCoinBalance,
+				CovenantCoinBalance: ba.CovenantCoinBalance,
+			},
+		})
 	}
 
 	return genesis

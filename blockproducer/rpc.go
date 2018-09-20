@@ -128,6 +128,34 @@ type AddTxResp struct {
 	proto.Envelope
 }
 
+// QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
+type QueryAccountStableBalanceReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+// QueryAccountStableBalanceResp defines a request of the QueryAccountStableBalance RPC method.
+type QueryAccountStableBalanceResp struct {
+	proto.Envelope
+	Addr    proto.AccountAddress
+	OK      bool
+	Balance uint64
+}
+
+// QueryAccountCovenantBalanceReq defines a request of the QueryAccountCovenantBalance RPC method.
+type QueryAccountCovenantBalanceReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+// QueryAccountCovenantBalanceResp defines a request of the QueryAccountCovenantBalance RPC method.
+type QueryAccountCovenantBalanceResp struct {
+	proto.Envelope
+	Addr    proto.AccountAddress
+	OK      bool
+	Balance uint64
+}
+
 // AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	s.chain.blocksFromRPC <- req.Block
@@ -182,5 +210,23 @@ func (s *ChainRPCService) NextAccountNonce(
 // AddTx is the RPC method to add a transaction.
 func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
 	s.chain.pendingTxs <- req.Tx
+	return
+}
+
+// QueryAccountStableBalance is the RPC method to query acccount stable coin balance.
+func (s *ChainRPCService) QueryAccountStableBalance(
+	req *QueryAccountStableBalanceReq, resp *QueryAccountStableBalanceResp) (err error,
+) {
+	resp.Addr = req.Addr
+	resp.Balance, resp.OK = s.chain.ms.loadAccountStableBalance(req.Addr)
+	return
+}
+
+// QueryAccountCovenantBalance is the RPC method to query acccount covenant coin balance.
+func (s *ChainRPCService) QueryAccountCovenantBalance(
+	req *QueryAccountCovenantBalanceReq, resp *QueryAccountCovenantBalanceResp) (err error,
+) {
+	resp.Addr = req.Addr
+	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
 	return
 }

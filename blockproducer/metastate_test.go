@@ -34,6 +34,7 @@ func TestMetaState(t *testing.T) {
 		var (
 			ao      *accountObject
 			co      *sqlchainObject
+			bl      uint64
 			loaded  bool
 			addr1   = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
 			addr2   = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
@@ -78,6 +79,10 @@ func TestMetaState(t *testing.T) {
 		Convey("The account state should be empty", func() {
 			ao, loaded = ms.loadAccountObject(addr1)
 			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			bl, loaded = ms.loadAccountStableBalance(addr1)
+			So(loaded, ShouldBeFalse)
+			bl, loaded = ms.loadAccountCovenantBalance(addr1)
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The database state should be empty", func() {
@@ -147,6 +152,12 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
 				So(co.ID, ShouldEqual, dbid1)
+				bl, loaded = ms.loadAccountStableBalance(addr1)
+				So(loaded, ShouldBeTrue)
+				So(bl, ShouldEqual, 0)
+				bl, loaded = ms.loadAccountCovenantBalance(addr1)
+				So(loaded, ShouldBeTrue)
+				So(bl, ShouldEqual, 0)
 			})
 			Convey("When new SQLChain is created", func() {
 				err = ms.createSQLChain(addr1, dbid3)
@@ -253,6 +264,12 @@ func TestMetaState(t *testing.T) {
 					So(ao.Address, ShouldEqual, addr1)
 					So(ao.StableCoinBalance, ShouldEqual, incSta)
 					So(ao.CovenantCoinBalance, ShouldEqual, incCov)
+					bl, loaded = ms.loadAccountStableBalance(addr1)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, incSta)
+					bl, loaded = ms.loadAccountCovenantBalance(addr1)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, incCov)
 				})
 				Convey("When the account balance is decreased", func() {
 					err = ms.decreaseAccountStableBalance(addr1, decSta)
@@ -274,6 +291,17 @@ func TestMetaState(t *testing.T) {
 				Convey("When metaState changes are committed", func() {
 					err = db.Update(ms.commitProcedure())
 					So(err, ShouldBeNil)
+					Convey(
+						"The account balance should be kept correctly in account object",
+						func() {
+							bl, loaded = ms.loadAccountStableBalance(addr1)
+							So(loaded, ShouldBeTrue)
+							So(bl, ShouldEqual, incSta)
+							bl, loaded = ms.loadAccountCovenantBalance(addr1)
+							So(loaded, ShouldBeTrue)
+							So(bl, ShouldEqual, incCov)
+						},
+					)
 					Convey(
 						"The metaState should copy object when stable balance increased",
 						func() {

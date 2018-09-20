@@ -22,8 +22,8 @@ import (
 	"reflect"
 	"testing"
 
-	bolt "github.com/coreos/bbolt"
 	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
+	"github.com/coreos/bbolt"
 )
 
 func TestBadNewTxPersistence(t *testing.T) {

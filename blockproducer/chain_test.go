@@ -154,6 +154,7 @@ func TestMultiNode(t *testing.T) {
 		// create genesis block
 		genesis, err := generateRandomBlock(genesisHash, true)
 		So(err, ShouldBeNil)
+		So(genesis.Transactions, ShouldNotBeEmpty)
 
 		// Create sql-chain instances
 		chains := make([]*Chain, testPeersNumber)
@@ -220,7 +221,7 @@ func TestMultiNode(t *testing.T) {
 			err = chains[i].Start()
 			So(err, ShouldBeNil)
 			defer func(c *Chain) {
-				chains[i].Stop()
+				c.Stop()
 			}(chains[i])
 		}
 

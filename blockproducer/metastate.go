@@ -74,6 +74,14 @@ func (s *metaState) loadOrStoreAccountObject(
 	return
 }
 
+func (s *metaState) mustStoreAccountObject(k proto.AccountAddress, v *accountObject) (err error) {
+	if _, ok := s.loadOrStoreAccountObject(k, v); ok {
+		err = ErrAccountExists
+		return
+	}
+	return
+}
+
 func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, loaded bool) {
 	s.RLock()
 	defer s.RUnlock()
@@ -373,7 +381,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 			Owner:  addr,
 			Miners: make([]proto.AccountAddress, 0),
 			Users: []*pt.SQLChainUser{
-				&pt.SQLChainUser{
+				{
 					Address:    addr,
 					Permission: pt.Admin,
 				},
@@ -484,6 +492,25 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 	return
 }
 
+func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
+	s.Lock()
+	defer s.Unlock()
+	var (
+		src, dst *accountObject
+		ok       bool
+	)
+	if dst, ok = s.dirty.accounts[addr]; !ok {
+		if src, ok = s.readonly.accounts[addr]; !ok {
+			return ErrAccountNotFound
+		}
+		dst = &accountObject{}
+		deepcopier.Copy(&src.Account).To(&dst.Account)
+		s.dirty.accounts[addr] = dst
+	}
+	dst.NextNonce++
+	return
+}
+
 func (s *metaState) applyBilling(tx *pt.TxBilling) (err error) {
 	for i, v := range tx.TxContent.Receivers {
 		if err = s.increaseAccountCovenantBalance(*v, tx.TxContent.Fees[i]); err != nil {
@@ -502,6 +529,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
 	case *pt.TxBilling:
 		err = s.applyBilling(t)
+	case *pt.BaseAccount:
+		err = s.mustStoreAccountObject(t.Address, &accountObject{Account: t.Account})
 	default:
 		err = ErrUnknownTransactionType
 	}
@@ -535,10 +564,17 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 
 	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
 	return func(tx *bolt.Tx) (err error) {
+		// Check tx existense
+		// TODO(leventeliu): maybe move outside?
+		if s.pool.hasTx(t) {
+			return
+		}
 		// Check account nonce
 		var nextNonce pi.AccountNonce
 		if nextNonce, err = s.nextNonce(addr); err != nil {
-			return
+			if _, ok := t.(*pt.BaseAccount); !ok {
+				return
+			}
 		}
 		if nextNonce != nonce {
 			err = ErrInvalidAccountNonce
@@ -552,6 +588,9 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		}
 		// Try to apply transaction to metaState
 		if err = s.applyTransaction(t); err != nil {
+			return
+		}
+		if err = s.increaseNonce(addr); err != nil {
 			return
 		}
 		// Push to pool

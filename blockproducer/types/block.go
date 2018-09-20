@@ -17,6 +17,8 @@
 package types
 
 import (
+	"bytes"
+	"reflect"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -24,7 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/ugorji/go/codec"
 )
 
 //go:generate hsp
@@ -100,19 +102,50 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
+func enumType(t pi.TransactionType) (i pi.Transaction) {
+	switch t {
+	case pi.TransactionTypeBilling:
+		i = (*TxBilling)(nil)
+	case pi.TransactionTypeTransfer:
+		i = (*Transfer)(nil)
+	case pi.TransactionTypeBaseAccount:
+		i = (*BaseAccount)(nil)
+	}
+	return
+}
+
 // Serialize converts block to bytes.
 func (b *Block) Serialize() ([]byte, error) {
-	buf, err := utils.EncodeMsgPack(b)
-	if err != nil {
-		return nil, err
+	buf := bytes.NewBuffer(nil)
+	hd := codec.MsgpackHandle{
+		WriteExt:    true,
+		RawToString: true,
 	}
-
-	return buf.Bytes(), nil
+	enc := codec.NewEncoder(buf, &hd)
+	err := enc.Encode(b)
+	return buf.Bytes(), err
 }
 
 // Deserialize converts bytes to block.
 func (b *Block) Deserialize(buf []byte) error {
-	return utils.DecodeMsgPack(buf, b)
+	r := bytes.NewBuffer(buf)
+	hd := codec.MsgpackHandle{
+		WriteExt:    true,
+		RawToString: true,
+	}
+
+	for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
+		err := hd.Intf2Impl(
+			reflect.TypeOf((*pi.Transaction)(nil)).Elem(),
+			reflect.TypeOf(enumType(i)),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	dec := codec.NewDecoder(r, &hd)
+	return dec.Decode(b)
 }
 
 // PushTx pushes txes into block.

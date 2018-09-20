@@ -17,7 +17,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -47,6 +46,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -555,7 +556,8 @@ func runAddrgen() {
 }
 
 func readMasterKey() (string, error) {
-	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Enter master key(default: \"\"): ")
-	return reader.ReadString('\n')
+	bytePwd, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println()
+	return string(bytePwd), err
 }

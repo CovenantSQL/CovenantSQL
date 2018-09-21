@@ -10,5 +10,8 @@ blockproducer)
 observer)
     exec /app/covenantobserver -config "${COVENANT_CONF}" "${@}"
     ;;
+adapter)
+    exec /app/covenantadapter -config "${COVENANT_CONF}" "${@}"
+    ;;
 esac
 

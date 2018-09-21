@@ -28,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
@@ -127,6 +128,48 @@ func Drop(dsn string) (err error) {
 	}
 	res := new(bp.DropDatabaseResponse)
 	err = requestBP(route.BPDBDropDatabase, req, res)
+
+	return
+}
+
+// GetStableCoinBalance get the stable coin balance of current account.
+func GetStableCoinBalance() (balance uint64, err error) {
+	req := new(bp.QueryAccountStableBalanceReq)
+	resp := new(bp.QueryAccountStableBalanceResp)
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	if req.Addr, err = utils.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	if err = requestBP(route.MCCQueryAccountStableBalance, req, resp); err == nil {
+		balance = resp.Balance
+	}
+
+	return
+}
+
+// GetCovenantCoinBalance get the covenant coin balance of current account.
+func GetCovenantCoinBalance() (balance uint64, err error) {
+	req := new(bp.QueryAccountCovenantBalanceReq)
+	resp := new(bp.QueryAccountCovenantBalanceResp)
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	if req.Addr, err = utils.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	if err = requestBP(route.MCCQueryAccountCovenantBalance, req, resp); err == nil {
+		balance = resp.Balance
+	}
 
 	return
 }

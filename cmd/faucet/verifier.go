@@ -255,7 +255,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	req := &bp.AddTxReq{}
 	resp := &bp.AddTxResp{}
-	xferTx := &pt.Transfer{
+	req.Tx = &pt.Transfer{
 		TransferHeader: pt.TransferHeader{
 			Sender:   v.vaultAddress,
 			Receiver: targetAddress,
@@ -263,7 +263,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		},
 		Signee: v.publicKey,
 	}
-	if err = xferTx.Sign(v.privateKey); err != nil {
+	if err = req.Tx.Sign(v.privateKey); err != nil {
 		// sign failed?
 		return
 	}

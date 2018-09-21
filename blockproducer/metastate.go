@@ -79,6 +79,10 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 	var o *accountObject
 	s.Lock()
 	defer s.Unlock()
+
+	log.Debugf("query stable account: %v", addr.String())
+	log.Debugf("current stable account map: %v, %v", s.dirty, s.readonly)
+
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.StableCoinBalance
 		return
@@ -94,6 +98,10 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	var o *accountObject
 	s.Lock()
 	defer s.Unlock()
+
+	log.Debugf("query covenant account: %v", addr.String())
+	log.Debugf("current covenant account map: %v, %v", s.dirty, s.readonly)
+
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.CovenantCoinBalance
 		return
@@ -106,7 +114,7 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 }
 
 func (s *metaState) mustStoreAccountObject(k proto.AccountAddress, v *accountObject) (err error) {
-	log.Debugf("store account %v to %v", k, v)
+	log.Debugf("store account %v to %v", k.String(), v)
 
 	if _, ok := s.loadOrStoreAccountObject(k, v); ok {
 		err = ErrAccountExists
@@ -685,7 +693,7 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		ttype = t.GetTransactionType()
 	)
 	if enc, err = t.Serialize(); err != nil {
-		log.Debug("encode failed on applying transaction: %v", err)
+		log.Debugf("encode failed on applying transaction: %v", err)
 		return errPass
 	}
 

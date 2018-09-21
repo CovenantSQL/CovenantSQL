@@ -188,7 +188,12 @@ func (s *ChainRPCService) NextAccountNonce(
 
 // AddTx is the RPC method to add a transaction.
 func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
+	if req.Tx == nil {
+		return ErrUnknownTransactionType
+	}
+
 	s.chain.pendingTxs <- req.Tx
+
 	return
 }
 

@@ -38,13 +38,7 @@ func newAccountTxEntries(
 }
 
 func (e *accountTxEntries) nextNonce() pi.AccountNonce {
-	// TODO(leventeliu): should restrict the base account tx to be the only one.
-	var modifier int
-	if len(e.transacions) > 0 &&
-		e.transacions[0].GetTransactionType() == pi.TransactionTypeBaseAccount {
-		modifier = -1
-	}
-	return e.baseNonce + pi.AccountNonce(len(e.transacions)+modifier)
+	return e.baseNonce + pi.AccountNonce(len(e.transacions))
 }
 
 func (e *accountTxEntries) addTx(tx pi.Transaction) {
@@ -120,11 +114,7 @@ func (p *txPool) cmpAndMoveNextTx(tx pi.Transaction) (ok bool) {
 	}
 	// Move forward
 	te.transacions = te.transacions[1:]
-	if tx.GetTransactionType() == pi.TransactionTypeBaseAccount {
-		te.baseNonce = tx.GetAccountNonce()
-	} else {
-		te.baseNonce++
-	}
+	te.baseNonce++
 	return
 }
 

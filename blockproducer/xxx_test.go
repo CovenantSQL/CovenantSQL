@@ -175,6 +175,7 @@ func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling)
 
 	b.TxBillings = tbs
 
+	testNonce++
 	var tr = &pt.Transfer{
 		TransferHeader: pt.TransferHeader{
 			Sender:   testAddress1,
@@ -183,7 +184,6 @@ func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling)
 			Amount:   1,
 		},
 	}
-	testNonce++
 	if err = tr.Sign(priv); err != nil {
 		return
 	}

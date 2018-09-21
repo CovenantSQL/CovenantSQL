@@ -79,6 +79,22 @@ func TestChain(t *testing.T) {
 		So(ao, ShouldNotBeNil)
 		So(chain.ms.pool.entries[testAddress1].transacions, ShouldBeEmpty)
 		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 1)
+		var (
+			bl     uint64
+			loaded bool
+		)
+		bl, loaded = chain.ms.loadAccountStableBalance(testAddress1)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
+		bl, loaded = chain.ms.loadAccountStableBalance(testAddress2)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
+		bl, loaded = chain.ms.loadAccountCovenantBalance(testAddress1)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
+		bl, loaded = chain.ms.loadAccountCovenantBalance(testAddress2)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
 
 		// Hack for signle instance test
 		chain.rt.bpNum = 5

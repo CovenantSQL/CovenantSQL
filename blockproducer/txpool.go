@@ -19,6 +19,7 @@ package blockproducer
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type accountTxEntries struct {
@@ -89,10 +90,12 @@ func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
 		index = int(nonce - te.baseNonce)
 	)
 	if ok = (nonce >= te.baseNonce && index < len(te.transacions)); !ok {
+		log.Debug("transaction nonce or index already exists")
 		return
 	}
 	// Check transaction hash
 	if ok = (tx.GetHash() == te.transacions[index].GetHash()); !ok {
+		log.Debug("transaction hash already exists")
 		return
 	}
 

@@ -24,6 +24,7 @@ import (
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
 	"github.com/ulule/deepcopier"
 )
@@ -105,6 +106,8 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 }
 
 func (s *metaState) mustStoreAccountObject(k proto.AccountAddress, v *accountObject) (err error) {
+	log.Debugf("store account %v to %v", k, v)
+
 	if _, ok := s.loadOrStoreAccountObject(k, v); ok {
 		err = ErrAccountExists
 		return
@@ -666,6 +669,9 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 			return err
 		}
 	)
+
+	log.Debugf("try applying transaction: %v", t)
+
 	// Static checks, which have no relation with metaState
 	if err = t.Verify(); err != nil {
 		return errPass
@@ -679,14 +685,18 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		ttype = t.GetTransactionType()
 	)
 	if enc, err = t.Serialize(); err != nil {
+		log.Debug("encode failed on applying transaction: %v", err)
 		return errPass
 	}
 
 	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
 	return func(tx *bolt.Tx) (err error) {
+		log.Debugf("processing transaction: %v", t)
+
 		// Check tx existense
 		// TODO(leventeliu): maybe move outside?
 		if s.pool.hasTx(t) {
+			log.Debug("transaction already in pool, apply failed")
 			return
 		}
 		// Check account nonce
@@ -700,16 +710,19 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		}
 		if nextNonce != nonce {
 			err = ErrInvalidAccountNonce
+			log.Debugf("nonce not match during transaction apply: %v", err)
 			return
 		}
 		// Try to put transaction before any state change, will be rolled back later
 		// if transaction doesn't apply
 		tb := tx.Bucket(metaBucket[:]).Bucket(metaTransactionBucket).Bucket(ttype.Bytes())
 		if err = tb.Put(hash[:], enc); err != nil {
+			log.Debugf("store transaction to bucket failed: %v", err)
 			return
 		}
 		// Try to apply transaction to metaState
 		if err = s.applyTransaction(t); err != nil {
+			log.Debugf("apply transaction failed: %v", err)
 			return
 		}
 		if err = s.increaseNonce(addr); err != nil {

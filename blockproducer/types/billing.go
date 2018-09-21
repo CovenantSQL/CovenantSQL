@@ -56,7 +56,7 @@ type BillingRequestHeader struct {
 //	return buffer.Bytes(), nil
 //}
 
-// BillingRequest defines periodically Billing sync
+// BillingRequest defines periodically Billing sync.
 type BillingRequest struct {
 	Header      BillingRequestHeader
 	RequestHash hash.Hash
@@ -81,7 +81,7 @@ type BillingRequest struct {
 //	return buffer.Bytes(), nil
 //}
 
-// PackRequestHeader computes the hash of header
+// PackRequestHeader computes the hash of header.
 func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
 	b, err := br.Header.MarshalHash()
 	if err != nil {
@@ -92,7 +92,7 @@ func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
 	return &h, nil
 }
 
-// SignRequestHeader first computes the hash of BillingRequestHeader, then signs the request
+// SignRequestHeader first computes the hash of BillingRequestHeader, then signs the request.
 func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asymmetric.Signature, error) {
 	signature, err := signee.Sign(br.RequestHash[:])
 	if err != nil {
@@ -101,7 +101,7 @@ func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asy
 	return signature, nil
 }
 
-// BillingResponse defines the the response for BillingRequest
+// BillingResponse defines the the response for BillingRequest.
 type BillingResponse struct {
 	AccountAddress proto.AccountAddress
 	RequestHash    hash.Hash

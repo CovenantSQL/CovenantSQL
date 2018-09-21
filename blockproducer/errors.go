@@ -52,4 +52,24 @@ var (
 	ErrInvalidBillingRequest = errors.New("The BillingRequest is invalid")
 	// ErrSignVerification indicates a failed signature verification.
 	ErrSignVerification = errors.New("signature verification failed")
+
+	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
+	ErrBalanceOverflow = errors.New("balance overflow")
+	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.
+	ErrInsufficientBalance = errors.New("insufficient balance")
+	// ErrAccountNotFound indicates that an account is not found.
+	ErrAccountNotFound = errors.New("account not found")
+	// ErrAccountExists indicates that the an account already exists.
+	ErrAccountExists = errors.New("account already exists")
+	// ErrDatabaseNotFound indicates that a database is not found.
+	ErrDatabaseNotFound = errors.New("database not found")
+	// ErrDatabaseExists indicates that the database already exists.
+	ErrDatabaseExists = errors.New("database already exists")
+	// ErrDatabaseUserExists indicates that the database user already exists.
+	ErrDatabaseUserExists = errors.New("database user already exists")
+	// ErrInvalidAccountNonce indicates that a transaction has a invalid account nonce.
+	ErrInvalidAccountNonce = errors.New("invalid account nonce")
+	// ErrUnknownTransactionType indicates that a transaction has a unknown type and cannot be
+	// further processed.
+	ErrUnknownTransactionType = errors.New("unknown transaction type")
 )

@@ -22,13 +22,12 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/kayak"
-
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // copy from /sqlchain/runtime.go
-// rt define the runtime of main chain
+// rt define the runtime of main chain.
 type rt struct {
 	wg     sync.WaitGroup
 	stopCh chan struct{}

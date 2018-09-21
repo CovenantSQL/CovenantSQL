@@ -23,7 +23,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-// State store the node info of chain
+// State store the node info of chain.
 type State struct {
 	sync.Mutex
 	Node   *blockNode
@@ -31,7 +31,7 @@ type State struct {
 	Height uint32
 }
 
-// serialize serializes the state
+// serialize serializes the state.
 func (s *State) serialize() ([]byte, error) {
 	buffer, err := utils.EncodeMsgPack(s)
 	if err != nil {
@@ -41,7 +41,7 @@ func (s *State) serialize() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// deserialize deserializes the state
+// deserialize deserializes the state.
 func (s *State) deserialize(b []byte) error {
 	err := utils.DecodeMsgPack(b, s)
 	return err

@@ -99,7 +99,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 			return
 		}
 		for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
-			if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
+			if _, err = txbk.CreateBucketIfNotExists(i.Bytes()); err != nil {
 				return
 			}
 		}

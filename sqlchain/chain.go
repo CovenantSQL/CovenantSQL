@@ -368,19 +368,19 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 
 	if hb = b.Bucket(k); hb == nil {
 		// Create and initialize bucket in new height
-		if hb, err = b.CreateBucket(k); err != nil {
+		if hb, err = b.CreateBucketIfNotExists(k); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaRequestIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaRequestIndexBucket); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaResponseIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaResponseIndexBucket); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaAckIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaAckIndexBucket); err != nil {
 			return
 		}
 	}

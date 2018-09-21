@@ -53,8 +53,9 @@ var (
 	variables         varsFlag
 
 	// DML variables
-	createDB string // as a instance meta json string or simply a node count
-	dropDB   string // database id to drop
+	createDB   string // as a instance meta json string or simply a node count
+	dropDB     string // database id to drop
+	getBalance bool   // get balance of current account
 
 	// regex for special sql statement
 	descTableRegex       = regexp.MustCompile("(?i)^desc(?:ribe)?\\s+(\\w+)\\s*;?\\s*$")
@@ -186,8 +187,8 @@ func init() {
 
 	// register covenantsql:// scheme to dburl
 	dburl.Register(dburl.Scheme{
-		"covenantsql",
-		func(url *dburl.URL) (string, error) {
+		Driver: "covenantsql",
+		Generator: func(url *dburl.URL) (string, error) {
 			dbID, err := dburl.GenOpaque(url)
 			if err != nil {
 				return "", err
@@ -196,10 +197,10 @@ func init() {
 			cfg.DatabaseID = dbID
 			return cfg.FormatDSN(), nil
 		},
-		0,
-		true,
-		[]string{},
-		"",
+		Proto:    0,
+		Opaque:   true,
+		Aliases:  []string{},
+		Override: "",
 	})
 
 	flag.StringVar(&dsn, "dsn", "", "database url")
@@ -215,6 +216,7 @@ func init() {
 	// DML flags
 	flag.StringVar(&createDB, "create", "", "create database, argument can be instance requirement json or simply a node count requirement")
 	flag.StringVar(&dropDB, "drop", "", "drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
+	flag.BoolVar(&getBalance, "get-balance", false, "get balance of current account")
 }
 
 func main() {
@@ -226,6 +228,24 @@ func main() {
 	if err = client.Init(configFile, []byte(password)); err != nil {
 		log.Errorf("init covenantsql client failed: %v", err)
 		os.Exit(-1)
+		return
+	}
+
+	if getBalance {
+		var stableCoinBalance, covenantCoinBalance uint64
+
+		if stableCoinBalance, err = client.GetStableCoinBalance(); err != nil {
+			log.Errorf("get stable coin balance failed: %v", err)
+			return
+		}
+		if covenantCoinBalance, err = client.GetCovenantCoinBalance(); err != nil {
+			log.Errorf("get covenant coin balance failed: %v", err)
+			return
+		}
+
+		log.Infof("stable coin balance is: %v", stableCoinBalance)
+		log.Infof("covenant coin balance is: %v", covenantCoinBalance)
+
 		return
 	}
 

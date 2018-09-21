@@ -299,7 +299,7 @@ func loadGenesis() *types.Block {
 	for _, ba := range genesisInfo.BaseAccounts {
 		genesis.Transactions = append(genesis.Transactions, &pt.BaseAccount{
 			Account: pt.Account{
-				Address:             ba.Address,
+				Address:             proto.AccountAddress(ba.Address),
 				StableCoinBalance:   ba.StableCoinBalance,
 				CovenantCoinBalance: ba.CovenantCoinBalance,
 			},

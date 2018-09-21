@@ -378,7 +378,7 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		return err
 	}
 
-	err = c.db.Update(func(tx *bolt.Tx) error {
+	err = c.db.Update(func(tx *bolt.Tx) (err error) {
 		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState)
 		if err != nil {
 			return err
@@ -392,9 +392,8 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 				return err
 			}
 		}
-		// TODO(leventeliu): verify that block tx list matches tx pool.
-		err = c.ms.commitProcedure()(tx)
-		return err
+		err = c.ms.partialCommitProcedure(b.Transactions)(tx)
+		return
 	})
 	if err != nil {
 		return err

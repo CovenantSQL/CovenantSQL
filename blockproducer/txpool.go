@@ -38,6 +38,11 @@ func newAccountTxEntries(
 }
 
 func (e *accountTxEntries) nextNonce() pi.AccountNonce {
+	// TODO(leventeliu): should restrict the base account tx to be the only one.
+	if len(e.transacions) > 0 &&
+		e.transacions[0].GetTransactionType() == pi.TransactionTypeBaseAccount {
+		return 0
+	}
 	return e.baseNonce + pi.AccountNonce(len(e.transacions))
 }
 

@@ -113,6 +113,10 @@ const (
 	MCCNextAccountNonce
 	// MCCAddTx is used by block producer main chain to upload transaction
 	MCCAddTx
+	// MCCQueryAccountStableBalance is used by block producer to provide account stable coin balance
+	MCCQueryAccountStableBalance
+	// MCCQueryAccountCovenantBalance is used by block producer to provide account covenant coin balance
+	MCCQueryAccountCovenantBalance
 )
 
 // String returns the RemoteFunc string
@@ -170,6 +174,10 @@ func (s RemoteFunc) String() string {
 		return "MCC.NextAccountNonce"
 	case MCCAddTx:
 		return "MCC.AddTx"
+	case MCCQueryAccountStableBalance:
+		return "MCC.QueryAccountStableBalance"
+	case MCCQueryAccountCovenantBalance:
+		return "MCC.QueryAccountCovenantBalance"
 	}
 	return "Unknown"
 }

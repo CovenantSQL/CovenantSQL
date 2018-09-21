@@ -595,9 +595,24 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(t1))
 				So(err, ShouldBeNil)
+				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 1)
+				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
+				So(loaded, ShouldBeTrue)
+				So(ms.pool.hasTx(t1), ShouldBeTrue)
 				err = db.Update(ms.applyTransactionProcedure(t2))
 				So(err, ShouldBeNil)
+				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
+				So(loaded, ShouldBeTrue)
+				_, loaded = ms.pool.entries[t2.GetAccountAddress()]
+				So(loaded, ShouldBeTrue)
+				So(ms.pool.hasTx(t1), ShouldBeTrue)
+				So(ms.pool.hasTx(t2), ShouldBeTrue)
+
 				Convey("The metaState should report error if tx fails verification", func() {
+					t1.Nonce = pi.AccountNonce(10)
+					err = t1.Sign(testPrivKey)
+					So(err, ShouldBeNil)
 					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
 					t1.Nonce, err = ms.nextNonce(addr1)
@@ -618,6 +633,146 @@ func TestMetaState(t *testing.T) {
 				Convey("The metaState should report error on unknown transaction type", func() {
 					err = ms.applyTransaction(nil)
 					So(err, ShouldEqual, ErrUnknownTransactionType)
+				})
+				Convey("The txs should be able to be pulled from pool", func() {
+					var txs = ms.pullTxs()
+					So(len(txs), ShouldEqual, 2)
+					for _, tx := range txs {
+						So(ms.pool.hasTx(tx), ShouldBeTrue)
+					}
+				})
+				Convey("The partial commit procedure should be appliable for empty txs", func() {
+					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{}))
+					So(err, ShouldBeNil)
+					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 0)
+					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+				})
+				Convey("The partial commit procedure should be appliable for tx1", func() {
+					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t1}))
+					So(err, ShouldBeNil)
+					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 1)
+					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 1)
+				})
+				Convey("The partial commit procedure should be appliable for tx1 and tx2", func() {
+					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t1, t2}))
+					So(err, ShouldBeNil)
+					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 2)
+					So(ms.pool.entries[addr1].transacions, ShouldBeEmpty)
+				})
+				Convey(
+					"The partial commit procedure should not be appliable for modified tx",
+					func() {
+						t1.Nonce = pi.AccountNonce(10)
+						err = t1.Sign(testPrivKey)
+						So(err, ShouldBeNil)
+						err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t1, t2}))
+						So(err, ShouldEqual, ErrTransactionMismatch)
+						So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+					},
+				)
+			})
+		})
+		Convey("When base account txs are added", func() {
+			var (
+				txs = []pi.Transaction{
+					&pt.BaseAccount{
+						Account: pt.Account{
+							Address:             addr1,
+							StableCoinBalance:   100,
+							CovenantCoinBalance: 100,
+						},
+					},
+					&pt.BaseAccount{
+						Account: pt.Account{
+							Address:             addr2,
+							StableCoinBalance:   100,
+							CovenantCoinBalance: 100,
+						},
+					},
+					&pt.Transfer{
+						TransferHeader: pt.TransferHeader{
+							Sender:   addr1,
+							Receiver: addr2,
+							Nonce:    0,
+							Amount:   10,
+						},
+					},
+					&pt.TxBilling{
+						TxContent: pt.TxContent{
+							SequenceID: 1,
+							Receivers:  []*proto.AccountAddress{&addr2},
+							Fees:       []uint64{1},
+							Rewards:    []uint64{1},
+						},
+						AccountAddress: &addr1,
+					},
+					&pt.TxBilling{
+						TxContent: pt.TxContent{
+							SequenceID: 0,
+							Receivers:  []*proto.AccountAddress{&addr1},
+							Fees:       []uint64{1},
+							Rewards:    []uint64{1},
+						},
+						AccountAddress: &addr2,
+					},
+					&pt.Transfer{
+						TransferHeader: pt.TransferHeader{
+							Sender:   addr2,
+							Receiver: addr1,
+							Nonce:    1,
+							Amount:   1,
+						},
+					},
+					&pt.Transfer{
+						TransferHeader: pt.TransferHeader{
+							Sender:   addr1,
+							Receiver: addr2,
+							Nonce:    2,
+							Amount:   10,
+						},
+					},
+					&pt.Transfer{
+						TransferHeader: pt.TransferHeader{
+							Sender:   addr2,
+							Receiver: addr1,
+							Nonce:    2,
+							Amount:   1,
+						},
+					},
+					&pt.Transfer{
+						TransferHeader: pt.TransferHeader{
+							Sender:   addr2,
+							Receiver: addr1,
+							Nonce:    3,
+							Amount:   1,
+						},
+					},
+				}
+			)
+			for _, tx := range txs {
+				err = tx.Sign(testPrivKey)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(tx))
+				So(err, ShouldBeNil)
+			}
+			Convey("The state should match the update result", func() {
+				bl, loaded = ms.loadAccountStableBalance(addr1)
+				So(loaded, ShouldBeTrue)
+				So(bl, ShouldEqual, 84)
+				bl, loaded = ms.loadAccountStableBalance(addr2)
+				So(loaded, ShouldBeTrue)
+				So(bl, ShouldEqual, 118)
+			})
+			Convey("The partial commit procedure should not be appliable for txs", func() {
+				err = db.Update(ms.partialCommitProcedure(txs))
+				So(err, ShouldBeNil)
+				Convey("And the state should still match the update result", func() {
+					bl, loaded = ms.loadAccountStableBalance(addr1)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 84)
+					bl, loaded = ms.loadAccountStableBalance(addr2)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 118)
 				})
 			})
 		})

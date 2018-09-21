@@ -19,8 +19,6 @@ package blockproducer
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	ci "github.com/CovenantSQL/CovenantSQL/chain/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -89,19 +87,6 @@ type FetchTxBillingReq struct {
 // FetchTxBillingResp defines a response of the FetchTxBilling RPC method.
 type FetchTxBillingResp struct {
 	proto.Envelope
-}
-
-// FetchTxReq defines a request of the FetchTx RPC method.
-type FetchTxReq struct {
-	proto.Envelope
-	Hash hash.Hash
-}
-
-// FetchTxResp defines a response of the FetchTx RPC method.
-type FetchTxResp struct {
-	proto.Envelope
-	Ok bool
-	Tx ci.Transaction
 }
 
 // NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
@@ -188,12 +173,6 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 // FetchTxBilling is the RPC method to fetch a known billing tx form the target server.
 func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
 	return nil
-}
-
-// FetchTx is the RPC method to fetch a transaction from the target server.
-func (s *ChainRPCService) FetchTx(req *FetchTxReq, resp *FetchTxResp) (err error) {
-	resp.Ok, err = s.chain.fetchTx(req.Hash, resp.Tx)
-	return
 }
 
 // NextAccountNonce is the RPC method to query the next nonce of an account.

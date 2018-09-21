@@ -208,6 +208,97 @@ func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 	}
 }
 
+// partialCommitProcedure compares txs with pooled items, replays and commits the state due to txs
+// if txs matches part of or all the pooled items. Not committed txs will be left in the pool.
+func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.Tx) error) {
+	return func(tx *bolt.Tx) (err error) {
+		var (
+			enc *bytes.Buffer
+			ab  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
+			cb  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
+		)
+		s.Lock()
+		defer s.Unlock()
+
+		// Make a half-deep copy of pool (txs are not copied, readonly) and deep copy of readonly
+		// state
+		//
+		// TODO(leventeliu): we should make sure that the order of transactions from different
+		// accounts does affect the replayed state result.
+		var (
+			cp = s.pool.halfDeepCopy()
+			cm = &metaState{
+				dirty:    newMetaIndex(),
+				readonly: s.readonly.deepCopy(),
+			}
+		)
+		// Compare and replay commits, stop whenever a tx has mismatched
+		for _, v := range txs {
+			if !cp.cmpAndMoveNextTx(v) {
+				err = ErrTransactionMismatch
+				return
+			}
+			if err = cm.applyTransaction(v); err != nil {
+				return
+			}
+		}
+		// Rebuild dirty map
+		var cu = &metaState{
+			dirty:    newMetaIndex(),
+			readonly: cm.dirty,
+		}
+		for _, v := range cp.entries {
+			for _, tx := range v.transacions {
+				if err = cu.applyTransaction(tx); err != nil {
+					return
+				}
+			}
+		}
+
+		for k, v := range cm.dirty.accounts {
+			if v != nil {
+				// New/update object
+				cm.readonly.accounts[k] = v
+				if enc, err = utils.EncodeMsgPack(v.Account); err != nil {
+					return
+				}
+				if err = ab.Put(k[:], enc.Bytes()); err != nil {
+					return
+				}
+			} else {
+				// Delete object
+				delete(cm.readonly.accounts, k)
+				if err = ab.Delete(k[:]); err != nil {
+					return
+				}
+			}
+		}
+		for k, v := range cm.dirty.databases {
+			if v != nil {
+				// New/update object
+				cm.readonly.databases[k] = v
+				if enc, err = utils.EncodeMsgPack(v.SQLChainProfile); err != nil {
+					return
+				}
+				if err = cb.Put([]byte(k), enc.Bytes()); err != nil {
+					return
+				}
+			} else {
+				// Delete object
+				delete(cm.readonly.databases, k)
+				if err = cb.Delete([]byte(k)); err != nil {
+					return
+				}
+			}
+		}
+		// Clean dirty map and tx pool
+		s.pool = cp
+		s.readonly = cm.readonly
+		s.dirty = cm.dirty
+		return
+	}
+}
+
 func (s *metaState) reloadProcedure() (_ func(*bolt.Tx) error) {
 	return func(tx *bolt.Tx) (err error) {
 		s.Lock()
@@ -602,9 +693,11 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		// Check account nonce
 		var nextNonce pi.AccountNonce
 		if nextNonce, err = s.nextNonce(addr); err != nil {
-			if _, ok := t.(*pt.BaseAccount); !ok {
+			if t.GetTransactionType() != pi.TransactionTypeBaseAccount {
 				return
 			}
+			// Consider the first nonce 0
+			err = nil
 		}
 		if nextNonce != nonce {
 			err = ErrInvalidAccountNonce
@@ -621,10 +714,21 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 			return
 		}
 		if err = s.increaseNonce(addr); err != nil {
+			// FIXME(leventeliu): should not fail here.
 			return
 		}
 		// Push to pool
 		s.pool.addTx(t, nextNonce)
 		return
 	}
+}
+
+func (s *metaState) pullTxs() (txs []pi.Transaction) {
+	s.Lock()
+	defer s.Unlock()
+	for _, v := range s.pool.entries {
+		// TODO(leventeliu): check race condition.
+		txs = append(txs, v.transacions...)
+	}
+	return
 }

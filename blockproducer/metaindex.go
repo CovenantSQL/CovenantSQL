@@ -24,6 +24,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
+	"github.com/ulule/deepcopier"
 )
 
 // safeAdd provides a safe add method with upper overflow check for uint64.
@@ -89,6 +90,21 @@ func (i *metaIndex) deleteSQLChainObject(k proto.DatabaseID) {
 	i.Lock()
 	defer i.Unlock()
 	delete(i.databases, k)
+}
+
+func (i *metaIndex) deepCopy() (cpy *metaIndex) {
+	cpy = newMetaIndex()
+	for k, v := range i.accounts {
+		cpyv := &accountObject{}
+		deepcopier.Copy(v).To(cpyv)
+		cpy.accounts[k] = cpyv
+	}
+	for k, v := range i.databases {
+		cpyv := &sqlchainObject{}
+		deepcopier.Copy(v).To(cpyv)
+		cpy.databases[k] = cpyv
+	}
+	return
 }
 
 // IncreaseAccountStableBalance increases account stable coin balance and write persistence within

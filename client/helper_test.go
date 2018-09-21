@@ -146,6 +146,16 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	return
 }
 
+func (s *stubBPDBService) QueryAccountStableBalance(req *bp.QueryAccountStableBalanceReq,
+	resp *bp.QueryAccountStableBalanceResp) (err error) {
+	return
+}
+
+func (s *stubBPDBService) QueryAccountCovenantBalance(req *bp.QueryAccountCovenantBalanceReq,
+	resp *bp.QueryAccountCovenantBalanceResp) (err error) {
+	return
+}
+
 func startTestService() (stopTestService func(), tempDir string, err error) {
 	var server *rpc.Server
 	var cleanup func()
@@ -267,6 +277,11 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 
 	// register bpdb service
 	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
+		return
+	}
+
+	// register fake chain service
+	if err = server.RegisterService(bp.MainChainRPCName, &stubBPDBService{}); err != nil {
 		return
 	}
 

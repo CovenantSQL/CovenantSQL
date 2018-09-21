@@ -45,6 +45,14 @@ func (e *accountTxEntries) addTx(tx pi.Transaction) {
 	e.transacions = append(e.transacions, tx)
 }
 
+func (e *accountTxEntries) halfDeepCopy() (cpy *accountTxEntries) {
+	return &accountTxEntries{
+		account:     e.account,
+		baseNonce:   e.baseNonce,
+		transacions: e.transacions[:],
+	}
+}
+
 type txPool struct {
 	entries map[proto.AccountAddress]*accountTxEntries
 }
@@ -84,9 +92,36 @@ func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
 		return
 	}
 	// Check transaction hash
-	if ok = (tx.GetHash() != te.transacions[index].GetHash()); !ok {
+	if ok = (tx.GetHash() == te.transacions[index].GetHash()); !ok {
 		return
 	}
 
+	return
+}
+
+func (p *txPool) cmpAndMoveNextTx(tx pi.Transaction) (ok bool) {
+	var te *accountTxEntries
+	if te, ok = p.entries[tx.GetAccountAddress()]; !ok {
+		return
+	}
+	// Out of range
+	if ok = (tx.GetAccountNonce() == te.baseNonce && len(te.transacions) > 0); !ok {
+		return
+	}
+	// Check transaction hash
+	if ok = (tx.GetHash() == te.transacions[0].GetHash()); !ok {
+		return
+	}
+	// Move forward
+	te.transacions = te.transacions[1:]
+	te.baseNonce++
+	return
+}
+
+func (p *txPool) halfDeepCopy() (cpy *txPool) {
+	cpy = newTxPool()
+	for k, v := range p.entries {
+		cpy.entries[k] = v.halfDeepCopy()
+	}
 	return
 }

@@ -72,10 +72,12 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tool, "tool", "miner", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen")
+	log.SetLevel(log.ErrorLevel)
+
+	flag.StringVar(&tool, "tool", "", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "", "private key file to generate/show")
-	flag.IntVar(&difficulty, "difficulty", 256, "difficulty for miner to mine nodes and generating nonce")
+	flag.IntVar(&difficulty, "difficulty", 1, "difficulty for miner to mine nodes and generating nonce")
 	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
 	flag.StringVar(&rpcEndpoint, "endpoint", "", "rpc endpoint to do test call")
 	flag.StringVar(&rpcReq, "req", "", "rpc request to do test call, in json format")
@@ -83,7 +85,6 @@ func init() {
 	flag.StringVar(&workingRoot, "root", "node", "confgen root is the working root directory containing all auto-generating keys and certifications")
 	flag.BoolVar(&isTestNet, "testnet", false, "use confgen with testnet will download the testnet certification from our testnet")
 	flag.BoolVar(&isTestnetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
-
 }
 
 func main() {
@@ -219,7 +220,10 @@ func runMiner() {
 
 	// verify result
 	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: max.Hash}, &max.Nonce, publicKey))
-	log.Infof("nonce: %v", max)
+
+	// print result
+	fmt.Printf("nonce: %v\n", max)
+	fmt.Printf("node id: %v\n", max.Hash.String())
 }
 
 func runKeygen() *asymmetric.PublicKey {
@@ -239,7 +243,7 @@ func runKeygen() *asymmetric.PublicKey {
 		log.Fatalf("save generated keypair failed: %v", err)
 	}
 
-	log.Infof("pubkey hex is: %s", hex.EncodeToString(privateKey.PubKey().Serialize()))
+	fmt.Printf("public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
 	return privateKey.PubKey()
 }
 
@@ -255,7 +259,7 @@ func runKeytool() {
 		log.Errorf("load private key failed: %v", err)
 	}
 
-	log.Infof("pubkey hex is: %s", hex.EncodeToString(privateKey.PubKey().Serialize()))
+	fmt.Printf("public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
 }
 
 func runRPC() {
@@ -343,12 +347,6 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 }
 
 func runNonce() {
-	masterKey, err := readMasterKey()
-	if err != nil {
-		log.Fatalf("read master key failed: %v", err)
-		os.Exit(1)
-	}
-
 	var publicKey *asymmetric.PublicKey
 
 	if publicKeyHex != "" {
@@ -361,6 +359,11 @@ func runNonce() {
 			log.Fatalf("error converting public key: %s", err)
 		}
 	} else if privateKeyFile != "" {
+		masterKey, err := readMasterKey()
+		if err != nil {
+			log.Fatalf("read master key failed: %v", err)
+			os.Exit(1)
+		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
 			log.Fatalf("load private key file fail: %v", err)
@@ -424,7 +427,10 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 
 	// verify result
 	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))
-	log.Infof("nonce: %v", nonce)
+
+	// print result
+	fmt.Printf("nonce: %v\n", nonce)
+	fmt.Printf("node id: %v\n", nonce.Hash.String())
 
 	return &nonce
 }
@@ -443,15 +449,15 @@ func runConfgen() {
 		os.Exit(1)
 	}
 
-	log.Info("Generating key pair...")
+	fmt.Println("Generating key pair...")
 	publicKey := runKeygen()
-	log.Info("Generated key pair.")
+	fmt.Println("Generated key pair.")
 
-	log.Info("Generating nonce...")
+	fmt.Println("Generating nonce...")
 	nonce := noncegen(publicKey)
-	log.Info("Generated nonce.")
+	fmt.Println("Generated nonce.")
 
-	log.Info("Generating config file...")
+	fmt.Println("Generating config file...")
 
 	configContent := fmt.Sprintf(`IsTestMode: true
 WorkingRoot: "%s"
@@ -517,7 +523,7 @@ BlockProducer:
 		log.Errorf("Unexpected error: %v", err)
 		os.Exit(1)
 	}
-	log.Info("Generated nonce.")
+	fmt.Println("Generated nonce.")
 }
 
 func runAddrgen() {
@@ -552,7 +558,7 @@ func runAddrgen() {
 	if err != nil {
 		log.Fatalf("unexpected error: %v", err)
 	}
-	log.Infof("test net address: %s", addr)
+	fmt.Printf("test net address: %s\n", addr)
 }
 
 func readMasterKey() (string, error) {

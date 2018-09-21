@@ -211,7 +211,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	balanceReq.Addr = v.vaultAddress
 
 	// get current balance
-	if err = requestBP(route.MCCQueryAccountStableBalance.String(), balanceReq, balanceReq); err != nil {
+	if err = requestBP(route.MCCQueryAccountStableBalance.String(), balanceReq, balanceRes); err != nil {
 		log.Warningf("get account balance failed: %v", err)
 	} else {
 		log.Infof("get account balance success, balance: %v", balanceRes.Balance)

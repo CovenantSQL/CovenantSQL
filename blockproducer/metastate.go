@@ -80,8 +80,9 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 	s.Lock()
 	defer s.Unlock()
 
-	log.Debugf("query stable account: %v", addr.String())
-	log.Debugf("current stable account map: %v, %v", s.dirty, s.readonly)
+	defer func() {
+		log.Debugf("query stable account: %v, result: %v, %v", addr.String(), b, loaded)
+	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.StableCoinBalance
@@ -99,8 +100,9 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	s.Lock()
 	defer s.Unlock()
 
-	log.Debugf("query covenant account: %v", addr.String())
-	log.Debugf("current covenant account map: %v, %v", s.dirty, s.readonly)
+	defer func() {
+		log.Debugf("query stable account: %v, result: %v, %v", addr.String(), b, loaded)
+	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.CovenantCoinBalance

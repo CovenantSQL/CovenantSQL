@@ -52,6 +52,8 @@ type PersistentCaller struct {
 }
 
 // NewPersistentCaller returns a persistent RPCCaller.
+//  IMPORTANT: If a PersistentCaller is firstly used by a DHT.Ping, which is an anonymous
+//  ETLS connection. It should not be used by any other RPC except DHT.Ping.
 func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
 	return &PersistentCaller{
 		pool:     GetSessionPoolInstance(),

@@ -68,14 +68,14 @@ func main() {
 	// Start Node RPC server
 	go server.Serve()
 
+	pClient := rpc.NewPersistentCaller(conf.GConf.BP.NodeID)
 	// Register Node public key, addr to Tracker(BP)
 	for _, n := range conf.GConf.KnownNodes {
-		client := rpc.NewCaller()
 		reqA := &proto.PingReq{
 			Node: n,
 		}
 		respA := new(proto.PingResp)
-		err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+		err = pClient.Call("DHT.Ping", reqA, respA)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -124,7 +124,6 @@ func (hash *Hash) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	log.Infof("Unmarshal hash is: %v", str)
 	// load hash
 	dec, err := hex.DecodeString(str)
 	if err != nil {

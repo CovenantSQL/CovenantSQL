@@ -1,4 +1,4 @@
-# Install `idminer`
+## Install `idminer`
 
 Make sure that `$GOPATH/bin` is in your `$PATH`
 
@@ -35,7 +35,7 @@ Usage of ./idminer:
         tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen (default "miner")
 ```
 
-# Generate Key Pair
+## Generate Key Pair
 
 ```
 > idminer -tool keygen -private private.key
@@ -46,7 +46,7 @@ INFO[0002] pubkey hex is: 02f2707c1c6955a9019cd9d02ade37b931fbfa286a1163dfc1de96
 
 The private.key is your encrypted private key file, and the pubkey hex is your public key's hex.
 
-# Generate Address from Private/Public Key
+## Generate Address from Private/Public Key
 
 ```
 > idminer -tool addrgen -private private.key

@@ -34,12 +34,12 @@ type HTTPAdapter struct {
 }
 
 // NewHTTPAdapter creates adapter to service.
-func NewHTTPAdapter(configFile string) (adapter *HTTPAdapter, err error) {
+func NewHTTPAdapter(configFile string, password string) (adapter *HTTPAdapter, err error) {
 	adapter = new(HTTPAdapter)
 
 	// load config file
 	var cfg *config.Config
-	if cfg, err = config.LoadConfig(configFile); err != nil {
+	if cfg, err = config.LoadConfig(configFile, password); err != nil {
 		return
 	}
 

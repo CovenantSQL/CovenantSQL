@@ -29,16 +29,18 @@ import (
 
 var (
 	configFile string
+	password   string
 )
 
 func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "config file for adapter")
+	flag.StringVar(&password, "password", "", "master key password")
 }
 
 func main() {
 	flag.Parse()
 
-	server, err := NewHTTPAdapter(configFile)
+	server, err := NewHTTPAdapter(configFile, password)
 	if err != nil {
 		log.Fatalf("init adapter failed: %v", err)
 		return

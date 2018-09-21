@@ -21,9 +21,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/storage"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -67,7 +69,8 @@ type confWrapper struct {
 }
 
 // LoadConfig load and verify config in config file and set to global config instance.
-func LoadConfig(configPath string) (config *Config, err error) {
+func LoadConfig(configPath string, password string) (config *Config, err error) {
+	var workingRoot string
 	var configBytes []byte
 	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
 		log.Errorf("read config file failed: %v", err)
@@ -84,8 +87,19 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
-	workingRoot := conf.GConf.WorkingRoot
 	config = configWrapper.Adapter
+
+	if config.StorageDriver == "covenantsql" {
+		// init client
+		if err = client.Init(configPath, []byte(password)); err != nil {
+			return
+		}
+		workingRoot = conf.GConf.WorkingRoot
+	} else {
+		if workingRoot, err = os.Getwd(); err != nil {
+			return
+		}
+	}
 
 	if config.CertificatePath == "" || config.PrivateKeyPath == "" {
 		err = ErrRequireServerCertificate
@@ -152,9 +166,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	// load storage
 	switch config.StorageDriver {
 	case "covenantsql":
-		if config.StorageInstance, err = storage.NewCovenantSQLStorage(configPath, []byte("")); err != nil {
-			return
-		}
+		config.StorageInstance = storage.NewCovenantSQLStorage()
 	case "sqlite3":
 		storageRoot := filepath.Join(workingRoot, config.StorageRoot)
 		if config.StorageInstance, err = storage.NewSQLite3Storage(storageRoot); err != nil {

@@ -26,11 +26,7 @@ import (
 type ThunderDBStorage struct{}
 
 // NewCovenantSQLStorage returns new thunderdb storage handler.
-func NewCovenantSQLStorage(configFile string, masterKey []byte) (s *ThunderDBStorage, err error) {
-	// init thunder db
-	if err = client.Init(configFile, masterKey); err != nil {
-		return
-	}
+func NewCovenantSQLStorage() (s *ThunderDBStorage) {
 	s = &ThunderDBStorage{}
 	return
 }

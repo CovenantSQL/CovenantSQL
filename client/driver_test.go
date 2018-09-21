@@ -67,3 +67,35 @@ func TestDrop(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
+
+func TestGetCovenantCoinBalance(t *testing.T) {
+	Convey("test get covenant coin balance", t, func() {
+		var stopTestService func()
+		var err error
+		stopTestService, _, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+
+		var balance uint64
+		balance, err = GetCovenantCoinBalance()
+
+		So(err, ShouldBeNil)
+		So(balance, ShouldEqual, 0)
+	})
+}
+
+func TestGetStableCoinBalance(t *testing.T) {
+	Convey("test get stable coin balance", t, func() {
+		var stopTestService func()
+		var err error
+		stopTestService, _, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+
+		var balance uint64
+		balance, err = GetStableCoinBalance()
+
+		So(err, ShouldBeNil)
+		So(balance, ShouldEqual, 0)
+	})
+}

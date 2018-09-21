@@ -289,8 +289,14 @@ func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err e
 	// TODO(xq262144): add timeout logic basic of client options
 	var columns, types []string
 	var data [][]interface{}
+	var queries []storage.Query
 
-	columns, types, data, err = db.storage.Query(context.Background(), convertQuery(request.Payload.Queries))
+	// sanitize dangerous queries
+	if queries, err = convertAndSanitizeQuery(request.Payload.Queries); err != nil {
+		return
+	}
+
+	columns, types, data, err = db.storage.Query(context.Background(), queries)
 	if err != nil {
 		return
 	}
@@ -356,7 +362,7 @@ func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
 }
 
-func convertQuery(inQuery []wt.Query) (outQuery []storage.Query) {
+func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err error) {
 	outQuery = make([]storage.Query, len(inQuery))
 	for i, q := range inQuery {
 		outQuery[i] = storage.Query(q)

@@ -78,7 +78,7 @@ func TestChain(t *testing.T) {
 		So(ok, ShouldBeTrue)
 		So(ao, ShouldNotBeNil)
 		So(chain.ms.pool.entries[testAddress1].transacions, ShouldBeEmpty)
-		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 0)
+		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 1)
 
 		// Hack for signle instance test
 		chain.rt.bpNum = 5

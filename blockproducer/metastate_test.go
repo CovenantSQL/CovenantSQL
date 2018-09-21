@@ -693,13 +693,13 @@ func TestMetaState(t *testing.T) {
 						TransferHeader: pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
-							Nonce:    0,
+							Nonce:    1,
 							Amount:   10,
 						},
 					},
 					&pt.TxBilling{
 						TxContent: pt.TxContent{
-							SequenceID: 1,
+							SequenceID: 2,
 							Receivers:  []*proto.AccountAddress{&addr2},
 							Fees:       []uint64{1},
 							Rewards:    []uint64{1},
@@ -708,7 +708,7 @@ func TestMetaState(t *testing.T) {
 					},
 					&pt.TxBilling{
 						TxContent: pt.TxContent{
-							SequenceID: 0,
+							SequenceID: 1,
 							Receivers:  []*proto.AccountAddress{&addr1},
 							Fees:       []uint64{1},
 							Rewards:    []uint64{1},
@@ -719,7 +719,7 @@ func TestMetaState(t *testing.T) {
 						TransferHeader: pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
-							Nonce:    1,
+							Nonce:    2,
 							Amount:   1,
 						},
 					},
@@ -727,7 +727,7 @@ func TestMetaState(t *testing.T) {
 						TransferHeader: pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
-							Nonce:    2,
+							Nonce:    3,
 							Amount:   10,
 						},
 					},
@@ -735,7 +735,7 @@ func TestMetaState(t *testing.T) {
 						TransferHeader: pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
-							Nonce:    2,
+							Nonce:    3,
 							Amount:   1,
 						},
 					},
@@ -743,7 +743,7 @@ func TestMetaState(t *testing.T) {
 						TransferHeader: pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
-							Nonce:    3,
+							Nonce:    4,
 							Amount:   1,
 						},
 					},

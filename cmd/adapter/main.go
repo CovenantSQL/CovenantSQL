@@ -23,7 +23,7 @@ import (
 	"os/signal"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
 

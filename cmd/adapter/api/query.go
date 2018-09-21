@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/config"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func init() {

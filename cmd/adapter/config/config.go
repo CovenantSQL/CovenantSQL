@@ -24,9 +24,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/storage"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"gopkg.in/yaml.v2"
 )
 

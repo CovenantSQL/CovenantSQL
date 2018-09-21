@@ -116,7 +116,11 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	log.ConnectionID = req.Header.ConnectionID
 	log.SeqNo = req.Header.SeqNo
 	log.Timestamp = req.Header.Timestamp.UnixNano()
-	log.Queries = convertQuery(req.Payload.Queries)
+
+	// sanitize dangerous query
+	if log.Queries, err = convertAndSanitizeQuery(req.Payload.Queries); err != nil {
+		return
+	}
 
 	// verify connection sequence
 	if err = db.verifySequence(log); err != nil {

@@ -621,10 +621,21 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 			return
 		}
 		if err = s.increaseNonce(addr); err != nil {
+			// FIXME(leventeliu): should not fail here.
 			return
 		}
 		// Push to pool
 		s.pool.addTx(t, nextNonce)
 		return
 	}
+}
+
+func (s *metaState) pullTxs() (txs []pi.Transaction) {
+	s.Lock()
+	defer s.Unlock()
+	for _, v := range s.pool.entries {
+		// TODO(leventeliu): check race condition.
+		txs = append(txs, v.transacions...)
+	}
+	return
 }

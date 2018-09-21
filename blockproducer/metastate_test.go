@@ -595,9 +595,24 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(t1))
 				So(err, ShouldBeNil)
+				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 1)
+				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
+				So(loaded, ShouldBeTrue)
+				So(ms.pool.hasTx(t1), ShouldBeTrue)
 				err = db.Update(ms.applyTransactionProcedure(t2))
 				So(err, ShouldBeNil)
+				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
+				So(loaded, ShouldBeTrue)
+				_, loaded = ms.pool.entries[t2.GetAccountAddress()]
+				So(loaded, ShouldBeTrue)
+				So(ms.pool.hasTx(t1), ShouldBeTrue)
+				So(ms.pool.hasTx(t2), ShouldBeTrue)
+
 				Convey("The metaState should report error if tx fails verification", func() {
+					t1.Nonce = pi.AccountNonce(10)
+					err = t1.Sign(testPrivKey)
+					So(err, ShouldBeNil)
 					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
 					t1.Nonce, err = ms.nextNonce(addr1)
@@ -618,6 +633,13 @@ func TestMetaState(t *testing.T) {
 				Convey("The metaState should report error on unknown transaction type", func() {
 					err = ms.applyTransaction(nil)
 					So(err, ShouldEqual, ErrUnknownTransactionType)
+				})
+				Convey("The txs should be able to be pulled from pool", func() {
+					var txs = ms.pullTxs()
+					So(len(txs), ShouldEqual, 2)
+					for _, tx := range txs {
+						So(ms.pool.hasTx(tx), ShouldBeTrue)
+					}
 				})
 			})
 		})

@@ -84,7 +84,7 @@ func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
 		return
 	}
 	// Check transaction hash
-	if ok = (tx.GetHash() != te.transacions[index].GetHash()); !ok {
+	if ok = (tx.GetHash() == te.transacions[index].GetHash()); !ok {
 		return
 	}
 

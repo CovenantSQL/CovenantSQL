@@ -343,12 +343,6 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 }
 
 func runNonce() {
-	masterKey, err := readMasterKey()
-	if err != nil {
-		log.Fatalf("read master key failed: %v", err)
-		os.Exit(1)
-	}
-
 	var publicKey *asymmetric.PublicKey
 
 	if publicKeyHex != "" {
@@ -361,6 +355,11 @@ func runNonce() {
 			log.Fatalf("error converting public key: %s", err)
 		}
 	} else if privateKeyFile != "" {
+		masterKey, err := readMasterKey()
+		if err != nil {
+			log.Fatalf("read master key failed: %v", err)
+			os.Exit(1)
+		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
 			log.Fatalf("load private key file fail: %v", err)

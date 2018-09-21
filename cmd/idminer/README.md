@@ -46,7 +46,7 @@ INFO[0002] pubkey hex is: 02f2707c1c6955a9019cd9d02ade37b931fbfa286a1163dfc1de96
 
 The private.key is your encrypted private key file, and the pubkey hex is your public key's hex.
 
-## Generate Address from Private/Public Key
+## Generate Wallet Address from Private/Public Key
 
 ```
 > idminer -tool addrgen -private private.key
@@ -57,4 +57,4 @@ INFO[0002] test net address: 4kPFnvrXbWApXhAbTvX7nQLh6wWwZ3ZbRaEj3deJ8cAdUo1JuaN
 INFO[0000] test net address: 4kPFnvrXbWApXhAbTvX7nQLh6wWwZ3ZbRaEj3deJ8cAdUo1JuaN  caller="main.go:555 main.runAddrgen"
 ```
 
-You can generate your test net address according to your private key or public key.
+You can generate your *wallet* address for test net according to your private key or public key.

@@ -21,10 +21,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
+	"path/filepath"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/storage"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"gopkg.in/yaml.v2"
 )
 
@@ -82,6 +84,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
+	workingRoot := conf.GConf.WorkingRoot
 	config = configWrapper.Adapter
 
 	if config.CertificatePath == "" || config.PrivateKeyPath == "" {
@@ -92,18 +95,22 @@ func LoadConfig(configPath string) (config *Config, err error) {
 
 	// init tls config
 	config.TLSConfig = &tls.Config{}
+	certPath := filepath.Join(workingRoot, config.CertificatePath)
+	privateKeyPath := filepath.Join(workingRoot, config.PrivateKeyPath)
 
-	if config.ServerCertificate, err = tls.LoadX509KeyPair(config.CertificatePath, config.PrivateKeyPath); err != nil {
+	if config.ServerCertificate, err = tls.LoadX509KeyPair(certPath, privateKeyPath); err != nil {
 		return
 	}
 
 	config.TLSConfig.Certificates = []tls.Certificate{config.ServerCertificate}
 
 	if config.VerifyCertificate && config.ClientCAPath != "" {
+		clientCAPath := filepath.Join(workingRoot, config.ClientCAPath)
+
 		// load client CA
 		caCertPool := x509.NewCertPool()
 		var caCert []byte
-		if caCert, err = ioutil.ReadFile(config.ClientCAPath); err != nil {
+		if caCert, err = ioutil.ReadFile(clientCAPath); err != nil {
 			return
 		}
 		caCertPool.AppendCertsFromPEM(caCert)
@@ -115,6 +122,8 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		// load admin certs
 		config.AdminCertificates = make([]*x509.Certificate, 0)
 		for _, certFile := range config.AdminCertFiles {
+			certFile = filepath.Join(workingRoot, certFile)
+
 			var cert *x509.Certificate
 			if cert, err = loadCert(certFile); err != nil {
 				return
@@ -126,6 +135,8 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		// load write certs
 		config.WriteCertificates = make([]*x509.Certificate, 0)
 		for _, certFile := range config.WriteCertFiles {
+			certFile = filepath.Join(workingRoot, certFile)
+
 			var cert *x509.Certificate
 			if cert, err = loadCert(certFile); err != nil {
 				return
@@ -145,7 +156,8 @@ func LoadConfig(configPath string) (config *Config, err error) {
 			return
 		}
 	case "sqlite3":
-		if config.StorageInstance, err = storage.NewSQLite3Storage(config.StorageRoot); err != nil {
+		storageRoot := filepath.Join(workingRoot, config.StorageRoot)
+		if config.StorageInstance, err = storage.NewSQLite3Storage(storageRoot); err != nil {
 			return
 		}
 	default:

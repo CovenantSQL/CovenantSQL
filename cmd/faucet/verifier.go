@@ -30,6 +30,7 @@ import (
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -95,6 +96,8 @@ func NewVerifier(cfg *Config, p *Persistence) (v *Verifier, err error) {
 	if v.vaultAddress, err = utils.PubKeyHash(v.publicKey); err != nil {
 		return
 	}
+
+	log.Infof("vault address is: %v", hash.Hash(v.vaultAddress).String())
 
 	return
 }
@@ -203,6 +206,17 @@ func (v *Verifier) dispense() (err error) {
 }
 
 func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
+	balanceReq := &bp.QueryAccountStableBalanceReq{}
+	balanceRes := &bp.QueryAccountStableBalanceResp{}
+	balanceReq.Addr = v.vaultAddress
+
+	// get current balance
+	if err = requestBP(route.MCCQueryAccountStableBalance.String(), balanceReq, balanceReq); err != nil {
+		log.Warningf("get account balance failed: %v", err)
+	} else {
+		log.Infof("get account balance success, balance: %v", balanceRes.Balance)
+	}
+
 	// allocate nonce
 	nonceReq := &bp.NextAccountNonceReq{}
 	nonceResp := &bp.NextAccountNonceResp{}

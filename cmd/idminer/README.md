@@ -41,7 +41,7 @@ Usage of ./idminer:
 > idminer -tool keygen -private private.key
 Enter master key(default: ""):
 
-INFO[0002] pubkey hex is: 02f2707c1c6955a9019cd9d02ade37b931fbfa286a1163dfc1de965ec01a5c4ff8  caller="main.go:242 main.runKeygen"
+public key's hex: 03dfd8b7dda0a9e8b4530ab9d145c4dafa377619bded878928807a0e2a08059a2e
 ```
 
 The private.key is your encrypted private key file, and the pubkey hex is your public key's hex.
@@ -52,9 +52,9 @@ The private.key is your encrypted private key file, and the pubkey hex is your p
 > idminer -tool addrgen -private private.key
 Enter master key(default: ""):
 
-INFO[0002] test net address: 4kPFnvrXbWApXhAbTvX7nQLh6wWwZ3ZbRaEj3deJ8cAdUo1JuaN  caller="main.go:555 main.runAddrgen"
+test net address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
 > idminer -tool addrgen --public 02f2707c1c6955a9019cd9d02ade37b931fbfa286a1163dfc1de965ec01a5c4ff8
-INFO[0000] test net address: 4kPFnvrXbWApXhAbTvX7nQLh6wWwZ3ZbRaEj3deJ8cAdUo1JuaN  caller="main.go:555 main.runAddrgen"
+test net address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
 ```
 
 You can generate your *wallet* address for test net according to your private key or public key.

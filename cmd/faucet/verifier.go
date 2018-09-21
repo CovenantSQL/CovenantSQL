@@ -259,6 +259,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		TransferHeader: pt.TransferHeader{
 			Sender:   v.vaultAddress,
 			Receiver: targetAddress,
+			Nonce:    nonceResp.Nonce,
 			Amount:   uint64(r.tokenAmount),
 		},
 		Signee: v.publicKey,

@@ -113,6 +113,12 @@ type AddTxResp struct {
 	proto.Envelope
 }
 
+// AddTxTransferReq defines a request of AddTxTransfer RPC method.
+type AddTxTransferReq struct {
+	proto.Envelope
+	Tx *types.Transfer
+}
+
 // QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
 type QueryAccountStableBalanceReq struct {
 	proto.Envelope
@@ -188,6 +194,17 @@ func (s *ChainRPCService) NextAccountNonce(
 
 // AddTx is the RPC method to add a transaction.
 func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
+	if req.Tx == nil {
+		return ErrUnknownTransactionType
+	}
+
+	s.chain.pendingTxs <- req.Tx
+
+	return
+}
+
+// AddTxTransfer is the RPC method to add a transfer transaction.
+func (s *ChainRPCService) AddTxTransfer(req *AddTxTransferReq, resp *AddTxResp) (err error) {
 	if req.Tx == nil {
 		return ErrUnknownTransactionType
 	}

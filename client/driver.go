@@ -65,8 +65,7 @@ func Init(configFile string, masterKey []byte) (err error) {
 	}
 	pubKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, PubKeyStorePath)
 	route.InitKMS(pubKeyFilePath)
-	privKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, conf.GConf.PrivateKeyFile)
-	if err = kms.InitLocalKeyPair(privKeyFilePath, masterKey); err != nil {
+	if err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey); err != nil {
 		return
 	}
 

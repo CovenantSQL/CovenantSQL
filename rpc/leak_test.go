@@ -39,10 +39,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 		t.Errorf("load config from %s failed: %s", FJ(testWorkingDir, "./leak/client.yaml"), err)
 	}
 	log.Debugf("GConf: %##v", conf.GConf)
-	rootPath := conf.GConf.WorkingRoot
-	pubKeyStorePath := FJ(rootPath, conf.GConf.PubKeyStoreFile)
-	privateKeyPath := FJ(rootPath, conf.GConf.PrivateKeyFile)
-	os.Remove(pubKeyStorePath)
+	os.Remove(conf.GConf.PubKeyStoreFile)
 	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db"))
 	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-shm"))
 	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-wal"))
@@ -61,10 +58,10 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	log.Debugf("leader pid %d", leader.Process.Pid)
 	time.Sleep(5 * time.Second)
 
-	route.InitKMS(pubKeyStorePath)
+	route.InitKMS(conf.GConf.PubKeyStoreFile)
 	var masterKey []byte
 
-	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey)
 	if err != nil {
 		t.Errorf("init local key pair failed: %s", err)
 		return

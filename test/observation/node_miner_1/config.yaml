@@ -1,5 +1,5 @@
 IsTestMode: true
-WorkingRoot: "./observation/node_miner_1"
+WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
@@ -26,7 +26,7 @@ BlockProducer:
     Timestamp: 2018-08-13T21:59:59.12Z
 Miner:
   IsTestMode: true
-  RootDir: "./observation/node_miner_1/data"
+  RootDir: "./data"
   MaxReqTimeGap: "2s"
   MetricCollectInterval: "60s"
 KnownNodes:

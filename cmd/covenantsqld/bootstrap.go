@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -51,10 +50,6 @@ const (
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	rootPath := conf.GConf.WorkingRoot
-	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
-	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
-	dhtDbFile := filepath.Join(rootPath, conf.GConf.DHTFileName)
-	chainDbFile := filepath.Join(rootPath, conf.GConf.BP.ChainFileName)
 
 	genesis := loadGenesis()
 
@@ -69,7 +64,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		fmt.Println("")
 	}
 
-	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey)
 	if err != nil {
 		log.Errorf("init local key pair failed: %s", err)
 		return
@@ -77,7 +72,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// init nodes
 	log.Infof("init peers")
-	_, peers, thisNode, err := initNodePeers(nodeID, pubKeyStorePath)
+	_, peers, thisNode, err := initNodePeers(nodeID, conf.GConf.PubKeyStoreFile)
 	if err != nil {
 		log.Errorf("init nodes and peers failed: %s", err)
 		return
@@ -88,7 +83,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// create server
 	log.Infof("create server")
-	if service, server, err = createServer(privateKeyPath, pubKeyStorePath, masterKey, listenAddr); err != nil {
+	if service, server, err = createServer(
+		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, listenAddr); err != nil {
 		log.Errorf("create server failed: %s", err)
 		return
 	}
@@ -96,7 +92,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	// init storage
 	log.Infof("init storage")
 	var st *LocalStorage
-	if st, err = initStorage(dhtDbFile); err != nil {
+	if st, err = initStorage(conf.GConf.DHTFileName); err != nil {
 		log.Errorf("init storage failed: %s", err)
 		return
 	}
@@ -115,7 +111,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		Runtime:   kayakRuntime,
 		KVStorage: st,
 	}
-	dht, err := route.NewDHTService(dhtDbFile, kvServer, true)
+	dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
 	if err != nil {
 		log.Errorf("init consistent hash failed: %s", err)
 		return
@@ -156,7 +152,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	log.Infof("register main chain service rpc")
 	chainConfig := bp.NewConfig(
 		genesis,
-		chainDbFile,
+		conf.GConf.BP.ChainFileName,
 		server,
 		peers,
 		nodeID,

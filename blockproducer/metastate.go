@@ -242,18 +242,6 @@ func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.T
 				return
 			}
 		}
-		// Rebuild dirty map
-		var cu = &metaState{
-			dirty:    newMetaIndex(),
-			readonly: cm.dirty,
-		}
-		for _, v := range cp.entries {
-			for _, tx := range v.transacions {
-				if err = cu.applyTransaction(tx); err != nil {
-					return
-				}
-			}
-		}
 
 		for k, v := range cm.dirty.accounts {
 			if v != nil {
@@ -291,6 +279,17 @@ func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.T
 				}
 			}
 		}
+
+		// Rebuild dirty map
+		cm.dirty = newMetaIndex()
+		for _, v := range cp.entries {
+			for _, tx := range v.transacions {
+				if err = cm.applyTransaction(tx); err != nil {
+					return
+				}
+			}
+		}
+
 		// Clean dirty map and tx pool
 		s.pool = cp
 		s.readonly = cm.readonly

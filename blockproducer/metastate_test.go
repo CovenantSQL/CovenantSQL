@@ -763,10 +763,46 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 118)
 			})
-			Convey("The partial commit procedure should not be appliable for txs", func() {
+			Convey("When state change is partial committed #1", func() {
+				err = db.Update(ms.partialCommitProcedure(txs[:2]))
+				So(err, ShouldBeNil)
+				Convey("The state should still match the update result", func() {
+					bl, loaded = ms.loadAccountStableBalance(addr1)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 84)
+					bl, loaded = ms.loadAccountStableBalance(addr2)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 118)
+				})
+			})
+			Convey("When state change is partial committed #2", func() {
+				err = db.Update(ms.partialCommitProcedure(txs[:3]))
+				So(err, ShouldBeNil)
+				Convey("The state should still match the update result", func() {
+					bl, loaded = ms.loadAccountStableBalance(addr1)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 84)
+					bl, loaded = ms.loadAccountStableBalance(addr2)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 118)
+				})
+			})
+			Convey("When state change is partial committed #3", func() {
+				err = db.Update(ms.partialCommitProcedure(txs[:6]))
+				So(err, ShouldBeNil)
+				Convey("The state should still match the update result", func() {
+					bl, loaded = ms.loadAccountStableBalance(addr1)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 84)
+					bl, loaded = ms.loadAccountStableBalance(addr2)
+					So(loaded, ShouldBeTrue)
+					So(bl, ShouldEqual, 118)
+				})
+			})
+			Convey("When state change is partial committed #4", func() {
 				err = db.Update(ms.partialCommitProcedure(txs))
 				So(err, ShouldBeNil)
-				Convey("And the state should still match the update result", func() {
+				Convey("The state should still match the update result", func() {
 					bl, loaded = ms.loadAccountStableBalance(addr1)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, 84)

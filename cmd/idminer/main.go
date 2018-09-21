@@ -61,7 +61,7 @@ var (
 	rpcReq         string
 	configFile     string
 	workingRoot    string
-	isTestnetAddr  bool
+	isTestNetAddr  bool
 	isTestNet      bool
 	rpcServiceMap  = map[string]interface{}{
 		"DHT":  &route.DHTService{},
@@ -84,7 +84,7 @@ func init() {
 	flag.StringVar(&configFile, "config", "", "rpc config file")
 	flag.StringVar(&workingRoot, "root", "node", "confgen root is the working root directory containing all auto-generating keys and certifications")
 	flag.BoolVar(&isTestNet, "testnet", false, "use confgen with testnet will download the testnet certification from our testnet")
-	flag.BoolVar(&isTestnetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
+	flag.BoolVar(&isTestNetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
 }
 
 func main() {
@@ -554,15 +554,30 @@ func runAddrgen() {
 		os.Exit(1)
 	}
 
-	addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)
+	if isTestNet {
+		addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)
+		if err != nil {
+			log.Fatalf("unexpected error: %v", err)
+		}
+		log.Infof("test net address: %s", addr)
+	} else {
+		addr, err := utils.PubKey2Addr(publicKey, utils.MainNet)
+		if err != nil {
+			log.Fatalf("unexpected error: %v", err)
+		}
+		log.Infof("main net address: %s", addr)
+	}
+
+	// generate account address hash
+	rawAddr, err := utils.PubKeyHash(publicKey)
 	if err != nil {
 		log.Fatalf("unexpected error: %v", err)
 	}
-	fmt.Printf("test net address: %s\n", addr)
+	log.Infof("raw address: %s", hash.Hash(rawAddr).String())
 }
 
 func readMasterKey() (string, error) {
-	fmt.Println("Enter master key(default: \"\"): ")
+	fmt.Print("Enter master key(default: \"\"): ")
 	bytePwd, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println()
 	return string(bytePwd), err

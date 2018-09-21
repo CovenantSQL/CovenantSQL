@@ -125,14 +125,9 @@ func (hash *Hash) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	// load hash
-	dec, err := hex.DecodeString(str)
+	err := Decode(hash, str)
 	if err != nil {
-		log.Debugf("Error in UnmarshalYAML: %v", err)
-		return err
-	}
-	err = hash.SetBytes(dec)
-	if err != nil {
-		log.Debugf("Error in UnmarshalYAML: %v, dec string is %v", err, dec)
+		log.Errorf("Error in UnmarshalYAML: %v", err)
 		return err
 	}
 	return nil
@@ -195,3 +190,4 @@ func Decode(dst *Hash, src string) error {
 
 	return nil
 }
+

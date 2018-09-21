@@ -19,7 +19,11 @@ package hash
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v2"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 // mainNetGenesisHash is the hash of the first block in the block chain for the
@@ -264,3 +268,19 @@ func TestHash_Difficulty(t *testing.T) {
 		t.Errorf("Difficulty test new(Hash) expect 256 got %d", newDifficulty)
 	}
 }
+
+func unmarshalAndMarshal(str string) string {
+	var hash Hash
+	yaml.Unmarshal([]byte(str), &hash)
+	ret, _ := yaml.Marshal(hash)
+
+	return strings.TrimSpace(string(ret))
+}
+
+func TestHash_MarshalYAML(t *testing.T) {
+	Convey("marshal unmarshal yaml", t, func() {
+		So(unmarshalAndMarshal("029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"), ShouldEqual, "029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb")
+		So(unmarshalAndMarshal("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd")
+	})
+}
+

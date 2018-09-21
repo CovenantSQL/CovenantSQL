@@ -24,6 +24,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/api"
 	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/config"
+	"github.com/gorilla/handlers"
 )
 
 // HTTPAdapter is a adapter for ThunderDB/alternative sqlite3 service.
@@ -43,10 +44,12 @@ func NewHTTPAdapter(configFile string) (adapter *HTTPAdapter, err error) {
 	}
 
 	// init server
+	handler := handlers.CORS()(api.GetRouter())
+
 	adapter.server = &http.Server{
 		TLSConfig: cfg.TLSConfig,
 		Addr:      cfg.ListenAddr,
-		Handler:   api.GetRouter(),
+		Handler:   handler,
 	}
 
 	return

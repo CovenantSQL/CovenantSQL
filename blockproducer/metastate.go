@@ -101,7 +101,7 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	defer s.Unlock()
 
 	defer func() {
-		log.Debugf("query stable account: %v, result: %v, %v", addr.String(), b, loaded)
+		log.Debugf("query covenant account: %v, result: %v, %v", addr.String(), b, loaded)
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {

@@ -246,7 +246,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
-	pubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath)
+	pubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_dht")
 	os.Remove(pubKeyStoreFile)
 	clientPubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_c")
 	os.Remove(clientPubKeyStoreFile)
@@ -258,6 +258,11 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
+	_, err = utils.CopyFile(privateKeyPath, conf.GConf.PrivateKeyFile)
+	if err != nil {
+		log.Fatalf("Copy %s to %s failed: %v", privateKeyPath, conf.GConf.PrivateKeyFile, err)
+		return
+	}
 	// reset the once
 	route.Once = sync.Once{}
 	route.InitKMS(clientPubKeyStoreFile)

@@ -21,10 +21,12 @@ import (
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestInit(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	// test init
 	Convey("test init", t, func() {
 		var stopTestService func()

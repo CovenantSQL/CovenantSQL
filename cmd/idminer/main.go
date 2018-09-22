@@ -460,11 +460,10 @@ func runConfgen() {
 	fmt.Println("Generating config file...")
 
 	configContent := fmt.Sprintf(`IsTestMode: true
-WorkingRoot: "%s"
+WorkingRoot: "./"
 PubKeyStoreFile: "%s"
 PrivateKeyFile: "%s"
 DHTFileName: "%s"
-ListenAddr: "address:port"
 ThisNodeID: "%s"
 ValidDNSKeys:
   key: domain
@@ -493,7 +492,7 @@ BlockProducer:
     MerkleRoot: merkleroothash
     ParentHash: parenthash
     Timestamp: 2018-08-13T21:59:59.12Z
-`, workingRoot, privateKeyFileName, publicKeystoreFileName, dhtFileName, nonce.Hash.String(), chainFileName)
+`, privateKeyFileName, publicKeystoreFileName, dhtFileName, nonce.Hash.String(), chainFileName)
 
 	if isTestNet {
 		// TODO(lambda): download the certificates
@@ -518,7 +517,7 @@ BlockProducer:
 
 		configContent = configContent + "\n" + adaptorConfig
 	}
-	err = ioutil.WriteFile("config.yaml", []byte(configContent), 0755)
+	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), []byte(configContent), 0755)
 	if err != nil {
 		log.Errorf("Unexpected error: %v", err)
 		os.Exit(1)

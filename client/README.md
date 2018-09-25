@@ -35,7 +35,7 @@ You need to provide a config and a master key for initialization. The master key
 
 After you prepare your master key and config file, CovenantSQL client can be initialized by:
 
-```golang
+```go
 client.Init(configFile, masterKey)
 ```
 
@@ -45,7 +45,7 @@ client.Init(configFile, masterKey)
 
 To create a new SQL Chain, the number of node should be provided:
 
-```golang
+```go
 var dsn string
 dsn, err := client.ResourceMeta{Node: uint16(nodeCnt)}
 // process err
@@ -56,13 +56,13 @@ cfg, err = client.ParseDSN(dsn)
 
 Database ID can be found in `cfg`:
 
-```golang
+```go
 databaseID := cfg.DatabaseID
 ```
 
 In all:
 
-```golang
+```go
 func Create(nodeCnt uint16) (dbID string, err error) {
 	var dsn string
 	if dsn, err = client.Create(client.ResourceMeta{Node: uint16(nodeCnt)}); err != nil {
@@ -83,7 +83,7 @@ func Create(nodeCnt uint16) (dbID string, err error) {
 
 When you get the database ID, you can query or execute some sql on SQL Chain as follows:
 
-```golang
+```go
 func Query(dbID string, query string) (result , err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID); err != nil {
@@ -124,7 +124,7 @@ func getConn(dbID string) (db *sql.DB, err error) {
 
 Drop your database on SQL Chain is very easy with your database ID:
 
-```golang
+```go
 func Drop(dbID string) (err error) {
 	cfg := client.NewConfig()
 	cfg.DatabaseID = dbID
@@ -133,3 +133,6 @@ func Drop(dbID string) (err error) {
 }
 ```
 
+### Full Example
+
+simple and complex client examples can be found in [client/_example](_example/)

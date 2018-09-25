@@ -280,7 +280,7 @@ func BenchmarkSingleMiner(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-					"(?, ?),(?, ?),(?, ?),(?, ?),(?, ?)", i, i, i*10, i*10, i*10, i*10, i*10, i*10, i*10, i*10,
+					"(?, ?)", i, i*10,
 				)
 				if err != nil {
 					b.Fatal(err)

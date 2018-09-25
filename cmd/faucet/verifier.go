@@ -60,7 +60,7 @@ type Verifier struct {
 	interval        time.Duration
 	lastVerified    int64
 	lastDispensed   int64
-	contentRequired string
+	contentRequired []string
 	urlRequired     string
 	vaultAddress    proto.AccountAddress
 	privateKey      *asymmetric.PrivateKey
@@ -289,7 +289,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	return
 }
 
-func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string, string, string) error) (verified int64, err error) {
+func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string, []string, string) error) (verified int64, err error) {
 	for _, r := range records {
 		if err = verifyFunc(r.mediaURL, v.contentRequired, v.urlRequired); err != nil {
 			r.failReason = err.Error()
@@ -311,7 +311,7 @@ func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string
 	return
 }
 
-func verifyFacebook(mediaURL string, contentRequired string, urlRequired string) (err error) {
+func verifyFacebook(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaPC, retryCount)
 	og := opengraph.NewOpenGraph()
@@ -320,7 +320,7 @@ func verifyFacebook(mediaURL string, contentRequired string, urlRequired string)
 	}
 
 	// description contains sharing content
-	if !strings.Contains(og.Description, contentRequired) {
+	if !containsOneOf(og.Description, contentRequired) {
 		return ErrRequiredContentNotExists
 	}
 	if !strings.Contains(og.Description, urlRequired) {
@@ -330,7 +330,7 @@ func verifyFacebook(mediaURL string, contentRequired string, urlRequired string)
 	return nil
 }
 
-func verifyTwitter(mediaURL string, contentRequired string, urlRequired string) (err error) {
+func verifyTwitter(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaPC, retryCount)
 	og := opengraph.NewOpenGraph()
@@ -339,7 +339,7 @@ func verifyTwitter(mediaURL string, contentRequired string, urlRequired string) 
 	}
 
 	// description contains sharing content
-	if !strings.Contains(og.Description, contentRequired) {
+	if !containsOneOf(og.Description, contentRequired) {
 		return ErrRequiredContentNotExists
 	}
 
@@ -351,7 +351,7 @@ func verifyTwitter(mediaURL string, contentRequired string, urlRequired string) 
 	return nil
 }
 
-func verifyWeibo(mediaURL string, contentRequired string, urlRequired string) (err error) {
+func verifyWeibo(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaMobile, retryCount)
 
@@ -369,7 +369,7 @@ func verifyWeibo(mediaURL string, contentRequired string, urlRequired string) (e
 	}
 
 	// test
-	if !strings.Contains(textContent, contentRequired) {
+	if !containsOneOf(textContent, contentRequired) {
 		return ErrRequiredContentNotExists
 	}
 	if !strings.Contains(textContent, urlRequired) {
@@ -377,6 +377,15 @@ func verifyWeibo(mediaURL string, contentRequired string, urlRequired string) (e
 	}
 
 	return nil
+}
+
+func containsOneOf(content string, contentRequired []string) bool {
+	for _, v := range contentRequired {
+		if strings.Contains(content, v) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsURL(content string, url string, retry int) (err error) {

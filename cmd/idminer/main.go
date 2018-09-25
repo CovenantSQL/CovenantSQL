@@ -471,7 +471,7 @@ DHTFileName: "%s"
 ThisNodeID: "%s"
 ValidDNSKeys:
   key: domain
-MinNodeIDDifficulty: 2
+MinNodeIDDifficulty: %d
 DNSSeed:
   EnforcedDNSSEC: false
   DNSServers:
@@ -484,10 +484,10 @@ BlockProducer:
   PublicKey: "public key hex"
   NodeID: node_id_hash
   Nonce:
-    a: 313283
-    b: 0
-    c: 0
-    d: 0
+    a: a
+    b: b
+    c: c
+    d: d
   ChainFileName: "%s"
   BPGenesisInfo:
     Version: 1
@@ -496,7 +496,9 @@ BlockProducer:
     MerkleRoot: merkleroothash
     ParentHash: parenthash
     Timestamp: 2018-08-13T21:59:59.12Z
-`, privateKeyFileName, publicKeystoreFileName, dhtFileName, nonce.Hash.String(), chainFileName)
+`, privateKeyFileName, publicKeystoreFileName,
+		dhtFileName, nonce.Hash.String(),
+		difficulty, chainFileName)
 
 	if isTestNet {
 		// TODO(lambda): download the certificates

@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -225,8 +226,23 @@ func runMiner() {
 
 func runKeygen() *asymmetric.PublicKey {
 	if _, err := os.Stat(privateKeyFile); err == nil {
-		fmt.Printf("%s exists, remove it before generate new one\n", privateKeyFile)
-		os.Exit(1)
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Println("Private key file has already existed. \nDo you want to delete it? (y or n, press Enter for default n):")
+		t, err := reader.ReadString('\n')
+		t = strings.Trim(t, "\n")
+		if err != nil {
+			log.Errorf("Unexpected error: %v\n", err)
+			os.Exit(1)
+		}
+		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
+			err = os.Remove(privateKeyFile)
+			if err != nil {
+				log.Errorf("Unexpected error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			os.Exit(0)
+		}
 	}
 
 	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
@@ -445,10 +461,25 @@ func runConfgen() {
 
 	privateKeyFile = path.Join(workingRoot, privateKeyFileName)
 
+	if _, err := os.Stat(workingRoot); err == nil {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Println("The directory has already existed. \nDo you want to delete it? (y or n, press Enter for default n):")
+		t, err := reader.ReadString('\n')
+		t = strings.Trim(t, "\n")
+		if err != nil {
+			log.Errorf("Unexpected error: %v\n", err)
+			os.Exit(1)
+		}
+		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
+			os.RemoveAll(workingRoot)
+		} else {
+			os.Exit(0)
+		}
+	}
+
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {
-		log.Errorln("The directory has already existed.")
-		os.Exit(1)
+		log.Errorf("Unexpected error: %v", err)
 	}
 
 	fmt.Println("Generating key pair...")

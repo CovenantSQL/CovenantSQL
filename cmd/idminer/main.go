@@ -480,6 +480,7 @@ func runConfgen() {
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {
 		log.Errorf("Unexpected error: %v", err)
+		os.Exit(1)
 	}
 
 	fmt.Println("Generating key pair...")

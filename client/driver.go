@@ -19,7 +19,6 @@ package client
 import (
 	"database/sql"
 	"database/sql/driver"
-	"path/filepath"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -64,10 +63,8 @@ func Init(configFile string, masterKey []byte) (err error) {
 	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
 		return
 	}
-	pubKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, PubKeyStorePath)
-	route.InitKMS(pubKeyFilePath)
-	privKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, conf.GConf.PrivateKeyFile)
-	if err = kms.InitLocalKeyPair(privKeyFilePath, masterKey); err != nil {
+	route.InitKMS(conf.GConf.PubKeyStoreFile)
+	if err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey); err != nil {
 		return
 	}
 

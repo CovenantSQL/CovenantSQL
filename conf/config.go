@@ -18,6 +18,7 @@ package conf
 
 import (
 	"io/ioutil"
+	"path"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -152,5 +153,29 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
+	configDir := path.Dir(configPath)
+	if !path.IsAbs(config.PubKeyStoreFile) {
+		config.PubKeyStoreFile = path.Join(configDir, config.PubKeyStoreFile)
+	}
+
+	if !path.IsAbs(config.PrivateKeyFile) {
+		config.PrivateKeyFile = path.Join(configDir, config.PrivateKeyFile)
+	}
+
+	if !path.IsAbs(config.DHTFileName) {
+		config.DHTFileName = path.Join(configDir, config.DHTFileName)
+	}
+
+	if !path.IsAbs(config.WorkingRoot) {
+		config.WorkingRoot = path.Join(configDir, config.WorkingRoot)
+	}
+
+	if config.BP != nil && !path.IsAbs(config.BP.ChainFileName) {
+		config.BP.ChainFileName = path.Join(configDir, config.BP.ChainFileName)
+	}
+
+	if config.Miner != nil && !path.IsAbs(config.Miner.RootDir) {
+		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
+	}
 	return
 }

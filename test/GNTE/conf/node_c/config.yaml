@@ -1,5 +1,5 @@
 IsTestMode: true
-WorkingRoot: "./node_c"
+WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"

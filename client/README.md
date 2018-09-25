@@ -14,7 +14,7 @@ and import `client` package if you want to use it in your code.
 ### Generating Default Config File
 
 ```bash
-$ idminer -tool confgen -root bp -testnet
+$ idminer -tool confgen -root bp
 Generating key pair...
 Enter master key(press Enter for default: ""):
 ⏎

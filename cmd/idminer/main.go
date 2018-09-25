@@ -36,7 +36,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -393,6 +392,7 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 			startBit := i * step
 			position := startBit / 64
 			shift := uint(startBit % 64)
+			log.Infof("position: %d, shift: %d, i: %d", position, shift, i)
 			var start mine.Uint256
 			if position == 0 {
 				start = mine.Uint256{A: uint64(1<<shift) + uint64(rand.Uint32())}
@@ -409,7 +409,7 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 				case <-stopCh:
 					break
 				default:
-					currentHash := hash.THashH(append(publicKeyBytes, j.Bytes()...))
+					currentHash := mine.HashBlock(publicKeyBytes, j)
 					currentDifficulty := currentHash.Difficulty()
 					if currentDifficulty >= difficulty {
 						nonce := mine.NonceInfo{
@@ -428,7 +428,9 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	close(stopCh)
 
 	// verify result
-	log.Infof("verify result: %v\n", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))
+	if !kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey) {
+		log.Fatalf("nonce: %v\nnode id: %s", nonce, nonce.Hash.String())
+	}
 
 	// print result
 	fmt.Printf("nonce: %v\n", nonce)
@@ -461,8 +463,8 @@ func runConfgen() {
 
 	configContent := fmt.Sprintf(`IsTestMode: true
 WorkingRoot: "./"
-PrivateKeyFile: %s
-PubKeyStoreFile: %s
+PrivateKeyFile: "%s"
+PubKeyStoreFile: "%s"
 DHTFileName: "dht.db"
 ListenAddr: "0.0.0.0:4661"
 ThisNodeID: %s
@@ -524,7 +526,18 @@ KnownNodes:
   Addr: 120.79.254.36:11108
   PublicKey: 0202361b87a087cd61137ba3b5bd83c48c180566c8d7f1a0b386c3277bf0dc6ebd
   Role: Miner
-`, privateKeyFileName, publicKeystoreFileName, nonce.Hash.String())
+- ID: %s
+  Nonce:
+    a: %d
+    b: %d
+    c: %d
+    d: %d
+  Addr: 127.0.0.1:11109
+  PublicKey: %s
+  Role: Client
+`, privateKeyFileName, publicKeystoreFileName,
+		nonce.Hash.String(), nonce.Hash.String(),
+		nonce.Nonce.A, nonce.Nonce.B, nonce.Nonce.C, nonce.Nonce.D, hex.EncodeToString(publicKey.Serialize()))
 
 	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), []byte(configContent), 0755)
 	if err != nil {

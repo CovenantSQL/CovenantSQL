@@ -29,7 +29,7 @@ type Config struct {
 	// faucet server related
 	ListenAddr           string        `yaml:"ListenAddr"`
 	URLRequired          string        `yaml:"URLRequired"` // can be a part of a valid url
-	ContentRequired      string        `yaml:"ContentRequired"`
+	ContentRequired      []string      `yaml:"ContentRequired"`
 	FaucetAmount         int64         `yaml:"FaucetAmount"`
 	DatabaseID           string        `yaml:"DatabaseID"`       // database id for persistence
 	LocalDatabase        bool          `yaml:"UseLocalDatabase"` // use local sqlite3 database for persistence
@@ -71,7 +71,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
-	if config.URLRequired == "" && config.ContentRequired == "" {
+	if config.URLRequired == "" && len(config.ContentRequired) == 0 {
 		err = ErrInvalidFaucetConfig
 		log.Error("at least one URL/Content config for faucet application is required")
 		return

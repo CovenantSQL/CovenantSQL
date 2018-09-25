@@ -12,11 +12,11 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cli
 ### Generating Default Config File
 
 ```bash
-$ idminer -tool confgen -root bp
+$ idminer -tool confgen -root conf
 Generating key pair...
 Enter master key(press Enter for default: ""):
 ⏎
-Private key file: bp/private.key
+Private key file: conf/private.key
 Public key's hex: 02296ea73240dcd69d2b3f1fb754c8debdf68c62147488abb10165428667ec8cbd
 Generated key pair.
 Generating nonce...
@@ -27,7 +27,7 @@ Generating config file...
 Generated nonce.
 ```
 
-Then, you can find private key and config.yaml in bp.
+Then, you can find private key and config.yaml in conf.
 
 ## Initialize a CovenantSQL `cli`
 
@@ -36,7 +36,7 @@ You need to provide a config and a master key for initialization. The master key
 After you prepare your master key and config file, CovenantSQL `cli` can be initialized by:
 
 ```bash
-$ covenantcli --config bp
+$ covenantcli -config conf/config.yaml -dsn covenantsql://address
 ```
 
 ## Use the `cli`
@@ -44,8 +44,5 @@ $ covenantcli --config bp
 Free to use the `cli` now:
 
 ```bash
-\c covenantsql://address
-conenantsql://address> sql instructions
+co:address=> show tables;
 ```
-
-Note: you can get SQL Chain address when you create a SQL Chain.

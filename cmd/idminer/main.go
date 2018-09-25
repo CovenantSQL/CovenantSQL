@@ -76,7 +76,7 @@ func init() {
 	flag.StringVar(&tool, "tool", "", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "private.key", "private key file to generate/show")
-	flag.IntVar(&difficulty, "difficulty", 8, "difficulty for miner to mine nodes and generating nonce")
+	flag.IntVar(&difficulty, "difficulty", 24, "difficulty for miner to mine nodes and generating nonce")
 	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
 	flag.StringVar(&rpcEndpoint, "endpoint", "", "rpc endpoint to do test call")
 	flag.StringVar(&rpcReq, "req", "", "rpc request to do test call, in json format")
@@ -466,7 +466,7 @@ PubKeyStoreFile: %s
 DHTFileName: "dht.db"
 ListenAddr: "0.0.0.0:4661"
 ThisNodeID: %s
-MinNodeIDDifficulty: %d
+MinNodeIDDifficulty: 24
 BlockProducer:
   PublicKey: 034b4319f2e2a9d9f3fd55d1233ff7a2f2ea2e815e7227b3861b4a6a24a8d62697
   NodeID: 0000011839f464418166658ef6dec09ea68da1619a7a9e0f247f16e0d6c6504d
@@ -524,7 +524,7 @@ KnownNodes:
   Addr: 120.79.254.36:11108
   PublicKey: 0202361b87a087cd61137ba3b5bd83c48c180566c8d7f1a0b386c3277bf0dc6ebd
   Role: Miner
-`, privateKeyFileName, publicKeystoreFileName, nonce.Hash.String(), difficulty)
+`, privateKeyFileName, publicKeystoreFileName, nonce.Hash.String())
 
 	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), []byte(configContent), 0755)
 	if err != nil {

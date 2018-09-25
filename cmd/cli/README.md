@@ -12,7 +12,7 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cli
 ### Generating Default Config File
 
 ```bash
-$ idminer -tool confgen -difficulty 8 -root bp -testnet
+$ idminer -tool confgen -root bp
 Generating key pair...
 Enter master key(press Enter for default: ""):
 ⏎
@@ -27,6 +27,8 @@ Generating config file...
 Generated nonce.
 ```
 
+Then, you can find private key and config.yaml in bp.
+
 ## Initialize a CovenantSQL `cli`
 
 You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `idminer`, you can find the config file in the directory that `idminer` create.
@@ -34,7 +36,7 @@ You need to provide a config and a master key for initialization. The master key
 After you prepare your master key and config file, CovenantSQL `cli` can be initialized by:
 
 ```bash
-$ covenantcli --config config_file
+$ covenantcli --config bp
 ```
 
 ## Use the `cli`
@@ -43,7 +45,7 @@ Free to use the `cli` now:
 
 ```bash
 \c covenantsql://address
-conenantsql://address> sqlite instructions
+conenantsql://address> sql instructions
 ```
 
 Note: you can get SQL Chain address when you create a SQL Chain.

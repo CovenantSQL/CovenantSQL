@@ -62,7 +62,6 @@ var (
 	configFile     string
 	workingRoot    string
 	isTestNetAddr  bool
-	isTestNet      bool
 	rpcServiceMap  = map[string]interface{}{
 		"DHT":  &route.DHTService{},
 		"DBS":  &worker.DBMSRPCService{},
@@ -77,18 +76,17 @@ func init() {
 	flag.StringVar(&tool, "tool", "", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "private.key", "private key file to generate/show")
-	flag.IntVar(&difficulty, "difficulty", 1, "difficulty for miner to mine nodes and generating nonce")
+	flag.IntVar(&difficulty, "difficulty", 8, "difficulty for miner to mine nodes and generating nonce")
 	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
 	flag.StringVar(&rpcEndpoint, "endpoint", "", "rpc endpoint to do test call")
 	flag.StringVar(&rpcReq, "req", "", "rpc request to do test call, in json format")
 	flag.StringVar(&configFile, "config", "", "rpc config file")
 	flag.StringVar(&workingRoot, "root", "node", "confgen root is the working root directory containing all auto-generating keys and certifications")
-	flag.BoolVar(&isTestNet, "testnet", false, "use confgen with testnet will download the testnet certification from our testnet")
 	flag.BoolVar(&isTestNetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
 }
 
 func main() {
-	log.Infof("idminer build: %s", version)
+	log.Infof("idminer build: %s\n", version)
 	flag.Parse()
 
 	switch tool {
@@ -148,7 +146,7 @@ func main() {
 func runMiner() {
 	masterKey, err := readMasterKey()
 	if err != nil {
-		fmt.Printf("read master key failed: %v", err)
+		fmt.Printf("read master key failed: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -157,16 +155,16 @@ func runMiner() {
 	if publicKeyHex != "" {
 		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
 		if err != nil {
-			log.Fatalf("error converting hex: %s", err)
+			log.Fatalf("error converting hex: %s\n", err)
 		}
 		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 		if err != nil {
-			log.Fatalf("error converting public key: %s", err)
+			log.Fatalf("error converting public key: %s\n", err)
 		}
 	} else if privateKeyFile != "" {
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
-			log.Fatalf("load private key file faile: %v", err)
+			log.Fatalf("load private key file faile: %v\n", err)
 		}
 		publicKey = privateKey.PubKey()
 	}
@@ -180,7 +178,7 @@ func runMiner() {
 	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
 
 	cpuCount := runtime.NumCPU()
-	log.Infof("cpu: %d", cpuCount)
+	log.Infof("cpu: %d\n", cpuCount)
 	nonceChs := make([]chan mine.NonceInfo, cpuCount)
 	stopChs := make([]chan struct{}, cpuCount)
 
@@ -199,13 +197,13 @@ func runMiner() {
 				Stop:      nil,
 			}
 			start := mine.Uint256{D: step*uint64(i) + uint64(rand.Uint32())}
-			log.Infof("miner #%d start: %v", i, start)
+			log.Infof("miner #%d start: %v\n", i, start)
 			miner.ComputeBlockNonce(block, start, difficulty)
 		}(i)
 	}
 
 	sig := <-signalCh
-	log.Infof("received signal %s", sig)
+	log.Infof("received signal %s\n", sig)
 	for i := 0; i < cpuCount; i++ {
 		close(stopChs[i])
 	}
@@ -219,7 +217,7 @@ func runMiner() {
 	}
 
 	// verify result
-	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: max.Hash}, &max.Nonce, publicKey))
+	log.Infof("verify result: %v\n", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: max.Hash}, &max.Nonce, publicKey))
 
 	// print result
 	fmt.Printf("nonce: %v\n", max)
@@ -228,22 +226,22 @@ func runMiner() {
 
 func runKeygen() *asymmetric.PublicKey {
 	if _, err := os.Stat(privateKeyFile); err == nil {
-		fmt.Printf("%s exists, remove it before generate new one", privateKeyFile)
+		fmt.Printf("%s exists, remove it before generate new one\n", privateKeyFile)
 		os.Exit(1)
 	}
 
 	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
-		log.Fatalf("generate key pair failed: %v", err)
+		log.Fatalf("generate key pair failed: %v\n", err)
 	}
 
 	masterKey, err := readMasterKey()
 	if err != nil {
-		log.Fatalf("read master key failed: %v", err)
+		log.Fatalf("read master key failed: %v\n", err)
 	}
 
 	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(masterKey)); err != nil {
-		log.Fatalf("save generated keypair failed: %v", err)
+		log.Fatalf("save generated keypair failed: %v\n", err)
 	}
 
 	fmt.Printf("Private key file: %s\n", privateKeyFile)
@@ -254,13 +252,13 @@ func runKeygen() *asymmetric.PublicKey {
 func runKeytool() {
 	masterKey, err := readMasterKey()
 	if err != nil {
-		fmt.Printf("read master key failed: %v", err)
+		fmt.Printf("read master key failed: %v\n", err)
 		os.Exit(1)
 	}
 
 	privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 	if err != nil {
-		log.Errorf("load private key failed: %v", err)
+		log.Errorf("load private key failed: %v\n", err)
 	}
 
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
@@ -268,7 +266,7 @@ func runKeytool() {
 
 func runRPC() {
 	if err := client.Init(configFile, []byte("")); err != nil {
-		fmt.Printf("init rpc client failed: %v", err)
+		fmt.Printf("init rpc client failed: %v\n", err)
 		os.Exit(1)
 		return
 	}
@@ -277,21 +275,21 @@ func runRPC() {
 
 	// fill the req with request body
 	if err := json.Unmarshal([]byte(rpcReq), req); err != nil {
-		fmt.Printf("decode request body failed: %v", err)
+		fmt.Printf("decode request body failed: %v\n", err)
 		os.Exit(1)
 		return
 	}
 
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
-		fmt.Printf("call rpc failed: %v", err)
+		fmt.Printf("call rpc failed: %v\n", err)
 		os.Exit(1)
 		return
 	}
 
 	// print the response
 	if resBytes, err := json.MarshalIndent(resp, "", "  "); err != nil {
-		fmt.Printf("marshal response failed: %v", err)
+		fmt.Printf("marshal response failed: %v\n", err)
 		os.Exit(1)
 	} else {
 		fmt.Println(string(resBytes))
@@ -303,7 +301,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 
 	if len(rpcParts) != 2 {
 		// error rpc name
-		fmt.Printf("%v is not a valid rpc name", rpcName)
+		fmt.Printf("%v is not a valid rpc name\n", rpcName)
 		os.Exit(1)
 		return
 	}
@@ -321,7 +319,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 			if method.Name == rpcParts[1] {
 				// name matched
 				if mtype.PkgPath() != "" || mtype.NumIn() != 3 || mtype.NumOut() != 1 {
-					fmt.Printf("%v is not a valid rpc endpoint method", rpcName)
+					fmt.Printf("%v is not a valid rpc endpoint method\n", rpcName)
 					os.Exit(1)
 					return
 				}
@@ -344,7 +342,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 	}
 
 	// not found
-	fmt.Printf("rpc method %v not found", rpcName)
+	fmt.Printf("rpc method %v not found\n", rpcName)
 	os.Exit(1)
 
 	return
@@ -356,25 +354,25 @@ func runNonce() {
 	if publicKeyHex != "" {
 		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
 		if err != nil {
-			log.Fatalf("error converting hex: %s", err)
+			log.Fatalf("error converting hex: %s\n", err)
 		}
 		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 		if err != nil {
-			log.Fatalf("error converting public key: %s", err)
+			log.Fatalf("error converting public key: %s\n", err)
 		}
 	} else if privateKeyFile != "" {
 		masterKey, err := readMasterKey()
 		if err != nil {
-			fmt.Printf("read master key failed: %v", err)
+			fmt.Printf("read master key failed: %v\n", err)
 			os.Exit(1)
 		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
-			log.Fatalf("load private key file fail: %v", err)
+			log.Fatalf("load private key file fail: %v\n", err)
 		}
 		publicKey = privateKey.PubKey()
 	} else {
-		log.Fatalf("can neither convert public key nor load private key")
+		log.Fatalln("can neither convert public key nor load private key")
 	}
 
 	noncegen(publicKey)
@@ -384,7 +382,7 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	publicKeyBytes := publicKey.Serialize()
 
 	cpuCount := runtime.NumCPU()
-	log.Infof("cpu: %d", cpuCount)
+	log.Infof("cpu: %d\n", cpuCount)
 	stopCh := make(chan struct{})
 	nonceCh := make(chan mine.NonceInfo)
 
@@ -430,7 +428,7 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	close(stopCh)
 
 	// verify result
-	log.Infof("verify result: %v", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))
+	log.Infof("verify result: %v\n", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey))
 
 	// print result
 	fmt.Printf("nonce: %v\n", nonce)
@@ -442,14 +440,12 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 func runConfgen() {
 	privateKeyFileName := "private.key"
 	publicKeystoreFileName := "public.keystore"
-	dhtFileName := "dht.db"
-	chainFileName := "chain.db"
 
 	privateKeyFile = path.Join(workingRoot, privateKeyFileName)
 
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {
-		log.Errorf("The directory has already existed.")
+		log.Errorln("The directory has already existed.")
 		os.Exit(1)
 	}
 
@@ -465,67 +461,74 @@ func runConfgen() {
 
 	configContent := fmt.Sprintf(`IsTestMode: true
 WorkingRoot: "./"
-PubKeyStoreFile: "%s"
-PrivateKeyFile: "%s"
-DHTFileName: "%s"
-ThisNodeID: "%s"
-ValidDNSKeys:
-  key: domain
+PrivateKeyFile: %s
+PubKeyStoreFile: %s
+DHTFileName: "dht.db"
+ListenAddr: "0.0.0.0:4661"
+ThisNodeID: %s
 MinNodeIDDifficulty: %d
-DNSSeed:
-  EnforcedDNSSEC: false
-  DNSServers:
-  - 1.1.1.1
-  - 202.46.34.74
-  - 202.46.34.75
-  - 202.46.34.76
-
 BlockProducer:
-  PublicKey: "public key hex"
-  NodeID: node_id_hash
+  PublicKey: 034b4319f2e2a9d9f3fd55d1233ff7a2f2ea2e815e7227b3861b4a6a24a8d62697
+  NodeID: 0000011839f464418166658ef6dec09ea68da1619a7a9e0f247f16e0d6c6504d
   Nonce:
-    a: a
-    b: b
-    c: c
-    d: d
-  ChainFileName: "%s"
+    a: 761802
+    b: 0
+    c: 0
+    d: 4611686019290328603
+  ChainFileName: "chain.db"
   BPGenesisInfo:
     Version: 1
-    BlockHash: blockhash
-    Producer: producerhash
-    MerkleRoot: merkleroothash
-    ParentHash: parenthash
-    Timestamp: 2018-08-13T21:59:59.12Z
-`, privateKeyFileName, publicKeystoreFileName,
-		dhtFileName, nonce.Hash.String(),
-		difficulty, chainFileName)
+    BlockHash: f745ca6427237aac858dd3c7f2df8e6f3c18d0f1c164e07a1c6b8eebeba6b154
+    Producer: 0000000000000000000000000000000000000000000000000000000000000001
+    MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
+    ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
+    Timestamp: 2018-09-01T00:00:00Z
+    BaseAccounts:
+      - Address: d3dce44e0a4f1dae79b93f04ce13fb5ab719059f7409d7ca899d4c921da70129
+        StableCoinBalance: 100000000
+        CovenantCoinBalance: 100000000
+KnownNodes:
+- ID: 0000011839f464418166658ef6dec09ea68da1619a7a9e0f247f16e0d6c6504d
+  Nonce:
+    a: 761802
+    b: 0
+    c: 0
+    d: 4611686019290328603
+  Addr: 120.79.254.36:11105
+  PublicKey: 034b4319f2e2a9d9f3fd55d1233ff7a2f2ea2e815e7227b3861b4a6a24a8d62697
+  Role: Leader
+- ID: 00000177647ade3bd86a085510113ccae4b8e690424bb99b95b3545039ae8e8c
+  Nonce:
+    a: 197619
+    b: 0
+    c: 0
+    d: 4611686019249700888
+  Addr: 120.79.254.36:11106
+  PublicKey: 02d6f3afcd26aa8de25f5d088c5f8d6b052b4ad1b27ce5b84939bc9f105556844e
+  Role: Miner
+- ID: 000004b0267f959e645b0df5cd38ae0652c1160b960cdcb97b322caafe627e4f
+  Nonce:
+    a: 455820
+    b: 0
+    c: 0
+    d: 3627017019
+  Addr: 120.79.254.36:11107
+  PublicKey: 034b4319f2e2a9d9f3fd55d1233ff7a2f2ea2e815e7227b3861b4a6a24a8d62697
+  Role: Follower
+- ID: 00000328ef30233890f61d7504b640b45e8ba33d5671157a0cee81745e46b963
+  Nonce:
+    a: 333847
+    b: 0
+    c: 0
+    d: 6917529031239958890
+  Addr: 120.79.254.36:11108
+  PublicKey: 0202361b87a087cd61137ba3b5bd83c48c180566c8d7f1a0b386c3277bf0dc6ebd
+  Role: Miner
+`, privateKeyFileName, publicKeystoreFileName, nonce.Hash.String(), difficulty)
 
-	if isTestNet {
-		// TODO(lambda): download the certificates
-		adaptorCertificatePath := path.Join(workingRoot, "server.test.covenantsql.io.pem")
-		adaptorPrivateKeyPath := path.Join(workingRoot, "server.test.covenantsql.io-key.pem")
-		adaptorClientCAPath := path.Join(workingRoot, "rootCA.pem")
-		adaptorAdminCerts := path.Join(workingRoot, "admin.test.covenantsql.io.pem")
-		adaptorWriteCerts := path.Join(workingRoot, "write.test.covenantsql.io.pem")
-
-		adaptorConfig := fmt.Sprintf(`Adapter:
-  ListenAddr: 0.0.0.0:4661
-  CertificatePath: %s
-  PrivateKeyPath: %s
-  VerifyCertificate: true
-  ClientCAPath: %s
-  AdminCerts:
-    - %s
-  WriteCerts:
-    - %s
-  StorageDriver: covenantsql
-`, adaptorCertificatePath, adaptorPrivateKeyPath, adaptorClientCAPath, adaptorAdminCerts, adaptorWriteCerts)
-
-		configContent = configContent + "\n" + adaptorConfig
-	}
 	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), []byte(configContent), 0755)
 	if err != nil {
-		log.Errorf("Unexpected error: %v", err)
+		log.Errorf("Unexpected error: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Println("Generated nonce.")
@@ -537,31 +540,31 @@ func runAddrgen() {
 	if publicKeyHex != "" {
 		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
 		if err != nil {
-			log.Fatalf("error converting hex: %s", err)
+			log.Fatalf("error converting hex: %s\n", err)
 		}
 		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 		if err != nil {
-			log.Fatalf("error converting public key: %s", err)
+			log.Fatalf("error converting public key: %s\n", err)
 		}
 	} else if privateKeyFile != "" {
 		masterKey, err := readMasterKey()
 		if err != nil {
-			fmt.Printf("read master key failed: %v", err)
+			fmt.Printf("read master key failed: %v\n", err)
 			os.Exit(1)
 		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
-			log.Fatalf("load private key file fail: %v", err)
+			log.Fatalf("load private key file fail: %v\n", err)
 		}
 		publicKey = privateKey.PubKey()
 	} else {
-		fmt.Printf("privateKey path or publicKey hex is required for addrgen")
+		fmt.Println("privateKey path or publicKey hex is required for addrgen")
 		os.Exit(1)
 	}
 
 	addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)
 	if err != nil {
-		log.Fatalf("unexpected error: %v", err)
+		log.Fatalf("unexpected error: %v\n", err)
 	}
 	fmt.Printf("wallet address: %s\n", addr)
 }

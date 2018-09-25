@@ -18,7 +18,6 @@ package main
 
 import (
 	"database/sql"
-
 	"flag"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -44,8 +43,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = db.Exec(`
-		DROP TABLE IF EXISTS cityPop;
+	Q := `DROP TABLE IF EXISTS cityPop;
 		CREATE TABLE cityPop (
 			ID INT,
 			Name VARCHAR,
@@ -61,14 +59,14 @@ func main() {
 			 CountryCode string NOT NULL,
 			 GDP integer
 		);
-		CREATE INDEX countryCountryCodeIndex ON countryGDP ( CountryCode );
-	`)
+		CREATE INDEX countryCountryCodeIndex ON countryGDP ( CountryCode );`
+	_, err = db.Exec(Q)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("\nExec:\n %s\n", Q)
 
-	_, err = db.Exec(`
-		INSERT INTO countryGDP VALUES 
+	Q = `INSERT INTO countryGDP VALUES 
 			(0, "ZWE", 99999),(1, "CHN", 3000000000000),
 			(2, "PSE", 321312313),(3, "JPN", 300000000);
 		INSERT INTO cityPop VALUES (707,'Shenzhen','CHN','Guangzhou',99442);
@@ -86,20 +84,23 @@ func main() {
 		INSERT INTO cityPop VALUES (1770,'Higashimatsuyama','JPN','Saitama',93342);
 		INSERT INTO cityPop VALUES (2707,'Xai-Xai','MOZ','Gaza',99442);
 		INSERT INTO cityPop VALUES (4074,'Gaza','PSE','Gaza',353632);
-		INSERT INTO cityPop VALUES (4077,'Jabaliya','PSE','North Gaza',113901);
-		`)
+		INSERT INTO cityPop VALUES (4077,'Jabaliya','PSE','North Gaza',113901);`
+	_, err = db.Exec(Q)
 	if err != nil {
 		log.Warn(err)
 	}
+	log.Printf("\nExec:\n %s\n", Q)
 
-	rows, err := db.Query(`SELECT * FROM cityPop
+	Q = `SELECT * FROM cityPop
 		WHERE District IN ("Shenzhen", "Balkh", "Gaza", "North Gaza")
 		GROUP  BY cityPop.CountryCode
 		ORDER  BY Population DESC
-		LIMIT  10;`)
+		LIMIT  10;`
+	rows, err := db.Query(Q)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("\nExec:\n %s\n", Q)
 	log.Println("ID	Name	CountryCode	District	Population")
 	var ID, GDP, Population int
 	var Name, CountryCode, District string
@@ -113,16 +114,16 @@ func main() {
 
 		log.Printf("%d	%s	%s	%s	%d", ID, Name, CountryCode, District, Population)
 	}
-	log.Println()
-	_, err = db.Exec(`UPDATE countryGDP SET GDP = 1234567 WHERE CountryCode LIKE "CHN";
+	Q = `UPDATE countryGDP SET GDP = 1234567 WHERE CountryCode LIKE "CHN";
 			UPDATE cityPop SET Population = 123456 WHERE CountryCode LIKE "CHN";
-			REPLACE INTO countryGDP (ID, CountryCode, GDP) VALUES (77, "AFG", 11111111);`)
+			REPLACE INTO countryGDP (ID, CountryCode, GDP) VALUES (77, "AFG", 11111111);`
+	_, err = db.Exec(Q)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("\nExec:\n %s\n", Q)
 
-	rows, err = db.Query(
-		`SELECT cityPop.ID,  cityPop.CountryCode, cityPop.District, 
+	Q = `SELECT cityPop.ID,  cityPop.CountryCode, cityPop.District, 
 		countryGDP.GDP / cityPop.Population, countryGDP.GDP, cityPop.Population
 		FROM   cityPop 
        		LEFT JOIN countryGDP 
@@ -130,7 +131,9 @@ func main() {
 		WHERE District IN ( "Shenzhen", "Balkh", "North Gaza", "Toyama", "Yonezawa") AND countryGDP.GDP > 0 
 		GROUP BY cityPop.CountryCode 
 		ORDER BY countryGDP.GDP / cityPop.Population DESC 
-		LIMIT 10;`)
+		LIMIT 10;`
+	rows, err = db.Query(Q)
+	log.Printf("\nExec:\n %s\n", Q)
 
 	log.Println("ID	CountryCode	District	GDPPerson	GDP	Population")
 	for rows.Next() {

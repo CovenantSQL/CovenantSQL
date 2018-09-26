@@ -495,6 +495,13 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		DatabaseID: c.rt.databaseID,
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
+			Count: func() int32 {
+				var pn = c.bi.lookupNode(block.ParentHash())
+				if pn != nil {
+					return pn.count + 1
+				}
+				return -1
+			}(),
 		},
 	}
 	peers := c.rt.getPeers()

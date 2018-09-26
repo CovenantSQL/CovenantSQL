@@ -17,14 +17,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"bytes"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -53,6 +52,9 @@ const (
   |    |          |---> [hash] => height
   |    |           \--> [hash] => height
   |    |
+  |  [count2height]-->[`dbID`]
+  |    |                 |---> [count] => height
+  |    |                  \--> [count] => height
   |    |
   |  [block]-->[`dbID`]
   |    |          |---> [height+hash] => block
@@ -81,10 +83,11 @@ var (
 	ErrNotFound = errors.New("resource not found")
 
 	// bolt db buckets
-	blockBucket        = []byte("block")
-	ackBucket          = []byte("ack")
-	requestBucket      = []byte("request")
-	subscriptionBucket = []byte("subscription")
+	blockBucket             = []byte("block")
+	blockCount2HeightBucket = []byte("block-count-to-height")
+	ackBucket               = []byte("ack")
+	requestBucket           = []byte("request")
+	subscriptionBucket      = []byte("subscription")
 
 	blockHeightBucket = []byte("height")
 	logOffsetBucket   = []byte("offset")
@@ -124,6 +127,9 @@ func NewService() (service *Service, err error) {
 		if _, err = tx.CreateBucketIfNotExists(blockBucket); err != nil {
 			return
 		}
+		if _, err = tx.CreateBucketIfNotExists(blockCount2HeightBucket); err != nil {
+			return
+		}
 		if _, err = tx.CreateBucketIfNotExists(ackBucket); err != nil {
 			return
 		}
@@ -153,7 +159,7 @@ func NewService() (service *Service, err error) {
 	if err = db.View(func(tx *bolt.Tx) error {
 		return tx.Bucket(subscriptionBucket).ForEach(func(rawDBID, rawHeight []byte) (err error) {
 			dbID := proto.DatabaseID(string(rawDBID))
-			h := bytesToHeight(rawHeight)
+			h := bytesToInt32(rawHeight)
 			service.subscription[dbID] = h
 			return
 		})
@@ -174,13 +180,13 @@ func bytesToOffset(data []byte) uint64 {
 	return uint64(binary.BigEndian.Uint64(data))
 }
 
-func heightToBytes(h int32) (data []byte) {
+func int32ToBytes(h int32) (data []byte) {
 	data = make([]byte, 4)
 	binary.BigEndian.PutUint32(data, uint32(h))
 	return
 }
 
-func bytesToHeight(data []byte) int32 {
+func bytesToInt32(data []byte) int32 {
 	return int32(binary.BigEndian.Uint32(data))
 }
 
@@ -238,7 +244,7 @@ func (s *Service) AdviseNewBlock(req *sqlchain.MuxAdviseNewBlockReq, resp *sqlch
 		return
 	}
 
-	return s.addBlock(req.DatabaseID, req.Block)
+	return s.addBlock(req.DatabaseID, req.Count, req.Block)
 }
 
 // AdviseAckedQuery handles acked query replication request from the remote database chain service.
@@ -296,7 +302,7 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 	}
 
 	// store the genesis block
-	if err = s.addBlock(dbID, instance.GenesisBlock); err != nil {
+	if err = s.addBlock(dbID, 0, instance.GenesisBlock); err != nil {
 		return
 	}
 
@@ -382,12 +388,17 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 	})
 }
 
-func (s *Service) addBlock(dbID proto.DatabaseID, b *ct.Block) (err error) {
+func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *ct.Block) (err error) {
 	instance, err := s.getUpstream(dbID)
 	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / blockProducePeriod)
-	key := heightToBytes(h)
+	key := int32ToBytes(h)
 	key = append(key, b.BlockHash().CloneBytes()...)
-
+	// It's actually `countToBytes`
+	ckey := int32ToBytes(count)
+	blockBytes, err := utils.EncodeMsgPack(b)
+	if err != nil {
+		return
+	}
 	log.Debugf("add block %v, height: %v, %v -> %v, %v", dbID, h, b.BlockHash(), b.ParentHash(), b.Producer())
 
 	return s.db.Update(func(tx *bolt.Tx) (err error) {
@@ -395,18 +406,21 @@ func (s *Service) addBlock(dbID proto.DatabaseID, b *ct.Block) (err error) {
 		if err != nil {
 			return
 		}
-		blockBytes, err := utils.EncodeMsgPack(b)
+		if err = bb.Put(key, blockBytes.Bytes()); err != nil {
+			return
+		}
+		cb, err := tx.Bucket(blockCount2HeightBucket).CreateBucketIfNotExists([]byte(dbID))
 		if err != nil {
 			return
 		}
-		if err = bb.Put(key, blockBytes.Bytes()); err != nil {
+		if err = cb.Put(ckey, key); err != nil {
 			return
 		}
 		hb, err := tx.Bucket(blockHeightBucket).CreateBucketIfNotExists([]byte(dbID))
 		if err != nil {
 			return
 		}
-		err = hb.Put(b.BlockHash()[:], heightToBytes(h))
+		err = hb.Put(b.BlockHash()[:], int32ToBytes(h))
 		return
 	})
 }
@@ -581,13 +595,48 @@ func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *ct.Bl
 		cur := bucket.Cursor()
 		if last, blockData := cur.Last(); last != nil {
 			// decode bytes
-			height = bytesToHeight(last[:4])
+			height = bytesToInt32(last[:4])
 			return utils.DecodeMsgPack(blockData, &b)
 		}
 
 		return ErrNotFound
 	})
 
+	return
+}
+
+func (s *Service) getHighestBlockV2(
+	dbID proto.DatabaseID) (count, height int32, b *ct.Block, err error,
+) {
+	err = s.db.View(func(tx *bolt.Tx) (err error) {
+		var (
+			bk         *bolt.Bucket
+			cur        *bolt.Cursor
+			c, h, k, v []byte
+		)
+		// Get last count and height
+		if bk = tx.Bucket(blockCount2HeightBucket).Bucket([]byte(dbID)); bk == nil {
+			return ErrNotFound
+		}
+		if c, h = bk.Cursor().Last(); c == nil || h == nil {
+			return ErrNotFound
+		}
+		// Get block by height prefix
+		if bk = tx.Bucket(blockBucket).Bucket([]byte(dbID)); bk == nil {
+			return ErrNotFound
+		}
+		cur = bk.Cursor()
+		for k, v = cur.Seek(h); k != nil && v != nil && bytes.HasPrefix(k, h); k, v = cur.Next() {
+			if v != nil {
+				if err = utils.DecodeMsgPack(v, &b); err == nil {
+					count = bytesToInt32(c[:4])
+					height = bytesToInt32(h[:4])
+				}
+				return
+			}
+		}
+		return
+	})
 	return
 }
 
@@ -599,7 +648,7 @@ func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (b *ct.B
 			return ErrNotFound
 		}
 
-		keyPrefix := heightToBytes(height)
+		keyPrefix := int32ToBytes(height)
 
 		cur := bucket.Cursor()
 		for k, v := cur.Seek(keyPrefix); k != nil && bytes.HasPrefix(k, keyPrefix); k, v = cur.Next() {
@@ -611,6 +660,41 @@ func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (b *ct.B
 		return ErrNotFound
 	})
 
+	return
+}
+
+func (s *Service) getBlockByCount(
+	dbID proto.DatabaseID, count int32) (height int32, b *ct.Block, err error,
+) {
+	err = s.db.View(func(tx *bolt.Tx) (err error) {
+		var (
+			bk      *bolt.Bucket
+			cur     *bolt.Cursor
+			c       = int32ToBytes(count)
+			h, k, v []byte
+		)
+		// Get height by count
+		if bk = tx.Bucket(blockCount2HeightBucket).Bucket([]byte(dbID)); bk == nil {
+			return ErrNotFound
+		}
+		if h = bk.Get(c); h == nil {
+			return ErrNotFound
+		}
+		// Get block by height prefix
+		if bk = tx.Bucket(blockBucket).Bucket([]byte(dbID)); bk == nil {
+			return ErrNotFound
+		}
+		cur = bk.Cursor()
+		for k, v = cur.Seek(h); k != nil && v != nil && bytes.HasPrefix(k, h); k, v = cur.Next() {
+			if v != nil {
+				if err = utils.DecodeMsgPack(v, &b); err == nil {
+					height = bytesToInt32(h[:4])
+				}
+				return
+			}
+		}
+		return
+	})
 	return
 }
 

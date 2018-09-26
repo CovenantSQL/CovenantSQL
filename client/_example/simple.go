@@ -20,12 +20,14 @@ import (
 	"database/sql"
 	"flag"
 
+	"fmt"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 	var config, password, dsn string
 
 	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
@@ -58,19 +60,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = db.Exec("INSERT INTO testSimple VALUES(?, ?)", 4, 400)
+	_, err = db.Exec("INSERT INTO testSimple VALUES(?, ?);", 4, 400)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	row := db.QueryRow("SELECT nonIndexedColumn FROM testSimple LIMIT 1")
+	row := db.QueryRow("SELECT nonIndexedColumn FROM testSimple LIMIT 1;")
 
 	var result int
 	err = row.Scan(&result)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Debugf("result %d", result)
+	fmt.Printf("SELECT nonIndexedColumn FROM testSimple LIMIT 1; result %d\n", result)
 
 	err = db.Close()
 }

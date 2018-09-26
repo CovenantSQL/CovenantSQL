@@ -39,6 +39,26 @@ After you prepare your master key and config file, CovenantSQL `cli` can be init
 $ covenantcli -config conf/config.yaml -dsn covenantsql://address
 ```
 
+`address` is database id. You can get a database id when create a new SQL Chain:
+
+```bash
+$ covenantcli -config conf/config.yaml -create 1
+INFO[0000]
+### Public Key ###
+039bc931161383c994ab9b81e95ddc1494b0efeb1cb735bb91e1043a1d6b98ebfd
+### Public Key ###
+  caller="privatekeystore.go:116 crypto/kms.InitLocalKeyPair"
+INFO[0000] the newly created database is: covenantsql://0e9103318821b027f35b96c4fd5562683543276b72c488966d616bfe0fe4d213  caller="main.go:297 main.main"
+```
+
+Here, `1` refers that there is only one node in SQL Chain.
+
+Show the complete usage of `covenantcli`:
+
+```bash
+$ covenantcli -help
+```
+
 ## Use the `cli`
 
 Free to use the `cli` now:

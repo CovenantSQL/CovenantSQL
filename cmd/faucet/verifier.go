@@ -435,9 +435,9 @@ func makeRequest(reqURL string, ua string, retry int) (response string, err erro
 		resp, err = medClient.Do(req)
 
 		if err == nil {
+			defer resp.Body.Close()
 			var resBytes []byte
 			if resBytes, err = ioutil.ReadAll(resp.Body); err == nil {
-				resp.Body.Close()
 				response = string(resBytes)
 				return
 			}
@@ -460,6 +460,7 @@ func locationRequest(reqURL string, ua string, retry int) (redirectURL string, e
 		resp, err = locClient.Do(req)
 
 		if err == nil {
+			defer resp.Body.Close()
 			var urlObj *url.URL
 			if urlObj, err = resp.Location(); err == nil {
 				redirectURL = urlObj.String()

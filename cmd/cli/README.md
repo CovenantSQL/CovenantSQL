@@ -51,6 +51,8 @@ INFO[0000]
 INFO[0000] the newly created database is: covenantsql://0e9103318821b027f35b96c4fd5562683543276b72c488966d616bfe0fe4d213  caller="main.go:297 main.main"
 ```
 
+Here, `1` refers that there is only one node in SQL Chain.
+
 Show the complete usage of `covenantcli`:
 
 ```bash

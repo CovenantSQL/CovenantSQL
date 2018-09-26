@@ -153,8 +153,9 @@ func (p *Persistence) checkAccountLimit(platform string, account string) (err er
 
 	// account limit check
 	row := p.db.QueryRowContext(context.Background(),
-		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND platform = ? AND account = ?",
-		timeOfDayStart, platform, account)
+		`SELECT COUNT(1) AS cnt FROM faucet_records
+		WHERE ctime >= ? AND platform = ? AND account = ? AND state IN (?, ?, ?)`,
+		timeOfDayStart, platform, account, StateApplication, StateVerified, StateDispensed)
 
 	var result uint
 
@@ -181,8 +182,9 @@ func (p *Persistence) checkAddressLimit(address string) (err error) {
 
 	// account limit check
 	row := p.db.QueryRowContext(context.Background(),
-		"SELECT COUNT(1) AS cnt FROM faucet_records WHERE ctime >= ? AND address = ?",
-		timeOfDayStart, address)
+		`SELECT COUNT(1) AS cnt FROM faucet_records
+		WHERE ctime >= ? AND address = ? AND state IN (?, ?, ?)`,
+		timeOfDayStart, address, StateApplication, StateVerified, StateDispensed)
 
 	var result uint
 

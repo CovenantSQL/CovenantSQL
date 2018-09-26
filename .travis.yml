@@ -34,23 +34,23 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - bash build.sh
-#  - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
-#  - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
-#  - bash <(curl -s https://codecov.io/bash)
-#  - >-
-#    golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
+  - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+  - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
+  - bash <(curl -s https://codecov.io/bash)
+  - >-
+    golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 
 before_deploy:
   - mkdir -p build
-  - tar czvf build/covenantsql-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/covenantadapter bin/covenantcli bin/covenantminerd bin/covenantobserver bin/covenantsqld
+  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/covenantadapter bin/covenantcli bin/covenantminerd bin/covenantobserver bin/covenantsqld
 
 deploy:
   provider: releases
   api_key:
     secure: Iyzoj1/OLH1YkmDLpQdn0XBk/pxNIkDVqezVVK3kXRj81FeciAZWFBry2t2140EX6wpMYq9/R4vK0wkMJLvlggXwl4rzWsuz0eahLS8KqjXiEY1up8KBiK0u4GqEV7ZqTcPaNY8aG9s1ptuEXLBbuMZlKFWtLZ4ffoyZv6MIIOT2DkrJeRh1HpIcRfNuS//cqz5PImWtv+lJ9psfTyWMYe4fQ5U+6ewq6KW9qv1jLiuqNmQHW279f7zbZpccMCjOcsZRCYOeAqrcoKrBr2UJc+RyATc1+Iw9JuG9qtc6SObcKzdz/R8ycjFAHdEsGruWWkkE09jnLCHbOPPvPT4DbWzPEsT0dtAtDLtEcPR0rfED/y95iR/6sV5PnjUnzmYg9zrEyC6ryhU8LX6g2r4Ssy8KkIk1kpJVmnilbm4JGT+MLDAyaln1acmkLjMi8EDgIeFt6edOGN4BBu3D7qknUqWk23bn7dkzuXVAKbVDIJOL4zL8K2pBz3uIHgLz6Ebz6WvYjhfjcJP5Gcur6w21Z9jjmM1fdI3/7CHTD/VJtfjyfBvh5oUsb26KBDG97ErDiB0rf8fDiwxGnlgSpdrhvopbIWyCw3ENWdqury8kki7GV9zZw55uHNer33wF+n1KnhhU4oayXk4D/dFGMd7aDl0d+gR90HJljxrWas0/jEc=
   file:
-    - build/covenantsql-$TRAVIS_TAG.linux-amd64.tar.gz
-    - build/covenantsql-$TRAVIS_TAG.osx-amd64.tar.gz
+    - build/CovenantSQL-$TRAVIS_TAG.linux-amd64.tar.gz
+    - build/CovenantSQL-$TRAVIS_TAG.osx-amd64.tar.gz
   skip_cleanup: true
   on:
     tags: true

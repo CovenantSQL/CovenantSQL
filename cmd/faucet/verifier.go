@@ -42,6 +42,12 @@ import (
 
 var (
 	regexpTextContent = regexp.MustCompile("(?i)\"text\"\\s*:\\s*(\".+\")\\s*,\\s*")
+	medClient         = &http.Client{}
+	locClient         = &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 )
 
 const (
@@ -314,6 +320,9 @@ func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string
 func verifyFacebook(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaPC, retryCount)
+	if err != nil {
+		return
+	}
 	og := opengraph.NewOpenGraph()
 	if err = og.ProcessHTML(strings.NewReader(resp)); err != nil {
 		return
@@ -333,6 +342,9 @@ func verifyFacebook(mediaURL string, contentRequired []string, urlRequired strin
 func verifyTwitter(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaPC, retryCount)
+	if err != nil {
+		return
+	}
 	og := opengraph.NewOpenGraph()
 	if err = og.ProcessHTML(strings.NewReader(resp)); err != nil {
 		return
@@ -354,7 +366,9 @@ func verifyTwitter(mediaURL string, contentRequired []string, urlRequired string
 func verifyWeibo(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaMobile, retryCount)
-
+	if err != nil {
+		return
+	}
 	// extract text fields
 	matches := regexpTextContent.FindStringSubmatch(resp)
 	if len(matches) <= 1 {
@@ -380,6 +394,10 @@ func verifyWeibo(mediaURL string, contentRequired []string, urlRequired string) 
 }
 
 func containsOneOf(content string, contentRequired []string) bool {
+	log.WithFields(log.Fields{
+		"provided": content,
+		"required": contentRequired,
+	}).Info("matching content")
 	for _, v := range contentRequired {
 		if strings.Contains(content, v) {
 			return true
@@ -408,18 +426,18 @@ func containsURL(content string, url string, retry int) (err error) {
 }
 
 func makeRequest(reqURL string, ua string, retry int) (response string, err error) {
-	client := http.Client{}
 	var req *http.Request
 	req, err = http.NewRequest("GET", reqURL, bytes.NewReader([]byte{}))
 	req.Header.Add("User-Agent", ua)
 
 	for i := retry; i >= 0; i-- {
 		var resp *http.Response
-		resp, err = client.Do(req)
+		resp, err = medClient.Do(req)
 
 		if err == nil {
 			var resBytes []byte
 			if resBytes, err = ioutil.ReadAll(resp.Body); err == nil {
+				resp.Body.Close()
 				response = string(resBytes)
 				return
 			}
@@ -433,19 +451,13 @@ func makeRequest(reqURL string, ua string, retry int) (response string, err erro
 }
 
 func locationRequest(reqURL string, ua string, retry int) (redirectURL string, err error) {
-	client := http.Client{
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
 	var req *http.Request
 	req, err = http.NewRequest("HEAD", reqURL, bytes.NewReader([]byte{}))
 	req.Header.Add("User-Agent", ua)
 
 	for i := retry; i >= 0; i-- {
 		var resp *http.Response
-		resp, err = client.Do(req)
+		resp, err = locClient.Do(req)
 
 		if err == nil {
 			var urlObj *url.URL

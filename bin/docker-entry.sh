@@ -1,5 +1,6 @@
 #!/bin/sh
 
+echo nameserver 1.1.1.1 >/etc/resolv.conf
 case "${COVENANT_ROLE}" in
 miner)
     exec /app/covenantminerd -config "${COVENANT_CONF}"

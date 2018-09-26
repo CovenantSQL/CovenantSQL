@@ -314,6 +314,9 @@ func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string
 func verifyFacebook(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaPC, retryCount)
+	if err != nil {
+		return
+	}
 	og := opengraph.NewOpenGraph()
 	if err = og.ProcessHTML(strings.NewReader(resp)); err != nil {
 		return
@@ -333,6 +336,9 @@ func verifyFacebook(mediaURL string, contentRequired []string, urlRequired strin
 func verifyTwitter(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaPC, retryCount)
+	if err != nil {
+		return
+	}
 	og := opengraph.NewOpenGraph()
 	if err = og.ProcessHTML(strings.NewReader(resp)); err != nil {
 		return
@@ -354,7 +360,9 @@ func verifyTwitter(mediaURL string, contentRequired []string, urlRequired string
 func verifyWeibo(mediaURL string, contentRequired []string, urlRequired string) (err error) {
 	var resp string
 	resp, err = makeRequest(mediaURL, uaMobile, retryCount)
-
+	if err != nil {
+		return
+	}
 	// extract text fields
 	matches := regexpTextContent.FindStringSubmatch(resp)
 	if len(matches) <= 1 {
@@ -380,6 +388,10 @@ func verifyWeibo(mediaURL string, contentRequired []string, urlRequired string) 
 }
 
 func containsOneOf(content string, contentRequired []string) bool {
+	log.WithFields(log.Fields{
+		"provided": content,
+		"required": contentRequired,
+	}).Info("matching content")
 	for _, v := range contentRequired {
 		if strings.Contains(content, v) {
 			return true

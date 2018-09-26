@@ -81,7 +81,7 @@ func init() {
 	flag.StringVar(&rpcEndpoint, "endpoint", "", "rpc endpoint to do test call")
 	flag.StringVar(&rpcReq, "req", "", "rpc request to do test call, in json format")
 	flag.StringVar(&configFile, "config", "", "rpc config file")
-	flag.StringVar(&workingRoot, "root", "node", "confgen root is the working root directory containing all auto-generating keys and certifications")
+	flag.StringVar(&workingRoot, "root", "conf", "confgen root is the working root directory containing all auto-generating keys and certifications")
 	flag.BoolVar(&isTestNetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
 }
 

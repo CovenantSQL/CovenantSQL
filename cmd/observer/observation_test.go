@@ -282,6 +282,35 @@ func TestFullProcess(t *testing.T) {
 		err = db.Close()
 		So(err, ShouldBeNil)
 
+		// create
+		dsn2, err := client.Create(client.ResourceMeta{Node: 1})
+		So(err, ShouldBeNil)
+
+		log.Infof("the created database dsn is %v", dsn2)
+
+		db2, err := sql.Open("covenantsql", dsn2)
+		So(err, ShouldBeNil)
+
+		cfg2, err := client.ParseDSN(dsn2)
+		dbID2 := cfg2.DatabaseID
+		So(dbID, ShouldNotResemble, dbID2)
+
+		_, err = db2.Exec("CREATE TABLE test (test int)")
+		So(err, ShouldBeNil)
+
+		_, err = db2.Exec("INSERT INTO test VALUES(?)", 4)
+		So(err, ShouldBeNil)
+
+		row2 := db2.QueryRow("SELECT * FROM test LIMIT 1")
+
+		var result2 int
+		err = row2.Scan(&result2)
+		So(err, ShouldBeNil)
+		So(result2, ShouldEqual, 4)
+
+		err = db2.Close()
+		So(err, ShouldBeNil)
+
 		// start the observer and listen for produced blocks
 		err = utils.WaitForPorts(context.Background(), "127.0.0.1", []int{4663}, time.Millisecond*200)
 		So(err, ShouldBeNil)
@@ -389,7 +418,22 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldContainSubstring, "CREATE TABLE")
 
+		// test get genesis block by height
+		res, err = getJSON("height/%v/0", dbID2)
+		So(err, ShouldNotBeNil)
+		log.Info(err, res)
+
+		// test get genesis block by height
+		res, err = getJSON("head/%v", dbID2)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
+		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
+		log.Info(err, res)
+
 		err = client.Drop(dsn)
+		So(err, ShouldBeNil)
+
+		err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
 	})
 }

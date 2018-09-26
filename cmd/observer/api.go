@@ -219,8 +219,18 @@ func (a *explorerAPI) getHighestBlock(rw http.ResponseWriter, r *http.Request) {
 
 	height, block, err := a.service.getHighestBlock(dbID)
 	if err == ErrNotFound {
-		sendResponse(400, false, err, nil, rw)
-		return
+		// try to add subscription
+		err = a.service.subscribe(dbID, "")
+		if err == nil {
+			height, block, err = a.service.getHighestBlock(dbID)
+			if err != nil {
+				sendResponse(500, false, err, nil, rw)
+				return
+			}
+		} else {
+			sendResponse(400, false, err, nil, rw)
+			return
+		}
 	} else if err != nil {
 		sendResponse(500, false, err, nil, rw)
 		return

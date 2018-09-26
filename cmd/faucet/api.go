@@ -118,7 +118,13 @@ func (d *tokenDispenser) application(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if applicationID, err := d.p.enqueueApplication(address, mediaURL); err != nil {
-		sendResponse(http.StatusBadRequest, false, err.Error(), nil, rw)
+		var status = http.StatusBadRequest
+		if err == ErrAddressQuotaExceeded || err == ErrAccountQuotaExceeded {
+			status = http.StatusTooManyRequests
+		} else if err == ErrEnqueueApplication {
+			status = http.StatusInternalServerError
+		}
+		sendResponse(status, false, err.Error(), nil, rw)
 	} else {
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
 			"id": applicationID,

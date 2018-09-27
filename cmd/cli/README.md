@@ -9,13 +9,13 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cli
 ```
 *make sure that `$GOPATH/bin` is in your `$PATH`*
 
-### Generating Default Config File
+## Generating Default Config File
 
 You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `idminer`, you can find the config file in the directory that `idminer` create.
 
-See: [idminer doc](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/idminer#usage) for conf generation and get wallet address.
+See: [idminer doc](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/idminer#usage) for config generation and get wallet address.
 
-### Check balance
+## Check balance
 
 Use `covenantcli` to check your wallet balance:
 ```bash

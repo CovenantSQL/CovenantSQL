@@ -207,7 +207,8 @@ func (r *observerReplicator) replicate() {
 			Count: func() int32 {
 				if nd := r.c.bi.lookupNode(block.BlockHash()); nd != nil {
 					return nd.count
-				} else if pn := r.c.bi.lookupNode(block.ParentHash()); pn != nil {
+				}
+				if pn := r.c.bi.lookupNode(block.ParentHash()); pn != nil {
 					return pn.count + 1
 				}
 				return -1

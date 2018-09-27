@@ -1,13 +1,13 @@
 This doc introduce the usage of covenantSQL `cli`. `cli` is a command line interface for batch scripting used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
 
-## Prerequisites
-
-Make sure that `$GOPATH/bin` is in your `$PATH`
+## Install
+Download [Latest Release](https://github.com/CovenantSQL/CovenantSQL/releases) or build from src:
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
 $ go get github.com/CovenantSQL/CovenantSQL/cmd/cli
 ```
+*make sure that `$GOPATH/bin` is in your `$PATH`*
 
 ### Generating Default Config File
 

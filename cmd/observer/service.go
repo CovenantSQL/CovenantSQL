@@ -214,6 +214,7 @@ func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string
 		s.subscription[dbID] = fromPos
 
 		// send start subscription request
+		// TODO(leventeliu): should also clean up obsolete data in db file!
 		shouldStartSubscribe = true
 	} else {
 		// not resetting

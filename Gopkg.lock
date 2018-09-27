@@ -125,6 +125,14 @@
   version = "v1.1.6"
 
 [[projects]]
+  branch = "master"
+  digest = "1:665c8850f673be8d358fe61ab00412049e685202aa7466ae5c72ad50d89c84f7"
+  name = "github.com/dyatlov/go-opengraph"
+  packages = ["opengraph"]
+  pruneopts = "UT"
+  revision = "816b6608b3c8c1e871bc9cf777f390e2532081fe"
+
+[[projects]]
   digest = "1:544229a3ca0fb2dd5ebc2896d3d2ff7ce096d9751635301e44e37e761349ee70"
   name = "github.com/fortytw2/leaktest"
   packages = ["."]
@@ -338,6 +346,14 @@
   revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:ff6b0586c0621a76832cf783eee58cbb9d9795d2ce8acbc199a4131db11c42a9"
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[projects]]
   digest = "1:d867dfa6751c8d7a435821ad3b736310c2ed68945d05b50fb9d23aee0540c8cc"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -475,10 +491,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7679523acab7ab7d18ac9e00b46991470a212a1e3dc653027db8f331b02397a2"
+  digest = "1:4076636ef0c11c103e8395af90f3fa433856e639f51af25cc657577f46670407"
   name = "golang.org/x/net"
   packages = [
     "bpf",
+    "html",
+    "html/atom",
     "internal/iana",
     "internal/socket",
     "ipv4",
@@ -506,6 +524,14 @@
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
   version = "v2.2.1"
 
+[[projects]]
+  branch = "master"
+  digest = "1:989270fffe265c4238404733c5591302fdccafa4ecd48d2f59cfa1e7e1ea3937"
+  name = "mvdan.cc/xurls"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "70405f5eab516c9f7b626d803b043415809499a6"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -516,6 +542,7 @@
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
     "github.com/coreos/bbolt",
+    "github.com/dyatlov/go-opengraph/opengraph",
     "github.com/fortytw2/leaktest",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
@@ -531,6 +558,7 @@
     "github.com/prometheus/common/expfmt",
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
+    "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
     "github.com/smartystreets/goconvey/convey",
     "github.com/stretchr/testify/mock",
@@ -546,6 +574,7 @@
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
     "gopkg.in/yaml.v2",
+    "mvdan.cc/xurls",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -66,6 +66,10 @@ func (z *AccountAddress) Msgsize() (s int) {
 	return hsp.BytesPrefixSize + hash.HashSize
 }
 
+func (z *AccountAddress) String() string {
+	return (*hash.Hash)(z).String()
+}
+
 // Less return true if k is less than y
 func (k *NodeKey) Less(y *NodeKey) bool {
 	for idx, val := range k.Hash {

@@ -91,6 +91,19 @@ func main() {
 	}
 
 	// start subscription
+	var cfg *Config
+	if cfg, err = loadConfig(configFile); err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+	if cfg != nil {
+		for _, v := range cfg.Databases {
+			if err = service.subscribe(proto.DatabaseID(v.ID), v.Position); err != nil {
+				log.Fatalf("init subscription failed: %v", err)
+			}
+		}
+	}
+	// Process command arguments after config file so that you can reset subscribe on startup
+	// without changing the config.
 	if dbID != "" {
 		if err = service.subscribe(proto.DatabaseID(dbID), resetPosition); err != nil {
 			log.Fatalf("init subscription failed: %v", err)

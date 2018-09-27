@@ -33,6 +33,7 @@ type ChainRPCService struct {
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
 	Block *ct.Block
+	Count int32
 }
 
 // AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.

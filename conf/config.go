@@ -45,9 +45,9 @@ var RoleTag = UnknownBuildTag
 
 // BaseAccountInfo defines base info to build a BaseAccount.
 type BaseAccountInfo struct {
-	Address             proto.AccountAddress `yaml:"Address"`
-	StableCoinBalance   uint64               `yaml:"StableCoinBalance"`
-	CovenantCoinBalance uint64               `yaml:"CovenantCoinBalance"`
+	Address             hash.Hash `yaml:"Address"`
+	StableCoinBalance   uint64    `yaml:"StableCoinBalance"`
+	CovenantCoinBalance uint64    `yaml:"CovenantCoinBalance"`
 }
 
 // BPGenesisInfo hold all genesis info fields.

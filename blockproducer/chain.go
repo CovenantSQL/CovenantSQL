@@ -99,7 +99,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 			return
 		}
 		for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
-			if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
+			if _, err = txbk.CreateBucketIfNotExists(i.Bytes()); err != nil {
 				return
 			}
 		}
@@ -140,6 +140,8 @@ func NewChain(cfg *Config) (*Chain, error) {
 		pendingTxs:     make(chan pi.Transaction),
 		stopCh:         make(chan struct{}),
 	}
+
+	log.Debugf("pushing genesis block: %v", cfg.Genesis)
 
 	if err = chain.pushGenesisBlock(cfg.Genesis); err != nil {
 		return nil, err
@@ -405,6 +407,9 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 
 func (c *Chain) pushGenesisBlock(b *types.Block) (err error) {
 	err = c.pushBlockWithoutCheck(b)
+	if err != nil {
+		log.Errorf("push genesis block failed: %v", err)
+	}
 	return
 }
 

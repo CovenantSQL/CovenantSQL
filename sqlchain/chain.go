@@ -232,7 +232,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 				parent = last
 			} else {
-				parent = chain.bi.lookupNode(block.BlockHash())
+				parent = chain.bi.lookupNode(block.ParentHash())
 
 				if parent == nil {
 					return ErrParentNotFound
@@ -368,19 +368,19 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 
 	if hb = b.Bucket(k); hb == nil {
 		// Create and initialize bucket in new height
-		if hb, err = b.CreateBucket(k); err != nil {
+		if hb, err = b.CreateBucketIfNotExists(k); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaRequestIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaRequestIndexBucket); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaResponseIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaResponseIndexBucket); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaAckIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaAckIndexBucket); err != nil {
 			return
 		}
 	}
@@ -495,6 +495,15 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		DatabaseID: c.rt.databaseID,
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
+			Count: func() int32 {
+				if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
+					return nd.count
+				}
+				if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
+					return pn.count + 1
+				}
+				return -1
+			}(),
 		},
 	}
 	peers := c.rt.getPeers()

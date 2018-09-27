@@ -92,4 +92,13 @@ func TestPubKeyHashAndAddressing(t *testing.T) {
 			t.Logf("test net address: %s", targetAddr)
 		}
 	})
+
+	Convey("Test Hash/Addr bi-directional convert", t, func() {
+		version, internalAddr, err := Addr2Hash("4j2MMwPAH8Z3v8BEyRXDnVpA82nB6DgRHxxGroLfU4S7Qk5k9vQ")
+		So(version, ShouldEqual, TestNet)
+		So(err, ShouldBeNil)
+
+		addr := Hash2Addr(internalAddr, MainNet)
+		So(addr, ShouldEqual, "1FinCZcguUux4fxM5dJuuGCUNRTw49Dx26KnAzA8Kh4djuHeH2")
+	})
 }

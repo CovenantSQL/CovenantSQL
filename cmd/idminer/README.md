@@ -1,18 +1,11 @@
 idminer is a helper command of CovenantSQL
 
 ## Install 
-
-Make sure that `$GOPATH/bin` is in your `$PATH`
-
+Download [Latest Release](https://github.com/CovenantSQL/CovenantSQL/releases) or build from src:
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/cmd/idminer
 ```
-
-Show usage of `idminer`:
-
-```bash
-$ idminer -help
-```
+*make sure that `$GOPATH/bin` is in your `$PATH`*
 
 ## Usage
 ### Generate Key Pair

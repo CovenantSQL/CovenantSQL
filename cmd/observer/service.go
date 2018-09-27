@@ -399,7 +399,12 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *ct.Block) (err
 	if err != nil {
 		return
 	}
-	log.Debugf("add block %v, height: %v, %v -> %v, %v", dbID, h, b.BlockHash(), b.ParentHash(), b.Producer())
+	log.WithFields(log.Fields{
+		"database": dbID,
+		"count":    count,
+		"height":   h,
+		"producer": b.Producer(),
+	}).Debugf("Add new block %v -> %v", b.BlockHash(), b.ParentHash())
 
 	return s.db.Update(func(tx *bolt.Tx) (err error) {
 		bb, err := tx.Bucket(blockBucket).CreateBucketIfNotExists([]byte(dbID))
@@ -413,8 +418,10 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *ct.Block) (err
 		if err != nil {
 			return
 		}
-		if err = cb.Put(ckey, key); err != nil {
-			return
+		if count >= 0 {
+			if err = cb.Put(ckey, key); err != nil {
+				return
+			}
 		}
 		hb, err := tx.Bucket(blockHeightBucket).CreateBucketIfNotExists([]byte(dbID))
 		if err != nil {

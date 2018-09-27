@@ -204,6 +204,13 @@ func (r *observerReplicator) replicate() {
 		DatabaseID: r.c.rt.databaseID,
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
+			Count: func() int32 {
+				var pn = r.c.bi.lookupNode(block.ParentHash())
+				if pn != nil {
+					return pn.count + 1
+				}
+				return -1
+			}(),
 		},
 	}
 	resp := &MuxAdviseNewBlockResp{}

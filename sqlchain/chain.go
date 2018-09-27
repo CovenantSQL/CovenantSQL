@@ -232,7 +232,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 				parent = last
 			} else {
-				parent = chain.bi.lookupNode(block.BlockHash())
+				parent = chain.bi.lookupNode(block.ParentHash())
 
 				if parent == nil {
 					return ErrParentNotFound

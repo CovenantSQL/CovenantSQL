@@ -925,10 +925,11 @@ func (c *Chain) syncAckedQuery(height int32, header *hash.Hash, id proto.NodeID)
 func (c *Chain) queryOrSyncAckedQuery(height int32, header *hash.Hash, id proto.NodeID) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	if ack, err = c.FetchAckedQuery(height, header); err != nil || ack != nil || id == c.rt.getServer().ID {
+	if ack, err = c.FetchAckedQuery(
+		height, header,
+	); (err == nil && ack != nil) || id == c.rt.getServer().ID {
 		return
 	}
-
 	return c.syncAckedQuery(height, header, id)
 }
 

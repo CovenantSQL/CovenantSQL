@@ -42,7 +42,7 @@ script:
 
 before_deploy:
   - mkdir -p build
-  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/covenantadapter bin/covenantcli bin/covenantminerd bin/covenantobserver bin/covenantsqld
+  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/covenantadapter bin/covenantcli bin/covenantminerd bin/covenantobserver bin/covenantsqld bin/idminer
 
 deploy:
   provider: releases

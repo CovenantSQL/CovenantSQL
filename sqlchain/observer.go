@@ -205,8 +205,10 @@ func (r *observerReplicator) replicate() {
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
 			Count: func() int32 {
-				var pn = r.c.bi.lookupNode(block.ParentHash())
-				if pn != nil {
+				if nd := r.c.bi.lookupNode(block.BlockHash()); nd != nil {
+					return nd.count
+				}
+				if pn := r.c.bi.lookupNode(block.ParentHash()); pn != nil {
 					return pn.count + 1
 				}
 				return -1

@@ -496,8 +496,10 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
 			Count: func() int32 {
-				var pn = c.bi.lookupNode(block.ParentHash())
-				if pn != nil {
+				if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
+					return nd.count
+				}
+				if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
 					return pn.count + 1
 				}
 				return -1

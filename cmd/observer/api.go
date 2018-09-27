@@ -283,7 +283,7 @@ func (a *explorerAPI) getHighestBlockV2(rw http.ResponseWriter, r *http.Request)
 	count, height, block, err := a.service.getHighestBlockV2(dbID)
 	if err == ErrNotFound {
 		// try to add subscription
-		err = a.service.subscribe(dbID, "")
+		err = a.service.subscribe(dbID, "oldest")
 		if err == nil {
 			count, height, block, err = a.service.getHighestBlockV2(dbID)
 			if err != nil {

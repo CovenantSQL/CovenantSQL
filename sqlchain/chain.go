@@ -864,7 +864,7 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	}
 	err = c.db.View(func(tx *bolt.Tx) (err error) {
 		var hb = tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
-		for h := height - c.rt.queryTTL; h <= height; h++ {
+		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
 			if ab := hb.Bucket(heightToKey(h)); ab != nil {
 				if v := ab.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
 					var dec = &wt.SignedAckHeader{}

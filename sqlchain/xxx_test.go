@@ -371,6 +371,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 			return
 		}
 
+		b.Queries = nil
 		b.SignedHeader.GenesisHash = hash.Hash{}
 		b.SignedHeader.Header.Producer = proto.NodeID(nis[0].Hash.String())
 	}

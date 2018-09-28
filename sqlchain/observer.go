@@ -177,8 +177,6 @@ func (r *observerReplicator) replicate() {
 	for _, h := range block.Queries {
 		var ack *wt.SignedAckHeader
 		if ack, err = r.c.queryOrSyncAckedQuery(r.height, h, block.Producer()); err != nil || ack == nil {
-			// FIXME(leventeliu): may be caused by the difference of response time height and
-			// block height. Resolve and fix me.
 			log.Warningf("fetch ack %v in block height %v failed: %v", h, r.height, err)
 			continue
 		}

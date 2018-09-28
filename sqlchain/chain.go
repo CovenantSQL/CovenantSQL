@@ -432,7 +432,6 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 			return
 		}
 
-		// TODO(leventeliu): this doesn't seem right to use an error to detect key existence.
 		if err = b.Bucket(metaAckIndexBucket).Put(
 			ack.HeaderHash[:], enc.Bytes(),
 		); err != nil {
@@ -860,30 +859,28 @@ func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	if ack, err = c.qi.getAck(height, header); err != nil {
-		err = c.db.View(func(tx *bolt.Tx) (err error) {
-			for i := height - c.rt.queryTTL; i <= height; i++ {
-				if b := tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket).Bucket(
-					heightToKey(height)); b != nil {
-					if v := b.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
-						dec := &wt.SignedAckHeader{}
-
-						if err = utils.DecodeMsgPack(v, dec); err != nil {
-							ack = dec
-							break
-						}
+	if ack, err = c.qi.getAck(height, header); err == nil && ack != nil {
+		return
+	}
+	err = c.db.View(func(tx *bolt.Tx) (err error) {
+		var hb = tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
+		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
+			if ab := hb.Bucket(heightToKey(h)); ab != nil {
+				if v := ab.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
+					var dec = &wt.SignedAckHeader{}
+					if err = utils.DecodeMsgPack(v, dec); err != nil {
+						return
 					}
+					ack = dec
+					break
 				}
 			}
-
-			if ack == nil {
-				err = ErrAckQueryNotFound
-			}
-
-			return
-		})
-	}
-
+		}
+		if ack == nil {
+			err = ErrAckQueryNotFound
+		}
+		return
+	})
 	return
 }
 

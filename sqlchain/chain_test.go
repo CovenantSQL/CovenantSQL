@@ -290,6 +290,34 @@ func TestMultiChain(t *testing.T) {
 		}(v.chain)
 	}
 
+	// Should be able to fetch all acks in all peers
+	for _, v := range chains {
+		defer func(c *Chain) {
+			var ch = c.rt.getHead().Height
+			for i := int32(0); i <= ch; i++ {
+				var node *blockNode
+				if node = c.rt.getHead().node.ancestor(i); node == nil {
+					t.Logf("Block at height %d not found in peer %s, continue",
+						i, c.rt.getPeerInfoString())
+					continue
+				}
+				t.Logf("Checking block %v at height %d in peer %s",
+					node.block.BlockHash(), i, c.rt.getPeerInfoString())
+				for _, v := range node.block.Queries {
+					if ack, err := c.queryOrSyncAckedQuery(
+						i, v, node.block.Producer(),
+					); err != nil && ack == nil {
+						t.Errorf("Failed to fetch ack %v at height %d in peer %s: %v",
+							v, i, c.rt.getPeerInfoString(), err)
+					} else {
+						t.Logf("Successed to fetch ack %v at height %d in peer %s",
+							v, i, c.rt.getPeerInfoString())
+					}
+				}
+			}
+		}(v.chain)
+	}
+
 	// Create some random clients to push new queries
 	for i, v := range chains {
 		sC := make(chan struct{})

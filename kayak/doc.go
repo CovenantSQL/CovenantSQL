@@ -16,5 +16,6 @@
 
 /*
 Package kayak is a simple configurable multi-purpose consensus sdk.
+The storage implementations contains code refactored from original hashicorp/raft and hashicorp/raft-boltdb repository.
 */
 package kayak

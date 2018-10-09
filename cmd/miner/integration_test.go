@@ -28,7 +28,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
-	
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -223,8 +223,7 @@ func startNodesProfile() {
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
-		},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml")},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -235,8 +234,7 @@ func startNodesProfile() {
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
-		},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml")},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -247,8 +245,7 @@ func startNodesProfile() {
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
-		},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml")},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -400,13 +397,15 @@ func BenchmarkSingleMiner(b *testing.B) {
 		//	}
 		//})
 
-	
 		b.Run("benchmark SELECT", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i)
 				var result int
-				row.Scan(&result)
+				err = row.Scan(&result)
+				if err != nil || result < 0 {
+					b.Fatal(err)
+				}
 			}
 		})
 

@@ -24,7 +24,7 @@
 </p>
 
 
-CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain. with Features:
+CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain with features:
 
 - **SQL**: most SQL-92 support.
 - **Decentralize**: decentralize with our consensus algorithm DH-RPC & Kayak.
@@ -91,11 +91,16 @@ that inspired us:
 
 CovenantSQL is Still Under Construction(U know..). Test net will be released till Oct. 
 
-Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) we will *Wake U Up When September Ends*
+Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) for updates.
 
 - [Golang](client/)
 - [Java](https://github.com/CovenantSQL/covenant-connector)
 - Coding for more……
+
+## TestNet
+
+- [Quick Start](https://testnet.covenantsql.io/quickstart)
+- [TestNet faucet](https://testnet.covenantsql.io/)
 
 ## Contact
 

@@ -176,6 +176,38 @@ func (a *explorerAPI) GetBlock(rw http.ResponseWriter, r *http.Request) {
 	sendResponse(200, true, "", a.formatBlock(height, block), rw)
 }
 
+func (a *explorerAPI) GetBlockByCount(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	dbID, err := a.getDBID(vars)
+	if err != nil {
+		sendResponse(400, false, err, nil, rw)
+		return
+	}
+
+	countStr := vars["count"]
+	if countStr == "" {
+		sendResponse(400, false, "", nil, rw)
+		return
+	}
+
+	countNumber, err := strconv.ParseInt(countStr, 10, 32)
+	if err != nil {
+		sendResponse(400, false, err, nil, rw)
+		return
+	}
+
+	count := int32(countNumber)
+
+	height, block, err := a.service.getBlockByCount(dbID, count)
+	if err != nil {
+		sendResponse(500, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(200, true, "", a.formatBlockV2(count, height, block), rw)
+}
+
 func (a *explorerAPI) GetBlockByHeight(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -219,14 +251,55 @@ func (a *explorerAPI) getHighestBlock(rw http.ResponseWriter, r *http.Request) {
 
 	height, block, err := a.service.getHighestBlock(dbID)
 	if err == ErrNotFound {
-		sendResponse(400, false, err, nil, rw)
-		return
+		// try to add subscription
+		err = a.service.subscribe(dbID, "oldest")
+		if err == nil {
+			height, block, err = a.service.getHighestBlock(dbID)
+			if err != nil {
+				sendResponse(500, false, err, nil, rw)
+				return
+			}
+		} else {
+			sendResponse(400, false, err, nil, rw)
+			return
+		}
 	} else if err != nil {
 		sendResponse(500, false, err, nil, rw)
 		return
 	}
 
 	sendResponse(200, true, "", a.formatBlock(height, block), rw)
+}
+
+func (a *explorerAPI) getHighestBlockV2(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	dbID, err := a.getDBID(vars)
+	if err != nil {
+		sendResponse(400, false, err, nil, rw)
+		return
+	}
+
+	count, height, block, err := a.service.getHighestBlockV2(dbID)
+	if err == ErrNotFound {
+		// try to add subscription
+		err = a.service.subscribe(dbID, "oldest")
+		if err == nil {
+			count, height, block, err = a.service.getHighestBlockV2(dbID)
+			if err != nil {
+				sendResponse(500, false, err, nil, rw)
+				return
+			}
+		} else {
+			sendResponse(400, false, err, nil, rw)
+			return
+		}
+	} else if err != nil {
+		sendResponse(500, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(200, true, "", a.formatBlockV2(count, height, block), rw)
 }
 
 func (a *explorerAPI) formatBlock(height int32, b *ct.Block) map[string]interface{} {
@@ -238,6 +311,27 @@ func (a *explorerAPI) formatBlock(height int32, b *ct.Block) map[string]interfac
 
 	return map[string]interface{}{
 		"block": map[string]interface{}{
+			"height":       height,
+			"hash":         b.BlockHash().String(),
+			"genesis_hash": b.GenesisHash().String(),
+			"timestamp":    a.formatTime(b.Timestamp()),
+			"version":      b.SignedHeader.Version,
+			"producer":     b.Producer(),
+			"queries":      queries,
+		},
+	}
+}
+
+func (a *explorerAPI) formatBlockV2(count, height int32, b *ct.Block) map[string]interface{} {
+	queries := make([]string, 0, len(b.Queries))
+
+	for _, q := range b.Queries {
+		queries = append(queries, q.String())
+	}
+
+	return map[string]interface{}{
+		"block": map[string]interface{}{
+			"count":        count,
 			"height":       height,
 			"hash":         b.BlockHash().String(),
 			"genesis_hash": b.GenesisHash().String(),
@@ -315,8 +409,11 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	v1Router.HandleFunc("/offset/{db}/{offset:[0-9]+}", api.GetRequestByOffset).Methods("GET")
 	v1Router.HandleFunc("/request/{db}/{hash}", api.GetRequest).Methods("GET")
 	v1Router.HandleFunc("/block/{db}/{hash}", api.GetBlock).Methods("GET")
+	v1Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCount).Methods("GET")
 	v1Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeight).Methods("GET")
 	v1Router.HandleFunc("/head/{db}", api.getHighestBlock).Methods("GET")
+	v2Router := router.PathPrefix("/v2").Subrouter()
+	v2Router.HandleFunc("/head/{db}", api.getHighestBlockV2).Methods("GET")
 
 	server = &http.Server{
 		Addr:         listenAddr,

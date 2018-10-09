@@ -109,6 +109,16 @@ const (
 	OBSAdviseAckedQuery
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
 	OBSAdviseNewBlock
+	// MCCNextAccountNonce is used by block producer main chain to allocate next nonce for transactions
+	MCCNextAccountNonce
+	// MCCAddTx is used by block producer main chain to upload transaction
+	MCCAddTx
+	// MCCAddTxTransfer is used by block producer main chain to upload transfer transaction
+	MCCAddTxTransfer
+	// MCCQueryAccountStableBalance is used by block producer to provide account stable coin balance
+	MCCQueryAccountStableBalance
+	// MCCQueryAccountCovenantBalance is used by block producer to provide account covenant coin balance
+	MCCQueryAccountCovenantBalance
 )
 
 // String returns the RemoteFunc string
@@ -162,6 +172,16 @@ func (s RemoteFunc) String() string {
 		return "OBS.AdviseAckedQuery"
 	case OBSAdviseNewBlock:
 		return "OBS.AdviseNewBlock"
+	case MCCNextAccountNonce:
+		return "MCC.NextAccountNonce"
+	case MCCAddTx:
+		return "MCC.AddTx"
+	case MCCAddTxTransfer:
+		return "MCC.AddTxTransfer"
+	case MCCQueryAccountStableBalance:
+		return "MCC.QueryAccountStableBalance"
+	case MCCQueryAccountCovenantBalance:
+		return "MCC.QueryAccountCovenantBalance"
 	}
 	return "Unknown"
 }

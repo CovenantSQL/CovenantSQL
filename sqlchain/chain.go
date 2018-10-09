@@ -232,7 +232,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 				parent = last
 			} else {
-				parent = chain.bi.lookupNode(block.BlockHash())
+				parent = chain.bi.lookupNode(block.ParentHash())
 
 				if parent == nil {
 					return ErrParentNotFound
@@ -368,19 +368,19 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 
 	if hb = b.Bucket(k); hb == nil {
 		// Create and initialize bucket in new height
-		if hb, err = b.CreateBucket(k); err != nil {
+		if hb, err = b.CreateBucketIfNotExists(k); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaRequestIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaRequestIndexBucket); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaResponseIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaResponseIndexBucket); err != nil {
 			return
 		}
 
-		if _, err = hb.CreateBucket(metaAckIndexBucket); err != nil {
+		if _, err = hb.CreateBucketIfNotExists(metaAckIndexBucket); err != nil {
 			return
 		}
 	}
@@ -432,7 +432,6 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 			return
 		}
 
-		// TODO(leventeliu): this doesn't seem right to use an error to detect key existence.
 		if err = b.Bucket(metaAckIndexBucket).Put(
 			ack.HeaderHash[:], enc.Bytes(),
 		); err != nil {
@@ -495,6 +494,15 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		DatabaseID: c.rt.databaseID,
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
+			Count: func() int32 {
+				if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
+					return nd.count
+				}
+				if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
+					return pn.count + 1
+				}
+				return -1
+			}(),
 		},
 	}
 	peers := c.rt.getPeers()
@@ -851,26 +859,28 @@ func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	if ack, err = c.qi.getAck(height, header); err != nil {
-		err = c.db.View(func(tx *bolt.Tx) (err error) {
-			for i := height - c.rt.queryTTL; i <= height; i++ {
-				if b := tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket).Bucket(
-					heightToKey(height)); b != nil {
-					if v := b.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
-						dec := &wt.SignedAckHeader{}
-
-						if err = utils.DecodeMsgPack(v, dec); err != nil {
-							ack = dec
-							break
-						}
+	if ack, err = c.qi.getAck(height, header); err == nil && ack != nil {
+		return
+	}
+	err = c.db.View(func(tx *bolt.Tx) (err error) {
+		var hb = tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
+		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
+			if ab := hb.Bucket(heightToKey(h)); ab != nil {
+				if v := ab.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
+					var dec = &wt.SignedAckHeader{}
+					if err = utils.DecodeMsgPack(v, dec); err != nil {
+						return
 					}
+					ack = dec
+					break
 				}
 			}
-
-			return
-		})
-	}
-
+		}
+		if ack == nil {
+			err = ErrAckQueryNotFound
+		}
+		return
+	})
 	return
 }
 
@@ -912,10 +922,11 @@ func (c *Chain) syncAckedQuery(height int32, header *hash.Hash, id proto.NodeID)
 func (c *Chain) queryOrSyncAckedQuery(height int32, header *hash.Hash, id proto.NodeID) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	if ack, err = c.FetchAckedQuery(height, header); err != nil || ack != nil || id == c.rt.getServer().ID {
+	if ack, err = c.FetchAckedQuery(
+		height, header,
+	); (err == nil && ack != nil) || id == c.rt.getServer().ID {
 		return
 	}
-
 	return c.syncAckedQuery(height, header, id)
 }
 

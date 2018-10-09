@@ -17,48 +17,48 @@
 package utils
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/btcsuite/btcutil/base58"
 	. "github.com/smartystreets/goconvey/convey"
-	"encoding/base64"
 )
 
 func TestPubKeyHashAndAddressing(t *testing.T) {
 	testPubkeyAndAddr := []struct {
-		pubkey string
-		addr string
+		pubkey  string
+		addr    string
 		nettype byte
 	}{
 		{
-			pubkey: "AwVygZRpvwCc+8SKnbwQrtlXPze7/hte0ksObyml37Gi",
-			addr: "1EcL9WYyB59jVLSX9kxFdfY53aDoWAKSFRkwwV2cvMMNCWj81J",
+			pubkey:  "AwVygZRpvwCc+8SKnbwQrtlXPze7/hte0ksObyml37Gi",
+			addr:    "1EcL9WYyB59jVLSX9kxFdfY53aDoWAKSFRkwwV2cvMMNCWj81J",
 			nettype: MainNet,
 		},
 		{
-			pubkey: "AwVygZRpvwCc+8SKnbwQrtlXPze7/hte0ksObyml37Gi",
-			addr: "4j1EutL6ZQ9HhYqj9Ves8EDVihvvxfhWnCHi2ZqXxf6Q9GK45v5",
+			pubkey:  "AwVygZRpvwCc+8SKnbwQrtlXPze7/hte0ksObyml37Gi",
+			addr:    "4j1EutL6ZQ9HhYqj9Ves8EDVihvvxfhWnCHi2ZqXxf6Q9GK45v5",
 			nettype: TestNet,
 		},
 		{
-			pubkey: "Aua4icZ7gvBbzw4MDkGvFOEXG88lY4IJccigDQRghj1c",
-			addr: "12HRffwitkFR4ooMu6x5EAnHscKyftfuTZnTc3ciYmoSh9HxMY5",
+			pubkey:  "Aua4icZ7gvBbzw4MDkGvFOEXG88lY4IJccigDQRghj1c",
+			addr:    "12HRffwitkFR4ooMu6x5EAnHscKyftfuTZnTc3ciYmoSh9HxMY5",
 			nettype: MainNet,
 		},
 		{
-			pubkey: "Aua4icZ7gvBbzw4MDkGvFOEXG88lY4IJccigDQRghj1c",
-			addr: "4k44FQmGUyKZ2sJeXSqz6mLFXGggq4D6oWeQgfyDtWYVUDQS2bj",
+			pubkey:  "Aua4icZ7gvBbzw4MDkGvFOEXG88lY4IJccigDQRghj1c",
+			addr:    "4k44FQmGUyKZ2sJeXSqz6mLFXGggq4D6oWeQgfyDtWYVUDQS2bj",
 			nettype: TestNet,
 		},
 		{
-			pubkey: "An/n4w2Lb3QYPzpQjAlADcK14LnwDbkl21gdasuwND1a",
-			addr: "1FinCZcguUux4fxM5dJuuGCUNRTw49Dx26KnAzA8Kh4djuHeH2",
+			pubkey:  "An/n4w2Lb3QYPzpQjAlADcK14LnwDbkl21gdasuwND1a",
+			addr:    "1FinCZcguUux4fxM5dJuuGCUNRTw49Dx26KnAzA8Kh4djuHeH2",
 			nettype: MainNet,
 		},
 		{
-			pubkey: "An/n4w2Lb3QYPzpQjAlADcK14LnwDbkl21gdasuwND1a",
-			addr: "4j2MMwPAH8Z3v8BEyRXDnVpA82nB6DgRHxxGroLfU4S7Qk5k9vQ",
+			pubkey:  "An/n4w2Lb3QYPzpQjAlADcK14LnwDbkl21gdasuwND1a",
+			addr:    "4j2MMwPAH8Z3v8BEyRXDnVpA82nB6DgRHxxGroLfU4S7Qk5k9vQ",
 			nettype: TestNet,
 		},
 	}
@@ -91,5 +91,14 @@ func TestPubKeyHashAndAddressing(t *testing.T) {
 			So(err, ShouldBeNil)
 			t.Logf("test net address: %s", targetAddr)
 		}
+	})
+
+	Convey("Test Hash/Addr bi-directional convert", t, func() {
+		version, internalAddr, err := Addr2Hash("4j2MMwPAH8Z3v8BEyRXDnVpA82nB6DgRHxxGroLfU4S7Qk5k9vQ")
+		So(version, ShouldEqual, TestNet)
+		So(err, ShouldBeNil)
+
+		addr := Hash2Addr(internalAddr, MainNet)
+		So(addr, ShouldEqual, "1FinCZcguUux4fxM5dJuuGCUNRTw49Dx26KnAzA8Kh4djuHeH2")
 	})
 }

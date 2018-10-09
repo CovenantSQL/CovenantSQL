@@ -96,14 +96,11 @@ func TestStartBP_CallRPC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config from %s failed: %s", configFile, err)
 	}
-	rootPath := conf.GConf.WorkingRoot
-	pubKeyStorePath := filepath.Join(rootPath, conf.GConf.PubKeyStoreFile)
-	privateKeyPath := filepath.Join(rootPath, conf.GConf.PrivateKeyFile)
 
-	route.InitKMS(pubKeyStorePath)
+	route.InitKMS(conf.GConf.PubKeyStoreFile)
 	var masterKey []byte
 
-	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
+	err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey)
 	if err != nil {
 		t.Errorf("init local key pair failed: %s", err)
 		return

@@ -21,51 +21,48 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
-
-	"github.com/CovenantSQL/CovenantSQL/merkle"
-
-	"github.com/CovenantSQL/CovenantSQL/rpc"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/merkle"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
 )
 
 var (
-	metaBucket                   = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaStateKey                 = []byte("covenantsql-state")
-	metaBlockIndexBucket         = []byte("covenantsql-block-index-bucket")
-	metaTxBillingIndexBucket     = []byte("covenantsql-tx-billing-index-bucket")
-	metaLastTxBillingIndexBucket = []byte("covenantsql-last-tx-billing-index-bucket")
-	metaAccountIndexBucket       = []byte("covenantsql-account-index-bucket")
-
-	gasprice uint32 = 1
-
-	accountAddress proto.AccountAddress
+	metaBucket                          = [4]byte{0x0, 0x0, 0x0, 0x0}
+	metaStateKey                        = []byte("covenantsql-state")
+	metaBlockIndexBucket                = []byte("covenantsql-block-index-bucket")
+	metaTransactionBucket               = []byte("covenantsql-tx-index-bucket")
+	metaTxBillingIndexBucket            = []byte("covenantsql-tx-billing-index-bucket")
+	metaLastTxBillingIndexBucket        = []byte("covenantsql-last-tx-billing-index-bucket")
+	metaAccountIndexBucket              = []byte("covenantsql-account-index-bucket")
+	metaSQLChainIndexBucket             = []byte("covenantsql-sqlchain-index-bucket")
+	gasprice                     uint32 = 1
+	accountAddress               proto.AccountAddress
 )
 
-// Chain defines the main chain
+// Chain defines the main chain.
 type Chain struct {
 	db *bolt.DB
+	ms *metaState
 	bi *blockIndex
 	ti *txIndex
 	rt *rt
 	st *State
 	cl *rpc.Caller
 
-	blocksFromSelf    chan *types.Block
-	blocksFromRPC     chan *types.Block
-	txBillingFromSelf chan *types.TxBilling
-	txBillingFromPRC  chan *types.TxBilling
-	stopCh            chan struct{}
+	blocksFromSelf chan *types.Block
+	blocksFromRPC  chan *types.Block
+	pendingTxs     chan pi.Transaction
+	stopCh         chan struct{}
 }
 
-// NewChain creates a new blockchain
+// NewChain creates a new blockchain.
 func NewChain(cfg *Config) (*Chain, error) {
 	// open db file
 	db, err := bolt.Open(cfg.DataFile, 0600, nil)
@@ -97,6 +94,16 @@ func NewChain(cfg *Config) (*Chain, error) {
 			return
 		}
 
+		txbk, err := bucket.CreateBucketIfNotExists(metaTransactionBucket)
+		if err != nil {
+			return
+		}
+		for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
+			if _, err = txbk.CreateBucketIfNotExists(i.Bytes()); err != nil {
+				return
+			}
+		}
+
 		_, err = bucket.CreateBucketIfNotExists(metaTxBillingIndexBucket)
 		if err != nil {
 			return
@@ -108,6 +115,11 @@ func NewChain(cfg *Config) (*Chain, error) {
 		}
 
 		_, err = bucket.CreateBucketIfNotExists(metaAccountIndexBucket)
+		if err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaSQLChainIndexBucket)
 		return
 	})
 	if err != nil {
@@ -116,20 +128,25 @@ func NewChain(cfg *Config) (*Chain, error) {
 
 	// create chain
 	chain := &Chain{
-		db:                db,
-		bi:                newBlockIndex(),
-		ti:                newTxIndex(),
-		rt:                newRuntime(cfg, accountAddress),
-		st:                &State{},
-		cl:                rpc.NewCaller(),
-		blocksFromSelf:    make(chan *types.Block),
-		blocksFromRPC:     make(chan *types.Block),
-		txBillingFromSelf: make(chan *types.TxBilling),
-		txBillingFromPRC:  make(chan *types.TxBilling),
-		stopCh:            make(chan struct{}),
+		db:             db,
+		ms:             newMetaState(),
+		bi:             newBlockIndex(),
+		ti:             newTxIndex(),
+		rt:             newRuntime(cfg, accountAddress),
+		st:             &State{},
+		cl:             rpc.NewCaller(),
+		blocksFromSelf: make(chan *types.Block),
+		blocksFromRPC:  make(chan *types.Block),
+		pendingTxs:     make(chan pi.Transaction),
+		stopCh:         make(chan struct{}),
 	}
 
-	chain.pushGenesisBlock(cfg.Genesis)
+	log.Debugf("pushing genesis block: %v", cfg.Genesis)
+
+	if err = chain.pushGenesisBlock(cfg.Genesis); err != nil {
+		return nil, err
+	}
+
 	log.WithFields(log.Fields{
 		"index":     chain.rt.index,
 		"bp_number": chain.rt.bpNum,
@@ -140,7 +157,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 	return chain, nil
 }
 
-// LoadChain rebuilds the chain from db
+// LoadChain rebuilds the chain from db.
 func LoadChain(cfg *Config) (chain *Chain, err error) {
 	// open db file
 	db, err := bolt.Open(cfg.DataFile, 0600, nil)
@@ -160,25 +177,25 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	chain = &Chain{
-		db:                db,
-		bi:                newBlockIndex(),
-		ti:                newTxIndex(),
-		rt:                newRuntime(cfg, accountAddress),
-		st:                &State{},
-		cl:                rpc.NewCaller(),
-		blocksFromSelf:    make(chan *types.Block),
-		blocksFromRPC:     make(chan *types.Block),
-		txBillingFromSelf: make(chan *types.TxBilling),
-		txBillingFromPRC:  make(chan *types.TxBilling),
-		stopCh:            make(chan struct{}),
+		db:             db,
+		ms:             newMetaState(),
+		bi:             newBlockIndex(),
+		ti:             newTxIndex(),
+		rt:             newRuntime(cfg, accountAddress),
+		st:             &State{},
+		cl:             rpc.NewCaller(),
+		blocksFromSelf: make(chan *types.Block),
+		blocksFromRPC:  make(chan *types.Block),
+		pendingTxs:     make(chan pi.Transaction),
+		stopCh:         make(chan struct{}),
 	}
 
-	err = chain.db.View(func(tx *bolt.Tx) error {
+	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		meta := tx.Bucket(metaBucket[:])
 		err = chain.st.deserialize(meta.Get(metaStateKey))
 
 		if err != nil {
-			return err
+			return
 		}
 
 		var last *blockNode
@@ -186,10 +203,11 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		blocks := meta.Bucket(metaBlockIndexBucket)
 		nodes := make([]blockNode, blocks.Stats().KeyN)
 
-		err = blocks.ForEach(func(k, v []byte) (err error) {
+		if err = blocks.ForEach(func(k, v []byte) (err error) {
 			block := &types.Block{}
 
 			if err = block.Deserialize(v); err != nil {
+				log.Errorf("loadeing block: %v", err)
 				return err
 			}
 
@@ -215,41 +233,49 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			last = &nodes[index]
 			index++
 			return err
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 
 		txbillings := meta.Bucket(metaTxBillingIndexBucket)
-		err = txbillings.ForEach(func(k, v []byte) error {
+		if err = txbillings.ForEach(func(k, v []byte) (err error) {
 			txbilling := types.TxBilling{}
 			err = txbilling.Deserialize(v)
 			if err != nil {
-				return err
+				return
 			}
 			chain.ti.addTxBilling(&txbilling)
-			return err
-		})
+			return
+		}); err != nil {
+			return
+		}
 
 		lastTxBillings := meta.Bucket(metaLastTxBillingIndexBucket)
-		err = lastTxBillings.ForEach(func(k, v []byte) error {
+		if err = lastTxBillings.ForEach(func(k, v []byte) (err error) {
 			var databaseID proto.DatabaseID
 			err = utils.DecodeMsgPack(k, &databaseID)
 			if err != nil {
-				return err
+				return
 			}
 
 			var sequenceID uint32
 			err = utils.DecodeMsgPack(v, &sequenceID)
 			if err != nil {
-				return err
+				return
 			}
 
 			chain.ti.updateLastTxBilling(&databaseID, sequenceID)
-			return nil
-		})
+			return
+		}); err != nil {
+			return
+		}
 
-		return err
+		// Reload state
+		if err = chain.ms.reloadProcedure()(tx); err != nil {
+			return
+		}
+
+		return
 	})
 	if err != nil {
 		return nil, err
@@ -258,18 +284,9 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	return chain, nil
 }
 
-// checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID
-func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
-	enc, err := tb.TxContent.MarshalHash()
-	if err != nil {
-		return err
-	}
-	h := hash.THashH(enc)
-	if !tb.TxHash.IsEqual(&h) {
-		return ErrInvalidHash
-	}
-
-	err = tb.Verify(&h)
+// checkTxBilling has two steps: 1. Hash 2. Signature 3. existed tx 4. SequenceID.
+func (c *Chain) checkTxBilling(tb *types.TxBilling) (err error) {
+	err = tb.Verify()
 	if err != nil {
 		return err
 	}
@@ -312,23 +329,22 @@ func (c *Chain) checkTxBilling(tb *types.TxBilling) error {
 	return nil
 }
 
-// checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature
-func (c *Chain) checkBlock(b *types.Block) error {
+// checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
+func (c *Chain) checkBlock(b *types.Block) (err error) {
 	// TODO(lambda): process block fork
 	if !b.SignedHeader.ParentHash.IsEqual(c.st.getHeader()) {
 		log.Debugf("chain's parent hash is %s, and height is %d. But received block's hash is %s", c.st.getHeader(), c.st.getHeight(), b.SignedHeader.ParentHash)
 		return ErrParentNotMatch
 	}
-	hashes := make([]*hash.Hash, len(b.TxBillings))
+
+	// TODO(leventeliu): merge transactions checking.
 	for i := range b.TxBillings {
-		err := c.checkTxBilling(b.TxBillings[i])
-		if err != nil {
+		if err = c.checkTxBilling(b.TxBillings[i]); err != nil {
 			return err
 		}
-		hashes[i] = b.TxBillings[i].TxHash
 	}
 
-	rootHash := merkle.NewMerkle(hashes).GetRoot()
+	rootHash := merkle.NewMerkle(b.GetTxHashes()).GetRoot()
 	if !b.SignedHeader.MerkleRoot.IsEqual(rootHash) {
 		return ErrInvalidMerkleTreeRoot
 	}
@@ -364,13 +380,22 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		return err
 	}
 
-	err = c.db.Update(func(tx *bolt.Tx) error {
+	err = c.db.Update(func(tx *bolt.Tx) (err error) {
 		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState)
 		if err != nil {
 			return err
 		}
 		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock)
-		return err
+		if err != nil {
+			return err
+		}
+		for _, v := range b.Transactions {
+			if err = c.ms.applyTransactionProcedure(v)(tx); err != nil {
+				return err
+			}
+		}
+		err = c.ms.partialCommitProcedure(b.Transactions)(tx)
+		return
 	})
 	if err != nil {
 		return err
@@ -378,12 +403,14 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	c.st = &state
 	c.bi.addBlock(node)
 	return nil
-
 }
 
-func (c *Chain) pushGenesisBlock(b *types.Block) error {
-	err := c.pushBlockWithoutCheck(b)
-	return err
+func (c *Chain) pushGenesisBlock(b *types.Block) (err error) {
+	err = c.pushBlockWithoutCheck(b)
+	if err != nil {
+		log.Errorf("push genesis block failed: %v", err)
+	}
+	return
 }
 
 func (c *Chain) pushBlock(b *types.Block) error {
@@ -523,95 +550,42 @@ func (c *Chain) produceBlock(now time.Time) error {
 	return err
 }
 
-func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingResponse, error) {
+func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResponse, err error) {
 	// TODO(lambda): simplify the function
-	err := c.checkBillingRequest(br)
-	if err != nil {
-		return nil, err
+	if err = c.checkBillingRequest(br); err != nil {
+		return
 	}
 
 	// update stable coin's balance
 	// TODO(lambda): because there is no token distribution,
 	// we only increase miners' balance but not decrease customer's balance
-	accountNumber := len(br.Header.GasAmounts)
-	receivers := make([]*proto.AccountAddress, accountNumber)
-	fees := make([]uint64, accountNumber)
-	rewards := make([]uint64, accountNumber)
-	accounts := make([]*types.Account, accountNumber)
+	var (
+		enc           []byte
+		accountNumber = len(br.Header.GasAmounts)
+		receivers     = make([]*proto.AccountAddress, accountNumber)
+		fees          = make([]uint64, accountNumber)
+		rewards       = make([]uint64, accountNumber)
+	)
 
-	err = c.db.View(func(tx *bolt.Tx) error {
-		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-		for i, addrAndGas := range br.Header.GasAmounts {
-			receivers[i] = &addrAndGas.AccountAddress
-			fees[i] = addrAndGas.GasAmount * uint64(gasprice)
-			rewards[i] = 0
-
-			enc := accountBucket.Get(addrAndGas.AccountAddress[:])
-			if enc == nil {
-				accounts[i] = &types.Account{
-					Address:             addrAndGas.AccountAddress,
-					StableCoinBalance:   addrAndGas.GasAmount * uint64(gasprice),
-					CovenantCoinBalance: 0,
-					SQLChains:           []proto.DatabaseID{br.Header.DatabaseID},
-					Roles:               []byte{types.Miner},
-					Rating:              0.0,
-				}
-			} else {
-				var dec types.Account
-				err = utils.DecodeMsgPack(enc, &dec)
-				if err != nil {
-					return err
-				}
-				accounts[i].StableCoinBalance = dec.StableCoinBalance + addrAndGas.GasAmount*uint64(gasprice)
-				included := false
-				for j := range accounts[i].SQLChains {
-					if accounts[i].SQLChains[j] == br.Header.DatabaseID {
-						included = true
-						break
-					}
-				}
-				if !included {
-					accounts[i].SQLChains = append(accounts[i].SQLChains, br.Header.DatabaseID)
-					accounts[i].Roles = append(accounts[i].Roles, types.Miner)
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	for i, addrAndGas := range br.Header.GasAmounts {
+		receivers[i] = &addrAndGas.AccountAddress
+		fees[i] = addrAndGas.GasAmount * uint64(gasprice)
+		rewards[i] = 0
 	}
 
-	// update accounts
-	err = c.db.Update(func(tx *bolt.Tx) error {
-		accountBucket := tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-		for _, account := range accounts {
-			enc, err := utils.EncodeMsgPack(account)
-			if err != nil {
-				return err
-			}
-			accountBucket.Put(account.Address[:], enc.Bytes())
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	enc, err := br.MarshalHash()
-	if err != nil {
-		return nil, err
+	if enc, err = br.MarshalHash(); err != nil {
+		return
 	}
 	h := hash.THashH(enc)
 
 	// generate response
 	privKey, err := kms.GetLocalPrivateKey()
 	if err != nil {
-		return nil, err
+		return
 	}
 	sign, err := privKey.Sign(h[:])
 	if err != nil {
-		return nil, err
+		return
 	}
 	resp := &types.BillingResponse{
 		AccountAddress: accountAddress,
@@ -622,43 +596,21 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 
 	// generate and push the txbilling
 	// 1. generate txbilling
-	var seqID uint32
-	var tc *types.TxContent
-	var tb *types.TxBilling
-	err = c.db.View(func(tx *bolt.Tx) error {
-		meta := tx.Bucket(metaBucket[:])
-		metaLastTB := meta.Bucket(metaLastTxBillingIndexBucket)
-
-		// generate unique seqID
-		encDatabaseID, err := utils.EncodeMsgPack(br.Header.DatabaseID)
-		if err != nil {
-			return err
-		}
-		oldSeqIDRaw := metaLastTB.Get(encDatabaseID.Bytes())
-		if oldSeqIDRaw != nil {
-			var oldSeqID uint32
-			err = utils.DecodeMsgPack(oldSeqIDRaw, oldSeqID)
-			if err != nil {
-				return err
-			}
-			seqID = oldSeqID + 1
-		} else {
-			seqID = 0
-		}
-
-		// generate txbilling
-		tc = types.NewTxContent(seqID, br, receivers, fees, rewards, resp)
+	var nc pi.AccountNonce
+	if nc, err = c.ms.nextNonce(accountAddress); err != nil {
+		return
+	}
+	var (
+		tc = types.NewTxContent(uint32(nc), br, receivers, fees, rewards, resp)
 		tb = types.NewTxBilling(tc, types.TxTypeBilling, &c.rt.accountAddress)
-		tb.PackAndSignTx(privKey)
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	)
+	if err = tb.Sign(privKey); err != nil {
+		return
 	}
 	log.Debugf("response is %s", resp.RequestHash)
+
 	// 2. push tx
-	c.txBillingFromSelf <- tb
+	c.pendingTxs <- tb
 	tbReq := &AdviseTxBillingReq{
 		Envelope: proto.Envelope{
 			// TODO(lambda): Add fields.
@@ -694,7 +646,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (*types.BillingRespon
 // checkBillingRequest checks followings by order:
 // 1. period of sqlchain;
 // 2. request's hash
-// 3. miners' signatures
+// 3. miners' signatures.
 func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
 	// period of sqlchain;
 	// TODO(lambda): get and check period and miner list of specific sqlchain
@@ -793,7 +745,7 @@ func (c *Chain) sync() error {
 // Start starts the chain by step:
 // 1. sync the chain
 // 2. goroutine for getting blocks
-// 3. goroutine for getting txes
+// 3. goroutine for getting txes.
 func (c *Chain) Start() error {
 	err := c.sync()
 	if err != nil {
@@ -803,7 +755,7 @@ func (c *Chain) Start() error {
 	c.rt.wg.Add(1)
 	go c.processBlocks()
 	c.rt.wg.Add(1)
-	go c.processTxBillings()
+	go c.processTxs()
 	c.rt.wg.Add(1)
 	go c.mainCycle()
 	c.rt.startService(c)
@@ -871,34 +823,25 @@ func (c *Chain) processBlocks() {
 			return
 		}
 	}
-
 }
 
-func (c *Chain) processTxBillings() {
+func (c *Chain) processTx(tx pi.Transaction) (err error) {
+	return c.db.Update(c.ms.applyTransactionProcedure(tx))
+}
+
+func (c *Chain) processTxs() {
 	defer c.rt.wg.Done()
 	for {
 		select {
-		case tb := <-c.txBillingFromSelf:
-			err := c.pushTxBillingWithoutCheck(tb)
-			if err != nil {
+		case tx := <-c.pendingTxs:
+			if err := c.processTx(tx); err != nil {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
 					"head_height": c.st.getHeight(),
 					"head_block":  c.st.getHeader().String(),
-					"tx_hash":     tb.TxHash,
-				}).Debugf("Failed to push self-producing tx billing with error: %v", err)
-			}
-		case tb := <-c.txBillingFromPRC:
-			err := c.pushTxBilling(tb)
-			if err != nil {
-				log.WithFields(log.Fields{
-					"peer":        c.rt.getPeerInfoString(),
-					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.st.getHeight(),
-					"head_block":  c.st.getHeader().String(),
-					"tx_hash":     tb.TxHash,
-				}).Debugf("Failed to push rpc tx billing with error: %v", err)
+					"transaction": tx.GetHash().String(),
+				}).Debugf("Failed to push tx with error: %v", err)
 			}
 		case <-c.stopCh:
 			return
@@ -996,7 +939,6 @@ func (c *Chain) syncHead() {
 				"Cannot get block from any peer")
 		}
 	}
-
 }
 
 // Stop stops the main process of the sql-chain.

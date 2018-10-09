@@ -19,22 +19,17 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"syscall"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	log "github.com/sirupsen/logrus"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 func initNode() (server *rpc.Server, err error) {
-	keyPairRootPath := conf.GConf.WorkingRoot
-	pubKeyPath := filepath.Join(keyPairRootPath, conf.GConf.PubKeyStoreFile)
-	privKeyPath := filepath.Join(keyPairRootPath, conf.GConf.PrivateKeyFile)
-
 	var masterKey []byte
 	if !conf.GConf.IsTestMode {
 		// read master key
@@ -46,7 +41,7 @@ func initNode() (server *rpc.Server, err error) {
 		fmt.Println("")
 	}
 
-	if err = kms.InitLocalKeyPair(privKeyPath, masterKey); err != nil {
+	if err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey); err != nil {
 		log.Errorf("init local key pair failed: %s", err)
 		return
 	}
@@ -54,10 +49,11 @@ func initNode() (server *rpc.Server, err error) {
 	log.Infof("init routes")
 
 	// init kms routing
-	route.InitKMS(pubKeyPath)
+	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
 	// init server
-	if server, err = createServer(privKeyPath, pubKeyPath, masterKey, conf.GConf.ListenAddr); err != nil {
+	if server, err = createServer(
+		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, conf.GConf.ListenAddr); err != nil {
 		log.Errorf("create server failed: %v", err)
 		return
 	}

@@ -23,18 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -79,6 +74,27 @@ func TestChain(t *testing.T) {
 		cfg := NewConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0].ID, testPeriod, testTick)
 		chain, err := NewChain(cfg)
 		So(err, ShouldBeNil)
+		ao, ok := chain.ms.readonly.accounts[testAddress1]
+		So(ok, ShouldBeTrue)
+		So(ao, ShouldNotBeNil)
+		So(chain.ms.pool.entries[testAddress1].transacions, ShouldBeEmpty)
+		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 1)
+		var (
+			bl     uint64
+			loaded bool
+		)
+		bl, loaded = chain.ms.loadAccountStableBalance(testAddress1)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
+		bl, loaded = chain.ms.loadAccountStableBalance(testAddress2)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
+		bl, loaded = chain.ms.loadAccountCovenantBalance(testAddress1)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
+		bl, loaded = chain.ms.loadAccountCovenantBalance(testAddress2)
+		So(loaded, ShouldBeTrue)
+		So(bl, ShouldEqual, testInitBalance)
 
 		// Hack for signle instance test
 		chain.rt.bpNum = 5
@@ -159,6 +175,7 @@ func TestMultiNode(t *testing.T) {
 		// create genesis block
 		genesis, err := generateRandomBlock(genesisHash, true)
 		So(err, ShouldBeNil)
+		So(genesis.Transactions, ShouldNotBeEmpty)
 
 		// Create sql-chain instances
 		chains := make([]*Chain, testPeersNumber)
@@ -225,7 +242,7 @@ func TestMultiNode(t *testing.T) {
 			err = chains[i].Start()
 			So(err, ShouldBeNil)
 			defer func(c *Chain) {
-				chains[i].Stop()
+				c.Stop()
 			}(chains[i])
 		}
 
@@ -265,8 +282,11 @@ func TestMultiNode(t *testing.T) {
 									"request_hash": br.RequestHash,
 								}).WithError(err).Error("Failed to advise new billing request")
 							}
-							c.So(err, ShouldBeNil)
-							log.Debugf("response %d hash is %s", val, bResp.Resp.RequestHash)
+							// TODO(leventeliu): this test needs to be improved using some preset
+							// accounts. Or this request will return an "ErrAccountNotFound" error.
+							c.So(err, ShouldNotBeNil)
+							c.So(err.Error(), ShouldEqual, ErrAccountNotFound.Error())
+							//log.Debugf("response %d hash is %s", val, bResp.Resp.RequestHash)
 
 						}
 					}

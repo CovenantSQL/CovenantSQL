@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -65,41 +66,99 @@ type AdviseBillingResp struct {
 	Resp *types.BillingResponse
 }
 
-// FetchBlockReq defines a request of the FetchBlock RPC method
+// FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	proto.Envelope
 	Height uint32
 }
 
-// FetchBlockResp defines a response of the FetchBlock RPC method
+// FetchBlockResp defines a response of the FetchBlock RPC method.
 type FetchBlockResp struct {
 	proto.Envelope
 	Height uint32
 	Block  *types.Block
 }
 
-// FetchTxBillingReq defines a request of the FetchTxBilling RPC method
+// FetchTxBillingReq defines a request of the FetchTxBilling RPC method.
 type FetchTxBillingReq struct {
 	proto.Envelope
 }
 
-// FetchTxBillingResp defines a response of the FetchTxBilling RPC method
+// FetchTxBillingResp defines a response of the FetchTxBilling RPC method.
 type FetchTxBillingResp struct {
 	proto.Envelope
 }
 
-// AdviseNewBlock is the RPC method to advise a new block to target server
+// NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
+type NextAccountNonceReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+// NextAccountNonceResp defines a response of the NextAccountNonce RPC method.
+type NextAccountNonceResp struct {
+	proto.Envelope
+	Addr  proto.AccountAddress
+	Nonce pi.AccountNonce
+}
+
+// AddTxReq defines a request of the AddTx RPC method.
+type AddTxReq struct {
+	proto.Envelope
+	Tx pi.Transaction
+}
+
+// AddTxResp defines a response of the AddTx RPC method.
+type AddTxResp struct {
+	proto.Envelope
+}
+
+// AddTxTransferReq defines a request of AddTxTransfer RPC method.
+type AddTxTransferReq struct {
+	proto.Envelope
+	Tx *types.Transfer
+}
+
+// QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
+type QueryAccountStableBalanceReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+// QueryAccountStableBalanceResp defines a request of the QueryAccountStableBalance RPC method.
+type QueryAccountStableBalanceResp struct {
+	proto.Envelope
+	Addr    proto.AccountAddress
+	OK      bool
+	Balance uint64
+}
+
+// QueryAccountCovenantBalanceReq defines a request of the QueryAccountCovenantBalance RPC method.
+type QueryAccountCovenantBalanceReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+// QueryAccountCovenantBalanceResp defines a request of the QueryAccountCovenantBalance RPC method.
+type QueryAccountCovenantBalanceResp struct {
+	proto.Envelope
+	Addr    proto.AccountAddress
+	OK      bool
+	Balance uint64
+}
+
+// AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
 	s.chain.blocksFromRPC <- req.Block
 	return s.chain.pushBlock(req.Block)
 }
 
-// AdviseTxBilling is the RPC method to advise a new billing tx to target server
+// AdviseTxBilling is the RPC method to advise a new billing tx to target server.
 func (s *ChainRPCService) AdviseTxBilling(req *AdviseTxBillingReq, resp *AdviseTxBillingResp) error {
 	return s.chain.pushTxBilling(req.TxBilling)
 }
 
-// AdviseBillingRequest is the RPC method to advise a new billing request to main chain
+// AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
 func (s *ChainRPCService) AdviseBillingRequest(req *AdviseBillingReq, resp *AdviseBillingResp) error {
 	response, err := s.chain.produceTxBilling(req.Req)
 	if err != nil {
@@ -120,4 +179,55 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 // FetchTxBilling is the RPC method to fetch a known billing tx form the target server.
 func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
 	return nil
+}
+
+// NextAccountNonce is the RPC method to query the next nonce of an account.
+func (s *ChainRPCService) NextAccountNonce(
+	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
+) {
+	if resp.Nonce, err = s.chain.ms.nextNonce(req.Addr); err != nil {
+		return
+	}
+	resp.Addr = req.Addr
+	return
+}
+
+// AddTx is the RPC method to add a transaction.
+func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
+	if req.Tx == nil {
+		return ErrUnknownTransactionType
+	}
+
+	s.chain.pendingTxs <- req.Tx
+
+	return
+}
+
+// AddTxTransfer is the RPC method to add a transfer transaction.
+func (s *ChainRPCService) AddTxTransfer(req *AddTxTransferReq, resp *AddTxResp) (err error) {
+	if req.Tx == nil {
+		return ErrUnknownTransactionType
+	}
+
+	s.chain.pendingTxs <- req.Tx
+
+	return
+}
+
+// QueryAccountStableBalance is the RPC method to query acccount stable coin balance.
+func (s *ChainRPCService) QueryAccountStableBalance(
+	req *QueryAccountStableBalanceReq, resp *QueryAccountStableBalanceResp) (err error,
+) {
+	resp.Addr = req.Addr
+	resp.Balance, resp.OK = s.chain.ms.loadAccountStableBalance(req.Addr)
+	return
+}
+
+// QueryAccountCovenantBalance is the RPC method to query acccount covenant coin balance.
+func (s *ChainRPCService) QueryAccountCovenantBalance(
+	req *QueryAccountCovenantBalanceReq, resp *QueryAccountCovenantBalanceResp) (err error,
+) {
+	resp.Addr = req.Addr
+	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
+	return
 }

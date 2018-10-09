@@ -19,7 +19,6 @@ package client
 import (
 	"database/sql"
 	"database/sql/driver"
-	"path/filepath"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -28,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
@@ -63,10 +63,8 @@ func Init(configFile string, masterKey []byte) (err error) {
 	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
 		return
 	}
-	pubKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, PubKeyStorePath)
-	route.InitKMS(pubKeyFilePath)
-	privKeyFilePath := filepath.Join(conf.GConf.WorkingRoot, conf.GConf.PrivateKeyFile)
-	if err = kms.InitLocalKeyPair(privKeyFilePath, masterKey); err != nil {
+	route.InitKMS(conf.GConf.PubKeyStoreFile)
+	if err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey); err != nil {
 		return
 	}
 
@@ -127,6 +125,48 @@ func Drop(dsn string) (err error) {
 	}
 	res := new(bp.DropDatabaseResponse)
 	err = requestBP(route.BPDBDropDatabase, req, res)
+
+	return
+}
+
+// GetStableCoinBalance get the stable coin balance of current account.
+func GetStableCoinBalance() (balance uint64, err error) {
+	req := new(bp.QueryAccountStableBalanceReq)
+	resp := new(bp.QueryAccountStableBalanceResp)
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	if req.Addr, err = utils.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	if err = requestBP(route.MCCQueryAccountStableBalance, req, resp); err == nil {
+		balance = resp.Balance
+	}
+
+	return
+}
+
+// GetCovenantCoinBalance get the covenant coin balance of current account.
+func GetCovenantCoinBalance() (balance uint64, err error) {
+	req := new(bp.QueryAccountCovenantBalanceReq)
+	resp := new(bp.QueryAccountCovenantBalanceResp)
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	if req.Addr, err = utils.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	if err = requestBP(route.MCCQueryAccountCovenantBalance, req, resp); err == nil {
+		balance = resp.Balance
+	}
 
 	return
 }

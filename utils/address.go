@@ -24,21 +24,25 @@ import (
 )
 
 const (
+	// MainNet is the version byte for main net.
 	MainNet byte = 0x0
+	// TestNet is the version byte for test net.
 	TestNet byte = 0x6f
 )
 
 // PubKey2Addr converts the pubKey to a address
 // and the format refers to https://bitcoin.org/en/developer-guide#standard-transactions
-func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (string, error) {
-	enc, err := pubKey.MarshalHash()
-	if err != nil {
-		return "", err
+func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (addr string, err error) {
+	var internalAddr proto.AccountAddress
+	if internalAddr, err = PubKeyHash(pubKey); err != nil {
+		return
 	}
-	h := hash.THashH(enc[:])
-	return base58.CheckEncode(h[:], version), nil
+
+	addr = Hash2Addr(internalAddr, version)
+	return
 }
 
+// PubKeyHash generates the account hash address for specified public key.
 func PubKeyHash(pubKey *asymmetric.PublicKey) (addr proto.AccountAddress, err error) {
 	var enc []byte
 
@@ -48,4 +52,23 @@ func PubKeyHash(pubKey *asymmetric.PublicKey) (addr proto.AccountAddress, err er
 
 	addr = proto.AccountAddress(hash.THashH(enc))
 	return
+}
+
+// Addr2Hash converts base58 address to internal account address hash.
+func Addr2Hash(addr string) (version byte, internalAddr proto.AccountAddress, err error) {
+	var hashBytes []byte
+	if hashBytes, version, err = base58.CheckDecode(addr); err != nil {
+		return
+	}
+	var h *hash.Hash
+	if h, err = hash.NewHash(hashBytes); err != nil {
+		return
+	}
+	internalAddr = proto.AccountAddress(*h)
+	return
+}
+
+// Hash2Addr converts interal account address hash to base58 format.
+func Hash2Addr(addr proto.AccountAddress, version byte) string {
+	return base58.CheckEncode(addr[:], version)
 }

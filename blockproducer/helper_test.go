@@ -114,7 +114,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	return
 }
 
-// fake a persistence driver
+// fake a persistence driver.
 type stubDBMetaPersistence struct{}
 
 func (p *stubDBMetaPersistence) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
@@ -252,7 +252,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	return
 }
 
-// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+// duplicate conf file using random new listen addr to avoid failure on concurrent test cases.
 func dupConf(confFile string, newConfFile string) (err error) {
 	// replace port in confFile
 	var fileBytes []byte

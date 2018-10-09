@@ -1,5 +1,5 @@
 IsTestMode: true
-WorkingRoot: "./observation/node_2"
+WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"

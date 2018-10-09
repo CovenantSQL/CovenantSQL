@@ -18,11 +18,11 @@ package conf
 
 import (
 	"io/ioutil"
+	"path"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -37,13 +37,20 @@ const (
 	UnknownBuildTag       = "U"
 )
 
-// StartSucceedMessage is printed when CovenantSQL started successfully
+// StartSucceedMessage is printed when CovenantSQL started successfully.
 const StartSucceedMessage = "CovenantSQL Started Successfully"
 
-// RoleTag indicate which role the daemon is playing
+// RoleTag indicate which role the daemon is playing.
 var RoleTag = UnknownBuildTag
 
-// BPGenesisInfo hold all genesis info fields
+// BaseAccountInfo defines base info to build a BaseAccount.
+type BaseAccountInfo struct {
+	Address             hash.Hash `yaml:"Address"`
+	StableCoinBalance   uint64    `yaml:"StableCoinBalance"`
+	CovenantCoinBalance uint64    `yaml:"CovenantCoinBalance"`
+}
+
+// BPGenesisInfo hold all genesis info fields.
 type BPGenesisInfo struct {
 	// Version defines the block version
 	Version int32 `yaml:"Version"`
@@ -55,11 +62,13 @@ type BPGenesisInfo struct {
 	ParentHash hash.Hash `yaml:"ParentHash"`
 	// Timestamp defines the initial time of chain
 	Timestamp time.Time `yaml:"Timestamp"`
-	// BlockHash defines the the block hash of genesis block
+	// BlockHash defines the block hash of genesis block
 	BlockHash hash.Hash `yaml:"BlockHash"`
+	// BaseAccounts defines the base accounts for testnet
+	BaseAccounts []BaseAccountInfo `yaml:"BaseAccounts"`
 }
 
-// BPInfo hold all BP info fields
+// BPInfo hold all BP info fields.
 type BPInfo struct {
 	// PublicKey point to BlockProducer public key
 	PublicKey *asymmetric.PublicKey `yaml:"PublicKey"`
@@ -71,8 +80,8 @@ type BPInfo struct {
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
 	// ChainFileName is the chain db's name
 	ChainFileName string `yaml:"ChainFileName"`
-	// BPGenesisInfo is the genesis block filed
-	BPGenesis BPGenesisInfo `yaml:"BPGenesisInfo"`
+	// BPGenesis is the genesis block filed
+	BPGenesis BPGenesisInfo `yaml:"BPGenesisInfo,omitempty"`
 }
 
 // MinerDatabaseFixture config.
@@ -97,13 +106,13 @@ type MinerInfo struct {
 	TestFixtures []*MinerDatabaseFixture `yaml:"TestFixtures,omitempty"`
 }
 
-// DNSSeed stuff
+// DNSSeed defines seed DNS info.
 type DNSSeed struct {
 	EnforcedDNSSEC bool     `yaml:"EnforcedDNSSEC"`
 	DNSServers     []string `yaml:"DNSServers"`
 }
 
-// Config holds all the config read from yaml config file
+// Config holds all the config read from yaml config file.
 type Config struct {
 	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
 	GenerateKeyPair bool `yaml:"-"`
@@ -127,10 +136,10 @@ type Config struct {
 	SeedBPNodes []proto.Node `yaml:"-"`
 }
 
-// GConf is the global config pointer
+// GConf is the global config pointer.
 var GConf *Config
 
-// LoadConfig loads config from configPath
+// LoadConfig loads config from configPath.
 func LoadConfig(configPath string) (config *Config, err error) {
 	configBytes, err := ioutil.ReadFile(configPath)
 	if err != nil {
@@ -144,5 +153,29 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
+	configDir := path.Dir(configPath)
+	if !path.IsAbs(config.PubKeyStoreFile) {
+		config.PubKeyStoreFile = path.Join(configDir, config.PubKeyStoreFile)
+	}
+
+	if !path.IsAbs(config.PrivateKeyFile) {
+		config.PrivateKeyFile = path.Join(configDir, config.PrivateKeyFile)
+	}
+
+	if !path.IsAbs(config.DHTFileName) {
+		config.DHTFileName = path.Join(configDir, config.DHTFileName)
+	}
+
+	if !path.IsAbs(config.WorkingRoot) {
+		config.WorkingRoot = path.Join(configDir, config.WorkingRoot)
+	}
+
+	if config.BP != nil && !path.IsAbs(config.BP.ChainFileName) {
+		config.BP.ChainFileName = path.Join(configDir, config.BP.ChainFileName)
+	}
+
+	if config.Miner != nil && !path.IsAbs(config.Miner.RootDir) {
+		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
+	}
 	return
 }

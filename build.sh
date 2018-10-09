@@ -40,6 +40,12 @@ go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags '
 cli_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cli"
 CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/covenantcli ${cli_pkgpath}
 
+adapter_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/adapter"
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/covenantadapter ${adapter_pkgpath}
+
+faucet_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/faucet"
+CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/covenantfaucet ${faucet_pkgpath}
+
 #echo "build covenantsqld-linux"
 #GOOS=linux GOARCH=amd64   go build -ldflags "-X main.version=${version}"  -o bin/covenantsqld-linux ${pkgpath}
 

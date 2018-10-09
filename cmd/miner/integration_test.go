@@ -345,90 +345,101 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
-func BenchmarkSingleMiner(b *testing.B) {
-	Convey("bench single node", b, func() {
-		startNodesProfile()
-		time.Sleep(5 * time.Second)
+func benchMiner(b *testing.B, minerCount uint16) {
+	log.Warnf("Benchmark for %d Miners", minerCount)
+	startNodesProfile()
+	time.Sleep(5 * time.Second)
 
-		var err error
-		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
-		So(err, ShouldBeNil)
+	var err error
+	err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+	So(err, ShouldBeNil)
 
-		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 1})
-		So(err, ShouldBeNil)
+	// create
+	dsn, err := client.Create(client.ResourceMeta{Node: minerCount})
+	So(err, ShouldBeNil)
 
-		log.Infof("the created database dsn is %v", dsn)
+	log.Infof("the created database dsn is %v", dsn)
 
-		db, err := sql.Open("covenantsql", dsn)
-		So(err, ShouldBeNil)
+	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
 
-		_, err = db.Exec("DROP TABLE IF EXISTS test;")
-		So(err, ShouldBeNil)
+	_, err = db.Exec("DROP TABLE IF EXISTS test;")
+	So(err, ShouldBeNil)
 
-		_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
-		So(err, ShouldBeNil)
+	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+	So(err, ShouldBeNil)
 
-		_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
-		So(err, ShouldBeNil)
+	_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+	So(err, ShouldBeNil)
 
-		_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
-		So(err, ShouldBeNil)
-		b.Run("benchmark INSERT", func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-					"(?, ?)", i, i,
-				)
-				if err != nil {
-					b.Fatal(err)
-				}
+	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+	So(err, ShouldBeNil)
+
+	var insertedCount int
+	b.Run("benchmark INSERT", func(b *testing.B) {
+		b.ResetTimer()
+		insertedCount = b.N
+		for i := 0; i < b.N; i++ {
+			_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+				"(?, ?)", i, i,
+			)
+			if err != nil {
+				b.Fatal(err)
 			}
-		})
-
-		//b.RunParallel(func(pb *testing.PB) {
-		//	for pb.Next() {
-		//		_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-		//			"(?, ?),(?, ?),(?, ?),(?, ?),(?, ?)", 1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
-		//		)
-		//		if err != nil {
-		//			b.Fatal(err)
-		//		}
-		//	}
-		//})
-		rowCount := db.QueryRow("SELECT COUNT(1) FROM test")
-		var count int
-		err = rowCount.Scan(&count)
-		if err != nil {
-			b.Fatal(err)
 		}
-		log.Warnf("Row Count: %d", count)
+	})
 
-		b.Run("benchmark SELECT", func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%count)
-				var result int
-				err = row.Scan(&result)
-				if err != nil || result < 0 {
-					b.Fatal(err)
-				}
+	rowCount := db.QueryRow("SELECT COUNT(1) FROM test")
+	var count int
+	err = rowCount.Scan(&count)
+	if err != nil {
+		b.Fatal(err)
+	}
+	log.Warnf("Row Count: %d", count)
+
+	b.Run("benchmark SELECT", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
+			var result int
+			err = row.Scan(&result)
+			if err != nil || result < 0 {
+				log.Errorf("i = %d", i)
+				b.Fatal(err)
 			}
-		})
+		}
+	})
 
-		row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
+	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 
-		var result int
-		err = row.Scan(&result)
-		So(err, ShouldBeNil)
-		So(result, ShouldEqual, 4)
+	var result int
+	err = row.Scan(&result)
+	So(err, ShouldBeNil)
+	So(result, ShouldEqual, 4)
 
-		err = db.Close()
-		So(err, ShouldBeNil)
+	err = db.Close()
+	So(err, ShouldBeNil)
 
-		err = client.Drop(dsn)
-		So(err, ShouldBeNil)
-		time.Sleep(5 * time.Second)
-		stopNodes()
+	err = client.Drop(dsn)
+	So(err, ShouldBeNil)
+	time.Sleep(5 * time.Second)
+	stopNodes()
+}
+
+func BenchmarkMinerOne(b *testing.B) {
+	Convey("bench single node", b, func() {
+		benchMiner(b, 1)
+	})
+}
+
+func BenchmarkMinerTwo(b *testing.B) {
+	Convey("bench two node", b, func() {
+		benchMiner(b, 2)
+	})
+}
+
+func BenchmarkMinerThree(b *testing.B) {
+	Convey("bench three node", b, func() {
+		benchMiner(b, 3)
 	})
 }

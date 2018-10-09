@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
@@ -207,6 +208,8 @@ func init() {
 	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
 	flag.StringVar(&fileName, "file", "", "execute commands from file and exit")
 	flag.BoolVar(&noRC, "no-rc", false, "do not read start up file")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 	flag.StringVar(&outFile, "out", "", "output file")
 	flag.StringVar(&configFile, "config", "config.yaml", "config file for covenantsql")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")

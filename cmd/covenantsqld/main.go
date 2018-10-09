@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -66,6 +67,8 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")

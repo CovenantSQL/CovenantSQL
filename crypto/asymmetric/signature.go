@@ -17,7 +17,7 @@
 package asymmetric
 
 import (
-	//	"crypto/ecdsa"
+	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
 	"math/big"
@@ -26,13 +26,17 @@ import (
 	ec "github.com/btcsuite/btcd/btcec"
 )
 
-var s *Signature
+var (
+	// BypassSignature is the flag indicate if bypassing signature sign & verify
+	BypassSignature = false
+	bypassS         *Signature
+)
 
 // For test Signature.Sign mock
 func init() {
 	priv, _ := ec.NewPrivateKey(ec.S256())
 	ss, _ := (*ec.PrivateKey)(priv).Sign([]byte{'0'})
-	s = (*Signature)(ss)
+	bypassS = (*Signature)(ss)
 }
 
 // Signature is a type representing an ecdsa signature.
@@ -70,16 +74,20 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
 func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
-	//s, e := (*ec.PrivateKey)(private).Sign(hash)
-	//return (*Signature)(s), e
-	return s, nil
+	if BypassSignature {
+		return bypassS, nil
+	}
+	s, e := (*ec.PrivateKey)(private).Sign(hash)
+	return (*Signature)(s), e
 }
 
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true
 // if the signature is valid, false otherwise.
 func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
-	return true
-	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
+	if BypassSignature {
+		return true
+	}
+	return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 
 // MarshalBinary does the serialization.

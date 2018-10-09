@@ -29,7 +29,10 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
@@ -156,7 +159,7 @@ func startNodes() {
 	}
 }
 
-func startNodesProfile() {
+func startNodesProfile(bypassSign bool) {
 	ctx := context.Background()
 
 	// wait for ports to be available
@@ -187,6 +190,7 @@ func startNodesProfile() {
 		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
+			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -198,6 +202,7 @@ func startNodesProfile() {
 		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
+			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -209,6 +214,7 @@ func startNodesProfile() {
 		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
+			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -223,7 +229,9 @@ func startNodesProfile() {
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml")},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
+			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -234,7 +242,9 @@ func startNodesProfile() {
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml")},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
+			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -245,7 +255,9 @@ func startNodesProfile() {
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml")},
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
+			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
@@ -345,9 +357,10 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
-func benchMiner(b *testing.B, minerCount uint16) {
-	log.Warnf("Benchmark for %d Miners", minerCount)
-	startNodesProfile()
+func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
+	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	asymmetric.BypassSignature = bypassSign
+	startNodesProfile(bypassSign)
 	time.Sleep(5 * time.Second)
 
 	var err error
@@ -426,20 +439,38 @@ func benchMiner(b *testing.B, minerCount uint16) {
 	stopNodes()
 }
 
+func BenchmarkMinerOneNoSign(b *testing.B) {
+	Convey("bench single node", b, func() {
+		benchMiner(b, 1, true)
+	})
+}
+
+func BenchmarkMinerTwoNoSign(b *testing.B) {
+	Convey("bench two node", b, func() {
+		benchMiner(b, 2, true)
+	})
+}
+
+func BenchmarkMinerThreeNoSign(b *testing.B) {
+	Convey("bench three node", b, func() {
+		benchMiner(b, 3, true)
+	})
+}
+
 func BenchmarkMinerOne(b *testing.B) {
 	Convey("bench single node", b, func() {
-		benchMiner(b, 1)
+		benchMiner(b, 1, false)
 	})
 }
 
 func BenchmarkMinerTwo(b *testing.B) {
 	Convey("bench two node", b, func() {
-		benchMiner(b, 2)
+		benchMiner(b, 2, false)
 	})
 }
 
 func BenchmarkMinerThree(b *testing.B) {
 	Convey("bench three node", b, func() {
-		benchMiner(b, 3)
+		benchMiner(b, 3, false)
 	})
 }

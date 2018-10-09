@@ -26,8 +26,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/profile"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -36,6 +36,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
+	"github.com/pkg/profile"
 )
 
 const logo = `
@@ -81,6 +82,8 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 

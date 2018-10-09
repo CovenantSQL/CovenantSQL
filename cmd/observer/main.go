@@ -26,6 +26,7 @@ import (
 	"syscall"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -48,7 +49,8 @@ var (
 
 func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
-	flag.StringVar(&dbID, "database", "", "database to listen for observation")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 	flag.StringVar(&resetPosition, "reset", "", "reset subscribe position")
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4663", "listen address for http explorer api")
 }

@@ -36,7 +36,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"github.com/pkg/profile"
 )
 
 const logo = `
@@ -82,9 +81,9 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
-	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
@@ -106,11 +105,11 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	// CPU profiling by default
-	defer profile.Start().Stop()
-
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+	flag.VisitAll(func(f *flag.Flag) {
+		log.Infof("Args %s : %v", f.Name, f.Value)
+	})
 
 	var err error
 	conf.GConf, err = conf.LoadConfig(configFile)

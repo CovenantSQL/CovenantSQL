@@ -42,6 +42,9 @@ func init() {
 
 func main() {
 	flag.Parse()
+	flag.VisitAll(func(f *flag.Flag) {
+		log.Infof("Args %s : %v", f.Name, f.Value)
+	})
 
 	server, err := NewHTTPAdapter(configFile, password)
 	if err != nil {

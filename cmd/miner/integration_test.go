@@ -29,8 +29,6 @@ import (
 	"testing"
 	"time"
 
-	"fmt"
-
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -158,9 +156,12 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 }
-
 func startNodesProfile(bypassSign bool) {
 	ctx := context.Background()
+	bypassArg := ""
+	if bypassSign {
+		bypassArg = "-bypassSignature"
+	}
 
 	// wait for ports to be available
 	var err error
@@ -190,7 +191,7 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
-			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+			bypassArg,
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -202,7 +203,7 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
-			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+			bypassArg,
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -214,7 +215,7 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/covenantsqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
-			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+			bypassArg,
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -230,7 +231,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
-			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+			bypassArg,
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -243,7 +244,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
-			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+			bypassArg,
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -256,7 +257,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantminerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
-			"-bypassSignature", fmt.Sprintf("%v", bypassSign),
+			bypassArg,
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {

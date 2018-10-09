@@ -396,11 +396,18 @@ func BenchmarkSingleMiner(b *testing.B) {
 		//		}
 		//	}
 		//})
+		rowCount := db.QueryRow("SELECT COUNT(1) FROM test")
+		var count int
+		err = rowCount.Scan(&count)
+		if err != nil {
+			b.Fatal(err)
+		}
+		log.Warnf("Row Count: %d", count)
 
 		b.Run("benchmark SELECT", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i)
+				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%count)
 				var result int
 				err = row.Scan(&result)
 				if err != nil || result < 0 {

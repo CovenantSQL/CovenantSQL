@@ -113,7 +113,7 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	if publicKey == nil {
 		publicKey = privateKey.PubKey()
 	}
-	log.Infof("\n### Public Key ###\n%x\n### Public Key ###\n", publicKey.Serialize())
+	log.Debugf("\n### Public Key ###\n%x\n### Public Key ###\n", publicKey.Serialize())
 	SetLocalKeyPair(privateKey, publicKey)
 	return
 }

@@ -358,26 +358,8 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
-func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
-	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
-	asymmetric.BypassSignature = bypassSign
-	startNodesProfile(bypassSign)
-	time.Sleep(5 * time.Second)
-
-	var err error
-	err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
-	So(err, ShouldBeNil)
-
-	// create
-	dsn, err := client.Create(client.ResourceMeta{Node: minerCount})
-	So(err, ShouldBeNil)
-
-	log.Infof("the created database dsn is %v", dsn)
-
-	db, err := sql.Open("covenantsql", dsn)
-	So(err, ShouldBeNil)
-
-	_, err = db.Exec("DROP TABLE IF EXISTS test;")
+func benchDB(b *testing.B, db *sql.DB) {
+	_, err := db.Exec("DROP TABLE IF EXISTS test;")
 	So(err, ShouldBeNil)
 
 	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
@@ -433,11 +415,48 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 
 	err = db.Close()
 	So(err, ShouldBeNil)
+}
+
+func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
+	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	asymmetric.BypassSignature = bypassSign
+	startNodesProfile(bypassSign)
+	time.Sleep(5 * time.Second)
+
+	var err error
+	err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+	So(err, ShouldBeNil)
+
+	// create
+	dsn, err := client.Create(client.ResourceMeta{Node: minerCount})
+	So(err, ShouldBeNil)
+
+	log.Infof("the created database dsn is %v", dsn)
+
+	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	benchDB(b, db)
 
 	err = client.Drop(dsn)
 	So(err, ShouldBeNil)
 	time.Sleep(5 * time.Second)
 	stopNodes()
+}
+
+func BenchmarkSQLite(b *testing.B) {
+	os.Remove("./foo.db")
+	defer os.Remove("./foo.db")
+
+	db, err := sql.Open("sqlite3", "./foo.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	Convey("bench SQLite", b, func() {
+		benchDB(b, db)
+	})
 }
 
 func BenchmarkMinerOneNoSign(b *testing.B) {

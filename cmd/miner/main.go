@@ -107,7 +107,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
-	flag.VisitAll(func(f *flag.Flag) {
+	flag.Visit(func(f *flag.Flag) {
 		log.Infof("Args %s : %v", f.Name, f.Value)
 	})
 

@@ -188,7 +188,7 @@ func startNodesProfile(bypassSign bool) {
 	// start 3bps
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
 			bypassArg,
@@ -200,7 +200,7 @@ func startNodesProfile(bypassSign bool) {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
 			bypassArg,
@@ -212,7 +212,7 @@ func startNodesProfile(bypassSign bool) {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
 			bypassArg,

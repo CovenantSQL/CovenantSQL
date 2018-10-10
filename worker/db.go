@@ -19,8 +19,10 @@ package worker
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,6 +36,7 @@ import (
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/sqlparser"
 )
 
 const (
@@ -365,7 +368,50 @@ func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err error) {
 	outQuery = make([]storage.Query, len(inQuery))
 	for i, q := range inQuery {
-		outQuery[i] = storage.Query(q)
+		tokenizer := sqlparser.NewStringTokenizer(q.Pattern)
+		var stmt sqlparser.Statement
+		var lastPos int
+		var query string
+		var originalQueries []string
+
+		for {
+			stmt, err = sqlparser.ParseNext(tokenizer)
+			if err != io.EOF {
+				return
+			}
+
+			if err == io.EOF {
+				break
+			}
+
+			query = q.Pattern[lastPos : tokenizer.Position-1]
+			lastPos = tokenizer.Position + 1
+
+			// translate show statement
+			if showStmt, ok := stmt.(*sqlparser.Show); ok {
+				switch showStmt.Type {
+				case "table":
+					if showStmt.ShowCreate {
+						query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
+							showStmt.OnTable.Name.String() + "\""
+					} else {
+						query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + "\""
+					}
+				case "index":
+					query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name \"" +
+						showStmt.OnTable.Name.String() + "\""
+				case "tables":
+					query = "SELECT name FROM sqlite_master WHERE type = \"table\""
+				}
+			}
+
+			originalQueries = append(originalQueries, query)
+		}
+
+		outQuery[i] = storage.Query{
+			Pattern: strings.Join(originalQueries, "; "),
+			Args:    q.Args,
+		}
 	}
 	return
 }

@@ -20,6 +20,8 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
@@ -67,8 +69,9 @@ var (
 	genKeyPair bool
 
 	// profile
-	cpuProfile string
-	memProfile string
+	cpuProfile    string
+	memProfile    string
+	profileServer string
 
 	// other
 	noLogo      bool
@@ -84,8 +87,10 @@ func init() {
 	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
+
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
+	flag.StringVar(&profileServer, "profileServer", "", "Profile server address, default not started")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 
@@ -105,7 +110,7 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("Args %s : %v", f.Name, f.Value)
@@ -164,6 +169,12 @@ func main() {
 	// stop channel for all daemon routines
 	stopCh := make(chan struct{})
 	defer close(stopCh)
+
+	if len(profileServer) > 0 {
+		go func() {
+			log.Println(http.ListenAndServe(profileServer, nil))
+		}()
+	}
 
 	// start metric collector
 	go func() {

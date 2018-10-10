@@ -36,8 +36,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/xurls"
 	"github.com/dyatlov/go-opengraph/opengraph"
-	"mvdan.cc/xurls"
 )
 
 var (

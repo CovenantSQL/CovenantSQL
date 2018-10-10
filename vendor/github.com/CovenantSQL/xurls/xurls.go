@@ -2,7 +2,7 @@
 // See LICENSE for licensing information
 
 // Package xurls extracts urls from plain text using regular expressions.
-package xurls // import "mvdan.cc/xurls"
+package xurls
 
 import (
 	"bytes"

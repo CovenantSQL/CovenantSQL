@@ -57,7 +57,7 @@
   branch = "master"
 
 [[override]]
-  name = "mvdan.cc/xurls"
+  name = "github.com/CovenantSQL/xurls"
   branch = "master"
 
 [prune]

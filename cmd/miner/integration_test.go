@@ -190,7 +190,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
+			//"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
 			bypassArg,
 		},
 		"leader", testWorkingDir, logDir, false,
@@ -202,7 +202,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
+			//"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
 			bypassArg,
 		},
 		"follower1", testWorkingDir, logDir, false,
@@ -214,7 +214,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/covenantsqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
+			//"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
 			bypassArg,
 		},
 		"follower2", testWorkingDir, logDir, false,

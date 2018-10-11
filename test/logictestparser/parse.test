@@ -1,0 +1,90 @@
+# So far, this only runs well on SQLite and MySQL.
+
+# skip this entire file if ms sql server
+onlyif mssql
+halt
+
+# skip this entire file if oracle
+skipif oracle
+halt
+
+# EVIDENCE-OF: R-52275-55503 When the right operand is an empty set, the
+# result of IN is false and the result of NOT IN is true, regardless of
+# the left operand and even if the left operand is NULL.
+#
+
+# EVIDENCE-OF: R-13595-45863 Note that SQLite allows the parenthesized
+# list of scalar values on the right-hand side of an IN or NOT IN
+# operator to be an empty list but most other SQL database database
+# engines and the SQL92 standard require the list to contain at least
+# one element.
+#
+
+onlyif sqlite # empty RHS
+query I nosort
+SELECT 1 IN ()
+----
+0
+
+query I nosort
+SELECT 1 IN (2)
+----
+0
+
+query I nosort
+SELECT 1 IN (2,3,4,5,6,7,8,9)
+----
+0
+
+statement ok
+INSERT INTO t1(e,c,b,a,d) VALUES(242,244,240,243,241)
+
+statement ok
+INSERT INTO t1(e,d,c,b,a) VALUES(246,248,247,249,245)
+
+query I nosort
+SELECT CASE WHEN c>(SELECT avg(c) FROM t1) THEN a*2 ELSE b*10 END
+  FROM t1
+ ORDER BY 1
+----
+30 values hashing to 3c13dee48d9356ae19af2515e05e6b54
+
+query II nosort
+SELECT a+b*2+c*3+d*4+e*5,
+       (a+b+c+d+e)/5
+  FROM t1
+ ORDER BY 1,2
+----
+60 values hashing to 808146289313018fce25f1a280bd8c30
+
+query T nosort
+SELECT group_concat(y) FROM t1
+----
+true,false,NULL,true,true
+
+# repeat with DISTINCT
+
+query I nosort
+SELECT count(DISTINCT y) FROM t1
+----
+3
+
+query R nosort
+SELECT sum(x) FROM t1
+----
+
+query R nosort
+SELECT sum(DISTINCT x) FROM t1
+----
+
+
+# TBD-EVIDENCE-OF: R-19553-64528 Total() never throws an integer overflow.
+
+query R nosort
+SELECT total(x) FROM t1
+----
+
+query R nosort
+SELECT total(DISTINCT x) FROM t1
+----
+

@@ -35,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/CovenantSQL/sqlparser"
 )
@@ -376,11 +377,13 @@ func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err 
 
 		for {
 			stmt, err = sqlparser.ParseNext(tokenizer)
-			if err != io.EOF {
+
+			if err != nil && err != io.EOF {
 				return
 			}
 
 			if err == io.EOF {
+				err = nil
 				break
 			}
 
@@ -389,20 +392,24 @@ func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err 
 
 			// translate show statement
 			if showStmt, ok := stmt.(*sqlparser.Show); ok {
+				origQuery := query
+
 				switch showStmt.Type {
 				case "table":
 					if showStmt.ShowCreate {
 						query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
 							showStmt.OnTable.Name.String() + "\""
 					} else {
-						query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + "\""
+						query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + ")"
 					}
 				case "index":
-					query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name \"" +
+					query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
 						showStmt.OnTable.Name.String() + "\""
 				case "tables":
 					query = "SELECT name FROM sqlite_master WHERE type = \"table\""
 				}
+
+				log.Debugf("translated query from %v to %v", origQuery, query)
 			}
 
 			originalQueries = append(originalQueries, query)

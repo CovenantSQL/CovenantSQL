@@ -26,6 +26,19 @@ import (
 	ec "github.com/btcsuite/btcd/btcec"
 )
 
+var (
+	// BypassSignature is the flag indicate if bypassing signature sign & verify
+	BypassSignature = false
+	bypassS         *Signature
+)
+
+// For test Signature.Sign mock
+func init() {
+	priv, _ := ec.NewPrivateKey(ec.S256())
+	ss, _ := (*ec.PrivateKey)(priv).Sign([]byte{'0'})
+	bypassS = (*Signature)(ss)
+}
+
 // Signature is a type representing an ecdsa signature.
 type Signature struct {
 	R *big.Int
@@ -61,6 +74,9 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
 func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
+	if BypassSignature {
+		return bypassS, nil
+	}
 	s, e := (*ec.PrivateKey)(private).Sign(hash)
 	return (*Signature)(s), e
 }
@@ -68,6 +84,9 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true
 // if the signature is valid, false otherwise.
 func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
+	if BypassSignature {
+		return true
+	}
 	return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 

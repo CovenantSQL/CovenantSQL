@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
@@ -35,10 +36,15 @@ var (
 func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "config file for adapter")
 	flag.StringVar(&password, "password", "", "master key password")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 }
 
 func main() {
 	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		log.Infof("Args %s : %v", f.Name, f.Value)
+	})
 
 	server, err := NewHTTPAdapter(configFile, password)
 	if err != nil {

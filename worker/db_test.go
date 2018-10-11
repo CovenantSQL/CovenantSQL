@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -91,6 +92,109 @@ func TestSingleDatabase(t *testing.T) {
 		var db *Database
 		db, err = NewDatabase(cfg, peers, block)
 		So(err, ShouldBeNil)
+
+		Convey("test query rewrite", func() {
+			// test query rewrite
+			var writeQuery *wt.Request
+			var res *wt.Response
+			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+				"create table test (col1 int, col2 string)",
+				"create index test_index on test (col1)",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(writeQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			// test show tables query
+			var readQuery *wt.Request
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
+				"show tables",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(readQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			So(res.Header.RowCount, ShouldEqual, uint64(1))
+			So(res.Payload.Rows, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
+
+			// test show create table
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 3, []string{
+				"show create table test",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(readQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			So(res.Header.RowCount, ShouldEqual, uint64(1))
+			So(res.Payload.Rows, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
+			byteStr, isByteStr := res.Payload.Rows[0].Values[0].([]byte)
+			So(isByteStr, ShouldBeTrue)
+			So(strings.ToUpper(string(byteStr)), ShouldContainSubstring, "CREATE")
+
+			// test show table
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 4, []string{
+				"show table test",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(readQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			So(res.Header.RowCount, ShouldEqual, uint64(2))
+			So(res.Payload.Rows, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values, ShouldHaveLength, 6)
+			So(res.Payload.Rows[0].Values[1], ShouldResemble, []byte("col1"))
+			So(res.Payload.Rows[1].Values, ShouldHaveLength, 6)
+			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
+
+			// test desc table
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 5, []string{
+				"desc test",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(readQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			So(res.Header.RowCount, ShouldEqual, uint64(2))
+			So(res.Payload.Rows, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values, ShouldHaveLength, 6)
+			So(res.Payload.Rows[0].Values[1], ShouldResemble, []byte("col1"))
+			So(res.Payload.Rows[1].Values, ShouldHaveLength, 6)
+			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
+
+			// test show index from table
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 6, []string{
+				"show index from table test",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(readQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			So(res.Header.RowCount, ShouldEqual, uint64(1))
+			So(res.Payload.Rows, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test_index"))
+		})
 
 		Convey("test read write", func() {
 			// test write query

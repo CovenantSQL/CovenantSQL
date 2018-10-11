@@ -276,6 +276,11 @@ func (s *Storage) Query(ctx context.Context, queries []Query) (columns []string,
 		return
 	}
 
+	// if there is empty columns, treat result as empty
+	if len(columns) == 0 {
+		return
+	}
+
 	// get types meta
 	if types, err = s.transformColumnTypes(rows.ColumnTypes()); err != nil {
 		return

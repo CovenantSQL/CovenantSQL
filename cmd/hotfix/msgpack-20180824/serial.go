@@ -263,7 +263,7 @@ func (s simpleSerializer) readAddrAndGas(r io.Reader, order binary.ByteOrder, re
 	}
 
 	ret.GasAmount = gasAmount
-	ret.RawNodeID = proto.RawNodeID{nodeID}
+	ret.RawNodeID = proto.RawNodeID{Hash: nodeID}
 	ret.AccountAddress = proto.AccountAddress(addr)
 
 	return nil

@@ -5,7 +5,7 @@ This doc introduce the usage of CovenantSQL adapter. This adapter lets you use C
 Make sure the ```$GOPATH/bin``` is in your ```$PATH```, download build the adapter binary.
 
 ```shell
-$ go get github.com/CovenantSQL/CovenantSQL/cmd/adapter
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
 ```
 
 Adapter requires a simple ```config.yaml``` like we use in client bundled with exclusive adpater configuration.
@@ -47,7 +47,7 @@ The certificate is at "./server.pem" and the key at "./server-key.pem" ✅
 You can use following interactive command to generate adapter config.
 
 ```shell
-$ idminer -tool adapterconfgen -config config.yaml
+$ cql-utils -tool adapterconfgen -config config.yaml
 ListenAddr (default: 0.0.0.0:4661): ⏎
 CertificatePath (default: server.pem): ⏎
 PrivateKeyPath (default: server-key.pem): ⏎
@@ -79,7 +79,7 @@ Adapter:
 Start the adapter by following commands:
 
 ```shell
-covenantadapter -config config.yaml
+cql-adapter -config config.yaml
 ```
 
 ### API

@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/config"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/config"
 )
 
 func init() {

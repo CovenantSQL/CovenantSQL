@@ -78,7 +78,7 @@ var (
 	showVersion bool
 )
 
-const name = `covenantminerd`
+const name = `cql-minerd`
 const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 
 func init() {

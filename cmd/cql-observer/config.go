@@ -23,11 +23,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Database defines single database subscription status.
 type Database struct {
 	ID       string `yaml:"ID"`
 	Position string `yaml:"Position"`
 }
 
+// Config defines subscription settings for observer.
 type Config struct {
 	Databases []Database `yaml:"Databases"`
 }

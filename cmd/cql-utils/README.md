@@ -1,9 +1,9 @@
-idminer is a helper command of CovenantSQL
+cql-utils is a helper command of CovenantSQL
 
 ## Install 
 Download [Latest Release](https://github.com/CovenantSQL/CovenantSQL/releases) or build from src:
 ```bash
-$ go get github.com/CovenantSQL/CovenantSQL/cmd/idminer
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 ```
 *make sure that `$GOPATH/bin` is in your `$PATH`*
 
@@ -11,7 +11,7 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/idminer
 ### Generate Key Pair
 
 ```
-$ idminer -tool keygen
+$ cql-utils -tool keygen
 Enter master key(press Enter for default: ""): 
 ⏎
 Private key file: private.key
@@ -23,11 +23,11 @@ The private.key is your encrypted private key file, and the pubkey hex is your p
 ### Generate Wallet Address from existing Key
 
 ```
-$ idminer -tool addrgen -private private.key
+$ cql-utils -tool addrgen -private private.key
 Enter master key(default: ""):
 ⏎
 wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
-$ idminer -tool addrgen -public 02f2707c1c6955a9019cd9d02ade37b931fbfa286a1163dfc1de965ec01a5c4ff8
+$ cql-utils -tool addrgen -public 02f2707c1c6955a9019cd9d02ade37b931fbfa286a1163dfc1de965ec01a5c4ff8
 wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
 ```
 

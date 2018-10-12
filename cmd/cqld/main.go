@@ -61,7 +61,7 @@ var (
 	clientOperation string
 )
 
-const name = `covenantsqld`
+const name = `cqld`
 const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 
 func init() {

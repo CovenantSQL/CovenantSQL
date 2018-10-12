@@ -22,8 +22,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/api"
-	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/config"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/api"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/config"
 	"github.com/gorilla/handlers"
 )
 

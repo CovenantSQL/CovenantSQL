@@ -63,23 +63,23 @@ func start3BPs() {
 	}
 
 	go utils.RunCommand(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/covenantsqld/leader.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, false,
 	)
 	go utils.RunCommand(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/covenantsqld/follower1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	)
 	go utils.RunCommand(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/covenantsqld/follower2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	)

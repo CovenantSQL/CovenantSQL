@@ -81,7 +81,7 @@ func startNodes() {
 	// start 3bps
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
 		},
@@ -92,7 +92,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
 		},
@@ -103,7 +103,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld.test"),
+		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
 		},
@@ -119,7 +119,7 @@ func startNodes() {
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd.test"),
+		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner0.cover.out"),
 		},
@@ -132,7 +132,7 @@ func startNodes() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd.test"),
+		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner1.cover.out"),
 		},
@@ -145,7 +145,7 @@ func startNodes() {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd.test"),
+		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner2.cover.out"),
 		},
@@ -188,7 +188,7 @@ func startNodesProfile(bypassSign bool) {
 	// start 3bps
 	var cmd *exec.Cmd
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld"),
+		FJ(baseDir, "./bin/cqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			bypassArg,
 		},
@@ -199,7 +199,7 @@ func startNodesProfile(bypassSign bool) {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld"),
+		FJ(baseDir, "./bin/cqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			bypassArg,
 		},
@@ -210,7 +210,7 @@ func startNodesProfile(bypassSign bool) {
 		log.Errorf("start node failed: %v", err)
 	}
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantsqld"),
+		FJ(baseDir, "./bin/cqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			bypassArg,
 		},
@@ -226,7 +226,7 @@ func startNodesProfile(bypassSign bool) {
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd"),
+		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner0.profile"),
 			bypassArg,
@@ -240,7 +240,7 @@ func startNodesProfile(bypassSign bool) {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd"),
+		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner1.profile"),
 			bypassArg,
@@ -254,7 +254,7 @@ func startNodesProfile(bypassSign bool) {
 
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
-		FJ(baseDir, "./bin/covenantminerd"),
+		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner2.profile"),
 			bypassArg,

@@ -26,7 +26,7 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/cmd/adapter/storage"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/storage"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"gopkg.in/yaml.v2"

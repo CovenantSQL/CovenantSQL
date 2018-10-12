@@ -294,8 +294,8 @@ func loadGenesis() *types.Block {
 
 	for _, ba := range genesisInfo.BaseAccounts {
 		log.WithFields(log.Fields{
-			"address": ba.Address.String(),
-			"stableCoinBalance": ba.StableCoinBalance,
+			"address":             ba.Address.String(),
+			"stableCoinBalance":   ba.StableCoinBalance,
 			"covenantCoinBalance": ba.CovenantCoinBalance,
 		}).Debugf("setting one balance fixture in genesis block")
 		genesis.Transactions = append(genesis.Transactions, &pt.BaseAccount{

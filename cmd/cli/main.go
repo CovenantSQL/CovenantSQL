@@ -25,11 +25,11 @@ import (
 	"io"
 	"os"
 	"os/user"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
@@ -56,10 +56,6 @@ var (
 	createDB   string // as a instance meta json string or simply a node count
 	dropDB     string // database id to drop
 	getBalance bool   // get balance of current account
-
-	// regex for special sql statement
-	descTableRegex       = regexp.MustCompile("(?i)^desc(?:ribe)?\\s+(\\w+)\\s*;?\\s*$")
-	showCreateTableRegex = regexp.MustCompile("(?i)^show\\s+create\\s+table\\s+(\\w+)\\s*;\\s*?$")
 )
 
 type varsFlag struct {
@@ -152,37 +148,6 @@ func init() {
 			log.Infof("connecting to %v", url.DSN)
 			return sql.Open, nil
 		},
-		Process: func(prefix string, sqlstr string) (typ string, processSqlStr string, isQuery bool, err error) {
-			// override describe query
-			// split prefix
-			words := strings.Split(prefix, " ")
-
-			if len(words) >= 1 && words[0] == "SHOW" {
-				if len(words) == 2 && words[1] == "TABLES" {
-					// show tables command
-					sqlstr = "SELECT name FROM sqlite_master WHERE type = \"table\";"
-					prefix = "SELECT"
-				}
-				if len(words) >= 3 && words[1] == "CREATE" && words[2] == "TABLE" {
-					// show create table
-					// extract table name from sqlstr
-					if matches := showCreateTableRegex.FindStringSubmatch(sqlstr); len(matches) > 0 {
-						sqlstr = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" + matches[1] + "\";"
-						prefix = "SELECT"
-					}
-				}
-			} else if len(words) >= 1 && (words[0] == "DESC" || words[0] == "DESCRIBE") {
-				if matches := descTableRegex.FindStringSubmatch(sqlstr); len(matches) > 0 {
-					// valid desc statement
-					sqlstr = "PRAGMA table_info(" + matches[1] + ");"
-					prefix = "SELECT"
-				}
-			}
-
-			typ, isQuery = drivers.QueryExecType(prefix, sqlstr)
-			processSqlStr = sqlstr
-			return
-		},
 	})
 
 	// register covenantsql:// scheme to dburl
@@ -207,6 +172,8 @@ func init() {
 	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
 	flag.StringVar(&fileName, "file", "", "execute commands from file and exit")
 	flag.BoolVar(&noRC, "no-rc", false, "do not read start up file")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 	flag.StringVar(&outFile, "out", "", "output file")
 	flag.StringVar(&configFile, "config", "config.yaml", "config file for covenantsql")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")

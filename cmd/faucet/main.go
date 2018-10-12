@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
@@ -37,10 +38,15 @@ var (
 func init() {
 	flag.StringVar(&configFile, "config", "config.yaml", "configuration file for covenantsql")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+		"Disable signature sign and verify, for testing")
 }
 
 func main() {
 	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		log.Infof("Args %s : %v", f.Name, f.Value)
+	})
 
 	// init client
 	var err error

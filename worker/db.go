@@ -19,8 +19,10 @@ package worker
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +35,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/sqlparser"
 )
 
 const (
@@ -289,8 +293,14 @@ func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err e
 	// TODO(xq262144): add timeout logic basic of client options
 	var columns, types []string
 	var data [][]interface{}
+	var queries []storage.Query
 
-	columns, types, data, err = db.storage.Query(context.Background(), convertQuery(request.Payload.Queries))
+	// sanitize dangerous queries
+	if queries, err = convertAndSanitizeQuery(request.Payload.Queries); err != nil {
+		return
+	}
+
+	columns, types, data, err = db.storage.Query(context.Background(), queries)
 	if err != nil {
 		return
 	}
@@ -356,10 +366,59 @@ func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
 }
 
-func convertQuery(inQuery []wt.Query) (outQuery []storage.Query) {
+func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err error) {
 	outQuery = make([]storage.Query, len(inQuery))
 	for i, q := range inQuery {
-		outQuery[i] = storage.Query(q)
+		tokenizer := sqlparser.NewStringTokenizer(q.Pattern)
+		var stmt sqlparser.Statement
+		var lastPos int
+		var query string
+		var originalQueries []string
+
+		for {
+			stmt, err = sqlparser.ParseNext(tokenizer)
+
+			if err != nil && err != io.EOF {
+				return
+			}
+
+			if err == io.EOF {
+				err = nil
+				break
+			}
+
+			query = q.Pattern[lastPos : tokenizer.Position-1]
+			lastPos = tokenizer.Position + 1
+
+			// translate show statement
+			if showStmt, ok := stmt.(*sqlparser.Show); ok {
+				origQuery := query
+
+				switch showStmt.Type {
+				case "table":
+					if showStmt.ShowCreate {
+						query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
+							showStmt.OnTable.Name.String() + "\""
+					} else {
+						query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + ")"
+					}
+				case "index":
+					query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
+						showStmt.OnTable.Name.String() + "\""
+				case "tables":
+					query = "SELECT name FROM sqlite_master WHERE type = \"table\""
+				}
+
+				log.Debugf("translated query from %v to %v", origQuery, query)
+			}
+
+			originalQueries = append(originalQueries, query)
+		}
+
+		outQuery[i] = storage.Query{
+			Pattern: strings.Join(originalQueries, "; "),
+			Args:    q.Args,
+		}
 	}
 	return
 }

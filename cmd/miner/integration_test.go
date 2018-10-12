@@ -25,10 +25,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
@@ -154,6 +156,116 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 }
+func startNodesProfile(bypassSign bool) {
+	ctx := context.Background()
+	bypassArg := ""
+	if bypassSign {
+		bypassArg = "-bypassSignature"
+	}
+
+	// wait for ports to be available
+	var err error
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2144,
+		2145,
+		2146,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		3122,
+		3121,
+		3120,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	// start 3bps
+	var cmd *exec.Cmd
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/covenantsqld"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
+			bypassArg,
+		},
+		"leader", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/covenantsqld"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
+			bypassArg,
+		},
+		"follower1", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/covenantsqld"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
+			bypassArg,
+		},
+		"follower2", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+
+	time.Sleep(time.Second * 3)
+
+	// start 3miners
+	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/covenantminerd"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
+			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner0.profile"),
+			bypassArg,
+		},
+		"miner0", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+
+	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/covenantminerd"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
+			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner1.profile"),
+			bypassArg,
+		},
+		"miner1", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+
+	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/covenantminerd"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
+			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner2.profile"),
+			bypassArg,
+		},
+		"miner2", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+}
 
 func stopNodes() {
 	var wg sync.WaitGroup
@@ -162,7 +274,7 @@ func stopNodes() {
 		wg.Add(1)
 		go func(thisCmd *exec.Cmd) {
 			defer wg.Done()
-			thisCmd.Process.Signal(os.Interrupt)
+			thisCmd.Process.Signal(syscall.SIGTERM)
 			thisCmd.Wait()
 		}(nodeCmd)
 	}
@@ -246,83 +358,139 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
-func BenchmarkSingleMiner(b *testing.B) {
+func benchDB(b *testing.B, db *sql.DB) {
+	_, err := db.Exec("DROP TABLE IF EXISTS test;")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+	So(err, ShouldBeNil)
+
+	var insertedCount int
+	b.Run("benchmark INSERT", func(b *testing.B) {
+		b.ResetTimer()
+		insertedCount = b.N
+		for i := 0; i < b.N; i++ {
+			_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+				"(?, ?)", i, i,
+			)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	rowCount := db.QueryRow("SELECT COUNT(1) FROM test")
+	var count int
+	err = rowCount.Scan(&count)
+	if err != nil {
+		b.Fatal(err)
+	}
+	log.Warnf("Row Count: %d", count)
+
+	b.Run("benchmark SELECT", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
+			var result int
+			err = row.Scan(&result)
+			if err != nil || result < 0 {
+				log.Errorf("i = %d", i)
+				b.Fatal(err)
+			}
+		}
+	})
+
+	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
+
+	var result int
+	err = row.Scan(&result)
+	So(err, ShouldBeNil)
+	So(result, ShouldEqual, 4)
+
+	err = db.Close()
+	So(err, ShouldBeNil)
+}
+
+func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
+	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	asymmetric.BypassSignature = bypassSign
+	startNodesProfile(bypassSign)
+	time.Sleep(5 * time.Second)
+
+	var err error
+	err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+	So(err, ShouldBeNil)
+
+	// create
+	dsn, err := client.Create(client.ResourceMeta{Node: minerCount})
+	So(err, ShouldBeNil)
+
+	log.Infof("the created database dsn is %v", dsn)
+
+	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	benchDB(b, db)
+
+	err = client.Drop(dsn)
+	So(err, ShouldBeNil)
+	time.Sleep(5 * time.Second)
+	stopNodes()
+}
+
+func BenchmarkSQLite(b *testing.B) {
+	os.Remove("./foo.db")
+	defer os.Remove("./foo.db")
+
+	db, err := sql.Open("sqlite3", "./foo.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	Convey("bench SQLite", b, func() {
+		benchDB(b, db)
+	})
+}
+
+func BenchmarkMinerOneNoSign(b *testing.B) {
 	Convey("bench single node", b, func() {
-		startNodes()
-		defer stopNodes()
-		time.Sleep(5 * time.Second)
+		benchMiner(b, 1, true)
+	})
+}
 
-		var err error
-		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
-		So(err, ShouldBeNil)
+func BenchmarkMinerTwoNoSign(b *testing.B) {
+	Convey("bench two node", b, func() {
+		benchMiner(b, 2, true)
+	})
+}
 
-		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 1})
-		So(err, ShouldBeNil)
+func BenchmarkMinerThreeNoSign(b *testing.B) {
+	Convey("bench three node", b, func() {
+		benchMiner(b, 3, true)
+	})
+}
 
-		log.Infof("the created database dsn is %v", dsn)
+func BenchmarkMinerOne(b *testing.B) {
+	Convey("bench single node", b, func() {
+		benchMiner(b, 1, false)
+	})
+}
 
-		db, err := sql.Open("covenantsql", dsn)
-		So(err, ShouldBeNil)
+func BenchmarkMinerTwo(b *testing.B) {
+	Convey("bench two node", b, func() {
+		benchMiner(b, 2, false)
+	})
+}
 
-		_, err = db.Exec("DROP TABLE IF EXISTS test;")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
-		So(err, ShouldBeNil)
-		b.Run("benchmark INSERT", func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-					"(?, ?)", i, i*10,
-				)
-				if err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-
-		//b.RunParallel(func(pb *testing.PB) {
-		//	for pb.Next() {
-		//		_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-		//			"(?, ?),(?, ?),(?, ?),(?, ?),(?, ?)", 1, 2, 3, 4, 5, 6, 7, 8, 9, 0,
-		//		)
-		//		if err != nil {
-		//			b.Fatal(err)
-		//		}
-		//	}
-		//})
-
-		b.Run("benchmark SELECT", func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", 4)
-				var result int
-				err = row.Scan(&result)
-				if err != nil || result < 0 {
-					b.Fatal(err)
-				}
-				log.Debugf("result %d", result)
-			}
-		})
-
-		row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
-
-		var result int
-		err = row.Scan(&result)
-		So(err, ShouldBeNil)
-		So(result, ShouldEqual, 4)
-
-		err = db.Close()
-		So(err, ShouldBeNil)
-
-		err = client.Drop(dsn)
-		So(err, ShouldBeNil)
+func BenchmarkMinerThree(b *testing.B) {
+	Convey("bench three node", b, func() {
+		benchMiner(b, 3, false)
 	})
 }

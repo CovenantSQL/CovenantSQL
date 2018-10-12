@@ -20,7 +20,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
+	"strings"
 
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 )
@@ -57,6 +59,25 @@ func (i *Uint256) Bytes() []byte {
 	var binBuf bytes.Buffer
 	binary.Write(&binBuf, binary.BigEndian, i)
 	return binBuf.Bytes()
+}
+
+// String converts Uint256 to string
+func (i *Uint256) String() string {
+	var a, b, c, d string
+	a = fmt.Sprintf("%d", i.A)
+	b = fmt.Sprintf("%d", i.B)
+	lb := len(b)
+	bPrefix := strings.Repeat( "0", 64 - lb)
+	b = bPrefix + b
+	c = fmt.Sprintf("%d", i.C)
+	lc := len(c)
+	cPrefix := strings.Repeat("0", 64 - lc)
+	c = cPrefix + c
+	d = fmt.Sprintf("%d", i.D)
+	ld := len(d)
+	dPrefix := strings.Repeat("0", 64 - ld)
+	d = dPrefix + d
+	return strings.TrimLeft(a + b + c + d, "0")
 }
 
 // MarshalHash marshals for hash

@@ -1,0 +1,5 @@
+Endpoint: "wss://rinkeby.infura.io/ws"
+ContractAddress: "0xd22b623ad997899dc4c70b0fd6614de2b5e2f8d0"
+ContractABIFile: "./config/BabelABI.json"
+EventSignature: "Deposit(address,bytes32,uint256,uint32)"
+BabelDB: "./config/babel.db"

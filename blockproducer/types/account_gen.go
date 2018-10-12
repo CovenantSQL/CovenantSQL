@@ -10,31 +10,47 @@ import (
 func (z *Account) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	// map header, size 6
+	o = append(o, 0x86, 0x86)
+	if z.TokenList == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.TokenList.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x86)
+	o = hsp.AppendFloat64(o, z.Rating)
+	o = append(o, 0x86)
 	if oTemp, err := z.NextNonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
-	o = hsp.AppendFloat64(o, z.Rating)
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	if oTemp, err := z.Address.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.StableCoinBalance)
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.CovenantCoinBalance)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Account) Msgsize() (s int) {
-	s = 1 + 10 + z.NextNonce.Msgsize() + 7 + hsp.Float64Size + 8 + z.Address.Msgsize() + 18 + hsp.Uint64Size + 20 + hsp.Uint64Size
+	s = 1 + 10
+	if z.TokenList == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.TokenList.Msgsize()
+	}
+	s += 7 + hsp.Float64Size + 10 + z.NextNonce.Msgsize() + 8 + z.Address.Msgsize() + 18 + hsp.Uint64Size + 20 + hsp.Uint64Size
 	return
 }
 
@@ -137,6 +153,49 @@ func (z *SQLChainUser) MarshalHash() (o []byte, err error) {
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SQLChainUser) Msgsize() (s int) {
 	s = 1 + 11 + hsp.Int32Size + 8 + z.Address.Msgsize()
+	return
+}
+
+// MarshalHash marshals for hash
+func (z *TokenList) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = hsp.Require(b, z.Msgsize())
+	// map header, size 2
+	o = append(o, 0x82, 0x82)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Balances)))
+	for za0002 := range z.Balances {
+		if z.Balances[za0002] == nil {
+			o = hsp.AppendNil(o)
+		} else {
+			if oTemp, err := z.Balances[za0002].MarshalHash(); err != nil {
+				return nil, err
+			} else {
+				o = hsp.AppendBytes(o, oTemp)
+			}
+		}
+	}
+	o = append(o, 0x82)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Names)))
+	for za0001 := range z.Names {
+		o = hsp.AppendString(o, z.Names[za0001])
+	}
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *TokenList) Msgsize() (s int) {
+	s = 1 + 9 + hsp.ArrayHeaderSize
+	for za0002 := range z.Balances {
+		if z.Balances[za0002] == nil {
+			s += hsp.NilSize
+		} else {
+			s += z.Balances[za0002].Msgsize()
+		}
+	}
+	s += 6 + hsp.ArrayHeaderSize
+	for za0001 := range z.Names {
+		s += hsp.StringPrefixSize + len(z.Names[za0001])
+	}
 	return
 }
 

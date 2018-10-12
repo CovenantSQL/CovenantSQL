@@ -10,14 +10,14 @@ import (
 func (z *Block) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 2
-	o = append(o, 0x82, 0x82)
+	// map header, size 3
+	o = append(o, 0x83, 0x83)
 	if oTemp, err := z.SignedHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
+	o = append(o, 0x83)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.TxBillings)))
 	for za0001 := range z.TxBillings {
 		if z.TxBillings[za0001] == nil {
@@ -28,6 +28,15 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 			} else {
 				o = hsp.AppendBytes(o, oTemp)
 			}
+		}
+	}
+	o = append(o, 0x83)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Transactions)))
+	for za0002 := range z.Transactions {
+		if oTemp, err := z.Transactions[za0002].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
 	return
@@ -42,6 +51,10 @@ func (z *Block) Msgsize() (s int) {
 		} else {
 			s += z.TxBillings[za0001].Msgsize()
 		}
+	}
+	s += 13 + hsp.ArrayHeaderSize
+	for za0002 := range z.Transactions {
+		s += z.Transactions[za0002].Msgsize()
 	}
 	return
 }

@@ -18,6 +18,7 @@ package types
 
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -64,11 +65,19 @@ type SQLChainProfile struct {
 	Users   []*SQLChainUser
 }
 
-// Account store its balance, and other mate data.
+// TokenList stores other tokens except StableCoin and CovenantCoin
+type TokenList struct {
+	Names []string
+	Balances []*cpuminer.Uint256
+}
+
+// Account stores its balance, and other mate data.
 type Account struct {
 	Address             proto.AccountAddress
 	StableCoinBalance   uint64
 	CovenantCoinBalance uint64
+	TokenList 			*TokenList
 	Rating              float64
 	NextNonce           pi.AccountNonce
 }
+

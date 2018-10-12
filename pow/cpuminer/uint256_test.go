@@ -33,7 +33,7 @@ func TestUint256(t *testing.T) {
 		So(unsafe.Sizeof(Uint256{}), ShouldEqual, 32)
 		So(len(i.Bytes()), ShouldEqual, 32)
 	})
-	Convey("convert", t, func() {
+	Convey("convert byte", t, func() {
 		i := Uint256{math.MaxUint64, 3, 444, 1230}
 		log.Print(i.Bytes())
 		j, err := Uint256FromBytes(i.Bytes())
@@ -44,10 +44,21 @@ func TestUint256(t *testing.T) {
 		So(j.C, ShouldEqual, 444)
 		So(j.D, ShouldEqual, 1230)
 	})
-	Convey("convert error", t, func() {
+	Convey("convert byte error", t, func() {
 		i, err := Uint256FromBytes([]byte("aaa"))
 		So(err, ShouldEqual, ErrBytesLen)
 		So(i, ShouldBeNil)
+	})
+	Convey("convert string", t, func() {
+		i := Uint256{0,0,0,1}
+		j := i.String()
+		target := "1"
+		So(j, ShouldEqual, target)
+
+		i = Uint256{1, 0, 0, 1}
+		j = i.String()
+		target = "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+		So(j, ShouldEqual, target)
 	})
 }
 

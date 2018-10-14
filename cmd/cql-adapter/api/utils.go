@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	dbIDRegex, _ = regexp.Compile("^[a-zA-Z0-9_\\.]+$")
+	dbIDRegex = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
 )
 
 func getDatabaseID(rw http.ResponseWriter, r *http.Request) string {

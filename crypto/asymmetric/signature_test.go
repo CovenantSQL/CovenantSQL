@@ -174,6 +174,20 @@ func BenchmarkSign(b *testing.B) {
 		}
 	})
 
+	b.Run("Secp256k1-25%", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaa")
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := priv.Sign(hash[:])
+			if err != nil {
+				b.Fatalf("Error occurred: %v", err)
+			}
+		}
+	})
+
 	b.Run("C-Secp256k1", func(b *testing.B) {
 		b.Log(b.Name())
 		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -265,6 +279,21 @@ func BenchmarkVerify(b *testing.B) {
 		}
 	})
 
+	b.Run("Secp256k1-25%", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaa")
+		sig, err := priv.Sign(hash[:])
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			sig.Verify(hash[:], pub)
+		}
+	})
+
 	b.Run("C-Secp256k1", func(b *testing.B) {
 		b.Log(b.Name())
 		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -278,9 +307,7 @@ func BenchmarkVerify(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if !secp256k1.VerifySignature(pubP, hash, s[:64]) {
-				b.Fatal(b.Name())
-			}
+			secp256k1.VerifySignature(pubP, hash, s[:64])
 		}
 	})
 

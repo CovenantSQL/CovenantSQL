@@ -6,7 +6,7 @@ Make sure that `$GOPATH/bin` is in your `$PATH`
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
-$ go get github.com/CovenantSQL/CovenantSQL/cmd/idminer
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 ```
 
 and import `client` package if you want to use it in your code.
@@ -14,7 +14,7 @@ and import `client` package if you want to use it in your code.
 ### Generating Default Config File
 
 ```bash
-$ idminer -tool confgen -root bp
+$ cql-utils -tool confgen -root bp
 Generating key pair...
 Enter master key(press Enter for default: ""):
 ⏎
@@ -31,7 +31,7 @@ Generated nonce.
 
 ## Initialize a CovenantSQL Client
 
-You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `idminer`, you can find the config file in the directory that `idminer` create.
+You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `cql-utils`, you can find the config file in the directory that `cql-utils` create.
 
 After you prepare your master key and config file, CovenantSQL client can be initialized by:
 

@@ -40,6 +40,7 @@ import (
 	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -51,7 +52,15 @@ var (
 	metaRequestIndexBucket  = []byte("covenantsql-query-request-index-bucket")
 	metaResponseIndexBucket = []byte("covenantsql-query-response-index-bucket")
 	metaAckIndexBucket      = [4]byte{'Q', 'A', 'C', 'K'}
+	leveldbConf             = opt.Options{}
 )
+
+func init() {
+	leveldbConf.BlockSize = 4 * 1024 * 1024
+	leveldbConf.Compression = opt.SnappyCompression
+	leveldbConf.WriteBuffer = 64 * 1024 * 1024
+	leveldbConf.BlockCacheCapacity = 2 * leveldbConf.WriteBuffer
+}
 
 // heightToKey converts a height in int32 to a key in bytes.
 func heightToKey(h int32) (key []byte) {
@@ -132,7 +141,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 	// Open LevelDB
 	ldbFile := c.DataFile + ".ldb"
-	ldb, err := leveldb.OpenFile(ldbFile, nil)
+	ldb, err := leveldb.OpenFile(ldbFile, &leveldbConf)
 	if err != nil {
 		err = errors.Wrapf(err, "open leveldb %s", ldbFile)
 		return
@@ -175,7 +184,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 	// Open LevelDB
 	ldbFile := c.DataFile + ".ldb"
-	ldb, err := leveldb.OpenFile(ldbFile, nil)
+	ldb, err := leveldb.OpenFile(ldbFile, &leveldbConf)
 	if err != nil {
 		err = errors.Wrapf(err, "open leveldb %s", ldbFile)
 		return

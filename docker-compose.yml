@@ -5,6 +5,8 @@ services:
     image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_bp_0
     restart: always
+    ports:
+      - "11099:4661"
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_0/config.yaml
@@ -22,6 +24,8 @@ services:
     image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_bp_1
     restart: always
+    ports:
+      - "11100:4661"
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_1/config.yaml
@@ -39,6 +43,8 @@ services:
     image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_bp_2
     restart: always
+    ports:
+      - "11101:4661"
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_2/config.yaml
@@ -56,6 +62,8 @@ services:
     image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_miner_0
     restart: always
+    ports:
+      - "11102:4661"
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_0/config.yaml
@@ -73,6 +81,8 @@ services:
     image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_miner_1
     restart: always
+    ports:
+      - "11103:4661"
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_1/config.yaml
@@ -90,6 +100,8 @@ services:
     image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_miner_2
     restart: always
+    ports:
+      - "11104:4661"
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_2/config.yaml

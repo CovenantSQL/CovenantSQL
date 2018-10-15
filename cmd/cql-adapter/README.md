@@ -79,7 +79,7 @@ Adapter:
 Start the adapter by following commands:
 
 ```shell
-cql-adapter -config config.yaml
+$ cql-adapter -config config.yaml
 ```
 
 ### API

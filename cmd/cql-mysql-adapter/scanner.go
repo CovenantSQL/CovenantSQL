@@ -19,6 +19,7 @@ package main
 import (
 	"database/sql"
 	"io"
+	"time"
 )
 
 type rowScanner struct {
@@ -59,6 +60,8 @@ func (s *rowScanner) Scan(src interface{}) error {
 		} else {
 			s.fields[s.column] = int8(0)
 		}
+	case time.Time:
+		s.fields[s.column] = srcValue.String()
 	default:
 		s.fields[s.column] = src
 	}

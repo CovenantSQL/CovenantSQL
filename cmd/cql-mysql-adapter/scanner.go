@@ -49,10 +49,17 @@ func (s *rowScanner) Scan(src interface{}) error {
 		return io.EOF
 	}
 
-	// convert to string if data type is []byte
-	if srcInBytes, ok := src.([]byte); ok {
-		s.fields[s.column] = string(srcInBytes)
-	} else {
+	// type conversions
+	switch srcValue := src.(type) {
+	case []byte:
+		s.fields[s.column] = string(srcValue)
+	case bool:
+		if srcValue {
+			s.fields[s.column] = int8(1)
+		} else {
+			s.fields[s.column] = int8(0)
+		}
+	default:
 		s.fields[s.column] = src
 	}
 

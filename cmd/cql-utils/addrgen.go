@@ -1,0 +1,72 @@
+/*
+ * Copyright 2018 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package main
+
+import (
+	"encoding/hex"
+	"flag"
+	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"os"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+)
+
+var (
+	isTestNetAddr bool
+)
+
+func init() {
+	flag.BoolVar(&isTestNetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
+}
+
+func runAddrgen() {
+	var publicKey *asymmetric.PublicKey
+
+	if publicKeyHex != "" {
+		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+		if err != nil {
+			log.Fatalf("error converting hex: %s\n", err)
+		}
+		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
+		if err != nil {
+			log.Fatalf("error converting public key: %s\n", err)
+		}
+	} else if privateKeyFile != "" {
+		masterKey, err := readMasterKey()
+		if err != nil {
+			fmt.Printf("read master key failed: %v\n", err)
+			os.Exit(1)
+		}
+		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
+		if err != nil {
+			log.Fatalf("load private key file fail: %v\n", err)
+		}
+		publicKey = privateKey.PubKey()
+	} else {
+		fmt.Println("privateKey path or publicKey hex is required for addrgen")
+		os.Exit(1)
+	}
+
+	addr, err := crypto.PubKey2Addr(publicKey, crypto.TestNet)
+	if err != nil {
+		log.Fatalf("unexpected error: %v\n", err)
+	}
+	fmt.Printf("wallet address: %s\n", addr)
+}

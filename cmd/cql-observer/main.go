@@ -48,7 +48,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+	flag.StringVar(&configFile, "config", "./config.yaml", "config file path")
 	flag.StringVar(&dbID, "database", "", "database to listen for observation")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")

@@ -221,7 +221,8 @@ func (c *Peers) Serialize() []byte {
 
 // Sign generates signature.
 func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
-	sig, err := signer.Sign(c.Serialize())
+	h := hash.THashB(c.Serialize())
+	sig, err := signer.Sign(h)
 
 	if err != nil {
 		return fmt.Errorf("sign peer configuration failed: %s", err.Error())
@@ -234,7 +235,9 @@ func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 
 // Verify verify signature.
 func (c *Peers) Verify() bool {
-	return c.Signature.Verify(c.Serialize(), c.PubKey)
+	h := hash.THashB(c.Serialize())
+
+	return c.Signature.Verify(h, c.PubKey)
 }
 
 func (c *Peers) String() string {

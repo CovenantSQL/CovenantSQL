@@ -65,7 +65,7 @@ func TestSign(t *testing.T) {
 
 	for _, test := range tests {
 		priv, pub := PrivKeyFromBytes(test.key)
-		hash := []byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9}
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		sig, err := priv.Sign(hash)
 
 		if err != nil {
@@ -103,7 +103,7 @@ func TestSignature_MarshalBinary(t *testing.T) {
 		privateKey, publicKey, _ := GenSecp256k1KeyPair()
 
 		// random data
-		buf := make([]byte, 16)
+		buf := make([]byte, 32)
 		rand.Read(buf)
 
 		// sign
@@ -163,20 +163,6 @@ func BenchmarkSign(b *testing.B) {
 	b.Run("Secp256k1", func(b *testing.B) {
 		b.Log(b.Name())
 		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, err := priv.Sign(hash[:])
-			if err != nil {
-				b.Fatalf("Error occurred: %v", err)
-			}
-		}
-	})
-
-	b.Run("Secp256k1-25%", func(b *testing.B) {
-		b.Log(b.Name())
-		hash := []byte("aaaaaaaa")
 
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -267,21 +253,6 @@ func BenchmarkVerify(b *testing.B) {
 	b.Run("Secp256k1", func(b *testing.B) {
 		b.Log(b.Name())
 		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-		sig, err := priv.Sign(hash[:])
-		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
-		}
-
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			sig.Verify(hash[:], pub)
-		}
-	})
-
-	b.Run("Secp256k1-25%", func(b *testing.B) {
-		b.Log(b.Name())
-		hash := []byte("aaaaaaaa")
 		sig, err := priv.Sign(hash[:])
 		if err != nil {
 			b.Fatalf("Error occurred: %v", err)

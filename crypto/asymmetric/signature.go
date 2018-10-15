@@ -17,13 +17,13 @@
 package asymmetric
 
 import (
-	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
 	"math/big"
 
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 var (
@@ -35,7 +35,7 @@ var (
 // For test Signature.Sign mock
 func init() {
 	priv, _ := ec.NewPrivateKey(ec.S256())
-	ss, _ := (*ec.PrivateKey)(priv).Sign([]byte{'0'})
+	ss, _ := (*ec.PrivateKey)(priv).Sign(([]byte)("00000000000000000000000000000000"))
 	bypassS = (*Signature)(ss)
 }
 
@@ -74,6 +74,9 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
 func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
+	if len(hash) != 32 {
+		return nil, errors.New("only hash can be signed")
+	}
 	if BypassSignature {
 		return bypassS, nil
 	}
@@ -87,7 +90,13 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	if BypassSignature {
 		return true
 	}
-	return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
+
+	signeeBytes := elliptic.Marshal(secp256k1.S256(), signee.X, signee.Y)
+	signature := make([]byte, 64)
+	copy(signature, s.R.Bytes())
+	copy(signature[32:], s.S.Bytes())
+	return secp256k1.VerifySignature(signeeBytes, hash, signature)
+	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 
 // MarshalBinary does the serialization.

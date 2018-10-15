@@ -109,6 +109,9 @@ services:
     restart: always
     ports:
       - "11105:4661"
+    environment:
+      COVENANT_ROLE: adapter
+      COVENANT_CONF: ./node_c/config.yaml
     volumes:
       - ./test/service/node_c/config.yaml:/app/config.yaml
       - ./test/service/node_c/private.key:/app/private.key

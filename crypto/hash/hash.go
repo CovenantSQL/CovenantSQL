@@ -113,19 +113,19 @@ func (h *Hash) Difficulty() (difficulty int) {
 }
 
 // MarshalYAML implements the yaml.Marshaler interface.
-func (hash Hash) MarshalYAML() (interface{}, error) {
-	return hash.String(), nil
+func (h Hash) MarshalYAML() (interface{}, error) {
+	return h.String(), nil
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (hash *Hash) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (h *Hash) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var str string
 	if err := unmarshal(&str); err != nil {
 		return err
 	}
 
 	// load hash
-	err := Decode(hash, str)
+	err := Decode(h, str)
 	if err != nil {
 		log.Errorf("Error in UnmarshalYAML: %v", err)
 		return err
@@ -190,4 +190,3 @@ func Decode(dst *Hash, src string) error {
 
 	return nil
 }
-

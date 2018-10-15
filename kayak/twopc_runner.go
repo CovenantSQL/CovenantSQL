@@ -510,7 +510,9 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		}
 
 		// init context
-		r.currentContext, _ = context.WithTimeout(context.Background(), r.config.ProcessTimeout)
+		var cancelFunc context.CancelFunc
+		r.currentContext, cancelFunc = context.WithTimeout(context.Background(), r.config.ProcessTimeout)
+		_ = cancelFunc
 
 		// get log
 		var l *Log

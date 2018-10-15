@@ -29,7 +29,10 @@ import (
 )
 
 var (
-	dbIDRegex = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
+	dbIDRegex        = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
+	emptyResultQuery = regexp.MustCompile("^(?i)\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+VARIABLES|SHOW\\s+DATABASES|SET|ROLLBACK).*$")
+	useDatabaseQuery = regexp.MustCompile("^(?i)\\s*USE\\s+(\\w+)\\s*$")
+	readQuery        = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW)")
 )
 
 // Cursor is a mysql connection handler, like a cursor of normal database.
@@ -42,6 +45,36 @@ type Cursor struct {
 // NewCursor returns a new cursor.
 func NewCursor() (c *Cursor) {
 	return &Cursor{}
+}
+
+func (c *Cursor) buildResultSet(rows *sql.Rows) (r *my.Result, err error) {
+	// get columns
+	var columns []string
+	if columns, err = rows.Columns(); err != nil {
+		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+		return
+	}
+
+	// read all rows
+	var resultData [][]interface{}
+	if resultData, err = readAllRows(rows); err != nil {
+		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+		return
+	}
+
+	var resultSet *my.Resultset
+	if resultSet, err = my.BuildSimpleTextResultset(columns, resultData); err != nil {
+		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+		return
+	}
+
+	r = &my.Result{
+		Status:       0,
+		InsertId:     0,
+		AffectedRows: 0,
+		Resultset:    resultSet,
+	}
+	return
 }
 
 func (c *Cursor) ensureDatabase() (conn *sql.DB, err error) {
@@ -120,7 +153,60 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 		return
 	}
 
-	_ = conn
+	// send empty result for variables query/table listing
+	if emptyResultQuery.MatchString(query) {
+		// return empty result
+		return &my.Result{
+			Status:       0,
+			InsertId:     0,
+			AffectedRows: 0,
+			Resultset:    nil,
+		}, nil
+	}
+
+	// use database query, same logic as COM_INIT_DB
+	if matches := useDatabaseQuery.FindStringSubmatch(query); len(matches) > 1 {
+		dbID := matches[1]
+
+		if err = c.UseDB(dbID); err == nil {
+			r = &my.Result{
+				Status:       0,
+				InsertId:     0,
+				AffectedRows: 0,
+				Resultset:    nil,
+			}
+		}
+
+		return
+	}
+
+	// as normal query
+	if readQuery.MatchString(query) {
+		var rows *sql.Rows
+		if rows, err = conn.Query(query); err != nil {
+			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+			return
+		}
+
+		// build result set
+		return c.buildResultSet(rows)
+	}
+
+	var result sql.Result
+	if result, err = conn.Exec(query); err != nil {
+		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+		return
+	}
+
+	lastInsertId, _ := result.LastInsertId()
+	affectedRows, _ := result.RowsAffected()
+
+	r = &my.Result{
+		Status:       0,
+		InsertId:     uint64(lastInsertId),
+		AffectedRows: uint64(affectedRows),
+		Resultset:    nil,
+	}
 
 	return
 }
@@ -196,7 +282,7 @@ func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*
 // context will be used later for statement execute.
 func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, context interface{}, err error) {
 	// TODO(xq26144), not implemented
-	// According to the libmysql standard: https://github.com/twitter-forks/mysql/blob/865aae5f23e2091e1316ca0e6c6651d57f786c76/libmysql/libmysql.c#L1729
+	// According to the libmysql standard: https://github.com/mysql/mysql-server/blob/8.0/libmysql/libmysql.cc#L1599
 	// the COM_STMT_PREPARE should return the correct bind parameter count (which can be implemented by newly created parser)
 	// and should return the correct number of return fields (which can not be implemented right now with new query plan logic embedded)
 

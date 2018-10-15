@@ -46,7 +46,7 @@ func NewServer(listenAddr string, user string, password string) (s *Server, err 
 	return
 }
 
-// Server starts the server.
+// Serve starts the server.
 func (s *Server) Serve() {
 	for {
 		conn, err := s.listener.Accept()

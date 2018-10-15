@@ -198,12 +198,12 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 		return
 	}
 
-	lastInsertId, _ := result.LastInsertId()
+	lastInsertID, _ := result.LastInsertId()
 	affectedRows, _ := result.RowsAffected()
 
 	r = &my.Result{
 		Status:       0,
-		InsertId:     uint64(lastInsertId),
+		InsertId:     uint64(lastInsertID),
 		AffectedRows: uint64(affectedRows),
 		Resultset:    nil,
 	}

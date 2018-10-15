@@ -151,6 +151,26 @@ services:
       options:
         max-size: "1m"
         max-file: "10"
+  covenantsql_mysql_adapter:
+    image: covenantsql.io/covenantsql:latest
+    container_name: covenantsql_mysql_adapter
+    restart: always
+    ports:
+      - "11107:4664"
+    command: ["-listen", "0.0.0.0:4664"]
+    environment:
+      COVENANT_ROLE: mysql-adapter
+      COVENANT_CONF: ./node_mysql_adapter/config.yaml
+    volumes:
+      - ./test/service/node_mysql_adapter/:/app/node_mysql_adapter/
+    networks:
+      default:
+        ipv4_address: 172.254.1.10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "10"
 
 networks:
   default:

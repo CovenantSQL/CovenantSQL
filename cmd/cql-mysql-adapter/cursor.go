@@ -32,7 +32,7 @@ var (
 	dbIDRegex        = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
 	emptyResultQuery = regexp.MustCompile("^(?i)\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+VARIABLES|SHOW\\s+DATABASES|SET|ROLLBACK).*$")
 	useDatabaseQuery = regexp.MustCompile("^(?i)\\s*USE\\s+(\\w+)\\s*$")
-	readQuery        = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW)")
+	readQuery        = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
 )
 
 // Cursor is a mysql connection handler, like a cursor of normal database.

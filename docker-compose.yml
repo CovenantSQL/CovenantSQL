@@ -104,7 +104,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_adapter:
-    image: covenantsql.io/covenantsql_adapter:latest
+    image: covenantsql.io/covenantsql:latest
     container_name: covenantsql_adapter
     restart: always
     ports:

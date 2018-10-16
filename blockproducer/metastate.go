@@ -115,12 +115,29 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	return
 }
 
-func (s *metaState) mustStoreAccountObject(k proto.AccountAddress, v *accountObject) (err error) {
+func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (err error) {
 	log.Debugf("store account %v to %v", k.String(), v)
-
-	if _, ok := s.loadOrStoreAccountObject(k, v); ok {
-		err = ErrAccountExists
-		return
+	// Since a transfer tx may create an empty receiver account, this method should try to cover
+	// the side effect.
+	if ao, ok := s.loadOrStoreAccountObject(k, v); ok {
+		ao.Lock()
+		defer ao.Unlock()
+		if ao.Account.NextNonce != 0 {
+			err = ErrAccountExists
+			return
+		}
+		var (
+			cb = ao.CovenantCoinBalance
+			sb = ao.StableCoinBalance
+		)
+		if err = safeAdd(&cb, &v.Account.CovenantCoinBalance); err != nil {
+			return
+		}
+		if err = safeAdd(&sb, &v.Account.StableCoinBalance); err != nil {
+			return
+		}
+		ao.CovenantCoinBalance = cb
+		ao.StableCoinBalance = sb
 	}
 	return
 }
@@ -235,9 +252,6 @@ func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.T
 
 		// Make a half-deep copy of pool (txs are not copied, readonly) and deep copy of readonly
 		// state
-		//
-		// TODO(leventeliu): we should make sure that the order of transactions from different
-		// accounts does affect the replayed state result.
 		var (
 			cp = s.pool.halfDeepCopy()
 			cm = &metaState{
@@ -392,21 +406,12 @@ func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount 
 func (s *metaState) transferAccountStableBalance(
 	sender, receiver proto.AccountAddress, amount uint64) (err error,
 ) {
-	if sender == receiver {
+	if sender == receiver || amount == 0 {
 		return
 	}
 
-	// TODO(leventeliu): user transaction to add account.
-	s.loadOrStoreAccountObject(sender, &accountObject{
-		Account: pt.Account{
-			Address: sender,
-		},
-	})
-	s.loadOrStoreAccountObject(receiver, &accountObject{
-		Account: pt.Account{
-			Address: receiver,
-		},
-	})
+	// Create empty receiver account if not found
+	s.loadOrStoreAccountObject(receiver, &accountObject{Account: pt.Account{Address: receiver}})
 
 	s.Lock()
 	defer s.Unlock()
@@ -646,6 +651,9 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 
 func (s *metaState) applyBilling(tx *pt.TxBilling) (err error) {
 	for i, v := range tx.TxContent.Receivers {
+		// Create empty receiver account if not found
+		s.loadOrStoreAccountObject(*v, &accountObject{Account: pt.Account{Address: *v}})
+
 		if err = s.increaseAccountCovenantBalance(*v, tx.TxContent.Fees[i]); err != nil {
 			return
 		}
@@ -663,7 +671,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	case *pt.TxBilling:
 		err = s.applyBilling(t)
 	case *pt.BaseAccount:
-		err = s.mustStoreAccountObject(t.Address, &accountObject{Account: t.Account})
+		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
 	default:
 		err = ErrUnknownTransactionType
 	}

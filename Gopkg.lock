@@ -101,7 +101,7 @@
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "2a560b2036bee5e3679ec2133eb6520b2f195213"
+  revision = "67e573d211ace594f1366b4ce9d39726c4b19bd0"
 
 [[projects]]
   branch = "master"
@@ -216,7 +216,7 @@
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "7221087c3d281fda5f794e28c2ea4c6e4d5c4558"
+  revision = "2f1d1f20f75d5404f53b9edf6b53ed5505508675"
 
 [[projects]]
   branch = "master"
@@ -241,6 +241,14 @@
   pruneopts = "UT"
   revision = "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
   version = "v4.2.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:cdc32003a67007f608c767cfbea5b7a07ed7418ec9aed579707e3185086a6878"
+  name = "github.com/juju/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a4583d0a56eac4bdd939e38050d0c69abe0a9b41"
 
 [[projects]]
   branch = "master"
@@ -339,7 +347,7 @@
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "0a8115f42e037a6e327f9a269a26ff6603fb8472"
+  revision = "7866eead363ec334628dbc56e32df590a05f4696"
 
 [[projects]]
   branch = "master"
@@ -382,6 +390,40 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[projects]]
+  branch = "master"
+  digest = "1:867b32924d64471acb59c4a14aa1ede13737cc1482eed26c5c65bd004a0e5913"
+  name = "github.com/siddontang/go"
+  packages = [
+    "hack",
+    "sync2",
+  ]
+  pruneopts = "UT"
+  revision = "bdc77568d726a8702315ec4eafda030b6abc4f43"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6336d25b225c6ec8733bb33d77249c22d41e6ee3adafa89313de71ade2551b7f"
+  name = "github.com/siddontang/go-log"
+  packages = [
+    "log",
+    "loggers",
+  ]
+  pruneopts = "UT"
+  revision = "8d05993dda0722163e59b0e79e8c6dda6c38d5c0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a730590f80ebe31a7c88a072500766c6094a14b03e0c6931e4a63a13f227edc4"
+  name = "github.com/siddontang/go-mysql"
+  packages = [
+    "mysql",
+    "packet",
+    "server",
+  ]
+  pruneopts = "UT"
+  revision = "17cd8859601e49bec4f46b09df65a9c297e881ab"
 
 [[projects]]
   digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
@@ -517,11 +559,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "7c1a557ab941a71c619514f229f0b27ccb0c27cf"
+  revision = "a92615f3c49003920a58dedcf32cf55022cefb8d"
 
 [[projects]]
   branch = "master"
-  digest = "1:b3f6a679991357a05bb636fe496a323a4cba1ca86f5142dd2c54d92fc341a99e"
+  digest = "1:eceec1bdeb912f2aed8e5e9c8c81927649925095e1e4d5b85b331898fee06397"
   name = "golang.org/x/net"
   packages = [
     "bpf",
@@ -533,18 +575,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "146acd28ed5894421fb5aac80ca93bc1b1f46f87"
+  revision = "49bb7cea24b1df9410e1712aa6433dae904ff66a"
 
 [[projects]]
   branch = "master"
-  digest = "1:850d28ab022512e2cd3cf511a77f363c29e22689b4031f2050871f5de47ae4a0"
+  digest = "1:f5aa274a0377f85735edc7fedfb0811d3cbc20af91633797cb359e29c3272271"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "4497e2df6f9e69048a54498c7affbbec3294ad47"
+  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -583,6 +625,8 @@
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
     "github.com/satori/go.uuid",
+    "github.com/siddontang/go-mysql/mysql",
+    "github.com/siddontang/go-mysql/server",
     "github.com/sirupsen/logrus",
     "github.com/smartystreets/goconvey/convey",
     "github.com/stretchr/testify/mock",

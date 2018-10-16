@@ -280,7 +280,7 @@ func stopNodes() {
 			grepRace := exec.Command("/bin/sh", "-c", "grep -A 50 'DATA RACE' "+thisCmd.LogPath)
 			out, _ := grepRace.Output()
 			if len(out) > 2 {
-				log.Fatal("DATA RACE in %s :\n%s", thisCmd.Cmd.Path, string(out))
+				log.Fatalf("DATA RACE in %s :\n%s", thisCmd.Cmd.Path, string(out))
 			}
 		}(nodeCmd)
 	}

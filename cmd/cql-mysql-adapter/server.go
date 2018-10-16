@@ -59,7 +59,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	h, err := mys.NewConn(conn, s.mysqlUser, s.mysqlPassword, NewCursor())
+	h, err := mys.NewConn(conn, s.mysqlUser, s.mysqlPassword, NewCursor(s))
 
 	if err != nil {
 		log.Errorf("process connection failed: %v", err)

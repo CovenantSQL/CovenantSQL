@@ -31,7 +31,7 @@ import (
 var (
 	dbIDRegex        = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
 	emptyResultQuery = regexp.MustCompile("^(?i)\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+VARIABLES|SHOW\\s+DATABASES|SET|ROLLBACK).*$")
-	useDatabaseQuery = regexp.MustCompile("^(?i)\\s*USE\\s+(\\w+)\\s*$")
+	useDatabaseQuery = regexp.MustCompile("^(?i)\\s*USE\\s+`?(\\w+)`?\\s*$")
 	readQuery        = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
 )
 

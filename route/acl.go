@@ -119,6 +119,8 @@ const (
 	MCCQueryAccountStableBalance
 	// MCCQueryAccountCovenantBalance is used by block producer to provide account covenant coin balance
 	MCCQueryAccountCovenantBalance
+	// MCCReceiveEther
+	MCCReceiveEther
 )
 
 // String returns the RemoteFunc string
@@ -182,6 +184,8 @@ func (s RemoteFunc) String() string {
 		return "MCC.QueryAccountStableBalance"
 	case MCCQueryAccountCovenantBalance:
 		return "MCC.QueryAccountCovenantBalance"
+	case MCCReceiveEther:
+		return "MCC.ReceiveEther"
 	}
 	return "Unknown"
 }

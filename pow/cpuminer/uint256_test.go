@@ -60,6 +60,14 @@ func TestUint256(t *testing.T) {
 		target = "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
 		So(j, ShouldEqual, target)
 	})
+	Convey("equal or not equal", t, func() {
+		i := &Uint256{1,2,3,4}
+		j := &Uint256{1,2,3,4}
+		So(i.Equal(j), ShouldBeTrue)
+		So(j.Equal(i), ShouldBeTrue)
+		j.A = 0
+		So(j.Equal(i), ShouldBeFalse)
+	})
 }
 
 func TestUint256_Inc(t *testing.T) {

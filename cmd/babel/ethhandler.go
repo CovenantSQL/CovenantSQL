@@ -3,7 +3,6 @@ package main
 import (
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	ctypes "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -72,7 +71,7 @@ func processEtherReceive(etherIn *EtherIn) error {
 		log.Errorf("Unexpected err: %v\n", err)
 		return err
 	}
-	etherReceiveTx := ctypes.EtherReceive{
+	etherReceiveTx := &ctypes.EtherReceive{
 		EtherReceiveHeader: ctypes.EtherReceiveHeader{
 			Sender: sender,
 			Receiver: receive,
@@ -82,7 +81,19 @@ func processEtherReceive(etherIn *EtherIn) error {
 	}
 
 	// sign tx
-	etherReceiveTx.Sign(privateKey)
+	if err := etherReceiveTx.Sign(privateKey); err != nil {
+		log.Errorf("Unexpected err: %v", err)
+		return err
+	}
 
+	// push the tx using rpc
+	req := &bp.ReceiveEtherReq{}
+	resp := &bp.ReceiveEtherResp{}
+	req.Er = etherReceiveTx
+	if err = requestBP(route.MCCReceiveEther.String(), req, resp); err != nil {
+		log.Errorf("Send transaction failed: %v", err)
+		return err
+	}
 
+	return nil
 }

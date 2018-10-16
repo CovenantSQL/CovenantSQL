@@ -119,6 +119,17 @@ type AddTxTransferReq struct {
 	Tx *types.Transfer
 }
 
+// ReceiveEtherReq defines a request of ReceiveEtherReq RPC method.
+type ReceiveEtherReq struct {
+	proto.Envelope
+	Er *types.EtherReceive
+}
+
+// ReceiveEtherResp defines a response of ReceiveEtherReq RPC method.
+type ReceiveEtherResp struct {
+	proto.Envelope
+}
+
 // QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
 type QueryAccountStableBalanceReq struct {
 	proto.Envelope
@@ -230,4 +241,13 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
 	return
+}
+
+// ReceiveEther is the RPC method to transfer ether to account.
+func (s *ChainRPCService) ReceiveEther(req *ReceiveEtherReq, resp *ReceiveEtherResp) (err error) {
+	if req.Er == nil {
+		return ErrUnknownTransactionType
+	}
+
+	s.chain.pendingTxs <- req.Er
 }

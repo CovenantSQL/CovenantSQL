@@ -22,6 +22,7 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -464,6 +465,67 @@ func (s *metaState) transferAccountStableBalance(
 	return
 }
 
+func (s *metaState) transferAccountTokenBalance(
+	sender, receiver proto.AccountAddress, name pt.Token, amount *cpuminer.Uint256,
+	) (err error) {
+	if sender == receiver || amount.Equal(cpuminer.Zero) || name < 0 || int32(name) >= pt.SupportTokenNumber {
+		return
+	}
+
+	// Create empty receiver account if not found
+	s.loadOrStoreAccountObject(receiver, &accountObject{Account: pt.Account{Address: receiver}})
+
+	s.Lock()
+	defer s.Unlock()
+	var (
+		so, ro     *accountObject
+		sd, rd, ok bool
+	)
+
+	// Load sender and receiver objects
+	if so, sd = s.dirty.accounts[sender]; !sd {
+		if so, ok = s.readonly.accounts[sender]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+	if ro, rd = s.dirty.accounts[receiver]; !rd {
+		if ro, ok = s.readonly.accounts[receiver]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+
+	// Try transfer
+	var (
+		sb = so.TokenList.Balances[name]
+		rb = ro.TokenList.Balances[name]
+	)
+	if err = sb.SafeSub(amount); err != nil {
+		return
+	}
+	if err = rb.SafeAdd(amount); err != nil {
+		return
+	}
+
+	// Proceed transfer
+	if !sd {
+		var cpy = &accountObject{}
+		deepcopier.Copy(&so.Account).To(&cpy.Account)
+		so = cpy
+		s.dirty.accounts[sender] = cpy
+	}
+	if !rd {
+		var cpy = &accountObject{}
+		deepcopier.Copy(&ro.Account).To(&cpy.Account)
+		ro = cpy
+		s.dirty.accounts[receiver] = cpy
+	}
+	so.TokenList.Balances[name] = sb
+	ro.TokenList.Balances[name] = rb
+	return
+}
+
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
 	s.Lock()
 	defer s.Unlock()
@@ -672,6 +734,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.applyBilling(t)
 	case *pt.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
+	case *pt.EtherReceive:
+		err = s.transferAccountTokenBalance(t.Sender, t.Receiver, pt.Ether, &t.Amount)
 	default:
 		err = ErrUnknownTransactionType
 	}

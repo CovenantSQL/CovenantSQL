@@ -50,6 +50,47 @@ const (
 	NumberOfUserPermission
 )
 
+// Token defines token's number.
+type Token int32
+var SupportTokenNumber int32 = 3
+
+const (
+	// Ether defines Ethereum.
+	Ether Token = iota
+	// EOS defines EOS.
+	EOS
+	// Bitcoin defines Bitcoin.
+	Bitcoin
+)
+
+// String returns token's symbol.
+func (t Token) String() string {
+	switch t {
+	case Ether:
+		return "Ether"
+	case EOS:
+		return "EOS"
+	case Bitcoin:
+		return "Bitcoin"
+	default:
+		return "Unknown"
+	}
+}
+
+// FromString returns token's serial number.
+func FromString(t string) Token {
+	switch t {
+	case "Ether":
+		return Ether
+	case "EOS":
+		return EOS
+	case "Bitcoin":
+		return Bitcoin
+	default:
+		return -1
+	}
+}
+
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
 	Address    proto.AccountAddress
@@ -67,8 +108,8 @@ type SQLChainProfile struct {
 
 // TokenList stores other tokens except StableCoin and CovenantCoin
 type TokenList struct {
-	Names []string
-	Balances []*cpuminer.Uint256
+	Names [SupportTokenNumber]string
+	Balances [SupportTokenNumber]*cpuminer.Uint256
 }
 
 // Account stores its balance, and other mate data.

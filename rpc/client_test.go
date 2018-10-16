@@ -47,7 +47,7 @@ func TestDial(t *testing.T) {
 		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
 
-		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{1, 1, 1, 1})
+		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{A: 1, B: 1, C: 1, D: 1})
 		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
 		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)

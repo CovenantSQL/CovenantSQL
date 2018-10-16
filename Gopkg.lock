@@ -18,6 +18,28 @@
   revision = "43e89c9e6ba4ec912425e667d6689fb3ef3c7d45"
 
 [[projects]]
+  branch = "master"
+  digest = "1:8d21b4d359da7c7e49800d2e6e186997bae08ea6f814b7ca20bbd76e72e0338d"
+  name = "github.com/CovenantSQL/sqlparser"
+  packages = [
+    ".",
+    "dependency/bytes2",
+    "dependency/hack",
+    "dependency/querypb",
+    "dependency/sqltypes",
+  ]
+  pruneopts = "UT"
+  revision = "fe86852c12c8b9055d4d0731940014487dca1f12"
+
+[[projects]]
+  branch = "master"
+  digest = "1:ef41f61c18347d6949e94a1f648e47415922afcbe894f955b69921014ff7c4d4"
+  name = "github.com/CovenantSQL/xurls"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b72b1571892216ba2a42fb8abeb726d082b4c4d1"
+
+[[projects]]
   digest = "1:9253f97cfbbe049b631877c80badecc69620711b3e335f6cf97a7809681da388"
   name = "github.com/alecthomas/chroma"
   packages = [
@@ -75,11 +97,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2c00f064ba355903866cbfbf3f7f4c0fe64af6638cc7d1b8bdcf3181bc67f1d8"
+  digest = "1:c0decf632843204d2b8781de7b26e7038584e2dcccc7e2f401e88ae85b1df2b7"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "92494a5188cd5fb1056d55ce597f38d5db4e343d"
+  revision = "67e573d211ace594f1366b4ce9d39726c4b19bd0"
 
 [[projects]]
   branch = "master"
@@ -162,7 +184,7 @@
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
   pruneopts = "UT"
-  revision = "0210a2f0f73c96103378b0b935f39868e5731809"
+  revision = "1babbf986f6fcb1156d0646cdba5c4f81bc32849"
 
 [[projects]]
   digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
@@ -194,7 +216,7 @@
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "7221087c3d281fda5f794e28c2ea4c6e4d5c4558"
+  revision = "2f1d1f20f75d5404f53b9edf6b53ed5505508675"
 
 [[projects]]
   branch = "master"
@@ -222,11 +244,27 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:cdc32003a67007f608c767cfbea5b7a07ed7418ec9aed579707e3185086a6878"
+  name = "github.com/juju/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a4583d0a56eac4bdd939e38050d0c69abe0a9b41"
+
+[[projects]]
+  branch = "master"
   digest = "1:901625a0300fa83074dcf2510424c26a19dc3edadf67b34ca45a78f879ac4b0c"
   name = "github.com/knq/snaker"
   packages = ["."]
   pruneopts = "UT"
   revision = "d9ad1e7f342a5b58202aa92c5f1106d7bb8b9c73"
+
+[[projects]]
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -261,12 +299,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:8653f241d9710cb9af9a002c7c705ab69534f0721f87217e1e64a7d29e58df2f"
+  digest = "1:57689550840d285f2da9e85356a66e626592a8b6f1170d7f2482438e64fe82e3"
   name = "github.com/miekg/dns"
   packages = ["."]
   pruneopts = "UT"
-  revision = "426ea785a99b1dad4755492b923feb327d9251a6"
-  version = "v1.0.9"
+  revision = "d74956db7b5b20451796774572d0f5a0222e377a"
+  version = "v1.0.13"
 
 [[projects]]
   branch = "master"
@@ -302,14 +340,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3c0ad4713b7072227644d787872a730cd86258dd27184d2f6504d196a40b1567"
+  digest = "1:f43f7e80e273179b98af510dd453d184c7860920d6f9aa5c89e06aed0494a7a8"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "73edb9af667d9467d99b2001722770062a0086c3"
+  revision = "7866eead363ec334628dbc56e32df590a05f4696"
 
 [[projects]]
   branch = "master"
@@ -334,7 +372,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ef1dd9945e58ee9b635273d28c0ef3fa3742a7dedc038ebe207fd63e6ce000ef"
+  digest = "1:ef74914912f99c79434d9c09658274678bc85080ebe3ab32bec3940ebce5e1fc"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
@@ -343,7 +381,7 @@
     "xfs",
   ]
   pruneopts = "UT"
-  revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
+  revision = "185b4288413d2a0dd0806f78c90dde719829e5ae"
 
 [[projects]]
   branch = "master"
@@ -354,12 +392,46 @@
   revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
 
 [[projects]]
-  digest = "1:d867dfa6751c8d7a435821ad3b736310c2ed68945d05b50fb9d23aee0540c8cc"
+  branch = "master"
+  digest = "1:867b32924d64471acb59c4a14aa1ede13737cc1482eed26c5c65bd004a0e5913"
+  name = "github.com/siddontang/go"
+  packages = [
+    "hack",
+    "sync2",
+  ]
+  pruneopts = "UT"
+  revision = "bdc77568d726a8702315ec4eafda030b6abc4f43"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6336d25b225c6ec8733bb33d77249c22d41e6ee3adafa89313de71ade2551b7f"
+  name = "github.com/siddontang/go-log"
+  packages = [
+    "log",
+    "loggers",
+  ]
+  pruneopts = "UT"
+  revision = "8d05993dda0722163e59b0e79e8c6dda6c38d5c0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a730590f80ebe31a7c88a072500766c6094a14b03e0c6931e4a63a13f227edc4"
+  name = "github.com/siddontang/go-mysql"
+  packages = [
+    "mysql",
+    "packet",
+    "server",
+  ]
+  pruneopts = "UT"
+  revision = "17cd8859601e49bec4f46b09df65a9c297e881ab"
+
+[[projects]]
+  digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
+  revision = "ad15b42461921f1fb3529b058c6786c6a45d5162"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:cc1c574c9cb5e99b123888c12b828e2d19224ab6c2244bda34647f230bf33243"
@@ -430,19 +502,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4904b183bb8ac483dbebc13ff8df5cc35b27f2ab726ca52477d7f05231f52685"
+  digest = "1:4a2baa112d6e7d222e78fc4702796592a47c5a6341e34e9b0ee39582e32cdf99"
   name = "github.com/xo/dburl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "cd61869a0c089d2d6fa2f73676dceeaa958132ca"
+  revision = "e33971d4c1320eca4c3585875e410c1eeadc4c3a"
 
 [[projects]]
   branch = "master"
-  digest = "1:8a2f7991e954f07bfc8b9f693b110c3ac035dc11aa4b5925feb61abd0c2152e7"
+  digest = "1:8a6b9b1c86f610eb347e6e5e42af0fc9aff52427c619dd70e9e61a79c6114106"
   name = "github.com/xo/tblfmt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "2f8d72e9c74c759623e6988058db8a60a9f6cc40"
+  revision = "3ae3311c5ac954b9ec8a89eed14e395abbb069e4"
 
 [[projects]]
   branch = "master"
@@ -467,7 +539,7 @@
     "text",
   ]
   pruneopts = "UT"
-  revision = "eb535a7479d618e6b87326c3e8fd1705e55f5ecc"
+  revision = "ee0ef60c5b0883dcb5caa67d5317c56d6389e779"
 
 [[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"
@@ -487,11 +559,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
+  revision = "a92615f3c49003920a58dedcf32cf55022cefb8d"
 
 [[projects]]
   branch = "master"
-  digest = "1:4076636ef0c11c103e8395af90f3fa433856e639f51af25cc657577f46670407"
+  digest = "1:eceec1bdeb912f2aed8e5e9c8c81927649925095e1e4d5b85b331898fee06397"
   name = "golang.org/x/net"
   packages = [
     "bpf",
@@ -503,18 +575,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "2f5d2388922f370f4355f327fcf4cfe9f5583908"
+  revision = "49bb7cea24b1df9410e1712aa6433dae904ff66a"
 
 [[projects]]
   branch = "master"
-  digest = "1:3bb4674103eef9bf860b88e59048c67ad646de4274ea7de8d71d16e9f8209bff"
+  digest = "1:f5aa274a0377f85735edc7fedfb0811d3cbc20af91633797cb359e29c3272271"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "d641721ec2dead6fe5ca284096fe4b1fcd49e427"
+  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -524,20 +596,14 @@
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
   version = "v2.2.1"
 
-[[projects]]
-  branch = "master"
-  digest = "1:989270fffe265c4238404733c5591302fdccafa4ecd48d2f59cfa1e7e1ea3937"
-  name = "mvdan.cc/xurls"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "70405f5eab516c9f7b626d803b043415809499a6"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/CovenantSQL/HashStablePack/marshalhash",
     "github.com/CovenantSQL/go-sqlite3-encrypt",
+    "github.com/CovenantSQL/sqlparser",
+    "github.com/CovenantSQL/xurls",
     "github.com/beevik/ntp",
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
@@ -559,6 +625,8 @@
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
     "github.com/satori/go.uuid",
+    "github.com/siddontang/go-mysql/mysql",
+    "github.com/siddontang/go-mysql/server",
     "github.com/sirupsen/logrus",
     "github.com/smartystreets/goconvey/convey",
     "github.com/stretchr/testify/mock",
@@ -574,7 +642,6 @@
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
     "gopkg.in/yaml.v2",
-    "mvdan.cc/xurls",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

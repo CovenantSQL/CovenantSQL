@@ -76,7 +76,7 @@ type BPInfo struct {
 	NodeID proto.NodeID `yaml:"NodeID"`
 	// RawNodeID
 	RawNodeID proto.RawNodeID `yaml:"-"`
-	// Nonce is the nonce, SEE: cmd/idminer for more
+	// Nonce is the nonce, SEE: cmd/cql-utils for more
 	Nonce cpuminer.Uint256 `yaml:"Nonce"`
 	// ChainFileName is the chain db's name
 	ChainFileName string `yaml:"ChainFileName"`

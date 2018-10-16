@@ -37,7 +37,9 @@ const (
 )
 
 func init() {
-	sql.Register("covenantsql", new(covenantSQLDriver))
+	driver := new(covenantSQLDriver)
+	sql.Register("covenantsql", driver)
+	sql.Register("cql", driver)
 }
 
 // covenantSQLDriver implements sql.Driver interface.

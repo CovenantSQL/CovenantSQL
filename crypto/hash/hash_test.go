@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v2"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/yaml.v2"
 )
 
 // mainNetGenesisHash is the hash of the first block in the block chain for the
@@ -283,4 +283,3 @@ func TestHash_MarshalYAML(t *testing.T) {
 		So(unmarshalAndMarshal("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd")
 	})
 }
-

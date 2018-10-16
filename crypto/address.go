@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package crypto
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"

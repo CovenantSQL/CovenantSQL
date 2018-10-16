@@ -520,13 +520,6 @@ func (c *Chain) produceBlock(now time.Time) error {
 		return err
 	}
 
-	blockReq := &AdviseNewBlockReq{
-		Envelope: proto.Envelope{
-			// TODO(lambda): Add fields.
-		},
-		Block: b,
-	}
-	method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseNewBlock")
 	peers := c.rt.getPeers()
 	wg := &sync.WaitGroup{}
 	for _, s := range peers.Servers {
@@ -534,8 +527,15 @@ func (c *Chain) produceBlock(now time.Time) error {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
+				method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseNewBlock")
+				blockReq := &AdviseNewBlockReq{
+					Envelope: proto.Envelope{
+						// TODO(lambda): Add fields.
+					},
+					Block: b,
+				}
 				blockResp := &AdviseNewBlockResp{}
-				if err = c.cl.CallNode(id, method, blockReq, blockResp); err != nil {
+				if err := c.cl.CallNode(id, method, blockReq, blockResp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":       c.rt.getPeerInfoString(),
 						"curr_turn":  c.rt.getNextTurn(),
@@ -629,7 +629,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 			go func(id proto.NodeID) {
 				defer wg.Done()
 				tbResp := &AdviseTxBillingResp{}
-				if err = c.cl.CallNode(id, method, tbReq, tbResp); err != nil {
+				if err := c.cl.CallNode(id, method, tbReq, tbResp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":      c.rt.getPeerInfoString(),
 						"curr_turn": c.rt.getNextTurn(),

@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -282,7 +283,7 @@ func TestResponse_Sign(t *testing.T) {
 		// sign directly, embedded original request is not filled
 		err = res.Sign(privKey)
 		So(err, ShouldNotBeNil)
-		So(err, ShouldBeIn, []error{
+		So(errors.Cause(err), ShouldBeIn, []error{
 			ErrSignVerification,
 			ErrHashVerification,
 		})

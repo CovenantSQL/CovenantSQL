@@ -26,6 +26,7 @@ import (
 	"time"
 
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -1139,7 +1140,7 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 
 		highBlock = n.block
 
-		if addr, err = utils.PubKeyHash(n.block.Signee()); err != nil {
+		if addr, err = crypto.PubKeyHash(n.block.Signee()); err != nil {
 			return
 		}
 
@@ -1159,7 +1160,7 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 				return
 			}
 
-			if addr, err = utils.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
+			if addr, err = crypto.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
 				return
 			}
 

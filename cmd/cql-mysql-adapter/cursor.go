@@ -149,10 +149,6 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	var conn *sql.DB
 
-	if conn, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
 	// send empty result for variables query/table listing
 	if emptyResultQuery.MatchString(query) {
 		// return empty result
@@ -177,6 +173,10 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 			}
 		}
 
+		return
+	}
+
+	if conn, err = c.ensureDatabase(); err != nil {
 		return
 	}
 

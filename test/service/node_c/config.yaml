@@ -99,12 +99,12 @@ KnownNodes:
   Role: Miner
 Adapter:
   ListenAddr: 0.0.0.0:4661
-  CertificatePath: ./node_c/server.test.covenantsql.io.pem
-  PrivateKeyPath: ./node_c/server.test.covenantsql.io-key.pem
+  CertificatePath: ./server.test.covenantsql.io.pem
+  PrivateKeyPath: ./server.test.covenantsql.io-key.pem
   VerifyCertificate: true
-  ClientCAPath: ./node_c/rootCA.pem
+  ClientCAPath: ./rootCA.pem
   AdminCerts:
-    - ./node_c/admin.test.covenantsql.io.pem
+    - ./admin.test.covenantsql.io.pem
   WriteCerts:
-    - ./node_c/write.test.covenantsql.io.pem
+    - ./write.test.covenantsql.io.pem
   StorageDriver: covenantsql

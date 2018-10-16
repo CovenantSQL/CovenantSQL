@@ -51,7 +51,7 @@ $ cql-utils -tool adapterconfgen -config config.yaml
 ListenAddr (default: 0.0.0.0:4661): ⏎
 CertificatePath (default: server.pem): ⏎
 PrivateKeyPath (default: server-key.pem): ⏎
-VerifyCertificate (default: false): ⏎
+VerifyCertificate (default: true) (y/n): ⏎
 ClientCAPath (default:): ⏎
 AdminCerts (default:): ⏎
 WriteCerts (default:): ⏎

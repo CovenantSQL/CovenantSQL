@@ -18,25 +18,25 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"gopkg.in/yaml.v2"
 )
 
 type adapterConfig struct {
-	ListenAddr        string
-	CertificatePath   string
-	PrivateKeyPath    string
-	VerifyCertificate bool
-	ClientCAPath      string
-	AdminCerts        []string
-	WriteCerts        []string
-	StorageDriver     string
-	StorageRoot       string
+	ListenAddr        string   `yaml:"ListenAddr"`
+	CertificatePath   string   `yaml:"CertificatePath"`
+	PrivateKeyPath    string   `yaml:"PrivateKeyPath"`
+	VerifyCertificate bool     `yaml:"VerifyCertificate"`
+	ClientCAPath      string   `yaml:"ClientCAPath"`
+	AdminCerts        []string `yaml:"AdminCerts"`
+	WriteCerts        []string `yaml:"WriteCerts"`
+	StorageDriver     string   `yaml:"StorageDriver"`
+	StorageRoot       string   `yaml:"StorageRoot"`
 }
 
 var (
@@ -54,43 +54,113 @@ var (
 )
 
 func (c *adapterConfig) readListenAddr() {
-
+	newAddr := readDataFromStdin("ListenAddr (default: %v): ", c.ListenAddr)
+	if newAddr != "" {
+		c.ListenAddr = newAddr
+	}
 }
 
 func (c *adapterConfig) readCertificatePath() {
-
+	newCertPath := readDataFromStdin("CertificatePath (default: %v): ", c.CertificatePath)
+	if newCertPath != "" {
+		c.CertificatePath = newCertPath
+	}
 }
 
 func (c *adapterConfig) readPrivateKeyPath() {
-
+	newPrivateKeyPath := readDataFromStdin("PrivateKeyPath (default: %v): ", c.PrivateKeyPath)
+	if newPrivateKeyPath != "" {
+		c.PrivateKeyPath = newPrivateKeyPath
+	}
 }
 
-func (c *adapterConfig) readVerifyCertificate() {
+func (c *adapterConfig) readVerifyCertificate() bool {
+	shouldVerifyCertificate := readDataFromStdin(
+		"VerifyCertificate (default: %v) (y/n): ", c.VerifyCertificate)
+	if shouldVerifyCertificate != "" {
+		switch shouldVerifyCertificate {
+		case "y":
+			fallthrough
+		case "Y":
+			c.VerifyCertificate = true
+		case "N":
+			fallthrough
+		case "n":
+			c.VerifyCertificate = false
+		}
+	}
 
+	return c.VerifyCertificate
 }
 
 func (c *adapterConfig) readClientCAPath() {
-
+	newClientCAPath := readDataFromStdin("ClientCAPath (default: %v)", c.ClientCAPath)
+	if newClientCAPath != "" {
+		c.ClientCAPath = newClientCAPath
+	}
 }
 
 func (c *adapterConfig) readAdminCerts() {
+	var newCerts []string
 
+	for {
+		record := readDataFromStdin("AdminCerts: ")
+
+		if record == "" {
+			break
+		}
+
+		newCerts = append(newCerts, record)
+	}
+
+	c.AdminCerts = newCerts
 }
 
 func (c *adapterConfig) readWriteCerts() {
+	var newCerts []string
 
+	for {
+		record := readDataFromStdin("WriteCerts: ")
+
+		if record == "" {
+			break
+		}
+
+		newCerts = append(newCerts, record)
+	}
+
+	c.WriteCerts = newCerts
 }
 
 func (c *adapterConfig) readStorageDriver() {
-
+	newStorageDriver := readDataFromStdin("StorageDriver (default: %v)", c.StorageDriver)
+	if newStorageDriver != "" {
+		c.StorageDriver = newStorageDriver
+	}
 }
 
 func (c *adapterConfig) readStorageRoot() {
-
+	newStorageRoot := readDataFromStdin("StorageRoot (default: %v)", c.StorageRoot)
+	if newStorageRoot != "" {
+		c.StorageRoot = newStorageRoot
+	}
 }
 
-func (c *adapterConfig) loadFromExistingConfig(rawConfig map[string]interface{}) {
-	if rawConfig == nil || rawConfig["Adapter"] == nil {
+func (c *adapterConfig) loadFromExistingConfig(rawConfig yaml.MapSlice) {
+	if rawConfig == nil {
+		return
+	}
+
+	// find adapter config in map slice
+	var originalConfig interface{}
+
+	for _, item := range rawConfig {
+		if keyStr, ok := item.Key.(string); ok && keyStr == "Adapter" {
+			originalConfig = item.Value
+		}
+	}
+
+	if originalConfig == nil {
 		return
 	}
 
@@ -98,12 +168,12 @@ func (c *adapterConfig) loadFromExistingConfig(rawConfig map[string]interface{})
 	var configBytes []byte
 	var err error
 
-	if configBytes, err = json.Marshal(rawConfig["Adapter"]); err != nil {
+	if configBytes, err = yaml.Marshal(originalConfig); err != nil {
 		log.Warningf("load previous adapter config failed: %v", err)
 		return
 	}
 
-	if err = json.Unmarshal(configBytes, c); err != nil {
+	if err = yaml.Unmarshal(configBytes, c); err != nil {
 		log.Warningf("load previous adapter config failed: %v", err)
 		return
 	}
@@ -111,20 +181,48 @@ func (c *adapterConfig) loadFromExistingConfig(rawConfig map[string]interface{})
 	return
 }
 
-func (c *adapterConfig) writeToRawConfig(rawConfig map[string]interface{}) {
-	if rawConfig != nil {
-		rawConfig["Adapter"] = c
+func (c *adapterConfig) writeToRawConfig(rawConfig yaml.MapSlice) yaml.MapSlice {
+	if rawConfig == nil {
+		return rawConfig
 	}
+
+	// find adapter config in map slice
+	for i, item := range rawConfig {
+		if keyStr, ok := item.Key.(string); ok && keyStr == "Adapter" {
+			rawConfig[i].Value = c
+			return rawConfig
+		}
+	}
+
+	// not found
+	rawConfig = append(rawConfig, yaml.MapItem{
+		Key:   "Adapter",
+		Value: c,
+	})
+
+	return rawConfig
 }
 
 func (c *adapterConfig) readAllConfig() {
+	c.readListenAddr()
+	c.readCertificatePath()
+	c.readPrivateKeyPath()
 
+	if c.readVerifyCertificate() {
+		c.readClientCAPath()
+		c.readAdminCerts()
+		c.readWriteCerts()
+	}
+
+	c.readStorageDriver()
+	c.readStorageRoot()
 }
 
-func readDataFromStdin(prompt string) (s string) {
+func readDataFromStdin(prompt string, values ...interface{}) (s string) {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(prompt)
+	fmt.Printf(prompt, values...)
 	s, _ = reader.ReadString('\n')
+	s = strings.TrimSpace(s)
 	return
 }
 
@@ -142,7 +240,7 @@ func runAdapterConfGen() {
 	}
 
 	// load config
-	var rawConfig map[string]interface{}
+	var rawConfig yaml.MapSlice
 	if err = yaml.Unmarshal(configBytes, &rawConfig); err != nil {
 		log.Errorf("a valid config file is required for adapterconfgen: %v", err)
 		os.Exit(1)
@@ -162,7 +260,7 @@ func runAdapterConfGen() {
 
 	defaultAdapterConfig.loadFromExistingConfig(rawConfig)
 	defaultAdapterConfig.readAllConfig()
-	defaultAdapterConfig.writeToRawConfig(rawConfig)
+	rawConfig = defaultAdapterConfig.writeToRawConfig(rawConfig)
 
 	if configBytes, err = yaml.Marshal(rawConfig); err != nil {
 		log.Errorf("marshal config failed: %v", err)

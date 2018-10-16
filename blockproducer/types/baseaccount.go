@@ -34,7 +34,7 @@ type BaseAccount struct {
 	AccountHash hash.Hash
 }
 
-// Serialize serializes TxBilling using msgpack.
+// Serialize implements interfaces/Transaction.Serialize.
 func (b *BaseAccount) Serialize() (s []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(b); err != nil {
@@ -44,7 +44,7 @@ func (b *BaseAccount) Serialize() (s []byte, err error) {
 	return
 }
 
-// Deserialize desrializes TxBilling using msgpack.
+// Deserialize implements interfaces/Transaction.Deserialize.
 func (b *BaseAccount) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, b)
 }

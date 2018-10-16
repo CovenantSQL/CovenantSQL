@@ -52,10 +52,10 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	)
 
 	defer func() {
-		leader.Process.Signal(syscall.SIGKILL)
+		leader.Cmd.Process.Signal(syscall.SIGKILL)
 	}()
 
-	log.Debugf("leader pid %d", leader.Process.Pid)
+	log.Debugf("leader pid %d", leader.Cmd.Process.Pid)
 	time.Sleep(5 * time.Second)
 
 	route.InitKMS(conf.GConf.PubKeyStoreFile)

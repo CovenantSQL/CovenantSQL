@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ var (
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
-var nodeCmds []*exec.Cmd
+var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
@@ -82,7 +83,7 @@ func startNodes() {
 	}
 
 	// start 3bps
-	var cmd *exec.Cmd
+	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
@@ -165,10 +166,15 @@ func stopNodes() {
 
 	for _, nodeCmd := range nodeCmds {
 		wg.Add(1)
-		go func(thisCmd *exec.Cmd) {
+		go func(thisCmd *utils.CMD) {
 			defer wg.Done()
-			thisCmd.Process.Signal(os.Interrupt)
-			thisCmd.Wait()
+			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
+			thisCmd.Cmd.Wait()
+			grepRace := exec.Command("/bin/sh", "-c", "grep -A 50 'DATA RACE' "+thisCmd.LogPath)
+			out, _ := grepRace.Output()
+			if len(out) > 2 {
+				log.Fatal(string(out))
+			}
 		}(nodeCmd)
 	}
 
@@ -321,7 +327,7 @@ func TestFullProcess(t *testing.T) {
 		// remove previous observation result
 		os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
 
-		var observerCmd *exec.Cmd
+		var observerCmd *utils.CMD
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql-observer.test"),
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
@@ -333,8 +339,8 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		defer func() {
-			observerCmd.Process.Signal(os.Interrupt)
-			observerCmd.Wait()
+			observerCmd.Cmd.Process.Signal(os.Interrupt)
+			observerCmd.Cmd.Wait()
 		}()
 
 		// wait for the observer to collect blocks, two periods is enough

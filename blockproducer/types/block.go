@@ -110,6 +110,8 @@ func enumType(t pi.TransactionType) (i pi.Transaction) {
 		i = (*Transfer)(nil)
 	case pi.TransactionTypeBaseAccount:
 		i = (*BaseAccount)(nil)
+	case pi.TransactionTypeCreataDatabase:
+		i = (*CreateDatabase)(nil)
 	}
 	return
 }

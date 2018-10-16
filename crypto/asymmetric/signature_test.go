@@ -26,8 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
 )
@@ -105,6 +105,8 @@ func TestSignature_MarshalBinary(t *testing.T) {
 		// random data
 		buf := make([]byte, 32)
 		rand.Read(buf)
+		buf2 := make([]byte, 32)
+		rand.Read(buf2)
 
 		// sign
 		var sign *Signature
@@ -119,6 +121,8 @@ func TestSignature_MarshalBinary(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		So(sign2.Verify(buf, publicKey), ShouldBeTrue)
+
+		So(sign2.Verify(buf2, publicKey), ShouldBeFalse)
 	})
 
 	Convey("test marshal unmarshal nil value", t, func() {
@@ -145,6 +149,30 @@ func BenchmarkGenKey(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkGenKeySignVerify(b *testing.B) {
+	b.Log(b.Name())
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		//hash := make([]byte, 32)
+		//rand.Read(hash)
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		priv, pub, err := GenSecp256k1KeyPair()
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+		sig, err := priv.Sign(hash[:])
+		if err != nil {
+			b.Fatalf("Error occurred: %d, %v", i, err)
+		}
+		if !sig.Verify(hash[:], pub) {
+			b.Fatalf("Error occurred: %d", i)
+		}
+	}
+}
+
 func generateKeyPair() (pubkey, privkey []byte) {
 	key, err := ecdsa.GenerateKey(secp256k1.S256(), crand.Reader)
 	if err != nil {

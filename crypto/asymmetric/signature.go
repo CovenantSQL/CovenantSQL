@@ -17,19 +17,25 @@
 package asymmetric
 
 import (
+	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
 	"math/big"
 
+	"sync"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 var (
 	// BypassSignature is the flag indicate if bypassing signature sign & verify
 	BypassSignature = false
 	bypassS         *Signature
+	mu              sync.Mutex
 )
 
 // For test Signature.Sign mock
@@ -80,7 +86,13 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 	if BypassSignature {
 		return bypassS, nil
 	}
-	s, e := (*ec.PrivateKey)(private).Sign(hash)
+	seckey := utils.PaddedBigBytes(private.D, private.Params().BitSize/8)
+	defer zeroBytes(seckey)
+	sb, e := secp256k1.Sign(hash, seckey)
+	s := new(Signature)
+	s.R = new(big.Int).SetBytes(sb[:32])
+	s.S = new(big.Int).SetBytes(sb[32:64])
+	//s, e := (*ec.PrivateKey)(private).Sign(hash)
 	return (*Signature)(s), e
 }
 
@@ -91,11 +103,23 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 		return true
 	}
 
-	signeeBytes := elliptic.Marshal(secp256k1.S256(), signee.X, signee.Y)
 	signature := make([]byte, 64)
-	copy(signature, s.R.Bytes())
-	copy(signature[32:], s.S.Bytes())
-	return secp256k1.VerifySignature(signeeBytes, hash, signature)
+	copy(signature, utils.PaddedBigBytes(s.R, 32))
+	copy(signature[32:], utils.PaddedBigBytes(s.S, 32))
+	//signeeBytes := elliptic.Marshal(secp256k1.S256(), signee.X, signee.Y)
+	signeeBytes := (*ec.PublicKey)(signee).SerializeUncompressed()
+	//signeeBytes := secp256k1.CompressPubkey(signee.X, signee.Y)
+	ret := secp256k1.VerifySignature(signeeBytes, hash, signature)
+	if !ret {
+		if len(hash) != 32 || len(signature) != 64 || len(signeeBytes) == 0 {
+			log.Errorf("pubkey: %v, msg: %v, sign: %v", signeeBytes, hash, signature)
+			return false
+		}
+
+		ret2 := ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
+		log.Errorf("signee: %s, hash: %x, ret2: %v", signee, hash, ret2)
+	}
+	return ret
 	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 
@@ -135,4 +159,10 @@ func (s *Signature) UnmarshalBinary(keyBytes []byte) (err error) {
 	}
 	*s = *sig
 	return
+}
+
+func zeroBytes(bytes []byte) {
+	for i := range bytes {
+		bytes[i] = 0
+	}
 }

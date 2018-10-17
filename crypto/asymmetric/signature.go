@@ -49,10 +49,6 @@ type Signature struct {
 	S *big.Int
 }
 
-func (s *Signature) toec() *ec.Signature {
-	return (*ec.Signature)(s)
-}
-
 // Serialize converts a signature to stirng
 func (s *Signature) Serialize() []byte {
 	return (*ec.Signature)(s).Serialize()

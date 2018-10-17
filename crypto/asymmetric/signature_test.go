@@ -100,19 +100,23 @@ func TestSign(t *testing.T) {
 func TestSignature_MarshalBinary(t *testing.T) {
 	Convey("marshal unmarshal signature", t, func() {
 		// generate
+		// random data
+		var sign *Signature
+		var err error
 		privateKey, publicKey, _ := GenSecp256k1KeyPair()
 
-		// random data
 		buf := make([]byte, 32)
 		rand.Read(buf)
 		buf2 := make([]byte, 32)
 		rand.Read(buf2)
 
+		sign, err = privateKey.Sign([]byte("aaa"))
+		So(err, ShouldNotBeNil)
+		So(sign, ShouldBeNil)
+
 		// sign
-		var sign *Signature
 		sign, _ = privateKey.Sign(buf)
 
-		var err error
 		keyBytes, err := sign.MarshalBinary()
 		So(err, ShouldBeNil)
 
@@ -121,8 +125,18 @@ func TestSignature_MarshalBinary(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		So(sign2.Verify(buf, publicKey), ShouldBeTrue)
-
 		So(sign2.Verify(buf2, publicKey), ShouldBeFalse)
+
+		sign3, _ := privateKey.Sign([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+		So(sign.IsEqual(sign3), ShouldBeFalse)
+		So(sign.IsEqual(sign), ShouldBeTrue)
+
+		sb, _ := sign.MarshalHash()
+		sb2, _ := sign2.MarshalHash()
+		sb3, _ := sign3.MarshalHash()
+		So(sb, ShouldResemble, sb2)
+		So(sb, ShouldNotResemble, sb3)
+		So(sign.Msgsize(), ShouldEqual, sign3.Msgsize())
 	})
 
 	Convey("test marshal unmarshal nil value", t, func() {

@@ -149,6 +149,11 @@ func TestPublicKey_MarshalBinary(t *testing.T) {
 		publicKey2.UnmarshalBinary(buf)
 
 		So(publicKey.IsEqual(publicKey2), ShouldBeTrue)
+
+		buf1, _ := publicKey.MarshalHash()
+		buf2, _ := publicKey2.MarshalHash()
+		So(buf1, ShouldResemble, buf2)
+		So(publicKey.Msgsize(), ShouldEqual, publicKey2.Msgsize())
 	})
 }
 

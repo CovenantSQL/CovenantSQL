@@ -40,19 +40,19 @@ func init() {
 }
 
 var (
-	// ErrInvalidMsgLen
+	// ErrInvalidMsgLen is invalid message length, need 32 bytes
 	ErrInvalidMsgLen = errors.New("invalid message length, need 32 bytes")
-	// ErrInvalidSignatureLen
+	// ErrInvalidSignatureLen is invalid signature length
 	ErrInvalidSignatureLen = errors.New("invalid signature length")
-	// ErrInvalidRecoveryID
+	// ErrInvalidRecoveryID is invalid signature recovery id
 	ErrInvalidRecoveryID = errors.New("invalid signature recovery id")
-	// ErrInvalidKey
+	// ErrInvalidKey is invalid private key
 	ErrInvalidKey = errors.New("invalid private key")
-	// ErrInvalidPubkey
+	// ErrInvalidPubkey is invalid public key
 	ErrInvalidPubkey = errors.New("invalid public key")
-	// ErrSignFailed
+	// ErrSignFailed is signing failed
 	ErrSignFailed = errors.New("signing failed")
-	// ErrRecoverFailed
+	// ErrRecoverFailed is recovery failed
 	ErrRecoverFailed = errors.New("recovery failed")
 )
 

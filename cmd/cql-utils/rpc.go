@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -40,6 +41,7 @@ var (
 		"DBS":  &worker.DBMSRPCService{},
 		"BPDB": &blockproducer.DBService{},
 		"SQLC": &sqlchain.MuxService{},
+		"MCC":  &bp.ChainRPCService{},
 	}
 	rpcName     string
 	rpcEndpoint string

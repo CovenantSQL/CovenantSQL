@@ -22,35 +22,33 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-// DecodeMsgPack reverses the encode operation on a byte slice input.
-func DecodeMsgPack(buf []byte, out interface{}) error {
-	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{
+var (
+	msgpackHandle = &codec.MsgpackHandle{
 		WriteExt:    true,
 		RawToString: true,
 	}
-	dec := codec.NewDecoder(r, &hd)
+)
+// DecodeMsgPack reverses the encode operation on a byte slice input.
+func DecodeMsgPack(buf []byte, out interface{}) error {
+	r := bytes.NewBuffer(buf)
+	dec := codec.NewDecoder(r, msgpackHandle)
 	return dec.Decode(out)
 }
 
 // DecodeMsgPackPlain reverses the encode operation on a byte slice input without RawToString setting.
 func DecodeMsgPackPlain(buf []byte, out interface{}) error {
 	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{
+	hd := &codec.MsgpackHandle{
 		WriteExt: true,
 	}
-	dec := codec.NewDecoder(r, &hd)
+	dec := codec.NewDecoder(r, hd)
 	return dec.Decode(out)
 }
 
 // EncodeMsgPack writes an encoded object to a new bytes buffer.
 func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
-	hd := codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-	enc := codec.NewEncoder(buf, &hd)
+	enc := codec.NewEncoder(buf, msgpackHandle)
 	err := enc.Encode(in)
 	return buf, err
 }

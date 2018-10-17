@@ -30,23 +30,23 @@ import (
 
 // AckHeader defines client ack entity.
 type AckHeader struct {
-	Response  SignedResponseHeader
-	NodeID    proto.NodeID // ack node id
-	Timestamp time.Time    // time in UTC zone
+	Response  SignedResponseHeader `json:"r"`
+	NodeID    proto.NodeID         `json:"i"` // ack node id
+	Timestamp time.Time            `json:"t"` // time in UTC zone
 }
 
 // SignedAckHeader defines client signed ack entity.
 type SignedAckHeader struct {
 	AckHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	HeaderHash hash.Hash             `json:"hh"`
+	Signee     *asymmetric.PublicKey `json:"e"`
+	Signature  *asymmetric.Signature `json:"s"`
 }
 
 // Ack defines a whole client ack request entity.
 type Ack struct {
 	proto.Envelope
-	Header SignedAckHeader
+	Header SignedAckHeader `json:"h"`
 }
 
 // AckResponse defines client ack response entity.

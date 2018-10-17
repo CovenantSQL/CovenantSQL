@@ -17,15 +17,23 @@
 package cpuminer
 
 import (
+	"fmt"
 	"math"
+	"math/big"
+	"math/rand"
 	"testing"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
+	"time"
 	"unsafe"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+const testNum  = 200
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestUint256(t *testing.T) {
 	Convey("uint256 len", t, func() {
@@ -49,24 +57,73 @@ func TestUint256(t *testing.T) {
 		So(err, ShouldEqual, ErrBytesLen)
 		So(i, ShouldBeNil)
 	})
+	Convey("zero and max", t, func() {
+		z := Zero()
+		m := MaxUint256()
+		So(m.Inc().String(), ShouldEqual, z.String())
+		one := Zero()
+		one.Inc()
+		z.Sub(one)
+		So(z.String(), ShouldEqual, MaxUint256().String())
+	})
 	Convey("convert string", t, func() {
-		i := Uint256{0,0,0,1}
-		j := i.String()
-		target := "1"
-		So(j, ShouldEqual, target)
-
-		i = Uint256{1, 0, 0, 1}
-		j = i.String()
-		target = "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
-		So(j, ShouldEqual, target)
+		for i := 0; i < testNum; i++ {
+			a := rand.Uint64() & 0x7fffffffffffffff | 0x7000000000000000
+			b := rand.Uint64() & 0x7fffffffffffffff | 0x7000000000000000
+			c := rand.Uint64() & 0x7fffffffffffffff | 0x7000000000000000
+			d := rand.Uint64() & 0x7fffffffffffffff | 0x7000000000000000
+			m := &Uint256{a, b, c, d}
+			n, _ := big.NewInt(0).SetString(fmt.Sprintf("%x%x%x%x", d, c, b, a), 16)
+			So(m.String(), ShouldEqual, n.String())
+		}
+		m1 := &Uint256{math.MaxUint64, 0, 0, 0}
+		So(m1.String(), ShouldEqual, "18446744073709551615")
+		m2 := &Uint256{1, math.MaxUint64, 0, 0}
+		So(m2.String(), ShouldEqual, "340282366920938463444927863358058659841")
 	})
 	Convey("equal or not equal", t, func() {
-		i := &Uint256{1,2,3,4}
-		j := &Uint256{1,2,3,4}
-		So(i.Equal(j), ShouldBeTrue)
-		So(j.Equal(i), ShouldBeTrue)
-		j.A = 0
-		So(j.Equal(i), ShouldBeFalse)
+		for i := 0; i < testNum; i++ {
+			var m, n *Uint256
+			var bigM, bigN *big.Int
+			if i % 2 == 0 {
+				m = notRandomUint256()
+				n = notRandomUint256()
+				bigM = m.BigInt()
+				bigN = n.BigInt()
+			} else {
+				m = notRandomUint256()
+				n = &Uint256{}
+				n.Copy(m)
+				bigM = m.BigInt()
+				bigN = n.BigInt()
+			}
+			So(m.Equal(n), ShouldEqual, bigM.Cmp(bigN) == 0)
+		}
+	})
+	Convey("compare two number", t, func() {
+		for i := 0; i < testNum; i++ {
+			m := notRandomUint256()
+			n := notRandomUint256()
+			bigM := m.BigInt()
+			bigN := n.BigInt()
+			log.Infof("m = {A: %x, B: %x, C: %x, D: %x}, %v", m.A, m.B, m.C, m.D, m.Bytes())
+			log.Infof("n = {A: %x, B: %x, C: %x, D: %x}", n.A, n.B, n.C, n.D)
+			log.Infof("bigM = %s", bigM.String())
+			log.Infof("BigN = %s", bigN.String())
+			So(m.Compare(n), ShouldEqual, bigM.Cmp(bigN))
+		}
+	})
+	Convey("copy number", t, func() {
+		i0 := &Uint256{1,2,3,4}
+		i1 := &Uint256{}
+		i1.Copy(i0)
+		So(i1.Equal(i0), ShouldBeTrue)
+	})
+	Convey("convert to BigInt", t, func() {
+		for i := 0; i < testNum; i++ {
+			m := notRandomUint256()
+			So(m.BigInt().String(), ShouldEqual, m.String())
+		}
 	})
 }
 
@@ -160,4 +217,100 @@ func TestUint256_ToIPv6(t *testing.T) {
 		So(ab.String(), ShouldEqual, "0:0:3:f763::")
 		So(cd.String(), ShouldEqual, "::2000:0:c683:e444")
 	})
+}
+
+func TestUint256_AddAndSafeAdd(t *testing.T) {
+	Convey("add two uint256", t, func() {
+		mask := big.NewInt(1)
+		mask.Lsh(mask, 256)
+		for i := 0; i < testNum; i++ {
+			m := notRandomUint256()
+			n := notRandomUint256()
+			bigM := m.BigInt()
+			bigN := n.BigInt()
+			m.Add(n)
+			bigM.Add(bigM, bigN)
+			bigM.Mod(bigM, mask)
+			So(m.String(), ShouldEqual, bigM.String())
+		}
+	})
+	Convey("safeadd two uint256", t, func() {
+		mask := big.NewInt(1)
+		mask.Lsh(mask, 256)
+		for i := 0; i < testNum; i++ {
+			m := notRandomUint256()
+			n := notRandomUint256()
+			bigM := m.BigInt()
+			bigN := n.BigInt()
+			bigM.Add(bigM, bigN)
+			if bigM.Cmp(mask) < 0 {
+				err := m.SafeAdd(n)
+				So(err, ShouldBeNil)
+				So(m.String(), ShouldEqual, bigM.String())
+			} else {
+				err := m.SafeAdd(n)
+				So(err, ShouldNotBeNil)
+			}
+		}
+	})
+}
+
+func TestUint256_SubAndSafeSub(t *testing.T) {
+	Convey("sub two uint256", t, func() {
+		mask := big.NewInt(1)
+		mask.Lsh(mask, 256)
+		for i := 0; i < testNum; i++ {
+			m := notRandomUint256()
+			n := notRandomUint256()
+			bigM := m.BigInt()
+			bigN := n.BigInt()
+			m.Sub(n)
+			bigM.Sub(bigM, bigN)
+			if bigM.Cmp(big.NewInt(0)) < 0 {
+				bigM.Add(bigM, mask)
+			}
+			So(m.String(), ShouldEqual, bigM.String())
+		}
+	})
+	Convey("safeadd two uint256", t, func() {
+		mask := big.NewInt(1)
+		mask.Lsh(mask, 256)
+		for i := 0; i < testNum; i++ {
+			m := notRandomUint256()
+			n := notRandomUint256()
+			bigM := m.BigInt()
+			bigN := n.BigInt()
+			bigM.Sub(bigM, bigN)
+			log.Infof("m = {A: %x, B: %x, C: %x, D: %x}", m.A, m.B, m.C, m.D)
+			log.Infof("n = {A: %x, B: %x, C: %x, D: %x}", n.A, n.B, n.C, n.D)
+			if bigM.Cmp(big.NewInt(0)) >= 0 {
+				err := m.SafeSub(n)
+				So(err, ShouldBeNil)
+				So(m.String(), ShouldEqual, bigM.String())
+			} else {
+				err := m.SafeSub(n)
+				So(err, ShouldNotBeNil)
+			}
+		}
+	})
+}
+
+func notRandomUint256() *Uint256 {
+	var m *Uint256
+	dice := rand.Int31n(25)
+	if dice == 9 {
+		m = &Uint256{0, 0, 0, 0}
+		return m
+	}
+	dice %= 4
+	if dice == 0 {
+		m = &Uint256{rand.Uint64(), rand.Uint64(), rand.Uint64(), rand.Uint64()}
+	} else if dice == 1 {
+		m = &Uint256{0, rand.Uint64(), rand.Uint64(), rand.Uint64()}
+	} else if dice == 2 {
+		m = &Uint256{0, 0, rand.Uint64(), rand.Uint64()}
+	} else {
+		m = &Uint256{0, 0, 0, rand.Uint64()}
+	}
+	return m
 }

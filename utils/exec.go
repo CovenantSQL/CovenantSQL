@@ -29,6 +29,12 @@ import (
 // FJ is short for filepath.Join
 var FJ = filepath.Join
 
+// CMD is the struct holding exec.Cmd and log path
+type CMD struct {
+	Cmd     *exec.Cmd
+	LogPath string
+}
+
 // GetProjectSrcDir gets the src code root
 func GetProjectSrcDir() string {
 	_, testFile, _, _ := runtime.Caller(0)
@@ -60,17 +66,19 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 		log.Errorf("start command failed: %v", err)
 		return
 	}
-	err = cmd.Wait()
+	err = cmd.Cmd.Wait()
 	if err != nil {
-		log.Errorf("cmd %s args %s failed with %v", cmd.Path, cmd.Args, err)
+		log.Errorf("cmd %s args %s failed with %v", cmd.Cmd.Path, cmd.Cmd.Args, err)
 		return
 	}
 	return
 }
 
 // RunCommandNB starts a non-blocking command
-func RunCommandNB(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (cmd *exec.Cmd, err error) {
-	logFD, err := os.Create(FJ(logDir, processName+".log"))
+func RunCommandNB(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (cmd *CMD, err error) {
+	cmd = new(CMD)
+	cmd.LogPath = FJ(logDir, processName+".log")
+	logFD, err := os.Create(cmd.LogPath)
 	if err != nil {
 		log.Errorf("create log file failed: %s", err)
 		return
@@ -81,9 +89,9 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 		log.Errorf("change working dir failed: %s", err)
 		return
 	}
-	cmd = exec.Command(bin, args...)
-	stdoutIn, _ := cmd.StdoutPipe()
-	stderrIn, _ := cmd.StderrPipe()
+	cmd.Cmd = exec.Command(bin, args...)
+	stdoutIn, _ := cmd.Cmd.StdoutPipe()
+	stderrIn, _ := cmd.Cmd.StderrPipe()
 
 	var stdout, stderr io.Writer
 	if toStd {
@@ -94,7 +102,7 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 		stderr = logFD
 	}
 
-	err = cmd.Start()
+	err = cmd.Cmd.Start()
 	if err != nil {
 		log.Errorf("cmd.Start() failed with '%v'", err)
 		return

@@ -17,11 +17,14 @@
 package asymmetric
 
 import (
-	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
 	"math/big"
 
+	"sync"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
 )
@@ -30,12 +33,13 @@ var (
 	// BypassSignature is the flag indicate if bypassing signature sign & verify
 	BypassSignature = false
 	bypassS         *Signature
+	mu              sync.Mutex
 )
 
 // For test Signature.Sign mock
 func init() {
 	priv, _ := ec.NewPrivateKey(ec.S256())
-	ss, _ := (*ec.PrivateKey)(priv).Sign([]byte{'0'})
+	ss, _ := (*ec.PrivateKey)(priv).Sign(([]byte)("00000000000000000000000000000000"))
 	bypassS = (*Signature)(ss)
 }
 
@@ -43,10 +47,6 @@ func init() {
 type Signature struct {
 	R *big.Int
 	S *big.Int
-}
-
-func (s *Signature) toec() *ec.Signature {
-	return (*ec.Signature)(s)
 }
 
 // Serialize converts a signature to stirng
@@ -74,10 +74,20 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
 func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
+	if len(hash) != 32 {
+		return nil, errors.New("only hash can be signed")
+	}
 	if BypassSignature {
 		return bypassS, nil
 	}
-	s, e := (*ec.PrivateKey)(private).Sign(hash)
+	seckey := utils.PaddedBigBytes(private.D, private.Params().BitSize/8)
+	defer zeroBytes(seckey)
+	sb, e := secp256k1.Sign(hash, seckey)
+	s := &Signature{
+		R: new(big.Int).SetBytes(sb[:32]),
+		S: new(big.Int).SetBytes(sb[32:64]),
+	}
+	//s, e := (*ec.PrivateKey)(private).Sign(hash)
 	return (*Signature)(s), e
 }
 
@@ -87,7 +97,14 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	if BypassSignature {
 		return true
 	}
-	return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
+
+	signature := make([]byte, 64)
+	copy(signature, utils.PaddedBigBytes(s.R, 32))
+	copy(signature[32:], utils.PaddedBigBytes(s.S, 32))
+	signeeBytes := (*ec.PublicKey)(signee).SerializeUncompressed()
+	ret := secp256k1.VerifySignature(signeeBytes, hash, signature)
+	return ret
+	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 
 // MarshalBinary does the serialization.
@@ -126,4 +143,10 @@ func (s *Signature) UnmarshalBinary(keyBytes []byte) (err error) {
 	}
 	*s = *sig
 	return
+}
+
+func zeroBytes(bytes []byte) {
+	for i := range bytes {
+		bytes[i] = 0
+	}
 }

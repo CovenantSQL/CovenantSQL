@@ -24,6 +24,7 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/coreos/bbolt"
 	. "github.com/smartystreets/goconvey/convey"
@@ -362,6 +363,18 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 						},
 					)
+					Convey(
+						"The metaState should copy object when generate ether balance",
+						func() {
+							one := cpuminer.Zero()
+							one.Inc()
+							err = ms.generateToken(addr1, pt.Ether, one)
+							So(err, ShouldBeNil)
+							m := cpuminer.MaxUint256()
+							err = ms.generateToken(addr3, pt.Ether, m)
+							So(err, ShouldNotBeNil)
+						},
+					)
 				})
 			})
 			Convey("When a new account key slot is overwritten", func() {
@@ -593,10 +606,20 @@ func TestMetaState(t *testing.T) {
 						},
 						AccountAddress: &addr1,
 					}
+					t3 = &pt.EtherReceive{
+						EtherReceiveHeader: pt.EtherReceiveHeader{
+							Observer: addr1,
+							Receiver: addr3,
+							Nonce: 2,
+							Amount: *cpuminer.Zero().Inc(),
+						},
+					}
 				)
 				err = t1.Sign(testPrivKey)
 				So(err, ShouldBeNil)
 				err = t2.Sign(testPrivKey)
+				So(err, ShouldBeNil)
+				err = t3.Sign(testPrivKey)
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(t0))
 				So(err, ShouldBeNil)
@@ -621,6 +644,16 @@ func TestMetaState(t *testing.T) {
 				So(ms.pool.hasTx(t0), ShouldBeTrue)
 				So(ms.pool.hasTx(t1), ShouldBeTrue)
 				So(ms.pool.hasTx(t2), ShouldBeTrue)
+				err = db.Update(ms.applyTransactionProcedure(t3))
+				So(err, ShouldBeNil)
+				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 4)
+				_, loaded = ms.pool.entries[addr3]
+				So(loaded, ShouldBeTrue)
+				So(ms.pool.hasTx(t0), ShouldBeTrue)
+				So(ms.pool.hasTx(t1), ShouldBeTrue)
+				So(ms.pool.hasTx(t2), ShouldBeTrue)
+				So(ms.pool.hasTx(t3), ShouldBeTrue)
+
 
 				Convey("The metaState should report error if tx fails verification", func() {
 					t1.Nonce = pi.AccountNonce(10)

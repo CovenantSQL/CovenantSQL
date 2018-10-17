@@ -43,10 +43,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -607,7 +607,7 @@ func runAddrgen() {
 		os.Exit(1)
 	}
 
-	addr, err := utils.PubKey2Addr(publicKey, utils.TestNet)
+	addr, err := crypto.PubKey2Addr(publicKey, crypto.TestNet)
 	if err != nil {
 		log.Fatalf("unexpected error: %v\n", err)
 	}

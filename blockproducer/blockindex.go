@@ -93,8 +93,8 @@ func newBlockIndex() *blockIndex {
 }
 
 func (bi *blockIndex) addBlock(b *blockNode) {
-	bi.mu.RLock()
-	defer bi.mu.RUnlock()
+	bi.mu.Lock()
+	defer bi.mu.Unlock()
 
 	bi.index[b.hash] = b
 }

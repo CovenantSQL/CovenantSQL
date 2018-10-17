@@ -15,7 +15,7 @@ import (
 
 // EtherReceiveHeader defines the ether receive transaction header.
 type EtherReceiveHeader struct {
-	Sender, Receiver proto.AccountAddress
+	Observer, Receiver proto.AccountAddress
 	Nonce            pi.AccountNonce
 	Amount           cpuminer.Uint256
 }
@@ -45,7 +45,7 @@ func (t *EtherReceive) Deserialize(enc []byte) error {
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
 func (t *EtherReceive) GetAccountAddress() proto.AccountAddress {
-	return t.Sender
+	return t.Observer
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.

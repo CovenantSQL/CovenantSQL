@@ -17,14 +17,15 @@
 package cpuminer
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"net"
-	"strings"
+
+"bytes"
+"encoding/binary"
+"errors"
+"math/big"
+"net"
 
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+	"github.com/ethereum/go-ethereum/common/math"
 )
 
 var (
@@ -34,9 +35,6 @@ var (
 	ErrEmptyIPv6Addr = errors.New("nil or zero length IPv6")
 	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.
 	ErrInsufficientBalance = errors.New("insufficient balance")
-
-	// Zero is zero number of Uint256.
-	Zero = &Uint256{0,0,0,0}
 )
 
 // Uint256 is an unsigned 256 bit integer.
@@ -45,6 +43,16 @@ type Uint256 struct {
 	B uint64 // Bits 127..64.
 	C uint64 // Bits 191..128.
 	D uint64 // Bits 255..192.
+}
+
+// Zero returns zero number of Uint256.
+func Zero() *Uint256 {
+	return &Uint256{0,0,0,0}
+}
+
+// MaxUint256 returns max number of Uint256
+func MaxUint256() *Uint256 {
+	return &Uint256{math.MaxUint64, math.MaxUint64, math.MaxUint64, math.MaxUint64}
 }
 
 // Equal returns if two number is equal.
@@ -57,17 +65,29 @@ func (i *Uint256) Equal(j *Uint256) bool {
 // If i == j then returns 0.
 // If i < j then retuns -1.
 func (i *Uint256) Compare(j *Uint256) int8 {
-	if i.Equal(j) {
-		return 0
+	if res := compareHelper(i.D, j.D); res != 0 {
+		return res
 	}
-	result := i.A > j.A
-	result = result || (i.B > j.B)
-	result = result || (i.C > j.C)
-	result = result || (i.D > j.D)
-	if result {
+	if res := compareHelper(i.C, j.C); res != 0 {
+		return res
+	}
+	if res := compareHelper(i.B, j.B); res != 0 {
+		return res
+	}
+	if res := compareHelper(i.A, j.A); res != 0 {
+		return res
+	}
+
+	return 0
+}
+
+func compareHelper(i, j uint64) int8 {
+	if i > j {
 		return 1
-	} else {
+	} else if i < j {
 		return -1
+	} else {
+		return 0
 	}
 }
 
@@ -92,21 +112,14 @@ func (i *Uint256) Bytes() []byte {
 
 // String converts Uint256 to string.
 func (i *Uint256) String() string {
-	var a, b, c, d string
-	a = fmt.Sprintf("%d", i.A)
-	b = fmt.Sprintf("%d", i.B)
-	lb := len(b)
-	bPrefix := strings.Repeat( "0", 64 - lb)
-	b = bPrefix + b
-	c = fmt.Sprintf("%d", i.C)
-	lc := len(c)
-	cPrefix := strings.Repeat("0", 64 - lc)
-	c = cPrefix + c
-	d = fmt.Sprintf("%d", i.D)
-	ld := len(d)
-	dPrefix := strings.Repeat("0", 64 - ld)
-	d = dPrefix + d
-	return strings.TrimLeft(a + b + c + d, "0")
+	n := big.NewInt(0).SetUint64(i.D)
+	n.Lsh(n, 64)
+	n.Add(n, big.NewInt(0).SetUint64(i.C))
+	n.Lsh(n, 64)
+	n.Add(n, big.NewInt(0).SetUint64(i.B))
+	n.Lsh(n, 64)
+	n.Add(n, big.NewInt(0).SetUint64(i.A))
+	return n.String()
 }
 
 // MarshalHash marshals for hash.
@@ -162,15 +175,15 @@ func (i *Uint256) SafeSub(j *Uint256) (err error) {
 
 // Sub provides a subtraction for Uint256.
 func (i *Uint256) Sub(j *Uint256) {
-	borrow := i.D < j.D
-	i.D = i.D - j.D
-	borrow = subWithBorrow(borrow, &(i.C), &(j.C))
+	borrow := i.A < j.A
+	i.A = i.A - j.A
 	borrow = subWithBorrow(borrow, &(i.B), &(j.B))
-	borrow = subWithBorrow(borrow, &(i.A), &(j.A))
+	borrow = subWithBorrow(borrow, &(i.C), &(j.C))
+	borrow = subWithBorrow(borrow, &(i.D), &(j.D))
 }
 
 func subWithBorrow(borrow bool, i, j *uint64) bool {
-	if *i < *j {
+	if *i > *j {
 		*i -= *j
 		if borrow {
 			*i -= 1
@@ -180,15 +193,16 @@ func subWithBorrow(borrow bool, i, j *uint64) bool {
 		*i -= *j
 		if borrow {
 			*i -= 1
+			return true
 		}
-		return true
+		return *i != 0
 	}
 }
 
 // SafeAdd provides a safe add method with upper overflow check for uint256.
 func (i *Uint256) SafeAdd(j *Uint256) (err error) {
 	sumIJ := &Uint256{}
-	sumIJ.Compare(i)
+	sumIJ.Copy(i)
 	sumIJ.Add(j)
 	if sumIJ.Compare(i) < 0 {
 		return ErrInsufficientBalance
@@ -201,10 +215,10 @@ func (i *Uint256) SafeAdd(j *Uint256) (err error) {
 // Add provides a addition for Uint256.
 func (i *Uint256) Add(j *Uint256) {
 	carry := false
-	carry = addWithCarry(carry, &(i.D), &(j.D))
-	carry = addWithCarry(carry, &(i.C), &(j.C))
-	carry = addWithCarry(carry, &(i.B), &(j.B))
 	carry = addWithCarry(carry, &(i.A), &(j.A))
+	carry = addWithCarry(carry, &(i.B), &(j.B))
+	carry = addWithCarry(carry, &(i.C), &(j.C))
+	carry = addWithCarry(carry, &(i.D), &(j.D))
 }
 
 func addWithCarry(carry bool, i, j *uint64) bool {
@@ -238,4 +252,16 @@ func (i *Uint256) Copy(j *Uint256) *Uint256 {
 		i.D = j.D
 	}
 	return i
+}
+
+// BigInt converts Uint256 to BigInt
+func (i *Uint256) BigInt() *big.Int {
+	var binBuf bytes.Buffer
+	binary.Write(&binBuf, binary.BigEndian, i.D)
+	binary.Write(&binBuf, binary.BigEndian, i.C)
+	binary.Write(&binBuf, binary.BigEndian, i.B)
+	binary.Write(&binBuf, binary.BigEndian, i.A)
+
+	n := big.NewInt(0).SetBytes(binBuf.Bytes())
+	return n
 }

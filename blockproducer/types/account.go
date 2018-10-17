@@ -52,7 +52,7 @@ const (
 
 // Token defines token's number.
 type Token int32
-var SupportTokenNumber int32 = 3
+const SupportTokenNumber int32 = 3
 
 const (
 	// Ether defines Ethereum.
@@ -77,7 +77,7 @@ func (t Token) String() string {
 	}
 }
 
-// FromString returns token's serial number.
+// FromString returns token's number.
 func FromString(t string) Token {
 	switch t {
 	case "Ether":
@@ -89,6 +89,11 @@ func FromString(t string) Token {
 	default:
 		return -1
 	}
+}
+
+// Listed returns if the token is listed in list.
+func (t Token) Listed() bool {
+	return t >= 0 && int32(t) < SupportTokenNumber
 }
 
 // SQLChainUser defines a SQLChain user.

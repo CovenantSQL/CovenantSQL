@@ -180,6 +180,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:4a0c6bb4805508a6287675fac876be2ac1182539ca8a32468d8128882e9d5009"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
+
+[[projects]]
+  branch = "master"
   digest = "1:f14d1b50e0075fb00177f12a96dd7addf93d1e2883c25befd17285b779549795"
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
@@ -347,7 +355,7 @@
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "7866eead363ec334628dbc56e32df590a05f4696"
+  revision = "1cafe34db7fdec6022e17e00e1c1ea501022f3e4"
 
 [[projects]]
   branch = "master"
@@ -359,7 +367,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9b2b68310a7555601c28980840f4d6966f8ff5443e11f4f78d227dbf73205132"
+  digest = "1:95ed48ec01b571d453b17ed631c7b65be39ced2b5082f1426a2fa6991799846f"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -368,7 +376,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "c7de2306084e37d54b8be01f3541a8464345e9a5"
+  revision = "bcb74de08d37a417cb6789eec1d6c810040f0470"
 
 [[projects]]
   branch = "master"
@@ -423,7 +431,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "17cd8859601e49bec4f46b09df65a9c297e881ab"
+  revision = "c8bed9e1e90b2121165ad80fe85a34ceff169999"
 
 [[projects]]
   digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
@@ -475,6 +483,27 @@
   pruneopts = "UT"
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:59483b8e8183f10ab21a85ba1f4cbb4a2335d48891801f79ed7b9499f44d383c"
+  name = "github.com/syndtr/goleveldb"
+  packages = [
+    "leveldb",
+    "leveldb/cache",
+    "leveldb/comparer",
+    "leveldb/errors",
+    "leveldb/filter",
+    "leveldb/iterator",
+    "leveldb/journal",
+    "leveldb/memdb",
+    "leveldb/opt",
+    "leveldb/storage",
+    "leveldb/table",
+    "leveldb/util",
+  ]
+  pruneopts = "UT"
+  revision = "6b91fda63f2e36186f1c9d0e48578defb69c5d43"
 
 [[projects]]
   digest = "1:d9eb1d964a449cf51455fdac2ec3451c664af8e8b93c23d9c31d22b84ea82fde"
@@ -559,7 +588,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "a92615f3c49003920a58dedcf32cf55022cefb8d"
+  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
 
 [[projects]]
   branch = "master"
@@ -630,6 +659,9 @@
     "github.com/sirupsen/logrus",
     "github.com/smartystreets/goconvey/convey",
     "github.com/stretchr/testify/mock",
+    "github.com/syndtr/goleveldb/leveldb",
+    "github.com/syndtr/goleveldb/leveldb/opt",
+    "github.com/syndtr/goleveldb/leveldb/util",
     "github.com/tchap/go-patricia/patricia",
     "github.com/ugorji/go/codec",
     "github.com/ulule/deepcopier",
@@ -639,6 +671,7 @@
     "github.com/xo/usql/handler",
     "github.com/xo/usql/rline",
     "github.com/xo/usql/text",
+    "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
     "gopkg.in/yaml.v2",

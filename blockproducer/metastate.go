@@ -465,10 +465,8 @@ func (s *metaState) transferAccountStableBalance(
 	return
 }
 
-func (s *metaState) transferAccountTokenBalance(
-	sender, receiver proto.AccountAddress, name pt.Token, amount *cpuminer.Uint256,
-	) (err error) {
-	if sender == receiver || amount.Equal(cpuminer.Zero) || name < 0 || int32(name) >= pt.SupportTokenNumber {
+func (s *metaState) generateToken(receiver proto.AccountAddress, name pt.Token, amount *cpuminer.Uint256) (err error) {
+	if amount.Equal(cpuminer.Zero()) || !name.Listed() {
 		return
 	}
 
@@ -477,53 +475,21 @@ func (s *metaState) transferAccountTokenBalance(
 
 	s.Lock()
 	defer s.Unlock()
-	var (
-		so, ro     *accountObject
-		sd, rd, ok bool
-	)
 
-	// Load sender and receiver objects
-	if so, sd = s.dirty.accounts[sender]; !sd {
-		if so, ok = s.readonly.accounts[sender]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-	}
+	var (
+		ro *accountObject
+		rd, ok bool
+	)
 	if ro, rd = s.dirty.accounts[receiver]; !rd {
 		if ro, ok = s.readonly.accounts[receiver]; !ok {
 			err = ErrAccountNotFound
-			return
 		}
-	}
-
-	// Try transfer
-	var (
-		sb = so.TokenList.Balances[name]
-		rb = ro.TokenList.Balances[name]
-	)
-	if err = sb.SafeSub(amount); err != nil {
-		return
-	}
-	if err = rb.SafeAdd(amount); err != nil {
-		return
-	}
-
-	// Proceed transfer
-	if !sd {
-		var cpy = &accountObject{}
-		deepcopier.Copy(&so.Account).To(&cpy.Account)
-		so = cpy
-		s.dirty.accounts[sender] = cpy
-	}
-	if !rd {
 		var cpy = &accountObject{}
 		deepcopier.Copy(&ro.Account).To(&cpy.Account)
 		ro = cpy
 		s.dirty.accounts[receiver] = cpy
 	}
-	so.TokenList.Balances[name] = sb
-	ro.TokenList.Balances[name] = rb
-	return
+	return ro.TokenList.Balances[name].SafeAdd(amount)
 }
 
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
@@ -735,7 +701,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	case *pt.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
 	case *pt.EtherReceive:
-		err = s.transferAccountTokenBalance(t.Sender, t.Receiver, pt.Ether, &t.Amount)
+		err = s.generateToken(t.Receiver, pt.Ether, &t.Amount)
 	default:
 		err = ErrUnknownTransactionType
 	}

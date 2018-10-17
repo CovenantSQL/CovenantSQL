@@ -22,12 +22,13 @@ import (
 	"context"
 	"database/sql"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"os/exec"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -42,7 +43,7 @@ var (
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
-var nodeCmds []*exec.Cmd
+var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
@@ -79,11 +80,11 @@ func startNodes() {
 	}
 
 	// start 3bps
-	var cmd *exec.Cmd
+	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/leader.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -94,7 +95,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -105,7 +106,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/follower2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -121,7 +122,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner0.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -134,7 +135,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -147,7 +148,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/miner/miner2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -186,7 +187,7 @@ func startNodesProfile(bypassSign bool) {
 	}
 
 	// start 3bps
-	var cmd *exec.Cmd
+	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
@@ -228,7 +229,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
-			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner0.profile"),
+			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner0.profile"),
 			bypassArg,
 		},
 		"miner0", testWorkingDir, logDir, false,
@@ -242,7 +243,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
-			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner1.profile"),
+			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner1.profile"),
 			bypassArg,
 		},
 		"miner1", testWorkingDir, logDir, false,
@@ -256,7 +257,7 @@ func startNodesProfile(bypassSign bool) {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
-			"-cpu-profile", FJ(baseDir, "./cmd/miner/miner2.profile"),
+			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner2.profile"),
 			bypassArg,
 		},
 		"miner2", testWorkingDir, logDir, false,
@@ -272,10 +273,15 @@ func stopNodes() {
 
 	for _, nodeCmd := range nodeCmds {
 		wg.Add(1)
-		go func(thisCmd *exec.Cmd) {
+		go func(thisCmd *utils.CMD) {
 			defer wg.Done()
-			thisCmd.Process.Signal(syscall.SIGTERM)
-			thisCmd.Wait()
+			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
+			thisCmd.Cmd.Wait()
+			grepRace := exec.Command("/bin/sh", "-c", "grep -A 50 'DATA RACE' "+thisCmd.LogPath)
+			out, _ := grepRace.Output()
+			if len(out) > 2 {
+				log.Fatalf("DATA RACE in %s :\n%s", thisCmd.Cmd.Path, string(out))
+			}
 		}(nodeCmd)
 	}
 

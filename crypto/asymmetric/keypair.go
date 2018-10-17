@@ -19,7 +19,6 @@ package asymmetric
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -54,17 +53,11 @@ func (k *PublicKey) MarshalHash() (keyBytes []byte, err error) {
 
 // MarshalBinary does the serialization
 func (k *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
-	if k == nil {
-		return nil, errors.New("nil public key")
-	}
 	return k.Serialize(), nil
 }
 
 // UnmarshalBinary does the deserialization
 func (k *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
-	if k == nil {
-		return errors.New("nil public key")
-	}
 	pubNew, err := ParsePubKey(keyBytes)
 	if err == nil {
 		*k = *pubNew
@@ -98,11 +91,6 @@ func (k *PublicKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // IsEqual return true if two keys are equal
 func (k *PublicKey) IsEqual(public *PublicKey) bool {
 	return (*ec.PublicKey)(k).IsEqual((*ec.PublicKey)(public))
-}
-
-// toECDSA returns the public key as a *ecdsa.PublicKey.
-func (k *PublicKey) toECDSA() *ecdsa.PublicKey {
-	return (*ecdsa.PublicKey)(k)
 }
 
 // Serialize is a function that converts a public key

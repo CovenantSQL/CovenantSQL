@@ -73,7 +73,7 @@ func processEtherReceive(etherIn *EtherIn) error {
 	}
 	etherReceiveTx := &ctypes.EtherReceive{
 		EtherReceiveHeader: ctypes.EtherReceiveHeader{
-			Sender: sender,
+			Observer: sender,
 			Receiver: receive,
 			Nonce: nonceResp.Nonce,
 			Amount: etherIn.EthValue,

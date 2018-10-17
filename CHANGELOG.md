@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.0.2](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.2) (2018-10-17)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.1...v0.0.2)
+
+**Closed issues:**
+
+- Improve commit messages for better project tracking and changelogs [\#62](https://github.com/CovenantSQL/CovenantSQL/issues/62)
+
+**Merged pull requests:**
+
+- Use c implementation of secp256k1 in Sign and Verify [\#89](https://github.com/CovenantSQL/CovenantSQL/pull/89) ([auxten](https://github.com/auxten))
+- Provide a runnable MySQL adapter using mysql text protocol [\#87](https://github.com/CovenantSQL/CovenantSQL/pull/87) ([xq262144](https://github.com/xq262144))
+- Sanitize SQL query before applying to underlying storage engine [\#85](https://github.com/CovenantSQL/CovenantSQL/pull/85) ([xq262144](https://github.com/xq262144))
+- Limit codecov threshold to 0.5% [\#83](https://github.com/CovenantSQL/CovenantSQL/pull/83) ([auxten](https://github.com/auxten))
+- Add SQLite and 1, 2, 3 miner\(s\) with or without signature benchmark test suits [\#82](https://github.com/CovenantSQL/CovenantSQL/pull/82) ([auxten](https://github.com/auxten))
+- Fix a fatal bug while querying ACK from other peer [\#81](https://github.com/CovenantSQL/CovenantSQL/pull/81) ([leventeliu](https://github.com/leventeliu))
+- Fix fetch block API issue [\#79](https://github.com/CovenantSQL/CovenantSQL/pull/79) ([leventeliu](https://github.com/leventeliu))
+- Fix observer dynamic subscribe from oldest [\#78](https://github.com/CovenantSQL/CovenantSQL/pull/78) ([auxten](https://github.com/auxten))
+
 ## [v0.0.1](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.1) (2018-09-27)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/82811a8fcac65d74aefbb506450e4477ecdad048...v0.0.1)

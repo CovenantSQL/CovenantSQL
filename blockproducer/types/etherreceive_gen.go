@@ -82,7 +82,7 @@ func (z *EtherReceiveHeader) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.Sender.MarshalHash(); err != nil {
+	if oTemp, err := z.Observer.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -98,6 +98,6 @@ func (z *EtherReceiveHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *EtherReceiveHeader) Msgsize() (s int) {
-	s = 1 + 7 + z.Amount.Msgsize() + 6 + z.Nonce.Msgsize() + 7 + z.Sender.Msgsize() + 9 + z.Receiver.Msgsize()
+	s = 1 + 7 + z.Amount.Msgsize() + 6 + z.Nonce.Msgsize() + 9 + z.Observer.Msgsize() + 9 + z.Receiver.Msgsize()
 	return
 }

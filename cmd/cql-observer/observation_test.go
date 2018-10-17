@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ var (
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
-var nodeCmds []*exec.Cmd
+var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
@@ -82,11 +83,11 @@ func startNodes() {
 	}
 
 	// start 3bps
-	var cmd *exec.Cmd
+	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/leader.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -97,7 +98,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -108,7 +109,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/follower2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -124,7 +125,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner0.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner0.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -137,7 +138,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner1.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -150,7 +151,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/observer/miner2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner2.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -165,10 +166,15 @@ func stopNodes() {
 
 	for _, nodeCmd := range nodeCmds {
 		wg.Add(1)
-		go func(thisCmd *exec.Cmd) {
+		go func(thisCmd *utils.CMD) {
 			defer wg.Done()
-			thisCmd.Process.Signal(os.Interrupt)
-			thisCmd.Wait()
+			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
+			thisCmd.Cmd.Wait()
+			grepRace := exec.Command("/bin/sh", "-c", "grep -A 50 'DATA RACE' "+thisCmd.LogPath)
+			out, _ := grepRace.Output()
+			if len(out) > 2 {
+				log.Fatal(string(out))
+			}
 		}(nodeCmd)
 	}
 
@@ -321,20 +327,20 @@ func TestFullProcess(t *testing.T) {
 		// remove previous observation result
 		os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
 
-		var observerCmd *exec.Cmd
+		var observerCmd *utils.CMD
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql-observer.test"),
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-database", dbID, "-reset", "oldest",
-				"-test.coverprofile", FJ(baseDir, "./cmd/observer/observer.cover.out"),
+				"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/observer.cover.out"),
 			},
 			"observer", testWorkingDir, logDir, true,
 		)
 		So(err, ShouldBeNil)
 
 		defer func() {
-			observerCmd.Process.Signal(os.Interrupt)
-			observerCmd.Wait()
+			observerCmd.Cmd.Process.Signal(os.Interrupt)
+			observerCmd.Cmd.Wait()
 		}()
 
 		// wait for the observer to collect blocks, two periods is enough

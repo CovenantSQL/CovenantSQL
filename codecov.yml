@@ -30,4 +30,5 @@ comment:
 ignore:
   - "vendor"
   - "cmd"
+  - "crypto/secp256k1"
   - "_example/**/*"

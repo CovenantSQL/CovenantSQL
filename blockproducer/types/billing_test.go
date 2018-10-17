@@ -108,6 +108,7 @@ func TestBillingRequest_SignRequestHeader(t *testing.T) {
 
 	for i, sign := range req.Signatures {
 		if !sign.Verify(req.RequestHash[:], req.Signees[i]) {
+
 			t.Fatalf("signature cannot match the hash and public key: %v", req)
 		}
 	}

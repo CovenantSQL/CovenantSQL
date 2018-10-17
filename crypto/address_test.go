@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package crypto
 
 import (
 	"encoding/base64"

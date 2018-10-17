@@ -29,12 +29,12 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/xurls"
 	"github.com/dyatlov/go-opengraph/opengraph"
@@ -99,7 +99,7 @@ func NewVerifier(cfg *Config, p *Persistence) (v *Verifier, err error) {
 	}
 
 	// generate source account address
-	if v.vaultAddress, err = utils.PubKeyHash(v.publicKey); err != nil {
+	if v.vaultAddress, err = crypto.PubKeyHash(v.publicKey); err != nil {
 		return
 	}
 
@@ -237,8 +237,8 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	// decode target account address
 	var targetAddress proto.AccountAddress
 	var addrVersion byte
-	if addrVersion, targetAddress, err = utils.Addr2Hash(r.address); err != nil || addrVersion != utils.TestNet {
-		if err == nil && addrVersion != utils.TestNet {
+	if addrVersion, targetAddress, err = crypto.Addr2Hash(r.address); err != nil || addrVersion != crypto.TestNet {
+		if err == nil && addrVersion != crypto.TestNet {
 			err = ErrInvalidAddress
 		}
 

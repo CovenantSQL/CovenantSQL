@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -128,6 +130,26 @@ func (id *NodeID) IsEmpty() bool {
 // IsEqual returns if two node id is equal
 func (id *NodeID) IsEqual(target *NodeID) bool {
 	return strings.Compare(string(*id), string(*target)) == 0
+}
+
+// MarshalBinary does the serialization
+func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
+	if len(*id) != 2*hash.HashSize {
+		return nil, errors.New("nodeID len should be 64")
+	}
+	h, err := hash.NewHashFromStr(string(*id))
+	return h[:], err
+}
+
+// UnmarshalBinary does the deserialization
+func (id *NodeID) UnmarshalBinary(keyBytes []byte) (err error) {
+	h, err := hash.NewHash(keyBytes)
+	if err != nil {
+		log.Errorf("nodeID bytes len should be 32")
+		return
+	}
+	*id = NodeID(h.String())
+	return
 }
 
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo

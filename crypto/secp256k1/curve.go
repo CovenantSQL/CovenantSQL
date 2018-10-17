@@ -86,6 +86,7 @@ type BitCurve struct {
 	BitSize int      // the size of the underlying field
 }
 
+// Params returns Koblitz Curve parameters
 func (BitCurve *BitCurve) Params() *elliptic.CurveParams {
 	return &elliptic.CurveParams{
 		P:       BitCurve.P,
@@ -238,6 +239,7 @@ func (BitCurve *BitCurve) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	return x3, y3, z3
 }
 
+// ScalarMult does the private scalar
 func (BitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	// Ensure scalar is exactly 32 bytes. We pad always, even if
 	// scalar is 32 bytes long, to avoid a timing side channel.

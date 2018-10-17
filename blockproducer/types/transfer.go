@@ -107,3 +107,7 @@ func (t *Transfer) Verify() (err error) {
 	}
 	return
 }
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeTransfer, (*Transfer)(nil))
+}

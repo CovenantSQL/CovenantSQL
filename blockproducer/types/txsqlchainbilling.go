@@ -191,3 +191,7 @@ func (tb *TxBilling) GetSignedBlock() *hash.Hash {
 	defer tb.mutex.Unlock()
 	return tb.SignedBlock
 }
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeBilling, (*TxBilling)(nil))
+}

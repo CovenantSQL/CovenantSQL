@@ -89,4 +89,6 @@ type Transaction interface {
 	GetTransactionType() TransactionType
 	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error
+	MarshalHash() ([]byte, error)
+	Msgsize() int
 }

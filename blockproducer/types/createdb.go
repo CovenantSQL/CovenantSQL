@@ -70,3 +70,7 @@ func (cd *CreateDatabase) Sign(signer *asymmetric.PrivateKey) (err error) {
 func (cd *CreateDatabase) Verify() error {
 	return cd.DefaultHashSignVerifierImpl.Verify(&cd.CreateDatabaseHeader)
 }
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeCreataDatabase, (*CreateDatabase)(nil))
+}

@@ -79,3 +79,7 @@ func (b *BaseAccount) Sign(signer *asymmetric.PrivateKey) (err error) {
 func (b *BaseAccount) Verify() (err error) {
 	return
 }
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeBaseAccount, (*BaseAccount)(nil))
+}

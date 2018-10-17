@@ -18,6 +18,7 @@ package utils
 
 import (
 	"bytes"
+	"reflect"
 
 	"github.com/ugorji/go/codec"
 )
@@ -28,6 +29,12 @@ var (
 		RawToString: true,
 	}
 )
+
+// RegisterInterfaceToMsgPack binds interface decode/encode to specified implementation.
+func RegisterInterfaceToMsgPack(intf, impl reflect.Type) (err error) {
+	return msgpackHandle.Intf2Impl(intf, impl)
+}
+
 // DecodeMsgPack reverses the encode operation on a byte slice input.
 func DecodeMsgPack(buf []byte, out interface{}) error {
 	r := bytes.NewBuffer(buf)

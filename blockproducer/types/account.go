@@ -51,12 +51,18 @@ const (
 )
 
 // Token defines token's number.
-type Token int32
 const SupportTokenNumber int32 = 3
+var Token = [SupportTokenNumber]string{
+	"Ether",
+	"EOS",
+	"Bitcoin",
+}
+
+type TokenType int32
 
 const (
 	// Ether defines Ethereum.
-	Ether Token = iota
+	Ether TokenType = iota
 	// EOS defines EOS.
 	EOS
 	// Bitcoin defines Bitcoin.
@@ -64,7 +70,7 @@ const (
 )
 
 // String returns token's symbol.
-func (t Token) String() string {
+func (t TokenType) String() string {
 	switch t {
 	case Ether:
 		return "Ether"
@@ -78,7 +84,7 @@ func (t Token) String() string {
 }
 
 // FromString returns token's number.
-func FromString(t string) Token {
+func FromString(t string) TokenType {
 	switch t {
 	case "Ether":
 		return Ether
@@ -92,7 +98,7 @@ func FromString(t string) Token {
 }
 
 // Listed returns if the token is listed in list.
-func (t Token) Listed() bool {
+func (t TokenType) Listed() bool {
 	return t >= 0 && int32(t) < SupportTokenNumber
 }
 
@@ -115,6 +121,15 @@ type SQLChainProfile struct {
 type TokenList struct {
 	Names [SupportTokenNumber]string
 	Balances [SupportTokenNumber]*cpuminer.Uint256
+}
+
+func NewTokenList() *TokenList {
+	tl := &TokenList{}
+	for i, s := range Token {
+		tl.Names[i] = s
+		tl.Balances[i] = cpuminer.Zero()
+	}
+	return tl
 }
 
 // Account stores its balance, and other mate data.

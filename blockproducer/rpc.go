@@ -250,4 +250,5 @@ func (s *ChainRPCService) ReceiveEther(req *ReceiveEtherReq, resp *ReceiveEtherR
 	}
 
 	s.chain.pendingTxs <- req.Er
+	return
 }

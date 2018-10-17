@@ -157,20 +157,6 @@ func (z *SQLChainUser) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
-func (z Token) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = hsp.Require(b, z.Msgsize())
-	o = hsp.AppendInt32(o, int32(z))
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z Token) Msgsize() (s int) {
-	s = hsp.Int32Size
-	return
-}
-
-// MarshalHash marshals for hash
 func (z *TokenList) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
@@ -210,6 +196,20 @@ func (z *TokenList) Msgsize() (s int) {
 	for za0001 := range z.Names {
 		s += hsp.StringPrefixSize + len(z.Names[za0001])
 	}
+	return
+}
+
+// MarshalHash marshals for hash
+func (z TokenType) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = hsp.Require(b, z.Msgsize())
+	o = hsp.AppendInt32(o, int32(z))
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z TokenType) Msgsize() (s int) {
+	s = hsp.Int32Size
 	return
 }
 

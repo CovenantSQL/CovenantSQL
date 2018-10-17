@@ -3,9 +3,9 @@ package main
 import (
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	ctypes "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -51,7 +51,7 @@ func ethHandler(contractABI *abi.ABI, l *types.Log, db *bolt.DB) error {
 
 func processEtherReceive(etherIn *EtherIn) error {
 	// fetch nonce from bp
-	_, receive, err := utils.Addr2Hash(etherIn.Target)
+	_, receive, err := crypto.Addr2Hash(etherIn.Target)
 	if err != nil {
 		log.Errorf("Unexpected err: %v\n", err)
 		return err
@@ -66,7 +66,7 @@ func processEtherReceive(etherIn *EtherIn) error {
 	}
 
 	// generate tx
-	sender, err := utils.PubKeyHash(privateKey.PubKey())
+	sender, err := crypto.PubKeyHash(privateKey.PubKey())
 	if err != nil {
 		log.Errorf("Unexpected err: %v\n", err)
 		return err

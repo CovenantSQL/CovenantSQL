@@ -371,7 +371,7 @@ func TestMetaState(t *testing.T) {
 							err = ms.generateToken(addr1, pt.Ether, one)
 							So(err, ShouldBeNil)
 							m := cpuminer.MaxUint256()
-							err = ms.generateToken(addr3, pt.Ether, m)
+							err = ms.generateToken(addr1, pt.Ether, m)
 							So(err, ShouldNotBeNil)
 						},
 					)
@@ -610,10 +610,11 @@ func TestMetaState(t *testing.T) {
 						EtherReceiveHeader: pt.EtherReceiveHeader{
 							Observer: addr1,
 							Receiver: addr3,
-							Nonce: 2,
+							Nonce: 3,
 							Amount: *cpuminer.Zero().Inc(),
 						},
 					}
+					txNum = 4
 				)
 				err = t1.Sign(testPrivKey)
 				So(err, ShouldBeNil)
@@ -647,7 +648,7 @@ func TestMetaState(t *testing.T) {
 				err = db.Update(ms.applyTransactionProcedure(t3))
 				So(err, ShouldBeNil)
 				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 4)
-				_, loaded = ms.pool.entries[addr3]
+				_, loaded = ms.pool.entries[addr1]
 				So(loaded, ShouldBeTrue)
 				So(ms.pool.hasTx(t0), ShouldBeTrue)
 				So(ms.pool.hasTx(t1), ShouldBeTrue)
@@ -674,7 +675,7 @@ func TestMetaState(t *testing.T) {
 				Convey("The metaState should automatically increase nonce", func() {
 					n, err = ms.nextNonce(addr1)
 					So(err, ShouldBeNil)
-					So(n, ShouldEqual, 3)
+					So(n, ShouldEqual, txNum)
 				})
 				Convey("The metaState should report error on unknown transaction type", func() {
 					err = ms.applyTransaction(nil)
@@ -682,7 +683,7 @@ func TestMetaState(t *testing.T) {
 				})
 				Convey("The txs should be able to be pulled from pool", func() {
 					var txs = ms.pullTxs()
-					So(len(txs), ShouldEqual, 3)
+					So(len(txs), ShouldEqual, txNum)
 					for _, tx := range txs {
 						So(ms.pool.hasTx(tx), ShouldBeTrue)
 					}
@@ -691,25 +692,25 @@ func TestMetaState(t *testing.T) {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 0)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 3)
+					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, txNum)
 				})
 				Convey("The partial commit procedure should be appliable for tx0", func() {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 1)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, txNum - 1)
 				})
 				Convey("The partial commit procedure should be appliable for tx0-1", func() {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 2)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 1)
+					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, txNum - 2)
 				})
 				Convey("The partial commit procedure should be appliable for all tx", func() {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 3)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 0)
+					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, txNum - 3)
 				})
 				Convey(
 					"The partial commit procedure should not be appliable for modified tx",
@@ -719,7 +720,7 @@ func TestMetaState(t *testing.T) {
 						So(err, ShouldBeNil)
 						err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
 						So(err, ShouldEqual, ErrTransactionMismatch)
-						So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 3)
+						So(len(ms.pool.entries[addr1].transacions), ShouldEqual, txNum)
 					},
 				)
 			})

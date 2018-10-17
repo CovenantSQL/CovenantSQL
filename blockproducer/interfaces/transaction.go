@@ -63,10 +63,10 @@ const (
 	TransactionTypeBaseAccount
 	// TransactionTypeCreataDatabase defines database creation transaction type.
 	TransactionTypeCreataDatabase
-	// TransactionTypeNumber defines transaction types number.
-	TransactionTypeNumber
 	// TransactionTypeReceiveEther defines receiving ether from Ethereum transaction.
 	TransactionTypeReceiveEther
+	// TransactionTypeNumber defines transaction types number.
+	TransactionTypeNumber
 )
 
 // Serializer is the interface implemented by an object that can serialize itself into binary form.

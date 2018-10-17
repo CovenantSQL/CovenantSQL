@@ -465,7 +465,7 @@ func (s *metaState) transferAccountStableBalance(
 	return
 }
 
-func (s *metaState) generateToken(receiver proto.AccountAddress, name pt.Token, amount *cpuminer.Uint256) (err error) {
+func (s *metaState) generateToken(receiver proto.AccountAddress, name pt.TokenType, amount *cpuminer.Uint256) (err error) {
 	if amount.Equal(cpuminer.Zero()) || !name.Listed() {
 		return
 	}
@@ -484,10 +484,16 @@ func (s *metaState) generateToken(receiver proto.AccountAddress, name pt.Token, 
 		if ro, ok = s.readonly.accounts[receiver]; !ok {
 			err = ErrAccountNotFound
 		}
+		if ro.TokenList == nil {
+			ro.TokenList = pt.NewTokenList()
+		}
 		var cpy = &accountObject{}
 		deepcopier.Copy(&ro.Account).To(&cpy.Account)
 		ro = cpy
 		s.dirty.accounts[receiver] = cpy
+	}
+	if ro.TokenList == nil {
+		ro.TokenList = pt.NewTokenList()
 	}
 	return ro.TokenList.Balances[name].SafeAdd(amount)
 }

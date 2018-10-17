@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/sh -x
+
+../../cleanupDB.sh
 ../../build.sh
 
 go test -bench=^BenchmarkMinerTwo$ -benchtime=60s -run ^$

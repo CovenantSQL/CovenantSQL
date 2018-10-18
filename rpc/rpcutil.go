@@ -92,7 +92,11 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 			c.Close()
 			c.client = nil
 			c.Unlock()
-			c.initClient(method)
+			err = c.initClient(method)
+			if err != nil {
+				log.Errorf("second init client for RPC %s failed: %v", method, err)
+				return
+			}
 			err = c.client.Call(method, args, reply)
 			if err != nil {
 				log.Errorf("second time call RPC %s failed: %v", method, err)
@@ -106,11 +110,15 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 
 // Close closes the stream and RPC client
 func (c *PersistentCaller) Close() {
-	stream, ok := c.client.Conn.(*yamux.Stream)
-	if ok {
-		stream.Close()
+	if c.client != nil {
+		if c.client.Conn != nil {
+			stream, ok := c.client.Conn.(*yamux.Stream)
+			if ok {
+				stream.Close()
+			}
+		}
+		c.client.Close()
 	}
-	c.client.Close()
 	c.pool.Remove(c.TargetID)
 }
 

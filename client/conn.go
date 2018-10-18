@@ -304,7 +304,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	}
 
 	pCaller := rpc.NewPersistentCaller(c.peers.Leader.ID)
-	defer pCaller.Close()
+	//defer pCaller.Close()
 	var response wt.Response
 	if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		if strings.Contains(err.Error(), "invalid request sequence") {

@@ -117,6 +117,7 @@ func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
 				helperDecoder.DecFallback(&w.Transaction, true)
 			}
 		} else {
+			helperDecoder.DecSwallow()
 			helperDecoder.DecStructFieldNotFound(i, "")
 		}
 	}

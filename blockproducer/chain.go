@@ -501,7 +501,8 @@ func (c *Chain) produceBlock(now time.Time) error {
 				Timestamp:  now,
 			},
 		},
-		TxBillings: c.ti.fetchUnpackedTxBillings(),
+		TxBillings:   c.ti.fetchUnpackedTxBillings(),
+		Transactions: c.ms.pullTxs(),
 	}
 
 	err = b.PackAndSignBlock(priv)

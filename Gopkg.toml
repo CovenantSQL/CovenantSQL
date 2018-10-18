@@ -68,3 +68,8 @@
 [[constraint]]
   branch = "master"
   name = "github.com/btcsuite/btcutil"
+
+[[prune.project]]
+  name = "github.com/ethereum/go-ethereum"
+  non-go = false
+  unused-packages = false

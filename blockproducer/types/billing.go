@@ -36,26 +36,6 @@ type BillingRequestHeader struct {
 	GasAmounts []*proto.AddrAndGas
 }
 
-//
-//// MarshalHash marshals for hash
-//func (bh *BillingRequestHeader) MarshalHash() ([]byte, error) {
-//	buffer := bytes.NewBuffer(nil)
-//
-//	err := utils.WriteElements(buffer, binary.BigEndian,
-//		&bh.DatabaseID,
-//		&bh.LowBlock,
-//		&bh.LowHeight,
-//		&bh.HighBlock,
-//		&bh.HighHeight,
-//		&bh.GasAmounts,
-//	)
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//	return buffer.Bytes(), nil
-//}
-
 // BillingRequest defines periodically Billing sync.
 type BillingRequest struct {
 	Header      BillingRequestHeader
@@ -63,23 +43,6 @@ type BillingRequest struct {
 	Signees     []*asymmetric.PublicKey
 	Signatures  []*asymmetric.Signature
 }
-
-//// MarshalHash marshals for hash
-//func (br *BillingRequest) MarshalHash() ([]byte, error) {
-//	buffer := bytes.NewBuffer(nil)
-//
-//	err := utils.WriteElements(buffer, binary.BigEndian,
-//		&br.Header,
-//		&br.RequestHash,
-//		&br.Signees,
-//		&br.Signatures,
-//	)
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//	return buffer.Bytes(), nil
-//}
 
 // PackRequestHeader computes the hash of header.
 func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
@@ -103,8 +66,7 @@ func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asy
 
 // BillingResponse defines the the response for BillingRequest.
 type BillingResponse struct {
-	AccountAddress proto.AccountAddress
-	RequestHash    hash.Hash
-	Signee         *asymmetric.PublicKey
-	Signature      *asymmetric.Signature
+	RequestHash hash.Hash
+	Signee      *asymmetric.PublicKey
+	Signature   *asymmetric.Signature
 }

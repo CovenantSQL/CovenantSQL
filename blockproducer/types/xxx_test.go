@@ -213,10 +213,9 @@ func generateRandomBillingResponse() (*BillingResponse, error) {
 		return nil, err
 	}
 	resp := BillingResponse{
-		AccountAddress: proto.AccountAddress(generateRandomHash()),
-		RequestHash:    h,
-		Signee:         pub,
-		Signature:      sign,
+		RequestHash: h,
+		Signee:      pub,
+		Signature:   sign,
 	}
 	return &resp, nil
 }
@@ -232,10 +231,9 @@ func generateRandomTxContent() (*TxContent, error) {
 		return nil, err
 	}
 	resp := &BillingResponse{
-		AccountAddress: proto.AccountAddress(generateRandomHash()),
-		RequestHash:    req.RequestHash,
-		Signee:         pub,
-		Signature:      sign,
+		RequestHash: req.RequestHash,
+		Signee:      pub,
+		Signature:   sign,
 	}
 
 	receivers := make([]*proto.AccountAddress, peerNum)

@@ -135,8 +135,8 @@ func (z *BillingRequestHeader) Msgsize() (s int) {
 func (z *BillingResponse) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	// map header, size 3
+	o = append(o, 0x83, 0x83)
 	if z.Signee == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -146,7 +146,7 @@ func (z *BillingResponse) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x83)
 	if z.Signature == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -156,14 +156,8 @@ func (z *BillingResponse) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x83)
 	if oTemp, err := z.RequestHash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x84)
-	if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -185,6 +179,6 @@ func (z *BillingResponse) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 12 + z.RequestHash.Msgsize() + 15 + z.AccountAddress.Msgsize()
+	s += 12 + z.RequestHash.Msgsize()
 	return
 }

@@ -592,10 +592,9 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		return
 	}
 	resp := &types.BillingResponse{
-		AccountAddress: accountAddress,
-		RequestHash:    h,
-		Signee:         privKey.PubKey(),
-		Signature:      sign,
+		RequestHash: h,
+		Signee:      privKey.PubKey(),
+		Signature:   sign,
 	}
 
 	// generate and push the txbilling

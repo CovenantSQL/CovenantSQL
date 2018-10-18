@@ -310,7 +310,7 @@ func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.T
 		// Rebuild dirty map
 		cm.dirty = newMetaIndex()
 		for _, v := range cp.entries {
-			for _, tx := range v.transacions {
+			for _, tx := range v.transactions {
 				if err = cm.applyTransaction(tx); err != nil {
 					return
 				}
@@ -758,7 +758,7 @@ func (s *metaState) pullTxs() (txs []pi.Transaction) {
 	defer s.Unlock()
 	for _, v := range s.pool.entries {
 		// TODO(leventeliu): check race condition.
-		txs = append(txs, v.transacions...)
+		txs = append(txs, v.transactions...)
 	}
 	return
 }

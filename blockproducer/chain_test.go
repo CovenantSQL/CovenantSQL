@@ -77,7 +77,7 @@ func TestChain(t *testing.T) {
 		ao, ok := chain.ms.readonly.accounts[testAddress1]
 		So(ok, ShouldBeTrue)
 		So(ao, ShouldNotBeNil)
-		So(chain.ms.pool.entries[testAddress1].transacions, ShouldBeEmpty)
+		So(chain.ms.pool.entries[testAddress1].transactions, ShouldBeEmpty)
 		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 1)
 		var (
 			bl     uint64

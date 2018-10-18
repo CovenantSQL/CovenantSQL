@@ -24,7 +24,6 @@ import (
 	"bytes"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -141,18 +140,4 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 	if err != ErrMerkleRootVerification {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-}
-
-func TestOther_MarshalHash(t *testing.T) {
-	Convey("marshal hash", t, func() {
-		tm := TxType(1)
-		s, err := tm.MarshalHash()
-		So(err, ShouldBeNil)
-		So(s, ShouldNotBeEmpty)
-
-		So(tm.String(), ShouldResemble, "TxUnknown")
-
-		tm = TxType(0)
-		So(tm.String(), ShouldResemble, "TxBilling")
-	})
 }

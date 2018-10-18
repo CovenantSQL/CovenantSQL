@@ -606,7 +606,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 	}
 	var (
 		tc = types.NewTxContent(uint32(nc), br, receivers, fees, rewards, resp)
-		tb = types.NewTxBilling(tc, types.TxTypeBilling, &c.rt.accountAddress)
+		tb = types.NewTxBilling(tc, &c.rt.accountAddress)
 	)
 	if err = tb.Sign(privKey); err != nil {
 		return

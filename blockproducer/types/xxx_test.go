@@ -267,7 +267,7 @@ func generateRandomTxBilling() (*TxBilling, error) {
 	}
 	blockHash := generateRandomHash()
 
-	txBilling := NewTxBilling(txContent, TxTypeBilling, &accountAddress)
+	txBilling := NewTxBilling(txContent, &accountAddress)
 	txBilling.TxHash = &txHash
 	txBilling.Signee = pub
 	txBilling.Signature = sign

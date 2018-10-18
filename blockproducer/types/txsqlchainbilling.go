@@ -82,10 +82,9 @@ type TxBilling struct {
 }
 
 // NewTxBilling generates a new TxBilling.
-func NewTxBilling(txContent *TxContent, txType TxType, addr *proto.AccountAddress) *TxBilling {
+func NewTxBilling(txContent *TxContent, addr *proto.AccountAddress) *TxBilling {
 	return &TxBilling{
 		TxContent:      *txContent,
-		TxType:         txType.ToByte(),
 		AccountAddress: addr,
 	}
 }

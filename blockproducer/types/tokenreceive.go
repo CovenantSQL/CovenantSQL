@@ -13,23 +13,24 @@ import (
 
 //go:generate hsp
 
-// EtherReceiveHeader defines the ether receive transaction header.
-type EtherReceiveHeader struct {
+// TokenReceiveHeader defines the ether receive transaction header.
+type TokenReceiveHeader struct {
 	Observer, Receiver proto.AccountAddress
 	Nonce            pi.AccountNonce
 	Amount           cpuminer.Uint256
+	Type TokenType
 }
 
-// EtherReceive defines the ether receive transaction.
-type EtherReceive struct {
-	EtherReceiveHeader
+// TokenReceive defines the ether receive transaction.
+type TokenReceive struct {
+	TokenReceiveHeader
 	HeaderHash hash.Hash
 	Signee     *asymmetric.PublicKey
 	Signature  *asymmetric.Signature
 }
 
 // Serialize serializes TxBilling using msgpack.
-func (t *EtherReceive) Serialize() (b []byte, err error) {
+func (t *TokenReceive) Serialize() (b []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(t); err != nil {
 		return
@@ -39,34 +40,34 @@ func (t *EtherReceive) Serialize() (b []byte, err error) {
 }
 
 // Deserialize desrializes TxBilling using msgpack.
-func (t *EtherReceive) Deserialize(enc []byte) error {
+func (t *TokenReceive) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, t)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
-func (t *EtherReceive) GetAccountAddress() proto.AccountAddress {
+func (t *TokenReceive) GetAccountAddress() proto.AccountAddress {
 	return t.Observer
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
-func (t *EtherReceive) GetAccountNonce() pi.AccountNonce {
+func (t *TokenReceive) GetAccountNonce() pi.AccountNonce {
 	return t.Nonce
 }
 
 // GetHash implements interfaces/Transaction.GetHash.
-func (t *EtherReceive) GetHash() hash.Hash {
+func (t *TokenReceive) GetHash() hash.Hash {
 	return t.HeaderHash
 }
 
 // GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (t *EtherReceive) GetTransactionType() pi.TransactionType {
+func (t *TokenReceive) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeReceiveEther
 }
 
 // Sign implements interfaces/Transaction.Sign.
-func (t *EtherReceive) Sign(signer *asymmetric.PrivateKey) (err error) {
+func (t *TokenReceive) Sign(signer *asymmetric.PrivateKey) (err error) {
 	var enc []byte
-	if enc, err = t.EtherReceiveHeader.MarshalHash(); err != nil {
+	if enc, err = t.TokenReceiveHeader.MarshalHash(); err != nil {
 		return
 	}
 	var h = hash.THashH(enc)
@@ -79,9 +80,9 @@ func (t *EtherReceive) Sign(signer *asymmetric.PrivateKey) (err error) {
 }
 
 // Verify implements interfaces/Transaction.Verify.
-func (t *EtherReceive) Verify() (err error) {
+func (t *TokenReceive) Verify() (err error) {
 	var enc []byte
-	if enc, err = t.EtherReceiveHeader.MarshalHash(); err != nil {
+	if enc, err = t.TokenReceiveHeader.MarshalHash(); err != nil {
 		return
 	} else if h := hash.THashH(enc); !t.HeaderHash.IsEqual(&h) {
 		err = ErrSignVerification

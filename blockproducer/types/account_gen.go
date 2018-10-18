@@ -200,20 +200,6 @@ func (z *TokenList) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
-func (z TokenType) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = hsp.Require(b, z.Msgsize())
-	o = hsp.AppendInt32(o, int32(z))
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z TokenType) Msgsize() (s int) {
-	s = hsp.Int32Size
-	return
-}
-
-// MarshalHash marshals for hash
 func (z UserPermission) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())

@@ -23,10 +23,12 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -696,6 +698,75 @@ func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
 	}
 
 	return b, nil
+}
+
+func (c *Chain) handleTokenEvent(tokenEvent *types.TokenEvent) (err error) {
+	// fetch nonce from bp
+	_, receive, err := crypto.Addr2Hash(tokenEvent.Target)
+	if err != nil {
+		log.Errorf("Unexpected err: %v\n", err)
+		return err
+	}
+
+	nonce, err := c.ms.nextNonce(receive)
+	if err != nil {
+		log.Errorf("Unexpected err: %v\n", err)
+		return err
+	}
+
+	// generate tx
+	privKey, err := kms.GetLocalPrivateKey()
+	if err != nil {
+		log.Errorf("Unexpected err: %v\n", err)
+		return err
+	}
+	observer, err := crypto.PubKeyHash(privKey.PubKey())
+	tokenReceiveTx := &types.TokenReceive{
+		TokenReceiveHeader: types.TokenReceiveHeader{
+			Observer: observer,
+			Receiver: receive,
+			Nonce: nonce,
+			Amount: tokenEvent.Value,
+			Type: tokenEvent.Token,
+		},
+	}
+
+	// sign tx
+	if err != nil {
+		log.Errorf("Unexpected err: %v\n", err)
+		return err
+	}
+	if err := tokenReceiveTx.Sign(privKey); err != nil {
+		log.Errorf("Unexpected err: %v", err)
+		return err
+	}
+
+	peers := c.rt.getPeers()
+	wg := &sync.WaitGroup{}
+	for _, s := range peers.Servers {
+		if !s.ID.IsEqual(&c.rt.nodeID) {
+			wg.Add(1)
+			// TODO(lambda): will race?
+			go func(id proto.NodeID, tokenReceive *types.TokenReceive) {
+				defer wg.Done()
+				req := ReceiveTokenReq{
+					Er: tokenReceive,
+				}
+				resp := ReceiveTokenResp{}
+				if err := c.cl.CallNode(id, route.MCCReceiveToken.String(), req, resp); err != nil {
+					log.WithFields(log.Fields{
+						"peer_id": id,
+						"receive_address": tokenReceive.Receiver,
+						"observer": tokenReceive.Observer,
+						"nonce": tokenReceive.Nonce,
+					})
+				}
+			}(s.ID, tokenReceiveTx)
+		}
+	}
+
+
+	return nil
 }
 
 // runCurrentTurn does the check and runs block producing if its my turn.

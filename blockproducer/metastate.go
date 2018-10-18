@@ -706,8 +706,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.applyBilling(t)
 	case *pt.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
-	case *pt.EtherReceive:
-		err = s.generateToken(t.Receiver, pt.Ether, &t.Amount)
+	case *pt.TokenReceive:
+		err = s.generateToken(t.Receiver, t.Type, &t.Amount)
 	default:
 		err = ErrUnknownTransactionType
 	}
@@ -798,3 +798,4 @@ func (s *metaState) pullTxs() (txs []pi.Transaction) {
 	}
 	return
 }
+

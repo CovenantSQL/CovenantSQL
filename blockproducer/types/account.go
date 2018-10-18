@@ -50,57 +50,6 @@ const (
 	NumberOfUserPermission
 )
 
-// Token defines token's number.
-const SupportTokenNumber int32 = 3
-var Token = [SupportTokenNumber]string{
-	"Ether",
-	"EOS",
-	"Bitcoin",
-}
-
-type TokenType int32
-
-const (
-	// Ether defines Ethereum.
-	Ether TokenType = iota
-	// EOS defines EOS.
-	EOS
-	// Bitcoin defines Bitcoin.
-	Bitcoin
-)
-
-// String returns token's symbol.
-func (t TokenType) String() string {
-	switch t {
-	case Ether:
-		return "Ether"
-	case EOS:
-		return "EOS"
-	case Bitcoin:
-		return "Bitcoin"
-	default:
-		return "Unknown"
-	}
-}
-
-// FromString returns token's number.
-func FromString(t string) TokenType {
-	switch t {
-	case "Ether":
-		return Ether
-	case "EOS":
-		return EOS
-	case "Bitcoin":
-		return Bitcoin
-	default:
-		return -1
-	}
-}
-
-// Listed returns if the token is listed in list.
-func (t TokenType) Listed() bool {
-	return t >= 0 && int32(t) < SupportTokenNumber
-}
 
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {

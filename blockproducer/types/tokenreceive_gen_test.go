@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashEtherReceive(t *testing.T) {
-	v := EtherReceive{}
+func TestMarshalHashTokenReceive(t *testing.T) {
+	v := TokenReceive{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashEtherReceive(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashEtherReceive(b *testing.B) {
-	v := EtherReceive{}
+func BenchmarkMarshalHashTokenReceive(b *testing.B) {
+	v := TokenReceive{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashEtherReceive(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgEtherReceive(b *testing.B) {
-	v := EtherReceive{}
+func BenchmarkAppendMsgTokenReceive(b *testing.B) {
+	v := TokenReceive{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgEtherReceive(b *testing.B) {
 	}
 }
 
-func TestMarshalHashEtherReceiveHeader(t *testing.T) {
-	v := EtherReceiveHeader{}
+func TestMarshalHashTokenReceiveHeader(t *testing.T) {
+	v := TokenReceiveHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashEtherReceiveHeader(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashEtherReceiveHeader(b *testing.B) {
-	v := EtherReceiveHeader{}
+func BenchmarkMarshalHashTokenReceiveHeader(b *testing.B) {
+	v := TokenReceiveHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,8 +71,8 @@ func BenchmarkMarshalHashEtherReceiveHeader(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgEtherReceiveHeader(b *testing.B) {
-	v := EtherReceiveHeader{}
+func BenchmarkAppendMsgTokenReceiveHeader(b *testing.B) {
+	v := TokenReceiveHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

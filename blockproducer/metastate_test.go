@@ -606,12 +606,13 @@ func TestMetaState(t *testing.T) {
 						},
 						AccountAddress: &addr1,
 					}
-					t3 = &pt.EtherReceive{
-						EtherReceiveHeader: pt.EtherReceiveHeader{
+					t3 = &pt.TokenReceive{
+						TokenReceiveHeader: pt.TokenReceiveHeader{
 							Observer: addr1,
 							Receiver: addr3,
 							Nonce: 3,
 							Amount: *cpuminer.Zero().Inc(),
+							Type: pt.Ether,
 						},
 					}
 					txNum = 4

@@ -3,7 +3,6 @@ package main
 import (
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	ctypes "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -33,11 +32,12 @@ func ethHandler(contractABI *abi.ABI, l *types.Log, db *bolt.DB) error {
 		"sequenceID": sequenceID,
 	}).Infoln("get event")
 
-	etherIn := EtherIn{
+	etherIn := ctypes.TokenEvent{
 		From: from.String(),
 		Target: target,
-		EthValue: *ethValue,
+		Value: *ethValue,
 		SequenceID: sequenceID,
+		Token: ctypes.Ether,
 	}
 
 	err = processEtherReceive(&etherIn)
@@ -49,51 +49,15 @@ func ethHandler(contractABI *abi.ABI, l *types.Log, db *bolt.DB) error {
 	return nil
 }
 
-func processEtherReceive(etherIn *EtherIn) error {
-	// fetch nonce from bp
-	_, receive, err := crypto.Addr2Hash(etherIn.Target)
+func processEtherReceive(etherIn *ctypes.TokenEvent) error {
+	// FIXME(lambda): sign the etherIn for security
+	// send EtherIn to bp
+	etherIBCEventReq := &bp.ReceiveTokenIBCEventReq{Ee:etherIn}
+	etherIBCEventResp := &bp.ReceiveTokenIBCEventResp{}
+	err := requestBP(route.MCCAddTokenEvent.String(), etherIBCEventReq, etherIBCEventResp)
 	if err != nil {
 		log.Errorf("Unexpected err: %v\n", err)
 		return err
 	}
-	nonceReq := &bp.NextAccountNonceReq{}
-	nonceResp := &bp.NextAccountNonceResp{}
-	nonceReq.Addr = receive
-	err = requestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
-	if err != nil {
-		log.Errorf("Unexpected err: %v\n", err)
-		return err
-	}
-
-	// generate tx
-	sender, err := crypto.PubKeyHash(privateKey.PubKey())
-	if err != nil {
-		log.Errorf("Unexpected err: %v\n", err)
-		return err
-	}
-	etherReceiveTx := &ctypes.EtherReceive{
-		EtherReceiveHeader: ctypes.EtherReceiveHeader{
-			Observer: sender,
-			Receiver: receive,
-			Nonce: nonceResp.Nonce,
-			Amount: etherIn.EthValue,
-		},
-	}
-
-	// sign tx
-	if err := etherReceiveTx.Sign(privateKey); err != nil {
-		log.Errorf("Unexpected err: %v", err)
-		return err
-	}
-
-	// push the tx using rpc
-	req := &bp.ReceiveEtherReq{}
-	resp := &bp.ReceiveEtherResp{}
-	req.Er = etherReceiveTx
-	if err = requestBP(route.MCCReceiveEther.String(), req, resp); err != nil {
-		log.Errorf("Send transaction failed: %v", err)
-		return err
-	}
-
 	return nil
 }

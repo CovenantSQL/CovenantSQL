@@ -119,14 +119,25 @@ type AddTxTransferReq struct {
 	Tx *types.Transfer
 }
 
-// ReceiveEtherReq defines a request of ReceiveEtherReq RPC method.
-type ReceiveEtherReq struct {
+// ReceiveTokenReq defines a request of ReceiveEtherReq RPC method.
+type ReceiveTokenReq struct {
 	proto.Envelope
-	Er *types.EtherReceive
+	Er *types.TokenReceive
 }
 
 // ReceiveEtherResp defines a response of ReceiveEtherReq RPC method.
-type ReceiveEtherResp struct {
+type ReceiveTokenResp struct {
+	proto.Envelope
+}
+
+// ReceiveTokenIBCEventReq defines a request of ReceiveEthIBCEvent (IBC: inter-blockchain communication) RPC method.
+type ReceiveTokenIBCEventReq struct {
+	proto.Envelope
+	Ee *types.TokenEvent
+}
+
+// ReceiveTokenIBCEventResp defines a response of ReceiveEthIBCEvent (IBC: inter-blockchain communication) RPC method.
+type ReceiveTokenIBCEventResp struct {
 	proto.Envelope
 }
 
@@ -243,12 +254,22 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 	return
 }
 
-// ReceiveEther is the RPC method to transfer ether to account.
-func (s *ChainRPCService) ReceiveEther(req *ReceiveEtherReq, resp *ReceiveEtherResp) (err error) {
+// ReceiveToken is the RPC method to receive token from other public chain to account.
+func (s *ChainRPCService) ReceiveToken(req *ReceiveTokenReq, resp *ReceiveTokenResp) (err error) {
 	if req.Er == nil {
 		return ErrUnknownTransactionType
 	}
 
 	s.chain.pendingTxs <- req.Er
 	return
+}
+
+// AddTokenEvent is the RPC method to notify block producer ether event.
+func (s *ChainRPCService) AddTokenEvent(req *ReceiveTokenIBCEventReq, resp *ReceiveTokenIBCEventResp) (err error) {
+	if req.Ee == nil {
+		return ErrUnknownTransactionType
+	}
+
+	// TODO(lambda): check req permission
+	return s.chain.handleTokenEvent(req.Ee)
 }

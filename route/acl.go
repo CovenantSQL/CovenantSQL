@@ -119,8 +119,10 @@ const (
 	MCCQueryAccountStableBalance
 	// MCCQueryAccountCovenantBalance is used by block producer to provide account covenant coin balance
 	MCCQueryAccountCovenantBalance
-	// MCCReceiveEther
-	MCCReceiveEther
+	// MCCReceiveToken is used by block producer to add ether to some accounts
+	MCCReceiveToken
+	// MCCAddTokenEvent is used by block producer to receive Ether inter-blockchain communication event
+	MCCAddTokenEvent
 )
 
 // String returns the RemoteFunc string
@@ -184,8 +186,10 @@ func (s RemoteFunc) String() string {
 		return "MCC.QueryAccountStableBalance"
 	case MCCQueryAccountCovenantBalance:
 		return "MCC.QueryAccountCovenantBalance"
-	case MCCReceiveEther:
-		return "MCC.ReceiveEther"
+	case MCCReceiveToken:
+		return "MCC.ReceiveToken"
+	case MCCAddTokenEvent:
+		return "MCC.AddTokenEvent"
 	}
 	return "Unknown"
 }

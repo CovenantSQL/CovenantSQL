@@ -7,7 +7,7 @@ import (
 )
 
 // MarshalHash marshals for hash
-func (z *EtherReceive) MarshalHash() (o []byte, err error) {
+func (z *TokenReceive) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
@@ -32,7 +32,7 @@ func (z *EtherReceive) MarshalHash() (o []byte, err error) {
 		}
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.EtherReceiveHeader.MarshalHash(); err != nil {
+	if oTemp, err := z.TokenReceiveHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -47,7 +47,7 @@ func (z *EtherReceive) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *EtherReceive) Msgsize() (s int) {
+func (z *TokenReceive) Msgsize() (s int) {
 	s = 1 + 7
 	if z.Signee == nil {
 		s += hsp.NilSize
@@ -60,34 +60,40 @@ func (z *EtherReceive) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 19 + z.EtherReceiveHeader.Msgsize() + 11 + z.HeaderHash.Msgsize()
+	s += 19 + z.TokenReceiveHeader.Msgsize() + 11 + z.HeaderHash.Msgsize()
 	return
 }
 
 // MarshalHash marshals for hash
-func (z *EtherReceiveHeader) MarshalHash() (o []byte, err error) {
+func (z *TokenReceiveHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	// map header, size 5
+	o = append(o, 0x85, 0x85)
+	if oTemp, err := z.Type.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x85)
 	if oTemp, err := z.Amount.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	if oTemp, err := z.Observer.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	if oTemp, err := z.Receiver.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -97,7 +103,7 @@ func (z *EtherReceiveHeader) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *EtherReceiveHeader) Msgsize() (s int) {
-	s = 1 + 7 + z.Amount.Msgsize() + 6 + z.Nonce.Msgsize() + 9 + z.Observer.Msgsize() + 9 + z.Receiver.Msgsize()
+func (z *TokenReceiveHeader) Msgsize() (s int) {
+	s = 1 + 5 + z.Type.Msgsize() + 7 + z.Amount.Msgsize() + 6 + z.Nonce.Msgsize() + 9 + z.Observer.Msgsize() + 9 + z.Receiver.Msgsize()
 	return
 }

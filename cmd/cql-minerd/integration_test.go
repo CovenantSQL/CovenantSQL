@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -377,18 +378,23 @@ func benchDB(b *testing.B, db *sql.DB) {
 	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
 	So(err, ShouldBeNil)
 
-	var insertedCount int
+	var i int32
+	//var insertedCount int
 	b.Run("benchmark INSERT", func(b *testing.B) {
 		b.ResetTimer()
-		insertedCount = b.N
-		for i := 0; i < b.N; i++ {
-			_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-				"(?, ?)", i, i,
-			)
-			if err != nil {
-				b.Fatal(err)
+		//insertedCount = b.N
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				ii := atomic.AddInt32(&i, 1)
+				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+					"(?, ?)", ii, ii,
+				)
+				if err != nil {
+					b.Fatal(err)
+				}
+
 			}
-		}
+		})
 	})
 
 	rowCount := db.QueryRow("SELECT COUNT(1) FROM test")
@@ -399,18 +405,18 @@ func benchDB(b *testing.B, db *sql.DB) {
 	}
 	log.Warnf("Row Count: %d", count)
 
-	b.Run("benchmark SELECT", func(b *testing.B) {
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
-			var result int
-			err = row.Scan(&result)
-			if err != nil || result < 0 {
-				log.Errorf("i = %d", i)
-				b.Fatal(err)
-			}
-		}
-	})
+	//b.Run("benchmark SELECT", func(b *testing.B) {
+	//	b.ResetTimer()
+	//	for i := 0; i < b.N; i++ {
+	//		row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
+	//		var result int
+	//		err = row.Scan(&result)
+	//		if err != nil || result < 0 {
+	//			log.Errorf("i = %d", i)
+	//			b.Fatal(err)
+	//		}
+	//	}
+	//})
 
 	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 

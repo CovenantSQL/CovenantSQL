@@ -215,7 +215,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	}
 
 	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht}); err != nil {
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
 		return
 	}
 

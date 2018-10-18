@@ -43,7 +43,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	addr := "127.0.0.1:0"
 	dht, _ := NewDHTService(DHTStorePath+"1", new(consistent.KMSStorage), false)
 	kms.ResetBucket()
-	rpc.RegisterName("DHT", dht)
+	rpc.RegisterName(DHTRPCName, dht)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		fmt.Println(err)
@@ -207,7 +207,7 @@ func TestDHTService_Ping(t *testing.T) {
 	addr := "127.0.0.1:0"
 
 	dht, _ := NewDHTService(DHTStorePath, new(consistent.KMSStorage), false)
-	rpc.RegisterName("DHT", dht)
+	rpc.RegisterName(DHTRPCName, dht)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		fmt.Println(err)

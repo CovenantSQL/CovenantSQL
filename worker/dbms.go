@@ -38,12 +38,6 @@ const (
 	// DBKayakRPCName defines rpc service name of database internal consensus.
 	DBKayakRPCName = "DBC" // aka. database consensus
 
-	// SQLChainRPCName defines rpc service name of sql-chain internal consensus.
-	SQLChainRPCName = "SQLC"
-
-	// DBServiceRPCName defines rpc service name of database external query api.
-	DBServiceRPCName = "DBS" // aka. database service
-
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
 )
@@ -67,10 +61,10 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 	dbms.kayakMux = ka.NewMuxService(DBKayakRPCName, cfg.Server)
 
 	// init sql-chain rpc mux
-	dbms.chainMux = sqlchain.NewMuxService(SQLChainRPCName, cfg.Server)
+	dbms.chainMux = sqlchain.NewMuxService(route.SQLChainRPCName, cfg.Server)
 
 	// init service
-	dbms.rpc = NewDBMSRPCService(DBServiceRPCName, cfg.Server, dbms)
+	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
 
 	return
 }

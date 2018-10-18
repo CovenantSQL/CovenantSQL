@@ -46,7 +46,6 @@ const (
 	//privateKeyFile   = "private.key"
 	//dhtFileName      = "dht.db"
 	kayakServiceName = "Kayak"
-	dhtServiceName   = "DHT"
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
@@ -123,7 +122,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// register service rpc
 	log.Infof("register dht service rpc")
-	err = server.RegisterService(dhtServiceName, dht)
+	err = server.RegisterService(route.DHTRPCName, dht)
 	if err != nil {
 		log.Errorf("register dht service failed: %s", err)
 		return
@@ -144,7 +143,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		log.Errorf("init block producer db service failed: %v", err)
 		return
 	}
-	if err = server.RegisterService(bp.DBServiceName, dbService); err != nil {
+	if err = server.RegisterService(route.BPDBRPCName, dbService); err != nil {
 		log.Errorf("init block producer db service failed: %v", err)
 		return
 	}

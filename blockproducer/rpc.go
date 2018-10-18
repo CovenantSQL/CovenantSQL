@@ -22,11 +22,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-const (
-	// MainChainRPCName defines rpc service name of main chain internal consensus.
-	MainChainRPCName = "MCC"
-)
-
 // ChainRPCService defines a main chain RPC server.
 type ChainRPCService struct {
 	chain *Chain

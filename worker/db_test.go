@@ -693,12 +693,12 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht}); err != nil {
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
 		return
 	}
 
 	// register bpdb service
-	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
 		return
 	}
 

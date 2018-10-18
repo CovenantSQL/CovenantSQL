@@ -37,11 +37,11 @@ import (
 
 var (
 	rpcServiceMap = map[string]interface{}{
-		"DHT":  &route.DHTService{},
-		"DBS":  &worker.DBMSRPCService{},
-		"BPDB": &blockproducer.DBService{},
-		"SQLC": &sqlchain.MuxService{},
-		"MCC":  &bp.ChainRPCService{},
+		route.DHTRPCName:           &route.DHTService{},
+		route.DBRPCName:            &worker.DBMSRPCService{},
+		route.BPDBRPCName:          &blockproducer.DBService{},
+		route.SQLChainRPCName:      &sqlchain.MuxService{},
+		route.BlockProducerRPCName: &bp.ChainRPCService{},
 	}
 	rpcName     string
 	rpcEndpoint string

@@ -40,8 +40,6 @@ import (
 const (
 	// DefaultAllocationRounds defines max rounds to try allocate peers for database creation.
 	DefaultAllocationRounds = 3
-	// DBServiceName for block producer to provide database management related logic.
-	DBServiceName = "BPDB"
 )
 
 var (

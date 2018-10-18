@@ -66,7 +66,7 @@ func TestService(t *testing.T) {
 		}
 
 		// register BPDB service to rpc
-		err = server.RegisterService(DBServiceName, dbService)
+		err = server.RegisterService(route.BPDBRPCName, dbService)
 		So(err, ShouldBeNil)
 
 		// get database

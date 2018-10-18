@@ -133,6 +133,19 @@ const (
 	MCCQueryAccountStableBalance
 	// MCCQueryAccountCovenantBalance is used by block producer to provide account covenant coin balance
 	MCCQueryAccountCovenantBalance
+
+	// DHTRPCName defines the block producer dh-rpc service name
+	DHTRPCName = "DHT"
+	// BlockProducerRPCName defines main chain rpc name
+	BlockProducerRPCName = "MCC"
+	// SQLChainRPCName defines the sql chain rpc name
+	SQLChainRPCName = "SQLC"
+	// DBRPCName defines the sql chain db service rpc name
+	DBRPCName = "DBS"
+	// BPDBRPCName defines the block producer db service rpc name
+	BPDBRPCName = "BPDB"
+	// ObserverRPCName defines the observer node service rpc name
+	ObserverRPCName = "OBS"
 )
 
 // String returns the RemoteFunc string

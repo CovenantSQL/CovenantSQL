@@ -17,7 +17,6 @@
 package blockproducer
 
 import (
-	"fmt"
 	"io/ioutil"
 	"sync"
 	"testing"
@@ -29,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -271,9 +271,8 @@ func TestMultiNode(t *testing.T) {
 								Req: br,
 							}
 							bResp := &AdviseBillingResp{}
-							method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseBillingRequest")
 							log.Debugf("CallNode %d hash is %s", val, br.RequestHash)
-							err = chains[i].cl.CallNode(chains[i].rt.nodeID, method, bReq, bResp)
+							err = chains[i].cl.CallNode(chains[i].rt.nodeID, route.MCCAdviseBillingRequest.String(), bReq, bResp)
 							if err != nil {
 								log.WithFields(log.Fields{
 									"peer":         chains[i].rt.getPeerInfoString(),

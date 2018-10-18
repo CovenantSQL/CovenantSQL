@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -528,7 +529,6 @@ func (c *Chain) produceBlock(now time.Time) error {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
-				method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseNewBlock")
 				blockReq := &AdviseNewBlockReq{
 					Envelope: proto.Envelope{
 						// TODO(lambda): Add fields.
@@ -536,7 +536,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 					Block: b,
 				}
 				blockResp := &AdviseNewBlockResp{}
-				if err := c.cl.CallNode(id, method, blockReq, blockResp); err != nil {
+				if err := c.cl.CallNode(id, route.MCCAdviseNewBlock.String(), blockReq, blockResp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":       c.rt.getPeerInfoString(),
 						"curr_turn":  c.rt.getNextTurn(),
@@ -621,7 +621,6 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		},
 		TxBilling: tb,
 	}
-	method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseTxBilling")
 	peers := c.rt.getPeers()
 	wg := &sync.WaitGroup{}
 	for _, s := range peers.Servers {
@@ -630,7 +629,7 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 			go func(id proto.NodeID) {
 				defer wg.Done()
 				tbResp := &AdviseTxBillingResp{}
-				if err := c.cl.CallNode(id, method, tbReq, tbResp); err != nil {
+				if err := c.cl.CallNode(id, route.MCCAdviseTxBilling.String(), tbReq, tbResp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":      c.rt.getPeerInfoString(),
 						"curr_turn": c.rt.getNextTurn(),
@@ -901,13 +900,12 @@ func (c *Chain) syncHead() {
 			Height: h,
 		}
 		resp := &FetchBlockResp{}
-		method := fmt.Sprintf("%s.%s", MainChainRPCName, "FetchBlock")
 		peers := c.rt.getPeers()
 		succ := false
 
 		for i, s := range peers.Servers {
 			if !s.ID.IsEqual(&c.rt.nodeID) {
-				err = c.cl.CallNode(s.ID, method, req, resp)
+				err = c.cl.CallNode(s.ID, route.MCCFetchBlock.String(), req, resp)
 				if err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),

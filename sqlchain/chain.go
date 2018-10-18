@@ -1246,7 +1246,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 
 		resp := &pt.BillingResponse{}
 
-		if err = c.cl.CallNode(bp, "MCC.AdviseBillingRequest", req, resp); err != nil {
+		if err = c.cl.CallNode(bp, route.MCCAdviseBillingRequest.String(), req, resp); err != nil {
 			return
 		}
 	}()
@@ -1266,7 +1266,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 				defer rpcWG.Done()
 				resp := &MuxSignBillingResp{}
 
-				if err := c.cl.CallNode(id, "SQLC.SignBilling", req, resp); err != nil {
+				if err := c.cl.CallNode(id, route.SQLCSignBilling.String(), req, resp); err != nil {
 					log.WithFields(log.Fields{
 						"peer": c.rt.getPeerInfoString(),
 						"time": c.rt.getChainTimeString(),

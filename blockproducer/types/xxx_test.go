@@ -223,17 +223,14 @@ func generateRandomBilling() (*Billing, error) {
 	if err != nil {
 		return nil, err
 	}
-	txHash := generateRandomHash()
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-	sign, err := priv.Sign(txHash[:])
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		return nil, err
 	}
-
 	txBilling := NewBilling(header)
-	txBilling.TxHash = &txHash
-	txBilling.Signee = pub
-	txBilling.Signature = sign
+	if err := txBilling.Sign(priv); err != nil {
+		return nil, err
+	}
 	return txBilling, nil
 }
 

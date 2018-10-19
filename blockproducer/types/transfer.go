@@ -21,7 +21,6 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
@@ -38,9 +37,7 @@ type TransferHeader struct {
 // Transfer defines the transfer transaction.
 type Transfer struct {
 	TransferHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	DefaultHashSignVerifierImpl
 }
 
 // Serialize serializes Billing using msgpack.
@@ -68,11 +65,6 @@ func (t *Transfer) GetAccountNonce() pi.AccountNonce {
 	return t.Nonce
 }
 
-// GetHash implements interfaces/Transaction.GetHash.
-func (t *Transfer) GetHash() hash.Hash {
-	return t.HeaderHash
-}
-
 // GetTransactionType implements interfaces/Transaction.GetTransactionType.
 func (t *Transfer) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeTransfer
@@ -80,32 +72,12 @@ func (t *Transfer) GetTransactionType() pi.TransactionType {
 
 // Sign implements interfaces/Transaction.Sign.
 func (t *Transfer) Sign(signer *asymmetric.PrivateKey) (err error) {
-	var enc []byte
-	if enc, err = t.TransferHeader.MarshalHash(); err != nil {
-		return
-	}
-	var h = hash.THashH(enc)
-	if t.Signature, err = signer.Sign(h[:]); err != nil {
-		return
-	}
-	t.HeaderHash = h
-	t.Signee = signer.PubKey()
-	return
+	return t.DefaultHashSignVerifierImpl.Sign(&t.TransferHeader, signer)
 }
 
 // Verify implements interfaces/Transaction.Verify.
 func (t *Transfer) Verify() (err error) {
-	var enc []byte
-	if enc, err = t.TransferHeader.MarshalHash(); err != nil {
-		return
-	} else if h := hash.THashH(enc); !t.HeaderHash.IsEqual(&h) {
-		err = ErrSignVerification
-		return
-	} else if !t.Signature.Verify(h[:], t.Signee) {
-		err = ErrSignVerification
-		return
-	}
-	return
+	return t.DefaultHashSignVerifierImpl.Verify(&t.TransferHeader)
 }
 
 func init() {

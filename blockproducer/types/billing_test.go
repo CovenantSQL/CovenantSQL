@@ -87,8 +87,8 @@ func TestBilling_SerializeDeserialize(t *testing.T) {
 	if !tb.Signee.IsEqual(dec.Signee) {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signee, tb.Signee)
 	}
-	if !tb.TxHash.IsEqual(dec.TxHash) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.TxHash, tb.TxHash)
+	if !tb.Hash.IsEqual(&dec.Hash) {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Hash, tb.Hash)
 	}
 }
 

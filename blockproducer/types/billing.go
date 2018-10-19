@@ -21,7 +21,6 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
@@ -59,9 +58,7 @@ func NewBillingHeader(nonce pi.AccountNonce, bReq *BillingRequest, producer prot
 // Billing is a type of tx, that is used to record sql chain billing and block rewards.
 type Billing struct {
 	BillingHeader
-	TxHash    *hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	DefaultHashSignVerifierImpl
 }
 
 // NewBilling generates a new Billing.
@@ -81,9 +78,19 @@ func (tb *Billing) Serialize() (b []byte, err error) {
 	return
 }
 
-// Deserialize desrializes Billing using msgpack.
+// Deserialize deserialize Billing using msgpack.
 func (tb *Billing) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, tb)
+}
+
+// Sign implements interfaces/Transaction.Sign.
+func (tb *Billing) Sign(signer *asymmetric.PrivateKey) (err error) {
+	return tb.DefaultHashSignVerifierImpl.Sign(&tb.BillingHeader, signer)
+}
+
+// Verify implements interfaces/Transaction.Verify.
+func (tb *Billing) Verify() error {
+	return tb.DefaultHashSignVerifierImpl.Verify(&tb.BillingHeader)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
@@ -96,48 +103,9 @@ func (tb *Billing) GetAccountNonce() pi.AccountNonce {
 	return tb.Nonce
 }
 
-// GetHash implements interfaces/Transaction.GetHash.
-func (tb *Billing) GetHash() hash.Hash {
-	return *tb.TxHash
-}
-
 // GetTransactionType implements interfaces/Transaction.GetTransactionType.
 func (tb *Billing) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeBilling
-}
-
-// Sign computes tx of BillingHeader and signs it.
-func (tb *Billing) Sign(signer *asymmetric.PrivateKey) error {
-	enc, err := tb.BillingHeader.MarshalHash()
-	if err != nil {
-		return err
-	}
-	h := hash.THashH(enc)
-	tb.TxHash = &h
-	tb.Signee = signer.PubKey()
-
-	signature, err := signer.Sign(h[:])
-	if err != nil {
-		return err
-	}
-	tb.Signature = signature
-
-	return nil
-}
-
-// Verify verifies the signature of Billing.
-func (tb *Billing) Verify() (err error) {
-	var enc []byte
-	if enc, err = tb.BillingHeader.MarshalHash(); err != nil {
-		return
-	} else if h := hash.THashH(enc); !tb.TxHash.IsEqual(&h) {
-		err = ErrSignVerification
-		return
-	} else if !tb.Signature.Verify(h[:], tb.Signee) {
-		err = ErrSignVerification
-		return
-	}
-	return
 }
 
 // GetDatabaseID gets the database ID.

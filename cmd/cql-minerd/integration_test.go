@@ -406,7 +406,6 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				if err != nil {
 					b.Fatal(err)
 				}
-
 			}
 		})
 	})
@@ -493,7 +492,7 @@ func BenchmarkSQLite(b *testing.B) {
 	os.Remove("./foo.db")
 	defer os.Remove("./foo.db")
 
-	db, err := sql.Open("sqlite3", "./foo.db")
+	db, err := sql.Open("sqlite3", "./foo.db?_journal_mode=WAL&_synchronous=NORMAL&cache=shared")
 	if err != nil {
 		log.Fatal(err)
 	}

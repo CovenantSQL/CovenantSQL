@@ -63,7 +63,7 @@ func openDB(dsn string) (db *sql.DB, err error) {
 	}
 
 	d.AddParam("_journal_mode", "WAL")
-	d.AddParam("_synchronous", "FULL")
+	d.AddParam("_synchronous", "NORMAL")
 	fdsn := d.Format()
 
 	fn := d.GetFileName()

@@ -571,28 +571,26 @@ func TestMetaState(t *testing.T) {
 			Convey("When transactions are added", func() {
 				var (
 					n  pi.AccountNonce
-					t0 = &pt.BaseAccount{
-						Account: pt.Account{
-							Address: addr1,
-						},
-					}
-					t1 = &pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					t0 = pt.NewBaseAccount(&pt.Account{
+						Address: addr1,
+					})
+					t1 = pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
 							Amount:   0,
 						},
-					}
-					t2 = &pt.Billing{
-						BillingHeader: pt.BillingHeader{
+					)
+					t2 = pt.NewBilling(
+						&pt.BillingHeader{
 							Nonce:     2,
 							Producer:  addr1,
 							Receivers: []*proto.AccountAddress{&addr2},
 							Fees:      []uint64{1},
 							Rewards:   []uint64{1},
 						},
-					}
+					)
 				)
 				err = t1.Sign(testPrivKey)
 				So(err, ShouldBeNil)
@@ -694,78 +692,78 @@ func TestMetaState(t *testing.T) {
 		Convey("When base account txs are added", func() {
 			var (
 				txs = []pi.Transaction{
-					&pt.BaseAccount{
-						Account: pt.Account{
+					pt.NewBaseAccount(
+						&pt.Account{
 							Address:             addr1,
 							StableCoinBalance:   100,
 							CovenantCoinBalance: 100,
 						},
-					},
-					&pt.BaseAccount{
-						Account: pt.Account{
+					),
+					pt.NewBaseAccount(
+						&pt.Account{
 							Address:             addr2,
 							StableCoinBalance:   100,
 							CovenantCoinBalance: 100,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
 							Amount:   10,
 						},
-					},
-					&pt.Billing{
-						BillingHeader: pt.BillingHeader{
+					),
+					pt.NewBilling(
+						&pt.BillingHeader{
 							Nonce:     2,
 							Producer:  addr1,
 							Receivers: []*proto.AccountAddress{&addr2},
 							Fees:      []uint64{1},
 							Rewards:   []uint64{1},
 						},
-					},
-					&pt.Billing{
-						BillingHeader: pt.BillingHeader{
+					),
+					pt.NewBilling(
+						&pt.BillingHeader{
 							Nonce:     1,
 							Producer:  addr2,
 							Receivers: []*proto.AccountAddress{&addr1},
 							Fees:      []uint64{1},
 							Rewards:   []uint64{1},
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    2,
 							Amount:   1,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    3,
 							Amount:   10,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    3,
 							Amount:   1,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    4,
 							Amount:   1,
 						},
-					},
+					),
 				}
 			)
 			for _, tx := range txs {

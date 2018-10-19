@@ -31,7 +31,15 @@ import (
 // BaseAccount defines the base account type header.
 type BaseAccount struct {
 	Account
-	AccountHash hash.Hash
+	pi.TransactionTypeMixin
+}
+
+// NewBaseAccount returns new instance.
+func NewBaseAccount(account *Account) *BaseAccount {
+	return &BaseAccount{
+		Account:              *account,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeBaseAccount),
+	}
 }
 
 // Serialize implements interfaces/Transaction.Serialize.
@@ -61,13 +69,8 @@ func (b *BaseAccount) GetAccountNonce() pi.AccountNonce {
 }
 
 // GetHash implements interfaces/Transaction.GetHash.
-func (b *BaseAccount) GetHash() hash.Hash {
-	return b.AccountHash
-}
-
-// GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (b *BaseAccount) GetTransactionType() pi.TransactionType {
-	return pi.TransactionTypeBaseAccount
+func (b *BaseAccount) GetHash() (h hash.Hash) {
+	return
 }
 
 // Sign implements interfaces/Transaction.Sign.

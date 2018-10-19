@@ -61,8 +61,8 @@ const (
 	TransactionTypeDeleteDatabaseUser
 	// TransactionTypeBaseAccount defines base account transaction type.
 	TransactionTypeBaseAccount
-	// TransactionTypeCreataDatabase defines database creation transaction type.
-	TransactionTypeCreataDatabase
+	// TransactionTypeCreateDatabase defines database creation transaction type.
+	TransactionTypeCreateDatabase
 	// TransactionTypeNumber defines transaction types number.
 	TransactionTypeNumber
 )

@@ -58,13 +58,15 @@ func NewBillingHeader(nonce pi.AccountNonce, bReq *BillingRequest, producer prot
 // Billing is a type of tx, that is used to record sql chain billing and block rewards.
 type Billing struct {
 	BillingHeader
+	pi.TransactionTypeMixin
 	DefaultHashSignVerifierImpl
 }
 
 // NewBilling generates a new Billing.
 func NewBilling(header *BillingHeader) *Billing {
 	return &Billing{
-		BillingHeader: *header,
+		BillingHeader:        *header,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeBilling),
 	}
 }
 
@@ -101,11 +103,6 @@ func (tb *Billing) GetAccountAddress() proto.AccountAddress {
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
 func (tb *Billing) GetAccountNonce() pi.AccountNonce {
 	return tb.Nonce
-}
-
-// GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (tb *Billing) GetTransactionType() pi.TransactionType {
-	return pi.TransactionTypeBilling
 }
 
 // GetDatabaseID gets the database ID.

@@ -37,10 +37,19 @@ type TransferHeader struct {
 // Transfer defines the transfer transaction.
 type Transfer struct {
 	TransferHeader
+	pi.TransactionTypeMixin
 	DefaultHashSignVerifierImpl
 }
 
-// Serialize serializes Billing using msgpack.
+// NewTransfer returns new instance.
+func NewTransfer(header *TransferHeader) *Transfer {
+	return &Transfer{
+		TransferHeader:       *header,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeTransfer),
+	}
+}
+
+// Serialize serializes Transfer using msgpack.
 func (t *Transfer) Serialize() (b []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(t); err != nil {
@@ -50,7 +59,7 @@ func (t *Transfer) Serialize() (b []byte, err error) {
 	return
 }
 
-// Deserialize desrializes Billing using msgpack.
+// Deserialize desrializes Transfer using msgpack.
 func (t *Transfer) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, t)
 }
@@ -63,11 +72,6 @@ func (t *Transfer) GetAccountAddress() proto.AccountAddress {
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
 func (t *Transfer) GetAccountNonce() pi.AccountNonce {
 	return t.Nonce
-}
-
-// GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (t *Transfer) GetTransactionType() pi.TransactionType {
-	return pi.TransactionTypeTransfer
 }
 
 // Sign implements interfaces/Transaction.Sign.

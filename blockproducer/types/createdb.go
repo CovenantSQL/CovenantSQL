@@ -43,7 +43,16 @@ func (h *CreateDatabaseHeader) GetAccountNonce() pi.AccountNonce {
 // CreateDatabase defines the database creation transaction.
 type CreateDatabase struct {
 	CreateDatabaseHeader
+	pi.TransactionTypeMixin
 	DefaultHashSignVerifierImpl
+}
+
+// NewCreateDatabase returns new instance.
+func NewCreateDatabase(header *CreateDatabaseHeader) *CreateDatabase {
+	return &CreateDatabase{
+		CreateDatabaseHeader: *header,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeCreateDatabase),
+	}
 }
 
 // Serialize implements interfaces/Transaction.Serialize.
@@ -54,11 +63,6 @@ func (cd *CreateDatabase) Serialize() ([]byte, error) {
 // Deserialize implements interfaces/Transaction.Deserialize.
 func (cd *CreateDatabase) Deserialize(enc []byte) error {
 	return deserialize(enc, cd)
-}
-
-// GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (cd *CreateDatabase) GetTransactionType() pi.TransactionType {
-	return pi.TransactionTypeCreataDatabase
 }
 
 // Sign implements interfaces/Transaction.Sign.
@@ -72,5 +76,5 @@ func (cd *CreateDatabase) Verify() error {
 }
 
 func init() {
-	pi.RegisterTransaction(pi.TransactionTypeCreataDatabase, (*CreateDatabase)(nil))
+	pi.RegisterTransaction(pi.TransactionTypeCreateDatabase, (*CreateDatabase)(nil))
 }

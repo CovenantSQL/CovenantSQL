@@ -10,9 +10,9 @@ import (
 func (z *CreateDatabase) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
+	// map header, size 3
 	// map header, size 2
-	// map header, size 2
-	o = append(o, 0x82, 0x82, 0x82, 0x82)
+	o = append(o, 0x83, 0x83, 0x82, 0x82)
 	if oTemp, err := z.CreateDatabaseHeader.Owner.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -24,8 +24,14 @@ func (z *CreateDatabase) MarshalHash() (o []byte, err error) {
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
+	o = append(o, 0x83)
 	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x83)
+	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -35,7 +41,7 @@ func (z *CreateDatabase) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CreateDatabase) Msgsize() (s int) {
-	s = 1 + 21 + 1 + 6 + z.CreateDatabaseHeader.Owner.Msgsize() + 6 + z.CreateDatabaseHeader.Nonce.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
+	s = 1 + 21 + 1 + 6 + z.CreateDatabaseHeader.Owner.Msgsize() + 6 + z.CreateDatabaseHeader.Nonce.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize()
 	return
 }
 

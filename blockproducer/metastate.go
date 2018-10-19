@@ -672,6 +672,9 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.applyBilling(t)
 	case *pt.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
+	case *pi.TransactionWrapper:
+		// call again using unwrapped transaction
+		err = s.applyTransaction(t.Unwrap())
 	default:
 		err = ErrUnknownTransactionType
 	}

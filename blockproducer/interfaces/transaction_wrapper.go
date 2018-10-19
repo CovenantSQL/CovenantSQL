@@ -27,6 +27,7 @@ import (
 
 const (
 	// msgpack constants, copied from go/codec/msgpack.go
+	valueTypeMap   = 9
 	valueTypeArray = 10
 )
 
@@ -62,12 +63,25 @@ type TransactionWrapper struct {
 	Transaction
 }
 
+// Unwrap returns transaction within wrapper.
+func (w *TransactionWrapper) Unwrap() Transaction {
+	return w.Transaction
+}
+
 // CodecEncodeSelf implements codec.Selfer interface.
 func (w *TransactionWrapper) CodecEncodeSelf(e *codec.Encoder) {
 	helperEncoder, encDriver := codec.GenHelperEncoder(e)
 
 	if w == nil || w.Transaction == nil {
 		encDriver.EncodeNil()
+		return
+	}
+
+	// if the transaction is supports type transaction mixin
+	var rawTx interface{} = w.Transaction
+	if _, ok := rawTx.(ContainsTransactionTypeMixin); ok {
+		// encode directly
+		helperEncoder.EncFallback(w.Transaction)
 		return
 	}
 
@@ -82,15 +96,29 @@ func (w *TransactionWrapper) CodecEncodeSelf(e *codec.Encoder) {
 
 // CodecDecodeSelf implements codec.Selfer interface.
 func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
-	helperDecoder, decodeDriver := codec.GenHelperDecoder(d)
+	_, decodeDriver := codec.GenHelperDecoder(d)
 
 	// clear fields
 	w.Transaction = nil
+	ct := decodeDriver.ContainerType()
 
-	if ct := decodeDriver.ContainerType(); ct != valueTypeArray {
+	switch ct {
+	case valueTypeArray:
+		w.decodeFromWrapper(d)
+	case valueTypeMap:
+		w.decodeFromRaw(d)
+	default:
 		panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
 	}
 
+	if w.Transaction == nil {
+		// set nil transaction as placeholder to avoid nil pointer call
+		w.Transaction = NewNilTx()
+	}
+}
+
+func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
+	helperDecoder, decodeDriver := codec.GenHelperDecoder(d)
 	containerLen := decodeDriver.ReadArrayStart()
 
 	for i := 0; i < containerLen; i++ {
@@ -123,6 +151,35 @@ func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
 	}
 
 	decodeDriver.ReadArrayEnd()
+}
+
+func (w *TransactionWrapper) decodeFromRaw(d *codec.Decoder) {
+	helperDecoder, _ := codec.GenHelperDecoder(d)
+
+	// read all container as raw
+	rawBytes := helperDecoder.DecRaw()
+
+	var typeDetector TransactionTypeMixin
+	typeDetector.SetTransactionType(TransactionTypeNumber)
+
+	var err error
+	if err = utils.DecodeMsgPack(rawBytes, &typeDetector); err != nil {
+		panic(err)
+	}
+
+	txType := typeDetector.GetTransactionType()
+
+	if txType == TransactionTypeNumber {
+		panic(ErrInvalidTransactionType)
+	}
+
+	if w.Transaction, err = NewTransaction(txType); err != nil {
+		panic(err)
+	}
+
+	if err = utils.DecodeMsgPack(rawBytes, w.Transaction); err != nil {
+		panic(err)
+	}
 }
 
 // RegisterTransaction registers transaction type to wrapper.
@@ -164,7 +221,12 @@ func NewTransaction(t TransactionType) (tx Transaction, err error) {
 		rv = reflect.New(rt).Elem()
 	}
 
-	tx = rv.Interface().(Transaction)
+	rawTx := rv.Interface()
+	tx = rawTx.(Transaction)
+
+	if txTypeAwareness, ok := rawTx.(ContainsTransactionTypeMixin); ok {
+		txTypeAwareness.SetTransactionType(t)
+	}
 
 	return
 }

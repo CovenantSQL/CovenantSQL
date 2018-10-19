@@ -297,13 +297,12 @@ func loadGenesis() *types.Block {
 			"stableCoinBalance":   ba.StableCoinBalance,
 			"covenantCoinBalance": ba.CovenantCoinBalance,
 		}).Debugf("setting one balance fixture in genesis block")
-		genesis.Transactions = append(genesis.Transactions, &pt.BaseAccount{
-			Account: pt.Account{
+		genesis.Transactions = append(genesis.Transactions, pt.NewBaseAccount(
+			&pt.Account{
 				Address:             proto.AccountAddress(ba.Address),
 				StableCoinBalance:   ba.StableCoinBalance,
 				CovenantCoinBalance: ba.CovenantCoinBalance,
-			},
-		})
+			}))
 	}
 
 	return genesis

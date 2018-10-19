@@ -261,14 +261,14 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	req := &bp.AddTxTransferReq{}
 	resp := &bp.AddTxResp{}
-	req.Tx = &pt.Transfer{
-		TransferHeader: pt.TransferHeader{
+	req.Tx = pt.NewTransfer(
+		&pt.TransferHeader{
 			Sender:   v.vaultAddress,
 			Receiver: targetAddress,
 			Nonce:    nonceResp.Nonce,
 			Amount:   uint64(r.tokenAmount),
 		},
-	}
+	)
 	if err = req.Tx.Sign(v.privateKey); err != nil {
 		// sign failed?
 		return

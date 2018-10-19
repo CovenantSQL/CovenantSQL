@@ -18,7 +18,7 @@ func (z *BaseAccount) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x82)
-	if oTemp, err := z.AccountHash.MarshalHash(); err != nil {
+	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -28,6 +28,6 @@ func (z *BaseAccount) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BaseAccount) Msgsize() (s int) {
-	s = 1 + 8 + z.Account.Msgsize() + 12 + z.AccountHash.Msgsize()
+	s = 1 + 8 + z.Account.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize()
 	return
 }

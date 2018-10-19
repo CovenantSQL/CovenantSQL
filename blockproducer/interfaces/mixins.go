@@ -23,6 +23,11 @@ type TransactionTypeMixin struct {
 	TxType TransactionType
 }
 
+// ContainsTransactionTypeMixin interface defines interface to detect transaction type mixin.
+type ContainsTransactionTypeMixin interface {
+	SetTransactionType(TransactionType)
+}
+
 // GetTransactionType implements Transaction.GetTransactionType.
 func (m *TransactionTypeMixin) GetTransactionType() TransactionType {
 	return m.TxType
@@ -31,4 +36,11 @@ func (m *TransactionTypeMixin) GetTransactionType() TransactionType {
 // SetTransactionType is a helper function for derived types.
 func (m *TransactionTypeMixin) SetTransactionType(t TransactionType) {
 	m.TxType = t
+}
+
+// NewTransactionTypeMixin returns new instance.
+func NewTransactionTypeMixin(txType TransactionType) *TransactionTypeMixin {
+	return &TransactionTypeMixin{
+		TxType: txType,
+	}
 }

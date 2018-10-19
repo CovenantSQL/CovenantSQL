@@ -116,20 +116,20 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 	} else {
 		// Create base accounts
 		var (
-			ba1 = &pt.BaseAccount{
-				Account: pt.Account{
+			ba1 = pt.NewBaseAccount(
+				&pt.Account{
 					Address:             testAddress1,
 					StableCoinBalance:   testInitBalance,
 					CovenantCoinBalance: testInitBalance,
 				},
-			}
-			ba2 = &pt.BaseAccount{
-				Account: pt.Account{
+			)
+			ba2 = pt.NewBaseAccount(
+				&pt.Account{
 					Address:             testAddress2,
 					StableCoinBalance:   testInitBalance,
 					CovenantCoinBalance: testInitBalance,
 				},
-			}
+			)
 		)
 		if err = ba1.Sign(testPrivKey); err != nil {
 			return
@@ -171,14 +171,14 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	}
 
 	testAddress1Nonce++
-	var tr = &pt.Transfer{
-		TransferHeader: pt.TransferHeader{
+	var tr = pt.NewTransfer(
+		&pt.TransferHeader{
 			Sender:   testAddress1,
 			Receiver: testAddress2,
 			Nonce:    testAddress1Nonce,
 			Amount:   1,
 		},
-	}
+	)
 	if err = tr.Sign(priv); err != nil {
 		return
 	}
@@ -271,21 +271,19 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error)
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 	header.Producer, _ = crypto.PubKeyHash(priv.PubKey())
 
-	txBilling := &pt.Billing{
-		BillingHeader: *header,
-	}
+	txBilling := pt.NewBilling(header)
 
 	if err := txBilling.Sign(priv); err != nil {
 		return nil, nil, err
 	}
 
-	txBaseAccount := &pt.BaseAccount{
-		Account: pt.Account{
+	txBaseAccount := pt.NewBaseAccount(
+		&pt.Account{
 			Address:             header.Producer,
 			StableCoinBalance:   testInitBalance,
 			CovenantCoinBalance: testInitBalance,
 		},
-	}
+	)
 
 	if err := txBaseAccount.Sign(priv); err != nil {
 		return nil, nil, err
@@ -302,9 +300,7 @@ func generateRandomAccountBilling() (*pt.Billing, error) {
 	header.Producer = testAddress1
 	testAddress1Nonce++
 	header.Nonce = testAddress1Nonce
-	txBilling := &pt.Billing{
-		BillingHeader: *header,
-	}
+	txBilling := pt.NewBilling(header)
 
 	if err := txBilling.Sign(testPrivKey); err != nil {
 		return nil, err

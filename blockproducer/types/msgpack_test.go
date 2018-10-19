@@ -28,7 +28,7 @@ import (
 func TestEncodeSingleTransaction(t *testing.T) {
 	Convey("test encode/decode single transaction", t, func() {
 		var t pi.Transaction
-		t = pi.WrapTransaction(&BaseAccount{})
+		t = NewBaseAccount(&Account{})
 		buf, err := utils.EncodeMsgPack(t)
 		So(err, ShouldBeNil)
 
@@ -38,5 +38,27 @@ func TestEncodeSingleTransaction(t *testing.T) {
 		So(out, ShouldNotBeNil)
 		So(reflect.TypeOf(out).String(), ShouldContainSubstring, "TransactionWrapper")
 		So(out.GetTransactionType(), ShouldEqual, t.GetTransactionType())
+	})
+
+	Convey("test encode/decode series of transactions", t, func() {
+		var t []pi.Transaction
+		t = append(t, NewBaseAccount(&Account{}))
+		t = append(t, NewTransfer(&TransferHeader{}))
+		t = append(t, NewBilling(&BillingHeader{}))
+		t = append(t, NewCreateDatabase(&CreateDatabaseHeader{}))
+
+		buf, err := utils.EncodeMsgPack(t)
+		So(err, ShouldBeNil)
+
+		var out []pi.Transaction
+		err = utils.DecodeMsgPack(buf.Bytes(), &out)
+		So(err, ShouldBeNil)
+		So(out, ShouldNotBeNil)
+		So(out, ShouldHaveLength, len(t))
+
+		for i := range t {
+			So(out[i].GetTransactionType(), ShouldEqual, t[i].GetTransactionType())
+			So(reflect.TypeOf(out[i]).String(), ShouldContainSubstring, "TransactionWrapper")
+		}
 	})
 }

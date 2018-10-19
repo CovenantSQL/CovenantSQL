@@ -47,7 +47,6 @@ func (t *SqTime) Scan(v interface{}) error {
 		return nil
 	case []byte:
 		return t.parse(string(x))
-
 	case string:
 		return t.parse(x)
 	}

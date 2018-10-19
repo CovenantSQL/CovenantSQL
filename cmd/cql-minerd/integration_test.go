@@ -466,6 +466,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	err = client.Init(tempConf, []byte(""))
 	So(err, ShouldBeNil)
 
+	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
 	var dsn string
 	if minerCount > 0 {
 		// create
@@ -473,6 +474,11 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)
+		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
+		if err != nil {
+			log.Errorf("write .dsn failed: %v", err)
+		}
+		defer os.Remove(dsnFile)
 	} else {
 		dsn = os.Getenv("DSN")
 	}

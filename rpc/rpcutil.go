@@ -83,7 +83,11 @@ func (c *PersistentCaller) initClient(method string) (err error) {
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
-	c.initClient(method)
+	err = c.initClient(method)
+	if err != nil {
+		log.Errorf("init PersistentCaller client failed: %v", err)
+		return
+	}
 	err = c.client.Call(method, args, reply)
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {

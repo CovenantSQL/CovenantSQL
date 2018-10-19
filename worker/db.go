@@ -197,9 +197,10 @@ func (db *Database) Query(request *wt.Request) (response *wt.Response, err error
 
 // Ack defines client response ack interface.
 func (db *Database) Ack(ack *wt.Ack) (err error) {
-	if err = ack.Verify(); err != nil {
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = ack.Verify(); err != nil {
+	//	return
+	//}
 
 	return db.saveAck(&ack.Header)
 }

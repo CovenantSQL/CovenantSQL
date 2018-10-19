@@ -51,11 +51,11 @@ func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (serv
 
 // Query rpc, called by client to issue read/write query.
 func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) {
-	// verify checksum/signature
-	if err = req.Verify(); err != nil {
-		dbQueryFailCounter.Mark(1)
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = req.Verify(); err != nil {
+	//	dbQueryFailCounter.Mark(1)
+	//	return
+	//}
 
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
@@ -79,10 +79,10 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 
 // Ack rpc, called by client to confirm read request.
 func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
-	// verify checksum/signature
-	if err = ack.Verify(); err != nil {
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = ack.Verify(); err != nil {
+	//	return
+	//}
 
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {

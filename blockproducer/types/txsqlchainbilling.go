@@ -18,7 +18,6 @@ package types
 
 import (
 	"bytes"
-	"sync"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -28,13 +27,16 @@ import (
 )
 
 //go:generate hsp
-//hsp:ignore sync.Mutex Mutex
 
 // TxContent defines the customer's billing and block rewards in transaction.
 type TxContent struct {
-	SequenceID     uint32
+	// Transaction nonce
+	Nonce          pi.AccountNonce
 	BillingRequest BillingRequest
-	Receivers      []*proto.AccountAddress
+	// Bill producer
+	Producer proto.AccountAddress
+	// Bill receivers
+	Receivers []*proto.AccountAddress
 	// Fee paid by stable coin
 	Fees []uint64
 	// Reward is share coin
@@ -42,14 +44,12 @@ type TxContent struct {
 }
 
 // NewTxContent generates new TxContent.
-func NewTxContent(seqID uint32,
-	bReq *BillingRequest,
-	receivers []*proto.AccountAddress,
-	fees []uint64,
-	rewards []uint64) *TxContent {
+func NewTxContent(seqID pi.AccountNonce, bReq *BillingRequest, producer proto.AccountAddress, receivers []*proto.AccountAddress,
+	fees []uint64, rewards []uint64) *TxContent {
 	return &TxContent{
-		SequenceID:     seqID,
+		Nonce:          seqID,
 		BillingRequest: *bReq,
+		Producer:       producer,
 		Receivers:      receivers,
 		Fees:           fees,
 		Rewards:        rewards,
@@ -68,21 +68,16 @@ func (tb *TxContent) GetHash() (*hash.Hash, error) {
 
 // TxBilling is a type of tx, that is used to record sql chain billing and block rewards.
 type TxBilling struct {
-	mutex          sync.Mutex
-	TxContent      TxContent
-	TxType         byte
-	AccountAddress *proto.AccountAddress
-	TxHash         *hash.Hash
-	Signee         *asymmetric.PublicKey
-	Signature      *asymmetric.Signature
-	SignedBlock    *hash.Hash
+	TxContent TxContent
+	TxHash    *hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // NewTxBilling generates a new TxBilling.
-func NewTxBilling(txContent *TxContent, addr *proto.AccountAddress) *TxBilling {
+func NewTxBilling(txContent *TxContent) *TxBilling {
 	return &TxBilling{
-		TxContent:      *txContent,
-		AccountAddress: addr,
+		TxContent: *txContent,
 	}
 }
 
@@ -103,12 +98,12 @@ func (tb *TxBilling) Deserialize(enc []byte) error {
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
 func (tb *TxBilling) GetAccountAddress() proto.AccountAddress {
-	return *tb.AccountAddress
+	return tb.TxContent.Producer
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
 func (tb *TxBilling) GetAccountNonce() pi.AccountNonce {
-	return pi.AccountNonce(tb.TxContent.SequenceID)
+	return tb.TxContent.Nonce
 }
 
 // GetHash implements interfaces/Transaction.GetHash.
@@ -158,32 +153,6 @@ func (tb *TxBilling) Verify() (err error) {
 // GetDatabaseID gets the database ID.
 func (tb *TxBilling) GetDatabaseID() *proto.DatabaseID {
 	return &tb.TxContent.BillingRequest.Header.DatabaseID
-}
-
-// GetSequenceID gets the sequence ID.
-func (tb *TxBilling) GetSequenceID() uint32 {
-	return tb.TxContent.SequenceID
-}
-
-// IsSigned shows whether the tx billing is signed.
-func (tb *TxBilling) IsSigned() bool {
-	tb.mutex.Lock()
-	defer tb.mutex.Unlock()
-	return tb.SignedBlock != nil
-}
-
-// SetSignedBlock sets the tx billing with block hash.
-func (tb *TxBilling) SetSignedBlock(h *hash.Hash) {
-	tb.mutex.Lock()
-	defer tb.mutex.Unlock()
-	tb.SignedBlock = h
-}
-
-// GetSignedBlock gets the block hash.
-func (tb *TxBilling) GetSignedBlock() *hash.Hash {
-	tb.mutex.Lock()
-	defer tb.mutex.Unlock()
-	return tb.SignedBlock
 }
 
 func init() {

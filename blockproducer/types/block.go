@@ -60,7 +60,6 @@ func (s *SignedHeader) Verify() error {
 // Block defines the main chain block.
 type Block struct {
 	SignedHeader SignedHeader
-	TxBillings   []*TxBilling
 	Transactions []pi.Transaction
 }
 
@@ -68,14 +67,11 @@ type Block struct {
 func (b *Block) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
 	// get hashes in block.TxBillings
-	bl := len(b.TxBillings)
-	hs := make([]*hash.Hash, len(b.TxBillings)+len(b.Transactions))
-	for i, v := range b.TxBillings {
-		hs[i] = v.TxHash
-	}
+	hs := make([]*hash.Hash, len(b.Transactions))
+
 	for i, v := range b.Transactions {
 		h := v.GetHash()
-		hs[bl+i] = &h
+		hs[i] = &h
 	}
 	return hs
 }
@@ -148,16 +144,6 @@ func (b *Block) Deserialize(buf []byte) error {
 
 	dec := codec.NewDecoder(r, &hd)
 	return dec.Decode(b)
-}
-
-// PushTx pushes txes into block.
-func (b *Block) PushTx(tx *TxBilling) {
-	if b.TxBillings != nil {
-		// TODO(lambda): set appropriate capacity.
-		b.TxBillings = make([]*TxBilling, 0, 100)
-	}
-
-	b.TxBillings = append(b.TxBillings, tx)
 }
 
 // Verify verifies whether the block is valid.

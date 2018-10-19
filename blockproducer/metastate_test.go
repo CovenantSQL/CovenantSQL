@@ -586,12 +586,12 @@ func TestMetaState(t *testing.T) {
 					}
 					t2 = &pt.TxBilling{
 						TxContent: pt.TxContent{
-							SequenceID: 2,
-							Receivers:  []*proto.AccountAddress{&addr2},
-							Fees:       []uint64{1},
-							Rewards:    []uint64{1},
+							Nonce:     2,
+							Producer:  addr1,
+							Receivers: []*proto.AccountAddress{&addr2},
+							Fees:      []uint64{1},
+							Rewards:   []uint64{1},
 						},
-						AccountAddress: &addr1,
 					}
 				)
 				err = t1.Sign(testPrivKey)
@@ -718,21 +718,21 @@ func TestMetaState(t *testing.T) {
 					},
 					&pt.TxBilling{
 						TxContent: pt.TxContent{
-							SequenceID: 2,
-							Receivers:  []*proto.AccountAddress{&addr2},
-							Fees:       []uint64{1},
-							Rewards:    []uint64{1},
+							Nonce:     2,
+							Producer:  addr1,
+							Receivers: []*proto.AccountAddress{&addr2},
+							Fees:      []uint64{1},
+							Rewards:   []uint64{1},
 						},
-						AccountAddress: &addr1,
 					},
 					&pt.TxBilling{
 						TxContent: pt.TxContent{
-							SequenceID: 1,
-							Receivers:  []*proto.AccountAddress{&addr1},
-							Fees:       []uint64{1},
-							Rewards:    []uint64{1},
+							Nonce:     1,
+							Producer:  addr2,
+							Receivers: []*proto.AccountAddress{&addr1},
+							Fees:      []uint64{1},
+							Rewards:   []uint64{1},
 						},
-						AccountAddress: &addr2,
 					},
 					&pt.Transfer{
 						TransferHeader: pt.TransferHeader{

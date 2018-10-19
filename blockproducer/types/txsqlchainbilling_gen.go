@@ -10,8 +10,8 @@ import (
 func (z *TxBilling) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 7
-	o = append(o, 0x87, 0x87)
+	// map header, size 4
+	o = append(o, 0x84, 0x84)
 	if z.Signee == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -21,7 +21,7 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x87)
+	o = append(o, 0x84)
 	if z.Signature == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -31,17 +31,7 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x87)
-	if z.SignedBlock == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.SignedBlock.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x87)
+	o = append(o, 0x84)
 	if z.TxHash == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -51,24 +41,12 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x87)
-	if z.AccountAddress == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x87)
+	o = append(o, 0x84)
 	if oTemp, err := z.TxContent.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x87)
-	o = hsp.AppendByte(o, z.TxType)
 	return
 }
 
@@ -86,25 +64,13 @@ func (z *TxBilling) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 12
-	if z.SignedBlock == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.SignedBlock.Msgsize()
-	}
 	s += 7
 	if z.TxHash == nil {
 		s += hsp.NilSize
 	} else {
 		s += z.TxHash.Msgsize()
 	}
-	s += 15
-	if z.AccountAddress == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.AccountAddress.Msgsize()
-	}
-	s += 10 + z.TxContent.Msgsize() + 7 + hsp.ByteSize
+	s += 10 + z.TxContent.Msgsize()
 	return
 }
 
@@ -112,14 +78,14 @@ func (z *TxBilling) Msgsize() (s int) {
 func (z *TxContent) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	// map header, size 6
+	o = append(o, 0x86, 0x86)
 	if oTemp, err := z.BillingRequest.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Receivers)))
 	for za0001 := range z.Receivers {
 		if z.Receivers[za0001] == nil {
@@ -132,18 +98,28 @@ func (z *TxContent) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Fees)))
 	for za0002 := range z.Fees {
 		o = hsp.AppendUint64(o, z.Fees[za0002])
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Rewards)))
 	for za0003 := range z.Rewards {
 		o = hsp.AppendUint64(o, z.Rewards[za0003])
 	}
-	o = append(o, 0x85)
-	o = hsp.AppendUint32(o, z.SequenceID)
+	o = append(o, 0x86)
+	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x86)
+	if oTemp, err := z.Producer.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	return
 }
 
@@ -157,6 +133,6 @@ func (z *TxContent) Msgsize() (s int) {
 			s += z.Receivers[za0001].Msgsize()
 		}
 	}
-	s += 5 + hsp.ArrayHeaderSize + (len(z.Fees) * (hsp.Uint64Size)) + 8 + hsp.ArrayHeaderSize + (len(z.Rewards) * (hsp.Uint64Size)) + 11 + hsp.Uint32Size
+	s += 5 + hsp.ArrayHeaderSize + (len(z.Fees) * (hsp.Uint64Size)) + 8 + hsp.ArrayHeaderSize + (len(z.Rewards) * (hsp.Uint64Size)) + 6 + z.Nonce.Msgsize() + 9 + z.Producer.Msgsize()
 	return
 }

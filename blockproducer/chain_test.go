@@ -18,12 +18,13 @@ package blockproducer
 
 import (
 	"io/ioutil"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -42,12 +43,6 @@ var (
 	testClientNumberPerChain        = 10
 )
 
-type nodeProfile struct {
-	NodeID     proto.NodeID
-	PrivateKey *asymmetric.PrivateKey
-	PublicKey  *asymmetric.PublicKey
-}
-
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
 		confDir := "../test/mainchain/node_standalone/config.yaml"
@@ -63,6 +58,7 @@ func TestChain(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		fl.Close()
+		os.Remove(fl.Name())
 
 		// create genesis block
 		genesis, err := generateRandomBlock(genesisHash, true)
@@ -97,7 +93,7 @@ func TestChain(t *testing.T) {
 		So(loaded, ShouldBeTrue)
 		So(bl, ShouldEqual, testInitBalance)
 
-		// Hack for signle instance test
+		// Hack for single instance test
 		chain.rt.bpNum = 5
 
 		for {
@@ -109,23 +105,29 @@ func TestChain(t *testing.T) {
 				chain.rt.isMyTurn())
 
 			// chain will receive blocks and tx
-
 			// receive block
 			// generate valid txbillings
-			tbs := make([]*types.TxBilling, 10)
-			for i := range tbs {
-				tb, err := generateRandomTxBillingWithSeqID(0)
+			tbs := make([]pi.Transaction, 0, 20)
+
+			// pull previous processed transactions
+			tbs = append(tbs, chain.ms.pullTxs()...)
+
+			for i := 0; i != 10; i++ {
+				tb, err := generateRandomAccountTxBilling()
 				So(err, ShouldBeNil)
-				tbs[i] = tb
+				tbs = append(tbs, tb)
 			}
 
 			// generate block
-			block, err := generateRandomBlockWithTxBillings(*chain.rt.getHead().getHeader(), tbs)
+			block, err := generateRandomBlockWithTransactions(*chain.rt.getHead().getHeader(), tbs)
 			So(err, ShouldBeNil)
 			err = chain.pushBlock(block)
 			So(err, ShouldBeNil)
+			nextNonce, err := chain.ms.nextNonce(testAddress1)
+			So(err, ShouldBeNil)
 			for _, val := range tbs {
-				So(chain.ti.hasTxBilling(val.TxHash), ShouldBeTrue)
+				// should be packed
+				So(nextNonce >= val.GetAccountNonce(), ShouldBeTrue)
 			}
 			So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
 			// So(chain.rt.getHead().Height, ShouldEqual, height)
@@ -138,17 +140,21 @@ func TestChain(t *testing.T) {
 			So(specificHeightBlock2, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 
-			// receive txes
-			receivedTbs := make([]*types.TxBilling, 9)
+			// receive txs
+			receivedTbs := make([]*pt.TxBilling, 9)
 			for i := range receivedTbs {
-				tb, err := generateRandomTxBillingWithSeqID(0)
+				tb, err := generateRandomAccountTxBilling()
 				So(err, ShouldBeNil)
 				receivedTbs[i] = tb
-				chain.pushTxBilling(tb)
+				err = chain.processTx(tb)
+				So(err, ShouldBeNil)
 			}
 
+			nextNonce, err = chain.ms.nextNonce(testAddress1)
+
 			for _, val := range receivedTbs {
-				So(chain.ti.hasTxBilling(val.TxHash), ShouldBeTrue)
+				// should be packed or unpacked
+				So(chain.ms.pool.hasTx(val), ShouldBeTrue)
 			}
 
 			// So(height, ShouldEqual, chain.rt.getHead().Height)
@@ -198,6 +204,8 @@ func TestMultiNode(t *testing.T) {
 			// create tmp file
 			fl, err := ioutil.TempFile("", "mainchain")
 			So(err, ShouldBeNil)
+			fl.Close()
+			os.Remove(fl.Name())
 
 			// init config
 			cleanup, dht, _, server, err := initNode(configs[i], privateKeys[i])

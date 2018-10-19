@@ -137,11 +137,6 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 	return s.chain.pushBlock(req.Block)
 }
 
-// AdviseTxBilling is the RPC method to advise a new billing tx to target server.
-func (s *ChainRPCService) AdviseTxBilling(req *AdviseTxBillingReq, resp *AdviseTxBillingResp) error {
-	return s.chain.pushTxBilling(req.TxBilling)
-}
-
 // AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
 func (s *ChainRPCService) AdviseBillingRequest(req *ct.AdviseBillingReq, resp *ct.AdviseBillingResp) error {
 	response, err := s.chain.produceTxBilling(req.Req)

@@ -60,8 +60,8 @@ func TestTxContent_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	if tc.SequenceID != dec.SequenceID {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.SequenceID, tc.SequenceID)
+	if tc.Nonce != dec.Nonce {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.Nonce, tc.Nonce)
 	}
 	if tc.BillingRequest.RequestHash != dec.BillingRequest.RequestHash {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.RequestHash, tc.BillingRequest.RequestHash)
@@ -99,9 +99,6 @@ func TestTxBilling_SerializeDeserialize(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	if !tb.SignedBlock.IsEqual(dec.SignedBlock) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.SignedBlock, tb.SignedBlock)
-	}
 	if !tb.Signature.IsEqual(dec.Signature) {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signature, tb.Signature)
 	}
@@ -110,27 +107,6 @@ func TestTxBilling_SerializeDeserialize(t *testing.T) {
 	}
 	if !tb.TxHash.IsEqual(dec.TxHash) {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.TxHash, tb.TxHash)
-	}
-}
-
-func TestTxBilling_GetSet(t *testing.T) {
-	tb, err := generateRandomTxBilling()
-	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
-	}
-
-	tb.GetSequenceID()
-	if tb.GetDatabaseID() == nil {
-		t.Fatalf("String should not be nil: %v", tb)
-	}
-
-	if !tb.IsSigned() {
-		t.Fatalf("BlockHash should not be nil: %v", tb)
-	}
-	h := generateRandomHash()
-	tb.SetSignedBlock(&h)
-	if !h.IsEqual(tb.GetSignedBlock()) {
-		t.Fatalf("BlockHash should be the same: v1=%s, v2=%s", h.String(), tb.GetSignedBlock().String())
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -116,14 +117,6 @@ func randStringBytes(n int) string {
 	return string(b)
 }
 
-func generateRandomUint32s(n int32) []uint32 {
-	s := make([]uint32, n)
-	for i := range s {
-		s[i] = (uint32)(rand.Int31())
-	}
-	return s
-}
-
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	// Generate key pair
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
@@ -151,7 +144,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 		if err != nil {
 			return nil, err
 		}
-		b.PushTx(tb)
+		b.Transactions = append(b.Transactions, tb)
 	}
 
 	err = b.PackAndSignBlock(priv)
@@ -220,7 +213,8 @@ func generateRandomTxContent() (tc *TxContent, err error) {
 		rewards[i] = rand.Uint64()
 	}
 
-	tc = NewTxContent(rand.Uint32(), req, receivers, fees, rewards)
+	producer := proto.AccountAddress(generateRandomHash())
+	tc = NewTxContent(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
 	return tc, nil
 }
 
@@ -229,20 +223,17 @@ func generateRandomTxBilling() (*TxBilling, error) {
 	if err != nil {
 		return nil, err
 	}
-	accountAddress := proto.AccountAddress(generateRandomHash())
 	txHash := generateRandomHash()
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 	sign, err := priv.Sign(txHash[:])
 	if err != nil {
 		return nil, err
 	}
-	blockHash := generateRandomHash()
 
-	txBilling := NewTxBilling(txContent, &accountAddress)
+	txBilling := NewTxBilling(txContent)
 	txBilling.TxHash = &txHash
 	txBilling.Signee = pub
 	txBilling.Signature = sign
-	txBilling.SignedBlock = &blockHash
 	return txBilling, nil
 }
 

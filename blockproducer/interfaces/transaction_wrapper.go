@@ -110,11 +110,6 @@ func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
 	default:
 		panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
 	}
-
-	if w.Transaction == nil {
-		// set nil transaction as placeholder to avoid nil pointer call
-		w.Transaction = NewNilTx()
-	}
 }
 
 func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
@@ -133,7 +128,8 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 				// invalid type, can not instantiate transaction
 				panic(ErrInvalidTransactionType)
 			} else {
-				txType := (TransactionType)(helperDecoder.C.UintV(decodeDriver.DecodeUint64(), 32))
+				var txType TransactionType
+				helperDecoder.DecFallback(&txType, true)
 
 				var err error
 				if w.Transaction, err = NewTransaction(txType); err != nil {
@@ -141,7 +137,12 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 				}
 			}
 		} else if i == 1 {
+			if ct := decodeDriver.ContainerType(); ct != valueTypeMap {
+				panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
+			}
+
 			if !decodeDriver.TryDecodeAsNil() {
+				// the container type should be struct
 				helperDecoder.DecFallback(&w.Transaction, true)
 			}
 		} else {
@@ -151,6 +152,10 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 	}
 
 	decodeDriver.ReadArrayEnd()
+
+	if containerLen < 2 {
+		panic(ErrInvalidTransactionType)
+	}
 }
 
 func (w *TransactionWrapper) decodeFromRaw(d *codec.Decoder) {

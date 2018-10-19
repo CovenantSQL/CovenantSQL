@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"reflect"
 	"sync"
 	"time"
 
@@ -1221,32 +1220,41 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 	proWG.Add(1)
 	go func() {
 		defer proWG.Done()
-		for resp := range respC {
-			req.Signees = append(req.Signees, resp.Signee)
-			req.Signatures = append(req.Signatures, resp.Signature)
+
+		bpReq := &ct.AdviseBillingReq{
+			Req: billings,
 		}
 
 		var (
-			bp  proto.NodeID
-			err error
+			bpNodeID proto.NodeID
+			err      error
 		)
+
+		for resp := range respC {
+			if err = bpReq.Req.AddSignature(resp.Signee, resp.Signature, false); err != nil {
+				// consume all rpc result
+				for range respC {
+				}
+
+				return
+			}
+		}
 
 		defer log.WithFields(log.Fields{
 			"peer":             c.rt.getPeerInfoString(),
 			"time":             c.rt.getChainTimeString(),
 			"signees_count":    len(req.Signees),
 			"signatures_count": len(req.Signatures),
-			"bp":               bp,
+			"bp":               bpNodeID,
 		}).WithError(err).Debug(
 			"Sent billing request")
 
-		if bp, err = rpc.GetCurrentBP(); err != nil {
+		if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
 			return
 		}
 
-		resp := &pt.BillingResponse{}
-
-		if err = c.cl.CallNode(bp, route.MCCAdviseBillingRequest.String(), req, resp); err != nil {
+		var resp interface{}
+		if err = c.cl.CallNode(bpNodeID, route.MCCAdviseBillingRequest.String(), bpReq, resp); err != nil {
 			return
 		}
 	}()
@@ -1285,7 +1293,6 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 func (c *Chain) LaunchBilling(low, high int32) (err error) {
 	var (
 		req *pt.BillingRequest
-		h   *hash.Hash
 	)
 
 	defer log.WithFields(log.Fields{
@@ -1299,11 +1306,10 @@ func (c *Chain) LaunchBilling(low, high int32) (err error) {
 		return
 	}
 
-	if h, err = req.PackRequestHeader(); err != nil {
+	if _, err = req.PackRequestHeader(); err != nil {
 		return
 	}
 
-	req.RequestHash = *h
 	c.rt.wg.Add(1)
 	go c.collectBillingSignatures(req)
 	return
@@ -1314,7 +1320,6 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 	pub *asymmetric.PublicKey, sig *asymmetric.Signature, err error,
 ) {
 	var (
-		h   *hash.Hash
 		loc *pt.BillingRequest
 	)
 	defer log.WithFields(log.Fields{
@@ -1325,12 +1330,7 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 	}).WithError(err).Debug("Processing sign billing request")
 
 	// Verify billing results
-	if h, err = req.PackRequestHeader(); err != nil {
-		return
-	}
-
-	if !req.RequestHash.IsEqual(h) {
-		err = ErrBillingNotMatch
+	if err = req.VerifySignatures(); err != nil {
 		return
 	}
 
@@ -1338,25 +1338,7 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 		return
 	}
 
-	if !req.Header.LowBlock.IsEqual(&loc.Header.LowBlock) ||
-		!req.Header.HighBlock.IsEqual(&loc.Header.HighBlock) {
-		err = ErrBillingNotMatch
-		return
-	}
-
-	reqMap := make(map[proto.AccountAddress]*proto.AddrAndGas)
-	locMap := make(map[proto.AccountAddress]*proto.AddrAndGas)
-
-	for _, v := range req.Header.GasAmounts {
-		reqMap[v.AccountAddress] = v
-	}
-
-	for _, v := range loc.Header.GasAmounts {
-		locMap[v.AccountAddress] = v
-	}
-
-	if !reflect.DeepEqual(reqMap, locMap) {
-		err = ErrBillingNotMatch
+	if err = req.Compare(loc); err != nil {
 		return
 	}
 
@@ -1367,11 +1349,8 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 		return
 	}
 
-	if sig, err = req.SignRequestHeader(priv); err != nil {
-		return
-	}
+	pub, sig, err = req.SignRequestHeader(priv, false)
 
-	pub = priv.PubKey()
 	return
 }
 

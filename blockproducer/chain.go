@@ -23,6 +23,7 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
@@ -554,7 +555,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	return err
 }
 
-func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResponse, err error) {
+func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingRequest, err error) {
 	// TODO(lambda): simplify the function
 	if err = c.checkBillingRequest(br); err != nil {
 		return
@@ -564,7 +565,6 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 	// TODO(lambda): because there is no token distribution,
 	// we only increase miners' balance but not decrease customer's balance
 	var (
-		enc           []byte
 		accountNumber = len(br.Header.GasAmounts)
 		receivers     = make([]*proto.AccountAddress, accountNumber)
 		fees          = make([]uint64, accountNumber)
@@ -577,24 +577,15 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		rewards[i] = 0
 	}
 
-	if enc, err = br.MarshalHash(); err != nil {
+	// add block producer signature
+	var privKey *asymmetric.PrivateKey
+	privKey, err = kms.GetLocalPrivateKey()
+	if err != nil {
 		return
 	}
-	h := hash.THashH(enc)
 
-	// generate response
-	privKey, err := kms.GetLocalPrivateKey()
-	if err != nil {
+	if _, _, err = br.SignRequestHeader(privKey, false); err != nil {
 		return
-	}
-	sign, err := privKey.Sign(h[:])
-	if err != nil {
-		return
-	}
-	resp := &types.BillingResponse{
-		RequestHash: h,
-		Signee:      privKey.PubKey(),
-		Signature:   sign,
 	}
 
 	// generate and push the txbilling
@@ -604,13 +595,13 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 		return
 	}
 	var (
-		tc = types.NewTxContent(uint32(nc), br, receivers, fees, rewards, resp)
+		tc = types.NewTxContent(uint32(nc), br, receivers, fees, rewards)
 		tb = types.NewTxBilling(tc, &c.rt.accountAddress)
 	)
 	if err = tb.Sign(privKey); err != nil {
 		return
 	}
-	log.Debugf("response is %s", resp.RequestHash)
+	log.Debugf("response is %s", br.RequestHash)
 
 	// 2. push tx
 	c.pendingTxs <- tb
@@ -642,39 +633,19 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingResp
 	}
 	wg.Wait()
 
-	return resp, nil
+	return br, nil
 }
 
 // checkBillingRequest checks followings by order:
 // 1. period of sqlchain;
 // 2. request's hash
 // 3. miners' signatures.
-func (c *Chain) checkBillingRequest(br *types.BillingRequest) error {
+func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
 	// period of sqlchain;
 	// TODO(lambda): get and check period and miner list of specific sqlchain
 
-	// request's hash
-	enc, err := br.Header.MarshalHash()
-	if err != nil {
-		return err
-	}
-	h := hash.THashH(enc[:])
-	if !h.IsEqual(&br.RequestHash) {
-		return ErrInvalidHash
-	}
-
-	// miners' signatures
-	sLen := len(br.Signees)
-	if sLen != len(br.Signatures) {
-		return ErrInvalidBillingRequest
-	}
-	for i := range br.Signees {
-		if !br.Signatures[i].Verify(h[:], br.Signees[i]) {
-			return ErrSignVerification
-		}
-	}
-
-	return nil
+	err = br.VerifySignatures()
+	return
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {

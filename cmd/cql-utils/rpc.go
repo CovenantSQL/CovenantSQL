@@ -27,12 +27,15 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -47,6 +50,10 @@ var (
 	rpcEndpoint string
 	rpcReq      string
 )
+
+type canSign interface {
+	Sign(signer *asymmetric.PrivateKey) error
+}
 
 func init() {
 	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
@@ -81,6 +88,13 @@ func runRPC() {
 		return
 	}
 
+	// requires signature?
+	if err := checkAndSign(req); err != nil {
+		fmt.Printf("sign request failed: %v\n", err)
+		os.Exit(1)
+		return
+	}
+
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
 		fmt.Printf("call rpc failed: %v\n", err)
@@ -89,12 +103,30 @@ func runRPC() {
 	}
 
 	// print the response
-	if resBytes, err := json.MarshalIndent(resp, "", "  "); err != nil {
+	if resBytes, err := yaml.Marshal(resp); err != nil {
 		fmt.Printf("marshal response failed: %v\n", err)
 		os.Exit(1)
 	} else {
 		fmt.Println(string(resBytes))
 	}
+}
+
+func checkAndSign(req interface{}) (err error) {
+	if reflect.ValueOf(req).Kind() != reflect.Ptr {
+		return checkAndSign(&req)
+	}
+
+	if canSignObj, ok := req.(canSign); ok {
+		var privKey *asymmetric.PrivateKey
+		if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+			return
+		}
+		if err = canSignObj.Sign(privKey); err != nil {
+			return
+		}
+	}
+
+	return
 }
 
 func resolveRPCEntities() (req interface{}, resp interface{}) {
@@ -132,7 +164,6 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 					req = reflect.New(argType.Elem()).Interface()
 				} else {
 					req = reflect.New(argType).Interface()
-
 				}
 
 				resp = reflect.New(replyType.Elem()).Interface()

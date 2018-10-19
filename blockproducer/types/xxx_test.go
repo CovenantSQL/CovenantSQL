@@ -126,7 +126,7 @@ func generateRandomUint32s(n int32) []uint32 {
 
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -143,7 +143,6 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 				ParentHash: parent,
 				Timestamp:  time.Now().UTC(),
 			},
-			Signee: pub,
 		},
 	}
 
@@ -170,70 +169,44 @@ func generateRandomBillingRequestHeader() *BillingRequestHeader {
 	}
 }
 
-func generateRandomBillingRequest() (*BillingRequest, error) {
+func generateRandomBillingRequest() (req *BillingRequest, err error) {
 	reqHeader := generateRandomBillingRequestHeader()
-	req := BillingRequest{
+	req = &BillingRequest{
 		Header: *reqHeader,
 	}
-	h, err := req.PackRequestHeader()
-	if err != nil {
+	if _, err = req.PackRequestHeader(); err != nil {
 		return nil, err
 	}
 
-	signees := make([]*asymmetric.PublicKey, peerNum)
-	signatures := make([]*asymmetric.Signature, peerNum)
-
-	for i := range signees {
+	for i := 0; i < peerNum; i++ {
 		// Generate key pair
-		priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-		if err != nil {
-			return nil, err
+		var priv *asymmetric.PrivateKey
+
+		if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+			return
 		}
-		signees[i] = pub
-		signatures[i], err = priv.Sign(h[:])
-		if err != nil {
-			return nil, err
+
+		if _, _, err = req.SignRequestHeader(priv, false); err != nil {
+			return
 		}
 	}
-	req.RequestHash = *h
-	req.Signatures = signatures
-	req.Signees = signees
 
-	return &req, nil
+	return
 }
 
-func generateRandomBillingResponse() (*BillingResponse, error) {
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-	if err != nil {
-		return nil, err
+func generateRandomTxContent() (tc *TxContent, err error) {
+	var req *BillingRequest
+	if req, err = generateRandomBillingRequest(); err != nil {
+		return
 	}
-	h := generateRandomHash()
-	sign, err := priv.Sign(h[:])
-	if err != nil {
-		return nil, err
-	}
-	resp := BillingResponse{
-		RequestHash: h,
-		Signee:      pub,
-		Signature:   sign,
-	}
-	return &resp, nil
-}
 
-func generateRandomTxContent() (*TxContent, error) {
-	req, err := generateRandomBillingRequest()
-	if err != nil {
-		return nil, err
+	var priv *asymmetric.PrivateKey
+	if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+		return
 	}
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-	sign, err := priv.Sign(req.RequestHash[:])
-	if err != nil {
-		return nil, err
-	}
-	resp := &BillingResponse{
-		RequestHash: req.RequestHash,
-		Signee:      pub,
-		Signature:   sign,
+
+	if _, _, err = req.SignRequestHeader(priv, false); err != nil {
+		return
 	}
 
 	receivers := make([]*proto.AccountAddress, peerNum)
@@ -247,7 +220,7 @@ func generateRandomTxContent() (*TxContent, error) {
 		rewards[i] = rand.Uint64()
 	}
 
-	tc := NewTxContent(rand.Uint32(), req, receivers, fees, rewards, resp)
+	tc = NewTxContent(rand.Uint32(), req, receivers, fees, rewards)
 	return tc, nil
 }
 
@@ -273,7 +246,7 @@ func generateRandomTxBilling() (*TxBilling, error) {
 	return txBilling, nil
 }
 
-func generateRandomGasAmount(n uint32) []*proto.AddrAndGas {
+func generateRandomGasAmount(n int) []*proto.AddrAndGas {
 	gasAmount := make([]*proto.AddrAndGas, n)
 
 	for i := range gasAmount {

@@ -17,6 +17,8 @@
 package types
 
 import (
+	"reflect"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -45,28 +47,109 @@ type BillingRequest struct {
 }
 
 // PackRequestHeader computes the hash of header.
-func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
-	b, err := br.Header.MarshalHash()
-	if err != nil {
-		return nil, err
+func (br *BillingRequest) PackRequestHeader() (h *hash.Hash, err error) {
+	var enc []byte
+	if enc, err = br.Header.MarshalHash(); err != nil {
+		return
 	}
 
-	h := hash.THashH(b)
-	return &h, nil
+	br.RequestHash = hash.THashH(enc)
+	h = &br.RequestHash
+	return
 }
 
 // SignRequestHeader first computes the hash of BillingRequestHeader, then signs the request.
-func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asymmetric.Signature, error) {
-	signature, err := signee.Sign(br.RequestHash[:])
-	if err != nil {
-		return nil, err
+func (br *BillingRequest) SignRequestHeader(signer *asymmetric.PrivateKey, calcHash bool) (
+	signee *asymmetric.PublicKey, signature *asymmetric.Signature, err error) {
+	if calcHash {
+		if _, err = br.PackRequestHeader(); err != nil {
+			return
+		}
 	}
-	return signature, nil
+
+	if signature, err = signer.Sign(br.RequestHash[:]); err == nil {
+		// append to current signatures
+		signee = signer.PubKey()
+		br.Signees = append(br.Signees, signee)
+		br.Signatures = append(br.Signatures, signature)
+	}
+
+	return
 }
 
-// BillingResponse defines the the response for BillingRequest.
-type BillingResponse struct {
-	RequestHash hash.Hash
-	Signee      *asymmetric.PublicKey
-	Signature   *asymmetric.Signature
+// AddSignature add existing signature to BillingRequest, requires the structure to be packed first.
+func (br *BillingRequest) AddSignature(
+	signee *asymmetric.PublicKey, signature *asymmetric.Signature, calcHash bool) (err error) {
+	if calcHash {
+		if _, err = br.PackRequestHeader(); err != nil {
+			return
+		}
+	}
+
+	if !signature.Verify(br.RequestHash[:], signee) {
+		err = ErrSignVerification
+		return
+	}
+
+	// append
+	br.Signees = append(br.Signees, signee)
+	br.Signatures = append(br.Signatures, signature)
+
+	return
+}
+
+// VerifySignatures verify existing signatures.
+func (br *BillingRequest) VerifySignatures() (err error) {
+	if len(br.Signees) != len(br.Signatures) {
+		return ErrSignVerification
+	}
+
+	var enc []byte
+	if enc, err = br.Header.MarshalHash(); err != nil {
+		return
+	}
+
+	h := hash.THashH(enc)
+	if !br.RequestHash.IsEqual(&h) {
+		return ErrSignVerification
+	}
+
+	if len(br.Signees) == 0 {
+		return
+	}
+
+	for idx, signee := range br.Signees {
+		if !br.Signatures[idx].Verify(br.RequestHash[:], signee) {
+			return ErrSignVerification
+		}
+	}
+
+	return
+}
+
+// Compare returns if two billing records are identical.
+func (br *BillingRequest) Compare(r *BillingRequest) (err error) {
+	if !br.Header.LowBlock.IsEqual(&r.Header.LowBlock) ||
+		!br.Header.HighBlock.IsEqual(&br.Header.HighBlock) {
+		err = ErrBillingNotMatch
+		return
+	}
+
+	reqMap := make(map[proto.AccountAddress]*proto.AddrAndGas)
+	locMap := make(map[proto.AccountAddress]*proto.AddrAndGas)
+
+	for _, v := range br.Header.GasAmounts {
+		reqMap[v.AccountAddress] = v
+	}
+
+	for _, v := range r.Header.GasAmounts {
+		locMap[v.AccountAddress] = v
+	}
+
+	if !reflect.DeepEqual(reqMap, locMap) {
+		err = ErrBillingNotMatch
+		return
+	}
+
+	return
 }

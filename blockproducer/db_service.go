@@ -102,11 +102,6 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	// call miner nodes to provide service
 	var privateKey *asymmetric.PrivateKey
-	var pubKey *asymmetric.PublicKey
-
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
@@ -118,7 +113,6 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		Peers:        peers,
 		GenesisBlock: genesisBlock,
 	}
-	initSvcReq.Header.Signee = pubKey
 	if err = initSvcReq.Sign(privateKey); err != nil {
 		return
 	}
@@ -128,7 +122,6 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	rollbackReq.Header.Instance = wt.ServiceInstance{
 		DatabaseID: dbID,
 	}
-	rollbackReq.Header.Signee = pubKey
 	if err = rollbackReq.Sign(privateKey); err != nil {
 		return
 	}
@@ -155,7 +148,6 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 
 	// send response to client
 	resp.Header.InstanceMeta = instanceMeta
-	resp.Header.Signee = pubKey
 
 	// sign the response
 	err = resp.Sign(privateKey)
@@ -261,9 +253,6 @@ func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceRe
 
 	// send response to client
 	resp.Header.Instances = instances
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
 	var privateKey *asymmetric.PrivateKey
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
@@ -496,10 +485,6 @@ func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.
 	// TODO(xq262144): following is stub code, real logic should be implemented in the future
 	emptyHash := hash.Hash{}
 
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
@@ -518,8 +503,6 @@ func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.
 				ParentHash:  emptyHash,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pubKey,
-			Signature: nil,
 		},
 	}
 	err = genesisBlock.PackAndSignBlock(privKey)

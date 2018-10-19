@@ -89,7 +89,7 @@ func randStringBytes(n int) string {
 
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -106,7 +106,6 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err 
 				ParentHash: parent,
 				Timestamp:  time.Now().UTC(),
 			},
-			Signee: pub,
 		},
 	}
 
@@ -152,7 +151,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err 
 
 func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling) (b *types.Block, err error) {
 	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -169,7 +168,6 @@ func generateRandomBlockWithTxBillings(parent hash.Hash, tbs []*types.TxBilling)
 				ParentHash: parent,
 				Timestamp:  time.Now().UTC(),
 			},
-			Signee: pub,
 		},
 	}
 
@@ -240,38 +238,19 @@ func generateRandomBillingRequest() (*types.BillingRequest, error) {
 	return &req, nil
 }
 
-func generateRandomBillingResponse() (*types.BillingResponse, error) {
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-	if err != nil {
-		return nil, err
+func generateRandomTxContent() (tc *types.TxContent, err error) {
+	var req *types.BillingRequest
+	if req, err = generateRandomBillingRequest(); err != nil {
+		return
 	}
-	h := generateRandomHash()
-	sign, err := priv.Sign(h[:])
-	if err != nil {
-		return nil, err
-	}
-	resp := types.BillingResponse{
-		RequestHash: h,
-		Signee:      pub,
-		Signature:   sign,
-	}
-	return &resp, nil
-}
 
-func generateRandomTxContent() (*types.TxContent, error) {
-	req, err := generateRandomBillingRequest()
-	if err != nil {
-		return nil, err
+	var priv *asymmetric.PrivateKey
+	if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+		return
 	}
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-	sign, err := priv.Sign(req.RequestHash[:])
-	if err != nil {
-		return nil, err
-	}
-	resp := &types.BillingResponse{
-		RequestHash: req.RequestHash,
-		Signee:      pub,
-		Signature:   sign,
+
+	if _, _, err = req.SignRequestHeader(priv, false); err != nil {
+		return
 	}
 
 	receivers := make([]*proto.AccountAddress, peerNum)
@@ -285,14 +264,7 @@ func generateRandomTxContent() (*types.TxContent, error) {
 		rewards[i] = rand.Uint64()
 	}
 
-	tc := &types.TxContent{
-		SequenceID:      rand.Uint32(),
-		BillingRequest:  *req,
-		BillingResponse: *resp,
-		Receivers:       receivers,
-		Fees:            fees,
-		Rewards:         rewards,
-	}
+	tc = types.NewTxContent(rand.Uint32(), req, receivers, fees, rewards)
 	return tc, nil
 }
 

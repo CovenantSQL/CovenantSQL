@@ -268,7 +268,6 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 			Nonce:    nonceResp.Nonce,
 			Amount:   uint64(r.tokenAmount),
 		},
-		Signee: v.publicKey,
 	}
 	if err = req.Tx.Sign(v.privateKey); err != nil {
 		// sign failed?

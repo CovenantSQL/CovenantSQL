@@ -41,9 +41,6 @@ func TestDBMS(t *testing.T) {
 		cleanup, server, err = initNode()
 		So(err, ShouldBeNil)
 
-		var pubKey *asymmetric.PublicKey
-		pubKey, err = kms.GetLocalPublicKey()
-		So(err, ShouldBeNil)
 		var privateKey *asymmetric.PrivateKey
 		privateKey, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
@@ -90,7 +87,6 @@ func TestDBMS(t *testing.T) {
 			Peers:        peers,
 			GenesisBlock: block,
 		}
-		req.Header.Signee = pubKey
 		err = req.Sign(privateKey)
 		So(err, ShouldBeNil)
 
@@ -179,7 +175,6 @@ func TestDBMS(t *testing.T) {
 					DatabaseID: dbID,
 					Peers:      peers,
 				}
-				req.Header.Signee = pubKey
 				err = req.Sign(privateKey)
 				So(err, ShouldBeNil)
 
@@ -194,7 +189,6 @@ func TestDBMS(t *testing.T) {
 				req.Header.Instance = wt.ServiceInstance{
 					DatabaseID: dbID,
 				}
-				req.Header.Signee = pubKey
 				err = req.Sign(privateKey)
 				So(err, ShouldBeNil)
 

@@ -111,9 +111,6 @@ func TestTxBilling_SerializeDeserialize(t *testing.T) {
 	if !tb.TxHash.IsEqual(dec.TxHash) {
 		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.TxHash, tb.TxHash)
 	}
-	if !reflect.DeepEqual(tb.TxContent.BillingResponse, dec.TxContent.BillingResponse) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.TxContent.BillingResponse, tb.TxContent.BillingResponse)
-	}
 }
 
 func TestTxBilling_GetSet(t *testing.T) {

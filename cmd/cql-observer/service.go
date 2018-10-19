@@ -490,14 +490,8 @@ func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstan
 		return
 	}
 
-	pubKey, err := kms.GetLocalPublicKey()
-	if err != nil {
-		return
-	}
-
 	req := &bp.GetDatabaseRequest{}
 	req.Header.DatabaseID = dbID
-	req.Header.Signee = pubKey
 	if err = req.Sign(privateKey); err != nil {
 		return
 	}

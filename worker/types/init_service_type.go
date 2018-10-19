@@ -166,6 +166,7 @@ func (sh *SignedInitServiceResponseHeader) Sign(signer *asymmetric.PrivateKey) (
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

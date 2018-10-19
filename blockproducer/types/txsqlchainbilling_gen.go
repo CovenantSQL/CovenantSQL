@@ -112,20 +112,14 @@ func (z *TxBilling) Msgsize() (s int) {
 func (z *TxContent) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 6
-	o = append(o, 0x86, 0x86)
+	// map header, size 5
+	o = append(o, 0x85, 0x85)
 	if oTemp, err := z.BillingRequest.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x86)
-	if oTemp, err := z.BillingResponse.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x86)
+	o = append(o, 0x85)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Receivers)))
 	for za0001 := range z.Receivers {
 		if z.Receivers[za0001] == nil {
@@ -138,24 +132,24 @@ func (z *TxContent) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x86)
+	o = append(o, 0x85)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Fees)))
 	for za0002 := range z.Fees {
 		o = hsp.AppendUint64(o, z.Fees[za0002])
 	}
-	o = append(o, 0x86)
+	o = append(o, 0x85)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Rewards)))
 	for za0003 := range z.Rewards {
 		o = hsp.AppendUint64(o, z.Rewards[za0003])
 	}
-	o = append(o, 0x86)
+	o = append(o, 0x85)
 	o = hsp.AppendUint32(o, z.SequenceID)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *TxContent) Msgsize() (s int) {
-	s = 1 + 15 + z.BillingRequest.Msgsize() + 16 + z.BillingResponse.Msgsize() + 10 + hsp.ArrayHeaderSize
+	s = 1 + 15 + z.BillingRequest.Msgsize() + 10 + hsp.ArrayHeaderSize
 	for za0001 := range z.Receivers {
 		if z.Receivers[za0001] == nil {
 			s += hsp.NilSize

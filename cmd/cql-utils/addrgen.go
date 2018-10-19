@@ -20,9 +20,9 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"os"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"

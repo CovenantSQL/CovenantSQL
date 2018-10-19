@@ -38,8 +38,7 @@ type TxContent struct {
 	// Fee paid by stable coin
 	Fees []uint64
 	// Reward is share coin
-	Rewards         []uint64
-	BillingResponse BillingResponse
+	Rewards []uint64
 }
 
 // NewTxContent generates new TxContent.
@@ -47,15 +46,13 @@ func NewTxContent(seqID uint32,
 	bReq *BillingRequest,
 	receivers []*proto.AccountAddress,
 	fees []uint64,
-	rewards []uint64,
-	bResp *BillingResponse) *TxContent {
+	rewards []uint64) *TxContent {
 	return &TxContent{
-		SequenceID:      seqID,
-		BillingRequest:  *bReq,
-		Receivers:       receivers,
-		Fees:            fees,
-		Rewards:         rewards,
-		BillingResponse: *bResp,
+		SequenceID:     seqID,
+		BillingRequest: *bReq,
+		Receivers:      receivers,
+		Fees:           fees,
+		Rewards:        rewards,
 	}
 }
 
@@ -132,9 +129,7 @@ func (tb *TxBilling) Sign(signer *asymmetric.PrivateKey) error {
 	}
 	h := hash.THashH(enc)
 	tb.TxHash = &h
-
-	pub := asymmetric.PublicKey(signer.PublicKey)
-	tb.Signee = &pub
+	tb.Signee = signer.PubKey()
 
 	signature, err := signer.Sign(h[:])
 	if err != nil {

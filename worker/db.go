@@ -319,9 +319,6 @@ func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
 	response.Header.LogOffset = offset
 	response.Header.Timestamp = getLocalTime()
 	response.Header.RowCount = uint64(len(data))
-	if response.Header.Signee, err = getLocalPubKey(); err != nil {
-		return
-	}
 
 	// set payload
 	response.Payload.Columns = columns

@@ -18,15 +18,13 @@ package twopc
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"os"
 	"sync"
 	"testing"
 	"time"
-
-	"net"
-
-	"errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/rpc"

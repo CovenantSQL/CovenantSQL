@@ -55,16 +55,6 @@ func NewCreateDatabase(header *CreateDatabaseHeader) *CreateDatabase {
 	}
 }
 
-// Serialize implements interfaces/Transaction.Serialize.
-func (cd *CreateDatabase) Serialize() ([]byte, error) {
-	return serialize(cd)
-}
-
-// Deserialize implements interfaces/Transaction.Deserialize.
-func (cd *CreateDatabase) Deserialize(enc []byte) error {
-	return deserialize(enc, cd)
-}
-
 // Sign implements interfaces/Transaction.Sign.
 func (cd *CreateDatabase) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return cd.DefaultHashSignVerifierImpl.Sign(&cd.CreateDatabaseHeader, signer)

@@ -74,4 +74,6 @@ var (
 	ErrUnknownTransactionType = errors.New("unknown transaction type")
 	// ErrTransactionMismatch indicates that transactions to be committed mismatch the pool.
 	ErrTransactionMismatch = errors.New("transaction mismatch")
+	// ErrMetaStateNotFound indicates that meta state not found in db.
+	ErrMetaStateNotFound = errors.New("meta state not found in db")
 )

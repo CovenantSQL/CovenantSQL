@@ -17,9 +17,8 @@
 package etls
 
 import (
-	"testing"
-
 	"bytes"
+	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"

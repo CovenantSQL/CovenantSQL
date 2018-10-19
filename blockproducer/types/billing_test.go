@@ -70,13 +70,13 @@ func TestBilling_SerializeDeserialize(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	enc, err := tb.Serialize()
+	enc, err := utils.EncodeMsgPack(tb)
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
 	dec := Billing{}
-	err = dec.Deserialize(enc)
+	err = utils.DecodeMsgPack(enc.Bytes(), &dec)
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}

@@ -17,13 +17,10 @@
 package types
 
 import (
-	"bytes"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 //go:generate hsp
@@ -40,21 +37,6 @@ func NewBaseAccount(account *Account) *BaseAccount {
 		Account:              *account,
 		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeBaseAccount),
 	}
-}
-
-// Serialize implements interfaces/Transaction.Serialize.
-func (b *BaseAccount) Serialize() (s []byte, err error) {
-	var enc *bytes.Buffer
-	if enc, err = utils.EncodeMsgPack(b); err != nil {
-		return
-	}
-	s = enc.Bytes()
-	return
-}
-
-// Deserialize implements interfaces/Transaction.Deserialize.
-func (b *BaseAccount) Deserialize(enc []byte) error {
-	return utils.DecodeMsgPack(enc, b)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.

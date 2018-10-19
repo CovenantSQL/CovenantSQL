@@ -84,14 +84,13 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Log("dec hash BinaryMashaler interface")
 	}
 
-	enc, err := block.Serialize()
+	enc, err := utils.EncodeMsgPack(block)
 	if err != nil {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
 	dec := &Block{}
-
-	err = dec.Deserialize(enc)
+	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}

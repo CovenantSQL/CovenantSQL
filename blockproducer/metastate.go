@@ -699,13 +699,13 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 	}
 
 	var (
-		enc   []byte
+		enc   *bytes.Buffer
 		hash  = t.GetHash()
 		addr  = t.GetAccountAddress()
 		nonce = t.GetAccountNonce()
 		ttype = t.GetTransactionType()
 	)
-	if enc, err = t.Serialize(); err != nil {
+	if enc, err = utils.EncodeMsgPack(t); err != nil {
 		log.Debugf("encode failed on applying transaction: %v", err)
 		return errPass
 	}
@@ -737,7 +737,7 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		// Try to put transaction before any state change, will be rolled back later
 		// if transaction doesn't apply
 		tb := tx.Bucket(metaBucket[:]).Bucket(metaTransactionBucket).Bucket(ttype.Bytes())
-		if err = tb.Put(hash[:], enc); err != nil {
+		if err = tb.Put(hash[:], enc.Bytes()); err != nil {
 			log.Debugf("store transaction to bucket failed: %v", err)
 			return
 		}

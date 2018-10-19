@@ -17,7 +17,6 @@
 package kms
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -26,14 +25,13 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
-	"github.com/ugorji/go/codec"
 )
 
 // PublicKeyStore holds db and bucket name
@@ -185,11 +183,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		if byteVal == nil {
 			return ErrKeyNotFound
 		}
-		reader := bytes.NewReader(byteVal)
-		mh := &codec.MsgpackHandle{}
-		dec := codec.NewDecoder(reader, mh)
-		nodeInfo = proto.NewNode()
-		err = dec.Decode(nodeInfo)
+		err = utils.DecodeMsgPack(byteVal, &nodeInfo)
 		log.Debugf("get node info: %v", nodeInfo)
 		return err // return from View func
 	})
@@ -266,10 +260,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 		return ErrPKSNotInitialized
 	}
 
-	nodeBuf := new(bytes.Buffer)
-	mh := &codec.MsgpackHandle{}
-	enc := codec.NewEncoder(nodeBuf, mh)
-	err = enc.Encode(*nodeInfo)
+	nodeBuf, err := utils.EncodeMsgPack(nodeInfo)
 	if err != nil {
 		log.Errorf("marshal node info failed: %s", err)
 		return

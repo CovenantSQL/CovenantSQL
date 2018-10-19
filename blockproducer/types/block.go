@@ -17,7 +17,6 @@
 package types
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -94,21 +93,6 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	}
 
 	return nil
-}
-
-// Serialize converts block to bytes.
-func (b *Block) Serialize() ([]byte, error) {
-	buf, err := utils.EncodeMsgPack(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-// Deserialize converts bytes to block.
-func (b *Block) Deserialize(buf []byte) error {
-	return utils.DecodeMsgPack(buf, b)
 }
 
 // Verify verifies whether the block is valid.

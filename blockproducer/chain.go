@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
 )
@@ -182,9 +183,13 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		meta := tx.Bucket(metaBucket[:])
+		metaEnc := meta.Get(metaStateKey)
+		if metaEnc == nil {
+			return ErrMetaStateNotFound
+		}
+
 		state := &State{}
-		// TODO(), should test if fetch metaState failed
-		if err = state.deserialize(meta.Get(metaStateKey)); err != nil {
+		if err = utils.DecodeMsgPack(metaEnc, state); err != nil {
 			return
 		}
 		chain.rt.setHead(state)
@@ -196,8 +201,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
 			block := &types.Block{}
-
-			if err = block.Deserialize(v); err != nil {
+			if err = utils.DecodeMsgPack(v, block); err != nil {
 				log.Errorf("loadeing block: %v", err)
 				return err
 			}
@@ -280,22 +284,22 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 		Height: node.height,
 	}
 
-	encBlock, err := b.Serialize()
+	encBlock, err := utils.EncodeMsgPack(b)
 	if err != nil {
 		return err
 	}
 
-	encState, err := c.rt.getHead().serialize()
+	encState, err := utils.EncodeMsgPack(c.rt.getHead())
 	if err != nil {
 		return err
 	}
 
 	err = c.db.Update(func(tx *bolt.Tx) (err error) {
-		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState)
+		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState.Bytes())
 		if err != nil {
 			return err
 		}
-		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock)
+		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock.Bytes())
 		if err != nil {
 			return err
 		}
@@ -476,7 +480,7 @@ func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
 
 	err := c.db.View(func(tx *bolt.Tx) error {
 		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
-		return b.Deserialize(v)
+		return utils.DecodeMsgPack(v, b)
 	})
 	if err != nil {
 		return nil, err

@@ -19,11 +19,10 @@ package main
 import (
 	"flag"
 	"math/rand"
-	"time"
-
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"

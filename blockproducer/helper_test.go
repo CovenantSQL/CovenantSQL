@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
-
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"

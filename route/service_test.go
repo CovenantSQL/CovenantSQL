@@ -29,9 +29,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	. "github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/ugorji/go/codec"
 )
 
 const DHTStorePath = "./DHTStore"
@@ -213,7 +213,6 @@ func TestDHTService_Ping(t *testing.T) {
 		fmt.Println(err)
 		return
 	}
-	mh := &codec.MsgpackHandle{}
 
 	go func() {
 		for {
@@ -221,8 +220,7 @@ func TestDHTService_Ping(t *testing.T) {
 			if err != nil {
 				continue
 			}
-			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(c, mh)
-			go rpc.ServeCodec(msgpackCodec)
+			go rpc.ServeCodec(utils.GetMsgPackServerCodec(c))
 		}
 	}()
 
@@ -239,8 +237,7 @@ func TestDHTService_Ping(t *testing.T) {
 		Node: *node1,
 	}
 	respA := new(PingResp)
-	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(client, mh)
-	rc := rpc.NewClientWithCodec(msgpackCodec)
+	rc := rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(client))
 	err = rc.Call("DHT.Ping", reqA, respA)
 	if err != nil {
 		t.Error(err)
@@ -251,8 +248,7 @@ func TestDHTService_Ping(t *testing.T) {
 	respA3 := new(PingResp)
 	conf.GConf.MinNodeIDDifficulty = 256
 	client, _ = net.Dial("tcp", ln.Addr().String())
-	msgpackCodec = codec.MsgpackSpecRpc.ClientCodec(client, mh)
-	rc = rpc.NewClientWithCodec(msgpackCodec)
+	rc = rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(client))
 	err = rc.Call("DHT.Ping", reqA, respA3)
 	if err == nil || !strings.Contains(err.Error(), "difficulty too low") {
 		t.Error(err)
@@ -263,8 +259,7 @@ func TestDHTService_Ping(t *testing.T) {
 	respA2 := new(PingResp)
 	reqA.Node.Nonce.A = ^uint64(0)
 	client, _ = net.Dial("tcp", ln.Addr().String())
-	msgpackCodec = codec.MsgpackSpecRpc.ClientCodec(client, mh)
-	rc = rpc.NewClientWithCodec(msgpackCodec)
+	rc = rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(client))
 	err = rc.Call("DHT.Ping", reqA, respA2)
 	if err == nil || !strings.Contains(err.Error(), "nonce public key not match") {
 		t.Error(err)

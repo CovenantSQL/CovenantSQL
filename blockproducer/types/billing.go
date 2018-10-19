@@ -17,12 +17,9 @@
 package types
 
 import (
-	"bytes"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 //go:generate hsp
@@ -68,21 +65,6 @@ func NewBilling(header *BillingHeader) *Billing {
 		BillingHeader:        *header,
 		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeBilling),
 	}
-}
-
-// Serialize serializes Billing using msgpack.
-func (tb *Billing) Serialize() (b []byte, err error) {
-	var enc *bytes.Buffer
-	if enc, err = utils.EncodeMsgPack(tb); err != nil {
-		return
-	}
-	b = enc.Bytes()
-	return
-}
-
-// Deserialize deserialize Billing using msgpack.
-func (tb *Billing) Deserialize(enc []byte) error {
-	return utils.DecodeMsgPack(enc, tb)
 }
 
 // Sign implements interfaces/Transaction.Sign.

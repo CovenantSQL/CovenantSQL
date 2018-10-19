@@ -20,7 +20,6 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"math/big"
-
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"

@@ -220,6 +220,11 @@ func Debugf(format string, args ...interface{}) {
 }
 
 // Printf logs a message at level Info on the standard logger.
+func (l *Logger) Printf(format string, args ...interface{}) {
+	Printf(format, args...)
+}
+
+// Printf logs a message at level Info on the standard logger.
 func Printf(format string, args ...interface{}) {
 	logrus.Printf(format, args...)
 }

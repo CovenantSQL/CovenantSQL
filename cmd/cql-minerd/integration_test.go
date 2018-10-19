@@ -21,6 +21,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
@@ -231,6 +233,8 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner0.profile"),
+			"-metricGraphiteServer", "192.168.2.100:2003",
+			"-metricLog",
 			bypassArg,
 		},
 		"miner0", testWorkingDir, logDir, false,
@@ -245,6 +249,8 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner1.profile"),
+			"-metricGraphiteServer", "192.168.2.100:2003",
+			"-metricLog",
 			bypassArg,
 		},
 		"miner1", testWorkingDir, logDir, false,
@@ -259,6 +265,8 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner2.profile"),
+			"-metricGraphiteServer", "192.168.2.100:2003",
+			"-metricLog",
 			bypassArg,
 		},
 		"miner2", testWorkingDir, logDir, false,
@@ -365,18 +373,24 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
-func benchDB(b *testing.B, db *sql.DB) {
-	_, err := db.Exec("DROP TABLE IF EXISTS test;")
-	So(err, ShouldBeNil)
+func benchDB(b *testing.B, db *sql.DB, createDB bool) {
+	var err error
+	if createDB {
+		_, err := db.Exec("DROP TABLE IF EXISTS test;")
+		So(err, ShouldBeNil)
 
-	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
-	So(err, ShouldBeNil)
+		_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+		So(err, ShouldBeNil)
 
-	_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
-	So(err, ShouldBeNil)
+		_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+		So(err, ShouldBeNil)
 
-	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
-	So(err, ShouldBeNil)
+		_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+		So(err, ShouldBeNil)
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	start := (rand.Int31() % 100) * 10000
 
 	var i int32
 	//var insertedCount int
@@ -387,7 +401,7 @@ func benchDB(b *testing.B, db *sql.DB) {
 			for pb.Next() {
 				ii := atomic.AddInt32(&i, 1)
 				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-					"(?, ?)", ii, ii,
+					"(?, ?)", start+ii, ii,
 				)
 				if err != nil {
 					b.Fatal(err)
@@ -432,23 +446,42 @@ func benchDB(b *testing.B, db *sql.DB) {
 func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
 	asymmetric.BypassSignature = bypassSign
-	startNodesProfile(bypassSign)
-	time.Sleep(5 * time.Second)
+	if minerCount > 0 {
+		startNodesProfile(bypassSign)
+		time.Sleep(5 * time.Second)
+	}
 
-	var err error
-	err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+	// Create temp directory
+	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(testDataDir)
+	clientConf := FJ(testWorkingDir, "./integration/node_c/config.yaml")
+	tempConf := FJ(testDataDir, "config.yaml")
+	clientKey := FJ(testWorkingDir, "./integration/node_c/private.key")
+	tempKey := FJ(testDataDir, "private.key")
+	utils.CopyFile(clientConf, tempConf)
+	utils.CopyFile(clientKey, tempKey)
+
+	err = client.Init(tempConf, []byte(""))
 	So(err, ShouldBeNil)
 
-	// create
-	dsn, err := client.Create(client.ResourceMeta{Node: minerCount})
-	So(err, ShouldBeNil)
+	var dsn string
+	if minerCount > 0 {
+		// create
+		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		So(err, ShouldBeNil)
 
-	log.Infof("the created database dsn is %v", dsn)
+		log.Infof("the created database dsn is %v", dsn)
+	} else {
+		dsn = os.Getenv("DSN")
+	}
 
 	db, err := sql.Open("covenantsql", dsn)
 	So(err, ShouldBeNil)
 
-	benchDB(b, db)
+	benchDB(b, db, minerCount > 0)
 
 	err = client.Drop(dsn)
 	So(err, ShouldBeNil)
@@ -467,7 +500,7 @@ func BenchmarkSQLite(b *testing.B) {
 	defer db.Close()
 
 	Convey("bench SQLite", b, func() {
-		benchDB(b, db)
+		benchDB(b, db, true)
 	})
 }
 
@@ -504,5 +537,11 @@ func BenchmarkMinerTwo(b *testing.B) {
 func BenchmarkMinerThree(b *testing.B) {
 	Convey("bench three node", b, func() {
 		benchMiner(b, 3, false)
+	})
+}
+
+func BenchmarkClientOnly(b *testing.B) {
+	Convey("bench three node", b, func() {
+		benchMiner(b, 0, false)
 	})
 }

@@ -19,7 +19,14 @@ package worker
 import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/rcrowley/go-metrics"
+
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+)
+
+var (
+	dbQuerySuccCounter metrics.Meter
+	dbQueryFailCounter metrics.Meter
 )
 
 // DBMSRPCService is the rpc endpoint of database management.
@@ -34,6 +41,11 @@ func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (serv
 	}
 	server.RegisterService(serviceName, service)
 
+	dbQuerySuccCounter = metrics.NewMeter()
+	metrics.Register("db-query-succ", dbQuerySuccCounter)
+	dbQueryFailCounter = metrics.NewMeter()
+	metrics.Register("db-query-fail", dbQueryFailCounter)
+
 	return
 }
 
@@ -41,6 +53,7 @@ func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (serv
 func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) {
 	// verify checksum/signature
 	if err = req.Verify(); err != nil {
+		dbQueryFailCounter.Mark(1)
 		return
 	}
 
@@ -48,15 +61,18 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
 		err = ErrInvalidRequest
+		dbQueryFailCounter.Mark(1)
 		return
 	}
 
 	var r *wt.Response
 	if r, err = rpc.dbms.Query(req); err != nil {
+		dbQueryFailCounter.Mark(1)
 		return
 	}
 
 	*res = *r
+	dbQuerySuccCounter.Mark(1)
 
 	return
 }

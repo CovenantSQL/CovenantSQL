@@ -701,6 +701,7 @@ func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
 }
 
 func (c *Chain) handleTokenEvent(tokenEvent *types.TokenEvent) (err error) {
+	log.Infof("token event happens. %s receives %s %s", tokenEvent.Target, tokenEvent.Value.String(), tokenEvent.Token.String())
 	// fetch nonce from bp
 	_, receive, err := crypto.Addr2Hash(tokenEvent.Target)
 	if err != nil {

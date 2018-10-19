@@ -96,7 +96,7 @@ func TestChain(t *testing.T) {
 		So(loaded, ShouldBeTrue)
 		So(bl, ShouldEqual, testInitBalance)
 
-		// Hack for signle instance test
+		// Hack for single instance test
 		chain.rt.bpNum = 5
 
 		for {

@@ -24,6 +24,10 @@ BlockProducer:
     MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
     Timestamp: 2018-08-13T21:59:59.12Z
+    BaseAccounts:
+      - Address: 265a6541b4eb7e8b1595dd9554a07bd1d9d9ec25694c0d1b97113aa62bc9e2d7
+        StableCoinBalance: 100000000
+        CovenantCoinBalance: 100000000
 Miner:
   IsTestMode: true
   RootDir: "./data"

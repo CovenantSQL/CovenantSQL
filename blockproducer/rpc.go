@@ -20,6 +20,7 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
@@ -266,6 +267,7 @@ func (s *ChainRPCService) ReceiveToken(req *ReceiveTokenReq, resp *ReceiveTokenR
 
 // AddTokenEvent is the RPC method to notify block producer ether event.
 func (s *ChainRPCService) AddTokenEvent(req *ReceiveTokenIBCEventReq, resp *ReceiveTokenIBCEventResp) (err error) {
+	log.Infoln("AddTokenEvent")
 	if req.Ee == nil {
 		return ErrUnknownTransactionType
 	}

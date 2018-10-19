@@ -30,8 +30,13 @@ import (
 
 	"os/exec"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
@@ -299,6 +304,25 @@ func TestFullProcess(t *testing.T) {
 		var err error
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
+
+		// handler token event
+		bp, err := rpc.GetCurrentBP()
+		So(err, ShouldBeNil)
+		v := cpuminer.Zero()
+		v.Inc()
+		Te := &types.TokenEvent{
+			From: "0x8b726e0b8c2029f9533097dd615884fcd97f4507",
+			Target: "4kQi6ceXwY4JQMkUbFurGffvEiLfRbEa7iyyLcP32GHVgccTLBc",
+			Value: *v,
+			SequenceID: 0,
+			Token: types.Ether,
+		}
+		log.Infof("event generates")
+		req := &blockproducer.ReceiveTokenIBCEventReq{Ee: Te}
+		resp := &blockproducer.ReceiveTokenIBCEventResp{}
+		err = rpc.NewCaller().CallNode(bp, route.MCCAddTokenEvent.String(), req, resp)
+		So(err, ShouldBeNil)
+		time.Sleep(10 * time.Second)
 
 		// create
 		dsn, err := client.Create(client.ResourceMeta{Node: 1})

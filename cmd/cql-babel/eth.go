@@ -82,7 +82,6 @@ func (ec *EthereumClient) ListenEvent(logHandler LogHandler) {
 	}).Infoln("Start to listen event.")
 	fq := ethereum.FilterQuery{
 		Addresses: []common.Address{*ec.ContractAddress},
-		// Topics: [][]common.Hash{{*ec.EventSignature}},
 	}
 
 	logs := make(chan types.Log, 100)

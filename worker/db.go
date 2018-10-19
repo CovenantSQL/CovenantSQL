@@ -180,9 +180,10 @@ func (db *Database) UpdatePeers(peers *kayak.Peers) (err error) {
 
 // Query defines database query interface.
 func (db *Database) Query(request *wt.Request) (response *wt.Response, err error) {
-	if err = request.Verify(); err != nil {
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = request.Verify(); err != nil {
+	//	return
+	//}
 
 	switch request.Header.QueryType {
 	case wt.ReadQuery:

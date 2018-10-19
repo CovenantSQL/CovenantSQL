@@ -140,7 +140,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error)
 	}
 
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
-		tb, err := generateRandomTxBilling()
+		tb, err := generateRandomBilling()
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,7 @@ func generateRandomBillingRequest() (req *BillingRequest, err error) {
 	return
 }
 
-func generateRandomTxContent() (tc *TxContent, err error) {
+func generateRandomBillingHeader() (tc *BillingHeader, err error) {
 	var req *BillingRequest
 	if req, err = generateRandomBillingRequest(); err != nil {
 		return
@@ -214,12 +214,12 @@ func generateRandomTxContent() (tc *TxContent, err error) {
 	}
 
 	producer := proto.AccountAddress(generateRandomHash())
-	tc = NewTxContent(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
+	tc = NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
 	return tc, nil
 }
 
-func generateRandomTxBilling() (*TxBilling, error) {
-	txContent, err := generateRandomTxContent()
+func generateRandomBilling() (*Billing, error) {
+	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func generateRandomTxBilling() (*TxBilling, error) {
 		return nil, err
 	}
 
-	txBilling := NewTxBilling(txContent)
+	txBilling := NewBilling(header)
 	txBilling.TxHash = &txHash
 	txBilling.Signee = pub
 	txBilling.Signature = sign

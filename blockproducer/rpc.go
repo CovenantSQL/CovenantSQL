@@ -42,7 +42,7 @@ type AdviseNewBlockResp struct {
 // AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
 type AdviseTxBillingReq struct {
 	proto.Envelope
-	TxBilling *types.TxBilling
+	TxBilling *types.Billing
 }
 
 // AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
@@ -139,7 +139,7 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 
 // AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
 func (s *ChainRPCService) AdviseBillingRequest(req *ct.AdviseBillingReq, resp *ct.AdviseBillingResp) error {
-	response, err := s.chain.produceTxBilling(req.Req)
+	response, err := s.chain.produceBilling(req.Req)
 	if err != nil {
 		return err
 	}

@@ -43,7 +43,7 @@ type Transfer struct {
 	Signature  *asymmetric.Signature
 }
 
-// Serialize serializes TxBilling using msgpack.
+// Serialize serializes Billing using msgpack.
 func (t *Transfer) Serialize() (b []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(t); err != nil {
@@ -53,7 +53,7 @@ func (t *Transfer) Serialize() (b []byte, err error) {
 	return
 }
 
-// Deserialize desrializes TxBilling using msgpack.
+// Deserialize desrializes Billing using msgpack.
 func (t *Transfer) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, t)
 }

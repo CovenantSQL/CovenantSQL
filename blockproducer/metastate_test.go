@@ -584,8 +584,8 @@ func TestMetaState(t *testing.T) {
 							Amount:   0,
 						},
 					}
-					t2 = &pt.TxBilling{
-						TxContent: pt.TxContent{
+					t2 = &pt.Billing{
+						BillingHeader: pt.BillingHeader{
 							Nonce:     2,
 							Producer:  addr1,
 							Receivers: []*proto.AccountAddress{&addr2},
@@ -716,8 +716,8 @@ func TestMetaState(t *testing.T) {
 							Amount:   10,
 						},
 					},
-					&pt.TxBilling{
-						TxContent: pt.TxContent{
+					&pt.Billing{
+						BillingHeader: pt.BillingHeader{
 							Nonce:     2,
 							Producer:  addr1,
 							Receivers: []*proto.AccountAddress{&addr2},
@@ -725,8 +725,8 @@ func TestMetaState(t *testing.T) {
 							Rewards:   []uint64{1},
 						},
 					},
-					&pt.TxBilling{
-						TxContent: pt.TxContent{
+					&pt.Billing{
+						BillingHeader: pt.BillingHeader{
 							Nonce:     1,
 							Producer:  addr2,
 							Receivers: []*proto.AccountAddress{&addr1},

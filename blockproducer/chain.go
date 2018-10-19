@@ -399,7 +399,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	return err
 }
 
-func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingRequest, err error) {
+func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingRequest, err error) {
 	// TODO(lambda): simplify the function
 	if err = c.checkBillingRequest(br); err != nil {
 		return
@@ -439,8 +439,8 @@ func (c *Chain) produceTxBilling(br *types.BillingRequest) (_ *types.BillingRequ
 		return
 	}
 	var (
-		tc = types.NewTxContent(nc, br, accountAddress, receivers, fees, rewards)
-		tb = types.NewTxBilling(tc)
+		tc = types.NewBillingHeader(nc, br, accountAddress, receivers, fees, rewards)
+		tb = types.NewBilling(tc)
 	)
 	if err = tb.Sign(privKey); err != nil {
 		return

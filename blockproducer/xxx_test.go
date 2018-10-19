@@ -107,7 +107,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 
 	if !isGenesis {
 		for i, n := 0, rand.Intn(10)+10; i < n; i++ {
-			ba, tb, err := generateRandomTxBillingAndBaseAccount()
+			ba, tb, err := generateRandomBillingAndBaseAccount()
 			if err != nil {
 				return nil, err
 			}
@@ -232,7 +232,7 @@ func generateRandomBillingRequest() (*pt.BillingRequest, error) {
 	return &req, nil
 }
 
-func generateRandomTxContent() (tc *pt.TxContent, err error) {
+func generateRandomBillingHeader() (tc *pt.BillingHeader, err error) {
 	var req *pt.BillingRequest
 	if req, err = generateRandomBillingRequest(); err != nil {
 		return
@@ -259,20 +259,20 @@ func generateRandomTxContent() (tc *pt.TxContent, err error) {
 	}
 	producer := proto.AccountAddress(generateRandomHash())
 
-	tc = pt.NewTxContent(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
+	tc = pt.NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
 	return tc, nil
 }
 
-func generateRandomTxBillingAndBaseAccount() (*pt.BaseAccount, *pt.TxBilling, error) {
-	txContent, err := generateRandomTxContent()
+func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error) {
+	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, nil, err
 	}
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
-	txContent.Producer, _ = crypto.PubKeyHash(priv.PubKey())
+	header.Producer, _ = crypto.PubKeyHash(priv.PubKey())
 
-	txBilling := &pt.TxBilling{
-		TxContent: *txContent,
+	txBilling := &pt.Billing{
+		BillingHeader: *header,
 	}
 
 	if err := txBilling.Sign(priv); err != nil {
@@ -281,7 +281,7 @@ func generateRandomTxBillingAndBaseAccount() (*pt.BaseAccount, *pt.TxBilling, er
 
 	txBaseAccount := &pt.BaseAccount{
 		Account: pt.Account{
-			Address:             txContent.Producer,
+			Address:             header.Producer,
 			StableCoinBalance:   testInitBalance,
 			CovenantCoinBalance: testInitBalance,
 		},
@@ -294,16 +294,16 @@ func generateRandomTxBillingAndBaseAccount() (*pt.BaseAccount, *pt.TxBilling, er
 	return txBaseAccount, txBilling, nil
 }
 
-func generateRandomAccountTxBilling() (*pt.TxBilling, error) {
-	txContent, err := generateRandomTxContent()
+func generateRandomAccountBilling() (*pt.Billing, error) {
+	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, err
 	}
-	txContent.Producer = testAddress1
+	header.Producer = testAddress1
 	testAddress1Nonce++
-	txContent.Nonce = testAddress1Nonce
-	txBilling := &pt.TxBilling{
-		TxContent: *txContent,
+	header.Nonce = testAddress1Nonce
+	txBilling := &pt.Billing{
+		BillingHeader: *header,
 	}
 
 	if err := txBilling.Sign(testPrivKey); err != nil {

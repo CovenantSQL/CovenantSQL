@@ -101,7 +101,7 @@ func TestChain(t *testing.T) {
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
 				chain.rt.getHead().getHeader(), chain.rt.getHead().getHeight(), chain.rt.nextTurn,
 				chain.rt.chainInitTime.Add(
-					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
+					chain.rt.period * time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
 				chain.rt.isMyTurn())
 
 			// chain will receive blocks and tx
@@ -113,7 +113,7 @@ func TestChain(t *testing.T) {
 			tbs = append(tbs, chain.ms.pullTxs()...)
 
 			for i := 0; i != 10; i++ {
-				tb, err := generateRandomAccountTxBilling()
+				tb, err := generateRandomAccountBilling()
 				So(err, ShouldBeNil)
 				tbs = append(tbs, tb)
 			}
@@ -141,9 +141,9 @@ func TestChain(t *testing.T) {
 			So(err, ShouldNotBeNil)
 
 			// receive txs
-			receivedTbs := make([]*pt.TxBilling, 9)
+			receivedTbs := make([]*pt.Billing, 9)
 			for i := range receivedTbs {
-				tb, err := generateRandomAccountTxBilling()
+				tb, err := generateRandomAccountBilling()
 				So(err, ShouldBeNil)
 				receivedTbs[i] = tb
 				err = chain.processTx(tb)

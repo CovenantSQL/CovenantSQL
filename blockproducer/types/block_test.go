@@ -129,7 +129,7 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	tb, err := generateRandomTxBilling()
+	tb, err := generateRandomBilling()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

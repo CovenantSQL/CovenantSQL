@@ -63,10 +63,10 @@ type Block struct {
 	Transactions []pi.Transaction
 }
 
-// GetTxHashes returns all hashes of tx in block.{TxBillings, ...}
+// GetTxHashes returns all hashes of tx in block.{Billings, ...}
 func (b *Block) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
-	// get hashes in block.TxBillings
+	// get hashes in block.Transactions
 	hs := make([]*hash.Hash, len(b.Transactions))
 
 	for i, v := range b.Transactions {
@@ -101,7 +101,7 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 func enumType(t pi.TransactionType) (i pi.Transaction) {
 	switch t {
 	case pi.TransactionTypeBilling:
-		i = (*TxBilling)(nil)
+		i = (*Billing)(nil)
 	case pi.TransactionTypeTransfer:
 		i = (*Transfer)(nil)
 	case pi.TransactionTypeBaseAccount:

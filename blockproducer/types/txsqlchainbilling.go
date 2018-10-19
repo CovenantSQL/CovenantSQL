@@ -28,8 +28,8 @@ import (
 
 //go:generate hsp
 
-// TxContent defines the customer's billing and block rewards in transaction.
-type TxContent struct {
+// BillingHeader defines the customer's billing and block rewards in transaction.
+type BillingHeader struct {
 	// Transaction nonce
 	Nonce          pi.AccountNonce
 	BillingRequest BillingRequest
@@ -43,11 +43,11 @@ type TxContent struct {
 	Rewards []uint64
 }
 
-// NewTxContent generates new TxContent.
-func NewTxContent(seqID pi.AccountNonce, bReq *BillingRequest, producer proto.AccountAddress, receivers []*proto.AccountAddress,
-	fees []uint64, rewards []uint64) *TxContent {
-	return &TxContent{
-		Nonce:          seqID,
+// NewBillingHeader generates new BillingHeader.
+func NewBillingHeader(nonce pi.AccountNonce, bReq *BillingRequest, producer proto.AccountAddress, receivers []*proto.AccountAddress,
+	fees []uint64, rewards []uint64) *BillingHeader {
+	return &BillingHeader{
+		Nonce:          nonce,
 		BillingRequest: *bReq,
 		Producer:       producer,
 		Receivers:      receivers,
@@ -56,33 +56,23 @@ func NewTxContent(seqID pi.AccountNonce, bReq *BillingRequest, producer proto.Ac
 	}
 }
 
-// GetHash returns the hash of transaction.
-func (tb *TxContent) GetHash() (*hash.Hash, error) {
-	b, err := tb.MarshalHash()
-	if err != nil {
-		return nil, err
-	}
-	h := hash.THashH(b)
-	return &h, nil
-}
-
-// TxBilling is a type of tx, that is used to record sql chain billing and block rewards.
-type TxBilling struct {
-	TxContent TxContent
+// Billing is a type of tx, that is used to record sql chain billing and block rewards.
+type Billing struct {
+	BillingHeader
 	TxHash    *hash.Hash
 	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
 }
 
-// NewTxBilling generates a new TxBilling.
-func NewTxBilling(txContent *TxContent) *TxBilling {
-	return &TxBilling{
-		TxContent: *txContent,
+// NewBilling generates a new Billing.
+func NewBilling(header *BillingHeader) *Billing {
+	return &Billing{
+		BillingHeader: *header,
 	}
 }
 
-// Serialize serializes TxBilling using msgpack.
-func (tb *TxBilling) Serialize() (b []byte, err error) {
+// Serialize serializes Billing using msgpack.
+func (tb *Billing) Serialize() (b []byte, err error) {
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(tb); err != nil {
 		return
@@ -91,34 +81,34 @@ func (tb *TxBilling) Serialize() (b []byte, err error) {
 	return
 }
 
-// Deserialize desrializes TxBilling using msgpack.
-func (tb *TxBilling) Deserialize(enc []byte) error {
+// Deserialize desrializes Billing using msgpack.
+func (tb *Billing) Deserialize(enc []byte) error {
 	return utils.DecodeMsgPack(enc, tb)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
-func (tb *TxBilling) GetAccountAddress() proto.AccountAddress {
-	return tb.TxContent.Producer
+func (tb *Billing) GetAccountAddress() proto.AccountAddress {
+	return tb.Producer
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
-func (tb *TxBilling) GetAccountNonce() pi.AccountNonce {
-	return tb.TxContent.Nonce
+func (tb *Billing) GetAccountNonce() pi.AccountNonce {
+	return tb.Nonce
 }
 
 // GetHash implements interfaces/Transaction.GetHash.
-func (tb *TxBilling) GetHash() hash.Hash {
+func (tb *Billing) GetHash() hash.Hash {
 	return *tb.TxHash
 }
 
 // GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (tb *TxBilling) GetTransactionType() pi.TransactionType {
+func (tb *Billing) GetTransactionType() pi.TransactionType {
 	return pi.TransactionTypeBilling
 }
 
-// Sign computes tx of TxContent and signs it.
-func (tb *TxBilling) Sign(signer *asymmetric.PrivateKey) error {
-	enc, err := tb.TxContent.MarshalHash()
+// Sign computes tx of BillingHeader and signs it.
+func (tb *Billing) Sign(signer *asymmetric.PrivateKey) error {
+	enc, err := tb.BillingHeader.MarshalHash()
 	if err != nil {
 		return err
 	}
@@ -135,10 +125,10 @@ func (tb *TxBilling) Sign(signer *asymmetric.PrivateKey) error {
 	return nil
 }
 
-// Verify verifies the signature of TxBilling.
-func (tb *TxBilling) Verify() (err error) {
+// Verify verifies the signature of Billing.
+func (tb *Billing) Verify() (err error) {
 	var enc []byte
-	if enc, err = tb.TxContent.MarshalHash(); err != nil {
+	if enc, err = tb.BillingHeader.MarshalHash(); err != nil {
 		return
 	} else if h := hash.THashH(enc); !tb.TxHash.IsEqual(&h) {
 		err = ErrSignVerification
@@ -151,10 +141,10 @@ func (tb *TxBilling) Verify() (err error) {
 }
 
 // GetDatabaseID gets the database ID.
-func (tb *TxBilling) GetDatabaseID() *proto.DatabaseID {
-	return &tb.TxContent.BillingRequest.Header.DatabaseID
+func (tb *Billing) GetDatabaseID() *proto.DatabaseID {
+	return &tb.BillingRequest.Header.DatabaseID
 }
 
 func init() {
-	pi.RegisterTransaction(pi.TransactionTypeBilling, (*TxBilling)(nil))
+	pi.RegisterTransaction(pi.TransactionTypeBilling, (*Billing)(nil))
 }

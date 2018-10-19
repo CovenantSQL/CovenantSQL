@@ -7,7 +7,7 @@ import (
 )
 
 // MarshalHash marshals for hash
-func (z *TxBilling) MarshalHash() (o []byte, err error) {
+func (z *Billing) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
@@ -42,7 +42,7 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 		}
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.TxContent.MarshalHash(); err != nil {
+	if oTemp, err := z.BillingHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -51,7 +51,7 @@ func (z *TxBilling) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *TxBilling) Msgsize() (s int) {
+func (z *Billing) Msgsize() (s int) {
 	s = 1 + 7
 	if z.Signee == nil {
 		s += hsp.NilSize
@@ -70,12 +70,12 @@ func (z *TxBilling) Msgsize() (s int) {
 	} else {
 		s += z.TxHash.Msgsize()
 	}
-	s += 10 + z.TxContent.Msgsize()
+	s += 14 + z.BillingHeader.Msgsize()
 	return
 }
 
 // MarshalHash marshals for hash
-func (z *TxContent) MarshalHash() (o []byte, err error) {
+func (z *BillingHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 6
@@ -124,7 +124,7 @@ func (z *TxContent) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *TxContent) Msgsize() (s int) {
+func (z *BillingHeader) Msgsize() (s int) {
 	s = 1 + 15 + z.BillingRequest.Msgsize() + 10 + hsp.ArrayHeaderSize
 	for za0001 := range z.Receivers {
 		if z.Receivers[za0001] == nil {

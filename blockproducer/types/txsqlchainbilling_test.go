@@ -25,26 +25,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-func TestTxContent_GetHashAndGetType(t *testing.T) {
-	tc, err := generateRandomTxContent()
-	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
-	}
-
-	h, err := tc.GetHash()
-	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
-	}
-
-	enc, err := tc.MarshalHash()
-	encHash := hash.THashH(enc)
-	if !h.IsEqual(&encHash) {
-		t.Fatalf("Hash not match: \n\tv1=%v,\n\tv2=%v", h, encHash)
-	}
-}
-
-func TestTxContent_MarshalUnmarshalBinary(t *testing.T) {
-	tc, err := generateRandomTxContent()
+func TestBillingHeader_MarshalUnmarshalBinary(t *testing.T) {
+	tc, err := generateRandomBillingHeader()
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
@@ -54,7 +36,7 @@ func TestTxContent_MarshalUnmarshalBinary(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	dec := &TxContent{}
+	dec := &BillingHeader{}
 	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
@@ -82,8 +64,8 @@ func TestTxContent_MarshalUnmarshalBinary(t *testing.T) {
 	}
 }
 
-func TestTxBilling_SerializeDeserialize(t *testing.T) {
-	tb, err := generateRandomTxBilling()
+func TestBilling_SerializeDeserialize(t *testing.T) {
+	tb, err := generateRandomBilling()
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
@@ -93,7 +75,7 @@ func TestTxBilling_SerializeDeserialize(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	dec := TxBilling{}
+	dec := Billing{}
 	err = dec.Deserialize(enc)
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
@@ -110,8 +92,8 @@ func TestTxBilling_SerializeDeserialize(t *testing.T) {
 	}
 }
 
-func TestTxBilling_PackAndSignTx(t *testing.T) {
-	tb, err := generateRandomTxBilling()
+func TestBilling_PackAndSignTx(t *testing.T) {
+	tb, err := generateRandomBilling()
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
@@ -121,7 +103,7 @@ func TestTxBilling_PackAndSignTx(t *testing.T) {
 		t.Fatalf("Unexpeted error: %v", err)
 	}
 	tb.Sign(priv)
-	enc, err := tb.TxContent.MarshalHash()
+	enc, err := tb.BillingHeader.MarshalHash()
 	if err != nil {
 		t.Fatalf("Unexpeted error: %v", err)
 	}

@@ -23,7 +23,8 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -55,8 +56,8 @@ type Chain struct {
 	rt *rt
 	cl *rpc.Caller
 
-	blocksFromSelf chan *types.Block
-	blocksFromRPC  chan *types.Block
+	blocksFromSelf chan *pt.Block
+	blocksFromRPC  chan *pt.Block
 	pendingTxs     chan pi.Transaction
 	stopCh         chan struct{}
 }
@@ -78,11 +79,10 @@ func NewChain(cfg *Config) (*Chain, error) {
 	if err != nil {
 		return nil, err
 	}
-	enc, err := pubKey.MarshalHash()
+	accountAddress, err := crypto.PubKeyHash(pubKey)
 	if err != nil {
 		return nil, err
 	}
-	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	// create bucket for meta data
 	err = db.Update(func(tx *bolt.Tx) (err error) {
@@ -126,8 +126,8 @@ func NewChain(cfg *Config) (*Chain, error) {
 		bi:             newBlockIndex(),
 		rt:             newRuntime(cfg, accountAddress),
 		cl:             rpc.NewCaller(),
-		blocksFromSelf: make(chan *types.Block),
-		blocksFromRPC:  make(chan *types.Block),
+		blocksFromSelf: make(chan *pt.Block),
+		blocksFromRPC:  make(chan *pt.Block),
 		pendingTxs:     make(chan pi.Transaction),
 		stopCh:         make(chan struct{}),
 	}
@@ -163,11 +163,10 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	if err != nil {
 		return nil, err
 	}
-	enc, err := pubKey.MarshalHash()
+	accountAddress, err = crypto.PubKeyHash(pubKey)
 	if err != nil {
 		return nil, err
 	}
-	accountAddress = proto.AccountAddress(hash.THashH(enc[:]))
 
 	chain = &Chain{
 		db:             db,
@@ -175,8 +174,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		bi:             newBlockIndex(),
 		rt:             newRuntime(cfg, accountAddress),
 		cl:             rpc.NewCaller(),
-		blocksFromSelf: make(chan *types.Block),
-		blocksFromRPC:  make(chan *types.Block),
+		blocksFromSelf: make(chan *pt.Block),
+		blocksFromRPC:  make(chan *pt.Block),
 		pendingTxs:     make(chan pi.Transaction),
 		stopCh:         make(chan struct{}),
 	}
@@ -200,9 +199,9 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		nodes := make([]blockNode, blocks.Stats().KeyN)
 
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
-			block := &types.Block{}
+			block := &pt.Block{}
 			if err = utils.DecodeMsgPack(v, block); err != nil {
-				log.Errorf("loadeing block: %v", err)
+				log.Errorf("loading block: %v", err)
 				return err
 			}
 
@@ -217,7 +216,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 				parent = last
 			} else {
-				parent = chain.bi.lookupBlock(block.SignedHeader.BlockHash)
+				parent = chain.bi.lookupBlock(block.SignedHeader.ParentHash)
 
 				if parent == nil {
 					return ErrParentNotFound
@@ -225,6 +224,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			}
 
 			nodes[index].initBlockNode(block, parent)
+			chain.bi.addBlock(&nodes[index])
 			last = &nodes[index]
 			index++
 			return err
@@ -247,7 +247,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
-func (c *Chain) checkBlock(b *types.Block) (err error) {
+func (c *Chain) checkBlock(b *pt.Block) (err error) {
 	// TODO(lambda): process block fork
 	if !b.SignedHeader.ParentHash.IsEqual(c.rt.getHead().getHeader()) {
 		log.WithFields(log.Fields{
@@ -275,7 +275,7 @@ func (c *Chain) checkBlock(b *types.Block) (err error) {
 	return nil
 }
 
-func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
+func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
 	node := newBlockNode(h, b, c.rt.getHead().getNode())
 	state := &State{
@@ -319,7 +319,7 @@ func (c *Chain) pushBlockWithoutCheck(b *types.Block) error {
 	return nil
 }
 
-func (c *Chain) pushGenesisBlock(b *types.Block) (err error) {
+func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
 	err = c.pushBlockWithoutCheck(b)
 	if err != nil {
 		log.Errorf("push genesis block failed: %v", err)
@@ -327,7 +327,7 @@ func (c *Chain) pushGenesisBlock(b *types.Block) (err error) {
 	return
 }
 
-func (c *Chain) pushBlock(b *types.Block) error {
+func (c *Chain) pushBlock(b *pt.Block) error {
 	err := c.checkBlock(b)
 	if err != nil {
 		return err
@@ -347,9 +347,9 @@ func (c *Chain) produceBlock(now time.Time) error {
 		return err
 	}
 
-	b := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
+	b := &pt.Block{
+		SignedHeader: pt.SignedHeader{
+			Header: pt.Header{
 				Version:    blockVersion,
 				Producer:   c.rt.accountAddress,
 				ParentHash: *c.rt.getHead().getHeader(),
@@ -403,7 +403,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	return err
 }
 
-func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingRequest, err error) {
+func (c *Chain) produceBilling(br *pt.BillingRequest) (_ *pt.BillingRequest, err error) {
 	// TODO(lambda): simplify the function
 	if err = c.checkBillingRequest(br); err != nil {
 		return
@@ -443,8 +443,8 @@ func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingReques
 		return
 	}
 	var (
-		tc = types.NewBillingHeader(nc, br, accountAddress, receivers, fees, rewards)
-		tb = types.NewBilling(tc)
+		tc = pt.NewBillingHeader(nc, br, accountAddress, receivers, fees, rewards)
+		tb = pt.NewBilling(tc)
 	)
 	if err = tb.Sign(privKey); err != nil {
 		return
@@ -461,7 +461,7 @@ func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingReques
 // 1. period of sqlchain;
 // 2. request's hash
 // 3. miners' signatures.
-func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
+func (c *Chain) checkBillingRequest(br *pt.BillingRequest) (err error) {
 	// period of sqlchain;
 	// TODO(lambda): get and check period and miner list of specific sqlchain
 
@@ -469,13 +469,13 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
 	return
 }
 
-func (c *Chain) fetchBlockByHeight(h uint32) (*types.Block, error) {
+func (c *Chain) fetchBlockByHeight(h uint32) (*pt.Block, error) {
 	node := c.rt.getHead().getNode().ancestor(h)
 	if node == nil {
 		return nil, ErrNoSuchBlock
 	}
 
-	b := &types.Block{}
+	b := &pt.Block{}
 	k := node.indexKey()
 
 	err := c.db.View(func(tx *bolt.Tx) error {
@@ -560,7 +560,7 @@ func (c *Chain) Start() error {
 func (c *Chain) processBlocks() {
 	rsCh := make(chan struct{})
 	rsWG := &sync.WaitGroup{}
-	returnStash := func(stash []*types.Block) {
+	returnStash := func(stash []*pt.Block) {
 		defer rsWG.Done()
 		for _, block := range stash {
 			select {
@@ -577,7 +577,7 @@ func (c *Chain) processBlocks() {
 		c.rt.wg.Done()
 	}()
 
-	var stash []*types.Block
+	var stash []*pt.Block
 	for {
 		select {
 		case block := <-c.blocksFromSelf:
@@ -592,7 +592,7 @@ func (c *Chain) processBlocks() {
 			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
 				if stash == nil {
-					stash = make([]*types.Block, 0)
+					stash = make([]*pt.Block, 0)
 				}
 				stash = append(stash, block)
 			} else {
@@ -680,7 +680,6 @@ func (c *Chain) syncHead() {
 		"index":     c.rt.index,
 		"next_turn": c.rt.getNextTurn(),
 		"height":    c.rt.getHead().getHeight(),
-		"count":     c.rt.getHead().getNode().count,
 	}).Debugf("sync header")
 	if h := c.rt.getNextTurn() - 1; c.rt.getHead().getHeight() < h {
 		var err error

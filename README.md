@@ -89,13 +89,16 @@ that inspired us:
 
 #### Connector
 
-CovenantSQL is Still Under Construction(U know..). Test net will be released till Oct. 
+CovenantSQL is still under construction and Testnet is already released, [have a try](https://testnet.covenantsql.io/).
 
-Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) for updates.
 
 - [Golang](client/)
 - [Java](https://github.com/CovenantSQL/covenant-connector)
+- [NodeJS](https://github.com/CovenantSQL/node-covenantsql)
+- [Python](https://github.com/CovenantSQL/python-driver)
 - Coding for more……
+
+Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) for updates.
 
 ## TestNet
 

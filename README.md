@@ -95,6 +95,7 @@ Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitt
 
 - [Golang](client/)
 - [Java](https://github.com/CovenantSQL/covenant-connector)
+- [Python](https://github.com/CovenantSQL/python-driver)
 - Coding for more……
 
 ## TestNet

@@ -78,7 +78,7 @@ that inspired us:
 | Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
 | Pooling            |  Session Pool  |
 | Multiplex          |      Yamux     |
-| Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security)      |
+| Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
 | Network            |       TCP or KCP for optional later      |
 
 

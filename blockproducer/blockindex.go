@@ -107,9 +107,9 @@ func (bi *blockIndex) hasBlock(h hash.Hash) bool {
 	return has
 }
 
-func (bi *blockIndex) lookupBlock(h hash.Hash) *blockNode {
+func (bi *blockIndex) lookupNode(h *hash.Hash) *blockNode {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 
-	return bi.index[h]
+	return bi.index[*h]
 }

@@ -209,14 +209,14 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 
 			if last == nil {
 				// TODO(lambda): check genesis block
-			} else if block.SignedHeader.ParentHash.IsEqual(&last.hash) {
+			} else if block.ParentHash().IsEqual(&last.hash) {
 				if err = block.SignedHeader.Verify(); err != nil {
 					return err
 				}
 
 				parent = last
 			} else {
-				parent = chain.bi.lookupBlock(block.SignedHeader.ParentHash)
+				parent = chain.bi.lookupNode(block.ParentHash())
 
 				if parent == nil {
 					return ErrParentNotFound
@@ -249,11 +249,11 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
 func (c *Chain) checkBlock(b *pt.Block) (err error) {
 	// TODO(lambda): process block fork
-	if !b.SignedHeader.ParentHash.IsEqual(c.rt.getHead().getHeader()) {
+	if !b.ParentHash().IsEqual(c.rt.getHead().getHeader()) {
 		log.WithFields(log.Fields{
 			"head":            c.rt.getHead().getHeader().String(),
 			"height":          c.rt.getHead().getHeight(),
-			"received_parent": b.SignedHeader.ParentHash,
+			"received_parent": b.ParentHash(),
 		}).Debug("invalid parent")
 		return ErrParentNotMatch
 	}
@@ -268,7 +268,7 @@ func (c *Chain) checkBlock(b *pt.Block) (err error) {
 		return err
 	}
 	h := hash.THashH(enc)
-	if !b.SignedHeader.BlockHash.IsEqual(&h) {
+	if !b.BlockHash().IsEqual(&h) {
 		return ErrInvalidHash
 	}
 
@@ -390,7 +390,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 						"peer":       c.rt.getPeerInfoString(),
 						"curr_turn":  c.rt.getNextTurn(),
 						"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
-						"block_hash": b.SignedHeader.BlockHash,
+						"block_hash": b.BlockHash(),
 					}).WithError(err).Error(
 						"Failed to advise new block")
 				} else {

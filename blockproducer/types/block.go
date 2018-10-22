@@ -125,3 +125,13 @@ func (b *Block) Timestamp() time.Time {
 func (b *Block) Producer() proto.AccountAddress {
 	return b.SignedHeader.Producer
 }
+
+// ParentHash returns the parent hash field of the block header.
+func (b *Block) ParentHash() *hash.Hash {
+	return &b.SignedHeader.ParentHash
+}
+
+// BlockHash returns the parent hash field of the block header.
+func (b *Block) BlockHash() *hash.Hash {
+	return &b.SignedHeader.BlockHash
+}

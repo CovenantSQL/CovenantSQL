@@ -313,12 +313,12 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	log.Debugf("respA: %v", respA)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234",
+		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
 		Count:  10,
 	}
 	resp := new(proto.FindNeighborResp)
 
-	b.Run("benchmark Persistent", func(b *testing.B) {
+	b.Run("benchmark Persistent Call", func(b *testing.B) {
 		client = NewPersistentCaller(conf.GConf.BP.NodeID)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -328,6 +328,32 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 			}
 		}
 	})
+
+	routineCount := runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
+
+	b.Run("benchmark Persistent New and Call", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			client = NewPersistentCaller(conf.GConf.BP.NodeID)
+			err = client.Call("DHT.FindNeighbor", req, resp)
+			if err != nil {
+				b.Error(err)
+			}
+			client.Close()
+		}
+	})
+
+	routineCount = runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
 
 	b.Run("benchmark non-Persistent", func(b *testing.B) {
 		oldClient := NewCaller()
@@ -339,5 +365,13 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 			}
 		}
 	})
+
+	routineCount = runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
+
 	server.Stop()
 }

@@ -1,4 +1,5 @@
 pprof.txt
+.dsn
 *.svg
 *.profile
 *.key

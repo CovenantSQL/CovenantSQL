@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/trace"
 	"syscall"
 	"time"
 
@@ -78,6 +79,7 @@ var (
 	memProfile     string
 	profileServer  string
 	metricGraphite string
+	traceFile      string
 
 	// other
 	noLogo      bool
@@ -101,6 +103,7 @@ func init() {
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricGraphite, "metricGraphiteServer", "", "Metric graphite server to push metrics")
+	flag.StringVar(&traceFile, "traceFile", "", "trace profile")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -291,6 +294,23 @@ func main() {
 		}
 		minerName := fmt.Sprintf("miner-%s", conf.GConf.ThisNodeID[len(conf.GConf.ThisNodeID)-5:])
 		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, minerName, addr)
+	}
+
+	if traceFile != "" {
+		f, err := os.Create(traceFile)
+		if err != nil {
+			log.Fatalf("failed to create trace output file: %v", err)
+		}
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Fatalf("failed to close trace file: %v", err)
+			}
+		}()
+
+		if err := trace.Start(f); err != nil {
+			log.Fatalf("failed to start trace: %v", err)
+		}
+		defer trace.Stop()
 	}
 
 	<-signalCh

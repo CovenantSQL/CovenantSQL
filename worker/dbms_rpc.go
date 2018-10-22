@@ -17,6 +17,9 @@
 package worker
 
 import (
+	"context"
+	"runtime/trace"
+
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/rcrowley/go-metrics"
@@ -56,7 +59,10 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 	//	dbQueryFailCounter.Mark(1)
 	//	return
 	//}
-
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "Query")
+	defer task.End()
+	defer trace.StartRegion(ctx, "QueryRegion").End()
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
@@ -83,6 +89,10 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 	//if err = ack.Verify(); err != nil {
 	//	return
 	//}
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "Ack")
+	defer task.End()
+	defer trace.StartRegion(ctx, "AckRegion").End()
 
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {

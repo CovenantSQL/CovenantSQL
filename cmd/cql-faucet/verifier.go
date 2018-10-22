@@ -259,7 +259,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		return
 	}
 
-	req := &bp.AddTxTransferReq{}
+	req := &bp.AddTxReq{}
 	resp := &bp.AddTxResp{}
 	req.Tx = pt.NewTransfer(
 		&pt.TransferHeader{
@@ -274,7 +274,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		return
 	}
 
-	if err = requestBP(route.MCCAddTxTransfer.String(), req, resp); err != nil {
+	if err = requestBP(route.MCCAddTx.String(), req, resp); err != nil {
 		// add transaction failed, try again
 		log.Warningf("send transaction failed: %v", err)
 

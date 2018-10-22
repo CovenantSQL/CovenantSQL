@@ -69,9 +69,15 @@ that inspired us:
 ## Libs
 
 ### Network Stack
-<p align="left">
-    <img src="logo/DH-RPC-Layer.png" width=600>
-</p>
+
+| Layer              | Implementation |
+|--------------------|:--------------:|
+| RPC                |     net/rpc    |
+| Naming             |      CSDHT     |
+| Pooling            |  Session Pool  |
+| Multiplex          |      Yamux     |
+| Transport Security |      ETLS      |
+| Network            |       TCP      |
 
   - [DH-RPC](rpc/) := TLS - Cert + DHT
     - RPC Layer: compatible with golang `net/rpc`

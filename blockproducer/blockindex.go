@@ -35,12 +35,12 @@ func newBlockNode(h uint32, block *types.Block, parent *blockNode) *blockNode {
 	var count uint32
 
 	if parent != nil {
-		count = parent.height + 1
+		count = parent.count + 1
 	} else {
 		count = 0
 	}
 	bn := &blockNode{
-		hash:   block.SignedHeader.BlockHash,
+		hash:   *block.BlockHash(),
 		parent: parent,
 		height: h,
 		count:  count,

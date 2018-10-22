@@ -70,22 +70,16 @@ that inspired us:
 
 ### Network Stack
 
+[DH-RPC](rpc/) := TLS - Cert + DHT
+
 | Layer              | Implementation |
-|--------------------|:--------------:|
-| RPC                |     net/rpc    |
-| Naming             |      CSDHT     |
+|:-------------------|:--------------:|
+| RPC                |     `net/rpc`    |
+| Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
 | Pooling            |  Session Pool  |
 | Multiplex          |      Yamux     |
-| Transport Security |      ETLS      |
-| Network            |       TCP      |
-
-  - [DH-RPC](rpc/) := TLS - Cert + DHT
-    - RPC Layer: compatible with golang `net/rpc`
-    - Naming Layer: [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)
-    - Pooling Layer: session pool built on Yamux
-    - Multiplex Layer: Yamux by Hashicorp
-    - Transport Security Layer: [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
-    - Network Layer: TCP or KCP for optional later
+| Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security)      |
+| Network            |       TCP or KCP for optional later      |
 
 
 #### Test Tools

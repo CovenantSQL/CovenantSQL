@@ -145,7 +145,7 @@ sessionLoop:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
 				if err == io.EOF {
-					log.Infof("session %s connection closed", remoteNodeID)
+					log.Debugf("session %s connection closed", remoteNodeID)
 				} else {
 					log.Errorf("session %s accept failed: %s", remoteNodeID, err)
 				}

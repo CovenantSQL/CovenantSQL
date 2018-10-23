@@ -19,6 +19,7 @@ package kayak
 import (
 	"context"
 	"fmt"
+	"runtime/trace"
 	"sync"
 	"time"
 
@@ -335,6 +336,11 @@ func (r *TwoPCRunner) safeForPeersUpdate() chan *Peers {
 }
 
 func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "processNewLog")
+	defer task.End()
+	defer trace.StartRegion(ctx, "processNewLogRegion").End()
+
 	// build Log
 	l := &Log{
 		Index:    r.lastLogIndex + 1,
@@ -428,6 +434,11 @@ func (r *TwoPCRunner) getState() ServerState {
 }
 
 func (r *TwoPCRunner) processRequest(req Request) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "processRequest")
+	defer task.End()
+	defer trace.StartRegion(ctx, "processRequestRegion").End()
+
 	// verify call from leader
 	if err := r.verifyLeader(req); err != nil {
 		req.SendResponse(nil, err)

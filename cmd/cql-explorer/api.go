@@ -213,6 +213,7 @@ func (a *explorerAPI) formatRawTx(t pi.Transaction) (res map[string]interface{})
 		}
 	case *pi.TransactionWrapper:
 		res = a.formatRawTx(tx.Unwrap())
+		return
 	default:
 		// for unknown transactions
 		if txBytes, err := json.Marshal(tx); err != nil {
@@ -225,6 +226,8 @@ func (a *explorerAPI) formatRawTx(t pi.Transaction) (res map[string]interface{})
 			}
 		}
 	}
+
+	res["type"] = t.GetTransactionType().String()
 
 	return
 }

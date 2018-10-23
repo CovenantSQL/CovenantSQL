@@ -67,6 +67,31 @@ const (
 	TransactionTypeNumber
 )
 
+func (t TransactionType) String() string {
+	switch t {
+	case TransactionTypeBilling:
+		return "Billing"
+	case TransactionTypeTransfer:
+		return "Transfer"
+	case TransactionTypeCreateAccount:
+		return "CreateAccount"
+	case TransactionTypeDeleteAccount:
+		return "DeleteAccount"
+	case TransactionTypeAddDatabaseUser:
+		return "AddDatabaseUser"
+	case TransactionTypeAlterDatabaseUser:
+		return "AlterDatabaseUser"
+	case TransactionTypeDeleteDatabaseUser:
+		return "DeleteDatabaseUser"
+	case TransactionTypeBaseAccount:
+		return "BaseAccount"
+	case TransactionTypeCreateDatabase:
+		return "CreateDatabase"
+	default:
+		return "Unknown"
+	}
+}
+
 // Transaction is the interface implemented by an object that can be verified and processed by
 // block producers.
 type Transaction interface {

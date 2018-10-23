@@ -47,7 +47,7 @@ func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "config file path")
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4665", "listen address for http explorer api")
 	flag.DurationVar(&checkInterval, "interval", time.Second*2, "new block check interval for explorer")
-	flag.StringVar(&password, "password", "", "")
+	flag.StringVar(&password, "password", "", "master key password for covenantsql")
 }
 
 func main() {

@@ -120,6 +120,7 @@ func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

@@ -101,6 +101,10 @@ const (
 	SQLCFetchBlock
 	// SQLCFetchAckedQuery is used by sqlchain to fetch response ack from adjacent nodes
 	SQLCFetchAckedQuery
+	// SQLCSignBilling is used by sqlchain to response billing signature for periodic billing request
+	SQLCSignBilling
+	// SQLCLaunchBilling is used by blockproducer to trigger the billing process in sqlchain
+	SQLCLaunchBilling
 	// SQLCSubscribeTransactions is used by sqlchain to handle observer subscription request
 	SQLCSubscribeTransactions
 	// SQLCCancelSubscription is used by sqlchain to handle observer subscription cancellation request
@@ -109,16 +113,39 @@ const (
 	OBSAdviseAckedQuery
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
 	OBSAdviseNewBlock
+	// MCCAdviseNewBlock is used by block producer to push block to adjacent nodes
+	MCCAdviseNewBlock
+	// MCCAdviseTxBilling is used by block producer to push billing transaction to adjacent nodes
+	MCCAdviseTxBilling
+	// MCCAdviseBillingRequest is used by block producer to push billing request to adjacent nodes
+	MCCAdviseBillingRequest
+	// MCCFetchBlock is used by nodes to fetch block from block producer
+	MCCFetchBlock
+	// MCCFetchBlockByCount is used by nodes to fetch block from block producer by block count since genesis
+	MCCFetchBlockByCount
+	// MCCFetchTxBilling is used by nodes to fetch billing transaction from block producer
+	MCCFetchTxBilling
 	// MCCNextAccountNonce is used by block producer main chain to allocate next nonce for transactions
 	MCCNextAccountNonce
 	// MCCAddTx is used by block producer main chain to upload transaction
 	MCCAddTx
-	// MCCAddTxTransfer is used by block producer main chain to upload transfer transaction
-	MCCAddTxTransfer
 	// MCCQueryAccountStableBalance is used by block producer to provide account stable coin balance
 	MCCQueryAccountStableBalance
 	// MCCQueryAccountCovenantBalance is used by block producer to provide account covenant coin balance
 	MCCQueryAccountCovenantBalance
+
+	// DHTRPCName defines the block producer dh-rpc service name
+	DHTRPCName = "DHT"
+	// BlockProducerRPCName defines main chain rpc name
+	BlockProducerRPCName = "MCC"
+	// SQLChainRPCName defines the sql chain rpc name
+	SQLChainRPCName = "SQLC"
+	// DBRPCName defines the sql chain db service rpc name
+	DBRPCName = "DBS"
+	// BPDBRPCName defines the block producer db service rpc name
+	BPDBRPCName = "BPDB"
+	// ObserverRPCName defines the observer node service rpc name
+	ObserverRPCName = "OBS"
 )
 
 // String returns the RemoteFunc string
@@ -164,6 +191,10 @@ func (s RemoteFunc) String() string {
 		return "SQLC.FetchBlock"
 	case SQLCFetchAckedQuery:
 		return "SQLC.FetchAckedQuery"
+	case SQLCSignBilling:
+		return "SQLC.SignBilling"
+	case SQLCLaunchBilling:
+		return "SQLC.LaunchBilling"
 	case SQLCSubscribeTransactions:
 		return "SQLC.SubscribeTransactions"
 	case SQLCCancelSubscription:
@@ -172,12 +203,22 @@ func (s RemoteFunc) String() string {
 		return "OBS.AdviseAckedQuery"
 	case OBSAdviseNewBlock:
 		return "OBS.AdviseNewBlock"
+	case MCCAdviseNewBlock:
+		return "MCC.AdviseNewBlock"
+	case MCCAdviseTxBilling:
+		return "MCC.AdviseTxBilling"
+	case MCCAdviseBillingRequest:
+		return "MCC.AdviseBillingRequest"
+	case MCCFetchBlock:
+		return "MCC.FetchBlock"
+	case MCCFetchBlockByCount:
+		return "MCC.FetchBlockByCount"
+	case MCCFetchTxBilling:
+		return "MCC.FetchTxBilling"
 	case MCCNextAccountNonce:
 		return "MCC.NextAccountNonce"
 	case MCCAddTx:
 		return "MCC.AddTx"
-	case MCCAddTxTransfer:
-		return "MCC.AddTxTransfer"
 	case MCCQueryAccountStableBalance:
 		return "MCC.QueryAccountStableBalance"
 	case MCCQueryAccountCovenantBalance:

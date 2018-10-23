@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -70,7 +71,7 @@ func Test_buildHash(t *testing.T) {
 }
 
 func TestSignedRequestHeader_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
+	privKey, _ := getCommKeys()
 
 	Convey("sign", t, func() {
 		req := &SignedRequestHeader{
@@ -86,11 +87,6 @@ func TestSignedRequestHeader_Sign(t *testing.T) {
 
 		var err error
 
-		// without signee
-		err = req.Sign(privKey)
-		So(err, ShouldNotBeNil)
-
-		req.Signee = pubKey
 		err = req.Sign(privKey)
 		So(err, ShouldBeNil)
 
@@ -112,7 +108,7 @@ func TestSignedRequestHeader_Sign(t *testing.T) {
 }
 
 func TestRequest_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
+	privKey, _ := getCommKeys()
 
 	Convey("sign", t, func() {
 		req := &Request{
@@ -125,7 +121,6 @@ func TestRequest_Sign(t *testing.T) {
 					SeqNo:        uint64(2),
 					Timestamp:    time.Now().UTC(),
 				},
-				Signee: pubKey,
 			},
 			Payload: RequestPayload{
 				Queries: []Query{
@@ -217,7 +212,7 @@ func TestRequest_Sign(t *testing.T) {
 }
 
 func TestResponse_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
+	privKey, _ := getCommKeys()
 
 	Convey("sign", t, func() {
 		res := &Response{
@@ -232,13 +227,11 @@ func TestResponse_Sign(t *testing.T) {
 							SeqNo:        uint64(2),
 							Timestamp:    time.Now().UTC(),
 						},
-						Signee: pubKey,
 					},
 					NodeID:    proto.NodeID("node2"),
 					Timestamp: time.Now().UTC(),
 					RowCount:  uint64(1),
 				},
-				Signee: pubKey,
 			},
 			Payload: ResponsePayload{
 				Columns: []string{
@@ -282,7 +275,7 @@ func TestResponse_Sign(t *testing.T) {
 		// sign directly, embedded original request is not filled
 		err = res.Sign(privKey)
 		So(err, ShouldNotBeNil)
-		So(err, ShouldBeIn, []error{
+		So(errors.Cause(err), ShouldBeIn, []error{
 			ErrSignVerification,
 			ErrHashVerification,
 		})
@@ -363,7 +356,7 @@ func TestResponse_Sign(t *testing.T) {
 }
 
 func TestAck_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
+	privKey, _ := getCommKeys()
 
 	Convey("sign", t, func() {
 		ack := &Ack{
@@ -380,18 +373,15 @@ func TestAck_Sign(t *testing.T) {
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
 								},
-								Signee: pubKey,
 							},
 							NodeID:    proto.NodeID("node2"),
 							Timestamp: time.Now().UTC(),
 							RowCount:  uint64(1),
 						},
-						Signee: pubKey,
 					},
 					NodeID:    proto.NodeID("node1"),
 					Timestamp: time.Now().UTC(),
 				},
-				Signee: pubKey,
 			},
 		}
 
@@ -486,7 +476,7 @@ func TestAck_Sign(t *testing.T) {
 }
 
 func TestNoAckReport_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
+	privKey, _ := getCommKeys()
 
 	Convey("sign", t, func() {
 		noAck := &NoAckReport{
@@ -505,16 +495,13 @@ func TestNoAckReport_Sign(t *testing.T) {
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
 								},
-								Signee: pubKey,
 							},
 							NodeID:    proto.NodeID("node2"),
 							Timestamp: time.Now().UTC(),
 							RowCount:  uint64(1),
 						},
-						Signee: pubKey,
 					},
 				},
-				Signee: pubKey,
 			},
 		}
 
@@ -595,7 +582,7 @@ func TestNoAckReport_Sign(t *testing.T) {
 }
 
 func TestAggrNoAckReport_Sign(t *testing.T) {
-	privKey, pubKey := getCommKeys()
+	privKey, _ := getCommKeys()
 
 	Convey("sign", t, func() {
 		aggrNoAck := &AggrNoAckReport{
@@ -619,16 +606,13 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
 											},
-											Signee: pubKey,
 										},
 										NodeID:    proto.NodeID("node2"),
 										Timestamp: time.Now().UTC(),
 										RowCount:  uint64(1),
 									},
-									Signee: pubKey,
 								},
 							},
-							Signee: pubKey,
 						},
 						{
 							NoAckReportHeader: NoAckReportHeader{
@@ -645,16 +629,13 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
 											},
-											Signee: pubKey,
 										},
 										NodeID:    proto.NodeID("node3"),
 										Timestamp: time.Now().UTC(),
 										RowCount:  uint64(1),
 									},
-									Signee: pubKey,
 								},
 							},
-							Signee: pubKey,
 						},
 					},
 					Peers: &kayak.Peers{
@@ -675,7 +656,6 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 						},
 					},
 				},
-				Signee: pubKey,
 			},
 		}
 
@@ -806,7 +786,6 @@ func TestInitServiceResponse_Sign(t *testing.T) {
 						},
 					},
 				},
-				Signee: pubKey,
 			},
 		}
 
@@ -897,8 +876,6 @@ func TestUpdateService_Sign(t *testing.T) {
 						GenesisBlock: nil,
 					},
 				},
-
-				Signee: pubKey,
 			},
 		}
 

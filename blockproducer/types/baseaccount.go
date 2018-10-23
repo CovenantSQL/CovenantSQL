@@ -17,13 +17,10 @@
 package types
 
 import (
-	"bytes"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 //go:generate hsp
@@ -31,22 +28,15 @@ import (
 // BaseAccount defines the base account type header.
 type BaseAccount struct {
 	Account
-	AccountHash hash.Hash
+	pi.TransactionTypeMixin
 }
 
-// Serialize serializes TxBilling using msgpack.
-func (b *BaseAccount) Serialize() (s []byte, err error) {
-	var enc *bytes.Buffer
-	if enc, err = utils.EncodeMsgPack(b); err != nil {
-		return
+// NewBaseAccount returns new instance.
+func NewBaseAccount(account *Account) *BaseAccount {
+	return &BaseAccount{
+		Account:              *account,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeBaseAccount),
 	}
-	s = enc.Bytes()
-	return
-}
-
-// Deserialize desrializes TxBilling using msgpack.
-func (b *BaseAccount) Deserialize(enc []byte) error {
-	return utils.DecodeMsgPack(enc, b)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
@@ -61,13 +51,8 @@ func (b *BaseAccount) GetAccountNonce() pi.AccountNonce {
 }
 
 // GetHash implements interfaces/Transaction.GetHash.
-func (b *BaseAccount) GetHash() hash.Hash {
-	return b.AccountHash
-}
-
-// GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (b *BaseAccount) GetTransactionType() pi.TransactionType {
-	return pi.TransactionTypeBaseAccount
+func (b *BaseAccount) GetHash() (h hash.Hash) {
+	return
 }
 
 // Sign implements interfaces/Transaction.Sign.
@@ -78,4 +63,8 @@ func (b *BaseAccount) Sign(signer *asymmetric.PrivateKey) (err error) {
 // Verify implements interfaces/Transaction.Verify.
 func (b *BaseAccount) Verify() (err error) {
 	return
+}
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeBaseAccount, (*BaseAccount)(nil))
 }

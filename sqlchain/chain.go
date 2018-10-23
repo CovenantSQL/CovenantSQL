@@ -21,11 +21,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"reflect"
 	"sync"
 	"time"
 
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -38,6 +38,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/coreos/bbolt"
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 var (
@@ -47,8 +51,16 @@ var (
 	metaHeightIndexBucket   = []byte("covenantsql-query-height-index-bucket")
 	metaRequestIndexBucket  = []byte("covenantsql-query-request-index-bucket")
 	metaResponseIndexBucket = []byte("covenantsql-query-response-index-bucket")
-	metaAckIndexBucket      = []byte("covenantsql-query-ack-index-bucket")
+	metaAckIndexBucket      = [4]byte{'Q', 'A', 'C', 'K'}
+	leveldbConf             = opt.Options{}
 )
+
+func init() {
+	leveldbConf.BlockSize = 4 * 1024 * 1024
+	leveldbConf.Compression = opt.SnappyCompression
+	leveldbConf.WriteBuffer = 64 * 1024 * 1024
+	leveldbConf.BlockCacheCapacity = 2 * leveldbConf.WriteBuffer
+}
 
 // heightToKey converts a height in int32 to a key in bytes.
 func heightToKey(h int32) (key []byte) {
@@ -64,11 +76,12 @@ func keyToHeight(k []byte) int32 {
 
 // Chain represents a sql-chain.
 type Chain struct {
-	db *bolt.DB
-	bi *blockIndex
-	qi *queryIndex
-	cl *rpc.Caller
-	rt *runtime
+	db  *bolt.DB
+	ldb *leveldb.DB
+	bi  *blockIndex
+	qi  *queryIndex
+	cl  *rpc.Caller
+	rt  *runtime
 
 	stopCh    chan struct{}
 	blocks    chan *ct.Block
@@ -98,14 +111,12 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	}
 
 	err = c.Genesis.VerifyAsGenesis()
-
 	if err != nil {
 		return
 	}
 
 	// Open DB file
 	db, err := bolt.Open(c.DataFile, 0600, nil)
-
 	if err != nil {
 		return
 	}
@@ -128,9 +139,18 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
+	// Open LevelDB
+	ldbFile := c.DataFile + ".ldb"
+	ldb, err := leveldb.OpenFile(ldbFile, &leveldbConf)
+	if err != nil {
+		err = errors.Wrapf(err, "open leveldb %s", ldbFile)
+		return
+	}
+
 	// Create chain state
 	chain = &Chain{
 		db:        db,
+		ldb:       ldb,
 		bi:        newBlockIndex(c),
 		qi:        newQueryIndex(),
 		cl:        rpc.NewCaller(),
@@ -158,14 +178,22 @@ func NewChain(c *Config) (chain *Chain, err error) {
 func LoadChain(c *Config) (chain *Chain, err error) {
 	// Open DB file
 	db, err := bolt.Open(c.DataFile, 0600, nil)
-
 	if err != nil {
+		return
+	}
+
+	// Open LevelDB
+	ldbFile := c.DataFile + ".ldb"
+	ldb, err := leveldb.OpenFile(ldbFile, &leveldbConf)
+	if err != nil {
+		err = errors.Wrapf(err, "open leveldb %s", ldbFile)
 		return
 	}
 
 	// Create chain state
 	chain = &Chain{
 		db:        db,
+		ldb:       ldb,
 		bi:        newBlockIndex(c),
 		qi:        newQueryIndex(),
 		cl:        rpc.NewCaller(),
@@ -276,21 +304,43 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 				}
 			}
 
-			if acks := heights.Bucket(k).Bucket(metaAckIndexBucket); acks != nil {
-				if err = acks.ForEach(func(k []byte, v []byte) (err error) {
-					var ack = &wt.SignedAckHeader{}
-					if err = utils.DecodeMsgPack(v, ack); err != nil {
-						return
-					}
-					log.WithFields(log.Fields{
-						"height": h,
-						"header": ack.HeaderHash.String(),
-					}).Debug("Loaded new ack header")
-					return chain.qi.addAck(h, ack)
-				}); err != nil {
+			ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
+			ldbKey = append(append(ldbKey, metaAckIndexBucket[:]...), k...)
+			iter := ldb.NewIterator(util.BytesPrefix(ldbKey), nil)
+			defer iter.Release()
+			for iter.Next() {
+				var ack = &wt.SignedAckHeader{}
+				if err = utils.DecodeMsgPack(iter.Value(), ack); err != nil {
 					return
 				}
+				log.WithFields(log.Fields{
+					"height": h,
+					"header": ack.HeaderHash.String(),
+				}).Debug("Loaded new ack header")
+				return chain.qi.addAck(h, ack)
 			}
+			err = iter.Error()
+			if err != nil {
+				err = errors.Wrap(err, "load new ack header")
+				return
+			}
+
+			//acks := heights.Bucket(k).Bucket(metaAckIndexBucket)
+			//if acks != nil {
+			//	if err = acks.ForEach(func(k []byte, v []byte) (err error) {
+			//		var ack = &wt.SignedAckHeader{}
+			//		if err = utils.DecodeMsgPack(v, ack); err != nil {
+			//			return
+			//		}
+			//		log.WithFields(log.Fields{
+			//			"height": h,
+			//			"header": ack.HeaderHash.String(),
+			//		}).Debug("Loaded new ack header")
+			//		return chain.qi.addAck(h, ack)
+			//	}); err != nil {
+			//		return
+			//	}
+			//}
 
 			return
 		}); err != nil {
@@ -379,10 +429,6 @@ func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
 		if _, err = hb.CreateBucketIfNotExists(metaResponseIndexBucket); err != nil {
 			return
 		}
-
-		if _, err = hb.CreateBucketIfNotExists(metaAckIndexBucket); err != nil {
-			return
-		}
 	}
 
 	return
@@ -426,15 +472,17 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	}
 
 	return c.db.Update(func(tx *bolt.Tx) (err error) {
-		b, err := ensureHeight(tx, k)
-
+		_, err = ensureHeight(tx, k)
 		if err != nil {
 			return
 		}
 
-		if err = b.Bucket(metaAckIndexBucket).Put(
-			ack.HeaderHash[:], enc.Bytes(),
-		); err != nil {
+		ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
+		ldbKey = append(append(append(ldbKey, metaAckIndexBucket[:]...), k...), ack.HeaderHash[:]...)
+		err = c.ldb.Put(ldbKey, enc.Bytes(), nil)
+		//err = b.Bucket(metaAckIndexBucket).Put(ack.HeaderHash[:], enc.Bytes())
+		if err != nil {
+			err = errors.Wrapf(err, "put %s %d %s", string(metaAckIndexBucket[:]), h, ack.HeaderHash)
 			return
 		}
 
@@ -835,6 +883,12 @@ func (c *Chain) Stop() (err error) {
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
 	}).Debug("Chain database closed")
+	// Close LevelDB file
+	err = c.ldb.Close()
+	log.WithFields(log.Fields{
+		"peer": c.rt.getPeerInfoString(),
+		"time": c.rt.getChainTimeString(),
+	}).Debug("Chain database closed")
 	return
 }
 
@@ -865,8 +919,13 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	err = c.db.View(func(tx *bolt.Tx) (err error) {
 		var hb = tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
 		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
+			k := heightToKey(h)
 			if ab := hb.Bucket(heightToKey(h)); ab != nil {
-				if v := ab.Bucket(metaAckIndexBucket).Get(header[:]); v != nil {
+				ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
+				ldbKey = append(append(append(ldbKey, metaAckIndexBucket[:]...), k...), header[:]...)
+				v, _ := c.ldb.Get(ldbKey, nil)
+				//v := ab.Bucket(metaAckIndexBucket).Get(header[:])
+				if v != nil {
 					var dec = &wt.SignedAckHeader{}
 					if err = utils.DecodeMsgPack(v, dec); err != nil {
 						return
@@ -1080,7 +1139,7 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 
 		highBlock = n.block
 
-		if addr, err = utils.PubKeyHash(n.block.Signee()); err != nil {
+		if addr, err = crypto.PubKeyHash(n.block.Signee()); err != nil {
 			return
 		}
 
@@ -1100,7 +1159,7 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 				return
 			}
 
-			if addr, err = utils.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
+			if addr, err = crypto.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
 				return
 			}
 
@@ -1161,32 +1220,41 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 	proWG.Add(1)
 	go func() {
 		defer proWG.Done()
-		for resp := range respC {
-			req.Signees = append(req.Signees, resp.Signee)
-			req.Signatures = append(req.Signatures, resp.Signature)
+
+		bpReq := &ct.AdviseBillingReq{
+			Req: billings,
 		}
 
 		var (
-			bp  proto.NodeID
-			err error
+			bpNodeID proto.NodeID
+			err      error
 		)
+
+		for resp := range respC {
+			if err = bpReq.Req.AddSignature(resp.Signee, resp.Signature, false); err != nil {
+				// consume all rpc result
+				for range respC {
+				}
+
+				return
+			}
+		}
 
 		defer log.WithFields(log.Fields{
 			"peer":             c.rt.getPeerInfoString(),
 			"time":             c.rt.getChainTimeString(),
 			"signees_count":    len(req.Signees),
 			"signatures_count": len(req.Signatures),
-			"bp":               bp,
+			"bp":               bpNodeID,
 		}).WithError(err).Debug(
 			"Sent billing request")
 
-		if bp, err = rpc.GetCurrentBP(); err != nil {
+		if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
 			return
 		}
 
-		resp := &pt.BillingResponse{}
-
-		if err = c.cl.CallNode(bp, "MCC.AdviseBillingRequest", req, resp); err != nil {
+		var resp interface{}
+		if err = c.cl.CallNode(bpNodeID, route.MCCAdviseBillingRequest.String(), bpReq, resp); err != nil {
 			return
 		}
 	}()
@@ -1206,7 +1274,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 				defer rpcWG.Done()
 				resp := &MuxSignBillingResp{}
 
-				if err := c.cl.CallNode(id, "SQLC.SignBilling", req, resp); err != nil {
+				if err := c.cl.CallNode(id, route.SQLCSignBilling.String(), req, resp); err != nil {
 					log.WithFields(log.Fields{
 						"peer": c.rt.getPeerInfoString(),
 						"time": c.rt.getChainTimeString(),
@@ -1225,7 +1293,6 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 func (c *Chain) LaunchBilling(low, high int32) (err error) {
 	var (
 		req *pt.BillingRequest
-		h   *hash.Hash
 	)
 
 	defer log.WithFields(log.Fields{
@@ -1239,11 +1306,10 @@ func (c *Chain) LaunchBilling(low, high int32) (err error) {
 		return
 	}
 
-	if h, err = req.PackRequestHeader(); err != nil {
+	if _, err = req.PackRequestHeader(); err != nil {
 		return
 	}
 
-	req.RequestHash = *h
 	c.rt.wg.Add(1)
 	go c.collectBillingSignatures(req)
 	return
@@ -1254,7 +1320,6 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 	pub *asymmetric.PublicKey, sig *asymmetric.Signature, err error,
 ) {
 	var (
-		h   *hash.Hash
 		loc *pt.BillingRequest
 	)
 	defer log.WithFields(log.Fields{
@@ -1265,12 +1330,7 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 	}).WithError(err).Debug("Processing sign billing request")
 
 	// Verify billing results
-	if h, err = req.PackRequestHeader(); err != nil {
-		return
-	}
-
-	if !req.RequestHash.IsEqual(h) {
-		err = ErrBillingNotMatch
+	if err = req.VerifySignatures(); err != nil {
 		return
 	}
 
@@ -1278,25 +1338,7 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 		return
 	}
 
-	if !req.Header.LowBlock.IsEqual(&loc.Header.LowBlock) ||
-		!req.Header.HighBlock.IsEqual(&loc.Header.HighBlock) {
-		err = ErrBillingNotMatch
-		return
-	}
-
-	reqMap := make(map[proto.AccountAddress]*proto.AddrAndGas)
-	locMap := make(map[proto.AccountAddress]*proto.AddrAndGas)
-
-	for _, v := range req.Header.GasAmounts {
-		reqMap[v.AccountAddress] = v
-	}
-
-	for _, v := range loc.Header.GasAmounts {
-		locMap[v.AccountAddress] = v
-	}
-
-	if !reflect.DeepEqual(reqMap, locMap) {
-		err = ErrBillingNotMatch
+	if err = req.Compare(loc); err != nil {
 		return
 	}
 
@@ -1307,11 +1349,8 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 		return
 	}
 
-	if sig, err = req.SignRequestHeader(priv); err != nil {
-		return
-	}
+	pub, sig, err = req.SignRequestHeader(priv, false)
 
-	pub = priv.PubKey()
 	return
 }
 

@@ -141,6 +141,7 @@ func (sh *SignedNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err erro
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }
@@ -240,6 +241,7 @@ func (sh *SignedAggrNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err 
 
 	// verify signature
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

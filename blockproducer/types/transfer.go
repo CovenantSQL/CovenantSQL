@@ -17,13 +17,9 @@
 package types
 
 import (
-	"bytes"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 //go:generate hsp
@@ -38,24 +34,16 @@ type TransferHeader struct {
 // Transfer defines the transfer transaction.
 type Transfer struct {
 	TransferHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	pi.TransactionTypeMixin
+	DefaultHashSignVerifierImpl
 }
 
-// Serialize serializes TxBilling using msgpack.
-func (t *Transfer) Serialize() (b []byte, err error) {
-	var enc *bytes.Buffer
-	if enc, err = utils.EncodeMsgPack(t); err != nil {
-		return
+// NewTransfer returns new instance.
+func NewTransfer(header *TransferHeader) *Transfer {
+	return &Transfer{
+		TransferHeader:       *header,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeTransfer),
 	}
-	b = enc.Bytes()
-	return
-}
-
-// Deserialize desrializes TxBilling using msgpack.
-func (t *Transfer) Deserialize(enc []byte) error {
-	return utils.DecodeMsgPack(enc, t)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
@@ -68,42 +56,16 @@ func (t *Transfer) GetAccountNonce() pi.AccountNonce {
 	return t.Nonce
 }
 
-// GetHash implements interfaces/Transaction.GetHash.
-func (t *Transfer) GetHash() hash.Hash {
-	return t.HeaderHash
-}
-
-// GetTransactionType implements interfaces/Transaction.GetTransactionType.
-func (t *Transfer) GetTransactionType() pi.TransactionType {
-	return pi.TransactionTypeTransfer
-}
-
 // Sign implements interfaces/Transaction.Sign.
 func (t *Transfer) Sign(signer *asymmetric.PrivateKey) (err error) {
-	var enc []byte
-	if enc, err = t.TransferHeader.MarshalHash(); err != nil {
-		return
-	}
-	var h = hash.THashH(enc)
-	if t.Signature, err = signer.Sign(h[:]); err != nil {
-		return
-	}
-	t.HeaderHash = h
-	t.Signee = signer.PubKey()
-	return
+	return t.DefaultHashSignVerifierImpl.Sign(&t.TransferHeader, signer)
 }
 
 // Verify implements interfaces/Transaction.Verify.
 func (t *Transfer) Verify() (err error) {
-	var enc []byte
-	if enc, err = t.TransferHeader.MarshalHash(); err != nil {
-		return
-	} else if h := hash.THashH(enc); !t.HeaderHash.IsEqual(&h) {
-		err = ErrSignVerification
-		return
-	} else if !t.Signature.Verify(h[:], t.Signee) {
-		err = ErrSignVerification
-		return
-	}
-	return
+	return t.DefaultHashSignVerifierImpl.Verify(&t.TransferHeader)
+}
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeTransfer, (*Transfer)(nil))
 }

@@ -17,94 +17,81 @@
 package types
 
 import (
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 //go:generate hsp
 
-// BillingRequestHeader includes contents that need to be signed. Billing blocks should be within
-// height range [low, high] (inclusive).
-type BillingRequestHeader struct {
-	DatabaseID proto.DatabaseID
-	// sqlchain block hash and its height
-	LowBlock   hash.Hash
-	LowHeight  int32
-	HighBlock  hash.Hash
-	HighHeight int32
-	GasAmounts []*proto.AddrAndGas
+// BillingHeader defines the customer's billing and block rewards in transaction.
+type BillingHeader struct {
+	// Transaction nonce
+	Nonce          pi.AccountNonce
+	BillingRequest BillingRequest
+	// Bill producer
+	Producer proto.AccountAddress
+	// Bill receivers
+	Receivers []*proto.AccountAddress
+	// Fee paid by stable coin
+	Fees []uint64
+	// Reward is share coin
+	Rewards []uint64
 }
 
-//
-//// MarshalHash marshals for hash
-//func (bh *BillingRequestHeader) MarshalHash() ([]byte, error) {
-//	buffer := bytes.NewBuffer(nil)
-//
-//	err := utils.WriteElements(buffer, binary.BigEndian,
-//		&bh.DatabaseID,
-//		&bh.LowBlock,
-//		&bh.LowHeight,
-//		&bh.HighBlock,
-//		&bh.HighHeight,
-//		&bh.GasAmounts,
-//	)
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//	return buffer.Bytes(), nil
-//}
-
-// BillingRequest defines periodically Billing sync.
-type BillingRequest struct {
-	Header      BillingRequestHeader
-	RequestHash hash.Hash
-	Signees     []*asymmetric.PublicKey
-	Signatures  []*asymmetric.Signature
-}
-
-//// MarshalHash marshals for hash
-//func (br *BillingRequest) MarshalHash() ([]byte, error) {
-//	buffer := bytes.NewBuffer(nil)
-//
-//	err := utils.WriteElements(buffer, binary.BigEndian,
-//		&br.Header,
-//		&br.RequestHash,
-//		&br.Signees,
-//		&br.Signatures,
-//	)
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//	return buffer.Bytes(), nil
-//}
-
-// PackRequestHeader computes the hash of header.
-func (br *BillingRequest) PackRequestHeader() (*hash.Hash, error) {
-	b, err := br.Header.MarshalHash()
-	if err != nil {
-		return nil, err
+// NewBillingHeader generates new BillingHeader.
+func NewBillingHeader(nonce pi.AccountNonce, bReq *BillingRequest, producer proto.AccountAddress, receivers []*proto.AccountAddress,
+	fees []uint64, rewards []uint64) *BillingHeader {
+	return &BillingHeader{
+		Nonce:          nonce,
+		BillingRequest: *bReq,
+		Producer:       producer,
+		Receivers:      receivers,
+		Fees:           fees,
+		Rewards:        rewards,
 	}
-
-	h := hash.THashH(b)
-	return &h, nil
 }
 
-// SignRequestHeader first computes the hash of BillingRequestHeader, then signs the request.
-func (br *BillingRequest) SignRequestHeader(signee *asymmetric.PrivateKey) (*asymmetric.Signature, error) {
-	signature, err := signee.Sign(br.RequestHash[:])
-	if err != nil {
-		return nil, err
+// Billing is a type of tx, that is used to record sql chain billing and block rewards.
+type Billing struct {
+	BillingHeader
+	pi.TransactionTypeMixin
+	DefaultHashSignVerifierImpl
+}
+
+// NewBilling generates a new Billing.
+func NewBilling(header *BillingHeader) *Billing {
+	return &Billing{
+		BillingHeader:        *header,
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeBilling),
 	}
-	return signature, nil
 }
 
-// BillingResponse defines the the response for BillingRequest.
-type BillingResponse struct {
-	AccountAddress proto.AccountAddress
-	RequestHash    hash.Hash
-	Signee         *asymmetric.PublicKey
-	Signature      *asymmetric.Signature
+// Sign implements interfaces/Transaction.Sign.
+func (tb *Billing) Sign(signer *asymmetric.PrivateKey) (err error) {
+	return tb.DefaultHashSignVerifierImpl.Sign(&tb.BillingHeader, signer)
+}
+
+// Verify implements interfaces/Transaction.Verify.
+func (tb *Billing) Verify() error {
+	return tb.DefaultHashSignVerifierImpl.Verify(&tb.BillingHeader)
+}
+
+// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
+func (tb *Billing) GetAccountAddress() proto.AccountAddress {
+	return tb.Producer
+}
+
+// GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
+func (tb *Billing) GetAccountNonce() pi.AccountNonce {
+	return tb.Nonce
+}
+
+// GetDatabaseID gets the database ID.
+func (tb *Billing) GetDatabaseID() *proto.DatabaseID {
+	return &tb.BillingRequest.Header.DatabaseID
+}
+
+func init() {
+	pi.RegisterTransaction(pi.TransactionTypeBilling, (*Billing)(nil))
 }

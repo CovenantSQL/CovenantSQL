@@ -18,13 +18,18 @@ package asymmetric
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"math/rand"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
+	"golang.org/x/crypto/ed25519"
 )
 
 var (
@@ -37,7 +42,6 @@ func init() {
 
 	var err error
 	priv, pub, err = GenSecp256k1KeyPair()
-
 	if err != nil {
 		panic(err)
 	}
@@ -61,7 +65,7 @@ func TestSign(t *testing.T) {
 
 	for _, test := range tests {
 		priv, pub := PrivKeyFromBytes(test.key)
-		hash := []byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9}
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		sig, err := priv.Sign(hash)
 
 		if err != nil {
@@ -96,17 +100,23 @@ func TestSign(t *testing.T) {
 func TestSignature_MarshalBinary(t *testing.T) {
 	Convey("marshal unmarshal signature", t, func() {
 		// generate
+		// random data
+		var sign *Signature
+		var err error
 		privateKey, publicKey, _ := GenSecp256k1KeyPair()
 
-		// random data
-		buf := make([]byte, 16)
+		buf := make([]byte, 32)
 		rand.Read(buf)
+		buf2 := make([]byte, 32)
+		rand.Read(buf2)
+
+		sign, err = privateKey.Sign([]byte("aaa"))
+		So(err, ShouldNotBeNil)
+		So(sign, ShouldBeNil)
 
 		// sign
-		var sign *Signature
 		sign, _ = privateKey.Sign(buf)
 
-		var err error
 		keyBytes, err := sign.MarshalBinary()
 		So(err, ShouldBeNil)
 
@@ -115,6 +125,18 @@ func TestSignature_MarshalBinary(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		So(sign2.Verify(buf, publicKey), ShouldBeTrue)
+		So(sign2.Verify(buf2, publicKey), ShouldBeFalse)
+
+		sign3, _ := privateKey.Sign([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+		So(sign.IsEqual(sign3), ShouldBeFalse)
+		So(sign.IsEqual(sign), ShouldBeTrue)
+
+		sb, _ := sign.MarshalHash()
+		sb2, _ := sign2.MarshalHash()
+		sb3, _ := sign3.MarshalHash()
+		So(sb, ShouldResemble, sb2)
+		So(sb, ShouldNotResemble, sb3)
+		So(sign.Msgsize(), ShouldEqual, sign3.Msgsize())
 	})
 
 	Convey("test marshal unmarshal nil value", t, func() {
@@ -132,6 +154,9 @@ func TestSignature_MarshalBinary(t *testing.T) {
 }
 
 func BenchmarkGenKey(b *testing.B) {
+	b.Log(b.Name())
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, _, err := GenSecp256k1KeyPair(); err != nil {
 			b.Fatalf("Error occurred: %v", err)
@@ -139,50 +164,279 @@ func BenchmarkGenKey(b *testing.B) {
 	}
 }
 
-func BenchmarkSign(b *testing.B) {
+func BenchmarkGenKeySignVerify(b *testing.B) {
+	b.Log(b.Name())
+	b.ReportAllocs()
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		var hash [32]byte
-		rand.Read(hash[:])
-
-		b.StartTimer()
-		_, err := priv.Sign(hash[:])
-		b.StopTimer()
-
+		//hash := make([]byte, 32)
+		//rand.Read(hash)
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		priv, pub, err := GenSecp256k1KeyPair()
 		if err != nil {
 			b.Fatalf("Error occurred: %v", err)
 		}
+		sig, err := priv.Sign(hash[:])
+		if err != nil {
+			b.Fatalf("Error occurred: %d, %v", i, err)
+		}
+		if !sig.Verify(hash[:], pub) {
+			b.Fatalf("Error occurred: %d", i)
+		}
 	}
+}
+
+func generateKeyPair() (pubkey, privkey []byte) {
+	key, err := ecdsa.GenerateKey(secp256k1.S256(), crand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	pubkey = elliptic.Marshal(secp256k1.S256(), key.X, key.Y)
+
+	privkey = make([]byte, 32)
+	blob := key.D.Bytes()
+	copy(privkey[32-len(blob):], blob)
+
+	return pubkey, privkey
+}
+
+func BenchmarkSign(b *testing.B) {
+	b.Run("Secp256k1", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := priv.Sign(hash[:])
+			if err != nil {
+				b.Fatalf("Error occurred: %v", err)
+			}
+		}
+	})
+
+	b.Run("C-Secp256k1", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		_, privP := generateKeyPair()
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := secp256k1.Sign(hash, privP)
+			if err != nil {
+				b.Fatalf("Error occurred: %v", err)
+			}
+		}
+	})
+
+	b.Run("P224", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, _ := ecdsa.GenerateKey(elliptic.P224(), crand.Reader)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Sign(crand.Reader, privP, hash)
+		}
+	})
+
+	b.Run("P256", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, _ := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Sign(crand.Reader, privP, hash)
+		}
+	})
+
+	b.Run("P384", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, _ := ecdsa.GenerateKey(elliptic.P384(), crand.Reader)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Sign(crand.Reader, privP, hash)
+		}
+	})
+
+	b.Run("P521", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, _ := ecdsa.GenerateKey(elliptic.P521(), crand.Reader)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Sign(crand.Reader, privP, hash)
+		}
+	})
+
+	b.Run("Curve25519", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		_, privP, _ := ed25519.GenerateKey(crand.Reader)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ed25519.Sign(privP, hash)
+		}
+	})
 }
 
 func BenchmarkVerify(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		var hash [32]byte
-		rand.Read(hash[:])
+	b.Run("Secp256k1", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		sig, err := priv.Sign(hash[:])
-
 		if err != nil {
 			b.Fatalf("Error occurred: %v", err)
 		}
 
-		b.StartTimer()
-
-		if !sig.Verify(hash[:], pub) {
-			b.Fatalf("Failed to verify signature")
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			sig.Verify(hash[:], pub)
 		}
-	}
+	})
+
+	b.Run("C-Secp256k1", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		pubP, privP := generateKeyPair()
+
+		s, err := secp256k1.Sign(hash, privP)
+		if err != nil {
+			b.Fatalf("Error occurred: %v", err)
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			secp256k1.VerifySignature(pubP, hash, s[:64])
+		}
+	})
+
+	b.Run("P224", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, err := ecdsa.GenerateKey(elliptic.P224(), crand.Reader)
+
+		if err != nil {
+			panic(err)
+		}
+		pubP := privP.PublicKey
+
+		r, s, _ := ecdsa.Sign(crand.Reader, privP, hash)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Verify(&pubP, hash, r, s)
+		}
+	})
+
+	b.Run("P256", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+
+		if err != nil {
+			panic(err)
+		}
+		pubP := privP.PublicKey
+
+		r, s, _ := ecdsa.Sign(crand.Reader, privP, hash)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Verify(&pubP, hash, r, s)
+		}
+
+	})
+
+	b.Run("P384", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, err := ecdsa.GenerateKey(elliptic.P384(), crand.Reader)
+
+		if err != nil {
+			panic(err)
+		}
+		pubP := privP.PublicKey
+
+		r, s, _ := ecdsa.Sign(crand.Reader, privP, hash)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Verify(&pubP, hash, r, s)
+		}
+	})
+
+	b.Run("P521", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		privP, err := ecdsa.GenerateKey(elliptic.P521(), crand.Reader)
+
+		if err != nil {
+			panic(err)
+		}
+		pubP := privP.PublicKey
+
+		r, s, _ := ecdsa.Sign(crand.Reader, privP, hash)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ecdsa.Verify(&pubP, hash, r, s)
+		}
+	})
+
+	b.Run("ed25519", func(b *testing.B) {
+		b.Log(b.Name())
+		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		pubP, privP, err := ed25519.GenerateKey(crand.Reader)
+
+		if err != nil {
+			panic(err)
+		}
+
+		s := ed25519.Sign(privP, hash)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if !ed25519.Verify(pubP, hash, s) {
+				b.Fatal(b.Name())
+			}
+		}
+	})
 }
 
 func BenchmarkPublicKeySerialization(b *testing.B) {
+	b.Log(b.Name())
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pub.Serialize()
 	}
 }
 
 func BenchmarkParsePublicKey(b *testing.B) {
+	b.Log(b.Name())
 	buffer := pub.Serialize()
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := ParsePubKey(buffer)
 
@@ -193,6 +447,7 @@ func BenchmarkParsePublicKey(b *testing.B) {
 }
 
 func BenchmarkSignatureSerialization(b *testing.B) {
+	b.Log(b.Name())
 	var hash [32]byte
 	rand.Read(hash[:])
 	sig, err := priv.Sign(hash[:])
@@ -201,12 +456,15 @@ func BenchmarkSignatureSerialization(b *testing.B) {
 		b.Fatalf("Error occurred: %v", err)
 	}
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sig.Serialize()
 	}
 }
 
 func BenchmarkParseSignature(b *testing.B) {
+	b.Log(b.Name())
 	var hash [32]byte
 	rand.Read(hash[:])
 	sig, err := priv.Sign(hash[:])
@@ -216,6 +474,8 @@ func BenchmarkParseSignature(b *testing.B) {
 		b.Fatalf("Error occurred: %v", err)
 	}
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := ParseSignature(buffer)
 

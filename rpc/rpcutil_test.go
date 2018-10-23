@@ -21,11 +21,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
@@ -64,7 +63,7 @@ func TestCaller_CallNode(t *testing.T) {
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(ServiceMap{"DHT": dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +89,7 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	respA := new(proto.PingResp)
-	err = client.CallNode(conf.GConf.BP.NodeID, "DHT.Ping", reqA, respA)
+	err = client.CallNode(conf.GConf.BP.NodeID, route.DHTPing.String(), reqA, respA)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +192,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(ServiceMap{"DHT": dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +287,7 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(ServiceMap{"DHT": dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashBillingRequest(t *testing.T) {
-	v := BillingRequest{}
+func TestMarshalHashBilling(t *testing.T) {
+	v := Billing{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashBillingRequest(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashBillingRequest(b *testing.B) {
-	v := BillingRequest{}
+func BenchmarkMarshalHashBilling(b *testing.B) {
+	v := Billing{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashBillingRequest(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgBillingRequest(b *testing.B) {
-	v := BillingRequest{}
+func BenchmarkAppendMsgBilling(b *testing.B) {
+	v := Billing{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgBillingRequest(b *testing.B) {
 	}
 }
 
-func TestMarshalHashBillingRequestHeader(t *testing.T) {
-	v := BillingRequestHeader{}
+func TestMarshalHashBillingHeader(t *testing.T) {
+	v := BillingHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashBillingRequestHeader(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashBillingRequestHeader(b *testing.B) {
-	v := BillingRequestHeader{}
+func BenchmarkMarshalHashBillingHeader(b *testing.B) {
+	v := BillingHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,45 +71,8 @@ func BenchmarkMarshalHashBillingRequestHeader(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgBillingRequestHeader(b *testing.B) {
-	v := BillingRequestHeader{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
-func TestMarshalHashBillingResponse(t *testing.T) {
-	v := BillingResponse{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashBillingResponse(b *testing.B) {
-	v := BillingResponse{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgBillingResponse(b *testing.B) {
-	v := BillingResponse{}
+func BenchmarkAppendMsgBillingHeader(b *testing.B) {
+	v := BillingHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

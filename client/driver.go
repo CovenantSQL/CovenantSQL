@@ -22,12 +22,12 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
@@ -37,7 +37,9 @@ const (
 )
 
 func init() {
-	sql.Register("covenantsql", new(covenantSQLDriver))
+	driver := new(covenantSQLDriver)
+	sql.Register("covenantsql", driver)
+	sql.Register("cql", driver)
 }
 
 // covenantSQLDriver implements sql.Driver interface.
@@ -139,7 +141,7 @@ func GetStableCoinBalance() (balance uint64, err error) {
 		return
 	}
 
-	if req.Addr, err = utils.PubKeyHash(pubKey); err != nil {
+	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
 		return
 	}
 
@@ -160,7 +162,7 @@ func GetCovenantCoinBalance() (balance uint64, err error) {
 		return
 	}
 
-	if req.Addr, err = utils.PubKeyHash(pubKey); err != nil {
+	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
 		return
 	}
 

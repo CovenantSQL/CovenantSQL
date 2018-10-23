@@ -533,10 +533,9 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 	}
 
 	// get private/public key
-	var pubKey *asymmetric.PublicKey
 	var privateKey *asymmetric.PrivateKey
 
-	if privateKey, pubKey, err = getKeys(); err != nil {
+	if privateKey, _, err = getKeys(); err != nil {
 		return
 	}
 
@@ -547,7 +546,6 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 				NodeID:    nodeID,
 				Timestamp: getLocalTime(),
 			},
-			Signee: pubKey,
 		},
 	}
 
@@ -576,10 +574,9 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 	}
 
 	// get private/public key
-	var pubKey *asymmetric.PublicKey
 	var privateKey *asymmetric.PrivateKey
 
-	if privateKey, pubKey, err = getKeys(); err != nil {
+	if privateKey, _, err = getKeys(); err != nil {
 		return
 	}
 
@@ -603,7 +600,6 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 				SeqNo:        seqNo,
 				Timestamp:    tm,
 			},
-			Signee: pubKey,
 		},
 		Payload: wt.RequestPayload{
 			Queries: realQueries,
@@ -693,12 +689,12 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	}
 
 	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht}); err != nil {
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
 		return
 	}
 
 	// register bpdb service
-	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
 		return
 	}
 
@@ -743,8 +739,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 		Queries: make([]*hash.Hash, rand.Intn(10)+10),
 	}

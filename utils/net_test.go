@@ -17,12 +17,10 @@
 package utils
 
 import (
-	"testing"
-
-	"net"
-
 	"context"
 	"fmt"
+	"net"
+	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"

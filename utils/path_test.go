@@ -17,11 +17,9 @@
 package utils
 
 import (
-	"testing"
-
 	"io/ioutil"
-
 	"os"
+	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

@@ -17,18 +17,20 @@
 package blockproducer
 
 import (
-	"fmt"
 	"io/ioutil"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -40,12 +42,6 @@ var (
 	testPeriodNumber         uint32 = 10
 	testClientNumberPerChain        = 10
 )
-
-type nodeProfile struct {
-	NodeID     proto.NodeID
-	PrivateKey *asymmetric.PrivateKey
-	PublicKey  *asymmetric.PublicKey
-}
 
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
@@ -62,6 +58,7 @@ func TestChain(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		fl.Close()
+		os.Remove(fl.Name())
 
 		// create genesis block
 		genesis, err := generateRandomBlock(genesisHash, true)
@@ -77,7 +74,7 @@ func TestChain(t *testing.T) {
 		ao, ok := chain.ms.readonly.accounts[testAddress1]
 		So(ok, ShouldBeTrue)
 		So(ao, ShouldNotBeNil)
-		So(chain.ms.pool.entries[testAddress1].transacions, ShouldBeEmpty)
+		So(chain.ms.pool.entries[testAddress1].transactions, ShouldBeEmpty)
 		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 1)
 		var (
 			bl     uint64
@@ -96,69 +93,79 @@ func TestChain(t *testing.T) {
 		So(loaded, ShouldBeTrue)
 		So(bl, ShouldEqual, testInitBalance)
 
-		// Hack for signle instance test
+		// Hack for single instance test
 		chain.rt.bpNum = 5
 
 		for {
 			time.Sleep(testPeriod)
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-				chain.st.getHeader(), chain.st.getHeight(), chain.rt.nextTurn,
+				chain.rt.getHead().getHeader(), chain.rt.getHead().getHeight(), chain.rt.nextTurn,
 				chain.rt.chainInitTime.Add(
 					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
 				chain.rt.isMyTurn())
 
 			// chain will receive blocks and tx
-
 			// receive block
 			// generate valid txbillings
-			tbs := make([]*types.TxBilling, 10)
-			for i := range tbs {
-				tb, err := generateRandomTxBillingWithSeqID(0)
+			tbs := make([]pi.Transaction, 0, 20)
+
+			// pull previous processed transactions
+			tbs = append(tbs, chain.ms.pullTxs()...)
+
+			for i := 0; i != 10; i++ {
+				tb, err := generateRandomAccountBilling()
 				So(err, ShouldBeNil)
-				tbs[i] = tb
+				tbs = append(tbs, tb)
 			}
 
 			// generate block
-			block, err := generateRandomBlockWithTxBillings(*chain.st.getHeader(), tbs)
+			block, err := generateRandomBlockWithTransactions(*chain.rt.getHead().getHeader(), tbs)
 			So(err, ShouldBeNil)
 			err = chain.pushBlock(block)
 			So(err, ShouldBeNil)
+			nextNonce, err := chain.ms.nextNonce(testAddress1)
+			So(err, ShouldBeNil)
 			for _, val := range tbs {
-				So(chain.ti.hasTxBilling(val.TxHash), ShouldBeTrue)
+				// should be packed
+				So(nextNonce >= val.GetAccountNonce(), ShouldBeTrue)
 			}
 			So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
-			// So(chain.st.Height, ShouldEqual, height)
+			// So(chain.rt.getHead().Height, ShouldEqual, height)
 
-			height := chain.st.getHeight()
-			specificHeightBlock1, err := chain.fetchBlockByHeight(height)
+			height := chain.rt.getHead().getHeight()
+			specificHeightBlock1, _, err := chain.fetchBlockByHeight(height)
 			So(err, ShouldBeNil)
 			So(block.SignedHeader.BlockHash, ShouldResemble, specificHeightBlock1.SignedHeader.BlockHash)
-			specificHeightBlock2, err := chain.fetchBlockByHeight(height + 1000)
+			specificHeightBlock2, _, err := chain.fetchBlockByHeight(height + 1000)
 			So(specificHeightBlock2, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 
-			// receive txes
-			receivedTbs := make([]*types.TxBilling, 9)
+			// receive txs
+			receivedTbs := make([]*pt.Billing, 9)
 			for i := range receivedTbs {
-				tb, err := generateRandomTxBillingWithSeqID(0)
+				tb, err := generateRandomAccountBilling()
 				So(err, ShouldBeNil)
 				receivedTbs[i] = tb
-				chain.pushTxBilling(tb)
+				err = chain.processTx(tb)
+				So(err, ShouldBeNil)
 			}
+
+			nextNonce, err = chain.ms.nextNonce(testAddress1)
 
 			for _, val := range receivedTbs {
-				So(chain.ti.hasTxBilling(val.TxHash), ShouldBeTrue)
+				// should be packed or unpacked
+				So(chain.ms.pool.hasTx(val), ShouldBeTrue)
 			}
 
-			// So(height, ShouldEqual, chain.st.Height)
+			// So(height, ShouldEqual, chain.rt.getHead().Height)
 			height++
 
 			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.st.getHeight(),
-				block.SignedHeader.ParentHash,
-				block.SignedHeader.BlockHash)
+				chain.rt.getHead().getHeight(),
+				block.ParentHash(),
+				block.BlockHash())
 
-			if chain.st.getHeight() >= testPeriodNumber {
+			if chain.rt.getHead().getHeight() >= testPeriodNumber {
 				break
 			}
 		}
@@ -197,6 +204,8 @@ func TestMultiNode(t *testing.T) {
 			// create tmp file
 			fl, err := ioutil.TempFile("", "mainchain")
 			So(err, ShouldBeNil)
+			fl.Close()
+			os.Remove(fl.Name())
 
 			// init config
 			cleanup, dht, _, server, err := initNode(configs[i], privateKeys[i])
@@ -264,16 +273,15 @@ func TestMultiNode(t *testing.T) {
 							br, err := generateRandomBillingRequest()
 							c.So(err, ShouldBeNil)
 
-							bReq := &AdviseBillingReq{
+							bReq := &ct.AdviseBillingReq{
 								Envelope: proto.Envelope{
 									// TODO(lambda): Add fields.
 								},
 								Req: br,
 							}
-							bResp := &AdviseBillingResp{}
-							method := fmt.Sprintf("%s.%s", MainChainRPCName, "AdviseBillingRequest")
+							bResp := &ct.AdviseBillingResp{}
 							log.Debugf("CallNode %d hash is %s", val, br.RequestHash)
-							err = chains[i].cl.CallNode(chains[i].rt.nodeID, method, bReq, bResp)
+							err = chains[i].cl.CallNode(chains[i].rt.nodeID, route.MCCAdviseBillingRequest.String(), bReq, bResp)
 							if err != nil {
 								log.WithFields(log.Fields{
 									"peer":         chains[i].rt.getPeerInfoString(),

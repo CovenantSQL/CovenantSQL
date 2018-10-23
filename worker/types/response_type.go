@@ -25,6 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/pkg/errors"
 )
 
 //go:generate hsp
@@ -164,6 +165,7 @@ func (sh *SignedResponseHeader) Verify() (err error) {
 func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// make sure original header is signed
 	if err = sh.Request.Verify(); err != nil {
+		err = errors.Wrapf(err, "SignedResponseHeader %v", sh)
 		return
 	}
 
@@ -172,6 +174,7 @@ func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) 
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

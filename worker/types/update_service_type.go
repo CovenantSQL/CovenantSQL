@@ -120,6 +120,7 @@ func (sh *SignedUpdateServiceHeader) Sign(signer *asymmetric.PrivateKey) (err er
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

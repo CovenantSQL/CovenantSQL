@@ -35,12 +35,12 @@ func newBlockNode(h uint32, block *types.Block, parent *blockNode) *blockNode {
 	var count uint32
 
 	if parent != nil {
-		count = parent.height + 1
+		count = parent.count + 1
 	} else {
 		count = 0
 	}
 	bn := &blockNode{
-		hash:   block.SignedHeader.BlockHash,
+		hash:   *block.BlockHash(),
 		parent: parent,
 		height: h,
 		count:  count,
@@ -79,6 +79,18 @@ func (bn *blockNode) ancestor(h uint32) *blockNode {
 	return ancestor
 }
 
+func (bn *blockNode) ancestorByCount(c uint32) *blockNode {
+	if c > bn.count {
+		return nil
+	}
+
+	ancestor := bn
+	for ancestor != nil && ancestor.count != c {
+		ancestor = ancestor.parent
+	}
+	return ancestor
+}
+
 type blockIndex struct {
 	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode
@@ -93,8 +105,8 @@ func newBlockIndex() *blockIndex {
 }
 
 func (bi *blockIndex) addBlock(b *blockNode) {
-	bi.mu.RLock()
-	defer bi.mu.RUnlock()
+	bi.mu.Lock()
+	defer bi.mu.Unlock()
 
 	bi.index[b.hash] = b
 }
@@ -107,9 +119,9 @@ func (bi *blockIndex) hasBlock(h hash.Hash) bool {
 	return has
 }
 
-func (bi *blockIndex) lookupBlock(h hash.Hash) *blockNode {
+func (bi *blockIndex) lookupNode(h *hash.Hash) *blockNode {
 	bi.mu.RLock()
 	defer bi.mu.RUnlock()
 
-	return bi.index[h]
+	return bi.index[*h]
 }

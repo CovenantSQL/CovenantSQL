@@ -69,17 +69,17 @@ that inspired us:
 ## Libs
 
 ### Network Stack
-<p align="left">
-    <img src="logo/DH-RPC-Layer.png" width=600>
-</p>
 
-  - [DH-RPC](rpc/) := TLS - Cert + DHT
-    - RPC Layer: compatible with golang `net/rpc`
-    - Naming Layer: [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)
-    - Pooling Layer: session pool built on Yamux
-    - Multiplex Layer: Yamux by Hashicorp
-    - Transport Security Layer: [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))
-    - Network Layer: TCP or KCP for optional later
+[DH-RPC](rpc/) := TLS - Cert + DHT
+
+| Layer              | Implementation |
+|:-------------------|:--------------:|
+| RPC                |     `net/rpc`    |
+| Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
+| Pooling            |  Session Pool  |
+| Multiplex          |      Yamux     |
+| Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
+| Network            |       TCP or KCP for optional later      |
 
 
 #### Test Tools
@@ -89,13 +89,16 @@ that inspired us:
 
 #### Connector
 
-CovenantSQL is Still Under Construction(U know..). Test net will be released till Oct. 
+CovenantSQL is still under construction and Testnet is already released, [have a try](https://testnet.covenantsql.io/).
 
-Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) for updates.
 
 - [Golang](client/)
 - [Java](https://github.com/CovenantSQL/covenant-connector)
+- [NodeJS](https://github.com/CovenantSQL/node-covenantsql)
+- [Python](https://github.com/CovenantSQL/python-driver)
 - Coding for more……
+
+Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) for updates.
 
 ## TestNet
 

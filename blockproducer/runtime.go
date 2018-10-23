@@ -23,6 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
@@ -52,10 +53,11 @@ type rt struct {
 	peers      *kayak.Peers
 	nodeID     proto.NodeID
 
-	// TODO(lambda): why need this lock, and why not include index?
 	stateMutex sync.Mutex // Protects following fields.
 	// nextTurn is the height of the next block.
 	nextTurn uint32
+	// head is the current head of the best chain.
+	head *State
 
 	// timeMutex protects following time-relative fields.
 	timeMutex sync.Mutex
@@ -92,12 +94,13 @@ func newRuntime(cfg *Config, accountAddress proto.AccountAddress) *rt {
 		peers:          cfg.Peers,
 		nodeID:         cfg.NodeID,
 		nextTurn:       1,
+		head:           &State{},
 		offset:         time.Duration(0),
 	}
 }
 
 func (r *rt) startService(chain *Chain) {
-	r.server.RegisterService(MainChainRPCName, &ChainRPCService{chain: chain})
+	r.server.RegisterService(route.BlockProducerRPCName, &ChainRPCService{chain: chain})
 }
 
 // nextTick returns the current clock reading and the duration till the next turn. If duration
@@ -153,6 +156,18 @@ func (r *rt) getPeers() *kayak.Peers {
 	defer r.peersMutex.Unlock()
 	peers := r.peers.Clone()
 	return &peers
+}
+
+func (r *rt) getHead() *State {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	return r.head
+}
+
+func (r *rt) setHead(head *State) {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	r.head = head
 }
 
 func (r *rt) stop() {

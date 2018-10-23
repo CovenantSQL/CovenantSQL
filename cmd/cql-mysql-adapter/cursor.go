@@ -29,22 +29,24 @@ import (
 )
 
 var (
-	dbIDRegex        = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
-	emptyResultQuery = regexp.MustCompile("^(?i)\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+VARIABLES|SHOW\\s+DATABASES|SET|ROLLBACK).*$")
-	useDatabaseQuery = regexp.MustCompile("^(?i)\\s*USE\\s+(\\w+)\\s*$")
-	readQuery        = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
+	dbIDRegex          = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
+	specialSelectQuery = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER)\\(\\)\\s*;?\\s*$")
+	emptyResultQuery   = regexp.MustCompile("^(?i)\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+VARIABLES|SHOW\\s+DATABASES|SET|ROLLBACK).*$")
+	useDatabaseQuery   = regexp.MustCompile("^(?i)\\s*USE\\s+`?(\\w+)`?\\s*$")
+	readQuery          = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
 )
 
 // Cursor is a mysql connection handler, like a cursor of normal database.
 type Cursor struct {
+	server        *Server
 	curDBLock     sync.Mutex
 	curDB         string
 	curDBInstance *sql.DB
 }
 
 // NewCursor returns a new cursor.
-func NewCursor() (c *Cursor) {
-	return &Cursor{}
+func NewCursor(s *Server) (c *Cursor) {
+	return &Cursor{server: s}
 }
 
 func (c *Cursor) buildResultSet(rows *sql.Rows) (r *my.Result, err error) {
@@ -149,19 +151,17 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	var conn *sql.DB
 
-	if conn, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
 	// send empty result for variables query/table listing
 	if emptyResultQuery.MatchString(query) {
 		// return empty result
-		return &my.Result{
+		r = &my.Result{
 			Status:       0,
 			InsertId:     0,
 			AffectedRows: 0,
 			Resultset:    nil,
-		}, nil
+		}
+
+		return
 	}
 
 	// use database query, same logic as COM_INIT_DB
@@ -177,6 +177,41 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 			}
 		}
 
+		return
+	}
+
+	// special select database
+	// for libmysql trivial implementations
+	// https://github.com/mysql/mysql-server/blob/4f1d7cf5fcb11a3f84cff27e37100d7295e7d5ca/client/mysql.cc#L4266
+	if matches := specialSelectQuery.FindStringSubmatch(query); len(matches) > 1 {
+		var resultSet *my.Resultset
+
+		switch strings.ToUpper(matches[1]) {
+		case "DATABASE":
+			c.curDBLock.Lock()
+			resultSet, _ = my.BuildSimpleTextResultset(
+				[]string{"DATABASE()"},
+				[][]interface{}{{c.curDB}},
+			)
+			c.curDBLock.Unlock()
+		case "USER":
+			resultSet, _ = my.BuildSimpleTextResultset(
+				[]string{"USER()"},
+				[][]interface{}{{c.server.mysqlUser}},
+			)
+		}
+
+		r = &my.Result{
+			Status:       0,
+			InsertId:     0,
+			AffectedRows: 0,
+			Resultset:    resultSet,
+		}
+
+		return
+	}
+
+	if conn, err = c.ensureDatabase(); err != nil {
 		return
 	}
 

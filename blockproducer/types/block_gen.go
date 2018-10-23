@@ -18,16 +18,12 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x82)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.TxBillings)))
-	for za0001 := range z.TxBillings {
-		if z.TxBillings[za0001] == nil {
-			o = hsp.AppendNil(o)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Transactions)))
+	for za0001 := range z.Transactions {
+		if oTemp, err := z.Transactions[za0001].MarshalHash(); err != nil {
+			return nil, err
 		} else {
-			if oTemp, err := z.TxBillings[za0001].MarshalHash(); err != nil {
-				return nil, err
-			} else {
-				o = hsp.AppendBytes(o, oTemp)
-			}
+			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
 	return
@@ -35,13 +31,9 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Block) Msgsize() (s int) {
-	s = 1 + 13 + z.SignedHeader.Msgsize() + 11 + hsp.ArrayHeaderSize
-	for za0001 := range z.TxBillings {
-		if z.TxBillings[za0001] == nil {
-			s += hsp.NilSize
-		} else {
-			s += z.TxBillings[za0001].Msgsize()
-		}
+	s = 1 + 13 + z.SignedHeader.Msgsize() + 13 + hsp.ArrayHeaderSize
+	for za0001 := range z.Transactions {
+		s += z.Transactions[za0001].Msgsize()
 	}
 	return
 }

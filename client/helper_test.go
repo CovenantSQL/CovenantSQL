@@ -276,17 +276,17 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	}
 
 	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht}); err != nil {
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
 		return
 	}
 
 	// register bpdb service
-	if err = server.RegisterService(bp.DBServiceName, &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
 		return
 	}
 
 	// register fake chain service
-	if err = server.RegisterService(bp.MainChainRPCName, &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(route.BlockProducerRPCName, &stubBPDBService{}); err != nil {
 		return
 	}
 
@@ -329,8 +329,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 		Queries: make([]*hash.Hash, rand.Intn(10)+10),
 	}

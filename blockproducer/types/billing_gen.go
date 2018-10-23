@@ -7,44 +7,24 @@ import (
 )
 
 // MarshalHash marshals for hash
-func (z *BillingRequest) MarshalHash() (o []byte, err error) {
+func (z *Billing) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 3
+	o = append(o, 0x83, 0x83)
+	if oTemp, err := z.BillingHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.Signees)))
-	for za0001 := range z.Signees {
-		if z.Signees[za0001] == nil {
-			o = hsp.AppendNil(o)
-		} else {
-			if oTemp, err := z.Signees[za0001].MarshalHash(); err != nil {
-				return nil, err
-			} else {
-				o = hsp.AppendBytes(o, oTemp)
-			}
-		}
+	o = append(o, 0x83)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.Signatures)))
-	for za0002 := range z.Signatures {
-		if z.Signatures[za0002] == nil {
-			o = hsp.AppendNil(o)
-		} else {
-			if oTemp, err := z.Signatures[za0002].MarshalHash(); err != nil {
-				return nil, err
-			} else {
-				o = hsp.AppendBytes(o, oTemp)
-			}
-		}
-	}
-	o = append(o, 0x84)
-	if oTemp, err := z.RequestHash.MarshalHash(); err != nil {
+	o = append(o, 0x83)
+	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -53,39 +33,29 @@ func (z *BillingRequest) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *BillingRequest) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 8 + hsp.ArrayHeaderSize
-	for za0001 := range z.Signees {
-		if z.Signees[za0001] == nil {
-			s += hsp.NilSize
-		} else {
-			s += z.Signees[za0001].Msgsize()
-		}
-	}
-	s += 11 + hsp.ArrayHeaderSize
-	for za0002 := range z.Signatures {
-		if z.Signatures[za0002] == nil {
-			s += hsp.NilSize
-		} else {
-			s += z.Signatures[za0002].Msgsize()
-		}
-	}
-	s += 12 + z.RequestHash.Msgsize()
+func (z *Billing) Msgsize() (s int) {
+	s = 1 + 14 + z.BillingHeader.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize()
 	return
 }
 
 // MarshalHash marshals for hash
-func (z *BillingRequestHeader) MarshalHash() (o []byte, err error) {
+func (z *BillingHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 6
 	o = append(o, 0x86, 0x86)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.GasAmounts)))
-	for za0001 := range z.GasAmounts {
-		if z.GasAmounts[za0001] == nil {
+	if oTemp, err := z.BillingRequest.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x86)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Receivers)))
+	for za0001 := range z.Receivers {
+		if z.Receivers[za0001] == nil {
 			o = hsp.AppendNil(o)
 		} else {
-			if oTemp, err := z.GasAmounts[za0001].MarshalHash(); err != nil {
+			if oTemp, err := z.Receivers[za0001].MarshalHash(); err != nil {
 				return nil, err
 			} else {
 				o = hsp.AppendBytes(o, oTemp)
@@ -93,23 +63,23 @@ func (z *BillingRequestHeader) MarshalHash() (o []byte, err error) {
 		}
 	}
 	o = append(o, 0x86)
-	if oTemp, err := z.LowBlock.MarshalHash(); err != nil {
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Fees)))
+	for za0002 := range z.Fees {
+		o = hsp.AppendUint64(o, z.Fees[za0002])
+	}
+	o = append(o, 0x86)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Rewards)))
+	for za0003 := range z.Rewards {
+		o = hsp.AppendUint64(o, z.Rewards[za0003])
+	}
+	o = append(o, 0x86)
+	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x86)
-	if oTemp, err := z.HighBlock.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x86)
-	o = hsp.AppendInt32(o, z.LowHeight)
-	o = append(o, 0x86)
-	o = hsp.AppendInt32(o, z.HighHeight)
-	o = append(o, 0x86)
-	if oTemp, err := z.DatabaseID.MarshalHash(); err != nil {
+	if oTemp, err := z.Producer.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -118,73 +88,15 @@ func (z *BillingRequestHeader) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *BillingRequestHeader) Msgsize() (s int) {
-	s = 1 + 11 + hsp.ArrayHeaderSize
-	for za0001 := range z.GasAmounts {
-		if z.GasAmounts[za0001] == nil {
+func (z *BillingHeader) Msgsize() (s int) {
+	s = 1 + 15 + z.BillingRequest.Msgsize() + 10 + hsp.ArrayHeaderSize
+	for za0001 := range z.Receivers {
+		if z.Receivers[za0001] == nil {
 			s += hsp.NilSize
 		} else {
-			s += z.GasAmounts[za0001].Msgsize()
+			s += z.Receivers[za0001].Msgsize()
 		}
 	}
-	s += 9 + z.LowBlock.Msgsize() + 10 + z.HighBlock.Msgsize() + 10 + hsp.Int32Size + 11 + hsp.Int32Size + 11 + z.DatabaseID.Msgsize()
-	return
-}
-
-// MarshalHash marshals for hash
-func (z *BillingResponse) MarshalHash() (o []byte, err error) {
-	var b []byte
-	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if oTemp, err := z.RequestHash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x84)
-	if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *BillingResponse) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 12 + z.RequestHash.Msgsize() + 15 + z.AccountAddress.Msgsize()
+	s += 5 + hsp.ArrayHeaderSize + (len(z.Fees) * (hsp.Uint64Size)) + 8 + hsp.ArrayHeaderSize + (len(z.Rewards) * (hsp.Uint64Size)) + 6 + z.Nonce.Msgsize() + 9 + z.Producer.Msgsize()
 	return
 }

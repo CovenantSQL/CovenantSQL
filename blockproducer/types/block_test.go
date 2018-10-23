@@ -17,14 +17,12 @@
 package types
 
 import (
+	"bytes"
 	"encoding"
 	"reflect"
 	"testing"
 
-	"bytes"
-
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -86,14 +84,13 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 		t.Log("dec hash BinaryMashaler interface")
 	}
 
-	enc, err := block.Serialize()
+	enc, err := utils.EncodeMsgPack(block)
 	if err != nil {
 		t.Fatalf("Failed to mashal binary: %v", err)
 	}
 
 	dec := &Block{}
-
-	err = dec.Deserialize(enc)
+	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
 		t.Fatalf("Failed to unmashal binary: %v", err)
 	}
@@ -108,10 +105,6 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 	}
 	if !bytes.Equal(bts1, bts2) {
 		t.Fatal("hash not stable")
-	}
-
-	if !reflect.DeepEqual(block, dec) {
-		t.Fatalf("value not match")
 	}
 }
 
@@ -132,27 +125,13 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	tb, err := generateRandomTxBilling()
+	tb, err := generateRandomBilling()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	block.PushTx(tb)
+	block.Transactions = append(block.Transactions, tb)
 	err = block.Verify()
 	if err != ErrMerkleRootVerification {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-}
-
-func TestOther_MarshalHash(t *testing.T) {
-	Convey("marshal hash", t, func() {
-		tm := TxType(1)
-		s, err := tm.MarshalHash()
-		So(err, ShouldBeNil)
-		So(s, ShouldNotBeEmpty)
-
-		So(tm.String(), ShouldResemble, "TxUnknown")
-
-		tm = TxType(0)
-		So(tm.String(), ShouldResemble, "TxBilling")
-	})
 }

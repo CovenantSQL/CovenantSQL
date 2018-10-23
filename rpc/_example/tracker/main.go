@@ -25,7 +25,7 @@ func main() {
 	}
 
 	// Register DHT service
-	server, err := rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht})
+	server, err := rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		log.Fatal(err)
 	}

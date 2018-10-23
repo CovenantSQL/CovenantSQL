@@ -259,23 +259,22 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		return
 	}
 
-	req := &bp.AddTxTransferReq{}
+	req := &bp.AddTxReq{}
 	resp := &bp.AddTxResp{}
-	req.Tx = &pt.Transfer{
-		TransferHeader: pt.TransferHeader{
+	req.Tx = pt.NewTransfer(
+		&pt.TransferHeader{
 			Sender:   v.vaultAddress,
 			Receiver: targetAddress,
 			Nonce:    nonceResp.Nonce,
 			Amount:   uint64(r.tokenAmount),
 		},
-		Signee: v.publicKey,
-	}
+	)
 	if err = req.Tx.Sign(v.privateKey); err != nil {
 		// sign failed?
 		return
 	}
 
-	if err = requestBP(route.MCCAddTxTransfer.String(), req, resp); err != nil {
+	if err = requestBP(route.MCCAddTx.String(), req, resp); err != nil {
 		// add transaction failed, try again
 		log.Warningf("send transaction failed: %v", err)
 

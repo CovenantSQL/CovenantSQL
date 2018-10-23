@@ -126,11 +126,7 @@ func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err e
 
 	// if s.consistent == nil, it is called during Init. and AddCache will be called by consistent.InitConsistent
 	if s.consistent != nil {
-		err = s.consistent.AddCache(nodeToSet)
-		if err != nil {
-			//TODO(auxten) even no error will be returned, there may be some inconsistency and needs sync periodically
-			log.Errorf("add consistent cache failed: %s", err)
-		}
+		s.consistent.AddCache(nodeToSet)
 	}
 
 	return s.Storage.Commit(ctx, execLog)

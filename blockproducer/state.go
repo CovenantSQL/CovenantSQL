@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 // State store the node info of chain.
@@ -29,22 +28,6 @@ type State struct {
 	Node   *blockNode
 	Head   hash.Hash
 	Height uint32
-}
-
-// serialize serializes the state.
-func (s *State) serialize() ([]byte, error) {
-	buffer, err := utils.EncodeMsgPack(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-// deserialize deserializes the state.
-func (s *State) deserialize(b []byte) error {
-	err := utils.DecodeMsgPack(b, s)
-	return err
 }
 
 func (s *State) getNode() *blockNode {

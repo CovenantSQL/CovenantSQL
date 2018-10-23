@@ -65,6 +65,7 @@ func (sh *SignedCreateDatabaseRequestHeader) Sign(signer *asymmetric.PrivateKey)
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }
@@ -128,6 +129,7 @@ func (sh *SignedCreateDatabaseResponseHeader) Sign(signer *asymmetric.PrivateKey
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }
@@ -191,6 +193,7 @@ func (sh *SignedDropDatabaseRequestHeader) Sign(signer *asymmetric.PrivateKey) (
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }
@@ -256,6 +259,7 @@ func (sh *SignedGetDatabaseRequestHeader) Sign(signer *asymmetric.PrivateKey) (e
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }
@@ -318,6 +322,7 @@ func (sh *SignedGetDatabaseResponseHeader) Sign(signer *asymmetric.PrivateKey) (
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

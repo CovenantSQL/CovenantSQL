@@ -41,7 +41,6 @@ var (
 	testTick                                  = 100 * time.Millisecond
 	testQueryTTL             int32            = 10
 	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testChainService                          = "SQLC"
 	testPeriodNumber         int32            = 10
 	testClientNumberPerChain                  = 3
 )
@@ -155,7 +154,7 @@ func TestMultiChain(t *testing.T) {
 		defer server.Stop()
 
 		// Create multiplexing service from RPC server
-		mux := NewMuxService(testChainService, server)
+		mux := NewMuxService(route.SQLChainRPCName, server)
 
 		// Create chain instance
 		config := &Config{
@@ -232,7 +231,7 @@ func TestMultiChain(t *testing.T) {
 	// Start BP
 	if dht, err := route.NewDHTService(testDHTStoreFile, new(consistent.KMSStorage), true); err != nil {
 		t.Fatalf("Error occurred: %v", err)
-	} else if err = bpsvr.RegisterService("DHT", dht); err != nil {
+	} else if err = bpsvr.RegisterService(route.DHTRPCName, dht); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
 

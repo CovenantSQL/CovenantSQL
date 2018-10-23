@@ -98,8 +98,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 	}
 

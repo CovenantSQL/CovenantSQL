@@ -434,15 +434,13 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *ct.Block) (err
 }
 
 func (s *Service) stop() (err error) {
-	if atomic.LoadInt32(&s.stopped) == 1 {
+	if !atomic.CompareAndSwapInt32(&s.stopped, 0, 1) {
 		// stopped
 		return ErrStopped
 	}
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
-
-	atomic.StoreInt32(&s.stopped, 1)
 
 	// send cancel subscription to all databases
 	log.Infof("stop subscribing all databases")
@@ -492,14 +490,8 @@ func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstan
 		return
 	}
 
-	pubKey, err := kms.GetLocalPublicKey()
-	if err != nil {
-		return
-	}
-
 	req := &bp.GetDatabaseRequest{}
 	req.Header.DatabaseID = dbID
-	req.Header.Signee = pubKey
 	if err = req.Sign(privateKey); err != nil {
 		return
 	}

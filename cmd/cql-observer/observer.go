@@ -20,8 +20,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 )
 
 func registerNode() (err error) {
@@ -48,7 +48,7 @@ func startService(server *rpc.Server) (service *Service, err error) {
 		return
 	}
 
-	if err = server.RegisterService(ct.ObserverService, service); err != nil {
+	if err = server.RegisterService(route.ObserverRPCName, service); err != nil {
 		return
 	}
 

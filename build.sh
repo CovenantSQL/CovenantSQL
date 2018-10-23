@@ -49,5 +49,8 @@ CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/Covena
 cql_mysql_adapter_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter"
 CGO_ENABLED=1 go build -ldflags "-X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/cql-mysql-adapter ${cql_mysql_adapter_pkgpath}
 
+cql_explorer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer"
+CGO_ENABLED=1 go build -ldflags "-X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/cql-explorer ${cql_explorer_pkgpath}
+
 echo "done"
 

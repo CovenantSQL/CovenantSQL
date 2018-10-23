@@ -119,7 +119,8 @@ func (s *Service) getBlockByCount(c uint32) (b *pt.Block, count uint32, height u
 	it := s.db.NewIterator(util.BytesPrefix(bKey), nil)
 	if it.First() {
 		// decode
-		hBytes := it.Key()[len(bKey):]
+		bKeyLen := len(bKey)
+		hBytes := it.Key()[bKeyLen : bKeyLen+4]
 		height = bytesToUint32(hBytes)
 		count = c
 		err = utils.DecodeMsgPack(it.Value(), &b)
@@ -234,13 +235,8 @@ func (s *Service) getHighestCount() (c uint32, err error) {
 	if it.Last() {
 		// decode block count from key
 		blockKey := it.Key()
-		if len(blockKey)-len(blockKeyPrefix) == 4 {
-			// valid block
-			prefixLen := len(blockKeyPrefix)
-			c = bytesToUint32(blockKey[prefixLen:])
-		} else {
-			err = ErrNotFound
-		}
+		prefixLen := len(blockKeyPrefix)
+		c = bytesToUint32(blockKey[prefixLen : prefixLen+4])
 	} else {
 		err = ErrNotFound
 	}
@@ -273,7 +269,7 @@ func (s *Service) getSubscriptionCheckpoint() (err error) {
 
 	log.WithFields(log.Fields{
 		"count": lastBlockCount,
-	}).Infof("get last block count: %v", err)
+	}).Infof("fetched last block count")
 
 	atomic.StoreUint32(&s.nextBlockToFetch, lastBlockCount+1)
 
@@ -311,12 +307,15 @@ func (s *Service) requestBlock() {
 
 	if err := s.requestBP(route.MCCFetchBlockByCount.String(), req, resp); err != nil {
 		// fetch block failed
-		log.Warningf("fetch block failed， wait for next round: %v", err)
+		log.Warningf("fetch block failed，wait for next round: %v", err)
 		return
 	}
 
 	// process block
-	s.processBlock(blockCount, resp.Height, resp.Block)
+	if err := s.processBlock(blockCount, resp.Height, resp.Block); err != nil {
+		log.Warningf("process block failed, try fetch/process again: %v", err)
+		return
+	}
 
 	atomic.AddUint32(&s.nextBlockToFetch, 1)
 
@@ -350,9 +349,8 @@ func (s *Service) processBlock(c uint32, h uint32, b *pt.Block) (err error) {
 }
 
 func (s *Service) saveTransactions(c uint32, txs []pi.Transaction) (err error) {
-	if txs == nil {
-		log.Warning("nil transactions received")
-		return ErrNilTransactions
+	if txs == nil || len(txs) == 0 {
+		return
 	}
 
 	for _, t := range txs {

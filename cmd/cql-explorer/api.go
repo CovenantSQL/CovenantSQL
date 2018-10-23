@@ -182,7 +182,7 @@ func (a *explorerAPI) formatBlock(count uint32, height uint32, b *pt.Block) map[
 			"parent":    b.ParentHash().String(),
 			"timestamp": a.formatTime(b.Timestamp()),
 			"version":   b.SignedHeader.Version,
-			"producer":  b.Producer(),
+			"producer":  b.SignedHeader.Producer.String(),
 			"txs":       txs,
 		},
 	}

@@ -21,8 +21,6 @@ import "github.com/pkg/errors"
 var (
 	// ErrNilBlock represents nil block received.
 	ErrNilBlock = errors.New("nil block received")
-	// ErrNilTransactions represents nil transaction received.
-	ErrNilTransactions = errors.New("nil transactions received")
 	// ErrNilTransaction represents nil transaction received.
 	ErrNilTransaction = errors.New("nil transaction received")
 	// ErrStopped defines error on explorer service has already stopped

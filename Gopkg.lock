@@ -423,7 +423,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a2781c62eecc87e942c9e9e84e5aeeba9957b6cd2f9b78f536d6f2a795577950"
+  digest = "1:f3d21af6a9155985b00fce6c2d0c332599532888fc8ce4a5259adab626213a12"
   name = "github.com/siddontang/go-mysql"
   packages = [
     "mysql",
@@ -431,7 +431,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "a2685e59bda4b33ae8a7c95ace99cf2ea7804db3"
+  revision = "e7b629323f339a0921c3dd19a0aca4c3f56c83e0"
   source = "github.com/CovenantSQL/go-mysql"
 
 [[projects]]

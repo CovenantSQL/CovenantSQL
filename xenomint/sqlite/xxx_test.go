@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -31,12 +32,28 @@ var (
 )
 
 func setup() {
-	var err error
+	const minNoFile uint64 = 4096
+	var (
+		err error
+		lmt syscall.Rlimit
+	)
+
 	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
 		panic(err)
 	}
 
 	rand.Seed(time.Now().UnixNano())
+
+	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+		panic(err)
+	}
+	if lmt.Max < minNoFile {
+		panic("insufficient max RLIMIT_NOFILE")
+	}
+	lmt.Cur = lmt.Max
+	if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+		panic(err)
+	}
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)

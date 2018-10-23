@@ -98,8 +98,6 @@ func TestStorage(t *testing.T) {
 								if err = st.Reader().QueryRow(
 									`SELECT "v" FROM "t1" WHERE "k"=?`, k,
 								).Scan(&v); err != sql.ErrNoRows {
-									// NOTE(leventeliu): may require a `ulimit -n` setup if
-									// an "unable to open database file" error is reported here.
 									if err != nil {
 										ec <- err
 									} else {
@@ -166,8 +164,6 @@ func TestStorage(t *testing.T) {
 								if err = st.DirtyReader().QueryRow(
 									`SELECT "v" FROM "t1" WHERE "k"=?`, k,
 								).Scan(&v); err != sql.ErrNoRows {
-									// NOTE(leventeliu): may require a `ulimit -n` setup if
-									// an "unable to open database file" error is reported here.
 									if err != nil {
 										ec <- err
 									} else {

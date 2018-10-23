@@ -107,7 +107,6 @@ func TestStorage(t *testing.T) {
 									}
 									return
 								}
-								time.Sleep(100 * time.Millisecond)
 							case <-sc:
 								return
 							}
@@ -177,7 +176,6 @@ func TestStorage(t *testing.T) {
 									}
 									return
 								}
-								time.Sleep(100 * time.Millisecond)
 							case <-sc:
 								return
 							}

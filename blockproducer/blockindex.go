@@ -79,6 +79,18 @@ func (bn *blockNode) ancestor(h uint32) *blockNode {
 	return ancestor
 }
 
+func (bn *blockNode) ancestorByCount(c uint32) *blockNode {
+	if c > bn.count {
+		return nil
+	}
+
+	ancestor := bn
+	for ancestor != nil && ancestor.count != c {
+		ancestor = ancestor.parent
+	}
+	return ancestor
+}
+
 type blockIndex struct {
 	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode

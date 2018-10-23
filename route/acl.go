@@ -121,6 +121,8 @@ const (
 	MCCAdviseBillingRequest
 	// MCCFetchBlock is used by nodes to fetch block from block producer
 	MCCFetchBlock
+	// MCCFetchBlockByCount is used by nodes to fetch block from block producer by block count since genesis
+	MCCFetchBlockByCount
 	// MCCFetchTxBilling is used by nodes to fetch billing transaction from block producer
 	MCCFetchTxBilling
 	// MCCNextAccountNonce is used by block producer main chain to allocate next nonce for transactions
@@ -209,6 +211,8 @@ func (s RemoteFunc) String() string {
 		return "MCC.AdviseBillingRequest"
 	case MCCFetchBlock:
 		return "MCC.FetchBlock"
+	case MCCFetchBlockByCount:
+		return "MCC.FetchBlockByCount"
 	case MCCFetchTxBilling:
 		return "MCC.FetchTxBilling"
 	case MCCNextAccountNonce:

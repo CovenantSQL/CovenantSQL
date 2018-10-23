@@ -469,24 +469,44 @@ func (c *Chain) checkBillingRequest(br *pt.BillingRequest) (err error) {
 	return
 }
 
-func (c *Chain) fetchBlockByHeight(h uint32) (*pt.Block, error) {
+func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.Block, count uint32, err error) {
 	node := c.rt.getHead().getNode().ancestor(h)
 	if node == nil {
-		return nil, ErrNoSuchBlock
+		return nil, 0, ErrNoSuchBlock
 	}
 
-	b := &pt.Block{}
+	b = &pt.Block{}
 	k := node.indexKey()
 
-	err := c.db.View(func(tx *bolt.Tx) error {
+	err = c.db.View(func(tx *bolt.Tx) error {
 		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
 		return utils.DecodeMsgPack(v, b)
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return b, nil
+	return b, node.count, nil
+}
+
+func (c *Chain) fetchBlockByCount(count uint32) (b *pt.Block, height uint32, err error) {
+	node := c.rt.getHead().getNode().ancestorByCount(count)
+	if node == nil {
+		return nil, 0, ErrNoSuchBlock
+	}
+
+	b = &pt.Block{}
+	k := node.indexKey()
+
+	err = c.db.View(func(tx *bolt.Tx) error {
+		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
+		return utils.DecodeMsgPack(v, b)
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return b, node.height, nil
 }
 
 // runCurrentTurn does the check and runs block producing if its my turn.

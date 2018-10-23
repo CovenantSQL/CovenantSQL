@@ -101,7 +101,7 @@ func TestChain(t *testing.T) {
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
 				chain.rt.getHead().getHeader(), chain.rt.getHead().getHeight(), chain.rt.nextTurn,
 				chain.rt.chainInitTime.Add(
-					chain.rt.period * time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
+					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
 				chain.rt.isMyTurn())
 
 			// chain will receive blocks and tx
@@ -133,10 +133,10 @@ func TestChain(t *testing.T) {
 			// So(chain.rt.getHead().Height, ShouldEqual, height)
 
 			height := chain.rt.getHead().getHeight()
-			specificHeightBlock1, err := chain.fetchBlockByHeight(height)
+			specificHeightBlock1, _, err := chain.fetchBlockByHeight(height)
 			So(err, ShouldBeNil)
 			So(block.SignedHeader.BlockHash, ShouldResemble, specificHeightBlock1.SignedHeader.BlockHash)
-			specificHeightBlock2, err := chain.fetchBlockByHeight(height + 1000)
+			specificHeightBlock2, _, err := chain.fetchBlockByHeight(height + 1000)
 			So(specificHeightBlock2, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 

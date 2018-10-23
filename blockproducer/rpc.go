@@ -60,7 +60,14 @@ type FetchBlockReq struct {
 type FetchBlockResp struct {
 	proto.Envelope
 	Height uint32
+	Count  uint32
 	Block  *types.Block
+}
+
+// FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.
+type FetchBlockByCountReq struct {
+	proto.Envelope
+	Count uint32
 }
 
 // FetchTxBillingReq defines a request of the FetchTxBilling RPC method.
@@ -141,15 +148,31 @@ func (s *ChainRPCService) AdviseBillingRequest(req *ct.AdviseBillingReq, resp *c
 	return nil
 }
 
-// FetchBlock is the RPC method to fetch a known block form the target server.
+// FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
 	resp.Height = req.Height
-	block, err := s.chain.fetchBlockByHeight(req.Height)
+	block, count, err := s.chain.fetchBlockByHeight(req.Height)
+	if err != nil {
+		return err
+	}
 	resp.Block = block
+	resp.Count = count
 	return err
 }
 
-// FetchTxBilling is the RPC method to fetch a known billing tx form the target server.
+// FetchBlockByCount is the RPC method to fetch a known block from the target server.
+func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *FetchBlockResp) error {
+	resp.Count = req.Count
+	block, height, err := s.chain.fetchBlockByCount(req.Count)
+	if err != nil {
+		return err
+	}
+	resp.Block = block
+	resp.Height = height
+	return err
+}
+
+// FetchTxBilling is the RPC method to fetch a known billing tx from the target server.
 func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
 	return nil
 }

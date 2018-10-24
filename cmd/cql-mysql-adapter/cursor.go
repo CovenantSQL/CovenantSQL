@@ -25,6 +25,7 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	my "github.com/siddontang/go-mysql/mysql"
 )
 
@@ -277,6 +278,8 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 // if Result has a Resultset (SELECT, SHOW, etc...), we will send this as the repsonse, otherwise, we will send Result.
 func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	var processed bool
+
+	log.WithField("query", query).Info("received query")
 
 	if r, processed, err = c.handleSpecialQuery(query); processed {
 		return

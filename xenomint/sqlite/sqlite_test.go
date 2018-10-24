@@ -421,7 +421,7 @@ func backgroundIdleTxWriter(
 ) {
 	const (
 		cmtNum      = 100
-		writeIntlMS = 100
+		writeIntlMS = 1
 	)
 	var (
 		tx     *sql.Tx

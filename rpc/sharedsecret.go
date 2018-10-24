@@ -36,8 +36,9 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 		log.Debug("using anonymous ETLS")
 	} else {
 		symmetricKeyI, ok := symmetricKeyCache.Load(nodeID)
-		symmetricKey, _ = symmetricKeyI.([]byte)
-		if !ok {
+		if ok {
+			symmetricKey, _ = symmetricKeyI.([]byte)
+		} else {
 			var remotePublicKey *asymmetric.PublicKey
 			if route.IsBPNodeID(nodeID) {
 				remotePublicKey = kms.BP.PublicKey

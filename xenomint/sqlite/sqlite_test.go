@@ -45,8 +45,12 @@ func TestStorage(t *testing.T) {
 			// Clean database file after each pass
 			err = st.Close()
 			So(err, ShouldBeNil)
-			err = os.Truncate(fl, 0)
+			err = os.Remove(fl)
 			So(err, ShouldBeNil)
+			err = os.Remove(fmt.Sprintf("%s-shm", fl))
+			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
+			err = os.Remove(fmt.Sprintf("%s-wal", fl))
+			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
 		})
 		Convey("When a basic KV table is created", func(c C) {
 			// Create basic table for testing
@@ -310,7 +314,13 @@ func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
 	if err = st.Close(); err != nil {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
-	if err = os.Truncate(fl, 0); err != nil {
+	if err = os.Remove(fl); err != nil {
+		b.Fatalf("Failed to teardown bench environment: %v", err)
+	}
+	if err = os.Remove(fmt.Sprintf("%s-shm", fl)); err != nil && !os.IsNotExist(err) {
+		b.Fatalf("Failed to teardown bench environment: %v", err)
+	}
+	if err = os.Remove(fmt.Sprintf("%s-wal", fl)); err != nil && !os.IsNotExist(err) {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
 }

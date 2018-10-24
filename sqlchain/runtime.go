@@ -298,17 +298,6 @@ func (r *runtime) isMyTurn() (ret bool) {
 	return
 }
 
-func (r *runtime) getNextProducerIndex() int32 {
-	r.stateMutex.Lock()
-	defer r.stateMutex.Unlock()
-
-	if r.total > 0 {
-		return (r.head.Height + 1) % r.total
-	}
-
-	return -1
-}
-
 func (r *runtime) getPeers() *kayak.Peers {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()

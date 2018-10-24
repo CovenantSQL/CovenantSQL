@@ -997,7 +997,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	total := int32(len(peers.Servers))
 	next := func() int32 {
 		if total > 0 {
-			return (head.Height + 1) % total
+			return (c.rt.getNextTurn() - 1) % total
 		}
 		return -1
 	}()

@@ -63,29 +63,29 @@ func NewSqlite(filename string) (s *SQLite3, err error) {
 	var (
 		instance = &SQLite3{filename: filename}
 
-		dirtyReaderDSN = strings.Join([]string{filename, dsnParams{
+		shmRODSN = strings.Join([]string{filename, dsnParams{
 			"_journal_mode": "WAL",
 			"_query_only":   "on",
 			"cache":         "shared",
 		}.encode()}, "?")
 
-		readerDSN = strings.Join([]string{filename, dsnParams{
+		privRODSN = strings.Join([]string{filename, dsnParams{
 			"_journal_mode": "WAL",
 			"_query_only":   "on",
 		}.encode()}, "?")
 
-		writerDSN = strings.Join([]string{filename, dsnParams{
+		shmRWDSN = strings.Join([]string{filename, dsnParams{
 			"_journal_mode": "WAL",
 			"cache":         "shared",
 		}.encode()}, "?")
 	)
-	if instance.dirtyReader, err = sql.Open(dirtyReadDriver, dirtyReaderDSN); err != nil {
+	if instance.dirtyReader, err = sql.Open(dirtyReadDriver, shmRODSN); err != nil {
 		return
 	}
-	if instance.reader, err = sql.Open(serializableDriver, readerDSN); err != nil {
+	if instance.reader, err = sql.Open(serializableDriver, privRODSN); err != nil {
 		return
 	}
-	if instance.writer, err = sql.Open(serializableDriver, writerDSN); err != nil {
+	if instance.writer, err = sql.Open(serializableDriver, shmRWDSN); err != nil {
 		return
 	}
 	s = instance
@@ -112,14 +112,11 @@ func (s *SQLite3) Close() (err error) {
 	if err = s.dirtyReader.Close(); err != nil {
 		return
 	}
-
 	if err = s.reader.Close(); err != nil {
 		return
 	}
-
 	if err = s.writer.Close(); err != nil {
 		return
 	}
-
 	return
 }

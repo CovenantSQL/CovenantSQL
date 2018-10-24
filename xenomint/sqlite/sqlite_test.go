@@ -38,7 +38,7 @@ func TestStorage(t *testing.T) {
 			st  xi.Storage
 			err error
 		)
-		st, err = NewSqlite(fmt.Sprintf("file:%s", fl))
+		st, err = NewSqlite(fmt.Sprint("file:", fl))
 		So(err, ShouldBeNil)
 		So(st, ShouldNotBeNil)
 		Reset(func() {
@@ -47,9 +47,9 @@ func TestStorage(t *testing.T) {
 			So(err, ShouldBeNil)
 			err = os.Remove(fl)
 			So(err, ShouldBeNil)
-			err = os.Remove(fmt.Sprintf("%s-shm", fl))
+			err = os.Remove(fmt.Sprint(fl, "-shm"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
-			err = os.Remove(fmt.Sprintf("%s-wal", fl))
+			err = os.Remove(fmt.Sprint(fl, "-wal"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
 		})
 		Convey("When a basic KV table is created", func(c C) {
@@ -87,7 +87,7 @@ func TestStorage(t *testing.T) {
 				for i := 0; i < passes; i++ {
 					wg.Add(1)
 					go func(k int) {
-						var ticker = time.NewTicker(100 * time.Millisecond)
+						var ticker = time.NewTicker(1 * time.Millisecond)
 						defer func() {
 							ticker.Stop()
 							wg.Done()
@@ -125,10 +125,9 @@ func TestStorage(t *testing.T) {
 					So(errs, ShouldBeZeroValue)
 				}()
 				for i := 0; i < passes; i++ {
-					_, err = st.Writer().Exec(
+					if _, err = st.Writer().Exec(
 						`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, i, fmt.Sprintf("v%d", i),
-					)
-					if err != nil {
+					); err != nil {
 						abortReaders()
 					}
 					So(err, ShouldBeNil)
@@ -153,7 +152,7 @@ func TestStorage(t *testing.T) {
 				for i := 0; i < passes; i++ {
 					wg.Add(1)
 					go func(k int) {
-						var ticker = time.NewTicker(100 * time.Millisecond)
+						var ticker = time.NewTicker(1 * time.Millisecond)
 						defer func() {
 							ticker.Stop()
 							wg.Done()
@@ -199,7 +198,7 @@ func TestStorage(t *testing.T) {
 						rv string
 					)
 					if _, err = tx.Exec(
-						`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, i, fmt.Sprintf("v%d", i),
+						`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, i, v,
 					); err != nil {
 						abortReaders()
 					}
@@ -212,7 +211,7 @@ func TestStorage(t *testing.T) {
 					}
 					So(err, ShouldBeNil)
 					So(rv, ShouldEqual, v)
-					c.Printf("\n        Write pair to t1 in transaction: k=%d v=v%d ", i, i)
+					c.Printf("\n        Write pair to t1 in transaction: k=%d v=%s ", i, v)
 				}
 				// Reader connection should not see any uncommitted change
 				for i := 0; i < passes; i++ {
@@ -242,7 +241,7 @@ func setupBenchmarkStorage(
 		err  error
 		stmt *sql.Stmt
 	)
-	if st, err = NewSqlite(fmt.Sprintf("file:%s", fl)); err != nil {
+	if st, err = NewSqlite(fmt.Sprint("file:", fl)); err != nil {
 		b.Fatalf("Failed to setup bench environment: %v", err)
 	}
 	if _, err = st.Writer().Exec(
@@ -317,10 +316,10 @@ func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
 	if err = os.Remove(fl); err != nil {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
-	if err = os.Remove(fmt.Sprintf("%s-shm", fl)); err != nil && !os.IsNotExist(err) {
+	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
-	if err = os.Remove(fmt.Sprintf("%s-wal", fl)); err != nil && !os.IsNotExist(err) {
+	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
 }

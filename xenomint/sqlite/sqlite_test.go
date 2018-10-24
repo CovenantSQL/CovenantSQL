@@ -231,7 +231,7 @@ func setupBenchmarkStorage(
 	e string, src [][]interface{},
 ) {
 	const (
-		cols    = 3
+		vnum    = 3
 		vlen    = 100
 		records = 1000
 	)
@@ -256,8 +256,8 @@ func setupBenchmarkStorage(
 	}
 	for i := 0; i < records; i++ {
 		var (
-			vals [cols][vlen]byte
-			args [cols + 1]interface{}
+			vals [vnum][vlen]byte
+			args [vnum + 1]interface{}
 		)
 		args[0] = i
 		for i := range vals {
@@ -272,8 +272,8 @@ func setupBenchmarkStorage(
 	// Setup query string and dest slice
 	q = `SELECT "v1", "v2", "v3" FROM "t2" WHERE "k"=?`
 	makeDest = func() (dest []interface{}) {
-		var outv [cols]string
-		dest = make([]interface{}, cols)
+		var outv [vnum]string
+		dest = make([]interface{}, vnum)
 		for i := range outv {
 			dest[i] = &outv[i]
 		}
@@ -294,18 +294,22 @@ func setupBenchmarkStorage(
 `
 	src = make([][]interface{}, records)
 	for i := range src {
-		var vals [cols][vlen]byte
-		src[i] = make([]interface{}, cols+1)
+		var vals [vnum][vlen]byte
+		src[i] = make([]interface{}, vnum+1)
 		src[i][0] = i + records
 		for j := range vals {
 			rand.Read(vals[j][:])
 			src[i][j+1] = string(vals[j][:])
 		}
 	}
+
+	b.ResetTimer()
 	return
 }
 
 func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
+	b.StopTimer()
+
 	var (
 		fl  = path.Join(testDataDir, b.Name())
 		err error
@@ -497,7 +501,10 @@ func benchmarkStorageSequentialReadWithBackgroundWriter(b *testing.B, getReader 
 	go write(b, wg, sc, st, n, e, src)
 
 	for i := 0; i < b.N; i++ {
-		if err = getReader(st).QueryRow(q, rand.Intn(n)).Scan(dest...); err != nil {
+		// Query in [n, 2n-1] key space
+		if err = getReader(st).QueryRow(
+			q, rand.Intn(n)+n,
+		).Scan(dest...); err != nil && err != sql.ErrNoRows {
 			b.Fatalf("Failed to query values: %v", err)
 		}
 	}

@@ -218,7 +218,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234",
+		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
 		Count:  10,
 	}
 	resp := new(proto.FindNeighborResp)
@@ -239,7 +239,7 @@ func TestNewPersistentCaller(t *testing.T) {
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
 				reqF := &proto.FindNeighborReq{
-					NodeID: "1234",
+					NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
 					Count:  10,
 				}
 				respF := new(proto.FindNeighborResp)

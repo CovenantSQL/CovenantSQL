@@ -238,7 +238,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	log.Debugf("respB: %v", respB)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "123",
+		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
 		Count:  10,
 	}
 	resp := new(proto.FindNeighborResp)

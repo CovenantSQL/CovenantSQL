@@ -50,12 +50,13 @@ var (
 	// PeersUpdateInterval defines peers list refresh interval for client.
 	PeersUpdateInterval = time.Second * 5
 
-	driverInitialized uint32
-	peerList          sync.Map
-	connIDLock        sync.Mutex
-	connIDAvail       []uint64
-	globalSeqNo       uint64
-	randSource        = rand.New(rand.NewSource(time.Now().UnixNano()))
+	driverInitialized   uint32
+	peersUpdaterRunning uint32
+	peerList            sync.Map
+	connIDLock          sync.Mutex
+	connIDAvail         []uint64
+	globalSeqNo         uint64
+	randSource          = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 func init() {
@@ -264,8 +265,16 @@ func runPeerListUpdater() (err error) {
 		return
 	}
 
+	if !atomic.CompareAndSwapUint32(&peersUpdaterRunning, 0, 1) {
+		return
+	}
+
 	go func() {
 		for {
+			if atomic.LoadUint32(&peersUpdaterRunning) == 0 {
+				return
+			}
+
 			var wg sync.WaitGroup
 
 			peerList.Range(func(rawDBID, _ interface{}) bool {
@@ -300,6 +309,10 @@ func runPeerListUpdater() (err error) {
 	}()
 
 	return
+}
+
+func stopPeersUpdater() {
+	atomic.StoreUint32(&peersUpdaterRunning, 0)
 }
 
 func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *kayak.Peers, err error) {

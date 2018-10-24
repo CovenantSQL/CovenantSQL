@@ -44,6 +44,7 @@ func TestInit(t *testing.T) {
 		bps := route.GetBPs()
 		So(len(bps), ShouldBeGreaterThanOrEqualTo, 1)
 		//So(bps[0].ToRawNodeID().ToNodeID(), ShouldResemble, (*conf.GConf.KnownNodes)[0].ID)
+		stopPeersUpdater()
 	})
 }
 

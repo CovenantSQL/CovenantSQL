@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"time"
@@ -257,6 +258,11 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err error) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "writeQuery")
+	defer task.End()
+	defer trace.StartRegion(ctx, "writeQueryRegion").End()
+
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {
 		path := filepath.Join(db.cfg.DataDir, StorageFileName)

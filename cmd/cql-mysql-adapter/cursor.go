@@ -30,15 +30,15 @@ import (
 )
 
 var (
-	dbIDRegex                  = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
-	specialSelectQuery         = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER)\\(\\)\\s*;?\\s*$")
-	emptyResultQuery           = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SET|ROLLBACK|SHOW\\s+WARNINGS).*$")
-	emptyResultWithColumnQuery = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SELECT\\s+)?@@(?:\\w+\\.)?.*$")
-	showVariablesQuery         = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+VARIABLES.*$")
-	showDatabasesQuery         = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+DATABASES.*$")
-	useDatabaseQuery           = regexp.MustCompile("^(?i)\\s*USE\\s+`?(\\w+)`?\\s*$")
-	readQuery                  = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
-	mysqlServerVariables       = map[string]interface{}{
+	dbIDRegex                     = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
+	specialSelectQuery            = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER)\\(\\)\\s*;?\\s*$")
+	emptyResultQuery              = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SET|ROLLBACK).*$")
+	emptyResultWithResultSetQuery = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+WARNINGS).*$")
+	showVariablesQuery            = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+VARIABLES.*$")
+	showDatabasesQuery            = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+DATABASES.*$")
+	useDatabaseQuery              = regexp.MustCompile("^(?i)\\s*USE\\s+`?(\\w+)`?\\s*$")
+	readQuery                     = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
+	mysqlServerVariables          = map[string]interface{}{
 		"max_allowed_packet":       255 * 255 * 255,
 		"auto_increment_increment": 1,
 		"transaction_isolation":    "SERIALIZABLE",
@@ -144,7 +144,7 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 			Resultset:    nil,
 		}
 		processed = true
-	} else if emptyResultWithColumnQuery.MatchString(query) { // send empty result include dummy column
+	} else if emptyResultWithResultSetQuery.MatchString(query) { // send empty result include non-nil result set
 		// return empty result with empty result set
 		var resultSet *my.Resultset
 		var columns []string
@@ -159,7 +159,7 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 
 		if len(columns) == 0 {
 			columns = append(columns, "_")
-			row = append(row, nil)
+			row = make([]interface{}, 0)
 		}
 
 		resultSet, _ = my.BuildSimpleTextResultset(columns, [][]interface{}{row})

@@ -1,3 +1,4 @@
+*.trace
 pprof.txt
 .dsn
 *.svg

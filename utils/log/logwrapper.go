@@ -97,19 +97,20 @@ func (hook *CallerHook) caller() (relFuncName, caller string) {
 		funcName = "unknown"
 	)
 	pcs := make([]uintptr, 10)
-	runtime.Callers(7, pcs)
-	frames := runtime.CallersFrames(pcs)
-	for {
-		f, more := frames.Next()
-		if strings.HasSuffix(f.File, "logwrapper.go") && more {
-			f, _ = frames.Next()
-			file = f.File
-			line = f.Line
-			funcName = f.Function
-			break
-		}
-		if !more {
-			break
+	if runtime.Callers(7, pcs) > 0 {
+		frames := runtime.CallersFrames(pcs)
+		for {
+			f, more := frames.Next()
+			if strings.HasSuffix(f.File, "logwrapper.go") && more {
+				f, _ = frames.Next()
+				file = f.File
+				line = f.Line
+				funcName = f.Function
+				break
+			}
+			if !more {
+				break
+			}
 		}
 	}
 

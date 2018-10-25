@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -134,8 +132,8 @@ func (id *NodeID) IsEqual(target *NodeID) bool {
 
 // MarshalBinary does the serialization
 func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
-	if len(*id) != 2*hash.HashSize {
-		return nil, errors.New("nodeID len should be 64")
+	if id == nil {
+		return []byte{}, nil
 	}
 	h, err := hash.NewHashFromStr(string(*id))
 	return h[:], err

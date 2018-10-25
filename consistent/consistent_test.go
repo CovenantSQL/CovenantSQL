@@ -27,6 +27,8 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -35,6 +37,19 @@ import (
 
 const testStorePath = "./test.store"
 
+var o sync.Once
+
+func init() {
+	o.Do(func() {
+		kms.Unittest = true
+		os.Remove(testStorePath)
+		x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
+		if x == nil {
+			log.Fatal("InitConsistent failed")
+		}
+	})
+}
+
 // CheckNum make int assertion
 func CheckNum(num, expected int, t *testing.T) {
 	if num != expected {
@@ -42,24 +57,13 @@ func CheckNum(num, expected int, t *testing.T) {
 	}
 }
 
-func NewNodeFromID(id string) Node {
+func NewNodeFromString(id string) Node {
 	_, publicKey, _ := asymmetric.GenSecp256k1KeyPair()
 	return Node{
 		ID:        NodeID(id),
 		Addr:      "",
 		PublicKey: publicKey,
 		Nonce:     cpuminer.Uint256{},
-	}
-}
-
-func TestNew(t *testing.T) {
-	kms.Unittest = true
-	os.Remove(testStorePath)
-
-	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
-	if x == nil {
-		t.Errorf("expected obj")
 	}
 }
 
@@ -70,13 +74,13 @@ func TestAdd(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	CheckNum(len(x.circle), x.NumberOfReplicas, t)
 	CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
 		t.Errorf("expected sorted hashes to be sorted")
 	}
-	x.Add(NewNodeFromID(("qwer")))
+	x.Add(NewNodeFromString(("3333333333333333333333333333333333333333333333333333333333333333")))
 	CheckNum(len(x.circle), 2*x.NumberOfReplicas, t)
 	CheckNum(len(x.sortedHashes), 2*x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
@@ -91,8 +95,8 @@ func TestRemove(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Remove("abcdefg")
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Remove("0000000000000000000000000000000000000000000000000000000000000000")
 	CheckNum(len(x.circle), 0, t)
 	CheckNum(len(x.sortedHashes), 0, t)
 }
@@ -104,8 +108,8 @@ func TestRemoveNonExisting(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Remove("abcdefghijk")
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Remove("0000000000000000000000000000000000000000000000000000000000000000hijk")
 	CheckNum(len(x.circle), x.NumberOfReplicas, t)
 }
 
@@ -132,7 +136,7 @@ func TestGetSingle(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	f := func(s string) bool {
 		y, err := x.GetNeighbor(s)
 		if err != nil {
@@ -140,7 +144,7 @@ func TestGetSingle(t *testing.T) {
 			return false
 		}
 		//t.Logf("s = %v, y = %v", s, y)
-		return y.ID == "abcdefg"
+		return y.ID == "0000000000000000000000000000000000000000000000000000000000000000"
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Fatal(err)
@@ -150,10 +154,10 @@ func TestConsistent_GetNode(t *testing.T) {
 	kms.Unittest = true
 	os.Remove(testStorePath)
 	kms.ResetBucket()
-	nodeID := "40f26f9c816577adcb271734fec72c76"
+	nodeID := "40f26f9c816577adcb271734fec72c7640f26f9c816577adcb271734fec72c76"
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID(nodeID))
+	x.Add(NewNodeFromString(nodeID))
 	f := func(s string) bool {
 		_, err := x.GetNode(s)
 		return err == ErrKeyNotFound
@@ -176,9 +180,9 @@ type gtest struct {
 }
 
 var gmtests = []gtest{
-	{"iiii", "abcdefg"},
-	{"hhh", "opqrstu"},
-	{"ggg", "abcdefg"},
+	{"0000", "2222222222222222222222222222222222222222222222222222222222222222"},
+	{"2222", "1111111111111111111111111111111111111111111111111111111111111111"},
+	{"1111", "1111111111111111111111111111111111111111111111111111111111111111"},
 }
 
 func TestGetMultiple(t *testing.T) {
@@ -188,9 +192,9 @@ func TestGetMultiple(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	for i, v := range gmtests {
 		result, err := x.GetNeighbor(v.in)
 		if err != nil {
@@ -209,9 +213,9 @@ func TestGetMultipleQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	f := func(s string) bool {
 		y, err := x.GetNeighbor(s)
 		if err != nil {
@@ -219,7 +223,7 @@ func TestGetMultipleQuick(t *testing.T) {
 			return false
 		}
 		//t.Logf("s = %v, y = %v", s, y)
-		return y.ID == "abcdefg" || y.ID == "hijklmn" || y.ID == "opqrstu"
+		return y.ID == "0000000000000000000000000000000000000000000000000000000000000000" || y.ID == "1111111111111111111111111111111111111111111111111111111111111111" || y.ID == "2222222222222222222222222222222222222222222222222222222222222222"
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Fatal(err)
@@ -227,15 +231,15 @@ func TestGetMultipleQuick(t *testing.T) {
 }
 
 var rtestsBefore = []gtest{
-	{"iiii", "abcdefg"},
-	{"hhh", "opqrstu"},
-	{"ggg", "abcdefg"},
+	{"0000", "2222222222222222222222222222222222222222222222222222222222222222"},
+	{"2222", "1111111111111111111111111111111111111111111111111111111111111111"},
+	{"1111", "1111111111111111111111111111111111111111111111111111111111111111"},
 }
 
 var rtestsAfter = []gtest{
-	{"iiii", "abcdefg"},
-	{"hhh", "opqrstu"},
-	{"ggg", "abcdefg"},
+	{"0000", "2222222222222222222222222222222222222222222222222222222222222222"},
+	{"2222", "0000000000000000000000000000000000000000000000000000000000000000"},
+	{"1111", "2222222222222222222222222222222222222222222222222222222222222222"},
 }
 
 func TestGetMultipleRemove(t *testing.T) {
@@ -245,9 +249,9 @@ func TestGetMultipleRemove(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	for i, v := range rtestsBefore {
 		result, err := x.GetNeighbor(v.in)
 		if err != nil {
@@ -257,7 +261,7 @@ func TestGetMultipleRemove(t *testing.T) {
 			t.Errorf("%d. got %v, expected %v before rm", i, result, v.out)
 		}
 	}
-	x.Remove("hijklmn")
+	x.Remove("1111111111111111111111111111111111111111111111111111111111111111")
 	for i, v := range rtestsAfter {
 		result, err := x.GetNeighbor(v.in)
 		if err != nil {
@@ -276,10 +280,10 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
-	x.Remove(NodeID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
+	x.Remove(NodeID("2222222222222222222222222222222222222222222222222222222222222222"))
 	f := func(s string) bool {
 		y, err := x.GetNeighbor(s)
 		if err != nil {
@@ -287,7 +291,7 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 			return false
 		}
 		//t.Logf("s = %v, y = %v", s, y)
-		return y.ID == "abcdefg" || y.ID == "hijklmn"
+		return y.ID == "0000000000000000000000000000000000000000000000000000000000000000" || y.ID == "1111111111111111111111111111111111111111111111111111111111111111"
 	}
 	if err := quick.Check(f, nil); err != nil {
 		t.Fatal(err)
@@ -301,20 +305,20 @@ func TestGetTwo(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
-	a, b, err := x.GetTwoNeighbors("99999999")
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
+	a, b, err := x.GetTwoNeighbors("9999999999999999999999999999999999999999999999999999999999999999")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a.ID == b.ID {
 		t.Errorf("a shouldn't equal b")
 	}
-	if a.ID != "abcdefg" {
+	if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong a: %v", a)
 	}
-	if b.ID != "opqrstu" {
+	if b.ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 		t.Errorf("wrong b: %v", b)
 	}
 }
@@ -326,7 +330,7 @@ func TestGetTwoEmpty(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	_, _, err := x.GetTwoNeighbors("9999999")
+	_, _, err := x.GetTwoNeighbors("9999999999999999999999999999999999999999999999999999999999999999")
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
 	}
@@ -339,9 +343,9 @@ func TestGetTwoQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	f := func(s string) bool {
 		a, b, err := x.GetTwoNeighbors(s)
 		if err != nil {
@@ -352,12 +356,12 @@ func TestGetTwoQuick(t *testing.T) {
 			t.Logf("a.ID == b.ID")
 			return false
 		}
-		if a.ID != "abcdefg" && a.ID != "hijklmn" && a.ID != "opqrstu" {
+		if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" && a.ID != "1111111111111111111111111111111111111111111111111111111111111111" && a.ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 			t.Logf("invalid a: %v", a)
 			return false
 		}
 
-		if b.ID != "abcdefg" && b.ID != "hijklmn" && b.ID != "opqrstu" {
+		if b.ID != "0000000000000000000000000000000000000000000000000000000000000000" && b.ID != "1111111111111111111111111111111111111111111111111111111111111111" && b.ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 			t.Logf("invalid b: %v", b)
 			return false
 		}
@@ -375,8 +379,8 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	f := func(s string) bool {
 		a, b, err := x.GetTwoNeighbors(s)
 		if err != nil {
@@ -387,12 +391,12 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 			t.Logf("a.ID == b.ID")
 			return false
 		}
-		if a.ID != "abcdefg" && a.ID != "hijklmn" {
+		if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" && a.ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 			t.Logf("invalid a: %v", a)
 			return false
 		}
 
-		if b.ID != "abcdefg" && b.ID != "hijklmn" {
+		if b.ID != "0000000000000000000000000000000000000000000000000000000000000000" && b.ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 			t.Logf("invalid b: %v", b)
 			return false
 		}
@@ -410,15 +414,15 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	a, b, err := x.GetTwoNeighbors("99999999")
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	a, b, err := x.GetTwoNeighbors("9999999999999999999999999999999999999999999999999999999999999999")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a.ID == b.ID {
 		t.Errorf("a shouldn't equal b")
 	}
-	if a.ID != "abcdefg" {
+	if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong a: %v", a)
 	}
 	if b.ID != "" {
@@ -433,24 +437,24 @@ func TestGetN(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	members, err := x.GetNeighbors("9999999", 3)
-	//members, err := x.GetNeighbors("abcdefg", 3)
+	//members, err := x.GetNeighbors("0000000000000000000000000000000000000000000000000000000000000000", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(members) != 3 {
 		t.Errorf("expected 3 members instead of %d", len(members))
 	}
-	if members[0].ID != "opqrstu" {
+	if members[0].ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "hijklmn" {
+	if members[1].ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
-	if members[2].ID != "abcdefg" {
+	if members[2].ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 		t.Errorf("wrong members[2]: %v", members[2])
 	}
 }
@@ -462,11 +466,11 @@ func TestGetNFilterRole(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	n := NewNodeFromID("abcdefg")
+	n := NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000")
 	n.Role = Leader
 	x.Add(n)
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	members, err := x.GetNeighborsEx("9999999", 3, ServerRoles{Unknown})
 	if err != nil {
 		t.Fatal(err)
@@ -474,10 +478,10 @@ func TestGetNFilterRole(t *testing.T) {
 	if len(members) != 2 {
 		t.Errorf("expected 2 members instead of %d", len(members))
 	}
-	if members[0].ID != "opqrstu" {
+	if members[0].ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "hijklmn" {
+	if members[1].ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
 
@@ -488,7 +492,7 @@ func TestGetNFilterRole(t *testing.T) {
 	if len(members) != 1 {
 		t.Errorf("expected 1 members instead of %d", len(members))
 	}
-	if members[0].ID != "abcdefg" {
+	if members[0].ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
 }
@@ -500,20 +504,20 @@ func TestGetNLess(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
-	members, err := x.GetNeighbors("99999999", 2)
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
+	members, err := x.GetNeighbors("9999999999999999999999999999999999999999999999999999999999999999", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(members) != 2 {
 		t.Errorf("expected 2 members instead of %d", len(members))
 	}
-	if members[0].ID != "abcdefg" {
+	if members[0].ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "opqrstu" {
+	if members[1].ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
 }
@@ -525,9 +529,9 @@ func TestGetNMore(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	members, err := x.GetNeighbors("9999999", 5)
 	if err != nil {
 		t.Fatal(err)
@@ -535,13 +539,13 @@ func TestGetNMore(t *testing.T) {
 	if len(members) != 3 {
 		t.Errorf("expected 3 members instead of %d", len(members))
 	}
-	if members[0].ID != "opqrstu" {
+	if members[0].ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong members[0]: %v", members[0])
 	}
-	if members[1].ID != "hijklmn" {
+	if members[1].ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 		t.Errorf("wrong members[1]: %v", members[1])
 	}
-	if members[2].ID != "abcdefg" {
+	if members[2].ID != "1111111111111111111111111111111111111111111111111111111111111111" {
 		t.Errorf("wrong members[2]: %v", members[2])
 	}
 }
@@ -569,9 +573,9 @@ func TestGetNQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	f := func(s string) bool {
 		members, err := x.GetNeighbors(s, 3)
 		if err != nil {
@@ -589,7 +593,7 @@ func TestGetNQuick(t *testing.T) {
 				return false
 			}
 			set[member.ID] = Node{}
-			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
+			if member.ID != "0000000000000000000000000000000000000000000000000000000000000000" && member.ID != "1111111111111111111111111111111111111111111111111111111111111111" && member.ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 				t.Logf("invalid member: %v", member)
 				return false
 			}
@@ -608,9 +612,9 @@ func TestGetNLessQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	f := func(s string) bool {
 		members, err := x.GetNeighbors(s, 2)
 		if err != nil {
@@ -628,7 +632,7 @@ func TestGetNLessQuick(t *testing.T) {
 				return false
 			}
 			set[member.ID] = Node{}
-			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
+			if member.ID != "0000000000000000000000000000000000000000000000000000000000000000" && member.ID != "1111111111111111111111111111111111111111111111111111111111111111" && member.ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 				t.Logf("invalid member: %v", member)
 				return false
 			}
@@ -647,9 +651,9 @@ func TestGetNMoreQuick(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abcdefg"))
-	x.Add(NewNodeFromID("hijklmn"))
-	x.Add(NewNodeFromID("opqrstu"))
+	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
+	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
+	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
 	f := func(s string) bool {
 		members, err := x.GetNeighbors(s, 5)
 		if err != nil {
@@ -667,7 +671,7 @@ func TestGetNMoreQuick(t *testing.T) {
 				return false
 			}
 			set[member.ID] = Node{}
-			if member.ID != "abcdefg" && member.ID != "hijklmn" && member.ID != "opqrstu" {
+			if member.ID != "0000000000000000000000000000000000000000000000000000000000000000" && member.ID != "1111111111111111111111111111111111111111111111111111111111111111" && member.ID != "2222222222222222222222222222222222222222222222222222222222222222" {
 				t.Logf("invalid member: %v", member)
 				return false
 			}
@@ -686,57 +690,57 @@ func TestSet(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("abc"))
-	x.Add(NewNodeFromID("def"))
-	x.Add(NewNodeFromID("ghi"))
+	x.Add(NewNodeFromString("0000"))
+	x.Add(NewNodeFromString("1111"))
+	x.Add(NewNodeFromString("2222"))
 
-	x.Set([]Node{NewNodeFromID("jkl"), NewNodeFromID("mno")})
+	x.Set([]Node{NewNodeFromString("3333"), NewNodeFromString("4444")})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
-	a, b, err := x.GetTwoNeighbors("qwerqwerwqer")
+	a, b, err := x.GetTwoNeighbors("33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333wqer")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.ID != "jkl" && a.ID != "mno" {
-		t.Errorf("expected jkl or mno, got %v", a)
+	if a.ID != "3333" && a.ID != "4444" {
+		t.Errorf("expected 3333 or 4444, got %v", a)
 	}
-	if b.ID != "jkl" && b.ID != "mno" {
-		t.Errorf("expected jkl or mno, got %v", b)
+	if b.ID != "3333" && b.ID != "4444" {
+		t.Errorf("expected 3333 or 4444, got %v", b)
 	}
 	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{NewNodeFromID("pqr"), NewNodeFromID("mno")})
+	x.Set([]Node{NewNodeFromString("5555"), NewNodeFromString("4444")})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
-	a, b, err = x.GetTwoNeighbors("qwerqwerwqer")
+	a, b, err = x.GetTwoNeighbors("33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333wqer")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.ID != "pqr" && a.ID != "mno" {
-		t.Errorf("expected jkl or mno, got %v", a)
+	if a.ID != "5555" && a.ID != "4444" {
+		t.Errorf("expected 3333 or 4444, got %v", a)
 	}
-	if b.ID != "pqr" && b.ID != "mno" {
-		t.Errorf("expected jkl or mno, got %v", b)
+	if b.ID != "5555" && b.ID != "4444" {
+		t.Errorf("expected 3333 or 4444, got %v", b)
 	}
 	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
-	x.Set([]Node{NewNodeFromID("pqr"), NewNodeFromID("mno")})
+	x.Set([]Node{NewNodeFromString("5555"), NewNodeFromString("4444")})
 	if x.count != 2 {
 		t.Errorf("expected 2 elts, got %d", x.count)
 	}
-	a, b, err = x.GetTwoNeighbors("qwerqwerwqer")
+	a, b, err = x.GetTwoNeighbors("33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333wqer")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.ID != "pqr" && a.ID != "mno" {
-		t.Errorf("expected jkl or mno, got %v", a)
+	if a.ID != "5555" && a.ID != "4444" {
+		t.Errorf("expected 3333 or 4444, got %v", a)
 	}
-	if b.ID != "pqr" && b.ID != "mno" {
-		t.Errorf("expected jkl or mno, got %v", b)
+	if b.ID != "5555" && b.ID != "4444" {
+		t.Errorf("expected 3333 or 4444, got %v", b)
 	}
 	if a.ID == b.ID {
 		t.Errorf("expected a != b, they were both %v", a)
@@ -769,11 +773,11 @@ func BenchmarkAllocations(b *testing.B) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("stays"))
+	x.Add(NewNodeFromString("stays"))
 	b.ResetTimer()
 	allocSize := allocBytes(func() {
 		for i := 0; i < b.N; i++ {
-			x.Add(NewNodeFromID("Foo"))
+			x.Add(NewNodeFromString("Foo"))
 			x.Remove(NodeID("Foo"))
 		}
 	})
@@ -787,11 +791,11 @@ func BenchmarkMalloc(b *testing.B) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("stays"))
+	x.Add(NewNodeFromString("stays"))
 	b.ResetTimer()
 	mallocs := mallocNum(func() {
 		for i := 0; i < b.N; i++ {
-			x.Add(NewNodeFromID("Foo"))
+			x.Add(NewNodeFromString("Foo"))
 			x.Remove(NodeID("Foo"))
 		}
 	})
@@ -805,10 +809,10 @@ func BenchmarkCycle(b *testing.B) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("nothing"))
+	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Add(NewNodeFromID("foo" + strconv.Itoa(i)))
+		x.Add(NewNodeFromString("foo" + strconv.Itoa(i)))
 		x.Remove(NodeID("foo" + strconv.Itoa(i)))
 	}
 }
@@ -821,11 +825,11 @@ func BenchmarkCycleLarge(b *testing.B) {
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Add(NewNodeFromID("foo" + strconv.Itoa(i)))
+		x.Add(NewNodeFromString("foo" + strconv.Itoa(i)))
 		x.Remove(NodeID("foo" + strconv.Itoa(i)))
 	}
 }
@@ -837,7 +841,7 @@ func BenchmarkGet(b *testing.B) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("nothing"))
+	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.GetNeighbor("nothing")
@@ -852,7 +856,7 @@ func BenchmarkGetLarge(b *testing.B) {
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -867,7 +871,7 @@ func BenchmarkGetN(b *testing.B) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("nothing"))
+	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.GetNeighbors("nothing", 3)
@@ -882,7 +886,7 @@ func BenchmarkGetNLarge(b *testing.B) {
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -897,7 +901,7 @@ func BenchmarkGetTwo(b *testing.B) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID("nothing"))
+	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.GetTwoNeighbors("nothing")
@@ -912,7 +916,7 @@ func BenchmarkGetTwoLarge(b *testing.B) {
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
 	for i := 0; i < 10; i++ {
-		x.Add(NewNodeFromID("start" + strconv.Itoa(i)))
+		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -924,17 +928,17 @@ func BenchmarkGetTwoLarge(b *testing.B) {
 func TestAddCollision(t *testing.T) {
 	// These two strings produce several crc32 collisions after "|i" is
 	// appended added by Consistent.eltKey.
-	const s1 = "abear"
-	const s2 = "solidiform"
+	const s1 = "111111"
+	const s2 = "222222"
 	kms.Unittest = true
 	os.Remove(testStorePath)
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Add(NewNodeFromID(s1))
-	x.Add(NewNodeFromID(s2))
-	elt1, err := x.GetNeighbor("abear")
+	x.Add(NewNodeFromString(s1))
+	x.Add(NewNodeFromString(s2))
+	elt1, err := x.GetNeighbor("111111")
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -942,8 +946,8 @@ func TestAddCollision(t *testing.T) {
 	y, _ := InitConsistent(testStorePath+"2", new(KMSStorage), false)
 	defer os.Remove(testStorePath + "2")
 	// add elements in opposite order
-	y.Add(NewNodeFromID(s2))
-	y.Add(NewNodeFromID(s1))
+	y.Add(NewNodeFromString(s2))
+	y.Add(NewNodeFromString(s1))
 	elt2, err := y.GetNeighbor(s1)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -961,16 +965,16 @@ func TestConcurrentGetSet(t *testing.T) {
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 	defer os.Remove(testStorePath)
-	x.Set([]Node{NewNodeFromID("abc"), NewNodeFromID("def"), NewNodeFromID("ghi"), NewNodeFromID("jkl"), NewNodeFromID("mno")})
+	x.Set([]Node{NewNodeFromString("0000"), NewNodeFromString("1111"), NewNodeFromString("2222"), NewNodeFromString("3333"), NewNodeFromString("4444")})
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 100; i++ {
-				x.Set([]Node{NewNodeFromID("abc"), NewNodeFromID("def"), NewNodeFromID("ghi"), NewNodeFromID("jkl"), NewNodeFromID("mno")})
+				x.Set([]Node{NewNodeFromString("0000"), NewNodeFromString("1111"), NewNodeFromString("2222"), NewNodeFromString("3333"), NewNodeFromString("4444")})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-				x.Set([]Node{NewNodeFromID("pqr"), NewNodeFromID("stu"), NewNodeFromID("vwx")})
+				x.Set([]Node{NewNodeFromString("5555"), NewNodeFromString("6666"), NewNodeFromString("7777")})
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}
 			wg.Done()
@@ -981,12 +985,12 @@ func TestConcurrentGetSet(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < 100; i++ {
-				a, err := x.GetNeighbor("xxxxxxx")
+				a, err := x.GetNeighbor("111111")
 				if err != nil {
 					t.Error(err)
 				}
-				if a.ID != "jkl" && a.ID != "vwx" {
-					t.Errorf("got %v, expected vwx", a)
+				if a.ID != "5555" && a.ID != "3333" {
+					t.Errorf("got %v, expected 5555 or 3333", a)
 				}
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			}

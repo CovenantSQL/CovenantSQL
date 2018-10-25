@@ -134,7 +134,7 @@ func TestNodeID_MarshalBinary(t *testing.T) {
 		var nodeID, nodeID2 NodeID
 
 		nb, err := nodeID.MarshalBinary()
-		So(err, ShouldNotBeNil)
+		So(err, ShouldBeNil)
 
 		nodeID = NodeID("0000000000000000000000000000000000000000000000000000000000000000")
 		nb, err = nodeID.MarshalBinary()

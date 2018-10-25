@@ -409,7 +409,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ff6b0586c0621a76832cf783eee58cbb9d9795d2ce8acbc199a4131db11c42a9"
+  digest = "1:dd6ba1917df517806c9dcee5c87f15643c9b1ca6260d5b3f25eb863c6fe092ce"
   name = "github.com/satori/go.uuid"
   packages = ["."]
   pruneopts = "UT"

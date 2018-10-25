@@ -41,7 +41,7 @@ var (
 	connectionID uint64
 	seqNo        uint64
 	randSource   = rand.New(rand.NewSource(time.Now().UnixNano()))
-	GrandLock    sync.Mutex
+	grandLock    sync.Mutex
 )
 
 // conn implements an interface sql.Conn.
@@ -278,8 +278,8 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Ro
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows driver.Rows, err error) {
-	GrandLock.Lock()
-	defer GrandLock.Unlock()
+	grandLock.Lock()
+	defer grandLock.Unlock()
 	c.peersLock.RLock()
 	defer c.peersLock.RUnlock()
 

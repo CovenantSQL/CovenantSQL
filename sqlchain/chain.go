@@ -480,7 +480,6 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 		ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
 		ldbKey = append(append(append(ldbKey, metaAckIndexBucket[:]...), k...), ack.HeaderHash[:]...)
 		err = c.ldb.Put(ldbKey, enc.Bytes(), nil)
-		//err = b.Bucket(metaAckIndexBucket).Put(ack.HeaderHash[:], enc.Bytes())
 		if err != nil {
 			err = errors.Wrapf(err, "put %s %d %s", string(metaAckIndexBucket[:]), h, ack.HeaderHash)
 			return

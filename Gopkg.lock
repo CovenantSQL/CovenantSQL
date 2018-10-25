@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2388e19eeeefadf9440b660ca1c1f25849fdea96b29d330d7994fe5269272f77"
+  digest = "1:599cc68328d92a329d9ec7fd516ed5ac2abfaaafd5f824001adafcb0cf10fe49"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -29,7 +29,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "af58d81f345b125bf5c952831f10e675b38089c5"
+  revision = "fb543cee920387ed5e85a2f098eba2dcc12b13c7"
 
 [[projects]]
   branch = "master"

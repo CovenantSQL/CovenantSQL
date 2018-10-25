@@ -61,17 +61,22 @@ func TestStorage(t *testing.T) {
 				So(err, ShouldBeNil)
 				Convey("The storage should report error for any incoming query", func() {
 					err = st.DirtyReader().QueryRow(`SELECT "v" FROM "t1" WHERE "k"=?`, 1).Scan(nil)
+					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldEqual, "sql: database is closed")
 					err = st.Reader().QueryRow(`SELECT "v" FROM "t1" WHERE "k"=?`, 1).Scan(nil)
+					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldEqual, "sql: database is closed")
 					_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1")
+					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldEqual, "sql: database is closed")
 				})
 			})
 			Convey("The storage should report error when readers attempt to write", func() {
 				_, err = st.DirtyReader().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1")
+				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldEqual, "attempt to write a readonly database")
 				_, err = st.Reader().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1")
+				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldEqual, "attempt to write a readonly database")
 			})
 			Convey("The storage should work properly under concurrent reading/writing", func(c C) {
@@ -80,9 +85,7 @@ func TestStorage(t *testing.T) {
 					sc = make(chan struct{})
 					wg = &sync.WaitGroup{}
 
-					abortReaders = func() {
-						close(sc)
-					}
+					abortReaders = func() { close(sc) }
 				)
 				for i := 0; i < passes; i++ {
 					wg.Add(1)
@@ -141,9 +144,7 @@ func TestStorage(t *testing.T) {
 					sc = make(chan struct{})
 					wg = &sync.WaitGroup{}
 
-					abortReaders = func() {
-						close(sc)
-					}
+					abortReaders = func() { close(sc) }
 				)
 				// Open transaction
 				tx, err = st.Writer().Begin()
@@ -363,7 +364,7 @@ type BW func(
 	*testing.B, *sync.WaitGroup, <-chan struct{}, xi.Storage, int, string, [][]interface{},
 )
 
-func backgroundWriter(
+func busyWrite(
 	b *testing.B,
 	wg *sync.WaitGroup, sc <-chan struct{},
 	st xi.Storage, n int, e string, src [][]interface{},
@@ -382,20 +383,20 @@ func backgroundWriter(
 	}
 }
 
-func backgroundBusyTxWriter(
+func busyWriteTx(
 	b *testing.B,
 	wg *sync.WaitGroup, sc <-chan struct{},
 	st xi.Storage, n int, e string, src [][]interface{},
 ) {
 	defer wg.Done()
-	const cmtNum = 100
+	const writesPerTx = 100
 	var (
 		tx  *sql.Tx
 		err error
 	)
 	for i := 0; ; i++ {
 		// Begin
-		if i%cmtNum == 0 {
+		if i%writesPerTx == 0 {
 			if tx, err = st.Writer().Begin(); err != nil {
 				b.Errorf("Failed to begin transaction: %v", err)
 			}
@@ -418,7 +419,7 @@ func backgroundBusyTxWriter(
 			}
 		}
 		// Commit
-		if (i+1)%cmtNum == 0 {
+		if (i+1)%writesPerTx == 0 {
 			if err = tx.Commit(); err != nil {
 				b.Errorf("Failed to commit transaction: %v", err)
 			}
@@ -427,13 +428,13 @@ func backgroundBusyTxWriter(
 	}
 }
 
-func backgroundIdleTxWriter(
+func idleWriteTx(
 	b *testing.B,
 	wg *sync.WaitGroup, sc <-chan struct{},
 	st xi.Storage, n int, e string, src [][]interface{},
 ) {
 	const (
-		cmtNum      = 100
+		writesPerTx = 100
 		writeIntlMS = 1
 	)
 	var (
@@ -447,7 +448,7 @@ func backgroundIdleTxWriter(
 	}()
 	for i := 0; ; i++ {
 		// Begin
-		if i%cmtNum == 0 {
+		if i%writesPerTx == 0 {
 			if tx, err = st.Writer().Begin(); err != nil {
 				b.Errorf("Failed to begin transaction: %v", err)
 			}
@@ -470,7 +471,7 @@ func backgroundIdleTxWriter(
 			return
 		}
 		// Commit
-		if (i+1)%cmtNum == 0 {
+		if (i+1)%writesPerTx == 0 {
 			if err = tx.Commit(); err != nil {
 				b.Errorf("Failed to commit transaction: %v", err)
 			}
@@ -517,27 +518,27 @@ func benchmarkStorageSequentialReadWithBackgroundWriter(b *testing.B, getReader 
 }
 
 func BenchmarkStoargeSequentialDirtyReadWithBackgroundWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, backgroundWriter)
+	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, busyWrite)
 }
 
 func BenchmarkStoargeSequentialReadWithBackgroundWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, backgroundWriter)
+	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, busyWrite)
 }
 
 func BenchmarkStoargeSequentialDirtyReadWithBackgroundBusyTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, backgroundBusyTxWriter)
+	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, busyWriteTx)
 }
 
 func BenchmarkStoargeSequentialReadWithBackgroundBusyTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, backgroundBusyTxWriter)
+	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, busyWriteTx)
 }
 
 func BenchmarkStoargeSequentialDirtyReadWithBackgroundIdleTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, backgroundIdleTxWriter)
+	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, idleWriteTx)
 }
 
 func BenchmarkStoargeSequentialReadWithBackgroundIdleTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, backgroundIdleTxWriter)
+	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, idleWriteTx)
 }
 
 func BenchmarkStoargeSequentialMixDRW(b *testing.B) {

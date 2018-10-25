@@ -94,14 +94,23 @@ func (hook *CallerHook) caller() (relFuncName, caller string) {
 	var (
 		file     = "unknown"
 		line     = 0
-		ok       = false
 		funcName = "unknown"
-		pc       uintptr
 	)
-	pc, file, line, ok = runtime.Caller(10)
-	details := runtime.FuncForPC(pc)
-	if ok && details != nil {
-		funcName = details.Name()
+	pcs := make([]uintptr, 10)
+	runtime.Callers(7, pcs)
+	frames := runtime.CallersFrames(pcs)
+	for {
+		f, more := frames.Next()
+		if strings.HasSuffix(f.File, "logwrapper.go") && more {
+			f, _ = frames.Next()
+			file = f.File
+			line = f.Line
+			funcName = f.Function
+			break
+		}
+		if !more {
+			break
+		}
 	}
 
 	relFuncName = strings.TrimPrefix(funcName, "github.com/CovenantSQL/CovenantSQL/")

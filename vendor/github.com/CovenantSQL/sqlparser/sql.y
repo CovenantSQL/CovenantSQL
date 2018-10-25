@@ -362,10 +362,10 @@ create_statement:
     $1.TableSpec = $2
     $$ = $1
   }
-| CREATE constraint_opt INDEX ID ON table_name ddl_force_eof
+| CREATE constraint_opt INDEX not_exists_opt ID ON table_name ddl_force_eof
   {
     // Change this to an alter statement
-    $$ = &DDL{Action: CreateIndexStr, Table: $6, NewName:$6}
+    $$ = &DDL{Action: CreateIndexStr, Table: $7, NewName:$7}
   }
 
 create_table_prefix:
@@ -829,11 +829,11 @@ SHOW CREATE TABLE table_name
 
 full_opt:
   {
-    $$ = ""
+    $$ = nil
   }
 | FULL
   {
-    $$ = ""
+    $$ = nil
   }
 
 other_statement:

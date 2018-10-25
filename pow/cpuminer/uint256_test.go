@@ -19,11 +19,9 @@ package cpuminer
 import (
 	"math"
 	"testing"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"unsafe"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

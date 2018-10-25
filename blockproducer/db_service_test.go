@@ -46,10 +46,6 @@ func TestService(t *testing.T) {
 		defer cleanup()
 
 		// get keys
-		var pubKey *asymmetric.PublicKey
-		pubKey, err = kms.GetLocalPublicKey()
-		So(err, ShouldBeNil)
-
 		var privateKey *asymmetric.PrivateKey
 		privateKey, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
@@ -66,7 +62,7 @@ func TestService(t *testing.T) {
 		}
 
 		// register BPDB service to rpc
-		err = server.RegisterService(DBServiceName, dbService)
+		err = server.RegisterService(route.BPDBRPCName, dbService)
 		So(err, ShouldBeNil)
 
 		// get database
@@ -77,7 +73,6 @@ func TestService(t *testing.T) {
 		// test get database
 		getReq := new(GetDatabaseRequest)
 		getReq.Header.DatabaseID = proto.DatabaseID("db")
-		getReq.Header.Signee = pubKey
 		err = getReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 
@@ -101,7 +96,6 @@ func TestService(t *testing.T) {
 		createDBReq.Header.ResourceMeta = wt.ResourceMeta{
 			Node: 1,
 		}
-		createDBReq.Header.Signee = pubKey
 		err = createDBReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 		createDBRes := new(CreateDatabaseResponse)
@@ -166,7 +160,6 @@ func TestService(t *testing.T) {
 		// drop database
 		dropDBReq := new(DropDatabaseRequest)
 		dropDBReq.Header.DatabaseID = createDBRes.Header.InstanceMeta.DatabaseID
-		dropDBReq.Header.Signee = pubKey
 		err = dropDBReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 		dropDBRes := new(DropDatabaseResponse)
@@ -176,7 +169,6 @@ func TestService(t *testing.T) {
 		// get this database again to test if it is dropped
 		getReq = new(GetDatabaseRequest)
 		getReq.Header.DatabaseID = createDBRes.Header.InstanceMeta.DatabaseID
-		getReq.Header.Signee = pubKey
 		err = getReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetDatabase.String(), getReq, getRes)
@@ -191,12 +183,8 @@ func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID 
 		return
 	}
 
-	// get private/public key
-	var pubKey *asymmetric.PublicKey
+	// get private key
 	var privateKey *asymmetric.PrivateKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
@@ -220,7 +208,6 @@ func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID 
 				SeqNo:        seqNo,
 				Timestamp:    tm,
 			},
-			Signee: pubKey,
 		},
 		Payload: wt.RequestPayload{
 			Queries: realQueries,

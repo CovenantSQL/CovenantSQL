@@ -17,25 +17,9 @@
 package types
 
 import (
-	"bytes"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
-
-func serialize(i interface{}) (s []byte, err error) {
-	var enc *bytes.Buffer
-	if enc, err = utils.EncodeMsgPack(i); err != nil {
-		return
-	}
-	s = enc.Bytes()
-	return
-}
-
-func deserialize(enc []byte, o interface{}) error {
-	return utils.DecodeMsgPack(enc, o)
-}
 
 type marshalHasher interface {
 	MarshalHash() ([]byte, error)

@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
-
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -76,8 +75,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 		Queries: make([]*hash.Hash, rand.Intn(10)+10),
 	}
@@ -215,7 +212,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	}
 
 	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{"DHT": dht}); err != nil {
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
 		return
 	}
 

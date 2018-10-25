@@ -18,18 +18,17 @@
 package rpc
 
 import (
+	"io/ioutil"
 	"net"
 	"net/rpc"
-
-	"io/ioutil"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 // Client is RPC client
@@ -194,12 +193,7 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 		}
 	}
 	client.Conn = muxConn
-	mh := &codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-	msgpackCodec := codec.MsgpackSpecRpc.ClientCodec(muxConn, mh)
-	client.Client = rpc.NewClientWithCodec(msgpackCodec)
+	client.Client = rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(muxConn))
 	client.RemoteAddr = conn.RemoteAddr().String()
 
 	return client, nil

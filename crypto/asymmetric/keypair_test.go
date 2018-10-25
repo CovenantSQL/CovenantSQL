@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"

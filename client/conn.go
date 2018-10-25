@@ -295,7 +295,6 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 				SeqNo:        seqNo,
 				Timestamp:    getLocalTime(),
 			},
-			Signee: c.pubKey,
 		},
 		Payload: wt.RequestPayload{
 			Queries: queries,
@@ -342,7 +341,6 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 				NodeID:    c.nodeID,
 				Timestamp: getLocalTime(),
 			},
-			Signee: c.pubKey,
 		},
 	}
 
@@ -369,7 +367,6 @@ func (c *conn) getPeers() (err error) {
 
 	req := new(bp.GetDatabaseRequest)
 	req.Header.DatabaseID = c.dbID
-	req.Header.Signee = c.pubKey
 
 	if err = req.Sign(c.privKey); err != nil {
 		return

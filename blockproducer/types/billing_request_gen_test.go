@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashTxBilling(t *testing.T) {
-	v := TxBilling{}
+func TestMarshalHashBillingRequest(t *testing.T) {
+	v := BillingRequest{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashTxBilling(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashTxBilling(b *testing.B) {
-	v := TxBilling{}
+func BenchmarkMarshalHashBillingRequest(b *testing.B) {
+	v := BillingRequest{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashTxBilling(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgTxBilling(b *testing.B) {
-	v := TxBilling{}
+func BenchmarkAppendMsgBillingRequest(b *testing.B) {
+	v := BillingRequest{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgTxBilling(b *testing.B) {
 	}
 }
 
-func TestMarshalHashTxContent(t *testing.T) {
-	v := TxContent{}
+func TestMarshalHashBillingRequestHeader(t *testing.T) {
+	v := BillingRequestHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashTxContent(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashTxContent(b *testing.B) {
-	v := TxContent{}
+func BenchmarkMarshalHashBillingRequestHeader(b *testing.B) {
+	v := BillingRequestHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,8 +71,8 @@ func BenchmarkMarshalHashTxContent(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgTxContent(b *testing.B) {
-	v := TxContent{}
+func BenchmarkAppendMsgBillingRequestHeader(b *testing.B) {
+	v := BillingRequestHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

@@ -23,6 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
@@ -99,7 +100,7 @@ func newRuntime(cfg *Config, accountAddress proto.AccountAddress) *rt {
 }
 
 func (r *rt) startService(chain *Chain) {
-	r.server.RegisterService(MainChainRPCName, &ChainRPCService{chain: chain})
+	r.server.RegisterService(route.BlockProducerRPCName, &ChainRPCService{chain: chain})
 }
 
 // nextTick returns the current clock reading and the duration till the next turn. If duration

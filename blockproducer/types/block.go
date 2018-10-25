@@ -17,8 +17,6 @@
 package types
 
 import (
-	"bytes"
-	"reflect"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -26,7 +24,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/ugorji/go/codec"
 )
 
 //go:generate hsp
@@ -60,22 +57,18 @@ func (s *SignedHeader) Verify() error {
 // Block defines the main chain block.
 type Block struct {
 	SignedHeader SignedHeader
-	TxBillings   []*TxBilling
 	Transactions []pi.Transaction
 }
 
-// GetTxHashes returns all hashes of tx in block.{TxBillings, ...}
+// GetTxHashes returns all hashes of tx in block.{Billings, ...}
 func (b *Block) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
-	// get hashes in block.TxBillings
-	bl := len(b.TxBillings)
-	hs := make([]*hash.Hash, len(b.TxBillings)+len(b.Transactions))
-	for i, v := range b.TxBillings {
-		hs[i] = v.TxHash
-	}
+	// get hashes in block.Transactions
+	hs := make([]*hash.Hash, len(b.Transactions))
+
 	for i, v := range b.Transactions {
 		h := v.GetHash()
-		hs[bl+i] = &h
+		hs[i] = &h
 	}
 	return hs
 }
@@ -100,64 +93,6 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	}
 
 	return nil
-}
-
-func enumType(t pi.TransactionType) (i pi.Transaction) {
-	switch t {
-	case pi.TransactionTypeBilling:
-		i = (*TxBilling)(nil)
-	case pi.TransactionTypeTransfer:
-		i = (*Transfer)(nil)
-	case pi.TransactionTypeBaseAccount:
-		i = (*BaseAccount)(nil)
-	case pi.TransactionTypeCreataDatabase:
-		i = (*CreateDatabase)(nil)
-	}
-	return
-}
-
-// Serialize converts block to bytes.
-func (b *Block) Serialize() ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	hd := codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-	enc := codec.NewEncoder(buf, &hd)
-	err := enc.Encode(b)
-	return buf.Bytes(), err
-}
-
-// Deserialize converts bytes to block.
-func (b *Block) Deserialize(buf []byte) error {
-	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-
-	for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
-		err := hd.Intf2Impl(
-			reflect.TypeOf((*pi.Transaction)(nil)).Elem(),
-			reflect.TypeOf(enumType(i)),
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	dec := codec.NewDecoder(r, &hd)
-	return dec.Decode(b)
-}
-
-// PushTx pushes txes into block.
-func (b *Block) PushTx(tx *TxBilling) {
-	if b.TxBillings != nil {
-		// TODO(lambda): set appropriate capacity.
-		b.TxBillings = make([]*TxBilling, 0, 100)
-	}
-
-	b.TxBillings = append(b.TxBillings, tx)
 }
 
 // Verify verifies whether the block is valid.
@@ -189,4 +124,14 @@ func (b *Block) Timestamp() time.Time {
 // Producer returns the producer of block.
 func (b *Block) Producer() proto.AccountAddress {
 	return b.SignedHeader.Producer
+}
+
+// ParentHash returns the parent hash field of the block header.
+func (b *Block) ParentHash() *hash.Hash {
+	return &b.SignedHeader.ParentHash
+}
+
+// BlockHash returns the parent hash field of the block header.
+func (b *Block) BlockHash() *hash.Hash {
+	return &b.SignedHeader.BlockHash
 }

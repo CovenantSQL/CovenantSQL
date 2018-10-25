@@ -187,7 +187,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	masterKey := []byte("abc")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(ServiceMap{"DHT": dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		log.Fatal(err)
 	}

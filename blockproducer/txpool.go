@@ -23,34 +23,34 @@ import (
 )
 
 type accountTxEntries struct {
-	account     proto.AccountAddress
-	baseNonce   pi.AccountNonce
-	transacions []pi.Transaction
+	account      proto.AccountAddress
+	baseNonce    pi.AccountNonce
+	transactions []pi.Transaction
 }
 
 func newAccountTxEntries(
 	addr proto.AccountAddress, baseNonce pi.AccountNonce) (_ *accountTxEntries,
 ) {
 	return &accountTxEntries{
-		account:     addr,
-		baseNonce:   baseNonce,
-		transacions: nil,
+		account:      addr,
+		baseNonce:    baseNonce,
+		transactions: nil,
 	}
 }
 
 func (e *accountTxEntries) nextNonce() pi.AccountNonce {
-	return e.baseNonce + pi.AccountNonce(len(e.transacions))
+	return e.baseNonce + pi.AccountNonce(len(e.transactions))
 }
 
 func (e *accountTxEntries) addTx(tx pi.Transaction) {
-	e.transacions = append(e.transacions, tx)
+	e.transactions = append(e.transactions, tx)
 }
 
 func (e *accountTxEntries) halfDeepCopy() (cpy *accountTxEntries) {
 	return &accountTxEntries{
-		account:     e.account,
-		baseNonce:   e.baseNonce,
-		transacions: e.transacions[:],
+		account:      e.account,
+		baseNonce:    e.baseNonce,
+		transactions: e.transactions[:],
 	}
 }
 
@@ -89,12 +89,12 @@ func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
 		nonce = tx.GetAccountNonce()
 		index = int(nonce - te.baseNonce)
 	)
-	if ok = (nonce >= te.baseNonce && index < len(te.transacions)); !ok {
+	if ok = (nonce >= te.baseNonce && index < len(te.transactions)); !ok {
 		log.Debug("transaction nonce or index already exists")
 		return
 	}
 	// Check transaction hash
-	if ok = (tx.GetHash() == te.transacions[index].GetHash()); !ok {
+	if ok = (tx.GetHash() == te.transactions[index].GetHash()); !ok {
 		log.Debug("transaction hash already exists")
 		return
 	}
@@ -108,15 +108,15 @@ func (p *txPool) cmpAndMoveNextTx(tx pi.Transaction) (ok bool) {
 		return
 	}
 	// Out of range
-	if ok = (tx.GetAccountNonce() == te.baseNonce && len(te.transacions) > 0); !ok {
+	if ok = (tx.GetAccountNonce() == te.baseNonce && len(te.transactions) > 0); !ok {
 		return
 	}
 	// Check transaction hash
-	if ok = (tx.GetHash() == te.transacions[0].GetHash()); !ok {
+	if ok = (tx.GetHash() == te.transactions[0].GetHash()); !ok {
 		return
 	}
 	// Move forward
-	te.transacions = te.transacions[1:]
+	te.transactions = te.transactions[1:]
 	te.baseNonce++
 	return
 }

@@ -168,12 +168,13 @@ func (sh *SignedRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// compute hash
 	buildHash(&sh.RequestHeader, &sh.HeaderHash)
 
-	if sh.Signee == nil || signer == nil {
+	if signer == nil {
 		return ErrSignRequest
 	}
 
 	// sign
 	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signee = signer.PubKey()
 
 	return
 }

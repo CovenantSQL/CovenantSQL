@@ -17,11 +17,10 @@
 package types
 
 import (
+	"bytes"
 	"math/big"
 	"reflect"
 	"testing"
-
-	"bytes"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"

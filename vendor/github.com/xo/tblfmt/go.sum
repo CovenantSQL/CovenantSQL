@@ -1,2 +1,4 @@
 github.com/mattn/go-runewidth v0.0.3 h1:a+kO+98RDGEfo6asOGMmpodZq4FNtnGP54yps8BzLR4=
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
+github.com/xo/dburl v0.0.0-20180921222126-e33971d4c132 h1:cRKJ4yZeCZbCEXJmjZMa9s2z+3eavo2a4qu/usvVopI=
+github.com/xo/dburl v0.0.0-20180921222126-e33971d4c132/go.mod h1:g6rdekR8vgfVZrkLWfobLTm0kVez7GAN23mWtkGCJ14=

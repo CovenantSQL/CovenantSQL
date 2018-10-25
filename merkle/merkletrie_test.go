@@ -1,13 +1,10 @@
 package merkle
 
 import (
-	"testing"
-
 	"bytes"
-
 	"crypto/rand"
-
 	"math"
+	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"

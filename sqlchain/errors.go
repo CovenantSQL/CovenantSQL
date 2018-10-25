@@ -84,9 +84,6 @@ var (
 	// given in its hash field.
 	ErrHashNotMatch = errors.New("hash value doesn't match")
 
-	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
-	ErrBillingNotMatch = errors.New("billing request doesn't match")
-
 	// ErrMetaStateNotFound indicates that meta state not found in db.
 	ErrMetaStateNotFound = errors.New("meta state not found in db")
 

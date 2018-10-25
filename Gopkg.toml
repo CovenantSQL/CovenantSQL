@@ -60,6 +60,11 @@
   name = "github.com/CovenantSQL/xurls"
   branch = "master"
 
+[[override]]
+  name = "github.com/siddontang/go-mysql"
+  source = "github.com/CovenantSQL/go-mysql"
+  branch = "master"
+
 [prune]
   go-tests = true
   unused-packages = true

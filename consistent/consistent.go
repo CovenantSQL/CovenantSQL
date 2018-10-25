@@ -73,6 +73,7 @@ type Consistent struct {
 	NumberOfReplicas int
 	count            int64
 	persist          Persistence
+	cacheLock        sync.RWMutex
 	sync.RWMutex
 }
 
@@ -111,7 +112,7 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 	_, isKMSStorage := c.persist.(*KMSStorage)
 	if isKMSStorage {
 		for _, n := range nodes[:] {
-			c.add(n)
+			c.Add(n)
 		}
 	} else {
 		// currently just for KayakKVServer
@@ -137,48 +138,17 @@ func (c *Consistent) Add(node proto.Node) (err error) {
 	return c.add(node)
 }
 
-// need c.Lock() before calling
-func (c *Consistent) add(node proto.Node) (err error) {
-	err = c.persist.SetNode(&node)
-	if err != nil {
-		log.Errorf("set node info failed: %s", err)
-		return
-	}
-
-	return c.AddCache(node)
-}
-
-// AddCache only adds c.circle skips persist
-func (c *Consistent) AddCache(node proto.Node) (err error) {
-	for i := 0; i < c.NumberOfReplicas; i++ {
-		c.circle[hashKey(c.nodeKey(node.ID, i))] = &node
-	}
-	c.updateSortedHashes()
-	c.count++
-	return
-}
-
 // Remove removes an node from the hash.
-func (c *Consistent) Remove(node proto.NodeID) (err error) {
+func (c *Consistent) Remove(nodeID proto.NodeID) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	return c.remove(node)
-}
-
-// need c.Lock() before calling
-func (c *Consistent) remove(nodeID proto.NodeID) (err error) {
 	err = c.persist.DelNode(nodeID)
 	if err != nil {
 		log.Errorf("del node failed: %s", err)
 		return
 	}
 
-	for i := 0; i < c.NumberOfReplicas; i++ {
-		delete(c.circle, hashKey(c.nodeKey(nodeID, i)))
-	}
-	c.updateSortedHashes()
-	c.count--
-
+	c.RemoveCache(nodeID)
 	return
 }
 
@@ -187,15 +157,14 @@ func (c *Consistent) remove(nodeID proto.NodeID) (err error) {
 func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	c.Lock()
 	defer c.Unlock()
+
 	err = c.persist.Reset()
 	if err != nil {
 		log.Errorf("reset bucket failed: %s", err)
 		return
 	}
 
-	c.circle = make(map[proto.NodeKey]*proto.Node)
-	c.count = 0
-	c.sortedHashes = NodeKeys{}
+	c.ResetCache()
 
 	for _, v := range nodes {
 		c.add(v)
@@ -204,10 +173,60 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	return
 }
 
+// need c.Lock() before calling
+func (c *Consistent) add(node proto.Node) (err error) {
+	err = c.persist.SetNode(&node)
+	if err != nil {
+		log.Errorf("set node info failed: %s", err)
+		return
+	}
+
+	c.AddCache(node)
+	return
+}
+
+// AddCache only adds c.circle skips persist.
+func (c *Consistent) AddCache(node proto.Node) {
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
+	for i := 0; i < c.NumberOfReplicas; i++ {
+		c.circle[hashKey(c.nodeKey(node.ID, i))] = &node
+	}
+	c.updateSortedHashes()
+	c.count++
+	return
+}
+
+// RemoveCache removes an node from the hash cache.
+func (c *Consistent) RemoveCache(nodeID proto.NodeID) {
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
+	for i := 0; i < c.NumberOfReplicas; i++ {
+		delete(c.circle, hashKey(c.nodeKey(nodeID, i)))
+	}
+	c.updateSortedHashes()
+	c.count--
+}
+
+// ResetCache removes all node from the hash cache.
+func (c *Consistent) ResetCache() {
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
+	c.circle = make(map[proto.NodeKey]*proto.Node)
+	c.count = 0
+	c.sortedHashes = NodeKeys{}
+}
+
 // GetNeighbor returns an node close to where name hashes to in the circle.
 func (c *Consistent) GetNeighbor(name string) (proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
 	if len(c.circle) == 0 {
 		return proto.Node{}, ErrEmptyCircle
 	}
@@ -220,6 +239,9 @@ func (c *Consistent) GetNeighbor(name string) (proto.Node, error) {
 func (c *Consistent) GetNode(name string) (*proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
 	n, ok := c.circle[hashKey(c.nodeKey(proto.NodeID(name), 0))]
 	if ok {
 		return n, nil
@@ -243,6 +265,9 @@ func (c *Consistent) search(key proto.NodeKey) (i int) {
 func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
 	if len(c.circle) == 0 {
 		return proto.Node{}, proto.Node{}, ErrEmptyCircle
 	}
@@ -272,6 +297,8 @@ func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error
 func (c *Consistent) GetNeighborsEx(name string, n int, roles proto.ServerRoles) ([]proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
 
 	if len(c.circle) == 0 {
 		return nil, ErrEmptyCircle

@@ -181,8 +181,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 		Queries: make([]*hash.Hash, rand.Intn(10)+10),
 	}

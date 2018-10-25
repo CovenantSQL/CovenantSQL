@@ -568,31 +568,29 @@ func TestMetaState(t *testing.T) {
 					})
 				})
 			})
-			Convey("When transacions are added", func() {
+			Convey("When transactions are added", func() {
 				var (
 					n  pi.AccountNonce
-					t0 = &pt.BaseAccount{
-						Account: pt.Account{
-							Address: addr1,
-						},
-					}
-					t1 = &pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					t0 = pt.NewBaseAccount(&pt.Account{
+						Address: addr1,
+					})
+					t1 = pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
 							Amount:   0,
 						},
-					}
-					t2 = &pt.TxBilling{
-						TxContent: pt.TxContent{
-							SequenceID: 2,
-							Receivers:  []*proto.AccountAddress{&addr2},
-							Fees:       []uint64{1},
-							Rewards:    []uint64{1},
+					)
+					t2 = pt.NewBilling(
+						&pt.BillingHeader{
+							Nonce:     2,
+							Producer:  addr1,
+							Receivers: []*proto.AccountAddress{&addr2},
+							Fees:      []uint64{1},
+							Rewards:   []uint64{1},
 						},
-						AccountAddress: &addr1,
-					}
+					)
 				)
 				err = t1.Sign(testPrivKey)
 				So(err, ShouldBeNil)
@@ -600,20 +598,20 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(t0))
 				So(err, ShouldBeNil)
-				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 1)
+				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 1)
 				err = db.Update(ms.applyTransactionProcedure(t1))
 				So(err, ShouldBeNil)
 				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
 				So(loaded, ShouldBeTrue)
 				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 2)
 				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
 				So(loaded, ShouldBeTrue)
 				So(ms.pool.hasTx(t0), ShouldBeTrue)
 				So(ms.pool.hasTx(t1), ShouldBeTrue)
 				err = db.Update(ms.applyTransactionProcedure(t2))
 				So(err, ShouldBeNil)
-				So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 3)
+				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
 				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
 				So(loaded, ShouldBeTrue)
 				_, loaded = ms.pool.entries[t2.GetAccountAddress()]
@@ -658,25 +656,25 @@ func TestMetaState(t *testing.T) {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 0)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 3)
+					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
 				})
 				Convey("The partial commit procedure should be appliable for tx0", func() {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 1)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 2)
+					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 2)
 				})
 				Convey("The partial commit procedure should be appliable for tx0-1", func() {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 2)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 1)
+					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 1)
 				})
 				Convey("The partial commit procedure should be appliable for all tx", func() {
 					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
 					So(err, ShouldBeNil)
 					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 3)
-					So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 0)
+					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 0)
 				})
 				Convey(
 					"The partial commit procedure should not be appliable for modified tx",
@@ -686,7 +684,7 @@ func TestMetaState(t *testing.T) {
 						So(err, ShouldBeNil)
 						err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
 						So(err, ShouldEqual, ErrTransactionMismatch)
-						So(len(ms.pool.entries[addr1].transacions), ShouldEqual, 3)
+						So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
 					},
 				)
 			})
@@ -694,78 +692,78 @@ func TestMetaState(t *testing.T) {
 		Convey("When base account txs are added", func() {
 			var (
 				txs = []pi.Transaction{
-					&pt.BaseAccount{
-						Account: pt.Account{
+					pt.NewBaseAccount(
+						&pt.Account{
 							Address:             addr1,
 							StableCoinBalance:   100,
 							CovenantCoinBalance: 100,
 						},
-					},
-					&pt.BaseAccount{
-						Account: pt.Account{
+					),
+					pt.NewBaseAccount(
+						&pt.Account{
 							Address:             addr2,
 							StableCoinBalance:   100,
 							CovenantCoinBalance: 100,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
 							Amount:   10,
 						},
-					},
-					&pt.TxBilling{
-						TxContent: pt.TxContent{
-							SequenceID: 2,
-							Receivers:  []*proto.AccountAddress{&addr2},
-							Fees:       []uint64{1},
-							Rewards:    []uint64{1},
+					),
+					pt.NewBilling(
+						&pt.BillingHeader{
+							Nonce:     2,
+							Producer:  addr1,
+							Receivers: []*proto.AccountAddress{&addr2},
+							Fees:      []uint64{1},
+							Rewards:   []uint64{1},
 						},
-						AccountAddress: &addr1,
-					},
-					&pt.TxBilling{
-						TxContent: pt.TxContent{
-							SequenceID: 1,
-							Receivers:  []*proto.AccountAddress{&addr1},
-							Fees:       []uint64{1},
-							Rewards:    []uint64{1},
+					),
+					pt.NewBilling(
+						&pt.BillingHeader{
+							Nonce:     1,
+							Producer:  addr2,
+							Receivers: []*proto.AccountAddress{&addr1},
+							Fees:      []uint64{1},
+							Rewards:   []uint64{1},
 						},
-						AccountAddress: &addr2,
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    2,
 							Amount:   1,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    3,
 							Amount:   10,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    3,
 							Amount:   1,
 						},
-					},
-					&pt.Transfer{
-						TransferHeader: pt.TransferHeader{
+					),
+					pt.NewTransfer(
+						&pt.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    4,
 							Amount:   1,
 						},
-					},
+					),
 				}
 			)
 			for _, tx := range txs {

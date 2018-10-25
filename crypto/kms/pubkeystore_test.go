@@ -17,7 +17,6 @@
 package kms
 
 import (
-	"bytes"
 	"os"
 	"reflect"
 	"testing"
@@ -25,9 +24,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/ugorji/go/codec"
 	"gopkg.in/yaml.v2"
 )
 
@@ -171,18 +170,13 @@ func TestMarshalNode(t *testing.T) {
 				D: 4,
 			},
 		}
-		nodeBuf := new(bytes.Buffer)
-		mh := &codec.MsgpackHandle{}
-		enc := codec.NewEncoder(nodeBuf, mh)
-		err := enc.Encode(nodeInfo)
+		nodeBuf, err := utils.EncodeMsgPack(nodeInfo)
 		if err != nil {
 			log.Errorf("encode error: %s", err)
 		}
 
 		nodeDec := proto.NewNode()
-		reader := bytes.NewReader(nodeBuf.Bytes())
-		dec := codec.NewDecoder(reader, mh)
-		err = dec.Decode(nodeDec)
+		err = utils.DecodeMsgPack(nodeBuf.Bytes(), nodeDec)
 
 		So(reflect.DeepEqual(nodeDec, nodeInfo), ShouldBeTrue)
 	})

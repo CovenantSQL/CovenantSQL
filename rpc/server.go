@@ -26,9 +26,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 // ServiceMap maps service name to service instance
@@ -152,11 +152,7 @@ sessionLoop:
 				break sessionLoop
 			}
 			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
-			msgpackCodec := codec.MsgpackSpecRpc.ServerCodec(muxConn, &codec.MsgpackHandle{
-				WriteExt:    true,
-				RawToString: true,
-			})
-			nodeAwareCodec := NewNodeAwareServerCodec(msgpackCodec, remoteNodeID)
+			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}

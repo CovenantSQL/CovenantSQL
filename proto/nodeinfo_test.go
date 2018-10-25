@@ -19,7 +19,6 @@ package proto
 import (
 	"strings"
 	"testing"
-
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"

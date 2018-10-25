@@ -17,14 +17,11 @@
 package kms
 
 import (
-	"encoding/hex"
-	"testing"
-
-	"os"
-
-	"io/ioutil"
-
 	"bytes"
+	"encoding/hex"
+	"io/ioutil"
+	"os"
+	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"

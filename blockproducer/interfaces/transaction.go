@@ -61,32 +61,46 @@ const (
 	TransactionTypeDeleteDatabaseUser
 	// TransactionTypeBaseAccount defines base account transaction type.
 	TransactionTypeBaseAccount
-	// TransactionTypeCreataDatabase defines database creation transaction type.
-	TransactionTypeCreataDatabase
+	// TransactionTypeCreateDatabase defines database creation transaction type.
+	TransactionTypeCreateDatabase
 	// TransactionTypeNumber defines transaction types number.
 	TransactionTypeNumber
 )
 
-// Serializer is the interface implemented by an object that can serialize itself into binary form.
-type Serializer interface {
-	Serialize() ([]byte, error)
-}
-
-// Deserializer is the interface implemented by an object that can deserialize a binary
-// representation of itself.
-type Deserializer interface {
-	Deserialize(enc []byte) error
+func (t TransactionType) String() string {
+	switch t {
+	case TransactionTypeBilling:
+		return "Billing"
+	case TransactionTypeTransfer:
+		return "Transfer"
+	case TransactionTypeCreateAccount:
+		return "CreateAccount"
+	case TransactionTypeDeleteAccount:
+		return "DeleteAccount"
+	case TransactionTypeAddDatabaseUser:
+		return "AddDatabaseUser"
+	case TransactionTypeAlterDatabaseUser:
+		return "AlterDatabaseUser"
+	case TransactionTypeDeleteDatabaseUser:
+		return "DeleteDatabaseUser"
+	case TransactionTypeBaseAccount:
+		return "BaseAccount"
+	case TransactionTypeCreateDatabase:
+		return "CreateDatabase"
+	default:
+		return "Unknown"
+	}
 }
 
 // Transaction is the interface implemented by an object that can be verified and processed by
 // block producers.
 type Transaction interface {
-	Serializer
-	Deserializer
 	GetAccountAddress() proto.AccountAddress
 	GetAccountNonce() AccountNonce
 	GetHash() hash.Hash
 	GetTransactionType() TransactionType
 	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error
+	MarshalHash() ([]byte, error)
+	Msgsize() int
 }

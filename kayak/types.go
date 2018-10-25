@@ -229,6 +229,7 @@ func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 	}
 
 	c.Signature = sig
+	c.PubKey = signer.PubKey()
 
 	return nil
 }

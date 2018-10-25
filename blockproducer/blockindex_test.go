@@ -138,7 +138,7 @@ func TestIndexBlock(t *testing.T) {
 		t.Fatalf("lack of block index: %v", bn1)
 	}
 
-	bn3 := bi.lookupBlock(bn0.hash)
+	bn3 := bi.lookupNode(&bn0.hash)
 	if !reflect.DeepEqual(bn0, bn3) {
 		t.Fatalf("two values should be equal: \n\tv0=%+v\n\tv1=%+v", bn0, bn3)
 	}

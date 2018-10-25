@@ -20,124 +20,104 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-var (
-	peerNum uint32 = 32
-)
-
-func TestBillingRequestHeader_MarshalUnmarshalBinary(t *testing.T) {
-	reqHeader := generateRandomBillingRequestHeader()
-	b, err := utils.EncodeMsgPack(reqHeader)
+func TestBillingHeader_MarshalUnmarshalBinary(t *testing.T) {
+	tc, err := generateRandomBillingHeader()
 	if err != nil {
-		t.Fatalf("unexpect error when marshal request header: %v", err)
+		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	newReqHeader := &BillingRequestHeader{}
-	err = utils.DecodeMsgPack(b.Bytes(), newReqHeader)
+	enc, err := utils.EncodeMsgPack(tc)
 	if err != nil {
-		t.Fatalf("unexpect error when unmashll request header: %v", err)
+		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	if !reflect.DeepEqual(reqHeader, newReqHeader) {
-		t.Fatalf("values not match:\n\tv0=%+v\n\tv1=%+v", reqHeader, newReqHeader)
-	}
-}
-
-func TestBillingRequest_MarshalUnmarshalBinary(t *testing.T) {
-	req, err := generateRandomBillingRequest()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	enc, err := utils.EncodeMsgPack(req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	dec := &BillingRequest{}
+	dec := &BillingHeader{}
 	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	if !reflect.DeepEqual(req, dec) {
-		log.Debug(req)
-		log.Debug(dec)
-		t.Fatal("values not match")
+	if tc.Nonce != dec.Nonce {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.Nonce, tc.Nonce)
 	}
-}
-
-func TestBillingRequest_PackRequestHeader(t *testing.T) {
-	req, err := generateRandomBillingRequest()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if tc.BillingRequest.RequestHash != dec.BillingRequest.RequestHash {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.RequestHash, tc.BillingRequest.RequestHash)
 	}
-
-	enc, err := req.Header.MarshalHash()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if !tc.BillingRequest.Signatures[0].IsEqual(dec.BillingRequest.Signatures[0]) {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.Signatures[0], dec.BillingRequest.Signatures[0])
 	}
-
-	h := hash.THashH(enc)
-	if !h.IsEqual(&req.RequestHash) {
-		t.Fatalf("hash not matched: \n\tv1=%v\n\tv2=%v", req.RequestHash, h)
-	}
-}
-
-func TestBillingRequest_SignRequestHeader(t *testing.T) {
-	req, err := generateRandomBillingRequest()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	enc, err := req.Header.MarshalHash()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	h := hash.THashH(enc)
-	if !h.IsEqual(&req.RequestHash) {
-		t.Fatalf("hash not matched: \n\tv1=%v\n\tv2=%v", req.RequestHash, h)
-	}
-
-	for i, sign := range req.Signatures {
-		if !sign.Verify(req.RequestHash[:], req.Signees[i]) {
-
-			t.Fatalf("signature cannot match the hash and public key: %v", req)
+	for i := range tc.Receivers {
+		if !reflect.DeepEqual(tc.Receivers[i], dec.Receivers[i]) {
+			t.Fatalf("Value not match: \n\ttc.Receivers[%d]=%v\n\tReceive[%d]=%v", i, i, tc.Receivers[i], tc.Receivers[0])
+		}
+		if tc.Rewards[i] != dec.Rewards[i] {
+			t.Fatalf("Value not match: \n\ttc.Rewards[%d]=%v\n\tRewards[%d]=%v", i, i, tc.Rewards[i], tc.Rewards[0])
+		}
+		if tc.Fees[i] != dec.Fees[i] {
+			t.Fatalf("Value not match: \n\ttc.Fees[%d]=%v\n\tFees[%d]=%v", i, i, tc.Fees[i], tc.Fees[0])
 		}
 	}
+}
 
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-	sign, err := req.SignRequestHeader(priv)
-	if !sign.Verify(req.RequestHash[:], pub) {
-		t.Fatalf("signature cannot match the hash and public key: %v", req)
+func TestBilling_SerializeDeserialize(t *testing.T) {
+	tb, err := generateRandomBilling()
+	if err != nil {
+		t.Fatalf("Unexpeted error: %v", err)
 	}
-	sign, err = req.SignRequestHeader(priv)
-	if !sign.Verify(req.RequestHash[:], pub) {
-		t.Fatalf("signature cannot match the hash and public key: %v", req)
+
+	enc, err := utils.EncodeMsgPack(tb)
+	if err != nil {
+		t.Fatalf("Unexpeted error: %v", err)
+	}
+
+	dec := Billing{}
+	err = utils.DecodeMsgPack(enc.Bytes(), &dec)
+	if err != nil {
+		t.Fatalf("Unexpeted error: %v", err)
+	}
+
+	if !tb.Signature.IsEqual(dec.Signature) {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signature, tb.Signature)
+	}
+	if !tb.Signee.IsEqual(dec.Signee) {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signee, tb.Signee)
+	}
+	if !tb.Hash.IsEqual(&dec.Hash) {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Hash, tb.Hash)
 	}
 }
 
-func TestBillingResponse_MarshalUnmarshalBinary(t *testing.T) {
-	resp, err := generateRandomBillingResponse()
+func TestBilling_PackAndSignTx(t *testing.T) {
+	tb, err := generateRandomBilling()
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Unexpeted error: %v", err)
 	}
 
-	enc, err := utils.EncodeMsgPack(resp)
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Unexpeted error: %v", err)
+	}
+	tb.Sign(priv)
+	enc, err := tb.BillingHeader.MarshalHash()
+	if err != nil {
+		t.Fatalf("Unexpeted error: %v", err)
+	}
+	h := hash.THashH(enc[:])
+	sign, err := priv.Sign(h[:])
+	if err != nil {
+		t.Fatalf("Unexpeted error: %v", err)
+	}
+	if !sign.IsEqual(tb.Signature) {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", sign, tb.Signature)
 	}
 
-	dec := &BillingResponse{}
-	err = utils.DecodeMsgPack(enc.Bytes(), dec)
+	err = tb.Verify()
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Verify signature failed: %v", err)
 	}
 }

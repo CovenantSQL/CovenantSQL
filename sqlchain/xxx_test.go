@@ -131,8 +131,6 @@ func createRandomQueryRequest(cli *nodeProfile) (r *wt.SignedRequestHeader, err 
 				Timestamp:    time.Now().UTC(),
 				// BatchCount and QueriesHash will be set by req.Sign()
 			},
-			Signee:    cli.PublicKey,
-			Signature: nil,
 		},
 		Payload: wt.RequestPayload{
 			Queries: createRandomStorageQueries(10, 10, 10, 10),
@@ -165,8 +163,6 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 				NodeID:    worker.NodeID,
 				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
 			},
-			Signee:    worker.PublicKey,
-			Signature: nil,
 		},
 		Payload: wt.ResponsePayload{
 			Columns:   createRandomStrings(10, 10, 10, 10),
@@ -201,8 +197,6 @@ func createRandomQueryResponseWithRequest(req *wt.SignedRequestHeader, worker *n
 				NodeID:    worker.NodeID,
 				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
 			},
-			Signee:    worker.PublicKey,
-			Signature: nil,
 		},
 		Payload: wt.ResponsePayload{
 			Columns:   createRandomStrings(10, 10, 10, 10),
@@ -237,8 +231,6 @@ func createRandomQueryAckWithResponse(resp *wt.SignedResponseHeader, cli *nodePr
 				NodeID:    cli.NodeID,
 				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
 			},
-			Signee:    cli.PublicKey,
-			Signature: nil,
 		},
 	}
 
@@ -264,8 +256,6 @@ func createRandomQueryAck(cli, worker *nodeProfile) (r *wt.SignedAckHeader, err 
 				NodeID:    cli.NodeID,
 				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
 			},
-			Signee:    cli.PublicKey,
-			Signature: nil,
 		},
 	}
 
@@ -351,8 +341,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 	}
 
@@ -397,7 +385,7 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*wt.SignedAc
 	b *ct.Block, err error,
 ) {
 	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -415,8 +403,6 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*wt.SignedAc
 				ParentHash:  parent,
 				Timestamp:   time.Now().UTC(),
 			},
-			Signee:    pub,
-			Signature: nil,
 		},
 	}
 

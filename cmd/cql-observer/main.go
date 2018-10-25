@@ -19,11 +19,10 @@ package main
 import (
 	"flag"
 	"math/rand"
-	"time"
-
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -48,7 +47,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+	flag.StringVar(&configFile, "config", "./config.yaml", "config file path")
 	flag.StringVar(&dbID, "database", "", "database to listen for observation")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")

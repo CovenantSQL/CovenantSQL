@@ -16,27 +16,19 @@
 
 package types
 
-//go:generate hsp
-
-// TxType represents the type of tx.
-type TxType byte
-
-const (
-	// TxTypeBilling defines TxType for database service billing.
-	TxTypeBilling TxType = 0
+import (
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// String returns the TxType name.
-func (tt *TxType) String() string {
-	switch *tt {
-	case TxTypeBilling:
-		return "TxBilling"
-	default:
-		return "TxUnknown"
-	}
+// AdviseBillingReq defines a request of the AdviseBillingRequest RPC method.
+type AdviseBillingReq struct {
+	proto.Envelope
+	Req *pt.BillingRequest
 }
 
-// ToByte returns the the that represents the TxType.
-func (tt *TxType) ToByte() byte {
-	return byte(*tt)
+// AdviseBillingResp defines a request of the AdviseBillingRequest RPC method.
+type AdviseBillingResp struct {
+	proto.Envelope
+	Resp *pt.BillingRequest
 }

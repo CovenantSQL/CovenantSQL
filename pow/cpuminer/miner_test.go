@@ -17,11 +17,9 @@
 package cpuminer
 
 import (
-	"testing"
-
-	"time"
-
 	"sync"
+	"testing"
+	"time"
 )
 
 func TestCPUMiner_HashBlock(t *testing.T) {

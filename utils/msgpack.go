@@ -18,39 +18,56 @@ package utils
 
 import (
 	"bytes"
+	"net"
+	"net/rpc"
+	"reflect"
 
 	"github.com/ugorji/go/codec"
 )
 
-// DecodeMsgPack reverses the encode operation on a byte slice input.
-func DecodeMsgPack(buf []byte, out interface{}) error {
-	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{
+var (
+	msgPackHandle = &codec.MsgpackHandle{
 		WriteExt:    true,
 		RawToString: true,
 	}
-	dec := codec.NewDecoder(r, &hd)
+)
+
+// RegisterInterfaceToMsgPack binds interface decode/encode to specified implementation.
+func RegisterInterfaceToMsgPack(intf, impl reflect.Type) (err error) {
+	return msgPackHandle.Intf2Impl(intf, impl)
+}
+
+// DecodeMsgPack reverses the encode operation on a byte slice input.
+func DecodeMsgPack(buf []byte, out interface{}) error {
+	r := bytes.NewBuffer(buf)
+	dec := codec.NewDecoder(r, msgPackHandle)
 	return dec.Decode(out)
 }
 
 // DecodeMsgPackPlain reverses the encode operation on a byte slice input without RawToString setting.
 func DecodeMsgPackPlain(buf []byte, out interface{}) error {
 	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{
+	hd := &codec.MsgpackHandle{
 		WriteExt: true,
 	}
-	dec := codec.NewDecoder(r, &hd)
+	dec := codec.NewDecoder(r, hd)
 	return dec.Decode(out)
 }
 
 // EncodeMsgPack writes an encoded object to a new bytes buffer.
 func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
-	hd := codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-	enc := codec.NewEncoder(buf, &hd)
+	enc := codec.NewEncoder(buf, msgPackHandle)
 	err := enc.Encode(in)
 	return buf, err
+}
+
+// GetMsgPackServerCodec returns msgpack server codec for connection.
+func GetMsgPackServerCodec(c net.Conn) rpc.ServerCodec {
+	return codec.MsgpackSpecRpc.ServerCodec(c, msgPackHandle)
+}
+
+// GetMsgPackClientCodec returns msgpack client codec for connection.
+func GetMsgPackClientCodec(c net.Conn) rpc.ClientCodec {
+	return codec.MsgpackSpecRpc.ClientCodec(c, msgPackHandle)
 }

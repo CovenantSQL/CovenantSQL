@@ -2310,13 +2310,13 @@ yydefault:
 		yyDollar = yyS[yypt-0 : yypt+1]
 		//line sql.y:831
 		{
-			yyVAL.bytes = ""
+			yyVAL.bytes = nil
 		}
 	case 126:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		//line sql.y:835
 		{
-			yyVAL.bytes = ""
+			yyVAL.bytes = nil
 		}
 	case 127:
 		yyDollar = yyS[yypt-2 : yypt+1]

@@ -32,7 +32,7 @@ import (
 var (
 	dbIDRegex                  = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
 	specialSelectQuery         = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER)\\(\\)\\s*;?\\s*$")
-	emptyResultQuery           = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SET|ROLLBACK).*$")
+	emptyResultQuery           = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SET|ROLLBACK|SHOW\\s+WARNINGS).*$")
 	emptyResultWithColumnQuery = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SELECT\\s+)?@@(?:\\w+\\.)?.*$")
 	showVariablesQuery         = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+VARIABLES.*$")
 	showDatabasesQuery         = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+DATABASES.*$")
@@ -41,6 +41,13 @@ var (
 	mysqlServerVariables       = map[string]interface{}{
 		"max_allowed_packet":       255 * 255 * 255,
 		"auto_increment_increment": 1,
+		"transaction_isolation":    "SERIALIZABLE",
+		"tx_isolation":             "SERIALIZABLE",
+		"transaction_read_only":    0,
+		"tx_read_only":             0,
+		"autocommit":               1,
+		"character_set_server":     "utf8",
+		"collation_server":         "utf8_general_ci",
 	}
 )
 

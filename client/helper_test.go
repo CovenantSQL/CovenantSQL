@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
@@ -43,6 +44,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+)
+
+const (
+	// PubKeyStorePath defines public cache store.
+	PubKeyStorePath = "./public.keystore"
 )
 
 var (
@@ -207,7 +213,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	block, err = createRandomBlock(rootHash, true)
 
 	// get database peers
-	if peers, err = getPeers(1); err != nil {
+	if peers, err = genPeers(1); err != nil {
 		return
 	}
 
@@ -305,6 +311,9 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		server.Stop()
 	}
 
+	// fake database init already processed
+	atomic.StoreUint32(&driverInitialized, 1)
+
 	return
 }
 
@@ -389,7 +398,7 @@ func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, er
 	return
 }
 
-func getPeers(term uint64) (peers *kayak.Peers, err error) {
+func genPeers(term uint64) (peers *kayak.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {

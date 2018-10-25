@@ -221,6 +221,7 @@ func (c *Peers) Serialize() []byte {
 
 // Sign generates signature.
 func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
+	c.PubKey = signer.PubKey()
 	h := hash.THashB(c.Serialize())
 	sig, err := signer.Sign(h)
 
@@ -229,7 +230,6 @@ func (c *Peers) Sign(signer *asymmetric.PrivateKey) error {
 	}
 
 	c.Signature = sig
-	c.PubKey = signer.PubKey()
 
 	return nil
 }

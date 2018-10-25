@@ -18,6 +18,7 @@ package client
 
 import (
 	"database/sql"
+	"sync"
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -248,5 +249,42 @@ func TestTransaction(t *testing.T) {
 		tx, err = db.Begin()
 		So(tx, ShouldBeNil)
 		So(err, ShouldNotBeNil)
+	})
+}
+
+func TestConnAndSeqAllocation(t *testing.T) {
+	Convey("conn id and seq no allocation test", t, func() {
+		var wg sync.WaitGroup
+		var seqMap sync.Map
+		testFunc := func(c, s uint64) {
+			v, l := seqMap.LoadOrStore(c, s)
+			if l {
+				vi := v.(uint64)
+				if vi >= s {
+					// invalid
+					t.Fatalf(ErrInvalidRequestSeq.Error())
+				}
+			} else {
+				seqMap.Store(c, s)
+			}
+		}
+		f := func() {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i != 100; i++ {
+					connID, seqNo := allocateConnAndSeq()
+					t.Logf("connID: %v, seqNo: %v", connID, seqNo)
+					testFunc(connID, seqNo)
+					putBackConn(connID)
+				}
+			}()
+		}
+
+		f()
+		f()
+		f()
+		f()
+		wg.Wait()
 	})
 }

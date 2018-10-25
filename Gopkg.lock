@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8d21b4d359da7c7e49800d2e6e186997bae08ea6f814b7ca20bbd76e72e0338d"
+  digest = "1:2388e19eeeefadf9440b660ca1c1f25849fdea96b29d330d7994fe5269272f77"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -29,7 +29,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "fe86852c12c8b9055d4d0731940014487dca1f12"
+  revision = "af58d81f345b125bf5c952831f10e675b38089c5"
 
 [[projects]]
   branch = "master"
@@ -439,7 +439,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a2781c62eecc87e942c9e9e84e5aeeba9957b6cd2f9b78f536d6f2a795577950"
+  digest = "1:f3d21af6a9155985b00fce6c2d0c332599532888fc8ce4a5259adab626213a12"
   name = "github.com/siddontang/go-mysql"
   packages = [
     "mysql",
@@ -447,7 +447,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "a2685e59bda4b33ae8a7c95ace99cf2ea7804db3"
+  revision = "e7b629323f339a0921c3dd19a0aca4c3f56c83e0"
   source = "github.com/CovenantSQL/go-mysql"
 
 [[projects]]
@@ -605,7 +605,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "74cb1d3d52f4c01cbfb44c1b50d204462f3124c7"
 
 [[projects]]
   branch = "master"
@@ -621,18 +621,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
+  revision = "9b4f9f5ad5197c79fd623a3638e70d8b26cef344"
 
 [[projects]]
   branch = "master"
-  digest = "1:eb2ed765d17a2cedfc307cf8beda6f0857ad378431a4d8f2726c419f3d7105de"
+  digest = "1:6c93c46c00889c28f5a105e7cb5ba56672fd4a2351375fa819acb44e66d427df"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "8a28ead16f52c8aaeffbf79239b251dfdf6c4f96"
+  revision = "d989b31c87461dc8ab2f1cac6792814e27fadea9"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"

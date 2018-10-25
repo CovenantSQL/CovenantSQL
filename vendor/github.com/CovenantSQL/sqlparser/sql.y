@@ -112,6 +112,7 @@ func forceEOF(yylex interface{}) {
 %token <empty> '(' ',' ')'
 %token <bytes> ID HEX STRING INTEGRAL FLOAT HEXNUM VALUE_ARG LIST_ARG COMMENT
 %token <bytes> NULL TRUE FALSE
+%token <bytes> FULL COLUMNS
 
 // Precedence dictated by mysql. But the vitess grammar is simplified.
 // Some of these operators don't conflict in our situation. Nevertheless,
@@ -232,6 +233,7 @@ func forceEOF(yylex interface{}) {
 %type <indexColumn> index_column
 %type <indexColumns> index_column_list
 %type <bytes> alter_object_type
+%type <bytes> full_opt
 
 %start any_command
 
@@ -360,10 +362,10 @@ create_statement:
     $1.TableSpec = $2
     $$ = $1
   }
-| CREATE constraint_opt INDEX ID ON table_name ddl_force_eof
+| CREATE constraint_opt INDEX not_exists_opt ID ON table_name ddl_force_eof
   {
     // Change this to an alter statement
-    $$ = &DDL{Action: CreateIndexStr, Table: $6, NewName:$6}
+    $$ = &DDL{Action: CreateIndexStr, Table: $7, NewName:$7}
   }
 
 create_table_prefix:
@@ -816,9 +818,22 @@ SHOW CREATE TABLE table_name
   {
     $$ = &Show{Type: string($2), OnTable: $3}
   }
-| SHOW TABLES
+| SHOW comment_opt TABLES
   {
-    $$ = &Show{Type: string($2)}
+    $$ = &Show{Type: string($3)}
+  }
+| SHOW comment_opt full_opt COLUMNS FROM table_name
+  {
+    $$ = &Show{Type: "table", OnTable: $6}
+  }
+
+full_opt:
+  {
+    $$ = nil
+  }
+| FULL
+  {
+    $$ = nil
   }
 
 other_statement:

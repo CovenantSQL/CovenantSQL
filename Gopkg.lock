@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8d21b4d359da7c7e49800d2e6e186997bae08ea6f814b7ca20bbd76e72e0338d"
+  digest = "1:937822779f844e2197e5cc195c013b6823e337d69ae1e62e691fe4130131dc12"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -29,7 +29,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "fe86852c12c8b9055d4d0731940014487dca1f12"
+  revision = "222a0ee38cec3cd638e5801503c521a755be9e2a"
 
 [[projects]]
   branch = "master"
@@ -589,7 +589,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "74cb1d3d52f4c01cbfb44c1b50d204462f3124c7"
 
 [[projects]]
   branch = "master"
@@ -605,18 +605,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
+  revision = "9b4f9f5ad5197c79fd623a3638e70d8b26cef344"
 
 [[projects]]
   branch = "master"
-  digest = "1:eb2ed765d17a2cedfc307cf8beda6f0857ad378431a4d8f2726c419f3d7105de"
+  digest = "1:b9c7e858b8e2f3e6a53a561a1f032fa38c91c626e1f3b7e42e08505af95a02a9"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "8a28ead16f52c8aaeffbf79239b251dfdf6c4f96"
+  revision = "5cd93ef61a7c8f0f858690154eb6de2e69415fa1"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"

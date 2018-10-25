@@ -112,6 +112,7 @@ func forceEOF(yylex interface{}) {
 %token <empty> '(' ',' ')'
 %token <bytes> ID HEX STRING INTEGRAL FLOAT HEXNUM VALUE_ARG LIST_ARG COMMENT
 %token <bytes> NULL TRUE FALSE
+%token <bytes> FULL COLUMNS
 
 // Precedence dictated by mysql. But the vitess grammar is simplified.
 // Some of these operators don't conflict in our situation. Nevertheless,
@@ -232,6 +233,7 @@ func forceEOF(yylex interface{}) {
 %type <indexColumn> index_column
 %type <indexColumns> index_column_list
 %type <bytes> alter_object_type
+%type <bytes> full_opt
 
 %start any_command
 
@@ -816,9 +818,22 @@ SHOW CREATE TABLE table_name
   {
     $$ = &Show{Type: string($2), OnTable: $3}
   }
-| SHOW TABLES
+| SHOW comment_opt TABLES
   {
-    $$ = &Show{Type: string($2)}
+    $$ = &Show{Type: string($3)}
+  }
+| SHOW comment_opt full_opt COLUMNS FROM table_name
+  {
+    $$ = &Show{Type: "table", OnTable: $6}
+  }
+
+full_opt:
+  {
+    $$ = ""
+  }
+| FULL
+  {
+    $$ = ""
   }
 
 other_statement:

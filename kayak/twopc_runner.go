@@ -74,7 +74,6 @@ type TwoPCRunner struct {
 	shutdownLock sync.Mutex
 
 	// Lock/events
-	processLock     sync.Mutex
 	processReq      chan []byte
 	processRes      chan logProcessResult
 	updatePeersLock sync.Mutex
@@ -279,14 +278,12 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 
 // Apply implements Runner.Apply.
 func (r *TwoPCRunner) Apply(data []byte) (uint64, error) {
-	r.processLock.Lock()
-	defer r.processLock.Unlock()
-
 	// check leader privilege
 	if r.role != proto.Leader {
 		return 0, ErrNotLeader
 	}
 
+	//TODO(auxten): need throughput optimization
 	r.processReq <- data
 	res := <-r.processRes
 

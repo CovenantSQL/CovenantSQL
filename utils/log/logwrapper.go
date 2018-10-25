@@ -49,6 +49,7 @@ const (
 // if package name exists and log level is more verbose, the log will be dropped
 var PkgDebugLogFilter = map[string]logrus.Level{
 	"metric": InfoLevel,
+	"rpc":    InfoLevel,
 }
 
 // Logger wraps logrus logger type.

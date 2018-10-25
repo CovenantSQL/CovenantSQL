@@ -45,6 +45,7 @@ var (
 
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
+		log.SetLevel(log.InfoLevel)
 		confDir := "../test/mainchain/node_standalone/config.yaml"
 		privDir := "../test/mainchain/node_standalone/private.key"
 		cleanup, _, _, rpcServer, err := initNode(

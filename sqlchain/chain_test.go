@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -86,6 +88,7 @@ func TestIndexKey(t *testing.T) {
 }
 
 func TestMultiChain(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
 	// Create genesis block
 	genesis, err := createRandomBlock(genesisHash, true)
 

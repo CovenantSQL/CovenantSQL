@@ -363,7 +363,7 @@
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "16f375c74db6ccf880e1cd9c6c6087a6d58e5d12"
+  revision = "f30f428035633da15d00d3dfefb0128c5e569ef4"
 
 [[projects]]
   branch = "master"
@@ -447,7 +447,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "e7b629323f339a0921c3dd19a0aca4c3f56c83e0"
+  revision = "9c7dbbd45dd24cccc006b38f706528c4820807c5"
   source = "github.com/CovenantSQL/go-mysql"
 
 [[projects]]
@@ -572,7 +572,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6162124bb1bdabe76e3da4a734a5109e8979e8cf4ddcc5c0efeb0a50bd3c1ef5"
+  digest = "1:70492e57eb4abe45c86ff3855b87a6681f15bcf7e12666596c1e826a9c95d99f"
   name = "github.com/xo/usql"
   packages = [
     "drivers",
@@ -585,7 +585,8 @@
     "text",
   ]
   pruneopts = "UT"
-  revision = "f0d1f2ffcfd924cccb45128a0fd7bdc06cad72b4"
+  revision = "885ff880d8520d74c227a9d1a310aa473209d155"
+  source = "github.com/CovenantSQL/usql"
 
 [[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"
@@ -605,7 +606,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "74cb1d3d52f4c01cbfb44c1b50d204462f3124c7"
+  revision = "e84da0312774c21d64ee2317962ef669b27ffb41"
 
 [[projects]]
   branch = "master"

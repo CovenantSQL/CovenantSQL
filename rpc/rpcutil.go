@@ -113,7 +113,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 }
 
 // Close closes the stream and RPC client
-func (c *PersistentCaller) Close() {
+func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {
 			stream, ok := c.client.Conn.(*yamux.Stream)
@@ -121,8 +121,13 @@ func (c *PersistentCaller) Close() {
 				stream.Close()
 			}
 		}
-		c.client.Close()
 	}
+}
+
+// Close closes the stream and RPC client
+func (c *PersistentCaller) Close() {
+	c.CloseStream()
+	c.client.Close()
 	c.pool.Remove(c.TargetID)
 }
 

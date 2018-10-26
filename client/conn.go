@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -37,18 +38,19 @@ import (
 type conn struct {
 	dbID proto.DatabaseID
 
-	queries []wt.Query
-	nodeID  proto.NodeID
-	privKey *asymmetric.PrivateKey
+	queries     []wt.Query
+	localNodeID proto.NodeID
+	privKey     *asymmetric.PrivateKey
 
+	ackCh         chan *wt.Ack
 	inTransaction bool
 	closed        int32
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
 	// get local node id
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+	var localNodeID proto.NodeID
+	if localNodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -59,19 +61,81 @@ func newConn(cfg *Config) (c *conn, err error) {
 	}
 
 	c = &conn{
-		dbID:    proto.DatabaseID(cfg.DatabaseID),
-		nodeID:  nodeID,
-		privKey: privKey,
-		queries: make([]wt.Query, 0),
+		dbID:        proto.DatabaseID(cfg.DatabaseID),
+		localNodeID: localNodeID,
+		privKey:     privKey,
+		queries:     make([]wt.Query, 0),
 	}
-
-	log.WithField("db", c.dbID).Debug("new connection to database")
 
 	// get peers from BP
 	if _, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
+		log.Errorf("cacheGetPeers failed: %v", err)
+		c = nil
 		return
 	}
 
+	err = c.startAckWorkers(2)
+	if err != nil {
+		log.Errorf("startAckWorkers failed: %v", err)
+		c = nil
+		return
+	}
+	log.WithField("db", c.dbID).Debug("new connection to database")
+
+	return
+}
+
+func (c *conn) startAckWorkers(workerCount int) (err error) {
+	c.ackCh = make(chan *wt.Ack, workerCount*4)
+	for i := 0; i < workerCount; i++ {
+		go c.ackWorker()
+	}
+	return
+}
+
+func (c *conn) stopAckWorkers() {
+	close(c.ackCh)
+}
+
+func (c *conn) ackWorker() {
+	if rawPeers, ok := peerList.Load(c.dbID); ok {
+		if peers, ok := rawPeers.(*kayak.Peers); ok {
+			var (
+				oneTime sync.Once
+				pc      *rpc.PersistentCaller
+				err     error
+			)
+
+		ackWorkerLoop:
+			for {
+				ack, got := <-c.ackCh
+				if !got { //closed and empty
+					break ackWorkerLoop
+				}
+				oneTime.Do(func() {
+					pc = rpc.NewPersistentCaller(peers.Leader.ID)
+				})
+				if err = ack.Sign(c.privKey, false); err != nil {
+					log.Errorf("failed to sign ack for %s: %v", pc.TargetID, err)
+					continue
+				}
+
+				var ackRes wt.AckResponse
+				// send ack back
+				if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
+					log.Warningf("send ack failed: %v", err)
+					continue
+				}
+			}
+			if pc != nil {
+				pc.CloseStream()
+			}
+			log.Debug("ack worker quiting")
+			return
+		}
+	}
+
+	log.Fatal("must GetPeers first")
 	return
 }
 
@@ -86,7 +150,7 @@ func (c *conn) Close() error {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		log.WithField("db", c.dbID).Debug("closed connection")
 	}
-
+	c.stopAckWorkers()
 	return nil
 }
 
@@ -234,7 +298,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
 				QueryType:    queryType,
-				NodeID:       c.nodeID,
+				NodeID:       c.localNodeID,
 				DatabaseID:   c.dbID,
 				ConnectionID: connID,
 				SeqNo:        seqNo,
@@ -251,7 +315,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	}
 
 	pCaller := rpc.NewPersistentCaller(peers.Leader.ID)
-	defer pCaller.Close()
+	defer pCaller.CloseStream()
 	var response wt.Response
 	if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
@@ -261,31 +325,18 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	if err = response.Verify(); err != nil {
 		return
 	}
+	rows = newRows(&response)
 
 	// build ack
-	ack := &wt.Ack{
+	c.ackCh <- &wt.Ack{
 		Header: wt.SignedAckHeader{
 			AckHeader: wt.AckHeader{
 				Response:  response.Header,
-				NodeID:    c.nodeID,
+				NodeID:    c.localNodeID,
 				Timestamp: getLocalTime(),
 			},
 		},
 	}
-
-	if err = ack.Sign(c.privKey); err != nil {
-		return
-	}
-
-	var ackRes wt.AckResponse
-
-	// send ack back
-	if err = pCaller.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
-		log.Warningf("ack query failed: %v", err)
-		err = nil
-	}
-
-	rows = newRows(&response)
 
 	return
 }

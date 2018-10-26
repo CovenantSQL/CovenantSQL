@@ -397,7 +397,9 @@ func TestAck_Sign(t *testing.T) {
 		})
 
 		// sign directly, embedded original response is not filled
-		err = ack.Sign(privKey)
+		err = ack.Sign(privKey, false)
+		So(err, ShouldBeNil)
+		err = ack.Sign(privKey, true)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldBeIn, []error{
 			ErrSignVerification,
@@ -411,7 +413,7 @@ func TestAck_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = ack.Header.Response.Sign(privKey)
 		So(err, ShouldBeNil)
-		err = ack.Sign(privKey)
+		err = ack.Sign(privKey, true)
 		So(err, ShouldBeNil)
 
 		Convey("serialize", func() {

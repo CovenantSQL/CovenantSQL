@@ -308,9 +308,18 @@ func TestFullProcess(t *testing.T) {
 	Convey("test full process", t, func() {
 		startNodes()
 		defer stopNodes()
-		time.Sleep(5 * time.Second)
-
 		var err error
+		err = utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
+			2144,
+			2145,
+			2146,
+			3122,
+			3121,
+			3120,
+		}, time.Millisecond*200)
+		time.Sleep(time.Second)
+		So(err, ShouldBeNil)
+
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
@@ -452,7 +461,15 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	asymmetric.BypassSignature = bypassSign
 	if minerCount > 0 {
 		startNodesProfile(bypassSign)
-		time.Sleep(5 * time.Second)
+		utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
+			2144,
+			2145,
+			2146,
+			3122,
+			3121,
+			3120,
+		}, time.Millisecond*200)
+		time.Sleep(time.Second)
 	}
 
 	// Create temp directory

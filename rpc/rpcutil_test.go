@@ -252,6 +252,19 @@ func TestNewPersistentCaller(t *testing.T) {
 		}(t, &wg)
 	}
 
+	client2 := NewPersistentCaller(conf.GConf.BP.NodeID)
+	reqF2 := &proto.FindNeighborReq{
+		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
+		Count:  10,
+	}
+	respF2 := new(proto.FindNeighborResp)
+
+	err = client2.Call("DHT.FindNeighbor", reqF2, respF2)
+	if err != nil {
+		t.Error(err)
+	}
+	client2.CloseStream()
+
 	wg.Wait()
 	server.Stop()
 }

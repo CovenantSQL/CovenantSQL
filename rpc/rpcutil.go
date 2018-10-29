@@ -121,14 +121,14 @@ func (c *PersistentCaller) CloseStream() {
 				stream.Close()
 			}
 		}
+		c.client.Close()
 	}
 }
 
 // Close closes the stream and RPC client
 func (c *PersistentCaller) Close() {
 	c.CloseStream()
-	c.client.Close()
-	c.pool.Remove(c.TargetID)
+	//c.pool.Remove(c.TargetID)
 }
 
 // Caller is a wrapper for session pooling and RPC calling.

@@ -234,7 +234,7 @@ func setupBenchmarkStorage(
 	const (
 		vnum    = 3
 		vlen    = 100
-		records = 1000
+		records = 100000
 	)
 	// Setup storage
 	var (
@@ -354,6 +354,20 @@ func BenchmarkStoargeSequentialRead(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if err = st.Reader().QueryRow(q, rand.Intn(n)).Scan(dest...); err != nil {
 			b.Fatalf("Failed to query values: %v", err)
+		}
+	}
+	teardownBenchmarkStorage(b, st)
+}
+
+func BenchmarkStoargeSequentialWrite(b *testing.B) {
+	var (
+		st, n, _, _, e, src = setupBenchmarkStorage(b)
+
+		err error
+	)
+	for i := 0; i < b.N; i++ {
+		if _, err = st.Writer().Exec(e, src[rand.Intn(n)]...); err != nil {
+			b.Errorf("Failed to execute: %v", err)
 		}
 	}
 	teardownBenchmarkStorage(b, st)

@@ -159,6 +159,7 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	server.Stop()
+	client.pool.Close()
 }
 
 func TestNewPersistentCaller(t *testing.T) {
@@ -168,18 +169,8 @@ func TestNewPersistentCaller(t *testing.T) {
 	os.Remove(publicKeyStore)
 	defer os.Remove(publicKeyStore)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
-	err := utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2230,
-	}, time.Millisecond*200)
-
-	if err != nil {
-		log.Fatalf("wait for port ready timeout: %v", err)
-	}
-
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config2.yaml")
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
@@ -197,7 +188,20 @@ func TestNewPersistentCaller(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		12230,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	err = server.InitRPCServer(addr, privateKeyPath, masterKey)
+	if err != nil {
+		t.Fatal(err)
+	}
 	go server.Serve()
 
 	client := NewPersistentCaller(conf.GConf.BP.NodeID)
@@ -233,7 +237,7 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
-	wg.Add(RPCConcurrent)
+	wg.Add(RPCConcurrent * RPCCount)
 	for i := 0; i < RPCConcurrent; i++ {
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
@@ -247,8 +251,8 @@ func TestNewPersistentCaller(t *testing.T) {
 					tt.Error(err)
 				}
 				log.Debugf("resp: %v", respF)
+				wg.Done()
 			}
-			wg.Done()
 		}(t, &wg)
 	}
 

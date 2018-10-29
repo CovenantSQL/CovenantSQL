@@ -233,8 +233,8 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
+	wg.Add(RPCConcurrent)
 	for i := 0; i < RPCConcurrent; i++ {
-		wg.Add(1)
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
 				reqF := &proto.FindNeighborReq{

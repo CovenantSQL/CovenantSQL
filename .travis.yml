@@ -34,7 +34,7 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - go test -v -race ./... -coverprofile cover.out
-  - go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$
+  - cd rpc && go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$
   - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)
   - >-

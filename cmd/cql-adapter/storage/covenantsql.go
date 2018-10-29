@@ -22,17 +22,17 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
-// ThunderDBStorage defines the thunderdb database abstraction.
-type ThunderDBStorage struct{}
+// CovenantSQLStorage defines the covenantsql database abstraction.
+type CovenantSQLStorage struct{}
 
-// NewCovenantSQLStorage returns new thunderdb storage handler.
-func NewCovenantSQLStorage() (s *ThunderDBStorage) {
-	s = &ThunderDBStorage{}
+// NewCovenantSQLStorage returns new covenantsql storage handler.
+func NewCovenantSQLStorage() (s *CovenantSQLStorage) {
+	s = &CovenantSQLStorage{}
 	return
 }
 
 // Create implements the Storage abstraction interface.
-func (s *ThunderDBStorage) Create(nodeCnt int) (dbID string, err error) {
+func (s *CovenantSQLStorage) Create(nodeCnt int) (dbID string, err error) {
 	var dsn string
 	if dsn, err = client.Create(client.ResourceMeta{Node: uint16(nodeCnt)}); err != nil {
 		return
@@ -48,7 +48,7 @@ func (s *ThunderDBStorage) Create(nodeCnt int) (dbID string, err error) {
 }
 
 // Drop implements the Storage abstraction interface.
-func (s *ThunderDBStorage) Drop(dbID string) (err error) {
+func (s *CovenantSQLStorage) Drop(dbID string) (err error) {
 	cfg := client.NewConfig()
 	cfg.DatabaseID = dbID
 	err = client.Drop(cfg.FormatDSN())
@@ -56,7 +56,7 @@ func (s *ThunderDBStorage) Drop(dbID string) (err error) {
 }
 
 // Query implements the Storage abstraction interface.
-func (s *ThunderDBStorage) Query(dbID string, query string) (columns []string, types []string, result [][]interface{}, err error) {
+func (s *CovenantSQLStorage) Query(dbID string, query string) (columns []string, types []string, result [][]interface{}, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID); err != nil {
 		return
@@ -92,7 +92,7 @@ func (s *ThunderDBStorage) Query(dbID string, query string) (columns []string, t
 }
 
 // Exec implements the Storage abstraction interface.
-func (s *ThunderDBStorage) Exec(dbID string, query string) (err error) {
+func (s *CovenantSQLStorage) Exec(dbID string, query string) (err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID); err != nil {
 		return
@@ -104,7 +104,7 @@ func (s *ThunderDBStorage) Exec(dbID string, query string) (err error) {
 	return
 }
 
-func (s *ThunderDBStorage) getConn(dbID string) (db *sql.DB, err error) {
+func (s *CovenantSQLStorage) getConn(dbID string) (db *sql.DB, err error) {
 	cfg := client.NewConfig()
 	cfg.DatabaseID = dbID
 

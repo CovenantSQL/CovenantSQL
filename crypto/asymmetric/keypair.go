@@ -167,7 +167,7 @@ func GenSecp256k1KeyPair() (
 
 	privateKeyEc, err := ec.NewPrivateKey(ec.S256())
 	if err != nil {
-		log.Errorf("private key generation error: %s", err)
+		log.WithError(err).Error("private key generation failed")
 		return nil, nil, err
 	}
 	publicKey = (*PublicKey)(privateKeyEc.PubKey())

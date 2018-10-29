@@ -241,9 +241,14 @@ func (s *Service) AdviseNewBlock(req *sqlchain.MuxAdviseNewBlockReq, resp *sqlch
 	}
 
 	if req.Block == nil {
-		log.Infof("received empty block from node %v", req.GetNodeID().String())
+		log.WithField("node", req.GetNodeID().String()).Warning("received empty block")
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"node":  req.GetNodeID().String(),
+		"block": req.Block.BlockHash(),
+	}).Debug("received block")
 
 	return s.addBlock(req.DatabaseID, req.Count, req.Block)
 }
@@ -256,7 +261,7 @@ func (s *Service) AdviseAckedQuery(req *sqlchain.MuxAdviseAckedQueryReq, resp *s
 	}
 
 	if req.Query == nil {
-		log.Infof("received empty acked query from node %v", req.GetNodeID().String())
+		log.WithField("node", req.GetNodeID().String()).Info("received empty acked query")
 		return
 	}
 
@@ -278,7 +283,7 @@ func (s *Service) start() (err error) {
 
 	for _, dbID := range dbs {
 		if err = s.startSubscribe(dbID); err != nil {
-			log.Warningf("start subscription failed on database %v: %v", dbID, err)
+			log.WithField("db", dbID).WithError(err).Warning("start subscription failed")
 		}
 	}
 
@@ -295,7 +300,7 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 	defer s.lock.Unlock()
 
 	// start subscribe on first node of each sqlchain server peers
-	log.Infof("start subscribing transactions from database %v", dbID)
+	log.WithField("db", dbID).Info("start subscribing transactions")
 
 	instance, err := s.getUpstream(dbID)
 	if err != nil {
@@ -318,7 +323,10 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 }
 
 func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) (err error) {
-	log.Debugf("add ack query %v: %v", dbID, ack.HeaderHash.String())
+	log.WithFields(log.Fields{
+		"ack": ack.HeaderHash.String(),
+		"db":  dbID,
+	}).Debug("add ack query")
 
 	if atomic.LoadInt32(&s.stopped) == 1 {
 		// stopped
@@ -347,8 +355,11 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 		key := offsetToBytes(req.LogOffset)
 		key = append(key, resp.Request.Header.HeaderHash.CloneBytes()...)
 
-		log.Debugf("add write request, offset: %v, %v, %v",
-			req.LogOffset, resp.Request.Header.HeaderHash.String(), resp.Request.Payload.Queries)
+		log.WithFields(log.Fields{
+			"offset":     req.LogOffset,
+			"reqHash":    resp.Request.Header.HeaderHash.String(),
+			"reqQueries": resp.Request.Payload.Queries,
+		}).Debug("add write request")
 
 		var reqBytes *bytes.Buffer
 		if reqBytes, err = utils.EncodeMsgPack(resp.Request); err != nil {
@@ -443,7 +454,7 @@ func (s *Service) stop() (err error) {
 	defer s.lock.Unlock()
 
 	// send cancel subscription to all databases
-	log.Infof("stop subscribing all databases")
+	log.Info("stop subscribing all databases")
 
 	for dbID := range s.subscription {
 		// send cancel subscription rpc
@@ -453,7 +464,7 @@ func (s *Service) stop() (err error) {
 
 		if err = s.minerRequest(dbID, route.SQLCCancelSubscription.String(), req, resp); err != nil {
 			// cancel subscription failed
-			log.Warningf("cancel subscription for database %v failed: %v", dbID, err)
+			log.WithField("db", dbID).WithError(err).Warning("cancel subscription")
 		}
 	}
 
@@ -473,7 +484,7 @@ func (s *Service) minerRequest(dbID proto.DatabaseID, method string, request int
 }
 
 func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstance, err error) {
-	log.Infof("get peers info for database: %v", dbID)
+	log.WithField("db", dbID).Info("get peers info for database")
 
 	if iInstance, exists := s.upstreamServers.Load(dbID); exists {
 		instance = iInstance.(*wt.ServiceInstance)

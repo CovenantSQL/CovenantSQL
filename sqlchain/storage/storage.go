@@ -186,7 +186,7 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 				_, err = s.tx.ExecContext(ctx, q.Pattern, args...)
 
 				if err != nil {
-					log.Debugf("commit query failed: %v", err)
+					log.WithError(err).Debug("commit query failed")
 					s.tx.Rollback()
 					s.tx = nil
 					s.queries = nil
@@ -253,7 +253,7 @@ func (s *Storage) Query(ctx context.Context, queries []Query) (columns []string,
 	// always rollback on complete
 	defer tx.Rollback()
 
-	q := queries[0]
+	q := queries[len(queries)-1]
 
 	// convert arguments types
 	args := make([]interface{}, len(q.Args))
@@ -327,7 +327,7 @@ func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64
 
 		var result sql.Result
 		if result, err = tx.Exec(q.Pattern, args...); err != nil {
-			log.Debugf("execute query failed: %v", err)
+			log.WithError(err).Debug("execute query failed")
 			return
 		}
 

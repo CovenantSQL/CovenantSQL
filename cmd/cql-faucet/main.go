@@ -45,13 +45,13 @@ func init() {
 func main() {
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %#v", f.Name, f.Value)
 	})
 
 	// init client
 	var err error
 	if err = client.Init(configFile, []byte(password)); err != nil {
-		log.Errorf("init covenantsql client failed: %v", err)
+		log.WithError(err).Error("init covenantsql client failed")
 		os.Exit(-1)
 		return
 	}
@@ -60,7 +60,7 @@ func main() {
 	var cfg *Config
 
 	if cfg, err = LoadConfig(configFile); err != nil {
-		log.Errorf("read faucet config failed: %v", err)
+		log.WithError(err).Error("read faucet config failed")
 		os.Exit(-1)
 		return
 	}

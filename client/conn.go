@@ -69,14 +69,14 @@ func newConn(cfg *Config) (c *conn, err error) {
 
 	// get peers from BP
 	if _, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
-		log.Errorf("cacheGetPeers failed: %v", err)
+		log.WithError(err).Error("cacheGetPeers failed")
 		c = nil
 		return
 	}
 
 	err = c.startAckWorkers(2)
 	if err != nil {
-		log.Errorf("startAckWorkers failed: %v", err)
+		log.WithError(err).Error("startAckWorkers failed")
 		c = nil
 		return
 	}
@@ -116,14 +116,14 @@ func (c *conn) ackWorker() {
 					pc = rpc.NewPersistentCaller(peers.Leader.ID)
 				})
 				if err = ack.Sign(c.privKey, false); err != nil {
-					log.Errorf("failed to sign ack for %s: %v", pc.TargetID, err)
+					log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
 					continue
 				}
 
 				var ackRes wt.AckResponse
 				// send ack back
 				if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
-					log.Warningf("send ack failed: %v", err)
+					log.WithError(err).Warning("send ack failed")
 					continue
 				}
 			}
@@ -184,6 +184,8 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	if atomic.LoadInt32(&c.closed) != 0 {
 		return nil, driver.ErrBadConn
 	}
+
+	log.WithField("query", query).Debug("prepared statement")
 
 	// prepare the statement
 	return newStmt(c, query), nil
@@ -277,8 +279,19 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Ro
 
 		// append queries
 		c.queries = append(c.queries, *query)
+
+		log.WithFields(log.Fields{
+			"pattern": query.Pattern,
+			"args":    query.Args,
+		}).Debug("add query to tx")
+
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"pattern": query.Pattern,
+		"args":    query.Args,
+	}).Debug("execute query")
 
 	return c.sendQuery(queryType, []wt.Query{*query})
 }
@@ -292,6 +305,17 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 	// allocate sequence
 	connID, seqNo := allocateConnAndSeq()
 	defer putBackConn(connID)
+
+	defer func() {
+		log.WithFields(log.Fields{
+			"count":  len(queries),
+			"type":   queryType.String(),
+			"connID": connID,
+			"seqNo":  seqNo,
+			"target": peers.Leader.ID,
+			"source": c.localNodeID,
+		}).WithError(err).Debug("send query")
+	}()
 
 	// build request
 	req := &wt.Request{

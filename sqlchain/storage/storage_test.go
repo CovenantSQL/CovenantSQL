@@ -247,7 +247,7 @@ func TestStorage(t *testing.T) {
 	columns, types, data, err = st.Query(context.Background(), []Query{newQuery("SQL???? WHAT!!!!")})
 
 	if err == nil {
-		t.Fatalf("Query should failed")
+		t.Fatal("Query should failed")
 	} else {
 		t.Logf("Query failed as expected with: %v", err.Error())
 	}

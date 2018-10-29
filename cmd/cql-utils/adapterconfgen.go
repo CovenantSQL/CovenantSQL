@@ -169,12 +169,12 @@ func (c *adapterConfig) loadFromExistingConfig(rawConfig yaml.MapSlice) {
 	var err error
 
 	if configBytes, err = yaml.Marshal(originalConfig); err != nil {
-		log.Warningf("load previous adapter config failed: %v", err)
+		log.WithError(err).Warning("load previous adapter config failed")
 		return
 	}
 
 	if err = yaml.Unmarshal(configBytes, c); err != nil {
-		log.Warningf("load previous adapter config failed: %v", err)
+		log.WithError(err).Warning("load previous adapter config failed")
 		return
 	}
 
@@ -235,26 +235,26 @@ func runAdapterConfGen() {
 	var err error
 	var configBytes []byte
 	if configBytes, err = ioutil.ReadFile(configFile); err != nil {
-		log.Errorf("an existing config file is required for adapterconfggen: %v", err)
+		log.WithError(err).Error("an existing config file is required for adapterconfggen")
 		os.Exit(1)
 	}
 
 	// load config
 	var rawConfig yaml.MapSlice
 	if err = yaml.Unmarshal(configBytes, &rawConfig); err != nil {
-		log.Errorf("a valid config file is required for adapterconfgen: %v", err)
+		log.WithError(err).Error("a valid config file is required for adapterconfgen")
 		os.Exit(1)
 	}
 
 	if rawConfig == nil {
-		log.Errorf("a confgen generated config is required for adapterconfgen: %v", err)
+		log.WithError(err).Error("a confgen generated config is required for adapterconfgen")
 		os.Exit(1)
 	}
 
 	// backup config
 	bakConfigFile := configFile + ".bak"
 	if err = ioutil.WriteFile(bakConfigFile, configBytes, 0600); err != nil {
-		log.Errorf("backup config file failed: %v", err)
+		log.WithError(err).Error("backup config file failed")
 		os.Exit(1)
 	}
 
@@ -263,16 +263,16 @@ func runAdapterConfGen() {
 	rawConfig = defaultAdapterConfig.writeToRawConfig(rawConfig)
 
 	if configBytes, err = yaml.Marshal(rawConfig); err != nil {
-		log.Errorf("marshal config failed: %v", err)
+		log.WithError(err).Error("marshal config failed")
 		os.Exit(1)
 	}
 
 	if err = ioutil.WriteFile(configFile, configBytes, 0600); err != nil {
-		log.Errorf("write config to file failed: %v", err)
+		log.WithError(err).Error("write config to file failed")
 		os.Exit(1)
 	}
 
-	log.Infof("adapter config generated")
+	log.Info("adapter config generated")
 
 	return
 }

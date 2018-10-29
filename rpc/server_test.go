@@ -59,14 +59,20 @@ func NewTestService() *TestService {
 }
 
 func (s *TestService) IncCounter(req *TestReq, rep *TestRep) error {
-	log.Debugf("calling IncCounter req:%v, rep:%v", *req, *rep)
+	log.WithFields(log.Fields{
+		"req":   *req,
+		"reply": *rep,
+	}).Debug("calling IncCounter")
 	s.counter += req.Step
 	rep.Ret = s.counter
 	return nil
 }
 
 func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
-	log.Debugf("calling IncCounter req:%v, rep:%v", step, ret)
+	log.WithFields(log.Fields{
+		"req":   step,
+		"reply": ret,
+	}).Debug("calling IncCounter")
 	s.counter += step
 	*ret = s.counter
 	return nil

@@ -104,13 +104,13 @@ func TestGetNextVerifier(t *testing.T) {
 
 func TestSelectRecord(t *testing.T) {
 	if strings.Compare(selectRecord(0), "hello world") != 0 {
-		t.Errorf("It should be hello world")
+		t.Error("It should be hello world")
 	}
 }
 
 func TestCheckValid(t *testing.T) {
 	if !CheckValid(answers) {
-		t.Errorf("It should be true")
+		t.Error("It should be true")
 	}
 }
 

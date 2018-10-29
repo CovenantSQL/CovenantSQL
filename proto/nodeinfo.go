@@ -114,7 +114,7 @@ func (id *NodeID) Difficulty() (difficulty int) {
 func (id *NodeID) ToRawNodeID() *RawNodeID {
 	idHash, err := hash.NewHashFromStr(string(*id))
 	if err != nil {
-		log.Errorf("error node id %s %s", *id, err)
+		log.WithField("id", *id).WithError(err).Error("error node id")
 		return nil
 	}
 	return &RawNodeID{*idHash}
@@ -143,7 +143,7 @@ func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
 func (id *NodeID) UnmarshalBinary(keyBytes []byte) (err error) {
 	h, err := hash.NewHash(keyBytes)
 	if err != nil {
-		log.Errorf("nodeID bytes len should be 32")
+		log.Error("nodeID bytes len should be 32")
 		return
 	}
 	*id = NodeID(h.String())
@@ -161,7 +161,7 @@ func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
 	nonce := asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, timeThreshold, nil)
 	node.ID = NodeID(nonce.Hash.String())
 	node.Nonce = nonce.Nonce
-	log.Debugf("Node: %v", node)
+	log.Debugf("Node: %#v", node)
 	return
 }
 

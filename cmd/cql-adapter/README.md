@@ -120,8 +120,8 @@ $ cql-adapter -config config.yaml
 ```bash
 // send query (linux)
 curl -v https://127.0.0.1:4661/v1/query --insecure \
-	--cert read.data.thunderdb.io.pem \
-	--key read.data.thunderdb.io.key \
+	--cert read.data.covenantsql.io.pem \
+	--key read.data.covenantsql.io.key \
 	--form database=kucoin.GO.BTC \
 	--form query='select * from trades limit 10'
 
@@ -244,7 +244,7 @@ curl -v https://e.morenodes.com:11108/v1/query --insecure \
 
 ###### Parameters
 
-**node:** node count requirement for ThunderDB
+**node:** node count requirement for CovenantSQL
 
 ###### Response
 

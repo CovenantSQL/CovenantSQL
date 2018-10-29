@@ -35,13 +35,13 @@ func runKeygen() *asymmetric.PublicKey {
 		t, err := reader.ReadString('\n')
 		t = strings.Trim(t, "\n")
 		if err != nil {
-			log.Errorf("Unexpected error: %v\n", err)
+			log.WithError(err).Error("unexpected error")
 			os.Exit(1)
 		}
 		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
 			err = os.Remove(privateKeyFile)
 			if err != nil {
-				log.Errorf("Unexpected error: %v\n", err)
+				log.WithError(err).Error("unexpected error")
 				os.Exit(1)
 			}
 		} else {
@@ -51,16 +51,16 @@ func runKeygen() *asymmetric.PublicKey {
 
 	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
-		log.Fatalf("generate key pair failed: %v\n", err)
+		log.WithError(err).Fatal("generate key pair failed")
 	}
 
 	masterKey, err := readMasterKey()
 	if err != nil {
-		log.Fatalf("read master key failed: %v\n", err)
+		log.WithError(err).Fatal("read master key failed")
 	}
 
 	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(masterKey)); err != nil {
-		log.Fatalf("save generated keypair failed: %v\n", err)
+		log.WithError(err).Fatal("save generated keypair failed")
 	}
 
 	fmt.Printf("Private key file: %s\n", privateKeyFile)

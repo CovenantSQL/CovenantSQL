@@ -132,7 +132,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 		stopCh:         make(chan struct{}),
 	}
 
-	log.Debugf("pushing genesis block: %v", cfg.Genesis)
+	log.WithField("genesis", cfg.Genesis).Debug("pushing genesis block")
 
 	if err = chain.pushGenesisBlock(cfg.Genesis); err != nil {
 		return nil, err
@@ -201,7 +201,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
 			block := &pt.Block{}
 			if err = utils.DecodeMsgPack(v, block); err != nil {
-				log.Errorf("loading block: %v", err)
+				log.WithError(err).Error("load block failed")
 				return err
 			}
 
@@ -322,7 +322,7 @@ func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
 func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
 	err = c.pushBlockWithoutCheck(b)
 	if err != nil {
-		log.Errorf("push genesis block failed: %v", err)
+		log.WithError(err).Error("push genesis block failed")
 	}
 	return
 }
@@ -364,7 +364,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 		return err
 	}
 
-	log.Debugf("generate new block: %v", b)
+	log.WithField("block", b).Debug("produced new block")
 
 	err = c.pushBlockWithoutCheck(b)
 	if err != nil {
@@ -392,9 +392,12 @@ func (c *Chain) produceBlock(now time.Time) error {
 						"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
 						"block_hash": b.BlockHash(),
 					}).WithError(err).Error(
-						"Failed to advise new block")
+						"failed to advise new block")
 				} else {
-					log.Debugf("Success to advising #%d height block to %s", c.rt.getHead().getHeight(), id)
+					log.WithFields(log.Fields{
+						"height": c.rt.getHead().getHeight(),
+						"node":   id,
+					}).Debug("success advising block")
 				}
 			}(s.ID)
 		}
@@ -449,7 +452,7 @@ func (c *Chain) produceBilling(br *pt.BillingRequest) (_ *pt.BillingRequest, err
 	if err = tb.Sign(privKey); err != nil {
 		return
 	}
-	log.Debugf("response is %s", br.RequestHash)
+	log.WithField("billingRequestHash", br.RequestHash).Debug("generated billing transaction")
 
 	// 2. push tx
 	c.pendingTxs <- tb
@@ -522,10 +525,10 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		return
 	}
 
-	log.Infof("produce a new block with height %d", c.rt.getNextTurn())
+	log.WithField("height", c.rt.getNextTurn()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
-			"Failed to produce block")
+			"failed to produce block")
 	}
 }
 
@@ -533,15 +536,21 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 func (c *Chain) sync() error {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
-	}).Debug("Synchronizing chain state")
+	}).Debug("synchronizing chain state")
 
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)
 
-		log.Infof("current height is %d, next turn is %d", height, c.rt.getNextTurn())
+		log.WithFields(log.Fields{
+			"height":   height,
+			"nextTurn": c.rt.getNextTurn(),
+		}).Info("try sync heights")
 		if c.rt.getNextTurn() >= height {
-			log.Infof("return with height %d, next turn is %d", height, c.rt.getNextTurn())
+			log.WithFields(log.Fields{
+				"height":   height,
+				"nextTurn": c.rt.getNextTurn(),
+			}).Info("return heights")
 			break
 		}
 
@@ -700,7 +709,7 @@ func (c *Chain) syncHead() {
 		"index":     c.rt.index,
 		"next_turn": c.rt.getNextTurn(),
 		"height":    c.rt.getHead().getHeight(),
-	}).Debugf("sync header")
+	}).Debug("sync header")
 	if h := c.rt.getNextTurn() - 1; c.rt.getHead().getHeight() < h {
 		var err error
 		req := &FetchBlockReq{

@@ -31,7 +31,6 @@ import (
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -103,14 +102,14 @@ func NewVerifier(cfg *Config, p *Persistence) (v *Verifier, err error) {
 		return
 	}
 
-	log.Infof("vault address is: %v", hash.Hash(v.vaultAddress).String())
+	log.WithField("vault", v.vaultAddress.String()).Info("init verifier")
 
 	return
 }
 
 func (v *Verifier) run() {
 	for {
-		log.Infof("begin verification iteration")
+		log.Info("begin verification iteration")
 
 		// fetch records
 		v.verify()
@@ -118,7 +117,7 @@ func (v *Verifier) run() {
 		// dispense
 		v.dispense()
 
-		log.Infof("end verification iteration")
+		log.Info("end verification iteration")
 
 		select {
 		case <-time.After(v.interval):
@@ -143,7 +142,7 @@ func (v *Verifier) verify() {
 		defer wg.Done()
 		verified, err := f()
 		if err != nil {
-			log.Warningf("verify applications failed: %v", err)
+			log.WithError(err).Warning("verify application failed")
 			ch <- verified
 		}
 	}
@@ -218,9 +217,9 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	// get current balance
 	if err = requestBP(route.MCCQueryAccountStableBalance.String(), balanceReq, balanceRes); err != nil {
-		log.Warningf("get account balance failed: %v", err)
+		log.WithError(err).Warning("get account balance failed")
 	} else {
-		log.Infof("get account balance success, balance: %v", balanceRes.Balance)
+		log.WithField("balance", balanceRes.Balance).Info("get account balance")
 	}
 
 	// allocate nonce
@@ -230,7 +229,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	if err = requestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
 		// allocate nonce failed
-		log.Warningf("allocate nonce for transaction failed: %v", err)
+		log.WithError(err).Warning("allocate nonce for transaction failed")
 		return
 	}
 
@@ -243,7 +242,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		}
 
 		// log error
-		log.Warningf("decode transfer target address failed: %v", err)
+		log.WithError(err).Warning("decode transfer target address failed")
 
 		// mark failed
 		r.failReason = err.Error()
@@ -252,7 +251,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 			return
 		}
 
-		log.WithFields(log.Fields(r.asMap())).Infof("dispensed application record failed")
+		log.WithFields(log.Fields(r.asMap())).Info("dispensed application record failed")
 
 		// skip invalid address faucet application
 		err = nil
@@ -276,7 +275,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	if err = requestBP(route.MCCAddTx.String(), req, resp); err != nil {
 		// add transaction failed, try again
-		log.Warningf("send transaction failed: %v", err)
+		log.WithError(err).Warning("send transaction failed")
 
 		return
 	}
@@ -289,7 +288,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		return
 	}
 
-	log.WithFields(log.Fields(r.asMap())).Infof("dispensed application record")
+	log.WithFields(log.Fields(r.asMap())).Info("dispensed application record")
 
 	return
 }
@@ -308,7 +307,7 @@ func (v *Verifier) doVerify(records []*applicationRecord, verifyFunc func(string
 			return
 		}
 
-		log.WithFields(log.Fields(r.asMap())).Infof("verified application record")
+		log.WithFields(log.Fields(r.asMap())).Info("verified application record")
 
 		verified = r.rowID
 	}

@@ -248,7 +248,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	if tempDir, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
 	}
-	log.Debugf("temp dir: %s", tempDir)
+	log.WithField("d", tempDir).Debug("created temp dir")
 
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
@@ -266,7 +266,10 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	log.Debugf("GConf: %#v", conf.GConf)
 	_, err = utils.CopyFile(privateKeyPath, conf.GConf.PrivateKeyFile)
 	if err != nil {
-		log.Fatalf("Copy %s to %s failed: %v", privateKeyPath, conf.GConf.PrivateKeyFile, err)
+		log.WithFields(log.Fields{
+			"from": privateKeyPath,
+			"to":   conf.GConf.PrivateKeyFile,
+		}).WithError(err).Fatal("copy private key failed")
 		return
 	}
 	// reset the once

@@ -67,7 +67,7 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 	})
 	if err != nil {
 		wd, _ := os.Getwd()
-		log.Errorf("create dht table %s failed: %s", utils.FJ(wd, dbFile), err)
+		log.WithField("file", utils.FJ(wd, dbFile)).WithError(err).Error("create dht table failed")
 		return
 	}
 
@@ -82,12 +82,12 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	payload, err := s.decodeLog(wb)
 	if err != nil {
-		log.Errorf("decode log failed: %s", err)
+		log.WithError(err).Error("decode log failed")
 		return
 	}
 	execLog, err := s.compileExecLog(payload)
 	if err != nil {
-		log.Errorf("compile exec log failed: %s", err)
+		log.WithError(err).Error("compile exec log failed")
 		return
 	}
 	return s.Storage.Prepare(ctx, execLog)
@@ -97,7 +97,7 @@ func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err er
 func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	payload, err := s.decodeLog(wb)
 	if err != nil {
-		log.Errorf("decode log failed: %s", err)
+		log.WithError(err).Error("decode log failed")
 		return
 	}
 	return s.commit(ctx, payload)
@@ -107,21 +107,24 @@ func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err e
 	var nodeToSet proto.Node
 	err = utils.DecodeMsgPack(payload.Data, &nodeToSet)
 	if err != nil {
-		log.Errorf("unmarshal node from payload failed: %s", err)
+		log.WithError(err).Error("unmarshal node from payload failed")
 		return
 	}
 	execLog, err := s.compileExecLog(payload)
 	if err != nil {
-		log.Errorf("compile exec log failed: %s", err)
+		log.WithError(err).Error("compile exec log failed")
 		return
 	}
 	err = route.SetNodeAddrCache(nodeToSet.ID.ToRawNodeID(), nodeToSet.Addr)
 	if err != nil {
-		log.Errorf("set node addr %s %s cache failed: %v", nodeToSet.ID, nodeToSet.Addr, err)
+		log.WithFields(log.Fields{
+			"id":   nodeToSet.ID,
+			"addr": nodeToSet.Addr,
+		}).WithError(err).Error("set node addr cache failed")
 	}
 	err = kms.SetNode(&nodeToSet)
 	if err != nil {
-		log.Errorf("kms set node %v failed: %v", nodeToSet, err)
+		log.WithField("node", nodeToSet).WithError(err).Error("kms set node failed")
 	}
 
 	// if s.consistent == nil, it is called during Init. and AddCache will be called by consistent.InitConsistent
@@ -136,12 +139,12 @@ func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err e
 func (s *LocalStorage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	payload, err := s.decodeLog(wb)
 	if err != nil {
-		log.Errorf("decode log failed: %s", err)
+		log.WithError(err).Error("decode log failed")
 		return
 	}
 	execLog, err := s.compileExecLog(payload)
 	if err != nil {
-		log.Errorf("compile exec log failed: %s", err)
+		log.WithError(err).Error("compile exec log failed")
 		return
 	}
 
@@ -154,11 +157,11 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 		var nodeToSet proto.Node
 		err = utils.DecodeMsgPack(payload.Data, &nodeToSet)
 		if err != nil {
-			log.Errorf("compileExecLog: unmarshal node from payload failed: %s", err)
+			log.WithError(err).Error("compileExecLog: unmarshal node from payload failed")
 			return
 		}
 		query := "INSERT OR REPLACE INTO `dht` (`id`, `node`) VALUES (?, ?);"
-		log.Debugf("sql: %s", query)
+		log.Debugf("sql: %#v", query)
 		execLog = &storage.ExecLog{
 			Queries: []storage.Query{
 				{
@@ -173,7 +176,7 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 	case CmdSetDatabase:
 		var instance wt.ServiceInstance
 		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
-			log.Errorf("compileExecLog: unmarshal instance meta failed: %v", err)
+			log.WithError(err).Error("compileExecLog: unmarshal instance meta failed")
 			return
 		}
 		query := "INSERT OR REPLACE INTO `databases` (`id`, `meta`) VALUES (? ,?);"
@@ -191,7 +194,7 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 	case CmdDeleteDatabase:
 		var instance wt.ServiceInstance
 		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
-			log.Errorf("compileExecLog: unmarshal instance id failed: %v", err)
+			log.WithError(err).Error("compileExecLog: unmarshal instance id failed")
 			return
 		}
 		// TODO(xq262144), should add additional limit 1 after delete clause
@@ -225,7 +228,7 @@ func (s *LocalStorage) decodeLog(wb twopc.WriteBatch) (payload *KayakPayload, er
 	}
 	err = utils.DecodeMsgPack(bytesPayload, payload)
 	if err != nil {
-		log.Errorf("unmarshal payload failed: %s", err)
+		log.WithError(err).Error("unmarshal payload failed")
 		return
 	}
 
@@ -244,7 +247,7 @@ func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err erro
 		var nodeBuf *bytes.Buffer
 		nodeBuf, err = utils.EncodeMsgPack(n)
 		if err != nil {
-			log.Errorf("marshal node failed: %v", err)
+			log.WithError(err).Error("marshal node failed")
 			return
 		}
 		payload := &KayakPayload{
@@ -255,18 +258,18 @@ func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err erro
 		var execLog *storage.ExecLog
 		execLog, err = s.KVStorage.compileExecLog(payload)
 		if err != nil {
-			log.Errorf("compile exec log failed: %s", err)
+			log.WithError(err).Error("compile exec log failed")
 			return
 		}
 		err = s.KVStorage.Storage.Prepare(context.Background(), execLog)
 		if err != nil {
-			log.Errorf("init kayak KV prepare node failed: %v", err)
+			log.WithError(err).Error("init kayak KV prepare node failed")
 			return
 		}
 
 		err = s.KVStorage.commit(context.Background(), payload)
 		if err != nil {
-			log.Errorf("init kayak KV commit node failed: %v", err)
+			log.WithError(err).Error("init kayak KV commit node failed")
 			return
 		}
 	}
@@ -283,7 +286,7 @@ type KayakPayload struct {
 func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 	nodeBuf, err := utils.EncodeMsgPack(node)
 	if err != nil {
-		log.Errorf("marshal node failed: %v", err)
+		log.WithError(err).Error("marshal node failed")
 		return
 	}
 	payload := &KayakPayload{
@@ -293,13 +296,13 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 
 	writeData, err := utils.EncodeMsgPack(payload)
 	if err != nil {
-		log.Errorf("marshal payload failed: %v", err)
+		log.WithError(err).Error("marshal payload failed")
 		return err
 	}
 
 	_, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
-		log.Errorf("Apply set node failed: %s\nPayload:\n	%s", err, writeData)
+		log.Errorf("Apply set node failed: %#v\nPayload:\n	%#v", err, writeData)
 	}
 
 	return
@@ -330,7 +333,7 @@ func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceI
 		},
 	})
 	if err != nil {
-		log.Errorf("Query database %v instance meta failed: %v", dbID, err)
+		log.WithField("db", dbID).WithError(err).Error("query database instance meta failed")
 		return
 	}
 
@@ -364,13 +367,13 @@ func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
 
 	writeData, err := utils.EncodeMsgPack(payload)
 	if err != nil {
-		log.Errorf("marshal payload failed: %s", err)
+		log.WithError(err).Error("marshal payload failed")
 		return err
 	}
 
 	_, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
-		log.Errorf("Apply set database failed: %s\nPayload:\n	%s", err, writeData)
+		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, writeData)
 	}
 
 	return
@@ -393,13 +396,13 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 
 	writeData, err := utils.EncodeMsgPack(payload)
 	if err != nil {
-		log.Errorf("marshal payload failed: %s", err)
+		log.WithError(err).Error("marshal payload failed")
 		return err
 	}
 
 	_, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
-		log.Errorf("Apply set database failed: %s\nPayload:\n	%s", err, writeData)
+		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, writeData)
 	}
 
 	return
@@ -415,7 +418,7 @@ func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err e
 		},
 	})
 	if err != nil {
-		log.Errorf("Query all database instance meta failed: %v", err)
+		log.WithError(err).Error("query all database instance meta failed")
 		return
 	}
 
@@ -458,10 +461,10 @@ func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 		},
 	})
 	if err != nil {
-		log.Errorf("Query: %s failed: %s", query, err)
+		log.WithField("query", query).WithError(err).Error("query failed")
 		return
 	}
-	log.Debugf("SQL: %v\nResults: %s", query, result)
+	log.Debugf("SQL: %#v\nResults: %#v", query, result)
 
 	nodes = make([]proto.Node, 0, len(result))
 
@@ -470,7 +473,7 @@ func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 			continue
 		}
 		nodeBytes, ok := r[0].([]byte)
-		log.Debugf("nodeBytes: %s, %v", nodeBytes, ok)
+		log.Debugf("nodeBytes: %#v, %#v", nodeBytes, ok)
 		if !ok {
 			continue
 		}
@@ -478,7 +481,7 @@ func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 		nodeDec := proto.NewNode()
 		err = utils.DecodeMsgPack(nodeBytes, nodeDec)
 		if err != nil {
-			log.Errorf("unmarshal node info failed: %s", err)
+			log.WithError(err).Error("unmarshal node info failed")
 			continue
 		}
 		nodes = append(nodes, *nodeDec)

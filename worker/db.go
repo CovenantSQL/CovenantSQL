@@ -363,10 +363,6 @@ func getLocalTime() time.Time {
 	return time.Now().UTC()
 }
 
-func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {
-	return kms.GetLocalPublicKey()
-}
-
 func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
 }
@@ -414,7 +410,10 @@ func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err 
 					query = "SELECT name FROM sqlite_master WHERE type = \"table\""
 				}
 
-				log.Debugf("translated query from %v to %v", origQuery, query)
+				log.WithFields(log.Fields{
+					"from": origQuery,
+					"to":   query,
+				}).Debug("query translated")
 			}
 
 			originalQueries = append(originalQueries, query)

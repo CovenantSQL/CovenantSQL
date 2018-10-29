@@ -71,7 +71,7 @@ func NewDNSClient() *DNSClient {
 	} else {
 		clientConfig, err = dns.ClientConfigFromFile("/etc/resolv.conf")
 		if err != nil || clientConfig == nil {
-			log.Errorf("can not initialize the local resolver: %s", err)
+			log.WithError(err).Error("can not initialize the local resolver")
 		}
 	}
 
@@ -95,7 +95,7 @@ func (dc *DNSClient) Query(qname string, qtype uint16) (*dns.Msg, error) {
 		}
 		return r, fmt.Errorf("DNS query failed with Rcode %v", r.Rcode)
 	}
-	return nil, fmt.Errorf("no available name server")
+	return nil, errors.New("no available name server")
 }
 
 // GetKey returns the DNSKey for a name server
@@ -111,7 +111,7 @@ func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("no DNSKEY returned by nameserver")
+	return nil, errors.New("no DNSKEY returned by nameserver")
 }
 
 // VerifySection checks RRSIGs to make sure the name server is authentic
@@ -134,16 +134,24 @@ func (dc *DNSClient) VerifySection(set []dns.RR) error {
 			if !validDNSKey {
 				return fmt.Errorf("DNSKEY %s not valid", key.PublicKey)
 			}
-			log.Debugf("valid DNSKEY %s of %s", key.PublicKey, domain)
+			log.WithFields(log.Fields{
+				"pub":    key.PublicKey,
+				"domain": domain,
+			}).Debug("valid DNSKEY")
 			if err := rr.(*dns.RRSIG).Verify(key, rrset); err != nil {
 				return fmt.Errorf(";- Bogus signature, %s does not validate (DNSKEY %s/%d) [%s]",
 					shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), err.Error())
 			}
-			log.Debugf(";+ Secure signature, %s validates (DNSKEY %s/%d %s)", shortSig(rr.(*dns.RRSIG)), key.Header().Name, key.KeyTag(), key.PublicKey)
+			log.WithFields(log.Fields{
+				"rrsig": shortSig(rr.(*dns.RRSIG)),
+				"name":  key.Header().Name,
+				"tag":   key.KeyTag(),
+				"pub":   key.PublicKey,
+			}).Debug("signature secured")
 			return nil
 		}
 	}
-	return fmt.Errorf("not DNSSEC record")
+	return errors.New("not DNSSEC record")
 }
 
 // GetRRSet returns the RRset belonging to the signature with name and type t
@@ -166,12 +174,12 @@ func shortSig(sig *dns.RRSIG) string {
 func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err error) {
 	srvRR := dc.GetSRVRecords(BPDomain)
 	if srvRR == nil {
-		err = fmt.Errorf("got empty SRV records set")
+		err = errors.New("got empty SRV records set")
 		log.Error(err)
 		return
 	}
 	if err = dc.VerifySection(srvRR.Answer); err != nil {
-		log.Errorf("record verify failed: %s", err)
+		log.WithError(err).Error("record verify failed")
 		return
 	}
 	BPNodes = make(IDNodeMap)
@@ -183,7 +191,7 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 			aRR := dc.GetARecord(srv.Target)
 			if aRR != nil {
 				if err = dc.VerifySection(aRR.Answer); err != nil {
-					log.Errorf("verify SRV section failed: %v", err)
+					log.WithError(err).Error("verify SRV section failed")
 					return
 				}
 				for _, rr1 := range aRR.Answer {
@@ -207,11 +215,11 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 			ABIPv6R := dc.GetAAAARecord(target)
 			if ABIPv6R == nil {
 				err = errors.New("empty AAAA record")
-				log.Errorf("get AAAA section of %s failed: %v", target, err)
+				log.WithField("target", target).WithError(err).Error("get AAAA section failed")
 				return
 			}
 			if err = dc.VerifySection(ABIPv6R.Answer); err != nil {
-				log.Errorf("verify ab AAAA section of %s failed: %v", target, err)
+				log.WithError(err).WithError(err).Error("verify ab AAAA section failed")
 				return
 			}
 			for _, rr := range ABIPv6R.Answer {
@@ -225,12 +233,12 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 			CDIPv6R := dc.GetAAAARecord(target)
 			if CDIPv6R == nil {
 				err = errors.New("empty AAAA record")
-				log.Errorf("get AAAA section of %s failed: %v", target, err)
+				log.WithField("target", target).WithError(err).Error("get AAAA section failed")
 				return
 			}
 
 			if err = dc.VerifySection(CDIPv6R.Answer); err != nil {
-				log.Errorf("verify cd AAAA section of %s failed: %v", target, err)
+				log.WithField("target", target).WithError(err).Error("verify cd AAAA section failed")
 				return
 			}
 			for _, rr := range CDIPv6R.Answer {
@@ -243,7 +251,7 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 			var nonce *mine.Uint256
 			nonce, err = mine.FromIPv6(ab, cd)
 			if err != nil {
-				log.Errorf("convert IPv6 addr to nonce failed: %v", err)
+				log.WithError(err).Error("convert IPv6 addr to nonce failed")
 				return
 			}
 
@@ -251,33 +259,33 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 			publicKeyTXTR := dc.GetTXTRecord(srv.Target)
 			if publicKeyTXTR == nil {
 				err = errors.New("empty TXT record")
-				log.Errorf("get TXT section of %s failed: %v", srv.Target, err)
+				log.WithField("target", srv.Target).WithError(err).Error("get TXT section failed")
 				return
 			}
 			if err = dc.VerifySection(publicKeyTXTR.Answer); err != nil {
-				log.Errorf("verify TXT section of %s failed: %v", srv.Target, err)
+				log.WithField("target", srv.Target).WithError(err).Error("verify TXT section failed")
 				return
 			}
 			for _, rr := range publicKeyTXTR.Answer {
 				if ss, ok := rr.(*dns.TXT); ok {
 					if len(ss.Txt) == 0 {
 						err = errors.New("empty TXT record")
-						log.Errorf("%v for %s", err, srv.Target)
+						log.WithField("target", srv.Target).WithError(err).Error("got empty TXT record")
 						return
 					}
 					publicKeyStr := ss.Txt[0]
-					log.Debugf("TXT Record: %s", publicKeyStr)
+					log.Debugf("TXT Record: %#v", publicKeyStr)
 					var pubKeyBytes []byte
 					// load public key string
 					pubKeyBytes, err = hex.DecodeString(publicKeyStr)
 					if err != nil {
-						log.Errorf("decode TXT record to hex failed: %v", err)
+						log.WithError(err).Error("decode TXT record to hex failed")
 						return
 					}
 
 					err = publicKey.UnmarshalBinary(pubKeyBytes)
 					if err != nil {
-						log.Errorf("unmarshal TXT record to public key failed: %v", err)
+						log.WithError(err).Error("unmarshal TXT record to public key failed")
 						return
 					}
 
@@ -306,7 +314,7 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeSRV)
 	if err != nil {
-		log.Errorf("SRV record query failed: %v", err)
+		log.WithField("name", name).WithError(err).Error("SRV record query failed")
 		return nil
 	}
 	return in
@@ -316,7 +324,7 @@ func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
 func (dc *DNSClient) GetARecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeA)
 	if err != nil {
-		log.Errorf("A record query failed: %v", err)
+		log.WithField("name", name).WithError(err).Error("A record query failed")
 		return nil
 	}
 	return in
@@ -326,7 +334,7 @@ func (dc *DNSClient) GetARecord(name string) *dns.Msg {
 func (dc *DNSClient) GetAAAARecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeAAAA)
 	if err != nil {
-		log.Errorf("AAAA record query failed: %v", err)
+		log.WithField("name", name).WithError(err).Error("AAAA record query failed")
 		return nil
 	}
 	return in
@@ -336,7 +344,7 @@ func (dc *DNSClient) GetAAAARecord(name string) *dns.Msg {
 func (dc *DNSClient) GetTXTRecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeTXT)
 	if err != nil {
-		log.Errorf("TXT record query failed: %v", err)
+		log.WithField("name", name).WithError(err).Error("TXT record query failed")
 		return nil
 	}
 	return in

@@ -34,10 +34,10 @@ func StartProfile(cpuprofile, memprofile string) error {
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
 		if err != nil {
-			log.Errorf("failed to create CPU profile file at %s: %s", cpuprofile, err.Error())
+			log.WithField("file", cpuprofile).WithError(err).Error("failed to create CPU profile file")
 			return err
 		}
-		log.Infof("writing CPU profile to: %s\n", cpuprofile)
+		log.WithField("file", cpuprofile).Info("writing CPU profiling to file")
 		prof.cpu = f
 		pprof.StartCPUProfile(prof.cpu)
 	}
@@ -45,10 +45,10 @@ func StartProfile(cpuprofile, memprofile string) error {
 	if memprofile != "" {
 		f, err := os.Create(memprofile)
 		if err != nil {
-			log.Errorf("failed to create memory profile file at %s: %s", cpuprofile, err.Error())
+			log.WithField("file", memprofile).WithError(err).Error("failed to create memory profile file")
 			return err
 		}
-		log.Infof("writing memory profile to: %s\n", memprofile)
+		log.WithField("file", cpuprofile).WithError(err).Info("writing memory profiling to file")
 		prof.mem = f
 		runtime.MemProfileRate = 4096
 	}
@@ -60,11 +60,11 @@ func StopProfile() {
 	if prof.cpu != nil {
 		pprof.StopCPUProfile()
 		prof.cpu.Close()
-		log.Infof("CPU profiling stopped")
+		log.Info("CPU profiling stopped")
 	}
 	if prof.mem != nil {
 		pprof.Lookup("heap").WriteTo(prof.mem, 0)
 		prof.mem.Close()
-		log.Infof("memory profiling stopped")
+		log.Info("memory profiling stopped")
 	}
 }

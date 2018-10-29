@@ -98,14 +98,13 @@ func (s *SignedHeader) Verify() error {
 
 // VerifyAsGenesis verifies the signed header as a genesis block header.
 func (s *SignedHeader) VerifyAsGenesis() (err error) {
-	log.Debugf("verify genesis header: producer = %s, root = %s, parent = %s, merkle = %s,"+
-		" block = %s",
-		string(s.Producer[:]),
-		s.GenesisHash.String(),
-		s.ParentHash.String(),
-		s.MerkleRoot.String(),
-		s.BlockHash.String(),
-	)
+	log.WithFields(log.Fields{
+		"producer": s.Producer,
+		"root":     s.GenesisHash.String(),
+		"parent":   s.ParentHash.String(),
+		"merkle":   s.MerkleRoot.String(),
+		"block":    s.BlockHash.String(),
+	}).Debug("verify genesis header")
 
 	// Assume that we can fetch public key from kms after initialization.
 	pk, err := kms.GetPublicKey(s.Producer)

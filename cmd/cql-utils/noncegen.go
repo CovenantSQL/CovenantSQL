@@ -37,21 +37,21 @@ func runNonce() {
 	if publicKeyHex != "" {
 		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
 		if err != nil {
-			log.Fatalf("error converting hex: %s\n", err)
+			log.WithError(err).Fatal("error converting hex")
 		}
 		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 		if err != nil {
-			log.Fatalf("error converting public key: %s\n", err)
+			log.WithError(err).Fatal("error converting public key")
 		}
 	} else if privateKeyFile != "" {
 		masterKey, err := readMasterKey()
 		if err != nil {
-			fmt.Printf("read master key failed: %v\n", err)
+			log.WithError(err).Error("read master key failed")
 			os.Exit(1)
 		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
-			log.Fatalf("load private key file fail: %v\n", err)
+			log.WithError(err).Fatal("load private key file failed")
 		}
 		publicKey = privateKey.PubKey()
 	} else {
@@ -65,7 +65,7 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	publicKeyBytes := publicKey.Serialize()
 
 	cpuCount := runtime.NumCPU()
-	log.Infof("cpu: %d\n", cpuCount)
+	log.Infof("cpu: %#v\n", cpuCount)
 	stopCh := make(chan struct{})
 	nonceCh := make(chan mine.NonceInfo)
 
@@ -76,7 +76,7 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 			startBit := i * step
 			position := startBit / 64
 			shift := uint(startBit % 64)
-			log.Infof("position: %d, shift: %d, i: %d", position, shift, i)
+			log.Infof("position: %#v, shift: %#v, i: %#v", position, shift, i)
 			var start mine.Uint256
 			if position == 0 {
 				start = mine.Uint256{A: uint64(1<<shift) + uint64(rand.Uint32())}
@@ -113,7 +113,10 @@ func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 
 	// verify result
 	if !kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey) {
-		log.Fatalf("nonce: %v\nnode id: %s", nonce, nonce.Hash.String())
+		log.WithFields(log.Fields{
+			"nonce": nonce,
+			"id":    nonce.Hash.String(),
+		}).Fatal("invalid nonce")
 	}
 
 	// print result

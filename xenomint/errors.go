@@ -23,4 +23,10 @@ import (
 var (
 	// ErrInvalidRequest indicates the query is invalid.
 	ErrInvalidRequest = errors.New("invalid request")
+	// ErrQueryExists indicates the query already exists in pool.
+	ErrQueryExists = errors.New("query already exists")
+	// ErrStateClosed indicates the state is closed.
+	ErrStateClosed = errors.New("state is closed")
+	// ErrQueryConflict indicates the there is a conflict on query replay.
+	ErrQueryConflict = errors.New("query conflict")
 )

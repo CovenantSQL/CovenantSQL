@@ -18,6 +18,7 @@ package xenomint
 
 import (
 	"database/sql"
+	"sync/atomic"
 	"time"
 
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
@@ -30,6 +31,7 @@ type state struct {
 	pool *pool
 	// unc is the uncommitted transaction.
 	unc *sql.Tx
+	id  uint64
 }
 
 func newState(strg xi.Storage) (s *state, err error) {
@@ -43,6 +45,28 @@ func newState(strg xi.Storage) (s *state, err error) {
 	return
 }
 
+func (s *state) incSeq() {
+	atomic.AddUint64(&s.id, 1)
+}
+
+func (s *state) setNextTxID() {
+	var old = atomic.LoadUint64(&s.id)
+	atomic.StoreUint64(&s.id, (old&uint64(0xffffffff00000000))+uint64(1)<<32)
+}
+
+func (s *state) resetTxID() {
+	var old = atomic.LoadUint64(&s.id)
+	atomic.StoreUint64(&s.id, old&uint64(0xffffffff00000000))
+}
+
+func (s *state) rollbackID(id uint64) {
+	atomic.StoreUint64(&s.id, id)
+}
+
+func (s *state) getID() uint64 {
+	return atomic.LoadUint64(&s.id)
+}
+
 func (s *state) close(commit bool) (err error) {
 	if s.unc != nil {
 		if commit {
@@ -54,7 +78,6 @@ func (s *state) close(commit bool) (err error) {
 				return
 			}
 		}
-		s.unc = nil
 	}
 	return s.strg.Close()
 }
@@ -75,14 +98,18 @@ func buildTypeNamesFromSQLColumnTypes(types []*sql.ColumnType) (names []string) 
 	return
 }
 
-func (s *state) readSingle(
-	q *wt.Query) (names []string, types []string, data [][]interface{}, err error,
+type sqlQuerier interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
+func readSingle(
+	qer sqlQuerier, q *wt.Query) (names []string, types []string, data [][]interface{}, err error,
 ) {
 	var (
 		rows *sql.Rows
 		cols []*sql.ColumnType
 	)
-	if rows, err = s.strg.DirtyReader().Query(
+	if rows, err = qer.Query(
 		q.Pattern, buildArgsFromSQLNamedArgs(q.Args)...,
 	); err != nil {
 		return
@@ -114,15 +141,6 @@ func (s *state) readSingle(
 	return
 }
 
-func (s *state) writeSingle(q *wt.Query) (res sql.Result, err error) {
-	if s.unc == nil {
-		if s.unc, err = s.strg.Writer().Begin(); err != nil {
-			return
-		}
-	}
-	return s.unc.Exec(q.Pattern, buildArgsFromSQLNamedArgs(q.Args)...)
-}
-
 func buildRowsFromNativeData(data [][]interface{}) (rows []wt.ResponseRow) {
 	rows = make([]wt.ResponseRow, len(data))
 	for i, v := range data {
@@ -139,7 +157,7 @@ func (s *state) read(req *wt.Request) (resp *wt.Response, err error) {
 	)
 	// TODO(leventeliu): no need to run every read query here.
 	for i, v := range req.Payload.Queries {
-		if names, types, data, ierr = s.readSingle(&v); ierr != nil {
+		if names, types, data, ierr = readSingle(s.strg.DirtyReader(), &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			return
 		}
@@ -152,7 +170,7 @@ func (s *state) read(req *wt.Request) (resp *wt.Response, err error) {
 				NodeID:    "",
 				Timestamp: time.Now(),
 				RowCount:  uint64(len(data)),
-				LogOffset: 0,
+				LogOffset: s.getID(),
 			},
 		},
 		Payload: wt.ResponsePayload{
@@ -164,19 +182,73 @@ func (s *state) read(req *wt.Request) (resp *wt.Response, err error) {
 	return
 }
 
-func (s *state) commit() (err error) {
-	if err = s.unc.Commit(); err != nil {
+func (s *state) readTx(req *wt.Request) (resp *wt.Response, err error) {
+	var (
+		tx           *sql.Tx
+		id           uint64
+		ierr         error
+		names, types []string
+		data         [][]interface{}
+	)
+	if tx, err = s.strg.DirtyReader().Begin(); err != nil {
 		return
 	}
-	s.unc, err = s.strg.Writer().Begin()
+	defer tx.Rollback()
+	id = s.getID()
+	for i, v := range req.Payload.Queries {
+		if names, types, data, ierr = readSingle(tx, &v); ierr != nil {
+			err = errors.Wrapf(ierr, "query at #%d failed", i)
+			return
+		}
+	}
+	// Build query response
+	resp = &wt.Response{
+		Header: wt.SignedResponseHeader{
+			ResponseHeader: wt.ResponseHeader{
+				Request:   req.Header,
+				NodeID:    "",
+				Timestamp: time.Now(),
+				RowCount:  uint64(len(data)),
+				LogOffset: id,
+			},
+		},
+		Payload: wt.ResponsePayload{
+			Columns:   names,
+			DeclTypes: types,
+			Rows:      buildRowsFromNativeData(data),
+		},
+	}
 	return
 }
 
+func (s *state) writeSingle(q *wt.Query) (res sql.Result, err error) {
+	if res, err = s.unc.Exec(q.Pattern, buildArgsFromSQLNamedArgs(q.Args)...); err == nil {
+		s.incSeq()
+	}
+	return
+}
+
+func (s *state) setSavepoint() (savepoint uint64) {
+	savepoint = s.getID()
+	s.unc.Exec("SAVEPOINT ?", savepoint)
+	return
+}
+
+func (s *state) rollbackTo(savepoint uint64) {
+	s.rollbackID(savepoint)
+	s.unc.Exec("ROLLBACK TO ?", savepoint)
+}
+
 func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
-	var ierr error
+	var (
+		ierr      error
+		savepoint = s.setSavepoint()
+	)
+	// FIXME(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	for i, v := range req.Payload.Queries {
 		if _, ierr = s.writeSingle(&v); ierr != nil {
 			err = errors.Wrapf(ierr, "execute at #%d failed", i)
+			s.rollbackTo(savepoint)
 			return
 		}
 	}
@@ -188,19 +260,74 @@ func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
 				NodeID:    "",
 				Timestamp: time.Now(),
 				RowCount:  0,
-				LogOffset: 0,
+				LogOffset: savepoint,
 			},
 		},
 	}
+	s.pool.enqueue(resp)
+	return
+}
+
+func (s *state) replay(req *wt.Request, resp *wt.Response) (err error) {
+	var (
+		loc *wt.Response
+		ok  bool
+	)
+	if loc, ok = s.pool.loadResponse(resp.Header.LogOffset); ok {
+		if !req.Header.HeaderHash.IsEqual(&loc.Header.Request.HeaderHash) {
+			err = ErrQueryConflict
+			return
+		}
+		return
+	}
+	if resp.Header.ResponseHeader.LogOffset != s.getID() {
+		err = ErrQueryConflict
+		return
+	}
+	if loc, err = s.write(req); err != nil {
+		return
+	}
+	s.pool.enqueue(resp)
+	return
+}
+
+func (s *state) commit() (err error) {
+	if err = s.unc.Commit(); err != nil {
+		return
+	}
+	if s.unc, err = s.strg.Writer().Begin(); err != nil {
+		return
+	}
+	s.setNextTxID()
+	return
+}
+
+func (s *state) rollback() (err error) {
+	if err = s.unc.Rollback(); err != nil {
+		return
+	}
+	s.resetTxID()
 	return
 }
 
 func (s *state) Query(req *wt.Request) (resp *wt.Response, err error) {
 	switch req.Header.QueryType {
 	case wt.ReadQuery:
-		return s.read(req)
+		return s.readTx(req)
 	case wt.WriteQuery:
 		return s.write(req)
+	default:
+		err = ErrInvalidRequest
+	}
+	return
+}
+
+func (s *state) Replay(req *wt.Request, resp *wt.Response) (err error) {
+	switch req.Header.QueryType {
+	case wt.ReadQuery:
+		return
+	case wt.WriteQuery:
+		return s.replay(req, resp)
 	default:
 		err = ErrInvalidRequest
 	}

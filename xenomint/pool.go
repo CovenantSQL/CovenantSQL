@@ -19,37 +19,37 @@ package xenomint
 import (
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 type pool struct {
 	sync.RWMutex
-	queries []*wt.Request
-	index   map[hash.Hash]*wt.Request
+	queries []*wt.Response
+	index   map[uint64]int
 }
 
-func (p *pool) pushQuery(req *wt.Request) (ok bool) {
+func newPool() *pool {
+	return &pool{
+		queries: make([]*wt.Response, 0),
+		index:   make(map[uint64]int),
+	}
+}
+
+func (p *pool) loadResponse(id uint64) (resp *wt.Response, ok bool) {
 	p.Lock()
 	defer p.Unlock()
-	if _, ok = p.index[req.Header.HeaderHash]; ok {
-		return
+	var pos int
+	if pos, ok = p.index[id]; ok {
+		resp = p.queries[pos]
 	}
-	p.queries = append(p.queries, req)
-	p.index[req.Header.HeaderHash] = req
 	return
 }
 
-func (p *pool) cmpQueries(queries []*wt.Request) (ok bool) {
-	p.RLock()
-	defer p.RUnlock()
-	if ok = (len(p.queries) == len(queries)); !ok {
-		return
-	}
-	for i, v := range p.queries {
-		if ok = (v.Header.HeaderHash == queries[i].Header.HeaderHash); !ok {
-			return
-		}
-	}
+func (p *pool) enqueue(resp *wt.Response) {
+	p.Lock()
+	defer p.Unlock()
+	var pos = len(p.queries)
+	p.queries = append(p.queries, resp)
+	p.index[resp.Header.LogOffset] = pos
 	return
 }

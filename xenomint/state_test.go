@@ -58,10 +58,11 @@ func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
-			fl   = path.Join(testDataDir, t.Name())
-			st   *state
-			strg xi.Storage
-			err  error
+			fl     = path.Join(testDataDir, t.Name())
+			st     *state
+			closed bool
+			strg   xi.Storage
+			err    error
 		)
 		strg, err = xs.NewSqlite(fmt.Sprint("file:", fl))
 		So(err, ShouldBeNil)
@@ -71,8 +72,11 @@ func TestState(t *testing.T) {
 		So(st, ShouldNotBeNil)
 		Reset(func() {
 			// Clean database file after each pass
-			err = st.close(true)
-			So(err, ShouldBeNil)
+			if !closed {
+				err = st.close(true)
+				So(err, ShouldBeNil)
+				closed = true
+			}
 			err = os.Remove(fl)
 			So(err, ShouldBeNil)
 			err = os.Remove(fmt.Sprint(fl, "-shm"))
@@ -83,6 +87,7 @@ func TestState(t *testing.T) {
 		Convey("When storage is closed", func() {
 			err = st.close(false)
 			So(err, ShouldBeNil)
+			closed = true
 			Convey("The storage should report error for any incoming query", func() {
 				var (
 					req = buildRequest(wt.WriteQuery, []wt.Query{
@@ -93,7 +98,8 @@ func TestState(t *testing.T) {
 				So(err, ShouldNotBeNil)
 				err = errors.Cause(err)
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "sql: database is closed")
+				So(err.Error(), ShouldEqual,
+					"sql: Transaction has already been committed or rolled back")
 			})
 		})
 		Convey("The state will report error on read with uncommitted schema change", func() {
@@ -134,7 +140,7 @@ func TestState(t *testing.T) {
 				}))
 				// The use of Query instead of Exec won't produce an "attempt to write" error
 				// like Exec, but it should still keep it readonly -- which means writes will
-				// be ignored.
+				// be ignored in this case.
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
 			})

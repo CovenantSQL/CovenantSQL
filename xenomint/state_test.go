@@ -138,7 +138,7 @@ func TestState(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
 			})
-			Convey("The state should works", func() {
+			Convey("The state should work properly with reading/writing queries", func() {
 				resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1"),
 				}))

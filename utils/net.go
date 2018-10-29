@@ -34,6 +34,16 @@ var (
 	allocateLock   sync.Mutex
 )
 
+func testPortConnectable(addr string) bool {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return false
+	} else {
+		conn.Close()
+		return true
+	}
+}
+
 func testPort(bindAddr string, port int, excludeAllocated bool) bool {
 	addr := net.JoinHostPort(bindAddr, fmt.Sprint(port))
 
@@ -51,7 +61,27 @@ func testPort(bindAddr string, port int, excludeAllocated bool) bool {
 	return true
 }
 
-// WaitForPorts returns only when port is ready or canceled by context.
+// WaitToConnect returns only when port is ready to connect or canceled by context.
+func WaitToConnect(ctx context.Context, bindAddr string, ports []int, interval time.Duration) (err error) {
+	for {
+	continueCheckC:
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		case <-time.After(interval):
+			for _, port := range ports {
+				addr := net.JoinHostPort(bindAddr, fmt.Sprint(port))
+				if !testPortConnectable(addr) {
+					goto continueCheckC
+				}
+			}
+			return
+		}
+	}
+}
+
+// WaitForPorts returns only when port is ready to listen or canceled by context.
 func WaitForPorts(ctx context.Context, bindAddr string, ports []int, interval time.Duration) (err error) {
 	for {
 	continueCheck:

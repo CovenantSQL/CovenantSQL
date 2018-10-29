@@ -17,6 +17,8 @@
 package rpc
 
 import (
+	"sync"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -25,42 +27,50 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+var symmetricKeyCache sync.Map
+
 // GetSharedSecretWith gets shared symmetric key with ECDH
 func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKey []byte, err error) {
 	if isAnonymous {
 		symmetricKey = []byte(`!&\\!qEyey*\cbLc,aKl`)
 		log.Debug("using anonymous ETLS")
 	} else {
-		var remotePublicKey *asymmetric.PublicKey
-		if route.IsBPNodeID(nodeID) {
-			remotePublicKey = kms.BP.PublicKey
-		} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
-			remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
-			if err != nil {
-				log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
-				return
-			}
+		symmetricKeyI, ok := symmetricKeyCache.Load(nodeID)
+		if ok {
+			symmetricKey, _ = symmetricKeyI.([]byte)
 		} else {
-			// if non BP running and key not found, ask BlockProducer
-			var nodeInfo *proto.Node
-			nodeInfo, err = GetNodeInfo(nodeID)
+			var remotePublicKey *asymmetric.PublicKey
+			if route.IsBPNodeID(nodeID) {
+				remotePublicKey = kms.BP.PublicKey
+			} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
+				remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
+				if err != nil {
+					log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+					return
+				}
+			} else {
+				// if non BP running and key not found, ask BlockProducer
+				var nodeInfo *proto.Node
+				nodeInfo, err = GetNodeInfo(nodeID)
+				if err != nil {
+					log.Errorf("get public key failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+					return
+				}
+				remotePublicKey = nodeInfo.PublicKey
+			}
+
+			var localPrivateKey *asymmetric.PrivateKey
+			localPrivateKey, err = kms.GetLocalPrivateKey()
 			if err != nil {
-				log.Errorf("get public key failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+				log.Errorf("get local private key failed: %s", err)
 				return
 			}
-			remotePublicKey = nodeInfo.PublicKey
-		}
 
-		var localPrivateKey *asymmetric.PrivateKey
-		localPrivateKey, err = kms.GetLocalPrivateKey()
-		if err != nil {
-			log.Errorf("get local private key failed: %s", err)
-			return
+			symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
+			symmetricKeyCache.Store(nodeID, symmetricKey)
+			log.Debugf("ECDH for %s Public Key: %x, Session Key: %x",
+				nodeID.ToNodeID(), remotePublicKey.Serialize(), symmetricKey)
 		}
-
-		symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
-		log.Debugf("ECDH for %s Public Key: %x, Session Key: %x",
-			nodeID.ToNodeID(), remotePublicKey.Serialize(), symmetricKey)
 		//log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",
 		//	nodeID.ToNodeID(), remotePublicKey.Serialize(), localPrivateKey.Serialize(), symmetricKey)
 	}

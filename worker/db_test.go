@@ -549,7 +549,7 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 		},
 	}
 
-	err = ack.Sign(privateKey)
+	err = ack.Sign(privateKey, true)
 
 	return
 }

@@ -18,7 +18,6 @@ package client
 
 import (
 	"testing"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	. "github.com/smartystreets/goconvey/convey"
@@ -33,19 +32,15 @@ func TestConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
 		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db")
-
-		// test with parameters
-		cfg, err = ParseDSN("covenantsql://db?debug=true&update_interval=1s")
+	})
+	Convey("test invalid config", t, func() {
+		_, err := ParseDSN("invalid dsn")
+		So(err, ShouldNotBeNil)
+	})
+	Convey("test dsn with only database id", t, func() {
+		dbIDStr := "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
+		cfg, err := ParseDSN(dbIDStr)
 		So(err, ShouldBeNil)
-		So(cfg.DatabaseID, ShouldEqual, proto.DatabaseID("db"))
-		So(cfg.Debug, ShouldBeTrue)
-		So(cfg.PeersUpdateInterval, ShouldEqual, time.Second)
-
-		cfg.Debug = false
-		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db?update_interval=1s")
-
-		cfg.Debug = true
-		cfg.PeersUpdateInterval = DefaultPeersUpdateInterval
-		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db?debug=true")
+		So(cfg.DatabaseID, ShouldEqual, dbIDStr)
 	})
 }

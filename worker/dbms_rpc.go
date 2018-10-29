@@ -17,9 +17,19 @@
 package worker
 
 import (
+	"context"
+	"runtime/trace"
+
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/rcrowley/go-metrics"
+
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+)
+
+var (
+	dbQuerySuccCounter metrics.Meter
+	dbQueryFailCounter metrics.Meter
 )
 
 // DBMSRPCService is the rpc endpoint of database management.
@@ -34,39 +44,55 @@ func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (serv
 	}
 	server.RegisterService(serviceName, service)
 
+	dbQuerySuccCounter = metrics.NewMeter()
+	metrics.Register("db-query-succ", dbQuerySuccCounter)
+	dbQueryFailCounter = metrics.NewMeter()
+	metrics.Register("db-query-fail", dbQueryFailCounter)
+
 	return
 }
 
 // Query rpc, called by client to issue read/write query.
 func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) {
-	// verify checksum/signature
-	if err = req.Verify(); err != nil {
-		return
-	}
-
+	// Just need to verify signature in db.saveAck
+	//if err = req.Verify(); err != nil {
+	//	dbQueryFailCounter.Mark(1)
+	//	return
+	//}
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "Query")
+	defer task.End()
+	defer trace.StartRegion(ctx, "QueryRegion").End()
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
 		err = ErrInvalidRequest
+		dbQueryFailCounter.Mark(1)
 		return
 	}
 
 	var r *wt.Response
 	if r, err = rpc.dbms.Query(req); err != nil {
+		dbQueryFailCounter.Mark(1)
 		return
 	}
 
 	*res = *r
+	dbQuerySuccCounter.Mark(1)
 
 	return
 }
 
 // Ack rpc, called by client to confirm read request.
 func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
-	// verify checksum/signature
-	if err = ack.Verify(); err != nil {
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = ack.Verify(); err != nil {
+	//	return
+	//}
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "Ack")
+	defer task.End()
+	defer trace.StartRegion(ctx, "AckRegion").End()
 
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {

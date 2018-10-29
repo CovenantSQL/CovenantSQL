@@ -221,14 +221,14 @@ func TestResponse_Sign(t *testing.T) {
 					Request: SignedRequestHeader{
 						RequestHeader: RequestHeader{
 							QueryType:    WriteQuery,
-							NodeID:       proto.NodeID("node1"),
+							NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 							DatabaseID:   proto.DatabaseID("db1"),
 							ConnectionID: uint64(1),
 							SeqNo:        uint64(2),
 							Timestamp:    time.Now().UTC(),
 						},
 					},
-					NodeID:    proto.NodeID("node2"),
+					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 					Timestamp: time.Now().UTC(),
 					RowCount:  uint64(1),
 				},
@@ -367,19 +367,19 @@ func TestAck_Sign(t *testing.T) {
 							Request: SignedRequestHeader{
 								RequestHeader: RequestHeader{
 									QueryType:    WriteQuery,
-									NodeID:       proto.NodeID("node1"),
+									NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 									DatabaseID:   proto.DatabaseID("db1"),
 									ConnectionID: uint64(1),
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
 								},
 							},
-							NodeID:    proto.NodeID("node2"),
+							NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 							Timestamp: time.Now().UTC(),
 							RowCount:  uint64(1),
 						},
 					},
-					NodeID:    proto.NodeID("node1"),
+					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 					Timestamp: time.Now().UTC(),
 				},
 			},
@@ -397,7 +397,9 @@ func TestAck_Sign(t *testing.T) {
 		})
 
 		// sign directly, embedded original response is not filled
-		err = ack.Sign(privKey)
+		err = ack.Sign(privKey, false)
+		So(err, ShouldBeNil)
+		err = ack.Sign(privKey, true)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldBeIn, []error{
 			ErrSignVerification,
@@ -411,7 +413,7 @@ func TestAck_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = ack.Header.Response.Sign(privKey)
 		So(err, ShouldBeNil)
-		err = ack.Sign(privKey)
+		err = ack.Sign(privKey, true)
 		So(err, ShouldBeNil)
 
 		Convey("serialize", func() {
@@ -482,21 +484,21 @@ func TestNoAckReport_Sign(t *testing.T) {
 		noAck := &NoAckReport{
 			Header: SignedNoAckReportHeader{
 				NoAckReportHeader: NoAckReportHeader{
-					NodeID:    proto.NodeID("node2"),
+					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 					Timestamp: time.Now().UTC(),
 					Response: SignedResponseHeader{
 						ResponseHeader: ResponseHeader{
 							Request: SignedRequestHeader{
 								RequestHeader: RequestHeader{
 									QueryType:    WriteQuery,
-									NodeID:       proto.NodeID("node1"),
+									NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 									DatabaseID:   proto.DatabaseID("db1"),
 									ConnectionID: uint64(1),
 									SeqNo:        uint64(2),
 									Timestamp:    time.Now().UTC(),
 								},
 							},
-							NodeID:    proto.NodeID("node2"),
+							NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 							Timestamp: time.Now().UTC(),
 							RowCount:  uint64(1),
 						},
@@ -588,26 +590,26 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 		aggrNoAck := &AggrNoAckReport{
 			Header: SignedAggrNoAckReportHeader{
 				AggrNoAckReportHeader: AggrNoAckReportHeader{
-					NodeID:    proto.NodeID("node3"),
+					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 					Timestamp: time.Now().UTC(),
 					Reports: []SignedNoAckReportHeader{
 						{
 							NoAckReportHeader: NoAckReportHeader{
-								NodeID:    proto.NodeID("node2"),
+								NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 								Timestamp: time.Now().UTC(),
 								Response: SignedResponseHeader{
 									ResponseHeader: ResponseHeader{
 										Request: SignedRequestHeader{
 											RequestHeader: RequestHeader{
 												QueryType:    WriteQuery,
-												NodeID:       proto.NodeID("node1"),
+												NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 												DatabaseID:   proto.DatabaseID("db1"),
 												ConnectionID: uint64(1),
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
 											},
 										},
-										NodeID:    proto.NodeID("node2"),
+										NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 										Timestamp: time.Now().UTC(),
 										RowCount:  uint64(1),
 									},
@@ -616,21 +618,21 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 						},
 						{
 							NoAckReportHeader: NoAckReportHeader{
-								NodeID:    proto.NodeID("node3"),
+								NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 								Timestamp: time.Now().UTC(),
 								Response: SignedResponseHeader{
 									ResponseHeader: ResponseHeader{
 										Request: SignedRequestHeader{
 											RequestHeader: RequestHeader{
 												QueryType:    WriteQuery,
-												NodeID:       proto.NodeID("node1"),
+												NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 												DatabaseID:   proto.DatabaseID("db1"),
 												ConnectionID: uint64(1),
 												SeqNo:        uint64(2),
 												Timestamp:    time.Now().UTC(),
 											},
 										},
-										NodeID:    proto.NodeID("node3"),
+										NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 										Timestamp: time.Now().UTC(),
 										RowCount:  uint64(1),
 									},
@@ -642,16 +644,16 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 						Term: uint64(1),
 						Leader: &kayak.Server{
 							Role: proto.Leader,
-							ID:   proto.NodeID("node3"),
+							ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 						},
 						Servers: []*kayak.Server{
 							{
 								Role: proto.Leader,
-								ID:   proto.NodeID("node3"),
+								ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 							},
 							{
 								Role: proto.Follower,
-								ID:   proto.NodeID("node2"),
+								ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 							},
 						},
 					},
@@ -766,16 +768,16 @@ func TestInitServiceResponse_Sign(t *testing.T) {
 								Term: uint64(1),
 								Leader: &kayak.Server{
 									Role: proto.Leader,
-									ID:   proto.NodeID("node3"),
+									ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 								},
 								Servers: []*kayak.Server{
 									{
 										Role: proto.Leader,
-										ID:   proto.NodeID("node3"),
+										ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 									},
 									{
 										Role: proto.Follower,
-										ID:   proto.NodeID("node2"),
+										ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 									},
 								},
 								PubKey:    pubKey,
@@ -857,16 +859,16 @@ func TestUpdateService_Sign(t *testing.T) {
 							Term: uint64(1),
 							Leader: &kayak.Server{
 								Role: proto.Leader,
-								ID:   proto.NodeID("node3"),
+								ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 							},
 							Servers: []*kayak.Server{
 								{
 									Role: proto.Leader,
-									ID:   proto.NodeID("node3"),
+									ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
 								},
 								{
 									Role: proto.Follower,
-									ID:   proto.NodeID("node2"),
+									ID:   proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 								},
 							},
 							PubKey:    pubKey,

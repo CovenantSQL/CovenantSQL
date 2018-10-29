@@ -167,8 +167,15 @@ func main() {
 				// set genesis block to now
 				newInstance.GenesisBlock.SignedHeader.Timestamp = time.Now().UTC()
 
+				// sign peers again
+				if err := newInstance.Peers.Sign(privateKey); err != nil {
+					log.Fatalf("sign peers failed: %v", err)
+					return
+				}
+
 				if err := newInstance.GenesisBlock.PackAndSignBlock(privateKey); err != nil {
 					log.Fatalf("sign genesis block failed: %v", err)
+					return
 				}
 			}
 		}

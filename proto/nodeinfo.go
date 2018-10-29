@@ -130,6 +130,26 @@ func (id *NodeID) IsEqual(target *NodeID) bool {
 	return strings.Compare(string(*id), string(*target)) == 0
 }
 
+// MarshalBinary does the serialization
+func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
+	if id == nil {
+		return []byte{}, nil
+	}
+	h, err := hash.NewHashFromStr(string(*id))
+	return h[:], err
+}
+
+// UnmarshalBinary does the deserialization
+func (id *NodeID) UnmarshalBinary(keyBytes []byte) (err error) {
+	h, err := hash.NewHash(keyBytes)
+	if err != nil {
+		log.Errorf("nodeID bytes len should be 32")
+		return
+	}
+	*id = NodeID(h.String())
+	return
+}
+
 // InitNodeCryptoInfo generate Node asymmetric key pair and generate Node.NonceInfo
 // Node.ID = Node.NonceInfo.Hash
 func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {

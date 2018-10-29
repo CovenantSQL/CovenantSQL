@@ -49,6 +49,7 @@ const (
 // if package name exists and log level is more verbose, the log will be dropped
 var PkgDebugLogFilter = map[string]logrus.Level{
 	"metric": InfoLevel,
+	"rpc":    InfoLevel,
 }
 
 // Logger wraps logrus logger type.
@@ -93,14 +94,24 @@ func (hook *CallerHook) caller() (relFuncName, caller string) {
 	var (
 		file     = "unknown"
 		line     = 0
-		ok       = false
 		funcName = "unknown"
-		pc       uintptr
 	)
-	pc, file, line, ok = runtime.Caller(10)
-	details := runtime.FuncForPC(pc)
-	if ok && details != nil {
-		funcName = details.Name()
+	pcs := make([]uintptr, 10)
+	if runtime.Callers(7, pcs) > 0 {
+		frames := runtime.CallersFrames(pcs)
+		for {
+			f, more := frames.Next()
+			if strings.HasSuffix(f.File, "logwrapper.go") && more {
+				f, _ = frames.Next()
+				file = f.File
+				line = f.Line
+				funcName = f.Function
+				break
+			}
+			if !more {
+				break
+			}
+		}
 	}
 
 	relFuncName = strings.TrimPrefix(funcName, "github.com/CovenantSQL/CovenantSQL/")
@@ -217,6 +228,11 @@ func Fatal(args ...interface{}) {
 // Debugf logs a message at level Debug on the standard logger.
 func Debugf(format string, args ...interface{}) {
 	logrus.Debugf(format, args...)
+}
+
+// Printf logs a message at level Info on the standard logger.
+func (l *Logger) Printf(format string, args ...interface{}) {
+	Printf(format, args...)
 }
 
 // Printf logs a message at level Info on the standard logger.

@@ -20,13 +20,18 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/trace"
 	"syscall"
 	"time"
+
+	"github.com/cyberdelia/go-metrics-graphite"
+	"github.com/rcrowley/go-metrics"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -67,11 +72,14 @@ var (
 	// config
 	configFile string
 	genKeyPair bool
+	metricLog  bool
 
 	// profile
-	cpuProfile    string
-	memProfile    string
-	profileServer string
+	cpuProfile     string
+	memProfile     string
+	profileServer  string
+	metricGraphite string
+	traceFile      string
 
 	// other
 	noLogo      bool
@@ -83,6 +91,7 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
+	flag.BoolVar(&metricLog, "metricLog", false, "Print metrics in log")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
@@ -93,6 +102,8 @@ func init() {
 	flag.StringVar(&profileServer, "profileServer", "", "Profile server address, default not started")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
+	flag.StringVar(&metricGraphite, "metricGraphiteServer", "", "Metric graphite server to push metrics")
+	flag.StringVar(&traceFile, "traceFile", "", "trace profile")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -270,6 +281,37 @@ func main() {
 		syscall.SIGTERM,
 	)
 	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
+
+	if metricLog {
+		go metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.StandardLogger())
+	}
+
+	if metricGraphite != "" {
+		addr, err := net.ResolveTCPAddr("tcp", metricGraphite)
+		if err != nil {
+			log.Errorf("resolve metric graphite server addr failed: %v", err)
+			return
+		}
+		minerName := fmt.Sprintf("miner-%s", conf.GConf.ThisNodeID[len(conf.GConf.ThisNodeID)-5:])
+		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, minerName, addr)
+	}
+
+	if traceFile != "" {
+		f, err := os.Create(traceFile)
+		if err != nil {
+			log.Fatalf("failed to create trace output file: %v", err)
+		}
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Fatalf("failed to close trace file: %v", err)
+			}
+		}()
+
+		if err := trace.Start(f); err != nil {
+			log.Fatalf("failed to start trace: %v", err)
+		}
+		defer trace.Stop()
+	}
 
 	<-signalCh
 

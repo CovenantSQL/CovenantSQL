@@ -19,6 +19,14 @@ package client
 import (
 	"database/sql"
 	"database/sql/driver"
+	"math/rand"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -32,14 +40,29 @@ import (
 )
 
 const (
-	// PubKeyStorePath defines public cache store.
-	PubKeyStorePath = "./public.keystore"
+	// DBScheme defines the dsn scheme.
+	DBScheme = "covenantsql"
+	// DBSchemeAlias defines the alias dsn scheme.
+	DBSchemeAlias = "cql"
+)
+
+var (
+	// PeersUpdateInterval defines peers list refresh interval for client.
+	PeersUpdateInterval = time.Second * 5
+
+	driverInitialized   uint32
+	peersUpdaterRunning uint32
+	peerList            sync.Map // map[proto.DatabaseID]*kayak.Peers
+	connIDLock          sync.Mutex
+	connIDAvail         []uint64
+	globalSeqNo         uint64
+	randSource          = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 func init() {
-	driver := new(covenantSQLDriver)
-	sql.Register("covenantsql", driver)
-	sql.Register("cql", driver)
+	d := new(covenantSQLDriver)
+	sql.Register(DBScheme, d)
+	sql.Register(DBSchemeAlias, d)
 }
 
 // covenantSQLDriver implements sql.Driver interface.
@@ -53,6 +76,11 @@ func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 		return
 	}
 
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
 	return newConn(cfg)
 }
 
@@ -61,6 +89,11 @@ type ResourceMeta wt.ResourceMeta
 
 // Init defines init process for client.
 func Init(configFile string, masterKey []byte) (err error) {
+	if !atomic.CompareAndSwapUint32(&driverInitialized, 0, 1) {
+		err = ErrAlreadyInitialized
+		return
+	}
+
 	// load config
 	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
 		return
@@ -71,13 +104,25 @@ func Init(configFile string, masterKey []byte) (err error) {
 	}
 
 	// ping block producer to register node
-	err = registerNode()
+	if err = registerNode(); err != nil {
+		return
+	}
+
+	// run peers updater
+	if err = runPeerListUpdater(); err != nil {
+		return
+	}
 
 	return
 }
 
 // Create send create database operation to block producer.
 func Create(meta ResourceMeta) (dsn string, err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
 	req := new(bp.CreateDatabaseRequest)
 	req.Header.ResourceMeta = wt.ResourceMeta(meta)
 	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
@@ -108,6 +153,11 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 
 // Drop send drop database operation to block producer.
 func Drop(dsn string) (err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
 	var cfg *Config
 	if cfg, err = ParseDSN(dsn); err != nil {
 		return
@@ -133,6 +183,11 @@ func Drop(dsn string) (err error) {
 
 // GetStableCoinBalance get the stable coin balance of current account.
 func GetStableCoinBalance() (balance uint64, err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
 	req := new(bp.QueryAccountStableBalanceReq)
 	resp := new(bp.QueryAccountStableBalanceResp)
 
@@ -154,6 +209,11 @@ func GetStableCoinBalance() (balance uint64, err error) {
 
 // GetCovenantCoinBalance get the covenant coin balance of current account.
 func GetCovenantCoinBalance() (balance uint64, err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
 	req := new(bp.QueryAccountCovenantBalanceReq)
 	resp := new(bp.QueryAccountCovenantBalanceResp)
 
@@ -197,4 +257,125 @@ func registerNode() (err error) {
 	err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
 
 	return
+}
+
+func runPeerListUpdater() (err error) {
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	if !atomic.CompareAndSwapUint32(&peersUpdaterRunning, 0, 1) {
+		return
+	}
+
+	go func() {
+		for {
+			if atomic.LoadUint32(&peersUpdaterRunning) == 0 {
+				return
+			}
+
+			var wg sync.WaitGroup
+
+			peerList.Range(func(rawDBID, _ interface{}) bool {
+				dbID := rawDBID.(proto.DatabaseID)
+
+				wg.Add(1)
+				go func(dbID proto.DatabaseID) {
+					defer wg.Done()
+					var err error
+
+					if _, err = getPeers(dbID, privKey); err != nil {
+						log.WithField("db", dbID).
+							WithError(err).
+							Warningf("update peers failed")
+
+						// TODO(xq262144), better rpc remote error judgement
+						if strings.Contains(err.Error(), bp.ErrNoSuchDatabase.Error()) {
+							log.WithField("db", dbID).
+								Warningf("remove database from peers auto update")
+							peerList.Delete(dbID)
+						}
+					}
+				}(dbID)
+
+				return true
+			})
+
+			wg.Wait()
+
+			time.Sleep(PeersUpdateInterval)
+		}
+	}()
+
+	return
+}
+
+func stopPeersUpdater() {
+	atomic.StoreUint32(&peersUpdaterRunning, 0)
+}
+
+func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *kayak.Peers, err error) {
+	var ok bool
+	var rawPeers interface{}
+	if rawPeers, ok = peerList.Load(dbID); ok {
+		if peers, ok = rawPeers.(*kayak.Peers); ok {
+			return
+		}
+	}
+
+	// get peers using non-cache method
+	return getPeers(dbID, privKey)
+}
+
+func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *kayak.Peers, err error) {
+	req := new(bp.GetDatabaseRequest)
+	req.Header.DatabaseID = dbID
+
+	if err = req.Sign(privKey); err != nil {
+		return
+	}
+
+	res := new(bp.GetDatabaseResponse)
+	if err = requestBP(route.BPDBGetDatabase, req, res); err != nil {
+		return
+	}
+
+	// verify response
+	if err = res.Verify(); err != nil {
+		return
+	}
+
+	peers = res.Header.InstanceMeta.Peers
+
+	// set peers in the updater cache
+	peerList.Store(dbID, peers)
+
+	return
+}
+
+func allocateConnAndSeq() (connID uint64, seqNo uint64) {
+	connIDLock.Lock()
+	defer connIDLock.Unlock()
+
+	if len(connIDAvail) == 0 {
+		// generate one
+		connID = randSource.Uint64()
+		seqNo = atomic.AddUint64(&globalSeqNo, 1)
+		return
+	}
+
+	// pop one conn
+	connID = connIDAvail[0]
+	connIDAvail = connIDAvail[1:]
+	seqNo = atomic.AddUint64(&globalSeqNo, 1)
+
+	return
+}
+
+func putBackConn(connID uint64) {
+	connIDLock.Lock()
+	defer connIDLock.Unlock()
+
+	connIDAvail = append(connIDAvail, connID)
 }

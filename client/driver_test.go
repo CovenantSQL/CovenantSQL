@@ -18,6 +18,7 @@ package client
 
 import (
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -35,12 +36,15 @@ func TestInit(t *testing.T) {
 		stopTestService, confDir, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
+		// fake driver not initialized
+		atomic.StoreUint32(&driverInitialized, 0)
 		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 		// test loaded block producer nodes
 		bps := route.GetBPs()
 		So(len(bps), ShouldBeGreaterThanOrEqualTo, 1)
 		//So(bps[0].ToRawNodeID().ToNodeID(), ShouldResemble, (*conf.GConf.KnownNodes)[0].ID)
+		stopPeersUpdater()
 	})
 }
 

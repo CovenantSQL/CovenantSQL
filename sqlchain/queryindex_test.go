@@ -21,6 +21,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
@@ -257,6 +259,7 @@ func TestGetAck(t *testing.T) {
 }
 
 func TestQueryIndex(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
 	// Initialize clients and workers
 	clients, err := newRandomNodes(testClientNumber)
 
@@ -303,7 +306,7 @@ func TestQueryIndex(t *testing.T) {
 					t.Fatalf("Error occurred: %v", err)
 				}
 
-				t.Logf("i = %d, j = %d, k = %d\n\tseqno = %+v, req = %v, resp = %v", i, j, k,
+				log.Debugf("i = %d, j = %d, k = %d\n\tseqno = %+v, req = %v, resp = %v", i, j, k,
 					resp.Request.GetQueryKey(), &req.HeaderHash, &resp.HeaderHash)
 
 				if err = qi.addResponse(int32(i), resp); err != nil {
@@ -316,7 +319,7 @@ func TestQueryIndex(t *testing.T) {
 					for l := 0; l < dupAckNumber; l++ {
 						ack, err := createRandomQueryAckWithResponse(resp, cli)
 
-						t.Logf("i = %d, j = %d, k = %d, l = %d\n\tseqno = %+v, "+
+						log.Debugf("i = %d, j = %d, k = %d, l = %d\n\tseqno = %+v, "+
 							"req = %v, resp = %v, ack = %v",
 							i, j, k, l,
 							ack.SignedRequestHeader().GetQueryKey(),

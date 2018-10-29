@@ -67,7 +67,6 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
 		iv := make([]byte, c.info.ivLen)
 		if _, err = io.ReadFull(c.Conn, iv); err != nil {
-			log.Infof("ReadFull failed: %s", err)
 			return
 		}
 		if err = c.initDecrypt(iv); err != nil {

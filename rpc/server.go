@@ -108,7 +108,6 @@ serverLoop:
 		default:
 			conn, err := s.Listener.Accept()
 			if err != nil {
-				log.Info(err)
 				continue
 			}
 			go s.handleConn(conn)
@@ -145,7 +144,7 @@ sessionLoop:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
 				if err == io.EOF {
-					log.Infof("session %s connection closed", remoteNodeID)
+					log.Debugf("session %s connection closed", remoteNodeID)
 				} else {
 					log.Errorf("session %s accept failed: %s", remoteNodeID, err)
 				}

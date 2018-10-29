@@ -541,6 +541,73 @@ func BenchmarkStoargeSequentialReadWithBackgroundIdleTxWriter(b *testing.B) {
 	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, idleWriteTx)
 }
 
+func benchmarkStorageSequentialReadTxWithBackgroundWriter(b *testing.B, getReader GR, write BW) {
+	const queriesPerTx = 100
+	var (
+		st, n, q, dm, e, src = setupBenchmarkStorage(b)
+
+		dest = dm()
+		wg   = &sync.WaitGroup{}
+		sc   = make(chan struct{})
+
+		err error
+		tx  *sql.Tx
+	)
+
+	// Start background writer
+	wg.Add(1)
+	go write(b, wg, sc, st, n, e, src)
+
+	for i := 0; i < b.N; i++ {
+		if i%queriesPerTx == 0 {
+			if tx, err = getReader(st).Begin(); err != nil {
+				b.Fatalf("Failed to begin transaction: %v", err)
+			}
+		}
+		// Query in [n, 2n-1] key space
+		if err = tx.QueryRow(
+			q, rand.Intn(n)+n,
+		).Scan(dest...); err != nil && err != sql.ErrNoRows {
+			b.Fatalf("Failed to query values: %v", err)
+		}
+		if (i+1)%queriesPerTx == 0 || i == b.N-1 {
+			if err = tx.Rollback(); err != nil {
+				b.Fatalf("Failed to close transaction: %v", err)
+			}
+		}
+	}
+
+	// Exit background writer
+	close(sc)
+	wg.Wait()
+
+	teardownBenchmarkStorage(b, st)
+}
+
+func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundWriter(b *testing.B) {
+	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, busyWrite)
+}
+
+func BenchmarkStoargeSequentialReadTxWithBackgroundWriter(b *testing.B) {
+	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, busyWrite)
+}
+
+func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundBusyTxWriter(b *testing.B) {
+	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, busyWriteTx)
+}
+
+func BenchmarkStoargeSequentialReadTxWithBackgroundBusyTxWriter(b *testing.B) {
+	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, busyWriteTx)
+}
+
+func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundIdleTxWriter(b *testing.B) {
+	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, idleWriteTx)
+}
+
+func BenchmarkStoargeSequentialReadTxWithBackgroundIdleTxWriter(b *testing.B) {
+	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, idleWriteTx)
+}
+
 func BenchmarkStoargeSequentialMixDRW(b *testing.B) {
 	var (
 		st, n, q, dm, e, src = setupBenchmarkStorage(b)

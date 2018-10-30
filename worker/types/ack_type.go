@@ -27,6 +27,7 @@ import (
 )
 
 //go:generate hsp
+//go:generate codecgen -o worker_types_gen.go ack_type.go init_service_type.go no_ack_report_type.go request_type.go response_type.go update_service_type.go
 
 // AckHeader defines client ack entity.
 type AckHeader struct {

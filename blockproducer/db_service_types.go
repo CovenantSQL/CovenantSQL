@@ -21,6 +21,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 // CreateDatabaseRequestHeader defines client create database rpc header.
@@ -352,7 +353,7 @@ func verifyHash(data canSerialize, h *hash.Hash) (err error) {
 	var newHash hash.Hash
 	buildHash(data, &newHash)
 	if !newHash.IsEqual(h) {
-		return wt.ErrHashVerification
+		return errors.Wrap(wt.ErrHashVerification, "verify hash in blockproducer")
 	}
 	return
 }

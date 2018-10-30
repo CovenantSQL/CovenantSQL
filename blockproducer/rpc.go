@@ -21,6 +21,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // ChainRPCService defines a main chain RPC server.
@@ -134,6 +135,7 @@ type QueryAccountCovenantBalanceResp struct {
 
 // AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
+	log.Debugf("AdviseNewBlock req: %v", req)
 	s.chain.blocksFromRPC <- req.Block
 	return s.chain.pushBlock(req.Block)
 }

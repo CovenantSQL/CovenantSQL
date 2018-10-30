@@ -22,6 +22,7 @@ import (
 )
 
 //go:generate hsp
+//go:generate codecgen -o bp_types_gen.go account.go baseaccount.go billing.go billing_request.go block.go common.go createdb.go transfer.go
 
 // SQLChainRole defines roles of account in a SQLChain.
 type SQLChainRole byte

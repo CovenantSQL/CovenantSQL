@@ -28,6 +28,7 @@ import (
 )
 
 //go:generate hsp
+//go:generate codecgen -nr ^Envelope$ -o proto_msgp_gen.go proto.go nodeinfo.go
 
 var (
 	// NewNodeIDDifficulty is exposed for easy testing

@@ -531,6 +531,54 @@ func BenchmarkSQLite(b *testing.B) {
 	})
 }
 
+func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
+	log.Warnf("Benchmark GNTE for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	asymmetric.BypassSignature = bypassSign
+
+	// Create temp directory
+	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(testDataDir)
+	clientConf := FJ(testWorkingDir, "./GNTE/conf/node_c/config.yaml")
+	tempConf := FJ(testDataDir, "config.yaml")
+	clientKey := FJ(testWorkingDir, "./GNTE/conf/node_c/private.key")
+	tempKey := FJ(testDataDir, "private.key")
+	utils.CopyFile(clientConf, tempConf)
+	utils.CopyFile(clientKey, tempKey)
+
+	err = client.Init(tempConf, []byte(""))
+	So(err, ShouldBeNil)
+
+	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
+	var dsn string
+	if minerCount > 0 {
+		// create
+		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		So(err, ShouldBeNil)
+
+		log.Infof("the created database dsn is %v", dsn)
+		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
+		if err != nil {
+			log.Errorf("write .dsn failed: %v", err)
+		}
+		defer os.Remove(dsnFile)
+	} else {
+		dsn = os.Getenv("DSN")
+	}
+
+	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	benchDB(b, db, minerCount > 0)
+
+	err = client.Drop(dsn)
+	So(err, ShouldBeNil)
+	time.Sleep(5 * time.Second)
+	stopNodes()
+}
+
 func BenchmarkMinerOneNoSign(b *testing.B) {
 	Convey("bench single node", b, func() {
 		benchMiner(b, 1, true)
@@ -570,5 +618,11 @@ func BenchmarkMinerThree(b *testing.B) {
 func BenchmarkClientOnly(b *testing.B) {
 	Convey("bench three node", b, func() {
 		benchMiner(b, 0, false)
+	})
+}
+
+func BenchmarkMinerGNTETwo(b *testing.B) {
+	Convey("bench GNTE two node", b, func() {
+		benchGNTEMiner(b, 2, false)
 	})
 }

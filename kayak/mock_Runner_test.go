@@ -10,24 +10,33 @@ type MockRunner struct {
 }
 
 // Apply provides a mock function with given fields: data
-func (_m *MockRunner) Apply(data []byte) (uint64, error) {
+func (_m *MockRunner) Apply(data []byte) (interface{}, uint64, error) {
 	ret := _m.Called(data)
 
-	var r0 uint64
-	if rf, ok := ret.Get(0).(func([]byte) uint64); ok {
+	var r0 interface{}
+	if rf, ok := ret.Get(0).(func([]byte) interface{}); ok {
 		r0 = rf(data)
 	} else {
-		r0 = ret.Get(0).(uint64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interface{})
+		}
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func([]byte) error); ok {
+	var r1 uint64
+	if rf, ok := ret.Get(1).(func([]byte) uint64); ok {
 		r1 = rf(data)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(uint64)
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func([]byte) error); ok {
+		r2 = rf(data)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // Init provides a mock function with given fields: config, peers, logs, stable, transport

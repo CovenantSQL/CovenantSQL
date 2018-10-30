@@ -119,15 +119,15 @@ func (r *Runtime) Shutdown() (err error) {
 }
 
 // Apply defines common process logic.
-func (r *Runtime) Apply(data []byte) (offset uint64, err error) {
+func (r *Runtime) Apply(data []byte) (result interface{}, offset uint64, err error) {
 	// validate if myself is leader
 	if !r.isLeader {
-		return 0, ErrNotLeader
+		return nil, 0, ErrNotLeader
 	}
 
-	offset, err = r.config.Runner.Apply(data)
+	result, offset, err = r.config.Runner.Apply(data)
 	if err != nil {
-		return 0, err
+		return nil, 0, err
 	}
 
 	return

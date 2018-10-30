@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 // Hook are called during 2PC running
@@ -40,7 +39,7 @@ type Options struct {
 // Worker represents a 2PC worker who implements Prepare, Commit, and Rollback.
 type Worker interface {
 	Prepare(ctx context.Context, wb WriteBatch) error
-	Commit(ctx context.Context, wb WriteBatch) error
+	Commit(ctx context.Context, wb WriteBatch) (interface{}, error)
 	Rollback(ctx context.Context, wb WriteBatch) error
 }
 
@@ -78,96 +77,121 @@ func NewOptionsWithCallback(timeout time.Duration,
 	}
 }
 
+func (c *Coordinator) prepare(ctx context.Context, workers []Worker, wb WriteBatch) (err error) {
+	errs := make([]error, len(workers))
+	wg := sync.WaitGroup{}
+	workerFunc := func(n Worker, e *error, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		*e = n.Prepare(ctx, wb)
+	}
+
+	for index, worker := range workers {
+		wg.Add(1)
+		go workerFunc(worker, &errs[index], &wg)
+	}
+
+	wg.Wait()
+
+	var index int
+	for index, err = range errs {
+		if err != nil {
+			log.WithField("worker", workers[index]).WithError(err).Debug("prepare failed")
+			return
+		}
+	}
+
+	return
+}
+
 func (c *Coordinator) rollback(ctx context.Context, workers []Worker, wb WriteBatch) (err error) {
 	errs := make([]error, len(workers))
 	wg := sync.WaitGroup{}
+	workerFunc := func(n Worker, e *error, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		*e = n.Rollback(ctx, wb)
+	}
 
 	for index, worker := range workers {
 		wg.Add(1)
-		go func(n Worker, e *error) {
-			*e = n.Rollback(ctx, wb)
-			wg.Done()
-		}(worker, &errs[index])
+		go workerFunc(worker, &errs[index], &wg)
 	}
 
 	wg.Wait()
 
-	for _, err = range errs {
+	var index int
+	for index, err = range errs {
 		if err != nil {
-			return err
+			log.WithField("worker", workers[index]).WithError(err).Debug("rollback failed")
+			return
 		}
 	}
 
-	return errors.New("twopc: rollback")
+	return
 }
 
-func (c *Coordinator) commit(ctx context.Context, workers []Worker, wb WriteBatch) (err error) {
+func (c *Coordinator) commit(ctx context.Context, workers []Worker, wb WriteBatch) (result interface{}, err error) {
 	errs := make([]error, len(workers))
 	wg := sync.WaitGroup{}
+	workerFunc := func(n Worker, resPtr *interface{}, e *error, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		var res interface{}
+		res, *e = n.Commit(ctx, wb)
+		if resPtr != nil {
+			*resPtr = res
+		}
+	}
 
 	for index, worker := range workers {
 		wg.Add(1)
-		go func(n Worker, e *error) {
-			*e = n.Commit(ctx, wb)
-			wg.Done()
-		}(worker, &errs[index])
+		if index == 0 {
+			go workerFunc(worker, &result, &errs[index], &wg)
+		} else {
+			go workerFunc(worker, nil, &errs[index], &wg)
+		}
 	}
 
 	wg.Wait()
 
-	for _, err = range errs {
+	var index int
+	for index, err = range errs {
 		if err != nil {
-			return err
+			log.WithField("worker", workers[index]).WithError(err).Debug("commit failed")
+			return
 		}
 	}
 
-	return nil
+	return
 }
 
 // Put initiates a 2PC process to apply given WriteBatch on all workers.
-func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
+func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (result interface{}, err error) {
 	// Initiate phase one: ask nodes to prepare for progress
 	ctx, cancel := context.WithTimeout(context.Background(), c.option.timeout)
 	defer cancel()
 
 	if c.option.beforePrepare != nil {
-		if err := c.option.beforePrepare(ctx); err != nil {
-			return err
+		if err = c.option.beforePrepare(ctx); err != nil {
+			log.WithError(err).Debug("before prepared failed")
+			return
 		}
 	}
-
-	errs := make([]error, len(workers))
-	wg := sync.WaitGroup{}
-
-	for index, worker := range workers {
-		wg.Add(1)
-		go func(n Worker, e *error) {
-			*e = n.Prepare(ctx, wb)
-			wg.Done()
-		}(worker, &errs[index])
-	}
-
-	wg.Wait()
 
 	// Check prepare results and initiate phase two
-	var returnErr error
-	for index, err := range errs {
-		if err != nil {
-			returnErr = err
-			log.WithField("worker", workers[index]).WithError(err).Debug("prepare failed")
-			goto ROLLBACK
-		}
+	if err = c.prepare(ctx, workers, wb); err != nil {
+		goto ROLLBACK
 	}
 
 	if c.option.beforeCommit != nil {
-		if err := c.option.beforeCommit(ctx); err != nil {
-			returnErr = err
+		if err = c.option.beforeCommit(ctx); err != nil {
 			log.WithError(err).Debug("before commit failed")
 			goto ROLLBACK
 		}
 	}
 
-	err = c.commit(ctx, workers, wb)
+	result, err = c.commit(ctx, workers, wb)
 
 	if c.option.afterCommit != nil {
 		if err = c.option.afterCommit(ctx); err != nil {
@@ -185,5 +209,5 @@ ROLLBACK:
 
 	c.rollback(ctx, workers, wb)
 
-	return returnErr
+	return
 }

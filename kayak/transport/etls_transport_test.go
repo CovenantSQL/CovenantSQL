@@ -281,52 +281,52 @@ func TestETLSIntegration(t *testing.T) {
 		callOrder := &CallCollector{}
 		f1Mock.worker.On("Prepare", mock.Anything, testPayload).
 			Return(nil).Run(func(args mock.Arguments) {
-			callOrder.Append("f_prepare")
+			callOrder.Append("prepare")
 		})
 		f2Mock.worker.On("Prepare", mock.Anything, testPayload).
 			Return(nil).Run(func(args mock.Arguments) {
-			callOrder.Append("f_prepare")
+			callOrder.Append("prepare")
 		})
 		f1Mock.worker.On("Commit", mock.Anything, testPayload).
-			Return(nil).Run(func(args mock.Arguments) {
-			callOrder.Append("f_commit")
+			Return(nil, nil).Run(func(args mock.Arguments) {
+			callOrder.Append("commit")
 		})
 		f2Mock.worker.On("Commit", mock.Anything, testPayload).
-			Return(nil).Run(func(args mock.Arguments) {
-			callOrder.Append("f_commit")
+			Return(nil, nil).Run(func(args mock.Arguments) {
+			callOrder.Append("commit")
 		})
 		lMock.worker.On("Prepare", mock.Anything, testPayload).
 			Return(nil).Run(func(args mock.Arguments) {
-			callOrder.Append("l_prepare")
+			callOrder.Append("prepare")
 		})
 		lMock.worker.On("Commit", mock.Anything, testPayload).
-			Return(nil).Run(func(args mock.Arguments) {
-			callOrder.Append("l_commit")
+			Return(nil, nil).Run(func(args mock.Arguments) {
+			callOrder.Append("commit")
 		})
 
 		// process the encoded data
-		_, err = lMock.runtime.Apply(testPayload)
+		_, _, err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
-			"f_prepare",
-			"f_prepare",
-			"l_prepare",
-			"f_commit",
-			"f_commit",
-			"l_commit",
+			"prepare",
+			"prepare",
+			"prepare",
+			"commit",
+			"commit",
+			"commit",
 		})
 
 		// process the encoded data again
 		callOrder.Reset()
-		_, err = lMock.runtime.Apply(testPayload)
+		_, _, err = lMock.runtime.Apply(testPayload)
 		So(err, ShouldBeNil)
 		So(callOrder.Get(), ShouldResemble, []string{
-			"f_prepare",
-			"f_prepare",
-			"l_prepare",
-			"f_commit",
-			"f_commit",
-			"l_commit",
+			"prepare",
+			"prepare",
+			"prepare",
+			"commit",
+			"commit",
+			"commit",
 		})
 
 		// shutdown

@@ -38,10 +38,10 @@ func testPortConnectable(addr string) bool {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return false
-	} else {
-		conn.Close()
-		return true
 	}
+
+	conn.Close()
+	return true
 }
 
 func testPort(bindAddr string, port int, excludeAllocated bool) bool {

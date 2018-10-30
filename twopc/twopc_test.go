@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -83,11 +84,13 @@ type RaftWriteBatchResp struct {
 
 type RaftCommitReq struct {
 	TxID RaftTxID
+	Cmds []string
 }
 
 type RaftCommitResp struct {
 	ErrCode   int
 	ErrString string
+	Result    int64
 }
 
 type RaftRollbackReq struct {
@@ -185,6 +188,19 @@ func (r *RaftNodeRPCServer) RPCCommit(req *RaftCommitReq, resp *RaftCommitResp) 
 		return nil
 	}
 
+	// calculate
+	var total int64
+	var val int64
+	for _, cmd := range req.Cmds {
+		if val, err = strconv.ParseInt(cmd, 10, 64); err != nil {
+			return
+		}
+
+		total += val
+	}
+
+	resp.Result = total
+
 	r.state = Committed
 	return nil
 }
@@ -256,7 +272,7 @@ func (r *RaftNode) Prepare(ctx context.Context, wb WriteBatch) (err error) {
 	return err
 }
 
-func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (err error) {
+func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (result interface{}, err error) {
 	log.Debugf("executing 2pc: addr = %s, phase = commit", r.addr)
 	defer log.Debugf("2pc result: addr = %s, phase = commit, result = %v", r.addr, err)
 
@@ -264,20 +280,20 @@ func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (err error) {
 
 	if !ok {
 		err = errors.New("unexpected WriteBatch type")
-		return err
+		return
 	}
 
 	cipher := etls.NewCipher([]byte(pass))
 	conn, err := etls.Dial("tcp", r.addr, cipher)
 
 	if err != nil {
-		return err
+		return
 	}
 
 	client, err := rpc.InitClientConn(conn)
 
 	if err != nil {
-		return err
+		return
 	}
 
 	d, ok := ctx.Deadline()
@@ -286,22 +302,23 @@ func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (err error) {
 		err = conn.SetDeadline(d)
 
 		if err != nil {
-			return err
+			return
 		}
 	}
 
 	resp := new(RaftCommitResp)
-	err = client.Call("Raft.RPCCommit", &RaftCommitReq{rwb.TxID}, resp)
+	err = client.Call("Raft.RPCCommit", &RaftCommitReq{TxID: rwb.TxID, Cmds: rwb.Cmds}, resp)
+	result = resp.Result
 
 	if err != nil {
-		return err
+		return
 	}
 
 	if resp.ErrCode > 0 {
 		err = fmt.Errorf(resp.ErrString)
 	}
 
-	return err
+	return
 }
 
 func (r *RaftNode) Rollback(ctx context.Context, wb WriteBatch) (err error) {
@@ -339,7 +356,7 @@ func (r *RaftNode) Rollback(ctx context.Context, wb WriteBatch) (err error) {
 	}
 
 	resp := new(RaftRollbackResp)
-	err = client.Call("Raft.RPCRollback", &RaftRollbackReq{rwb.TxID}, resp)
+	err = client.Call("Raft.RPCRollback", &RaftRollbackReq{TxID: rwb.TxID}, resp)
 
 	if err != nil {
 		return err
@@ -405,16 +422,20 @@ func TestTwoPhaseCommit(t *testing.T) {
 	testNodeReset()
 
 	policy = AllGood
-	err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
+	res, err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
 
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
 	}
 
+	if res.(int64) != 8 {
+		t.Fatalf("TwoPC returns invalid result: %v", res)
+	}
+
 	testNodeReset()
 
 	policy = FailOnPrepare
-	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"-3", "-4", "+1"}})
+	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"-3", "-4", "+1"}})
 
 	if err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
@@ -425,7 +446,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 	testNodeReset()
 
 	policy = FailOnCommit
-	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"-5", "+9", "+1"}})
+	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"-5", "+9", "+1"}})
 
 	if err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
@@ -469,9 +490,13 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	testNodeReset()
 
-	err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
+	res, err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err.Error())
+	}
+
+	if res.(int64) != 8 {
+		t.Fatalf("TwoPC returns invalid result: %v", res)
 	}
 
 	// error before prepare
@@ -481,7 +506,7 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	testNodeReset()
 
-	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"+1", "-3", "+10"}})
+	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"+1", "-3", "+10"}})
 	if err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else if err != beforePrepareError {
@@ -497,7 +522,7 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	testNodeReset()
 
-	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"+1", "-3", "+10"}})
+	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"+1", "-3", "+10"}})
 	if err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else if err != beforeCommitError {
@@ -513,7 +538,7 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	testNodeReset()
 
-	err = c.Put(nodes, &RaftWriteBatchReq{TxID: 3, Cmds: []string{"+1", "-3", "+10"}})
+	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 3, Cmds: []string{"+1", "-3", "+10"}})
 	if err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else if err != beforeCommitError {

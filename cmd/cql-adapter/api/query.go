@@ -139,10 +139,15 @@ func (a *queryAPI) Write(rw http.ResponseWriter, r *http.Request) {
 	log.WithField("db", dbID).WithField("query", query).Info("got exec")
 
 	var err error
-	if err = config.GetConfig().StorageInstance.Exec(dbID, query); err != nil {
+	var affectedRows int64
+	var lastInsertID int64
+	if affectedRows, lastInsertID, err = config.GetConfig().StorageInstance.Exec(dbID, query); err != nil {
 		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
-	sendResponse(http.StatusOK, true, nil, nil, rw)
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		"last_insert_id": lastInsertID,
+		"affected_rows":  affectedRows,
+	}, rw)
 }

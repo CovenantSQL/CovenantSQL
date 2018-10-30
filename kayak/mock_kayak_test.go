@@ -210,20 +210,20 @@ func (w *MockTwoPCWorker) Prepare(ctx context.Context, wb twopc.WriteBatch) erro
 	return nil
 }
 
-func (w *MockTwoPCWorker) Commit(ctx context.Context, wb twopc.WriteBatch) error {
+func (w *MockTwoPCWorker) Commit(ctx context.Context, wb twopc.WriteBatch) (interface{}, error) {
 	// test commit
 	if w.state != "prepared" {
-		return errors.New("invalid state")
+		return nil, errors.New("invalid state")
 	}
 
 	if !reflect.DeepEqual(wb, w.data) {
-		return errors.New("commit data not same as last")
+		return nil, errors.New("commit data not same as last")
 	}
 
 	w.total += w.data
 	w.state = ""
 
-	return nil
+	return nil, nil
 }
 
 func (w *MockTwoPCWorker) Rollback(ctx context.Context, wb twopc.WriteBatch) error {

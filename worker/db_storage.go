@@ -39,7 +39,7 @@ func (db *Database) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error
 }
 
 // Commit implements twopc.Worker.Commmit.
-func (db *Database) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
+func (db *Database) Commit(ctx context.Context, wb twopc.WriteBatch) (result interface{}, err error) {
 	// wrap storage with signature check
 	var log *storage.ExecLog
 	if log, err = db.convertRequest(wb); err != nil {

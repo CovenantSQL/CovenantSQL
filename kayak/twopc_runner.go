@@ -17,15 +17,16 @@
 package kayak
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"runtime/trace"
 	"sync"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/twopc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -46,6 +47,7 @@ type TwoPCConfig struct {
 }
 
 type logProcessResult struct {
+	result interface{}
 	offset uint64
 	err    error
 }
@@ -279,17 +281,17 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 }
 
 // Apply implements Runner.Apply.
-func (r *TwoPCRunner) Apply(data []byte) (uint64, error) {
+func (r *TwoPCRunner) Apply(data []byte) (result interface{}, offset uint64, err error) {
 	// check leader privilege
 	if r.role != proto.Leader {
-		return 0, ErrNotLeader
+		return nil, 0, ErrNotLeader
 	}
 
 	//TODO(auxten): need throughput optimization
 	r.processReq <- data
 	res := <-r.processRes
 
-	return res.offset, res.err
+	return res.result, res.offset, res.err
 }
 
 // Shutdown implements Runner.Shutdown.
@@ -367,8 +369,8 @@ func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
 		return r.config.Storage.Rollback(ctx, l.Data)
 	}
 
-	localCommit := func(ctx context.Context) (err error) {
-		err = r.config.Storage.Commit(ctx, l.Data)
+	localCommit := func(ctx context.Context) (result interface{}, err error) {
+		result, err = r.config.Storage.Commit(ctx, l.Data)
 
 		r.stableStore.SetUint64(keyCommittedIndex, l.Index)
 		r.lastLogHash = &l.Hash
@@ -380,7 +382,12 @@ func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
 
 	// build 2PC workers
 	if len(r.peers.Servers) > 1 {
-		nodes := make([]twopc.Worker, 0, len(r.peers.Servers)-1)
+		nodes := make([]twopc.Worker, 0, len(r.peers.Servers))
+		nodes = append(nodes, newLocalWrapper(
+			localPrepare,
+			localRollback,
+			localCommit,
+		))
 
 		for _, s := range r.peers.Servers {
 			if s.ID != r.config.LocalID {
@@ -389,15 +396,8 @@ func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
 		}
 
 		// start coordination
-		c := twopc.NewCoordinator(twopc.NewOptionsWithCallback(
-			r.config.ProcessTimeout,
-			nil,
-			localPrepare,  // after all remote nodes prepared
-			localRollback, // before all remote nodes rollback
-			localCommit,   // after all remote nodes commit
-		))
-
-		res.err = c.Put(nodes, l)
+		c := twopc.NewCoordinator(twopc.NewOptions(r.config.ProcessTimeout))
+		res.result, res.err = c.Put(nodes, l)
 		res.offset = r.lastLogIndex
 	} else {
 		// single node short cut
@@ -413,7 +413,7 @@ func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
 
 		// Commit myself
 		// return commit err but still commit
-		res.err = localCommit(ctx)
+		res.result, res.err = localCommit(ctx)
 		res.offset = r.lastLogIndex
 	}
 
@@ -517,6 +517,7 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		if r.getState() != Idle {
 			// TODO(xq262144): has running transaction
 			// TODO(xq262144): abort previous or failed current
+			log.Warning("runner status not available for new prepare request")
 		}
 
 		// init context
@@ -527,6 +528,7 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		// get log
 		var l *Log
 		if l, err = r.verifyLog(req); err != nil {
+			log.WithError(err).Debug("verify log failed")
 			return
 		}
 
@@ -534,33 +536,51 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 		var lastIndex uint64
 		if lastIndex, err = r.logStore.LastIndex(); err != nil || lastIndex >= l.Index {
 			// already prepared or failed
+			log.WithFields(log.Fields{
+				"lastIndex": lastIndex,
+				"index":     l.Index,
+			}).WithError(err).Debug("check log existence failed")
+
 			return
 		}
 
 		// check prepare hash with last log hash
 		if l.LastHash != nil && lastIndex == 0 {
 			// invalid
-			return ErrInvalidLog
+			err = ErrInvalidLog
+			log.WithFields(log.Fields{
+				"lastIndex": lastIndex,
+				"hash":      l.LastHash,
+			}).WithError(err).Debug("invalid log parent hash")
+			return
 		}
 
 		if lastIndex > 0 {
 			var lastLog Log
 			if err = r.logStore.GetLog(lastIndex, &lastLog); err != nil {
+				log.WithError(err).Debug("get last log failed")
 				return
 			}
 
 			if !l.LastHash.IsEqual(&lastLog.Hash) {
-				return ErrInvalidLog
+				err = ErrInvalidLog
+				log.WithFields(log.Fields{
+					"expected": lastLog.Hash,
+					"actual":   l.LastHash,
+				}).WithError(err).Debug("parent hash not matched")
+				return
 			}
 		}
 
 		// prepare on storage
 		if err = r.config.Storage.Prepare(r.currentContext, l.Data); err != nil {
+			log.WithError(err).Debug("call storage prepare failed")
 			return
 		}
 
 		// write log to storage
 		if err = r.logStore.StoreLog(l); err != nil {
+			log.WithError(err).Debug("record log to log storage failed")
 			return
 		}
 
@@ -573,41 +593,71 @@ func (r *TwoPCRunner) processPrepare(req Request) {
 
 func (r *TwoPCRunner) processCommit(req Request) {
 	// commit log
-	req.SendResponse(nil, func() (err error) {
+	req.SendResponse(func() (resp []byte, err error) {
 		// TODO(xq262144): check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
-			return ErrInvalidRequest
+			err = ErrInvalidRequest
+			log.WithError(err).Warning("runner status not prepared to commit")
+			return
 		}
 
 		// get log
 		var l *Log
 		if l, err = r.verifyLog(req); err != nil {
+			log.WithError(err).Debug("verify log failed")
 			return
 		}
 
 		var lastIndex uint64
 		if lastIndex, err = r.logStore.LastIndex(); err != nil {
+			log.WithError(err).Debug("get last log index failed")
 			return
 		} else if lastIndex < l.Index {
 			// not logged, need re-prepare
-			return ErrInvalidLog
+			err = ErrInvalidLog
+			log.WithFields(log.Fields{
+				"lastIndex": lastIndex,
+				"index":     l.Index,
+			}).WithError(err).Debug("check log index correctness failed")
+			return
 		}
 
 		if r.lastLogIndex+1 != l.Index {
 			// not at the head of the commit position
-			return ErrInvalidLog
+			err = ErrInvalidLog
+			log.WithFields(log.Fields{
+				"lastLogIndex": r.lastLogIndex,
+				"index":        l.Index,
+			}).WithError(err).Debug("check log index correctness failed")
+			return
 		}
 
 		// get log
 		var lastLog Log
 		if err = r.logStore.GetLog(l.Index, &lastLog); err != nil {
+			log.WithError(err).Debug("get last log failed")
 			return
 		}
 
 		// commit on storage
 		// return err but still commit local index
-		err = r.config.Storage.Commit(r.currentContext, l.Data)
+		var respData interface{}
+		respData, err = r.config.Storage.Commit(r.currentContext, l.Data)
+
+		// encode response
+		if err == nil {
+			var encodeBuf *bytes.Buffer
+			if encodeBuf, err = utils.EncodeMsgPack(respData); err == nil {
+				resp = encodeBuf.Bytes()
+			} else {
+				log.WithError(err).Warning("encode response failed")
+				// clear error
+				err = nil
+			}
+		} else {
+			log.WithError(err).Warning("call storage commit failed")
+		}
 
 		// commit log
 		r.stableStore.SetUint64(keyCommittedIndex, l.Index)
@@ -628,36 +678,51 @@ func (r *TwoPCRunner) processRollback(req Request) {
 		// TODO(xq262144): check current running transaction index
 		if r.getState() != Prepared {
 			// not prepared, failed directly
-			return ErrInvalidRequest
+			err = ErrInvalidRequest
+			log.WithError(err).Warning("runner status not prepared to rollback")
+			return
 		}
 
 		// get log
 		var l *Log
 		if l, err = r.verifyLog(req); err != nil {
+			log.WithError(err).Debug("verify log failed")
 			return
 		}
 
 		var lastIndex uint64
 		if lastIndex, err = r.logStore.LastIndex(); err != nil {
+			log.WithError(err).Debug("get last log index failed")
 			return
 		} else if lastIndex < l.Index {
 			// not logged, no rollback required, maybe previous initiated rollback
+			log.WithFields(log.Fields{
+				"lastIndex": lastIndex,
+				"index":     l.Index,
+			}).Debug("index beyond max index, rollback request ignored")
 			return
 		}
 
 		if r.lastLogIndex+1 != l.Index {
 			// not at the head of the commit position
-			return ErrInvalidLog
+			err = ErrInvalidLog
+			log.WithFields(log.Fields{
+				"lastLogIndex": r.lastLogIndex,
+				"index":        l.Index,
+			}).WithError(err).Debug("check log index correctness failed")
+			return
 		}
 
 		// get log
 		var lastLog Log
 		if err = r.logStore.GetLog(l.Index, &lastLog); err != nil {
+			log.WithError(err).Debug("get last log failed")
 			return
 		}
 
 		// rollback on storage
 		if err = r.config.Storage.Rollback(r.currentContext, l.Data); err != nil {
+			log.WithError(err).Warning("call storage rollback failed")
 			return
 		}
 
@@ -681,6 +746,35 @@ func (r *TwoPCRunner) goFunc(f func()) {
 	}()
 }
 
+type localFunc func(context.Context) error
+type localCommitFunc func(context.Context) (interface{}, error)
+
+type localWrapper struct {
+	prepare  localFunc
+	rollback localFunc
+	commit   localCommitFunc
+}
+
+func newLocalWrapper(prepare localFunc, rollback localFunc, commit localCommitFunc) *localWrapper {
+	return &localWrapper{
+		prepare:  prepare,
+		rollback: rollback,
+		commit:   commit,
+	}
+}
+
+func (lw *localWrapper) Prepare(ctx context.Context, _ twopc.WriteBatch) error {
+	return lw.prepare(ctx)
+}
+
+func (lw *localWrapper) Commit(ctx context.Context, _ twopc.WriteBatch) (interface{}, error) {
+	return lw.commit(ctx)
+}
+
+func (lw *localWrapper) Rollback(ctx context.Context, _ twopc.WriteBatch) error {
+	return lw.rollback(ctx)
+}
+
 // NewTwoPCWorkerWrapper returns a wrapper for remote worker.
 func NewTwoPCWorkerWrapper(runner *TwoPCRunner, nodeID proto.NodeID) *TwoPCWorkerWrapper {
 	return &TwoPCWorkerWrapper{
@@ -697,15 +791,16 @@ func (tpww *TwoPCWorkerWrapper) Prepare(ctx context.Context, wb twopc.WriteBatch
 		return ErrInvalidLog
 	}
 
-	return tpww.callRemote(ctx, "Prepare", l)
+	_, err := tpww.callRemote(ctx, "Prepare", l)
+	return err
 }
 
 // Commit implements twopc.Worker.Commit.
-func (tpww *TwoPCWorkerWrapper) Commit(ctx context.Context, wb twopc.WriteBatch) error {
+func (tpww *TwoPCWorkerWrapper) Commit(ctx context.Context, wb twopc.WriteBatch) (interface{}, error) {
 	// extract log
 	l, ok := wb.(*Log)
 	if !ok {
-		return ErrInvalidLog
+		return nil, ErrInvalidLog
 	}
 
 	return tpww.callRemote(ctx, "Commit", l)
@@ -719,19 +814,12 @@ func (tpww *TwoPCWorkerWrapper) Rollback(ctx context.Context, wb twopc.WriteBatc
 		return ErrInvalidLog
 	}
 
-	return tpww.callRemote(ctx, "Rollback", l)
+	_, err := tpww.callRemote(ctx, "Rollback", l)
+	return err
 }
 
-func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, log *Log) (err error) {
-	// TODO(xq262144): handle retry
-	_, err = tpww.runner.transport.Request(ctx, tpww.nodeID, method, log)
-	return
-}
-
-func nestedTimeoutCtx(ctx context.Context, timeout time.Duration, process func(context.Context) error) error {
-	nestedCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	return process(nestedCtx)
+func (tpww *TwoPCWorkerWrapper) callRemote(ctx context.Context, method string, log *Log) (res []byte, err error) {
+	return tpww.runner.transport.Request(ctx, tpww.nodeID, method, log)
 }
 
 var (

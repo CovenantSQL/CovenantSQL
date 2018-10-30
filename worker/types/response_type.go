@@ -44,12 +44,14 @@ type ResponsePayload struct {
 
 // ResponseHeader defines a query response header.
 type ResponseHeader struct {
-	Request   SignedRequestHeader `json:"r"`
-	NodeID    proto.NodeID        `json:"id"` // response node id
-	Timestamp time.Time           `json:"t"`  // time in UTC zone
-	RowCount  uint64              `json:"c"`  // response row count of payload
-	LogOffset uint64              `json:"o"`  // request log offset
-	DataHash  hash.Hash           `json:"dh"` // hash of query response
+	Request      SignedRequestHeader `json:"r"`
+	NodeID       proto.NodeID        `json:"id"` // response node id
+	Timestamp    time.Time           `json:"t"`  // time in UTC zone
+	RowCount     uint64              `json:"c"`  // response row count of payload
+	LogOffset    uint64              `json:"o"`  // request log offset
+	LastInsertID int64               `json:"l"`  // insert insert id
+	AffectedRows int64               `json:"a"`  // affected rows
+	DataHash     hash.Hash           `json:"dh"` // hash of query response
 }
 
 // SignedResponseHeader defines a signed query response header.

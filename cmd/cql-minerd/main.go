@@ -120,7 +120,7 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("Args %#v : %#v", f.Name, f.Value)

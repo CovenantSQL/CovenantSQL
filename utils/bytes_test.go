@@ -17,9 +17,10 @@
 package utils
 
 import (
+	"testing"
+
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestNewLevelDBKey(t *testing.T) {

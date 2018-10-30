@@ -37,7 +37,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
-	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -45,19 +44,12 @@ import (
 )
 
 var (
-	metaBucket              = [4]byte{0x0, 0x0, 0x0, 0x0}
-	metaState				= [4]byte{'S', 'T', 'A', 'T'}
-	metaStateKey            = []byte("covenantsql-state")
-	metaBlockIndexBucket    = []byte("covenantsql-block-index-bucket")
-	metaBlockIndex = [4]byte{'B', 'L', 'C', 'K'}
-	metaHeightIndexBucket   = []byte("covenantsql-query-height-index-bucket")
-	metaRequestIndexBucket  = []byte("covenantsql-query-request-index-bucket")
-	metaRequestIndex = [4]byte{'R', 'E', 'Q', 'U'}
-	metaResponseIndexBucket = []byte("covenantsql-query-response-index-bucket")
+	metaState         = [4]byte{'S', 'T', 'A', 'T'}
+	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
+	metaRequestIndex  = [4]byte{'R', 'E', 'Q', 'U'}
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
-	metaAckIndexBucket      = [4]byte{'Q', 'A', 'C', 'K'}
-	metaAckIndex = [4]byte{'Q', 'A', 'C', 'K'}
-	leveldbConf             = opt.Options{}
+	metaAckIndex      = [4]byte{'Q', 'A', 'C', 'K'}
+	leveldbConf       = opt.Options{}
 )
 
 func init() {
@@ -138,30 +130,6 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
-	// Open DB file
-	db, err := bolt.Open(c.DataFile, 0600, nil)
-	if err != nil {
-		return
-	}
-
-	// Create buckets for chain meta
-	if err = db.Update(func(tx *bolt.Tx) (err error) {
-		bucket, err := tx.CreateBucketIfNotExists(metaBucket[:])
-
-		if err != nil {
-			return
-		}
-
-		if _, err = bucket.CreateBucketIfNotExists(metaBlockIndexBucket); err != nil {
-			return
-		}
-
-		_, err = bucket.CreateBucketIfNotExists(metaHeightIndexBucket)
-		return
-	}); err != nil {
-		return
-	}
-
 	// Open LevelDB for block and state
 	bdbFile := c.DataFile + "-block-state.ldb"
 	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
@@ -180,8 +148,8 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		bdb: 	bdb,
-		tdb: tdb,
+		bdb:       bdb,
+		tdb:       tdb,
 		bi:        newBlockIndex(c),
 		qi:        newQueryIndex(),
 		cl:        rpc.NewCaller(),
@@ -226,8 +194,8 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		bdb: bdb,
-		tdb: tdb,
+		bdb:       bdb,
+		tdb:       tdb,
 		bi:        newBlockIndex(c),
 		qi:        newQueryIndex(),
 		cl:        rpc.NewCaller(),
@@ -439,27 +407,6 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	return
 }
 
-func ensureHeight(tx *bolt.Tx, k []byte) (hb *bolt.Bucket, err error) {
-	b := tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
-
-	if hb = b.Bucket(k); hb == nil {
-		// Create and initialize bucket in new height
-		if hb, err = b.CreateBucketIfNotExists(k); err != nil {
-			return
-		}
-
-		if _, err = hb.CreateBucketIfNotExists(metaRequestIndexBucket); err != nil {
-			return
-		}
-
-		if _, err = hb.CreateBucketIfNotExists(metaResponseIndexBucket); err != nil {
-			return
-		}
-	}
-
-	return
-}
-
 // pushResponedQuery pushes a responsed, signed and verified query into the chain.
 func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 	h := c.rt.getHeightFromTime(resp.Request.Timestamp)
@@ -474,6 +421,11 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
 		err = errors.Wrapf(err, "put response %d %s", h, resp.HeaderHash.String())
 		return
+	}
+
+	if err = c.qi.addResponse(h, resp); err != nil {
+		err = errors.Wrapf(err, "add resp h %d hash %s", h, resp.HeaderHash)
+		return err
 	}
 
 	return
@@ -492,8 +444,13 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.HeaderHash[:])
 
 	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put response %d %s", h, ack.HeaderHash.String())
+		err = errors.Wrapf(err, "put ack %d %s", h, ack.HeaderHash.String())
 		return
+	}
+
+	if err = c.qi.addAck(h, ack); err != nil {
+		err = errors.Wrapf(err, "add ack h %d hash %s", h, ack.HeaderHash)
+		return err
 	}
 
 	return

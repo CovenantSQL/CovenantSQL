@@ -24,15 +24,15 @@ cd ${TEST_WD}/GNTE && bash -x ./build.sh
 cd ${TEST_WD}/GNTE && bash -x ./generate.sh ./scripts/gnte.yaml
 rm -rf ${TEST_WD}/GNTE/scripts/bin.bak
 
-INSIDE_GOPATH=$(docker run -it --rm ${BUILD_IMG} bash -c 'echo -n "$GOPATH"')
-docker run -itd \
-    --name ${BENCH_CONTAIN}\
-    --net container:client10.250.1.8 \
-    -v ${PROJECT_DIR}/../:${INSIDE_GOPATH}/src/github.com/CovenantSQL/ \
-    ${BUILD_IMG} tail -f /dev/null
-
-docker exec -it ${BENCH_CONTAIN} bash -c \
-    "cd ${INSIDE_GOPATH}/src/github.com/CovenantSQL/CovenantSQL/client && go test -bench . -run BenchmarkCovenantSQLDriver"
-
-docker rm -f ${BENCH_CONTAIN}
+#INSIDE_GOPATH=$(docker run -it --rm ${BUILD_IMG} bash -c 'echo -n "$GOPATH"')
+#docker run -itd \
+#    --name ${BENCH_CONTAIN}\
+#    --net container:client10.250.1.8 \
+#    -v ${PROJECT_DIR}/../:${INSIDE_GOPATH}/src/github.com/CovenantSQL/ \
+#    ${BUILD_IMG} tail -f /dev/null
+#
+#docker exec -it ${BENCH_CONTAIN} bash -c \
+#    "cd ${INSIDE_GOPATH}/src/github.com/CovenantSQL/CovenantSQL/client && go test -bench . -run BenchmarkCovenantSQLDriver"
+#
+#docker rm -f ${BENCH_CONTAIN}
 

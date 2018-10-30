@@ -43,21 +43,21 @@ func init() {
 func main() {
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %#v", f.Name, f.Value)
 	})
 
 	server, err := NewHTTPAdapter(configFile, password)
 	if err != nil {
-		log.Fatalf("init adapter failed: %v", err)
+		log.WithError(err).Fatal("init adapter failed")
 		return
 	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, unix.SIGTERM)
 
-	log.Infof("start adapter")
+	log.Info("start adapter")
 	if err = server.Serve(); err != nil {
-		log.Fatalf("start adapter failed: %v", err)
+		log.WithError(err).Fatal("start adapter failed")
 		return
 	}
 
@@ -66,5 +66,5 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	server.Shutdown(ctx)
-	log.Infof("stopped adapter")
+	log.Info("stopped adapter")
 }

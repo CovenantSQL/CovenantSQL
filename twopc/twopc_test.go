@@ -203,13 +203,19 @@ func (r *RaftNodeRPCServer) RPCRollback(req *RaftRollbackReq, resp *RaftRollback
 }
 
 func (r *RaftNode) Prepare(ctx context.Context, wb WriteBatch) (err error) {
-	log.Debugf("executing 2pc: addr = %s, phase = prepare", r.addr)
-	defer log.Debugf("2pc result: addr = %s, phase = prepare, result = %v", r.addr, err)
+	log.WithFields(log.Fields{
+		"addr":  r.addr,
+		"phase": "prepare",
+	}).Debug("executing 2pc")
+	defer log.WithFields(log.Fields{
+		"addr":  r.addr,
+		"phase": "prepare",
+	}).WithError(err).Debug("2pc result")
 
 	rwb, ok := wb.(*RaftWriteBatchReq)
 
 	if !ok {
-		err = fmt.Errorf("unexpected WriteBatch type")
+		err = errors.New("unexpected WriteBatch type")
 		return err
 	}
 
@@ -257,7 +263,7 @@ func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (err error) {
 	rwb, ok := wb.(*RaftWriteBatchReq)
 
 	if !ok {
-		err = fmt.Errorf("unexpected WriteBatch type")
+		err = errors.New("unexpected WriteBatch type")
 		return err
 	}
 
@@ -305,7 +311,7 @@ func (r *RaftNode) Rollback(ctx context.Context, wb WriteBatch) (err error) {
 	rwb, ok := wb.(*RaftWriteBatchReq)
 
 	if !ok {
-		err = fmt.Errorf("unexpected WriteBatch type")
+		err = errors.New("unexpected WriteBatch type")
 		return err
 	}
 

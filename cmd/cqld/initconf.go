@@ -29,11 +29,11 @@ import (
 func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]proto.Node, peers *kayak.Peers, thisNode *proto.Node, err error) {
 	privateKey, err := kms.GetLocalPrivateKey()
 	if err != nil {
-		log.Fatalf("get local private key failed: %s", err)
+		log.WithError(err).Fatal("get local private key failed")
 	}
 	publicKey, err := kms.GetLocalPublicKey()
 	if err != nil {
-		log.Fatalf("get local public key failed: %s", err)
+		log.WithError(err).Fatal("get local public key failed")
 	}
 
 	leader := &kayak.Server{
@@ -63,14 +63,14 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 		}
 	}
 
-	log.Debugf("AllNodes:\n %v\n", conf.GConf.KnownNodes)
+	log.Debugf("AllNodes:\n %#v\n", conf.GConf.KnownNodes)
 
 	err = peers.Sign(privateKey)
 	if err != nil {
-		log.Errorf("sign peers failed: %s", err)
+		log.WithError(err).Error("sign peers failed")
 		return nil, nil, nil, err
 	}
-	log.Debugf("peers:\n %v\n", peers)
+	log.Debugf("peers:\n %#v\n", peers)
 
 	//route.initResolver()
 	kms.InitPublicKeyStore(publicKeystorePath, nil)
@@ -80,10 +80,13 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 		for _, p := range conf.GConf.KnownNodes {
 			rawNodeIDHash, err := hash.NewHashFromStr(string(p.ID))
 			if err != nil {
-				log.Errorf("load hash from node id failed: %s", err)
+				log.WithError(err).Error("load hash from node id failed")
 				return nil, nil, nil, err
 			}
-			log.Debugf("set node addr: %v, %v", rawNodeIDHash, p.Addr)
+			log.WithFields(log.Fields{
+				"node": rawNodeIDHash.String(),
+				"addr": p.Addr,
+			}).Debug("set node addr")
 			rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
 			route.SetNodeAddrCache(rawNodeID, p.Addr)
 			node := &proto.Node{
@@ -95,7 +98,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 			}
 			err = kms.SetNode(node)
 			if err != nil {
-				log.Errorf("set node failed: %v\n %s", node, err)
+				log.WithField("node", node).WithError(err).Error("set node failed")
 			}
 			if p.ID == nodeID {
 				kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &p.Nonce)

@@ -42,11 +42,11 @@ func runAddrgen() {
 	if publicKeyHex != "" {
 		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
 		if err != nil {
-			log.Fatalf("error converting hex: %s\n", err)
+			log.WithError(err).Fatal("error converting hex")
 		}
 		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 		if err != nil {
-			log.Fatalf("error converting public key: %s\n", err)
+			log.WithError(err).Fatal("error converting public key")
 		}
 	} else if privateKeyFile != "" {
 		masterKey, err := readMasterKey()
@@ -56,7 +56,7 @@ func runAddrgen() {
 		}
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
-			log.Fatalf("load private key file fail: %v\n", err)
+			log.WithError(err).Fatal("load private key file failed")
 		}
 		publicKey = privateKey.PubKey()
 	} else {
@@ -66,7 +66,7 @@ func runAddrgen() {
 
 	addr, err := crypto.PubKey2Addr(publicKey, crypto.TestNet)
 	if err != nil {
-		log.Fatalf("unexpected error: %v\n", err)
+		log.WithError(err).Fatal("unexpected error")
 	}
 	fmt.Printf("wallet address: %s\n", addr)
 }

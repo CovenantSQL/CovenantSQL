@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -31,6 +32,8 @@ import (
 
 // PrivateKeyBytesLen defines the length in bytes of a serialized private key.
 const PrivateKeyBytesLen = 32
+
+var parsedPublicKeyCache sync.Map
 
 // PrivateKey wraps an ec.PrivateKey as a convenience mainly for signing things with the the
 // private key without having to directly import the ecdsa package.
@@ -58,9 +61,15 @@ func (k *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
 
 // UnmarshalBinary does the deserialization
 func (k *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
-	pubNew, err := ParsePubKey(keyBytes)
-	if err == nil {
-		*k = *pubNew
+	pubKeyI, ok := parsedPublicKeyCache.Load(string(keyBytes))
+	if ok {
+		*k = *pubKeyI.(*PublicKey)
+	} else {
+		pubNew, err := ParsePubKey(keyBytes)
+		if err == nil {
+			*k = *pubNew
+			parsedPublicKeyCache.Store(string(keyBytes), pubNew)
+		}
 	}
 	return
 }
@@ -158,7 +167,7 @@ func GenSecp256k1KeyPair() (
 
 	privateKeyEc, err := ec.NewPrivateKey(ec.S256())
 	if err != nil {
-		log.Errorf("private key generation error: %s", err)
+		log.WithError(err).Error("private key generation failed")
 		return nil, nil, err
 	}
 	publicKey = (*PublicKey)(privateKeyEc.PubKey())

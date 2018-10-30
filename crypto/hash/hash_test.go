@@ -101,14 +101,14 @@ func TestHash(t *testing.T) {
 	// Invalid size for SetBytes.
 	err = hash.SetBytes([]byte{0x00})
 	if err == nil {
-		t.Errorf("SetBytes: failed to received expected err - got: nil")
+		t.Error("SetBytes: failed to received expected err - got: nil")
 	}
 
 	// Invalid size for NewHash.
 	invalidHash := make([]byte, HashSize+1)
 	_, err = NewHash(invalidHash)
 	if err == nil {
-		t.Errorf("NewHash: failed to received expected err - got: nil")
+		t.Error("NewHash: failed to received expected err - got: nil")
 	}
 }
 

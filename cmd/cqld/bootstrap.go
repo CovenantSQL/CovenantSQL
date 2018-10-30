@@ -66,15 +66,15 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey)
 	if err != nil {
-		log.Errorf("init local key pair failed: %s", err)
+		log.WithError(err).Error("init local key pair failed")
 		return
 	}
 
 	// init nodes
-	log.Infof("init peers")
+	log.Info("init peers")
 	_, peers, thisNode, err := initNodePeers(nodeID, conf.GConf.PubKeyStoreFile)
 	if err != nil {
-		log.Errorf("init nodes and peers failed: %s", err)
+		log.WithError(err).Error("init nodes and peers failed")
 		return
 	}
 
@@ -82,38 +82,38 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	var server *rpc.Server
 
 	// create server
-	log.Infof("create server")
+	log.Info("create server")
 	if service, server, err = createServer(
 		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, listenAddr); err != nil {
-		log.Errorf("create server failed: %s", err)
+		log.WithError(err).Error("create server failed")
 		return
 	}
 
 	// init storage
-	log.Infof("init storage")
+	log.Info("init storage")
 	var st *LocalStorage
 	if st, err = initStorage(conf.GConf.DHTFileName); err != nil {
-		log.Errorf("init storage failed: %s", err)
+		log.WithError(err).Error("init storage failed")
 		return
 	}
 
 	// init kayak
-	log.Infof("init kayak runtime")
+	log.Info("init kayak runtime")
 	var kayakRuntime *kayak.Runtime
 	if _, kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, service); err != nil {
-		log.Errorf("init kayak runtime failed: %s", err)
+		log.WithError(err).Error("init kayak runtime failed")
 		return
 	}
 
 	// init kayak and consistent
-	log.Infof("init kayak and consistent runtime")
+	log.Info("init kayak and consistent runtime")
 	kvServer := &KayakKVServer{
 		Runtime:   kayakRuntime,
 		KVStorage: st,
 	}
 	dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
 	if err != nil {
-		log.Errorf("init consistent hash failed: %s", err)
+		log.WithError(err).Error("init consistent hash failed")
 		return
 	}
 
@@ -121,35 +121,35 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	kvServer.KVStorage.consistent = dht.Consistent
 
 	// register service rpc
-	log.Infof("register dht service rpc")
+	log.Info("register dht service rpc")
 	err = server.RegisterService(route.DHTRPCName, dht)
 	if err != nil {
-		log.Errorf("register dht service failed: %s", err)
+		log.WithError(err).Error("register dht service failed")
 		return
 	}
 
 	// init metrics
-	log.Infof("register metric service rpc")
+	log.Info("register metric service rpc")
 	metricService := metric.NewCollectServer()
 	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
-		log.Errorf("init metric service failed: %v", err)
+		log.WithError(err).Error("init metric service failed")
 		return
 	}
 
 	// init block producer database service
-	log.Infof("register block producer database service rpc")
+	log.Info("register block producer database service rpc")
 	var dbService *bp.DBService
 	if dbService, err = initDBService(kvServer, metricService); err != nil {
-		log.Errorf("init block producer db service failed: %v", err)
+		log.WithError(err).Error("init block producer db service failed")
 		return
 	}
 	if err = server.RegisterService(route.BPDBRPCName, dbService); err != nil {
-		log.Errorf("init block producer db service failed: %v", err)
+		log.WithError(err).Error("init block producer db service failed")
 		return
 	}
 
 	// init main chain service
-	log.Infof("register main chain service rpc")
+	log.Info("register main chain service rpc")
 	chainConfig := bp.NewConfig(
 		genesis,
 		conf.GConf.BP.ChainFileName,
@@ -161,7 +161,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	)
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
-		log.Errorf("init chain failed: %v", err)
+		log.WithError(err).Error("init chain failed")
 		return
 	}
 	chain.Start()
@@ -208,18 +208,18 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 
 func initKayakTwoPC(rootDir string, node *proto.Node, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
 	// create kayak config
-	log.Infof("create twopc config")
+	log.Info("create twopc config")
 	config = ka.NewTwoPCConfig(rootDir, service, worker)
 
 	// create kayak runtime
-	log.Infof("create kayak runtime")
+	log.Info("create kayak runtime")
 	runtime, err = ka.NewTwoPCKayak(peers, config)
 	if err != nil {
 		return
 	}
 
 	// init runtime
-	log.Infof("init kayak twopc runtime")
+	log.Info("init kayak twopc runtime")
 	err = runtime.Init()
 
 	return
@@ -228,7 +228,7 @@ func initKayakTwoPC(rootDir string, node *proto.Node, peers *kayak.Peers, worker
 func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer) (dbService *bp.DBService, err error) {
 	var serviceMap *bp.DBServiceMap
 	if serviceMap, err = bp.InitServiceMap(kvServer); err != nil {
-		log.Errorf("init bp database service map failed")
+		log.WithError(err).Error("init bp database service map failed")
 		return
 	}
 
@@ -258,7 +258,7 @@ func periodicPingBlockProducer() {
 		return
 	}
 
-	log.Debugf("construct local node info: %v", localNodeInfo)
+	log.WithField("node", localNodeInfo).Debug("construct local node info")
 
 	go func() {
 		for {
@@ -276,7 +276,7 @@ func periodicPingBlockProducer() {
 
 func loadGenesis() *types.Block {
 	genesisInfo := conf.GConf.BP.BPGenesis
-	log.Infof("genesis config: %v", genesisInfo)
+	log.WithField("config", genesisInfo).Info("load genesis config")
 
 	genesis := &types.Block{
 		SignedHeader: types.SignedHeader{
@@ -296,7 +296,7 @@ func loadGenesis() *types.Block {
 			"address":             ba.Address.String(),
 			"stableCoinBalance":   ba.StableCoinBalance,
 			"covenantCoinBalance": ba.CovenantCoinBalance,
-		}).Debugf("setting one balance fixture in genesis block")
+		}).Debug("setting one balance fixture in genesis block")
 		genesis.Transactions = append(genesis.Transactions, pt.NewBaseAccount(
 			&pt.Account{
 				Address:             proto.AccountAddress(ba.Address),

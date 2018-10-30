@@ -815,7 +815,7 @@ func (c *Chain) processBlocks() {
 							"head_block":   c.rt.getHead().Head.String(),
 							"block_height": height,
 							"block_hash":   block.BlockHash().String(),
-						}).Error("Failed to check and push new block")
+						}).WithError(err).Error("Failed to check and push new block")
 					}
 				}
 			}
@@ -1002,7 +1002,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	total := int32(len(peers.Servers))
 	next := func() int32 {
 		if total > 0 {
-			return (head.Height + 1) % total
+			return (c.rt.getNextTurn() - 1) % total
 		}
 		return -1
 	}()

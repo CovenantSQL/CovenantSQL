@@ -41,7 +41,7 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 	log.SetLevel(log.DebugLevel)
 	err = os.Chdir(testWorkingDir)
 	if err != nil {
-		log.Errorf("change working dir failed: %s", err)
+		log.WithError(err).Error("change working dir failed")
 		return
 	}
 
@@ -59,7 +59,7 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	log.Infof("the created database dsn is %v", dsn)
+	log.WithField("dsn", dsn).Info("created database")
 
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {
@@ -90,7 +90,7 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 			if err != nil || result < 0 {
 				b.Fatal(err)
 			}
-			log.Debugf("result %d", result)
+			log.WithField("result", result).Debug("collected result")
 		}
 	})
 	err = db.Close()

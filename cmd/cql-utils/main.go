@@ -44,7 +44,7 @@ func init() {
 }
 
 func main() {
-	log.Infof("cql-utils build: %s\n", version)
+	log.Infof("cql-utils build: %#v\n", version)
 	flag.Parse()
 
 	switch tool {

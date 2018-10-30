@@ -236,7 +236,7 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 	if callerETLSNodeID != nil {
 		if callerETLSNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash) {
 			if funcName != DHTPing {
-				log.Warnf("anonymous ETLS connection can not used by %s", funcName)
+				log.WithField("field", funcName).Warning("anonymous ETLS connection can not used")
 				return false
 			}
 		}

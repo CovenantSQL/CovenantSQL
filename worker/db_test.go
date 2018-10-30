@@ -44,6 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
@@ -54,6 +55,7 @@ var rootHash = hash.Hash{}
 const PubKeyStorePath = "./public.keystore"
 
 func TestSingleDatabase(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	// init as single node database
 	Convey("test database", t, func() {
 		var err error
@@ -125,8 +127,24 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
 
-			// test show create table
+			// test show full tables query
 			readQuery, err = buildQuery(wt.ReadQuery, 1, 3, []string{
+				"show full tables",
+			})
+			So(err, ShouldBeNil)
+
+			res, err = db.Query(readQuery)
+			So(err, ShouldBeNil)
+			err = res.Verify()
+			So(err, ShouldBeNil)
+
+			So(res.Header.RowCount, ShouldEqual, uint64(1))
+			So(res.Payload.Rows, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
+			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
+
+			// test show create table
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 4, []string{
 				"show create table test",
 			})
 			So(err, ShouldBeNil)
@@ -144,7 +162,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(strings.ToUpper(string(byteStr)), ShouldContainSubstring, "CREATE")
 
 			// test show table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 4, []string{
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 5, []string{
 				"show table test",
 			})
 			So(err, ShouldBeNil)
@@ -162,7 +180,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
 
 			// test desc table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 5, []string{
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 6, []string{
 				"desc test",
 			})
 			So(err, ShouldBeNil)
@@ -180,7 +198,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
 
 			// test show index from table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 6, []string{
+			readQuery, err = buildQuery(wt.ReadQuery, 1, 7, []string{
 				"show index from table test",
 			})
 			So(err, ShouldBeNil)
@@ -549,7 +567,7 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 		},
 	}
 
-	err = ack.Sign(privateKey)
+	err = ack.Sign(privateKey, true)
 
 	return
 }

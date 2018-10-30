@@ -145,7 +145,7 @@ func init() {
 			return 0, nil
 		},
 		Open: func(url *dburl.URL) (func(string, string) (*sql.DB, error), error) {
-			log.Infof("connecting to %v", url.DSN)
+			log.Infof("connecting to %#v", url.DSN)
 			return sql.Open, nil
 		},
 	})
@@ -193,7 +193,7 @@ func main() {
 
 	// init covenantsql driver
 	if err = client.Init(configFile, []byte(password)); err != nil {
-		log.Errorf("init covenantsql client failed: %v", err)
+		log.WithError(err).Error("init covenantsql client failed")
 		os.Exit(-1)
 		return
 	}
@@ -202,16 +202,16 @@ func main() {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetStableCoinBalance(); err != nil {
-			log.Errorf("get stable coin balance failed: %v", err)
+			log.WithError(err).Error("get stable coin balance failed")
 			return
 		}
 		if covenantCoinBalance, err = client.GetCovenantCoinBalance(); err != nil {
-			log.Errorf("get covenant coin balance failed: %v", err)
+			log.WithError(err).Error("get covenant coin balance failed")
 			return
 		}
 
-		log.Infof("stable coin balance is: %v", stableCoinBalance)
-		log.Infof("covenant coin balance is: %v", covenantCoinBalance)
+		log.Infof("stable coin balance is: %#v", stableCoinBalance)
+		log.Infof("covenant coin balance is: %#v", covenantCoinBalance)
 
 		return
 	}
@@ -227,12 +227,12 @@ func main() {
 
 		if err := client.Drop(dropDB); err != nil {
 			// drop database failed
-			log.Errorf("drop database %v failed: %v", dropDB, err)
+			log.WithField("db", dropDB).WithError(err).Error("drop database failed")
 			return
 		}
 
 		// drop database success
-		log.Infof("drop database %v success", dropDB)
+		log.Infof("drop database %#v success", dropDB)
 		return
 	}
 
@@ -246,7 +246,7 @@ func main() {
 			nodeCnt, err := strconv.ParseUint(createDB, 10, 16)
 			if err != nil {
 				// still failing
-				log.Errorf("create database failed: %v is not a valid instance description", createDB)
+				log.WithField("db", createDB).Error("create database failed: invalid instance description")
 				os.Exit(-1)
 				return
 			}
@@ -256,19 +256,19 @@ func main() {
 
 		dsn, err := client.Create(meta)
 		if err != nil {
-			log.Infof("create database failed: %v", err)
+			log.WithError(err).Error("create database failed")
 			os.Exit(-1)
 			return
 		}
 
-		log.Infof("the newly created database is: %v", dsn)
+		log.Infof("the newly created database is: %#v", dsn)
 		return
 	}
 
 	available := drivers.Available()
 	cur, err := user.Current()
 	if err != nil {
-		log.Errorf("get current failed: %v", err)
+		log.WithError(err).Error("get current user failed")
 		os.Exit(-1)
 		return
 	}
@@ -276,14 +276,14 @@ func main() {
 	// run
 	err = run(cur)
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
-		log.Errorf("run cli error: %v", err)
+		log.WithError(err).Error("run cli error")
 
 		if e, ok := err.(*drivers.Error); ok && e.Err == text.ErrDriverNotAvailable {
 			bindings := make([]string, 0, len(available))
 			for name := range available {
 				bindings = append(bindings, name)
 			}
-			log.Infof("Available drivers are: %v", bindings)
+			log.Infof("Available drivers are: %#v", bindings)
 			return
 		}
 	}
@@ -343,14 +343,14 @@ func run(u *user.User) (err error) {
 		h.SetSingleLineMode(true)
 		h.Reset([]rune(command))
 		if err = h.Run(); err != nil && err != io.EOF {
-			log.Errorf("run command failed: %v", err)
+			log.WithError(err).Error("run command failed")
 			os.Exit(-1)
 			return
 		}
 	} else if fileName != "" {
 		// file
 		if err = h.Include(fileName, false); err != nil {
-			log.Errorf("run file failed: %v", err)
+			log.WithError(err).Error("run file failed")
 			os.Exit(-1)
 			return
 		}

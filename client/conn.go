@@ -20,13 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"math/rand"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -37,39 +34,23 @@ import (
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
-var (
-	connectionID uint64
-	seqNo        uint64
-	randSource   = rand.New(rand.NewSource(time.Now().UnixNano()))
-)
-
 // conn implements an interface sql.Conn.
 type conn struct {
 	dbID proto.DatabaseID
 
-	queries   []wt.Query
-	peers     *kayak.Peers
-	peersLock sync.RWMutex
-	nodeID    proto.NodeID
-	privKey   *asymmetric.PrivateKey
-	pubKey    *asymmetric.PublicKey
+	queries     []wt.Query
+	localNodeID proto.NodeID
+	privKey     *asymmetric.PrivateKey
 
+	ackCh         chan *wt.Ack
 	inTransaction bool
 	closed        int32
-	closeCh       chan struct{}
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
-	if cfg.Debug {
-		log.SetLevel(log.DebugLevel)
-	}
-
-	// init connectionID to random id
-	atomic.CompareAndSwapUint64(&connectionID, 0, randSource.Uint64())
-
 	// get local node id
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+	var localNodeID proto.NodeID
+	if localNodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -79,51 +60,83 @@ func newConn(cfg *Config) (c *conn, err error) {
 		return
 	}
 
-	// get local public key
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	c = &conn{
-		dbID:    proto.DatabaseID(cfg.DatabaseID),
-		nodeID:  nodeID,
-		privKey: privKey,
-		pubKey:  pubKey,
-		queries: make([]wt.Query, 0),
-		closeCh: make(chan struct{}),
+		dbID:        proto.DatabaseID(cfg.DatabaseID),
+		localNodeID: localNodeID,
+		privKey:     privKey,
+		queries:     make([]wt.Query, 0),
 	}
-
-	c.log("new conn database ", c.dbID)
 
 	// get peers from BP
-	if err = c.getPeers(); err != nil {
+	if _, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
+		log.WithError(err).Error("cacheGetPeers failed")
+		c = nil
 		return
 	}
 
-	// start peers update routine
-	go func() {
-		ticker := time.NewTicker(cfg.PeersUpdateInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-c.closeCh:
-				return
-			case <-ticker.C:
-			}
-
-			if err = c.getPeers(); err != nil {
-				c.log("update peers failed ", err.Error())
-			}
-		}
-	}()
+	err = c.startAckWorkers(2)
+	if err != nil {
+		log.WithError(err).Error("startAckWorkers failed")
+		c = nil
+		return
+	}
+	log.WithField("db", c.dbID).Debug("new connection to database")
 
 	return
 }
 
-func (c *conn) log(msg ...interface{}) {
-	log.Debug(msg...)
+func (c *conn) startAckWorkers(workerCount int) (err error) {
+	c.ackCh = make(chan *wt.Ack, workerCount*4)
+	for i := 0; i < workerCount; i++ {
+		go c.ackWorker()
+	}
+	return
+}
+
+func (c *conn) stopAckWorkers() {
+	close(c.ackCh)
+}
+
+func (c *conn) ackWorker() {
+	if rawPeers, ok := peerList.Load(c.dbID); ok {
+		if peers, ok := rawPeers.(*kayak.Peers); ok {
+			var (
+				oneTime sync.Once
+				pc      *rpc.PersistentCaller
+				err     error
+			)
+
+		ackWorkerLoop:
+			for {
+				ack, got := <-c.ackCh
+				if !got { //closed and empty
+					break ackWorkerLoop
+				}
+				oneTime.Do(func() {
+					pc = rpc.NewPersistentCaller(peers.Leader.ID)
+				})
+				if err = ack.Sign(c.privKey, false); err != nil {
+					log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
+					continue
+				}
+
+				var ackRes wt.AckResponse
+				// send ack back
+				if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
+					log.WithError(err).Warning("send ack failed")
+					continue
+				}
+			}
+			if pc != nil {
+				pc.CloseStream()
+			}
+			log.Debug("ack worker quiting")
+			return
+		}
+	}
+
+	log.Fatal("must GetPeers first")
+	return
 }
 
 // Prepare implements the driver.Conn.Prepare method.
@@ -135,15 +148,9 @@ func (c *conn) Prepare(query string) (driver.Stmt, error) {
 func (c *conn) Close() error {
 	// close the meta connection
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
-		c.log("closed connection")
+		log.WithField("db", c.dbID).Debug("closed connection")
 	}
-
-	select {
-	case <-c.closeCh:
-	default:
-		close(c.closeCh)
-	}
-
+	c.stopAckWorkers()
 	return nil
 }
 
@@ -159,7 +166,7 @@ func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	}
 
 	// start transaction
-	c.log("begin transaction tx=", c.inTransaction)
+	log.WithField("inTx", c.inTransaction).Debug("begin transaction")
 
 	if c.inTransaction {
 		return nil, sql.ErrTxDone
@@ -177,6 +184,8 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	if atomic.LoadInt32(&c.closed) != 0 {
 		return nil, driver.ErrBadConn
 	}
+
+	log.WithField("query", query).Debug("prepared statement")
 
 	// prepare the statement
 	return newStmt(c, query), nil
@@ -270,25 +279,52 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Ro
 
 		// append queries
 		c.queries = append(c.queries, *query)
+
+		log.WithFields(log.Fields{
+			"pattern": query.Pattern,
+			"args":    query.Args,
+		}).Debug("add query to tx")
+
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"pattern": query.Pattern,
+		"args":    query.Args,
+	}).Debug("execute query")
 
 	return c.sendQuery(queryType, []wt.Query{*query})
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows driver.Rows, err error) {
-	c.peersLock.RLock()
-	defer c.peersLock.RUnlock()
+	var peers *kayak.Peers
+	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
+		return
+	}
+
+	// allocate sequence
+	connID, seqNo := allocateConnAndSeq()
+	defer putBackConn(connID)
+
+	defer func() {
+		log.WithFields(log.Fields{
+			"count":  len(queries),
+			"type":   queryType.String(),
+			"connID": connID,
+			"seqNo":  seqNo,
+			"target": peers.Leader.ID,
+			"source": c.localNodeID,
+		}).WithError(err).Debug("send query")
+	}()
 
 	// build request
-	seqNo := atomic.AddUint64(&seqNo, 1)
 	req := &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
 				QueryType:    queryType,
-				NodeID:       c.nodeID,
+				NodeID:       c.localNodeID,
 				DatabaseID:   c.dbID,
-				ConnectionID: atomic.LoadUint64(&connectionID),
+				ConnectionID: connID,
 				SeqNo:        seqNo,
 				Timestamp:    getLocalTime(),
 			},
@@ -302,84 +338,29 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 
-	pCaller := rpc.NewPersistentCaller(c.peers.Leader.ID)
-	defer pCaller.Close()
+	pCaller := rpc.NewPersistentCaller(peers.Leader.ID)
+	defer pCaller.CloseStream()
 	var response wt.Response
 	if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
-		if strings.Contains(err.Error(), "invalid request sequence") {
-			// request sequence failure, try again
-			atomic.StoreUint64(&connectionID, randSource.Uint64())
-			req.Header.ConnectionID = atomic.LoadUint64(&connectionID)
-			req.Header.SeqNo = atomic.AddUint64(&seqNo, 1)
-
-			if err = req.Sign(c.privKey); err != nil {
-				return
-			}
-
-			// send request again
-			if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
-				return
-			}
-		} else {
-			return
-		}
+		return
 	}
 
 	// verify response
 	if err = response.Verify(); err != nil {
 		return
 	}
+	rows = newRows(&response)
 
 	// build ack
-	ack := &wt.Ack{
+	c.ackCh <- &wt.Ack{
 		Header: wt.SignedAckHeader{
 			AckHeader: wt.AckHeader{
 				Response:  response.Header,
-				NodeID:    c.nodeID,
+				NodeID:    c.localNodeID,
 				Timestamp: getLocalTime(),
 			},
 		},
 	}
-
-	if err = ack.Sign(c.privKey); err != nil {
-		return
-	}
-
-	var ackRes wt.AckResponse
-
-	// send ack back
-	if err = pCaller.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
-		log.Warningf("ack query failed: %v", err)
-		err = nil
-	}
-
-	rows = newRows(&response)
-
-	return
-}
-
-func (c *conn) getPeers() (err error) {
-	c.peersLock.Lock()
-	defer c.peersLock.Unlock()
-
-	req := new(bp.GetDatabaseRequest)
-	req.Header.DatabaseID = c.dbID
-
-	if err = req.Sign(c.privKey); err != nil {
-		return
-	}
-
-	res := new(bp.GetDatabaseResponse)
-	if err = requestBP(route.BPDBGetDatabase, req, res); err != nil {
-		return
-	}
-
-	// verify response
-	if err = res.Verify(); err != nil {
-		return
-	}
-
-	c.peers = res.Header.InstanceMeta.Peers
 
 	return
 }

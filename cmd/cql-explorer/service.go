@@ -255,7 +255,7 @@ func (s *Service) getHighestCount() (c uint32, err error) {
 func (s *Service) getSubscriptionCheckpoint() (err error) {
 	var lastBlockCount uint32
 	if lastBlockCount, err = s.getHighestCount(); err != nil {
-		log.Warningf("get last block failed: %v", err)
+		log.WithError(err).Warning("get last block failed")
 
 		if err == ErrNotFound {
 			// not found, set last block count to 0
@@ -269,7 +269,7 @@ func (s *Service) getSubscriptionCheckpoint() (err error) {
 
 	log.WithFields(log.Fields{
 		"count": lastBlockCount,
-	}).Infof("fetched last block count")
+	}).Info("fetched last block count")
 
 	atomic.StoreUint32(&s.nextBlockToFetch, lastBlockCount+1)
 
@@ -300,20 +300,20 @@ func (s *Service) requestBlock() {
 	}
 
 	blockCount := atomic.LoadUint32(&s.nextBlockToFetch)
-	log.WithFields(log.Fields{"count": blockCount}).Infof("try fetch next block")
+	log.WithFields(log.Fields{"count": blockCount}).Info("try fetch next block")
 
 	req := &bp.FetchBlockByCountReq{Count: blockCount}
 	resp := &bp.FetchBlockResp{}
 
 	if err := s.requestBP(route.MCCFetchBlockByCount.String(), req, resp); err != nil {
 		// fetch block failed
-		log.Warningf("fetch block failed，wait for next round: %v", err)
+		log.WithError(err).Warning("fetch block failed，wait for next round")
 		return
 	}
 
 	// process block
 	if err := s.processBlock(blockCount, resp.Height, resp.Block); err != nil {
-		log.Warningf("process block failed, try fetch/process again: %v", err)
+		log.WithError(err).Warning("process block failed, try fetch/process again")
 		return
 	}
 
@@ -328,7 +328,7 @@ func (s *Service) requestBlock() {
 
 func (s *Service) processBlock(c uint32, h uint32, b *pt.Block) (err error) {
 	if b == nil {
-		log.Warningf("processed nil block on count: %v", c)
+		log.WithField("count", c).Warning("processed nil block")
 		return ErrNilBlock
 	}
 

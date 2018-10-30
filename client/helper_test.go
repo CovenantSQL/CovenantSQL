@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
@@ -43,6 +44,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+)
+
+const (
+	// PubKeyStorePath defines public cache store.
+	PubKeyStorePath = "./public.keystore"
 )
 
 var (
@@ -207,7 +213,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	block, err = createRandomBlock(rootHash, true)
 
 	// get database peers
-	if peers, err = getPeers(1); err != nil {
+	if peers, err = genPeers(1); err != nil {
 		return
 	}
 
@@ -242,7 +248,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	if tempDir, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
 	}
-	log.Debugf("temp dir: %s", tempDir)
+	log.WithField("d", tempDir).Debug("created temp dir")
 
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
@@ -260,7 +266,10 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	log.Debugf("GConf: %#v", conf.GConf)
 	_, err = utils.CopyFile(privateKeyPath, conf.GConf.PrivateKeyFile)
 	if err != nil {
-		log.Fatalf("Copy %s to %s failed: %v", privateKeyPath, conf.GConf.PrivateKeyFile, err)
+		log.WithFields(log.Fields{
+			"from": privateKeyPath,
+			"to":   conf.GConf.PrivateKeyFile,
+		}).WithError(err).Fatal("copy private key failed")
 		return
 	}
 	// reset the once
@@ -304,6 +313,9 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		server.Listener.Close()
 		server.Stop()
 	}
+
+	// fake database init already processed
+	atomic.StoreUint32(&driverInitialized, 1)
 
 	return
 }
@@ -389,7 +401,7 @@ func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, er
 	return
 }
 
-func getPeers(term uint64) (peers *kayak.Peers, err error) {
+func genPeers(term uint64) (peers *kayak.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {

@@ -141,7 +141,7 @@ func TestPubKey(t *testing.T) {
 }
 
 func TestPublicKey_MarshalBinary(t *testing.T) {
-	Convey("marshal unmarshal key", t, func() {
+	Convey("marshal unmarshal public key", t, func() {
 		_, publicKey, _ := GenSecp256k1KeyPair()
 		publicKey2 := new(PublicKey)
 		buf, _ := publicKey.MarshalBinary()
@@ -149,10 +149,37 @@ func TestPublicKey_MarshalBinary(t *testing.T) {
 
 		So(publicKey.IsEqual(publicKey2), ShouldBeTrue)
 
+		publicKey3 := new(PublicKey)
+		publicKey3.UnmarshalBinary(buf)
+
 		buf1, _ := publicKey.MarshalHash()
 		buf2, _ := publicKey2.MarshalHash()
+		buf3, _ := publicKey3.MarshalHash()
+
 		So(buf1, ShouldResemble, buf2)
+		So(buf1, ShouldResemble, buf3)
 		So(publicKey.Msgsize(), ShouldEqual, publicKey2.Msgsize())
+	})
+}
+
+func TestPrivateKey_Serialize(t *testing.T) {
+	Convey("marshal unmarshal private key", t, func() {
+		pk, _, _ := GenSecp256k1KeyPair()
+		buf := pk.Serialize()
+		priv2, pub2 := PrivKeyFromBytes(buf)
+
+		So(priv2.PubKey().IsEqual(pub2), ShouldBeTrue)
+	})
+}
+
+func TestPaddedAppend(t *testing.T) {
+	Convey("paddedAppend", t, func() {
+		src := []byte("aaaa")
+		dst := make([]byte, 0, 16)
+		dst = paddedAppend(16, dst, src)
+
+		So(len(dst), ShouldEqual, 16)
+		So(dst, ShouldResemble, append([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, src...))
 	})
 }
 

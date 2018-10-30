@@ -168,7 +168,7 @@ func (p *Persistence) checkAccountLimit(platform string, account string) (err er
 		log.WithFields(log.Fields{
 			"account":  account,
 			"platform": platform,
-		}).Errorf("daily account quota exceeded")
+		}).Error("daily account quota exceeded")
 		return ErrAccountQuotaExceeded
 	}
 
@@ -196,7 +196,7 @@ func (p *Persistence) checkAddressLimit(address string) (err error) {
 		// quota exceeded
 		log.WithFields(log.Fields{
 			"address": address,
-		}).Errorf("daily address quota exceeded")
+		}).Error("daily address quota exceeded")
 		return ErrAddressQuotaExceeded
 	}
 

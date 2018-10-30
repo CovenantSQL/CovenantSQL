@@ -59,7 +59,7 @@ type Config struct {
 	WriteCertificates []*x509.Certificate `yaml:"-"`
 
 	// storage config
-	StorageDriver   string          `yaml:"StorageDriver"` // sqlite3 or ThunderDB
+	StorageDriver   string          `yaml:"StorageDriver"` // sqlite3 or covenantsql
 	StorageRoot     string          `yaml:"StorageRoot"`
 	StorageInstance storage.Storage `yaml:"-"`
 }
@@ -73,17 +73,17 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 	var workingRoot string
 	var configBytes []byte
 	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
-		log.Errorf("read config file failed: %v", err)
+		log.WithError(err).Error("read config file failed")
 	}
 	configWrapper := &confWrapper{}
 	if err = yaml.Unmarshal(configBytes, configWrapper); err != nil {
-		log.Errorf("unmarshal config file failed: %v", err)
+		log.WithError(err).Error("unmarshal config file failed")
 		return
 	}
 
 	if configWrapper.Adapter == nil {
 		err = ErrEmptyAdapterConfig
-		log.Errorf("could not read adapter config: %v", err)
+		log.WithError(err).Error("could not read adapter config")
 		return
 	}
 
@@ -103,7 +103,7 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 
 	if config.CertificatePath == "" || config.PrivateKeyPath == "" {
 		err = ErrRequireServerCertificate
-		log.Errorf("invalid adapter config: %v", err)
+		log.WithError(err).Error("invalid adapter config")
 		return
 	}
 

@@ -128,3 +128,24 @@ func TestNodeID_IsEmpty(t *testing.T) {
 		So(node.IsEmpty(), ShouldBeTrue)
 	})
 }
+
+func TestNodeID_MarshalBinary(t *testing.T) {
+	Convey("NodeID MarshalBinary", t, func() {
+		var nodeID, nodeID2 NodeID
+
+		nb, err := nodeID.MarshalBinary()
+		So(err, ShouldBeNil)
+
+		nodeID = NodeID("0000000000000000000000000000000000000000000000000000000000000000")
+		nb, err = nodeID.MarshalBinary()
+		So(err, ShouldBeNil)
+		So(len(nb), ShouldEqual, hash.HashSize)
+
+		err = nodeID2.UnmarshalBinary([]byte("0000"))
+		So(err, ShouldNotBeNil)
+
+		err = nodeID2.UnmarshalBinary(nb)
+		So(err, ShouldBeNil)
+		So(nodeID2, ShouldResemble, nodeID)
+	})
+}

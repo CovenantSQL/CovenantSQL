@@ -33,6 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -86,6 +87,7 @@ func TestIndexKey(t *testing.T) {
 }
 
 func TestMultiChain(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
 	// Create genesis block
 	genesis, err := createRandomBlock(genesisHash, true)
 

@@ -19,6 +19,7 @@ package kayak
 import (
 	"context"
 	"fmt"
+	"runtime/trace"
 	"sync"
 	"time"
 
@@ -73,7 +74,6 @@ type TwoPCRunner struct {
 	shutdownLock sync.Mutex
 
 	// Lock/events
-	processLock     sync.Mutex
 	processReq      chan []byte
 	processRes      chan logProcessResult
 	updatePeersLock sync.Mutex
@@ -193,8 +193,10 @@ func (r *TwoPCRunner) tryRestore() error {
 
 	if lastIndex > lastCommitted {
 		// uncommitted log found, print warning
-		log.Warningf("truncating local uncommitted log, uncommitted: %d, committed: %d",
-			lastIndex, lastCommitted)
+		log.WithFields(log.Fields{
+			"uncommitted": lastIndex,
+			"committed":   lastCommitted,
+		}).Warning("truncating local uncommitted log")
 
 		// truncate local uncommitted logs
 		r.logStore.DeleteRange(lastCommitted+1, lastIndex)
@@ -278,14 +280,12 @@ func (r *TwoPCRunner) UpdatePeers(peers *Peers) error {
 
 // Apply implements Runner.Apply.
 func (r *TwoPCRunner) Apply(data []byte) (uint64, error) {
-	r.processLock.Lock()
-	defer r.processLock.Unlock()
-
 	// check leader privilege
 	if r.role != proto.Leader {
 		return 0, ErrNotLeader
 	}
 
+	//TODO(auxten): need throughput optimization
 	r.processReq <- data
 	res := <-r.processRes
 
@@ -335,6 +335,11 @@ func (r *TwoPCRunner) safeForPeersUpdate() chan *Peers {
 }
 
 func (r *TwoPCRunner) processNewLog(data []byte) (res logProcessResult) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "processNewLog")
+	defer task.End()
+	defer trace.StartRegion(ctx, "processNewLogRegion").End()
+
 	// build Log
 	l := &Log{
 		Index:    r.lastLogIndex + 1,
@@ -428,6 +433,11 @@ func (r *TwoPCRunner) getState() ServerState {
 }
 
 func (r *TwoPCRunner) processRequest(req Request) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "processRequest")
+	defer task.End()
+	defer trace.StartRegion(ctx, "processRequestRegion").End()
+
 	// verify call from leader
 	if err := r.verifyLeader(req); err != nil {
 		req.SendResponse(nil, err)

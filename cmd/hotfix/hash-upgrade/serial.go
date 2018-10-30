@@ -1099,7 +1099,7 @@ func readElement(r io.Reader, order binary.ByteOrder, element interface{}) (err 
 			return i.UnmarshalBinary(buffer)
 		}
 
-		log.Debugf("element type is: %s", reflect.TypeOf(e))
+		log.Debugf("element type is: %#v", reflect.TypeOf(e).String())
 		return ErrInvalidType
 	}
 
@@ -1317,7 +1317,7 @@ func writeElement(w io.Writer, order binary.ByteOrder, element interface{}) (err
 			return
 		}
 
-		log.Debugf("element type is: %s", reflect.TypeOf(e))
+		log.Debugf("element type is: %#v", reflect.TypeOf(e).String())
 		return ErrInvalidType
 	}
 

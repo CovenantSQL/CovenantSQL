@@ -46,19 +46,19 @@ type confWrapper struct {
 func LoadConfig(configPath string) (config *Config, err error) {
 	var configBytes []byte
 	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
-		log.Errorf("read config file failed: %v", err)
+		log.WithError(err).Error("read config file failed")
 		return
 	}
 
 	configWrapper := &confWrapper{}
 	if err = yaml.Unmarshal(configBytes, configWrapper); err != nil {
-		log.Errorf("unmarshal config file failed: %v", err)
+		log.WithError(err).Error("unmarshal config file failed")
 		return
 	}
 
 	if configWrapper.Faucet == nil {
 		err = ErrInvalidFaucetConfig
-		log.Errorf("could not read faucet config: %v", err)
+		log.WithError(err).Error("could not read faucet config")
 		return
 	}
 
@@ -90,7 +90,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	}
 
 	if config.AddressDailyQuota == 0 || config.AccountDailyQuota == 0 {
-		log.Warningf("AddressDailyQuota & AccountDailyQuota should be valid positive number, 1 assumed")
+		log.Warning("AddressDailyQuota & AccountDailyQuota should be valid positive number, 1 assumed")
 
 		if config.AddressDailyQuota == 0 {
 			config.AddressDailyQuota = 1
@@ -103,7 +103,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	}
 
 	if config.VerificationInterval.Nanoseconds() <= 0 {
-		log.Warningf("a valid VerificationInterval is required, 30 seconds assumed")
+		log.Warning("a valid VerificationInterval is required, 30 seconds assumed")
 
 		config.VerificationInterval = 30 * time.Second
 	}

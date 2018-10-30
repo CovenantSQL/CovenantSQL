@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"time"
@@ -180,9 +181,10 @@ func (db *Database) UpdatePeers(peers *kayak.Peers) (err error) {
 
 // Query defines database query interface.
 func (db *Database) Query(request *wt.Request) (response *wt.Response, err error) {
-	if err = request.Verify(); err != nil {
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = request.Verify(); err != nil {
+	//	return
+	//}
 
 	switch request.Header.QueryType {
 	case wt.ReadQuery:
@@ -197,9 +199,10 @@ func (db *Database) Query(request *wt.Request) (response *wt.Response, err error
 
 // Ack defines client response ack interface.
 func (db *Database) Ack(ack *wt.Ack) (err error) {
-	if err = ack.Verify(); err != nil {
-		return
-	}
+	// Just need to verify signature in db.saveAck
+	//if err = ack.Verify(); err != nil {
+	//	return
+	//}
 
 	return db.saveAck(&ack.Header)
 }
@@ -255,6 +258,11 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err error) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "writeQuery")
+	defer task.End()
+	defer trace.StartRegion(ctx, "writeQueryRegion").End()
+
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {
 		path := filepath.Join(db.cfg.DataDir, StorageFileName)
@@ -355,10 +363,6 @@ func getLocalTime() time.Time {
 	return time.Now().UTC()
 }
 
-func getLocalPubKey() (pubKey *asymmetric.PublicKey, err error) {
-	return kms.GetLocalPublicKey()
-}
-
 func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
 }
@@ -406,7 +410,10 @@ func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err 
 					query = "SELECT name FROM sqlite_master WHERE type = \"table\""
 				}
 
-				log.Debugf("translated query from %v to %v", origQuery, query)
+				log.WithFields(log.Fields{
+					"from": origQuery,
+					"to":   query,
+				}).Debug("query translated")
 			}
 
 			originalQueries = append(originalQueries, query)

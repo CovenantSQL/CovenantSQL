@@ -37,13 +37,13 @@ func TestDB(t *testing.T) {
 	privKey1, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
 	privKey2, pubKey2, _ := asymmetric.GenSecp256k1KeyPair()
 	node1 := &proto.Node{
-		ID:        proto.NodeID("node1"),
+		ID:        proto.NodeID("1111"),
 		Addr:      "",
 		PublicKey: pubKey1,
 		Nonce:     cpuminer.Uint256{},
 	}
 	node2 := &proto.Node{
-		ID:        proto.NodeID("node2"),
+		ID:        proto.NodeID("2222"),
 		Addr:      "",
 		PublicKey: pubKey2,
 		Nonce:     cpuminer.Uint256{},
@@ -69,7 +69,7 @@ func TestDB(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(pubk.IsEqual(BP.PublicKey), ShouldBeTrue)
 
-		pubk, err = GetPublicKey(proto.NodeID("not exist"))
+		pubk, err = GetPublicKey(proto.NodeID("99999999"))
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
@@ -88,15 +88,15 @@ func TestDB(t *testing.T) {
 		err = SetPublicKey(BP.NodeID, cpuminer.Uint256{}, BP.PublicKey)
 		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
 
-		err = SetPublicKey(proto.NodeID("0"+BP.NodeID), BP.Nonce, BP.PublicKey)
+		err = SetPublicKey(proto.NodeID("00"+BP.NodeID), BP.Nonce, BP.PublicKey)
 		So(err, ShouldEqual, ErrNodeIDKeyNonceNotMatch)
 
-		pubk, err = GetPublicKey(proto.NodeID("node1"))
+		pubk, err = GetPublicKey(proto.NodeID("1111"))
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		So(privKey1.PubKey().IsEqual(pubKey1), ShouldBeTrue)
 
-		pubk, err = GetPublicKey(proto.NodeID("node2"))
+		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		So(privKey2.PubKey().IsEqual(pubKey2), ShouldBeTrue)
@@ -104,17 +104,17 @@ func TestDB(t *testing.T) {
 		IDs, err := GetAllNodeID()
 		So(err, ShouldBeNil)
 		So(IDs, ShouldHaveLength, 3)
-		So(IDs, ShouldContain, proto.NodeID("node1"))
-		So(IDs, ShouldContain, proto.NodeID("node2"))
+		So(IDs, ShouldContain, proto.NodeID("1111"))
+		So(IDs, ShouldContain, proto.NodeID("2222"))
 		So(IDs, ShouldContain, BP.NodeID)
 
-		err = DelNode(proto.NodeID("node2"))
+		err = DelNode(proto.NodeID("2222"))
 		So(err, ShouldBeNil)
 
-		err = DelNode(proto.NodeID("node2"))
+		err = DelNode(proto.NodeID("2222"))
 		So(err, ShouldBeNil)
 
-		pubk, err = GetPublicKey(proto.NodeID("node2"))
+		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
@@ -128,7 +128,7 @@ func TestDB(t *testing.T) {
 		err = setNode(node1)
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
-		err = DelNode(proto.NodeID("node2"))
+		err = DelNode(proto.NodeID("2222"))
 		So(err, ShouldEqual, ErrBucketNotInitialized)
 
 		IDs, err = GetAllNodeID()
@@ -138,7 +138,7 @@ func TestDB(t *testing.T) {
 		err = ResetBucket()
 		So(err, ShouldBeNil)
 
-		pubk, err = GetPublicKey(proto.NodeID("node2"))
+		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldBeNil)
 		So(err, ShouldEqual, ErrKeyNotFound)
 
@@ -160,7 +160,7 @@ func TestErrorPath(t *testing.T) {
 func TestMarshalNode(t *testing.T) {
 	Convey("marshal unmarshal node", t, func() {
 		nodeInfo := &proto.Node{
-			ID:        "abc",
+			ID:        "0000000000000000000000000000000000000000000000000000000000001111",
 			Addr:      "addr",
 			PublicKey: nil,
 			Nonce: cpuminer.Uint256{

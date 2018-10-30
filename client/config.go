@@ -18,25 +18,12 @@ package client
 
 import (
 	"net/url"
-	"time"
-)
-
-const (
-	paramKeyDebug          = "debug"
-	paramKeyUpdateInterval = "update_interval"
-)
-
-var (
-	// DefaultPeersUpdateInterval set client update peers config every 15 seconds.
-	DefaultPeersUpdateInterval = time.Second * 15
+	"strings"
 )
 
 // Config is a configuration parsed from a DSN string.
 type Config struct {
 	DatabaseID string
-
-	Debug               bool
-	PeersUpdateInterval time.Duration
 
 	// additional configs should be filled
 	// such as read/write/exec timeout
@@ -45,10 +32,7 @@ type Config struct {
 
 // NewConfig creates a new config with default value.
 func NewConfig() *Config {
-	return &Config{
-		Debug:               false,
-		PeersUpdateInterval: DefaultPeersUpdateInterval,
-	}
+	return &Config{}
 }
 
 // FormatDSN formats the given Config into a DSN string which can be passed to the driver.
@@ -56,20 +40,11 @@ func (cfg *Config) FormatDSN() string {
 	// build query from arguments
 
 	u := &url.URL{
-		Scheme: "covenantsql",
+		Scheme: DBScheme,
 		Host:   cfg.DatabaseID,
 	}
 
 	newQuery := u.Query()
-
-	if cfg.Debug {
-		newQuery.Set(paramKeyDebug, "true")
-	}
-
-	if cfg.PeersUpdateInterval != DefaultPeersUpdateInterval {
-		newQuery.Set(paramKeyUpdateInterval, cfg.PeersUpdateInterval.String())
-	}
-
 	u.RawQuery = newQuery.Encode()
 
 	return u.String()
@@ -77,6 +52,10 @@ func (cfg *Config) FormatDSN() string {
 
 // ParseDSN parse the DSN string to a Config.
 func ParseDSN(dsn string) (cfg *Config, err error) {
+	if !strings.HasPrefix(dsn, DBScheme) && !strings.HasPrefix(dsn, DBSchemeAlias) {
+		dsn = DBScheme + "://" + dsn
+	}
+
 	var u *url.URL
 	if u, err = url.Parse(dsn); err != nil {
 		return
@@ -84,18 +63,6 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 
 	cfg = NewConfig()
 	cfg.DatabaseID = u.Host
-
-	urlQuery := u.Query()
-
-	if urlQuery.Get(paramKeyDebug) == "true" {
-		cfg.Debug = true
-	}
-	if updateInterval := urlQuery.Get(paramKeyUpdateInterval); updateInterval != "" {
-		// parse update interval
-		if cfg.PeersUpdateInterval, err = time.ParseDuration(updateInterval); err != nil {
-			return
-		}
-	}
 
 	return
 }

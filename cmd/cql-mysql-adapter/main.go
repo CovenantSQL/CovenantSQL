@@ -50,12 +50,12 @@ func init() {
 func main() {
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %#v", f.Name, f.Value)
 	})
 
 	// init client
 	if err := client.Init(configFile, []byte(password)); err != nil {
-		log.Fatalf("init covenantsql client failed: %v", err)
+		log.WithError(err).Fatal("init covenantsql client failed")
 		return
 	}
 
@@ -64,17 +64,17 @@ func main() {
 
 	server, err := NewServer(listenAddr, mysqlUser, mysqlPassword)
 	if err != nil {
-		log.Fatalf("init server failed: %v", err)
+		log.WithError(err).Fatal("init server failed")
 		return
 	}
 
 	go server.Serve()
 
-	log.Infof("start mysql adapter")
+	log.Info("start mysql adapter")
 
 	<-stop
 
 	server.Shutdown()
 
-	log.Infof("stopped mysql adapter")
+	log.Info("stopped mysql adapter")
 }

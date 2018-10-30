@@ -81,7 +81,11 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 	defer s.Unlock()
 
 	defer func() {
-		log.Debugf("query stable account: %v, result: %v, %v", addr.String(), b, loaded)
+		log.WithFields(log.Fields{
+			"account": addr.String(),
+			"balance": b,
+			"loaded":  loaded,
+		}).Debug("queried stable account")
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
@@ -101,7 +105,11 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	defer s.Unlock()
 
 	defer func() {
-		log.Debugf("query covenant account: %v, result: %v, %v", addr.String(), b, loaded)
+		log.WithFields(log.Fields{
+			"account": addr.String(),
+			"balance": b,
+			"loaded":  loaded,
+		}).Debug("queried covenant account")
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
@@ -116,7 +124,10 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 }
 
 func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (err error) {
-	log.Debugf("store account %v to %v", k.String(), v)
+	log.WithFields(log.Fields{
+		"addr":    k.String(),
+		"account": v,
+	}).Debug("store account")
 	// Since a transfer tx may create an empty receiver account, this method should try to cover
 	// the side effect.
 	if ao, ok := s.loadOrStoreAccountObject(k, v); ok {
@@ -691,7 +702,7 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		}
 	)
 
-	log.Debugf("try applying transaction: %v", t)
+	log.WithField("tx", t).Debug("try applying transaction")
 
 	// Static checks, which have no relation with metaState
 	if err = t.Verify(); err != nil {
@@ -706,13 +717,13 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		ttype = t.GetTransactionType()
 	)
 	if enc, err = utils.EncodeMsgPack(t); err != nil {
-		log.Debugf("encode failed on applying transaction: %v", err)
+		log.WithField("tx", t).WithError(err).Debug("encode failed on applying transaction")
 		return errPass
 	}
 
 	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
 	return func(tx *bolt.Tx) (err error) {
-		log.Debugf("processing transaction: %v", t)
+		log.WithField("tx", t).Debug("processing transaction")
 
 		// Check tx existense
 		// TODO(leventeliu): maybe move outside?
@@ -731,19 +742,22 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 		}
 		if nextNonce != nonce {
 			err = ErrInvalidAccountNonce
-			log.Debugf("nonce not match during transaction apply: %v", err)
+			log.WithFields(log.Fields{
+				"actual":   nonce,
+				"expected": nextNonce,
+			}).WithError(err).Debug("nonce not match during transaction apply")
 			return
 		}
 		// Try to put transaction before any state change, will be rolled back later
 		// if transaction doesn't apply
 		tb := tx.Bucket(metaBucket[:]).Bucket(metaTransactionBucket).Bucket(ttype.Bytes())
 		if err = tb.Put(hash[:], enc.Bytes()); err != nil {
-			log.Debugf("store transaction to bucket failed: %v", err)
+			log.WithError(err).Debug("store transaction to bucket failed")
 			return
 		}
 		// Try to apply transaction to metaState
 		if err = s.applyTransaction(t); err != nil {
-			log.Debugf("apply transaction failed: %v", err)
+			log.WithError(err).Debug("apply transaction failed")
 			return
 		}
 		if err = s.increaseNonce(addr); err != nil {

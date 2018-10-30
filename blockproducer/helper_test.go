@@ -184,7 +184,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
 	}
-	log.Debugf("temp dir: %s", d)
+	log.WithField("d", d).Debug("created temp dir")
 
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
@@ -219,7 +219,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	// register metric service
 	metricService = metric.NewCollectServer()
 	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
-		log.Errorf("init metric service failed: %v", err)
+		log.WithError(err).Error("init metric service failed")
 		return
 	}
 

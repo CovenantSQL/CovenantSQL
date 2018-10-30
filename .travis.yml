@@ -33,14 +33,15 @@ before_script:
   - echo $TRAVIS_REPO_SLUG
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
-  - bash build.sh
   - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+  - cd rpc && go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$ && cd -
   - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 
 before_deploy:
+  - bash build.sh
   - mkdir -p build
   - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/cql*
 

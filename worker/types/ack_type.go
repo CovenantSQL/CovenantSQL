@@ -30,23 +30,23 @@ import (
 
 // AckHeader defines client ack entity.
 type AckHeader struct {
-	Response  SignedResponseHeader
-	NodeID    proto.NodeID // ack node id
-	Timestamp time.Time    // time in UTC zone
+	Response  SignedResponseHeader `json:"r"`
+	NodeID    proto.NodeID         `json:"i"` // ack node id
+	Timestamp time.Time            `json:"t"` // time in UTC zone
 }
 
 // SignedAckHeader defines client signed ack entity.
 type SignedAckHeader struct {
 	AckHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	HeaderHash hash.Hash             `json:"hh"`
+	Signee     *asymmetric.PublicKey `json:"e"`
+	Signature  *asymmetric.Signature `json:"s"`
 }
 
 // Ack defines a whole client ack request entity.
 type Ack struct {
 	proto.Envelope
-	Header SignedAckHeader
+	Header SignedAckHeader `json:"h"`
 }
 
 // AckResponse defines client ack response entity.
@@ -109,10 +109,13 @@ func (sh *SignedAckHeader) Verify() (err error) {
 }
 
 // Sign the request.
-func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
-	// check original header signature
-	if err = sh.Response.Verify(); err != nil {
-		return
+func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey, verifyReqHeader bool) (err error) {
+	// Only used by ack worker, and ack.Header is verified before build ack
+	if verifyReqHeader {
+		// check original header signature
+		if err = sh.Response.Verify(); err != nil {
+			return
+		}
 	}
 
 	// build hash
@@ -140,9 +143,9 @@ func (a *Ack) Verify() error {
 }
 
 // Sign the request.
-func (a *Ack) Sign(signer *asymmetric.PrivateKey) (err error) {
+func (a *Ack) Sign(signer *asymmetric.PrivateKey, verifyReqHeader bool) (err error) {
 	// sign
-	return a.Header.Sign(signer)
+	return a.Header.Sign(signer, verifyReqHeader)
 }
 
 // ResponseHeaderHash returns the deep shadowed Response HeaderHash field.

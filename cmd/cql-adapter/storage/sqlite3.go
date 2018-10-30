@@ -24,7 +24,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-
 	// Import sqlite3 manually.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
@@ -130,7 +129,7 @@ func (s *SQLite3Storage) Exec(dbID string, query string) (err error) {
 
 func (s *SQLite3Storage) getConn(dbID string, readonly bool) (db *sql.DB, err error) {
 	dbFile := filepath.Join(s.rootDir, dbID+".db3")
-	dbDSN := fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=FULL", dbFile)
+	dbDSN := fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL", dbFile)
 	if readonly {
 		dbDSN += "&mode=ro"
 	}

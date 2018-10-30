@@ -60,41 +60,41 @@ func (t QueryType) String() string {
 
 // RequestPayload defines a queries payload.
 type RequestPayload struct {
-	Queries []Query
+	Queries []Query `json:"qs"`
 }
 
 // RequestHeader defines a query request header.
 type RequestHeader struct {
-	QueryType    QueryType
-	NodeID       proto.NodeID     // request node id
-	DatabaseID   proto.DatabaseID // request database id
-	ConnectionID uint64
-	SeqNo        uint64
-	Timestamp    time.Time // time in UTC zone
-	BatchCount   uint64    // query count in this request
-	QueriesHash  hash.Hash // hash of query payload
+	QueryType    QueryType        `json:"qt"`
+	NodeID       proto.NodeID     `json:"id"`   // request node id
+	DatabaseID   proto.DatabaseID `json:"dbid"` // request database id
+	ConnectionID uint64           `json:"cid"`
+	SeqNo        uint64           `json:"seq"`
+	Timestamp    time.Time        `json:"t"`  // time in UTC zone
+	BatchCount   uint64           `json:"bc"` // query count in this request
+	QueriesHash  hash.Hash        `json:"qh"` // hash of query payload
 }
 
 // QueryKey defines an unique query key of a request.
 type QueryKey struct {
-	NodeID       proto.NodeID
-	ConnectionID uint64
-	SeqNo        uint64
+	NodeID       proto.NodeID `json:"id"`
+	ConnectionID uint64       `json:"cid"`
+	SeqNo        uint64       `json:"seq"`
 }
 
 // SignedRequestHeader defines a signed query request header.
 type SignedRequestHeader struct {
 	RequestHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	HeaderHash hash.Hash             `json:"hh"`
+	Signee     *asymmetric.PublicKey `json:"e"`
+	Signature  *asymmetric.Signature `json:"s"`
 }
 
 // Request defines a complete query request.
 type Request struct {
 	proto.Envelope
-	Header  SignedRequestHeader
-	Payload RequestPayload
+	Header  SignedRequestHeader `json:"h"`
+	Payload RequestPayload      `json:"p"`
 }
 
 // Serialize returns byte based binary form of struct.

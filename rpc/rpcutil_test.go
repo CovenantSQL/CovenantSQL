@@ -221,8 +221,8 @@ func TestNewPersistentCaller(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 
@@ -242,8 +242,8 @@ func TestNewPersistentCaller(t *testing.T) {
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
 				reqF := &proto.FindNeighborReq{
-					NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-					Count:  10,
+					ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+					Count: 10,
 				}
 				respF := new(proto.FindNeighborResp)
 				err := client.Call("DHT.FindNeighbor", reqF, respF)
@@ -258,8 +258,8 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	client2 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	reqF2 := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	respF2 := new(proto.FindNeighborResp)
 
@@ -357,8 +357,8 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	})
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 

@@ -24,6 +24,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/twopc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 // Following contains storage related logic extracted from main database instance definition.
@@ -86,7 +87,7 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	// type convert
 	var payloadBytes []byte
 	if payloadBytes, ok = wb.([]byte); !ok {
-		err = ErrInvalidRequest
+		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
 		return
 	}
 
@@ -107,7 +108,7 @@ func (db *Database) convertRequest(wb twopc.WriteBatch) (log *storage.ExecLog, e
 	maxTime := nowTime.Add(db.cfg.MaxWriteTimeGap)
 
 	if req.Header.Timestamp.Before(minTime) || req.Header.Timestamp.After(maxTime) {
-		err = ErrInvalidRequest
+		err = errors.Wrap(ErrInvalidRequest, "invalid request time")
 		return
 	}
 

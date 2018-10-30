@@ -39,6 +39,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/CovenantSQL/sqlparser"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -193,7 +194,7 @@ func (db *Database) Query(request *wt.Request) (response *wt.Response, err error
 		return db.writeQuery(request)
 	default:
 		// TODO(xq262144): verbose errors with custom error structure
-		return nil, ErrInvalidRequest
+		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
 }
 

@@ -72,9 +72,9 @@ type UploadMetricsResp struct {
 
 // FindNeighborReq is FindNeighbor RPC request
 type FindNeighborReq struct {
-	NodeID NodeID
-	Roles  []ServerRole
-	Count  int
+	ID    NodeID
+	Roles []ServerRole
+	Count int
 	Envelope
 }
 
@@ -87,7 +87,7 @@ type FindNeighborResp struct {
 
 // FindNodeReq is FindNode RPC request
 type FindNodeReq struct {
-	NodeID NodeID
+	ID NodeID
 	Envelope
 }
 

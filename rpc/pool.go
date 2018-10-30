@@ -44,6 +44,7 @@ type SessionMap map[proto.NodeID]*Session
 type Session struct {
 	ID   proto.NodeID
 	Sess *yamux.Session
+	conn net.Conn
 }
 
 // SessionPool is the struct type of session pool
@@ -91,6 +92,7 @@ func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
 	sess = &Session{
 		ID:   id,
 		Sess: newSess,
+		conn: conn,
 	}
 	return
 }

@@ -49,6 +49,11 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 	return NewDHTServiceWithRing(c)
 }
 
+// Nil RPC does nothing just for probe
+func (DHT *DHTService) Nil(req *proto.PingReq, resp *proto.PingResp) (err error) {
+	return
+}
+
 // FindNode RPC returns node with requested node id from DHT
 func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp) (err error) {
 	if !IsPermitted(&req.Envelope, DHTFindNode) {
@@ -56,7 +61,7 @@ func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp
 		log.Error(err)
 		return
 	}
-	node, err := DHT.Consistent.GetNode(string(req.NodeID))
+	node, err := DHT.Consistent.GetNode(string(req.ID))
 	if err != nil {
 		err = fmt.Errorf("get node %s from DHT failed: %s", req.NodeID, err)
 		log.Error(err)
@@ -74,7 +79,7 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 		return
 	}
 
-	nodes, err := DHT.Consistent.GetNeighborsEx(string(req.NodeID), req.Count, req.Roles)
+	nodes, err := DHT.Consistent.GetNeighborsEx(string(req.ID), req.Count, req.Roles)
 	if err != nil {
 		err = fmt.Errorf("get nodes from DHT failed: %s", err)
 		log.Error(err)

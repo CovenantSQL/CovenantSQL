@@ -38,8 +38,8 @@ import (
 
 const (
 	DHTStorePath  = "./DHTStore"
-	RPCConcurrent = 10
-	RPCCount      = 10
+	RPCConcurrent = 100
+	RPCCount      = 100
 )
 
 func TestCaller_CallNode(t *testing.T) {
@@ -270,7 +270,19 @@ func TestNewPersistentCaller(t *testing.T) {
 	client2.CloseStream()
 
 	wg.Wait()
-	server.Stop()
+	sess, ok := client2.pool.getSessionFromPool(conf.GConf.BP.NodeID)
+	if !ok {
+		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
+	}
+	sess.conn.Close()
+
+	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
+	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
+	if err != nil {
+		t.Error(err)
+	}
+	client3.CloseStream()
+
 }
 
 func BenchmarkPersistentCaller_Call(b *testing.B) {
@@ -328,14 +340,30 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	}
 	log.Debugf("respA: %v", respA)
 
+	client = NewPersistentCaller(conf.GConf.BP.NodeID)
+	b.Run("benchmark Persistent Call Nil", func(b *testing.B) {
+		var (
+			req  proto.PingReq
+			resp proto.PingResp
+		)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err = client.Call("DHT.Nil", &req, &resp)
+			if err != nil {
+				b.Error(err)
+			}
+		}
+	})
+
 	req := &proto.FindNeighborReq{
 		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
 		Count:  10,
 	}
 	resp := new(proto.FindNeighborResp)
 
+	client = NewPersistentCaller(conf.GConf.BP.NodeID)
 	b.Run("benchmark Persistent Call", func(b *testing.B) {
-		client = NewPersistentCaller(conf.GConf.BP.NodeID)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			err = client.Call("DHT.FindNeighbor", req, resp)

@@ -68,7 +68,7 @@ func (z *FindNeighborReq) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
+	if oTemp, err := z.ID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -89,7 +89,7 @@ func (z *FindNeighborReq) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *FindNeighborReq) Msgsize() (s int) {
-	s = 1 + 9 + z.Envelope.Msgsize() + 7 + z.NodeID.Msgsize() + 6 + hsp.ArrayHeaderSize
+	s = 1 + 9 + z.Envelope.Msgsize() + 3 + z.ID.Msgsize() + 6 + hsp.ArrayHeaderSize
 	for za0001 := range z.Roles {
 		s += z.Roles[za0001].Msgsize()
 	}
@@ -144,7 +144,7 @@ func (z *FindNodeReq) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x82)
-	if oTemp, err := z.NodeID.MarshalHash(); err != nil {
+	if oTemp, err := z.ID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -154,7 +154,7 @@ func (z *FindNodeReq) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *FindNodeReq) Msgsize() (s int) {
-	s = 1 + 9 + z.Envelope.Msgsize() + 7 + z.NodeID.Msgsize()
+	s = 1 + 9 + z.Envelope.Msgsize() + 3 + z.ID.Msgsize()
 	return
 }
 

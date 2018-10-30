@@ -127,8 +127,8 @@ func clientRequest(reqType string, sql string) (err error) {
 				log.Debugf("Calling BP: %s", bp.ID)
 				reqType = "FindNeighbor"
 				req := &proto.FindNeighborReq{
-					NodeID: proto.NodeID(flag.Arg(0)),
-					Count:  10,
+					ID:    proto.NodeID(flag.Arg(0)),
+					Count: 10,
 				}
 				resp := new(proto.FindNeighborResp)
 				log.Debugf("req %s: %v", reqType, req)

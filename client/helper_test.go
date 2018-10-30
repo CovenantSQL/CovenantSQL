@@ -191,9 +191,6 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 		}
 
 		cleanup()
-
-		// cleanup session pool
-		rpc.GetSessionPoolInstance().Close()
 	}
 
 	// init

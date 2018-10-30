@@ -20,6 +20,8 @@ import (
 	"context"
 	"runtime/trace"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/rcrowley/go-metrics"
@@ -67,6 +69,7 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
 		err = ErrInvalidRequest
+		log.Errorf("%v, req: %v", err, req)
 		dbQueryFailCounter.Mark(1)
 		return
 	}
@@ -97,6 +100,7 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {
 		err = ErrInvalidRequest
+		log.Errorf("%v, req: %v", err, ack)
 		return
 	}
 

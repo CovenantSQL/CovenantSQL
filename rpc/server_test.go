@@ -162,7 +162,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil, false)
+	cryptoConn, err := DialToNode(serverNodeID, false)
 	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)
@@ -203,7 +203,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil, false)
+	cryptoConn, err := DialToNode(serverNodeID, false)
 	client, err := InitClientConn(cryptoConn)
 	if err != nil {
 		log.Fatal(err)
@@ -238,8 +238,8 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	log.Debugf("respB: %v", respB)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 	err = client.Call("DHT.FindNeighbor", req, resp)

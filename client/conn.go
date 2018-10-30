@@ -42,6 +42,7 @@ type conn struct {
 	localNodeID proto.NodeID
 	privKey     *asymmetric.PrivateKey
 
+	pCaller       *rpc.PersistentCaller
 	ackCh         chan *wt.Ack
 	inTransaction bool
 	closed        int32
@@ -68,7 +69,8 @@ func newConn(cfg *Config) (c *conn, err error) {
 	}
 
 	// get peers from BP
-	if _, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
+	var peers *kayak.Peers
+	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		log.Errorf("cacheGetPeers failed: %v", err)
 		c = nil
 		return
@@ -81,6 +83,8 @@ func newConn(cfg *Config) (c *conn, err error) {
 		return
 	}
 	log.WithField("db", c.dbID).Debug("new connection to database")
+
+	c.pCaller = rpc.NewPersistentCaller(peers.Leader.ID)
 
 	return
 }
@@ -128,7 +132,7 @@ func (c *conn) ackWorker() {
 				}
 			}
 			if pc != nil {
-				pc.CloseStream()
+				pc.Close()
 			}
 			log.Debug("ack worker quiting")
 			return
@@ -284,11 +288,6 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Ro
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows driver.Rows, err error) {
-	var peers *kayak.Peers
-	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
-		return
-	}
-
 	// allocate sequence
 	connID, seqNo := allocateConnAndSeq()
 	defer putBackConn(connID)
@@ -314,10 +313,8 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 
-	pCaller := rpc.NewPersistentCaller(peers.Leader.ID)
-	defer pCaller.CloseStream()
 	var response wt.Response
-	if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
+	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
 

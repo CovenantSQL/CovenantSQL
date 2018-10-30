@@ -159,7 +159,6 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	server.Stop()
-	client.pool.Close()
 }
 
 func TestNewPersistentCaller(t *testing.T) {
@@ -221,8 +220,8 @@ func TestNewPersistentCaller(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 
@@ -242,8 +241,8 @@ func TestNewPersistentCaller(t *testing.T) {
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
 				reqF := &proto.FindNeighborReq{
-					NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-					Count:  10,
+					ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+					Count: 10,
 				}
 				respF := new(proto.FindNeighborResp)
 				err := client.Call("DHT.FindNeighbor", reqF, respF)
@@ -258,8 +257,8 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	client2 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	reqF2 := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	respF2 := new(proto.FindNeighborResp)
 
@@ -267,21 +266,16 @@ func TestNewPersistentCaller(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	client2.CloseStream()
+	client2.Close()
 
 	wg.Wait()
-	sess, ok := client2.pool.getSessionFromPool(conf.GConf.BP.NodeID)
-	if !ok {
-		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
-	}
-	sess.conn.Close()
 
 	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
 	if err != nil {
 		t.Error(err)
 	}
-	client3.CloseStream()
+	client3.Close()
 
 }
 
@@ -357,8 +351,8 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	})
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234567812345678123456781234567812345678123456781234567812345678",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 

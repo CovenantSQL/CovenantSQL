@@ -110,7 +110,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 	var conn net.Conn
 	var RPCClient *rpc.Client
 
-	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance(), false); err != nil {
+	if conn, err = rpc.DialToNode(leaderNodeID, false); err != nil {
 		t.Fatal(err)
 	}
 	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
@@ -135,8 +135,8 @@ func TestStartBP_CallRPC(t *testing.T) {
 	reqType = "FindNeighbor"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
-		NodeID: proto.NodeID(nodePayload.ID),
-		Count:  1,
+		ID:    proto.NodeID(nodePayload.ID),
+		Count: 1,
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
@@ -159,7 +159,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
+		ID: nodePayload.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	err = RPCClient.Call("DHT."+reqType, reqFN, respFN)
@@ -241,7 +241,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	var conn net.Conn
 	var RPCClient *rpc.Client
 
-	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance(), false); err != nil {
+	if conn, err = rpc.DialToNode(leaderNodeID, false); err != nil {
 		return
 	}
 	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
@@ -254,8 +254,8 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	nodePayload.Addr = "nodePayloadAddr"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
-		NodeID: proto.NodeID(nodePayload.ID),
-		Count:  1,
+		ID:    proto.NodeID(nodePayload.ID),
+		Count: 1,
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
@@ -288,7 +288,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
+		ID: nodePayload.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	b.Run("benchmark "+reqType, func(b *testing.B) {

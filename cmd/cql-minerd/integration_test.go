@@ -414,11 +414,11 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt32(&i, 1)
-				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+				_, er := db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
 					"(?, ?)", start+ii, ii,
 				)
-				if err != nil {
-					b.Fatal(err)
+				if er != nil {
+					b.Fatal(er)
 				}
 			}
 		})

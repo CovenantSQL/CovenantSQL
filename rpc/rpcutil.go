@@ -29,7 +29,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
 )
 
 var (
@@ -44,7 +43,6 @@ var (
 
 // PersistentCaller is a wrapper for session pooling and RPC calling.
 type PersistentCaller struct {
-	pool       *SessionPool
 	client     *Client
 	TargetAddr string
 	TargetID   proto.NodeID
@@ -56,7 +54,6 @@ type PersistentCaller struct {
 //  ETLS connection. It should not be used by any other RPC except DHT.Ping.
 func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
 	return &PersistentCaller{
-		pool:     GetSessionPoolInstance(),
 		TargetID: target,
 	}
 }
@@ -66,7 +63,7 @@ func (c *PersistentCaller) initClient(method string) (err error) {
 	defer c.Unlock()
 	if c.client == nil {
 		var conn net.Conn
-		conn, err = DialToNode(c.TargetID, c.pool, method == route.DHTPing.String())
+		conn, err = DialToNode(c.TargetID, method == route.DHTPing.String())
 		if err != nil {
 			log.Errorf("dialing to node: %s failed: %s", c.TargetID, err)
 			return
@@ -113,34 +110,19 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 }
 
 // Close closes the stream and RPC client
-func (c *PersistentCaller) CloseStream() {
+func (c *PersistentCaller) Close() {
 	if c.client != nil {
-		if c.client.Conn != nil {
-			stream, ok := c.client.Conn.(*yamux.Stream)
-			if ok {
-				stream.Close()
-			}
-		}
 		c.client.Close()
 	}
-}
-
-// Close closes the stream and RPC client
-func (c *PersistentCaller) Close() {
-	c.CloseStream()
 	//c.pool.Remove(c.TargetID)
 }
 
 // Caller is a wrapper for session pooling and RPC calling.
-type Caller struct {
-	pool *SessionPool
-}
+type Caller struct{}
 
 // NewCaller returns a new RPCCaller.
 func NewCaller() *Caller {
-	return &Caller{
-		pool: GetSessionPoolInstance(),
-	}
+	return &Caller{}
 }
 
 // CallNode invokes the named function, waits for it to complete, and returns its error status.
@@ -152,20 +134,11 @@ func (c *Caller) CallNode(
 // CallNodeWithContext invokes the named function, waits for it to complete or context timeout, and returns its error status.
 func (c *Caller) CallNodeWithContext(
 	ctx context.Context, node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
-	conn, err := DialToNode(node, c.pool, method == route.DHTPing.String())
+	conn, err := DialToNode(node, method == route.DHTPing.String())
 	if err != nil {
 		log.Errorf("dialing to node: %s failed: %s", node, err)
 		return
 	}
-
-	defer func() {
-		// call the yamux stream Close explicitly
-		//TODO(auxten) maybe a rpc client pool will gain much more performance
-		stream, ok := conn.(*yamux.Stream)
-		if ok {
-			stream.Close()
-		}
-	}()
 
 	client, err := InitClientConn(conn)
 	if err != nil {

@@ -18,7 +18,6 @@
 package rpc
 
 import (
-	"io/ioutil"
 	"net"
 	"net/rpc"
 
@@ -28,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
 )
 
 // Client is RPC client
@@ -39,15 +37,11 @@ type Client struct {
 }
 
 var (
-	// YamuxConfig holds the default Yamux config
-	YamuxConfig *yamux.Config
 	// DefaultDialer holds the default dialer of SessionPool
 	DefaultDialer func(nodeID proto.NodeID) (conn net.Conn, err error)
 )
 
 func init() {
-	YamuxConfig = yamux.DefaultConfig()
-	YamuxConfig.LogOutput = ioutil.Discard
 	DefaultDialer = dialToNode
 }
 
@@ -88,29 +82,13 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 	return
 }
 
-// DialToNode ties use connection in pool, if fails then connects to the node with nodeID
-func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn net.Conn, err error) {
-	if pool == nil || isAnonymous {
-		var ETLSConn net.Conn
-		var sess *yamux.Session
-		ETLSConn, err = dialToNodeEx(nodeID, isAnonymous)
-		if err != nil {
-			log.Errorf("dialToNode failed: %s", err)
-			return
-		}
-		sess, err = yamux.Client(ETLSConn, YamuxConfig)
-		if err != nil {
-			log.Errorf("init yamux client failed: %s", err)
-			return
-		}
-		conn, err = sess.Open()
-		if err != nil {
-			log.Errorf("open new session failed: %s", err)
-		}
+// DialToNode tries use connection in pool, if fails then connects to the node with nodeID
+func DialToNode(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+	conn, err = dialToNodeEx(nodeID, isAnonymous)
+	if err != nil {
+		log.Errorf("dialToNodeEx failed: %s", err)
 		return
 	}
-	log.Debugf("session pool len: %d", pool.Len())
-	conn, err = pool.Get(nodeID)
 	return
 }
 
@@ -176,24 +154,9 @@ func initClient(addr string) (client *Client, err error) {
 // InitClientConn initializes client with connection to given addr
 func InitClientConn(conn net.Conn) (client *Client, err error) {
 	client = NewClient()
-	var muxConn *yamux.Stream
-	muxConn, ok := conn.(*yamux.Stream)
-	if !ok {
-		var sess *yamux.Session
-		sess, err = yamux.Client(conn, YamuxConfig)
-		if err != nil {
-			log.Errorf("init yamux client failed: %v", err)
-			return
-		}
 
-		muxConn, err = sess.OpenStream()
-		if err != nil {
-			log.Errorf("open stream failed: %v", err)
-			return
-		}
-	}
-	client.Conn = muxConn
-	client.Client = rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(muxConn))
+	client.Conn = conn
+	client.Client = rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(conn))
 	client.RemoteAddr = conn.RemoteAddr().String()
 
 	return client, nil

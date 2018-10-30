@@ -17,7 +17,6 @@
 package rpc
 
 import (
-	"io"
 	"net"
 	"net/rpc"
 
@@ -28,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
 )
 
 // ServiceMap maps service name to service instance
@@ -127,34 +125,9 @@ func (s *Server) handleConn(conn net.Conn) {
 		remoteNodeID = c.NodeID
 	}
 
-	sess, err := yamux.Server(conn, YamuxConfig)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	defer sess.Close()
-
-sessionLoop:
-	for {
-		select {
-		case <-s.stopCh:
-			log.Info("Stopping Session Loop")
-			break sessionLoop
-		default:
-			muxConn, err := sess.AcceptStream()
-			if err != nil {
-				if err == io.EOF {
-					log.Debugf("session %s connection closed", remoteNodeID)
-				} else {
-					log.Errorf("session %s accept failed: %s", remoteNodeID, err)
-				}
-				break sessionLoop
-			}
-			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
-			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
-			go s.rpcServer.ServeCodec(nodeAwareCodec)
-		}
-	}
+	log.Debugf("session accepted for %v", remoteNodeID)
+	nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(conn), remoteNodeID)
+	s.rpcServer.ServeCodec(nodeAwareCodec)
 
 	log.Debugf("Server.handleConn finished for %s %s", remoteNodeID, conn.RemoteAddr())
 }

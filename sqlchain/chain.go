@@ -46,12 +46,17 @@ import (
 
 var (
 	metaBucket              = [4]byte{0x0, 0x0, 0x0, 0x0}
+	metaState				= [4]byte{'S', 'T', 'A', 'T'}
 	metaStateKey            = []byte("covenantsql-state")
 	metaBlockIndexBucket    = []byte("covenantsql-block-index-bucket")
+	metaBlockIndex = [4]byte{'B', 'L', 'C', 'K'}
 	metaHeightIndexBucket   = []byte("covenantsql-query-height-index-bucket")
 	metaRequestIndexBucket  = []byte("covenantsql-query-request-index-bucket")
+	metaRequestIndex = [4]byte{'R', 'E', 'Q', 'U'}
 	metaResponseIndexBucket = []byte("covenantsql-query-response-index-bucket")
+	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
 	metaAckIndexBucket      = [4]byte{'Q', 'A', 'C', 'K'}
+	metaAckIndex = [4]byte{'Q', 'A', 'C', 'K'}
 	leveldbConf             = opt.Options{}
 )
 
@@ -74,10 +79,28 @@ func keyToHeight(k []byte) int32 {
 	return int32(binary.BigEndian.Uint32(k))
 }
 
+// keyWithSymbolToHeight converts a height back from a key(ack/resp/req/block) in bytes.
+// ack key:
+// ['Q', 'A', 'C', 'K', height, hash]
+// resp key:
+// ['R', 'E', 'S', 'P', height, hash]
+// req key:
+// ['R', 'E', 'Q', 'U', height, hash]
+// block key:
+// ['B', 'L', 'C', 'K', height, hash]
+func keyWithSymbolToHeight(k []byte) int32 {
+	if len(k) < 8 {
+		return -1
+	}
+	return int32(binary.BigEndian.Uint32(k[4:]))
+}
+
 // Chain represents a sql-chain.
 type Chain struct {
-	db  *bolt.DB
-	ldb *leveldb.DB
+	// bdb stores state and block
+	bdb *leveldb.DB
+	// tdb stores ack/request/response
+	tdb *leveldb.DB
 	bi  *blockIndex
 	qi  *queryIndex
 	cl  *rpc.Caller
@@ -139,18 +162,26 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
-	// Open LevelDB
-	ldbFile := c.DataFile + ".ldb"
-	ldb, err := leveldb.OpenFile(ldbFile, &leveldbConf)
+	// Open LevelDB for block and state
+	bdbFile := c.DataFile + "-block-state.ldb"
+	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
 	if err != nil {
-		err = errors.Wrapf(err, "open leveldb %s", ldbFile)
+		err = errors.Wrapf(err, "open leveldb %s", bdbFile)
+		return
+	}
+
+	// Open LevelDB for ack/request/response
+	tdbFile := c.DataFile + "-ack-req-resp.ldb"
+	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
+	if err != nil {
+		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
 		return
 	}
 
 	// Create chain state
 	chain = &Chain{
-		db:        db,
-		ldb:       ldb,
+		bdb: 	bdb,
+		tdb: tdb,
 		bi:        newBlockIndex(c),
 		qi:        newQueryIndex(),
 		cl:        rpc.NewCaller(),
@@ -176,24 +207,27 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
 func LoadChain(c *Config) (chain *Chain, err error) {
-	// Open DB file
-	db, err := bolt.Open(c.DataFile, 0600, nil)
+
+	// Open LevelDB for block and state
+	bdbFile := c.DataFile + "-block-state.ldb"
+	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
 	if err != nil {
+		err = errors.Wrapf(err, "open leveldb %s", bdbFile)
 		return
 	}
 
-	// Open LevelDB
-	ldbFile := c.DataFile + ".ldb"
-	ldb, err := leveldb.OpenFile(ldbFile, &leveldbConf)
+	// Open LevelDB for ack/request/response
+	tdbFile := c.DataFile + "-ack-req-resp.ldb"
+	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
 	if err != nil {
-		err = errors.Wrapf(err, "open leveldb %s", ldbFile)
+		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
 		return
 	}
 
 	// Create chain state
 	chain = &Chain{
-		db:        db,
-		ldb:       ldb,
+		bdb: bdb,
+		tdb: tdb,
 		bi:        newBlockIndex(c),
 		qi:        newQueryIndex(),
 		cl:        rpc.NewCaller(),
@@ -210,145 +244,133 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		replCh:              make(chan struct{}),
 	}
 
-	err = chain.db.View(func(tx *bolt.Tx) (err error) {
-		// Read state struct
-		meta := tx.Bucket(metaBucket[:])
-		metaEnc := meta.Get(metaStateKey)
-		if metaEnc == nil {
-			return ErrMetaStateNotFound
-		}
-		st := &state{}
-		if err = utils.DecodeMsgPack(metaEnc, st); err != nil {
-			return err
+	// Read state struct
+	stateEnc, err := chain.bdb.Get(metaState[:], nil)
+	if err != nil {
+		return nil, err
+	}
+	st := &state{}
+	if err = utils.DecodeMsgPack(stateEnc, st); err != nil {
+		return nil, err
+	}
+
+	log.WithFields(log.Fields{
+		"peer":  chain.rt.getPeerInfoString(),
+		"state": st,
+	}).Debug("Loading state from database")
+
+	// Read blocks and rebuild memory index
+	var last *blockNode
+	var index int32
+	// TODO(lambda): select a better init length
+	nodes := make([]blockNode, 100)
+	blockIter := chain.bdb.NewIterator(util.BytesPrefix(metaBlockIndex[:]), nil)
+	defer blockIter.Release()
+	for blockIter.Next() {
+		k := blockIter.Key()
+		v := blockIter.Value()
+
+		block := &ct.Block{}
+
+		if err = utils.DecodeMsgPack(v, block); err != nil {
+			err = errors.Wrapf(err, "block height %d, key index %s", keyWithSymbolToHeight(k), string(k))
+			return
 		}
 
 		log.WithFields(log.Fields{
 			"peer":  chain.rt.getPeerInfoString(),
-			"state": st,
-		}).Debug("Loading state from database")
+			"block": block.BlockHash().String(),
+		}).Debug("Loading block from database")
+		parent := (*blockNode)(nil)
 
-		// Read blocks and rebuild memory index
-		var last *blockNode
-		var index int32
-		blocks := meta.Bucket(metaBlockIndexBucket)
-		nodes := make([]blockNode, blocks.Stats().KeyN)
-
-		if err = blocks.ForEach(func(k, v []byte) (err error) {
-			block := &ct.Block{}
-
-			if err = utils.DecodeMsgPack(v, block); err != nil {
+		if last == nil {
+			if err = block.VerifyAsGenesis(); err != nil {
 				return
 			}
 
-			log.WithFields(log.Fields{
-				"peer":  chain.rt.getPeerInfoString(),
-				"block": block.BlockHash().String(),
-			}).Debug("Loading block from database")
-			parent := (*blockNode)(nil)
-
-			if last == nil {
-				if err = block.VerifyAsGenesis(); err != nil {
-					return
-				}
-
-				// Set constant fields from genesis block
-				chain.rt.setGenesis(block)
-			} else if block.ParentHash().IsEqual(&last.hash) {
-				if err = block.Verify(); err != nil {
-					return
-				}
-
-				parent = last
-			} else {
-				parent = chain.bi.lookupNode(block.ParentHash())
-
-				if parent == nil {
-					return ErrParentNotFound
-				}
-			}
-
-			height := chain.rt.getHeightFromTime(block.Timestamp())
-			nodes[index].initBlockNode(height, block, parent)
-			chain.bi.addBlock(&nodes[index])
-			last = &nodes[index]
-			index++
-			return
-		}); err != nil {
-			return
-		}
-
-		// Set chain state
-		st.node = last
-		chain.rt.setHead(st)
-
-		// Read queries and rebuild memory index
-		heights := meta.Bucket(metaHeightIndexBucket)
-
-		if err = heights.ForEach(func(k, v []byte) (err error) {
-			h := keyToHeight(k)
-
-			if resps := heights.Bucket(k).Bucket(
-				metaResponseIndexBucket); resps != nil {
-				if err = resps.ForEach(func(k []byte, v []byte) (err error) {
-					var resp = &wt.SignedResponseHeader{}
-					if err = utils.DecodeMsgPack(v, resp); err != nil {
-						return
-					}
-					log.WithFields(log.Fields{
-						"height": h,
-						"header": resp.HeaderHash.String(),
-					}).Debug("Loaded new resp header")
-					return chain.qi.addResponse(h, resp)
-				}); err != nil {
-					return
-				}
-			}
-
-			ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
-			ldbKey = append(append(ldbKey, metaAckIndexBucket[:]...), k...)
-			iter := ldb.NewIterator(util.BytesPrefix(ldbKey), nil)
-			defer iter.Release()
-			for iter.Next() {
-				var ack = &wt.SignedAckHeader{}
-				if err = utils.DecodeMsgPack(iter.Value(), ack); err != nil {
-					return
-				}
-				log.WithFields(log.Fields{
-					"height": h,
-					"header": ack.HeaderHash.String(),
-				}).Debug("Loaded new ack header")
-				return chain.qi.addAck(h, ack)
-			}
-			err = iter.Error()
-			if err != nil {
-				err = errors.Wrap(err, "load new ack header")
+			// Set constant fields from genesis block
+			chain.rt.setGenesis(block)
+		} else if block.ParentHash().IsEqual(&last.hash) {
+			if err = block.Verify(); err != nil {
 				return
 			}
 
-			//acks := heights.Bucket(k).Bucket(metaAckIndexBucket)
-			//if acks != nil {
-			//	if err = acks.ForEach(func(k []byte, v []byte) (err error) {
-			//		var ack = &wt.SignedAckHeader{}
-			//		if err = utils.DecodeMsgPack(v, ack); err != nil {
-			//			return
-			//		}
-			//		log.WithFields(log.Fields{
-			//			"height": h,
-			//			"header": ack.HeaderHash.String(),
-			//		}).Debug("Loaded new ack header")
-			//		return chain.qi.addAck(h, ack)
-			//	}); err != nil {
-			//		return
-			//	}
-			//}
+			parent = last
+		} else {
+			parent = chain.bi.lookupNode(block.ParentHash())
 
-			return
-		}); err != nil {
-			return
+			if parent == nil {
+				return nil, ErrParentNotFound
+			}
 		}
 
+		height := chain.rt.getHeightFromTime(block.Timestamp())
+		nodes[index].initBlockNode(height, block, parent)
+		chain.bi.addBlock(&nodes[index])
+		last = &nodes[index]
+		index++
+	}
+	if err = blockIter.Error(); err != nil {
+		err = errors.Wrap(err, "load block")
 		return
-	})
+	}
+
+	// Set chain state
+	st.node = last
+	chain.rt.setHead(st)
+
+	// Read queries and rebuild memory index
+	respIter := chain.tdb.NewIterator(util.BytesPrefix(metaResponseIndex[:]), nil)
+	defer respIter.Release()
+	for respIter.Next() {
+		k := respIter.Key()
+		v := respIter.Value()
+		h := keyWithSymbolToHeight(k)
+		var resp = &wt.SignedResponseHeader{}
+		if err = utils.DecodeMsgPack(v, resp); err != nil {
+			err = errors.Wrapf(err, "load resp, height %d, index %s", h, string(k))
+			return
+		}
+		log.WithFields(log.Fields{
+			"height": h,
+			"header": resp.HeaderHash.String(),
+		}).Debug("Loaded new resp header")
+		err = chain.qi.addResponse(h, resp)
+		if err != nil {
+			err = errors.Wrapf(err, "load resp, height %d, hash %s", h, resp.HeaderHash.String())
+			return
+		}
+	}
+	if err = respIter.Error(); err != nil {
+		err = errors.Wrap(err, "load resp")
+		return
+	}
+
+	ackIter := chain.tdb.NewIterator(util.BytesPrefix(metaAckIndex[:]), nil)
+	defer ackIter.Release()
+	for ackIter.Next() {
+		k := ackIter.Key()
+		v := ackIter.Value()
+		h := keyWithSymbolToHeight(k)
+		var ack = &wt.SignedAckHeader{}
+		if err = utils.DecodeMsgPack(v, ack); err != nil {
+			err = errors.Wrapf(err, "load ack, height %d, index %s", h, string(k))
+			return
+		}
+		log.WithFields(log.Fields{
+			"height": h,
+			"header": ack.HeaderHash.String(),
+		}).Debug("Loaded new ack header")
+		err = chain.qi.addAck(h, ack)
+		if err != nil {
+			err = errors.Wrapf(err, "load ack, height %d, hash %s", h, ack.HeaderHash.String())
+			return
+		}
+	}
+	if err = respIter.Error(); err != nil {
+		err = errors.Wrap(err, "load ack")
+		return
+	}
 
 	return
 }
@@ -374,21 +396,25 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	}
 
 	// Update in transaction
-	err = c.db.Update(func(tx *bolt.Tx) (err error) {
-		if err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState.Bytes()); err != nil {
-			return
-		}
-
-		if err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(
-			node.indexKey(), encBlock.Bytes()); err != nil {
-			return
-		}
-
-		c.rt.setHead(st)
-		c.bi.addBlock(node)
-		c.qi.setSignedBlock(h, b)
+	batch := new(leveldb.Batch)
+	batch.Put(metaState[:], encState.Bytes())
+	t, err := c.bdb.OpenTransaction()
+	if err = t.Put(metaState[:], encState.Bytes(), nil); err != nil {
+		err = errors.Wrapf(err, "put %s", string(metaState[:]))
 		return
-	})
+	}
+	blockKey := utils.ConcatAll(metaBlockIndex[:], node.indexKey())
+	if err = t.Put(blockKey, encBlock.Bytes(), nil); err != nil {
+		err = errors.Wrapf(err, "put %s", string(node.indexKey()))
+		return
+	}
+	if err = t.Commit(); err != nil {
+		err = errors.Wrapf(err, "commit error")
+		return
+	}
+	c.rt.setHead(st)
+	c.bi.addBlock(node)
+	c.qi.setSignedBlock(h, b)
 
 	if err == nil {
 		log.WithFields(log.Fields{
@@ -444,21 +470,13 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 		return
 	}
 
-	return c.db.Update(func(tx *bolt.Tx) (err error) {
-		heightBucket, err := ensureHeight(tx, k)
+	tdbKey := utils.ConcatAll(metaResponseIndex[:], k, resp.HeaderHash[:])
+	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
+		err = errors.Wrapf(err, "put response %d %s", h, resp.HeaderHash.String())
+		return
+	}
 
-		if err != nil {
-			return
-		}
-
-		if err = heightBucket.Bucket(metaResponseIndexBucket).Put(
-			resp.HeaderHash[:], enc.Bytes()); err != nil {
-			return
-		}
-
-		// Always put memory changes which will not be affected by rollback after DB operations
-		return c.qi.addResponse(h, resp)
-	})
+	return
 }
 
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
@@ -471,28 +489,14 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 		return
 	}
 
-	return c.db.Update(func(tx *bolt.Tx) (err error) {
-		_, err = ensureHeight(tx, k)
-		if err != nil {
-			return
-		}
+	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.HeaderHash[:])
 
-		ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
-		ldbKey = append(append(append(ldbKey, metaAckIndexBucket[:]...), k...), ack.HeaderHash[:]...)
-		err = c.ldb.Put(ldbKey, enc.Bytes(), nil)
-		//err = b.Bucket(metaAckIndexBucket).Put(ack.HeaderHash[:], enc.Bytes())
-		if err != nil {
-			err = errors.Wrapf(err, "put %s %d %s", string(metaAckIndexBucket[:]), h, ack.HeaderHash)
-			return
-		}
-
-		// Always put memory changes which will not be affected by rollback after DB operations
-		if err = c.qi.addAck(h, ack); err != nil {
-			return
-		}
-
+	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
+		err = errors.Wrapf(err, "put response %d %s", h, ack.HeaderHash.String())
 		return
-	})
+	}
+
+	return
 }
 
 // produceBlock prepares, signs and advises the pending block to the orther peers.
@@ -877,14 +881,13 @@ func (c *Chain) Stop() (err error) {
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
 	}).Debug("Chain service stopped")
-	// Close database file
-	err = c.db.Close()
+	// Close LevelDB file
+	err = c.bdb.Close()
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
 	}).Debug("Chain database closed")
-	// Close LevelDB file
-	err = c.ldb.Close()
+	err = c.tdb.Close()
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
@@ -895,15 +898,19 @@ func (c *Chain) Stop() (err error) {
 // FetchBlock fetches the block at specified height from local cache.
 func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 	if n := c.rt.getHead().node.ancestor(height); n != nil {
-		k := n.indexKey()
-		err = c.db.View(func(tx *bolt.Tx) (err error) {
-			if v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k); v != nil {
-				b = &ct.Block{}
-				err = utils.DecodeMsgPack(v, b)
-			}
+		k := utils.ConcatAll(metaBlockIndex[:], n.indexKey())
+		v, err := c.bdb.Get(k, nil)
+		if err != nil {
+			err = errors.Wrapf(err, "fetch block %s", string(k))
+			return nil, err
+		}
 
-			return
-		})
+		b = &ct.Block{}
+		err = utils.DecodeMsgPack(v, b)
+		if err != nil {
+			err = errors.Wrapf(err, "fetch block %s", string(k))
+			return nil, err
+		}
 	}
 
 	return
@@ -916,30 +923,28 @@ func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	if ack, err = c.qi.getAck(height, header); err == nil && ack != nil {
 		return
 	}
-	err = c.db.View(func(tx *bolt.Tx) (err error) {
-		var hb = tx.Bucket(metaBucket[:]).Bucket(metaHeightIndexBucket)
-		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
-			k := heightToKey(h)
-			if ab := hb.Bucket(heightToKey(h)); ab != nil {
-				ldbKey := make([]byte, 0, len(metaAckIndexBucket)+len(k)+hash.HashSize)
-				ldbKey = append(append(append(ldbKey, metaAckIndexBucket[:]...), k...), header[:]...)
-				v, _ := c.ldb.Get(ldbKey, nil)
-				//v := ab.Bucket(metaAckIndexBucket).Get(header[:])
-				if v != nil {
-					var dec = &wt.SignedAckHeader{}
-					if err = utils.DecodeMsgPack(v, dec); err != nil {
-						return
-					}
-					ack = dec
-					break
-				}
+	for h := height - c.rt.queryTTL - 1; h <= height; h++ {
+		k := heightToKey(h)
+		ackKey := utils.ConcatAll(metaAckIndex[:], k, header[:])
+		v, err := c.tdb.Get(ackKey, nil)
+		if err != nil {
+			if err != leveldb.ErrNotFound {
+				err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
+				return nil, err
 			}
+		} else {
+			var dec = &wt.SignedAckHeader{}
+			if err = utils.DecodeMsgPack(v, dec); err != nil {
+				err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
+				return nil, err
+			}
+			ack = dec
+			break
 		}
-		if ack == nil {
-			err = ErrAckQueryNotFound
-		}
-		return
-	})
+	}
+	if ack == nil {
+		err = ErrAckQueryNotFound
+	}
 	return
 }
 

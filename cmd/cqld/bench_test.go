@@ -159,7 +159,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
+		ID: nodePayload.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	err = RPCClient.Call("DHT."+reqType, reqFN, respFN)
@@ -288,7 +288,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
+		ID: nodePayload.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	b.Run("benchmark "+reqType, func(b *testing.B) {

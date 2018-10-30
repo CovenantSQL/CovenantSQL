@@ -622,8 +622,31 @@ func BenchmarkClientOnly(b *testing.B) {
 	})
 }
 
-func BenchmarkMinerGNTETwo(b *testing.B) {
+func BenchmarkMinerGNTE1(b *testing.B) {
+	Convey("bench GNTE one node", b, func() {
+		benchGNTEMiner(b, 1, false)
+	})
+}
+func BenchmarkMinerGNTE2(b *testing.B) {
 	Convey("bench GNTE two node", b, func() {
 		benchGNTEMiner(b, 2, false)
+	})
+}
+
+func BenchmarkMinerGNTE3(b *testing.B) {
+	Convey("bench GNTE three node", b, func() {
+		benchGNTEMiner(b, 3, false)
+	})
+}
+
+func BenchmarkMinerGNTE4(b *testing.B) {
+	Convey("bench GNTE three node", b, func() {
+		benchGNTEMiner(b, 4, false)
+	})
+}
+
+func BenchmarkMinerGNTE8(b *testing.B) {
+	Convey("bench GNTE three node", b, func() {
+		benchGNTEMiner(b, 8, false)
 	})
 }

@@ -407,10 +407,10 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	start := (rand.Int31() % 100) * 10000
 
 	var i int32
-	//var insertedCount int
+	var insertedCount int
 	b.Run("benchmark INSERT", func(b *testing.B) {
 		b.ResetTimer()
-		//insertedCount = b.N
+		insertedCount = b.N
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt32(&i, 1)
@@ -432,18 +432,21 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	}
 	log.Warnf("Row Count: %d", count)
 
-	//b.Run("benchmark SELECT", func(b *testing.B) {
-	//	b.ResetTimer()
-	//	for i := 0; i < b.N; i++ {
-	//		row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
-	//		var result int
-	//		err = row.Scan(&result)
-	//		if err != nil || result < 0 {
-	//			log.Errorf("i = %d", i)
-	//			b.Fatal(err)
-	//		}
-	//	}
-	//})
+	b.Run("benchmark SELECT", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if i%1000 == 0 {
+				log.Warnf("NOW index: %d", i)
+			}
+			row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
+			var result int
+			err = row.Scan(&result)
+			if err != nil || result < 0 {
+				log.Errorf("i = %d", i)
+				b.Fatal(err)
+			}
+		}
+	})
 
 	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 

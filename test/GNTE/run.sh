@@ -1,10 +1,8 @@
 #!/bin/bash -x
 
 
-BUILD_IMG="covenantsql/build"
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
-BENCH_CONTAIN="bench10.250.1.8"
 
 echo ${PROJECT_DIR}
 
@@ -24,6 +22,8 @@ cd ${TEST_WD}/GNTE && bash -x ./build.sh
 cd ${TEST_WD}/GNTE && bash -x ./generate.sh ./scripts/gnte.yaml
 rm -rf ${TEST_WD}/GNTE/scripts/bin.bak
 
+#BUILD_IMG="covenantsql/build"
+#BENCH_CONTAIN="bench10.250.1.8"
 #INSIDE_GOPATH=$(docker run -it --rm ${BUILD_IMG} bash -c 'echo -n "$GOPATH"')
 #docker run -itd \
 #    --name ${BENCH_CONTAIN}\

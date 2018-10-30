@@ -103,7 +103,7 @@ func TestState(t *testing.T) {
 			})
 		})
 		Convey("The state will report error on read with uncommitted schema change", func() {
-			// FIXME(leventeliu): this case is not quite user friendly.
+			// TODO(leventeliu): this case is not quite user friendly.
 			var (
 				req = buildRequest(wt.WriteQuery, []wt.Query{
 					buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),

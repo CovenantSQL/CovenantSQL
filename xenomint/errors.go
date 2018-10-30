@@ -29,4 +29,6 @@ var (
 	ErrStateClosed = errors.New("state is closed")
 	// ErrQueryConflict indicates the there is a conflict on query replay.
 	ErrQueryConflict = errors.New("query conflict")
+	// ErrLocalBehindRemote indicates the local state is behind the remote.
+	ErrLocalBehindRemote = errors.New("local state is behind the remote")
 )

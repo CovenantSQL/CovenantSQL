@@ -22,34 +22,29 @@ import (
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
+type query struct {
+	req  *wt.Request
+	resp *wt.Response
+}
+
 type pool struct {
 	sync.RWMutex
-	queries []*wt.Response
+	queries []*query
 	index   map[uint64]int
 }
 
 func newPool() *pool {
 	return &pool{
-		queries: make([]*wt.Response, 0),
+		queries: make([]*query, 0),
 		index:   make(map[uint64]int),
 	}
 }
 
-func (p *pool) loadResponse(id uint64) (resp *wt.Response, ok bool) {
-	p.Lock()
-	defer p.Unlock()
-	var pos int
-	if pos, ok = p.index[id]; ok {
-		resp = p.queries[pos]
-	}
-	return
-}
-
-func (p *pool) enqueue(resp *wt.Response) {
+func (p *pool) enqueue(req *wt.Request, resp *wt.Response) {
 	p.Lock()
 	defer p.Unlock()
 	var pos = len(p.queries)
-	p.queries = append(p.queries, resp)
+	p.queries = append(p.queries, &query{req: req, resp: resp})
 	p.index[resp.Header.LogOffset] = pos
 	return
 }

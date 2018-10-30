@@ -37,10 +37,12 @@ type state struct {
 func newState(strg xi.Storage) (s *state, err error) {
 	var t = &state{
 		strg: strg,
+		pool: newPool(),
 	}
 	if t.unc, err = t.strg.Writer().Begin(); err != nil {
 		return
 	}
+	t.setSavepoint()
 	s = t
 	return
 }
@@ -242,9 +244,9 @@ func (s *state) rollbackTo(savepoint uint64) {
 func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
 	var (
 		ierr      error
-		savepoint = s.setSavepoint()
+		savepoint = s.getID()
 	)
-	// FIXME(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
+	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	for i, v := range req.Payload.Queries {
 		if _, ierr = s.writeSingle(&v); ierr != nil {
 			err = errors.Wrapf(ierr, "execute at #%d failed", i)
@@ -264,30 +266,20 @@ func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
 			},
 		},
 	}
-	s.pool.enqueue(resp)
+	s.setSavepoint()
+	s.pool.enqueue(req, resp)
 	return
 }
 
 func (s *state) replay(req *wt.Request, resp *wt.Response) (err error) {
-	var (
-		loc *wt.Response
-		ok  bool
-	)
-	if loc, ok = s.pool.loadResponse(resp.Header.LogOffset); ok {
-		if !req.Header.HeaderHash.IsEqual(&loc.Header.Request.HeaderHash) {
-			err = ErrQueryConflict
-			return
-		}
-		return
-	}
 	if resp.Header.ResponseHeader.LogOffset != s.getID() {
 		err = ErrQueryConflict
 		return
 	}
-	if loc, err = s.write(req); err != nil {
+	if _, err = s.write(req); err != nil {
 		return
 	}
-	s.pool.enqueue(resp)
+	s.pool.enqueue(req, resp)
 	return
 }
 
@@ -299,6 +291,43 @@ func (s *state) commit() (err error) {
 		return
 	}
 	s.setNextTxID()
+	s.setSavepoint()
+	return
+}
+
+func (s *state) partialCommit(qs []*wt.Ack) (err error) {
+	var (
+		i  int
+		v  *wt.Ack
+		q  *query
+		rm []*query
+
+		pl = len(s.pool.queries)
+	)
+	if len(qs) > pl {
+		err = ErrLocalBehindRemote
+		return
+	}
+	for i, v = range qs {
+		var loc = s.pool.queries[i]
+		if !loc.req.Header.HeaderHash.IsEqual(&v.Header.Response.Request.HeaderHash) ||
+			loc.resp.Header.LogOffset != v.Header.Response.LogOffset {
+			err = ErrQueryConflict
+			return
+		}
+	}
+	if i < pl-1 {
+		s.rollbackTo(s.pool.queries[i+1].resp.Header.LogOffset)
+	}
+	// Reset pool
+	rm = s.pool.queries[:i+1]
+	s.pool = newPool()
+	// Rewrite
+	for _, q = range rm {
+		if _, err = s.write(q.req); err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -322,6 +351,7 @@ func (s *state) Query(req *wt.Request) (resp *wt.Response, err error) {
 	return
 }
 
+// Replay replays a write log from other peer to replicate storage state.
 func (s *state) Replay(req *wt.Request, resp *wt.Response) (err error) {
 	switch req.Header.QueryType {
 	case wt.ReadQuery:

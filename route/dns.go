@@ -135,7 +135,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 		var err error
 		BPNodes, err = dc.GetBPFromDNSSeed(seedDomain)
 		if err != nil {
-			log.Errorf("getting BP addr from DNS %s failed: %s", seedDomain, err)
+			log.WithField("seed", seedDomain).WithError(err).Error("getting BP addr from DNS failed")
 			return
 		}
 	}
@@ -192,7 +192,10 @@ func InitKMS(PubKeyStoreFile string) {
 		for _, n := range conf.GConf.KnownNodes {
 			rawNodeID := n.ID.ToRawNodeID()
 
-			log.Debugf("set node addr: %v, %v", rawNodeID, n.Addr)
+			log.WithFields(log.Fields{
+				"node": rawNodeID.String(),
+				"addr": n.Addr,
+			}).Debug("set node addr")
 			SetNodeAddrCache(rawNodeID, n.Addr)
 			node := &proto.Node{
 				ID:        n.ID,
@@ -201,15 +204,15 @@ func InitKMS(PubKeyStoreFile string) {
 				Nonce:     n.Nonce,
 				Role:      n.Role,
 			}
-			log.Debugf("known node to set: %v", node)
+			log.WithField("node", node).Debug("known node to set")
 			err := kms.SetNode(node)
 			if err != nil {
-				log.Errorf("set node failed: %v\n %s", node, err)
+				log.WithField("node", node).WithError(err).Error("set node failed")
 			}
 			if n.ID == conf.GConf.ThisNodeID {
 				kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
 			}
 		}
 	}
-	log.Debugf("AllNodes:\n %v\n", conf.GConf.KnownNodes)
+	log.Debugf("AllNodes:\n %#v\n", conf.GConf.KnownNodes)
 }

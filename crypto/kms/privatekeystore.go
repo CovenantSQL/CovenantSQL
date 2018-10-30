@@ -41,20 +41,22 @@ var (
 func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
 	fileContent, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
-		log.Errorf("error read key file: %s, err: %s", keyFilePath, err)
+		log.WithField("path", keyFilePath).WithError(err).Error("read key file failed")
 		return
 	}
 
 	decData, err := symmetric.DecryptWithPassword(fileContent, masterKey)
 	if err != nil {
-		log.Errorf("decrypt private key error")
+		log.Error("decrypt private key error")
 		return
 	}
 
 	// sha256 + privateKey
 	if len(decData) != hash.HashBSize+asymmetric.PrivateKeyBytesLen {
-		log.Errorf("private key file size should be %d bytes",
-			hash.HashBSize+asymmetric.PrivateKeyBytesLen)
+		log.WithFields(log.Fields{
+			"expected": hash.HashBSize + asymmetric.PrivateKeyBytesLen,
+			"actual":   len(decData),
+		}).Error("wrong private key file size")
 		return nil, ErrNotKeyFile
 	}
 
@@ -87,33 +89,33 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	initLocalKeyStore()
 	privateKey, err = LoadPrivateKey(privateKeyPath, masterKey)
 	if err != nil {
-		log.Infof("load private key failed: %s", err)
+		log.WithError(err).Info("load private key failed")
 		if err == ErrNotKeyFile {
-			log.Errorf("not a valid private key file: %s", privateKeyPath)
+			log.WithField("path", privateKeyPath).Error("not a valid private key file")
 			return
 		}
 		if _, ok := err.(*os.PathError); (ok || err == os.ErrNotExist) && conf.GConf.GenerateKeyPair {
 			log.Info("private key file not exist, generating one")
 			privateKey, publicKey, err = asymmetric.GenSecp256k1KeyPair()
 			if err != nil {
-				log.Errorf("generate private key failed: %s", err)
+				log.WithError(err).Error("generate private key failed")
 				return
 			}
-			log.Infof("saving new private key file: %s", privateKeyPath)
+			log.WithField("path", privateKeyPath).Info("saving new private key file")
 			err = SavePrivateKey(privateKeyPath, privateKey, masterKey)
 			if err != nil {
-				log.Errorf("save private key failed: %s", err)
+				log.WithError(err).Error("save private key failed")
 				return
 			}
 		} else {
-			log.Errorf("unexpected error while loading private key: %s", err)
+			log.WithError(err).Error("unexpected error while loading private key")
 			return
 		}
 	}
 	if publicKey == nil {
 		publicKey = privateKey.PubKey()
 	}
-	log.Debugf("\n### Public Key ###\n%x\n### Public Key ###\n", publicKey.Serialize())
+	log.Debugf("\n### Public Key ###\n%#x\n### Public Key ###\n", publicKey.Serialize())
 	SetLocalKeyPair(privateKey, publicKey)
 	return
 }

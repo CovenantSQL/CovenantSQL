@@ -127,7 +127,7 @@ func (h *Hash) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// load hash
 	err := Decode(h, str)
 	if err != nil {
-		log.Errorf("Error in UnmarshalYAML: %v", err)
+		log.WithError(err).Error("unmarshal YAML failed")
 		return err
 	}
 	return nil

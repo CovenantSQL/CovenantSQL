@@ -30,9 +30,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cyberdelia/go-metrics-graphite"
-	"github.com/rcrowley/go-metrics"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -43,6 +40,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
+	"github.com/cyberdelia/go-metrics-graphite"
+	"github.com/rcrowley/go-metrics"
 )
 
 const logo = `
@@ -113,9 +112,9 @@ func init() {
 }
 
 func initLogs() {
-	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
-	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
-	log.Infof("role: %s", conf.RoleTag)
+	log.Infof("%#v starting, version %#v, commit %#v, branch %#v", name, version, commit, branch)
+	log.Infof("%#v, target architecture is %#v, operating system target is %#v", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("role: %#v", conf.RoleTag)
 }
 
 func main() {
@@ -124,23 +123,23 @@ func main() {
 	log.SetLevel(log.InfoLevel)
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %#v", f.Name, f.Value)
 	})
 
 	var err error
 	conf.GConf, err = conf.LoadConfig(configFile)
 	if err != nil {
-		log.Fatalf("load config from %s failed: %s", configFile, err)
+		log.WithField("config", configFile).WithError(err).Fatal("load config failed")
 	}
 
 	if conf.GConf.Miner == nil {
-		log.Fatalf("miner config does not exists")
+		log.Fatal("miner config does not exists")
 	}
 	if conf.GConf.Miner.MetricCollectInterval.Seconds() <= 0 {
-		log.Fatalf("miner metric collect interval is invalid")
+		log.Fatal("miner metric collect interval is invalid")
 	}
 	if conf.GConf.Miner.MaxReqTimeGap.Seconds() <= 0 {
-		log.Fatalf("miner request time gap is invalid")
+		log.Fatal("miner request time gap is invalid")
 	}
 
 	kms.InitBP()
@@ -150,7 +149,7 @@ func main() {
 	initLogs()
 
 	if showVersion {
-		log.Infof("%s %s %s %s %s (commit %s, branch %s)",
+		log.Infof("%#v %#v %#v %#v %#v (commit %#v, branch %#v)",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version(), commit, branch)
 		os.Exit(0)
 	}
@@ -169,12 +168,12 @@ func main() {
 	// start rpc
 	var server *rpc.Server
 	if server, err = initNode(); err != nil {
-		log.Fatalf("init node failed: %v", err)
+		log.WithError(err).Fatal("init node failed")
 	}
 
 	if conf.GConf.Miner.IsTestMode {
 		// miner test mode enabled
-		log.Debugf("miner test mode enabled")
+		log.Debug("miner test mode enabled")
 	}
 
 	// stop channel for all daemon routines
@@ -234,7 +233,7 @@ func main() {
 			return
 		}
 
-		log.Debugf("construct local node info: %v", localNodeInfo)
+		log.WithField("node", localNodeInfo).Debug("construct local node info")
 
 		go func() {
 			for {
@@ -260,7 +259,7 @@ func main() {
 	// start dbms
 	var dbms *worker.DBMS
 	if dbms, err = startDBMS(server); err != nil {
-		log.Fatalf("start dbms failed: %v", err)
+		log.WithError(err).Fatal("start dbms failed")
 	}
 
 	defer dbms.Shutdown()
@@ -289,7 +288,7 @@ func main() {
 	if metricGraphite != "" {
 		addr, err := net.ResolveTCPAddr("tcp", metricGraphite)
 		if err != nil {
-			log.Errorf("resolve metric graphite server addr failed: %v", err)
+			log.WithError(err).Error("resolve metric graphite server addr failed")
 			return
 		}
 		minerName := fmt.Sprintf("miner-%s", conf.GConf.ThisNodeID[len(conf.GConf.ThisNodeID)-5:])
@@ -299,16 +298,16 @@ func main() {
 	if traceFile != "" {
 		f, err := os.Create(traceFile)
 		if err != nil {
-			log.Fatalf("failed to create trace output file: %v", err)
+			log.WithError(err).Fatal("failed to create trace output file")
 		}
 		defer func() {
 			if err := f.Close(); err != nil {
-				log.Fatalf("failed to close trace file: %v", err)
+				log.WithError(err).Fatal("failed to close trace file")
 			}
 		}()
 
 		if err := trace.Start(f); err != nil {
-			log.Fatalf("failed to start trace: %v", err)
+			log.WithError(err).Fatal("failed to start trace")
 		}
 		defer trace.Stop()
 	}

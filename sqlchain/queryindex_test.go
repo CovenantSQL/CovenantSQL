@@ -21,9 +21,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
@@ -386,7 +385,7 @@ func TestQueryIndex(t *testing.T) {
 				); err != nil {
 					t.Fatalf("Error occurred: %v", err)
 				} else if !isKnown {
-					t.Fatalf("Unexpected result: block is known")
+					t.Fatal("Unexpected result: block is known")
 				}
 			}
 		}

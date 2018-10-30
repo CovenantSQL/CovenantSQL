@@ -32,7 +32,6 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
-
 	// Register CovenantSQL/go-sqlite3-encrypt engine.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )

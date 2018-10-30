@@ -214,18 +214,18 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
-		log.Errorf("init local key pair failed: %s", err)
+		log.WithError(err).Error("init local key pair failed")
 		return
 	}
 
 	conf.GConf.KnownNodes[idx].PublicKey, err = kms.GetLocalPublicKey()
 	if err != nil {
-		log.Errorf("get local public key failed: %s", err)
+		log.WithError(err).Error("get local public key failed")
 		return
 	}
 
 	// init nodes
-	log.Infof("init peers")
+	log.Info("init peers")
 	_, _, _, err = initNodePeers(nodeID, pubKeyStorePath)
 	if err != nil {
 		return

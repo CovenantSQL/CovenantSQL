@@ -159,10 +159,18 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 
 		if len(columns) == 0 {
 			columns = append(columns, "_")
-			row = make([]interface{}, 0)
 		}
 
-		resultSet, _ = my.BuildSimpleTextResultset(columns, [][]interface{}{row})
+		if row != nil {
+			resultSet, _ = my.BuildSimpleTextResultset(columns, [][]interface{}{row})
+		} else {
+			resultSet, _ = my.BuildSimpleTextResultset(columns, [][]interface{}{})
+		}
+
+		if resultSet.RowDatas == nil {
+			// force non-empty result set
+			resultSet.RowDatas = make([]my.RowData, 0)
+		}
 
 		r = &my.Result{
 			Status:       0,

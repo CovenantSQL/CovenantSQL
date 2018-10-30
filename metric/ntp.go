@@ -16,6 +16,7 @@
 package metric
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -53,7 +54,7 @@ type ntpCollector struct {
 func NewNtpCollector() (Collector, error) {
 	ipaddr := net.ParseIP(ntpServer)
 	if !ntpServerIsLocal && (ipaddr == nil || !ipaddr.IsLoopback()) {
-		return nil, fmt.Errorf("only IP address of local NTP server is valid for --collector.ntp.server")
+		return nil, errors.New("only IP address of local NTP server is valid for --collector.ntp.server")
 	}
 
 	if ntpProtocolVersion < 2 || ntpProtocolVersion > 4 {
@@ -61,7 +62,7 @@ func NewNtpCollector() (Collector, error) {
 	}
 
 	if ntpOffsetTolerance < 0 {
-		return nil, fmt.Errorf("Offset tolerance must be non-negative")
+		return nil, errors.New("Offset tolerance must be non-negative")
 	}
 
 	return &ntpCollector{

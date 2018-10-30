@@ -358,7 +358,7 @@ func (dbms *DBMS) Shutdown() (err error) {
 		db := rawDB.(*Database)
 
 		if err = db.Shutdown(); err != nil {
-			log.Errorf("shutdown database failed: %v", err)
+			log.WithError(err).Error("shutdown database failed")
 		}
 
 		return true

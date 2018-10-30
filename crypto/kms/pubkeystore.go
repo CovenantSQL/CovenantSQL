@@ -67,13 +67,13 @@ func init() {
 		strings.HasPrefix(filepath.Base(os.Args[0]), "___") {
 		_, testFile, _, _ := runtime.Caller(0)
 		confFile := filepath.Join(filepath.Dir(testFile), "config.yaml")
-		log.Debugf("Current test filename: %s", confFile)
-		log.Debugf("os.Args: %v", os.Args)
+		log.WithField("conf", confFile).Debug("current test filename")
+		log.Debugf("os.Args: %#v", os.Args)
 
 		var err error
 		conf.GConf, err = conf.LoadConfig(confFile)
 		if err != nil {
-			log.Fatalf("load config for test in kms failed: %s", err)
+			log.WithError(err).Fatal("load config for test in kms failed")
 		}
 		InitBP()
 	}
@@ -88,7 +88,7 @@ func InitBP() {
 
 	err := hash.Decode(&BP.RawNodeID.Hash, string(BP.NodeID))
 	if err != nil {
-		log.Fatalf("BP.NodeID error: %s", err)
+		log.WithError(err).Fatal("BP.NodeID error")
 	}
 }
 
@@ -118,7 +118,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	var bdb *bolt.DB
 	bdb, err = bolt.Open(dbPath, 0600, nil)
 	if err != nil {
-		log.Errorf("InitPublicKeyStore failed: %s", err)
+		log.WithError(err).Error("InitPublicKeyStore failed")
 		pksLock.Unlock()
 		return
 	}
@@ -126,13 +126,13 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	name := []byte(kmsBucketName)
 	err = bdb.Update(func(tx *bolt.Tx) error {
 		if _, err := tx.CreateBucketIfNotExists(name); err != nil {
-			log.Errorf("could not create bucket: %s", err)
+			log.WithError(err).Error("could not create bucket")
 			return err
 		}
 		return nil // return from Update func
 	})
 	if err != nil {
-		log.Errorf("InitPublicKeyStore failed: %s", err)
+		log.WithError(err).Error("InitPublicKeyStore failed")
 		pksLock.Unlock()
 		return
 	}
@@ -147,7 +147,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	for _, n := range initNodes {
 		err = setNode(&n)
 		if err != nil {
-			log.Errorf("set init nodes failed: %v", err)
+			log.WithError(err).Error("set init nodes failed")
 			return
 		}
 	}
@@ -184,11 +184,11 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 			return ErrKeyNotFound
 		}
 		err = utils.DecodeMsgPack(byteVal, &nodeInfo)
-		log.Debugf("get node info: %v", nodeInfo)
+		log.Debugf("get node info: %#v", nodeInfo)
 		return err // return from View func
 	})
 	if err != nil {
-		log.Infof("get node info failed: %s", err)
+		log.WithError(err).Error("get node info failed")
 	}
 	return
 }
@@ -212,7 +212,7 @@ func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 		return err // return from View func
 	})
 	if err != nil {
-		log.Errorf("get all node id failed: %s", err)
+		log.WithError(err).Error("get all node id failed")
 	}
 	return
 
@@ -262,10 +262,10 @@ func setNode(nodeInfo *proto.Node) (err error) {
 
 	nodeBuf, err := utils.EncodeMsgPack(nodeInfo)
 	if err != nil {
-		log.Errorf("marshal node info failed: %s", err)
+		log.WithError(err).Error("marshal node info failed")
 		return
 	}
-	log.Debugf("set node: %v", nodeInfo)
+	log.Debugf("set node: %#v", nodeInfo)
 
 	err = pks.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(pks.bucket)
@@ -275,7 +275,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 		return bucket.Put([]byte(nodeInfo.ID), nodeBuf.Bytes())
 	})
 	if err != nil {
-		log.Errorf("get node info failed: %s", err)
+		log.WithError(err).Error("get node info failed")
 	}
 
 	return
@@ -297,7 +297,7 @@ func DelNode(id proto.NodeID) (err error) {
 		return bucket.Delete([]byte(id))
 	})
 	if err != nil {
-		log.Errorf("del node failed: %s", err)
+		log.WithError(err).Error("del node failed")
 	}
 	return
 }
@@ -311,7 +311,7 @@ func removeBucket() (err error) {
 			return tx.DeleteBucket([]byte(kmsBucketName))
 		})
 		if err != nil {
-			log.Errorf("remove bucket failed: %s", err)
+			log.WithError(err).Error("remove bucket failed")
 			return
 		}
 		// ks.bucket == nil means bucket not exist
@@ -334,7 +334,7 @@ func ResetBucket() error {
 	})
 	pks.bucket = bucketName
 	if err != nil {
-		log.Errorf("reset bucket failed: %s", err)
+		log.WithError(err).Error("reset bucket failed")
 	}
 
 	return err

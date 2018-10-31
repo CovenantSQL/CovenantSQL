@@ -95,8 +95,15 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %#v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error
@@ -112,12 +119,6 @@ func main() {
 
 	// init log
 	initLogs()
-
-	if showVersion {
-		log.Infof("%#v %#v %#v %#v %#v (commit %#v, branch %#v)",
-			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version(), commit, branch)
-		os.Exit(0)
-	}
 
 	if !noLogo {
 		fmt.Print(logo)

@@ -364,20 +364,21 @@ func (c *Chain) pushBlock(b *ct.Block) (err error) {
 	}
 
 	// Update in transaction
-	batch := new(leveldb.Batch)
-	batch.Put(metaState[:], encState.Bytes())
 	t, err := c.bdb.OpenTransaction()
 	if err = t.Put(metaState[:], encState.Bytes(), nil); err != nil {
 		err = errors.Wrapf(err, "put %s", string(metaState[:]))
+		t.Discard()
 		return
 	}
 	blockKey := utils.ConcatAll(metaBlockIndex[:], node.indexKey())
 	if err = t.Put(blockKey, encBlock.Bytes(), nil); err != nil {
 		err = errors.Wrapf(err, "put %s", string(node.indexKey()))
+		t.Discard()
 		return
 	}
 	if err = t.Commit(); err != nil {
 		err = errors.Wrapf(err, "commit error")
+		t.Discard()
 		return
 	}
 	c.rt.setHead(st)
@@ -433,6 +434,7 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
+	log.Debugf("push ack %s", ack.HeaderHash.String())
 	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := heightToKey(h)
 	var enc *bytes.Buffer

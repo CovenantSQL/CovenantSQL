@@ -81,7 +81,6 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 
 	n, err = c.Conn.Read(cipherData)
 	if err != nil {
-		log.Debugf("Read got: %s", err)
 		return
 	}
 	if n > 0 {

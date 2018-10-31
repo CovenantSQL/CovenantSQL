@@ -92,24 +92,24 @@ type ServiceInstance struct {
 func main() {
 	flag.Parse()
 
-	log.Infof("start hotfix")
+	log.Info("start hotfix")
 
 	// load private key
 	privateKey, err := kms.LoadPrivateKey(privateKey, []byte(""))
 	if err != nil {
-		log.Fatalf("load private key failed: %v", err)
+		log.WithError(err).Fatal("load private key failed")
 		return
 	}
 
 	// backup dht file
 	if err := exec.Command("cp", "-av", dhtFile, dhtFile+".bak").Run(); err != nil {
-		log.Fatalf("backup database failed: %v", err)
+		log.WithError(err).Fatal("backup database failed")
 		return
 	}
 
 	st, err := storage.New(dhtFile)
 	if err != nil {
-		log.Fatalf("open database failed: %v", err)
+		log.WithError(err).Fatal("open database failed")
 		return
 	}
 	defer st.Close()
@@ -118,7 +118,7 @@ func main() {
 		[]storage.Query{{Pattern: "SELECT `id`, `meta` FROM `databases`"}})
 
 	if err != nil {
-		log.Fatalf("select databases failed: %v", err)
+		log.WithError(err).Fatal("select database failed")
 		return
 	}
 
@@ -137,7 +137,7 @@ func main() {
 		var newInstance wt.ServiceInstance
 
 		if err := utils.DecodeMsgPackPlain(rawInstance, &testDecode); err != nil {
-			log.Fatalf("test decode failed: %v", err)
+			log.WithError(err).Fatal("test decode failed")
 		} else {
 			// detect if the genesis block is in old version
 			if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"GenesisBlock\":[]uint8") {
@@ -145,7 +145,7 @@ func main() {
 				var instance ServiceInstance
 
 				if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {
-					log.Fatalf("decode msgpack failed: %v", err)
+					log.WithError(err).Fatal("decode msgpack failed")
 					return
 				}
 
@@ -160,7 +160,7 @@ func main() {
 				log.Info("detected new version, need re-signature")
 
 				if err := utils.DecodeMsgPack(rawInstance, &newInstance); err != nil {
-					log.Fatalf("decode msgpack failed: %v", err)
+					log.WithError(err).Fatal("decode msgpack failed")
 					return
 				}
 
@@ -169,23 +169,23 @@ func main() {
 
 				// sign peers again
 				if err := newInstance.Peers.Sign(privateKey); err != nil {
-					log.Fatalf("sign peers failed: %v", err)
+					log.WithError(err).Fatal("sign peers failed")
 					return
 				}
 
 				if err := newInstance.GenesisBlock.PackAndSignBlock(privateKey); err != nil {
-					log.Fatalf("sign genesis block failed: %v", err)
+					log.WithError(err).Fatal("sign genesis block failed")
 					return
 				}
 			}
 		}
 
-		log.Infof("database is: %v -> %v", id, newInstance)
+		log.Infof("database is: %#v -> %#v", id, newInstance)
 
 		// encode and put back to database
 		rawInstanceBuffer, err := utils.EncodeMsgPack(newInstance)
 		if err != nil {
-			log.Fatalf("encode msgpack failed: %v", err)
+			log.WithError(err).Fatal("encode msgpack failed")
 			return
 		}
 
@@ -204,10 +204,10 @@ func main() {
 				},
 			},
 		}); err != nil {
-			log.Fatalf("update meta failed: %v", err)
+			log.WithError(err).Fatal("update meta failed")
 			return
 		}
 	}
 
-	log.Infof("hotfix complete")
+	log.Info("hotfix complete")
 }

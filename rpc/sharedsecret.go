@@ -45,7 +45,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
 				remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
 				if err != nil {
-					log.Errorf("get public key locally failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+					log.WithField("node", nodeID).WithError(err).Error("get public key locally failed")
 					return
 				}
 			} else {
@@ -53,7 +53,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 				var nodeInfo *proto.Node
 				nodeInfo, err = GetNodeInfo(nodeID)
 				if err != nil {
-					log.Errorf("get public key failed, node id: %s, err: %s", nodeID.ToNodeID(), err)
+					log.WithField("node", nodeID).WithError(err).Error("get public key failed")
 					return
 				}
 				remotePublicKey = nodeInfo.PublicKey
@@ -62,14 +62,17 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			var localPrivateKey *asymmetric.PrivateKey
 			localPrivateKey, err = kms.GetLocalPrivateKey()
 			if err != nil {
-				log.Errorf("get local private key failed: %s", err)
+				log.WithError(err).Error("get local private key failed")
 				return
 			}
 
 			symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
 			symmetricKeyCache.Store(nodeID, symmetricKey)
-			log.Debugf("ECDH for %s Public Key: %x, Session Key: %x",
-				nodeID.ToNodeID(), remotePublicKey.Serialize(), symmetricKey)
+			log.WithFields(log.Fields{
+				"node":       nodeID.String(),
+				"remotePub":  remotePublicKey.Serialize(),
+				"sessionKey": symmetricKey,
+			}).Debug("generated shared secret")
 		}
 		//log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",
 		//	nodeID.ToNodeID(), remotePublicKey.Serialize(), localPrivateKey.Serialize(), symmetricKey)

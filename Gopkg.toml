@@ -50,6 +50,7 @@
 
 [[override]]
   name = "github.com/xo/usql"
+  source = "github.com/CovenantSQL/usql"
   branch = "master"
 
 [[override]]
@@ -68,7 +69,6 @@
 [prune]
   go-tests = true
   unused-packages = true
-
 
 [[constraint]]
   branch = "master"

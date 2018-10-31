@@ -27,7 +27,7 @@ import (
 	"github.com/gorilla/handlers"
 )
 
-// HTTPAdapter is a adapter for ThunderDB/alternative sqlite3 service.
+// HTTPAdapter is a adapter for covenantsql/alternative sqlite3 service.
 type HTTPAdapter struct {
 	tlsConfig *tls.Config
 	server    *http.Server

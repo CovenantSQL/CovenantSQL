@@ -34,7 +34,7 @@ func runKeytool() {
 
 	privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 	if err != nil {
-		log.Errorf("load private key failed: %v\n", err)
+		log.WithError(err).Error("load private key failed")
 	}
 
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))

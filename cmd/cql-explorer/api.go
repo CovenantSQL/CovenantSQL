@@ -315,7 +315,7 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("start api server failed: %v", err)
+			log.WithError(err).Fatal("start api server failed")
 		}
 	}()
 

@@ -27,12 +27,11 @@ import (
 	"testing/quick"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	. "github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const testStorePath = "./test.store"
@@ -67,6 +66,17 @@ func NewNodeFromString(id string) Node {
 	}
 }
 
+func TestNew(t *testing.T) {
+	kms.Unittest = true
+	os.Remove(testStorePath)
+
+	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
+	defer os.Remove(testStorePath)
+	if x == nil {
+		t.Error("expected obj")
+	}
+}
+
 func TestAdd(t *testing.T) {
 	kms.Unittest = true
 	os.Remove(testStorePath)
@@ -78,13 +88,13 @@ func TestAdd(t *testing.T) {
 	CheckNum(len(x.circle), x.NumberOfReplicas, t)
 	CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
-		t.Errorf("expected sorted hashes to be sorted")
+		t.Error("expected sorted hashes to be sorted")
 	}
 	x.Add(NewNodeFromString(("3333333333333333333333333333333333333333333333333333333333333333")))
 	CheckNum(len(x.circle), 2*x.NumberOfReplicas, t)
 	CheckNum(len(x.sortedHashes), 2*x.NumberOfReplicas, t)
 	if sort.IsSorted(x.sortedHashes) == false {
-		t.Errorf("expected sorted hashes to be sorted")
+		t.Error("expected sorted hashes to be sorted")
 	}
 }
 
@@ -122,10 +132,10 @@ func TestGetEmpty(t *testing.T) {
 	defer os.Remove(testStorePath)
 	_, err := x.GetNeighbor("asdfsadfsadf")
 	if err == nil {
-		t.Errorf("expected error")
+		t.Error("expected error")
 	}
 	if err != ErrEmptyCircle {
-		t.Errorf("expected empty circle error")
+		t.Error("expected empty circle error")
 	}
 }
 
@@ -313,7 +323,7 @@ func TestGetTwo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if a.ID == b.ID {
-		t.Errorf("a shouldn't equal b")
+		t.Error("a shouldn't equal b")
 	}
 	if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong a: %v", a)
@@ -353,7 +363,7 @@ func TestGetTwoQuick(t *testing.T) {
 			return false
 		}
 		if a.ID == b.ID {
-			t.Logf("a.ID == b.ID")
+			t.Log("a.ID == b.ID")
 			return false
 		}
 		if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" && a.ID != "1111111111111111111111111111111111111111111111111111111111111111" && a.ID != "2222222222222222222222222222222222222222222222222222222222222222" {
@@ -388,7 +398,7 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 			return false
 		}
 		if a.ID == b.ID {
-			t.Logf("a.ID == b.ID")
+			t.Log("a.ID == b.ID")
 			return false
 		}
 		if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" && a.ID != "1111111111111111111111111111111111111111111111111111111111111111" {
@@ -420,7 +430,7 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if a.ID == b.ID {
-		t.Errorf("a shouldn't equal b")
+		t.Error("a shouldn't equal b")
 	}
 	if a.ID != "0000000000000000000000000000000000000000000000000000000000000000" {
 		t.Errorf("wrong a: %v", a)
@@ -589,7 +599,7 @@ func TestGetNQuick(t *testing.T) {
 		set := make(map[NodeID]Node, 4)
 		for _, member := range members {
 			if set[member.ID].ID != "" {
-				t.Logf("duplicate error")
+				t.Log("duplicate error")
 				return false
 			}
 			set[member.ID] = Node{}
@@ -628,7 +638,7 @@ func TestGetNLessQuick(t *testing.T) {
 		set := make(map[NodeID]Node, 4)
 		for _, member := range members {
 			if set[member.ID].ID != "" {
-				t.Logf("duplicate error")
+				t.Log("duplicate error")
 				return false
 			}
 			set[member.ID] = Node{}
@@ -667,7 +677,7 @@ func TestGetNMoreQuick(t *testing.T) {
 		set := make(map[NodeID]Node, 4)
 		for _, member := range members {
 			if set[member.ID].ID != "" {
-				t.Logf("duplicate error")
+				t.Log("duplicate error")
 				return false
 			}
 			set[member.ID] = Node{}

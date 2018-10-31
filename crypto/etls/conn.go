@@ -49,7 +49,7 @@ func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
-		log.Errorf("connect to %s failed: %s", address, err)
+		log.WithField("addr", address).WithError(err).Error("connect failed")
 		return
 	}
 
@@ -67,6 +67,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
 		iv := make([]byte, c.info.ivLen)
 		if _, err = io.ReadFull(c.Conn, iv); err != nil {
+			log.WithError(err).Info("read full failed")
 			return
 		}
 		if err = c.initDecrypt(iv); err != nil {

@@ -43,7 +43,7 @@ func NewDHTServiceWithRing(c *consistent.Consistent) (s *DHTService, err error) 
 func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, initBP bool) (s *DHTService, err error) {
 	c, err := consistent.InitConsistent(DHTStorePath, persistImpl, initBP)
 	if err != nil {
-		log.Errorf("init DHT service failed: %s", err)
+		log.WithError(err).Error("init DHT service failed")
 		return
 	}
 	return NewDHTServiceWithRing(c)
@@ -86,6 +86,10 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 		return
 	}
 	resp.Nodes = nodes
+	log.WithFields(log.Fields{
+		"neighCount": len(nodes),
+		"req":        req,
+	}).Debug("found nodes for find neighbor request")
 	return
 }
 

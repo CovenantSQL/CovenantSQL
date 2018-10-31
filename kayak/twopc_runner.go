@@ -193,8 +193,10 @@ func (r *TwoPCRunner) tryRestore() error {
 
 	if lastIndex > lastCommitted {
 		// uncommitted log found, print warning
-		log.Warningf("truncating local uncommitted log, uncommitted: %d, committed: %d",
-			lastIndex, lastCommitted)
+		log.WithFields(log.Fields{
+			"uncommitted": lastIndex,
+			"committed":   lastCommitted,
+		}).Warning("truncating local uncommitted log")
 
 		// truncate local uncommitted logs
 		r.logStore.DeleteRange(lastCommitted+1, lastIndex)

@@ -55,7 +55,7 @@ func TestNewBlockNode(t *testing.T) {
 	parent := newBlockNode(0, testBlocks[0], nil)
 
 	if parent == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
 		t.Fatalf("unexpected parent: %v", parent.parent)
 	} else if parent.count != 0 {
@@ -65,7 +65,7 @@ func TestNewBlockNode(t *testing.T) {
 	child := newBlockNode(1, testBlocks[1], parent)
 
 	if child == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", child.parent)
 	} else if child.count != parent.count+1 {
@@ -89,7 +89,7 @@ func TestInitBlockNode(t *testing.T) {
 	parent.initBlockNode(0, testBlocks[0], nil)
 
 	if parent == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
 		t.Fatalf("unexpected parent: %v", parent.parent)
 	} else if parent.count != 0 {
@@ -99,7 +99,7 @@ func TestInitBlockNode(t *testing.T) {
 	child.initBlockNode(1, testBlocks[1], parent)
 
 	if child == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", child.parent)
 	} else if child.count != parent.count+1 {

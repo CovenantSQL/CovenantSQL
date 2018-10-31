@@ -46,15 +46,15 @@ func Build() (err error) {
 	wd := GetProjectSrcDir()
 	err = os.Chdir(wd)
 	if err != nil {
-		log.Errorf("change working dir failed: %s", err)
+		log.WithError(err).Error("change working dir failed")
 		return
 	}
 	cmd := exec.Command("./build.sh")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Errorf("build failed: %s", err)
+		log.WithError(err).Error("build failed")
 	}
-	log.Debugf("build output info: %s", string(output))
+	log.Debugf("build output info: %#v", string(output))
 	return
 }
 
@@ -63,12 +63,19 @@ func Build() (err error) {
 func RunCommand(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (err error) {
 	cmd, err := RunCommandNB(bin, args, processName, workingDir, logDir, toStd)
 	if err != nil {
-		log.Errorf("start command failed: %v", err)
+		log.WithFields(log.Fields{
+			"bin":     bin,
+			"args":    args,
+			"process": processName,
+		}).WithError(err).Error("start command failed")
 		return
 	}
 	err = cmd.Cmd.Wait()
 	if err != nil {
-		log.Errorf("cmd %s args %s failed with %v", cmd.Cmd.Path, cmd.Cmd.Args, err)
+		log.WithFields(log.Fields{
+			"path": cmd.Cmd.Path,
+			"args": cmd.Cmd.Args,
+		}).WithError(err).Error("wait command failed")
 		return
 	}
 	return
@@ -80,13 +87,13 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 	cmd.LogPath = FJ(logDir, processName+".log")
 	logFD, err := os.Create(cmd.LogPath)
 	if err != nil {
-		log.Errorf("create log file failed: %s", err)
+		log.WithField("path", cmd.LogPath).WithError(err).Error("create log file failed")
 		return
 	}
 
 	err = os.Chdir(workingDir)
 	if err != nil {
-		log.Errorf("change working dir failed: %s", err)
+		log.WithField("wd", workingDir).Error("change working dir failed")
 		return
 	}
 	cmd.Cmd = exec.Command(bin, args...)
@@ -104,14 +111,14 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 
 	err = cmd.Cmd.Start()
 	if err != nil {
-		log.Errorf("cmd.Start() failed with '%v'", err)
+		log.WithError(err).Error("cmd.Start() failed")
 		return
 	}
 
 	go func() {
 		_, err := io.Copy(stdout, stdoutIn)
 		if err != nil {
-			log.Errorf("failed to capture stdout %s", err)
+			log.WithError(err).Error("failed to capture stdout")
 			return
 		}
 	}()
@@ -119,7 +126,7 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 	go func() {
 		_, err := io.Copy(stderr, stderrIn)
 		if err != nil {
-			log.Errorf("failed to capture stderr %s", err)
+			log.WithError(err).Error("failed to capture stderr")
 			return
 		}
 	}()

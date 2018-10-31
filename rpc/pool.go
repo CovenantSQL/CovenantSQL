@@ -105,7 +105,7 @@ func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Sess
 	defer p.Unlock()
 	sess, exist := p.sessions[id]
 	if exist {
-		log.Debugf("load session for %s", id)
+		log.WithField("node", id).Debug("load session for target node")
 		loaded = true
 	} else {
 		sess = newSess
@@ -128,24 +128,24 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	if ok {
 		conn, err = cachedConn.Sess.OpenStream()
 		if err == nil {
-			log.Debugf("reusing session to %s", id)
+			log.WithField("node", id).Debug("reusing session")
 			return
 		}
-		log.Errorf("open session to %s from pool failed: %v", id, err)
+		log.WithField("target", id).WithError(err).Error("open session failed")
 		p.Remove(id)
 	}
 
-	log.Debugf("dial new session to %s", id)
+	log.WithField("target", id).Debug("dialing new session")
 	// Can't find existing Session, try to dial one
 	newConn, err := p.nodeDialer(id)
 	if err != nil {
-		log.Errorf("dial new session to node %s failed: %v", id, err)
+		log.WithField("node", id).WithError(err).Error("dial new session failed")
 		return
 	}
 	newSess, err := toSession(id, newConn)
 	if err != nil {
 		newConn.Close()
-		log.Errorf("dial new session to node %s failed: %v", id, err)
+		log.WithField("node", id).WithError(err).Error("dial new session failed")
 		return
 	}
 	sess, loaded := p.LoadOrStore(id, newSess)

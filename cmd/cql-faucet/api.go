@@ -159,7 +159,7 @@ func startAPI(v *Verifier, p *Persistence, listenAddr string) (server *http.Serv
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("start api server failed: %v", err)
+			log.WithError(err).Fatal("start api server failed")
 		}
 	}()
 

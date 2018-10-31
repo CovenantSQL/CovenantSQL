@@ -76,11 +76,20 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	// TODO(xq262144): verify identity
 	// verify identity
 
+	defer func() {
+		log.WithFields(log.Fields{
+			"meta": req.Header.ResourceMeta,
+			"node": req.GetNodeID().String(),
+		}).WithError(err).Debug("create database")
+	}()
+
 	// create random DatabaseID
 	var dbID proto.DatabaseID
 	if dbID, err = s.generateDatabaseID(req.GetNodeID()); err != nil {
 		return
 	}
+
+	log.WithField("db", dbID).Debug("generated database id")
 
 	// allocate nodes
 	var peers *kayak.Peers
@@ -88,11 +97,15 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		return
 	}
 
+	log.WithField("peers", peers).Debug("generated peers info")
+
 	// TODO(lambda): call accounting features, top up deposit
 	var genesisBlock *ct.Block
 	if genesisBlock, err = s.generateGenesisBlock(dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
+
+	log.WithField("block", genesisBlock).Debug("generated genesis block")
 
 	defer func() {
 		if err != nil {
@@ -138,7 +151,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		GenesisBlock: genesisBlock,
 	}
 
-	log.Debugf("generated instance meta: %v", instanceMeta)
+	log.WithField("meta", instanceMeta).Debug("generated instance meta")
 
 	if err = s.ServiceMap.Set(instanceMeta); err != nil {
 		// critical error
@@ -164,6 +177,13 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 
 	// TODO(xq262144): verify identity
 	// verify identity and database belonging
+
+	defer func() {
+		log.WithFields(log.Fields{
+			"db":   req.Header.DatabaseID,
+			"node": req.GetNodeID().String(),
+		}).Debug("drop database")
+	}()
 
 	// get database peers
 	var instanceMeta wt.ServiceInstance
@@ -218,6 +238,13 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 	// TODO(xq262144): verify identity
 	// verify identity and database belonging
 
+	defer func() {
+		log.WithFields(log.Fields{
+			"db":   req.Header.DatabaseID,
+			"node": req.GetNodeID().String(),
+		}).Debug("get database")
+	}()
+
 	// fetch from meta
 	var instanceMeta wt.ServiceInstance
 	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
@@ -249,7 +276,10 @@ func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceRe
 		return
 	}
 
-	log.Debugf("current instance for node %v: %v", req.GetNodeID().ToNodeID(), instances)
+	log.WithFields(log.Fields{
+		"node":      req.GetNodeID().String(),
+		"databases": instances,
+	}).Debug("get node databases")
 
 	// send response to client
 	resp.Header.Instances = instances
@@ -284,7 +314,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 		startNonce.Inc()
 		dbID = proto.DatabaseID(nonce.Hash.String())
 
-		log.Debugf("try generated database id %v", dbID)
+		log.WithField("db", dbID).Debug("try generate database id")
 
 		// check existence
 		if _, err = s.ServiceMap.Get(dbID); err == ErrNoSuchDatabase {
@@ -299,6 +329,14 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 	excludeNodes := make(map[proto.NodeID]bool)
 	var allocated []allocatedNode
 
+	defer func() {
+		log.WithFields(log.Fields{
+			"db":    dbID,
+			"meta":  resourceMeta,
+			"peers": peers,
+		}).WithError(err).Debug("try allocated nodes")
+	}()
+
 	if resourceMeta.Node <= 0 {
 		err = ErrDatabaseAllocation
 		return
@@ -312,7 +350,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 	}
 
 	for i := 0; i != s.AllocationRounds; i++ {
-		log.Debugf("node allocation round %d", i+1)
+		log.WithField("round", i).Debug("try allocation node")
 
 		var nodes []proto.Node
 
@@ -328,7 +366,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 
 		nodes, err = s.Consistent.GetNeighborsEx(string(dbID), curRange, proto.ServerRoles(rolesFilter))
 
-		log.Debugf("found %d neighbor nodes", len(nodes))
+		log.WithField("nodeCount", len(nodes)).Debug("found nodes to try dispatch")
 
 		// TODO(xq262144): brute force implementation to be optimized
 		var nodeIDs []proto.NodeID
@@ -339,7 +377,11 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			}
 		}
 
-		log.Debugf("found %d suitable nodes: %v", len(nodeIDs), nodeIDs)
+		log.WithFields(log.Fields{
+			"nodeCount":  len(nodeIDs),
+			"totalCount": len(nodes),
+			"nodes":      nodeIDs,
+		}).Debug("found nodes to dispatch")
 
 		if len(nodeIDs) < int(resourceMeta.Node) {
 			continue
@@ -348,15 +390,19 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 		// check node resource status
 		metrics := s.NodeMetrics.GetMetrics(nodeIDs)
 
-		log.Debugf("get %d metric records for %d nodes", len(metrics), len(nodeIDs))
+		log.WithFields(log.Fields{
+			"recordCount": len(metrics),
+			"nodeCount":   len(nodeIDs),
+		}).Debug("found metric records to dispatch")
 
 		for nodeID, nodeMetric := range metrics {
-			log.Debugf("parse metric of node %v", nodeID)
+			log.WithField("node", nodeID).Debug("parse metric")
+
 			var metricValue uint64
 
 			// get metric
 			if metricValue, err = s.getMetric(nodeMetric, MetricKeyFreeMemory); err != nil {
-				log.Debugf("get node %s memory metric failed", nodeID)
+				log.WithField("node", nodeID).Debug("get memory metric failed")
 
 				// add to excludes
 				excludeNodes[nodeID] = true
@@ -373,7 +419,11 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 					MemoryMetric: metricValue,
 				})
 			} else {
-				log.Debugf("node %s memory metric does not meet requirements", nodeID)
+				log.WithFields(log.Fields{
+					"actual":   metricValue,
+					"expected": resourceMeta.Memory,
+					"node":     nodeID,
+				}).Debug("node memory node meets requirement")
 				excludeNodes[nodeID] = true
 			}
 		}
@@ -430,7 +480,11 @@ func (s *DBService) getMetric(metric metric.MetricMap, keys []string) (value uin
 }
 
 func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []proto.NodeID) (peers *kayak.Peers, err error) {
-	log.Debugf("build peers for allocated nodes with term: %v, allocated nodes: %v", term, allocated)
+	log.WithFields(log.Fields{
+		"term":  term,
+		"nodes": allocated,
+	}).Debug("build peers for term/nodes")
+
 	// get local private key
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {

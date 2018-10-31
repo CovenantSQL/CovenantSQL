@@ -818,13 +818,13 @@ SHOW CREATE TABLE table_name
   {
     $$ = &Show{Type: string($2), OnTable: $3}
   }
-| SHOW comment_opt TABLES
+| SHOW full_opt TABLES
   {
     $$ = &Show{Type: string($3)}
   }
-| SHOW comment_opt full_opt COLUMNS FROM table_name
+| SHOW full_opt COLUMNS FROM table_name
   {
-    $$ = &Show{Type: "table", OnTable: $6}
+    $$ = &Show{Type: "table", OnTable: $5}
   }
 
 full_opt:

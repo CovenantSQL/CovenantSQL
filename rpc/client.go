@@ -54,7 +54,7 @@ func init() {
 func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher, isAnonymous bool) (c *etls.CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
-		log.Errorf("connect to %s failed: %s", address, err)
+		log.WithField("addr", address).WithError(err).Error("connect to node failed")
 		return
 	}
 	var writeBuf []byte
@@ -66,19 +66,19 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 		var nonce *cpuminer.Uint256
 		nodeIDBytes, err = kms.GetLocalNodeIDBytes()
 		if err != nil {
-			log.Errorf("get local node id failed: %s", err)
+			log.WithError(err).Error("get local node id failed")
 			return
 		}
 		nonce, err = kms.GetLocalNonce()
 		if err != nil {
-			log.Errorf("get local nonce failed: %s", err)
+			log.WithError(err).Error("get local nonce failed")
 			return
 		}
 		writeBuf = append(nodeIDBytes, nonce.Bytes()...)
 	}
 	wrote, err := conn.Write(writeBuf)
 	if err != nil || wrote != len(writeBuf) {
-		log.Errorf("write node id and nonce failed: %s", err)
+		log.WithError(err).Error("write node id and nonce failed")
 		return
 	}
 
@@ -93,21 +93,21 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 		var sess *mux.Session
 		ETLSConn, err = dialToNodeEx(nodeID, isAnonymous)
 		if err != nil {
-			log.Errorf("dialToNode failed: %s", err)
+			log.WithField("target", nodeID).WithError(err).Error("dialToNode failed")
 			return
 		}
 		sess, err = mux.Client(ETLSConn, YamuxConfig)
 		if err != nil {
-			log.Errorf("init mux client failed: %s", err)
+			log.WithField("target", nodeID).WithError(err).Error("init yamux client failed")
 			return
 		}
 		conn, err = sess.OpenStream()
 		if err != nil {
-			log.Errorf("open new session failed: %s", err)
+			log.WithField("target", nodeID).WithError(err).Error("open new session failed")
 		}
 		return
 	}
-	log.Debugf("session pool len: %d", pool.Len())
+	log.WithField("poolSize", pool.Len()).Debug("session pool size")
 	conn, err = pool.Get(nodeID)
 	return
 }
@@ -137,20 +137,23 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 	*/
 	symmetricKey, err := GetSharedSecretWith(rawNodeID, isAnonymous)
 	if err != nil {
-		log.Errorf("get shared secret for %s failed: %s", rawNodeID.ToNodeID(), err)
+		log.WithField("target", rawNodeID.String()).WithError(err).Error("get shared secret failed")
 		return
 	}
 
 	nodeAddr, err := GetNodeAddr(rawNodeID)
 	if err != nil {
-		log.Errorf("resolve node %x failed, err: %s", *rawNodeID, err)
+		log.WithField("target", rawNodeID.String()).WithError(err).Error("resolve node failed")
 		return
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
 	conn, err = dial("tcp", nodeAddr, rawNodeID, cipher, isAnonymous)
 	if err != nil {
-		log.Errorf("connect to %s: %s", nodeAddr, err)
+		log.WithFields(log.Fields{
+			"target": rawNodeID.String(),
+			"addr":   nodeAddr,
+		}).WithError(err).Error("connect failed")
 		return
 	}
 
@@ -180,13 +183,13 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 		var sess *mux.Session
 		sess, err = mux.Client(conn, YamuxConfig)
 		if err != nil {
-			log.Errorf("init mux client failed: %v", err)
+			log.WithError(err).Error("init yamux client failed")
 			return
 		}
 
 		muxConn, err = sess.OpenStream()
 		if err != nil {
-			log.Errorf("open stream failed: %v", err)
+			log.WithError(err).Error("open stream failed")
 			return
 		}
 	}
@@ -199,6 +202,6 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 
 // Close the client RPC connection
 func (c *Client) Close() {
-	log.Debugf("closing %s", c.RemoteAddr)
+	log.WithField("addr", c.RemoteAddr).Debug("closing client")
 	c.Client.Close()
 }

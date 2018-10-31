@@ -96,7 +96,7 @@ func (c *Conn) readHandshakeResponse(password string) error {
 		// MySQL client sets the wrong capability, it will set this bit even server doesn't
 		// support ClientPluginAuthLenencClientData.
 		// https://github.com/mysql/mysql-server/blob/5.7/sql-common/client.c#L3478
-		num, null, off := parseLengthEncodedInt(data[pos:])
+		num, null, off := LengthEncodedInt(data[pos:])
 		pos += off
 		if !null {
 			auth = data[pos : pos+int(num)]
@@ -133,39 +133,4 @@ func (c *Conn) readHandshakeResponse(password string) error {
 	}
 
 	return nil
-}
-
-func parseLengthEncodedInt(b []byte) (num uint64, isNull bool, n int) {
-	switch b[0] {
-	// 251: NULL
-	case 0xfb:
-		n = 1
-		isNull = true
-		return
-
-		// 252: value of following 2
-	case 0xfc:
-		num = uint64(b[1]) | uint64(b[2])<<8
-		n = 3
-		return
-
-		// 253: value of following 3
-	case 0xfd:
-		num = uint64(b[1]) | uint64(b[2])<<8 | uint64(b[3])<<16
-		n = 4
-		return
-
-		// 254: value of following 8
-	case 0xfe:
-		num = uint64(b[1]) | uint64(b[2])<<8 | uint64(b[3])<<16 |
-			uint64(b[4])<<24 | uint64(b[5])<<32 | uint64(b[6])<<40 |
-			uint64(b[7])<<48 | uint64(b[8])<<56
-		n = 9
-		return
-	}
-
-	// 0-250: value of first byte
-	num = uint64(b[0])
-	n = 1
-	return
 }

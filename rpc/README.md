@@ -21,7 +21,7 @@ CovenantSQL is built on DH-RPC, including:
 
 ## Usage
 
-![](https://cdn.rawgit.com/CovenantSQL/CovenantSQL/develop/logo/dh-rpc.svg)
+![](https://cdn.jsdelivr.net/gh/CovenantSQL/CovenantSQL@cc4aa933d80a5d31738081d13c7b1587ad47cffb/logo/dh-rpc.svg)
 
 
 Alice Client:

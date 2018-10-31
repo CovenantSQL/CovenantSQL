@@ -18,11 +18,11 @@ package twopc
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 // Hook are called during 2PC running
@@ -98,7 +98,7 @@ func (c *Coordinator) rollback(ctx context.Context, workers []Worker, wb WriteBa
 		}
 	}
 
-	return fmt.Errorf("twopc: rollback")
+	return errors.New("twopc: rollback")
 }
 
 func (c *Coordinator) commit(ctx context.Context, workers []Worker, wb WriteBatch) (err error) {
@@ -154,7 +154,7 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 	for index, err := range errs {
 		if err != nil {
 			returnErr = err
-			log.Debugf("prepare failed on %v: err = %v", workers[index], err)
+			log.WithField("worker", workers[index]).WithError(err).Debug("prepare failed")
 			goto ROLLBACK
 		}
 	}
@@ -162,7 +162,7 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 	if c.option.beforeCommit != nil {
 		if err := c.option.beforeCommit(ctx); err != nil {
 			returnErr = err
-			log.Debugf("before commit failed: err = %v", err)
+			log.WithError(err).Debug("before commit failed")
 			goto ROLLBACK
 		}
 	}
@@ -171,7 +171,7 @@ func (c *Coordinator) Put(workers []Worker, wb WriteBatch) (err error) {
 
 	if c.option.afterCommit != nil {
 		if err = c.option.afterCommit(ctx); err != nil {
-			log.Debugf("after commit failed: err = %v", err)
+			log.WithError(err).Debug("after commit failed")
 		}
 	}
 

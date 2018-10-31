@@ -18,9 +18,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math/rand"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -32,23 +34,23 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-var (
-	version = "unknown"
-	commit  = "unknown"
-	branch  = "unknown"
-)
+const name = "cql-observer"
 
 var (
+	version = "unknown"
+
 	// config
 	configFile    string
 	dbID          string
 	listenAddr    string
 	resetPosition string
+	showVersion   bool
 )
 
 func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "config file path")
 	flag.StringVar(&dbID, "database", "", "database to listen for observation")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&resetPosition, "reset", "", "reset subscribe position")
@@ -60,14 +62,20 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error
 	conf.GConf, err = conf.LoadConfig(configFile)
 	if err != nil {
-		log.Fatalf("load config from %s failed: %s", configFile, err)
+		log.WithField("config", configFile).WithError(err).Fatal("load config failed")
 	}
 
 	kms.InitBP()
@@ -75,35 +83,35 @@ func main() {
 	// start rpc
 	var server *rpc.Server
 	if server, err = initNode(); err != nil {
-		log.Fatalf("init node failed: %v", err)
+		log.WithError(err).Fatal("init node failed")
 	}
 
 	// start service
 	var service *Service
 	if service, err = startService(server); err != nil {
-		log.Fatalf("start observation failed: %v", err)
+		log.WithError(err).Fatal("start observation failed")
 	}
 
 	// start explorer api
 	httpServer, err := startAPI(service, listenAddr)
 	if err != nil {
-		log.Fatalf("start explorer api failed: %v", err)
+		log.WithError(err).Fatal("start explorer api failed")
 	}
 
 	// register node
 	if err = registerNode(); err != nil {
-		log.Fatalf("register node failed: %v", err)
+		log.WithError(err).Fatal("register node failed")
 	}
 
 	// start subscription
 	var cfg *Config
 	if cfg, err = loadConfig(configFile); err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		log.WithError(err).Fatal("failed to load config")
 	}
 	if cfg != nil {
 		for _, v := range cfg.Databases {
 			if err = service.subscribe(proto.DatabaseID(v.ID), v.Position); err != nil {
-				log.Fatalf("init subscription failed: %v", err)
+				log.WithError(err).Fatal("init subscription failed")
 			}
 		}
 	}
@@ -111,7 +119,7 @@ func main() {
 	// without changing the config.
 	if dbID != "" {
 		if err = service.subscribe(proto.DatabaseID(dbID), resetPosition); err != nil {
-			log.Fatalf("init subscription failed: %v", err)
+			log.WithError(err).Fatal("init subscription failed")
 		}
 	}
 
@@ -127,12 +135,12 @@ func main() {
 
 	// stop explorer api
 	if err = stopAPI(httpServer); err != nil {
-		log.Fatalf("stop explorer api failed: %v", err)
+		log.WithError(err).Fatal("stop explorer api failed")
 	}
 
 	// stop subscriptions
 	if err = stopService(service, server); err != nil {
-		log.Fatalf("stop service failed: %v", err)
+		log.WithError(err).Fatal("stop service failed")
 	}
 
 	log.Info("observer stopped")

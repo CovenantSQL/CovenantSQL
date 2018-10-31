@@ -59,14 +59,20 @@ func NewTestService() *TestService {
 }
 
 func (s *TestService) IncCounter(req *TestReq, rep *TestRep) error {
-	log.Debugf("calling IncCounter req:%v, rep:%v", *req, *rep)
+	log.WithFields(log.Fields{
+		"req":   *req,
+		"reply": *rep,
+	}).Debug("calling IncCounter")
 	s.counter += req.Step
 	rep.Ret = s.counter
 	return nil
 }
 
 func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
-	log.Debugf("calling IncCounter req:%v, rep:%v", step, ret)
+	log.WithFields(log.Fields{
+		"req":   step,
+		"reply": ret,
+	}).Debug("calling IncCounter")
 	s.counter += step
 	*ret = s.counter
 	return nil
@@ -238,8 +244,8 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	log.Debugf("respB: %v", respB)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "123",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 	err = client.Call("DHT.FindNeighbor", req, resp)

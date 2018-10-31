@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	log "github.com/sirupsen/logrus"
 )

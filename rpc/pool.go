@@ -22,7 +22,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 // SessPool is the session pool interface
@@ -43,7 +43,8 @@ type SessionMap map[proto.NodeID]*Session
 // Session is the Session type of SessionPool
 type Session struct {
 	ID   proto.NodeID
-	Sess *yamux.Session
+	Sess *mux.Session
+	conn net.Conn
 }
 
 // SessionPool is the struct type of session pool
@@ -79,10 +80,10 @@ func GetSessionPoolInstance() *SessionPool {
 	return instance
 }
 
-// toSession wraps net.Conn to yamux.Session
+// toSession wraps net.Conn to mux.Session
 func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
-	// create yamux session
-	newSess, err := yamux.Client(conn, YamuxConfig)
+	// create mux session
+	newSess, err := mux.Client(conn, YamuxConfig)
 	if err != nil {
 		//log.Errorf("dial to new node %s failed: %s", id, err)  // no log in lock
 		return
@@ -91,6 +92,7 @@ func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
 	sess = &Session{
 		ID:   id,
 		Sess: newSess,
+		conn: conn,
 	}
 	return
 }
@@ -103,7 +105,7 @@ func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Sess
 	defer p.Unlock()
 	sess, exist := p.sessions[id]
 	if exist {
-		log.Debugf("load session for %s", id)
+		log.WithField("node", id).Debug("load session for target node")
 		loaded = true
 	} else {
 		sess = newSess
@@ -124,33 +126,33 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// first try to get one session from pool
 	cachedConn, ok := p.getSessionFromPool(id)
 	if ok {
-		conn, err = cachedConn.Sess.Open()
+		conn, err = cachedConn.Sess.OpenStream()
 		if err == nil {
-			log.Debugf("reusing session to %s", id)
+			log.WithField("node", id).Debug("reusing session")
 			return
 		}
-		log.Errorf("open session to %s from pool failed: %v", id, err)
+		log.WithField("target", id).WithError(err).Error("open session failed")
 		p.Remove(id)
 	}
 
-	log.Debugf("dial new session to %s", id)
+	log.WithField("target", id).Debug("dialing new session")
 	// Can't find existing Session, try to dial one
 	newConn, err := p.nodeDialer(id)
 	if err != nil {
-		log.Errorf("dial new session to node %s failed: %v", id, err)
+		log.WithField("node", id).WithError(err).Error("dial new session failed")
 		return
 	}
 	newSess, err := toSession(id, newConn)
 	if err != nil {
 		newConn.Close()
-		log.Errorf("dial new session to node %s failed: %v", id, err)
+		log.WithField("node", id).WithError(err).Error("dial new session failed")
 		return
 	}
 	sess, loaded := p.LoadOrStore(id, newSess)
 	if loaded {
 		newSess.Close()
 	}
-	return sess.Sess.Open()
+	return sess.Sess.OpenStream()
 }
 
 // Set tries to set a new connection to the pool, typically from Accept()

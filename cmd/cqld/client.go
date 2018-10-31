@@ -59,13 +59,13 @@ func runClient(nodeID proto.NodeID) (err error) {
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
-		log.Errorf("init local key pair failed: %s", err)
+		log.WithError(err).Error("init local key pair failed")
 		return
 	}
 
 	conf.GConf.KnownNodes[idx].PublicKey, err = kms.GetLocalPublicKey()
 	if err != nil {
-		log.Errorf("get local public key failed: %s", err)
+		log.WithError(err).Error("get local public key failed")
 		return
 	}
 	//nodeInfo := asymmetric.GetPubKeyNonce(AllNodes[idx].PublicKey, 20, 500*time.Millisecond, nil)
@@ -73,7 +73,7 @@ func runClient(nodeID proto.NodeID) (err error) {
 	//log.Debugf("client nonce:\n%v", nodeInfo)
 
 	// init nodes
-	log.Infof("init peers")
+	log.Info("init peers")
 	_, _, _, err = initNodePeers(nodeID, pubKeyStorePath)
 	if err != nil {
 		return
@@ -109,12 +109,12 @@ func clientRequest(reqType string, sql string) (err error) {
 		}
 
 		respA := new(proto.PingResp)
-		log.Debugf("req %s: %v", reqType, reqA)
+		log.Debugf("req %#v: %#v", reqType, reqA)
 		err = client.Call("DHT."+reqType, reqA, respA)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Debugf("resp %s: %v", reqType, respA)
+		log.Debugf("resp %#v: %#v", reqType, respA)
 	} else {
 		for _, bp := range conf.GConf.KnownNodes {
 			if bp.Role == proto.Leader || bp.Role == proto.Follower {
@@ -124,19 +124,19 @@ func clientRequest(reqType string, sql string) (err error) {
 				if client, err = rpc.InitClientConn(conn); err != nil {
 					return
 				}
-				log.Debugf("Calling BP: %s", bp.ID)
+				log.WithField("bp", bp.ID).Debug("Calling BP")
 				reqType = "FindNeighbor"
 				req := &proto.FindNeighborReq{
-					NodeID: proto.NodeID(flag.Arg(0)),
-					Count:  10,
+					ID:    proto.NodeID(flag.Arg(0)),
+					Count: 10,
 				}
 				resp := new(proto.FindNeighborResp)
-				log.Debugf("req %s: %v", reqType, req)
+				log.Debugf("req %#v: %#v", reqType, req)
 				err = client.Call("DHT."+reqType, req, resp)
 				if err != nil {
 					log.Fatal(err)
 				}
-				log.Debugf("resp %s: %v", reqType, resp)
+				log.Debugf("resp %#v: %#v", reqType, resp)
 			}
 		}
 	}

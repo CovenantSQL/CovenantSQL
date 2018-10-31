@@ -45,6 +45,7 @@ var (
 
 func TestChain(t *testing.T) {
 	Convey("test main chain", t, func() {
+		log.SetLevel(log.InfoLevel)
 		confDir := "../test/mainchain/node_standalone/config.yaml"
 		privDir := "../test/mainchain/node_standalone/private.key"
 		cleanup, _, _, rpcServer, err := initNode(
@@ -246,7 +247,7 @@ func TestMultiNode(t *testing.T) {
 			}
 			var resp proto.PingResp
 			dht.Ping(&req, &resp)
-			log.Debugf("ping response: %v", resp)
+			log.WithField("resp", resp).Debug("got ping response")
 
 			err = chains[i].Start()
 			So(err, ShouldBeNil)
@@ -280,7 +281,10 @@ func TestMultiNode(t *testing.T) {
 								Req: br,
 							}
 							bResp := &ct.AdviseBillingResp{}
-							log.Debugf("CallNode %d hash is %s", val, br.RequestHash)
+							log.WithFields(log.Fields{
+								"node":        val,
+								"requestHash": br.RequestHash,
+							}).Debug("advising billing request")
 							err = chains[i].cl.CallNode(chains[i].rt.nodeID, route.MCCAdviseBillingRequest.String(), bReq, bResp)
 							if err != nil {
 								log.WithFields(log.Fields{

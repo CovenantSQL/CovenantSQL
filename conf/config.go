@@ -143,13 +143,13 @@ var GConf *Config
 func LoadConfig(configPath string) (config *Config, err error) {
 	configBytes, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Errorf("read config file failed: %s", err)
+		log.WithError(err).Error("read config file failed")
 		return
 	}
 	config = &Config{}
 	err = yaml.Unmarshal(configBytes, config)
 	if err != nil {
-		log.Errorf("unmarshal config file failed: %s", err)
+		log.WithError(err).Error("unmarshal config file failed")
 		return
 	}
 

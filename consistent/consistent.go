@@ -98,16 +98,16 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 
 	err = c.persist.Init(storePath, BPNodes)
 	if err != nil {
-		log.Errorf("init persist BP nodes failed: %v", err)
+		log.WithError(err).Error("init persist BP nodes failed")
 		return
 	}
 
 	nodes, err := c.persist.GetAllNodeInfo()
 	if err != nil {
-		log.Errorf("get all node id failed: %s", err)
+		log.WithError(err).Error("get all node id failed")
 		return
 	}
-	log.Debugf("c.persist.GetAllNodeInfo: %v", nodes)
+	log.Debugf("c.persist.GetAllNodeInfo: %#v", nodes)
 
 	_, isKMSStorage := c.persist.(*KMSStorage)
 	if isKMSStorage {
@@ -132,7 +132,7 @@ func (c *Consistent) nodeKey(nodeID proto.NodeID, idx int) string {
 
 // Add inserts a string node in the consistent hash.
 func (c *Consistent) Add(node proto.Node) (err error) {
-	log.Debugf("add node %v to consistent ring", node)
+	log.WithField("node", node).Debug("add node to consistent ring")
 	c.Lock()
 	defer c.Unlock()
 	return c.add(node)
@@ -144,7 +144,7 @@ func (c *Consistent) Remove(nodeID proto.NodeID) (err error) {
 	defer c.Unlock()
 	err = c.persist.DelNode(nodeID)
 	if err != nil {
-		log.Errorf("del node failed: %s", err)
+		log.WithField("node", nodeID).WithError(err).Error("del node failed")
 		return
 	}
 
@@ -160,7 +160,7 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 
 	err = c.persist.Reset()
 	if err != nil {
-		log.Errorf("reset bucket failed: %s", err)
+		log.WithError(err).Error("reset bucket failed")
 		return
 	}
 
@@ -177,7 +177,7 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 func (c *Consistent) add(node proto.Node) (err error) {
 	err = c.persist.SetNode(&node)
 	if err != nil {
-		log.Errorf("set node info failed: %s", err)
+		log.WithField("node", node).WithError(err).Error("set node info failed")
 		return
 	}
 

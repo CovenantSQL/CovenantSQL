@@ -31,7 +31,7 @@ func TestCPU(t *testing.T) {
 	}
 
 	if len(times) == 0 {
-		t.Fatalf("no cputimes found")
+		t.Fatal("no cputimes found")
 	}
 
 	want := runtime.NumCPU() * fieldsCount

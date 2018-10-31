@@ -42,11 +42,11 @@ func initNode() (server *rpc.Server, err error) {
 	}
 
 	if err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey); err != nil {
-		log.Errorf("init local key pair failed: %s", err)
+		log.WithError(err).Error("init local key pair failed")
 		return
 	}
 
-	log.Infof("init routes")
+	log.Info("init routes")
 
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
@@ -54,7 +54,7 @@ func initNode() (server *rpc.Server, err error) {
 	// init server
 	if server, err = createServer(
 		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, conf.GConf.ListenAddr); err != nil {
-		log.Errorf("create server failed: %v", err)
+		log.WithError(err).Error("create server failed")
 		return
 	}
 

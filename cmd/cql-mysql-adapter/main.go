@@ -18,8 +18,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -27,13 +29,17 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const name = "cql-mysql-adapter"
+
 var (
+	version    = "unknown"
 	configFile string
 	password   string
 
 	listenAddr    string
 	mysqlUser     string
 	mysqlPassword string
+	showVersion   bool
 )
 
 func init() {
@@ -41,6 +47,7 @@ func init() {
 	flag.StringVar(&password, "password", "", "master key password")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4664", "listen address for mysql adapter")
 	flag.StringVar(&mysqlUser, "mysql-user", "root", "mysql user for adapter server")
@@ -49,13 +56,19 @@ func init() {
 
 func main() {
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	// init client
 	if err := client.Init(configFile, []byte(password)); err != nil {
-		log.Fatalf("init covenantsql client failed: %v", err)
+		log.WithError(err).Fatal("init covenantsql client failed")
 		return
 	}
 
@@ -64,17 +77,17 @@ func main() {
 
 	server, err := NewServer(listenAddr, mysqlUser, mysqlPassword)
 	if err != nil {
-		log.Fatalf("init server failed: %v", err)
+		log.WithError(err).Fatal("init server failed")
 		return
 	}
 
 	go server.Serve()
 
-	log.Infof("start mysql adapter")
+	log.Info("start mysql adapter")
 
 	<-stop
 
 	server.Shutdown()
 
-	log.Infof("stopped mysql adapter")
+	log.Info("stopped mysql adapter")
 }

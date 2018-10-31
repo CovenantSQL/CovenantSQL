@@ -1,4 +1,6 @@
+*.trace
 pprof.txt
+.dsn
 *.svg
 *.profile
 *.key
@@ -28,6 +30,7 @@ bin/
 *.test
 bin/*
 test/log/
+test/covenantsql*
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out

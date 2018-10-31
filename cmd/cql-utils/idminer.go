@@ -55,16 +55,16 @@ func runMiner() {
 	if publicKeyHex != "" {
 		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
 		if err != nil {
-			log.Fatalf("error converting hex: %s\n", err)
+			log.WithError(err).Fatal("error converting hex")
 		}
 		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
 		if err != nil {
-			log.Fatalf("error converting public key: %s\n", err)
+			log.WithError(err).Fatal("error converting public key")
 		}
 	} else if privateKeyFile != "" {
 		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
 		if err != nil {
-			log.Fatalf("load private key file faile: %v\n", err)
+			log.WithError(err).Fatal("load private key file failed")
 		}
 		publicKey = privateKey.PubKey()
 	}
@@ -78,7 +78,7 @@ func runMiner() {
 	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
 
 	cpuCount := runtime.NumCPU()
-	log.Infof("cpu: %d\n", cpuCount)
+	log.Infof("cpu: %#v\n", cpuCount)
 	nonceChs := make([]chan mine.NonceInfo, cpuCount)
 	stopChs := make([]chan struct{}, cpuCount)
 
@@ -97,13 +97,13 @@ func runMiner() {
 				Stop:      nil,
 			}
 			start := mine.Uint256{D: step*uint64(i) + uint64(rand.Uint32())}
-			log.Infof("miner #%d start: %v\n", i, start)
+			log.Infof("miner #%#v start: %#v\n", i, start)
 			miner.ComputeBlockNonce(block, start, difficulty)
 		}(i)
 	}
 
 	sig := <-signalCh
-	log.Infof("received signal %s\n", sig)
+	log.Infof("received signal %#v\n", sig)
 	for i := 0; i < cpuCount; i++ {
 		close(stopChs[i])
 	}
@@ -117,7 +117,7 @@ func runMiner() {
 	}
 
 	// verify result
-	log.Infof("verify result: %v\n", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: max.Hash}, &max.Nonce, publicKey))
+	log.Infof("verify result: %#v\n", kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: max.Hash}, &max.Nonce, publicKey))
 
 	// print result
 	fmt.Printf("nonce: %v\n", max)

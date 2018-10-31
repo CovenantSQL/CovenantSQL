@@ -87,7 +87,7 @@ func TestBoltOptionsTimeout(t *testing.T) {
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "timeout")
 		case <-time.After(5 * time.Second):
-			Printf("Gave up waiting for timeout response")
+			Print("Gave up waiting for timeout response")
 		}
 	})
 }

@@ -31,7 +31,7 @@ func TestNewBlockNodeAndIndexKey(t *testing.T) {
 	}
 	parent := newBlockNode(0, block, nil)
 	if parent == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
 		t.Fatalf("unexpected parent: %v", parent.parent)
 	} else if parent.height != 0 {
@@ -44,7 +44,7 @@ func TestNewBlockNodeAndIndexKey(t *testing.T) {
 	}
 	child := newBlockNode(1, block2, parent)
 	if child == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", parent.parent)
 	} else if child.height != parent.height+1 {
@@ -69,7 +69,7 @@ func TestAncestor(t *testing.T) {
 	}
 	parent := newBlockNode(0, block, nil)
 	if parent == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
 		t.Fatalf("unexpected parent: %v", parent.parent)
 	} else if parent.height != 0 {
@@ -82,7 +82,7 @@ func TestAncestor(t *testing.T) {
 	}
 	child := newBlockNode(1, block2, parent)
 	if child == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {
 		t.Fatalf("unexpected parent: %v", parent.parent)
 	} else if child.height != parent.height+1 {
@@ -107,7 +107,7 @@ func TestIndexBlock(t *testing.T) {
 	bi := newBlockIndex()
 
 	if bi == nil {
-		t.Fatalf("unexpected result: nil")
+		t.Fatal("unexpected result: nil")
 	}
 
 	block0, err := generateRandomBlock(hash.Hash{}, true)

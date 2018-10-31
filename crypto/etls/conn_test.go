@@ -35,7 +35,7 @@ type Result struct {
 func (f *Foo) Bar(args *string, res *Result) error {
 	res.Data = len(*args)
 	log.Printf("Received %q, its length is %d", *args, res.Data)
-	//return fmt.Errorf("Whoops, error happened")
+	//return fmt.Error("Whoops, error happened")
 	return nil
 }
 

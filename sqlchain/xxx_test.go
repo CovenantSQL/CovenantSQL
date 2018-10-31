@@ -234,7 +234,7 @@ func createRandomQueryAckWithResponse(resp *wt.SignedResponseHeader, cli *nodePr
 		},
 	}
 
-	if err = ack.Sign(cli.PrivateKey); err != nil {
+	if err = ack.Sign(cli.PrivateKey, true); err != nil {
 		return
 	}
 
@@ -259,7 +259,7 @@ func createRandomQueryAck(cli, worker *nodeProfile) (r *wt.SignedAckHeader, err 
 		},
 	}
 
-	if err = ack.Sign(cli.PrivateKey); err != nil {
+	if err = ack.Sign(cli.PrivateKey, true); err != nil {
 		return
 	}
 

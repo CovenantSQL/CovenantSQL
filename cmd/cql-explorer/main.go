@@ -18,10 +18,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -29,10 +31,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+const name = "cql-explorer"
+
 var (
 	version = "unknown"
-	commit  = "unknown"
-	branch  = "unknown"
 )
 
 var (
@@ -41,6 +43,7 @@ var (
 	password      string
 	listenAddr    string
 	checkInterval time.Duration
+	showVersion   bool
 )
 
 func init() {
@@ -48,6 +51,7 @@ func init() {
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4665", "listen address for http explorer api")
 	flag.DurationVar(&checkInterval, "interval", time.Second*2, "new block check interval for explorer")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
 func main() {
@@ -55,34 +59,40 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	// init client
 	var err error
 	if err = client.Init(configFile, []byte(password)); err != nil {
-		log.Fatalf("init node failed: %v", err)
+		log.WithError(err).Fatal("init node failed")
 		return
 	}
 
 	// start service
 	var service *Service
 	if service, err = NewService(checkInterval); err != nil {
-		log.Fatalf("init service failed: %v", err)
+		log.WithError(err).Fatal("init service failed")
 		return
 	}
 
 	// start api
 	var httpServer *http.Server
 	if httpServer, err = startAPI(service, listenAddr); err != nil {
-		log.Fatalf("start explorer api failed: %v", err)
+		log.WithError(err).Fatal("start explorer api failed")
 		return
 	}
 
 	// start subscription
 	if err = service.start(); err != nil {
-		log.Fatalf("start service failed: %v", err)
+		log.WithError(err).Fatal("start service failed")
 		return
 	}
 
@@ -98,13 +108,13 @@ func main() {
 
 	// stop explorer api
 	if err = stopAPI(httpServer); err != nil {
-		log.Fatalf("stop explorer api failed: %v", err)
+		log.WithError(err).Fatal("stop explorer api failed")
 		return
 	}
 
 	// stop subscription
 	if err = service.stop(); err != nil {
-		log.Fatalf("stop service failed: %v", err)
+		log.WithError(err).Fatal("stop service failed")
 		return
 	}
 

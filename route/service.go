@@ -43,10 +43,15 @@ func NewDHTServiceWithRing(c *consistent.Consistent) (s *DHTService, err error) 
 func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, initBP bool) (s *DHTService, err error) {
 	c, err := consistent.InitConsistent(DHTStorePath, persistImpl, initBP)
 	if err != nil {
-		log.Errorf("init DHT service failed: %s", err)
+		log.WithError(err).Error("init DHT service failed")
 		return
 	}
 	return NewDHTServiceWithRing(c)
+}
+
+// Nil RPC does nothing just for probe
+func (DHT *DHTService) Nil(req *proto.PingReq, resp *proto.PingResp) (err error) {
+	return
 }
 
 // FindNode RPC returns node with requested node id from DHT
@@ -56,7 +61,7 @@ func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp
 		log.Error(err)
 		return
 	}
-	node, err := DHT.Consistent.GetNode(string(req.NodeID))
+	node, err := DHT.Consistent.GetNode(string(req.ID))
 	if err != nil {
 		err = fmt.Errorf("get node %s from DHT failed: %s", req.NodeID, err)
 		log.Error(err)
@@ -74,14 +79,17 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 		return
 	}
 
-	nodes, err := DHT.Consistent.GetNeighborsEx(string(req.NodeID), req.Count, req.Roles)
+	nodes, err := DHT.Consistent.GetNeighborsEx(string(req.ID), req.Count, req.Roles)
 	if err != nil {
 		err = fmt.Errorf("get nodes from DHT failed: %s", err)
 		log.Error(err)
 		return
 	}
 	resp.Nodes = nodes
-	log.Debugf("found %v nodes for find neighbor request %v", len(nodes), req)
+	log.WithFields(log.Fields{
+		"neighCount": len(nodes),
+		"req":        req,
+	}).Debug("found nodes for find neighbor request")
 	return
 }
 

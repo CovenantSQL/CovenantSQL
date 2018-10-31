@@ -91,28 +91,43 @@ func (r *observerReplicator) replicate() {
 	curHeight := r.c.rt.getHead().Height
 
 	if r.height == ct.ReplicateFromNewest {
-		log.Warningf("observer %v set to read from the newest block, which is in height %v", r.nodeID, curHeight)
+		log.WithFields(log.Fields{
+			"node":   r.nodeID,
+			"height": curHeight,
+		}).Warning("observer being set to read from the newest block")
 		r.height = curHeight
 	} else if r.height > curHeight+1 {
-		log.Warningf("observer %v subscribes block height %v, which is not produced yet", r.nodeID, r.height)
-		log.Warningf("reset observer %v height to %v", r.nodeID, curHeight+1)
+		log.WithFields(log.Fields{
+			"node":   r.nodeID,
+			"height": r.height,
+		}).Warning("observer subscribes to height not yet produced")
+		log.WithFields(log.Fields{
+			"node":   r.nodeID,
+			"height": curHeight + 1,
+		}).Warning("reset observer to height")
 		r.height = curHeight + 1
 	} else if r.height == curHeight+1 {
 		// wait for next block
-		log.Infof("no more blocks for observer %v to read", r.nodeID)
+		log.WithField("node", r.nodeID).Info("no more blocks for observer to read")
 		return
 	}
 
-	log.Debugf("try replicating block %v for observer %v", r.height, r.nodeID)
+	log.WithFields(log.Fields{
+		"node":   r.nodeID,
+		"height": r.height,
+	}).Debug("try replicating block for observer")
 
 	// replicate one record
 	var block *ct.Block
 	if block, err = r.c.FetchBlock(r.height); err != nil {
 		// fetch block failed
-		log.Warningf("fetch block with height %v failed: %v", r.height, err)
+		log.WithField("height", r.height).WithError(err).Warning("fetch block with height failed")
 		return
 	} else if block == nil {
-		log.Debugf("no block of height %v for observer %v", r.height, r.nodeID)
+		log.WithFields(log.Fields{
+			"node":   r.nodeID,
+			"height": r.height,
+		}).Debug("no block of height for observer")
 
 		// black hole in chain?
 		// find last available block
@@ -124,8 +139,10 @@ func (r *observerReplicator) replicate() {
 		for h := r.height - 1; h >= 0; h-- {
 			if lastBlock, err = r.c.FetchBlock(h); err == nil && lastBlock != nil {
 				lastHeight = h
-				log.Debugf("found last available block %v with height %v",
-					lastBlock.BlockHash().String(), lastHeight)
+				log.WithFields(log.Fields{
+					"block":  lastBlock.BlockHash().String(),
+					"height": lastHeight,
+				}).Debug("found last available block of height")
 				break
 			}
 		}
@@ -141,17 +158,22 @@ func (r *observerReplicator) replicate() {
 			if nextBlock, err = r.c.FetchBlock(h); err == nil && nextBlock != nil {
 				if !nextBlock.ParentHash().IsEqual(lastBlock.BlockHash()) {
 					// inconsistency
-					log.Warningf("inconsistency detected during hole detection, "+
-						"last block height: %v, hash: %v, next block height: %v, hash: %v, parent hash: %v",
-						lastBlock.BlockHash().String(), lastHeight,
-						nextBlock.BlockHash().String(), h, nextBlock.ParentHash().String())
+					log.WithFields(log.Fields{
+						"lastHeight":       lastHeight,
+						"lastHash":         lastBlock.BlockHash().String(),
+						"nextHeight":       h,
+						"nextHash":         nextBlock.BlockHash().String(),
+						"actualParentHash": nextBlock.ParentHash().String(),
+					}).Warning("inconsistency detected during hole detection")
 
 					return
 				}
 
 				nextHeight = h
-				log.Debugf("found next available block %v with height %v",
-					nextBlock.BlockHash().String(), nextHeight)
+				log.WithFields(log.Fields{
+					"block":  nextBlock.BlockHash().String(),
+					"height": nextHeight,
+				}).Debug("found next available block of height")
 				break
 			}
 		}
@@ -163,21 +185,31 @@ func (r *observerReplicator) replicate() {
 		}
 
 		// successfully found a hole in chain
-		log.Debugf("found a hole in chain, started with block: %v, height: %v to block: %v, height: %v, skipped %v blocks",
-			lastBlock.BlockHash().String(), lastHeight, nextBlock.BlockHash().String(), nextHeight, nextHeight-lastHeight-1)
+		log.WithFields(log.Fields{
+			"fromBlock":  lastBlock.BlockHash().String(),
+			"fromHeight": lastHeight,
+			"toBlock":    nextBlock.BlockHash().String(),
+			"toHeight":   nextHeight,
+			"skipped":    nextHeight - lastHeight - 1,
+		}).Debug("found a hole in chain, skipping")
 
 		r.height = nextHeight
 		block = nextBlock
 
-		log.Debugf("finish block height hole detection, skipping to block: %v, height: %v",
-			block.BlockHash().String(), r.height)
+		log.WithFields(log.Fields{
+			"block":  block.BlockHash().String(),
+			"height": r.height,
+		}).Debug("finish block height hole detection, skipping")
 	}
 
 	// fetch acks in block
 	for _, h := range block.Queries {
 		var ack *wt.SignedAckHeader
 		if ack, err = r.c.queryOrSyncAckedQuery(r.height, h, block.Producer()); err != nil || ack == nil {
-			log.Warningf("fetch ack %v in block height %v failed: %v", h, r.height, err)
+			log.WithFields(log.Fields{
+				"ack":    h.String(),
+				"height": r.height,
+			}).WithError(err).Warning("fetch ack of block height")
 			continue
 		}
 
@@ -192,8 +224,10 @@ func (r *observerReplicator) replicate() {
 		resp := &MuxAdviseAckedQueryResp{}
 		err = r.c.cl.CallNode(r.nodeID, route.OBSAdviseAckedQuery.String(), req, resp)
 		if err != nil {
-			log.Warningf("send ack advise for block height %v to observer %v failed: %v",
-				r.height, r.nodeID, err)
+			log.WithFields(log.Fields{
+				"node":   r.nodeID,
+				"height": r.height,
+			}).WithError(err).Warning("send ack advise to observer")
 			return
 		}
 	}
@@ -218,7 +252,10 @@ func (r *observerReplicator) replicate() {
 	resp := &MuxAdviseNewBlockResp{}
 	err = r.c.cl.CallNode(r.nodeID, route.OBSAdviseNewBlock.String(), req, resp)
 	if err != nil {
-		log.Warningf("send block height %v advise to observer %v failed: %v", r.height, r.nodeID, err)
+		log.WithFields(log.Fields{
+			"node":   r.nodeID,
+			"height": r.height,
+		}).WithError(err).Warning("send block advise to observer failed")
 		return
 	}
 

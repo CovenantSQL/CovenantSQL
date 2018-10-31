@@ -47,7 +47,7 @@ func (a *queryAPI) Query(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithField("db", dbID).WithField("query", query).Infof("got query")
+	log.WithField("db", dbID).WithField("query", query).Info("got query")
 
 	assoc := r.FormValue("assoc")
 
@@ -136,7 +136,7 @@ func (a *queryAPI) Write(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithField("db", dbID).WithField("query", query).Infof("got exec")
+	log.WithField("db", dbID).WithField("query", query).Info("got exec")
 
 	var err error
 	if err = config.GetConfig().StorageInstance.Exec(dbID, query); err != nil {

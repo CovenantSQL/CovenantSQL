@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"syscall"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -32,7 +33,10 @@ var (
 	publicKeyHex   string
 	privateKeyFile string
 	configFile     string
+	showVersion    bool
 )
+
+const name = "cql-utils"
 
 func init() {
 	log.SetLevel(log.InfoLevel)
@@ -41,11 +45,17 @@ func init() {
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "private.key", "private key file to generate/show")
 	flag.StringVar(&configFile, "config", "config.yaml", "config file to use")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
 func main() {
-	log.Infof("cql-utils build: %s\n", version)
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+	log.Infof("cql-utils build: %#v\n", version)
 
 	switch tool {
 	case "miner":

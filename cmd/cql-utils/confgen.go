@@ -54,7 +54,7 @@ func runConfgen() {
 		t, err := reader.ReadString('\n')
 		t = strings.Trim(t, "\n")
 		if err != nil {
-			log.Errorf("Unexpected error: %v\n", err)
+			log.WithError(err).Error("unexpected error")
 			os.Exit(1)
 		}
 		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
@@ -66,7 +66,7 @@ func runConfgen() {
 
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {
-		log.Errorf("Unexpected error: %v", err)
+		log.WithError(err).Error("unexpected error")
 		os.Exit(1)
 	}
 
@@ -160,7 +160,7 @@ KnownNodes:
 
 	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), []byte(configContent), 0755)
 	if err != nil {
-		log.Errorf("Unexpected error: %v\n", err)
+		log.WithError(err).Error("unexpected error")
 		os.Exit(1)
 	}
 	fmt.Println("Generated nonce.")

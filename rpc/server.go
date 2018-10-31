@@ -28,7 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 // ServiceMap maps service name to service instance
@@ -63,13 +63,13 @@ func (s *Server) InitRPCServer(
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
-		log.Errorf("init local key pair failed: %s", err)
+		log.WithError(err).Error("init local key pair failed")
 		return
 	}
 
 	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
 	if err != nil {
-		log.Errorf("create crypto listener failed: %s", err)
+		log.WithError(err).Error("create crypto listener failed")
 		return
 	}
 
@@ -80,7 +80,6 @@ func (s *Server) InitRPCServer(
 
 // NewServerWithService also return a new Server, and also register the Server.ServiceMap
 func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
-
 	server = NewServer()
 	for k, v := range serviceMap {
 		err = server.RegisterService(k, v)
@@ -108,7 +107,6 @@ serverLoop:
 		default:
 			conn, err := s.Listener.Accept()
 			if err != nil {
-				log.Info(err)
 				continue
 			}
 			go s.handleConn(conn)
@@ -128,7 +126,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		remoteNodeID = c.NodeID
 	}
 
-	sess, err := yamux.Server(conn, YamuxConfig)
+	sess, err := mux.Server(conn, YamuxConfig)
 	if err != nil {
 		log.Error(err)
 		return
@@ -145,19 +143,16 @@ sessionLoop:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
 				if err == io.EOF {
-					log.Infof("session %s connection closed", remoteNodeID)
+					log.WithField("remote", remoteNodeID).Debug("session connection closed")
 				} else {
-					log.Errorf("session %s accept failed: %s", remoteNodeID, err)
+					log.WithField("remote", remoteNodeID).WithError(err).Error("session accept failed")
 				}
 				break sessionLoop
 			}
-			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
 			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}
-
-	log.Debugf("Server.handleConn finished for %s %s", remoteNodeID, conn.RemoteAddr())
 }
 
 // RegisterService with a Service name, used by Client RPC
@@ -178,7 +173,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	headerBuf := make([]byte, hash.HashBSize+32)
 	rCount, err := conn.Read(headerBuf)
 	if err != nil || rCount != hash.HashBSize+32 {
-		log.Errorf("read node header error: %s", err)
+		log.WithError(err).Error("read node header error")
 		return
 	}
 
@@ -193,7 +188,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
 	)
 	if err != nil {
-		log.Errorf("get shared secret for %s failed: %s", rawNodeID.ToNodeID(), err)
+		log.WithField("target", rawNodeID.String()).WithError(err).Error("get shared secret")
 		return
 	}
 	cipher := etls.NewCipher(symmetricKey)

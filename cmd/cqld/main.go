@@ -85,9 +85,9 @@ func init() {
 }
 
 func initLogs() {
-	log.Infof("%s starting, version %s, commit %s, branch %s", name, version, commit, branch)
-	log.Infof("%s, target architecture is %s, operating system target is %s", runtime.Version(), runtime.GOARCH, runtime.GOOS)
-	log.Infof("role: %s", conf.RoleTag)
+	log.Infof("%#v starting, version %#v, commit %#v, branch %#v", name, version, commit, branch)
+	log.Infof("%#v, target architecture is %#v, operating system target is %#v", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("role: %#v", conf.RoleTag)
 }
 
 func main() {
@@ -95,14 +95,21 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error
 	conf.GConf, err = conf.LoadConfig(configFile)
 	if err != nil {
-		log.Fatalf("load config from %s failed: %s", configFile, err)
+		log.WithField("config", configFile).WithError(err).Fatal("load config failed")
 	}
 
 	kms.InitBP()
@@ -112,12 +119,6 @@ func main() {
 
 	// init log
 	initLogs()
-
-	if showVersion {
-		log.Infof("%s %s %s %s %s (commit %s, branch %s)",
-			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version(), commit, branch)
-		os.Exit(0)
-	}
 
 	if !noLogo {
 		fmt.Print(logo)
@@ -129,15 +130,15 @@ func main() {
 
 	if clientMode {
 		if err := runClient(conf.GConf.ThisNodeID); err != nil {
-			log.Fatalf("run client failed: %v", err.Error())
+			log.WithError(err).Fatal("run client failed")
 		} else {
-			log.Infof("run client success")
+			log.Info("run client success")
 		}
 		return
 	}
 
 	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {
-		log.Fatalf("run kayak failed: %v", err.Error())
+		log.WithError(err).Fatal("run kayak failed")
 	}
 
 	log.Info("server stopped")

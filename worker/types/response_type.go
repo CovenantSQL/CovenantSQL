@@ -37,33 +37,33 @@ type ResponseRow struct {
 
 // ResponsePayload defines column names and rows of query response.
 type ResponsePayload struct {
-	Columns   []string
-	DeclTypes []string
-	Rows      []ResponseRow
+	Columns   []string      `json:"c"`
+	DeclTypes []string      `json:"t"`
+	Rows      []ResponseRow `json:"r"`
 }
 
 // ResponseHeader defines a query response header.
 type ResponseHeader struct {
-	Request   SignedRequestHeader
-	NodeID    proto.NodeID // response node id
-	Timestamp time.Time    // time in UTC zone
-	RowCount  uint64       // response row count of payload
-	LogOffset uint64       // request log offset
-	DataHash  hash.Hash    // hash of query response
+	Request   SignedRequestHeader `json:"r"`
+	NodeID    proto.NodeID        `json:"id"` // response node id
+	Timestamp time.Time           `json:"t"`  // time in UTC zone
+	RowCount  uint64              `json:"c"`  // response row count of payload
+	LogOffset uint64              `json:"o"`  // request log offset
+	DataHash  hash.Hash           `json:"dh"` // hash of query response
 }
 
 // SignedResponseHeader defines a signed query response header.
 type SignedResponseHeader struct {
 	ResponseHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	HeaderHash hash.Hash             `json:"h"`
+	Signee     *asymmetric.PublicKey `json:"e"`
+	Signature  *asymmetric.Signature `json:"s"`
 }
 
 // Response defines a complete query response.
 type Response struct {
-	Header  SignedResponseHeader
-	Payload ResponsePayload
+	Header  SignedResponseHeader `json:"h"`
+	Payload ResponsePayload      `json:"p"`
 }
 
 // Serialize structure to bytes.

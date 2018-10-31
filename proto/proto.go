@@ -39,10 +39,10 @@ type EnvelopeAPI interface {
 
 // Envelope is the protocol header
 type Envelope struct {
-	Version string
-	TTL     time.Duration
-	Expire  time.Duration
-	NodeID  *RawNodeID
+	Version string        `json:"v"`
+	TTL     time.Duration `json:"t"`
+	Expire  time.Duration `json:"e"`
+	NodeID  *RawNodeID    `json:"id"`
 }
 
 // PingReq is Ping RPC request
@@ -72,9 +72,9 @@ type UploadMetricsResp struct {
 
 // FindNeighborReq is FindNeighbor RPC request
 type FindNeighborReq struct {
-	NodeID NodeID
-	Roles  []ServerRole
-	Count  int
+	ID    NodeID
+	Roles []ServerRole
+	Count int
 	Envelope
 }
 
@@ -87,7 +87,7 @@ type FindNeighborResp struct {
 
 // FindNodeReq is FindNode RPC request
 type FindNodeReq struct {
-	NodeID NodeID
+	ID NodeID
 	Envelope
 }
 

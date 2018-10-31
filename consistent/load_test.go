@@ -37,8 +37,8 @@ func TestSaveDHT(t *testing.T) {
 
 	Convey("save DHT", t, func() {
 		x, _ := InitConsistent(testStorePath1, new(KMSStorage), false)
-		x.Add(NewNodeFromID("abcdefg"))
-		x.Add(NewNodeFromID(("qwer")))
+		x.Add(NewNodeFromString("111111"))
+		x.Add(NewNodeFromString(("3333")))
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)
 		So(len(x.sortedHashes), ShouldEqual, x.NumberOfReplicas*2)
 		So(sort.IsSorted(x.sortedHashes), ShouldBeTrue)

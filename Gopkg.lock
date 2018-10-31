@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8d21b4d359da7c7e49800d2e6e186997bae08ea6f814b7ca20bbd76e72e0338d"
+  digest = "1:599cc68328d92a329d9ec7fd516ed5ac2abfaaafd5f824001adafcb0cf10fe49"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -29,7 +29,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "fe86852c12c8b9055d4d0731940014487dca1f12"
+  revision = "fb543cee920387ed5e85a2f098eba2dcc12b13c7"
 
 [[projects]]
   branch = "master"
@@ -118,6 +118,14 @@
   pruneopts = "UT"
   revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
   version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:7b274cc72af687fe6eb618acd83b9601c4317fbe5ac1dfb41cc116e3495f68b0"
+  name = "github.com/cyberdelia/go-metrics-graphite"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "39f87cc3b432bbb898d7c643c0e93cac2bc865ad"
 
 [[projects]]
   branch = "master"
@@ -217,14 +225,6 @@
   pruneopts = "UT"
   revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
   version = "v1.6.2"
-
-[[projects]]
-  branch = "master"
-  digest = "1:a4826c308e84f5f161b90b54a814f0be7d112b80164b9b884698a6903ea47ab3"
-  name = "github.com/hashicorp/yamux"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "2f1d1f20f75d5404f53b9edf6b53ed5505508675"
 
 [[projects]]
   branch = "master"
@@ -355,7 +355,7 @@
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "16f375c74db6ccf880e1cd9c6c6087a6d58e5d12"
+  revision = "f30f428035633da15d00d3dfefb0128c5e569ef4"
 
 [[projects]]
   branch = "master"
@@ -393,11 +393,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dd6ba1917df517806c9dcee5c87f15643c9b1ca6260d5b3f25eb863c6fe092ce"
+  digest = "1:d38f81081a389f1466ec98192cf9115a82158854d6f01e1c23e2e7554b97db71"
+  name = "github.com/rcrowley/go-metrics"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3113b8401b8a98917cde58f8bbd42a1b1c03b1fd"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a3b8912deeef29007fab9a13a9f21b9e9b59c621a2ed61e2fe7b37320a71fbd5"
   name = "github.com/satori/go.uuid"
   packages = ["."]
   pruneopts = "UT"
-  revision = "8ccf5352a842c034b1a69f28c863aff9b1cdb116"
+  revision = "b2ce2384e17bbe0c6d34077efa39dbab3e09123b"
 
 [[projects]]
   branch = "master"
@@ -423,7 +431,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a2781c62eecc87e942c9e9e84e5aeeba9957b6cd2f9b78f536d6f2a795577950"
+  digest = "1:d3384958d1ace51e2187c9747d806eee27d1aebdb1a4df798058a8cacc19b379"
   name = "github.com/siddontang/go-mysql"
   packages = [
     "mysql",
@@ -431,7 +439,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "a2685e59bda4b33ae8a7c95ace99cf2ea7804db3"
+  revision = "7f644882a1f315e77bfda60b4f689a45a2eec228"
   source = "github.com/CovenantSQL/go-mysql"
 
 [[projects]]
@@ -556,7 +564,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6162124bb1bdabe76e3da4a734a5109e8979e8cf4ddcc5c0efeb0a50bd3c1ef5"
+  digest = "1:70492e57eb4abe45c86ff3855b87a6681f15bcf7e12666596c1e826a9c95d99f"
   name = "github.com/xo/usql"
   packages = [
     "drivers",
@@ -569,7 +577,16 @@
     "text",
   ]
   pruneopts = "UT"
-  revision = "f0d1f2ffcfd924cccb45128a0fd7bdc06cad72b4"
+  revision = "885ff880d8520d74c227a9d1a310aa473209d155"
+  source = "github.com/CovenantSQL/usql"
+
+[[projects]]
+  digest = "1:07aaea55c778d9f0461a429eb19a134f17e9ac3232a5a28b16dfe57c637889bc"
+  name = "github.com/xtaci/smux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "545ecee9d2a96ef4cf3c420c6b4095ac313fe870"
+  version = "v1.09"
 
 [[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"
@@ -589,7 +606,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "45a5f77698d342a8c2ef8423abdf0ba6880b008a"
 
 [[projects]]
   branch = "master"
@@ -605,18 +622,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
+  revision = "c44066c5c816ec500d459a2a324a753f78531ae0"
 
 [[projects]]
   branch = "master"
-  digest = "1:eb2ed765d17a2cedfc307cf8beda6f0857ad378431a4d8f2726c419f3d7105de"
+  digest = "1:d2605ed96ca0244a457fa8e6c37d5c370ce98ea09dcc21e5e07d967bfcb78878"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "8a28ead16f52c8aaeffbf79239b251dfdf6c4f96"
+  revision = "95b1ffbd15a57cc5abb3f04402b9e8ec0016a52c"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -638,11 +655,11 @@
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
     "github.com/coreos/bbolt",
+    "github.com/cyberdelia/go-metrics-graphite",
     "github.com/dyatlov/go-opengraph/opengraph",
     "github.com/fortytw2/leaktest",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
-    "github.com/hashicorp/yamux",
     "github.com/jmoiron/jsonq",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",
@@ -654,6 +671,7 @@
     "github.com/prometheus/common/expfmt",
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
+    "github.com/rcrowley/go-metrics",
     "github.com/satori/go.uuid",
     "github.com/siddontang/go-mysql/mysql",
     "github.com/siddontang/go-mysql/server",
@@ -672,6 +690,7 @@
     "github.com/xo/usql/handler",
     "github.com/xo/usql/rline",
     "github.com/xo/usql/text",
+    "github.com/xtaci/smux",
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",

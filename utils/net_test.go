@@ -85,13 +85,21 @@ func TestWaitForPorts(t *testing.T) {
 		err = WaitForPorts(context.Background(), "127.0.0.1", ports, time.Millisecond*100)
 		So(err, ShouldBeNil)
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*300)
+		defer cancel()
+		err = WaitToConnect(ctx, "127.0.0.1", ports, time.Millisecond*100)
+		So(err, ShouldNotBeNil)
+
 		// listen
 		ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprint(ports[0])))
 		So(ln, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 		defer ln.Close()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*300)
+		err = WaitToConnect(context.Background(), "127.0.0.1", ports, time.Millisecond*100)
+		So(err, ShouldBeNil)
+
+		ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*300)
 		defer cancel()
 		err = WaitForPorts(ctx, "127.0.0.1", ports, time.Millisecond*100)
 		So(err, ShouldNotBeNil)

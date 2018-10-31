@@ -49,18 +49,18 @@ func init() {
 func StartMetricCollector() (registry *prometheus.Registry) {
 	nc, err := NewNodeCollector()
 	if err != nil {
-		log.Errorf("couldn't create node collector: %s", err)
+		log.WithError(err).Error("couldn't create node collector")
 		return
 	}
 
 	registry = prometheus.NewRegistry()
 	err = registry.Register(nc)
 	if err != nil {
-		log.Errorf("couldn't register collector: %s", err)
+		log.WithError(err).Error("couldn't register collector")
 		return nil
 	}
 
-	log.Infof("Enabled collectors:")
+	log.Info("Enabled collectors:")
 	var collectors []string
 	for n := range nc.Collectors {
 		collectors = append(collectors, n)

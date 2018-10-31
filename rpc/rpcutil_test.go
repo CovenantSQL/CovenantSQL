@@ -39,7 +39,7 @@ import (
 const (
 	DHTStorePath  = "./DHTStore"
 	RPCConcurrent = 10
-	RPCCount      = 10
+	RPCCount      = 100
 )
 
 func TestCaller_CallNode(t *testing.T) {
@@ -159,6 +159,7 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	server.Stop()
+	client.pool.Close()
 }
 
 func TestNewPersistentCaller(t *testing.T) {
@@ -168,18 +169,8 @@ func TestNewPersistentCaller(t *testing.T) {
 	os.Remove(publicKeyStore)
 	defer os.Remove(publicKeyStore)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
-	err := utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2230,
-	}, time.Millisecond*200)
-
-	if err != nil {
-		log.Fatalf("wait for port ready timeout: %v", err)
-	}
-
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config2.yaml")
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
@@ -197,7 +188,20 @@ func TestNewPersistentCaller(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		12230,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	err = server.InitRPCServer(addr, privateKeyPath, masterKey)
+	if err != nil {
+		t.Fatal(err)
+	}
 	go server.Serve()
 
 	client := NewPersistentCaller(conf.GConf.BP.NodeID)
@@ -217,8 +221,8 @@ func TestNewPersistentCaller(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	req := &proto.FindNeighborReq{
-		NodeID: "1234",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 
@@ -233,13 +237,13 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
+	wg.Add(RPCConcurrent * RPCCount)
 	for i := 0; i < RPCConcurrent; i++ {
-		wg.Add(1)
 		go func(tt *testing.T, wg *sync.WaitGroup) {
 			for j := 0; j < RPCCount; j++ {
 				reqF := &proto.FindNeighborReq{
-					NodeID: "1234",
-					Count:  10,
+					ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+					Count: 10,
 				}
 				respF := new(proto.FindNeighborResp)
 				err := client.Call("DHT.FindNeighbor", reqF, respF)
@@ -247,13 +251,38 @@ func TestNewPersistentCaller(t *testing.T) {
 					tt.Error(err)
 				}
 				log.Debugf("resp: %v", respF)
+				wg.Done()
 			}
-			wg.Done()
 		}(t, &wg)
 	}
 
+	client2 := NewPersistentCaller(conf.GConf.BP.NodeID)
+	reqF2 := &proto.FindNeighborReq{
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
+	}
+	respF2 := new(proto.FindNeighborResp)
+
+	err = client2.Call("DHT.FindNeighbor", reqF2, respF2)
+	if err != nil {
+		t.Error(err)
+	}
+	client2.CloseStream()
+
 	wg.Wait()
-	server.Stop()
+	sess, ok := client2.pool.getSessionFromPool(conf.GConf.BP.NodeID)
+	if !ok {
+		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
+	}
+	sess.conn.Close()
+
+	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
+	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
+	if err != nil {
+		t.Error(err)
+	}
+	client3.CloseStream()
+
 }
 
 func BenchmarkPersistentCaller_Call(b *testing.B) {
@@ -311,14 +340,30 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	}
 	log.Debugf("respA: %v", respA)
 
+	client = NewPersistentCaller(conf.GConf.BP.NodeID)
+	b.Run("benchmark Persistent Call Nil", func(b *testing.B) {
+		var (
+			req  proto.PingReq
+			resp proto.PingResp
+		)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err = client.Call("DHT.Nil", &req, &resp)
+			if err != nil {
+				b.Error(err)
+			}
+		}
+	})
+
 	req := &proto.FindNeighborReq{
-		NodeID: "1234",
-		Count:  10,
+		ID:    "1234567812345678123456781234567812345678123456781234567812345678",
+		Count: 10,
 	}
 	resp := new(proto.FindNeighborResp)
 
-	b.Run("benchmark Persistent", func(b *testing.B) {
-		client = NewPersistentCaller(conf.GConf.BP.NodeID)
+	client = NewPersistentCaller(conf.GConf.BP.NodeID)
+	b.Run("benchmark Persistent Call", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			err = client.Call("DHT.FindNeighbor", req, resp)
@@ -327,6 +372,32 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 			}
 		}
 	})
+
+	routineCount := runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
+
+	b.Run("benchmark Persistent New and Call", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			client = NewPersistentCaller(conf.GConf.BP.NodeID)
+			err = client.Call("DHT.FindNeighbor", req, resp)
+			if err != nil {
+				b.Error(err)
+			}
+			client.Close()
+		}
+	})
+
+	routineCount = runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
 
 	b.Run("benchmark non-Persistent", func(b *testing.B) {
 		oldClient := NewCaller()
@@ -338,5 +409,13 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 			}
 		}
 	})
+
+	routineCount = runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
+
 	server.Stop()
 }

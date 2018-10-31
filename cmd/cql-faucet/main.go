@@ -19,9 +19,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -30,9 +32,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const name = "cql-faucet"
+
 var (
-	configFile string
-	password   string
+	version     = "unknown"
+	configFile  string
+	password    string
+	showVersion bool
 )
 
 func init() {
@@ -40,18 +46,25 @@ func init() {
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
 func main() {
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %s : %v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	// init client
 	var err error
 	if err = client.Init(configFile, []byte(password)); err != nil {
-		log.Errorf("init covenantsql client failed: %v", err)
+		log.WithError(err).Error("init covenantsql client failed")
 		os.Exit(-1)
 		return
 	}
@@ -60,7 +73,7 @@ func main() {
 	var cfg *Config
 
 	if cfg, err = LoadConfig(configFile); err != nil {
-		log.Errorf("read faucet config failed: %v", err)
+		log.WithError(err).Error("read faucet config failed")
 		os.Exit(-1)
 		return
 	}

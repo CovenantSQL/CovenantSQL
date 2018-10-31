@@ -16,14 +16,18 @@
 
 package utils
 
-import "bytes"
-
 // ConcatAll concatenate several bytes slice into one.
 func ConcatAll(args ...[]byte) []byte {
-	key := bytes.NewBuffer([]byte{})
-
+	var bLen int
 	for i := range args {
-		key.Write(args[i])
+		bLen += len(args[i])
 	}
-	return key.Bytes()
+
+	key := make([]byte, bLen)
+	bLen = 0
+	for i := range args {
+		copy(key[bLen:], args[i])
+		bLen += len(args[i])
+	}
+	return key
 }

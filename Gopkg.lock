@@ -228,14 +228,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a4826c308e84f5f161b90b54a814f0be7d112b80164b9b884698a6903ea47ab3"
-  name = "github.com/hashicorp/yamux"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "2f1d1f20f75d5404f53b9edf6b53ed5505508675"
-
-[[projects]]
-  branch = "master"
   digest = "1:438016f7d4af8e5a7010b6d0705b267a7607ddc0decad051e83a9458c6b9a523"
   name = "github.com/jmoiron/jsonq"
   packages = ["."]
@@ -588,6 +580,14 @@
   revision = "f0d1f2ffcfd924cccb45128a0fd7bdc06cad72b4"
 
 [[projects]]
+  digest = "1:07aaea55c778d9f0461a429eb19a134f17e9ac3232a5a28b16dfe57c637889bc"
+  name = "github.com/xtaci/smux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "545ecee9d2a96ef4cf3c420c6b4095ac313fe870"
+  version = "v1.09"
+
+[[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"
   name = "github.com/zaf/temp"
   packages = ["."]
@@ -659,7 +659,6 @@
     "github.com/fortytw2/leaktest",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
-    "github.com/hashicorp/yamux",
     "github.com/jmoiron/jsonq",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",
@@ -690,6 +689,7 @@
     "github.com/xo/usql/handler",
     "github.com/xo/usql/rline",
     "github.com/xo/usql/text",
+    "github.com/xtaci/smux",
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",

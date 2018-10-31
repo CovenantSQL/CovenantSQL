@@ -29,7 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 var (
@@ -116,7 +116,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {
-			stream, ok := c.client.Conn.(*yamux.Stream)
+			stream, ok := c.client.Conn.(*mux.Stream)
 			if ok {
 				stream.Close()
 			}
@@ -159,9 +159,9 @@ func (c *Caller) CallNodeWithContext(
 	}
 
 	defer func() {
-		// call the yamux stream Close explicitly
+		// call the mux stream Close explicitly
 		//TODO(auxten) maybe a rpc client pool will gain much more performance
-		stream, ok := conn.(*yamux.Stream)
+		stream, ok := conn.(*mux.Stream)
 		if ok {
 			stream.Close()
 		}

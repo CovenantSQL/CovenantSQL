@@ -22,7 +22,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 // SessPool is the session pool interface
@@ -43,7 +43,7 @@ type SessionMap map[proto.NodeID]*Session
 // Session is the Session type of SessionPool
 type Session struct {
 	ID   proto.NodeID
-	Sess *yamux.Session
+	Sess *mux.Session
 	conn net.Conn
 }
 
@@ -80,10 +80,10 @@ func GetSessionPoolInstance() *SessionPool {
 	return instance
 }
 
-// toSession wraps net.Conn to yamux.Session
+// toSession wraps net.Conn to mux.Session
 func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
-	// create yamux session
-	newSess, err := yamux.Client(conn, YamuxConfig)
+	// create mux session
+	newSess, err := mux.Client(conn, YamuxConfig)
 	if err != nil {
 		//log.Errorf("dial to new node %s failed: %s", id, err)  // no log in lock
 		return
@@ -126,7 +126,7 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// first try to get one session from pool
 	cachedConn, ok := p.getSessionFromPool(id)
 	if ok {
-		conn, err = cachedConn.Sess.Open()
+		conn, err = cachedConn.Sess.OpenStream()
 		if err == nil {
 			log.Debugf("reusing session to %s", id)
 			return
@@ -152,7 +152,7 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	if loaded {
 		newSess.Close()
 	}
-	return sess.Sess.Open()
+	return sess.Sess.OpenStream()
 }
 
 // Set tries to set a new connection to the pool, typically from Accept()

@@ -28,7 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 // ServiceMap maps service name to service instance
@@ -127,7 +127,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		remoteNodeID = c.NodeID
 	}
 
-	sess, err := yamux.Server(conn, YamuxConfig)
+	sess, err := mux.Server(conn, YamuxConfig)
 	if err != nil {
 		log.Error(err)
 		return
@@ -150,7 +150,7 @@ sessionLoop:
 				}
 				break sessionLoop
 			}
-			log.Debugf("session accepted %d for %v", muxConn.StreamID(), remoteNodeID)
+			log.Debugf("session accepted %d for %v", muxConn.ID(), remoteNodeID)
 			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}

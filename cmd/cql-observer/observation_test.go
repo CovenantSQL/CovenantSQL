@@ -73,6 +73,8 @@ func startNodes() {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
+	utils.CleanupDB()
+
 	// start 3bps
 	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
@@ -124,9 +126,9 @@ func startNodes() {
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		3122,
-		3121,
-		3120,
+		4144,
+		4145,
+		4146,
 	}, time.Millisecond*200)
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)

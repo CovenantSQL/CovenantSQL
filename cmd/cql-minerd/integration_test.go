@@ -387,28 +387,50 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
+func prepareBenchTable(db *sql.DB) {
+	_, err := db.Exec("DROP TABLE IF EXISTS test;")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+	So(err, ShouldBeNil)
+}
+
 func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	var err error
 	if createDB {
-		_, err := db.Exec("DROP TABLE IF EXISTS test;")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
-		So(err, ShouldBeNil)
+		prepareBenchTable(db)
 	}
+
+	var i int32
+	var insertedCount int
 
 	rand.Seed(time.Now().UnixNano())
 	start := (rand.Int31() % 100) * 10000
 
-	var i int32
-	var insertedCount int
-	b.Run("benchmark INSERT", func(b *testing.B) {
+	b.Run("benchmark Single INSERT", func(b *testing.B) {
+		b.ResetTimer()
+		insertedCount = b.N
+		for i := 0; i < b.N; i++ {
+			_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+				"(?, ?)", int(start)+i, i,
+			)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	if createDB {
+		prepareBenchTable(db)
+	}
+
+	b.Run("benchmark Multi INSERT", func(b *testing.B) {
 		b.ResetTimer()
 		insertedCount = b.N
 		b.RunParallel(func(pb *testing.PB) {

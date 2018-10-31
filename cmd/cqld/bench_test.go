@@ -135,8 +135,8 @@ func TestStartBP_CallRPC(t *testing.T) {
 	reqType = "FindNeighbor"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
-		NodeID: proto.NodeID(nodePayload.ID),
-		Count:  1,
+		ID:    proto.NodeID(nodePayload.ID),
+		Count: 1,
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
@@ -254,8 +254,8 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	nodePayload.Addr = "nodePayloadAddr"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
-		NodeID: proto.NodeID(nodePayload.ID),
-		Count:  1,
+		ID:    proto.NodeID(nodePayload.ID),
+		Count: 1,
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)

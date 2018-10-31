@@ -858,17 +858,18 @@ func (c *Chain) Stop() (err error) {
 func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 	if n := c.rt.getHead().node.ancestor(height); n != nil {
 		k := utils.ConcatAll(metaBlockIndex[:], n.indexKey())
-		v, err := c.bdb.Get(k, nil)
+		var v []byte
+		v, err = c.bdb.Get(k, nil)
 		if err != nil {
 			err = errors.Wrapf(err, "fetch block %s", string(k))
-			return nil, err
+			return
 		}
 
 		b = &ct.Block{}
 		err = utils.DecodeMsgPack(v, b)
 		if err != nil {
 			err = errors.Wrapf(err, "fetch block %s", string(k))
-			return nil, err
+			return
 		}
 	}
 
@@ -879,30 +880,30 @@ func (c *Chain) FetchBlock(height int32) (b *ct.Block, err error) {
 func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
 	ack *wt.SignedAckHeader, err error,
 ) {
-	if ack, err = c.qi.getAck(height, header); err == nil && ack != nil {
-		return
-	}
-	for h := height - c.rt.queryTTL - 1; h <= height; h++ {
-		k := heightToKey(h)
-		ackKey := utils.ConcatAll(metaAckIndex[:], k, header[:])
-		v, err := c.tdb.Get(ackKey, nil)
-		if err != nil {
-			if err != leveldb.ErrNotFound {
-				err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
-				return nil, err
+	if ack, err = c.qi.getAck(height, header); err != nil || ack == nil {
+		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
+			k := heightToKey(h)
+			ackKey := utils.ConcatAll(metaAckIndex[:], k, header[:])
+			var v []byte
+			if v, err = c.tdb.Get(ackKey, nil); err != nil {
+				// if err == leveldb.ErrNotFound, just loop for next h
+				if err != leveldb.ErrNotFound {
+					err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
+					return
+				}
+			} else {
+				var dec = &wt.SignedAckHeader{}
+				if err = utils.DecodeMsgPack(v, dec); err != nil {
+					err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
+					return
+				}
+				ack = dec
+				break
 			}
-		} else {
-			var dec = &wt.SignedAckHeader{}
-			if err = utils.DecodeMsgPack(v, dec); err != nil {
-				err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
-				return nil, err
-			}
-			ack = dec
-			break
 		}
 	}
 	if ack == nil {
-		err = ErrAckQueryNotFound
+		err = errors.Wrapf(ErrAckQueryNotFound, "fetch ack not found")
 	}
 	return
 }
@@ -1044,10 +1045,12 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 func (c *Chain) VerifyAndPushResponsedQuery(resp *wt.SignedResponseHeader) (err error) {
 	// TODO(leventeliu): check resp.
 	if c.rt.queryTimeIsExpired(resp.Timestamp) {
-		return ErrQueryExpired
+		err = errors.Wrapf(ErrQueryExpired, "Verify response query, min valid height %d, response height %d", c.rt.getMinValidHeight(), c.rt.getHeightFromTime(resp.Timestamp))
+		return
 	}
 
 	if err = resp.Verify(); err != nil {
+		err = errors.Wrapf(err, "")
 		return
 	}
 
@@ -1058,7 +1061,8 @@ func (c *Chain) VerifyAndPushResponsedQuery(resp *wt.SignedResponseHeader) (err 
 func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
 	if c.rt.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
-		return ErrQueryExpired
+		err = errors.Wrapf(ErrQueryExpired, "Verify ack query, min valid height %d, ack height %d", c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
+		return
 	}
 
 	if err = ack.Verify(); err != nil {

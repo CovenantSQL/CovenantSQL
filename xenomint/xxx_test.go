@@ -17,19 +17,68 @@
 package xenomint
 
 import (
+	"database/sql"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"syscall"
 	"testing"
 	"time"
 
+	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 var (
-	testDataDir string
+	testingDataDir            string
+	testingDHTDBFile          string
+	testingPrivateKeyFile     string
+	testingPublicKeyStoreFile string
+
+	testingMasterKey = []byte(`?08Rl%WUih4V0H+c`)
 )
+
+func buildQuery(query string, args ...interface{}) wt.Query {
+	var nargs = make([]sql.NamedArg, len(args))
+	for i := range args {
+		nargs[i] = sql.NamedArg{
+			Name:  "",
+			Value: args[i],
+		}
+	}
+	return wt.Query{
+		Pattern: query,
+		Args:    nargs,
+	}
+}
+
+func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
+	return &wt.Request{
+		Header: wt.SignedRequestHeader{
+			RequestHeader: wt.RequestHeader{
+				QueryType: qt,
+			},
+		},
+		Payload: wt.RequestPayload{Queries: qs},
+	}
+}
+
+func concat(args [][]interface{}) (ret []interface{}) {
+	var (
+		tlen int
+	)
+	for _, v := range args {
+		tlen += len(v)
+	}
+	ret = make([]interface{}, 0, tlen)
+	for _, v := range args {
+		ret = append(ret, v...)
+	}
+	return
+}
 
 func setup() {
 	const minNoFile uint64 = 4096
@@ -38,12 +87,13 @@ func setup() {
 		lmt syscall.Rlimit
 	)
 
-	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
 
 	rand.Seed(time.Now().UnixNano())
 
+	// Set NOFILE limit
 	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
 		panic(err)
 	}
@@ -55,12 +105,32 @@ func setup() {
 		panic(err)
 	}
 
+	// Initialze kms
+	var (
+		priv *ca.PrivateKey
+		pub  *ca.PublicKey
+	)
+	testingDHTDBFile = path.Join(testingDataDir, "dht.db")
+	testingPrivateKeyFile = path.Join(testingDataDir, "private.key")
+	testingPublicKeyStoreFile = path.Join(testingDataDir, "public.keystore")
+	if err = kms.InitPublicKeyStore(testingPublicKeyStoreFile, nil); err != nil {
+		panic(err)
+	}
+	if priv, pub, err = ca.GenSecp256k1KeyPair(); err != nil {
+		panic(err)
+	}
+	kms.Unittest = true
+	kms.SetLocalKeyPair(priv, pub)
+	if err = kms.SavePrivateKey(testingPrivateKeyFile, priv, testingMasterKey); err != nil {
+		panic(err)
+	}
+
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }
 
 func teardown() {
-	if err := os.RemoveAll(testDataDir); err != nil {
+	if err := os.RemoveAll(testingDataDir); err != nil {
 		panic(err)
 	}
 }

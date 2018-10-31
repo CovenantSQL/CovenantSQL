@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	testDataDir string
+	testingDataDir string
 )
 
 func setup() {
@@ -38,7 +38,7 @@ func setup() {
 		lmt syscall.Rlimit
 	)
 
-	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	if testingDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func setup() {
 }
 
 func teardown() {
-	if err := os.RemoveAll(testDataDir); err != nil {
+	if err := os.RemoveAll(testingDataDir); err != nil {
 		panic(err)
 	}
 }

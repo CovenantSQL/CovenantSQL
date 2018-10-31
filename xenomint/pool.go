@@ -23,12 +23,18 @@ import (
 )
 
 type query struct {
+	sync.RWMutex
 	req  *wt.Request
 	resp *wt.Response
 }
 
+func (q *query) updateResp(resp *wt.Response) {
+	q.Lock()
+	defer q.Unlock()
+	q.resp = resp
+}
+
 type pool struct {
-	sync.RWMutex
 	queries []*query
 	index   map[uint64]int
 }
@@ -40,11 +46,9 @@ func newPool() *pool {
 	}
 }
 
-func (p *pool) enqueue(req *wt.Request, resp *wt.Response) {
-	p.Lock()
-	defer p.Unlock()
+func (p *pool) enqueue(sp uint64, q *query) {
 	var pos = len(p.queries)
-	p.queries = append(p.queries, &query{req: req, resp: resp})
-	p.index[resp.Header.LogOffset] = pos
+	p.queries = append(p.queries, q)
+	p.index[sp] = pos
 	return
 }

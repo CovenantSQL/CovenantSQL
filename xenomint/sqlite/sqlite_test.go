@@ -34,7 +34,7 @@ func TestStorage(t *testing.T) {
 	Convey("Given a sqlite storage implementation", t, func() {
 		const passes = 1000
 		var (
-			fl  = path.Join(testDataDir, t.Name())
+			fl  = path.Join(testingDataDir, t.Name())
 			st  xi.Storage
 			err error
 		)
@@ -240,7 +240,7 @@ func setupBenchmarkStorage(
 	)
 	// Setup storage
 	var (
-		fl   = path.Join(testDataDir, b.Name())
+		fl   = path.Join(testingDataDir, b.Name())
 		err  error
 		stmt *sql.Stmt
 	)
@@ -314,7 +314,7 @@ func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
 	b.StopTimer()
 
 	var (
-		fl  = path.Join(testDataDir, b.Name())
+		fl  = path.Join(testingDataDir, b.Name())
 		err error
 	)
 	if err = st.Close(); err != nil {

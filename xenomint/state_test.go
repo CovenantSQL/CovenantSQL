@@ -17,7 +17,6 @@
 package xenomint
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path"
@@ -30,35 +29,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func buildQuery(query string, args ...interface{}) wt.Query {
-	var nargs = make([]sql.NamedArg, len(args))
-	for i := range args {
-		nargs[i] = sql.NamedArg{
-			Name:  "",
-			Value: args[i],
-		}
-	}
-	return wt.Query{
-		Pattern: query,
-		Args:    nargs,
-	}
-}
-
-func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
-	return &wt.Request{
-		Header: wt.SignedRequestHeader{
-			RequestHeader: wt.RequestHeader{
-				QueryType: qt,
-			},
-		},
-		Payload: wt.RequestPayload{Queries: qs},
-	}
-}
-
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
-			fl     = path.Join(testDataDir, t.Name())
+			fl     = path.Join(testingDataDir, t.Name())
 			st     *state
 			closed bool
 			strg   xi.Storage
@@ -94,7 +68,7 @@ func TestState(t *testing.T) {
 						buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
 					})
 				)
-				_, err = st.Query(req)
+				_, _, err = st.Query(req)
 				So(err, ShouldNotBeNil)
 				err = errors.Cause(err)
 				So(err, ShouldNotBeNil)
@@ -110,10 +84,10 @@ func TestState(t *testing.T) {
 				})
 				resp *wt.Response
 			)
-			resp, err = st.Query(req)
+			_, resp, err = st.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+			_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
 				buildQuery(`SELECT * FROM "t1"`),
 			}))
 			So(err, ShouldNotBeNil)
@@ -128,13 +102,13 @@ func TestState(t *testing.T) {
 				})
 				resp *wt.Response
 			)
-			resp, err = st.Query(req)
+			_, resp, err = st.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			err = st.commit()
+			_, err = st.commit()
 			So(err, ShouldBeNil)
 			Convey("The state should not change after attempted writing in read query", func() {
-				resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1"),
 					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, 1),
 				}))
@@ -145,54 +119,65 @@ func TestState(t *testing.T) {
 				So(resp.Header.RowCount, ShouldEqual, 0)
 			})
 			Convey("The state should work properly with reading/writing queries", func() {
-				resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
-					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1"),
+				var values = [][]interface{}{
+					{int64(1), []byte("v1")},
+					{int64(2), []byte("v2")},
+					{int64(3), []byte("v3")},
+					{int64(4), []byte("v4")},
+				}
+				_, resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
+					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
-				resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
-					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, 1),
+				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[0][0]),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 1)
-				So(resp.Payload.Columns, ShouldResemble, []string{"v"})
-				So(resp.Payload.DeclTypes, ShouldResemble, []string{"TEXT"})
-				So(resp.Payload.Rows[0].Values[0], ShouldResemble, []byte("v1"))
+				So(resp.Payload, ShouldResemble, wt.ResponsePayload{
+					Columns:   []string{"v"},
+					DeclTypes: []string{"TEXT"},
+					Rows:      []wt.ResponseRow{{Values: values[0][1:]}},
+				})
 
-				resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
-					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 2, "v2"),
+				_, resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
+					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[1]...),
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?);
-INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 3, "v3", 4, "v4"),
+INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
-				resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
 					buildQuery(`SELECT "v" FROM "t1"`),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 4)
-				So(resp.Payload.Columns, ShouldResemble, []string{"v"})
-				So(resp.Payload.DeclTypes, ShouldResemble, []string{"TEXT"})
-				So(resp.Payload.Rows[0].Values[0], ShouldResemble, []byte("v1"))
-				So(resp.Payload.Rows[1].Values[0], ShouldResemble, []byte("v2"))
-				So(resp.Payload.Rows[2].Values[0], ShouldResemble, []byte("v3"))
-				So(resp.Payload.Rows[3].Values[0], ShouldResemble, []byte("v4"))
+				So(resp.Payload, ShouldResemble, wt.ResponsePayload{
+					Columns:   []string{"v"},
+					DeclTypes: []string{"TEXT"},
+					Rows: []wt.ResponseRow{
+						{Values: values[0][1:]},
+						{Values: values[1][1:]},
+						{Values: values[2][1:]},
+						{Values: values[3][1:]},
+					},
+				})
 
-				resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
 					buildQuery(`SELECT * FROM "t1"`),
 				}))
 				So(err, ShouldBeNil)
-				So(resp.Header.RowCount, ShouldEqual, 4)
-				So(resp.Payload.Columns, ShouldResemble, []string{"k", "v"})
-				So(resp.Payload.DeclTypes, ShouldResemble, []string{"INT", "TEXT"})
-				So(resp.Payload.Rows[0].Values[0], ShouldResemble, int64(1))
-				So(resp.Payload.Rows[0].Values[1], ShouldResemble, []byte("v1"))
-				So(resp.Payload.Rows[1].Values[0], ShouldResemble, int64(2))
-				So(resp.Payload.Rows[1].Values[1], ShouldResemble, []byte("v2"))
-				So(resp.Payload.Rows[2].Values[0], ShouldResemble, int64(3))
-				So(resp.Payload.Rows[2].Values[1], ShouldResemble, []byte("v3"))
-				So(resp.Payload.Rows[3].Values[0], ShouldResemble, int64(4))
-				So(resp.Payload.Rows[3].Values[1], ShouldResemble, []byte("v4"))
+				So(resp.Payload, ShouldResemble, wt.ResponsePayload{
+					Columns:   []string{"k", "v"},
+					DeclTypes: []string{"INT", "TEXT"},
+					Rows: []wt.ResponseRow{
+						{Values: values[0][:]},
+						{Values: values[1][:]},
+						{Values: values[2][:]},
+						{Values: values[3][:]},
+					},
+				})
 			})
 		})
 	})

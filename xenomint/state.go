@@ -18,6 +18,7 @@ package xenomint
 
 import (
 	"database/sql"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 )
 
 type state struct {
+	sync.RWMutex
 	strg xi.Storage
 	pool *pool
 	// unc is the uncommitted transaction.
@@ -151,7 +153,7 @@ func buildRowsFromNativeData(data [][]interface{}) (rows []wt.ResponseRow) {
 	return
 }
 
-func (s *state) read(req *wt.Request) (resp *wt.Response, err error) {
+func (s *state) read(req *wt.Request) (ref *query, resp *wt.Response, err error) {
 	var (
 		ierr         error
 		names, types []string
@@ -165,6 +167,7 @@ func (s *state) read(req *wt.Request) (resp *wt.Response, err error) {
 		}
 	}
 	// Build query response
+	ref = &query{req: req}
 	resp = &wt.Response{
 		Header: wt.SignedResponseHeader{
 			ResponseHeader: wt.ResponseHeader{
@@ -184,7 +187,7 @@ func (s *state) read(req *wt.Request) (resp *wt.Response, err error) {
 	return
 }
 
-func (s *state) readTx(req *wt.Request) (resp *wt.Response, err error) {
+func (s *state) readTx(req *wt.Request) (ref *query, resp *wt.Response, err error) {
 	var (
 		tx           *sql.Tx
 		id           uint64
@@ -192,10 +195,12 @@ func (s *state) readTx(req *wt.Request) (resp *wt.Response, err error) {
 		names, types []string
 		data         [][]interface{}
 	)
-	if tx, err = s.strg.DirtyReader().Begin(); err != nil {
+	if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
+		err = errors.Wrap(ierr, "open tx failed")
 		return
 	}
 	defer tx.Rollback()
+	// FIXME(leventeliu): lock free but not consistent.
 	id = s.getID()
 	for i, v := range req.Payload.Queries {
 		if names, types, data, ierr = readSingle(tx, &v); ierr != nil {
@@ -204,6 +209,7 @@ func (s *state) readTx(req *wt.Request) (resp *wt.Response, err error) {
 		}
 	}
 	// Build query response
+	ref = &query{req: req}
 	resp = &wt.Response{
 		Header: wt.SignedResponseHeader{
 			ResponseHeader: wt.ResponseHeader{
@@ -241,12 +247,15 @@ func (s *state) rollbackTo(savepoint uint64) {
 	s.unc.Exec("ROLLBACK TO ?", savepoint)
 }
 
-func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
+func (s *state) write(req *wt.Request) (ref *query, resp *wt.Response, err error) {
 	var (
 		ierr      error
-		savepoint = s.getID()
+		savepoint uint64
+		query     = &query{req: req}
 	)
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
+	s.Lock()
+	savepoint = s.getID()
 	for i, v := range req.Payload.Queries {
 		if _, ierr = s.writeSingle(&v); ierr != nil {
 			err = errors.Wrapf(ierr, "execute at #%d failed", i)
@@ -254,7 +263,11 @@ func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
 			return
 		}
 	}
+	s.setSavepoint()
+	s.pool.enqueue(savepoint, query)
+	s.Unlock()
 	// Build query response
+	ref = query
 	resp = &wt.Response{
 		Header: wt.SignedResponseHeader{
 			ResponseHeader: wt.ResponseHeader{
@@ -266,24 +279,37 @@ func (s *state) write(req *wt.Request) (resp *wt.Response, err error) {
 			},
 		},
 	}
-	s.setSavepoint()
-	s.pool.enqueue(req, resp)
 	return
 }
 
 func (s *state) replay(req *wt.Request, resp *wt.Response) (err error) {
-	if resp.Header.ResponseHeader.LogOffset != s.getID() {
+	var (
+		ierr      error
+		savepoint uint64
+		query     = &query{req: req, resp: resp}
+	)
+	s.Lock()
+	defer s.Unlock()
+	savepoint = s.getID()
+	if resp.Header.ResponseHeader.LogOffset != savepoint {
 		err = ErrQueryConflict
 		return
 	}
-	if _, err = s.write(req); err != nil {
-		return
+	for i, v := range req.Payload.Queries {
+		if _, ierr = s.writeSingle(&v); ierr != nil {
+			err = errors.Wrapf(ierr, "execute at #%d failed", i)
+			s.rollbackTo(savepoint)
+			return
+		}
 	}
-	s.pool.enqueue(req, resp)
+	s.setSavepoint()
+	s.pool.enqueue(savepoint, query)
 	return
 }
 
-func (s *state) commit() (err error) {
+func (s *state) commit() (queries []*query, err error) {
+	s.Lock()
+	defer s.Unlock()
 	if err = s.unc.Commit(); err != nil {
 		return
 	}
@@ -292,13 +318,15 @@ func (s *state) commit() (err error) {
 	}
 	s.setNextTxID()
 	s.setSavepoint()
+	queries = s.pool.queries
+	s.pool = newPool()
 	return
 }
 
-func (s *state) partialCommit(qs []*wt.Ack) (err error) {
+func (s *state) partialCommit(qs []*wt.Response) (err error) {
 	var (
 		i  int
-		v  *wt.Ack
+		v  *wt.Response
 		q  *query
 		rm []*query
 
@@ -310,8 +338,8 @@ func (s *state) partialCommit(qs []*wt.Ack) (err error) {
 	}
 	for i, v = range qs {
 		var loc = s.pool.queries[i]
-		if !loc.req.Header.HeaderHash.IsEqual(&v.Header.Response.Request.HeaderHash) ||
-			loc.resp.Header.LogOffset != v.Header.Response.LogOffset {
+		if !loc.req.Header.HeaderHash.IsEqual(&v.Header.Request.HeaderHash) ||
+			loc.resp.Header.LogOffset != v.Header.LogOffset {
 			err = ErrQueryConflict
 			return
 		}
@@ -324,7 +352,7 @@ func (s *state) partialCommit(qs []*wt.Ack) (err error) {
 	s.pool = newPool()
 	// Rewrite
 	for _, q = range rm {
-		if _, err = s.write(q.req); err != nil {
+		if _, _, err = s.write(q.req); err != nil {
 			return
 		}
 	}
@@ -339,7 +367,7 @@ func (s *state) rollback() (err error) {
 	return
 }
 
-func (s *state) Query(req *wt.Request) (resp *wt.Response, err error) {
+func (s *state) Query(req *wt.Request) (ref *query, resp *wt.Response, err error) {
 	switch req.Header.QueryType {
 	case wt.ReadQuery:
 		return s.readTx(req)

@@ -88,7 +88,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, false,
+		"leader", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -99,7 +99,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
 		},
-		"follower1", testWorkingDir, logDir, false,
+		"follower1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -110,7 +110,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
 		},
-		"follower2", testWorkingDir, logDir, false,
+		"follower2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -126,7 +126,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
 		},
-		"miner0", testWorkingDir, logDir, false,
+		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -139,7 +139,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, false,
+		"miner1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -152,7 +152,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, false,
+		"miner2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -317,7 +317,7 @@ func TestFullProcess(t *testing.T) {
 			3121,
 			3120,
 		}, time.Millisecond*200)
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 		So(err, ShouldBeNil)
 
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))

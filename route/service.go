@@ -86,7 +86,6 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 		return
 	}
 	resp.Nodes = nodes
-	log.Debugf("found %v nodes for find neighbor request %v", len(nodes), req)
 	return
 }
 

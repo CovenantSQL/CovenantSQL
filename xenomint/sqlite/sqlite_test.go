@@ -224,6 +224,8 @@ func TestStorage(t *testing.T) {
 	})
 }
 
+const benchmarkQueriesPerTx = 100
+
 func setupBenchmarkStorage(
 	b *testing.B,
 ) (
@@ -373,6 +375,31 @@ func BenchmarkStoargeSequentialWrite(b *testing.B) {
 	teardownBenchmarkStorage(b, st)
 }
 
+func BenchmarkStoargeSequentialWriteTx(b *testing.B) {
+	var (
+		st, n, _, _, e, src = setupBenchmarkStorage(b)
+
+		tx  *sql.Tx
+		err error
+	)
+	for i := 0; i < b.N; i++ {
+		if i%benchmarkQueriesPerTx == 0 {
+			if tx, err = st.Writer().Begin(); err != nil {
+				b.Errorf("Failed to begin transaction: %v", err)
+			}
+		}
+		if _, err = tx.Exec(e, src[rand.Intn(n)]...); err != nil {
+			b.Errorf("Failed to execute: %v", err)
+		}
+		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
+			if err = tx.Commit(); err != nil {
+				b.Errorf("Failed to commit transaction: %v", err)
+			}
+		}
+	}
+	teardownBenchmarkStorage(b, st)
+}
+
 // BW is a background writer function passed to benchmark helper.
 type BW func(
 	*testing.B, *sync.WaitGroup, <-chan struct{}, xi.Storage, int, string, [][]interface{},
@@ -403,14 +430,13 @@ func busyWriteTx(
 	st xi.Storage, n int, e string, src [][]interface{},
 ) {
 	defer wg.Done()
-	const writesPerTx = 100
 	var (
 		tx  *sql.Tx
 		err error
 	)
 	for i := 0; ; i++ {
 		// Begin
-		if i%writesPerTx == 0 {
+		if i%benchmarkQueriesPerTx == 0 {
 			if tx, err = st.Writer().Begin(); err != nil {
 				b.Errorf("Failed to begin transaction: %v", err)
 			}
@@ -433,7 +459,7 @@ func busyWriteTx(
 			}
 		}
 		// Commit
-		if (i+1)%writesPerTx == 0 {
+		if (i+1)%benchmarkQueriesPerTx == 0 {
 			if err = tx.Commit(); err != nil {
 				b.Errorf("Failed to commit transaction: %v", err)
 			}
@@ -447,10 +473,7 @@ func idleWriteTx(
 	wg *sync.WaitGroup, sc <-chan struct{},
 	st xi.Storage, n int, e string, src [][]interface{},
 ) {
-	const (
-		writesPerTx = 100
-		writeIntlMS = 1
-	)
+	const writeIntlMS = 1
 	var (
 		tx     *sql.Tx
 		err    error
@@ -462,7 +485,7 @@ func idleWriteTx(
 	}()
 	for i := 0; ; i++ {
 		// Begin
-		if i%writesPerTx == 0 {
+		if i%benchmarkQueriesPerTx == 0 {
 			if tx, err = st.Writer().Begin(); err != nil {
 				b.Errorf("Failed to begin transaction: %v", err)
 			}
@@ -485,7 +508,7 @@ func idleWriteTx(
 			return
 		}
 		// Commit
-		if (i+1)%writesPerTx == 0 {
+		if (i+1)%benchmarkQueriesPerTx == 0 {
 			if err = tx.Commit(); err != nil {
 				b.Errorf("Failed to commit transaction: %v", err)
 			}
@@ -556,7 +579,6 @@ func BenchmarkStoargeSequentialReadWithBackgroundIdleTxWriter(b *testing.B) {
 }
 
 func benchmarkStorageSequentialReadTxWithBackgroundWriter(b *testing.B, getReader GR, write BW) {
-	const queriesPerTx = 100
 	var (
 		st, n, q, dm, e, src = setupBenchmarkStorage(b)
 
@@ -573,7 +595,7 @@ func benchmarkStorageSequentialReadTxWithBackgroundWriter(b *testing.B, getReade
 	go write(b, wg, sc, st, n, e, src)
 
 	for i := 0; i < b.N; i++ {
-		if i%queriesPerTx == 0 {
+		if i%benchmarkQueriesPerTx == 0 {
 			if tx, err = getReader(st).Begin(); err != nil {
 				b.Fatalf("Failed to begin transaction: %v", err)
 			}
@@ -584,7 +606,7 @@ func benchmarkStorageSequentialReadTxWithBackgroundWriter(b *testing.B, getReade
 		).Scan(dest...); err != nil && err != sql.ErrNoRows {
 			b.Fatalf("Failed to query values: %v", err)
 		}
-		if (i+1)%queriesPerTx == 0 || i == b.N-1 {
+		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
 			if err = tx.Rollback(); err != nil {
 				b.Fatalf("Failed to close transaction: %v", err)
 			}

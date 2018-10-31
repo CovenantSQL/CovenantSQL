@@ -28,7 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 // ServiceMap maps service name to service instance
@@ -126,7 +126,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		remoteNodeID = c.NodeID
 	}
 
-	sess, err := yamux.Server(conn, YamuxConfig)
+	sess, err := mux.Server(conn, YamuxConfig)
 	if err != nil {
 		log.Error(err)
 		return
@@ -149,19 +149,10 @@ sessionLoop:
 				}
 				break sessionLoop
 			}
-			log.WithFields(log.Fields{
-				"session": muxConn.StreamID(),
-				"remote":  remoteNodeID,
-			}).Debug("session accepted")
 			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}
-
-	log.WithFields(log.Fields{
-		"remote": remoteNodeID,
-		"addr":   conn.RemoteAddr().String(),
-	}).Debug("Server.handleConn finished")
 }
 
 // RegisterService with a Service name, used by Client RPC

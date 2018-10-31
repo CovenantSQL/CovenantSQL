@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -40,6 +41,8 @@ import (
 	"github.com/xo/usql/text"
 )
 
+const name = "cql"
+
 var (
 	version           = "unknown"
 	dsn               string
@@ -50,6 +53,7 @@ var (
 	configFile        string
 	password          string
 	singleTransaction bool
+	showVersion       bool
 	variables         varsFlag
 
 	// DML variables
@@ -171,6 +175,7 @@ func init() {
 	flag.StringVar(&dsn, "dsn", "", "database url")
 	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
 	flag.StringVar(&fileName, "file", "", "execute commands from file and exit")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&noRC, "no-rc", false, "do not read start up file")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
@@ -188,6 +193,11 @@ func init() {
 
 func main() {
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
 
 	var err error
 

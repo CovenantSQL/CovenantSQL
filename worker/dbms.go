@@ -23,6 +23,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -121,17 +123,20 @@ func (dbms *DBMS) Init() (err error) {
 	// read meta
 	var localMeta *DBMSMeta
 	if localMeta, err = dbms.readMeta(); err != nil {
+		err = errors.Wrap(err, "read dbms meta failed")
 		return
 	}
 
 	// load current peers info from block producer
 	var dbMapping []wt.ServiceInstance
 	if dbMapping, err = dbms.getMappedInstances(); err != nil {
+		err = errors.Wrap(err, "get mapped instances failed")
 		return
 	}
 
 	// init database
 	if err = dbms.initDatabases(localMeta, dbMapping); err != nil {
+		err = errors.Wrap(err, "init databases with meta failed")
 		return
 	}
 

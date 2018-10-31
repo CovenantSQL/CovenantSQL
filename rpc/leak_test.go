@@ -97,7 +97,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: thisClient.ID,
+		ID: thisClient.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	err = caller.CallNode(leaderNodeID, "DHT."+reqType, reqFN, respFN)
@@ -113,7 +113,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 
 	reqType = "FindNode"
 	reqFN = &proto.FindNodeReq{
-		NodeID: thisClient.ID,
+		ID: thisClient.ID,
 	}
 	respFN = new(proto.FindNodeResp)
 	err = caller.CallNode(leaderNodeID, "DHT."+reqType, reqFN, respFN)

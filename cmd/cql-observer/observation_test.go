@@ -64,23 +64,16 @@ func startNodes() {
 	var err error
 	ctx := context.Background()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2144,
-		2145,
-		2146,
+		4120,
+		4121,
+		4122,
 	}, time.Millisecond*200)
 
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
-	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		3122,
-		3121,
-		3120,
-	}, time.Millisecond*200)
 
-	if err != nil {
-		log.Fatalf("wait for port ready timeout: %v", err)
-	}
+	utils.CleanupDB()
 
 	// start 3bps
 	var cmd *utils.CMD
@@ -118,8 +111,29 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 
-	time.Sleep(time.Second * 3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	err = utils.WaitToConnect(ctx, "127.0.0.1", []int{
+		4120,
+		4121,
+		4122,
+	}, time.Millisecond*200)
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
 
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		4144,
+		4145,
+		4146,
+	}, time.Millisecond*200)
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	time.Sleep(10 * time.Second)
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
@@ -127,7 +141,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner0.cover.out"),
 		},
-		"miner0", testWorkingDir, logDir, false,
+		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -140,7 +154,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, false,
+		"miner1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -153,7 +167,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, false,
+		"miner2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {

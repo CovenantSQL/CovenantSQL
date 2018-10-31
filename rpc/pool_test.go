@@ -25,8 +25,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
 	. "github.com/smartystreets/goconvey/convey"
+	mux "github.com/xtaci/smux"
 )
 
 const (
@@ -53,9 +53,9 @@ func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) er
 		conn, err := listener.Accept()
 		c.So(err, ShouldBeNil)
 
-		// Setup server side of yamux
+		// Setup server side of mux
 		log.Println("creating server session")
-		session, err := yamux.Server(conn, nil)
+		session, err := mux.Server(conn, nil)
 		c.So(err, ShouldBeNil)
 
 		for i := 0; i < concurrency; i++ {
@@ -68,7 +68,7 @@ func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) er
 				//c2.So(string(buf1), ShouldEqual, "ping")
 				defer wg.Done()
 				log.Println("accepting stream")
-				stream, err := session.Accept()
+				stream, err := session.AcceptStream()
 				if err == nil {
 					buf1 := make([]byte, 4)
 					for i := 0; i < n; i++ {

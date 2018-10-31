@@ -18,7 +18,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -36,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 var rootHash = hash.Hash{}
@@ -53,10 +53,12 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 	}
 
 	if dbms, err = worker.NewDBMS(cfg); err != nil {
+		err = errors.Wrap(err, "create new DBMS failed")
 		return
 	}
 
 	if err = dbms.Init(); err != nil {
+		err = errors.Wrap(err, "init DBMS failed")
 		return
 	}
 
@@ -68,9 +70,11 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 		var privKey *asymmetric.PrivateKey
 
 		if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+			err = errors.Wrap(err, "get local public key failed")
 			return
 		}
 		if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+			err = errors.Wrap(err, "get local private key failed")
 			return
 		}
 
@@ -102,12 +106,14 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 			}
 
 			if err = dbPeers.Sign(privKey); err != nil {
+				err = errors.Wrap(err, "sign peers failed")
 				return
 			}
 
 			// load genesis block
 			var block *ct.Block
 			if block, err = loadGenesisBlock(testFixture); err != nil {
+				err = errors.Wrap(err, "load genesis block failed")
 				return
 			}
 
@@ -118,6 +124,7 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 				GenesisBlock: block,
 			}
 			if err = dbms.Create(instance, false); err != nil {
+				err = errors.Wrap(err, "add new DBMS failed")
 				return
 			}
 		}
@@ -134,18 +141,21 @@ func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *ct.Block, err 
 
 	var blockBytes []byte
 	if blockBytes, err = ioutil.ReadFile(fixture.GenesisBlockFile); err == nil {
+		err = errors.Wrap(err, "read block failed")
 		return
 	}
 
 	if os.IsNotExist(err) && fixture.AutoGenerateGenesisBlock {
 		// generate
 		if block, err = createRandomBlock(rootHash, true); err != nil {
+			err = errors.Wrap(err, "create random block failed")
 			return
 		}
 
 		// encode block
 		var bytesBuffer *bytes.Buffer
 		if bytesBuffer, err = utils.EncodeMsgPack(block); err != nil {
+			err = errors.Wrap(err, "encode block failed")
 			return
 		}
 

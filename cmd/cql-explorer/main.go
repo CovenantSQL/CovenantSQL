@@ -18,10 +18,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -29,10 +31,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+const name = "cql-explorer"
+
 var (
 	version = "unknown"
-	commit  = "unknown"
-	branch  = "unknown"
 )
 
 var (
@@ -41,6 +43,7 @@ var (
 	password      string
 	listenAddr    string
 	checkInterval time.Duration
+	showVersion   bool
 )
 
 func init() {
@@ -48,6 +51,7 @@ func init() {
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4665", "listen address for http explorer api")
 	flag.DurationVar(&checkInterval, "interval", time.Second*2, "new block check interval for explorer")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
 func main() {
@@ -55,8 +59,14 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %#v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	// init client

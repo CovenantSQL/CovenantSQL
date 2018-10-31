@@ -29,7 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/hashicorp/yamux"
+	mux "github.com/xtaci/smux"
 )
 
 var (
@@ -116,7 +116,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {
-			stream, ok := c.client.Conn.(*yamux.Stream)
+			stream, ok := c.client.Conn.(*mux.Stream)
 			if ok {
 				stream.Close()
 			}
@@ -159,9 +159,9 @@ func (c *Caller) CallNodeWithContext(
 	}
 
 	defer func() {
-		// call the yamux stream Close explicitly
+		// call the mux stream Close explicitly
 		//TODO(auxten) maybe a rpc client pool will gain much more performance
-		stream, ok := conn.(*yamux.Stream)
+		stream, ok := conn.(*mux.Stream)
 		if ok {
 			stream.Close()
 		}
@@ -201,7 +201,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			}
 			client := NewCaller()
 			reqFN := &proto.FindNodeReq{
-				NodeID: proto.NodeID(id.String()),
+				ID: proto.NodeID(id.String()),
 			}
 			respFN := new(proto.FindNodeResp)
 
@@ -235,7 +235,7 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 			}
 			client := NewCaller()
 			reqFN := &proto.FindNodeReq{
-				NodeID: proto.NodeID(id.String()),
+				ID: proto.NodeID(id.String()),
 			}
 			respFN := new(proto.FindNodeResp)
 			bp := BPs[rand.Intn(len(BPs))]
@@ -308,7 +308,7 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 
 	// call random block producer for nearest block producer node
 	req := &proto.FindNeighborReq{
-		NodeID: localNodeID,
+		ID: localNodeID,
 		Roles: []proto.ServerRole{
 			proto.Leader,
 			// only leader is capable of allocating database in current implementation

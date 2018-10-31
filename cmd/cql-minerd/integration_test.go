@@ -61,15 +61,6 @@ func startNodes() {
 
 	// wait for ports to be available
 	var err error
-	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2144,
-		2145,
-		2146,
-	}, time.Millisecond*200)
-
-	if err != nil {
-		log.Fatalf("wait for port ready timeout: %v", err)
-	}
 
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
 		3122,
@@ -81,6 +72,7 @@ func startNodes() {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
+	utils.CleanupDB()
 	// start 3bps
 	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
@@ -88,7 +80,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, false,
+		"leader", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -99,7 +91,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
 		},
-		"follower1", testWorkingDir, logDir, false,
+		"follower1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -110,14 +102,38 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
 		},
-		"follower2", testWorkingDir, logDir, false,
+		"follower2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
 
-	time.Sleep(time.Second * 3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	err = utils.WaitToConnect(ctx, "127.0.0.1", []int{
+		3122,
+		3121,
+		3120,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2144,
+		2145,
+		2146,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	time.Sleep(10 * time.Second)
 
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
@@ -126,7 +142,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
 		},
-		"miner0", testWorkingDir, logDir, false,
+		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -139,7 +155,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, false,
+		"miner1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -152,7 +168,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, false,
+		"miner2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -317,7 +333,7 @@ func TestFullProcess(t *testing.T) {
 			3121,
 			3120,
 		}, time.Millisecond*200)
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 		So(err, ShouldBeNil)
 
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))

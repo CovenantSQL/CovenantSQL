@@ -705,11 +705,11 @@ func (c *Chain) mainCycle() {
 
 func (c *Chain) syncHead() {
 	// Try to fetch if the the block of the current turn is not advised yet
-	log.WithFields(log.Fields{
-		"index":     c.rt.index,
-		"next_turn": c.rt.getNextTurn(),
-		"height":    c.rt.getHead().getHeight(),
-	}).Debug("sync header")
+	//log.WithFields(log.Fields{
+	//	"index":     c.rt.index,
+	//	"next_turn": c.rt.getNextTurn(),
+	//	"height":    c.rt.getHead().getHeight(),
+	//}).Debug("sync header")
 	if h := c.rt.getNextTurn() - 1; c.rt.getHead().getHeight() < h {
 		var err error
 		req := &FetchBlockReq{

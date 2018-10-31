@@ -90,7 +90,19 @@ func TestStartBP_CallRPC(t *testing.T) {
 
 	var err error
 	start3BPs()
-	time.Sleep(5 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	err = utils.WaitToConnect(ctx, "127.0.0.1", []int{
+		2122,
+		2121,
+		2120,
+	}, time.Millisecond*200)
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	time.Sleep(2 * time.Second)
 
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
 	if err != nil {
@@ -135,8 +147,8 @@ func TestStartBP_CallRPC(t *testing.T) {
 	reqType = "FindNeighbor"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
-		NodeID: proto.NodeID(nodePayload.ID),
-		Count:  1,
+		ID:    proto.NodeID(nodePayload.ID),
+		Count: 1,
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
@@ -159,7 +171,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
+		ID: nodePayload.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	err = RPCClient.Call("DHT."+reqType, reqFN, respFN)
@@ -254,8 +266,8 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 	nodePayload.Addr = "nodePayloadAddr"
 
 	reqFindNeighbor := &proto.FindNeighborReq{
-		NodeID: proto.NodeID(nodePayload.ID),
-		Count:  1,
+		ID:    proto.NodeID(nodePayload.ID),
+		Count: 1,
 	}
 	respFindNeighbor := new(proto.FindNeighborResp)
 	log.Debugf("req %s: %v", reqType, reqFindNeighbor)
@@ -288,7 +300,7 @@ func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
 
 	reqType = "FindNode"
 	reqFN := &proto.FindNodeReq{
-		NodeID: nodePayload.ID,
+		ID: nodePayload.ID,
 	}
 	respFN := new(proto.FindNodeResp)
 	b.Run("benchmark "+reqType, func(b *testing.B) {

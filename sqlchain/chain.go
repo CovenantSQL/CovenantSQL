@@ -670,15 +670,15 @@ func (c *Chain) mainCycle() {
 			c.syncHead()
 
 			if t, d := c.rt.nextTick(); d > 0 {
-				log.WithFields(log.Fields{
-					"peer":            c.rt.getPeerInfoString(),
-					"time":            c.rt.getChainTimeString(),
-					"next_turn":       c.rt.getNextTurn(),
-					"head_height":     c.rt.getHead().Height,
-					"head_block":      c.rt.getHead().Head.String(),
-					"using_timestamp": t.Format(time.RFC3339Nano),
-					"duration":        d,
-				}).Debug("Main cycle")
+				//log.WithFields(log.Fields{
+				//	"peer":            c.rt.getPeerInfoString(),
+				//	"time":            c.rt.getChainTimeString(),
+				//	"next_turn":       c.rt.getNextTurn(),
+				//	"head_height":     c.rt.getHead().Height,
+				//	"head_block":      c.rt.getHead().Head.String(),
+				//	"using_timestamp": t.Format(time.RFC3339Nano),
+				//	"duration":        d,
+				//}).Debug("Main cycle")
 				time.Sleep(d)
 			} else {
 				c.runCurrentTurn(t)

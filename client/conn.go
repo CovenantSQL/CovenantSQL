@@ -45,6 +45,7 @@ type conn struct {
 	ackCh         chan *wt.Ack
 	inTransaction bool
 	closed        int32
+	pCaller       *rpc.PersistentCaller
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
@@ -151,6 +152,7 @@ func (c *conn) Close() error {
 		log.WithField("db", c.dbID).Debug("closed connection")
 	}
 	c.stopAckWorkers()
+	c.pCaller.CloseStream()
 	return nil
 }
 
@@ -338,10 +340,9 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 
-	pCaller := rpc.NewPersistentCaller(peers.Leader.ID)
-	defer pCaller.CloseStream()
+	c.pCaller = rpc.NewPersistentCaller(peers.Leader.ID)
 	var response wt.Response
-	if err = pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
+	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
 

@@ -25,6 +25,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -125,21 +127,26 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	req := new(bp.CreateDatabaseRequest)
 	req.Header.ResourceMeta = wt.ResourceMeta(meta)
 	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
+		err = errors.Wrap(err, "get local public key failed")
 		return
 	}
 	var privateKey *asymmetric.PrivateKey
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		err = errors.Wrap(err, "get local private key failed")
 		return
 	}
 	if err = req.Sign(privateKey); err != nil {
+		err = errors.Wrap(err, "sign request failed")
 		return
 	}
 	res := new(bp.CreateDatabaseResponse)
 
 	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
+		err = errors.Wrap(err, "call BPDB.CreateDatabase failed")
 		return
 	}
 	if err = res.Verify(); err != nil {
+		err = errors.Wrap(err, "response verify failed")
 		return
 	}
 

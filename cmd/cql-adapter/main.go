@@ -19,8 +19,10 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -28,9 +30,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const name = "cql-adapeter"
+
 var (
-	configFile string
-	password   string
+	version     = "unknown"
+	configFile  string
+	password    string
+	showVersion bool
 )
 
 func init() {
@@ -38,12 +44,19 @@ func init() {
 	flag.StringVar(&password, "password", "", "master key password")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
 		"Disable signature sign and verify, for testing")
+	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
 func main() {
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%v %v %v %v %v\n",
+			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		os.Exit(0)
+	}
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %#v", f.Name, f.Value)
+		log.Infof("Args %#v : %s", f.Name, f.Value)
 	})
 
 	server, err := NewHTTPAdapter(configFile, password)

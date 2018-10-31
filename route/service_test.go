@@ -65,8 +65,8 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	}
 
 	req := &FindNeighborReq{
-		NodeID: "123",
-		Count:  2,
+		ID:    "123",
+		Count: 2,
 	}
 	resp := new(FindNeighborResp)
 	err = client.Call("DHT.FindNeighbor", req, resp)
@@ -81,7 +81,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	})
 
 	reqFN1 := &FindNodeReq{
-		NodeID: "123",
+		ID: "123",
 	}
 	respFN1 := new(FindNodeResp)
 	err = client.Call("DHT.FindNode", reqFN1, respFN1)
@@ -110,7 +110,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	reqFN2 := &FindNodeReq{
-		NodeID: node1.ID,
+		ID: node1.ID,
 	}
 	respFN2 := new(FindNodeResp)
 	err = client.Call("DHT.FindNode", reqFN2, respFN2)
@@ -140,8 +140,8 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	log.Debugf("respA: %v", respB)
 
 	req = &FindNeighborReq{
-		NodeID: "123",
-		Count:  10,
+		ID:    "123",
+		Count: 10,
 	}
 	resp = new(FindNeighborResp)
 	err = client.Call("DHT.FindNeighbor", req, resp)
@@ -160,9 +160,9 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	})
 
 	req = &FindNeighborReq{
-		NodeID: "123",
-		Count:  10,
-		Roles:  ServerRoles{Miner},
+		ID:    "123",
+		Count: 10,
+		Roles: ServerRoles{Miner},
 	}
 	resp = new(FindNeighborResp)
 	err = client.Call("DHT.FindNeighbor", req, resp)
@@ -181,7 +181,7 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 	})
 
 	reqFN3 := &FindNodeReq{
-		NodeID: node2.ID,
+		ID: node2.ID,
 	}
 	respFN3 := new(FindNodeResp)
 	err = client.Call("DHT.FindNode", reqFN3, respFN3)

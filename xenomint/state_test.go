@@ -17,6 +17,7 @@
 package xenomint
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path"
@@ -72,8 +73,7 @@ func TestState(t *testing.T) {
 				So(err, ShouldNotBeNil)
 				err = errors.Cause(err)
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual,
-					"sql: Transaction has already been committed or rolled back")
+				So(err, ShouldEqual, sql.ErrTxDone)
 			})
 		})
 		Convey("The state will report error on read with uncommitted schema change", func() {

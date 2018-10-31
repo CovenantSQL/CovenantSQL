@@ -38,7 +38,7 @@ func setup() {
 		lmt syscall.Rlimit
 	)
 
-	if testingDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
 

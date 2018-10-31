@@ -89,7 +89,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, false,
+		"leader", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -100,7 +100,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/follower1.cover.out"),
 		},
-		"follower1", testWorkingDir, logDir, false,
+		"follower1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -111,7 +111,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/follower2.cover.out"),
 		},
-		"follower2", testWorkingDir, logDir, false,
+		"follower2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -127,7 +127,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner0.cover.out"),
 		},
-		"miner0", testWorkingDir, logDir, false,
+		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -140,7 +140,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, false,
+		"miner1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -153,7 +153,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, false,
+		"miner2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {

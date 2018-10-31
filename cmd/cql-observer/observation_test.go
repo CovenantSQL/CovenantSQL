@@ -64,18 +64,9 @@ func startNodes() {
 	var err error
 	ctx := context.Background()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2144,
-		2145,
-		2146,
-	}, time.Millisecond*200)
-
-	if err != nil {
-		log.Fatalf("wait for port ready timeout: %v", err)
-	}
-	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		3122,
-		3121,
-		3120,
+		4120,
+		4121,
+		4122,
 	}, time.Millisecond*200)
 
 	if err != nil {
@@ -89,7 +80,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, true,
+		"leader", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -100,7 +91,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/follower1.cover.out"),
 		},
-		"follower1", testWorkingDir, logDir, true,
+		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -111,14 +102,35 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/follower2.cover.out"),
 		},
-		"follower2", testWorkingDir, logDir, true,
+		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
 
-	time.Sleep(time.Second * 3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	err = utils.WaitToConnect(ctx, "127.0.0.1", []int{
+		4120,
+		4121,
+		4122,
+	}, time.Millisecond*200)
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	time.Sleep(10 * time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		3122,
+		3121,
+		3120,
+	}, time.Millisecond*200)
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
 
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_0/data"))

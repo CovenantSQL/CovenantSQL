@@ -122,8 +122,7 @@ func startNodes() {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
-	time.Sleep(10 * time.Second)
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
 		4144,
@@ -134,6 +133,7 @@ func startNodes() {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
+	time.Sleep(10 * time.Second)
 	// start 3miners
 	os.RemoveAll(FJ(testWorkingDir, "./observation/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(

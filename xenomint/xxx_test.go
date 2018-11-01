@@ -22,12 +22,15 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	pc "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
@@ -37,6 +40,7 @@ var (
 	testingDHTDBFile          string
 	testingPrivateKeyFile     string
 	testingPublicKeyStoreFile string
+	testingNonceDifficulty    int
 
 	testingMasterKey = []byte(`?08Rl%WUih4V0H+c`)
 )
@@ -80,6 +84,47 @@ func concat(args [][]interface{}) (ret []interface{}) {
 	return
 }
 
+func mineNoncesFromPublicKey(
+	pub *ca.PublicKey, diff int, num int) (nis []proto.Node, err error,
+) {
+	var (
+		nic   = make(chan pc.NonceInfo)
+		block = pc.MiningBlock{Data: pub.Serialize(), NonceChan: nic, Stop: nil}
+		miner = pc.NewCPUMiner(nil)
+		wg    = &sync.WaitGroup{}
+
+		next pc.Uint256
+		ni   pc.NonceInfo
+	)
+
+	defer func() {
+		wg.Wait()
+		close(nic)
+	}()
+
+	nis = make([]proto.Node, num)
+	for i := range nis {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			miner.ComputeBlockNonce(block, next, diff)
+		}()
+		ni = <-nic
+		nis[i] = proto.Node{
+			ID:        proto.NodeID(ni.Hash.String()),
+			Nonce:     ni.Nonce,
+			PublicKey: pub,
+		}
+		next = ni.Nonce
+		next.Inc()
+		if err = kms.SetNode(&nis[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 func setup() {
 	const minNoFile uint64 = 4096
 	var (
@@ -110,6 +155,7 @@ func setup() {
 		priv *ca.PrivateKey
 		pub  *ca.PublicKey
 	)
+	testingNonceDifficulty = 2
 	testingDHTDBFile = path.Join(testingDataDir, "dht.db")
 	testingPrivateKeyFile = path.Join(testingDataDir, "private.key")
 	testingPublicKeyStoreFile = path.Join(testingDataDir, "public.keystore")

@@ -24,7 +24,7 @@ import (
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 )
 
-// Chain defines the xemomint chain structure.
+// Chain defines the xenomint chain structure.
 type Chain struct {
 	state *state
 

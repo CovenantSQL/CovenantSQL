@@ -31,4 +31,6 @@ var (
 	ErrQueryConflict = errors.New("query conflict")
 	// ErrLocalBehindRemote indicates the local state is behind the remote.
 	ErrLocalBehindRemote = errors.New("local state is behind the remote")
+	// ErrMuxServiceNotFound indicates that the multiplexing service endpoint is not found.
+	ErrMuxServiceNotFound = errors.New("mux service not found")
 )

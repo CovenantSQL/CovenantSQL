@@ -24,16 +24,28 @@ import (
 	"path"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	con "github.com/CovenantSQL/CovenantSQL/consistent"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
-func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
+const (
+	benchmarkRPCName    = "BENCH"
+	benchmarkDatabaseID = "0x0"
+)
+
+func setupBenchmarkMux(b *testing.B) (
+	caller *rpc.PersistentCaller, s *rpc.Server, ms *MuxService, c *Chain, n int, r []*MuxQueryRequest,
+) {
 	const (
 		vnum    = 3
 		vlen    = 100
-		records = 100000
+		records = 1000
 	)
 	// Setup chain state
 	var (
@@ -78,20 +90,24 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 		"v2"="excluded"."v2",
 		"v3"="excluded"."v3"
 `
-		priv *ca.PrivateKey
 		src  = make([][]interface{}, records)
+		priv *ca.PrivateKey
 	)
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		b.Fatalf("Failed to setup bench environment: %v", err)
 	}
-	r = make([]*wt.Request, 2*records)
+	r = make([]*MuxQueryRequest, 2*records)
 	// Read query key space [0, n-1]
 	for i := 0; i < records; i++ {
-		r[i] = buildRequest(wt.ReadQuery, []wt.Query{
+		var req = buildRequest(wt.ReadQuery, []wt.Query{
 			buildQuery(sel, i),
 		})
-		if err = r[i].Sign(priv); err != nil {
+		if err = req.Sign(priv); err != nil {
 			b.Fatalf("Failed to setup bench environment: %v", err)
+		}
+		r[i] = &MuxQueryRequest{
+			DatabaseID: benchmarkDatabaseID,
+			Request:    req,
 		}
 	}
 	// Write query key space [n, 2n-1]
@@ -105,25 +121,90 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 		}
 	}
 	for i := 0; i < records; i++ {
-		r[i+records] = buildRequest(wt.WriteQuery, []wt.Query{
+		var req = buildRequest(wt.WriteQuery, []wt.Query{
 			buildQuery(ins, src[i]...),
 		})
-		if err = r[i+records].Sign(priv); err != nil {
+		if err = req.Sign(priv); err != nil {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
+		r[i] = &MuxQueryRequest{
+			DatabaseID: benchmarkDatabaseID,
+			Request:    req,
+		}
 	}
+	// Mine node ids
+	var (
+		dht *route.DHTService
+		bp  *rpc.Server
+		nis []proto.Node
+	)
+	if nis, err = mineNoncesFromPublicKey(priv.PubKey(), testingNonceDifficulty, 3); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	} else if l := len(nis); l != 3 {
+		b.Fatalf("Failed to setup bench environment: unexpected length %d", l)
+	}
+	// Create BP and local RPC servers and update server address
+	bp = rpc.NewServer()
+	if err = bp.InitRPCServer("localhost:0", testingPrivateKeyFile, testingMasterKey); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	}
+	nis[0].Addr = bp.Listener.Addr().String()
+	nis[0].Role = proto.Leader
+	go bp.Serve()
+	s = rpc.NewServer()
+	if err = s.InitRPCServer("localhost:0", testingPrivateKeyFile, testingMasterKey); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	}
+	nis[1].Addr = s.Listener.Addr().String()
+	nis[1].Role = proto.Miner
+	caller = rpc.NewPersistentCaller(nis[1].ID)
+	go s.Serve()
+	// Set local node id
+	nis[2].Role = proto.Client
+	kms.SetLocalNodeIDNonce(nis[2].ID.ToRawNodeID().CloneBytes(), &nis[2].Nonce)
+	// Setup global config
+	conf.GConf = &conf.Config{
+		IsTestMode:          true,
+		GenerateKeyPair:     false,
+		MinNodeIDDifficulty: testingNonceDifficulty,
+		BP: &conf.BPInfo{
+			PublicKey: priv.PubKey(),
+			NodeID:    nis[0].ID,
+			Nonce:     nis[0].Nonce,
+		},
+		KnownNodes: nis,
+	}
+	// Register DHT service
+	if dht, err = route.NewDHTService(testingDHTDBFile, &con.KMSStorage{}, true); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	} else if err = bp.RegisterService(route.DHTRPCName, dht); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	}
+	// Register mux service
+	if ms, err = NewMuxService(benchmarkRPCName, s); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	}
+	ms.register(benchmarkDatabaseID, c)
 
 	b.ResetTimer()
 	return
 }
 
-func teardownBenchmarkChain(b *testing.B, c *Chain) {
+func teardownBenchmarkMux(b *testing.B, s *rpc.Server, ms *MuxService) {
 	b.StopTimer()
 
 	var (
 		fl  = path.Join(testingDataDir, b.Name())
 		err error
+		c   *Chain
 	)
+	// Stop RPC server
+	if c, err = ms.route(benchmarkDatabaseID); err != nil {
+		b.Fatalf("Failed to teardown bench environment: %v", err)
+	}
+	ms.unregister(benchmarkDatabaseID)
+	s.Stop()
+	// Close chain
 	if err = c.close(); err != nil {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
@@ -138,14 +219,16 @@ func teardownBenchmarkChain(b *testing.B, c *Chain) {
 	}
 }
 
-const benchmarkQueriesPerBlock = 100
-
-func BenchmarkChainParallelWrite(b *testing.B) {
-	var c, n, r = setupBenchmarkChain(b)
+func BenchmarkMuxParallelWrite(b *testing.B) {
+	var cl, s, ms, c, n, r = setupBenchmarkMux(b)
 	b.RunParallel(func(pb *testing.PB) {
-		var err error
+		var (
+			err    error
+			resp   *MuxQueryResponse
+			method = fmt.Sprintf("%s.%s", benchmarkRPCName, "Query")
+		)
 		for i := 0; pb.Next(); i++ {
-			if _, err = c.Query(r[n+rand.Intn(n)]); err != nil {
+			if err = cl.Call(method, &r[n+rand.Intn(n)], resp); err != nil {
 				b.Fatalf("Failed to execute: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerBlock == 0 {
@@ -155,23 +238,5 @@ func BenchmarkChainParallelWrite(b *testing.B) {
 			}
 		}
 	})
-	teardownBenchmarkChain(b, c)
-}
-
-func BenchmarkChainParallelMixRW(b *testing.B) {
-	var c, n, r = setupBenchmarkChain(b)
-	b.RunParallel(func(pb *testing.PB) {
-		var err error
-		for i := 0; pb.Next(); i++ {
-			if _, err = c.Query(r[rand.Intn(2*n)]); err != nil {
-				b.Fatalf("Failed to execute: %v", err)
-			}
-			if (i+1)%benchmarkQueriesPerBlock == 0 {
-				if _, err = c.state.commit(); err != nil {
-					b.Fatalf("Failed to commit block: %v", err)
-				}
-			}
-		}
-	})
-	teardownBenchmarkChain(b, c)
+	teardownBenchmarkMux(b, s, ms)
 }

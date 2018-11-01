@@ -19,6 +19,7 @@ package sqlchain
 // TODO(leventeliu): use pooled objects to speed up this index.
 
 import (
+	"github.com/pkg/errors"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -482,7 +483,7 @@ func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
 	l := i.getBarrier()
 
 	if h < l {
-		err = ErrQueryExpired
+		err = errors.Wrapf(ErrQueryExpired, "check Ack, height %d, barrier %d", h, l)
 		return
 	}
 
@@ -527,7 +528,7 @@ func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *wt.SignedAckHeader
 	b := i.getBarrier()
 
 	if h < b {
-		err = ErrQueryExpired
+		err = errors.Wrapf(ErrQueryExpired, "get Ack, height %d, barrier %d", h, b)
 		return
 	}
 

@@ -121,7 +121,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	// TODO(leventeliu): this is a rough solution, you may also want to clean database file and
 	// force rebuilding.
 	var fi os.FileInfo
-	if fi, err = os.Stat(c.DataFile); err == nil && fi.Mode().IsRegular() {
+	if fi, err = os.Stat(c.DataFile + "-block-state.ldb"); err == nil && fi.Mode().IsDir() {
 		return LoadChain(c)
 	}
 

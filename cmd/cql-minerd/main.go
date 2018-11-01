@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/trace"
+	"sync"
 	"syscall"
 	"time"
 
@@ -216,6 +217,8 @@ func main() {
 		}
 	}()
 
+	pingWg := sync.WaitGroup{}
+	pingWg.Add(1)
 	// start block producer pinger
 	go func() {
 		var localNodeID proto.NodeID
@@ -248,6 +251,7 @@ func main() {
 				for _, bpNodeID := range bpNodeIDs {
 					err := rpc.PingBP(localNodeInfo, bpNodeID)
 					if err == nil {
+						pingWg.Done()
 						return
 					}
 				}
@@ -255,6 +259,7 @@ func main() {
 		}()
 	}()
 
+	pingWg.Wait()
 	// start dbms
 	var dbms *worker.DBMS
 	if dbms, err = startDBMS(server); err != nil {

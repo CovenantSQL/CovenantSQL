@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"github.com/pkg/errors"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -130,7 +131,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 
 	if _, err := qi.checkAckFromBlock(
 		0, b1.BlockHash(), b1.Queries[0],
-	); err != ErrQueryExpired {
+	); errors.Cause(err) != ErrQueryExpired {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -248,11 +249,11 @@ func TestGetAck(t *testing.T) {
 	qi := newQueryIndex()
 	qh := &hash.Hash{}
 
-	if _, err := qi.getAck(-1, qh); err != ErrQueryExpired {
+	if _, err := qi.getAck(-1, qh); errors.Cause(err) != ErrQueryExpired {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if _, err := qi.getAck(0, qh); err != ErrQueryNotCached {
+	if _, err := qi.getAck(0, qh); errors.Cause(err) != ErrQueryNotCached {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }

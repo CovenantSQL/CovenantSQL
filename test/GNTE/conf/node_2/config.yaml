@@ -76,7 +76,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 3104982049
-  Addr: 10.250.1.5:4661
+  Addr: 10.250.100.2:4661
   PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
   Role: Miner
 - ID: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
@@ -85,7 +85,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 2305843010430351476
-  Addr: 10.250.1.6:4661
+  Addr: 10.250.100.3:4661
   PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
   Role: Miner
 - ID: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
@@ -94,6 +94,51 @@ KnownNodes:
     b: 0
     c: 0
     d: 13835058056920509601
-  Addr: 10.250.1.7:4661
+  Addr: 10.250.100.4:4661
   PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
+  Role: Miner
+- ID: 00eda359cd2aa0920cdd37b083b896cb18cd26b3bd51744d1b4f127830f820f2
+  Nonce:
+    a: 11
+    b: 0
+    c: 2686176025
+    d: 0
+  Addr: 10.250.100.5:4661
+  PublicKey: 02b0da0b36dec5db1b2cf88b5ddbe2dc433d09ddc9a4401a9624995d2319c1d233
+  Role: Miner
+- ID: 0017017845ff9f9f7e8599d308652eb8ce480e689fbd49afb6b44cc9726cf84b
+  Nonce:
+    a: 60
+    b: 3189902350
+    c: 0
+    d: 0
+  Addr: 10.250.100.6:4661
+  PublicKey: 03075d6743c22bb79208da88c6324b18f3db418d4089c4bad696296c866a65e0e1
+  Role: Miner
+- ID: 0075b97519d0a5cf9f7269a61b82bb3e082a5e7d796604e877ee28d08491979a
+  Nonce:
+    a: 34
+    b: 0
+    c: 0
+    d: 4246204982
+  Addr: 10.250.100.7:4661
+  PublicKey: 0306678beed432377133f1dfb83b0bdb534d2b0c44e09f457cbb86762a13e88fe1
+  Role: Miner
+- ID: 0060bb3394f5185f760af690b0c124a70acbaf952fd79d794a0d394c37d7c0bc
+  Nonce:
+    a: 13
+    b: 515393120
+    c: 0
+    d: 0
+  Addr: 10.250.100.8:4661
+  PublicKey: 0303e066f858f98b473ae6cb342c01f1f328021144621dcafce93a023223cba606
+  Role: Miner
+- ID: 004e5cf49e88f6e35e344f35d73ffe6232d4ebe93a63a825e171b8f6f2a88859
+  Nonce:
+    a: 17
+    b: 4213590245
+    c: 0
+    d: 0
+  Addr: 10.250.100.9:4661
+  PublicKey: 0297e8deccd7ada1ace2e1ed5b565abf2d3e8aa64b1bb5b36f485714e0f570adba
   Role: Miner

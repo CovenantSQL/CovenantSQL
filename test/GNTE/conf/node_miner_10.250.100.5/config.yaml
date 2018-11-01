@@ -3,20 +3,11 @@ WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
-ListenAddr: "10.250.1.3:4661"
-ThisNodeID: "00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35"
+ListenAddr: "10.250.100.5:4661"
+ThisNodeID: "00eda359cd2aa0920cdd37b083b896cb18cd26b3bd51744d1b4f127830f820f2"
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
   mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
-MinNodeIDDifficulty: 2
-DNSSeed:
-  EnforcedDNSSEC: false
-  DNSServers:
-  - 1.1.1.1
-  - 202.46.34.74
-  - 202.46.34.75
-  - 202.46.34.76
-
 BlockProducer:
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
@@ -33,6 +24,11 @@ BlockProducer:
     MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
     Timestamp: 2018-08-13T21:59:59.12Z
+Miner:
+  IsTestMode: true
+  RootDir: "./data"
+  MaxReqTimeGap: "60s"
+  MetricCollectInterval: "60s"
 KnownNodes:
 - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:

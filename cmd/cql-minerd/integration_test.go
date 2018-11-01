@@ -72,7 +72,6 @@ func startNodes() {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
-	utils.CleanupDB()
 	// start 3bps
 	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
@@ -403,30 +402,52 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
+func prepareBenchTable(db *sql.DB) {
+	_, err := db.Exec("DROP TABLE IF EXISTS test;")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+	So(err, ShouldBeNil)
+
+	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+	So(err, ShouldBeNil)
+}
+
 func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	var err error
 	if createDB {
-		_, err := db.Exec("DROP TABLE IF EXISTS test;")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
-		So(err, ShouldBeNil)
-
-		_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
-		So(err, ShouldBeNil)
+		prepareBenchTable(db)
 	}
+
+	var i int32
+	var insertedCount int
 
 	rand.Seed(time.Now().UnixNano())
 	start := (rand.Int31() % 100) * 10000
 
-	var i int32
-	//var insertedCount int
-	b.Run("benchmark INSERT", func(b *testing.B) {
+	b.Run("benchmark Single INSERT", func(b *testing.B) {
 		b.ResetTimer()
-		//insertedCount = b.N
+		insertedCount = b.N
+		for i := 0; i < b.N; i++ {
+			_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+				"(?, ?)", int(start)+i, i,
+			)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	if createDB {
+		prepareBenchTable(db)
+	}
+
+	b.Run("benchmark Multi INSERT", func(b *testing.B) {
+		b.ResetTimer()
+		insertedCount = b.N
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt32(&i, 1)
@@ -448,18 +469,19 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	}
 	log.Warnf("Row Count: %d", count)
 
-	//b.Run("benchmark SELECT", func(b *testing.B) {
-	//	b.ResetTimer()
-	//	for i := 0; i < b.N; i++ {
-	//		row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", i%insertedCount)
-	//		var result int
-	//		err = row.Scan(&result)
-	//		if err != nil || result < 0 {
-	//			log.Errorf("i = %d", i)
-	//			b.Fatal(err)
-	//		}
-	//	}
-	//})
+	b.Run("benchmark SELECT", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			index := i%insertedCount + int(start) + 1
+			row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", index)
+			var result int
+			err = row.Scan(&result)
+			if err != nil || result < 0 {
+				log.Errorf("i = %d", i)
+				b.Fatal(err)
+			}
+		}
+	})
 
 	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 
@@ -547,6 +569,54 @@ func BenchmarkSQLite(b *testing.B) {
 	})
 }
 
+func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
+	log.Warnf("Benchmark GNTE for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	asymmetric.BypassSignature = bypassSign
+
+	// Create temp directory
+	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(testDataDir)
+	clientConf := FJ(testWorkingDir, "./GNTE/conf/node_c/config.yaml")
+	tempConf := FJ(testDataDir, "config.yaml")
+	clientKey := FJ(testWorkingDir, "./GNTE/conf/node_c/private.key")
+	tempKey := FJ(testDataDir, "private.key")
+	utils.CopyFile(clientConf, tempConf)
+	utils.CopyFile(clientKey, tempKey)
+
+	err = client.Init(tempConf, []byte(""))
+	So(err, ShouldBeNil)
+
+	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
+	var dsn string
+	if minerCount > 0 {
+		// create
+		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		So(err, ShouldBeNil)
+
+		log.Infof("the created database dsn is %v", dsn)
+		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
+		if err != nil {
+			log.Errorf("write .dsn failed: %v", err)
+		}
+		defer os.Remove(dsnFile)
+	} else {
+		dsn = os.Getenv("DSN")
+	}
+
+	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	benchDB(b, db, minerCount > 0)
+
+	err = client.Drop(dsn)
+	So(err, ShouldBeNil)
+	time.Sleep(5 * time.Second)
+	stopNodes()
+}
+
 func BenchmarkMinerOneNoSign(b *testing.B) {
 	Convey("bench single node", b, func() {
 		benchMiner(b, 1, true)
@@ -586,5 +656,34 @@ func BenchmarkMinerThree(b *testing.B) {
 func BenchmarkClientOnly(b *testing.B) {
 	Convey("bench three node", b, func() {
 		benchMiner(b, 0, false)
+	})
+}
+
+func BenchmarkMinerGNTE1(b *testing.B) {
+	Convey("bench GNTE one node", b, func() {
+		benchGNTEMiner(b, 1, false)
+	})
+}
+func BenchmarkMinerGNTE2(b *testing.B) {
+	Convey("bench GNTE two node", b, func() {
+		benchGNTEMiner(b, 2, false)
+	})
+}
+
+func BenchmarkMinerGNTE3(b *testing.B) {
+	Convey("bench GNTE three node", b, func() {
+		benchGNTEMiner(b, 3, false)
+	})
+}
+
+func BenchmarkMinerGNTE4(b *testing.B) {
+	Convey("bench GNTE three node", b, func() {
+		benchGNTEMiner(b, 4, false)
+	})
+}
+
+func BenchmarkMinerGNTE8(b *testing.B) {
+	Convey("bench GNTE three node", b, func() {
+		benchGNTEMiner(b, 8, false)
 	})
 }

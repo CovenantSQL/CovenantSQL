@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -96,11 +97,12 @@ func (hook *CallerHook) caller() (relFuncName, caller string) {
 		line     = 0
 		funcName = "unknown"
 	)
-	pcs := make([]uintptr, 10)
-	if runtime.Callers(7, pcs) > 0 {
+	pcs := make([]uintptr, 12)
+	if runtime.Callers(6, pcs) > 0 {
 		frames := runtime.CallersFrames(pcs)
 		for {
 			f, more := frames.Next()
+			//fmt.Printf("%s:%d %s\n", f.File, f.Line, f.Function)
 			if strings.HasSuffix(f.File, "logwrapper.go") && more {
 				f, _ = frames.Next()
 				file = f.File
@@ -159,8 +161,8 @@ func AddHook(hook logrus.Hook) {
 }
 
 // WithError creates an entry from the standard logger and adds an error to it, using the value defined in ErrorKey as key.
-func WithError(err error) *logrus.Entry {
-	return logrus.WithField(logrus.ErrorKey, err)
+func WithError(err error) *Entry {
+	return WithField(logrus.ErrorKey, err)
 }
 
 // WithField creates an entry from the standard logger and adds a field to
@@ -168,8 +170,8 @@ func WithError(err error) *logrus.Entry {
 //
 // Note that it doesn't log until you call Debug, Print, Info, Warn, Fatal
 // or Panic on the Entry it returns.
-func WithField(key string, value interface{}) *logrus.Entry {
-	return logrus.WithField(key, value)
+func WithField(key string, value interface{}) *Entry {
+	return (*Entry)(logrus.WithField(key, value))
 }
 
 // WithFields creates an entry from the standard logger and adds multiple
@@ -178,8 +180,12 @@ func WithField(key string, value interface{}) *logrus.Entry {
 //
 // Note that it doesn't log until you call Debug, Print, Info, Warn, Fatal
 // or Panic on the Entry it returns.
-func WithFields(fields Fields) *logrus.Entry {
-	return logrus.WithFields(logrus.Fields(fields))
+func WithFields(fields Fields) *Entry {
+	return (*Entry)(logrus.WithFields(logrus.Fields(fields)))
+}
+
+func WithTime(t time.Time) *Entry {
+	return (*Entry)(logrus.WithTime(t))
 }
 
 // Debug logs a message at level Debug on the standard logger.

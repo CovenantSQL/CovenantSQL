@@ -24,10 +24,10 @@ func ConcatAll(args ...[]byte) []byte {
 	}
 
 	key := make([]byte, bLen)
-	bLen = 0
+	position := 0
 	for i := range args {
-		copy(key[bLen:], args[i])
-		bLen += len(args[i])
+		copy(key[position:], args[i])
+		position += len(args[i])
 	}
 	return key
 }

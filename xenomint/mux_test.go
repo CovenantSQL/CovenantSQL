@@ -40,7 +40,7 @@ const (
 )
 
 func setupBenchmarkMux(b *testing.B) (
-	caller *rpc.PersistentCaller, s *rpc.Server, ms *MuxService, c *Chain, n int, r []*MuxQueryRequest,
+	caller *rpc.PersistentCaller, bp *rpc.Server, s *rpc.Server, ms *MuxService, c *Chain, n int, r []*MuxQueryRequest,
 ) {
 	const (
 		vnum    = 3
@@ -135,7 +135,6 @@ func setupBenchmarkMux(b *testing.B) (
 	// Mine node ids
 	var (
 		dht *route.DHTService
-		bp  *rpc.Server
 		nis []proto.Node
 	)
 	if nis, err = mineNoncesFromPublicKey(priv.PubKey(), testingNonceDifficulty, 3); err != nil {
@@ -190,7 +189,7 @@ func setupBenchmarkMux(b *testing.B) (
 	return
 }
 
-func teardownBenchmarkMux(b *testing.B, s *rpc.Server, ms *MuxService) {
+func teardownBenchmarkMux(b *testing.B, bp, s *rpc.Server, ms *MuxService) {
 	b.StopTimer()
 
 	var (
@@ -204,6 +203,7 @@ func teardownBenchmarkMux(b *testing.B, s *rpc.Server, ms *MuxService) {
 	}
 	ms.unregister(benchmarkDatabaseID)
 	s.Stop()
+	bp.Stop()
 	// Close chain
 	if err = c.close(); err != nil {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
@@ -220,7 +220,7 @@ func teardownBenchmarkMux(b *testing.B, s *rpc.Server, ms *MuxService) {
 }
 
 func BenchmarkMuxParallelWrite(b *testing.B) {
-	var cl, s, ms, c, n, r = setupBenchmarkMux(b)
+	var cl, bp, s, ms, c, n, r = setupBenchmarkMux(b)
 	b.RunParallel(func(pb *testing.PB) {
 		var (
 			err    error
@@ -238,5 +238,5 @@ func BenchmarkMuxParallelWrite(b *testing.B) {
 			}
 		}
 	})
-	teardownBenchmarkMux(b, s, ms)
+	teardownBenchmarkMux(b, bp, s, ms)
 }

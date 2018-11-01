@@ -260,19 +260,19 @@ func TestStorage(t *testing.T) {
 	columns, types, data, err = st.Query(context.Background(),
 		[]Query{newQuery("DELETE FROM `kv` WHERE `value` IS NULL")})
 
-	affected, err := st.Exec(context.Background(),
+	execResult, err := st.Exec(context.Background(),
 		[]Query{newQuery("INSERT OR REPLACE INTO `kv` VALUES ('k4', 'v4')")})
-	if err != nil || affected != 1 {
+	if err != nil || execResult.RowsAffected != 1 {
 		t.Fatalf("Exec INSERT failed: %v", err)
 	}
 	// test with arguments
-	affected, err = st.Exec(context.Background(), []Query{newQuery("DELETE FROM `kv` WHERE `key`='k4'")})
-	if err != nil || affected != 1 {
+	execResult, err = st.Exec(context.Background(), []Query{newQuery("DELETE FROM `kv` WHERE `key`='k4'")})
+	if err != nil || execResult.RowsAffected != 1 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
-	affected, err = st.Exec(context.Background(),
+	execResult, err = st.Exec(context.Background(),
 		[]Query{newQuery("DELETE FROM `kv` WHERE `key`=?", "not_exist")})
-	if err != nil || affected != 0 {
+	if err != nil || execResult.RowsAffected != 0 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
 

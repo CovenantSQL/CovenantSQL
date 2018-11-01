@@ -14,7 +14,4 @@
  * limitations under the License.
  */
 
-/*
-Package api provides simplified kayak api with pre-defined practical options.
-*/
-package api
+package types

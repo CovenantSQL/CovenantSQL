@@ -20,20 +20,20 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"errors"
 	"os"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
-	"github.com/CovenantSQL/CovenantSQL/twopc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -49,6 +49,12 @@ const (
 type LocalStorage struct {
 	consistent *consistent.Consistent
 	*storage.Storage
+}
+
+type compiledLog struct {
+	cmdType   string
+	queries   []storage.Query
+	nodeToSet *proto.Node
 }
 
 func initStorage(dbFile string) (stor *LocalStorage, err error) {
@@ -78,94 +84,93 @@ func initStorage(dbFile string) (stor *LocalStorage, err error) {
 	return
 }
 
-// Prepare implements twopc Worker.Prepare
-func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
-	payload, err := s.decodeLog(wb)
-	if err != nil {
-		log.WithError(err).Error("decode log failed")
+// EncodePayload implements kayak.types.Handler.EncodePayload.
+func (s *LocalStorage) EncodePayload(request interface{}) (data []byte, err error) {
+	var buf *bytes.Buffer
+	if buf, err = utils.EncodeMsgPack(request); err != nil {
+		err = errors.Wrap(err, "encode kayak payload failed")
 		return
 	}
-	execLog, err := s.compileExecLog(payload)
-	if err != nil {
-		log.WithError(err).Error("compile exec log failed")
-		return
-	}
-	return s.Storage.Prepare(ctx, execLog)
-}
 
-// Commit implements twopc Worker.Commit
-func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (_ interface{}, err error) {
-	payload, err := s.decodeLog(wb)
-	if err != nil {
-		log.WithError(err).Error("decode log failed")
-		return
-	}
-	err = s.commit(ctx, payload)
+	data = buf.Bytes()
 	return
 }
 
-func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err error) {
-	var nodeToSet proto.Node
-	err = utils.DecodeMsgPack(payload.Data, &nodeToSet)
-	if err != nil {
-		log.WithError(err).Error("unmarshal node from payload failed")
+// DecodePayload implements kayak.types.Handler.DecodePayload.
+func (s *LocalStorage) DecodePayload(data []byte) (request interface{}, err error) {
+	var kp *KayakPayload
+
+	if err = utils.DecodeMsgPack(data, &kp); err != nil {
+		err = errors.Wrap(err, "decode kayak payload failed")
 		return
 	}
-	execLog, err := s.compileExecLog(payload)
-	if err != nil {
-		log.WithError(err).Error("compile exec log failed")
-		return
-	}
-	err = route.SetNodeAddrCache(nodeToSet.ID.ToRawNodeID(), nodeToSet.Addr)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"id":   nodeToSet.ID,
-			"addr": nodeToSet.Addr,
-		}).WithError(err).Error("set node addr cache failed")
-	}
-	err = kms.SetNode(&nodeToSet)
-	if err != nil {
-		log.WithField("node", nodeToSet).WithError(err).Error("kms set node failed")
-	}
 
-	// if s.consistent == nil, it is called during Init. and AddCache will be called by consistent.InitConsistent
-	if s.consistent != nil {
-		s.consistent.AddCache(nodeToSet)
-	}
-
-	_, err = s.Storage.Commit(ctx, execLog)
+	request = kp
 	return
 }
 
-// Rollback implements twopc Worker.Rollback
-func (s *LocalStorage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
-	payload, err := s.decodeLog(wb)
-	if err != nil {
-		log.WithError(err).Error("decode log failed")
-		return
-	}
-	execLog, err := s.compileExecLog(payload)
-	if err != nil {
-		log.WithError(err).Error("compile exec log failed")
-		return
-	}
-
-	return s.Storage.Rollback(ctx, execLog)
+// Check implements kayak.types.Handler.Check.
+func (s *LocalStorage) Check(req interface{}) (err error) {
+	return nil
 }
 
-func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.ExecLog, err error) {
+// Commit implements kayak.types.Handler.Commit.
+func (s *LocalStorage) Commit(req interface{}) (_ interface{}, err error) {
+	var kp *KayakPayload
+	var cl *compiledLog
+	var ok bool
+
+	if kp, ok = req.(*KayakPayload); !ok || kp == nil {
+		err = errors.Wrapf(kt.ErrInvalidLog, "invalid kayak payload %#v", req)
+		return
+	}
+
+	if cl, err = s.compileLog(kp); err != nil {
+		err = errors.Wrap(err, "compile log failed")
+		return
+	}
+
+	if cl.nodeToSet != nil {
+		err = route.SetNodeAddrCache(cl.nodeToSet.ID.ToRawNodeID(), cl.nodeToSet.Addr)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"id":   cl.nodeToSet.ID,
+				"addr": cl.nodeToSet.Addr,
+			}).WithError(err).Error("set node addr cache failed")
+		}
+		err = kms.SetNode(cl.nodeToSet)
+		if err != nil {
+			log.WithField("node", cl.nodeToSet).WithError(err).Error("kms set node failed")
+		}
+
+		// if s.consistent == nil, it is called during Init. and AddCache will be called by consistent.InitConsistent
+		if s.consistent != nil {
+			s.consistent.AddCache(*cl.nodeToSet)
+		}
+	}
+
+	// execute query
+	if _, err = s.Storage.Exec(context.Background(), cl.queries); err != nil {
+		err = errors.Wrap(err, "execute query in dht database failed")
+	}
+
+	return
+}
+
+func (s *LocalStorage) compileLog(payload *KayakPayload) (result *compiledLog, err error) {
 	switch payload.Command {
 	case CmdSet:
 		var nodeToSet proto.Node
 		err = utils.DecodeMsgPack(payload.Data, &nodeToSet)
 		if err != nil {
-			log.WithError(err).Error("compileExecLog: unmarshal node from payload failed")
+			log.WithError(err).Error("compileLog: unmarshal node from payload failed")
 			return
 		}
 		query := "INSERT OR REPLACE INTO `dht` (`id`, `node`) VALUES (?, ?);"
 		log.Debugf("sql: %#v", query)
-		execLog = &storage.ExecLog{
-			Queries: []storage.Query{
+		result = &compiledLog{
+			cmdType: payload.Command,
+			queries: []storage.Query{
 				{
 					Pattern: query,
 					Args: []sql.NamedArg{
@@ -174,16 +179,18 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 					},
 				},
 			},
+			nodeToSet: &nodeToSet,
 		}
 	case CmdSetDatabase:
 		var instance wt.ServiceInstance
 		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
-			log.WithError(err).Error("compileExecLog: unmarshal instance meta failed")
+			log.WithError(err).Error("compileLog: unmarshal instance meta failed")
 			return
 		}
 		query := "INSERT OR REPLACE INTO `databases` (`id`, `meta`) VALUES (? ,?);"
-		execLog = &storage.ExecLog{
-			Queries: []storage.Query{
+		result = &compiledLog{
+			cmdType: payload.Command,
+			queries: []storage.Query{
 				{
 					Pattern: query,
 					Args: []sql.NamedArg{
@@ -196,14 +203,15 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 	case CmdDeleteDatabase:
 		var instance wt.ServiceInstance
 		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
-			log.WithError(err).Error("compileExecLog: unmarshal instance id failed")
+			log.WithError(err).Error("compileLog: unmarshal instance id failed")
 			return
 		}
 		// TODO(xq262144), should add additional limit 1 after delete clause
 		// however, currently the go-sqlite3
 		query := "DELETE FROM `databases` WHERE `id` = ?"
-		execLog = &storage.ExecLog{
-			Queries: []storage.Query{
+		result = &compiledLog{
+			cmdType: payload.Command,
+			queries: []storage.Query{
 				{
 					Pattern: query,
 					Args: []sql.NamedArg{
@@ -213,27 +221,9 @@ func (s *LocalStorage) compileExecLog(payload *KayakPayload) (execLog *storage.E
 			},
 		}
 	default:
-		err = errors.New("undefined command: " + payload.Command)
-		log.Error(err)
+		err = errors.Errorf("undefined command: %v", payload.Command)
+		log.WithError(err).Error("compile log failed")
 	}
-	return
-}
-
-func (s *LocalStorage) decodeLog(wb twopc.WriteBatch) (payload *KayakPayload, err error) {
-	var bytesPayload []byte
-	var ok bool
-	payload = new(KayakPayload)
-
-	if bytesPayload, ok = wb.([]byte); !ok {
-		err = kayak.ErrInvalidLog
-		return
-	}
-	err = utils.DecodeMsgPack(bytesPayload, payload)
-	if err != nil {
-		log.WithError(err).Error("unmarshal payload failed")
-		return
-	}
-
 	return
 }
 
@@ -256,20 +246,7 @@ func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err erro
 			Command: CmdSet,
 			Data:    nodeBuf.Bytes(),
 		}
-
-		var execLog *storage.ExecLog
-		execLog, err = s.KVStorage.compileExecLog(payload)
-		if err != nil {
-			log.WithError(err).Error("compile exec log failed")
-			return
-		}
-		err = s.KVStorage.Storage.Prepare(context.Background(), execLog)
-		if err != nil {
-			log.WithError(err).Error("init kayak KV prepare node failed")
-			return
-		}
-
-		err = s.KVStorage.commit(context.Background(), payload)
+		_, err = s.KVStorage.Commit(payload)
 		if err != nil {
 			log.WithError(err).Error("init kayak KV commit node failed")
 			return
@@ -296,15 +273,9 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 		Data:    nodeBuf.Bytes(),
 	}
 
-	writeData, err := utils.EncodeMsgPack(payload)
+	_, _, err = s.Runtime.Apply(context.Background(), payload)
 	if err != nil {
-		log.WithError(err).Error("marshal payload failed")
-		return err
-	}
-
-	_, _, err = s.Runtime.Apply(writeData.Bytes())
-	if err != nil {
-		log.Errorf("Apply set node failed: %#v\nPayload:\n	%#v", err, writeData)
+		log.Errorf("Apply set node failed: %#v\nPayload:\n	%#v", err, payload)
 	}
 
 	return
@@ -367,15 +338,9 @@ func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
 		Data:    metaBuf.Bytes(),
 	}
 
-	writeData, err := utils.EncodeMsgPack(payload)
+	_, _, err = s.Runtime.Apply(context.Background(), payload)
 	if err != nil {
-		log.WithError(err).Error("marshal payload failed")
-		return err
-	}
-
-	_, _, err = s.Runtime.Apply(writeData.Bytes())
-	if err != nil {
-		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, writeData)
+		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, payload)
 	}
 
 	return
@@ -396,15 +361,9 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 		Data:    metaBuf.Bytes(),
 	}
 
-	writeData, err := utils.EncodeMsgPack(payload)
+	_, _, err = s.Runtime.Apply(context.Background(), payload)
 	if err != nil {
-		log.WithError(err).Error("marshal payload failed")
-		return err
-	}
-
-	_, _, err = s.Runtime.Apply(writeData.Bytes())
-	if err != nil {
-		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, writeData)
+		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, payload)
 	}
 
 	return

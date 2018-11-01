@@ -14,7 +14,28 @@
  * limitations under the License.
  */
 
-/*
-Package transport implements applicable transport implementations for kayak runtime.
-*/
-package transport
+package main
+
+import (
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+)
+
+type KayakService struct {
+	serviceName string
+	rt          *kayak.Runtime
+}
+
+func NewKayakService(server *rpc.Server, serviceName string, rt *kayak.Runtime) (s *KayakService, err error) {
+	s = &KayakService{
+		serviceName: serviceName,
+		rt:          rt,
+	}
+	err = server.RegisterService(serviceName, s)
+	return
+}
+
+func (s *KayakService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
+	return s.rt.FollowerApply(req.Log)
+}

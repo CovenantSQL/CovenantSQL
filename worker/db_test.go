@@ -35,8 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
-	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -69,10 +67,14 @@ func TestSingleDatabase(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create mux service
-		service := ka.NewMuxService("DBKayak", server)
+		kayakMuxService, err := NewDBKayakMuxService("DBKayak", server)
+		So(err, ShouldBeNil)
+
+		chainMuxService, err := sqlchain.NewMuxService("sqlchain", server)
+		So(err, ShouldBeNil)
 
 		// create peers
-		var peers *kayak.Peers
+		var peers *proto.Peers
 		peers, err = getPeers(1)
 		So(err, ShouldBeNil)
 
@@ -80,8 +82,8 @@ func TestSingleDatabase(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			KayakMux:        service,
-			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
+			KayakMux:        kayakMuxService,
+			ChainMux:        chainMuxService,
 			MaxWriteTimeGap: time.Second * 5,
 		}
 
@@ -426,10 +428,14 @@ func TestInitFailed(t *testing.T) {
 		defer os.RemoveAll(rootDir)
 
 		// create mux service
-		service := ka.NewMuxService("DBKayak", server)
+		kayakMuxService, err := NewDBKayakMuxService("DBKayak", server)
+		So(err, ShouldBeNil)
+
+		chainMuxService, err := sqlchain.NewMuxService("sqlchain", server)
+		So(err, ShouldBeNil)
 
 		// create peers
-		var peers *kayak.Peers
+		var peers *proto.Peers
 		peers, err = getPeers(1)
 		So(err, ShouldBeNil)
 
@@ -437,8 +443,8 @@ func TestInitFailed(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			KayakMux:        service,
-			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
+			KayakMux:        kayakMuxService,
+			ChainMux:        chainMuxService,
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
@@ -475,10 +481,14 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create mux service
-		service := ka.NewMuxService("DBKayak", server)
+		kayakMuxService, err := NewDBKayakMuxService("DBKayak", server)
+		So(err, ShouldBeNil)
+
+		chainMuxService, err := sqlchain.NewMuxService("sqlchain", server)
+		So(err, ShouldBeNil)
 
 		// create peers
-		var peers *kayak.Peers
+		var peers *proto.Peers
 		peers, err = getPeers(1)
 		So(err, ShouldBeNil)
 
@@ -486,8 +496,8 @@ func TestDatabaseRecycle(t *testing.T) {
 		cfg := &DBConfig{
 			DatabaseID:      "TEST",
 			DataDir:         rootDir,
-			KayakMux:        service,
-			ChainMux:        sqlchain.NewMuxService("sqlchain", server),
+			KayakMux:        kayakMuxService,
+			ChainMux:        chainMuxService,
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
 		}
 
@@ -629,7 +639,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 	return
 }
 
-func getPeers(term uint64) (peers *kayak.Peers, err error) {
+func getPeers(term uint64) (peers *proto.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -637,24 +647,19 @@ func getPeers(term uint64) (peers *kayak.Peers, err error) {
 	}
 
 	// get private/public key
-	var pubKey *asymmetric.PublicKey
 	var privateKey *asymmetric.PrivateKey
 
-	if privateKey, pubKey, err = getKeys(); err != nil {
+	if privateKey, _, err = getKeys(); err != nil {
 		return
 	}
 
 	// generate peers and sign
-	server := &kayak.Server{
-		Role:   proto.Leader,
-		ID:     nodeID,
-		PubKey: pubKey,
-	}
-	peers = &kayak.Peers{
-		Term:    term,
-		Leader:  server,
-		Servers: []*kayak.Server{server},
-		PubKey:  pubKey,
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    term,
+			Leader:  nodeID,
+			Servers: []proto.NodeID{nodeID},
+		},
 	}
 	err = peers.Sign(privateKey)
 	return
@@ -847,11 +852,6 @@ func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitSer
 }
 
 func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
@@ -863,21 +863,12 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	}
 
 	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &kayak.Peers{
-		Term: 1,
-		Leader: &kayak.Server{
-			Role:   proto.Leader,
-			ID:     nodeID,
-			PubKey: pubKey,
+	instance.Peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    1,
+			Leader:  nodeID,
+			Servers: []proto.NodeID{nodeID},
 		},
-		Servers: []*kayak.Server{
-			{
-				Role:   proto.Leader,
-				ID:     nodeID,
-				PubKey: pubKey,
-			},
-		},
-		PubKey: pubKey,
 	}
 	if err = instance.Peers.Sign(privKey); err != nil {
 		return

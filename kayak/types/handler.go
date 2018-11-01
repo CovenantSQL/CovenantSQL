@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-/*
-Package kayak is a simple configurable multi-purpose consensus sdk.
-The storage implementations contains code refactored from original hashicorp/raft and hashicorp/raft-boltdb repository.
-*/
-package kayak
+package types
+
+// Handler defines the main underlying fsm of kayak.
+type Handler interface {
+	EncodePayload(req interface{}) (data []byte, err error)
+	DecodePayload(data []byte) (req interface{}, err error)
+	Check(request interface{}) error
+	Commit(request interface{}) (result interface{}, err error)
+}

@@ -16,15 +16,18 @@
 
 package kayak
 
-import "errors"
+// RPCHandler handles rpc.
+type muxService struct {
+}
 
-var (
-	// ErrInvalidConfig defines invalid config error
-	ErrInvalidConfig = errors.New("invalid configuration")
-	// ErrInvalidLog defines invalid log error
-	ErrInvalidLog = errors.New("invalid log")
-	// ErrNotLeader defines not leader on log processing
-	ErrNotLeader = errors.New("not leader")
-	// ErrInvalidRequest indicate inconsistent state
-	ErrInvalidRequest = errors.New("invalid request")
-)
+func (h *muxService) Prepare() (err error) {
+	return
+}
+
+func (h *muxService) Rollback() (err error) {
+	return
+}
+
+func (h *muxService) Commit() (err error) {
+	return
+}

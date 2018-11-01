@@ -109,20 +109,20 @@ func TestMultiChain(t *testing.T) {
 	}
 
 	for i, p := range peers.Servers {
-		t.Logf("Peer #%d: %s", i, p.ID)
+		t.Logf("Peer #%d: %s", i, p)
 	}
 
 	// Create config info from created nodes
 	bpinfo := &conf.BPInfo{
 		PublicKey: testPubKey,
-		NodeID:    peers.Servers[testPeersNumber].ID,
+		NodeID:    peers.Servers[testPeersNumber],
 		Nonce:     nis[testPeersNumber].Nonce,
 	}
 	knownnodes := make([]proto.Node, 0, testPeersNumber+1)
 
 	for i, v := range peers.Servers {
 		knownnodes = append(knownnodes, proto.Node{
-			ID: v.ID,
+			ID: v,
 			Role: func() proto.ServerRole {
 				if i < testPeersNumber {
 					return proto.Miner
@@ -156,7 +156,11 @@ func TestMultiChain(t *testing.T) {
 		defer server.Stop()
 
 		// Create multiplexing service from RPC server
-		mux := NewMuxService(route.SQLChainRPCName, server)
+		mux, err := NewMuxService(route.SQLChainRPCName, server)
+
+		if err != nil {
+			t.Fatalf("Error occurred: %v", err)
+		}
 
 		// Create chain instance
 		config := &Config{
@@ -326,7 +330,7 @@ func TestMultiChain(t *testing.T) {
 		sC := make(chan struct{})
 		wg := &sync.WaitGroup{}
 		wk := &nodeProfile{
-			NodeID:     peers.Servers[i].ID,
+			NodeID:     peers.Servers[i],
 			PrivateKey: testPrivKey,
 			PublicKey:  testPubKey,
 		}

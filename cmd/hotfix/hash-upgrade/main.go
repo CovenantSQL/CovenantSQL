@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
@@ -47,16 +47,16 @@ func init() {
 	flag.StringVar(&privateKey, "private", "private.key", "private key to use for signing")
 }
 
-// OldBlock type mocks current sqlchain block type for custom serialization.
-type OldBlock ct.Block
+// Block_ type mocks current sqlchain block type for custom serialization.
+type Block_ ct.Block
 
-// MarshalBinary implements custom binary marshaller for OldBlock.
-func (b *OldBlock) MarshalBinary() ([]byte, error) {
+// MarshalBinary implements custom binary marshaller for Block_.
+func (b *Block_) MarshalBinary() ([]byte, error) {
 	return nil, nil
 }
 
-// UnmarshalBinary implements custom binary unmarshaller for OldBlock.
-func (b *OldBlock) UnmarshalBinary(data []byte) (err error) {
+// UnmarshalBinary implements custom binary unmarshaller for Block_.
+func (b *Block_) UnmarshalBinary(data []byte) (err error) {
 	reader := bytes.NewReader(data)
 	var headerBuf []byte
 
@@ -81,12 +81,28 @@ func (b *OldBlock) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
+// Server_ ports back the original kayak server structure.
+type Server_ struct {
+	Role   proto.ServerRole
+	ID     proto.NodeID
+	PubKey *asymmetric.PublicKey
+}
+
+// Peers_ ports back the original kayak peers structure.
+type Peers_ struct {
+	Term      uint64
+	Leader    *Server_
+	Servers   []*Server_
+	PubKey    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
+}
+
 // ServiceInstance defines the old service instance type before marshaller updates.
 type ServiceInstance struct {
 	DatabaseID   proto.DatabaseID
-	Peers        *kayak.Peers
+	Peers        *Peers_
 	ResourceMeta wt.ResourceMeta
-	GenesisBlock *OldBlock
+	GenesisBlock *Block_
 }
 
 func main() {
@@ -150,7 +166,8 @@ func main() {
 				}
 
 				newInstance.DatabaseID = instance.DatabaseID
-				newInstance.Peers = instance.Peers
+				// TODO: re-construct peers structure
+				// newInstance.Peers = instance.Peers
 				newInstance.ResourceMeta = instance.ResourceMeta
 				newInstance.GenesisBlock = &ct.Block{
 					SignedHeader: instance.GenesisBlock.SignedHeader,

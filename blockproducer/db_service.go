@@ -25,7 +25,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -92,7 +91,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	log.WithField("db", dbID).Debug("generated database id")
 
 	// allocate nodes
-	var peers *kayak.Peers
+	var peers *proto.Peers
 	if peers, err = s.allocateNodes(0, dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
@@ -139,7 +138,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		return
 	}
 
-	if err = s.batchSendSvcReq(initSvcReq, rollbackReq, s.peersToNodes(peers)); err != nil {
+	if err = s.batchSendSvcReq(initSvcReq, rollbackReq, peers.Servers); err != nil {
 		return
 	}
 
@@ -208,7 +207,7 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 		return
 	}
 
-	if err = s.batchSendSvcReq(dropDBSvcReq, nil, s.peersToNodes(instanceMeta.Peers)); err != nil {
+	if err = s.batchSendSvcReq(dropDBSvcReq, nil, instanceMeta.Peers.Servers); err != nil {
 		return
 	}
 
@@ -324,7 +323,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 	}
 }
 
-func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *kayak.Peers, err error) {
+func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *proto.Peers, err error) {
 	curRange := int(resourceMeta.Node)
 	excludeNodes := make(map[proto.NodeID]bool)
 	var allocated []allocatedNode
@@ -444,7 +443,7 @@ func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resour
 			}
 
 			// build peers
-			return s.buildPeers(lastTerm+1, nodes, nodeAllocated)
+			return s.buildPeers(lastTerm+1, nodeAllocated)
 		}
 
 		curRange += int(resourceMeta.Node)
@@ -479,54 +478,26 @@ func (s *DBService) getMetric(metric metric.MetricMap, keys []string) (value uin
 	return
 }
 
-func (s *DBService) buildPeers(term uint64, nodes []proto.Node, allocated []proto.NodeID) (peers *kayak.Peers, err error) {
+func (s *DBService) buildPeers(term uint64, allocated []proto.NodeID) (peers *proto.Peers, err error) {
 	log.WithFields(log.Fields{
 		"term":  term,
 		"nodes": allocated,
 	}).Debug("build peers for term/nodes")
 
 	// get local private key
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
 
 	// get allocated node info
-	allocatedMap := make(map[proto.NodeID]bool)
-
-	for _, nodeID := range allocated {
-		allocatedMap[nodeID] = true
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    term,
+			Servers: allocated,
+		},
 	}
-
-	allocatedNodes := make([]proto.Node, 0, len(allocated))
-
-	for _, node := range nodes {
-		if allocatedMap[node.ID] {
-			allocatedNodes = append(allocatedNodes, node)
-		}
-	}
-
-	peers = &kayak.Peers{
-		Term:    term,
-		PubKey:  pubKey,
-		Servers: make([]*kayak.Server, len(allocated)),
-	}
-
-	for idx, node := range allocatedNodes {
-		peers.Servers[idx] = &kayak.Server{
-			Role:   proto.Follower,
-			ID:     node.ID,
-			PubKey: node.PublicKey,
-		}
-	}
-
 	// choose the first node as leader, allocateNodes sort the allocated node list by memory size
-	peers.Servers[0].Role = proto.Leader
 	peers.Leader = peers.Servers[0]
 
 	// sign the peers structure
@@ -588,20 +559,6 @@ func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.N
 	wg.Wait()
 	close(errCh)
 	err = <-errCh
-
-	return
-}
-
-func (s *DBService) peersToNodes(peers *kayak.Peers) (nodes []proto.NodeID) {
-	if peers == nil {
-		return
-	}
-
-	nodes = make([]proto.NodeID, 0, len(peers.Servers))
-
-	for _, s := range peers.Servers {
-		nodes = append(nodes, s.ID)
-	}
 
 	return
 }

@@ -26,7 +26,6 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -69,7 +68,7 @@ func TestChain(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, peers, err := createTestPeersWithPrivKeys(priv, testPeersNumber)
 
-		cfg := NewConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0].ID, testPeriod, testTick)
+		cfg := NewConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0], testPeriod, testTick)
 		chain, err := NewChain(cfg)
 		So(err, ShouldBeNil)
 		ao, ok := chain.ms.readonly.accounts[testAddress1]
@@ -199,7 +198,7 @@ func TestMultiNode(t *testing.T) {
 		}
 
 		var nis []cpuminer.NonceInfo
-		var peers *kayak.Peers
+		var peers *proto.Peers
 		peerInited := false
 		for i := range chains {
 			// create tmp file
@@ -219,13 +218,13 @@ func TestMultiNode(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				for i, p := range peers.Servers {
-					t.Logf("Peer #%d: %s", i, p.ID)
+					t.Logf("Peer #%d: %s", i, p)
 				}
 
 				peerInited = true
 			}
 
-			cfg := NewConfig(genesis, fl.Name(), server, peers, peers.Servers[i].ID, testPeriod, testTick)
+			cfg := NewConfig(genesis, fl.Name(), server, peers, peers.Servers[i], testPeriod, testTick)
 
 			// init chain
 			chains[i], err = NewChain(cfg)
@@ -235,8 +234,14 @@ func TestMultiNode(t *testing.T) {
 			pub, err := kms.GetLocalPublicKey()
 			So(err, ShouldBeNil)
 			node := proto.Node{
-				ID:        peers.Servers[i].ID,
-				Role:      peers.Servers[i].Role,
+				ID: peers.Servers[i],
+				Role: func(peers *proto.Peers, i int) proto.ServerRole {
+					if peers.Leader.IsEqual(&peers.Servers[i]) {
+						return proto.Leader
+					} else {
+						return proto.Follower
+					}
+				}(peers, i),
 				Addr:      server.Listener.Addr().String(),
 				PublicKey: pub,
 				Nonce:     nis[i].Nonce,

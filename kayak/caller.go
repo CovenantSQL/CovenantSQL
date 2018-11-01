@@ -14,19 +14,9 @@
  * limitations under the License.
  */
 
-package api
+package kayak
 
-import (
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
-)
-
-// NewMuxService create a new transport mux service and register to rpc server.
-func NewMuxService(serviceName string, server *rpc.Server) (service *kt.ETLSTransportService) {
-	service = &kt.ETLSTransportService{
-		ServiceName: serviceName,
-	}
-	server.RegisterService(serviceName, service)
-
-	return service
+// Caller defines the rpc caller, supports mocks for the default rpc.PersistCaller.
+type Caller interface {
+	Call(method string, req interface{}, resp interface{}) error
 }

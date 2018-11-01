@@ -33,7 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -139,11 +138,6 @@ func (p *stubDBMetaPersistence) GetAllDatabases() (instances []wt.ServiceInstanc
 }
 
 func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
@@ -155,21 +149,12 @@ func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance
 	}
 
 	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &kayak.Peers{
-		Term: 1,
-		Leader: &kayak.Server{
-			Role:   proto.Leader,
-			ID:     nodeID,
-			PubKey: pubKey,
+	instance.Peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    1,
+			Leader:  nodeID,
+			Servers: []proto.NodeID{nodeID},
 		},
-		Servers: []*kayak.Server{
-			{
-				Role:   proto.Leader,
-				ID:     nodeID,
-				PubKey: pubKey,
-			},
-		},
-		PubKey: pubKey,
 	}
 	if err = instance.Peers.Sign(privKey); err != nil {
 		return

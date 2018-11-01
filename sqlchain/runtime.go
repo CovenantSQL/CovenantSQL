@@ -18,11 +18,11 @@ package sqlchain
 
 import (
 	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"sync"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
@@ -58,9 +58,9 @@ type runtime struct {
 	// peersMutex protects following peers-relative fields.
 	peersMutex sync.Mutex
 	// peers is the peer list of the sql-chain.
-	peers *kayak.Peers
+	peers *proto.Peers
 	// server is the local peer service instance.
-	server *kayak.Server
+	server proto.NodeID
 	// index is the index of the current server in the peer list.
 	index int32
 	// total is the total peer number of the sql-chain.
@@ -98,9 +98,14 @@ func newRunTime(c *Config) (r *runtime) {
 		peers:           c.Peers,
 		server:          c.Server,
 		index: func() int32 {
-			if index, found := c.Peers.Find(c.Server.ID); found {
+			if index, found := c.Peers.Find(c.Server); found {
 				return index
 			}
+
+			log.WithFields(log.Fields{
+				"node":  c.Server,
+				"peers": c.Peers,
+			}).Warning("could not found server in peers")
 
 			return -1
 		}(),
@@ -221,10 +226,10 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 	return
 }
 
-func (r *runtime) updatePeers(peers *kayak.Peers) (err error) {
+func (r *runtime) updatePeers(peers *proto.Peers) (err error) {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()
-	index, found := peers.Find(r.server.ID)
+	index, found := peers.Find(r.server)
 
 	if found {
 		r.index = index
@@ -259,7 +264,7 @@ func (r *runtime) getIndexTotal() (int32, int32) {
 	return r.index, r.total
 }
 
-func (r *runtime) getIndexTotalServer() (int32, int32, *kayak.Server) {
+func (r *runtime) getIndexTotalServer() (int32, int32, proto.NodeID) {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()
 	return r.index, r.total, r.server
@@ -267,10 +272,10 @@ func (r *runtime) getIndexTotalServer() (int32, int32, *kayak.Server) {
 
 func (r *runtime) getPeerInfoString() string {
 	index, total, server := r.getIndexTotalServer()
-	return fmt.Sprintf("[%d/%d] %s", index, total, server.ID)
+	return fmt.Sprintf("[%d/%d] %s", index, total, server)
 }
 
-func (r *runtime) getServer() *kayak.Server {
+func (r *runtime) getServer() proto.NodeID {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()
 	return r.server
@@ -298,7 +303,7 @@ func (r *runtime) isMyTurn() (ret bool) {
 	return
 }
 
-func (r *runtime) getPeers() *kayak.Peers {
+func (r *runtime) getPeers() *proto.Peers {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()
 	peers := r.peers.Clone()

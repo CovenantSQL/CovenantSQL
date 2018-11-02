@@ -49,13 +49,6 @@ var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
-func TestBuild(t *testing.T) {
-	Convey("build", t, func() {
-		log.SetLevel(log.DebugLevel)
-		So(utils.Build(), ShouldBeNil)
-	})
-}
-
 func startNodes() {
 	ctx := context.Background()
 

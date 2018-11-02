@@ -246,7 +246,7 @@ func main() {
 	select {
 	case bp := <-pingWaitCh:
 		log.WithField("BP", bp).Infof("ping BP succeed")
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		log.Fatal("ping BP timeout")
 	}
 

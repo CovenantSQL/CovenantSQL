@@ -89,7 +89,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 		2122,
 		2121,
 		2120,
-	}, time.Millisecond*200)
+	}, time.Second)
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}

@@ -73,7 +73,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, false,
+		"leader", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -108,7 +108,7 @@ func startNodes() {
 		4120,
 		4121,
 		4122,
-	}, time.Millisecond*200)
+	}, time.Second)
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestFullProcess(t *testing.T) {
 			4144,
 			4145,
 			4146,
-		}, time.Millisecond*200)
+		}, 2*time.Second)
 		if err != nil {
 			log.Fatalf("wait for port ready timeout: %v", err)
 		}

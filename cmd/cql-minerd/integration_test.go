@@ -107,7 +107,7 @@ func startNodes() {
 		3122,
 		3121,
 		3120,
-	}, time.Millisecond*200)
+	}, time.Second)
 
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
@@ -324,7 +324,7 @@ func TestFullProcess(t *testing.T) {
 			3122,
 			3121,
 			3120,
-		}, time.Millisecond*200)
+		}, 2*time.Second)
 		time.Sleep(10 * time.Second)
 
 		So(err, ShouldBeNil)
@@ -500,7 +500,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 			3122,
 			3121,
 			3120,
-		}, time.Millisecond*200)
+		}, 2*time.Second)
 		time.Sleep(time.Second)
 	}
 

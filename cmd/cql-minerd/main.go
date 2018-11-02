@@ -30,8 +30,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -216,42 +214,6 @@ func main() {
 			}
 		}
 	}()
-
-	// get local node id
-	localNodeID, err := kms.GetLocalNodeID()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// get local node info
-	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-	pingWaitCh := make(chan proto.NodeID)
-	bpNodeIDs := route.GetBPs()
-	for _, bpNodeID := range bpNodeIDs {
-		go func(ch chan proto.NodeID, id proto.NodeID) {
-			for {
-				err := rpc.PingBP(localNodeInfo, id)
-				if err == nil {
-					ch <- id
-					return
-				}
-				time.Sleep(time.Second)
-			}
-		}(pingWaitCh, bpNodeID)
-	}
-
-	select {
-	case bp := <-pingWaitCh:
-		log.WithField("BP", bp).Infof("ping BP succeed")
-	case <-time.After(15 * time.Second):
-		log.Fatal("ping BP timeout")
-	}
 
 	// start dbms
 	var dbms *worker.DBMS

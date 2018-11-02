@@ -20,6 +20,11 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"time"
+
+	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -51,6 +56,11 @@ func initNode() (server *rpc.Server, err error) {
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
+	err = registerNodeToBP(15 * time.Second)
+	if err != nil {
+		log.Fatalf("register node to BP failed: %v", err)
+	}
+
 	// init server
 	if server, err = createServer(
 		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, conf.GConf.ListenAddr); err != nil {
@@ -70,6 +80,54 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	}
 
 	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
+
+	return
+}
+
+func registerNodeToBP(timeout time.Duration) (err error) {
+	// get local node id
+	localNodeID, err := kms.GetLocalNodeID()
+	if err != nil {
+		err = errors.Wrap(err, "register node to BP")
+		return
+	}
+
+	// get local node info
+	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
+	if err != nil {
+		err = errors.Wrap(err, "register node to BP")
+		return
+	}
+
+	log.WithField("node", localNodeInfo).Debug("construct local node info")
+
+	pingWaitCh := make(chan proto.NodeID)
+	bpNodeIDs := route.GetBPs()
+	for _, bpNodeID := range bpNodeIDs {
+		go func(ch chan proto.NodeID, id proto.NodeID) {
+			for {
+				select {
+				case <-ch:
+					return
+				case <-time.After(time.Second):
+				}
+
+				err := rpc.PingBP(localNodeInfo, id)
+				if err == nil {
+					ch <- id
+					return
+				}
+			}
+		}(pingWaitCh, bpNodeID)
+	}
+
+	select {
+	case bp := <-pingWaitCh:
+		close(pingWaitCh)
+		log.WithField("BP", bp).Infof("ping BP succeed")
+	case <-time.After(timeout):
+		return errors.New("ping BP timeout")
+	}
 
 	return
 }

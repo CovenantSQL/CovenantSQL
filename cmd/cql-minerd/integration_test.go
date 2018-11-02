@@ -332,7 +332,8 @@ func TestFullProcess(t *testing.T) {
 			3121,
 			3120,
 		}, time.Millisecond*200)
-		time.Sleep(2 * time.Second)
+		time.Sleep(10 * time.Second)
+
 		So(err, ShouldBeNil)
 
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))

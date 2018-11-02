@@ -229,19 +229,6 @@ func TestFullProcess(t *testing.T) {
 		var err error
 		startNodes()
 		defer stopNodes()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-		defer cancel()
-		err = utils.WaitToConnect(ctx, "127.0.0.1", []int{
-			4120,
-			4121,
-			4122,
-			4144,
-			4145,
-			4146,
-		}, 2*time.Second)
-		if err != nil {
-			log.Fatalf("wait for port ready timeout: %v", err)
-		}
 
 		time.Sleep(10 * time.Second)
 

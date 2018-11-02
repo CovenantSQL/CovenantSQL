@@ -317,14 +317,7 @@ func TestFullProcess(t *testing.T) {
 		startNodes()
 		defer stopNodes()
 		var err error
-		err = utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
-			2144,
-			2145,
-			2146,
-			3122,
-			3121,
-			3120,
-		}, 2*time.Second)
+
 		time.Sleep(10 * time.Second)
 
 		So(err, ShouldBeNil)

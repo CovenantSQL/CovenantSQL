@@ -63,6 +63,7 @@ func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
 	return &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
+				Timestamp: time.Now().UTC(),
 				QueryType: qt,
 			},
 		},
@@ -117,9 +118,6 @@ func mineNoncesFromPublicKey(
 		}
 		next = ni.Nonce
 		next.Inc()
-		if err = kms.SetNode(&nis[i]); err != nil {
-			return
-		}
 	}
 
 	return

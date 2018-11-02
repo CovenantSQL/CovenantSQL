@@ -21,7 +21,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
@@ -80,11 +79,6 @@ func (s *MuxService) route(id proto.DatabaseID) (c *Chain, err error) {
 }
 
 func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err error) {
-	defer log.WithFields(log.Fields{
-		"req":  req,
-		"resp": resp,
-		"err":  &err,
-	}).Debug("Processed query request")
 	var (
 		c *Chain
 		r *wt.Response

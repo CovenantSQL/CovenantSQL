@@ -105,7 +105,7 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 		}
 	}
 	for i := 0; i < records; i++ {
-		r[i+records] = buildRequest(wt.WriteQuery, []wt.Query{
+		r[records+i] = buildRequest(wt.WriteQuery, []wt.Query{
 			buildQuery(ins, src[i]...),
 		})
 		if err = r[i+records].Sign(priv); err != nil {

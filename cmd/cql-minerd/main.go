@@ -235,10 +235,13 @@ func main() {
 	bpNodeIDs := route.GetBPs()
 	for _, bpNodeID := range bpNodeIDs {
 		go func(ch chan proto.NodeID, id proto.NodeID) {
-			err := rpc.PingBP(localNodeInfo, id)
-			if err == nil {
-				ch <- id
-				return
+			for {
+				err := rpc.PingBP(localNodeInfo, id)
+				if err == nil {
+					ch <- id
+					return
+				}
+				time.Sleep(time.Second)
 			}
 		}(pingWaitCh, bpNodeID)
 	}

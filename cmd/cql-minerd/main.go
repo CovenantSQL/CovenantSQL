@@ -27,15 +27,15 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/trace"
-	"sync"
 	"syscall"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -217,49 +217,39 @@ func main() {
 		}
 	}()
 
-	pingWg := sync.WaitGroup{}
-	pingWg.Add(1)
-	// start block producer pinger
-	go func() {
-		var localNodeID proto.NodeID
-		var err error
+	// get local node id
+	localNodeID, err := kms.GetLocalNodeID()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		// get local node id
-		if localNodeID, err = kms.GetLocalNodeID(); err != nil {
-			return
-		}
+	// get local node info
+	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		// get local node info
-		var localNodeInfo *proto.Node
-		if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
-			return
-		}
+	log.WithField("node", localNodeInfo).Debug("construct local node info")
 
-		log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-		go func() {
-			for {
-				select {
-				case <-time.After(time.Second):
-				case <-stopCh:
-					return
-				}
-
-				// send ping requests to block producer
-				bpNodeIDs := route.GetBPs()
-
-				for _, bpNodeID := range bpNodeIDs {
-					err := rpc.PingBP(localNodeInfo, bpNodeID)
-					if err == nil {
-						pingWg.Done()
-						return
-					}
-				}
+	pingWaitCh := make(chan proto.NodeID)
+	bpNodeIDs := route.GetBPs()
+	for _, bpNodeID := range bpNodeIDs {
+		go func(ch chan proto.NodeID, id proto.NodeID) {
+			err := rpc.PingBP(localNodeInfo, id)
+			if err == nil {
+				ch <- id
+				return
 			}
-		}()
-	}()
+		}(pingWaitCh, bpNodeID)
+	}
 
-	pingWg.Wait()
+	select {
+	case bp := <-pingWaitCh:
+		log.WithField("BP", bp).Infof("ping BP succeed")
+	case <-time.After(5 * time.Second):
+		log.Fatal("ping BP timeout")
+	}
+
 	// start dbms
 	var dbms *worker.DBMS
 	if dbms, err = startDBMS(server); err != nil {

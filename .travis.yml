@@ -34,6 +34,7 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - bash build.sh
+  - cd cmd && go test -v -race ./... && cd -
   - go test -v -race -failfast -parallel 8 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
   - cd rpc && go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$ && cd -
   - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out

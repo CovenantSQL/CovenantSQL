@@ -235,7 +235,7 @@ func setupBenchmarkStorage(
 ) {
 	const (
 		vnum    = 3
-		vlen    = 100
+		vlen    = 333
 		records = 100000
 	)
 	// Setup storage

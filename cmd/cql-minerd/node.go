@@ -117,7 +117,7 @@ func registerNodeToBP(timeout time.Duration) (err error) {
 					ch <- id
 					return
 				} else {
-					log.Warnf("ping BP failed: $v", err)
+					log.Warnf("ping BP failed: %v", err)
 				}
 
 			}

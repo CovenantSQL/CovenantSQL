@@ -21,8 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/pkg/errors"
 
 	"github.com/sirupsen/logrus"
@@ -94,7 +92,7 @@ func call1() {
 
 func call2() {
 	WithField("k", "v").Error("Error")
-	log.Error("call2 error")
+	Error("call2 error")
 }
 
 func TestWithField(t *testing.T) {

@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/pkg/errors"
 
 	"github.com/sirupsen/logrus"
@@ -82,11 +84,27 @@ func TestStandardLogger(t *testing.T) {
 
 }
 
+func call0() {
+	call1()
+}
+
+func call1() {
+	call2()
+}
+
+func call2() {
+	WithField("k", "v").Error("Error")
+	log.Error("call2 error")
+}
+
 func TestWithField(t *testing.T) {
 	SetLevel(DebugLevel)
 	if GetLevel() != DebugLevel {
 		t.Fail()
 	}
+
+	call0()
+
 	f := new(Fields)
 	WithError(errors.New("new")).WithFields(*f).WithTime(time.Now()).Debug("Debug")
 

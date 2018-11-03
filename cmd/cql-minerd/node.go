@@ -106,20 +106,15 @@ func registerNodeToBP(timeout time.Duration) (err error) {
 	for _, bpNodeID := range bpNodeIDs {
 		go func(ch chan proto.NodeID, id proto.NodeID) {
 			for {
-				select {
-				case <-ch:
-					return
-				case <-time.After(time.Second):
-				}
-
 				err := rpc.PingBP(localNodeInfo, id)
 				if err == nil {
+					log.Infof("ping BP succeed: %v", localNodeInfo)
 					ch <- id
 					return
 				} else {
 					log.Warnf("ping BP failed: %v", err)
 				}
-
+				time.Sleep(time.Second)
 			}
 		}(pingWaitCh, bpNodeID)
 	}

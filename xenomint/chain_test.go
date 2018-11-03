@@ -30,11 +30,6 @@ import (
 )
 
 func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
-	const (
-		vnum    = 3
-		vlen    = 100
-		records = 100000
-	)
 	// Setup chain state
 	var (
 		fl   = path.Join(testingDataDir, b.Name())
@@ -54,10 +49,10 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 	); err != nil {
 		b.Fatalf("Failed to setup bench environment: %v", err)
 	}
-	for i := 0; i < records; i++ {
+	for i := 0; i < benchmarkKeySpace; i++ {
 		var (
-			vals [vnum][vlen]byte
-			args [vnum + 1]interface{}
+			vals [benchmarkVNum][benchmarkVLen]byte
+			args [benchmarkVNum + 1]interface{}
 		)
 		args[0] = i
 		for i := range vals {
@@ -68,7 +63,7 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
 	}
-	n = records
+	n = benchmarkKeySpace
 	// Setup query requests
 	var (
 		sel = `SELECT "v1", "v2", "v3" FROM "bench" WHERE "k"=?`
@@ -79,14 +74,14 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 		"v3"="excluded"."v3"
 `
 		priv *ca.PrivateKey
-		src  = make([][]interface{}, records)
+		src  = make([][]interface{}, benchmarkKeySpace)
 	)
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		b.Fatalf("Failed to setup bench environment: %v", err)
 	}
-	r = make([]*wt.Request, 2*records)
+	r = make([]*wt.Request, 2*benchmarkKeySpace)
 	// Read query key space [0, n-1]
-	for i := 0; i < records; i++ {
+	for i := 0; i < benchmarkKeySpace; i++ {
 		r[i] = buildRequest(wt.ReadQuery, []wt.Query{
 			buildQuery(sel, i),
 		})
@@ -96,19 +91,19 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 	}
 	// Write query key space [n, 2n-1]
 	for i := range src {
-		var vals [vnum][vlen]byte
-		src[i] = make([]interface{}, vnum+1)
-		src[i][0] = i + records
+		var vals [benchmarkVNum][benchmarkVLen]byte
+		src[i] = make([]interface{}, benchmarkVNum+1)
+		src[i][0] = i + benchmarkKeySpace
 		for j := range vals {
 			rand.Read(vals[j][:])
 			src[i][j+1] = string(vals[j][:])
 		}
 	}
-	for i := 0; i < records; i++ {
-		r[records+i] = buildRequest(wt.WriteQuery, []wt.Query{
+	for i := 0; i < benchmarkKeySpace; i++ {
+		r[benchmarkKeySpace+i] = buildRequest(wt.WriteQuery, []wt.Query{
 			buildQuery(ins, src[i]...),
 		})
-		if err = r[i+records].Sign(priv); err != nil {
+		if err = r[i+benchmarkKeySpace].Sign(priv); err != nil {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
 	}

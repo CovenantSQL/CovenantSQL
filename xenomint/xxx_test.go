@@ -37,10 +37,12 @@ import (
 
 var (
 	testingDataDir            string
-	testingDHTDBFile          string
 	testingPrivateKeyFile     string
 	testingPublicKeyStoreFile string
 	testingNonceDifficulty    int
+
+	testingPrivateKey *ca.PrivateKey
+	testingPublicKey  *ca.PublicKey
 
 	testingMasterKey = []byte(`?08Rl%WUih4V0H+c`)
 )
@@ -60,9 +62,17 @@ func buildQuery(query string, args ...interface{}) wt.Query {
 }
 
 func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
 	return &wt.Request{
 		Header: wt.SignedRequestHeader{
 			RequestHeader: wt.RequestHeader{
+				NodeID:    id,
 				Timestamp: time.Now().UTC(),
 				QueryType: qt,
 			},
@@ -85,7 +95,7 @@ func concat(args [][]interface{}) (ret []interface{}) {
 	return
 }
 
-func mineNoncesFromPublicKey(
+func createNodesWithPublicKey(
 	pub *ca.PublicKey, diff int, num int) (nis []proto.Node, err error,
 ) {
 	var (
@@ -149,23 +159,17 @@ func setup() {
 	}
 
 	// Initialze kms
-	var (
-		priv *ca.PrivateKey
-		pub  *ca.PublicKey
-	)
 	testingNonceDifficulty = 2
-	testingDHTDBFile = path.Join(testingDataDir, "dht.db")
 	testingPrivateKeyFile = path.Join(testingDataDir, "private.key")
 	testingPublicKeyStoreFile = path.Join(testingDataDir, "public.keystore")
-	if err = kms.InitPublicKeyStore(testingPublicKeyStoreFile, nil); err != nil {
-		panic(err)
-	}
-	if priv, pub, err = ca.GenSecp256k1KeyPair(); err != nil {
+	if testingPrivateKey, testingPublicKey, err = ca.GenSecp256k1KeyPair(); err != nil {
 		panic(err)
 	}
 	kms.Unittest = true
-	kms.SetLocalKeyPair(priv, pub)
-	if err = kms.SavePrivateKey(testingPrivateKeyFile, priv, testingMasterKey); err != nil {
+	kms.SetLocalKeyPair(testingPrivateKey, testingPublicKey)
+	if err = kms.SavePrivateKey(
+		testingPrivateKeyFile, testingPrivateKey, testingMasterKey,
+	); err != nil {
 		panic(err)
 	}
 

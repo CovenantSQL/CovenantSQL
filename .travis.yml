@@ -7,23 +7,19 @@ env:
     - REVIEWDOG_VERSION=0.9.11
 language: go
 go:
-  - '1.11'
+  - '1.11.x'
 
 os:
   - linux
   - osx
 
 matrix:
-  allow_failures:
-    - go: 1.11
-  exclude:
-    - go: tip
   fast_finish: true
 install:
   - go get github.com/wadey/gocovmerge
   - go get golang.org/x/lint/golint
   - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
-  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/${REVIEWDOG_VERSION}/reviewdog_${TRAVIS_OS_NAME}_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 before_script:
   - echo $TRAVIS
   - echo $TRAVIS_PULL_REQUEST

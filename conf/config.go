@@ -182,7 +182,9 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		genesis block just one day ago in test mode
 	*/
 	if config.IsTestMode {
-		config.BP.BPGenesis.Timestamp = time.Now().AddDate(0, 0, -1)
+		if config.BP != nil {
+			config.BP.BPGenesis.Timestamp = time.Now().AddDate(0, 0, -1)
+		}
 	}
 	return
 }

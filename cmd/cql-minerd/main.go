@@ -34,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -118,7 +117,7 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 
 	if showVersion {
@@ -214,45 +213,6 @@ func main() {
 			case <-tick.C:
 			}
 		}
-	}()
-
-	// start block producer pinger
-	go func() {
-		var localNodeID proto.NodeID
-		var err error
-
-		// get local node id
-		if localNodeID, err = kms.GetLocalNodeID(); err != nil {
-			return
-		}
-
-		// get local node info
-		var localNodeInfo *proto.Node
-		if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
-			return
-		}
-
-		log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-		go func() {
-			for {
-				select {
-				case <-time.After(time.Second):
-				case <-stopCh:
-					return
-				}
-
-				// send ping requests to block producer
-				bpNodeIDs := route.GetBPs()
-
-				for _, bpNodeID := range bpNodeIDs {
-					err := rpc.PingBP(localNodeInfo, bpNodeID)
-					if err == nil {
-						return
-					}
-				}
-			}
-		}()
 	}()
 
 	// start dbms

@@ -24,6 +24,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -34,9 +36,10 @@ var (
 	allocateLock   sync.Mutex
 )
 
-func testPortConnectable(addr string) bool {
-	conn, err := net.Dial("tcp", addr)
+func testPortConnectable(addr string, timeout time.Duration) bool {
+	conn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
+		log.Infof("test dial to %s failed", addr)
 		return false
 	} else {
 		conn.Close()
@@ -72,7 +75,7 @@ func WaitToConnect(ctx context.Context, bindAddr string, ports []int, interval t
 		case <-time.After(interval):
 			for _, port := range ports {
 				addr := net.JoinHostPort(bindAddr, fmt.Sprint(port))
-				if !testPortConnectable(addr) {
+				if !testPortConnectable(addr, 100*time.Millisecond) {
 					goto continueCheckC
 				}
 			}

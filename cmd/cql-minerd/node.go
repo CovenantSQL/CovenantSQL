@@ -114,13 +114,14 @@ func registerNodeToBP(timeout time.Duration) (err error) {
 					log.Infof("ping BP succeed: %v", localNodeInfo)
 					ch <- id
 					return
-				} else if strings.Contains(err.Error(), kayak.ErrNotLeader.Error()) {
+				}
+				if strings.Contains(err.Error(), kayak.ErrNotLeader.Error()) {
 					log.Debug("stop ping non leader BP node")
 					return
-				} else {
-					log.Warnf("ping BP failed: %v", err)
 				}
-				time.Sleep(time.Second)
+
+				log.Warnf("ping BP failed: %v", err)
+				time.Sleep(3 * time.Second)
 			}
 		}(pingWaitCh, bpNodeID)
 	}

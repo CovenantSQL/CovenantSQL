@@ -254,18 +254,20 @@ func (s *state) write(req *wt.Request) (ref *query, resp *wt.Response, err error
 		query     = &query{req: req}
 	)
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
-	s.Lock()
-	savepoint = s.getID()
-	for i, v := range req.Payload.Queries {
-		if _, ierr = s.writeSingle(&v); ierr != nil {
-			err = errors.Wrapf(ierr, "execute at #%d failed", i)
-			s.rollbackTo(savepoint)
-			return
+	func() {
+		s.Lock()
+		defer s.Unlock()
+		savepoint = s.getID()
+		for i, v := range req.Payload.Queries {
+			if _, ierr = s.writeSingle(&v); ierr != nil {
+				err = errors.Wrapf(ierr, "execute at #%d failed", i)
+				s.rollbackTo(savepoint)
+				return
+			}
 		}
-	}
-	s.setSavepoint()
-	s.pool.enqueue(savepoint, query)
-	s.Unlock()
+		s.setSavepoint()
+		s.pool.enqueue(savepoint, query)
+	}()
 	// Build query response
 	ref = query
 	resp = &wt.Response{

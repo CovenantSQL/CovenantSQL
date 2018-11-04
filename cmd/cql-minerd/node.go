@@ -23,17 +23,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/kayak"
-
-	"github.com/pkg/errors"
-
-	"github.com/CovenantSQL/CovenantSQL/proto"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
 )
 

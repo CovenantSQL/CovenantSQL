@@ -44,7 +44,7 @@ script:
 before_deploy:
   - bash build.sh
   - mkdir -p build
-  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/cql*
+  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz $(ls bin/cql* | grep -v test)
 
 deploy:
   provider: releases

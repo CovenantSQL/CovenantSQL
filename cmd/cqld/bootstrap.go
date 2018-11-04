@@ -157,7 +157,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		peers,
 		nodeID,
 		2*time.Second,
-		100*time.Millisecond,
+		900*time.Millisecond,
 	)
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
@@ -240,38 +240,6 @@ func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer)
 	}
 
 	return
-}
-
-//FIXME(auxten): clean up ugly periodicPingBlockProducer
-func periodicPingBlockProducer() {
-	var localNodeID proto.NodeID
-	var err error
-
-	// get local node id
-	if localNodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
-	// get local node info
-	var localNodeInfo *proto.Node
-	if localNodeInfo, err = kms.GetNodeInfo(localNodeID); err != nil {
-		return
-	}
-
-	log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-	go func() {
-		for {
-			time.Sleep(time.Second)
-
-			// send ping requests to block producer
-			bpNodeIDs := route.GetBPs()
-
-			for _, bpNodeID := range bpNodeIDs {
-				rpc.PingBP(localNodeInfo, bpNodeID)
-			}
-		}
-	}()
 }
 
 func loadGenesis() *types.Block {

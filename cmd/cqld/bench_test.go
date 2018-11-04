@@ -32,7 +32,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -42,13 +41,6 @@ var (
 )
 
 var FJ = filepath.Join
-
-func TestBuild(t *testing.T) {
-	Convey("build", t, func() {
-		log.SetLevel(log.DebugLevel)
-		So(utils.Build(), ShouldBeNil)
-	})
-}
 
 func start3BPs() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
@@ -97,7 +89,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 		2122,
 		2121,
 		2120,
-	}, time.Millisecond*200)
+	}, time.Second)
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}

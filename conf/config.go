@@ -177,5 +177,14 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	if config.Miner != nil && !path.IsAbs(config.Miner.RootDir) {
 		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
 	}
+	/*
+		The `go test -race` makes BP catch up block too slow, so let's make
+		genesis block just one day ago in test mode
+	*/
+	if config.IsTestMode {
+		if config.BP != nil {
+			config.BP.BPGenesis.Timestamp = time.Now().AddDate(0, 0, -1)
+		}
+	}
 	return
 }

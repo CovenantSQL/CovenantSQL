@@ -49,13 +49,6 @@ var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
-func TestBuild(t *testing.T) {
-	Convey("build", t, func() {
-		log.SetLevel(log.DebugLevel)
-		So(utils.Build(), ShouldBeNil)
-	})
-}
-
 func startNodes() {
 	ctx := context.Background()
 
@@ -90,7 +83,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
 		},
-		"follower1", testWorkingDir, logDir, true,
+		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -101,7 +94,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
 		},
-		"follower2", testWorkingDir, logDir, true,
+		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -114,7 +107,7 @@ func startNodes() {
 		3122,
 		3121,
 		3120,
-	}, time.Millisecond*200)
+	}, time.Second)
 
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
@@ -154,7 +147,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, true,
+		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -167,7 +160,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, true,
+		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -324,15 +317,9 @@ func TestFullProcess(t *testing.T) {
 		startNodes()
 		defer stopNodes()
 		var err error
-		err = utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
-			2144,
-			2145,
-			2146,
-			3122,
-			3121,
-			3120,
-		}, time.Millisecond*200)
-		time.Sleep(2 * time.Second)
+
+		time.Sleep(10 * time.Second)
+
 		So(err, ShouldBeNil)
 
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
@@ -506,7 +493,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 			3122,
 			3121,
 			3120,
-		}, time.Millisecond*200)
+		}, 2*time.Second)
 		time.Sleep(time.Second)
 	}
 

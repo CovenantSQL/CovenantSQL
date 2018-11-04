@@ -52,13 +52,6 @@ var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
-func TestBuild(t *testing.T) {
-	Convey("build", t, func() {
-		log.SetLevel(log.DebugLevel)
-		So(utils.Build(), ShouldBeNil)
-	})
-}
-
 func startNodes() {
 	// wait for ports to be available
 	var err error
@@ -80,7 +73,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, false,
+		"leader", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -115,7 +108,7 @@ func startNodes() {
 		4120,
 		4121,
 		4122,
-	}, time.Millisecond*200)
+	}, time.Second)
 	if err != nil {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
@@ -233,11 +226,12 @@ func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	Convey("test full process", t, func() {
+		var err error
 		startNodes()
 		defer stopNodes()
+
 		time.Sleep(10 * time.Second)
 
-		var err error
 		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 

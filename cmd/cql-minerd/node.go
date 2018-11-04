@@ -19,8 +19,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/kayak"
 
 	"github.com/pkg/errors"
 
@@ -110,6 +113,9 @@ func registerNodeToBP(timeout time.Duration) (err error) {
 				if err == nil {
 					log.Infof("ping BP succeed: %v", localNodeInfo)
 					ch <- id
+					return
+				} else if strings.Contains(err.Error(), kayak.ErrNotLeader.Error()) {
+					log.Debug("stop ping non leader BP node")
 					return
 				} else {
 					log.Warnf("ping BP failed: %v", err)

@@ -342,18 +342,26 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
 	b.Run("benchmark Persistent Call Nil", func(b *testing.B) {
-		var (
-			req  proto.PingReq
-			resp proto.PingResp
-		)
-
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err = client.Call("DHT.Nil", &req, &resp)
+			err = client.Call("DHT.Nil", nil, nil)
 			if err != nil {
 				b.Error(err)
 			}
 		}
+	})
+
+	b.Run("benchmark Persistent Call parallel Nil", func(b *testing.B) {
+
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				err := client.Call("DHT.Nil", nil, nil)
+				if err != nil {
+					b.Error(err)
+				}
+			}
+		})
 	})
 
 	req := &proto.FindNeighborReq{

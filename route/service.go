@@ -50,7 +50,7 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 }
 
 // Nil RPC does nothing just for probe
-func (DHT *DHTService) Nil(req *proto.PingReq, resp *proto.PingResp) (err error) {
+func (DHT *DHTService) Nil(req *interface{}, resp *interface{}) (err error) {
 	return
 }
 

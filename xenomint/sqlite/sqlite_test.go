@@ -396,6 +396,13 @@ func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
 	}
 }
 
+func deleteBenchmarkData(b *testing.B, st xi.Storage) {
+	deleteStr := fmt.Sprintf(`DELETE FROM "t2" WHERE "k" > %v`, benchmarkNewKeyOffset)
+	if _, err := st.Writer().Exec(deleteStr); err != nil {
+		b.Fatalf("Failed to delete bench data: %v", err)
+	}
+}
+
 func BenchmarkStorageSequentialDirtyRead(b *testing.B) {
 	var (
 		st, q, dm, _, _ = setupBenchmarkStorage(b)
@@ -429,11 +436,15 @@ func BenchmarkStoargeSequentialWrite(b *testing.B) {
 		st, _, _, e, src = setupBenchmarkStorage(b)
 		err              error
 	)
-	for i := 0; i < b.N; i++ {
-		if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-			b.Errorf("Failed to execute: %v", err)
+	b.Run("BenchmarkStoargeSequentialWrite", func(b *testing.B) {
+		deleteBenchmarkData(b, st)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+				b.Errorf("Failed to execute: %v", err)
+			}
 		}
-	}
+	})
 	teardownBenchmarkStorage(b, st)
 }
 

@@ -20,8 +20,11 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 )
 
 // rpcTracker defines the rpc call tracker
@@ -89,7 +92,13 @@ func (t *rpcTracker) send() {
 }
 
 func (t *rpcTracker) callSingle(idx int) {
+	tm := time.Now()
 	err := t.r.getCaller(t.nodes[idx]).Call(t.method, t.req, nil)
+	log.WithFields(log.Fields{
+		"m": t.method,
+		"c": time.Now().Sub(tm).String(),
+		"r": t.req.(*kt.RPCRequest).Log.Index,
+	}).Info("call rpc")
 	t.errLock.Lock()
 	defer t.errLock.Unlock()
 	t.errors[t.nodes[idx]] = err

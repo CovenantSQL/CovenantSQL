@@ -365,6 +365,8 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		return
 	}
 
+	tm := time.Now()
+
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
@@ -393,6 +395,11 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	if err == nil {
 		r.updateNextIndex(l)
 	}
+
+	log.WithFields(log.Fields{
+		"c": time.Now().Sub(tm).String(),
+		"t": l.Type,
+	}).Info("follower apply")
 
 	return
 }
@@ -516,6 +523,18 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 	// decode log and send to commit channel to process
 	res = make(chan *commitResult, 1)
 
+	var tm, tmDecode, tmEnqueue time.Time
+
+	defer func(){
+		log.WithFields(log.Fields{
+			"d": tmDecode.Sub(tm).String(),
+			"q": tmEnqueue.Sub(tmDecode).String(),
+			"r": r.role.String(),
+		}).Info("commit result")
+	}()
+
+	tm = time.Now()
+
 	if prepareLog == nil {
 		res <- &commitResult{
 			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
@@ -533,6 +552,8 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 		return
 	}
 
+	tmDecode = time.Now()
+
 	req := &commitReq{
 		ctx:    ctx,
 		data:   logReq,
@@ -545,6 +566,8 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 	case <-ctx.Done():
 	case r.commitCh <- req:
 	}
+
+	tmEnqueue = time.Now()
 
 	return
 }
@@ -588,6 +611,17 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 		return
 	}
 
+	var tm, lm, fm time.Time
+
+	defer func(){
+		log.WithFields(log.Fields{
+			"lc": lm.Sub(tm).String(),
+			"fc": fm.Sub(lm).String(),
+		}).Info("leader commit")
+	}()
+
+	tm = time.Now()
+
 	// create leader log
 	var l *kt.Log
 	var logData []byte
@@ -603,6 +637,8 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 	// not wrapping underlying handler commit error
 	result, err = r.sh.Commit(req.data)
 
+	lm = time.Now()
+
 	if err == nil {
 		// mark last commit
 		atomic.StoreUint64(&r.lastCommit, l.Index)
@@ -613,6 +649,8 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 	defer commitCtxCancelFunc()
 	tracker = r.rpc(l, r.minCommitFollowers)
 	_, _, _ = tracker.get(commitCtx)
+
+	fm = time.Now()
 
 	// TODO(): text log for rpc errors
 

@@ -330,6 +330,9 @@ func setupBenchmarkStorage(b *testing.B) (
 		if _, err = stmt.Exec(args[:]...); err != nil {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
+		if (i % 10000) == 0 {
+			fmt.Printf("Setup table index now: %v\n", i)
+		}
 	}
 	// Setup query string and dest slice
 	q = `SELECT "v1", "v2", "v3" FROM "t2" WHERE "k"=?`

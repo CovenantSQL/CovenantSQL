@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
-	log "github.com/sirupsen/logrus"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func main() {

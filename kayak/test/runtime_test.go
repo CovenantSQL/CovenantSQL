@@ -110,7 +110,7 @@ func (s *sqliteStorage) Commit(data interface{}) (result interface{}, err error)
 
 	tm := time.Now()
 	result, err = s.st.Exec(context.Background(), d.Queries)
-	log.WithField("c", time.Now().Sub(tm).String()).Info("db commit")
+	log.WithField("c", time.Now().Sub(tm).Nanoseconds()).Info("db commit")
 
 	return
 }

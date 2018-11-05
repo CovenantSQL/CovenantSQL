@@ -35,7 +35,7 @@ import (
 
 const (
 	// commit channel window size
-	commitWindow = 1
+	commitWindow = 200
 	// prepare window
 	trackerWindow = 10
 )
@@ -107,11 +107,12 @@ type Runtime struct {
 
 // commitReq defines the commit operation input.
 type commitReq struct {
-	ctx    context.Context
-	data   interface{}
-	index  uint64
-	log    *kt.Log
-	result chan *commitResult
+	ctx        context.Context
+	data       interface{}
+	index      uint64
+	lastCommit uint64
+	log        *kt.Log
+	result     chan *commitResult
 }
 
 // commitResult defines the commit operation result.
@@ -242,19 +243,19 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 			"r": logIndex,
 		}
 		if !tmLeaderPrepare.Before(tmStart) {
-			fields["lp"] = tmLeaderPrepare.Sub(tmStart)
+			fields["lp"] = tmLeaderPrepare.Sub(tmStart).Nanoseconds()
 		}
 		if !tmFollowerPrepare.Before(tmLeaderPrepare) {
-			fields["fp"] = tmFollowerPrepare.Sub(tmLeaderPrepare)
+			fields["fp"] = tmFollowerPrepare.Sub(tmLeaderPrepare).Nanoseconds()
 		}
 		if !tmLeaderRollback.Before(tmFollowerPrepare) {
-			fields["lr"] = tmLeaderRollback.Sub(tmFollowerPrepare)
+			fields["lr"] = tmLeaderRollback.Sub(tmFollowerPrepare).Nanoseconds()
 		}
 		if !tmRollback.Before(tmLeaderRollback) {
-			fields["fr"] = tmRollback.Sub(tmLeaderRollback)
+			fields["fr"] = tmRollback.Sub(tmLeaderRollback).Nanoseconds()
 		}
 		if !tmCommit.Before(tmFollowerPrepare) {
-			fields["c"] = tmCommit.Sub(tmFollowerPrepare)
+			fields["c"] = tmCommit.Sub(tmFollowerPrepare).Nanoseconds()
 		}
 		log.WithFields(fields).Debug("kayak leader apply")
 	}()
@@ -309,7 +310,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	tmFollowerPrepare = time.Now()
 
 	select {
-	case cResult := <-r.commitResult(ctx, nil, prepareLog):
+	case cResult := <-r.commitResult(ctx, nil, prepareLog, 0):
 		if cResult != nil {
 			logIndex = prepareLog.Index
 			result = cResult.result
@@ -397,8 +398,9 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	}
 
 	log.WithFields(log.Fields{
-		"c": time.Now().Sub(tm).String(),
+		"c": time.Now().Sub(tm).Nanoseconds(),
 		"t": l.Type,
+		"l": len(l.Data),
 	}).Info("follower apply")
 
 	return
@@ -500,18 +502,9 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 		}).Warning("invalid last commit log")
 		err = errors.Wrap(kt.ErrInvalidLog, "invalid last commit log index")
 		return
-	} else if lastCommit > myLastCommit {
-		// last log does not committed yet
-		// DO RECOVERY
-		log.WithFields(log.Fields{
-			"expected": lastCommit,
-			"actual":   myLastCommit,
-		}).Warning("DO RECOVERY, REQUIRED LAST COMMITTED DOES NOT COMMIT YET")
-		err = errors.Wrap(kt.ErrNeedRecovery, "last commit does not received, need recovery")
-		return
 	}
 
-	cResult := <-r.commitResult(context.Background(), l, prepareLog)
+	cResult := <-r.commitResult(context.Background(), l, prepareLog, lastCommit)
 	if cResult != nil {
 		err = cResult.err
 	}
@@ -519,16 +512,16 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 	return
 }
 
-func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLog *kt.Log) (res chan *commitResult) {
+func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLog *kt.Log, lastCommit uint64) (res chan *commitResult) {
 	// decode log and send to commit channel to process
 	res = make(chan *commitResult, 1)
 
 	var tm, tmDecode, tmEnqueue time.Time
 
-	defer func(){
+	defer func() {
 		log.WithFields(log.Fields{
-			"d": tmDecode.Sub(tm).String(),
-			"q": tmEnqueue.Sub(tmDecode).String(),
+			"d": tmDecode.Sub(tm).Nanoseconds(),
+			"q": tmEnqueue.Sub(tmDecode).Nanoseconds(),
 			"r": r.role.String(),
 		}).Info("commit result")
 	}()
@@ -555,11 +548,12 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 	tmDecode = time.Now()
 
 	req := &commitReq{
-		ctx:    ctx,
-		data:   logReq,
-		index:  prepareLog.Index,
-		result: res,
-		log:    commitLog,
+		ctx:        ctx,
+		data:       logReq,
+		index:      prepareLog.Index,
+		lastCommit: lastCommit,
+		result:     res,
+		log:        commitLog,
 	}
 
 	select {
@@ -597,11 +591,10 @@ func (r *Runtime) doCommit(req *commitReq) {
 
 	if r.role == proto.Leader {
 		resp.rpc, resp.result, resp.err = r.leaderDoCommit(req)
+		req.result <- resp
 	} else {
-		resp.err = r.followerDoCommit(req)
+		r.followerDoCommit(req)
 	}
-
-	req.result <- resp
 }
 
 func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result interface{}, err error) {
@@ -613,10 +606,10 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 
 	var tm, lm, fm time.Time
 
-	defer func(){
+	defer func() {
 		log.WithFields(log.Fields{
-			"lc": lm.Sub(tm).String(),
-			"fc": fm.Sub(lm).String(),
+			"lc": lm.Sub(tm).Nanoseconds(),
+			"fc": fm.Sub(lm).Nanoseconds(),
 		}).Info("leader commit")
 	}()
 
@@ -645,10 +638,11 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 	}
 
 	// send commit
-	commitCtx, commitCtxCancelFunc := context.WithTimeout(context.Background(), r.commitTimeout)
-	defer commitCtxCancelFunc()
+	//commitCtx, commitCtxCancelFunc := context.WithTimeout(context.Background(), r.commitTimeout)
+	//defer commitCtxCancelFunc()
 	tracker = r.rpc(l, r.minCommitFollowers)
-	_, _, _ = tracker.get(commitCtx)
+	//_ = commitCtx
+	//_, _, _ = tracker.get(commitCtx)
 
 	fm = time.Now()
 
@@ -665,6 +659,22 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 		return
 	}
 
+	// check for last commit availability
+	myLastCommit := atomic.LoadUint64(&r.lastCommit)
+	if req.lastCommit != myLastCommit {
+		// wait for next round
+		log.WithFields(log.Fields{
+			"expected": req.lastCommit,
+			"actual":   myLastCommit,
+		}).Warning("new commit arrived too early, wait for real commit")
+
+		// TODO(): need counter for retries, infinite commit re-order would cause troubles
+		go func(req *commitReq) {
+			r.commitCh <- req
+		}(req)
+		return
+	}
+
 	// write log first
 	if err = r.wal.Write(req.log); err != nil {
 		err = errors.Wrap(err, "write follower commit log failed")
@@ -677,6 +687,8 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	if err == nil {
 		atomic.StoreUint64(&r.lastCommit, req.log.Index)
 	}
+
+	req.result <- &commitResult{err: err}
 
 	return
 }

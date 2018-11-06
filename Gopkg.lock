@@ -3,11 +3,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:13749560a469f9e2eb39a2798d9aae94c77a751254d8a48f4ed954dfe9e664a7"
+  digest = "1:341f9de25b320f45124840fa084aa804a6659cfeae2ea93a45424fd73f9d7da5"
   name = "github.com/CovenantSQL/HashStablePack"
   packages = ["marshalhash"]
   pruneopts = "UT"
-  revision = "1627b606c496aeafb4f0693c1ee5cd935b85dd73"
+  revision = "f5d7cc3bf3356c85eadcb0f66007f2f2b7ee81bc"
 
 [[projects]]
   branch = "develop"
@@ -134,14 +134,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "cbb64ac3d964b81592e64f957ad53df015803288"
-
-[[projects]]
-  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
-  name = "github.com/davecgh/go-spew"
-  packages = ["spew"]
-  pruneopts = "UT"
-  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
-  version = "v1.1.1"
 
 [[projects]]
   digest = "1:72dc2b6056e7097f829260e4a2ff08d32fec6017df1982a66e110ab4128486f8"
@@ -339,14 +331,6 @@
   version = "v0.8.0"
 
 [[projects]]
-  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
-  name = "github.com/pmezard/go-difflib"
-  packages = ["difflib"]
-  pruneopts = "UT"
-  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
-  version = "v1.0.0"
-
-[[projects]]
   branch = "master"
   digest = "1:f696f304d2a14745859a153f1041b66e0e2cf150eff731beb6431e93e27ddc5c"
   name = "github.com/prometheus/client_golang"
@@ -473,25 +457,6 @@
   pruneopts = "UT"
   revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
   version = "1.6.3"
-
-[[projects]]
-  digest = "1:ac83cf90d08b63ad5f7e020ef480d319ae890c208f8524622a2f3136e2686b02"
-  name = "github.com/stretchr/objx"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "477a77ecc69700c7cdeb1fa9e129548e1c1c393c"
-  version = "v0.1.1"
-
-[[projects]]
-  digest = "1:15a4a7e5afac3cea801fa24831fce3bf3b5bd3620cbf8355a07b7dbf06877883"
-  name = "github.com/stretchr/testify"
-  packages = [
-    "assert",
-    "mock",
-  ]
-  pruneopts = "UT"
-  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
-  version = "v1.2.2"
 
 [[projects]]
   branch = "master"
@@ -677,8 +642,8 @@
     "github.com/siddontang/go-mysql/server",
     "github.com/sirupsen/logrus",
     "github.com/smartystreets/goconvey/convey",
-    "github.com/stretchr/testify/mock",
     "github.com/syndtr/goleveldb/leveldb",
+    "github.com/syndtr/goleveldb/leveldb/iterator",
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/util",
     "github.com/tchap/go-patricia/patricia",

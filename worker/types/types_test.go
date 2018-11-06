@@ -22,6 +22,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -186,6 +187,7 @@ func TestResponse_Sign(t *testing.T) {
 					"test_float",
 					"test_binary_string",
 					"test_string",
+					"test_empty_time",
 				},
 				DeclTypes: []string{
 					"INTEGER",
@@ -195,6 +197,7 @@ func TestResponse_Sign(t *testing.T) {
 					"FLOAT",
 					"BLOB",
 					"TEXT",
+					"DATETIME",
 				},
 				Rows: []ResponseRow{
 					{
@@ -206,6 +209,7 @@ func TestResponse_Sign(t *testing.T) {
 							float64(1.0001),
 							"11111\0001111111",
 							"11111111111111",
+							time.Time{},
 						},
 					},
 				},
@@ -239,6 +243,15 @@ func TestResponse_Sign(t *testing.T) {
 			err = res.Verify()
 			So(err, ShouldBeNil)
 
+			Convey("encode/decode verify", func() {
+				buf, err := utils.EncodeMsgPack(res)
+				So(err, ShouldBeNil)
+				var r *Response
+				err = utils.DecodeMsgPack(buf.Bytes(), &r)
+				So(err, ShouldBeNil)
+				err = r.Verify()
+				So(err, ShouldBeNil)
+			})
 			Convey("request change", func() {
 				res.Header.Request.BatchCount = 200
 

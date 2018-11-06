@@ -233,8 +233,8 @@ func main() {
 			}
 		}
 
-		d, _ := json.MarshalIndent(newInstance, "", "    ")
-		log.Infof("database is: %#v -> %s", id, d)
+		d, _ := json.Marshal(newInstance)
+		log.Infof("database is: %#v -> %s", id, string(d))
 
 		// encode and put back to database
 		rawInstanceBuffer, err := utils.EncodeMsgPack(newInstance)

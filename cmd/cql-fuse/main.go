@@ -66,27 +66,21 @@ import (
 
 var usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s <db URL> <mountpoint>\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s -config <config> -dsn <dsn> -mount <mountpoint>\n\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
 func main() {
-	flag.Usage = usage
-	flag.Parse()
-
-	if flag.NArg() != 2 {
-		usage()
-		os.Exit(2)
-	}
-
-	log.SetLevel(log.DebugLevel)
 	var config, dsn, mountPoint, password string
 
 	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
 	flag.StringVar(&mountPoint, "mount", "./", "dir to mount")
 	flag.StringVar(&dsn, "dsn", "", "database url")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.Usage = usage
 	flag.Parse()
+
+	log.SetLevel(log.DebugLevel)
 
 	err := client.Init(config, []byte(password))
 	if err != nil {

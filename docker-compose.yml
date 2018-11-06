@@ -123,11 +123,11 @@ services:
       - "11105:4661"
     environment:
       COVENANT_ROLE: adapter
-      COVENANT_CONF: ./node_c/config.yaml
+      COVENANT_CONF: ./node_adapter/config.yaml
     volumes:
-      - ./test/service/node_c/config.yaml:/app/config.yaml
-      - ./test/service/node_c/private.key:/app/private.key
-      - ./test/service/node_c/:/app/node_c/
+      - ./test/service/node_adapter/config.yaml:/app/config.yaml
+      - ./test/service/node_adapter/private.key:/app/private.key
+      - ./test/service/node_adapter/:/app/node_adapter/
     networks:
       default:
         ipv4_address: 172.254.1.8

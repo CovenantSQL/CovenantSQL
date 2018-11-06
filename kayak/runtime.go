@@ -35,7 +35,7 @@ import (
 
 const (
 	// commit channel window size
-	commitWindow = 200
+	commitWindow = 10
 	// prepare window
 	trackerWindow = 10
 )
@@ -236,7 +236,9 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
-	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmLeaderRollback, tmRollback, tmCommit time.Time
+	var commitFuture <-chan *commitResult
+
+	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback, tmRollback, tmCommit time.Time
 
 	defer func() {
 		fields := log.Fields{
@@ -254,8 +256,11 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 		if !tmRollback.Before(tmLeaderRollback) {
 			fields["fr"] = tmRollback.Sub(tmLeaderRollback).Nanoseconds()
 		}
-		if !tmCommit.Before(tmFollowerPrepare) {
-			fields["c"] = tmCommit.Sub(tmFollowerPrepare).Nanoseconds()
+		if !tmCommitEnqueue.Before(tmFollowerPrepare) {
+			fields["q"] = tmCommitEnqueue.Sub(tmFollowerPrepare).Nanoseconds()
+		}
+		if !tmCommit.Before(tmCommitEnqueue) {
+			fields["c"] = tmCommit.Sub(tmCommitEnqueue).Nanoseconds()
 		}
 		log.WithFields(fields).Debug("kayak leader apply")
 	}()
@@ -309,8 +314,12 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 
 	tmFollowerPrepare = time.Now()
 
+	commitFuture = r.commitResult(ctx, nil, prepareLog, 0)
+
+	tmCommitEnqueue = time.Now()
+
 	select {
-	case cResult := <-r.commitResult(ctx, nil, prepareLog, 0):
+	case cResult := <-commitFuture:
 		if cResult != nil {
 			logIndex = prepareLog.Index
 			result = cResult.result
@@ -366,8 +375,6 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		return
 	}
 
-	tm := time.Now()
-
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
@@ -396,12 +403,6 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	if err == nil {
 		r.updateNextIndex(l)
 	}
-
-	log.WithFields(log.Fields{
-		"c": time.Now().Sub(tm).Nanoseconds(),
-		"t": l.Type,
-		"l": len(l.Data),
-	}).Info("follower apply")
 
 	return
 }
@@ -516,18 +517,6 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 	// decode log and send to commit channel to process
 	res = make(chan *commitResult, 1)
 
-	var tm, tmDecode, tmEnqueue time.Time
-
-	defer func() {
-		log.WithFields(log.Fields{
-			"d": tmDecode.Sub(tm).Nanoseconds(),
-			"q": tmEnqueue.Sub(tmDecode).Nanoseconds(),
-			"r": r.role.String(),
-		}).Info("commit result")
-	}()
-
-	tm = time.Now()
-
 	if prepareLog == nil {
 		res <- &commitResult{
 			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
@@ -545,8 +534,6 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 		return
 	}
 
-	tmDecode = time.Now()
-
 	req := &commitReq{
 		ctx:        ctx,
 		data:       logReq,
@@ -560,8 +547,6 @@ func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLo
 	case <-ctx.Done():
 	case r.commitCh <- req:
 	}
-
-	tmEnqueue = time.Now()
 
 	return
 }
@@ -604,17 +589,6 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 		return
 	}
 
-	var tm, lm, fm time.Time
-
-	defer func() {
-		log.WithFields(log.Fields{
-			"lc": lm.Sub(tm).Nanoseconds(),
-			"fc": fm.Sub(lm).Nanoseconds(),
-		}).Info("leader commit")
-	}()
-
-	tm = time.Now()
-
 	// create leader log
 	var l *kt.Log
 	var logData []byte
@@ -630,21 +604,13 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 	// not wrapping underlying handler commit error
 	result, err = r.sh.Commit(req.data)
 
-	lm = time.Now()
-
 	if err == nil {
 		// mark last commit
 		atomic.StoreUint64(&r.lastCommit, l.Index)
 	}
 
 	// send commit
-	//commitCtx, commitCtxCancelFunc := context.WithTimeout(context.Background(), r.commitTimeout)
-	//defer commitCtxCancelFunc()
 	tracker = r.rpc(l, r.minCommitFollowers)
-	//_ = commitCtx
-	//_, _, _ = tracker.get(commitCtx)
-
-	fm = time.Now()
 
 	// TODO(): text log for rpc errors
 

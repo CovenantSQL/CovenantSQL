@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   covenantsql_bp_0:
@@ -137,7 +137,15 @@ services:
     restart: always
     ports:
       - "11106:4663"
-    command: ["-database", "057e55460f501ad071383c95f691293f2f0a7895988e22593669ceeb52a6452a", "-reset", "oldest", "-listen", "0.0.0.0:4663"]
+    command:
+      [
+        "-database",
+        "057e55460f501ad071383c95f691293f2f0a7895988e22593669ceeb52a6452a",
+        "-reset",
+        "oldest",
+        "-listen",
+        "0.0.0.0:4663",
+      ]
     environment:
       COVENANT_ROLE: observer
       COVENANT_CONF: ./node_observer/config.yaml
@@ -171,6 +179,20 @@ services:
       options:
         max-size: "1m"
         max-file: "10"
+  covenantsql_explorer:
+    image: covenantsql/explorer:latest
+    container_name: covenantsql_explorer
+    depends_on:
+      - covenantsql_observer
+    restart: always
+    ports:
+      - "11108:80"
+    environment:
+      COVENANTSQL_EXPLORER_DOMAIN: localhost
+      COVENANTSQL_OBSERVER_ADDR: covenantsql_observer:4663
+    logging:
+      options:
+        max-size: "5m"
 
 networks:
   default:

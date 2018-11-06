@@ -94,13 +94,14 @@ func (s *LocalStorage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err er
 }
 
 // Commit implements twopc Worker.Commit
-func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
+func (s *LocalStorage) Commit(ctx context.Context, wb twopc.WriteBatch) (_ interface{}, err error) {
 	payload, err := s.decodeLog(wb)
 	if err != nil {
 		log.WithError(err).Error("decode log failed")
 		return
 	}
-	return s.commit(ctx, payload)
+	err = s.commit(ctx, payload)
+	return
 }
 
 func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err error) {
@@ -132,7 +133,8 @@ func (s *LocalStorage) commit(ctx context.Context, payload *KayakPayload) (err e
 		s.consistent.AddCache(nodeToSet)
 	}
 
-	return s.Storage.Commit(ctx, execLog)
+	_, err = s.Storage.Commit(ctx, execLog)
+	return
 }
 
 // Rollback implements twopc Worker.Rollback
@@ -300,7 +302,7 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 		return err
 	}
 
-	_, err = s.Runtime.Apply(writeData.Bytes())
+	_, _, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
 		log.Errorf("Apply set node failed: %#v\nPayload:\n	%#v", err, writeData)
 	}
@@ -371,7 +373,7 @@ func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
 		return err
 	}
 
-	_, err = s.Runtime.Apply(writeData.Bytes())
+	_, _, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
 		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, writeData)
 	}
@@ -400,7 +402,7 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 		return err
 	}
 
-	_, err = s.Runtime.Apply(writeData.Bytes())
+	_, _, err = s.Runtime.Apply(writeData.Bytes())
 	if err != nil {
 		log.Errorf("Apply set database failed: %#v\nPayload:\n	%#v", err, writeData)
 	}

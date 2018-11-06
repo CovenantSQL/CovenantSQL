@@ -71,7 +71,7 @@ func TestBadType(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	}
 
-	if err = st.Commit(context.Background(), struct{}{}); err == nil {
+	if _, err = st.Commit(context.Background(), struct{}{}); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
 		t.Logf("Error occurred as expected: %v", err)
@@ -135,7 +135,7 @@ func TestStorage(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	}
 
-	if err = st.Commit(context.Background(), el2); err == nil {
+	if _, err = st.Commit(context.Background(), el2); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
 		t.Logf("Error occurred as expected: %v", err)
@@ -147,8 +147,12 @@ func TestStorage(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	}
 
-	if err = st.Commit(context.Background(), el1); err != nil {
+	var res interface{}
+	if res, err = st.Commit(context.Background(), el1); err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	} else {
+		result := res.(ExecResult)
+		t.Logf("Result: %v", result)
 	}
 
 	// test query

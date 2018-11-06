@@ -39,6 +39,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/CovenantSQL/sqlparser"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -193,7 +194,7 @@ func (db *Database) Query(request *wt.Request) (response *wt.Response, err error
 		return db.writeQuery(request)
 	default:
 		// TODO(xq262144): verbose errors with custom error structure
-		return nil, ErrInvalidRequest
+		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
 }
 
@@ -287,13 +288,22 @@ func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err 
 	}
 
 	var logOffset uint64
-	logOffset, err = db.kayakRuntime.Apply(buf.Bytes())
+	var result interface{}
+	result, logOffset, err = db.kayakRuntime.Apply(buf.Bytes())
 
 	if err != nil {
 		return
 	}
 
-	return db.buildQueryResponse(request, logOffset, []string{}, []string{}, [][]interface{}{})
+	// get affected rows and last insert id
+	var affectedRows, lastInsertID int64
+
+	if execResult, ok := result.(storage.ExecResult); ok {
+		affectedRows = execResult.RowsAffected
+		lastInsertID = execResult.LastInsertID
+	}
+
+	return db.buildQueryResponse(request, logOffset, []string{}, []string{}, [][]interface{}{}, lastInsertID, affectedRows)
 }
 
 func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err error) {
@@ -313,11 +323,11 @@ func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err e
 		return
 	}
 
-	return db.buildQueryResponse(request, 0, columns, types, data)
+	return db.buildQueryResponse(request, 0, columns, types, data, 0, 0)
 }
 
 func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
-	columns []string, types []string, data [][]interface{}) (response *wt.Response, err error) {
+	columns []string, types []string, data [][]interface{}, lastInsertID int64, affectedRows int64) (response *wt.Response, err error) {
 	// build response
 	response = new(wt.Response)
 	response.Header.Request = request.Header
@@ -327,6 +337,8 @@ func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
 	response.Header.LogOffset = offset
 	response.Header.Timestamp = getLocalTime()
 	response.Header.RowCount = uint64(len(data))
+	response.Header.LastInsertID = lastInsertID
+	response.Header.AffectedRows = affectedRows
 
 	// set payload
 	response.Payload.Columns = columns

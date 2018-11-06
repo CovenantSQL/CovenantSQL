@@ -202,11 +202,16 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
-	if _, err = c.addQuery(wt.WriteQuery, sq); err != nil {
+
+	var affectedRows, lastInsertID int64
+	if affectedRows, lastInsertID, _, err = c.addQuery(wt.WriteQuery, sq); err != nil {
 		return
 	}
 
-	result = driver.ResultNoRows
+	result = &execResult{
+		affectedRows: affectedRows,
+		lastInsertID: lastInsertID,
+	}
 
 	return
 }
@@ -220,7 +225,9 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
-	return c.addQuery(wt.ReadQuery, sq)
+	_, _, rows, err = c.addQuery(wt.ReadQuery, sq)
+
+	return
 }
 
 // Commit implements the driver.Tx.Commit method.
@@ -240,7 +247,7 @@ func (c *conn) Commit() (err error) {
 
 	if len(c.queries) > 0 {
 		// send query
-		if _, err = c.sendQuery(wt.WriteQuery, c.queries); err != nil {
+		if _, _, _, err = c.sendQuery(wt.WriteQuery, c.queries); err != nil {
 			return
 		}
 	}
@@ -270,7 +277,7 @@ func (c *conn) Rollback() error {
 	return nil
 }
 
-func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Rows, err error) {
+func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	if c.inTransaction {
 		// check query type, enqueue query
 		if queryType == wt.ReadQuery {
@@ -298,7 +305,7 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Ro
 	return c.sendQuery(queryType, []wt.Query{*query})
 }
 
-func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows driver.Rows, err error) {
+func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	var peers *kayak.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		return
@@ -351,6 +358,11 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 	rows = newRows(&response)
+
+	if queryType == wt.WriteQuery {
+		affectedRows = response.Header.AffectedRows
+		lastInsertID = response.Header.LastInsertID
+	}
 
 	// build ack
 	c.ackCh <- &wt.Ack{

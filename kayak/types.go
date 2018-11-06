@@ -320,7 +320,7 @@ type Runner interface {
 
 	// Apply defines log replication and log commit logic
 	// and should be called by Leader role only.
-	Apply(data []byte) (uint64, error)
+	Apply(data []byte) (interface{}, uint64, error)
 
 	// Shutdown defines destruct logic.
 	Shutdown(wait bool) error

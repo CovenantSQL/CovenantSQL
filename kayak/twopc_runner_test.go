@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/twopc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
@@ -280,7 +281,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 		// try call process
 		testPayload := []byte("test data")
-		_, err = mockRes.runner.Apply(testPayload)
+		_, _, err = mockRes.runner.Apply(testPayload)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldEqual, ErrNotLeader)
 	})
@@ -317,7 +318,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 				callOrder.Append("store_log")
 			})
 			mockRes.worker.On("Commit", mock.Anything, testPayload).
-				Return(nil).Run(func(args mock.Arguments) {
+				Return(nil, nil).Run(func(args mock.Arguments) {
 				callOrder.Append("commit")
 			})
 			mockRes.stableStore.On("SetUint64", keyCommittedIndex, uint64(1)).
@@ -327,7 +328,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 
 			// try call process
 			var offset uint64
-			offset, err = mockRes.runner.Apply(testPayload)
+			_, offset, err = mockRes.runner.Apply(testPayload)
 			So(err, ShouldBeNil)
 			So(offset, ShouldEqual, uint64(1))
 
@@ -364,7 +365,7 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			})
 
 			// try call process
-			_, err = mockRes.runner.Apply(testPayload)
+			_, _, err = mockRes.runner.Apply(testPayload)
 			So(err, ShouldNotBeNil)
 
 			// no log should be written to local log store after failed preparing
@@ -380,15 +381,15 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			testPayload := []byte("test data")
 			unknownErr := errors.New("unknown error")
 			mockRes.worker.On("Prepare", mock.Anything, testPayload).
-				Return(unknownErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
-				ctx := args.Get(0).(context.Context)
-				c.So(ctx.Err(), ShouldNotBeNil)
-			})
+				Return(func(ctx context.Context, _ twopc.WriteBatch) error {
+					c.So(ctx.Err(), ShouldNotBeNil)
+					return unknownErr
+				}).After(time.Millisecond * 400)
 			mockRes.worker.On("Rollback", mock.Anything, testPayload).Return(nil)
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).Return(nil)
 
 			// try call process
-			_, err = mockRes.runner.Apply(testPayload)
+			_, _, err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 		})
@@ -401,15 +402,15 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil)
 			mockRes.worker.On("Commit", mock.Anything, testPayload).
-				Return(unknownErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
-				ctx := args.Get(0).(context.Context)
-				c.So(ctx.Err(), ShouldNotBeNil)
-			})
+				Return(nil, func(ctx context.Context, _ twopc.WriteBatch) error {
+					c.So(ctx.Err(), ShouldNotBeNil)
+					return unknownErr
+				}).After(time.Millisecond * 400)
 			mockRes.stableStore.On("SetUint64", keyCommittedIndex, uint64(1)).
 				Return(nil)
 
 			// try call process
-			_, err = mockRes.runner.Apply(testPayload)
+			_, _, err = mockRes.runner.Apply(testPayload)
 
 			So(err, ShouldNotBeNil)
 		})
@@ -423,14 +424,14 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			mockRes.logStore.On("StoreLog", mock.AnythingOfType("*kayak.Log")).
 				Return(nil)
 			mockRes.worker.On("Rollback", mock.Anything, testPayload).
-				Return(rollbackErr).After(time.Millisecond * 400).Run(func(args mock.Arguments) {
-				ctx := args.Get(0).(context.Context)
-				c.So(ctx.Err(), ShouldNotBeNil)
-			})
+				Return(func(ctx context.Context, _ twopc.WriteBatch) error {
+					c.So(ctx.Err(), ShouldNotBeNil)
+					return rollbackErr
+				}).After(time.Millisecond * 400)
 			mockRes.logStore.On("DeleteRange", uint64(1), uint64(1)).Return(nil)
 
 			// try call process
-			_, err = mockRes.runner.Apply(testPayload)
+			_, _, err = mockRes.runner.Apply(testPayload)
 
 			// rollback error is ignored
 			So(err, ShouldNotBeNil)
@@ -476,42 +477,42 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			callOrder := &CallCollector{}
 			f1Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_prepare")
+				callOrder.Append("prepare")
 			})
 			f2Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_prepare")
+				callOrder.Append("prepare")
 			})
 			f1Mock.worker.On("Commit", mock.Anything, testPayload).
-				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_commit")
+				Return(nil, nil).Run(func(args mock.Arguments) {
+				callOrder.Append("commit")
 			})
 			f2Mock.worker.On("Commit", mock.Anything, testPayload).
-				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_commit")
+				Return(nil, nil).Run(func(args mock.Arguments) {
+				callOrder.Append("commit")
 			})
 			lMock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("l_prepare")
+				callOrder.Append("prepare")
 			})
 			lMock.worker.On("Commit", mock.Anything, testPayload).
-				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("l_commit")
+				Return(nil, nil).Run(func(args mock.Arguments) {
+				callOrder.Append("commit")
 			})
 
 			// try call process
-			_, err := lMock.runner.Apply(testPayload)
+			_, _, err := lMock.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
 			// test call orders
 			So(callOrder.Get(), ShouldResemble, []string{
-				"f_prepare",
-				"f_prepare",
-				"l_prepare",
-				"f_commit",
-				"f_commit",
-				"l_commit",
+				"prepare",
+				"prepare",
+				"prepare",
+				"commit",
+				"commit",
+				"commit",
 			})
 
 			lastLogHash := lMock.runner.lastLogHash
@@ -535,18 +536,18 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// commit second log
 			callOrder.Reset()
 
-			_, err = lMock.runner.Apply(testPayload)
+			_, _, err = lMock.runner.Apply(testPayload)
 
 			So(err, ShouldBeNil)
 
 			// test call orders
 			So(callOrder.Get(), ShouldResemble, []string{
-				"f_prepare",
-				"f_prepare",
-				"l_prepare",
-				"f_commit",
-				"f_commit",
-				"l_commit",
+				"prepare",
+				"prepare",
+				"prepare",
+				"commit",
+				"commit",
+				"commit",
 			})
 
 			// check with log
@@ -572,46 +573,48 @@ func TestTwoPCRunner_Apply(t *testing.T) {
 			// f1 prepare with error
 			f1Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(unknownErr).Run(func(args mock.Arguments) {
-				callOrder.Append("f_prepare")
+				callOrder.Append("prepare")
 			})
 			f1Mock.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_rollback")
+				callOrder.Append("rollback")
 			})
 			// f2 prepare with no error
 			f2Mock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_prepare")
+				callOrder.Append("prepare")
 			})
 			f2Mock.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("f_rollback")
+				callOrder.Append("rollback")
 			})
 			lMock.worker.On("Prepare", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("l_prepare")
+				callOrder.Append("prepare")
 			})
 			lMock.worker.On("Rollback", mock.Anything, testPayload).
 				Return(nil).Run(func(args mock.Arguments) {
-				callOrder.Append("l_rollback")
+				callOrder.Append("rollback")
 			})
 
 			// try call process
-			_, err := lMock.runner.Apply(testPayload)
+			origLevel := log.GetLevel()
+			log.SetLevel(log.DebugLevel)
+			_, _, err := lMock.runner.Apply(testPayload)
+			log.SetLevel(origLevel)
 
 			So(err, ShouldNotBeNil)
 			So(err, ShouldEqual, unknownErr)
 
 			// test call orders
-			// prepare failed, so no l_prepare is called
-			// since one prepare failed, only one f_rollback with be triggered
+			// FIXME, one prepare error worker will not trigger rollback function on storage
 			So(callOrder.Get(), ShouldResemble, []string{
-				"f_prepare",
-				"f_prepare",
-				//"l_prepare",
-				"l_rollback",
-				"f_rollback",
-				//"f_rollback",
+				"prepare",
+				"prepare",
+				"prepare",
+				"rollback",
+				"rollback",
+				//"rollback",
 			})
 		})
 	})
@@ -951,7 +954,7 @@ func TestTwoPCRunner_UpdatePeers(t *testing.T) {
 
 			// test call process
 			testPayload := []byte("test data")
-			_, err := lMock.runner.Apply(testPayload)
+			_, _, err := lMock.runner.Apply(testPayload)
 
 			// no longer leader
 			So(err, ShouldNotBeNil)

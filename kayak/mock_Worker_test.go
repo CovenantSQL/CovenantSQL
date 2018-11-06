@@ -30,22 +30,31 @@ type MockWorker struct {
 }
 
 // Commit provides a mock function with given fields: ctx, wb
-func (_m *MockWorker) Commit(ctx context.Context, wb twopc.WriteBatch) error {
-	ret := _m.Called(ctx, wb)
+func (_m *MockWorker) Commit(ctx context.Context, wb twopc.WriteBatch) (interface{}, error) {
+	ret := _m.Called(context.Background(), wb)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, twopc.WriteBatch) error); ok {
+	var r0 interface{}
+	if rf, ok := ret.Get(0).(func(context.Context, twopc.WriteBatch) interface{}); ok {
 		r0 = rf(ctx, wb)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(interface{})
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, twopc.WriteBatch) error); ok {
+		r1 = rf(ctx, wb)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Prepare provides a mock function with given fields: ctx, wb
 func (_m *MockWorker) Prepare(ctx context.Context, wb twopc.WriteBatch) error {
-	ret := _m.Called(ctx, wb)
+	ret := _m.Called(context.Background(), wb)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, twopc.WriteBatch) error); ok {
@@ -59,7 +68,7 @@ func (_m *MockWorker) Prepare(ctx context.Context, wb twopc.WriteBatch) error {
 
 // Rollback provides a mock function with given fields: ctx, wb
 func (_m *MockWorker) Rollback(ctx context.Context, wb twopc.WriteBatch) error {
-	ret := _m.Called(ctx, wb)
+	ret := _m.Called(context.Background(), wb)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, twopc.WriteBatch) error); ok {

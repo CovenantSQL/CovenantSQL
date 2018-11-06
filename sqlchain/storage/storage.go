@@ -53,6 +53,12 @@ type ExecLog struct {
 	Queries      []Query
 }
 
+// ExecResult represents the execution result of sqlite.
+type ExecResult struct {
+	LastInsertID int64
+	RowsAffected int64
+}
+
 func openDB(dsn string) (db *sql.DB, err error) {
 	// Rebuild DSN.
 	d, err := NewDSN(dsn)
@@ -163,11 +169,12 @@ func (s *Storage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) 
 }
 
 // Commit implements commit method of two-phase commit worker.
-func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
+func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (result interface{}, err error) {
 	el, ok := wb.(*ExecLog)
 
 	if !ok {
-		return errors.New("unexpected WriteBatch type")
+		err = errors.New("unexpected WriteBatch type")
+		return
 	}
 
 	s.Lock()
@@ -175,6 +182,9 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 
 	if s.tx != nil {
 		if equalTxID(&s.id, &TxID{el.ConnectionID, el.SeqNo, el.Timestamp}) {
+			// get last insert id and affected rows result
+			execResult := ExecResult{}
+
 			for _, q := range s.queries {
 				// convert arguments types
 				args := make([]interface{}, len(q.Args))
@@ -183,7 +193,8 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 					args[i] = v
 				}
 
-				_, err = s.tx.ExecContext(ctx, q.Pattern, args...)
+				var res sql.Result
+				res, err = s.tx.ExecContext(ctx, q.Pattern, args...)
 
 				if err != nil {
 					log.WithError(err).Debug("commit query failed")
@@ -192,19 +203,29 @@ func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (err error) {
 					s.queries = nil
 					return
 				}
+
+				lastInsertID, _ := res.LastInsertId()
+				rowsAffected, _ := res.RowsAffected()
+
+				execResult.LastInsertID = lastInsertID
+				execResult.RowsAffected += rowsAffected
 			}
 
 			s.tx.Commit()
 			s.tx = nil
 			s.queries = nil
-			return nil
+			result = execResult
+
+			return
 		}
 
-		return fmt.Errorf("twopc: inconsistent state, currently in tx: "+
+		err = fmt.Errorf("twopc: inconsistent state, currently in tx: "+
 			"conn = %d, seq = %d, time = %d", s.id.ConnectionID, s.id.SeqNo, s.id.Timestamp)
+		return
 	}
 
-	return errors.New("twopc: tx not prepared")
+	err = errors.New("twopc: tx not prepared")
+	return
 }
 
 // Rollback implements rollback method of two-phase commit worker.

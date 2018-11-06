@@ -112,7 +112,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 	return
 }
 
-// Close closes the stream and RPC client
+// CloseStream closes the stream and RPC client
 func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {

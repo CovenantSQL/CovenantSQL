@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	databaseNamePattern = "sqlitemultidb%v_%v_%v"
+	databaseNamePattern = "sqlitedb%v_%v_%v"
 	tableNamePattern    = "table%v"
 )
 
@@ -52,9 +52,7 @@ func prepareSqliteStorages(databaseCount, tableCount int, dataCount int64) {
 }
 
 func createSqliteStorage(dbname string) xi.Storage {
-	fl := path.Join(testingDataDir, dbname)
-	fmt.Println(testingDataDir)
-	//fl := path.Join("./", dbname)
+	fl := path.Join("./", dbname)
 
 	st, err := NewSqlite(fmt.Sprint("file:", fl))
 	if err != nil {

@@ -35,7 +35,9 @@ func BenchSqliteMultiDatabase(b *testing.B, databaseCount, tableCount int, dataC
 
 		for j := 0; j < tableCount; j++ {
 			tableName := fmt.Sprintf(tableNamePattern, j)
+			//showSqliteTableCount(st, tableName)
 			deleteSqliteTableExtraData(st, tableName, dataCount)
+			//showSqliteTableCount(st, tableName)
 		}
 	}
 
@@ -51,7 +53,6 @@ func BenchSqliteMultiDatabase(b *testing.B, databaseCount, tableCount int, dataC
 				databaseIndex := index % int64(databaseCount)
 				st := sts[databaseIndex]
 				tableName := fmt.Sprintf(tableNamePattern, index%int64(tableCount))
-
 				var vals [333]byte
 				rand.Read(vals[:])
 				data := string(vals[:])
@@ -68,9 +69,19 @@ func BenchSqliteMultiDatabase(b *testing.B, databaseCount, tableCount int, dataC
 	})
 }
 
+func showSqliteTableCount(st xi.Storage, tableName string) {
+	tableDesc := fmt.Sprintf(`select count(*) FROM "%s"`, tableName)
+	var count int64
+	err := st.Writer().QueryRow(tableDesc).Scan(&count)
+	if err != nil {
+		fmt.Printf("Failed to show test data table count in bench environment: %v\n", err)
+	}
+	fmt.Printf("Row count after delete extra data:%v %v %v\n", st, tableName, count)
+}
+
 func deleteSqliteTableExtraData(st xi.Storage, tableName string, dataCount int64) {
-	tableDesc := fmt.Sprintf(`DELETE FROM "%s" WHERE "k" > %v`, tableName, dataCount)
-	result, err := st.Writer().Exec(tableDesc)
+	tableDel := fmt.Sprintf(`DELETE FROM "%s" WHERE "k" > %v`, tableName, dataCount)
+	result, err := st.Writer().Exec(tableDel)
 	if err != nil {
 		fmt.Printf("Failed to delete extra test data in bench environment: %v\n", err)
 	}
@@ -93,4 +104,9 @@ func BenchmarkSqliteMultiDatabases(b *testing.B) {
 	//BenchSqliteMultiDatabase(b, 2, 1, 100000000)
 	//1 database, 2 table, 100m data
 	//BenchSqliteMultiDatabase(b, 1, 2, 100000000)
+
+	//2 database, 1 table, 500m data
+	//BenchSqliteMultiDatabase(b, 2, 1, 500000000)
+	//1 database, 2 table, 500m data
+	//BenchSqliteMultiDatabase(b, 1, 2, 500000000)
 }

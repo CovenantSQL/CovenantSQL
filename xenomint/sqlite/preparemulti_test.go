@@ -118,4 +118,9 @@ func TestPrepareSqliteStorages(t *testing.T) {
 	//prepareSqliteStorages(2, 1, 100000000)
 	//1 database, 2 table, 100m data
 	//prepareSqliteStorages(1, 2, 100000000)
+
+	//2 database, 1 table, 500m data
+	//prepareSqliteStorages(2, 1, 500000000)
+	//1 database, 2 table, 100m data
+	//prepareSqliteStorages(1, 2, 500000000)
 }

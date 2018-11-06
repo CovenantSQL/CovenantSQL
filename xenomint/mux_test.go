@@ -35,18 +35,6 @@ import (
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
-const (
-	benchmarkRPCName    = "BENCH"
-	benchmarkDatabaseID = "0x0"
-	benchmarkVNum       = 3
-	benchmarkVLen       = 333
-	// benchmarkKeySpace defines the key space for benchmarking.
-	//
-	// We will have `benchmarkKeySpace` preserved records in the generated testing table and
-	// another `benchmarkKeySpace` constructed incoming records returned from the setup function.
-	benchmarkKeySpace = 100000
-)
-
 type nodeRPCInfo struct {
 	node   proto.Node
 	server *rpc.Server
@@ -180,11 +168,12 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 
 	go bpSv.Serve()
 	go mnSv.Serve()
-
+	//ca.BypassSignature = true
 	return
 }
 
 func teardownBenchmarkMuxParallel(b *testing.B, bpSv, mnSv *rpc.Server) {
+	//ca.BypassSignature = false
 	mnSv.Stop()
 	bpSv.Stop()
 }

@@ -17,8 +17,8 @@
 package xenomint
 
 import (
-	"context"
-	"runtime/trace"
+	//"context"
+	//"runtime/trace"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"

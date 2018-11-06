@@ -22,7 +22,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"runtime/trace"
+	//"runtime/trace"
 	"sync"
 	"syscall"
 	"testing"
@@ -34,6 +34,21 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+)
+
+const (
+	benchmarkQueriesPerBlock = 100
+
+	benchmarkRPCName    = "BENCH"
+	benchmarkDatabaseID = "0x0"
+
+	benchmarkVNum = 3
+	benchmarkVLen = 333
+	// benchmarkKeySpace defines the key space for benchmarking.
+	//
+	// We will have `benchmarkKeySpace` preserved records in the generated testing table and
+	// another `benchmarkKeySpace` constructed incoming records returned from the setup function.
+	benchmarkKeySpace = 100000
 )
 
 var (
@@ -176,23 +191,23 @@ func setup() {
 	}
 
 	// Setup runtime trace for testing
-	if testingTraceFile, err = ioutil.TempFile("", "CovenantSQL.trace."); err != nil {
-		panic(err)
-	}
-	if err = trace.Start(testingTraceFile); err != nil {
-		panic(err)
-	}
+	//if testingTraceFile, err = ioutil.TempFile("", "CovenantSQL.trace."); err != nil {
+	//	panic(err)
+	//}
+	//if err = trace.Start(testingTraceFile); err != nil {
+	//	panic(err)
+	//}
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }
 
 func teardown() {
-	trace.Stop()
+	//trace.Stop()
 	var err error
-	if err = testingTraceFile.Close(); err != nil {
-		panic(err)
-	}
+	//if err = testingTraceFile.Close(); err != nil {
+	//	panic(err)
+	//}
 	if err = os.RemoveAll(testingDataDir); err != nil {
 		panic(err)
 	}

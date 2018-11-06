@@ -133,8 +133,6 @@ func teardownBenchmarkChain(b *testing.B, c *Chain) {
 	}
 }
 
-const benchmarkQueriesPerBlock = 100
-
 func BenchmarkChainParallelWrite(b *testing.B) {
 	var c, n, r = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {

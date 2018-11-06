@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"os"
 	"syscall"
+	"time"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -255,10 +256,12 @@ func (cfs CFS) GenerateInode(parentInode uint64, name string) uint64 {
 }
 
 func (cfs CFS) newUniqueID() (id uint64) {
-	if err := cfs.db.QueryRow(`SELECT unique_rowid()`).Scan(&id); err != nil {
-		panic(err)
-	}
-	return
+	//Fixme(auxten): fake one
+	return uint64(time.Now().UnixNano())
+	//if err := cfs.db.QueryRow(`SELECT unique_rowid()`).Scan(&id); err != nil {
+	//	panic(err)
+	//}
+	//return
 }
 
 // newFileNode returns a new node struct corresponding to a file.

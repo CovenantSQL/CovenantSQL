@@ -628,12 +628,6 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	// check for last commit availability
 	myLastCommit := atomic.LoadUint64(&r.lastCommit)
 	if req.lastCommit != myLastCommit {
-		// wait for next round
-		log.WithFields(log.Fields{
-			"expected": req.lastCommit,
-			"actual":   myLastCommit,
-		}).Warning("new commit arrived too early, wait for real commit")
-
 		// TODO(): need counter for retries, infinite commit re-order would cause troubles
 		go func(req *commitReq) {
 			r.commitCh <- req

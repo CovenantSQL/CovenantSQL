@@ -102,9 +102,9 @@ func (hook *CallerHook) Levels() []logrus.Level {
 		logrus.PanicLevel,
 		logrus.FatalLevel,
 		logrus.ErrorLevel,
-		logrus.WarnLevel,
-		logrus.InfoLevel,
-		logrus.DebugLevel,
+		//logrus.WarnLevel,
+		//logrus.InfoLevel,
+		//logrus.DebugLevel,
 	}
 }
 

@@ -53,7 +53,7 @@ func BenchSqliteMultiDatabase(b *testing.B, databaseCount, tableCount int, dataC
 				databaseIndex := index % int64(databaseCount)
 				st := sts[databaseIndex]
 				tableName := fmt.Sprintf(tableNamePattern, index%int64(tableCount))
-				var vals [333]byte
+				var vals [1024]byte
 				rand.Read(vals[:])
 				data := string(vals[:])
 

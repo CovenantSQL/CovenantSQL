@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os/exec"
@@ -232,7 +233,8 @@ func main() {
 			}
 		}
 
-		log.Infof("database is: %#v -> %#v", id, newInstance)
+		d, _ := json.MarshalIndent(newInstance, "", "    ")
+		log.Infof("database is: %#v -> %s", id, d)
 
 		// encode and put back to database
 		rawInstanceBuffer, err := utils.EncodeMsgPack(newInstance)

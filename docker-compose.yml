@@ -1,4 +1,4 @@
-version: "3"
+version: "v0.0.3"
 
 services:
   covenantsql_bp_0:
@@ -139,10 +139,6 @@ services:
       - "11106:4663"
     command:
       [
-        "-database",
-        "057e55460f501ad071383c95f691293f2f0a7895988e22593669ceeb52a6452a",
-        "-reset",
-        "oldest",
         "-listen",
         "0.0.0.0:4663",
       ]

@@ -249,7 +249,7 @@ func (s *state) rollbackTo(savepoint uint64) {
 
 func (s *state) write(req *wt.Request) (ref *query, resp *wt.Response, err error) {
 	var (
-		ierr      error
+		//		ierr      error
 		savepoint uint64
 		query     = &query{req: req}
 	)

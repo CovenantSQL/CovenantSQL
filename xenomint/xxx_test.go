@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"runtime/trace"
 	"sync"
 	"syscall"
 	"testing"
@@ -37,6 +38,7 @@ import (
 
 var (
 	testingDataDir            string
+	testingTraceFile          *os.File
 	testingPrivateKeyFile     string
 	testingPublicKeyStoreFile string
 	testingNonceDifficulty    int
@@ -173,12 +175,25 @@ func setup() {
 		panic(err)
 	}
 
+	// Setup runtime trace for testing
+	if testingTraceFile, err = ioutil.TempFile("", "CovenantSQL.trace."); err != nil {
+		panic(err)
+	}
+	if err = trace.Start(testingTraceFile); err != nil {
+		panic(err)
+	}
+
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }
 
 func teardown() {
-	if err := os.RemoveAll(testingDataDir); err != nil {
+	trace.Stop()
+	var err error
+	if err = testingTraceFile.Close(); err != nil {
+		panic(err)
+	}
+	if err = os.RemoveAll(testingDataDir); err != nil {
 		panic(err)
 	}
 }

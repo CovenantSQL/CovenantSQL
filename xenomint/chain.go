@@ -39,6 +39,7 @@ func NewChain(filename string) (c *Chain, err error) {
 		state *state
 		priv  *ca.PrivateKey
 	)
+	// TODO(leventeliu): add multiple storage engine support.
 	if strg, err = xs.NewSqlite(filename); err != nil {
 		return
 	}

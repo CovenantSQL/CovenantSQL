@@ -17,6 +17,8 @@
 package xenomint
 
 import (
+	"context"
+	"runtime/trace"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -27,10 +29,11 @@ import (
 // MuxService defines multiplexing service of xenomint chain.
 type MuxService struct {
 	ServiceName string
-	// serviceMap maps DatabaseID to *Chain instance.
+	// serviceMap maps DatabaseID to *Chain.
 	serviceMap sync.Map
 }
 
+// NewMuxService returns a new MuxService instance and registers it to server.
 func NewMuxService(name string, server *rpc.Server) (service *MuxService, err error) {
 	var s = &MuxService{
 		ServiceName: name,
@@ -50,12 +53,14 @@ func (s *MuxService) unregister(id proto.DatabaseID) {
 	s.serviceMap.Delete(id)
 }
 
+// MuxQueryRequest defines a request of the Query RPC method.
 type MuxQueryRequest struct {
 	proto.DatabaseID
 	proto.Envelope
 	Request *wt.Request
 }
 
+// MuxQueryResponse defines a response of the Query RPC method.
 type MuxQueryResponse struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -78,7 +83,11 @@ func (s *MuxService) route(id proto.DatabaseID) (c *Chain, err error) {
 	return
 }
 
+// Query is the RPC method to process database query on mux service.
 func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err error) {
+	//var ctx, task = trace.NewTask(context.Background(), "MuxService.Query")
+	//defer task.End()
+	//defer trace.StartRegion(ctx, "Total").End()
 	var (
 		c *Chain
 		r *wt.Response

@@ -415,23 +415,23 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	rand.Seed(time.Now().UnixNano())
 	start := (rand.Int31() % 100) * 10000
 
-	b.Run("benchmark Single INSERT", func(b *testing.B) {
-		b.ResetTimer()
-		insertedCount = b.N
-		for i := 0; i < b.N; i++ {
-			_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-				"(?, ?)", int(start)+i, i,
-			)
-			if err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-
-	if createDB {
-		prepareBenchTable(db)
-	}
-
+	//b.Run("benchmark Single INSERT", func(b *testing.B) {
+	//	b.ResetTimer()
+	//	insertedCount = b.N
+	//	for i := 0; i < b.N; i++ {
+	//		_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
+	//			"(?, ?)", int(start)+i, i,
+	//		)
+	//		if err != nil {
+	//			b.Fatal(err)
+	//		}
+	//	}
+	//})
+	//
+	//if createDB {
+	//	prepareBenchTable(db)
+	//}
+	//
 	b.Run("benchmark Multi INSERT", func(b *testing.B) {
 		b.ResetTimer()
 		insertedCount = b.N

@@ -229,7 +229,7 @@ const (
 	benchmarkQueriesPerTx      = 100
 	benchmarkVNum              = 3
 	benchmarkVLen              = 333
-	benchmarkKeySubspaceLength = 100000
+	benchmarkKeySubspaceLength = 1000000
 
 	benchmarkReservedKeyOffset = iota * benchmarkKeySubspaceLength
 	benchmarkNewKeyOffset
@@ -330,8 +330,8 @@ func setupBenchmarkStorage(b *testing.B) (
 		if _, err = stmt.Exec(args[:]...); err != nil {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
-		if (i % 10000) == 0 {
-			fmt.Printf("Setup table index now: %v\n", i)
+		if i%10000 == 0 {
+			fmt.Printf("Done setup key at %v\n", i)
 		}
 	}
 	// Setup query string and dest slice
@@ -367,20 +367,11 @@ func setupBenchmarkStorage(b *testing.B) (
 			src[i][j+1] = string(vals[j][:])
 		}
 	}
-	// Reset key generators
-	irkg.reset()
-	ipkg.reset()
-	rrkg.reset()
-	nrkg.reset()
-	trkg.reset()
 
-	b.ResetTimer()
 	return
 }
 
 func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
-	b.StopTimer()
-
 	var (
 		fl  = path.Join(testingDataDir, b.Name())
 		err error
@@ -399,86 +390,317 @@ func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
 	}
 }
 
-func deleteBenchmarkData(b *testing.B, st xi.Storage) {
-	deleteStr := fmt.Sprintf(`DELETE FROM "t2" WHERE "k" > %v`, benchmarkNewKeyOffset)
-	if _, err := st.Writer().Exec(deleteStr); err != nil {
-		b.Fatalf("Failed to delete bench data: %v", err)
+func setupSubBenchmarkStorage(b *testing.B, st xi.Storage) {
+	// Reset key generators
+	irkg.reset()
+	ipkg.reset()
+	rrkg.reset()
+	nrkg.reset()
+	trkg.reset()
+}
+
+func teardownSubBenchmarkStorage(b *testing.B, st xi.Storage) {
+	var (
+		d   = `DELETE FROM "t2" WHERE "k">=?`
+		err error
+	)
+	if _, err = st.Writer().Exec(d, benchmarkNewKeyOffset); err != nil {
+		b.Fatalf("Failed to teardown sub bench environment: %v", err)
 	}
 }
 
-func BenchmarkStorageSequentialDirtyRead(b *testing.B) {
+type benchmarkProfile struct {
+	name   string
+	parall bool
+	proc   func(*testing.B, int)
+	pproc  func(*testing.PB)
+	bg     func(*testing.B, *sync.WaitGroup, <-chan struct{})
+}
+
+func BenchmarkStorage(b *testing.B) {
 	var (
-		st, q, dm, _, _ = setupBenchmarkStorage(b)
-		dest            = dm()
-		err             error
-	)
-	for i := 0; i < b.N; i++ {
-		if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-			b.Fatalf("Failed to query values: %v", err)
+		st, q, dm, e, src = setupBenchmarkStorage(b)
+
+		tx   *sql.Tx
+		dest = dm()
+		read = func(b *testing.B, conn *sql.DB, dest []interface{}) {
+			var err error
+			if err = conn.QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+				b.Fatalf("Failed to query values: %v", err)
+			}
 		}
-	}
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStoargeSequentialRead(b *testing.B) {
-	var (
-		st, q, dm, _, _ = setupBenchmarkStorage(b)
-		dest            = dm()
-		err             error
-	)
-	for i := 0; i < b.N; i++ {
-		if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-			b.Fatalf("Failed to query values: %v", err)
+		readTx = func(b *testing.B, i int, conn *sql.DB, dest []interface{}) {
+			var err error
+			if i%benchmarkQueriesPerTx == 0 {
+				if tx, err = conn.Begin(); err != nil {
+					b.Fatalf("Failed to begin transaction: %v", err)
+				}
+			}
+			// Query in [n, 2n-1] key space
+			if err = tx.QueryRow(q, nrkg.next()).Scan(dest...); err != nil && err != sql.ErrNoRows {
+				b.Fatalf("Failed to query values: %v", err)
+			}
+			if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
+				if err = tx.Rollback(); err != nil {
+					b.Fatalf("Failed to close transaction: %v", err)
+				}
+			}
 		}
-	}
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStoargeSequentialWrite(b *testing.B) {
-	var (
-		st, _, _, e, src = setupBenchmarkStorage(b)
-		err              error
-	)
-	b.Run("BenchmarkStoargeSequentialWrite", func(b *testing.B) {
-		deleteBenchmarkData(b, st)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+		write = func(b *testing.B, conn *sql.DB) {
+			var err error
+			if _, err = conn.Exec(e, src[ipkg.next()]...); err != nil {
 				b.Errorf("Failed to execute: %v", err)
 			}
 		}
-	})
-	teardownBenchmarkStorage(b, st)
-}
+		writeTx = func(b *testing.B, i int, conn *sql.DB) {
+			var err error
+			if i%benchmarkQueriesPerTx == 0 {
+				if tx, err = st.Writer().Begin(); err != nil {
+					b.Errorf("Failed to begin transaction: %v", err)
+				}
+			}
+			if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
+				b.Errorf("Failed to execute: %v", err)
+			}
+			if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
+				if err = tx.Commit(); err != nil {
+					b.Errorf("Failed to commit transaction: %v", err)
+				}
+			}
+		}
+		mixRW = func(b *testing.B, rconn, wconn *sql.DB, dest []interface{}) {
+			if rand.Int()%2 == 0 {
+				read(b, rconn, dest)
+			} else {
+				write(b, wconn)
+			}
+		}
 
-func BenchmarkStoargeSequentialWriteTx(b *testing.B) {
-	var (
-		st, _, _, e, src = setupBenchmarkStorage(b)
-		tx               *sql.Tx
-		err              error
+		bgw = func(b *testing.B, wg *sync.WaitGroup, sc <-chan struct{}) {
+			busyWrite(b, wg, sc, st, ipkg, e, src)
+		}
+		bgbwtx = func(b *testing.B, wg *sync.WaitGroup, sc <-chan struct{}) {
+			busyWriteTx(b, wg, sc, st, ipkg, e, src)
+		}
+		bgiwtx = func(b *testing.B, wg *sync.WaitGroup, sc <-chan struct{}) {
+			idleWriteTx(b, wg, sc, st, ipkg, e, src)
+		}
+
+		pproc = func(pb *testing.PB, proc func()) {
+			for pb.Next() {
+				proc()
+			}
+		}
+
+		profiles = [...]benchmarkProfile{
+			{
+				name: "SequentialDirtyRead",
+				proc: func(b *testing.B, _ int) { read(b, st.DirtyReader(), dest) },
+			}, {
+				name: "SequentialRead",
+				proc: func(b *testing.B, _ int) { read(b, st.Reader(), dest) },
+			}, {
+				name: "SequentialWrite",
+				proc: func(b *testing.B, _ int) { write(b, st.Writer()) },
+			}, {
+				name: "SequentialWriteTx",
+				proc: func(b *testing.B, i int) { writeTx(b, i, st.Writer()) },
+			}, {
+				name: "SequentialMixDRW",
+				proc: func(b *testing.B, _ int) { mixRW(b, st.DirtyReader(), st.Writer(), dest) },
+			}, {
+				name: "SequentialMixRW",
+				proc: func(b *testing.B, _ int) { mixRW(b, st.Reader(), st.Writer(), dest) },
+			}, {
+				name: "SequentialDirtyReadWithBackgroundWriter",
+				proc: func(b *testing.B, _ int) { read(b, st.DirtyReader(), dest) },
+				bg:   bgw,
+			}, {
+				name: "SequentialReadWithBackgroundWriter",
+				proc: func(b *testing.B, _ int) { read(b, st.Reader(), dest) },
+				bg:   bgw,
+			}, {
+				name: "SequentialDirtyReadWithBackgroundBusyTxWriter",
+				proc: func(b *testing.B, _ int) { read(b, st.DirtyReader(), dest) },
+				bg:   bgbwtx,
+			}, {
+				name: "SequentialReadWithBackgroundBusyTxWriter",
+				proc: func(b *testing.B, _ int) { read(b, st.Reader(), dest) },
+				bg:   bgbwtx,
+			}, {
+				name: "SequentialDirtyReadWithBackgroundIdleTxWriter",
+				proc: func(b *testing.B, _ int) { read(b, st.DirtyReader(), dest) },
+				bg:   bgiwtx,
+			}, {
+				name: "SequentialReadWithBackgroundIdleTxWriter",
+				proc: func(b *testing.B, _ int) { read(b, st.Reader(), dest) },
+				bg:   bgiwtx,
+			}, {
+				name: "SequentialDirtyReadTxWithBackgroundWriter",
+				proc: func(b *testing.B, i int) { readTx(b, i, st.DirtyReader(), dest) },
+				bg:   bgw,
+			}, {
+				name: "SequentialReadTxWithBackgroundWriter",
+				proc: func(b *testing.B, i int) { readTx(b, i, st.Reader(), dest) },
+				bg:   bgw,
+			}, {
+				name: "SequentialDirtyReadTxWithBackgroundBusyTxWriter",
+				proc: func(b *testing.B, i int) { readTx(b, i, st.DirtyReader(), dest) },
+				bg:   bgbwtx,
+			}, {
+				name: "SequentialReadTxWithBackgroundBusyTxWriter",
+				proc: func(b *testing.B, i int) { readTx(b, i, st.Reader(), dest) },
+				bg:   bgbwtx,
+			}, {
+				name: "SequentialDirtyReadTxWithBackgroundIdleTxWriter",
+				proc: func(b *testing.B, i int) { readTx(b, i, st.DirtyReader(), dest) },
+				bg:   bgiwtx,
+			}, {
+				name: "SequentialReadTxWithBackgroundIdleTxWriter",
+				proc: func(b *testing.B, i int) { readTx(b, i, st.Reader(), dest) },
+				bg:   bgiwtx,
+			}, {
+				name:   "ParallelDirtyRead",
+				parall: true,
+				pproc: func(pb *testing.PB) {
+					pproc(pb, func() { read(b, st.DirtyReader(), dm()) })
+				},
+			}, {
+				name:   "ParallelRead",
+				parall: true,
+				pproc: func(pb *testing.PB) {
+					pproc(pb, func() { read(b, st.Reader(), dm()) })
+				},
+			}, {
+				name:   "ParallelWrite",
+				parall: true,
+				pproc: func(pb *testing.PB) {
+					pproc(pb, func() { write(b, st.Writer()) })
+				},
+			}, {
+				name:   "ParallelMixDRW",
+				parall: true,
+				pproc: func(pb *testing.PB) {
+					pproc(pb, func() { mixRW(b, st.DirtyReader(), st.Writer(), dm()) })
+				},
+			}, {
+				name:   "ParallelMixRW",
+				parall: true,
+				pproc: func(pb *testing.PB) {
+					pproc(pb, func() { mixRW(b, st.Reader(), st.Writer(), dm()) })
+				},
+			},
+		}
 	)
-	for i := 0; i < b.N; i++ {
-		if i%benchmarkQueriesPerTx == 0 {
-			if tx, err = st.Writer().Begin(); err != nil {
-				b.Errorf("Failed to begin transaction: %v", err)
+	defer teardownBenchmarkStorage(b, st)
+	// Run benchmark profiles
+	for _, v := range profiles {
+		b.Run(v.name, func(b *testing.B) {
+			// Setup environment for sub-benchmark
+			setupSubBenchmarkStorage(b, st)
+			defer teardownSubBenchmarkStorage(b, st)
+			// Start background goroutine
+			var (
+				wg = &sync.WaitGroup{}
+				sc = make(chan struct{})
+			)
+			if v.bg != nil {
+				wg.Add(1)
+				go v.bg(b, wg, sc)
 			}
-		}
-		if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
-			b.Errorf("Failed to execute: %v", err)
-		}
-		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
-			if err = tx.Commit(); err != nil {
-				b.Errorf("Failed to commit transaction: %v", err)
+			defer func() {
+				close(sc)
+				wg.Wait()
+			}()
+			// Test body
+			b.ResetTimer()
+			if v.parall {
+				// Run parallel
+				b.RunParallel(v.pproc)
+			} else {
+				// Run sequential
+				for i := 0; i < b.N; i++ {
+					v.proc(b, i)
+				}
 			}
-		}
+			b.StopTimer()
+		})
 	}
-	teardownBenchmarkStorage(b, st)
 }
 
+//func BenchmarkStorageSequentialDirtyRead(b *testing.B) {
+//	var (
+//		st, q, dm, _, _ = setupBenchmarkStorage(b)
+//		dest            = dm()
+//		err             error
+//	)
+//	for i := 0; i < b.N; i++ {
+//		if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//			b.Fatalf("Failed to query values: %v", err)
+//		}
+//	}
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeSequentialRead(b *testing.B) {
+//	var (
+//		st, q, dm, _, _ = setupBenchmarkStorage(b)
+//		dest            = dm()
+//		err             error
+//	)
+//	for i := 0; i < b.N; i++ {
+//		if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//			b.Fatalf("Failed to query values: %v", err)
+//		}
+//	}
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeSequentialWrite(b *testing.B) {
+//	var (
+//		st, _, _, e, src = setupBenchmarkStorage(b)
+//		err              error
+//	)
+//	b.Run("BenchmarkStoargeSequentialWrite", func(b *testing.B) {
+//		deleteBenchmarkData(b, st)
+//		b.ResetTimer()
+//		for i := 0; i < b.N; i++ {
+//			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+//				b.Errorf("Failed to execute: %v", err)
+//			}
+//		}
+//	})
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeSequentialWriteTx(b *testing.B) {
+//	var (
+//		st, _, _, e, src = setupBenchmarkStorage(b)
+//		tx               *sql.Tx
+//		err              error
+//	)
+//	for i := 0; i < b.N; i++ {
+//		if i%benchmarkQueriesPerTx == 0 {
+//			if tx, err = st.Writer().Begin(); err != nil {
+//				b.Errorf("Failed to begin transaction: %v", err)
+//			}
+//		}
+//		if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
+//			b.Errorf("Failed to execute: %v", err)
+//		}
+//		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
+//			if err = tx.Commit(); err != nil {
+//				b.Errorf("Failed to commit transaction: %v", err)
+//			}
+//		}
+//	}
+//	teardownBenchmarkStorage(b, st)
+//}
+//
 // BW is a background writer function passed to benchmark helper.
-type BW func(
-	*testing.B, *sync.WaitGroup, <-chan struct{}, xi.Storage, keygen, string, [][]interface{},
-)
+//type BW func(
+//	*testing.B, *sync.WaitGroup, <-chan struct{}, xi.Storage, keygen, string, [][]interface{},
+//)
 
 func busyWrite(
 	b *testing.B,
@@ -593,258 +815,258 @@ func idleWriteTx(
 }
 
 // GR is a get reader function passed to benchmark helper.
-type GR func(xi.Storage) *sql.DB
-
-func getDirtyReader(st xi.Storage) *sql.DB { return st.DirtyReader() }
-func getReader(st xi.Storage) *sql.DB      { return st.Reader() }
-
-func benchmarkStorageSequentialReadWithBackgroundWriter(b *testing.B, getReader GR, write BW) {
-	var (
-		st, q, dm, e, src = setupBenchmarkStorage(b)
-
-		dest = dm()
-		wg   = &sync.WaitGroup{}
-		sc   = make(chan struct{})
-
-		err error
-	)
-
-	// Start background writer
-	wg.Add(1)
-	go write(b, wg, sc, st, ipkg, e, src)
-
-	for i := 0; i < b.N; i++ {
-		if err = getReader(st).QueryRow(
-			q, trkg.next(),
-		).Scan(dest...); err != nil && err != sql.ErrNoRows {
-			b.Fatalf("Failed to query values: %v", err)
-		}
-	}
-
-	// Exit background writer
-	close(sc)
-	wg.Wait()
-
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStoargeSequentialDirtyReadWithBackgroundWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, busyWrite)
-}
-
-func BenchmarkStoargeSequentialReadWithBackgroundWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, busyWrite)
-}
-
-func BenchmarkStoargeSequentialDirtyReadWithBackgroundBusyTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, busyWriteTx)
-}
-
-func BenchmarkStoargeSequentialReadWithBackgroundBusyTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, busyWriteTx)
-}
-
-func BenchmarkStoargeSequentialDirtyReadWithBackgroundIdleTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, idleWriteTx)
-}
-
-func BenchmarkStoargeSequentialReadWithBackgroundIdleTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, idleWriteTx)
-}
-
-func benchmarkStorageSequentialReadTxWithBackgroundWriter(b *testing.B, getReader GR, write BW) {
-	var (
-		st, q, dm, e, src = setupBenchmarkStorage(b)
-
-		dest = dm()
-		wg   = &sync.WaitGroup{}
-		sc   = make(chan struct{})
-
-		err error
-		tx  *sql.Tx
-	)
-
-	// Start background writer
-	wg.Add(1)
-	go write(b, wg, sc, st, ipkg, e, src)
-
-	for i := 0; i < b.N; i++ {
-		if i%benchmarkQueriesPerTx == 0 {
-			if tx, err = getReader(st).Begin(); err != nil {
-				b.Fatalf("Failed to begin transaction: %v", err)
-			}
-		}
-		// Query in [n, 2n-1] key space
-		if err = tx.QueryRow(q, nrkg.next()).Scan(dest...); err != nil && err != sql.ErrNoRows {
-			b.Fatalf("Failed to query values: %v", err)
-		}
-		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
-			if err = tx.Rollback(); err != nil {
-				b.Fatalf("Failed to close transaction: %v", err)
-			}
-		}
-	}
-
-	// Exit background writer
-	close(sc)
-	wg.Wait()
-
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundWriter(b *testing.B) {
-	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, busyWrite)
-}
-
-func BenchmarkStoargeSequentialReadTxWithBackgroundWriter(b *testing.B) {
-	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, busyWrite)
-}
-
-func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundBusyTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, busyWriteTx)
-}
-
-func BenchmarkStoargeSequentialReadTxWithBackgroundBusyTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, busyWriteTx)
-}
-
-func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundIdleTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, idleWriteTx)
-}
-
-func BenchmarkStoargeSequentialReadTxWithBackgroundIdleTxWriter(b *testing.B) {
-	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, idleWriteTx)
-}
-
-func BenchmarkStoargeSequentialMixDRW(b *testing.B) {
-	var (
-		st, q, dm, e, src = setupBenchmarkStorage(b)
-		dest              = dm()
-		err               error
-	)
-	for i := 0; i < b.N; i++ {
-		if rand.Int()%2 == 0 {
-			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-				b.Fatalf("Failed to query values: %v", err)
-			}
-		} else {
-			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-				b.Fatalf("Failed to execute: %v", err)
-			}
-		}
-	}
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStoargeSequentialMixRW(b *testing.B) {
-	var (
-		st, q, dm, e, src = setupBenchmarkStorage(b)
-		dest              = dm()
-		err               error
-	)
-	for i := 0; i < b.N; i++ {
-		if rand.Int()%2 == 0 {
-			if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-				b.Fatalf("Failed to query values: %v", err)
-			}
-		} else {
-			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-				b.Fatalf("Failed to execute: %v", err)
-			}
-		}
-	}
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStorageParallelDirtyRead(b *testing.B) {
-	var (
-		st, q, dm, _, _ = setupBenchmarkStorage(b)
-	)
-	b.RunParallel(func(pb *testing.PB) {
-		var (
-			dest = dm()
-			err  error
-		)
-		for pb.Next() {
-			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-				b.Fatalf("Failed to query values: %v", err)
-			}
-		}
-	})
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStorageParallelRead(b *testing.B) {
-	var (
-		st, q, dm, _, _ = setupBenchmarkStorage(b)
-	)
-	b.RunParallel(func(pb *testing.PB) {
-		var (
-			dest = dm()
-			err  error
-		)
-		for pb.Next() {
-			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-				b.Fatalf("Failed to query values: %v", err)
-			}
-		}
-	})
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStoargeParallelWrite(b *testing.B) {
-	var st, _, _, e, src = setupBenchmarkStorage(b)
-	b.RunParallel(func(pb *testing.PB) {
-		var err error
-		for pb.Next() {
-			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-				b.Fatalf("Failed to execute: %v", err)
-			}
-		}
-	})
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStorageParallelMixDRW(b *testing.B) {
-	var st, q, dm, e, src = setupBenchmarkStorage(b)
-	b.RunParallel(func(pb *testing.PB) {
-		var (
-			dest = dm()
-			err  error
-		)
-		for pb.Next() {
-			if rand.Int()%2 == 0 {
-				if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-					b.Fatalf("Failed to query values: %v", err)
-				}
-			} else {
-				if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-					b.Fatalf("Failed to execute: %v", err)
-				}
-			}
-		}
-	})
-	teardownBenchmarkStorage(b, st)
-}
-
-func BenchmarkStorageParallelMixRW(b *testing.B) {
-	var st, q, dm, e, src = setupBenchmarkStorage(b)
-	b.RunParallel(func(pb *testing.PB) {
-		var (
-			dest = dm()
-			err  error
-		)
-		for pb.Next() {
-			if rand.Int()%2 == 0 {
-				if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-					b.Fatalf("Failed to query values: %v", err)
-				}
-			} else {
-				if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-					b.Fatalf("Failed to execute: %v", err)
-				}
-			}
-		}
-	})
-	teardownBenchmarkStorage(b, st)
-}
+//type GR func(xi.Storage) *sql.DB
+//
+//func getDirtyReader(st xi.Storage) *sql.DB { return st.DirtyReader() }
+//func getReader(st xi.Storage) *sql.DB      { return st.Reader() }
+//
+//func benchmarkStorageSequentialReadWithBackgroundWriter(b *testing.B, getReader GR, write BW) {
+//	var (
+//		st, q, dm, e, src = setupBenchmarkStorage(b)
+//
+//		dest = dm()
+//		wg   = &sync.WaitGroup{}
+//		sc   = make(chan struct{})
+//
+//		err error
+//	)
+//
+//	// Start background writer
+//	wg.Add(1)
+//	go write(b, wg, sc, st, ipkg, e, src)
+//
+//	for i := 0; i < b.N; i++ {
+//		if err = getReader(st).QueryRow(
+//			q, trkg.next(),
+//		).Scan(dest...); err != nil && err != sql.ErrNoRows {
+//			b.Fatalf("Failed to query values: %v", err)
+//		}
+//	}
+//
+//	// Exit background writer
+//	close(sc)
+//	wg.Wait()
+//
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeSequentialDirtyReadWithBackgroundWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, busyWrite)
+//}
+//
+//func BenchmarkStoargeSequentialReadWithBackgroundWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, busyWrite)
+//}
+//
+//func BenchmarkStoargeSequentialDirtyReadWithBackgroundBusyTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, busyWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialReadWithBackgroundBusyTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, busyWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialDirtyReadWithBackgroundIdleTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadWithBackgroundWriter(b, getDirtyReader, idleWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialReadWithBackgroundIdleTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadWithBackgroundWriter(b, getReader, idleWriteTx)
+//}
+//
+//func benchmarkStorageSequentialReadTxWithBackgroundWriter(b *testing.B, getReader GR, write BW) {
+//	var (
+//		st, q, dm, e, src = setupBenchmarkStorage(b)
+//
+//		dest = dm()
+//		wg   = &sync.WaitGroup{}
+//		sc   = make(chan struct{})
+//
+//		err error
+//		tx  *sql.Tx
+//	)
+//
+//	// Start background writer
+//	wg.Add(1)
+//	go write(b, wg, sc, st, ipkg, e, src)
+//
+//	for i := 0; i < b.N; i++ {
+//		if i%benchmarkQueriesPerTx == 0 {
+//			if tx, err = getReader(st).Begin(); err != nil {
+//				b.Fatalf("Failed to begin transaction: %v", err)
+//			}
+//		}
+//		// Query in [n, 2n-1] key space
+//		if err = tx.QueryRow(q, nrkg.next()).Scan(dest...); err != nil && err != sql.ErrNoRows {
+//			b.Fatalf("Failed to query values: %v", err)
+//		}
+//		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
+//			if err = tx.Rollback(); err != nil {
+//				b.Fatalf("Failed to close transaction: %v", err)
+//			}
+//		}
+//	}
+//
+//	// Exit background writer
+//	close(sc)
+//	wg.Wait()
+//
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, busyWrite)
+//}
+//
+//func BenchmarkStoargeSequentialReadTxWithBackgroundWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, busyWrite)
+//}
+//
+//func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundBusyTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, busyWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialReadTxWithBackgroundBusyTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, busyWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialDirtyReadTxWithBackgroundIdleTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getDirtyReader, idleWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialReadTxWithBackgroundIdleTxWriter(b *testing.B) {
+//	benchmarkStorageSequentialReadTxWithBackgroundWriter(b, getReader, idleWriteTx)
+//}
+//
+//func BenchmarkStoargeSequentialMixDRW(b *testing.B) {
+//	var (
+//		st, q, dm, e, src = setupBenchmarkStorage(b)
+//		dest              = dm()
+//		err               error
+//	)
+//	for i := 0; i < b.N; i++ {
+//		if rand.Int()%2 == 0 {
+//			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//				b.Fatalf("Failed to query values: %v", err)
+//			}
+//		} else {
+//			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+//				b.Fatalf("Failed to execute: %v", err)
+//			}
+//		}
+//	}
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeSequentialMixRW(b *testing.B) {
+//	var (
+//		st, q, dm, e, src = setupBenchmarkStorage(b)
+//		dest              = dm()
+//		err               error
+//	)
+//	for i := 0; i < b.N; i++ {
+//		if rand.Int()%2 == 0 {
+//			if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//				b.Fatalf("Failed to query values: %v", err)
+//			}
+//		} else {
+//			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+//				b.Fatalf("Failed to execute: %v", err)
+//			}
+//		}
+//	}
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStorageParallelDirtyRead(b *testing.B) {
+//	var (
+//		st, q, dm, _, _ = setupBenchmarkStorage(b)
+//	)
+//	b.RunParallel(func(pb *testing.PB) {
+//		var (
+//			dest = dm()
+//			err  error
+//		)
+//		for pb.Next() {
+//			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//				b.Fatalf("Failed to query values: %v", err)
+//			}
+//		}
+//	})
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStorageParallelRead(b *testing.B) {
+//	var (
+//		st, q, dm, _, _ = setupBenchmarkStorage(b)
+//	)
+//	b.RunParallel(func(pb *testing.PB) {
+//		var (
+//			dest = dm()
+//			err  error
+//		)
+//		for pb.Next() {
+//			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//				b.Fatalf("Failed to query values: %v", err)
+//			}
+//		}
+//	})
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStoargeParallelWrite(b *testing.B) {
+//	var st, _, _, e, src = setupBenchmarkStorage(b)
+//	b.RunParallel(func(pb *testing.PB) {
+//		var err error
+//		for pb.Next() {
+//			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+//				b.Fatalf("Failed to execute: %v", err)
+//			}
+//		}
+//	})
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStorageParallelMixDRW(b *testing.B) {
+//	var st, q, dm, e, src = setupBenchmarkStorage(b)
+//	b.RunParallel(func(pb *testing.PB) {
+//		var (
+//			dest = dm()
+//			err  error
+//		)
+//		for pb.Next() {
+//			if rand.Int()%2 == 0 {
+//				if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//					b.Fatalf("Failed to query values: %v", err)
+//				}
+//			} else {
+//				if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+//					b.Fatalf("Failed to execute: %v", err)
+//				}
+//			}
+//		}
+//	})
+//	teardownBenchmarkStorage(b, st)
+//}
+//
+//func BenchmarkStorageParallelMixRW(b *testing.B) {
+//	var st, q, dm, e, src = setupBenchmarkStorage(b)
+//	b.RunParallel(func(pb *testing.PB) {
+//		var (
+//			dest = dm()
+//			err  error
+//		)
+//		for pb.Next() {
+//			if rand.Int()%2 == 0 {
+//				if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
+//					b.Fatalf("Failed to query values: %v", err)
+//				}
+//			} else {
+//				if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
+//					b.Fatalf("Failed to execute: %v", err)
+//				}
+//			}
+//		}
+//	})
+//	teardownBenchmarkStorage(b, st)
+//}

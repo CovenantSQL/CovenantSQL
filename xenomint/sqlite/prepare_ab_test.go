@@ -27,6 +27,7 @@ import (
 
 const (
 	databaseNamePattern = "sqlitedb%v_%v_%v"
+	tableNamePattern    = "table%v"
 )
 
 func prepareSqliteStorages(databaseCount, tableCount int, dataCount int64) {
@@ -35,7 +36,7 @@ func prepareSqliteStorages(databaseCount, tableCount int, dataCount int64) {
 		st := createSqliteStorage(dbname)
 
 		for j := 0; j < tableCount; j++ {
-			tableName := fmt.Sprintf("table%v", j)
+			tableName := fmt.Sprintf(tableNamePattern, j)
 			createSqliteTestTable(st, tableName)
 
 			var index int64
@@ -93,7 +94,7 @@ func insertSqliteTableData(st xi.Storage, tableName string, start, end int64) {
 		args[1] = string(vals[:])
 
 		if _, err = stmt.Exec(args[0], args[1]); err != nil {
-			fmt.Printf("Failed to insert data in bench environment: %v\n", err)
+			fmt.Printf("Failed to insert data in bench environment: %v %v\n", args[0], err)
 		}
 	}
 
@@ -109,12 +110,12 @@ func TestPrepareSqliteStorages(t *testing.T) {
 	prepareSqliteStorages(1, 2, 1000000)
 
 	//2 database, 1 table, 10m data
-	prepareSqliteStorages(2, 1, 10000000)
+	//prepareSqliteStorages(2, 1, 10000000)
 	//1 database, 2 table, 10m data
-	prepareSqliteStorages(1, 2, 10000000)
+	//prepareSqliteStorages(1, 2, 10000000)
 
 	//2 database, 1 table, 100m data
-	prepareSqliteStorages(2, 1, 100000000)
+	//prepareSqliteStorages(2, 1, 100000000)
 	//1 database, 2 table, 100m data
-	prepareSqliteStorages(1, 2, 100000000)
+	//prepareSqliteStorages(1, 2, 100000000)
 }

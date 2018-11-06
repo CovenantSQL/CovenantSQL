@@ -97,12 +97,35 @@ type Peers_ struct {
 	Signature *asymmetric.Signature
 }
 
-// ServiceInstance defines the old service instance type before marshaller updates.
-type ServiceInstance struct {
+// ServiceInstancePlainOld defines the plain old service instance type before marshaller updates.
+type ServiceInstancePlainOld struct {
 	DatabaseID   proto.DatabaseID
 	Peers        *Peers_
 	ResourceMeta wt.ResourceMeta
 	GenesisBlock *Block_
+}
+
+// ServiceInstanceOld defines the old service instance type before marshaller updates.
+type ServiceInstanceOld struct {
+	DatabaseID   proto.DatabaseID
+	Peers        *Peers_
+	ResourceMeta wt.ResourceMeta
+	GenesisBlock *ct.Block
+}
+
+func convertPeers(oldPeers *Peers_) (newPeers *proto.Peers) {
+	if oldPeers == nil {
+		return
+	}
+
+	newPeers = new(proto.Peers)
+	for _, s := range oldPeers.Servers {
+		newPeers.Servers = append(newPeers.Servers, s.ID)
+	}
+	newPeers.Leader = oldPeers.Leader.ID
+	newPeers.Term = oldPeers.Term
+
+	return
 }
 
 func main() {
@@ -157,8 +180,8 @@ func main() {
 		} else {
 			// detect if the genesis block is in old version
 			if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"GenesisBlock\":[]uint8") {
-				log.Info("detected old version")
-				var instance ServiceInstance
+				log.Info("detected plain old version (without msgpack tag and use custom serializer)")
+				var instance ServiceInstancePlainOld
 
 				if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {
 					log.WithError(err).Fatal("decode msgpack failed")
@@ -166,13 +189,25 @@ func main() {
 				}
 
 				newInstance.DatabaseID = instance.DatabaseID
-				// TODO: re-construct peers structure
-				// newInstance.Peers = instance.Peers
+				newInstance.Peers = convertPeers(instance.Peers)
 				newInstance.ResourceMeta = instance.ResourceMeta
 				newInstance.GenesisBlock = &ct.Block{
 					SignedHeader: instance.GenesisBlock.SignedHeader,
 					Queries:      instance.GenesisBlock.Queries,
 				}
+			} else if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"PubKey\"") {
+				log.Info("detected old version (old kayak implementation [called as kaar])")
+				var instance ServiceInstanceOld
+
+				if err := utils.DecodeMsgPack(rawInstance, &instance); err != nil {
+					log.WithError(err).Fatal("decode msgpack failed")
+					return
+				}
+
+				newInstance.DatabaseID = instance.DatabaseID
+				newInstance.Peers = convertPeers(instance.Peers)
+				newInstance.ResourceMeta = instance.ResourceMeta
+				newInstance.GenesisBlock = instance.GenesisBlock
 			} else {
 				log.Info("detected new version, need re-signature")
 
@@ -180,20 +215,20 @@ func main() {
 					log.WithError(err).Fatal("decode msgpack failed")
 					return
 				}
+			}
 
-				// set genesis block to now
-				newInstance.GenesisBlock.SignedHeader.Timestamp = time.Now().UTC()
+			// set genesis block to now
+			newInstance.GenesisBlock.SignedHeader.Timestamp = time.Now().UTC()
 
-				// sign peers again
-				if err := newInstance.Peers.Sign(privateKey); err != nil {
-					log.WithError(err).Fatal("sign peers failed")
-					return
-				}
+			// sign peers again
+			if err := newInstance.Peers.Sign(privateKey); err != nil {
+				log.WithError(err).Fatal("sign peers failed")
+				return
+			}
 
-				if err := newInstance.GenesisBlock.PackAndSignBlock(privateKey); err != nil {
-					log.WithError(err).Fatal("sign genesis block failed")
-					return
-				}
+			if err := newInstance.GenesisBlock.PackAndSignBlock(privateKey); err != nil {
+				log.WithError(err).Fatal("sign genesis block failed")
+				return
 			}
 		}
 

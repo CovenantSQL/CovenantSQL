@@ -131,7 +131,7 @@ func TestNodeID_IsEmpty(t *testing.T) {
 
 func TestNodeID_MarshalBinary(t *testing.T) {
 	Convey("NodeID MarshalBinary", t, func() {
-		var nodeID, nodeID2 NodeID
+		var nodeID, nodeID2, nodeID3 NodeID
 
 		nb, err := nodeID.MarshalBinary()
 		So(err, ShouldBeNil)
@@ -147,5 +147,9 @@ func TestNodeID_MarshalBinary(t *testing.T) {
 		err = nodeID2.UnmarshalBinary(nb)
 		So(err, ShouldBeNil)
 		So(nodeID2, ShouldResemble, nodeID)
+
+		nodeID3.UnmarshalBinary([]byte("0000000000000000000000000000000000000000000000000000000000000000"))
+		So(err, ShouldBeNil)
+		So(nodeID3, ShouldResemble, nodeID)
 	})
 }

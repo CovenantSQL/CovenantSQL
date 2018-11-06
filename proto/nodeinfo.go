@@ -141,9 +141,14 @@ func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
 
 // UnmarshalBinary does the deserialization
 func (id *NodeID) UnmarshalBinary(keyBytes []byte) (err error) {
+	// for backward compatible
+	if len(keyBytes) == 64 {
+		*id = NodeID(keyBytes)
+		return
+	}
 	h, err := hash.NewHash(keyBytes)
 	if err != nil {
-		log.Error("nodeID bytes len should be 32")
+		log.Error("load 32 bytes nodeID failed")
 		return
 	}
 	*id = NodeID(h.String())

@@ -23,6 +23,16 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func executeTx(db *sql.DB, fn func(*sql.Tx) error,
+) error {
+	// Start a transaction.
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	return fn(tx)
+}
+
 func TestStmt(t *testing.T) {
 	Convey("test statement", t, func() {
 		var stopTestService func()
@@ -40,6 +50,13 @@ func TestStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, err = db.Exec("insert into test values (1)")
 		So(err, ShouldBeNil)
+
+		err = executeTx(db, func(tx *sql.Tx) error {
+			if _, err = tx.Exec("insert into test values (?)", 2); err != nil {
+				return err
+			}
+			return nil
+		})
 
 		var stmt *sql.Stmt
 		stmt, err = db.Prepare("select count(1) as cnt from test where test = ?")

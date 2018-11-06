@@ -232,7 +232,7 @@ func teardownSubBenchmarkMuxParallel(b *testing.B, ms *MuxService) {
 	}
 	ms.unregister(benchmarkDatabaseID)
 	// Close chain
-	if err = c.close(); err != nil {
+	if err = c.Stop(); err != nil {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fl); err != nil {
@@ -278,7 +278,7 @@ func BenchmarkMuxParallel(b *testing.B) {
 						b.Fatalf("Failed to execute: %v", err)
 					}
 					if (i+1)%benchmarkQueriesPerBlock == 0 {
-						if _, err = c.state.commit(); err != nil {
+						if err = c.state.commit(nil); err != nil {
 							b.Fatalf("Failed to commit block: %v", err)
 						}
 					}

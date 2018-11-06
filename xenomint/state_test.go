@@ -105,7 +105,7 @@ func TestState(t *testing.T) {
 			_, resp, err = st.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			_, err = st.commit()
+			err = st.commit(nil)
 			So(err, ShouldBeNil)
 			Convey("The state should not change after attempted writing in read query", func() {
 				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{

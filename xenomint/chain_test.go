@@ -119,7 +119,7 @@ func teardownBenchmarkChain(b *testing.B, c *Chain) {
 		fl  = path.Join(testingDataDir, b.Name())
 		err error
 	)
-	if err = c.close(); err != nil {
+	if err = c.Stop(); err != nil {
 		b.Fatalf("Failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fl); err != nil {
@@ -142,7 +142,7 @@ func BenchmarkChainParallelWrite(b *testing.B) {
 				b.Fatalf("Failed to execute: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerBlock == 0 {
-				if _, err = c.state.commit(); err != nil {
+				if err = c.state.commit(nil); err != nil {
 					b.Fatalf("Failed to commit block: %v", err)
 				}
 			}
@@ -160,7 +160,7 @@ func BenchmarkChainParallelMixRW(b *testing.B) {
 				b.Fatalf("Failed to execute: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerBlock == 0 {
-				if _, err = c.state.commit(); err != nil {
+				if err = c.state.commit(nil); err != nil {
 					b.Fatalf("Failed to commit block: %v", err)
 				}
 			}

@@ -17,27 +17,102 @@
 package xenomint
 
 import (
+	"context"
+	"sync"
+	"time"
+
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
+	xt "github.com/CovenantSQL/CovenantSQL/xenomint/types"
 )
+
+const (
+	inCommandBufferLength  = 100000
+	outCommandBufferLength = 100000
+)
+
+type command interface{}
+
+type applyRequest struct {
+	request  *wt.Request
+	response *wt.Response
+}
+
+type commitRequest struct {
+	queries []*query
+	resp    *MuxFollowerCommitResponse
+}
+
+type blockNode struct {
+	parent *blockNode
+	// Cached block fields
+	hash   hash.Hash
+	count  int32
+	height int32
+	// Cached block object, may be nil
+	block *xt.Block
+}
 
 // Chain defines the xenomint chain structure.
 type Chain struct {
 	state *state
-
+	// Command queue
+	in  chan command
+	out chan command
+	// Config fields
+	start  time.Time
+	period time.Duration
+	// Runtime state
+	stMu     sync.RWMutex
+	peers    *kayak.Peers
+	index    int32
+	total    int32
+	head     *blockNode
+	nextTurn int32
+	pending  []*commitRequest
+	// Utility fields
+	caller *rpc.Caller
 	// Cached fields
 	priv *ca.PrivateKey
+	// Goroutine control
+	wg     *sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+func (c *Chain) nextTick() (t time.Time, d time.Duration) {
+	c.stMu.RLock()
+	defer c.stMu.RUnlock()
+	t = time.Now()
+	d = c.start.Add(time.Duration(c.nextTurn) * c.period).Sub(t)
+	return
+}
+
+func (c *Chain) isMyTurn() (ret bool) {
+	c.stMu.RLock()
+	defer c.stMu.RUnlock()
+	if c.total <= 0 {
+		return
+	}
+	ret = (c.nextTurn%c.total == c.index)
+	return
 }
 
 // NewChain returns new chain instance.
 func NewChain(filename string) (c *Chain, err error) {
 	var (
-		strg  xi.Storage
-		state *state
-		priv  *ca.PrivateKey
+		strg   xi.Storage
+		state  *state
+		priv   *ca.PrivateKey
+		ctx    context.Context
+		cancel context.CancelFunc
 	)
 	// TODO(leventeliu): add multiple storage engine support.
 	if strg, err = xs.NewSqlite(filename); err != nil {
@@ -49,9 +124,15 @@ func NewChain(filename string) (c *Chain, err error) {
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
+	ctx, cancel = context.WithCancel(context.Background())
 	c = &Chain{
-		state: state,
-		priv:  priv,
+		state:  state,
+		in:     make(chan command, inCommandBufferLength),
+		out:    make(chan command, outCommandBufferLength),
+		priv:   priv,
+		wg:     &sync.WaitGroup{},
+		ctx:    ctx,
+		cancel: cancel,
 	}
 	return
 }
@@ -66,9 +147,129 @@ func (c *Chain) Query(req *wt.Request) (resp *wt.Response, err error) {
 		return
 	}
 	ref.updateResp(resp)
+	startWorker(c.ctx, c.wg, func(_ context.Context) {
+		c.enqueueOut(&applyRequest{request: req, response: resp})
+	})
 	return
 }
 
-func (c *Chain) close() (err error) {
+func startWorker(ctx context.Context, wg *sync.WaitGroup, f func(context.Context)) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		f(ctx)
+	}()
+}
+
+func (c *Chain) stopWorkers() {
+	c.cancel()
+	c.wg.Wait()
+}
+
+func (c *Chain) enqueueIn(cmd command)  { c.in <- cmd }
+func (c *Chain) enqueueOut(cmd command) { c.out <- cmd }
+
+func (c *Chain) advanceTurn(ctx context.Context, t time.Time) {
+	defer func() {
+		c.stMu.Lock()
+		defer c.stMu.Unlock()
+		c.nextTurn++
+	}()
+	if !c.isMyTurn() {
+		return
+	}
+	// Send commit request to leader peer
+	var tCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	var err error
+	if err = c.caller.CallNodeWithContext(tCtx, c.peers.Leader.ID, "", nil, nil); err != nil {
+		// ...
+	}
+}
+
+func (c *Chain) produceBlock() {
+}
+
+func (c *Chain) main(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			if c.head.height < c.nextTurn-1 {
+				if c.isMyTurn() {
+					// Try to produce next block
+					if c.pending[len(c.pending)].resp.Height == c.nextTurn-1 {
+
+					}
+				} else {
+					// Sync head of current turn
+				}
+			}
+			//
+			if t, d := c.nextTick(); d > 0 {
+				time.Sleep(d)
+			} else {
+				// End current turn
+				c.advanceTurn(c.ctx, t)
+			}
+		}
+	}
+	return
+}
+
+func (c *Chain) processIn(ctx context.Context) {
+	var err error
+	for {
+		select {
+		case ci := <-c.in:
+			switch cmd := ci.(type) {
+			case *MuxApplyRequest:
+				if err = c.state.Replay(cmd.Request, cmd.Response); err != nil {
+					log.WithFields(log.Fields{
+						"request":  cmd.Request,
+						"response": cmd.Response,
+					}).WithError(err).Errorf("Failed to apply request")
+				}
+			default:
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (c *Chain) commitBlock() (err error) {
+	if err = c.state.commit(c.out); err != nil {
+		return
+	}
+	return
+}
+
+func (c *Chain) processOut(ctx context.Context) {
+	for {
+		select {
+		case ci := <-c.out:
+			switch ci.(type) {
+			case *applyRequest:
+			default:
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (c *Chain) Stop() (err error) {
+	// Stop workers
+	c.stopWorkers()
+	// Close all opened resources
 	return c.state.close(true)
+}
+
+func (c *Chain) Start() (err error) {
+	startWorker(c.ctx, c.wg, c.processIn)
+	startWorker(c.ctx, c.wg, c.processOut)
+	startWorker(c.ctx, c.wg, c.main)
+	return
 }

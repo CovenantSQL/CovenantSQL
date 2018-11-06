@@ -53,20 +53,6 @@ func (s *MuxService) unregister(id proto.DatabaseID) {
 	s.serviceMap.Delete(id)
 }
 
-// MuxQueryRequest defines a request of the Query RPC method.
-type MuxQueryRequest struct {
-	proto.DatabaseID
-	proto.Envelope
-	Request *wt.Request
-}
-
-// MuxQueryResponse defines a response of the Query RPC method.
-type MuxQueryResponse struct {
-	proto.DatabaseID
-	proto.Envelope
-	Response *wt.Response
-}
-
 func (s *MuxService) route(id proto.DatabaseID) (c *Chain, err error) {
 	var (
 		i  interface{}
@@ -81,6 +67,20 @@ func (s *MuxService) route(id proto.DatabaseID) (c *Chain, err error) {
 		return
 	}
 	return
+}
+
+// MuxQueryRequest defines a request of the Query RPC method.
+type MuxQueryRequest struct {
+	proto.DatabaseID
+	proto.Envelope
+	Request *wt.Request
+}
+
+// MuxQueryResponse defines a response of the Query RPC method.
+type MuxQueryResponse struct {
+	proto.DatabaseID
+	proto.Envelope
+	Response *wt.Response
 }
 
 // Query is the RPC method to process database query on mux service.
@@ -102,6 +102,94 @@ func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err er
 		Envelope:   req.Envelope,
 		DatabaseID: req.DatabaseID,
 		Response:   r,
+	}
+	return
+}
+
+type MuxApplyRequest struct {
+	proto.DatabaseID
+	proto.Envelope
+	Request  *wt.Request
+	Response *wt.Response
+}
+
+type MuxApplyResponse struct {
+	proto.DatabaseID
+	proto.Envelope
+}
+
+// Apply is the RPC method to apply a write request on mux service.
+func (s *MuxService) Apply(req *MuxApplyRequest, resp *MuxApplyResponse) (err error) {
+	var c *Chain
+	if c, err = s.route(req.DatabaseID); err != nil {
+		return
+	}
+	c.enqueueIn(req)
+	resp = &MuxApplyResponse{
+		Envelope:   req.Envelope,
+		DatabaseID: req.DatabaseID,
+	}
+	return
+}
+
+type MuxLeaderCommitRequest struct {
+	proto.DatabaseID
+	proto.Envelope
+	// Height is the expected block height of this commit.
+	Height int32
+}
+
+type MuxLeaderCommitResponse struct {
+	proto.DatabaseID
+	proto.Envelope
+	// Height is the expected block height of this commit.
+	Height int32
+	Offset uint64
+}
+
+// Commit is the RPC method to commit block on mux service.
+func (s *MuxService) LeaderCommit(
+	req *MuxLeaderCommitRequest, resp *MuxLeaderCommitResponse) (err error,
+) {
+	var c *Chain
+	if c, err = s.route(req.DatabaseID); err != nil {
+		return
+	}
+	if err = c.commitBlock(); err != nil {
+		return
+	}
+	resp = &MuxLeaderCommitResponse{
+		Envelope:   req.Envelope,
+		DatabaseID: req.DatabaseID,
+	}
+	return
+}
+
+type MuxFollowerCommitRequest struct {
+	proto.DatabaseID
+	proto.Envelope
+	Height int32
+	Offset uint64
+}
+
+type MuxFollowerCommitResponse struct {
+	proto.DatabaseID
+	proto.Envelope
+	Height int32
+	Offset uint64
+}
+
+func (s *MuxService) FollowerCommit(
+	req *MuxFollowerCommitRequest, resp *MuxFollowerCommitResponse) (err error,
+) {
+	var c *Chain
+	if c, err = s.route(req.DatabaseID); err != nil {
+		return
+	}
+	c.enqueueIn(req)
+	resp = &MuxFollowerCommitResponse{
+		Envelope:   req.Envelope,
+		DatabaseID: req.DatabaseID,
 	}
 	return
 }

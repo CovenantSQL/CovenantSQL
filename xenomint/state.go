@@ -309,7 +309,8 @@ func (s *state) replay(req *wt.Request, resp *wt.Response) (err error) {
 	return
 }
 
-func (s *state) commit() (queries []*query, err error) {
+func (s *state) commit(out chan<- command) (err error) {
+	var queries []*query
 	s.Lock()
 	defer s.Unlock()
 	if err = s.unc.Commit(); err != nil {
@@ -322,6 +323,11 @@ func (s *state) commit() (queries []*query, err error) {
 	s.setSavepoint()
 	queries = s.pool.queries
 	s.pool = newPool()
+	// NOTE(leventeliu): Send commit request to the outcoming command queue within locking scope to
+	// prevent any extra writing before this commit.
+	if out != nil {
+		out <- &commitRequest{queries: queries}
+	}
 	return
 }
 

@@ -175,7 +175,7 @@ func stopNodes() {
 			defer wg.Done()
 			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
 			thisCmd.Cmd.Wait()
-			grepRace := exec.Command("/bin/sh", "-c", "grep -A 50 'DATA RACE' "+thisCmd.LogPath)
+			grepRace := exec.Command("/bin/sh", "-c", "grep -a -A 50 'DATA RACE' "+thisCmd.LogPath)
 			out, _ := grepRace.Output()
 			if len(out) > 2 {
 				log.Fatal(string(out))

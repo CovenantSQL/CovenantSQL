@@ -39,6 +39,7 @@ logs:
 	docker-compose logs -f --tail=10
 
 push:
-	docker push $(IMAGE)
+	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
 
 .PHONY: status build save start logs push

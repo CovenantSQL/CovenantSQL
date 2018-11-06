@@ -36,7 +36,8 @@ type MemWal struct {
 // NewMemWal returns new memory wal instance.
 func NewMemWal() (p *MemWal) {
 	p = &MemWal{
-		revIndex: make(map[uint64]int),
+		revIndex: make(map[uint64]int, 100000),
+		logs:     make([]*kt.Log, 0, 100000),
 	}
 
 	return

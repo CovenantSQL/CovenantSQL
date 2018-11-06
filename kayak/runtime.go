@@ -115,8 +115,10 @@ type commitReq struct {
 	result     chan *commitResult
 }
 
-// commitResult defines the commit operation result.
+// followerCommitResult defines the commit operation result.
 type commitResult struct {
+	start  time.Time
+	dbCost time.Duration
 	result interface{}
 	err    error
 	rpc    *rpcTracker
@@ -238,7 +240,9 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 
 	var commitFuture <-chan *commitResult
 
-	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback, tmRollback, tmCommit time.Time
+	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
+		tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
+	var dbCost time.Duration
 
 	defer func() {
 		fields := log.Fields{
@@ -257,12 +261,26 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 			fields["fr"] = tmRollback.Sub(tmLeaderRollback).Nanoseconds()
 		}
 		if !tmCommitEnqueue.Before(tmFollowerPrepare) {
-			fields["q"] = tmCommitEnqueue.Sub(tmFollowerPrepare).Nanoseconds()
+			fields["eq"] = tmCommitEnqueue.Sub(tmFollowerPrepare).Nanoseconds()
 		}
-		if !tmCommit.Before(tmCommitEnqueue) {
-			fields["c"] = tmCommit.Sub(tmCommitEnqueue).Nanoseconds()
+		if !tmCommitDequeue.Before(tmCommitEnqueue) {
+			fields["dq"] = tmCommitDequeue.Sub(tmCommitEnqueue).Nanoseconds()
 		}
-		log.WithFields(fields).Debug("kayak leader apply")
+		if !tmLeaderCommit.Before(tmCommitDequeue) {
+			fields["lc"] = tmLeaderCommit.Sub(tmCommitDequeue).Nanoseconds()
+		}
+		if !tmCommit.Before(tmLeaderCommit) {
+			fields["fc"] = tmCommit.Sub(tmLeaderCommit).Nanoseconds()
+		}
+		if dbCost > 0 {
+			fields["dc"] = dbCost.Nanoseconds()
+		}
+		if !tmCommit.Before(tmStart) {
+			fields["t"] = tmCommit.Sub(tmStart).Nanoseconds()
+		} else if !tmRollback.Before(tmStart) {
+			fields["t"] = tmRollback.Sub(tmStart).Nanoseconds()
+		}
+		log.WithFields(fields).Info("kayak leader apply")
 	}()
 
 	if r.role != proto.Leader {
@@ -314,7 +332,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 
 	tmFollowerPrepare = time.Now()
 
-	commitFuture = r.commitResult(ctx, nil, prepareLog, 0)
+	commitFuture = r.leaderCommitResult(ctx, req, prepareLog)
 
 	tmCommitEnqueue = time.Now()
 
@@ -324,6 +342,10 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 			logIndex = prepareLog.Index
 			result = cResult.result
 			err = cResult.err
+
+			tmCommitDequeue = cResult.start
+			dbCost = cResult.dbCost
+			tmLeaderCommit = time.Now()
 
 			// wait until context deadline or commit done
 			if cResult.rpc != nil {
@@ -492,6 +514,52 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 		return
 	}
 
+	cResult := <-r.followerCommitResult(context.Background(), l, prepareLog, lastCommit)
+	if cResult != nil {
+		err = cResult.err
+	}
+
+	return
+}
+
+func (r *Runtime) leaderCommitResult(ctx context.Context, reqPayload interface{}, prepareLog *kt.Log) (res chan *commitResult) {
+	// decode log and send to commit channel to process
+	res = make(chan *commitResult, 1)
+
+	if prepareLog == nil {
+		res <- &commitResult{
+			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
+		}
+		return
+	}
+
+	// decode prepare log
+	req := &commitReq{
+		ctx:    ctx,
+		data:   reqPayload,
+		index:  prepareLog.Index,
+		result: res,
+	}
+
+	select {
+	case <-ctx.Done():
+	case r.commitCh <- req:
+	}
+
+	return
+}
+
+func (r *Runtime) followerCommitResult(ctx context.Context, commitLog *kt.Log, prepareLog *kt.Log, lastCommit uint64) (res chan *commitResult) {
+	// decode log and send to commit channel to process
+	res = make(chan *commitResult, 1)
+
+	if prepareLog == nil {
+		res <- &commitResult{
+			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
+		}
+		return
+	}
+
 	myLastCommit := atomic.LoadUint64(&r.lastCommit)
 
 	// check committed index
@@ -501,25 +569,8 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 			"head":     myLastCommit,
 			"supplied": lastCommit,
 		}).Warning("invalid last commit log")
-		err = errors.Wrap(kt.ErrInvalidLog, "invalid last commit log index")
-		return
-	}
-
-	cResult := <-r.commitResult(context.Background(), l, prepareLog, lastCommit)
-	if cResult != nil {
-		err = cResult.err
-	}
-
-	return
-}
-
-func (r *Runtime) commitResult(ctx context.Context, commitLog *kt.Log, prepareLog *kt.Log, lastCommit uint64) (res chan *commitResult) {
-	// decode log and send to commit channel to process
-	res = make(chan *commitResult, 1)
-
-	if prepareLog == nil {
 		res <- &commitResult{
-			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
+			err: errors.Wrap(kt.ErrInvalidLog, "invalid last commit log index"),
 		}
 		return
 	}
@@ -572,17 +623,19 @@ func (r *Runtime) doCommit(req *commitReq) {
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
-	resp := &commitResult{}
+	resp := &commitResult{
+		start: time.Now(),
+	}
 
 	if r.role == proto.Leader {
-		resp.rpc, resp.result, resp.err = r.leaderDoCommit(req)
+		resp.dbCost, resp.rpc, resp.result, resp.err = r.leaderDoCommit(req)
 		req.result <- resp
 	} else {
 		r.followerDoCommit(req)
 	}
 }
 
-func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result interface{}, err error) {
+func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker *rpcTracker, result interface{}, err error) {
 	if req.log != nil {
 		// mis-use follower commit for leader
 		log.Fatal("INVALID EXISTING LOG FOR LEADER COMMIT")
@@ -602,7 +655,9 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (tracker *rpcTracker, result in
 	}
 
 	// not wrapping underlying handler commit error
+	tmStartDB := time.Now()
 	result, err = r.sh.Commit(req.data)
+	dbCost = time.Now().Sub(tmStartDB)
 
 	if err == nil {
 		// mark last commit

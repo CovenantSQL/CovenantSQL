@@ -17,13 +17,13 @@
 package sqlchain
 
 import (
-	"github.com/pkg/errors"
 	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 const (

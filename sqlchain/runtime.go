@@ -18,13 +18,13 @@ package sqlchain
 
 import (
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"sync"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 

@@ -916,7 +916,7 @@ func (c *Chain) syncAckedQuery(height int32, header *hash.Hash, id proto.NodeID)
 		},
 		DatabaseID: c.rt.databaseID,
 		FetchAckedQueryReq: FetchAckedQueryReq{
-			Height:                height,
+			Height:          height,
 			SignedAckedHash: header,
 		},
 	}

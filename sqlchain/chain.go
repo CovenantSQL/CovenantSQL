@@ -175,7 +175,6 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
 func LoadChain(c *Config) (chain *Chain, err error) {
-
 	// Open LevelDB for block and state
 	bdbFile := c.DataFile + "-block-state.ldb"
 	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
@@ -228,55 +227,55 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	}).Debug("Loading state from database")
 
 	// Read blocks and rebuild memory index
-	var last *blockNode
-	var index int32
-	// TODO(lambda): select a better init length
-	nodes := make([]blockNode, 100)
-	blockIter := chain.bdb.NewIterator(util.BytesPrefix(metaBlockIndex[:]), nil)
+	var (
+		index     int32
+		last      *blockNode
+		blockIter = chain.bdb.NewIterator(util.BytesPrefix(metaBlockIndex[:]), nil)
+	)
 	defer blockIter.Release()
-	for blockIter.Next() {
-		k := blockIter.Key()
-		v := blockIter.Value()
+	for index = 0; blockIter.Next(); index++ {
+		var (
+			k     = blockIter.Key()
+			v     = blockIter.Value()
+			block = &ct.Block{}
 
-		block := &ct.Block{}
+			current, parent *blockNode
+		)
 
 		if err = utils.DecodeMsgPack(v, block); err != nil {
-			err = errors.Wrapf(err, "block height %d, key index %s", keyWithSymbolToHeight(k), string(k))
+			err = errors.Wrapf(err, "decoding failed at height %d with key %s",
+				keyWithSymbolToHeight(k), string(k))
 			return
 		}
-
 		log.WithFields(log.Fields{
 			"peer":  chain.rt.getPeerInfoString(),
 			"block": block.BlockHash().String(),
 		}).Debug("Loading block from database")
-		parent := (*blockNode)(nil)
 
 		if last == nil {
 			if err = block.VerifyAsGenesis(); err != nil {
+				err = errors.Wrap(err, "genesis verification failed")
 				return
 			}
-
 			// Set constant fields from genesis block
 			chain.rt.setGenesis(block)
 		} else if block.ParentHash().IsEqual(&last.hash) {
 			if err = block.Verify(); err != nil {
+				err = errors.Wrapf(err, "block verification failed at height %d with key %s",
+					keyWithSymbolToHeight(k), string(k))
 				return
 			}
-
 			parent = last
 		} else {
-			parent = chain.bi.lookupNode(block.ParentHash())
-
-			if parent == nil {
+			if parent = chain.bi.lookupNode(block.ParentHash()); parent == nil {
 				return nil, ErrParentNotFound
 			}
 		}
 
-		height := chain.rt.getHeightFromTime(block.Timestamp())
-		nodes[index].initBlockNode(height, block, parent)
-		chain.bi.addBlock(&nodes[index])
-		last = &nodes[index]
-		index++
+		current = &blockNode{}
+		current.initBlockNode(chain.rt.getHeightFromTime(block.Timestamp()), block, parent)
+		chain.bi.addBlock(current)
+		last = current
 	}
 	if err = blockIter.Error(); err != nil {
 		err = errors.Wrap(err, "load block")

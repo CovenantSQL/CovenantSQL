@@ -1,3 +1,4 @@
+cql-fuse
 *.trace
 pprof.txt
 .dsn

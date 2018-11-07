@@ -458,16 +458,19 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 
 	b.Run("benchmark SELECT", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			index := i%insertedCount + int(start) + 1
-			row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", index)
-			var result int
-			err = row.Scan(&result)
-			if err != nil || result < 0 {
-				log.Errorf("i = %d", i)
-				b.Fatal(err)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				i := atomic.AddInt32(&i, 1)
+				index := int(i)%insertedCount + int(start) + 1
+				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", index)
+				var result int
+				err = row.Scan(&result)
+				if err != nil || result < 0 {
+					log.Errorf("i = %d", i)
+					b.Fatal(err)
+				}
 			}
-		}
+		})
 	})
 
 	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
@@ -484,18 +487,18 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
 	asymmetric.BypassSignature = bypassSign
-	if minerCount > 0 {
-		startNodesProfile(bypassSign)
-		utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
-			2144,
-			2145,
-			2146,
-			3122,
-			3121,
-			3120,
-		}, 2*time.Second)
-		time.Sleep(time.Second)
-	}
+	//if minerCount > 0 {
+	//	startNodesProfile(bypassSign)
+	//	utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
+	//		2144,
+	//		2145,
+	//		2146,
+	//		3122,
+	//		3121,
+	//		3120,
+	//	}, 2*time.Second)
+	//	time.Sleep(time.Second)
+	//}
 
 	// Create temp directory
 	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
@@ -503,9 +506,9 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		panic(err)
 	}
 	defer os.RemoveAll(testDataDir)
-	clientConf := FJ(testWorkingDir, "./integration/node_c/config.yaml")
+	clientConf := FJ(testWorkingDir, "./service/node_c/config.yaml")
 	tempConf := FJ(testDataDir, "config.yaml")
-	clientKey := FJ(testWorkingDir, "./integration/node_c/private.key")
+	clientKey := FJ(testWorkingDir, "./service/node_c/private.key")
 	tempKey := FJ(testDataDir, "private.key")
 	utils.CopyFile(clientConf, tempConf)
 	utils.CopyFile(clientKey, tempKey)
@@ -533,7 +536,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	db, err := sql.Open("covenantsql", dsn)
 	So(err, ShouldBeNil)
 
-	benchDB(b, db, minerCount > 0)
+	benchDB(b, db, true)
 
 	err = client.Drop(dsn)
 	So(err, ShouldBeNil)

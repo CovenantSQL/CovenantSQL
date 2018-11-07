@@ -39,7 +39,7 @@ var (
 	testPeersNumber                 = 1
 	testPeriod                      = 1 * time.Second
 	testTick                        = 100 * time.Millisecond
-	testPeriodNumber         uint32 = 10
+	testPeriodNumber         uint32 = 100
 	testClientNumberPerChain        = 10
 )
 
@@ -172,7 +172,9 @@ func TestChain(t *testing.T) {
 		}
 
 		// load chain from db
-		chain.db.Close()
+		err = chain.Stop()
+		ShouldBeNil(err)
+		time.Sleep(time.Minute)
 		_, err = LoadChain(cfg)
 		So(err, ShouldBeNil)
 	})

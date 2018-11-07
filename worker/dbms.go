@@ -23,8 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -34,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 const (

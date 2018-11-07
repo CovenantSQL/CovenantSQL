@@ -19,8 +19,9 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func main() {

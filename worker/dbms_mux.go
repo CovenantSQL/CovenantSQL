@@ -27,14 +27,17 @@ import (
 )
 
 const (
+	// DBKayakMethodName defines the database kayak rpc method name.
 	DBKayakMethodName = "Call"
 )
 
+// DBKayakMuxService defines a mux service for sqlchain kayak.
 type DBKayakMuxService struct {
 	serviceName string
 	serviceMap  sync.Map
 }
 
+// NewDBKayakMuxService returns a new kayak mux service.
 func NewDBKayakMuxService(serviceName string, server *rpc.Server) (s *DBKayakMuxService, err error) {
 	s = &DBKayakMuxService{
 		serviceName: serviceName,
@@ -52,6 +55,7 @@ func (s *DBKayakMuxService) unregister(id proto.DatabaseID) {
 	s.serviceMap.Delete(id)
 }
 
+// Call handles kayak call.
 func (s *DBKayakMuxService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
 	// call apply to specified kayak
 	// treat req.Instance as DatabaseID

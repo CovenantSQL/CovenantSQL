@@ -22,11 +22,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
+// KayakService defines the leader service kayak.
 type KayakService struct {
 	serviceName string
 	rt          *kayak.Runtime
 }
 
+// NewKayakService returns new kayak service instance for block producer consensus.
 func NewKayakService(server *rpc.Server, serviceName string, rt *kayak.Runtime) (s *KayakService, err error) {
 	s = &KayakService{
 		serviceName: serviceName,
@@ -36,6 +38,7 @@ func NewKayakService(server *rpc.Server, serviceName string, rt *kayak.Runtime) 
 	return
 }
 
+// Call handles kayak call.
 func (s *KayakService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
 	return s.rt.FollowerApply(req.Log)
 }

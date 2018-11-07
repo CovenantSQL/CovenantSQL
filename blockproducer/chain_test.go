@@ -238,9 +238,8 @@ func TestMultiNode(t *testing.T) {
 				Role: func(peers *proto.Peers, i int) proto.ServerRole {
 					if peers.Leader.IsEqual(&peers.Servers[i]) {
 						return proto.Leader
-					} else {
-						return proto.Follower
 					}
+					return proto.Follower
 				}(peers, i),
 				Addr:      server.Listener.Addr().String(),
 				PublicKey: pub,

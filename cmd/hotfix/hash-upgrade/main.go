@@ -48,16 +48,16 @@ func init() {
 	flag.StringVar(&privateKey, "private", "private.key", "private key to use for signing")
 }
 
-// Block_ type mocks current sqlchain block type for custom serialization.
-type Block_ ct.Block
+// OldBlock type mocks current sqlchain block type for custom serialization.
+type OldBlock ct.Block
 
-// MarshalBinary implements custom binary marshaller for Block_.
-func (b *Block_) MarshalBinary() ([]byte, error) {
+// MarshalBinary implements custom binary marshaller for OldBlock.
+func (b *OldBlock) MarshalBinary() ([]byte, error) {
 	return nil, nil
 }
 
-// UnmarshalBinary implements custom binary unmarshaller for Block_.
-func (b *Block_) UnmarshalBinary(data []byte) (err error) {
+// UnmarshalBinary implements custom binary unmarshaller for OldBlock.
+func (b *OldBlock) UnmarshalBinary(data []byte) (err error) {
 	reader := bytes.NewReader(data)
 	var headerBuf []byte
 
@@ -82,39 +82,39 @@ func (b *Block_) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-// Server_ ports back the original kayak server structure.
-type Server_ struct {
+// OldServer ports back the original kayak server structure.
+type OldServer struct {
 	Role   proto.ServerRole
 	ID     proto.NodeID
 	PubKey *asymmetric.PublicKey
 }
 
-// Peers_ ports back the original kayak peers structure.
-type Peers_ struct {
+// OldPeers ports back the original kayak peers structure.
+type OldPeers struct {
 	Term      uint64
-	Leader    *Server_
-	Servers   []*Server_
+	Leader    *OldServer
+	Servers   []*OldServer
 	PubKey    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
 }
 
-// ServiceInstancePlainOld defines the plain old service instance type before marshaller updates.
-type ServiceInstancePlainOld struct {
+// PlainOldServiceInstance defines the plain old service instance type before marshaller updates.
+type PlainOldServiceInstance struct {
 	DatabaseID   proto.DatabaseID
-	Peers        *Peers_
+	Peers        *OldPeers
 	ResourceMeta wt.ResourceMeta
-	GenesisBlock *Block_
+	GenesisBlock *OldBlock
 }
 
-// ServiceInstanceOld defines the old service instance type before marshaller updates.
-type ServiceInstanceOld struct {
+// OldServiceInstance defines the old service instance type before marshaller updates.
+type OldServiceInstance struct {
 	DatabaseID   proto.DatabaseID
-	Peers        *Peers_
+	Peers        *OldPeers
 	ResourceMeta wt.ResourceMeta
 	GenesisBlock *ct.Block
 }
 
-func convertPeers(oldPeers *Peers_) (newPeers *proto.Peers) {
+func convertPeers(oldPeers *OldPeers) (newPeers *proto.Peers) {
 	if oldPeers == nil {
 		return
 	}
@@ -182,7 +182,7 @@ func main() {
 			// detect if the genesis block is in old version
 			if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"GenesisBlock\":[]uint8") {
 				log.Info("detected plain old version (without msgpack tag and use custom serializer)")
-				var instance ServiceInstancePlainOld
+				var instance PlainOldServiceInstance
 
 				if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {
 					log.WithError(err).Fatal("decode msgpack failed")
@@ -198,7 +198,7 @@ func main() {
 				}
 			} else if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"PubKey\"") {
 				log.Info("detected old version (old kayak implementation [called as kaar])")
-				var instance ServiceInstanceOld
+				var instance OldServiceInstance
 
 				if err := utils.DecodeMsgPack(rawInstance, &instance); err != nil {
 					log.WithError(err).Fatal("decode msgpack failed")

@@ -104,6 +104,11 @@ type Chain struct {
 	responses chan *wt.ResponseHeader
 	acks      chan *wt.AckHeader
 
+	// DBAccount info
+	tokenType    pt.TokenType
+	gasPrice     uint64
+	updatePeriod uint64
+
 	// observerLock defines the lock of observer update operations.
 	observerLock sync.Mutex
 	// observers defines the observer nodes of current chain.
@@ -148,17 +153,20 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		bdb:       bdb,
-		tdb:       tdb,
-		bi:        newBlockIndex(c),
-		qi:        newQueryIndex(),
-		cl:        rpc.NewCaller(),
-		rt:        newRunTime(c),
-		stopCh:    make(chan struct{}),
-		blocks:    make(chan *ct.Block),
-		heights:   make(chan int32, 1),
-		responses: make(chan *wt.ResponseHeader),
-		acks:      make(chan *wt.AckHeader),
+		bdb:          bdb,
+		tdb:          tdb,
+		bi:           newBlockIndex(c),
+		qi:           newQueryIndex(),
+		cl:           rpc.NewCaller(),
+		rt:           newRunTime(c),
+		stopCh:       make(chan struct{}),
+		blocks:       make(chan *ct.Block),
+		heights:      make(chan int32, 1),
+		responses:    make(chan *wt.ResponseHeader),
+		acks:         make(chan *wt.AckHeader),
+		tokenType:    c.TokenType,
+		gasPrice:     c.GasPrice,
+		updatePeriod: c.UpdatePeriod,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -193,17 +201,20 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		bdb:       bdb,
-		tdb:       tdb,
-		bi:        newBlockIndex(c),
-		qi:        newQueryIndex(),
-		cl:        rpc.NewCaller(),
-		rt:        newRunTime(c),
-		stopCh:    make(chan struct{}),
-		blocks:    make(chan *ct.Block),
-		heights:   make(chan int32, 1),
-		responses: make(chan *wt.ResponseHeader),
-		acks:      make(chan *wt.AckHeader),
+		bdb:          bdb,
+		tdb:          tdb,
+		bi:           newBlockIndex(c),
+		qi:           newQueryIndex(),
+		cl:           rpc.NewCaller(),
+		rt:           newRunTime(c),
+		stopCh:       make(chan struct{}),
+		blocks:       make(chan *ct.Block),
+		heights:      make(chan int32, 1),
+		responses:    make(chan *wt.ResponseHeader),
+		acks:         make(chan *wt.AckHeader),
+		tokenType:    c.TokenType,
+		gasPrice:     c.GasPrice,
+		updatePeriod: c.UpdatePeriod,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),

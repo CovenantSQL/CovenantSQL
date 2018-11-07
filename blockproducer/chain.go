@@ -193,6 +193,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		}
 		chain.rt.setHead(state)
 
+		log.Debugf("load chain state head %s", chain.rt.getHead().getHeader())
+
 		var last *blockNode
 		var index int32
 		blocks := meta.Bucket(metaBlockIndexBucket)
@@ -205,10 +207,12 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 				return err
 			}
 
+			log.Debugf("load chain block %s, parent block %s", block.BlockHash(), block.ParentHash())
+
 			parent := (*blockNode)(nil)
 
 			if last == nil {
-				// TODO(lambda): check genesis block
+				// check genesis block
 			} else if block.ParentHash().IsEqual(&last.hash) {
 				if err = block.SignedHeader.Verify(); err != nil {
 					return err
@@ -232,6 +236,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			return err
 		}
 
+		log.Debugf("load chain state head %s", chain.rt.getHead().getHeader())
 		// Reload state
 		if err = chain.ms.reloadProcedure()(tx); err != nil {
 			return
@@ -242,6 +247,8 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debugf("state height starts from %d", chain.rt.head.Height)
 
 	return chain, nil
 }
@@ -277,7 +284,8 @@ func (c *Chain) checkBlock(b *pt.Block) (err error) {
 
 func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
-	node := newBlockNode(h, b, c.rt.getHead().getNode())
+	log.Debugf("current block %s, height %d, its parent %s", b.BlockHash(), h, b.ParentHash())
+	node := newBlockNode(c.rt.chainInitTime, c.rt.period, b, c.rt.getHead().getNode())
 	state := &State{
 		Node:   node,
 		Head:   node.hash,
@@ -289,34 +297,34 @@ func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
 		return err
 	}
 
-	encState, err := utils.EncodeMsgPack(c.rt.getHead())
+	encState, err := utils.EncodeMsgPack(state)
 	if err != nil {
 		return err
 	}
 
 	err = c.db.Update(func(tx *bolt.Tx) (err error) {
-		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState.Bytes())
-		if err != nil {
-			return err
-		}
 		err = tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Put(node.indexKey(), encBlock.Bytes())
 		if err != nil {
-			return err
+			return
 		}
 		for _, v := range b.Transactions {
 			if err = c.ms.applyTransactionProcedure(v)(tx); err != nil {
-				return err
+				return
 			}
 		}
 		err = c.ms.partialCommitProcedure(b.Transactions)(tx)
+		if err != nil {
+			return
+		}
+		err = tx.Bucket(metaBucket[:]).Put(metaStateKey, encState.Bytes())
+		if err != nil {
+			return
+		}
+		c.rt.setHead(state)
+		c.bi.addBlock(node)
 		return
 	})
-	if err != nil {
-		return err
-	}
-	c.rt.setHead(state)
-	c.bi.addBlock(node)
-	return nil
+	return err
 }
 
 func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
@@ -705,12 +713,13 @@ func (c *Chain) mainCycle() {
 
 func (c *Chain) syncHead() {
 	// Try to fetch if the the block of the current turn is not advised yet
-	//log.WithFields(log.Fields{
-	//	"index":     c.rt.index,
-	//	"next_turn": c.rt.getNextTurn(),
-	//	"height":    c.rt.getHead().getHeight(),
-	//}).Debug("sync header")
+	log.WithFields(log.Fields{
+		"index":     c.rt.index,
+		"next_turn": c.rt.getNextTurn(),
+		"height":    c.rt.getHead().getHeight(),
+	}).Debug("sync header")
 	if h := c.rt.getNextTurn() - 1; c.rt.getHead().getHeight() < h {
+		log.Debugf("sync header with height %d", h)
 		var err error
 		req := &FetchBlockReq{
 			Envelope: proto.Envelope{

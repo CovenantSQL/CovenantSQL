@@ -185,7 +185,6 @@ func TestMultiChain(t *testing.T) {
 			chain:  chain,
 		}
 
-
 	}
 
 	// Create a master BP for RPC test

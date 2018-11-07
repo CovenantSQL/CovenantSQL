@@ -19,13 +19,13 @@ package sqlchain
 // TODO(leventeliu): use pooled objects to speed up this index.
 
 import (
-	"github.com/pkg/errors"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 var (

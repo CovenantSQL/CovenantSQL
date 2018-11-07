@@ -20,16 +20,19 @@ import (
 	"encoding/binary"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 func TestNewBlockNodeAndIndexKey(t *testing.T) {
+	chainInitTime := time.Now().UTC()
+	period := time.Second
 	block, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	parent := newBlockNode(0, block, nil)
+	parent := newBlockNode(chainInitTime, period, block, nil)
 	if parent == nil {
 		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
@@ -38,11 +41,13 @@ func TestNewBlockNodeAndIndexKey(t *testing.T) {
 		t.Fatalf("unexpected height: %d", parent.height)
 	}
 
+	time.Sleep(time.Second)
+
 	block2, err := generateRandomBlock(block.SignedHeader.BlockHash, false)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	child := newBlockNode(1, block2, parent)
+	child := newBlockNode(chainInitTime, period, block2, parent)
 	if child == nil {
 		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {
@@ -63,11 +68,13 @@ func TestNewBlockNodeAndIndexKey(t *testing.T) {
 }
 
 func TestAncestor(t *testing.T) {
+	chainInitTime := time.Now()
+	period := time.Second
 	block, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	parent := newBlockNode(0, block, nil)
+	parent := newBlockNode(chainInitTime, period, block, nil)
 	if parent == nil {
 		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
@@ -76,11 +83,14 @@ func TestAncestor(t *testing.T) {
 		t.Fatalf("unexpected height: %d", parent.height)
 	}
 
+	time.Sleep(time.Second)
+
 	block2, err := generateRandomBlock(block.SignedHeader.BlockHash, false)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	child := newBlockNode(1, block2, parent)
+
+	child := newBlockNode(chainInitTime, period, block2, parent)
 	if child == nil {
 		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {
@@ -104,6 +114,9 @@ func TestAncestor(t *testing.T) {
 }
 
 func TestIndexBlock(t *testing.T) {
+	chainInitTime := time.Now()
+	period := time.Second
+
 	bi := newBlockIndex()
 
 	if bi == nil {
@@ -114,19 +127,23 @@ func TestIndexBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	bn0 := newBlockNode(0, block0, nil)
+	bn0 := newBlockNode(chainInitTime, period, block0, nil)
+
+	time.Sleep(time.Second)
 
 	block1, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	bn1 := newBlockNode(1, block1, bn0)
+	bn1 := newBlockNode(chainInitTime, period, block1, bn0)
+
+	time.Sleep(time.Second)
 
 	block2, err := generateRandomBlock(hash.Hash{}, true)
 	if err != nil {
 		t.Fatalf("Unexcepted error: %v", err)
 	}
-	bn2 := newBlockNode(2, block2, bn1)
+	bn2 := newBlockNode(chainInitTime, period, block2, bn1)
 
 	bi.addBlock(bn0)
 	bi.addBlock(bn1)

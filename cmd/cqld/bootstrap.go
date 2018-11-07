@@ -191,8 +191,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 }
 
 func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (server *rpc.Server, err error) {
-	os.Remove(pubKeyStorePath)
-
 	server = rpc.NewServer()
 
 	if err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey); err != nil {

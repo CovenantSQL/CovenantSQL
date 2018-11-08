@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 	"sync"
 	"time"
@@ -56,7 +57,6 @@ type Chain struct {
 	rt *rt
 	cl *rpc.Caller
 
-	blocksFromSelf chan *pt.Block
 	blocksFromRPC  chan *pt.Block
 	pendingTxs     chan pi.Transaction
 	stopCh         chan struct{}
@@ -126,7 +126,6 @@ func NewChain(cfg *Config) (*Chain, error) {
 		bi:             newBlockIndex(),
 		rt:             newRuntime(cfg, accountAddress),
 		cl:             rpc.NewCaller(),
-		blocksFromSelf: make(chan *pt.Block),
 		blocksFromRPC:  make(chan *pt.Block),
 		pendingTxs:     make(chan pi.Transaction),
 		stopCh:         make(chan struct{}),
@@ -173,7 +172,6 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		bi:             newBlockIndex(),
 		rt:             newRuntime(cfg, accountAddress),
 		cl:             rpc.NewCaller(),
-		blocksFromSelf: make(chan *pt.Block),
 		blocksFromRPC:  make(chan *pt.Block),
 		pendingTxs:     make(chan pi.Transaction),
 		stopCh:         make(chan struct{}),
@@ -332,6 +330,7 @@ func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
 func (c *Chain) pushBlock(b *pt.Block) error {
 	err := c.checkBlock(b)
 	if err != nil {
+		err = errors.Wrap(err, "check block failed")
 		return err
 	}
 
@@ -608,14 +607,6 @@ func (c *Chain) processBlocks() {
 	var stash []*pt.Block
 	for {
 		select {
-		case block := <-c.blocksFromSelf:
-			h := c.rt.getHeightFromTime(block.Timestamp())
-			if h == c.rt.getNextTurn()-1 {
-				err := c.pushBlockWithoutCheck(block)
-				if err != nil {
-					log.Error(err)
-				}
-			}
 		case block := <-c.blocksFromRPC:
 			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
@@ -630,7 +621,11 @@ func (c *Chain) processBlocks() {
 				} else {
 					err := c.pushBlock(block)
 					if err != nil {
-						log.Error(err)
+						log.WithFields(log.Fields{
+							"block_hash": block.BlockHash(),
+							"block_parent_hash": block.ParentHash(),
+							"block_timestamp": block.Timestamp(),
+						}).Debug(err)
 					}
 				}
 

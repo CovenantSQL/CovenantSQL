@@ -660,10 +660,8 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker 
 	result, err = r.sh.Commit(req.data)
 	dbCost = time.Now().Sub(tmStartDB)
 
-	if err == nil {
-		// mark last commit
-		atomic.StoreUint64(&r.lastCommit, l.Index)
-	}
+	// mark last commit
+	atomic.StoreUint64(&r.lastCommit, l.Index)
 
 	// send commit
 	tracker = r.rpc(l, r.minCommitFollowers)
@@ -700,9 +698,8 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	// do commit, not wrapping underlying handler commit error
 	_, err = r.sh.Commit(req.data)
 
-	if err == nil {
-		atomic.StoreUint64(&r.lastCommit, req.log.Index)
-	}
+	// mark last commit
+	atomic.StoreUint64(&r.lastCommit, req.log.Index)
 
 	req.result <- &commitResult{err: err}
 

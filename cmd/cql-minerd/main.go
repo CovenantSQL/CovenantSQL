@@ -117,7 +117,7 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 	flag.Parse()
 
 	if showVersion {

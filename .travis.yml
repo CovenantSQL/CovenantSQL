@@ -30,7 +30,7 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - bash build.sh
-  - go test -v -race -failfast -parallel 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+  - go test -v -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
   - cd rpc && go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$ && cd -
   - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)

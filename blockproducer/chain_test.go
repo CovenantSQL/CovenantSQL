@@ -99,7 +99,7 @@ func TestChain(t *testing.T) {
 		for {
 			time.Sleep(testPeriod)
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-				chain.rt.getHead().getHeader(), chain.rt.getHead().getHeight(), chain.rt.nextTurn,
+				chain.rt.getHead().Head, chain.rt.getHead().Height, chain.rt.nextTurn,
 				chain.rt.chainInitTime.Add(
 					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
 				chain.rt.isMyTurn())
@@ -119,7 +119,7 @@ func TestChain(t *testing.T) {
 			}
 
 			// generate block
-			block, err := generateRandomBlockWithTransactions(*chain.rt.getHead().getHeader(), tbs)
+			block, err := generateRandomBlockWithTransactions(chain.rt.getHead().Head, tbs)
 			So(err, ShouldBeNil)
 			err = chain.pushBlock(block)
 			So(err, ShouldBeNil)
@@ -132,7 +132,7 @@ func TestChain(t *testing.T) {
 			So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
 			// So(chain.rt.getHead().Height, ShouldEqual, height)
 
-			height := chain.rt.getHead().getHeight()
+			height := chain.rt.getHead().Height
 			specificHeightBlock1, _, err := chain.fetchBlockByHeight(height)
 			So(err, ShouldBeNil)
 			So(block.SignedHeader.BlockHash, ShouldResemble, specificHeightBlock1.SignedHeader.BlockHash)
@@ -161,17 +161,18 @@ func TestChain(t *testing.T) {
 			height++
 
 			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.rt.getHead().getHeight(),
+				chain.rt.getHead().Height,
 				block.ParentHash(),
 				block.BlockHash())
 
-			if chain.rt.getHead().getHeight() >= testPeriodNumber {
+			if chain.rt.getHead().Height >= testPeriodNumber {
 				break
 			}
 		}
 
 		// load chain from db
-		chain.db.Close()
+		err = chain.Stop()
+		So(err, ShouldBeNil)
 		_, err = LoadChain(cfg)
 		So(err, ShouldBeNil)
 	})

@@ -14,15 +14,28 @@
  * limitations under the License.
  */
 
-package blockproducer
+package types
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-// State store the node info of chain.
-type State struct {
-	Node   *blockNode
-	Head   hash.Hash
-	Height uint32
+func TestTokenType(t *testing.T) {
+	Convey("test token util function", t, func() {
+		eos := "EOS"
+		unknown := "Unknown"
+		token := FromString(eos)
+		So(eos, ShouldEqual, token.String())
+		So(token.Listed(), ShouldBeTrue)
+
+		token = FromString("shitcoin")
+		So(token.String(), ShouldEqual, unknown)
+		So(token.Listed(), ShouldBeFalse)
+
+		token = TokenType(SupportTokenNumber)
+		So(token.String(), ShouldEqual, unknown)
+		So(token.Listed(), ShouldBeFalse)
+	})
 }

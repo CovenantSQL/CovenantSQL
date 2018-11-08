@@ -58,23 +58,6 @@ func Build() (err error) {
 	return
 }
 
-// CleanupDB runs cleanupDB.sh
-func CleanupDB() (err error) {
-	wd := GetProjectSrcDir()
-	err = os.Chdir(wd)
-	if err != nil {
-		log.WithError(err).Error("change working dir failed")
-		return
-	}
-	cmd := exec.Command("./cleanupDB.sh")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.WithError(err).Error("cleanupDB failed")
-	}
-	log.Debugf("cleanupDB output info: %#v", string(output))
-	return
-}
-
 // RunCommand runs a command and capture its output to a log file,
 //  if toStd is true also output to stdout and stderr
 func RunCommand(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (err error) {

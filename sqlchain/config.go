@@ -19,6 +19,7 @@ package sqlchain
 import (
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
@@ -44,4 +45,9 @@ type Config struct {
 
 	// QueryTTL sets the unacknowledged query TTL in block periods.
 	QueryTTL int32
+
+	// DBAccount info
+	TokenType    types.TokenType
+	GasPrice     uint64
+	UpdatePeriod uint64
 }

@@ -79,19 +79,19 @@ func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
 	sendResponse(200, true, "", map[string]interface{}{
 		"ack": map[string]interface{}{
 			"request": map[string]interface{}{
-				"hash":      ack.Response.Request.HeaderHash.String(),
+				"hash":      ack.Response.Request.Hash.String(),
 				"timestamp": a.formatTime(ack.Response.Request.Timestamp),
 				"node":      ack.Response.Request.NodeID,
 				"type":      ack.Response.Request.QueryType.String(),
 				"count":     ack.Response.Request.BatchCount,
 			},
 			"response": map[string]interface{}{
-				"hash":         ack.Response.HeaderHash.String(),
+				"hash":         ack.Response.Hash.String(),
 				"timestamp":    a.formatTime(ack.Response.Timestamp),
 				"node":         ack.Response.NodeID,
 				"log_position": ack.Response.LogOffset,
 			},
-			"hash":      ack.HeaderHash.String(),
+			"hash":      ack.Hash.String(),
 			"timestamp": a.formatTime(ack.AckHeader.Timestamp),
 			"node":      ack.AckHeader.NodeID,
 		},
@@ -365,7 +365,7 @@ func (a *explorerAPI) formatRequest(req *wt.Request) map[string]interface{} {
 
 	return map[string]interface{}{
 		"request": map[string]interface{}{
-			"hash":      req.Header.HeaderHash.String(),
+			"hash":      req.Header.Hash.String(),
 			"timestamp": a.formatTime(req.Header.Timestamp),
 			"node":      req.Header.NodeID,
 			"type":      req.Header.QueryType.String(),

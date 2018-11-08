@@ -102,9 +102,9 @@ func (hook *CallerHook) Levels() []logrus.Level {
 		logrus.PanicLevel,
 		logrus.FatalLevel,
 		logrus.ErrorLevel,
-		logrus.WarnLevel,
-		logrus.InfoLevel,
-		logrus.DebugLevel,
+		//logrus.WarnLevel,
+		//logrus.InfoLevel,
+		//logrus.DebugLevel,
 	}
 }
 
@@ -224,6 +224,7 @@ func WithFields(fields Fields) *Entry {
 	return (*Entry)(logrus.WithFields(logrus.Fields(fields)))
 }
 
+// WithTime add time fields to log entry.
 func WithTime(t time.Time) *Entry {
 	return (*Entry)(logrus.WithTime(t))
 }

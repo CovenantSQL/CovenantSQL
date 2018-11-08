@@ -36,7 +36,7 @@ func TestNewLevelDBKey(t *testing.T) {
 		So(ConcatAll([]byte{'0', '1', '2', '3'}, nil, []byte{'x', 'y', 'z'}),
 			ShouldResemble, []byte{'0', '1', '2', '3', 'x', 'y', 'z'})
 		So(ConcatAll([]byte{'0', '1', '2', '3'}, []byte{}, []byte{'x', 'y', 'z'}),
-			ShouldResemble, []byte{'0', '1', '2', '3','x', 'y', 'z'})
+			ShouldResemble, []byte{'0', '1', '2', '3', 'x', 'y', 'z'})
 		So(ConcatAll(nil, []byte{'0', '1', '2', '3'}, nil, []byte{'x', 'y', 'z'}),
 			ShouldResemble, []byte{'0', '1', '2', '3', 'x', 'y', 'z'})
 		So(ConcatAll([]byte{}, []byte{'0', '1', '2', '3'}, nil, []byte{'x', 'y', 'z'}, nil),

@@ -101,7 +101,7 @@ func TestServiceMap(t *testing.T) {
 		So(err, ShouldBeNil)
 		instance.Peers.Servers = append(instance.Peers.Servers, instance.Peers.Servers[0])
 		// something new
-		instance.Peers.Servers[1].ID = proto.NodeID("00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35")
+		instance.Peers.Servers[1] = proto.NodeID("00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35")
 		err = instance.Peers.Sign(privKey)
 		So(err, ShouldBeNil)
 		err = svcMap.Set(instance)

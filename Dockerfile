@@ -4,6 +4,7 @@ FROM golang:1.11-stretch as builder
 WORKDIR /go/src/github.com/CovenantSQL/CovenantSQL
 COPY . .
 RUN CGO_ENABLED=1 GOOS=linux GOLDFLAGS="-linkmode external -extldflags -static" ./build.sh
+RUN rm -f bin/*.test
 
 # Stage: runner
 FROM alpine:3.7

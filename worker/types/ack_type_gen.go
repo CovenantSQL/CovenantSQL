@@ -116,7 +116,7 @@ func (z *SignedAckHeader) MarshalHash() (o []byte, err error) {
 	o = append(o, 0x83)
 	o = hsp.AppendTime(o, z.AckHeader.Timestamp)
 	o = append(o, 0x84)
-	if oTemp, err := z.HeaderHash.MarshalHash(); err != nil {
+	if oTemp, err := z.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -138,6 +138,6 @@ func (z *SignedAckHeader) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 10 + 1 + 9 + z.AckHeader.Response.Msgsize() + 7 + z.AckHeader.NodeID.Msgsize() + 10 + hsp.TimeSize + 11 + z.HeaderHash.Msgsize()
+	s += 10 + 1 + 9 + z.AckHeader.Response.Msgsize() + 7 + z.AckHeader.NodeID.Msgsize() + 10 + hsp.TimeSize + 5 + z.Hash.Msgsize()
 	return
 }

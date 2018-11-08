@@ -25,19 +25,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -53,7 +51,7 @@ var (
 
 	driverInitialized   uint32
 	peersUpdaterRunning uint32
-	peerList            sync.Map // map[proto.DatabaseID]*kayak.Peers
+	peerList            sync.Map // map[proto.DatabaseID]*proto.Peers
 	connIDLock          sync.Mutex
 	connIDAvail         []uint64
 	globalSeqNo         uint64
@@ -321,7 +319,7 @@ func stopPeersUpdater() {
 	atomic.StoreUint32(&peersUpdaterRunning, 0)
 }
 
-func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *kayak.Peers, err error) {
+func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *proto.Peers, err error) {
 	var ok bool
 	var rawPeers interface{}
 	var cacheHit bool
@@ -334,7 +332,7 @@ func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers
 	}()
 
 	if rawPeers, ok = peerList.Load(dbID); ok {
-		if peers, ok = rawPeers.(*kayak.Peers); ok {
+		if peers, ok = rawPeers.(*proto.Peers); ok {
 			cacheHit = true
 			return
 		}
@@ -344,7 +342,7 @@ func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers
 	return getPeers(dbID, privKey)
 }
 
-func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *kayak.Peers, err error) {
+func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *proto.Peers, err error) {
 	req := new(bp.GetDatabaseRequest)
 	req.Header.DatabaseID = dbID
 

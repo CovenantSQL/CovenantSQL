@@ -27,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -65,14 +64,8 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 	// add test fixture database
 	if conf.GConf.Miner.IsTestMode {
 		// in test mode
-
-		var pubKey *asymmetric.PublicKey
 		var privKey *asymmetric.PrivateKey
 
-		if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-			err = errors.Wrap(err, "get local public key failed")
-			return
-		}
 		if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 			err = errors.Wrap(err, "get local private key failed")
 			return
@@ -81,28 +74,12 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 		// add database to miner
 		for _, testFixture := range conf.GConf.Miner.TestFixtures {
 			// build test db instance configuration
-			dbPeers := &kayak.Peers{
-				Term: testFixture.Term,
-				Leader: &kayak.Server{
-					Role: proto.Leader,
-					ID:   testFixture.Leader,
+			dbPeers := &proto.Peers{
+				PeersHeader: proto.PeersHeader{
+					Term:    testFixture.Term,
+					Leader:  testFixture.Leader,
+					Servers: testFixture.Servers,
 				},
-				Servers: (func(servers []proto.NodeID) (ks []*kayak.Server) {
-					ks = make([]*kayak.Server, len(servers))
-
-					for i, s := range servers {
-						ks[i] = &kayak.Server{
-							Role: proto.Follower,
-							ID:   s,
-						}
-						if s == testFixture.Leader {
-							ks[i].Role = proto.Leader
-						}
-					}
-
-					return
-				})(testFixture.Servers),
-				PubKey: pubKey,
 			}
 
 			if err = dbPeers.Sign(privKey); err != nil {

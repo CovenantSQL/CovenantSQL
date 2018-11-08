@@ -53,17 +53,14 @@ func TestTracker(t *testing.T) {
 		r.SetCaller(nodeID2, &fakeTrackerCaller{c: c})
 		t1 := newTracker(r, 1, 0)
 		t1.send()
-		r1, meets, finished := t1.get(context.Background())
-		So(r1, ShouldBeEmpty)
+		_, meets, _ := t1.get(context.Background())
 		So(meets, ShouldBeTrue)
-		So(finished, ShouldBeFalse)
 
 		t2 := newTracker(r, 1, 1)
 		t2.send()
-		r2, meets, finished := t2.get(context.Background())
-		So(r2, ShouldHaveLength, 1)
+		r2, meets, _ := t2.get(context.Background())
+		So(r2, ShouldNotBeEmpty)
 		So(meets, ShouldBeTrue)
-		So(finished, ShouldBeFalse)
 
 		t3 := newTracker(r, 1, 1)
 		t3.send()
@@ -75,9 +72,8 @@ func TestTracker(t *testing.T) {
 		So(finished, ShouldBeFalse)
 
 		r3, meets, finished = t3.get(context.Background())
-		So(r3, ShouldHaveLength, 1)
+		So(r3, ShouldNotBeEmpty)
 		So(meets, ShouldBeTrue)
-		So(finished, ShouldBeFalse)
 
 		t4 := newTracker(r, 1, 2)
 		t4.send()

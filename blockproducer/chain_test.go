@@ -38,7 +38,7 @@ var (
 	testPeersNumber                 = 1
 	testPeriod                      = 1 * time.Second
 	testTick                        = 100 * time.Millisecond
-	testPeriodNumber         uint32 = 100
+	testPeriodNumber         uint32 = 10
 	testClientNumberPerChain        = 10
 )
 

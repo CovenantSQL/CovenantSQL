@@ -538,7 +538,7 @@ func (c *Chain) sync() error {
 		"peer": c.rt.getPeerInfoString(),
 	}).Debug("synchronizing chain state")
 
-	// sync executes first alone, so it's ok to sync without locking runtime
+	// sync executes firstly alone, so it's ok to sync without locking runtime
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)

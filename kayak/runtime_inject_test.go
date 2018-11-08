@@ -14,5 +14,11 @@
  * limitations under the License.
  */
 
-// Package wal defines toy implementations of kayak wal.
-package wal
+package kayak
+
+import "github.com/CovenantSQL/CovenantSQL/proto"
+
+// SetCaller injects caller for test purpose.
+func (r *Runtime) SetCaller(id proto.NodeID, c Caller) {
+	r.callerMap.Store(id, c)
+}

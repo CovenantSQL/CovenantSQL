@@ -79,23 +79,7 @@ func (p *MemWal) Read() (l *kt.Log, err error) {
 		return
 	}
 
-	p.RLock()
-	defer p.RUnlock()
-
-	if atomic.LoadUint64(&p.offset) >= uint64(len(p.logs)) {
-		err = io.EOF
-		return
-	}
-
-	index := atomic.AddUint64(&p.offset, 1) - 1
-	if index >= uint64(len(p.logs)) {
-		// error
-		err = io.EOF
-		return
-	}
-
-	l = p.logs[index]
-
+	err = io.EOF
 	return
 }
 

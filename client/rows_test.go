@@ -15,3 +15,45 @@
  */
 
 package client
+
+import (
+	"database/sql/driver"
+	"io"
+	"testing"
+
+	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestRowsStructure(t *testing.T) {
+	Convey("test rows", t, func() {
+		r := newRows(&wt.Response{
+			Payload: wt.ResponsePayload{
+				Columns: []string{
+					"a",
+				},
+				DeclTypes: []string{
+					"int",
+				},
+				Rows: []wt.ResponseRow{
+					{
+						Values: []interface{}{1},
+					},
+				},
+			},
+		})
+		columns := r.Columns()
+		So(columns, ShouldResemble, []string{"a"})
+		So(r.ColumnTypeDatabaseTypeName(0), ShouldEqual, "INT")
+
+		dest := make([]driver.Value, 1)
+		err := r.Next(dest)
+		So(err, ShouldBeNil)
+		So(dest[0], ShouldEqual, 1)
+		err = r.Next(dest)
+		So(err, ShouldEqual, io.EOF)
+		err = r.Close()
+		So(err, ShouldBeNil)
+		So(r.data, ShouldBeNil)
+	})
+}

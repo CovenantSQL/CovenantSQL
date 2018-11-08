@@ -17,6 +17,7 @@
 package wal
 
 import (
+	"io"
 	"os"
 	"testing"
 
@@ -27,14 +28,13 @@ import (
 
 func TestLevelDBWal_Write(t *testing.T) {
 	Convey("test leveldb wal write", t, func() {
+		dbFile := "testWrite.ldb"
+
 		var p *LevelDBWal
 		var err error
-		p, err = NewLevelDBWal("testWrite.ldb")
+		p, err = NewLevelDBWal(dbFile)
 		So(err, ShouldBeNil)
-		defer func() {
-			p.Close()
-			os.RemoveAll("testWrite.ldb")
-		}()
+		defer os.RemoveAll(dbFile)
 
 		l1 := &kt.Log{
 			LogHeader: kt.LogHeader{
@@ -55,6 +55,9 @@ func TestLevelDBWal_Write(t *testing.T) {
 		l, err = p.Get(l1.Index)
 		So(err, ShouldBeNil)
 		So(l, ShouldResemble, l1)
+
+		_, err = p.Get(10000)
+		So(err, ShouldNotBeNil)
 
 		// test consecutive writes
 		l2 := &kt.Log{
@@ -87,5 +90,47 @@ func TestLevelDBWal_Write(t *testing.T) {
 		}
 		err = p.Write(l3)
 		So(err, ShouldBeNil)
+
+		_, err = p.Read()
+		So(err, ShouldEqual, io.EOF)
+
+		p.Close()
+
+		_, err = p.Read()
+		So(err, ShouldEqual, ErrWalClosed)
+
+		err = p.Write(l1)
+		So(err, ShouldEqual, ErrWalClosed)
+
+		_, err = p.Get(l1.Index)
+		So(err, ShouldEqual, ErrWalClosed)
+
+		// load again
+		p, err = NewLevelDBWal(dbFile)
+		So(err, ShouldBeNil)
+
+		for i := 0; i != 4; i++ {
+			l, err = p.Read()
+			So(err, ShouldBeNil)
+			So(l.Index, ShouldEqual, i)
+		}
+
+		_, err = p.Read()
+		So(err, ShouldEqual, io.EOF)
+
+		p.Close()
+
+		// load again
+		p, err = NewLevelDBWal(dbFile)
+		So(err, ShouldBeNil)
+
+		// not complete read
+		for i := 0; i != 3; i++ {
+			l, err = p.Read()
+			So(err, ShouldBeNil)
+			So(l.Index, ShouldEqual, i)
+		}
+
+		p.Close()
 	})
 }

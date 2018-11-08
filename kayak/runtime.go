@@ -374,7 +374,8 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 ROLLBACK:
 	// rollback local
 	var rollbackLog *kt.Log
-	if rollbackLog, err = r.leaderLogRollback(prepareLog.Index); err != nil {
+	var logErr error
+	if rollbackLog, logErr = r.leaderLogRollback(prepareLog.Index); logErr != nil {
 		// serve error, construct rollback log failed, internal error
 		// TODO(): CHANGE LEADER
 		return
@@ -878,16 +879,6 @@ func (r *Runtime) getCaller(id proto.NodeID) Caller {
 	var caller Caller = rpc.NewPersistentCaller(id)
 	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
 	return rawCaller.(Caller)
-}
-
-// SetCaller injects caller for test purpose.
-func (r *Runtime) SetCaller(id proto.NodeID, c Caller) {
-	r.callerMap.Store(id, c)
-}
-
-// RemoveCaller removes cached caller.
-func (r *Runtime) RemoveCaller(id proto.NodeID) {
-	r.callerMap.Delete(id)
 }
 
 func (r *Runtime) goFunc(f func()) {

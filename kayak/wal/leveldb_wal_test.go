@@ -27,7 +27,7 @@ import (
 )
 
 func TestLevelDBWal_Write(t *testing.T) {
-	Convey("test leveldb wal write", t, func() {
+	Convey("wal write/get/close", t, func() {
 		dbFile := "testWrite.ldb"
 
 		var p *LevelDBWal
@@ -35,6 +35,9 @@ func TestLevelDBWal_Write(t *testing.T) {
 		p, err = NewLevelDBWal(dbFile)
 		So(err, ShouldBeNil)
 		defer os.RemoveAll(dbFile)
+
+		err = p.Write(nil)
+		So(err, ShouldNotBeNil)
 
 		l1 := &kt.Log{
 			LogHeader: kt.LogHeader{
@@ -132,5 +135,12 @@ func TestLevelDBWal_Write(t *testing.T) {
 		}
 
 		p.Close()
+
+		// close multiple times
+		So(p.Close, ShouldNotPanic)
+	})
+	Convey("open failed test", t, func() {
+		_, err := NewLevelDBWal("")
+		So(err, ShouldNotBeNil)
 	})
 }

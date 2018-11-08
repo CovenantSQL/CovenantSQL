@@ -126,7 +126,17 @@ type commitResult struct {
 
 // NewRuntime creates new kayak Runtime.
 func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
+	if cfg == nil {
+		err = errors.Wrap(kt.ErrInvalidConfig, "nil config")
+		return
+	}
+
 	peers := cfg.Peers
+
+	if peers == nil {
+		err = errors.Wrap(kt.ErrInvalidConfig, "nil peers")
+		return
+	}
 
 	// verify peers
 	if err = peers.Verify(); err != nil {
@@ -498,6 +508,8 @@ func (r *Runtime) followerRollback(l *kt.Log) (err error) {
 		err = errors.Wrap(err, "write follower rollback log failed")
 	}
 
+	r.markPrepareFinished(l.Index)
+
 	return
 }
 
@@ -519,6 +531,8 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 	if cResult != nil {
 		err = cResult.err
 	}
+
+	r.markPrepareFinished(l.Index)
 
 	return
 }
@@ -755,10 +769,10 @@ func (r *Runtime) readLogs() (err error) {
 	for {
 		if l, err = r.wal.Read(); err != nil && err != io.EOF {
 			err = errors.Wrap(err, "load previous logs in wal failed")
-			break
+			return
 		} else if err == io.EOF {
 			err = nil
-			break
+			return
 		}
 
 		switch l.Type {
@@ -771,16 +785,16 @@ func (r *Runtime) readLogs() (err error) {
 			var prepareLog *kt.Log
 			if lastCommit, prepareLog, err = r.getPrepareLog(l); err != nil {
 				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
-				break
+				return
 			}
 			if lastCommit != r.lastCommit {
 				err = errors.Wrapf(err,
 					"last commit record in wal mismatched (expected: %v, actual: %v)", r.lastCommit, lastCommit)
-				break
+				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {
 				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
-				break
+				return
 			}
 			r.lastCommit = l.Index
 			// resolve previous prepared
@@ -788,18 +802,20 @@ func (r *Runtime) readLogs() (err error) {
 		case kt.LogRollback:
 			var prepareLog *kt.Log
 			if _, prepareLog, err = r.getPrepareLog(l); err != nil {
-				err = errors.Wrap(err, "previous prepare doe snot exists, node need full recovery")
+				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
 				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {
 				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
-				break
+				return
 			}
 			// resolve previous prepared
 			delete(r.pendingPrepares, prepareLog.Index)
+		case kt.LogBarrier:
+		case kt.LogNoop:
 		default:
 			err = errors.Wrapf(kt.ErrInvalidLog, "invalid log type: %v", l.Type)
-			break
+			return
 		}
 
 		// record nextIndex

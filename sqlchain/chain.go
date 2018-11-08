@@ -143,6 +143,8 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
+	log.Debugf("Create new chain bdb %s", bdbFile)
+
 	// Open LevelDB for ack/request/response
 	tdbFile := c.DataFile + "-ack-req-resp.ldb"
 	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
@@ -150,6 +152,8 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
 		return
 	}
+
+	log.Debugf("Create new chain tdb %s", tdbFile)
 
 	// Create chain state
 	chain = &Chain{

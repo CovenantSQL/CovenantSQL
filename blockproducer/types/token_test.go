@@ -27,15 +27,15 @@ func TestTokenType(t *testing.T) {
 		eos := "EOS"
 		unknown := "Unknown"
 		token := FromString(eos)
-		ShouldEqual(eos, token.String())
-		ShouldBeTrue(token.Listed())
+		So(eos, ShouldEqual, token.String())
+		So(token.Listed(), ShouldBeTrue)
 
 		token = FromString("shitcoin")
-		ShouldEqual(token.String(), unknown)
-		ShouldBeFalse(token.Listed())
+		So(token.String(), ShouldEqual, unknown)
+		So(token.Listed(), ShouldBeFalse)
 
 		token = TokenType(SupportTokenNumber)
-		ShouldEqual(token.String(), unknown)
-		ShouldBeFalse(token.Listed())
+		So(token.String(), ShouldEqual, unknown)
+		So(token.Listed(), ShouldBeFalse)
 	})
 }

@@ -143,8 +143,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 		"bp_number": chain.rt.bpNum,
 		"period":    chain.rt.period.String(),
 		"tick":      chain.rt.tick.String(),
-		"head":      chain.rt.getHead().getHeader().String(),
-		"height":    chain.rt.getHead().getHeight(),
+		"height":    chain.rt.getHead().Height,
 	}).Debug("current chain state")
 
 	return chain, nil
@@ -193,8 +192,6 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		}
 		chain.rt.setHead(state)
 
-		log.Debugf("load chain state head %s", chain.rt.getHead().getHeader())
-
 		var last *blockNode
 		var index int32
 		blocks := meta.Bucket(metaBlockIndexBucket)
@@ -236,7 +233,6 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			return err
 		}
 
-		log.Debugf("load chain state head %s", chain.rt.getHead().getHeader())
 		// Reload state
 		if err = chain.ms.reloadProcedure()(tx); err != nil {
 			return
@@ -248,18 +244,16 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		return nil, err
 	}
 
-	log.Debugf("state height starts from %d", chain.rt.head.Height)
-
 	return chain, nil
 }
 
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
 func (c *Chain) checkBlock(b *pt.Block) (err error) {
 	// TODO(lambda): process block fork
-	if !b.ParentHash().IsEqual(c.rt.getHead().getHeader()) {
+	if !b.ParentHash().IsEqual(&c.rt.getHead().Head) {
 		log.WithFields(log.Fields{
-			"head":            c.rt.getHead().getHeader().String(),
-			"height":          c.rt.getHead().getHeight(),
+			"head":            c.rt.getHead().Head.String(),
+			"height":          c.rt.getHead().Height,
 			"received_parent": b.ParentHash(),
 		}).Debug("invalid parent")
 		return ErrParentNotMatch
@@ -285,7 +279,7 @@ func (c *Chain) checkBlock(b *pt.Block) (err error) {
 func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
 	log.Debugf("current block %s, height %d, its parent %s", b.BlockHash(), h, b.ParentHash())
-	node := newBlockNode(c.rt.chainInitTime, c.rt.period, b, c.rt.getHead().getNode())
+	node := newBlockNode(c.rt.chainInitTime, c.rt.period, b, c.rt.getHead().Node)
 	state := &State{
 		Node:   node,
 		Head:   node.hash,
@@ -360,7 +354,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 			Header: pt.Header{
 				Version:    blockVersion,
 				Producer:   c.rt.accountAddress,
-				ParentHash: *c.rt.getHead().getHeader(),
+				ParentHash: c.rt.getHead().Head,
 				Timestamp:  now,
 			},
 		},
@@ -396,15 +390,13 @@ func (c *Chain) produceBlock(now time.Time) error {
 				if err := c.cl.CallNode(id, route.MCCAdviseNewBlock.String(), blockReq, blockResp); err != nil {
 					log.WithFields(log.Fields{
 						"peer":       c.rt.getPeerInfoString(),
-						"curr_turn":  c.rt.getNextTurn(),
 						"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
 						"block_hash": b.BlockHash(),
 					}).WithError(err).Error(
 						"failed to advise new block")
 				} else {
 					log.WithFields(log.Fields{
-						"height": c.rt.getHead().getHeight(),
-						"node":   id,
+						"node": id,
 					}).Debug("success advising block")
 				}
 			}(s.ID)
@@ -481,7 +473,7 @@ func (c *Chain) checkBillingRequest(br *pt.BillingRequest) (err error) {
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.Block, count uint32, err error) {
-	node := c.rt.getHead().getNode().ancestor(h)
+	node := c.rt.getHead().Node.ancestor(h)
 	if node == nil {
 		return nil, 0, ErrNoSuchBlock
 	}
@@ -501,7 +493,7 @@ func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.Block, count uint32, err err
 }
 
 func (c *Chain) fetchBlockByCount(count uint32) (b *pt.Block, height uint32, err error) {
-	node := c.rt.getHead().getNode().ancestorByCount(count)
+	node := c.rt.getHead().Node.ancestorByCount(count)
 	if node == nil {
 		return nil, 0, ErrNoSuchBlock
 	}
@@ -552,21 +544,19 @@ func (c *Chain) sync() error {
 
 		log.WithFields(log.Fields{
 			"height":   height,
-			"nextTurn": c.rt.getNextTurn(),
+			"nextTurn": c.rt.nextTurn,
 		}).Info("try sync heights")
-		if c.rt.getNextTurn() >= height {
+		if c.rt.nextTurn >= height {
 			log.WithFields(log.Fields{
 				"height":   height,
-				"nextTurn": c.rt.getNextTurn(),
+				"nextTurn": c.rt.nextTurn,
 			}).Info("return heights")
 			break
 		}
 
-		for c.rt.getNextTurn() <= height {
+		for c.rt.nextTurn <= height {
 			// TODO(lambda): fetch blocks and txes.
-			c.rt.setNextTurn()
-			// TODO(lambda): remove it after implementing fetch
-			c.rt.getHead().increaseHeightByOne()
+			c.rt.nextTurn++
 		}
 	}
 
@@ -669,8 +659,8 @@ func (c *Chain) processTxs() {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.rt.getHead().getHeight(),
-					"head_block":  c.rt.getHead().getHeader().String(),
+					"head_height": c.rt.getHead().Height,
+					"head_block":  c.rt.getHead().Head.String(),
 					"transaction": tx.GetHash().String(),
 				}).Debugf("Failed to push tx with error: %v", err)
 			}
@@ -698,8 +688,8 @@ func (c *Chain) mainCycle() {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
 					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.rt.getHead().getHeight(),
-					"head_block":  c.rt.getHead().getHeader().String(),
+					"head_height": c.rt.getHead().Height,
+					"head_block":  c.rt.getHead().Head.String(),
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
 				}).Debug("Main cycle")
@@ -716,9 +706,9 @@ func (c *Chain) syncHead() {
 	log.WithFields(log.Fields{
 		"index":     c.rt.index,
 		"next_turn": c.rt.getNextTurn(),
-		"height":    c.rt.getHead().getHeight(),
+		"height":    c.rt.getHead().Height,
 	}).Debug("sync header")
-	if h := c.rt.getNextTurn() - 1; c.rt.getHead().getHeight() < h {
+	if h := c.rt.getNextTurn() - 1; c.rt.getHead().Height < h {
 		log.Debugf("sync header with height %d", h)
 		var err error
 		req := &FetchBlockReq{
@@ -739,8 +729,8 @@ func (c *Chain) syncHead() {
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().getHeight(),
-						"head_block":  c.rt.getHead().getHeader().String(),
+						"head_height": c.rt.getHead().Height,
+						"head_block":  c.rt.getHead().Head.String(),
 					}).WithError(err).Debug(
 						"Failed to fetch block from peer")
 				} else {
@@ -749,8 +739,8 @@ func (c *Chain) syncHead() {
 						"peer":        c.rt.getPeerInfoString(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
 						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().getHeight(),
-						"head_block":  c.rt.getHead().getHeader().String(),
+						"head_height": c.rt.getHead().Height,
+						"head_block":  c.rt.getHead().Head.String(),
 					}).Debug(
 						"Fetch block from remote peer successfully")
 					succ = true
@@ -763,8 +753,8 @@ func (c *Chain) syncHead() {
 			log.WithFields(log.Fields{
 				"peer":        c.rt.getPeerInfoString(),
 				"curr_turn":   c.rt.getNextTurn(),
-				"head_height": c.rt.getHead().getHeight(),
-				"head_block":  c.rt.getHead().getHeader().String(),
+				"head_height": c.rt.getHead().Height,
+				"head_block":  c.rt.getHead().Head.String(),
 			}).Debug(
 				"Cannot get block from any peer")
 		}

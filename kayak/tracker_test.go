@@ -18,11 +18,12 @@ package kayak
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
-	"time"
 )
 
 type fakeTrackerCaller struct {

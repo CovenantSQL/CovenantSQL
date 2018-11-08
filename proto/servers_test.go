@@ -17,10 +17,11 @@
 package proto
 
 import (
+	"testing"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestPeers(t *testing.T) {

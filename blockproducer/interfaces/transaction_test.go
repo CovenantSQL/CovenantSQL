@@ -54,4 +54,9 @@ func TestTypes(t *testing.T) {
 			So(h1, ShouldResemble, h2)
 		}
 	})
+	Convey("test string", t, func() {
+		for i := TransactionTypeBilling; i != TransactionTypeNumber+1; i++ {
+			So(i.String(), ShouldNotBeEmpty)
+		}
+	})
 }

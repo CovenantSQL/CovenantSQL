@@ -131,7 +131,7 @@ func TestService(t *testing.T) {
 		})
 
 		// use the database
-		serverID := createDBRes.Header.InstanceMeta.Peers.Leader.ID
+		serverID := createDBRes.Header.InstanceMeta.Peers.Leader
 		dbID := createDBRes.Header.InstanceMeta.DatabaseID
 		var queryReq *wt.Request
 		queryReq, err = buildQuery(wt.WriteQuery, 1, 1, dbID, []string{

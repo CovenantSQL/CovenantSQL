@@ -322,7 +322,7 @@ func (s *Storage) Query(ctx context.Context, queries []Query) (columns []string,
 }
 
 // Exec implements write query feature.
-func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64, err error) {
+func (s *Storage) Exec(ctx context.Context, queries []Query) (result ExecResult, err error) {
 	if len(queries) == 0 {
 		return
 	}
@@ -346,16 +346,16 @@ func (s *Storage) Exec(ctx context.Context, queries []Query) (rowsAffected int64
 			args[i] = v
 		}
 
-		var result sql.Result
-		if result, err = tx.Exec(q.Pattern, args...); err != nil {
+		var r sql.Result
+		if r, err = tx.Exec(q.Pattern, args...); err != nil {
 			log.WithError(err).Debug("execute query failed")
 			return
 		}
 
 		var affected int64
-		affected, err = result.RowsAffected()
-
-		rowsAffected += affected
+		affected, _ = r.RowsAffected()
+		result.RowsAffected += affected
+		result.LastInsertID, _ = r.LastInsertId()
 	}
 
 	tx.Commit()

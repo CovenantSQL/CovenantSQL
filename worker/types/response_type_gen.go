@@ -182,7 +182,7 @@ func (z *SignedResponseHeader) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.HeaderHash.MarshalHash(); err != nil {
+	if oTemp, err := z.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -204,6 +204,6 @@ func (z *SignedResponseHeader) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 15 + z.ResponseHeader.Msgsize() + 11 + z.HeaderHash.Msgsize()
+	s += 15 + z.ResponseHeader.Msgsize() + 5 + z.Hash.Msgsize()
 	return
 }

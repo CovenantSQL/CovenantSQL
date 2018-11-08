@@ -1,6 +1,6 @@
 default: build
 
-IMAGE := covenantsql.io/covenantsql
+IMAGE := covenantsql/covenantsql
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 GIT_DIRTY ?= $(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 GIT_DESCRIBE ?= $(shell git describe --tags --always)
@@ -38,4 +38,8 @@ start:
 logs:
 	docker-compose logs -f --tail=10
 
-.PHONY: status build save start logs
+push:
+	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
+
+.PHONY: status build save start logs push

@@ -23,8 +23,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -47,7 +46,7 @@ const (
 type DBMS struct {
 	cfg      *DBMSConfig
 	dbMap    sync.Map
-	kayakMux *kt.ETLSTransportService
+	kayakMux *DBKayakMuxService
 	chainMux *sqlchain.MuxService
 	rpc      *DBMSRPCService
 }
@@ -59,10 +58,16 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 	}
 
 	// init kayak rpc mux
-	dbms.kayakMux = ka.NewMuxService(DBKayakRPCName, cfg.Server)
+	if dbms.kayakMux, err = NewDBKayakMuxService(DBKayakRPCName, cfg.Server); err != nil {
+		err = errors.Wrap(err, "register kayak mux service failed")
+		return
+	}
 
 	// init sql-chain rpc mux
-	dbms.chainMux = sqlchain.NewMuxService(route.SQLChainRPCName, cfg.Server)
+	if dbms.chainMux, err = sqlchain.NewMuxService(route.SQLChainRPCName, cfg.Server); err != nil {
+		err = errors.Wrap(err, "register sqlchain mux service failed")
+		return
+	}
 
 	// init service
 	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
@@ -292,18 +297,18 @@ func (dbms *DBMS) GetRequest(dbID proto.DatabaseID, offset uint64) (query *wt.Re
 		return
 	}
 
-	var reqBytes []byte
-	if reqBytes, err = db.kayakRuntime.GetLog(offset); err != nil {
+	var req interface{}
+	if req, err = db.getLog(offset); err != nil {
+		err = errors.Wrap(err, "get log failed")
 		return
 	}
 
 	// decode requests
-	var q wt.Request
-	if err = utils.DecodeMsgPack(reqBytes, &q); err != nil {
+	var ok bool
+	if query, ok = req.(*wt.Request); !ok {
+		err = errors.Wrap(kt.ErrInvalidLog, "convert log to request failed")
 		return
 	}
-
-	query = &q
 
 	return
 }

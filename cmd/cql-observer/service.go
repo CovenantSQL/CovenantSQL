@@ -324,7 +324,7 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 
 func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) (err error) {
 	log.WithFields(log.Fields{
-		"ack": ack.HeaderHash.String(),
+		"ack": ack.Hash.String(),
 		"db":  dbID,
 	}).Debug("add ack query")
 
@@ -353,11 +353,11 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 		}
 
 		key := offsetToBytes(req.LogOffset)
-		key = append(key, resp.Request.Header.HeaderHash.CloneBytes()...)
+		key = append(key, resp.Request.Header.Hash.CloneBytes()...)
 
 		log.WithFields(log.Fields{
 			"offset":     req.LogOffset,
-			"reqHash":    resp.Request.Header.HeaderHash.String(),
+			"reqHash":    resp.Request.Header.Hash.String(),
 			"reqQueries": resp.Request.Payload.Queries,
 		}).Debug("add write request")
 
@@ -378,7 +378,7 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 			if err != nil {
 				return
 			}
-			err = ob.Put(resp.Request.Header.HeaderHash.CloneBytes(), offsetToBytes(req.LogOffset))
+			err = ob.Put(resp.Request.Header.Hash.CloneBytes(), offsetToBytes(req.LogOffset))
 			return
 		}); err != nil {
 			return
@@ -395,7 +395,7 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 		if err != nil {
 			return
 		}
-		err = ab.Put(ack.HeaderHash.CloneBytes(), ackBytes.Bytes())
+		err = ab.Put(ack.Hash.CloneBytes(), ackBytes.Bytes())
 		return
 	})
 }
@@ -480,7 +480,7 @@ func (s *Service) minerRequest(dbID proto.DatabaseID, method string, request int
 		return
 	}
 
-	return s.caller.CallNode(instance.Peers.Leader.ID, method, request, response)
+	return s.caller.CallNode(instance.Peers.Leader, method, request, response)
 }
 
 func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstance, err error) {

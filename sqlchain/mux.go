@@ -30,13 +30,13 @@ type MuxService struct {
 }
 
 // NewMuxService creates a new multiplexing service and registers it to rpc server.
-func NewMuxService(serviceName string, server *rpc.Server) (service *MuxService) {
+func NewMuxService(serviceName string, server *rpc.Server) (service *MuxService, err error) {
 	service = &MuxService{
 		ServiceName: serviceName,
 	}
 
-	server.RegisterService(serviceName, service)
-	return service
+	err = server.RegisterService(serviceName, service)
+	return
 }
 
 func (s *MuxService) register(id proto.DatabaseID, service *ChainRPCService) {

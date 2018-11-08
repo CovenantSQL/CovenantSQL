@@ -17,8 +17,8 @@
 package worker
 
 import (
-	"bytes"
 	"context"
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
@@ -30,12 +30,12 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
-	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/CovenantSQL/sqlparser"
@@ -46,11 +46,20 @@ const (
 	// StorageFileName defines storage file name of database instance.
 	StorageFileName = "storage.db3"
 
+	// KayakWalFileName defines log pool name of database instance.
+	KayakWalFileName = "kayak.ldb"
+
 	// SQLChainFileName defines sqlchain storage file name.
 	SQLChainFileName = "chain.db"
 
 	// MaxRecordedConnectionSequences defines the max connection slots to anti reply attack.
 	MaxRecordedConnectionSequences = 1000
+
+	// PrepareThreshold defines the prepare complete threshold.
+	PrepareThreshold = 1.0
+
+	// CommitThreshold defines the commit complete threshold.
+	CommitThreshold = 1.0
 )
 
 // Database defines a single database instance in worker runtime.
@@ -58,15 +67,18 @@ type Database struct {
 	cfg            *DBConfig
 	dbID           proto.DatabaseID
 	storage        *storage.Storage
+	kayakWal       *kl.LevelDBWal
 	kayakRuntime   *kayak.Runtime
-	kayakConfig    kayak.Config
+	kayakConfig    *kt.RuntimeConfig
 	connSeqs       sync.Map
 	connSeqEvictCh chan uint64
 	chain          *sqlchain.Chain
+	nodeID         proto.NodeID
+	mux            *DBKayakMuxService
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *ct.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
@@ -81,6 +93,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	db = &Database{
 		cfg:            cfg,
 		dbID:           cfg.DatabaseID,
+		mux:            cfg.KayakMux,
 		connSeqEvictCh: make(chan uint64, 1),
 	}
 
@@ -120,9 +133,8 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	}
 
 	// init chain
-	var nodeID proto.NodeID
 	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+	if db.nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
@@ -136,9 +148,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
 		MuxService: cfg.ChainMux,
-		Server: &kayak.Server{
-			ID: nodeID,
-		},
+		Server:     db.nodeID,
 
 		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
 		Period:   60 * time.Second,
@@ -152,18 +162,36 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 	}
 
 	// init kayak config
-	options := ka.NewDefaultTwoPCOptions().WithTransportID(string(cfg.DatabaseID))
-	db.kayakConfig = ka.NewTwoPCConfigWithOptions(cfg.DataDir, cfg.KayakMux, db, options)
+	kayakWalPath := filepath.Join(cfg.DataDir, KayakWalFileName)
+	if db.kayakWal, err = kl.NewLevelDBWal(kayakWalPath); err != nil {
+		err = errors.Wrap(err, "init kayak log pool failed")
+		return
+	}
+
+	db.kayakConfig = &kt.RuntimeConfig{
+		Handler:          db,
+		PrepareThreshold: PrepareThreshold,
+		CommitThreshold:  CommitThreshold,
+		PrepareTimeout:   time.Second,
+		CommitTimeout:    time.Second * 60,
+		Peers:            peers,
+		Wal:              db.kayakWal,
+		NodeID:           db.nodeID,
+		InstanceID:       string(db.dbID),
+		ServiceName:      DBKayakRPCName,
+		MethodName:       DBKayakMethodName,
+	}
 
 	// create kayak runtime
-	if db.kayakRuntime, err = ka.NewTwoPCKayak(peers, db.kayakConfig); err != nil {
+	if db.kayakRuntime, err = kayak.NewRuntime(db.kayakConfig); err != nil {
 		return
 	}
 
-	// init kayak runtime
-	if err = db.kayakRuntime.Init(); err != nil {
-		return
-	}
+	// register kayak runtime rpc
+	db.mux.register(db.dbID, db.kayakRuntime)
+
+	// start kayak runtime
+	db.kayakRuntime.Start()
 
 	// init sequence eviction processor
 	go db.evictSequences()
@@ -172,7 +200,7 @@ func NewDatabase(cfg *DBConfig, peers *kayak.Peers, genesisBlock *ct.Block) (db 
 }
 
 // UpdatePeers defines peers update query interface.
-func (db *Database) UpdatePeers(peers *kayak.Peers) (err error) {
+func (db *Database) UpdatePeers(peers *proto.Peers) (err error) {
 	if err = db.kayakRuntime.UpdatePeers(peers); err != nil {
 		return
 	}
@@ -215,6 +243,14 @@ func (db *Database) Shutdown() (err error) {
 		if err = db.kayakRuntime.Shutdown(); err != nil {
 			return
 		}
+
+		// unregister
+		db.mux.unregister(db.dbID)
+	}
+
+	if db.kayakWal != nil {
+		// shutdown, stop kayak
+		db.kayakWal.Close()
 	}
 
 	if db.chain != nil {
@@ -282,14 +318,9 @@ func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err 
 	}
 
 	// call kayak runtime Process
-	var buf *bytes.Buffer
-	if buf, err = utils.EncodeMsgPack(request); err != nil {
-		return
-	}
-
 	var logOffset uint64
 	var result interface{}
-	result, logOffset, err = db.kayakRuntime.Apply(buf.Bytes())
+	result, logOffset, err = db.kayakRuntime.Apply(context.Background(), request)
 
 	if err != nil {
 		return
@@ -324,6 +355,19 @@ func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err e
 	}
 
 	return db.buildQueryResponse(request, 0, columns, types, data, 0, 0)
+}
+
+func (db *Database) getLog(index uint64) (data interface{}, err error) {
+	var l *kt.Log
+	if l, err = db.kayakWal.Get(index); err != nil || l == nil {
+		err = errors.Wrap(err, "get log from kayak pool failed")
+		return
+	}
+
+	// decode log
+	data, err = db.DecodePayload(l.Data)
+
+	return
 }
 
 func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
@@ -431,9 +475,16 @@ func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err 
 			originalQueries = append(originalQueries, query)
 		}
 
+		// covert args
+		var args []sql.NamedArg
+
+		for _, v := range q.Args {
+			args = append(args, sql.Named(v.Name, v.Value))
+		}
+
 		outQuery[i] = storage.Query{
 			Pattern: strings.Join(originalQueries, "; "),
-			Args:    q.Args,
+			Args:    args,
 		}
 	}
 	return

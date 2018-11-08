@@ -39,4 +39,7 @@ var (
 
 	// ErrSpaceLimitExceeded defines errors on disk space exceeding limit.
 	ErrSpaceLimitExceeded = errors.New("space limit exceeded")
+
+	// ErrUnknownMuxRequest indicates that the a multiplexing request endpoint is not found.
+	ErrUnknownMuxRequest = errors.New("unknown multiplexing request")
 )

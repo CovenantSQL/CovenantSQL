@@ -24,7 +24,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -66,7 +65,7 @@ func TestDBMS(t *testing.T) {
 		// add database
 		var req *wt.UpdateService
 		var res wt.UpdateServiceResponse
-		var peers *kayak.Peers
+		var peers *proto.Peers
 		var block *ct.Block
 
 		dbID := proto.DatabaseID("db")
@@ -110,7 +109,7 @@ func TestDBMS(t *testing.T) {
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, 0)
-				So(queryRes.Header.LogOffset, ShouldEqual, 1)
+				So(queryRes.Header.LogOffset, ShouldEqual, 0)
 
 				var reqGetRequest wt.GetRequestReq
 				var respGetRequest *wt.GetRequestResp
@@ -119,7 +118,7 @@ func TestDBMS(t *testing.T) {
 				reqGetRequest.LogOffset = queryRes.Header.LogOffset
 				err = testRequest(route.DBSGetRequest, reqGetRequest, &respGetRequest)
 				So(err, ShouldBeNil)
-				So(respGetRequest.Request.Header.HeaderHash, ShouldResemble, writeQuery.Header.HeaderHash)
+				So(respGetRequest.Request.Header.Hash, ShouldResemble, writeQuery.Header.Hash)
 
 				// sending read query
 				var readQuery *wt.Request

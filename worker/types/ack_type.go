@@ -17,8 +17,6 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -38,9 +36,9 @@ type AckHeader struct {
 // SignedAckHeader defines client signed ack entity.
 type SignedAckHeader struct {
 	AckHeader
-	HeaderHash hash.Hash             `json:"hh"`
-	Signee     *asymmetric.PublicKey `json:"e"`
-	Signature  *asymmetric.Signature `json:"s"`
+	Hash      hash.Hash             `json:"hh"`
+	Signee    *asymmetric.PublicKey `json:"e"`
+	Signature *asymmetric.Signature `json:"s"`
 }
 
 // Ack defines a whole client ack request entity.
@@ -52,57 +50,17 @@ type Ack struct {
 // AckResponse defines client ack response entity.
 type AckResponse struct{}
 
-// Serialize structure to bytes.
-func (h *AckHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(h.Response.Serialize())
-	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
-	buf.WriteString(string(h.NodeID))
-	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
-
-	return buf.Bytes()
-}
-
-// Serialize structure to bytes.
-func (sh *SignedAckHeader) Serialize() []byte {
-	if sh == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(sh.AckHeader.Serialize())
-	buf.Write(sh.HeaderHash[:])
-	if sh.Signee != nil {
-		buf.Write(sh.Signee.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-	if sh.Signature != nil {
-		buf.Write(sh.Signature.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-
-	return buf.Bytes()
-}
-
 // Verify checks hash and signature in ack header.
 func (sh *SignedAckHeader) Verify() (err error) {
 	// verify response
 	if err = sh.Response.Verify(); err != nil {
 		return
 	}
-	if err = verifyHash(&sh.AckHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.AckHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return
@@ -119,22 +77,15 @@ func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey, verifyReqHeader b
 	}
 
 	// build hash
-	buildHash(&sh.AckHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.AckHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
-}
-
-// Serialize structure to bytes.
-func (a *Ack) Serialize() []byte {
-	if a == nil {
-		return []byte{'\000'}
-	}
-
-	return a.Header.Serialize()
 }
 
 // Verify checks hash and signature in ack.
@@ -148,9 +99,9 @@ func (a *Ack) Sign(signer *asymmetric.PrivateKey, verifyReqHeader bool) (err err
 	return a.Header.Sign(signer, verifyReqHeader)
 }
 
-// ResponseHeaderHash returns the deep shadowed Response HeaderHash field.
-func (sh *SignedAckHeader) ResponseHeaderHash() hash.Hash {
-	return sh.AckHeader.Response.HeaderHash
+// ResponseHash returns the deep shadowed Response Hash field.
+func (sh *SignedAckHeader) ResponseHash() hash.Hash {
+	return sh.AckHeader.Response.Hash
 }
 
 // SignedRequestHeader returns the deep shadowed Request reference.

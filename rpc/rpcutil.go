@@ -61,12 +61,12 @@ func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
 	}
 }
 
-func (c *PersistentCaller) initClient(method string) (err error) {
+func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.client == nil {
 		var conn net.Conn
-		conn, err = DialToNode(c.TargetID, c.pool, method == route.DHTPing.String())
+		conn, err = DialToNode(c.TargetID, c.pool, isAnonymous)
 		if err != nil {
 			log.WithField("target", c.TargetID).WithError(err).Error("dial to node failed")
 			return
@@ -83,31 +83,38 @@ func (c *PersistentCaller) initClient(method string) (err error) {
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
-	err = c.initClient(method)
+	err = c.initClient(method == route.DHTPing.String())
 	if err != nil {
 		log.WithError(err).Error("init PersistentCaller client failed")
 		return
 	}
 	err = c.client.Call(method, args, reply)
 	if err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if err == io.EOF ||
+			err == io.ErrUnexpectedEOF ||
+			err == io.ErrClosedPipe ||
+			err == rpc.ErrShutdown {
 			// if got EOF, retry once
-			c.Lock()
-			c.Close()
-			c.client = nil
-			c.Unlock()
-			err = c.initClient(method)
+			err = c.Reconnect(method)
 			if err != nil {
-				log.WithField("rpc", method).WithError(err).Error("second init client for RPC failed")
-				return
-			}
-			err = c.client.Call(method, args, reply)
-			if err != nil {
-				log.WithField("rpc", method).WithError(err).Error("second time call RPC failed")
-				return
+				log.WithField("rpc", method).WithError(err).Error("reconnect failed")
 			}
 		}
 		log.WithField("rpc", method).WithError(err).Error("call RPC failed")
+	}
+	return
+}
+
+// Reconnect tries to rebuild RPC client
+func (c *PersistentCaller) Reconnect(method string) (err error)  {
+	c.Lock()
+	c.Close()
+	c.client = nil
+	c.Unlock()
+	err = c.initClient(method == route.DHTPing.String())
+	if err != nil {
+		log.WithField("rpc", method).WithError(err).Error("second init client for RPC failed")
+		return
 	}
 	return
 }

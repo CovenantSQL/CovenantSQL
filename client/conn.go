@@ -26,7 +26,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -100,7 +99,7 @@ func (c *conn) stopAckWorkers() {
 
 func (c *conn) ackWorker() {
 	if rawPeers, ok := peerList.Load(c.dbID); ok {
-		if peers, ok := rawPeers.(*kayak.Peers); ok {
+		if peers, ok := rawPeers.(*proto.Peers); ok {
 			var (
 				oneTime sync.Once
 				pc      *rpc.PersistentCaller
@@ -114,7 +113,7 @@ func (c *conn) ackWorker() {
 					break ackWorkerLoop
 				}
 				oneTime.Do(func() {
-					pc = rpc.NewPersistentCaller(peers.Leader.ID)
+					pc = rpc.NewPersistentCaller(peers.Leader)
 				})
 				if err = ack.Sign(c.privKey, false); err != nil {
 					log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
@@ -306,7 +305,7 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (affectedRows i
 }
 
 func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
-	var peers *kayak.Peers
+	var peers *proto.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		return
 	}
@@ -321,7 +320,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 			"type":   queryType.String(),
 			"connID": connID,
 			"seqNo":  seqNo,
-			"target": peers.Leader.ID,
+			"target": peers.Leader,
 			"source": c.localNodeID,
 		}).WithError(err).Debug("send query")
 	}()
@@ -347,7 +346,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 		return
 	}
 
-	c.pCaller = rpc.NewPersistentCaller(peers.Leader.ID)
+	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 	var response wt.Response
 	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
@@ -388,10 +387,11 @@ func convertQuery(query string, args []driver.NamedValue) (sq *wt.Query) {
 		Pattern: query,
 	}
 
-	sq.Args = make([]sql.NamedArg, len(args))
+	sq.Args = make([]wt.NamedArg, len(args))
 
 	for i, v := range args {
-		sq.Args[i] = sql.Named(v.Name, v.Value)
+		sq.Args[i].Name = v.Name
+		sq.Args[i].Value = v.Value
 	}
 
 	return

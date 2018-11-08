@@ -1,8 +1,8 @@
-version: '3'
+version: "3"
 
 services:
   covenantsql_bp_0:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_bp_0
     restart: always
     ports:
@@ -21,7 +21,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_bp_1:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_bp_1
     restart: always
     ports:
@@ -40,7 +40,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_bp_2:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_bp_2
     restart: always
     ports:
@@ -59,7 +59,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_miner_0:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_miner_0
     restart: always
     ports:
@@ -78,7 +78,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_miner_1:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_miner_1
     restart: always
     ports:
@@ -97,7 +97,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_miner_2:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_miner_2
     restart: always
     ports:
@@ -116,28 +116,32 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_adapter:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_adapter
     restart: always
     ports:
       - "11105:4661"
     environment:
       COVENANT_ROLE: adapter
-      COVENANT_CONF: ./node_c/config.yaml
+      COVENANT_CONF: ./node_adapter/config.yaml
     volumes:
-      - ./test/service/node_c/config.yaml:/app/config.yaml
-      - ./test/service/node_c/private.key:/app/private.key
-      - ./test/service/node_c/:/app/node_c/
+      - ./test/service/node_adapter/config.yaml:/app/config.yaml
+      - ./test/service/node_adapter/private.key:/app/private.key
+      - ./test/service/node_adapter/:/app/node_adapter/
     networks:
       default:
         ipv4_address: 172.254.1.8
   covenantsql_observer:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_observer
     restart: always
     ports:
       - "11106:4663"
-    command: ["-database", "057e55460f501ad071383c95f691293f2f0a7895988e22593669ceeb52a6452a", "-reset", "oldest", "-listen", "0.0.0.0:4663"]
+    command:
+      [
+        "-listen",
+        "0.0.0.0:4663",
+      ]
     environment:
       COVENANT_ROLE: observer
       COVENANT_CONF: ./node_observer/config.yaml
@@ -152,7 +156,7 @@ services:
         max-size: "1m"
         max-file: "10"
   covenantsql_mysql_adapter:
-    image: covenantsql.io/covenantsql:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_mysql_adapter
     restart: always
     ports:
@@ -171,6 +175,20 @@ services:
       options:
         max-size: "1m"
         max-file: "10"
+  covenantsql_explorer:
+    image: covenantsql/explorer:latest
+    container_name: covenantsql_explorer
+    depends_on:
+      - covenantsql_observer
+    restart: always
+    ports:
+      - "11108:80"
+    environment:
+      COVENANTSQL_EXPLORER_DOMAIN: localhost
+      COVENANTSQL_OBSERVER_ADDR: covenantsql_observer:4663
+    logging:
+      options:
+        max-size: "5m"
 
 networks:
   default:

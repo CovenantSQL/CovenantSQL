@@ -34,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -112,11 +111,6 @@ func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitSer
 }
 
 func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
@@ -128,21 +122,12 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.Se
 	}
 
 	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &kayak.Peers{
-		Term: 1,
-		Leader: &kayak.Server{
-			Role:   proto.Leader,
-			ID:     nodeID,
-			PubKey: pubKey,
+	instance.Peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    1,
+			Leader:  nodeID,
+			Servers: []proto.NodeID{nodeID},
 		},
-		Servers: []*kayak.Server{
-			{
-				Role:   proto.Leader,
-				ID:     nodeID,
-				PubKey: pubKey,
-			},
-		},
-		PubKey: pubKey,
 	}
 	if err = instance.Peers.Sign(privKey); err != nil {
 		return
@@ -204,7 +189,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	// add database
 	var req *wt.UpdateService
 	var res wt.UpdateServiceResponse
-	var peers *kayak.Peers
+	var peers *proto.Peers
 	var block *ct.Block
 
 	dbID := proto.DatabaseID("db")
@@ -401,7 +386,7 @@ func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, er
 	return
 }
 
-func genPeers(term uint64) (peers *kayak.Peers, err error) {
+func genPeers(term uint64) (peers *proto.Peers, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -409,24 +394,19 @@ func genPeers(term uint64) (peers *kayak.Peers, err error) {
 	}
 
 	// get private/public key
-	var pubKey *asymmetric.PublicKey
 	var privateKey *asymmetric.PrivateKey
 
-	if privateKey, pubKey, err = getKeys(); err != nil {
+	if privateKey, _, err = getKeys(); err != nil {
 		return
 	}
 
 	// generate peers and sign
-	server := &kayak.Server{
-		Role:   proto.Leader,
-		ID:     nodeID,
-		PubKey: pubKey,
-	}
-	peers = &kayak.Peers{
-		Term:    term,
-		Leader:  server,
-		Servers: []*kayak.Server{server},
-		PubKey:  pubKey,
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    term,
+			Leader:  nodeID,
+			Servers: []proto.NodeID{nodeID},
+		},
 	}
 	err = peers.Sign(privateKey)
 	return

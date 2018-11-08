@@ -45,6 +45,7 @@ type observerReplicator struct {
 	nodeID    proto.NodeID
 	height    int32
 	triggerCh chan struct{}
+	stopOnce  sync.Once
 	stopCh    chan struct{}
 	replLock  sync.Mutex
 	c         *Chain
@@ -69,11 +70,13 @@ func (r *observerReplicator) setNewHeight(newHeight int32) {
 }
 
 func (r *observerReplicator) stop() {
-	select {
-	case <-r.stopCh:
-	default:
-		close(r.stopCh)
-	}
+	r.stopOnce.Do(func() {
+		select {
+		case <-r.stopCh:
+		default:
+			close(r.stopCh)
+		}
+	})
 }
 
 func (r *observerReplicator) replicate() {

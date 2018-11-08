@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
@@ -37,7 +36,7 @@ type Config struct {
 
 	Server *rpc.Server
 
-	Peers  *kayak.Peers
+	Peers  *proto.Peers
 	NodeID proto.NodeID
 
 	Period time.Duration
@@ -46,7 +45,7 @@ type Config struct {
 
 // NewConfig creates new config.
 func NewConfig(genesis *types.Block, dataFile string,
-	server *rpc.Server, peers *kayak.Peers,
+	server *rpc.Server, peers *proto.Peers,
 	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
 	config := Config{
 		Genesis:  genesis,

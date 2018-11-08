@@ -20,33 +20,22 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]proto.Node, peers *kayak.Peers, thisNode *proto.Node, err error) {
+func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]proto.Node, peers *proto.Peers, thisNode *proto.Node, err error) {
 	privateKey, err := kms.GetLocalPrivateKey()
 	if err != nil {
 		log.WithError(err).Fatal("get local private key failed")
 	}
-	publicKey, err := kms.GetLocalPublicKey()
-	if err != nil {
-		log.WithError(err).Fatal("get local public key failed")
-	}
 
-	leader := &kayak.Server{
-		Role:   proto.Leader,
-		ID:     conf.GConf.BP.NodeID,
-		PubKey: publicKey,
-	}
-
-	peers = &kayak.Peers{
-		Term:    1,
-		Leader:  leader,
-		Servers: []*kayak.Server{},
-		PubKey:  publicKey,
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:   1,
+			Leader: conf.GConf.BP.NodeID,
+		},
 	}
 
 	if conf.GConf.KnownNodes != nil {
@@ -54,11 +43,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 			if n.Role == proto.Leader || n.Role == proto.Follower {
 				//FIXME all KnownNodes
 				conf.GConf.KnownNodes[i].PublicKey = kms.BP.PublicKey
-				peers.Servers = append(peers.Servers, &kayak.Server{
-					Role:   n.Role,
-					ID:     n.ID,
-					PubKey: publicKey,
-				})
+				peers.Servers = append(peers.Servers, n.ID)
 			}
 		}
 	}
@@ -77,7 +62,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 
 	// set p route and public keystore
 	if conf.GConf.KnownNodes != nil {
-		for _, p := range conf.GConf.KnownNodes {
+		for i, p := range conf.GConf.KnownNodes {
 			rawNodeIDHash, err := hash.NewHashFromStr(string(p.ID))
 			if err != nil {
 				log.WithError(err).Error("load hash from node id failed")
@@ -102,7 +87,7 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 			}
 			if p.ID == nodeID {
 				kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &p.Nonce)
-				thisNode = &p
+				thisNode = &conf.GConf.KnownNodes[i]
 			}
 		}
 	}

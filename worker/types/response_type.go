@@ -17,14 +17,11 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 )
 
@@ -57,92 +54,15 @@ type ResponseHeader struct {
 // SignedResponseHeader defines a signed query response header.
 type SignedResponseHeader struct {
 	ResponseHeader
-	HeaderHash hash.Hash             `json:"h"`
-	Signee     *asymmetric.PublicKey `json:"e"`
-	Signature  *asymmetric.Signature `json:"s"`
+	Hash      hash.Hash             `json:"h"`
+	Signee    *asymmetric.PublicKey `json:"e"`
+	Signature *asymmetric.Signature `json:"s"`
 }
 
 // Response defines a complete query response.
 type Response struct {
 	Header  SignedResponseHeader `json:"h"`
 	Payload ResponsePayload      `json:"p"`
-}
-
-// Serialize structure to bytes.
-func (r *ResponseRow) Serialize() []byte {
-	// HACK(xq262144), currently use idiomatic serialization for hash generation
-	buf, _ := utils.EncodeMsgPack(r)
-
-	return buf.Bytes()
-}
-
-// Serialize structure to bytes.
-func (r *ResponsePayload) Serialize() []byte {
-	if r == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	binary.Write(buf, binary.LittleEndian, uint64(len(r.Columns)))
-	for _, c := range r.Columns {
-		buf.WriteString(c)
-	}
-
-	binary.Write(buf, binary.LittleEndian, uint64(len(r.DeclTypes)))
-	for _, t := range r.DeclTypes {
-		buf.WriteString(t)
-	}
-
-	binary.Write(buf, binary.LittleEndian, uint64(len(r.Rows)))
-	for _, row := range r.Rows {
-		buf.Write(row.Serialize())
-	}
-
-	return buf.Bytes()
-}
-
-// Serialize structure to bytes.
-func (h *ResponseHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(h.Request.Serialize())
-	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
-	buf.WriteString(string(h.NodeID))
-	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
-	binary.Write(buf, binary.LittleEndian, h.RowCount)
-	binary.Write(buf, binary.LittleEndian, h.LogOffset)
-	buf.Write(h.DataHash[:])
-
-	return buf.Bytes()
-}
-
-// Serialize structure to bytes.
-func (sh *SignedResponseHeader) Serialize() []byte {
-	if sh == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(sh.ResponseHeader.Serialize())
-	buf.Write(sh.HeaderHash[:])
-	if sh.Signee != nil {
-		buf.Write(sh.Signee.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-	if sh.Signature != nil {
-		buf.Write(sh.Signature.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-
-	return buf.Bytes()
 }
 
 // Verify checks hash and signature in response header.
@@ -152,11 +72,11 @@ func (sh *SignedResponseHeader) Verify() (err error) {
 		return
 	}
 	// verify hash
-	if err = verifyHash(&sh.ResponseHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.ResponseHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify signature
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 
@@ -172,27 +92,15 @@ func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) 
 	}
 
 	// build our hash
-	buildHash(&sh.ResponseHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.ResponseHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
-}
-
-// Serialize structure to bytes.
-func (sh *Response) Serialize() []byte {
-	if sh == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(sh.Header.Serialize())
-	buf.Write(sh.Payload.Serialize())
-
-	return buf.Bytes()
 }
 
 // Verify checks hash and signature in whole response.
@@ -211,7 +119,9 @@ func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 	sh.Header.RowCount = uint64(len(sh.Payload.Rows))
 
 	// build hash in header
-	buildHash(&sh.Payload, &sh.Header.DataHash)
+	if err = buildHash(&sh.Payload, &sh.Header.DataHash); err != nil {
+		return
+	}
 
 	// sign the request
 	return sh.Header.Sign(signer)

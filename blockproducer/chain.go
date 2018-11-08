@@ -374,7 +374,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	peers := c.rt.getPeers()
 	wg := &sync.WaitGroup{}
 	for _, s := range peers.Servers {
-		if !s.ID.IsEqual(&c.rt.nodeID) {
+		if !s.IsEqual(&c.rt.nodeID) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
@@ -399,7 +399,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 						"node":   id,
 					}).Debug("success advising block")
 				}
-			}(s.ID)
+			}(s)
 		}
 	}
 
@@ -723,12 +723,12 @@ func (c *Chain) syncHead() {
 		succ := false
 
 		for i, s := range peers.Servers {
-			if !s.ID.IsEqual(&c.rt.nodeID) {
-				err = c.cl.CallNode(s.ID, route.MCCFetchBlock.String(), req, resp)
+			if !s.IsEqual(&c.rt.nodeID) {
+				err = c.cl.CallNode(s, route.MCCFetchBlock.String(), req, resp)
 				if err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
+						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().getHeight(),
 						"head_block":  c.rt.getHead().getHeader().String(),
@@ -738,7 +738,7 @@ func (c *Chain) syncHead() {
 					c.blocksFromRPC <- resp.Block
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
+						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().getHeight(),
 						"head_block":  c.rt.getHead().getHeader().String(),

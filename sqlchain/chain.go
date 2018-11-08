@@ -29,7 +29,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -300,11 +299,11 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		}
 		log.WithFields(log.Fields{
 			"height": h,
-			"header": resp.HeaderHash.String(),
+			"header": resp.Hash.String(),
 		}).Debug("Loaded new resp header")
 		err = chain.qi.addResponse(h, resp)
 		if err != nil {
-			err = errors.Wrapf(err, "load resp, height %d, hash %s", h, resp.HeaderHash.String())
+			err = errors.Wrapf(err, "load resp, height %d, hash %s", h, resp.Hash.String())
 			return
 		}
 	}
@@ -326,11 +325,11 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		}
 		log.WithFields(log.Fields{
 			"height": h,
-			"header": ack.HeaderHash.String(),
+			"header": ack.Hash.String(),
 		}).Debug("Loaded new ack header")
 		err = chain.qi.addAck(h, ack)
 		if err != nil {
-			err = errors.Wrapf(err, "load ack, height %d, hash %s", h, ack.HeaderHash.String())
+			err = errors.Wrapf(err, "load ack, height %d, hash %s", h, ack.Hash.String())
 			return
 		}
 	}
@@ -417,14 +416,14 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 		return
 	}
 
-	tdbKey := utils.ConcatAll(metaResponseIndex[:], k, resp.HeaderHash[:])
+	tdbKey := utils.ConcatAll(metaResponseIndex[:], k, resp.Hash[:])
 	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put response %d %s", h, resp.HeaderHash.String())
+		err = errors.Wrapf(err, "put response %d %s", h, resp.Hash.String())
 		return
 	}
 
 	if err = c.qi.addResponse(h, resp); err != nil {
-		err = errors.Wrapf(err, "add resp h %d hash %s", h, resp.HeaderHash)
+		err = errors.Wrapf(err, "add resp h %d hash %s", h, resp.Hash)
 		return err
 	}
 
@@ -433,7 +432,7 @@ func (c *Chain) pushResponedQuery(resp *wt.SignedResponseHeader) (err error) {
 
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
-	log.Debugf("push ack %s", ack.HeaderHash.String())
+	log.Debugf("push ack %s", ack.Hash.String())
 	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := heightToKey(h)
 	var enc *bytes.Buffer
@@ -442,15 +441,15 @@ func (c *Chain) pushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 		return
 	}
 
-	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.HeaderHash[:])
+	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.Hash[:])
 
 	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put ack %d %s", h, ack.HeaderHash.String())
+		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash.String())
 		return
 	}
 
 	if err = c.qi.addAck(h, ack); err != nil {
-		err = errors.Wrapf(err, "add ack h %d hash %s", h, ack.HeaderHash)
+		err = errors.Wrapf(err, "add ack h %d hash %s", h, ack.Hash)
 		return err
 	}
 
@@ -471,7 +470,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		SignedHeader: ct.SignedHeader{
 			Header: ct.Header{
 				Version:     0x01000000,
-				Producer:    c.rt.getServer().ID,
+				Producer:    c.rt.getServer(),
 				GenesisHash: c.rt.genesisHash,
 				ParentHash:  c.rt.getHead().Head,
 				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
@@ -519,7 +518,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	wg := &sync.WaitGroup{}
 
 	for _, s := range peers.Servers {
-		if s.ID != c.rt.getServer().ID {
+		if s != c.rt.getServer() {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
@@ -535,7 +534,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 					}).WithError(err).Error(
 						"Failed to advise new block")
 				}
-			}(s.ID)
+			}(s)
 		}
 	}
 
@@ -565,14 +564,14 @@ func (c *Chain) syncHead() {
 		succ := false
 
 		for i, s := range peers.Servers {
-			if s.ID != c.rt.getServer().ID {
+			if s != c.rt.getServer() {
 				if err = c.cl.CallNode(
-					s.ID, route.SQLCFetchBlock.String(), req, resp,
+					s, route.SQLCFetchBlock.String(), req, resp,
 				); err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"time":        c.rt.getChainTimeString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
+						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
@@ -583,7 +582,7 @@ func (c *Chain) syncHead() {
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"time":        c.rt.getChainTimeString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s.ID),
+						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
@@ -917,8 +916,8 @@ func (c *Chain) syncAckedQuery(height int32, header *hash.Hash, id proto.NodeID)
 		},
 		DatabaseID: c.rt.databaseID,
 		FetchAckedQueryReq: FetchAckedQueryReq{
-			Height:                height,
-			SignedAckedHeaderHash: header,
+			Height:          height,
+			SignedAckedHash: header,
 		},
 	}
 	resp := &MuxFetchAckedQueryResp{}
@@ -947,7 +946,7 @@ func (c *Chain) queryOrSyncAckedQuery(height int32, header *hash.Hash, id proto.
 ) {
 	if ack, err = c.FetchAckedQuery(
 		height, header,
-	); (err == nil && ack != nil) || id == c.rt.getServer().ID {
+	); (err == nil && ack != nil) || id == c.rt.getServer() {
 		return
 	}
 	return c.syncAckedQuery(height, header, id)
@@ -991,7 +990,7 @@ func (c *Chain) CheckAndPushNewBlock(block *ct.Block) (err error) {
 	}
 
 	// Short circuit the checking process if it's a self-produced block
-	if block.Producer() == c.rt.server.ID {
+	if block.Producer() == c.rt.server {
 		return c.pushBlock(block)
 	}
 
@@ -1072,7 +1071,7 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *wt.SignedAckHeader) (err error) {
 }
 
 // UpdatePeers updates peer list of the sql-chain.
-func (c *Chain) UpdatePeers(peers *kayak.Peers) error {
+func (c *Chain) UpdatePeers(peers *proto.Peers) error {
 	return c.rt.updatePeers(peers)
 }
 
@@ -1235,7 +1234,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 	}()
 
 	for _, s := range peers.Servers {
-		if s.ID != c.rt.getServer().ID {
+		if s != c.rt.getServer() {
 			rpcWG.Add(1)
 			go func(id proto.NodeID) {
 				defer rpcWG.Done()
@@ -1250,7 +1249,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 				}
 
 				respC <- &resp.SignBillingResp
-			}(s.ID)
+			}(s)
 		}
 	}
 }

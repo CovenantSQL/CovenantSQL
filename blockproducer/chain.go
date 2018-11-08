@@ -35,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -56,10 +57,9 @@ type Chain struct {
 	rt *rt
 	cl *rpc.Caller
 
-	blocksFromSelf chan *pt.Block
-	blocksFromRPC  chan *pt.Block
-	pendingTxs     chan pi.Transaction
-	stopCh         chan struct{}
+	blocksFromRPC chan *pt.Block
+	pendingTxs    chan pi.Transaction
+	stopCh        chan struct{}
 }
 
 // NewChain creates a new blockchain.
@@ -121,15 +121,14 @@ func NewChain(cfg *Config) (*Chain, error) {
 
 	// create chain
 	chain := &Chain{
-		db:             db,
-		ms:             newMetaState(),
-		bi:             newBlockIndex(),
-		rt:             newRuntime(cfg, accountAddress),
-		cl:             rpc.NewCaller(),
-		blocksFromSelf: make(chan *pt.Block),
-		blocksFromRPC:  make(chan *pt.Block),
-		pendingTxs:     make(chan pi.Transaction),
-		stopCh:         make(chan struct{}),
+		db:            db,
+		ms:            newMetaState(),
+		bi:            newBlockIndex(),
+		rt:            newRuntime(cfg, accountAddress),
+		cl:            rpc.NewCaller(),
+		blocksFromRPC: make(chan *pt.Block),
+		pendingTxs:    make(chan pi.Transaction),
+		stopCh:        make(chan struct{}),
 	}
 
 	log.WithField("genesis", cfg.Genesis).Debug("pushing genesis block")
@@ -168,15 +167,14 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	}
 
 	chain = &Chain{
-		db:             db,
-		ms:             newMetaState(),
-		bi:             newBlockIndex(),
-		rt:             newRuntime(cfg, accountAddress),
-		cl:             rpc.NewCaller(),
-		blocksFromSelf: make(chan *pt.Block),
-		blocksFromRPC:  make(chan *pt.Block),
-		pendingTxs:     make(chan pi.Transaction),
-		stopCh:         make(chan struct{}),
+		db:            db,
+		ms:            newMetaState(),
+		bi:            newBlockIndex(),
+		rt:            newRuntime(cfg, accountAddress),
+		cl:            rpc.NewCaller(),
+		blocksFromRPC: make(chan *pt.Block),
+		pendingTxs:    make(chan pi.Transaction),
+		stopCh:        make(chan struct{}),
 	}
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
@@ -332,6 +330,7 @@ func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
 func (c *Chain) pushBlock(b *pt.Block) error {
 	err := c.checkBlock(b)
 	if err != nil {
+		err = errors.Wrap(err, "check block failed")
 		return err
 	}
 
@@ -608,14 +607,6 @@ func (c *Chain) processBlocks() {
 	var stash []*pt.Block
 	for {
 		select {
-		case block := <-c.blocksFromSelf:
-			h := c.rt.getHeightFromTime(block.Timestamp())
-			if h == c.rt.getNextTurn()-1 {
-				err := c.pushBlockWithoutCheck(block)
-				if err != nil {
-					log.Error(err)
-				}
-			}
 		case block := <-c.blocksFromRPC:
 			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
@@ -630,7 +621,11 @@ func (c *Chain) processBlocks() {
 				} else {
 					err := c.pushBlock(block)
 					if err != nil {
-						log.Error(err)
+						log.WithFields(log.Fields{
+							"block_hash":        block.BlockHash(),
+							"block_parent_hash": block.ParentHash(),
+							"block_timestamp":   block.Timestamp(),
+						}).Debug(err)
 					}
 				}
 

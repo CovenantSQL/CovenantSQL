@@ -7,23 +7,19 @@ env:
     - REVIEWDOG_VERSION=0.9.11
 language: go
 go:
-  - '1.11'
+  - '1.11.x'
 
 os:
   - linux
   - osx
 
 matrix:
-  allow_failures:
-    - go: 1.11
-  exclude:
-    - go: tip
   fast_finish: true
 install:
   - go get github.com/wadey/gocovmerge
   - go get golang.org/x/lint/golint
   - mkdir -p ~/bin/ && export export PATH="~/bin/:$PATH"
-  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/${REVIEWDOG_VERSION}/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 before_script:
   - echo $TRAVIS
   - echo $TRAVIS_PULL_REQUEST
@@ -34,7 +30,7 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
 script:
   - bash build.sh
-  - go test -v -race -failfast -parallel 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+  - go test -v -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
   - cd rpc && go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$ && cd -
   - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)
@@ -44,7 +40,7 @@ script:
 before_deploy:
   - bash build.sh
   - mkdir -p build
-  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/cql*
+  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz $(ls bin/cql* | grep -v test)
 
 deploy:
   provider: releases

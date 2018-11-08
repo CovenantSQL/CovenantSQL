@@ -21,7 +21,7 @@ import (
 	"flag"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
-	log "github.com/Sirupsen/logrus"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func main() {

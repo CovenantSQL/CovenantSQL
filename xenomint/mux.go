@@ -106,6 +106,7 @@ func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err er
 	return
 }
 
+// MuxApplyRequest defines a request of the Apply RPC method.
 type MuxApplyRequest struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -113,6 +114,7 @@ type MuxApplyRequest struct {
 	Response *wt.Response
 }
 
+// MuxApplyResponse defines a response of the Apply RPC method.
 type MuxApplyResponse struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -132,6 +134,7 @@ func (s *MuxService) Apply(req *MuxApplyRequest, resp *MuxApplyResponse) (err er
 	return
 }
 
+// MuxLeaderCommitRequest a request of the MuxLeaderCommitResponse RPC method.
 type MuxLeaderCommitRequest struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -139,6 +142,7 @@ type MuxLeaderCommitRequest struct {
 	Height int32
 }
 
+// MuxLeaderCommitResponse a response of the MuxLeaderCommitResponse RPC method.
 type MuxLeaderCommitResponse struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -147,7 +151,7 @@ type MuxLeaderCommitResponse struct {
 	Offset uint64
 }
 
-// Commit is the RPC method to commit block on mux service.
+// LeaderCommit is the RPC method to commit block on mux service.
 func (s *MuxService) LeaderCommit(
 	req *MuxLeaderCommitRequest, resp *MuxLeaderCommitResponse) (err error,
 ) {
@@ -165,6 +169,7 @@ func (s *MuxService) LeaderCommit(
 	return
 }
 
+// MuxFollowerCommitRequest a request of the FollowerCommit RPC method.
 type MuxFollowerCommitRequest struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -172,6 +177,7 @@ type MuxFollowerCommitRequest struct {
 	Offset uint64
 }
 
+// MuxFollowerCommitResponse a response of the FollowerCommit RPC method.
 type MuxFollowerCommitResponse struct {
 	proto.DatabaseID
 	proto.Envelope
@@ -179,6 +185,7 @@ type MuxFollowerCommitResponse struct {
 	Offset uint64
 }
 
+// FollowerCommit is the RPC method to commit block on mux service.
 func (s *MuxService) FollowerCommit(
 	req *MuxFollowerCommitRequest, resp *MuxFollowerCommitResponse) (err error,
 ) {

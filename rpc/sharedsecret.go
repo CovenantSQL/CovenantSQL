@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -70,8 +71,8 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			symmetricKeyCache.Store(nodeID, symmetricKey)
 			log.WithFields(log.Fields{
 				"node":       nodeID.String(),
-				"remotePub":  remotePublicKey.Serialize(),
-				"sessionKey": symmetricKey,
+				"remotePub":  fmt.Sprintf("%#x", remotePublicKey.Serialize()),
+				"sessionKey": fmt.Sprintf("%#x", symmetricKey),
 			}).Debug("generated shared secret")
 		}
 		//log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",

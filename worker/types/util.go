@@ -20,20 +20,27 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
-type canSerialize interface {
-	Serialize() []byte
+type canMarshalHash interface {
+	MarshalHash() ([]byte, error)
 }
 
-func verifyHash(data canSerialize, h *hash.Hash) (err error) {
+func verifyHash(data canMarshalHash, h *hash.Hash) (err error) {
 	var newHash hash.Hash
-	buildHash(data, &newHash)
+	if err = buildHash(data, &newHash); err != nil {
+		return
+	}
 	if !newHash.IsEqual(h) {
 		return ErrHashVerification
 	}
 	return
 }
 
-func buildHash(data canSerialize, h *hash.Hash) {
-	newHash := hash.THashH(data.Serialize())
+func buildHash(data canMarshalHash, h *hash.Hash) (err error) {
+	var hashBytes []byte
+	if hashBytes, err = data.MarshalHash(); err != nil {
+		return
+	}
+	newHash := hash.THashH(hashBytes)
 	copy(h[:], newHash[:])
+	return
 }

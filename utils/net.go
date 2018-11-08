@@ -41,10 +41,10 @@ func testPortConnectable(addr string, timeout time.Duration) bool {
 	if err != nil {
 		log.Infof("test dial to %s failed", addr)
 		return false
-	} else {
-		conn.Close()
-		return true
 	}
+
+	conn.Close()
+	return true
 }
 
 func testPort(bindAddr string, port int, excludeAllocated bool) bool {

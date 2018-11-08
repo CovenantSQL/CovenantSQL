@@ -19,9 +19,11 @@ package blockproducer
 import (
 	"encoding/binary"
 	"sync"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type blockNode struct {
@@ -31,8 +33,12 @@ type blockNode struct {
 	count  uint32
 }
 
-func newBlockNode(h uint32, block *types.Block, parent *blockNode) *blockNode {
+func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.Block, parent *blockNode) *blockNode {
 	var count uint32
+
+	h := uint32(block.Timestamp().Sub(chainInitTime) / period)
+
+	log.Debugf("chain init time %s, block generation time %s, block height %d", chainInitTime.String(), block.Timestamp().String(), h)
 
 	if parent != nil {
 		count = parent.count + 1

@@ -26,7 +26,6 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -69,7 +68,7 @@ func TestChain(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, peers, err := createTestPeersWithPrivKeys(priv, testPeersNumber)
 
-		cfg := NewConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0].ID, testPeriod, testTick)
+		cfg := NewConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0], testPeriod, testTick)
 		chain, err := NewChain(cfg)
 		So(err, ShouldBeNil)
 		ao, ok := chain.ms.readonly.accounts[testAddress1]
@@ -100,7 +99,7 @@ func TestChain(t *testing.T) {
 		for {
 			time.Sleep(testPeriod)
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-				chain.rt.getHead().getHeader(), chain.rt.getHead().getHeight(), chain.rt.nextTurn,
+				chain.rt.getHead().Head, chain.rt.getHead().Height, chain.rt.nextTurn,
 				chain.rt.chainInitTime.Add(
 					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
 				chain.rt.isMyTurn())
@@ -120,7 +119,7 @@ func TestChain(t *testing.T) {
 			}
 
 			// generate block
-			block, err := generateRandomBlockWithTransactions(*chain.rt.getHead().getHeader(), tbs)
+			block, err := generateRandomBlockWithTransactions(chain.rt.getHead().Head, tbs)
 			So(err, ShouldBeNil)
 			err = chain.pushBlock(block)
 			So(err, ShouldBeNil)
@@ -133,7 +132,7 @@ func TestChain(t *testing.T) {
 			So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
 			// So(chain.rt.getHead().Height, ShouldEqual, height)
 
-			height := chain.rt.getHead().getHeight()
+			height := chain.rt.getHead().Height
 			specificHeightBlock1, _, err := chain.fetchBlockByHeight(height)
 			So(err, ShouldBeNil)
 			So(block.SignedHeader.BlockHash, ShouldResemble, specificHeightBlock1.SignedHeader.BlockHash)
@@ -162,17 +161,18 @@ func TestChain(t *testing.T) {
 			height++
 
 			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.rt.getHead().getHeight(),
+				chain.rt.getHead().Height,
 				block.ParentHash(),
 				block.BlockHash())
 
-			if chain.rt.getHead().getHeight() >= testPeriodNumber {
+			if chain.rt.getHead().Height >= testPeriodNumber {
 				break
 			}
 		}
 
 		// load chain from db
-		chain.db.Close()
+		err = chain.Stop()
+		So(err, ShouldBeNil)
 		_, err = LoadChain(cfg)
 		So(err, ShouldBeNil)
 	})
@@ -199,7 +199,7 @@ func TestMultiNode(t *testing.T) {
 		}
 
 		var nis []cpuminer.NonceInfo
-		var peers *kayak.Peers
+		var peers *proto.Peers
 		peerInited := false
 		for i := range chains {
 			// create tmp file
@@ -219,13 +219,13 @@ func TestMultiNode(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				for i, p := range peers.Servers {
-					t.Logf("Peer #%d: %s", i, p.ID)
+					t.Logf("Peer #%d: %s", i, p)
 				}
 
 				peerInited = true
 			}
 
-			cfg := NewConfig(genesis, fl.Name(), server, peers, peers.Servers[i].ID, testPeriod, testTick)
+			cfg := NewConfig(genesis, fl.Name(), server, peers, peers.Servers[i], testPeriod, testTick)
 
 			// init chain
 			chains[i], err = NewChain(cfg)
@@ -235,8 +235,13 @@ func TestMultiNode(t *testing.T) {
 			pub, err := kms.GetLocalPublicKey()
 			So(err, ShouldBeNil)
 			node := proto.Node{
-				ID:        peers.Servers[i].ID,
-				Role:      peers.Servers[i].Role,
+				ID: peers.Servers[i],
+				Role: func(peers *proto.Peers, i int) proto.ServerRole {
+					if peers.Leader.IsEqual(&peers.Servers[i]) {
+						return proto.Leader
+					}
+					return proto.Follower
+				}(peers, i),
 				Addr:      server.Listener.Addr().String(),
 				PublicKey: pub,
 				Nonce:     nis[i].Nonce,

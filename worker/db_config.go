@@ -19,7 +19,6 @@ package worker
 import (
 	"time"
 
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 )
@@ -28,7 +27,7 @@ import (
 type DBConfig struct {
 	DatabaseID      proto.DatabaseID
 	DataDir         string
-	KayakMux        *kt.ETLSTransportService
+	KayakMux        *DBKayakMuxService
 	ChainMux        *sqlchain.MuxService
 	MaxWriteTimeGap time.Duration
 	EncryptionKey   string

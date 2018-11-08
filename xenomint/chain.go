@@ -260,6 +260,7 @@ func (c *Chain) processOut(ctx context.Context) {
 	}
 }
 
+// Stop stops chain workers and RPC service.
 func (c *Chain) Stop() (err error) {
 	// Stop workers
 	c.stopWorkers()
@@ -267,6 +268,7 @@ func (c *Chain) Stop() (err error) {
 	return c.state.close(true)
 }
 
+// Start starts chain workers and RPC service.
 func (c *Chain) Start() (err error) {
 	startWorker(c.ctx, c.wg, c.processIn)
 	startWorker(c.ctx, c.wg, c.processOut)

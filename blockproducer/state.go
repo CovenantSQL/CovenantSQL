@@ -17,45 +17,12 @@
 package blockproducer
 
 import (
-	"sync"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 // State store the node info of chain.
 type State struct {
-	sync.Mutex
 	Node   *blockNode
 	Head   hash.Hash
 	Height uint32
-}
-
-func (s *State) getNode() *blockNode {
-	s.Lock()
-	defer s.Unlock()
-	return s.Node
-}
-
-func (s *State) getHeight() uint32 {
-	s.Lock()
-	defer s.Unlock()
-	return s.Height
-}
-
-func (s *State) setHeight(h uint32) {
-	s.Lock()
-	defer s.Unlock()
-	s.Height = h
-}
-
-func (s *State) increaseHeightByOne() {
-	s.Lock()
-	defer s.Unlock()
-	s.Height++
-}
-
-func (s *State) getHeader() *hash.Hash {
-	s.Lock()
-	defer s.Unlock()
-	return &s.Head
 }

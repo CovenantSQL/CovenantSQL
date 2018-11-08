@@ -71,7 +71,7 @@ func TestBadType(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	}
 
-	if err = st.Commit(context.Background(), struct{}{}); err == nil {
+	if _, err = st.Commit(context.Background(), struct{}{}); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
 		t.Logf("Error occurred as expected: %v", err)
@@ -135,7 +135,7 @@ func TestStorage(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	}
 
-	if err = st.Commit(context.Background(), el2); err == nil {
+	if _, err = st.Commit(context.Background(), el2); err == nil {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	} else {
 		t.Logf("Error occurred as expected: %v", err)
@@ -147,8 +147,12 @@ func TestStorage(t *testing.T) {
 		t.Logf("Error occurred as expected: %v", err)
 	}
 
-	if err = st.Commit(context.Background(), el1); err != nil {
+	var res interface{}
+	if res, err = st.Commit(context.Background(), el1); err != nil {
 		t.Fatalf("Error occurred: %v", err)
+	} else {
+		result := res.(ExecResult)
+		t.Logf("Result: %v", result)
 	}
 
 	// test query
@@ -256,19 +260,19 @@ func TestStorage(t *testing.T) {
 	columns, types, data, err = st.Query(context.Background(),
 		[]Query{newQuery("DELETE FROM `kv` WHERE `value` IS NULL")})
 
-	affected, err := st.Exec(context.Background(),
+	execResult, err := st.Exec(context.Background(),
 		[]Query{newQuery("INSERT OR REPLACE INTO `kv` VALUES ('k4', 'v4')")})
-	if err != nil || affected != 1 {
+	if err != nil || execResult.RowsAffected != 1 {
 		t.Fatalf("Exec INSERT failed: %v", err)
 	}
 	// test with arguments
-	affected, err = st.Exec(context.Background(), []Query{newQuery("DELETE FROM `kv` WHERE `key`='k4'")})
-	if err != nil || affected != 1 {
+	execResult, err = st.Exec(context.Background(), []Query{newQuery("DELETE FROM `kv` WHERE `key`='k4'")})
+	if err != nil || execResult.RowsAffected != 1 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
-	affected, err = st.Exec(context.Background(),
+	execResult, err = st.Exec(context.Background(),
 		[]Query{newQuery("DELETE FROM `kv` WHERE `key`=?", "not_exist")})
-	if err != nil || affected != 0 {
+	if err != nil || execResult.RowsAffected != 0 {
 		t.Fatalf("Exec DELETE failed: %v", err)
 	}
 

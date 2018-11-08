@@ -30,7 +30,7 @@ type Storage interface {
 	// Query for result.
 	Query(dbID string, query string) (columns []string, types []string, rows [][]interface{}, err error)
 	// Exec for update.
-	Exec(dbID string, query string) (err error)
+	Exec(dbID string, query string) (affectedRows int64, lastInsertID int64, err error)
 }
 
 // golang does trick convert, use rowScanner to return the original result type in sqlite3 driver

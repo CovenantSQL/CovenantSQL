@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -373,7 +372,7 @@ func createRandomString(offset, length int, s *string) {
 	*s = string(buff)
 }
 
-func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err error) {
+func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err error) {
 	if num <= 0 {
 		return
 	}
@@ -386,29 +385,20 @@ func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cp
 		return
 	}
 
-	s := make([]*kayak.Server, num)
+	s := make([]proto.NodeID, num)
 	h := &hash.Hash{}
 
 	for i := range s {
 		rand.Read(h[:])
-		s[i] = &kayak.Server{
-			Role: func() proto.ServerRole {
-				if i == 0 {
-					return proto.Leader
-				}
-				return proto.Follower
-			}(),
-			ID:     proto.NodeID(nis[i].Hash.String()),
-			PubKey: pub,
-		}
+		s[i] = proto.NodeID(nis[i].Hash.String())
 	}
 
-	p = &kayak.Peers{
-		Term:      0,
-		Leader:    s[0],
-		Servers:   s,
-		PubKey:    pub,
-		Signature: nil,
+	p = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    0,
+			Leader:  s[0],
+			Servers: s,
+		},
 	}
 
 	if err = p.Sign(priv); err != nil {
@@ -418,7 +408,7 @@ func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cp
 	return
 }
 
-func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err error) {
+func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err error) {
 	if num <= 0 {
 		return
 	}
@@ -443,29 +433,20 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *kayak.Peers, err err
 		return
 	}
 
-	s := make([]*kayak.Server, num)
+	s := make([]proto.NodeID, num)
 	h := &hash.Hash{}
 
 	for i := range s {
 		rand.Read(h[:])
-		s[i] = &kayak.Server{
-			Role: func() proto.ServerRole {
-				if i == 0 {
-					return proto.Leader
-				}
-				return proto.Follower
-			}(),
-			ID:     proto.NodeID(nis[i].Hash.String()),
-			PubKey: pub,
-		}
+		s[i] = proto.NodeID(nis[i].Hash.String())
 	}
 
-	p = &kayak.Peers{
-		Term:      0,
-		Leader:    s[0],
-		Servers:   s,
-		PubKey:    pub,
-		Signature: nil,
+	p = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Term:    0,
+			Leader:  s[0],
+			Servers: s,
+		},
 	}
 
 	if err = p.Sign(priv); err != nil {

@@ -322,6 +322,10 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 		return
 	}
 
+	// Leader pending map handling.
+	r.markPendingPrepare(prepareLog.Index)
+	defer r.markPrepareFinished(prepareLog.Index)
+
 	tmLeaderPrepare = time.Now()
 
 	// send prepare to all nodes

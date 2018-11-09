@@ -17,6 +17,7 @@
 package wal
 
 import (
+	"io"
 	"sync"
 	"testing"
 
@@ -52,6 +53,9 @@ func TestMemWal_Write(t *testing.T) {
 		l, err = p.Get(l1.Index)
 		So(err, ShouldBeNil)
 		So(l, ShouldResemble, l1)
+
+		_, err = p.Get(10000)
+		So(err, ShouldNotBeNil)
 
 		// test consecutive writes
 		l2 := &kt.Log{
@@ -93,6 +97,19 @@ func TestMemWal_Write(t *testing.T) {
 		So(p.revIndex, ShouldHaveLength, 4)
 		So(p.revIndex[l3.Index], ShouldEqual, 3)
 		So(p.offset, ShouldEqual, 4)
+
+		_, err = p.Read()
+		So(err, ShouldEqual, io.EOF)
+
+		p.Close()
+		_, err = p.Read()
+		So(err, ShouldEqual, ErrWalClosed)
+
+		_, err = p.Get(1)
+		So(err, ShouldEqual, ErrWalClosed)
+
+		err = p.Write(l1)
+		So(err, ShouldEqual, ErrWalClosed)
 	})
 }
 

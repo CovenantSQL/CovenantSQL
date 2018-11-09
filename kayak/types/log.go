@@ -49,7 +49,7 @@ func (t LogType) String() (s string) {
 	case LogNoop:
 		return "LogNoop"
 	default:
-		return
+		return "Unknown"
 	}
 }
 

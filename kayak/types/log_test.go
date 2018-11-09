@@ -14,5 +14,18 @@
  * limitations under the License.
  */
 
-// Package wal defines toy implementations of kayak wal.
-package wal
+package types
+
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestLogType_String(t *testing.T) {
+	Convey("test log string function", t, func() {
+		for i := LogPrepare; i <= LogNoop+1; i++ {
+			So(i.String(), ShouldNotBeEmpty)
+		}
+	})
+}

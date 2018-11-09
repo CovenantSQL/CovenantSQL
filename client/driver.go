@@ -124,10 +124,6 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 
 	req := new(bp.CreateDatabaseRequest)
 	req.Header.ResourceMeta = wt.ResourceMeta(meta)
-	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		err = errors.Wrap(err, "get local public key failed")
-		return
-	}
 	var privateKey *asymmetric.PrivateKey
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		err = errors.Wrap(err, "get local private key failed")
@@ -169,9 +165,6 @@ func Drop(dsn string) (err error) {
 
 	req := new(bp.DropDatabaseRequest)
 	req.Header.DatabaseID = proto.DatabaseID(cfg.DatabaseID)
-	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
 	var privateKey *asymmetric.PrivateKey
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return

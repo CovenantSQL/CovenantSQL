@@ -106,21 +106,6 @@ func TestEncodeDecodeTransactions(t *testing.T) {
 			So(reflect.TypeOf(out.Maps[k]).String(), ShouldContainSubstring, "TransactionWrapper")
 		}
 	})
-	Convey("test encode wrapper, decode using real type", t, func() {
-		var t pi.Transaction
-		t = pi.WrapTransaction(NewBaseAccount(&Account{}))
-		So(reflect.TypeOf(t).String(), ShouldContainSubstring, "TransactionWrapper")
-		So(t.GetTransactionType(), ShouldEqual, pi.TransactionTypeBaseAccount)
-		buf, err := utils.EncodeMsgPack(t)
-		So(err, ShouldBeNil)
-
-		var out *BaseAccount
-		err = utils.DecodeMsgPack(buf.Bytes(), &out)
-		So(err, ShouldBeNil)
-		So(out, ShouldNotBeNil)
-		So(out.GetTransactionType(), ShouldEqual, pi.TransactionTypeBaseAccount)
-		So(reflect.TypeOf(out).String(), ShouldContainSubstring, "BaseAccount")
-	})
 	Convey("decode invalid data", t, func() {
 		var testTypes = []interface{}{
 			"1",

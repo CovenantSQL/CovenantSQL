@@ -776,7 +776,7 @@ func (r *Runtime) readLogs() (err error) {
 			return
 		} else if err == io.EOF {
 			err = nil
-			return
+			break
 		}
 
 		switch l.Type {

@@ -17,11 +17,10 @@
 package types
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
@@ -44,41 +43,35 @@ type Header struct {
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
-	BlockHash hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	HSV crypto.DefaultHashSignVerifierImpl
+}
+
+func (s *SignedHeader) Sign(signer *ca.PrivateKey) error {
+	return s.HSV.Sign(&s.Header, signer)
 }
 
 // Verify verifies the signature of the signed header.
 func (s *SignedHeader) Verify() error {
-	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
-		return ErrSignVerification
-	}
-
-	return nil
+	return s.HSV.Verify(&s.Header)
 }
 
 // VerifyAsGenesis verifies the signed header as a genesis block header.
 func (s *SignedHeader) VerifyAsGenesis() (err error) {
+	var pk *ca.PublicKey
 	log.WithFields(log.Fields{
 		"producer": s.Producer,
 		"root":     s.GenesisHash.String(),
 		"parent":   s.ParentHash.String(),
 		"merkle":   s.MerkleRoot.String(),
-		"block":    s.BlockHash.String(),
-	}).Debug("verify genesis header")
-
-	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(s.Producer)
-
-	if err != nil {
+		"block":    s.HSV.Hash().String(),
+	}).Debug("Verifying genesis block header")
+	if pk, err = kms.GetPublicKey(s.Producer); err != nil {
 		return
 	}
-
-	if !reflect.DeepEqual(pk, s.Signee) {
-		return ErrNodePublicKeyNotMatch
+	if !pk.IsEqual(s.HSV.Signee) {
+		err = ErrNodePublicKeyNotMatch
+		return
 	}
-
 	return s.Verify()
 }
 
@@ -89,28 +82,14 @@ type Block struct {
 }
 
 // PackAndSignBlock generates the signature for the Block from the given PrivateKey.
-func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) (err error) {
+func (b *Block) PackAndSignBlock(signer *ca.PrivateKey) (err error) {
 	// Calculate merkle root
 	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Queries).GetRoot()
-	buffer, err := b.SignedHeader.Header.MarshalHash()
-	if err != nil {
-		return
-	}
-
-	b.SignedHeader.Signee = signer.PubKey()
-	b.SignedHeader.BlockHash = hash.THashH(buffer)
-	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
-
-	return
+	return b.SignedHeader.Sign(signer)
 }
 
 // PushAckedQuery pushes a acknowledged and verified query into the block.
 func (b *Block) PushAckedQuery(h *hash.Hash) {
-	if b.Queries == nil {
-		// TODO(leventeliu): set appropriate capacity.
-		b.Queries = make([]*hash.Hash, 0, 100)
-	}
-
 	b.Queries = append(b.Queries, h)
 }
 
@@ -122,34 +101,19 @@ func (b *Block) Verify() (err error) {
 	) {
 		return ErrMerkleRootVerification
 	}
-
-	// Verify block hash
-	buffer, err := b.SignedHeader.Header.MarshalHash()
-	if err != nil {
-		return
-	}
-
-	if h := hash.THashH(buffer); !h.IsEqual(&b.SignedHeader.BlockHash) {
-		return ErrHashVerification
-	}
-
-	// Verify signature
 	return b.SignedHeader.Verify()
 }
 
 // VerifyAsGenesis verifies the block as a genesis block.
 func (b *Block) VerifyAsGenesis() (err error) {
-	// Assume that we can fetch public key from kms after initialization.
-	pk, err := kms.GetPublicKey(b.Producer())
-
-	if err != nil {
+	var pk *ca.PublicKey
+	if pk, err = kms.GetPublicKey(b.SignedHeader.Producer); err != nil {
 		return
 	}
-
-	if !reflect.DeepEqual(pk, b.SignedHeader.Signee) {
-		return ErrNodePublicKeyNotMatch
+	if !pk.IsEqual(b.SignedHeader.HSV.Signee) {
+		err = ErrNodePublicKeyNotMatch
+		return
 	}
-
 	return b.Verify()
 }
 
@@ -170,7 +134,7 @@ func (b *Block) ParentHash() *hash.Hash {
 
 // BlockHash returns the parent hash field of the block header.
 func (b *Block) BlockHash() *hash.Hash {
-	return &b.SignedHeader.BlockHash
+	return &b.SignedHeader.HSV.DataHash
 }
 
 // GenesisHash returns the parent hash field of the block header.
@@ -179,8 +143,8 @@ func (b *Block) GenesisHash() *hash.Hash {
 }
 
 // Signee returns the signee field  of the block signed header.
-func (b *Block) Signee() *asymmetric.PublicKey {
-	return b.SignedHeader.Signee
+func (b *Block) Signee() *ca.PublicKey {
+	return b.SignedHeader.HSV.Signee
 }
 
 // Blocks is Block (reference) array.

@@ -90,6 +90,7 @@ func (t *rpcTracker) send() {
 
 func (t *rpcTracker) callSingle(idx int) {
 	err := t.r.getCaller(t.nodes[idx]).Call(t.method, t.req, nil)
+	defer t.wg.Done()
 	t.errLock.Lock()
 	defer t.errLock.Unlock()
 	t.errors[t.nodes[idx]] = err

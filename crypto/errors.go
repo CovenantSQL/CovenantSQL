@@ -14,5 +14,13 @@
  * limitations under the License.
  */
 
-// Package common defines some common types which are used by multiple modules.
-package common
+package crypto
+
+import "errors"
+
+var (
+	// ErrHashValueNotMatch indicates the hash value not match error from verifier.
+	ErrHashValueNotMatch = errors.New("hash value not match")
+	// ErrSignatureNotMatch indicates the signature not match error from verifier.
+	ErrSignatureNotMatch = errors.New("signature not match")
+)

@@ -14,5 +14,19 @@
  * limitations under the License.
  */
 
-// Package chain defines commonly types for block chain.
-package chain
+package interfaces
+
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestTransactionTypeMixin(t *testing.T) {
+	Convey("test transaction type mixin", t, func() {
+		m := NewTransactionTypeMixin(TransactionTypeBaseAccount)
+		So(m.GetTransactionType(), ShouldEqual, TransactionTypeBaseAccount)
+		m.SetTransactionType(TransactionTypeTransfer)
+		So(m.GetTransactionType(), ShouldEqual, TransactionTypeTransfer)
+	})
+}

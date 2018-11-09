@@ -42,8 +42,10 @@ type Peers struct {
 // Clone makes a deep copy of Peers.
 func (p *Peers) Clone() (copy Peers) {
 	copy.Version = p.Version
+	copy.Term = p.Term
 	copy.Leader = p.Leader
 	copy.Servers = append(copy.Servers, p.Servers...)
+	copy.Hash = p.Hash
 	copy.Signee = p.Signee
 	copy.Signature = p.Signature
 	return

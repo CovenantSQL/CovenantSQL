@@ -19,7 +19,7 @@ package sqlchain
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/kayak"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
@@ -35,8 +35,8 @@ type Config struct {
 	Tick    time.Duration
 
 	MuxService *MuxService
-	Peers      *kayak.Peers
-	Server     *kayak.Server
+	Peers      *proto.Peers
+	Server     proto.NodeID
 
 	// Price sets query price in gases.
 	Price           map[wt.QueryType]uint64
@@ -45,4 +45,9 @@ type Config struct {
 
 	// QueryTTL sets the unacknowledged query TTL in block periods.
 	QueryTTL int32
+
+	// DBAccount info
+	TokenType    types.TokenType
+	GasPrice     uint64
+	UpdatePeriod uint64
 }

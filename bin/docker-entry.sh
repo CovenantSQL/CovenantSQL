@@ -7,9 +7,11 @@ miner)
     exec /app/cql-minerd -config "${COVENANT_CONF}"
     ;;
 blockproducer)
+    rm -f /app/node_*/chain.db
     exec /app/cqld -config "${COVENANT_CONF}"
     ;;
 observer)
+    rm -f /app/node_observer/observer.db
     exec /app/cql-observer -config "${COVENANT_CONF}" "${@}"
     ;;
 adapter)

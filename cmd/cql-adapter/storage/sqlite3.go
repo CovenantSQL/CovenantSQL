@@ -115,14 +115,18 @@ func (s *SQLite3Storage) Query(dbID string, query string) (columns []string, typ
 }
 
 // Exec implements the Storage abstraction interface.
-func (s *SQLite3Storage) Exec(dbID string, query string) (err error) {
+func (s *SQLite3Storage) Exec(dbID string, query string) (affectedRows int64, lastInsertID int64, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID, false); err != nil {
 		return
 	}
 	defer conn.Close()
 
-	_, err = conn.Exec(query)
+	var result sql.Result
+	result, err = conn.Exec(query)
+
+	affectedRows, _ = result.RowsAffected()
+	lastInsertID, _ = result.LastInsertId()
 
 	return
 }

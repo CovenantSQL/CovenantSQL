@@ -122,6 +122,9 @@ func (c *CryptoConn) Write(b []byte) (n int, err error) {
 // Close closes the connection.
 // Any blocked Read or Write operations will be unblocked and return errors.
 func (c *CryptoConn) Close() error {
+	if c.Conn == nil {
+		return nil
+	}
 	return c.Conn.Close()
 }
 

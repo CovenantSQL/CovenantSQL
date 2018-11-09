@@ -19,8 +19,6 @@ package blockproducer
 import "errors"
 
 var (
-	// ErrInvalidDBPeersConfig defines database peers invalid error.
-	ErrInvalidDBPeersConfig = errors.New("invalid database peers config")
 	// ErrNoSuchDatabase defines database meta not exists error.
 	ErrNoSuchDatabase = errors.New("no such database")
 	// ErrDatabaseAllocation defines database allocation failure error.

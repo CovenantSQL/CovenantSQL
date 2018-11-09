@@ -159,10 +159,18 @@ func TestTransaction(t *testing.T) {
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 
+		var execResult sql.Result
+		var lastInsertID, affectedRows int64
+
 		_, err = db.Exec("create table test (test int)")
 		So(err, ShouldBeNil)
-		_, err = db.Exec("insert into test values (1)")
+		execResult, err = db.Exec("insert into test values (1)")
 		So(err, ShouldBeNil)
+		lastInsertID, err = execResult.LastInsertId()
+		So(err, ShouldBeNil)
+		So(lastInsertID, ShouldEqual, 1)
+		affectedRows, err = execResult.RowsAffected()
+		So(affectedRows, ShouldEqual, 1)
 
 		// test start transaction
 		var tx *sql.Tx

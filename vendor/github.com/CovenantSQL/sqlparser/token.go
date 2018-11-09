@@ -34,19 +34,20 @@ const (
 // Tokenizer is the struct used to generate SQL
 // tokens for the parser.
 type Tokenizer struct {
-	InStream       io.Reader
-	AllowComments  bool
-	ForceEOF       bool
-	lastChar       uint16
-	Position       int
-	lastToken      []byte
-	LastError      error
-	posVarIndex    int
-	ParseTree      Statement
-	partialDDL     *DDL
-	nesting        int
-	multi          bool
-	specialComment *Tokenizer
+	InStream             io.Reader
+	AllowComments        bool
+	AllowBackSlashEscape bool
+	ForceEOF             bool
+	lastChar             uint16
+	Position             int
+	lastToken            []byte
+	LastError            error
+	posVarIndex          int
+	ParseTree            Statement
+	partialDDL           *DDL
+	nesting              int
+	multi                bool
+	specialComment       *Tokenizer
 
 	buf     []byte
 	bufPos  int
@@ -660,14 +661,14 @@ func (tkn *Tokenizer) scanString(delim uint16, typ int) (int, []byte) {
 			return LEX_ERROR, buffer.Bytes()
 		}
 
-		if ch != delim && ch != '\\' {
+		if ch != delim && (!tkn.AllowBackSlashEscape || ch != '\\') {
 			buffer.WriteByte(byte(ch))
 
 			// Scan ahead to the next interesting character.
 			start := tkn.bufPos
 			for ; tkn.bufPos < tkn.bufSize; tkn.bufPos++ {
 				ch = uint16(tkn.buf[tkn.bufPos])
-				if ch == delim || ch == '\\' {
+				if ch == delim || (tkn.AllowBackSlashEscape && ch == '\\') {
 					break
 				}
 			}
@@ -687,7 +688,7 @@ func (tkn *Tokenizer) scanString(delim uint16, typ int) (int, []byte) {
 		}
 		tkn.next() // Read one past the delim or escape character.
 
-		if ch == '\\' {
+		if tkn.AllowBackSlashEscape && ch == '\\' {
 			if tkn.lastChar == eofChar {
 				// String terminates mid escape character.
 				return LEX_ERROR, buffer.Bytes()

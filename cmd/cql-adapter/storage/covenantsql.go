@@ -92,14 +92,18 @@ func (s *CovenantSQLStorage) Query(dbID string, query string) (columns []string,
 }
 
 // Exec implements the Storage abstraction interface.
-func (s *CovenantSQLStorage) Exec(dbID string, query string) (err error) {
+func (s *CovenantSQLStorage) Exec(dbID string, query string) (affectedRows int64, lastInsertID int64, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID); err != nil {
 		return
 	}
 	defer conn.Close()
 
-	_, err = conn.Exec(query)
+	var result sql.Result
+	result, err = conn.Exec(query)
+
+	affectedRows, _ = result.RowsAffected()
+	lastInsertID, _ = result.LastInsertId()
 
 	return
 }

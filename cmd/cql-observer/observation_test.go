@@ -175,7 +175,7 @@ func stopNodes() {
 			defer wg.Done()
 			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
 			thisCmd.Cmd.Wait()
-			grepRace := exec.Command("/bin/sh", "-c", "grep -A 50 'DATA RACE' "+thisCmd.LogPath)
+			grepRace := exec.Command("/bin/sh", "-c", "grep -a -A 50 'DATA RACE' "+thisCmd.LogPath)
 			out, _ := grepRace.Output()
 			if len(out) > 2 {
 				log.Fatal(string(out))
@@ -426,7 +426,7 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Interface()), ShouldResemble, byHashRequestResult)
 
 		// test get first log offset, should be a create table statement
-		res, err = getJSON("offset/%v/1", dbID)
+		res, err = getJSON("offset/%v/0", dbID)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldContainSubstring, "CREATE TABLE")
 

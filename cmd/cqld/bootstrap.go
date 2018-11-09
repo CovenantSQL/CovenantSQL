@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -29,23 +30,21 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
-	ka "github.com/CovenantSQL/CovenantSQL/kayak/api"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/transport"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/twopc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	//nodeDirPattern   = "./node_%v"
-	//pubKeyStoreFile  = "public.keystore"
-	//privateKeyFile   = "private.key"
-	//dhtFileName      = "dht.db"
 	kayakServiceName = "Kayak"
+	kayakMethodName  = "Call"
+	kayakWalFileName = "kayak.ldb"
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
@@ -71,19 +70,18 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}
 
 	// init nodes
-	log.Info("init peers")
+	log.WithField("node", nodeID).Info("init peers")
 	_, peers, thisNode, err := initNodePeers(nodeID, conf.GConf.PubKeyStoreFile)
 	if err != nil {
 		log.WithError(err).Error("init nodes and peers failed")
 		return
 	}
 
-	var service *kt.ETLSTransportService
 	var server *rpc.Server
 
 	// create server
-	log.Info("create server")
-	if service, server, err = createServer(
+	log.WithField("addr", listenAddr).Info("create server")
+	if server, err = createServer(
 		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, listenAddr); err != nil {
 		log.WithError(err).Error("create server failed")
 		return
@@ -100,7 +98,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	// init kayak
 	log.Info("init kayak runtime")
 	var kayakRuntime *kayak.Runtime
-	if _, kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, service); err != nil {
+	if kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, server); err != nil {
 		log.WithError(err).Error("init kayak runtime failed")
 		return
 	}
@@ -156,8 +154,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server,
 		peers,
 		nodeID,
-		2*time.Second,
-		900*time.Millisecond,
+		time.Minute,
+		20*time.Second,
 	)
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
@@ -192,35 +190,57 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	return
 }
 
-func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (service *kt.ETLSTransportService, server *rpc.Server, err error) {
-	os.Remove(pubKeyStorePath)
-
+func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (server *rpc.Server, err error) {
 	server = rpc.NewServer()
-	if err != nil {
-		return
-	}
 
-	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
-	service = ka.NewMuxService(kayakServiceName, server)
+	if err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey); err != nil {
+		err = errors.Wrap(err, "init rpc server failed")
+	}
 
 	return
 }
 
-func initKayakTwoPC(rootDir string, node *proto.Node, peers *kayak.Peers, worker twopc.Worker, service *kt.ETLSTransportService) (config kayak.Config, runtime *kayak.Runtime, err error) {
+func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.Handler, server *rpc.Server) (runtime *kayak.Runtime, err error) {
 	// create kayak config
-	log.Info("create twopc config")
-	config = ka.NewTwoPCConfig(rootDir, service, worker)
+	log.Info("create kayak config")
+
+	walPath := filepath.Join(rootDir, kayakWalFileName)
+
+	var logWal kt.Wal
+	if logWal, err = kl.NewLevelDBWal(walPath); err != nil {
+		err = errors.Wrap(err, "init kayak log pool failed")
+		return
+	}
+
+	config := &kt.RuntimeConfig{
+		Handler:          h,
+		PrepareThreshold: 1.0,
+		CommitThreshold:  1.0,
+		PrepareTimeout:   time.Second,
+		CommitTimeout:    time.Second * 60,
+		Peers:            peers,
+		Wal:              logWal,
+		NodeID:           node.ID,
+		ServiceName:      kayakServiceName,
+		MethodName:       kayakMethodName,
+	}
 
 	// create kayak runtime
-	log.Info("create kayak runtime")
-	runtime, err = ka.NewTwoPCKayak(peers, config)
-	if err != nil {
+	log.Info("init kayak runtime")
+	if runtime, err = kayak.NewRuntime(config); err != nil {
+		err = errors.Wrap(err, "init kayak runtime failed")
+		return
+	}
+
+	// register rpc service
+	if _, err = NewKayakService(server, kayakServiceName, runtime); err != nil {
+		err = errors.Wrap(err, "init kayak rpc service failed")
 		return
 	}
 
 	// init runtime
-	log.Info("init kayak twopc runtime")
-	err = runtime.Init()
+	log.Info("start kayak runtime")
+	runtime.Start()
 
 	return
 }

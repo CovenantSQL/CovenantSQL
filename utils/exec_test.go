@@ -38,13 +38,6 @@ func TestBuild(t *testing.T) {
 	})
 }
 
-func TestCleanupDB(t *testing.T) {
-	Convey("CleanupDB", t, func() {
-		log.SetLevel(log.DebugLevel)
-		So(CleanupDB(), ShouldBeNil)
-	})
-}
-
 func TestRunServer(t *testing.T) {
 	Convey("build", t, func() {
 		log.SetLevel(log.DebugLevel)

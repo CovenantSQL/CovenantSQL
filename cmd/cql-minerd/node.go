@@ -25,7 +25,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -112,7 +112,7 @@ func registerNodeToBP(timeout time.Duration) (err error) {
 					ch <- id
 					return
 				}
-				if strings.Contains(err.Error(), kayak.ErrNotLeader.Error()) {
+				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
 					log.Debug("stop ping non leader BP node")
 					return
 				}

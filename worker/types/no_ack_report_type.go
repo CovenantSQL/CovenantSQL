@@ -17,13 +17,10 @@
 package types
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -39,9 +36,9 @@ type NoAckReportHeader struct {
 // SignedNoAckReportHeader defines worker worker issued/signed client no ack report.
 type SignedNoAckReportHeader struct {
 	NoAckReportHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // NoAckReport defines whole worker no client ack report.
@@ -55,61 +52,21 @@ type AggrNoAckReportHeader struct {
 	NodeID    proto.NodeID              // aggregated report node id
 	Timestamp time.Time                 // time in UTC zone
 	Reports   []SignedNoAckReportHeader // no-ack reports
-	Peers     *kayak.Peers              // serving peers during report
+	Peers     *proto.Peers              // serving peers during report
 }
 
 // SignedAggrNoAckReportHeader defines worker leader aggregated/signed client no ack report.
 type SignedAggrNoAckReportHeader struct {
 	AggrNoAckReportHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // AggrNoAckReport defines whole worker leader no client ack report.
 type AggrNoAckReport struct {
 	proto.Envelope
 	Header SignedAggrNoAckReportHeader
-}
-
-// Serialize structure to bytes.
-func (h *NoAckReportHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
-	buf.WriteString(string(h.NodeID))
-	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
-	buf.Write(h.Response.Serialize())
-
-	return buf.Bytes()
-}
-
-// Serialize structure to bytes.
-func (sh *SignedNoAckReportHeader) Serialize() []byte {
-	if sh == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(sh.NoAckReportHeader.Serialize())
-	buf.Write(sh.HeaderHash[:])
-	if sh.Signee != nil {
-		buf.Write(sh.Signee.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-	if sh.Signature != nil {
-		buf.Write(sh.Signature.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-
-	return buf.Bytes()
 }
 
 // Verify checks hash and signature in signed no ack report header.
@@ -119,11 +76,11 @@ func (sh *SignedNoAckReportHeader) Verify() (err error) {
 		return
 	}
 	// verify hash
-	if err = verifyHash(&sh.NoAckReportHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.NoAckReportHeader, &sh.Hash); err != nil {
 		return
 	}
 	// validate signature
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return
@@ -137,22 +94,15 @@ func (sh *SignedNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err erro
 	}
 
 	// build hash
-	buildHash(&sh.NoAckReportHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.NoAckReportHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
-}
-
-// Serialize structure to bytes.
-func (r *NoAckReport) Serialize() []byte {
-	if r == nil {
-		return []byte{'\000'}
-	}
-
-	return r.Header.Serialize()
 }
 
 // Verify checks hash and signature in whole no ack report.
@@ -165,50 +115,6 @@ func (r *NoAckReport) Sign(signer *asymmetric.PrivateKey) error {
 	return r.Header.Sign(signer)
 }
 
-// Serialize structure to bytes.
-func (h *AggrNoAckReportHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	binary.Write(buf, binary.LittleEndian, uint64(len(h.NodeID)))
-	buf.WriteString(string(h.NodeID))
-	binary.Write(buf, binary.LittleEndian, int64(h.Timestamp.UnixNano()))
-	binary.Write(buf, binary.LittleEndian, uint64(len(h.Reports)))
-	for _, r := range h.Reports {
-		buf.Write(r.Serialize())
-	}
-	buf.Write(h.Peers.Serialize())
-
-	return buf.Bytes()
-}
-
-// Serialize structure to bytes.
-func (sh *SignedAggrNoAckReportHeader) Serialize() []byte {
-	if sh == nil {
-		return []byte{'\000'}
-	}
-
-	buf := new(bytes.Buffer)
-
-	buf.Write(sh.AggrNoAckReportHeader.Serialize())
-	buf.Write(sh.HeaderHash[:])
-	if sh.Signee != nil {
-		buf.Write(sh.Signee.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-	if sh.Signature != nil {
-		buf.Write(sh.Signature.Serialize())
-	} else {
-		buf.WriteRune('\000')
-	}
-
-	return buf.Bytes()
-}
-
 // Verify checks hash and signature in aggregated no ack report.
 func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 	// verify original reports
@@ -218,11 +124,11 @@ func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 		}
 	}
 	// verify hash
-	if err = verifyHash(&sh.AggrNoAckReportHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.AggrNoAckReportHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify signature
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return ErrSignVerification
 	}
 	return
@@ -237,22 +143,15 @@ func (sh *SignedAggrNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err 
 	}
 
 	// verify hash
-	buildHash(&sh.AggrNoAckReportHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.AggrNoAckReportHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// verify signature
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
-}
-
-// Serialize structure to bytes.
-func (r *AggrNoAckReport) Serialize() []byte {
-	if r == nil {
-		return []byte{'\000'}
-	}
-
-	return r.Header.Serialize()
 }
 
 // Verify the whole aggregation no ack report.

@@ -23,36 +23,29 @@ import (
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
+//go:generate hsp
+
 // CreateDatabaseRequestHeader defines client create database rpc header.
 type CreateDatabaseRequestHeader struct {
 	ResourceMeta wt.ResourceMeta
 }
 
-// Serialize structure to bytes.
-func (h *CreateDatabaseRequestHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	return h.ResourceMeta.Serialize()
-}
-
 // SignedCreateDatabaseRequestHeader defines signed client create database request header.
 type SignedCreateDatabaseRequestHeader struct {
 	CreateDatabaseRequestHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // Verify checks hash and signature in create database request header.
 func (sh *SignedCreateDatabaseRequestHeader) Verify() (err error) {
 	// verify hash
-	if err = verifyHash(&sh.CreateDatabaseRequestHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.CreateDatabaseRequestHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return wt.ErrSignVerification
 	}
 	return
@@ -61,10 +54,12 @@ func (sh *SignedCreateDatabaseRequestHeader) Verify() (err error) {
 // Sign the request.
 func (sh *SignedCreateDatabaseRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// build hash
-	buildHash(&sh.CreateDatabaseRequestHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.CreateDatabaseRequestHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
@@ -92,31 +87,22 @@ type CreateDatabaseResponseHeader struct {
 	InstanceMeta wt.ServiceInstance
 }
 
-// Serialize structure to bytes.
-func (h *CreateDatabaseResponseHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	return h.InstanceMeta.Serialize()
-}
-
 // SignedCreateDatabaseResponseHeader defines signed client create database response header.
 type SignedCreateDatabaseResponseHeader struct {
 	CreateDatabaseResponseHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // Verify checks hash and signature in create database response header.
 func (sh *SignedCreateDatabaseResponseHeader) Verify() (err error) {
 	// verify hash
-	if err = verifyHash(&sh.CreateDatabaseResponseHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.CreateDatabaseResponseHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return wt.ErrSignVerification
 	}
 	return
@@ -125,10 +111,12 @@ func (sh *SignedCreateDatabaseResponseHeader) Verify() (err error) {
 // Sign the response.
 func (sh *SignedCreateDatabaseResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// build hash
-	buildHash(&sh.CreateDatabaseResponseHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.CreateDatabaseResponseHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
@@ -156,31 +144,22 @@ type DropDatabaseRequestHeader struct {
 	DatabaseID proto.DatabaseID
 }
 
-// Serialize structure to bytes.
-func (h *DropDatabaseRequestHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	return []byte(h.DatabaseID)
-}
-
 // SignedDropDatabaseRequestHeader defines signed client drop database rpc request header.
 type SignedDropDatabaseRequestHeader struct {
 	DropDatabaseRequestHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // Verify checks hash and signature in request header.
 func (sh *SignedDropDatabaseRequestHeader) Verify() (err error) {
 	// verify hash
-	if err = verifyHash(&sh.DropDatabaseRequestHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.DropDatabaseRequestHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return wt.ErrSignVerification
 	}
 	return
@@ -189,10 +168,12 @@ func (sh *SignedDropDatabaseRequestHeader) Verify() (err error) {
 // Sign the request.
 func (sh *SignedDropDatabaseRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// build hash
-	buildHash(&sh.DropDatabaseRequestHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.DropDatabaseRequestHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
@@ -222,31 +203,22 @@ type GetDatabaseRequestHeader struct {
 	DatabaseID proto.DatabaseID
 }
 
-// Serialize structure to bytes.
-func (h *GetDatabaseRequestHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	return []byte(h.DatabaseID)
-}
-
 // SignedGetDatabaseRequestHeader defines signed client get database rpc request header entity.
 type SignedGetDatabaseRequestHeader struct {
 	GetDatabaseRequestHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // Verify checks hash and signature in request header.
 func (sh *SignedGetDatabaseRequestHeader) Verify() (err error) {
 	// verify hash
-	if err = verifyHash(&sh.GetDatabaseRequestHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.GetDatabaseRequestHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return wt.ErrSignVerification
 	}
 	return
@@ -255,10 +227,12 @@ func (sh *SignedGetDatabaseRequestHeader) Verify() (err error) {
 // Sign the request.
 func (sh *SignedGetDatabaseRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// build hash
-	buildHash(&sh.GetDatabaseRequestHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.GetDatabaseRequestHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
@@ -285,31 +259,22 @@ type GetDatabaseResponseHeader struct {
 	InstanceMeta wt.ServiceInstance
 }
 
-// Serialize structure to bytes.
-func (h *GetDatabaseResponseHeader) Serialize() []byte {
-	if h == nil {
-		return []byte{'\000'}
-	}
-
-	return h.InstanceMeta.Serialize()
-}
-
 // SignedGetDatabaseResponseHeader defines client get database rpc response header entity.
 type SignedGetDatabaseResponseHeader struct {
 	GetDatabaseResponseHeader
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
+	Hash      hash.Hash
+	Signee    *asymmetric.PublicKey
+	Signature *asymmetric.Signature
 }
 
 // Verify checks hash and signature in response header.
 func (sh *SignedGetDatabaseResponseHeader) Verify() (err error) {
 	// verify hash
-	if err = verifyHash(&sh.GetDatabaseResponseHeader, &sh.HeaderHash); err != nil {
+	if err = verifyHash(&sh.GetDatabaseResponseHeader, &sh.Hash); err != nil {
 		return
 	}
 	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.HeaderHash[:], sh.Signee) {
+	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
 		return wt.ErrSignVerification
 	}
 	return
@@ -318,10 +283,12 @@ func (sh *SignedGetDatabaseResponseHeader) Verify() (err error) {
 // Sign the request.
 func (sh *SignedGetDatabaseResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// build hash
-	buildHash(&sh.GetDatabaseResponseHeader, &sh.HeaderHash)
+	if err = buildHash(&sh.GetDatabaseResponseHeader, &sh.Hash); err != nil {
+		return
+	}
 
 	// sign
-	sh.Signature, err = signer.Sign(sh.HeaderHash[:])
+	sh.Signature, err = signer.Sign(sh.Hash[:])
 	sh.Signee = signer.PubKey()
 
 	return
@@ -343,21 +310,28 @@ func (r *GetDatabaseResponse) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return r.Header.Sign(signer)
 }
 
-// FIXIT(xq262144) remove duplicated interface in utils package.
-type canSerialize interface {
-	Serialize() []byte
+// FIXME(xq262144) remove duplicated interface in utils package.
+type canMarshalHash interface {
+	MarshalHash() ([]byte, error)
 }
 
-func verifyHash(data canSerialize, h *hash.Hash) (err error) {
+func verifyHash(data canMarshalHash, h *hash.Hash) (err error) {
 	var newHash hash.Hash
-	buildHash(data, &newHash)
+	if err = buildHash(data, &newHash); err != nil {
+		return
+	}
 	if !newHash.IsEqual(h) {
-		return wt.ErrHashVerification
+		return ErrSignVerification
 	}
 	return
 }
 
-func buildHash(data canSerialize, h *hash.Hash) {
-	newHash := hash.THashH(data.Serialize())
+func buildHash(data canMarshalHash, h *hash.Hash) (err error) {
+	var hashBytes []byte
+	if hashBytes, err = data.MarshalHash(); err != nil {
+		return
+	}
+	newHash := hash.THashH(hashBytes)
 	copy(h[:], newHash[:])
+	return
 }

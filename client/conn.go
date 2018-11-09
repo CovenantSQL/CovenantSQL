@@ -26,7 +26,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -100,7 +99,7 @@ func (c *conn) stopAckWorkers() {
 
 func (c *conn) ackWorker() {
 	if rawPeers, ok := peerList.Load(c.dbID); ok {
-		if peers, ok := rawPeers.(*kayak.Peers); ok {
+		if peers, ok := rawPeers.(*proto.Peers); ok {
 			var (
 				oneTime sync.Once
 				pc      *rpc.PersistentCaller
@@ -114,7 +113,7 @@ func (c *conn) ackWorker() {
 					break ackWorkerLoop
 				}
 				oneTime.Do(func() {
-					pc = rpc.NewPersistentCaller(peers.Leader.ID)
+					pc = rpc.NewPersistentCaller(peers.Leader)
 				})
 				if err = ack.Sign(c.privKey, false); err != nil {
 					log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
@@ -202,11 +201,16 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
-	if _, err = c.addQuery(wt.WriteQuery, sq); err != nil {
+
+	var affectedRows, lastInsertID int64
+	if affectedRows, lastInsertID, _, err = c.addQuery(wt.WriteQuery, sq); err != nil {
 		return
 	}
 
-	result = driver.ResultNoRows
+	result = &execResult{
+		affectedRows: affectedRows,
+		lastInsertID: lastInsertID,
+	}
 
 	return
 }
@@ -220,7 +224,9 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
-	return c.addQuery(wt.ReadQuery, sq)
+	_, _, rows, err = c.addQuery(wt.ReadQuery, sq)
+
+	return
 }
 
 // Commit implements the driver.Tx.Commit method.
@@ -240,7 +246,7 @@ func (c *conn) Commit() (err error) {
 
 	if len(c.queries) > 0 {
 		// send query
-		if _, err = c.sendQuery(wt.WriteQuery, c.queries); err != nil {
+		if _, _, _, err = c.sendQuery(wt.WriteQuery, c.queries); err != nil {
 			return
 		}
 	}
@@ -270,7 +276,7 @@ func (c *conn) Rollback() error {
 	return nil
 }
 
-func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Rows, err error) {
+func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	if c.inTransaction {
 		// check query type, enqueue query
 		if queryType == wt.ReadQuery {
@@ -298,8 +304,8 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (rows driver.Ro
 	return c.sendQuery(queryType, []wt.Query{*query})
 }
 
-func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows driver.Rows, err error) {
-	var peers *kayak.Peers
+func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
+	var peers *proto.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		return
 	}
@@ -314,7 +320,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 			"type":   queryType.String(),
 			"connID": connID,
 			"seqNo":  seqNo,
-			"target": peers.Leader.ID,
+			"target": peers.Leader,
 			"source": c.localNodeID,
 		}).WithError(err).Debug("send query")
 	}()
@@ -340,7 +346,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 
-	c.pCaller = rpc.NewPersistentCaller(peers.Leader.ID)
+	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 	var response wt.Response
 	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
@@ -351,6 +357,11 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (rows drive
 		return
 	}
 	rows = newRows(&response)
+
+	if queryType == wt.WriteQuery {
+		affectedRows = response.Header.AffectedRows
+		lastInsertID = response.Header.LastInsertID
+	}
 
 	// build ack
 	c.ackCh <- &wt.Ack{
@@ -376,10 +387,11 @@ func convertQuery(query string, args []driver.NamedValue) (sq *wt.Query) {
 		Pattern: query,
 	}
 
-	sq.Args = make([]sql.NamedArg, len(args))
+	sq.Args = make([]wt.NamedArg, len(args))
 
 	for i, v := range args {
-		sq.Args[i] = sql.Named(v.Name, v.Value)
+		sq.Args[i].Name = v.Name
+		sq.Args[i].Value = v.Value
 	}
 
 	return

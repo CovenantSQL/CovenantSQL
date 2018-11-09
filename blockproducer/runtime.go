@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -50,7 +49,7 @@ type rt struct {
 
 	// peersMutex protects following peers-relative fields.
 	peersMutex sync.Mutex
-	peers      *kayak.Peers
+	peers      *proto.Peers
 	nodeID     proto.NodeID
 
 	stateMutex sync.Mutex // Protects following fields.
@@ -78,7 +77,7 @@ func (r *rt) now() time.Time {
 func newRuntime(cfg *Config, accountAddress proto.AccountAddress) *rt {
 	var index uint32
 	for i, s := range cfg.Peers.Servers {
-		if cfg.NodeID.IsEqual(&s.ID) {
+		if cfg.NodeID.IsEqual(&s) {
 			index = uint32(i)
 		}
 	}
@@ -151,7 +150,7 @@ func (r *rt) getNextTurn() uint32 {
 	return r.nextTurn
 }
 
-func (r *rt) getPeers() *kayak.Peers {
+func (r *rt) getPeers() *proto.Peers {
 	r.peersMutex.Lock()
 	defer r.peersMutex.Unlock()
 	peers := r.peers.Clone()

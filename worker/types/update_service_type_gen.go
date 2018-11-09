@@ -41,7 +41,7 @@ func (z *SignedUpdateServiceHeader) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.HeaderHash.MarshalHash(); err != nil {
+	if oTemp, err := z.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -63,7 +63,7 @@ func (z *SignedUpdateServiceHeader) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 20 + 1 + 3 + hsp.Int32Size + 9 + z.UpdateServiceHeader.Instance.Msgsize() + 11 + z.HeaderHash.Msgsize()
+	s += 20 + 1 + 3 + hsp.Int32Size + 9 + z.UpdateServiceHeader.Instance.Msgsize() + 5 + z.Hash.Msgsize()
 	return
 }
 

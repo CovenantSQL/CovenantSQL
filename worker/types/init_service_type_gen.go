@@ -188,7 +188,7 @@ func (z *SignedInitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 		}
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.HeaderHash.MarshalHash(); err != nil {
+	if oTemp, err := z.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -214,6 +214,6 @@ func (z *SignedInitServiceResponseHeader) Msgsize() (s int) {
 	for za0001 := range z.InitServiceResponseHeader.Instances {
 		s += z.InitServiceResponseHeader.Instances[za0001].Msgsize()
 	}
-	s += 11 + z.HeaderHash.Msgsize()
+	s += 5 + z.Hash.Msgsize()
 	return
 }

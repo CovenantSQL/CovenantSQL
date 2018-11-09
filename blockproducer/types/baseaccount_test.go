@@ -25,22 +25,20 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestTxTransfer(t *testing.T) {
-	Convey("test transfer", t, func() {
+func TestBaseAccount(t *testing.T) {
+	Convey("base account", t, func() {
 		h, err := hash.NewHashFromStr("000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade")
 		So(err, ShouldBeNil)
 		addr := proto.AccountAddress(*h)
-
-		t := NewTransfer(&TransferHeader{
-			Sender: addr,
-			Nonce:  1,
+		ba := NewBaseAccount(&Account{
+			Address: addr,
 		})
-		So(t.GetAccountAddress(), ShouldEqual, addr)
-		So(t.GetAccountNonce(), ShouldEqual, 1)
-
+		So(ba.GetAccountAddress(), ShouldEqual, addr)
+		So(ba.GetAccountNonce(), ShouldEqual, 0)
+		So(ba.GetHash(), ShouldEqual, hash.Hash{})
 		priv, _, err := asymmetric.GenSecp256k1KeyPair()
 		So(err, ShouldBeNil)
-		So(t.Sign(priv), ShouldBeNil)
-		So(t.Verify(), ShouldBeNil)
+		So(ba.Sign(priv), ShouldBeNil)
+		So(ba.Verify(), ShouldBeNil)
 	})
 }

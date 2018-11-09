@@ -18,6 +18,7 @@ package client
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -99,6 +100,16 @@ func TestStmt(t *testing.T) {
 
 		// prepare on closed
 		_, err = db.Prepare("select * from test")
+		So(err, ShouldNotBeNil)
+
+		// closed stmt and old args
+		cs := newStmt(nil, "test query")
+		cs.Close()
+
+		_, err = cs.Query([]driver.Value{1})
+		So(err, ShouldNotBeNil)
+
+		_, err = cs.Exec([]driver.Value{2})
 		So(err, ShouldNotBeNil)
 	})
 }

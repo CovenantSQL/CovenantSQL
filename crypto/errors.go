@@ -14,5 +14,13 @@
  * limitations under the License.
  */
 
-// Package interfaces defines commonly used interfaces for block chain.
-package interfaces
+package crypto
+
+import "errors"
+
+var (
+	// ErrHashValueNotMatch indicates the hash value not match error from verifier.
+	ErrHashValueNotMatch = errors.New("hash value not match")
+	// ErrSignatureNotMatch indicates the signature not match error from verifier.
+	ErrSignatureNotMatch = errors.New("signature not match")
+)

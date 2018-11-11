@@ -391,16 +391,21 @@ func TestFullProcess(t *testing.T) {
 }
 
 const ROWSTART = 1000000
+const TABLENAME = "insert_table0"
 
 func prepareBenchTable(db *sql.DB) {
-	tableName := "insert_table0"
-	_, err := db.Exec("DROP TABLE IF EXISTS " + tableName + ";")
+	_, err := db.Exec("DROP TABLE IF EXISTS " + TABLENAME + ";")
 	So(err, ShouldBeNil)
 
-	_, err = db.Exec(`CREATE TABLE "` + tableName + `" ("k" INT, "v1" TEXT, PRIMARY KEY("k"))`)
+	_, err = db.Exec(`CREATE TABLE "` + TABLENAME + `" ("k" INT, "v1" TEXT, PRIMARY KEY("k"))`)
 	So(err, ShouldBeNil)
 
-	_, err = db.Exec("REPLACE INTO "+tableName+" VALUES(?, ?)", ROWSTART-1, "test")
+	_, err = db.Exec("REPLACE INTO "+TABLENAME+" VALUES(?, ?)", ROWSTART-1, "test")
+	So(err, ShouldBeNil)
+}
+
+func cleanBenchTable(db *sql.DB) {
+	_, err := db.Exec("DELETE FROM "+TABLENAME+" WHERE k >= ?", ROWSTART)
 	So(err, ShouldBeNil)
 }
 
@@ -409,6 +414,8 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	if createDB {
 		prepareBenchTable(db)
 	}
+
+	cleanBenchTable(db)
 
 	var i int64
 	i = -1
@@ -421,7 +428,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				_, err = db.Exec("INSERT INTO insert_table0 ( k, v1 ) VALUES"+
 					"(?, ?)", ROWSTART+ii, ii,
 				)
-				//log.Infof("ROWSTART+ii = %d", ROWSTART+ii)
+				//log.Debug("ROWSTART+ii = %d", ROWSTART+ii)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -443,11 +450,11 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 			for pb.Next() {
 				var index int64
 				if createDB { //only data by insert
-					index = rand.Int63n(count-1) + ROWSTART + 1
+					index = rand.Int63n(count-1) + ROWSTART
 				} else { //has data before ROWSTART
-					index = rand.Int63n(count-1) + 1
+					index = rand.Int63n(count - 1)
 				}
-				//log.Infof("index = %d", index)
+				//log.Debug("index = %d", index)
 				row := db.QueryRow("SELECT v1 FROM insert_table0 WHERE k = ? LIMIT 1", index)
 				var result []byte
 				err = row.Scan(&result)

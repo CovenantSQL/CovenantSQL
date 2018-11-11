@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -389,7 +390,7 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
-const ROWSTART = 500000000
+const ROWSTART = 1000000
 
 func prepareBenchTable(db *sql.DB) {
 	tableName := "insert_table0"
@@ -399,7 +400,7 @@ func prepareBenchTable(db *sql.DB) {
 	_, err = db.Exec(`CREATE TABLE "` + tableName + `" ("k" INT, "v1" TEXT, PRIMARY KEY("k"))`)
 	So(err, ShouldBeNil)
 
-	_, err = db.Exec("INSERT INTO "+tableName+" VALUES(?, ?)", ROWSTART, "test")
+	_, err = db.Exec("REPLACE INTO "+tableName+" VALUES(?, ?)", ROWSTART-1, "test")
 	So(err, ShouldBeNil)
 }
 
@@ -410,6 +411,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	}
 
 	var i int64
+	i = -1
 
 	b.Run("benchmark INSERT", func(b *testing.B) {
 		b.ResetTimer()
@@ -447,9 +449,9 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				}
 				//log.Infof("index = %d", index)
 				row := db.QueryRow("SELECT v1 FROM insert_table0 WHERE k = ? LIMIT 1", index)
-				var result int
+				var result []byte
 				err = row.Scan(&result)
-				if err != nil || result < 0 {
+				if err != nil || (len(result) == 0) {
 					log.Errorf("index = %d", index)
 					b.Fatal(err)
 				}
@@ -531,7 +533,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 func BenchmarkSQLite(b *testing.B) {
 	var db *sql.DB
 	var createDB bool
-	millionFile := "/data/sqlite_bigdata/insert_multi_sqlitedb0_1_1000000"
+	millionFile := fmt.Sprintf("/data/sqlite_bigdata/insert_multi_sqlitedb0_1_%v", ROWSTART)
 	f, err := os.Open(millionFile)
 	if err != nil && os.IsNotExist(err) {
 		os.Remove("./foo.db")

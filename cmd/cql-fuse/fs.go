@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2015 The Cockroach Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +42,8 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
 const rootNodeID = 1
@@ -75,7 +93,7 @@ func (cfs CFS) create(ctx context.Context, parentID uint64, name string, node *N
 	const insertNode = `INSERT INTO fs_inode VALUES (?, ?)`
 	const insertNamespace = `INSERT INTO fs_namespace VALUES (?, ?, ?)`
 
-	err := ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
+	err := client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 		if _, err := tx.Exec(insertNode, node.ID, inode); err != nil {
 			return err
 		}
@@ -95,7 +113,7 @@ func (cfs CFS) remove(ctx context.Context, parentID uint64, name string, checkCh
 	const deleteInode = `DELETE FROM fs_inode WHERE id = ?`
 	const deleteBlock = `DELETE FROM fs_block WHERE id = ?`
 
-	err := ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
+	err := client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 		// Start by looking up the node ID.
 		var id uint64
 		if err := tx.QueryRow(lookupSQL, parentID, name).Scan(&id); err != nil {
@@ -195,7 +213,7 @@ func (cfs CFS) rename(
 	const insertNamespace = `INSERT INTO fs_namespace VALUES (?, ?, ?)`
 	const updateNamespace = `UPDATE fs_namespace SET id = ? WHERE (parentID, name) = (?, ?)`
 	const deleteInode = `DELETE FROM fs_inode WHERE id = ?`
-	err := ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
+	err := client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 		// Lookup source inode.
 		srcObject, err := getInode(tx, oldParentID, oldName)
 		if err != nil {

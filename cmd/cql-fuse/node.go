@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2015 The Cockroach Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +46,8 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
 var _ fs.Node = &Node{}               // Attr
@@ -163,7 +181,7 @@ func (n *Node) Setattr(
 	originalSize := n.Size
 
 	// Wrap everything inside a transaction.
-	err := ExecuteTx(ctx, n.cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
+	err := client.ExecuteTx(ctx, n.cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 		// Resize blocks as needed.
 		if err := resizeBlocks(tx, n.ID, n.Size, req.Size); err != nil {
 			return err
@@ -289,7 +307,7 @@ func (n *Node) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wri
 	originalSize := n.Size
 
 	// Wrap everything inside a transaction.
-	err := ExecuteTx(ctx, n.cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
+	err := client.ExecuteTx(ctx, n.cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 
 		// Update blocks. They will be added as needed.
 		if err := write(tx, n.ID, n.Size, uint64(req.Offset), req.Data); err != nil {

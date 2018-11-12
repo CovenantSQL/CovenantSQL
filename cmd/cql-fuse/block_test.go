@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2015 The Cockroach Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,11 +56,22 @@ var (
 	baseDir        = utils.GetProjectSrcDir()
 	testWorkingDir = FJ(baseDir, "./test/")
 	logDir         = FJ(testWorkingDir, "./log/")
+	db             *sql.DB
 )
 
 var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
+
+func TestMain(m *testing.M) {
+	os.Exit(func() int {
+		var stop func()
+		db, stop = initTestDB()
+		defer stop()
+		defer db.Close()
+		return m.Run()
+	}())
+}
 
 func startNodes() {
 	ctx := context.Background()
@@ -66,7 +93,7 @@ func startNodes() {
 	var cmd *utils.CMD
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
+		[]string{"-config", FJ(testWorkingDir, "./fuse/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, true,
@@ -77,7 +104,7 @@ func startNodes() {
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
+		[]string{"-config", FJ(testWorkingDir, "./fuse/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
@@ -88,7 +115,7 @@ func startNodes() {
 	}
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
+		[]string{"-config", FJ(testWorkingDir, "./fuse/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
@@ -125,10 +152,10 @@ func startNodes() {
 	time.Sleep(10 * time.Second)
 
 	// start 3miners
-	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_0/data"))
+	os.RemoveAll(FJ(testWorkingDir, "./fuse/node_miner_0/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
+		[]string{"-config", FJ(testWorkingDir, "./fuse/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, true,
@@ -138,10 +165,10 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 
-	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_1/data"))
+	os.RemoveAll(FJ(testWorkingDir, "./fuse/node_miner_1/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
+		[]string{"-config", FJ(testWorkingDir, "./fuse/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
@@ -151,10 +178,10 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 
-	os.RemoveAll(FJ(testWorkingDir, "./integration/node_miner_2/data"))
+	os.RemoveAll(FJ(testWorkingDir, "./fuse/node_miner_2/data"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
-		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
+		[]string{"-config", FJ(testWorkingDir, "./fuse/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
@@ -167,7 +194,7 @@ func startNodes() {
 
 func stopNodes() {
 	var wg sync.WaitGroup
-
+	testDir := FJ(testWorkingDir, "./fuse")
 	for _, nodeCmd := range nodeCmds {
 		wg.Add(1)
 		go func(thisCmd *utils.CMD) {
@@ -183,16 +210,30 @@ func stopNodes() {
 	}
 
 	wg.Wait()
+	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name '*.db' -exec rm -vf {} \;`, testDir))
+	cmd.Run()
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name '*.db-shm' -exec rm -vf {} \;`, testDir))
+	cmd.Run()
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name '*.db-wal' -exec rm -vf {} \;`, testDir))
+	cmd.Run()
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name 'db.meta' -exec rm -vf {} \;`, testDir))
+	cmd.Run()
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name 'public.keystore' -exec rm -vf {} \;`, testDir))
+	cmd.Run()
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name '*.public.keystore' -exec rm -vf {} \;`, testDir))
+	cmd.Run()
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`cd %s && find . -name '*.ldb' -exec rm -vrf {} \;`, testDir))
+	cmd.Run()
 }
 
-func initTestDB(t *testing.T) (*sql.DB, func()) {
+func initTestDB() (*sql.DB, func()) {
 
 	startNodes()
 	var err error
 
 	time.Sleep(10 * time.Second)
 
-	err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
+	err = client.Init(FJ(testWorkingDir, "./fuse/node_c/config.yaml"), []byte(""))
 	if err != nil {
 		log.Errorf("init client failed: %v", err)
 		return nil, stopNodes
@@ -215,7 +256,7 @@ func initTestDB(t *testing.T) (*sql.DB, func()) {
 
 	if err := initSchema(db); err != nil {
 		stopNodes()
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 
 	return db, stopNodes
@@ -342,8 +383,6 @@ func tryShrink(db *sql.DB, data []byte, id, newSize uint64) ([]byte, error) {
 }
 
 func TestShrinkGrow(t *testing.T) {
-	db, stop := initTestDB(t)
-	defer stop()
 
 	id := uint64(10)
 
@@ -351,48 +390,46 @@ func TestShrinkGrow(t *testing.T) {
 	data := []byte{}
 
 	if data, err = tryGrow(db, data, id, BlockSize*4+500); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryGrow(db, data, id, BlockSize*4+600); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryGrow(db, data, id, BlockSize*5); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 
 	// Shrink it down to 0.
 	if data, err = tryShrink(db, data, id, 0); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryGrow(db, data, id, BlockSize*3+500); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryShrink(db, data, id, BlockSize*3+300); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryShrink(db, data, id, BlockSize*3); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryShrink(db, data, id, 0); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryGrow(db, data, id, BlockSize); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryShrink(db, data, id, BlockSize-200); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryShrink(db, data, id, BlockSize-500); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if data, err = tryShrink(db, data, id, 0); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 }
 
 func TestReadWriteBlocks(t *testing.T) {
-	db, stop := initTestDB(t)
-	defer stop()
 
 	id := uint64(10)
 	rng, _ := NewPseudoRand()
@@ -400,12 +437,12 @@ func TestReadWriteBlocks(t *testing.T) {
 	part1 := RandBytes(rng, length)
 
 	if err := write(db, id, 0, 0, part1); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 
 	readData, err := read(db, id, 0, uint64(length))
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if !bytes.Equal(part1, readData) {
 		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(part1))
@@ -413,7 +450,7 @@ func TestReadWriteBlocks(t *testing.T) {
 
 	verboseData, err := getAllBlocks(db, id)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, part1) {
 		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(part1))
@@ -424,12 +461,12 @@ func TestReadWriteBlocks(t *testing.T) {
 	fullData := append(part1, part2...)
 	part3 := RandBytes(rng, BlockSize+123)
 	if err := write(db, id, uint64(len(part1)), uint64(len(fullData)), part3); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	fullData = append(fullData, part3...)
 	readData, err = read(db, id, 0, uint64(len(fullData)))
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if !bytes.Equal(fullData, readData) {
 		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
@@ -437,7 +474,7 @@ func TestReadWriteBlocks(t *testing.T) {
 
 	verboseData, err = getAllBlocks(db, id)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, fullData) {
 		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
@@ -446,13 +483,13 @@ func TestReadWriteBlocks(t *testing.T) {
 	// Now write into the middle of the file.
 	part2 = RandBytes(rng, len(part2))
 	if err := write(db, id, uint64(len(fullData)), uint64(len(part1)), part2); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	fullData = append(part1, part2...)
 	fullData = append(fullData, part3...)
 	readData, err = read(db, id, 0, uint64(len(fullData)))
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if !bytes.Equal(fullData, readData) {
 		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
@@ -460,7 +497,7 @@ func TestReadWriteBlocks(t *testing.T) {
 
 	verboseData, err = getAllBlocks(db, id)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, fullData) {
 		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
@@ -469,25 +506,25 @@ func TestReadWriteBlocks(t *testing.T) {
 	// New file.
 	id2 := uint64(20)
 	if err := write(db, id2, 0, 0, []byte("1")); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	readData, err = read(db, id2, 0, 1)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if string(readData) != "1" {
-		t.Fatalf("mismatch: %s", readData)
+		log.Fatalf("mismatch: %s", readData)
 	}
 
 	if err := write(db, id2, 1, 0, []byte("22")); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	readData, err = read(db, id2, 0, 2)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	if string(readData) != "22" {
-		t.Fatalf("mismatch: %s", readData)
+		log.Fatalf("mismatch: %s", readData)
 	}
 
 	id3 := uint64(30)
@@ -496,7 +533,7 @@ func TestReadWriteBlocks(t *testing.T) {
 	var offset uint64
 	for i := 0; i < 5; i++ {
 		if err := write(db, id3, offset, offset, part1); err != nil {
-			t.Fatal(err)
+			log.Fatal(err)
 		}
 		offset += BlockSize
 	}

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2015 The Cockroach Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +36,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // BlockSize is the size of each data block. It must not
@@ -138,7 +156,9 @@ func grow(e sqlExecutor, inodeID, from, to uint64) error {
 	count := 1 // placeholder count starts at 1.
 	if insertFrom != insertTo {
 		// We have full blocks. Only send a full block once.
-		params = append(params, make([]byte, BlockSize, BlockSize))
+		for i := insertFrom; i < insertTo; i++ {
+			params = append(params, make([]byte, BlockSize, BlockSize))
+		}
 		count++
 	}
 
@@ -321,6 +341,7 @@ func write(e sqlExecutor, inodeID, originalSize, offset uint64, data []byte) err
 	}
 
 	insStmt := fmt.Sprintf(`INSERT INTO fs_block VALUES %s`, strings.Join(paramStrings, ","))
+	log.Warn(insStmt, params)
 	if _, err := e.Exec(insStmt, params...); err != nil {
 		return err
 	}

@@ -1,5 +1,6 @@
-cql-fuse
 *.trace
+conf*
+..bfg-report
 pprof.txt
 .dsn
 *.svg

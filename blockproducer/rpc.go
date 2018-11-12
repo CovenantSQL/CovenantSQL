@@ -20,7 +20,7 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // ChainRPCService defines a main chain RPC server.

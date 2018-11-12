@@ -20,7 +20,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 //go:generate hsp

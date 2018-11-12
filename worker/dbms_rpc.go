@@ -22,7 +22,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 )

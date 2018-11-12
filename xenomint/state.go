@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	"github.com/pkg/errors"
 )

@@ -22,9 +22,9 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 

@@ -26,7 +26,7 @@ import (
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {

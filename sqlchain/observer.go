@@ -21,9 +21,9 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 /*

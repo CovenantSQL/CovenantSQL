@@ -21,8 +21,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // ChainRPCService defines a sql-chain RPC server.

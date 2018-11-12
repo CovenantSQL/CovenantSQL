@@ -29,7 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )

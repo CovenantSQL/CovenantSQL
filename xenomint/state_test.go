@@ -23,7 +23,7 @@ import (
 	"path"
 	"testing"
 
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 	"github.com/pkg/errors"

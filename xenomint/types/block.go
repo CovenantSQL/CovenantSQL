@@ -23,7 +23,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 //go:generate hsp

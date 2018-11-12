@@ -30,7 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 

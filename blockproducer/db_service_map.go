@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 

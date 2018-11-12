@@ -26,7 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 	xt "github.com/CovenantSQL/CovenantSQL/xenomint/types"

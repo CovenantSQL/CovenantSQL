@@ -21,8 +21,8 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // Config represents a sql-chain config.

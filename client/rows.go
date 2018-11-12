@@ -21,7 +21,7 @@ import (
 	"io"
 	"strings"
 
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type rows struct {

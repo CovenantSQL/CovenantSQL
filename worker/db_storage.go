@@ -23,7 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 

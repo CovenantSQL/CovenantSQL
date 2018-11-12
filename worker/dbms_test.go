@@ -27,8 +27,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

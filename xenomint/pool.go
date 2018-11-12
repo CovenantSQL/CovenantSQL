@@ -19,7 +19,7 @@ package xenomint
 import (
 	"sync"
 
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type query struct {

@@ -37,7 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/jmoiron/jsonq"
 	. "github.com/smartystreets/goconvey/convey"
 )

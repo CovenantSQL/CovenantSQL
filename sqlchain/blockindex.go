@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type blockNode struct {

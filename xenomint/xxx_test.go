@@ -17,7 +17,6 @@
 package xenomint
 
 import (
-	"database/sql"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -65,9 +64,9 @@ var (
 )
 
 func buildQuery(query string, args ...interface{}) wt.Query {
-	var nargs = make([]sql.NamedArg, len(args))
+	var nargs = make([]wt.NamedArg, len(args))
 	for i := range args {
-		nargs[i] = sql.NamedArg{
+		nargs[i] = wt.NamedArg{
 			Name:  "",
 			Value: args[i],
 		}

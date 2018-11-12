@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -38,9 +39,9 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	block.SignedHeader.BlockHash[0]++
+	block.SignedHeader.HSV.DataHash[0]++
 
-	if err = block.Verify(); err != ErrHashVerification {
+	if err = block.Verify(); err != crypto.ErrHashValueNotMatch {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -249,7 +250,7 @@ func TestGenesis(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	genesis.SignedHeader.Signee = pub
+	genesis.SignedHeader.HSV.Signee = pub
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
@@ -270,8 +271,8 @@ func TestGenesis(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	genesis.SignedHeader.Signature.R.Add(genesis.SignedHeader.Signature.R, big.NewInt(int64(1)))
-	genesis.SignedHeader.Signature.S.Add(genesis.SignedHeader.Signature.S, big.NewInt(int64(1)))
+	genesis.SignedHeader.HSV.Signature.R.Add(genesis.SignedHeader.HSV.Signature.R, big.NewInt(int64(1)))
+	genesis.SignedHeader.HSV.Signature.S.Add(genesis.SignedHeader.HSV.Signature.S, big.NewInt(int64(1)))
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)

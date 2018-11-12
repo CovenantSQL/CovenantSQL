@@ -35,14 +35,14 @@ func TestBlock(t *testing.T) {
 				ReadQueries: []*wt.Ack{
 					&wt.Ack{
 						Header: wt.SignedAckHeader{
-							HeaderHash: hash.Hash{0x0, 0x0, 0x0, 0x1},
+							Hash: hash.Hash{0x0, 0x0, 0x0, 0x1},
 						},
 					},
 				},
 				WriteQueries: []*wt.Ack{
 					&wt.Ack{
 						Header: wt.SignedAckHeader{
-							HeaderHash: hash.Hash{0x0, 0x0, 0x0, 0x2},
+							Hash: hash.Hash{0x0, 0x0, 0x0, 0x2},
 						},
 					},
 				},
@@ -67,7 +67,7 @@ func TestBlock(t *testing.T) {
 			Convey("When the queries is modified", func() {
 				block.ReadQueries = append(block.ReadQueries, &wt.Ack{
 					Header: wt.SignedAckHeader{
-						HeaderHash: hash.Hash{0x0, 0x0, 0x0, 0x3},
+						Hash: hash.Hash{0x0, 0x0, 0x0, 0x3},
 					},
 				})
 				Convey("The verifier should return merkle root not match error", func() {

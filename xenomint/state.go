@@ -86,7 +86,7 @@ func (s *state) close(commit bool) (err error) {
 	return s.strg.Close()
 }
 
-func buildArgsFromSQLNamedArgs(args []sql.NamedArg) (ifs []interface{}) {
+func buildArgsFromSQLNamedArgs(args []wt.NamedArg) (ifs []interface{}) {
 	ifs = make([]interface{}, len(args))
 	for i, v := range args {
 		ifs[i] = v
@@ -346,7 +346,7 @@ func (s *state) partialCommit(qs []*wt.Response) (err error) {
 	}
 	for i, v = range qs {
 		var loc = s.pool.queries[i]
-		if !loc.req.Header.HeaderHash.IsEqual(&v.Header.Request.HeaderHash) ||
+		if !loc.req.Header.Hash.IsEqual(&v.Header.Request.Hash) ||
 			loc.resp.Header.LogOffset != v.Header.LogOffset {
 			err = ErrQueryConflict
 			return

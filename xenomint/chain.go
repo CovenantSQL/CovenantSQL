@@ -24,7 +24,6 @@ import (
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
@@ -71,7 +70,6 @@ type Chain struct {
 	period time.Duration
 	// Runtime state
 	stMu     sync.RWMutex
-	peers    *kayak.Peers
 	index    int32
 	total    int32
 	head     *blockNode
@@ -179,12 +177,8 @@ func (c *Chain) advanceTurn(ctx context.Context, t time.Time) {
 		return
 	}
 	// Send commit request to leader peer
-	var tCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
+	var _, cancel = context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	var err error
-	if err = c.caller.CallNodeWithContext(tCtx, c.peers.Leader.ID, "", nil, nil); err != nil {
-		// ...
-	}
 }
 
 func (c *Chain) produceBlock() {

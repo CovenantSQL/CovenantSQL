@@ -75,10 +75,17 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 	return s.Verify()
 }
 
+type QueryAsTx struct {
+	Request  *Request
+	Response *SignedResponseHeader
+}
+
 // Block is a node of blockchain.
 type Block struct {
 	SignedHeader SignedHeader
 	Queries      []*hash.Hash
+	QueryTxs     []*QueryAsTx
+	Acks         []*Ack
 }
 
 // PackAndSignBlock generates the signature for the Block from the given PrivateKey.

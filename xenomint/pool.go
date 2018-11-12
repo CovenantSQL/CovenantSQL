@@ -19,34 +19,34 @@ package xenomint
 import (
 	"sync"
 
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-type query struct {
+type QueryTracker struct {
 	sync.RWMutex
-	req  *wt.Request
-	resp *wt.Response
+	req  *types.Request
+	resp *types.Response
 }
 
-func (q *query) updateResp(resp *wt.Response) {
+func (q *QueryTracker) UpdateResp(resp *types.Response) {
 	q.Lock()
 	defer q.Unlock()
 	q.resp = resp
 }
 
 type pool struct {
-	queries []*query
+	queries []*QueryTracker
 	index   map[uint64]int
 }
 
 func newPool() *pool {
 	return &pool{
-		queries: make([]*query, 0),
+		queries: make([]*QueryTracker, 0),
 		index:   make(map[uint64]int),
 	}
 }
 
-func (p *pool) enqueue(sp uint64, q *query) {
+func (p *pool) enqueue(sp uint64, q *QueryTracker) {
 	var pos = len(p.queries)
 	p.queries = append(p.queries, q)
 	p.index[sp] = pos

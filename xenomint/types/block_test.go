@@ -21,7 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -32,16 +32,16 @@ func TestBlock(t *testing.T) {
 				SignedBlockHeader: SignedBlockHeader{
 					BlockHeader: BlockHeader{},
 				},
-				ReadQueries: []*wt.Ack{
-					&wt.Ack{
-						Header: wt.SignedAckHeader{
+				ReadQueries: []*types.Ack{
+					&types.Ack{
+						Header: types.SignedAckHeader{
 							Hash: hash.Hash{0x0, 0x0, 0x0, 0x1},
 						},
 					},
 				},
-				WriteQueries: []*wt.Ack{
-					&wt.Ack{
-						Header: wt.SignedAckHeader{
+				WriteQueries: []*types.Ack{
+					&types.Ack{
+						Header: types.SignedAckHeader{
 							Hash: hash.Hash{0x0, 0x0, 0x0, 0x2},
 						},
 					},
@@ -65,8 +65,8 @@ func TestBlock(t *testing.T) {
 				So(block.SignedBlockHeader.Hash(), ShouldEqual, hash.THashH(enc))
 			})
 			Convey("When the queries is modified", func() {
-				block.ReadQueries = append(block.ReadQueries, &wt.Ack{
-					Header: wt.SignedAckHeader{
+				block.ReadQueries = append(block.ReadQueries, &types.Ack{
+					Header: types.SignedAckHeader{
 						Hash: hash.Hash{0x0, 0x0, 0x0, 0x3},
 					},
 				})

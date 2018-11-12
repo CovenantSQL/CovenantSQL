@@ -89,4 +89,7 @@ var (
 
 	// ErrAckQueryNotFound indicates that an acknowledged query record is not found.
 	ErrAckQueryNotFound = errors.New("acknowledged query not found")
+
+	// ErrInvalidRequest indicates the query is invalid.
+	ErrInvalidRequest = errors.New("invalid request")
 )

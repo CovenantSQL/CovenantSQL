@@ -26,10 +26,10 @@ import (
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
+func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
 	// Setup chain state
 	var (
 		fl   = path.Join(testingDataDir, b.Name())
@@ -79,10 +79,10 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		b.Fatalf("Failed to setup bench environment: %v", err)
 	}
-	r = make([]*wt.Request, 2*benchmarkKeySpace)
+	r = make([]*types.Request, 2*benchmarkKeySpace)
 	// Read query key space [0, n-1]
 	for i := 0; i < benchmarkKeySpace; i++ {
-		r[i] = buildRequest(wt.ReadQuery, []wt.Query{
+		r[i] = buildRequest(types.ReadQuery, []types.Query{
 			buildQuery(sel, i),
 		})
 		if err = r[i].Sign(priv); err != nil {
@@ -100,7 +100,7 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*wt.Request) {
 		}
 	}
 	for i := 0; i < benchmarkKeySpace; i++ {
-		r[benchmarkKeySpace+i] = buildRequest(wt.WriteQuery, []wt.Query{
+		r[benchmarkKeySpace+i] = buildRequest(types.WriteQuery, []types.Query{
 			buildQuery(ins, src[i]...),
 		})
 		if err = r[i+benchmarkKeySpace].Sign(priv); err != nil {

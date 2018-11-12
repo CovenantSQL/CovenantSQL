@@ -23,7 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // MuxService defines multiplexing service of xenomint chain.
@@ -73,14 +73,14 @@ func (s *MuxService) route(id proto.DatabaseID) (c *Chain, err error) {
 type MuxQueryRequest struct {
 	proto.DatabaseID
 	proto.Envelope
-	Request *wt.Request
+	Request *types.Request
 }
 
 // MuxQueryResponse defines a response of the Query RPC method.
 type MuxQueryResponse struct {
 	proto.DatabaseID
 	proto.Envelope
-	Response *wt.Response
+	Response *types.Response
 }
 
 // Query is the RPC method to process database query on mux service.
@@ -90,7 +90,7 @@ func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err er
 	//defer trace.StartRegion(ctx, "Total").End()
 	var (
 		c *Chain
-		r *wt.Response
+		r *types.Response
 	)
 	if c, err = s.route(req.DatabaseID); err != nil {
 		return
@@ -110,8 +110,8 @@ func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err er
 type MuxApplyRequest struct {
 	proto.DatabaseID
 	proto.Envelope
-	Request  *wt.Request
-	Response *wt.Response
+	Request  *types.Request
+	Response *types.Response
 }
 
 // MuxApplyResponse defines a response of the Apply RPC method.

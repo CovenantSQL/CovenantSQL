@@ -35,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -91,6 +92,7 @@ type Chain struct {
 	tdb *leveldb.DB
 	bi  *blockIndex
 	qi  *queryIndex
+	st  *x.State
 	cl  *rpc.Caller
 	rt  *runtime
 
@@ -115,6 +117,11 @@ type Chain struct {
 	replCh chan struct{}
 	// replWg defines the waitGroups for running replications.
 	replWg sync.WaitGroup
+
+	// Cached fileds, may need to renew some of this fields later.
+	//
+	// pk is the private key of the local miner.
+	pk *asymmetric.PrivateKey
 }
 
 // NewChain creates a new sql-chain struct.
@@ -151,6 +158,13 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 	log.Debugf("Create new chain tdb %s", tdbFile)
 
+	// Cache local private key
+	var pk *asymmetric.PrivateKey
+	if pk, err = kms.GetLocalPrivateKey(); err != nil {
+		err = errors.Wrap(err, "failed to cache private key")
+		return
+	}
+
 	// Create chain state
 	chain = &Chain{
 		bdb:          bdb,
@@ -172,6 +186,8 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		observers:           make(map[proto.NodeID]int32),
 		observerReplicators: make(map[proto.NodeID]*observerReplicator),
 		replCh:              make(chan struct{}),
+
+		pk: pk,
 	}
 
 	if err = chain.pushBlock(c.Genesis); err != nil {
@@ -199,6 +215,13 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
+	// Cache local private key
+	var pk *asymmetric.PrivateKey
+	if pk, err = kms.GetLocalPrivateKey(); err != nil {
+		err = errors.Wrap(err, "failed to cache private key")
+		return
+	}
+
 	// Create chain state
 	chain = &Chain{
 		bdb:          bdb,
@@ -220,6 +243,8 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		observers:           make(map[proto.NodeID]int32),
 		observerReplicators: make(map[proto.NodeID]*observerReplicator),
 		replCh:              make(chan struct{}),
+
+		pk: pk,
 	}
 
 	// Read state struct
@@ -470,13 +495,6 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 
 // produceBlock prepares, signs and advises the pending block to the orther peers.
 func (c *Chain) produceBlock(now time.Time) (err error) {
-	// Retrieve local key pair
-	priv, err := kms.GetLocalPrivateKey()
-
-	if err != nil {
-		return
-	}
-
 	// Pack and sign block
 	block := &types.Block{
 		SignedHeader: types.SignedHeader{
@@ -493,7 +511,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		Queries: c.qi.markAndCollectUnsignedAcks(c.rt.getNextTurn()),
 	}
 
-	if err = block.PackAndSignBlock(priv); err != nil {
+	if err = block.PackAndSignBlock(c.pk); err != nil {
 		return
 	}
 
@@ -1311,24 +1329,13 @@ func (c *Chain) SignBilling(req *pt.BillingRequest) (
 	if err = req.VerifySignatures(); err != nil {
 		return
 	}
-
 	if loc, err = c.getBilling(req.Header.LowHeight, req.Header.HighHeight); err != nil {
 		return
 	}
-
 	if err = req.Compare(loc); err != nil {
 		return
 	}
-
-	// Sign block with private key
-	priv, err := kms.GetLocalPrivateKey()
-
-	if err != nil {
-		return
-	}
-
-	pub, sig, err = req.SignRequestHeader(priv, false)
-
+	pub, sig, err = req.SignRequestHeader(c.pk, false)
 	return
 }
 
@@ -1410,4 +1417,30 @@ func (c *Chain) replicationCycle() {
 			return
 		}
 	}
+}
+
+// Query queries req from local chain state and returns the query results in resp.
+func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
+	var ref *x.QueryTracker
+	if ref, resp, err = c.st.Query(req); err != nil {
+		return
+	}
+	if err = resp.Sign(c.pk); err != nil {
+		return
+	}
+	ref.UpdateResp(resp)
+	return
+}
+
+// Replay replays a write log from other peer to replicate storage state.
+func (c *Chain) Replay(req *types.Request, resp *types.Response) (err error) {
+	switch req.Header.QueryType {
+	case types.ReadQuery:
+		return
+	case types.WriteQuery:
+		return c.st.Replay(req, resp)
+	default:
+		err = ErrInvalidRequest
+	}
+	return
 }

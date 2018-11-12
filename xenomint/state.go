@@ -22,12 +22,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	"github.com/pkg/errors"
 )
 
-type state struct {
+type State struct {
 	sync.RWMutex
 	strg xi.Storage
 	pool *pool
@@ -36,8 +36,8 @@ type state struct {
 	id  uint64
 }
 
-func newState(strg xi.Storage) (s *state, err error) {
-	var t = &state{
+func newState(strg xi.Storage) (s *State, err error) {
+	var t = &State{
 		strg: strg,
 		pool: newPool(),
 	}
@@ -49,29 +49,29 @@ func newState(strg xi.Storage) (s *state, err error) {
 	return
 }
 
-func (s *state) incSeq() {
+func (s *State) incSeq() {
 	atomic.AddUint64(&s.id, 1)
 }
 
-func (s *state) setNextTxID() {
+func (s *State) setNextTxID() {
 	var old = atomic.LoadUint64(&s.id)
 	atomic.StoreUint64(&s.id, (old&uint64(0xffffffff00000000))+uint64(1)<<32)
 }
 
-func (s *state) resetTxID() {
+func (s *State) resetTxID() {
 	var old = atomic.LoadUint64(&s.id)
 	atomic.StoreUint64(&s.id, old&uint64(0xffffffff00000000))
 }
 
-func (s *state) rollbackID(id uint64) {
+func (s *State) rollbackID(id uint64) {
 	atomic.StoreUint64(&s.id, id)
 }
 
-func (s *state) getID() uint64 {
+func (s *State) getID() uint64 {
 	return atomic.LoadUint64(&s.id)
 }
 
-func (s *state) close(commit bool) (err error) {
+func (s *State) close(commit bool) (err error) {
 	if s.unc != nil {
 		if commit {
 			if err = s.unc.Commit(); err != nil {
@@ -86,7 +86,7 @@ func (s *state) close(commit bool) (err error) {
 	return s.strg.Close()
 }
 
-func buildArgsFromSQLNamedArgs(args []wt.NamedArg) (ifs []interface{}) {
+func buildArgsFromSQLNamedArgs(args []types.NamedArg) (ifs []interface{}) {
 	ifs = make([]interface{}, len(args))
 	for i, v := range args {
 		ifs[i] = sql.NamedArg{
@@ -110,7 +110,7 @@ type sqlQuerier interface {
 }
 
 func readSingle(
-	qer sqlQuerier, q *wt.Query) (names []string, types []string, data [][]interface{}, err error,
+	qer sqlQuerier, q *types.Query) (names []string, types []string, data [][]interface{}, err error,
 ) {
 	var (
 		rows *sql.Rows
@@ -148,32 +148,32 @@ func readSingle(
 	return
 }
 
-func buildRowsFromNativeData(data [][]interface{}) (rows []wt.ResponseRow) {
-	rows = make([]wt.ResponseRow, len(data))
+func buildRowsFromNativeData(data [][]interface{}) (rows []types.ResponseRow) {
+	rows = make([]types.ResponseRow, len(data))
 	for i, v := range data {
 		rows[i].Values = v
 	}
 	return
 }
 
-func (s *state) read(req *wt.Request) (ref *query, resp *wt.Response, err error) {
+func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
-		ierr         error
-		names, types []string
-		data         [][]interface{}
+		ierr           error
+		cnames, ctypes []string
+		data           [][]interface{}
 	)
 	// TODO(leventeliu): no need to run every read query here.
 	for i, v := range req.Payload.Queries {
-		if names, types, data, ierr = readSingle(s.strg.DirtyReader(), &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(s.strg.DirtyReader(), &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			return
 		}
 	}
 	// Build query response
-	ref = &query{req: req}
-	resp = &wt.Response{
-		Header: wt.SignedResponseHeader{
-			ResponseHeader: wt.ResponseHeader{
+	ref = &QueryTracker{req: req}
+	resp = &types.Response{
+		Header: types.SignedResponseHeader{
+			ResponseHeader: types.ResponseHeader{
 				Request:   req.Header,
 				NodeID:    "",
 				Timestamp: time.Now(),
@@ -181,22 +181,22 @@ func (s *state) read(req *wt.Request) (ref *query, resp *wt.Response, err error)
 				LogOffset: s.getID(),
 			},
 		},
-		Payload: wt.ResponsePayload{
-			Columns:   names,
-			DeclTypes: types,
+		Payload: types.ResponsePayload{
+			Columns:   cnames,
+			DeclTypes: ctypes,
 			Rows:      buildRowsFromNativeData(data),
 		},
 	}
 	return
 }
 
-func (s *state) readTx(req *wt.Request) (ref *query, resp *wt.Response, err error) {
+func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
-		tx           *sql.Tx
-		id           uint64
-		ierr         error
-		names, types []string
-		data         [][]interface{}
+		tx             *sql.Tx
+		id             uint64
+		ierr           error
+		cnames, ctypes []string
+		data           [][]interface{}
 	)
 	if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
 		err = errors.Wrap(ierr, "open tx failed")
@@ -206,16 +206,16 @@ func (s *state) readTx(req *wt.Request) (ref *query, resp *wt.Response, err erro
 	// FIXME(leventeliu): lock free but not consistent.
 	id = s.getID()
 	for i, v := range req.Payload.Queries {
-		if names, types, data, ierr = readSingle(tx, &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(tx, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			return
 		}
 	}
 	// Build query response
-	ref = &query{req: req}
-	resp = &wt.Response{
-		Header: wt.SignedResponseHeader{
-			ResponseHeader: wt.ResponseHeader{
+	ref = &QueryTracker{req: req}
+	resp = &types.Response{
+		Header: types.SignedResponseHeader{
+			ResponseHeader: types.ResponseHeader{
 				Request:   req.Header,
 				NodeID:    "",
 				Timestamp: time.Now(),
@@ -223,38 +223,38 @@ func (s *state) readTx(req *wt.Request) (ref *query, resp *wt.Response, err erro
 				LogOffset: id,
 			},
 		},
-		Payload: wt.ResponsePayload{
-			Columns:   names,
-			DeclTypes: types,
+		Payload: types.ResponsePayload{
+			Columns:   cnames,
+			DeclTypes: ctypes,
 			Rows:      buildRowsFromNativeData(data),
 		},
 	}
 	return
 }
 
-func (s *state) writeSingle(q *wt.Query) (res sql.Result, err error) {
+func (s *State) writeSingle(q *types.Query) (res sql.Result, err error) {
 	if res, err = s.unc.Exec(q.Pattern, buildArgsFromSQLNamedArgs(q.Args)...); err == nil {
 		s.incSeq()
 	}
 	return
 }
 
-func (s *state) setSavepoint() (savepoint uint64) {
+func (s *State) setSavepoint() (savepoint uint64) {
 	savepoint = s.getID()
 	s.unc.Exec("SAVEPOINT ?", savepoint)
 	return
 }
 
-func (s *state) rollbackTo(savepoint uint64) {
+func (s *State) rollbackTo(savepoint uint64) {
 	s.rollbackID(savepoint)
 	s.unc.Exec("ROLLBACK TO ?", savepoint)
 }
 
-func (s *state) write(req *wt.Request) (ref *query, resp *wt.Response, err error) {
+func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
 		ierr      error
 		savepoint uint64
-		query     = &query{req: req}
+		query     = &QueryTracker{req: req}
 	)
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	func() {
@@ -273,9 +273,9 @@ func (s *state) write(req *wt.Request) (ref *query, resp *wt.Response, err error
 	}()
 	// Build query response
 	ref = query
-	resp = &wt.Response{
-		Header: wt.SignedResponseHeader{
-			ResponseHeader: wt.ResponseHeader{
+	resp = &types.Response{
+		Header: types.SignedResponseHeader{
+			ResponseHeader: types.ResponseHeader{
 				Request:   req.Header,
 				NodeID:    "",
 				Timestamp: time.Now(),
@@ -287,11 +287,11 @@ func (s *state) write(req *wt.Request) (ref *query, resp *wt.Response, err error
 	return
 }
 
-func (s *state) replay(req *wt.Request, resp *wt.Response) (err error) {
+func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 	var (
 		ierr      error
 		savepoint uint64
-		query     = &query{req: req, resp: resp}
+		query     = &QueryTracker{req: req, resp: resp}
 	)
 	s.Lock()
 	defer s.Unlock()
@@ -312,8 +312,8 @@ func (s *state) replay(req *wt.Request, resp *wt.Response) (err error) {
 	return
 }
 
-func (s *state) commit(out chan<- command) (err error) {
-	var queries []*query
+func (s *State) commit(out chan<- command) (err error) {
+	var queries []*QueryTracker
 	s.Lock()
 	defer s.Unlock()
 	if err = s.unc.Commit(); err != nil {
@@ -334,12 +334,12 @@ func (s *state) commit(out chan<- command) (err error) {
 	return
 }
 
-func (s *state) partialCommit(qs []*wt.Response) (err error) {
+func (s *State) partialCommit(qs []*types.Response) (err error) {
 	var (
 		i  int
-		v  *wt.Response
-		q  *query
-		rm []*query
+		v  *types.Response
+		q  *QueryTracker
+		rm []*QueryTracker
 
 		pl = len(s.pool.queries)
 	)
@@ -370,7 +370,7 @@ func (s *state) partialCommit(qs []*wt.Response) (err error) {
 	return
 }
 
-func (s *state) rollback() (err error) {
+func (s *State) rollback() (err error) {
 	if err = s.unc.Rollback(); err != nil {
 		return
 	}
@@ -378,11 +378,11 @@ func (s *state) rollback() (err error) {
 	return
 }
 
-func (s *state) Query(req *wt.Request) (ref *query, resp *wt.Response, err error) {
+func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	switch req.Header.QueryType {
-	case wt.ReadQuery:
+	case types.ReadQuery:
 		return s.readTx(req)
-	case wt.WriteQuery:
+	case types.WriteQuery:
 		return s.write(req)
 	default:
 		err = ErrInvalidRequest
@@ -391,11 +391,11 @@ func (s *state) Query(req *wt.Request) (ref *query, resp *wt.Response, err error
 }
 
 // Replay replays a write log from other peer to replicate storage state.
-func (s *state) Replay(req *wt.Request, resp *wt.Response) (err error) {
+func (s *State) Replay(req *types.Request, resp *types.Response) (err error) {
 	switch req.Header.QueryType {
-	case wt.ReadQuery:
+	case types.ReadQuery:
 		return
-	case wt.WriteQuery:
+	case types.WriteQuery:
 		return s.replay(req, resp)
 	default:
 		err = ErrInvalidRequest

@@ -23,7 +23,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 //go:generate hsp
@@ -57,8 +57,8 @@ func (h *SignedBlockHeader) Verify() error {
 // Block defines a block including a signed block header and its query list.
 type Block struct {
 	SignedBlockHeader
-	ReadQueries  []*wt.Ack
-	WriteQueries []*wt.Ack
+	ReadQueries  []*types.Ack
+	WriteQueries []*types.Ack
 }
 
 // Sign signs the block.

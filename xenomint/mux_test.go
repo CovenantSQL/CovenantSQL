@@ -32,7 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type nodeRPCInfo struct {
@@ -123,7 +123,7 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 	r = make([]*MuxQueryRequest, 2*benchmarkKeySpace)
 	// Read query key space [0, n-1]
 	for i := 0; i < benchmarkKeySpace; i++ {
-		var req = buildRequest(wt.ReadQuery, []wt.Query{
+		var req = buildRequest(types.ReadQuery, []types.Query{
 			buildQuery(sel, i),
 		})
 		if err = req.Sign(priv); err != nil {
@@ -145,7 +145,7 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 		}
 	}
 	for i := 0; i < benchmarkKeySpace; i++ {
-		var req = buildRequest(wt.WriteQuery, []wt.Query{
+		var req = buildRequest(types.WriteQuery, []types.Query{
 			buildQuery(ins, src[i]...),
 		})
 		if err = req.Sign(priv); err != nil {

@@ -31,8 +31,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	pc "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 const (
@@ -63,21 +63,21 @@ var (
 	testingMasterKey = []byte(`?08Rl%WUih4V0H+c`)
 )
 
-func buildQuery(query string, args ...interface{}) wt.Query {
-	var nargs = make([]wt.NamedArg, len(args))
+func buildQuery(query string, args ...interface{}) types.Query {
+	var nargs = make([]types.NamedArg, len(args))
 	for i := range args {
-		nargs[i] = wt.NamedArg{
+		nargs[i] = types.NamedArg{
 			Name:  "",
 			Value: args[i],
 		}
 	}
-	return wt.Query{
+	return types.Query{
 		Pattern: query,
 		Args:    nargs,
 	}
 }
 
-func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
+func buildRequest(qt types.QueryType, qs []types.Query) *types.Request {
 	var (
 		id  proto.NodeID
 		err error
@@ -85,15 +85,15 @@ func buildRequest(qt wt.QueryType, qs []wt.Query) *wt.Request {
 	if id, err = kms.GetLocalNodeID(); err != nil {
 		id = proto.NodeID("00000000000000000000000000000000")
 	}
-	return &wt.Request{
-		Header: wt.SignedRequestHeader{
-			RequestHeader: wt.RequestHeader{
+	return &types.Request{
+		Header: types.SignedRequestHeader{
+			RequestHeader: types.RequestHeader{
 				NodeID:    id,
 				Timestamp: time.Now().UTC(),
 				QueryType: qt,
 			},
 		},
-		Payload: wt.RequestPayload{Queries: qs},
+		Payload: types.RequestPayload{Queries: qs},
 	}
 }
 

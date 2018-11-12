@@ -23,7 +23,7 @@ import (
 	"path"
 	"testing"
 
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 	"github.com/pkg/errors"
@@ -34,7 +34,7 @@ func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
 			fl     = path.Join(testingDataDir, t.Name())
-			st     *state
+			st     *State
 			closed bool
 			strg   xi.Storage
 			err    error
@@ -65,7 +65,7 @@ func TestState(t *testing.T) {
 			closed = true
 			Convey("The storage should report error for any incoming query", func() {
 				var (
-					req = buildRequest(wt.WriteQuery, []wt.Query{
+					req = buildRequest(types.WriteQuery, []types.Query{
 						buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
 					})
 				)
@@ -79,15 +79,15 @@ func TestState(t *testing.T) {
 		Convey("The state will report error on read with uncommitted schema change", func() {
 			// TODO(leventeliu): this case is not quite user friendly.
 			var (
-				req = buildRequest(wt.WriteQuery, []wt.Query{
+				req = buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
 				})
-				resp *wt.Response
+				resp *types.Response
 			)
 			_, resp, err = st.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+			_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
 				buildQuery(`SELECT * FROM "t1"`),
 			}))
 			So(err, ShouldNotBeNil)
@@ -97,10 +97,10 @@ func TestState(t *testing.T) {
 		})
 		Convey("When a basic KV table is created", func() {
 			var (
-				req = buildRequest(wt.WriteQuery, []wt.Query{
+				req = buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
 				})
-				resp *wt.Response
+				resp *types.Response
 			)
 			_, resp, err = st.Query(req)
 			So(err, ShouldBeNil)
@@ -108,7 +108,7 @@ func TestState(t *testing.T) {
 			err = st.commit(nil)
 			So(err, ShouldBeNil)
 			Convey("The state should not change after attempted writing in read query", func() {
-				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1"),
 					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, 1),
 				}))
@@ -125,38 +125,38 @@ func TestState(t *testing.T) {
 					{int64(3), []byte("v3")},
 					{int64(4), []byte("v4")},
 				}
-				_, resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
-				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[0][0]),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 1)
-				So(resp.Payload, ShouldResemble, wt.ResponsePayload{
+				So(resp.Payload, ShouldResemble, types.ResponsePayload{
 					Columns:   []string{"v"},
 					DeclTypes: []string{"TEXT"},
-					Rows:      []wt.ResponseRow{{Values: values[0][1:]}},
+					Rows:      []types.ResponseRow{{Values: values[0][1:]}},
 				})
 
-				_, resp, err = st.Query(buildRequest(wt.WriteQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[1]...),
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?);
 INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
-				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT "v" FROM "t1"`),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 4)
-				So(resp.Payload, ShouldResemble, wt.ResponsePayload{
+				So(resp.Payload, ShouldResemble, types.ResponsePayload{
 					Columns:   []string{"v"},
 					DeclTypes: []string{"TEXT"},
-					Rows: []wt.ResponseRow{
+					Rows: []types.ResponseRow{
 						{Values: values[0][1:]},
 						{Values: values[1][1:]},
 						{Values: values[2][1:]},
@@ -164,14 +164,14 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 					},
 				})
 
-				_, resp, err = st.Query(buildRequest(wt.ReadQuery, []wt.Query{
+				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT * FROM "t1"`),
 				}))
 				So(err, ShouldBeNil)
-				So(resp.Payload, ShouldResemble, wt.ResponsePayload{
+				So(resp.Payload, ShouldResemble, types.ResponsePayload{
 					Columns:   []string{"k", "v"},
 					DeclTypes: []string{"INT", "TEXT"},
-					Rows: []wt.ResponseRow{
+					Rows: []types.ResponseRow{
 						{Values: values[0][:]},
 						{Values: values[1][:]},
 						{Values: values[2][:]},

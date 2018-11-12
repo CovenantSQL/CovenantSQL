@@ -25,8 +25,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 	xt "github.com/CovenantSQL/CovenantSQL/xenomint/types"
@@ -40,12 +40,12 @@ const (
 type command interface{}
 
 type applyRequest struct {
-	request  *wt.Request
-	response *wt.Response
+	request  *types.Request
+	response *types.Response
 }
 
 type commitRequest struct {
-	queries []*query
+	queries []*QueryTracker
 	resp    *MuxFollowerCommitResponse
 }
 
@@ -61,7 +61,7 @@ type blockNode struct {
 
 // Chain defines the xenomint chain structure.
 type Chain struct {
-	state *state
+	state *State
 	// Command queue
 	in  chan command
 	out chan command
@@ -107,7 +107,7 @@ func (c *Chain) isMyTurn() (ret bool) {
 func NewChain(filename string) (c *Chain, err error) {
 	var (
 		strg   xi.Storage
-		state  *state
+		state  *State
 		priv   *ca.PrivateKey
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -136,15 +136,15 @@ func NewChain(filename string) (c *Chain, err error) {
 }
 
 // Query queries req from local chain state and returns the query results in resp.
-func (c *Chain) Query(req *wt.Request) (resp *wt.Response, err error) {
-	var ref *query
+func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
+	var ref *QueryTracker
 	if ref, resp, err = c.state.Query(req); err != nil {
 		return
 	}
 	if err = resp.Sign(c.priv); err != nil {
 		return
 	}
-	ref.updateResp(resp)
+	ref.UpdateResp(resp)
 	startWorker(c.ctx, c.wg, func(_ context.Context) {
 		c.enqueueOut(&applyRequest{request: req, response: resp})
 	})

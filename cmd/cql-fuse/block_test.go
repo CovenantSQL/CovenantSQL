@@ -80,9 +80,9 @@ func startNodes() {
 	var err error
 
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		3122,
-		3121,
-		3120,
+		6122,
+		6121,
+		6120,
 	}, time.Millisecond*200)
 
 	if err != nil {
@@ -128,9 +128,9 @@ func startNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	err = utils.WaitToConnect(ctx, "127.0.0.1", []int{
-		3122,
-		3121,
-		3120,
+		6122,
+		6121,
+		6120,
 	}, time.Second)
 
 	if err != nil {
@@ -140,9 +140,9 @@ func startNodes() {
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	err = utils.WaitForPorts(ctx, "127.0.0.1", []int{
-		2144,
-		2145,
-		2146,
+		3144,
+		3145,
+		3146,
 	}, time.Millisecond*200)
 
 	if err != nil {

@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-// Package wal defines toy implementations of kayak wal.
-package wal
+// Package kayak implements a configurable consistency consensus middleware.
+package kayak

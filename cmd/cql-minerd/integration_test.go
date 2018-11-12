@@ -326,7 +326,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 1})
+		dsn, err := client.Create(client.ResourceMeta{Node: 2})
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)

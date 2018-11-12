@@ -36,6 +36,9 @@ func TestInit(t *testing.T) {
 		stopTestService, confDir, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
+		// already init ed
+		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))
+		So(err, ShouldNotBeNil)
 		// fake driver not initialized
 		atomic.StoreUint32(&driverInitialized, 0)
 		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))

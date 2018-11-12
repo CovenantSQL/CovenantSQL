@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package chain
+package types
 
-import "errors"
+import (
+	"testing"
 
-var (
-	// ErrUnknownTx indicates that the transaction is unknown.
-	ErrUnknownTx = errors.New("unknown transaction")
-	// ErrDuplicateTx indicates that the transaction will be duplicate in the new block.
-	ErrDuplicateTx = errors.New("duplicate transaction")
-	// ErrCorruptedIndex indicates that a corrupted index item is detected.
-	ErrCorruptedIndex = errors.New("corrupted index")
+	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestLogType_String(t *testing.T) {
+	Convey("test log string function", t, func() {
+		for i := LogPrepare; i <= LogNoop+1; i++ {
+			So(i.String(), ShouldNotBeEmpty)
+		}
+	})
+}

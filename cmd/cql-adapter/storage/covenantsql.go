@@ -102,8 +102,10 @@ func (s *CovenantSQLStorage) Exec(dbID string, query string) (affectedRows int64
 	var result sql.Result
 	result, err = conn.Exec(query)
 
-	affectedRows, _ = result.RowsAffected()
-	lastInsertID, _ = result.LastInsertId()
+	if err == nil {
+		affectedRows, _ = result.RowsAffected()
+		lastInsertID, _ = result.LastInsertId()
+	}
 
 	return
 }

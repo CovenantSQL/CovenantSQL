@@ -14,46 +14,31 @@
  * limitations under the License.
  */
 
-package client
+package types
 
 import (
-	"database/sql/driver"
-	"io"
 	"testing"
 
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestRowsStructure(t *testing.T) {
-	Convey("test rows", t, func() {
-		r := newRows(&wt.Response{
-			Payload: wt.ResponsePayload{
-				Columns: []string{
-					"a",
-				},
-				DeclTypes: []string{
-					"int",
-				},
-				Rows: []wt.ResponseRow{
-					{
-						Values: []interface{}{1},
-					},
-				},
-			},
+func TestBaseAccount(t *testing.T) {
+	Convey("base account", t, func() {
+		h, err := hash.NewHashFromStr("000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade")
+		So(err, ShouldBeNil)
+		addr := proto.AccountAddress(*h)
+		ba := NewBaseAccount(&Account{
+			Address: addr,
 		})
-		columns := r.Columns()
-		So(columns, ShouldResemble, []string{"a"})
-		So(r.ColumnTypeDatabaseTypeName(0), ShouldEqual, "INT")
-
-		dest := make([]driver.Value, 1)
-		err := r.Next(dest)
+		So(ba.GetAccountAddress(), ShouldEqual, addr)
+		So(ba.GetAccountNonce(), ShouldEqual, 0)
+		So(ba.GetHash(), ShouldEqual, hash.Hash{})
+		priv, _, err := asymmetric.GenSecp256k1KeyPair()
 		So(err, ShouldBeNil)
-		So(dest[0], ShouldEqual, 1)
-		err = r.Next(dest)
-		So(err, ShouldEqual, io.EOF)
-		err = r.Close()
-		So(err, ShouldBeNil)
-		So(r.data, ShouldBeNil)
+		So(ba.Sign(priv), ShouldBeNil)
+		So(ba.Verify(), ShouldBeNil)
 	})
 }

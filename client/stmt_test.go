@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"testing"
 
@@ -179,6 +180,16 @@ func TestStmt(t *testing.T) {
 		err = ExecuteTx(nil, db, nil /* txopts */, func(tx *sql.Tx) error {
 			return nil
 		})
+		So(err, ShouldNotBeNil)
+
+		// closed stmt and old args
+		cs := newStmt(nil, "test query")
+		cs.Close()
+
+		_, err = cs.Query([]driver.Value{1})
+		So(err, ShouldNotBeNil)
+
+		_, err = cs.Exec([]driver.Value{2})
 		So(err, ShouldNotBeNil)
 	})
 }

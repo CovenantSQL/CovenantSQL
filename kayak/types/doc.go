@@ -14,4 +14,5 @@
  * limitations under the License.
  */
 
+// Package types defines required types of kayak.
 package types

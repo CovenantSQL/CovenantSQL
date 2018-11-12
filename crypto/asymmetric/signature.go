@@ -96,6 +96,9 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	if BypassSignature {
 		return true
 	}
+	if signee == nil || s == nil {
+		return false
+	}
 
 	signature := make([]byte, 64)
 	copy(signature, utils.PaddedBigBytes(s.R, 32))

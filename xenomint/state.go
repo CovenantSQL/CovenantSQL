@@ -89,7 +89,10 @@ func (s *state) close(commit bool) (err error) {
 func buildArgsFromSQLNamedArgs(args []wt.NamedArg) (ifs []interface{}) {
 	ifs = make([]interface{}, len(args))
 	for i, v := range args {
-		ifs[i] = v
+		ifs[i] = sql.NamedArg{
+			Name:  v.Name,
+			Value: v.Value,
+		}
 	}
 	return
 }

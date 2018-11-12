@@ -23,6 +23,7 @@ import (
 	"database/sql/driver"
 )
 
+// ExecuteTx starts a transaction, and runs fn in it
 func ExecuteTx(
 	ctx context.Context, db *sql.DB, txopts *sql.TxOptions, fn func(*sql.Tx) error,
 ) error {

@@ -53,8 +53,6 @@ var (
 func init() {
 	leveldbConf.BlockSize = 4 * 1024 * 1024
 	leveldbConf.Compression = opt.SnappyCompression
-	leveldbConf.WriteBuffer = 64 * 1024 * 1024
-	leveldbConf.BlockCacheCapacity = 2 * leveldbConf.WriteBuffer
 }
 
 // heightToKey converts a height in int32 to a key in bytes.

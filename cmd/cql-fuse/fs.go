@@ -42,8 +42,9 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 )
 
 const rootNodeID = 1
@@ -274,8 +275,16 @@ func (cfs CFS) GenerateInode(parentInode uint64, name string) uint64 {
 }
 
 func (cfs CFS) newUniqueID() (id uint64) {
-	//Fixme(auxten): fake one
-	return uint64(time.Now().UnixNano())
+	// cockroach's unique_rowid() Contains time and space (node ID) components
+	// https://www.cockroachlabs.com/docs/stable/sql-faqs.html#\
+	// 		what-are-the-differences-between-uuid-sequences-and-unique_rowid
+	// So, we just build one in the same way.
+	var idRand uint32
+	nodeIDBytes, err := kms.GetLocalNodeIDBytes()
+	if err == nil {
+		idRand = hash.FNVHash32uint(nodeIDBytes)
+	}
+	return uint64(time.Now().UnixNano()) + uint64(idRand)<<32
 	//if err := cfs.db.QueryRow(`SELECT unique_rowid()`).Scan(&id); err != nil {
 	//	panic(err)
 	//}

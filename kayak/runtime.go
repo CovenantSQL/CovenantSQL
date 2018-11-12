@@ -245,13 +245,10 @@ func (r *Runtime) Shutdown() (err error) {
 
 // Apply defines entry for Leader node.
 func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{}, logIndex uint64, err error) {
-	r.peersLock.RLock()
-	defer r.peersLock.RUnlock()
-
 	var commitFuture <-chan *commitResult
 
 	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
-		tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
+	tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
 	var dbCost time.Duration
 
 	defer func() {
@@ -290,8 +287,11 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 		} else if !tmRollback.Before(tmStart) {
 			fields["t"] = tmRollback.Sub(tmStart).Nanoseconds()
 		}
-		log.WithFields(fields).Info("kayak leader apply")
+		log.WithFields(fields).WithError(err).Info("kayak leader apply")
 	}()
+
+	r.peersLock.RLock()
+	defer r.peersLock.RUnlock()
 
 	if r.role != proto.Leader {
 		// not leader
@@ -411,6 +411,16 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
 		return
 	}
+
+	var tmStart, tmEnd time.Time
+
+	defer func() {
+		log.WithFields(log.Fields{
+			"t": l.Type.String(),
+			"i": l.Index,
+			"c": tmEnd.Sub(tmStart).Nanoseconds(),
+		}).WithError(err).Info("kayak follower apply")
+	}()
 
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
@@ -860,11 +870,11 @@ func (r *Runtime) markPrepareFinished(index uint64) {
 }
 
 func (r *Runtime) errorSummary(errs map[proto.NodeID]error) error {
-	failNodes := make([]proto.NodeID, 0, len(errs))
+	failNodes := make(map[proto.NodeID]error)
 
 	for s, err := range errs {
 		if err != nil {
-			failNodes = append(failNodes, s)
+			failNodes[s] = err
 		}
 	}
 

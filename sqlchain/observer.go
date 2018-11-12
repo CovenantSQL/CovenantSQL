@@ -21,9 +21,8 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 /*
@@ -93,7 +92,7 @@ func (r *observerReplicator) replicate() {
 
 	curHeight := r.c.rt.getHead().Height
 
-	if r.height == ct.ReplicateFromNewest {
+	if r.height == types.ReplicateFromNewest {
 		log.WithFields(log.Fields{
 			"node":   r.nodeID,
 			"height": curHeight,
@@ -121,7 +120,7 @@ func (r *observerReplicator) replicate() {
 	}).Debug("try replicating block for observer")
 
 	// replicate one record
-	var block *ct.Block
+	var block *types.Block
 	if block, err = r.c.FetchBlock(r.height); err != nil {
 		// fetch block failed
 		log.WithField("height", r.height).WithError(err).Warning("fetch block with height failed")
@@ -136,7 +135,7 @@ func (r *observerReplicator) replicate() {
 		// find last available block
 		log.Debug("start block height hole detection")
 
-		var lastBlock, nextBlock *ct.Block
+		var lastBlock, nextBlock *types.Block
 		var lastHeight, nextHeight int32
 
 		for h := r.height - 1; h >= 0; h-- {
@@ -207,7 +206,7 @@ func (r *observerReplicator) replicate() {
 
 	// fetch acks in block
 	for _, h := range block.Queries {
-		var ack *wt.SignedAckHeader
+		var ack *types.SignedAckHeader
 		if ack, err = r.c.queryOrSyncAckedQuery(r.height, h, block.Producer()); err != nil || ack == nil {
 			log.WithFields(log.Fields{
 				"ack":    h.String(),

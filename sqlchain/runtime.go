@@ -23,9 +23,8 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // runtime represents a chain runtime state.
@@ -51,7 +50,7 @@ type runtime struct {
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
 	// price sets query price in gases.
-	price           map[wt.QueryType]uint64
+	price           map[types.QueryType]uint64
 	producingReward uint64
 	billingPeriods  int32
 
@@ -122,7 +121,7 @@ func newRunTime(c *Config) (r *runtime) {
 	return
 }
 
-func (r *runtime) setGenesis(b *ct.Block) {
+func (r *runtime) setGenesis(b *types.Block) {
 	r.chainInitTime = b.Timestamp()
 	r.genesisHash = *b.BlockHash()
 	r.head = &state{
@@ -190,7 +189,7 @@ func (r *runtime) setNextTurn() {
 }
 
 // getQueryGas gets the consumption of gas for a specified query type.
-func (r *runtime) getQueryGas(t wt.QueryType) uint64 {
+func (r *runtime) getQueryGas(t types.QueryType) uint64 {
 	return r.price[t]
 }
 

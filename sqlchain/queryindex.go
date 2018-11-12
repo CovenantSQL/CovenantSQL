@@ -22,9 +22,8 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 
@@ -37,8 +36,8 @@ var (
 type requestTracker struct {
 	// TODO(leventeliu): maybe we don't need them to be "signed" here. Given that the response or
 	// Ack is already verified, simply use Header.
-	response *wt.SignedResponseHeader
-	ack      *wt.SignedAckHeader
+	response *types.SignedResponseHeader
+	ack      *types.SignedAckHeader
 	// signedBlock is the hash of the block in the currently best chain which contains this query.
 	signedBlock *hash.Hash
 }
@@ -60,7 +59,7 @@ func newQueryTracker() *queryTracker {
 }
 
 // updateAck updates the query tracker with a verified SignedAckHeader.
-func (s *requestTracker) updateAck(ack *wt.SignedAckHeader) (isNew bool, err error) {
+func (s *requestTracker) updateAck(ack *types.SignedAckHeader) (isNew bool, err error) {
 	if s.ack == nil {
 		// A later Ack can overwrite the original Response setting
 		*s = requestTracker{
@@ -82,11 +81,11 @@ func (s *requestTracker) updateAck(ack *wt.SignedAckHeader) (isNew bool, err err
 type hashIndex map[hash.Hash]*requestTracker
 
 // seqIndex defines a queryTracker index using sequence number as key.
-type seqIndex map[wt.QueryKey]*queryTracker
+type seqIndex map[types.QueryKey]*queryTracker
 
 // ensure returns the *queryTracker associated with the given key. It creates a new item if the
 // key doesn't exist.
-func (i seqIndex) ensure(k wt.QueryKey) (v *queryTracker) {
+func (i seqIndex) ensure(k types.QueryKey) (v *queryTracker) {
 	var ok bool
 
 	if v, ok = i[k]; !ok {
@@ -173,12 +172,12 @@ func newMultiIndex() *multiIndex {
 	return &multiIndex{
 		respIndex: make(map[hash.Hash]*requestTracker),
 		ackIndex:  make(map[hash.Hash]*requestTracker),
-		seqIndex:  make(map[wt.QueryKey]*queryTracker),
+		seqIndex:  make(map[types.QueryKey]*queryTracker),
 	}
 }
 
 // addResponse adds the responsed query to the index.
-func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
+func (i *multiIndex) addResponse(resp *types.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -210,7 +209,7 @@ func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
 }
 
 // addAck adds the acknowledged query to the index.
-func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
+func (i *multiIndex) addAck(ack *types.SignedAckHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 	var v *requestTracker
@@ -262,7 +261,7 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 	return
 }
 
-func (i *multiIndex) getAck(header *hash.Hash) (ack *wt.SignedAckHeader, ok bool) {
+func (i *multiIndex) getAck(header *hash.Hash) (ack *types.SignedAckHeader, ok bool) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -466,14 +465,14 @@ func newQueryIndex() *queryIndex {
 }
 
 // addResponse adds the responsed query to the index.
-func (i *queryIndex) addResponse(h int32, resp *wt.SignedResponseHeader) error {
+func (i *queryIndex) addResponse(h int32, resp *types.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
 	return i.heightIndex.ensureHeight(h).addResponse(resp)
 }
 
 // addAck adds the acknowledged query to the index.
-func (i *queryIndex) addAck(h int32, ack *wt.SignedAckHeader) error {
+func (i *queryIndex) addAck(h int32, ack *types.SignedAckHeader) error {
 	return i.heightIndex.ensureHeight(h).addAck(ack)
 }
 
@@ -499,7 +498,7 @@ func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
 }
 
 // setSignedBlock updates the signed block in index for the acknowledged queries in the block.
-func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
+func (i *queryIndex) setSignedBlock(h int32, block *types.Block) {
 	b := i.getBarrier()
 
 	for _, v := range block.Queries {
@@ -511,7 +510,7 @@ func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
 	}
 }
 
-func (i *queryIndex) resetSignedBlock(h int32, block *ct.Block) {
+func (i *queryIndex) resetSignedBlock(h int32, block *types.Block) {
 	b := i.getBarrier()
 
 	for _, v := range block.Queries {
@@ -524,7 +523,7 @@ func (i *queryIndex) resetSignedBlock(h int32, block *ct.Block) {
 }
 
 // getAck gets the acknowledged queries from the index.
-func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *wt.SignedAckHeader, err error) {
+func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *types.SignedAckHeader, err error) {
 	b := i.getBarrier()
 
 	if h < b {

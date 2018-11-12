@@ -20,16 +20,16 @@ import (
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 var (
-	testBlocks      []*ct.Block
+	testBlocks      []*types.Block
 	testBlockNumber = 50
 )
 
 func generateTestBlocks() (err error) {
-	testBlocks = make([]*ct.Block, 0, testBlockNumber)
+	testBlocks = make([]*types.Block, 0, testBlockNumber)
 
 	for i, prev := 0, genesisHash; i < testBlockNumber; i++ {
 		b, err := createRandomBlock(prev, false)

@@ -21,18 +21,18 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type blockNode struct {
 	parent *blockNode
-	block  *ct.Block // TODO(leventeliu): cleanup history blocks to release memory.
+	block  *types.Block // TODO(leventeliu): cleanup history blocks to release memory.
 	hash   hash.Hash
 	height int32 // height is the chain height of the head
 	count  int32 // count counts the blocks (except genesis) at this head
 }
 
-func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
+func newBlockNode(height int32, block *types.Block, parent *blockNode) *blockNode {
 	return &blockNode{
 		hash:   *block.BlockHash(),
 		parent: parent,
@@ -48,7 +48,7 @@ func newBlockNode(height int32, block *ct.Block, parent *blockNode) *blockNode {
 	}
 }
 
-func (n *blockNode) initBlockNode(height int32, block *ct.Block, parent *blockNode) {
+func (n *blockNode) initBlockNode(height int32, block *types.Block, parent *blockNode) {
 	n.block = block
 	n.hash = *block.BlockHash()
 	n.parent = nil

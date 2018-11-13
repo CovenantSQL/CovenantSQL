@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
@@ -134,14 +135,6 @@ func TestRequest_Sign(t *testing.T) {
 				So(err, ShouldNotBeNil)
 			})
 
-			Convey("header change without signing", func() {
-				req.Header.Timestamp = req.Header.Timestamp.Add(time.Second)
-
-				buildHash(&req.Header.RequestHeader, &req.Header.Hash)
-				err = req.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
 			Convey("header change with invalid queries hash", func() {
 				req.Payload.Queries = append(req.Payload.Queries,
 					Query{
@@ -222,8 +215,8 @@ func TestResponse_Sign(t *testing.T) {
 		err = res.Sign(privKey)
 		So(err, ShouldNotBeNil)
 		So(errors.Cause(err), ShouldBeIn, []error{
-			ErrSignVerification,
-			ErrHashVerification,
+			verifier.ErrHashValueNotMatch,
+			verifier.ErrSignatureNotMatch,
 		})
 
 		// sign original request first
@@ -235,7 +228,7 @@ func TestResponse_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// test hash
-		err = verifyHash(&res.Payload, &res.Header.DataHash)
+		err = verifyHash(&res.Payload, &res.Header.PayloadHash)
 		So(err, ShouldBeNil)
 
 		// verify
@@ -266,13 +259,6 @@ func TestResponse_Sign(t *testing.T) {
 			})
 			Convey("header change", func() {
 				res.Header.Timestamp = res.Header.Timestamp.Add(time.Second)
-
-				err = res.Verify()
-				So(err, ShouldNotBeNil)
-			})
-			Convey("header change without signing", func() {
-				res.Header.Timestamp = res.Header.Timestamp.Add(time.Second)
-				buildHash(&res.Header.ResponseHeader, &res.Header.Hash)
 
 				err = res.Verify()
 				So(err, ShouldNotBeNil)
@@ -326,8 +312,8 @@ func TestAck_Sign(t *testing.T) {
 		err = ack.Sign(privKey, true)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldBeIn, []error{
-			ErrSignVerification,
-			ErrHashVerification,
+			verifier.ErrHashValueNotMatch,
+			verifier.ErrSignatureNotMatch,
 		})
 
 		// sign nested structure, step by step
@@ -358,14 +344,6 @@ func TestAck_Sign(t *testing.T) {
 			})
 			Convey("header change", func() {
 				ack.Header.Timestamp = ack.Header.Timestamp.Add(time.Second)
-
-				err = ack.Verify()
-				So(err, ShouldNotBeNil)
-			})
-			Convey("header change without signing", func() {
-				ack.Header.Timestamp = ack.Header.Timestamp.Add(time.Second)
-
-				buildHash(&ack.Header.AckHeader, &ack.Header.Hash)
 
 				err = ack.Verify()
 				So(err, ShouldNotBeNil)
@@ -410,8 +388,8 @@ func TestNoAckReport_Sign(t *testing.T) {
 		err = noAck.Sign(privKey)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldBeIn, []error{
-			ErrSignVerification,
-			ErrHashVerification,
+			verifier.ErrHashValueNotMatch,
+			verifier.ErrSignatureNotMatch,
 		})
 
 		// sign nested structure
@@ -442,15 +420,6 @@ func TestNoAckReport_Sign(t *testing.T) {
 
 			Convey("header change", func() {
 				noAck.Header.Timestamp = noAck.Header.Timestamp.Add(time.Second)
-
-				err = noAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change without signing", func() {
-				noAck.Header.Timestamp = noAck.Header.Timestamp.Add(time.Second)
-
-				buildHash(&noAck.Header.NoAckReportHeader, &noAck.Header.Hash)
 
 				err = noAck.Verify()
 				So(err, ShouldNotBeNil)
@@ -536,8 +505,8 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 		err = aggrNoAck.Sign(privKey)
 		So(err, ShouldNotBeNil)
 		So(err, ShouldBeIn, []error{
-			ErrSignVerification,
-			ErrHashVerification,
+			verifier.ErrHashValueNotMatch,
+			verifier.ErrSignatureNotMatch,
 		})
 
 		// sign nested structure
@@ -583,15 +552,6 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 
 			Convey("header change", func() {
 				aggrNoAck.Header.Timestamp = aggrNoAck.Header.Timestamp.Add(time.Second)
-
-				err = aggrNoAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change without signing", func() {
-				aggrNoAck.Header.Timestamp = aggrNoAck.Header.Timestamp.Add(time.Second)
-
-				buildHash(&aggrNoAck.Header.AggrNoAckReportHeader, &aggrNoAck.Header.Hash)
 
 				err = aggrNoAck.Verify()
 				So(err, ShouldNotBeNil)
@@ -643,19 +603,6 @@ func TestInitServiceResponse_Sign(t *testing.T) {
 				err = initServiceResponse.Verify()
 				So(err, ShouldNotBeNil)
 			})
-
-			Convey("header change without signing", func() {
-				initServiceResponse.Header.Instances[0].DatabaseID = proto.DatabaseID("db2")
-
-				buildHash(&initServiceResponse.Header.InitServiceResponseHeader, &initServiceResponse.Header.Hash)
-
-				s, err := initServiceResponse.Header.InitServiceResponseHeader.MarshalHash()
-				So(err, ShouldBeNil)
-				So(s, ShouldNotBeEmpty)
-
-				err = initServiceResponse.Verify()
-				So(err, ShouldNotBeNil)
-			})
 		})
 	})
 }
@@ -698,14 +645,6 @@ func TestUpdateService_Sign(t *testing.T) {
 
 			Convey("header change", func() {
 				updateServiceReq.Header.Instance.DatabaseID = proto.DatabaseID("db2")
-
-				err = updateServiceReq.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change without signing", func() {
-				updateServiceReq.Header.Instance.DatabaseID = proto.DatabaseID("db2")
-				buildHash(&updateServiceReq.Header.UpdateServiceHeader, &updateServiceReq.Header.Hash)
 
 				err = updateServiceReq.Verify()
 				So(err, ShouldNotBeNil)

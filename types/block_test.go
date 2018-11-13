@@ -22,9 +22,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -41,7 +41,7 @@ func TestSignAndVerify(t *testing.T) {
 
 	block.SignedHeader.HSV.DataHash[0]++
 
-	if err = block.Verify(); err != crypto.ErrHashValueNotMatch {
+	if err = block.Verify(); err != verifier.ErrHashValueNotMatch {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 

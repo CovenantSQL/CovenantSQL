@@ -70,7 +70,7 @@ func TestCorruptedIndex(t *testing.T) {
 	}
 
 	// Test corrupted index
-	qi.heightIndex.mustGet(0).respIndex[resp.Hash].response = nil
+	qi.heightIndex.mustGet(0).respIndex[resp.Hash()].response = nil
 
 	if err = qi.addResponse(0, resp); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
@@ -80,7 +80,7 @@ func TestCorruptedIndex(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	qi.heightIndex.mustGet(0).respIndex[resp.Hash] = nil
+	qi.heightIndex.mustGet(0).respIndex[resp.Hash()] = nil
 
 	if err = qi.addResponse(0, resp); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
@@ -207,8 +207,9 @@ func TestCheckAckFromBlock(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	b1.Queries[0] = &ack1.Hash
-	b2.Queries[0] = &ack1.Hash
+	ackHash := ack1.Hash()
+	b1.Queries[0] = &ackHash
+	b2.Queries[0] = &ackHash
 	qi.setSignedBlock(height, b1)
 
 	if _, err := qi.checkAckFromBlock(
@@ -218,7 +219,8 @@ func TestCheckAckFromBlock(t *testing.T) {
 	}
 
 	// Test checking same ack signed by another block
-	b2.Queries[0] = &ack2.Hash
+	ack2Hash := ack2.Hash()
+	b2.Queries[0] = &ack2Hash
 
 	if _, err = qi.checkAckFromBlock(
 		height, b2.BlockHash(), b2.Queries[0],
@@ -307,7 +309,7 @@ func TestQueryIndex(t *testing.T) {
 				}
 
 				log.Debugf("i = %d, j = %d, k = %d\n\tseqno = %+v, req = %v, resp = %v", i, j, k,
-					resp.Request.GetQueryKey(), &req.Hash, &resp.Hash)
+					resp.Request.GetQueryKey(), req.Hash().String(), resp.Hash().String())
 
 				if err = qi.addResponse(int32(i), resp); err != nil {
 					t.Fatalf("Error occurred: %v", err)
@@ -323,9 +325,9 @@ func TestQueryIndex(t *testing.T) {
 							"req = %v, resp = %v, ack = %v",
 							i, j, k, l,
 							ack.SignedRequestHeader().GetQueryKey(),
-							&ack.SignedRequestHeader().Hash,
-							&ack.SignedResponseHeader().Hash,
-							&ack.Hash,
+							ack.SignedRequestHeader().Hash(),
+							ack.SignedResponseHeader().Hash(),
+							ack.Hash(),
 						)
 
 						if err != nil {
@@ -347,12 +349,14 @@ func TestQueryIndex(t *testing.T) {
 
 						if err == nil {
 							hasFirstAck = true
-							block.PushAckedQuery(&ack.Hash)
+							ackHash := ack.Hash()
+							block.PushAckedQuery(&ackHash)
 						} else {
 							continue
 						}
 
-						if rAck, err := qi.getAck(int32(i), &ack.Hash); err != nil {
+						ackHash := ack.Hash()
+						if rAck, err := qi.getAck(int32(i), &ackHash); err != nil {
 							t.Fatalf("Error occurred: %v", err)
 						} else if !reflect.DeepEqual(ack, rAck) {
 							t.Fatalf("Unexpected result:\n\torigin = %+v\n\toutput = %+v",

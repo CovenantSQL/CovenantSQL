@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -61,45 +60,6 @@ func TestTypes(t *testing.T) {
 		err = h5.Sign(priv)
 		So(err, ShouldBeNil)
 		h5.Signee = nil
-		err = h5.Verify()
-		So(err, ShouldNotBeNil)
-	})
-	Convey("test incorrect hash", t, func() {
-		priv, _, err := asymmetric.GenSecp256k1KeyPair()
-		So(err, ShouldBeNil)
-
-		h1 := &SignedCreateDatabaseRequestHeader{}
-		err = h1.Sign(priv)
-		So(err, ShouldBeNil)
-		h1.Hash = hash.Hash{}
-		err = h1.Verify()
-		So(err, ShouldNotBeNil)
-
-		h2 := &SignedCreateDatabaseResponseHeader{}
-		err = h2.Sign(priv)
-		So(err, ShouldBeNil)
-		h2.Hash = hash.Hash{}
-		err = h2.Verify()
-		So(err, ShouldNotBeNil)
-
-		h3 := &SignedDropDatabaseRequestHeader{}
-		err = h3.Sign(priv)
-		So(err, ShouldBeNil)
-		h3.Hash = hash.Hash{}
-		err = h3.Verify()
-		So(err, ShouldNotBeNil)
-
-		h4 := &SignedGetDatabaseRequestHeader{}
-		err = h4.Sign(priv)
-		So(err, ShouldBeNil)
-		h4.Hash = hash.Hash{}
-		err = h4.Verify()
-		So(err, ShouldNotBeNil)
-
-		h5 := &SignedGetDatabaseResponseHeader{}
-		err = h5.Sign(priv)
-		So(err, ShouldBeNil)
-		h5.Hash = hash.Hash{}
 		err = h5.Verify()
 		So(err, ShouldNotBeNil)
 	})

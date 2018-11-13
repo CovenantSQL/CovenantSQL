@@ -21,6 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -33,16 +34,20 @@ func TestBlock(t *testing.T) {
 					BlockHeader: BlockHeader{},
 				},
 				ReadQueries: []*types.Ack{
-					&types.Ack{
+					{
 						Header: types.SignedAckHeader{
-							Hash: hash.Hash{0x0, 0x0, 0x0, 0x1},
+							DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+								DataHash: hash.Hash{0x0, 0x0, 0x0, 0x1},
+							},
 						},
 					},
 				},
 				WriteQueries: []*types.Ack{
-					&types.Ack{
+					{
 						Header: types.SignedAckHeader{
-							Hash: hash.Hash{0x0, 0x0, 0x0, 0x2},
+							DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+								DataHash: hash.Hash{0x0, 0x0, 0x0, 0x2},
+							},
 						},
 					},
 				},
@@ -67,7 +72,9 @@ func TestBlock(t *testing.T) {
 			Convey("When the queries is modified", func() {
 				block.ReadQueries = append(block.ReadQueries, &types.Ack{
 					Header: types.SignedAckHeader{
-						Hash: hash.Hash{0x0, 0x0, 0x0, 0x3},
+						DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+							DataHash: hash.Hash{0x0, 0x0, 0x0, 0x3},
+						},
 					},
 				})
 				Convey("The verifier should return merkle root not match error", func() {

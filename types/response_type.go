@@ -21,6 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/pkg/errors"
 )
@@ -48,15 +49,13 @@ type ResponseHeader struct {
 	LogOffset    uint64              `json:"o"`  // request log offset
 	LastInsertID int64               `json:"l"`  // insert insert id
 	AffectedRows int64               `json:"a"`  // affected rows
-	DataHash     hash.Hash           `json:"dh"` // hash of query response
+	PayloadHash  hash.Hash           `json:"dh"` // hash of query response payload
 }
 
 // SignedResponseHeader defines a signed query response header.
 type SignedResponseHeader struct {
 	ResponseHeader
-	Hash      hash.Hash             `json:"h"`
-	Signee    *asymmetric.PublicKey `json:"e"`
-	Signature *asymmetric.Signature `json:"s"`
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // Response defines a complete query response.
@@ -71,16 +70,8 @@ func (sh *SignedResponseHeader) Verify() (err error) {
 	if err = sh.Request.Verify(); err != nil {
 		return
 	}
-	// verify hash
-	if err = verifyHash(&sh.ResponseHeader, &sh.Hash); err != nil {
-		return
-	}
-	// verify signature
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
 
-	return nil
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.ResponseHeader)
 }
 
 // Sign the request.
@@ -91,22 +82,13 @@ func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) 
 		return
 	}
 
-	// build our hash
-	if err = buildHash(&sh.ResponseHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	// sign
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.ResponseHeader, signer)
 }
 
 // Verify checks hash and signature in whole response.
 func (sh *Response) Verify() (err error) {
 	// verify data hash in header
-	if err = verifyHash(&sh.Payload, &sh.Header.DataHash); err != nil {
+	if err = verifyHash(&sh.Payload, &sh.Header.PayloadHash); err != nil {
 		return
 	}
 
@@ -119,7 +101,7 @@ func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 	sh.Header.RowCount = uint64(len(sh.Payload.Rows))
 
 	// build hash in header
-	if err = buildHash(&sh.Payload, &sh.Header.DataHash); err != nil {
+	if err = buildHash(&sh.Payload, &sh.Header.PayloadHash); err != nil {
 		return
 	}
 

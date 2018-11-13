@@ -156,29 +156,9 @@ func (z *ServiceInstance) Msgsize() (s int) {
 func (z *SignedInitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
+	// map header, size 2
 	// map header, size 1
-	o = append(o, 0x84, 0x81, 0x81)
+	o = append(o, 0x82, 0x82, 0x81, 0x81)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.InitServiceResponseHeader.Instances)))
 	for za0001 := range z.InitServiceResponseHeader.Instances {
 		if oTemp, err := z.InitServiceResponseHeader.Instances[za0001].MarshalHash(); err != nil {
@@ -187,8 +167,8 @@ func (z *SignedInitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -198,22 +178,10 @@ func (z *SignedInitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedInitServiceResponseHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 26 + 1 + 10 + hsp.ArrayHeaderSize
+	s = 1 + 26 + 1 + 10 + hsp.ArrayHeaderSize
 	for za0001 := range z.InitServiceResponseHeader.Instances {
 		s += z.InitServiceResponseHeader.Instances[za0001].Msgsize()
 	}
-	s += 5 + z.Hash.Msgsize()
+	s += 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }

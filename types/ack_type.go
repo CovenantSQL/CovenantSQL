@@ -21,6 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -36,9 +37,7 @@ type AckHeader struct {
 // SignedAckHeader defines client signed ack entity.
 type SignedAckHeader struct {
 	AckHeader
-	Hash      hash.Hash             `json:"hh"`
-	Signee    *asymmetric.PublicKey `json:"e"`
-	Signature *asymmetric.Signature `json:"s"`
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // Ack defines a whole client ack request entity.
@@ -56,14 +55,8 @@ func (sh *SignedAckHeader) Verify() (err error) {
 	if err = sh.Response.Verify(); err != nil {
 		return
 	}
-	if err = verifyHash(&sh.AckHeader, &sh.Hash); err != nil {
-		return
-	}
-	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
-	return
+
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.AckHeader)
 }
 
 // Sign the request.
@@ -76,16 +69,7 @@ func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey, verifyReqHeader b
 		}
 	}
 
-	// build hash
-	if err = buildHash(&sh.AckHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	// sign
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.AckHeader, signer)
 }
 
 // Verify checks hash and signature in ack.
@@ -101,7 +85,7 @@ func (a *Ack) Sign(signer *asymmetric.PrivateKey, verifyReqHeader bool) (err err
 
 // ResponseHash returns the deep shadowed Response Hash field.
 func (sh *SignedAckHeader) ResponseHash() hash.Hash {
-	return sh.AckHeader.Response.Hash
+	return sh.AckHeader.Response.Hash()
 }
 
 // SignedRequestHeader returns the deep shadowed Request reference.

@@ -11,8 +11,16 @@ func (z *CreateDatabaseRequest) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	// map header, size 1
+	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x81, 0x81)
+	if oTemp, err := z.Header.CreateDatabaseRequestHeader.ResourceMeta.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x82)
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -28,7 +36,7 @@ func (z *CreateDatabaseRequest) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CreateDatabaseRequest) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + 1 + 28 + 1 + 13 + z.Header.CreateDatabaseRequestHeader.ResourceMeta.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -57,8 +65,16 @@ func (z *CreateDatabaseResponse) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	// map header, size 1
+	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x81, 0x81)
+	if oTemp, err := z.Header.CreateDatabaseResponseHeader.InstanceMeta.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x82)
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -74,7 +90,7 @@ func (z *CreateDatabaseResponse) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CreateDatabaseResponse) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + 1 + 29 + 1 + 13 + z.Header.CreateDatabaseResponseHeader.InstanceMeta.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -103,8 +119,16 @@ func (z *DropDatabaseRequest) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	// map header, size 1
+	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x81, 0x81)
+	if oTemp, err := z.Header.DropDatabaseRequestHeader.DatabaseID.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x82)
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -120,7 +144,7 @@ func (z *DropDatabaseRequest) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *DropDatabaseRequest) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + 1 + 26 + 1 + 11 + z.Header.DropDatabaseRequestHeader.DatabaseID.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -164,8 +188,16 @@ func (z *GetDatabaseRequest) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	// map header, size 1
+	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x81, 0x81)
+	if oTemp, err := z.Header.GetDatabaseRequestHeader.DatabaseID.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x82)
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -181,7 +213,7 @@ func (z *GetDatabaseRequest) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *GetDatabaseRequest) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + 1 + 25 + 1 + 11 + z.Header.GetDatabaseRequestHeader.DatabaseID.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -210,8 +242,16 @@ func (z *GetDatabaseResponse) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	// map header, size 1
+	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x81, 0x81)
+	if oTemp, err := z.Header.GetDatabaseResponseHeader.InstanceMeta.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x82)
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -227,7 +267,7 @@ func (z *GetDatabaseResponse) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *GetDatabaseResponse) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + 1 + 26 + 1 + 13 + z.Header.GetDatabaseResponseHeader.InstanceMeta.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -255,36 +295,16 @@ func (z *GetDatabaseResponseHeader) Msgsize() (s int) {
 func (z *SignedCreateDatabaseRequestHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
+	// map header, size 2
 	// map header, size 1
-	o = append(o, 0x84, 0x81, 0x81)
+	o = append(o, 0x82, 0x82, 0x81, 0x81)
 	if oTemp, err := z.CreateDatabaseRequestHeader.ResourceMeta.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -294,19 +314,7 @@ func (z *SignedCreateDatabaseRequestHeader) MarshalHash() (o []byte, err error) 
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedCreateDatabaseRequestHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 28 + 1 + 13 + z.CreateDatabaseRequestHeader.ResourceMeta.Msgsize() + 5 + z.Hash.Msgsize()
+	s = 1 + 28 + 1 + 13 + z.CreateDatabaseRequestHeader.ResourceMeta.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 
@@ -314,36 +322,16 @@ func (z *SignedCreateDatabaseRequestHeader) Msgsize() (s int) {
 func (z *SignedCreateDatabaseResponseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
+	// map header, size 2
 	// map header, size 1
-	o = append(o, 0x84, 0x81, 0x81)
+	o = append(o, 0x82, 0x82, 0x81, 0x81)
 	if oTemp, err := z.CreateDatabaseResponseHeader.InstanceMeta.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -353,19 +341,7 @@ func (z *SignedCreateDatabaseResponseHeader) MarshalHash() (o []byte, err error)
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedCreateDatabaseResponseHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 29 + 1 + 13 + z.CreateDatabaseResponseHeader.InstanceMeta.Msgsize() + 5 + z.Hash.Msgsize()
+	s = 1 + 29 + 1 + 13 + z.CreateDatabaseResponseHeader.InstanceMeta.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 
@@ -373,36 +349,16 @@ func (z *SignedCreateDatabaseResponseHeader) Msgsize() (s int) {
 func (z *SignedDropDatabaseRequestHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
+	// map header, size 2
 	// map header, size 1
-	o = append(o, 0x84, 0x81, 0x81)
+	o = append(o, 0x82, 0x82, 0x81, 0x81)
 	if oTemp, err := z.DropDatabaseRequestHeader.DatabaseID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -412,19 +368,7 @@ func (z *SignedDropDatabaseRequestHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedDropDatabaseRequestHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 26 + 1 + 11 + z.DropDatabaseRequestHeader.DatabaseID.Msgsize() + 5 + z.Hash.Msgsize()
+	s = 1 + 26 + 1 + 11 + z.DropDatabaseRequestHeader.DatabaseID.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 
@@ -432,36 +376,16 @@ func (z *SignedDropDatabaseRequestHeader) Msgsize() (s int) {
 func (z *SignedGetDatabaseRequestHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
+	// map header, size 2
 	// map header, size 1
-	o = append(o, 0x84, 0x81, 0x81)
+	o = append(o, 0x82, 0x82, 0x81, 0x81)
 	if oTemp, err := z.GetDatabaseRequestHeader.DatabaseID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -471,19 +395,7 @@ func (z *SignedGetDatabaseRequestHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedGetDatabaseRequestHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 25 + 1 + 11 + z.GetDatabaseRequestHeader.DatabaseID.Msgsize() + 5 + z.Hash.Msgsize()
+	s = 1 + 25 + 1 + 11 + z.GetDatabaseRequestHeader.DatabaseID.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 
@@ -491,36 +403,16 @@ func (z *SignedGetDatabaseRequestHeader) Msgsize() (s int) {
 func (z *SignedGetDatabaseResponseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
+	// map header, size 2
 	// map header, size 1
-	o = append(o, 0x84, 0x81, 0x81)
+	o = append(o, 0x82, 0x82, 0x81, 0x81)
 	if oTemp, err := z.GetDatabaseResponseHeader.InstanceMeta.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -530,18 +422,6 @@ func (z *SignedGetDatabaseResponseHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedGetDatabaseResponseHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 26 + 1 + 13 + z.GetDatabaseResponseHeader.InstanceMeta.Msgsize() + 5 + z.Hash.Msgsize()
+	s = 1 + 26 + 1 + 13 + z.GetDatabaseResponseHeader.InstanceMeta.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }

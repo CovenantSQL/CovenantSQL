@@ -21,6 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -75,9 +76,7 @@ type QueryKey struct {
 // SignedRequestHeader defines a signed query request header.
 type SignedRequestHeader struct {
 	RequestHeader
-	Hash      hash.Hash             `json:"hh"`
-	Signee    *asymmetric.PublicKey `json:"e"`
-	Signature *asymmetric.Signature `json:"s"`
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // Request defines a complete query request.
@@ -100,33 +99,12 @@ func (t QueryType) String() string {
 
 // Verify checks hash and signature in request header.
 func (sh *SignedRequestHeader) Verify() (err error) {
-	// verify hash
-	if err = verifyHash(&sh.RequestHeader, &sh.Hash); err != nil {
-		return
-	}
-	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
-	return nil
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.RequestHeader)
 }
 
 // Sign the request.
 func (sh *SignedRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
-	// compute hash
-	if err = buildHash(&sh.RequestHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	if signer == nil {
-		return ErrSignRequest
-	}
-
-	// sign
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.RequestHeader, signer)
 }
 
 // Verify checks hash and signature in whole request.

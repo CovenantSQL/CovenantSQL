@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package crypto
+package verifier
 
 import (
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"

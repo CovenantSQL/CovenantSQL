@@ -66,10 +66,12 @@ func (b *Block) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// Update header fields: generate merkle root from queries
 	var hashes []*hash.Hash
 	for _, v := range b.ReadQueries {
-		hashes = append(hashes, &v.Header.Hash)
+		h := v.Header.Hash()
+		hashes = append(hashes, &h)
 	}
 	for _, v := range b.WriteQueries {
-		hashes = append(hashes, &v.Header.Hash)
+		h := v.Header.Hash()
+		hashes = append(hashes, &h)
 	}
 	if err = b.MerkleRoot.SetBytes(merkle.NewMerkle(hashes).GetRoot()[:]); err != nil {
 		return
@@ -83,10 +85,12 @@ func (b *Block) Verify() error {
 	// Verify header fields: compare merkle root from queries
 	var hashes []*hash.Hash
 	for _, v := range b.ReadQueries {
-		hashes = append(hashes, &v.Header.Hash)
+		h := v.Header.Hash()
+		hashes = append(hashes, &h)
 	}
 	for _, v := range b.WriteQueries {
-		hashes = append(hashes, &v.Header.Hash)
+		h := v.Header.Hash()
+		hashes = append(hashes, &h)
 	}
 	if mroot := merkle.NewMerkle(hashes).GetRoot(); !mroot.IsEqual(
 		&b.SignedBlockHeader.MerkleRoot,

@@ -68,7 +68,7 @@ func (s *requestTracker) updateAck(ack *types.SignedAckHeader) (isNew bool, err 
 		}
 
 		isNew = true
-	} else if !s.ack.Hash.IsEqual(&ack.Hash) {
+	} else if s.ack.Hash() != ack.Hash() {
 		// This may happen when a client sends multiple acknowledgements for a same query (same
 		// response header hash)
 		err = ErrMultipleAckOfResponse
@@ -181,7 +181,7 @@ func (i *multiIndex) addResponse(resp *types.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
-	if v, ok := i.respIndex[resp.Hash]; ok {
+	if v, ok := i.respIndex[resp.Hash()]; ok {
 		if v == nil || v.response == nil {
 			// TODO(leventeliu): consider to panic.
 			err = ErrCorruptedIndex
@@ -201,7 +201,7 @@ func (i *multiIndex) addResponse(resp *types.SignedResponseHeader) (err error) {
 		response: resp,
 	}
 
-	i.respIndex[resp.Hash] = s
+	i.respIndex[resp.Hash()] = s
 	q := i.seqIndex.ensure(resp.Request.GetQueryKey())
 	q.queries = append(q.queries, s)
 
@@ -225,7 +225,7 @@ func (i *multiIndex) addAck(ack *types.SignedAckHeader) (err error) {
 
 		// Add hash -> ack index anyway, so that we can find the request tracker later, even if
 		// there is a earlier acknowledgement for the same request
-		i.ackIndex[ack.Hash] = v
+		i.ackIndex[ack.Hash()] = v
 
 		// This also updates the item indexed by ackIndex and seqIndex
 		var isNew bool
@@ -245,7 +245,7 @@ func (i *multiIndex) addAck(ack *types.SignedAckHeader) (err error) {
 		}
 
 		i.respIndex[ack.ResponseHash()] = v
-		i.ackIndex[ack.Hash] = v
+		i.ackIndex[ack.Hash()] = v
 		q.queries = append(q.queries, v)
 	}
 
@@ -254,7 +254,7 @@ func (i *multiIndex) addAck(ack *types.SignedAckHeader) (err error) {
 	// We will keep the first ack counted anyway. But, should we report it to someone?
 	if q.firstAck == nil {
 		q.firstAck = v
-	} else if !q.firstAck.ack.Hash.IsEqual(&ack.Hash) {
+	} else if q.firstAck.ack.Hash() != ack.Hash() {
 		err = ErrMultipleAckOfSeqNo
 	}
 
@@ -344,7 +344,7 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 	qs := i.seqIndex[q.ack.SignedRequestHeader().GetQueryKey()]
 
 	// Check it as a first acknowledgement
-	if i.respIndex[q.response.Hash] != q || qs == nil || qs.firstAck == nil {
+	if i.respIndex[q.response.Hash()] != q || qs == nil || qs.firstAck == nil {
 		err = ErrCorruptedIndex
 		return
 	}
@@ -383,7 +383,8 @@ func (i *multiIndex) markAndCollectUnsignedAcks(qs *[]*hash.Hash) {
 	for _, q := range i.seqIndex {
 		if ack := q.firstAck; ack != nil && ack.signedBlock == nil {
 			ack.signedBlock = placeHolder
-			*qs = append(*qs, &ack.ack.Hash)
+			ackHash := ack.ack.Hash()
+			*qs = append(*qs, &ackHash)
 		}
 	}
 }

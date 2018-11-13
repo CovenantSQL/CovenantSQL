@@ -336,11 +336,11 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		}
 		log.WithFields(log.Fields{
 			"height": h,
-			"header": resp.Hash.String(),
+			"header": resp.Hash().String(),
 		}).Debug("Loaded new resp header")
 		err = chain.qi.addResponse(h, resp)
 		if err != nil {
-			err = errors.Wrapf(err, "load resp, height %d, hash %s", h, resp.Hash.String())
+			err = errors.Wrapf(err, "load resp, height %d, hash %s", h, resp.Hash().String())
 			return
 		}
 	}
@@ -362,11 +362,11 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		}
 		log.WithFields(log.Fields{
 			"height": h,
-			"header": ack.Hash.String(),
+			"header": ack.Hash().String(),
 		}).Debug("Loaded new ack header")
 		err = chain.qi.addAck(h, ack)
 		if err != nil {
-			err = errors.Wrapf(err, "load ack, height %d, hash %s", h, ack.Hash.String())
+			err = errors.Wrapf(err, "load ack, height %d, hash %s", h, ack.Hash().String())
 			return
 		}
 	}
@@ -453,14 +453,14 @@ func (c *Chain) pushResponedQuery(resp *types.SignedResponseHeader) (err error) 
 		return
 	}
 
-	tdbKey := utils.ConcatAll(metaResponseIndex[:], k, resp.Hash[:])
+	tdbKey := utils.ConcatAll(metaResponseIndex[:], k, resp.Hash().AsBytes())
 	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put response %d %s", h, resp.Hash.String())
+		err = errors.Wrapf(err, "put response %d %s", h, resp.Hash().String())
 		return
 	}
 
 	if err = c.qi.addResponse(h, resp); err != nil {
-		err = errors.Wrapf(err, "add resp h %d hash %s", h, resp.Hash)
+		err = errors.Wrapf(err, "add resp h %d hash %s", h, resp.Hash())
 		return err
 	}
 
@@ -469,7 +469,7 @@ func (c *Chain) pushResponedQuery(resp *types.SignedResponseHeader) (err error) 
 
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
-	log.Debugf("push ack %s", ack.Hash.String())
+	log.Debugf("push ack %s", ack.Hash().String())
 	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := heightToKey(h)
 	var enc *bytes.Buffer
@@ -478,15 +478,15 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 		return
 	}
 
-	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.Hash[:])
+	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.Hash().AsBytes())
 
 	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash.String())
+		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash().String())
 		return
 	}
 
 	if err = c.qi.addAck(h, ack); err != nil {
-		err = errors.Wrapf(err, "add ack h %d hash %s", h, ack.Hash)
+		err = errors.Wrapf(err, "add ack h %d hash %s", h, ack.Hash())
 		return err
 	}
 

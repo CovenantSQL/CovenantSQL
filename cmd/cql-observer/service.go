@@ -34,9 +34,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	ct "github.com/CovenantSQL/CovenantSQL/types"
+	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
 )
 
@@ -324,7 +324,7 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 
 func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) (err error) {
 	log.WithFields(log.Fields{
-		"ack": ack.Hash.String(),
+		"ack": ack.Hash().String(),
 		"db":  dbID,
 	}).Debug("add ack query")
 
@@ -353,11 +353,11 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 		}
 
 		key := offsetToBytes(req.LogOffset)
-		key = append(key, resp.Request.Header.Hash.CloneBytes()...)
+		key = append(key, resp.Request.Header.Hash().AsBytes()...)
 
 		log.WithFields(log.Fields{
 			"offset":     req.LogOffset,
-			"reqHash":    resp.Request.Header.Hash.String(),
+			"reqHash":    resp.Request.Header.Hash().String(),
 			"reqQueries": resp.Request.Payload.Queries,
 		}).Debug("add write request")
 
@@ -378,7 +378,7 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 			if err != nil {
 				return
 			}
-			err = ob.Put(resp.Request.Header.Hash.CloneBytes(), offsetToBytes(req.LogOffset))
+			err = ob.Put(resp.Request.Header.Hash().AsBytes(), offsetToBytes(req.LogOffset))
 			return
 		}); err != nil {
 			return
@@ -395,7 +395,7 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 		if err != nil {
 			return
 		}
-		err = ab.Put(ack.Hash.CloneBytes(), ackBytes.Bytes())
+		err = ab.Put(ack.Hash().AsBytes(), ackBytes.Bytes())
 		return
 	})
 }

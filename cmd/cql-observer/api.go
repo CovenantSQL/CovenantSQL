@@ -28,8 +28,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/mux"
 )
 
@@ -79,19 +79,19 @@ func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
 	sendResponse(200, true, "", map[string]interface{}{
 		"ack": map[string]interface{}{
 			"request": map[string]interface{}{
-				"hash":      ack.Response.Request.Hash.String(),
+				"hash":      ack.Response.Request.Hash().String(),
 				"timestamp": a.formatTime(ack.Response.Request.Timestamp),
 				"node":      ack.Response.Request.NodeID,
 				"type":      ack.Response.Request.QueryType.String(),
 				"count":     ack.Response.Request.BatchCount,
 			},
 			"response": map[string]interface{}{
-				"hash":         ack.Response.Hash.String(),
+				"hash":         ack.Response.Hash().String(),
 				"timestamp":    a.formatTime(ack.Response.Timestamp),
 				"node":         ack.Response.NodeID,
 				"log_position": ack.Response.LogOffset,
 			},
-			"hash":      ack.Hash.String(),
+			"hash":      ack.Hash().String(),
 			"timestamp": a.formatTime(ack.AckHeader.Timestamp),
 			"node":      ack.AckHeader.NodeID,
 		},
@@ -365,7 +365,7 @@ func (a *explorerAPI) formatRequest(req *wt.Request) map[string]interface{} {
 
 	return map[string]interface{}{
 		"request": map[string]interface{}{
-			"hash":      req.Header.Hash.String(),
+			"hash":      req.Header.Hash().String(),
 			"timestamp": a.formatTime(req.Header.Timestamp),
 			"node":      req.Header.NodeID,
 			"type":      req.Header.QueryType.String(),

@@ -18,7 +18,7 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -45,9 +45,7 @@ type UpdateServiceHeader struct {
 // SignedUpdateServiceHeader defines signed service update header.
 type SignedUpdateServiceHeader struct {
 	UpdateServiceHeader
-	Hash      hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // UpdateService defines service update type.
@@ -61,29 +59,12 @@ type UpdateServiceResponse struct{}
 
 // Verify checks hash and signature in update service header.
 func (sh *SignedUpdateServiceHeader) Verify() (err error) {
-	// verify hash
-	if err = verifyHash(&sh.UpdateServiceHeader, &sh.Hash); err != nil {
-		return
-	}
-	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
-	return
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.UpdateServiceHeader)
 }
 
 // Sign the request.
 func (sh *SignedUpdateServiceHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
-	// build hash
-	if err = buildHash(&sh.UpdateServiceHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	// sign
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.UpdateServiceHeader, signer)
 }
 
 // Verify checks hash and signature in update service.

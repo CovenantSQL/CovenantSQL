@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -36,9 +36,7 @@ type NoAckReportHeader struct {
 // SignedNoAckReportHeader defines worker worker issued/signed client no ack report.
 type SignedNoAckReportHeader struct {
 	NoAckReportHeader
-	Hash      hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // NoAckReport defines whole worker no client ack report.
@@ -58,9 +56,7 @@ type AggrNoAckReportHeader struct {
 // SignedAggrNoAckReportHeader defines worker leader aggregated/signed client no ack report.
 type SignedAggrNoAckReportHeader struct {
 	AggrNoAckReportHeader
-	Hash      hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // AggrNoAckReport defines whole worker leader no client ack report.
@@ -75,15 +71,8 @@ func (sh *SignedNoAckReportHeader) Verify() (err error) {
 	if err = sh.Response.Verify(); err != nil {
 		return
 	}
-	// verify hash
-	if err = verifyHash(&sh.NoAckReportHeader, &sh.Hash); err != nil {
-		return
-	}
-	// validate signature
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
-	return
+
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.NoAckReportHeader)
 }
 
 // Sign the request.
@@ -93,16 +82,7 @@ func (sh *SignedNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err erro
 		return
 	}
 
-	// build hash
-	if err = buildHash(&sh.NoAckReportHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	// sign
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.NoAckReportHeader, signer)
 }
 
 // Verify checks hash and signature in whole no ack report.
@@ -123,15 +103,8 @@ func (sh *SignedAggrNoAckReportHeader) Verify() (err error) {
 			return
 		}
 	}
-	// verify hash
-	if err = verifyHash(&sh.AggrNoAckReportHeader, &sh.Hash); err != nil {
-		return
-	}
-	// verify signature
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
-	return
+
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.AggrNoAckReportHeader)
 }
 
 // Sign the request.
@@ -142,16 +115,7 @@ func (sh *SignedAggrNoAckReportHeader) Sign(signer *asymmetric.PrivateKey) (err 
 		}
 	}
 
-	// verify hash
-	if err = buildHash(&sh.AggrNoAckReportHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	// verify signature
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.AggrNoAckReportHeader, signer)
 }
 
 // Verify the whole aggregation no ack report.

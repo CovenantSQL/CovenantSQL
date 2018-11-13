@@ -18,7 +18,7 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -54,9 +54,7 @@ type InitServiceResponseHeader struct {
 // SignedInitServiceResponseHeader defines signed worker service init response header.
 type SignedInitServiceResponseHeader struct {
 	InitServiceResponseHeader
-	Hash      hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // InitServiceResponse defines worker service init response.
@@ -66,29 +64,12 @@ type InitServiceResponse struct {
 
 // Verify checks hash and signature in init service response header.
 func (sh *SignedInitServiceResponseHeader) Verify() (err error) {
-	// verify hash
-	if err = verifyHash(&sh.InitServiceResponseHeader, &sh.Hash); err != nil {
-		return
-	}
-	// verify sign
-	if sh.Signee == nil || sh.Signature == nil || !sh.Signature.Verify(sh.Hash[:], sh.Signee) {
-		return ErrSignVerification
-	}
-	return
+	return sh.DefaultHashSignVerifierImpl.Verify(&sh.InitServiceResponseHeader)
 }
 
 // Sign the request.
 func (sh *SignedInitServiceResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
-	// build hash
-	if err = buildHash(&sh.InitServiceResponseHeader, &sh.Hash); err != nil {
-		return
-	}
-
-	// sign
-	sh.Signature, err = signer.Sign(sh.Hash[:])
-	sh.Signee = signer.PubKey()
-
-	return
+	return sh.DefaultHashSignVerifierImpl.Sign(&sh.InitServiceResponseHeader, signer)
 }
 
 // Verify checks hash and signature in init service response header.

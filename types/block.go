@@ -19,10 +19,10 @@ package types
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -43,7 +43,7 @@ type Header struct {
 // SignedHeader is block header along with its producer signature.
 type SignedHeader struct {
 	Header
-	HSV crypto.DefaultHashSignVerifierImpl
+	HSV verifier.DefaultHashSignVerifierImpl
 }
 
 func (s *SignedHeader) Sign(signer *ca.PrivateKey) error {

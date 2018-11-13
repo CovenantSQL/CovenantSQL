@@ -118,7 +118,7 @@ func TestDBMS(t *testing.T) {
 				reqGetRequest.LogOffset = queryRes.Header.LogOffset
 				err = testRequest(route.DBSGetRequest, reqGetRequest, &respGetRequest)
 				So(err, ShouldBeNil)
-				So(respGetRequest.Request.Header.Hash, ShouldResemble, writeQuery.Header.Hash)
+				So(respGetRequest.Request.Header.Hash(), ShouldResemble, writeQuery.Header.Hash())
 
 				// sending read query
 				var readQuery *wt.Request

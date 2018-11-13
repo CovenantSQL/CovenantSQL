@@ -349,7 +349,7 @@ func (s *State) partialCommit(qs []*types.Response) (err error) {
 	}
 	for i, v = range qs {
 		var loc = s.pool.queries[i]
-		if !loc.req.Header.Hash.IsEqual(&v.Header.Request.Hash) ||
+		if loc.req.Header.Hash() != v.Header.Request.Hash() ||
 			loc.resp.Header.LogOffset != v.Header.LogOffset {
 			err = ErrQueryConflict
 			return

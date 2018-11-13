@@ -106,14 +106,31 @@ func (z *Request) MarshalHash() (o []byte, err error) {
 	o = append(o, 0x83, 0x83, 0x81, 0x81)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Payload.Queries)))
 	for za0001 := range z.Payload.Queries {
-		if oTemp, err := z.Payload.Queries[za0001].MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
+		// map header, size 2
+		o = append(o, 0x82, 0x82)
+		o = hsp.AppendString(o, z.Payload.Queries[za0001].Pattern)
+		o = append(o, 0x82)
+		o = hsp.AppendArrayHeader(o, uint32(len(z.Payload.Queries[za0001].Args)))
+		for za0002 := range z.Payload.Queries[za0001].Args {
+			// map header, size 2
+			o = append(o, 0x82, 0x82)
+			o = hsp.AppendString(o, z.Payload.Queries[za0001].Args[za0002].Name)
+			o = append(o, 0x82)
+			o, err = hsp.AppendIntf(o, z.Payload.Queries[za0001].Args[za0002].Value)
+			if err != nil {
+				return
+			}
 		}
 	}
-	o = append(o, 0x83)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	o = append(o, 0x83, 0x82, 0x82)
+	if oTemp, err := z.Header.RequestHeader.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x82)
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -131,9 +148,12 @@ func (z *Request) MarshalHash() (o []byte, err error) {
 func (z *Request) Msgsize() (s int) {
 	s = 1 + 8 + 1 + 8 + hsp.ArrayHeaderSize
 	for za0001 := range z.Payload.Queries {
-		s += z.Payload.Queries[za0001].Msgsize()
+		s += 1 + 8 + hsp.StringPrefixSize + len(z.Payload.Queries[za0001].Pattern) + 5 + hsp.ArrayHeaderSize
+		for za0002 := range z.Payload.Queries[za0001].Args {
+			s += 1 + 5 + hsp.StringPrefixSize + len(z.Payload.Queries[za0001].Args[za0002].Name) + 6 + hsp.GuessSize(z.Payload.Queries[za0001].Args[za0002].Value)
+		}
 	}
-	s += 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
+	s += 7 + 1 + 14 + z.Header.RequestHeader.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 
@@ -209,35 +229,15 @@ func (z *RequestPayload) Msgsize() (s int) {
 func (z *SignedRequestHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x84)
+	// map header, size 2
+	o = append(o, 0x82, 0x82)
 	if oTemp, err := z.RequestHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.Hash.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -247,18 +247,6 @@ func (z *SignedRequestHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedRequestHeader) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 14 + z.RequestHeader.Msgsize() + 5 + z.Hash.Msgsize()
+	s = 1 + 14 + z.RequestHeader.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }

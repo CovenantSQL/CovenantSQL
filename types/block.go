@@ -91,7 +91,17 @@ type Block struct {
 // PackAndSignBlock generates the signature for the Block from the given PrivateKey.
 func (b *Block) PackAndSignBlock(signer *ca.PrivateKey) (err error) {
 	// Calculate merkle root
-	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(b.Queries).GetRoot()
+	var hs = make([]*hash.Hash, 0, len(b.Queries)+len(b.QueryTxs)+len(b.Acks))
+	for i := range b.Queries {
+		hs = append(hs, b.Queries[i])
+	}
+	for i := range b.QueryTxs {
+		hs = append(hs, &b.QueryTxs[i].Response.DataHash)
+	}
+	for i := range b.Acks {
+		hs = append(hs, &b.Acks[i].Header.DataHash)
+	}
+	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(hs).GetRoot()
 	return b.SignedHeader.Sign(signer)
 }
 

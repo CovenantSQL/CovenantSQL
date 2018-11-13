@@ -24,14 +24,20 @@ import (
 
 type QueryTracker struct {
 	sync.RWMutex
-	req  *types.Request
-	resp *types.Response
+	Req  *types.Request
+	Resp *types.Response
 }
 
 func (q *QueryTracker) UpdateResp(resp *types.Response) {
 	q.Lock()
 	defer q.Unlock()
-	q.resp = resp
+	q.Resp = resp
+}
+
+func (q *QueryTracker) Ready() bool {
+	q.RLock()
+	defer q.RUnlock()
+	return q.Resp != nil
 }
 
 type pool struct {
@@ -61,7 +67,7 @@ func (p *pool) match(sp uint64, req *types.Request) bool {
 	if pos, ok = p.index[sp]; !ok {
 		return false
 	}
-	if p.queries[pos].req.Header.Hash() != req.Header.Hash() {
+	if p.queries[pos].Req.Header.Hash() != req.Header.Hash() {
 		return false
 	}
 	return true

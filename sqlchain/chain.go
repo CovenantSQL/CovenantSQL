@@ -495,6 +495,93 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 
 // produceBlockV2 prepares, signs and advises the pending block to the orther peers.
 func (c *Chain) produceBlockV2(now time.Time) (err error) {
+	var qts []*x.QueryTracker
+	if qts, err = c.st.CommitEx(); err != nil {
+		return
+	}
+	var block = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
+				Version:     0x01000000,
+				Producer:    c.rt.getServer(),
+				GenesisHash: c.rt.genesisHash,
+				ParentHash:  c.rt.getHead().Head,
+				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
+				Timestamp: now,
+			},
+		},
+		QueryTxs: make([]*types.QueryAsTx, len(qts)),
+	}
+	for i, v := range qts {
+		// TODO(leventeliu): maybe block waiting at a ready channel instead?
+		for !v.Ready() {
+			time.Sleep(1 * time.Millisecond)
+		}
+		block.QueryTxs[i] = &types.QueryAsTx{
+			// TODO(leventeliu): add acks for billing.
+			Request:  v.Req,
+			Response: &v.Resp.Header,
+		}
+	}
+	// Sign block
+	if err = block.PackAndSignBlock(c.pk); err != nil {
+		return
+	}
+	// Send to pending list
+	c.blocks <- block
+	log.WithFields(log.Fields{
+		"peer":            c.rt.getPeerInfoString(),
+		"time":            c.rt.getChainTimeString(),
+		"curr_turn":       c.rt.getNextTurn(),
+		"using_timestamp": now.Format(time.RFC3339Nano),
+		"block_hash":      block.BlockHash().String(),
+	}).Debug("Produced new block")
+	// Advise new block to the other peers
+	var (
+		req = &MuxAdviseNewBlockReq{
+			Envelope: proto.Envelope{
+				// TODO(leventeliu): Add fields.
+			},
+			DatabaseID: c.rt.databaseID,
+			AdviseNewBlockReq: AdviseNewBlockReq{
+				Block: block,
+				Count: func() int32 {
+					if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
+						return nd.count
+					}
+					if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
+						return pn.count + 1
+					}
+					return -1
+				}(),
+			},
+		}
+		peers = c.rt.getPeers()
+		wg    = &sync.WaitGroup{}
+	)
+	for _, s := range peers.Servers {
+		if s != c.rt.getServer() {
+			wg.Add(1)
+			go func(id proto.NodeID) {
+				defer wg.Done()
+				resp := &MuxAdviseNewBlockResp{}
+				if err := c.cl.CallNode(
+					id, route.SQLCAdviseNewBlock.String(), req, resp); err != nil {
+					log.WithFields(log.Fields{
+						"peer":            c.rt.getPeerInfoString(),
+						"time":            c.rt.getChainTimeString(),
+						"curr_turn":       c.rt.getNextTurn(),
+						"using_timestamp": now.Format(time.RFC3339Nano),
+						"block_hash":      block.BlockHash().String(),
+					}).WithError(err).Error(
+						"Failed to advise new block")
+				}
+			}(s)
+		}
+	}
+	wg.Wait()
+	// fire replication to observers
+	c.startStopReplication()
 	return
 }
 

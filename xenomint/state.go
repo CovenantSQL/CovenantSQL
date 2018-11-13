@@ -179,7 +179,7 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 		}
 	}
 	// Build query response
-	ref = &QueryTracker{req: req}
+	ref = &QueryTracker{Req: req}
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
@@ -221,7 +221,7 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 		}
 	}
 	// Build query response
-	ref = &QueryTracker{req: req}
+	ref = &QueryTracker{Req: req}
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
@@ -263,7 +263,7 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 	var (
 		ierr      error
 		savepoint uint64
-		query     = &QueryTracker{req: req}
+		query     = &QueryTracker{Req: req}
 	)
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	func() {
@@ -300,7 +300,7 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 	var (
 		ierr      error
 		savepoint uint64
-		query     = &QueryTracker{req: req, resp: resp}
+		query     = &QueryTracker{Req: req, Resp: resp}
 	)
 	s.Lock()
 	defer s.Unlock()
@@ -329,7 +329,7 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 	s.Lock()
 	defer s.Unlock()
 	for i, q := range block.QueryTxs {
-		var query = &QueryTracker{req: q.Request, resp: &types.Response{Header: *q.Response}}
+		var query = &QueryTracker{Req: q.Request, Resp: &types.Response{Header: *q.Response}}
 		lastsp = s.getID()
 		if q.Response.ResponseHeader.LogOffset > lastsp {
 			err = ErrMissingParent
@@ -439,21 +439,21 @@ func (s *State) partialCommit(qs []*types.Response) (err error) {
 	}
 	for i, v = range qs {
 		var loc = s.pool.queries[i]
-		if loc.req.Header.Hash() != v.Header.Request.Hash() ||
-			loc.resp.Header.LogOffset != v.Header.LogOffset {
+		if loc.Req.Header.Hash() != v.Header.Request.Hash() ||
+			loc.Resp.Header.LogOffset != v.Header.LogOffset {
 			err = ErrQueryConflict
 			return
 		}
 	}
 	if i < pl-1 {
-		s.rollbackTo(s.pool.queries[i+1].resp.Header.LogOffset)
+		s.rollbackTo(s.pool.queries[i+1].Resp.Header.LogOffset)
 	}
 	// Reset pool
 	rm = s.pool.queries[:i+1]
 	s.pool = newPool()
 	// Rewrite
 	for _, q = range rm {
-		if _, _, err = s.write(q.req); err != nil {
+		if _, _, err = s.write(q.Req); err != nil {
 			return
 		}
 	}

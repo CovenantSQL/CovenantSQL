@@ -116,7 +116,7 @@ func NewChain(filename string) (c *Chain, err error) {
 	if strg, err = xs.NewSqlite(filename); err != nil {
 		return
 	}
-	if state, err = newState(strg); err != nil {
+	if state, err = NewState(strg); err != nil {
 		return
 	}
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {

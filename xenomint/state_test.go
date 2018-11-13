@@ -42,7 +42,7 @@ func TestState(t *testing.T) {
 		strg, err = xs.NewSqlite(fmt.Sprint("file:", fl))
 		So(err, ShouldBeNil)
 		So(strg, ShouldNotBeNil)
-		st, err = newState(strg)
+		st, err = NewState(strg)
 		So(err, ShouldBeNil)
 		So(st, ShouldNotBeNil)
 		Reset(func() {

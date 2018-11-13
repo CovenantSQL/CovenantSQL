@@ -36,6 +36,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	x "github.com/CovenantSQL/CovenantSQL/xenomint"
+	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
+	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -158,6 +160,18 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 	log.Debugf("Create new chain tdb %s", tdbFile)
 
+	// Open x.State
+	var (
+		strg  xi.Storage
+		state *x.State
+	)
+	if strg, err = xs.NewSqlite(fmt.Sprintf("file:%s.%s", c.DataFile, "db")); err != nil {
+		return
+	}
+	if state, err = x.NewState(strg); err != nil {
+		return
+	}
+
 	// Cache local private key
 	var pk *asymmetric.PrivateKey
 	if pk, err = kms.GetLocalPrivateKey(); err != nil {
@@ -171,6 +185,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		tdb:          tdb,
 		bi:           newBlockIndex(c),
 		qi:           newQueryIndex(),
+		st:           state,
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(c),
 		stopCh:       make(chan struct{}),
@@ -215,6 +230,18 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
+	// Open x.State
+	var (
+		strg   xi.Storage
+		xstate *x.State
+	)
+	if strg, err = xs.NewSqlite(fmt.Sprintf("file:%s.%s", c.DataFile, "db")); err != nil {
+		return
+	}
+	if xstate, err = x.NewState(strg); err != nil {
+		return
+	}
+
 	// Cache local private key
 	var pk *asymmetric.PrivateKey
 	if pk, err = kms.GetLocalPrivateKey(); err != nil {
@@ -228,6 +255,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		tdb:          tdb,
 		bi:           newBlockIndex(c),
 		qi:           newQueryIndex(),
+		st:           xstate,
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(c),
 		stopCh:       make(chan struct{}),
@@ -321,6 +349,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	// Set chain state
 	st.node = last
 	chain.rt.setHead(st)
+	chain.st.InitTx(st.node.count + 1) // Prepare transaction for count+1
 
 	// Read queries and rebuild memory index
 	respIter := chain.tdb.NewIterator(util.BytesPrefix(metaResponseIndex[:]), nil)
@@ -763,7 +792,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		return
 	}
 
-	if err := c.produceBlock(now); err != nil {
+	if err := c.produceBlockV2(now); err != nil {
 		log.WithFields(log.Fields{
 			"peer":            c.rt.getPeerInfoString(),
 			"time":            c.rt.getChainTimeString(),
@@ -1139,23 +1168,28 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	// 	...
 	// }
 
-	// Check queries
-	for _, q := range block.Queries {
-		var ok bool
+	//// Check queries
+	//for _, q := range block.Queries {
+	//	var ok bool
 
-		if ok, err = c.qi.checkAckFromBlock(height, block.BlockHash(), q); err != nil {
-			return
-		}
+	//	if ok, err = c.qi.checkAckFromBlock(height, block.BlockHash(), q); err != nil {
+	//		return
+	//	}
 
-		if !ok {
-			if _, err = c.syncAckedQuery(height, q, block.Producer()); err != nil {
-				return
-			}
+	//	if !ok {
+	//		if _, err = c.syncAckedQuery(height, q, block.Producer()); err != nil {
+	//			return
+	//		}
 
-			if _, err = c.qi.checkAckFromBlock(height, block.BlockHash(), q); err != nil {
-				return
-			}
-		}
+	//		if _, err = c.qi.checkAckFromBlock(height, block.BlockHash(), q); err != nil {
+	//			return
+	//		}
+	//	}
+	//}
+
+	// Replicate local state from the new block
+	if err = c.st.ReplayBlock(block); err != nil {
+		return
 	}
 
 	return c.pushBlock(block)

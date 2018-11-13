@@ -42,7 +42,7 @@ type State struct {
 	current uint64 // current is the current savepoint of the current transaction
 }
 
-func newState(strg xi.Storage) (s *State, err error) {
+func NewState(strg xi.Storage) (s *State, err error) {
 	var t = &State{
 		strg: strg,
 		pool: newPool(),
@@ -74,6 +74,14 @@ func (s *State) setCommitPoint() {
 
 func (s *State) rollbackID(id uint64) {
 	s.current = id
+}
+
+func (s *State) InitTx(id int32) {
+	var val = uint64(id) << 32
+	s.origin = val
+	s.cmpoint = val
+	s.current = val
+	s.setSavepoint()
 }
 
 func (s *State) getID() uint64 {

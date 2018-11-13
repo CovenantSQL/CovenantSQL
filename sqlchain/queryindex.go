@@ -109,11 +109,11 @@ func (i seqIndex) ensure(k types.QueryKey) (v *queryTracker) {
 // |  ...   |                                 |                           | | | | +-...               |
 // +--------+           +------------------+  |                           | | | | +-SeqNo: seq#0      |
 // | hash#3 |-----+  +->| queryTracker     |  |                           | | | | +-...               |
-// +--------+     |  |  | +-firstAck (nil) |  |                           | | | +-Hash = hash#0 |
+// +--------+     |  |  | +-firstAck (nil) |  |                           | | | +-Hash:        hash#0 |
 // |  ...   |     |  |  | +-queries        |  |                           | | | +-Signee ====> pubk#0 |
 // +--------+     |  |  |   +-[0]          |--+                           | | | +-Signature => sign#0 |
 // | hash#6 |--+  |  |  |   +-...          |                              | | +-...                   |
-// +--------+  |  |  |  +------------------+                              | +-Hash = hash#1     |
+// +--------+  |  |  |  +------------------+                              | +-Hash:        hash#1     |
 // |  ...   |  |  |  |                                                    | +-Signee ====> pubk#1     |
 //             |  |  |                                                    | +-Signature => sign#1     |
 //             |  |  |                                                    +---------------------------+
@@ -129,15 +129,15 @@ func (i seqIndex) ensure(k types.QueryKey) (v *queryTracker) {
 // |  ...   |  |     |                    | |                             | | | | | | +-...               |
 //             |     |                    | |                             | | | | | | +-SeqNo: seq#1      |
 //             |     |                    | |                             | | | | | | +-...               |
-//             |     |                    | |                             | | | | | +-Hash = hash#2 |
+//             |     |                    | |                             | | | | | +-Hash:        hash#2 |
 //             |     |                    | |                             | | | | | +-Signee ====> pubk#2 |
 //             |     |                    | |                             | | | | | +-Signature => sign#2 |
 //  seqIndex   |     |                    | |    +----------------+       | | | | +-...                   |
-//             +------------------------------+->| requestTracker |       | | | +-Hash = hash#3     |
+//             +------------------------------+->| requestTracker |       | | | +-Hash:        hash#3     |
 // |  ...   |        |                    | | |  | +-response     |---+   | | | +-signee ====> pubk#3     |
 // +--------+        |                    | | |  | +-ack (nil)    |   |   | | | +-Signature => sign#3     |
 // | seq#0  |--------+                    | | |  | +-...          |   |   | | +-...                       |
-// +--------+                             | | |  +----------------+   |   | +-Hash = hash#4         |
+// +--------+                             | | |  +----------------+   |   | +-Hash:        hash#4         |
 // |  ...   |                             | | |                       |   | +-Signee ====> pubk#2         |
 // +--------+           +--------------+  | | |                       |   | +-Signature => sign#4         |
 // | seq#1  |---------->| queryTracker |  | | |                       |   +-------------------------------+
@@ -152,11 +152,11 @@ func (i seqIndex) ensure(k types.QueryKey) (v *queryTracker) {
 //                                                                        | | | | +-...               |
 //                                                                        | | | | +-SeqNo: seq#1      |
 //                                                                        | | | | +-...               |
-//                                                                        | | | +-Hash = hash#5 |
+//                                                                        | | | +-Hash:        hash#5 |
 //                                                                        | | | +-Signee ====> pubk#5 |
 //                                                                        | | | +-Signature => sign#5 |
 //                                                                        | | +-...                   |
-//                                                                        | +-Hash = hash#6     |
+//                                                                        | +-Hash:        hash#6     |
 //                                                                        | +-Signee ====> pubk#6     |
 //                                                                        | +-Signature => sign#6     |
 //                                                                        +---------------------------+

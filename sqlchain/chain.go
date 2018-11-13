@@ -493,6 +493,11 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	return
 }
 
+// produceBlockV2 prepares, signs and advises the pending block to the orther peers.
+func (c *Chain) produceBlockV2(now time.Time) (err error) {
+	return
+}
+
 // produceBlock prepares, signs and advises the pending block to the orther peers.
 func (c *Chain) produceBlock(now time.Time) (err error) {
 	// Pack and sign block

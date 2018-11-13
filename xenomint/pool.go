@@ -52,3 +52,51 @@ func (p *pool) enqueue(sp uint64, q *QueryTracker) {
 	p.index[sp] = pos
 	return
 }
+
+func (p *pool) match(sp uint64, req *types.Request) bool {
+	var (
+		pos int
+		ok  bool
+	)
+	if pos, ok = p.index[sp]; !ok {
+		return false
+	}
+	if p.queries[pos].req.Header.Hash() != req.Header.Hash() {
+		return false
+	}
+	return true
+}
+
+func (p *pool) matchLast(sp uint64) bool {
+	var (
+		pos int
+		ok  bool
+	)
+	if pos, ok = p.index[sp]; !ok {
+		return false
+	}
+	if pos != len(p.queries)-1 {
+		return false
+	}
+	return true
+}
+
+func (p *pool) truncate(sp uint64) {
+	var (
+		pos int
+		ok  bool
+		ni  map[uint64]int
+	)
+	if pos, ok = p.index[sp]; !ok {
+		return
+	}
+	// Rebuild index
+	ni = make(map[uint64]int)
+	for k, v := range p.index {
+		if k > sp {
+			ni[k] = v - (pos + 1)
+		}
+	}
+	p.index = ni
+	p.queries = p.queries[pos+1:]
+}

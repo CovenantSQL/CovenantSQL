@@ -21,6 +21,8 @@ import (
 )
 
 var (
+	// ErrMissingParent indicates the parent of the current query attempt is missing.
+	ErrMissingParent = errors.New("query missing parent")
 	// ErrInvalidRequest indicates the query is invalid.
 	ErrInvalidRequest = errors.New("invalid request")
 	// ErrQueryExists indicates the query already exists in pool.

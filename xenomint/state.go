@@ -31,9 +31,15 @@ type State struct {
 	sync.RWMutex
 	strg xi.Storage
 	pool *pool
+
+	// TODO(leventeliu): Reload savepoint from last block on chain initialization, and rollback
+	// any ongoing transaction on exit.
+	//
 	// unc is the uncommitted transaction.
-	unc *sql.Tx
-	id  uint64
+	unc     *sql.Tx
+	origin  uint64 // origin is the original savepoint of the current transaction
+	cmpoint uint64 // cmpoint is the last commit point of the current transaction
+	current uint64 // current is the current savepoint of the current transaction
 }
 
 func newState(strg xi.Storage) (s *State, err error) {
@@ -50,25 +56,22 @@ func newState(strg xi.Storage) (s *State, err error) {
 }
 
 func (s *State) incSeq() {
-	atomic.AddUint64(&s.id, 1)
+	s.current++
 }
 
 func (s *State) setNextTxID() {
-	var old = atomic.LoadUint64(&s.id)
-	atomic.StoreUint64(&s.id, (old&uint64(0xffffffff00000000))+uint64(1)<<32)
-}
-
-func (s *State) resetTxID() {
-	var old = atomic.LoadUint64(&s.id)
-	atomic.StoreUint64(&s.id, old&uint64(0xffffffff00000000))
+	var val = (s.current & uint64(0xffffffff00000000)) + uint64(1)<<32
+	s.origin = val
+	s.cmpoint = val
+	s.current = val
 }
 
 func (s *State) rollbackID(id uint64) {
-	atomic.StoreUint64(&s.id, id)
+	s.current = id
 }
 
 func (s *State) getID() uint64 {
-	return atomic.LoadUint64(&s.id)
+	return atomic.LoadUint64(&s.current)
 }
 
 func (s *State) close(commit bool) (err error) {
@@ -312,6 +315,65 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 	return
 }
 
+func (s *State) replayBlock(block *types.Block) (err error) {
+	var (
+		ierr      error
+		savepoint uint64
+	)
+	s.Lock()
+	defer s.Unlock()
+	for i, q := range block.QueryTxs {
+		var query = &QueryTracker{req: q.Request, resp: &types.Response{Header: *q.Response}}
+		savepoint = s.getID()
+		if q.Response.ResponseHeader.LogOffset > savepoint {
+			err = ErrMissingParent
+			return
+		}
+		// Match and skip already pooled query
+		if q.Response.ResponseHeader.LogOffset < savepoint {
+			if !s.pool.match(savepoint, q.Request) {
+				err = ErrQueryConflict
+				return
+			}
+			continue
+		}
+		// Replay query
+		for j, v := range q.Request.Payload.Queries {
+			if q.Request.Header.QueryType == types.ReadQuery {
+				continue
+			}
+			if q.Request.Header.QueryType != types.WriteQuery {
+				err = errors.Wrapf(ErrInvalidRequest, "replay block at %d:%d", i, j)
+				s.rollbackTo(savepoint)
+				return
+			}
+			if _, ierr = s.writeSingle(&v); ierr != nil {
+				err = errors.Wrapf(ierr, "execute at %d:%d failed", i, j)
+				s.rollbackTo(savepoint)
+				return
+			}
+			s.setSavepoint()
+			s.pool.enqueue(savepoint, query)
+		}
+	}
+	// Check if the current transaction is ok to commit
+	if s.pool.matchLast(savepoint) {
+		if err = s.unc.Commit(); err != nil {
+			// FATAL ERROR
+			return
+		}
+		if s.unc, err = s.strg.Writer().Begin(); err != nil {
+			// FATAL ERROR
+			return
+		}
+	}
+	s.setNextTxID()
+	s.setSavepoint()
+	// Truncate pooled queries
+	s.pool.truncate(savepoint)
+	return
+}
+
 func (s *State) commit(out chan<- command) (err error) {
 	var queries []*QueryTracker
 	s.Lock()
@@ -371,10 +433,10 @@ func (s *State) partialCommit(qs []*types.Response) (err error) {
 }
 
 func (s *State) rollback() (err error) {
-	if err = s.unc.Rollback(); err != nil {
-		return
-	}
-	s.resetTxID()
+	s.Lock()
+	defer s.Unlock()
+	s.rollbackTo(s.cmpoint)
+	s.current = s.cmpoint
 	return
 }
 

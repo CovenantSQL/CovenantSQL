@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// State defines a xenomint state which is bound to a underlying storage.
 type State struct {
 	sync.RWMutex
 	strg xi.Storage
@@ -42,6 +43,7 @@ type State struct {
 	current uint64 // current is the current savepoint of the current transaction
 }
 
+// NewState returns a new State bound to strg.
 func NewState(strg xi.Storage) (s *State, err error) {
 	var t = &State{
 		strg: strg,
@@ -76,6 +78,8 @@ func (s *State) rollbackID(id uint64) {
 	s.current = id
 }
 
+// InitTx sets the initial id of the current transaction. This method is not safe for concurrency
+// and should only be called at initialization.
 func (s *State) InitTx(id int32) {
 	var val = uint64(id) << 32
 	s.origin = val
@@ -329,6 +333,8 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 	return
 }
 
+// ReplayBlock replays the queries from block. It also checks and skips some preceding pooled
+// queries.
 func (s *State) ReplayBlock(block *types.Block) (err error) {
 	var (
 		ierr   error
@@ -414,6 +420,7 @@ func (s *State) commit(out chan<- command) (err error) {
 	return
 }
 
+// CommitEx commits the current transaction and returns all the pooled queries.
 func (s *State) CommitEx() (queries []*QueryTracker, err error) {
 	s.Lock()
 	defer s.Unlock()
@@ -476,6 +483,8 @@ func (s *State) rollback() (err error) {
 	return
 }
 
+// Query does the query(ies) in req, pools the request and persists any change to
+// the underlying storage.
 func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	switch req.Header.QueryType {
 	case types.ReadQuery:

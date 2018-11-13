@@ -22,18 +22,22 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
+// QueryTracker defines an object to track query as a request - response pair.
 type QueryTracker struct {
 	sync.RWMutex
 	Req  *types.Request
 	Resp *types.Response
 }
 
+// UpdateResp updates response of the QueryTracker within locking scope.
 func (q *QueryTracker) UpdateResp(resp *types.Response) {
 	q.Lock()
 	defer q.Unlock()
 	q.Resp = resp
 }
 
+// Ready reports whether the query is ready for block producing. It is assumed that all objects
+// should be ready shortly.
 func (q *QueryTracker) Ready() bool {
 	q.RLock()
 	defer q.RUnlock()

@@ -29,19 +29,19 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // conn implements an interface sql.Conn.
 type conn struct {
 	dbID proto.DatabaseID
 
-	queries     []wt.Query
+	queries     []types.Query
 	localNodeID proto.NodeID
 	privKey     *asymmetric.PrivateKey
 
-	ackCh         chan *wt.Ack
+	ackCh         chan *types.Ack
 	inTransaction bool
 	closed        int32
 	pCaller       *rpc.PersistentCaller
@@ -64,7 +64,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 		dbID:        proto.DatabaseID(cfg.DatabaseID),
 		localNodeID: localNodeID,
 		privKey:     privKey,
-		queries:     make([]wt.Query, 0),
+		queries:     make([]types.Query, 0),
 	}
 
 	// get peers from BP
@@ -86,7 +86,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 }
 
 func (c *conn) startAckWorkers(workerCount int) (err error) {
-	c.ackCh = make(chan *wt.Ack, workerCount*4)
+	c.ackCh = make(chan *types.Ack, workerCount*4)
 	for i := 0; i < workerCount; i++ {
 		go c.ackWorker()
 	}
@@ -120,7 +120,7 @@ func (c *conn) ackWorker() {
 					continue
 				}
 
-				var ackRes wt.AckResponse
+				var ackRes types.AckResponse
 				// send ack back
 				if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
 					log.WithError(err).Warning("send ack failed")
@@ -203,7 +203,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	sq := convertQuery(query, args)
 
 	var affectedRows, lastInsertID int64
-	if affectedRows, lastInsertID, _, err = c.addQuery(wt.WriteQuery, sq); err != nil {
+	if affectedRows, lastInsertID, _, err = c.addQuery(types.WriteQuery, sq); err != nil {
 		return
 	}
 
@@ -224,7 +224,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
-	_, _, rows, err = c.addQuery(wt.ReadQuery, sq)
+	_, _, rows, err = c.addQuery(types.ReadQuery, sq)
 
 	return
 }
@@ -246,7 +246,7 @@ func (c *conn) Commit() (err error) {
 
 	if len(c.queries) > 0 {
 		// send query
-		if _, _, _, err = c.sendQuery(wt.WriteQuery, c.queries); err != nil {
+		if _, _, _, err = c.sendQuery(types.WriteQuery, c.queries); err != nil {
 			return
 		}
 	}
@@ -276,10 +276,10 @@ func (c *conn) Rollback() error {
 	return nil
 }
 
-func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
+func (c *conn) addQuery(queryType types.QueryType, query *types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	if c.inTransaction {
 		// check query type, enqueue query
-		if queryType == wt.ReadQuery {
+		if queryType == types.ReadQuery {
 			// read query is not supported in transaction
 			err = ErrQueryInTransaction
 			return
@@ -301,10 +301,10 @@ func (c *conn) addQuery(queryType wt.QueryType, query *wt.Query) (affectedRows i
 		"args":    query.Args,
 	}).Debug("execute query")
 
-	return c.sendQuery(queryType, []wt.Query{*query})
+	return c.sendQuery(queryType, []types.Query{*query})
 }
 
-func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
+func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	var peers *proto.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		return
@@ -326,9 +326,9 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 	}()
 
 	// build request
-	req := &wt.Request{
-		Header: wt.SignedRequestHeader{
-			RequestHeader: wt.RequestHeader{
+	req := &types.Request{
+		Header: types.SignedRequestHeader{
+			RequestHeader: types.RequestHeader{
 				QueryType:    queryType,
 				NodeID:       c.localNodeID,
 				DatabaseID:   c.dbID,
@@ -337,7 +337,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 				Timestamp:    getLocalTime(),
 			},
 		},
-		Payload: wt.RequestPayload{
+		Payload: types.RequestPayload{
 			Queries: queries,
 		},
 	}
@@ -347,7 +347,7 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 	}
 
 	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
-	var response wt.Response
+	var response types.Response
 	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
@@ -358,15 +358,15 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 	}
 	rows = newRows(&response)
 
-	if queryType == wt.WriteQuery {
+	if queryType == types.WriteQuery {
 		affectedRows = response.Header.AffectedRows
 		lastInsertID = response.Header.LastInsertID
 	}
 
 	// build ack
-	c.ackCh <- &wt.Ack{
-		Header: wt.SignedAckHeader{
-			AckHeader: wt.AckHeader{
+	c.ackCh <- &types.Ack{
+		Header: types.SignedAckHeader{
+			AckHeader: types.AckHeader{
 				Response:  response.Header,
 				NodeID:    c.localNodeID,
 				Timestamp: getLocalTime(),
@@ -381,13 +381,13 @@ func getLocalTime() time.Time {
 	return time.Now().UTC()
 }
 
-func convertQuery(query string, args []driver.NamedValue) (sq *wt.Query) {
+func convertQuery(query string, args []driver.NamedValue) (sq *types.Query) {
 	// rebuild args to named args
-	sq = &wt.Query{
+	sq = &types.Query{
 		Pattern: query,
 	}
 
-	sq.Args = make([]wt.NamedArg, len(args))
+	sq.Args = make([]types.NamedArg, len(args))
 
 	for i, v := range args {
 		sq.Args[i].Name = v.Name

@@ -29,7 +29,6 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -40,10 +39,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -88,7 +86,7 @@ func TestSingleDatabase(t *testing.T) {
 		}
 
 		// create genesis block
-		var block *ct.Block
+		var block *types.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -99,9 +97,9 @@ func TestSingleDatabase(t *testing.T) {
 
 		Convey("test query rewrite", func() {
 			// test query rewrite
-			var writeQuery *wt.Request
-			var res *wt.Response
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+			var writeQuery *types.Request
+			var res *types.Response
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 1, []string{
 				"create table test (col1 int, col2 string)",
 				"create index test_index on test (col1)",
 			})
@@ -113,8 +111,8 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// test show tables query
-			var readQuery *wt.Request
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
+			var readQuery *types.Request
+			readQuery, err = buildQuery(types.ReadQuery, 1, 2, []string{
 				"show tables",
 			})
 			So(err, ShouldBeNil)
@@ -130,7 +128,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
 
 			// test show full tables query
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 3, []string{
+			readQuery, err = buildQuery(types.ReadQuery, 1, 3, []string{
 				"show full tables",
 			})
 			So(err, ShouldBeNil)
@@ -146,7 +144,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
 
 			// test show create table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 4, []string{
+			readQuery, err = buildQuery(types.ReadQuery, 1, 4, []string{
 				"show create table test",
 			})
 			So(err, ShouldBeNil)
@@ -164,7 +162,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(strings.ToUpper(string(byteStr)), ShouldContainSubstring, "CREATE")
 
 			// test show table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 5, []string{
+			readQuery, err = buildQuery(types.ReadQuery, 1, 5, []string{
 				"show table test",
 			})
 			So(err, ShouldBeNil)
@@ -182,7 +180,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
 
 			// test desc table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 6, []string{
+			readQuery, err = buildQuery(types.ReadQuery, 1, 6, []string{
 				"desc test",
 			})
 			So(err, ShouldBeNil)
@@ -200,7 +198,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
 
 			// test show index from table
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 7, []string{
+			readQuery, err = buildQuery(types.ReadQuery, 1, 7, []string{
 				"show index from table test",
 			})
 			So(err, ShouldBeNil)
@@ -218,9 +216,9 @@ func TestSingleDatabase(t *testing.T) {
 
 		Convey("test read write", func() {
 			// test write query
-			var writeQuery *wt.Request
-			var res *wt.Response
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+			var writeQuery *types.Request
+			var res *types.Response
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 1, []string{
 				"create table test (test int)",
 				"insert into test values(1)",
 			})
@@ -233,8 +231,8 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, 0)
 
 			// test select query
-			var readQuery *wt.Request
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
+			var readQuery *types.Request
+			readQuery, err = buildQuery(types.ReadQuery, 1, 2, []string{
 				"select * from test",
 			})
 			So(err, ShouldBeNil)
@@ -256,9 +254,9 @@ func TestSingleDatabase(t *testing.T) {
 		})
 
 		Convey("test invalid request", func() {
-			var writeQuery *wt.Request
-			var res *wt.Response
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+			var writeQuery *types.Request
+			var res *types.Response
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 1, []string{
 				"create table test (test int)",
 				"insert into test values(1)",
 			})
@@ -272,43 +270,43 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, 0)
 
 			// request again with same sequence
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 1, []string{
 				"insert into test values(2)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request again with low sequence
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 0, []string{
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 0, []string{
 				"insert into test values(3)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request with invalid timestamp
-			writeQuery, err = buildQueryWithTimeShift(wt.WriteQuery, 1, 2, time.Second*100, []string{
+			writeQuery, err = buildQueryWithTimeShift(types.WriteQuery, 1, 2, time.Second*100, []string{
 				"insert into test values(4)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request with invalid timestamp
-			writeQuery, err = buildQueryWithTimeShift(wt.WriteQuery, 1, 2, -time.Second*100, []string{
+			writeQuery, err = buildQueryWithTimeShift(types.WriteQuery, 1, 2, -time.Second*100, []string{
 				"insert into test values(5)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldNotBeNil)
 
 			// request with different connection id
-			writeQuery, err = buildQuery(wt.WriteQuery, 2, 1, []string{
+			writeQuery, err = buildQuery(types.WriteQuery, 2, 1, []string{
 				"insert into test values(6)",
 			})
 			res, err = db.Query(writeQuery)
 			So(err, ShouldBeNil)
 
 			// read query, test records
-			var readQuery *wt.Request
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
+			var readQuery *types.Request
+			readQuery, err = buildQuery(types.ReadQuery, 1, 2, []string{
 				"select * from test",
 			})
 			So(err, ShouldBeNil)
@@ -331,7 +329,7 @@ func TestSingleDatabase(t *testing.T) {
 		})
 
 		Convey("corner case", func() {
-			var req *wt.Request
+			var req *types.Request
 			var err error
 			req, err = buildQuery(-1, 1, 1, []string{
 				"create table test (test int)",
@@ -340,9 +338,9 @@ func TestSingleDatabase(t *testing.T) {
 			_, err = db.Query(req)
 			So(err, ShouldNotBeNil)
 
-			var writeQuery *wt.Request
-			var res *wt.Response
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+			var writeQuery *types.Request
+			var res *types.Response
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 1, []string{
 				"create table test (test int)",
 			})
 			So(err, ShouldBeNil)
@@ -350,8 +348,8 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// read query, test records
-			var readQuery *wt.Request
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
+			var readQuery *types.Request
+			readQuery, err = buildQuery(types.ReadQuery, 1, 2, []string{
 				"select * from test",
 			})
 			So(err, ShouldBeNil)
@@ -366,7 +364,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows, ShouldBeEmpty)
 
 			// write query, test failed
-			writeQuery, err = buildQuery(wt.WriteQuery, 1, 3, []string{
+			writeQuery, err = buildQuery(types.WriteQuery, 1, 3, []string{
 				"insert into test2 values(1)", // table should not exists
 			})
 			So(err, ShouldBeNil)
@@ -374,7 +372,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldNotBeNil)
 
 			// read query, test dynamic fields
-			readQuery, err = buildQuery(wt.ReadQuery, 1, 4, []string{
+			readQuery, err = buildQuery(types.ReadQuery, 1, 4, []string{
 				"select 1 as test",
 			})
 			So(err, ShouldBeNil)
@@ -389,7 +387,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 
 			// test ack
-			var ack *wt.Ack
+			var ack *types.Ack
 			ack, err = buildAck(res)
 			So(err, ShouldBeNil)
 
@@ -449,7 +447,7 @@ func TestInitFailed(t *testing.T) {
 		}
 
 		// create genesis block
-		var block *ct.Block
+		var block *types.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -502,7 +500,7 @@ func TestDatabaseRecycle(t *testing.T) {
 		}
 
 		// create genesis block
-		var block *ct.Block
+		var block *types.Block
 		block, err = createRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
@@ -512,9 +510,9 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// do some query
-		var writeQuery *wt.Request
-		var res *wt.Response
-		writeQuery, err = buildQuery(wt.WriteQuery, 1, 1, []string{
+		var writeQuery *types.Request
+		var res *types.Response
+		writeQuery, err = buildQuery(types.WriteQuery, 1, 1, []string{
 			"create table test (test int)",
 			"insert into test values(1)",
 		})
@@ -527,8 +525,8 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(res.Header.RowCount, ShouldEqual, 0)
 
 		// test select query
-		var readQuery *wt.Request
-		readQuery, err = buildQuery(wt.ReadQuery, 1, 2, []string{
+		var readQuery *types.Request
+		readQuery, err = buildQuery(types.ReadQuery, 1, 2, []string{
 			"select * from test",
 		})
 		So(err, ShouldBeNil)
@@ -553,7 +551,7 @@ func TestDatabaseRecycle(t *testing.T) {
 	})
 }
 
-func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
+func buildAck(res *types.Response) (ack *types.Ack, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -567,9 +565,9 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 		return
 	}
 
-	ack = &wt.Ack{
-		Header: wt.SignedAckHeader{
-			AckHeader: wt.AckHeader{
+	ack = &types.Ack{
+		Header: types.SignedAckHeader{
+			AckHeader: types.AckHeader{
 				Response:  res.Header,
 				NodeID:    nodeID,
 				Timestamp: getLocalTime(),
@@ -582,19 +580,19 @@ func buildAck(res *wt.Response) (ack *wt.Ack, err error) {
 	return
 }
 
-func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, queries []string) (query *wt.Request, err error) {
+func buildQuery(queryType types.QueryType, connID uint64, seqNo uint64, queries []string) (query *types.Request, err error) {
 	return buildQueryEx(queryType, connID, seqNo, time.Duration(0), proto.DatabaseID(""), queries)
 }
 
-func buildQueryWithDatabaseID(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
+func buildQueryWithDatabaseID(queryType types.QueryType, connID uint64, seqNo uint64, databaseID proto.DatabaseID, queries []string) (query *types.Request, err error) {
 	return buildQueryEx(queryType, connID, seqNo, time.Duration(0), databaseID, queries)
 }
 
-func buildQueryWithTimeShift(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, queries []string) (query *wt.Request, err error) {
+func buildQueryWithTimeShift(queryType types.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, queries []string) (query *types.Request, err error) {
 	return buildQueryEx(queryType, connID, seqNo, timeShift, proto.DatabaseID(""), queries)
 }
 
-func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
+func buildQueryEx(queryType types.QueryType, connID uint64, seqNo uint64, timeShift time.Duration, databaseID proto.DatabaseID, queries []string) (query *types.Request, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -612,15 +610,15 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 	tm = tm.Add(-timeShift)
 
 	// build queries
-	realQueries := make([]wt.Query, len(queries))
+	realQueries := make([]types.Query, len(queries))
 
 	for i, v := range queries {
 		realQueries[i].Pattern = v
 	}
 
-	query = &wt.Request{
-		Header: wt.SignedRequestHeader{
-			RequestHeader: wt.RequestHeader{
+	query = &types.Request{
+		Header: types.SignedRequestHeader{
+			RequestHeader: types.RequestHeader{
 				DatabaseID:   databaseID,
 				QueryType:    queryType,
 				NodeID:       nodeID,
@@ -629,7 +627,7 @@ func buildQueryEx(queryType wt.QueryType, connID uint64, seqNo uint64, timeShift
 				Timestamp:    tm,
 			},
 		},
-		Payload: wt.RequestPayload{
+		Payload: types.RequestPayload{
 			Queries: realQueries,
 		},
 	}
@@ -742,7 +740,7 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 }
 
 // copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -753,9 +751,9 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &ct.Block{
-		SignedHeader: ct.SignedHeader{
-			Header: ct.Header{
+	b = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,
@@ -801,7 +799,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 // fake BPDB service
 type stubBPDBService struct{}
 
-func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
+func (s *stubBPDBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
 	if resp.Header.InstanceMeta, err = s.getInstanceMeta("db2"); err != nil {
 		return
 	}
@@ -816,11 +814,11 @@ func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp
 	return
 }
 
-func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.DropDatabaseRequest) (err error) {
+func (s *stubBPDBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseRequest) (err error) {
 	return
 }
 
-func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
+func (s *stubBPDBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
 	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
 		return
 	}
@@ -835,8 +833,8 @@ func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDa
 	return
 }
 
-func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Header.Instances = make([]wt.ServiceInstance, 1)
+func (s *stubBPDBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
+	resp.Header.Instances = make([]types.ServiceInstance, 1)
 	resp.Header.Instances[0], err = s.getInstanceMeta("db2")
 	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
 		return
@@ -851,7 +849,7 @@ func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitSer
 	return
 }
 
-func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return

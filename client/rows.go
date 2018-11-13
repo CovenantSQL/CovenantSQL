@@ -21,16 +21,16 @@ import (
 	"io"
 	"strings"
 
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type rows struct {
 	columns []string
 	types   []string
-	data    []wt.ResponseRow
+	data    []types.ResponseRow
 }
 
-func newRows(res *wt.Response) *rows {
+func newRows(res *types.Response) *rows {
 	return &rows{
 		columns: res.Payload.Columns,
 		types:   res.Payload.DeclTypes,

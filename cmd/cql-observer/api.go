@@ -27,8 +27,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/mux"
 )
@@ -302,7 +301,7 @@ func (a *explorerAPI) getHighestBlockV2(rw http.ResponseWriter, r *http.Request)
 	sendResponse(200, true, "", a.formatBlockV2(count, height, block), rw)
 }
 
-func (a *explorerAPI) formatBlock(height int32, b *ct.Block) map[string]interface{} {
+func (a *explorerAPI) formatBlock(height int32, b *types.Block) map[string]interface{} {
 	queries := make([]string, 0, len(b.Queries))
 
 	for _, q := range b.Queries {
@@ -322,7 +321,7 @@ func (a *explorerAPI) formatBlock(height int32, b *ct.Block) map[string]interfac
 	}
 }
 
-func (a *explorerAPI) formatBlockV2(count, height int32, b *ct.Block) map[string]interface{} {
+func (a *explorerAPI) formatBlockV2(count, height int32, b *types.Block) map[string]interface{} {
 	queries := make([]string, 0, len(b.Queries))
 
 	for _, q := range b.Queries {
@@ -343,7 +342,7 @@ func (a *explorerAPI) formatBlockV2(count, height int32, b *ct.Block) map[string
 	}
 }
 
-func (a *explorerAPI) formatRequest(req *wt.Request) map[string]interface{} {
+func (a *explorerAPI) formatRequest(req *types.Request) map[string]interface{} {
 	// get queries
 	queries := make([]map[string]interface{}, 0, req.Header.BatchCount)
 

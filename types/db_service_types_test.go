@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package blockproducer
+package types
 
 import (
 	"testing"

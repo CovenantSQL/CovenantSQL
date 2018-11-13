@@ -35,9 +35,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 )
@@ -78,7 +77,7 @@ type Database struct {
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *ct.Block) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
@@ -209,16 +208,16 @@ func (db *Database) UpdatePeers(peers *proto.Peers) (err error) {
 }
 
 // Query defines database query interface.
-func (db *Database) Query(request *wt.Request) (response *wt.Response, err error) {
+func (db *Database) Query(request *types.Request) (response *types.Response, err error) {
 	// Just need to verify signature in db.saveAck
 	//if err = request.Verify(); err != nil {
 	//	return
 	//}
 
 	switch request.Header.QueryType {
-	case wt.ReadQuery:
+	case types.ReadQuery:
 		return db.readQuery(request)
-	case wt.WriteQuery:
+	case types.WriteQuery:
 		return db.writeQuery(request)
 	default:
 		// TODO(xq262144): verbose errors with custom error structure
@@ -227,7 +226,7 @@ func (db *Database) Query(request *wt.Request) (response *wt.Response, err error
 }
 
 // Ack defines client response ack interface.
-func (db *Database) Ack(ack *wt.Ack) (err error) {
+func (db *Database) Ack(ack *types.Ack) (err error) {
 	// Just need to verify signature in db.saveAck
 	//if err = ack.Verify(); err != nil {
 	//	return
@@ -294,7 +293,7 @@ func (db *Database) Destroy() (err error) {
 	return
 }
 
-func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err error) {
+func (db *Database) writeQuery(request *types.Request) (response *types.Response, err error) {
 	ctx := context.Background()
 	ctx, task := trace.NewTask(ctx, "writeQuery")
 	defer task.End()
@@ -337,7 +336,7 @@ func (db *Database) writeQuery(request *wt.Request) (response *wt.Response, err 
 	return db.buildQueryResponse(request, logOffset, []string{}, []string{}, [][]interface{}{}, lastInsertID, affectedRows)
 }
 
-func (db *Database) readQuery(request *wt.Request) (response *wt.Response, err error) {
+func (db *Database) readQuery(request *types.Request) (response *types.Response, err error) {
 	// call storage query directly
 	// TODO(xq262144): add timeout logic basic of client options
 	var columns, types []string
@@ -370,10 +369,10 @@ func (db *Database) getLog(index uint64) (data interface{}, err error) {
 	return
 }
 
-func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
-	columns []string, types []string, data [][]interface{}, lastInsertID int64, affectedRows int64) (response *wt.Response, err error) {
+func (db *Database) buildQueryResponse(request *types.Request, offset uint64,
+	columns []string, declTypes []string, data [][]interface{}, lastInsertID int64, affectedRows int64) (response *types.Response, err error) {
 	// build response
-	response = new(wt.Response)
+	response = new(types.Response)
 	response.Header.Request = request.Header
 	if response.Header.NodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
@@ -386,8 +385,8 @@ func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
 
 	// set payload
 	response.Payload.Columns = columns
-	response.Payload.DeclTypes = types
-	response.Payload.Rows = make([]wt.ResponseRow, len(data))
+	response.Payload.DeclTypes = declTypes
+	response.Payload.Rows = make([]types.ResponseRow, len(data))
 
 	for i, d := range data {
 		response.Payload.Rows[i].Values = d
@@ -407,11 +406,11 @@ func (db *Database) buildQueryResponse(request *wt.Request, offset uint64,
 	return
 }
 
-func (db *Database) saveResponse(respHeader *wt.SignedResponseHeader) (err error) {
+func (db *Database) saveResponse(respHeader *types.SignedResponseHeader) (err error) {
 	return db.chain.VerifyAndPushResponsedQuery(respHeader)
 }
 
-func (db *Database) saveAck(ackHeader *wt.SignedAckHeader) (err error) {
+func (db *Database) saveAck(ackHeader *types.SignedAckHeader) (err error) {
 	return db.chain.VerifyAndPushAckedQuery(ackHeader)
 }
 
@@ -423,7 +422,7 @@ func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
 	return kms.GetLocalPrivateKey()
 }
 
-func convertAndSanitizeQuery(inQuery []wt.Query) (outQuery []storage.Query, err error) {
+func convertAndSanitizeQuery(inQuery []types.Query) (outQuery []storage.Query, err error) {
 	outQuery = make([]storage.Query, len(inQuery))
 	for i, q := range inQuery {
 		tokenizer := sqlparser.NewStringTokenizer(q.Pattern)

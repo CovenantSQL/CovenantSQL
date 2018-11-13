@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package blockproducer
+package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 //go:generate hsp
 
 // CreateDatabaseRequestHeader defines client create database rpc header.
 type CreateDatabaseRequestHeader struct {
-	ResourceMeta wt.ResourceMeta
+	ResourceMeta ResourceMeta
 }
 
 // SignedCreateDatabaseRequestHeader defines signed client create database request header.
@@ -65,7 +64,7 @@ func (r *CreateDatabaseRequest) Sign(signer *asymmetric.PrivateKey) (err error) 
 
 // CreateDatabaseResponseHeader defines client create database rpc response header.
 type CreateDatabaseResponseHeader struct {
-	InstanceMeta wt.ServiceInstance
+	InstanceMeta ServiceInstance
 }
 
 // SignedCreateDatabaseResponseHeader defines signed client create database response header.
@@ -180,7 +179,7 @@ func (r *GetDatabaseRequest) Sign(signer *asymmetric.PrivateKey) error {
 
 // GetDatabaseResponseHeader defines client get database rpc response header entity.
 type GetDatabaseResponseHeader struct {
-	InstanceMeta wt.ServiceInstance
+	InstanceMeta ServiceInstance
 }
 
 // SignedGetDatabaseResponseHeader defines client get database rpc response header entity.

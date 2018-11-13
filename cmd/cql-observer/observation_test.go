@@ -35,9 +35,9 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/jmoiron/jsonq"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -393,9 +393,9 @@ func TestFullProcess(t *testing.T) {
 
 			queryType, err := res.String("ack", "request", "type")
 			So(err, ShouldBeNil)
-			So(queryType, ShouldBeIn, []string{wt.WriteQuery.String(), wt.ReadQuery.String()})
+			So(queryType, ShouldBeIn, []string{types.WriteQuery.String(), types.ReadQuery.String()})
 
-			if queryType == wt.WriteQuery.String() {
+			if queryType == types.WriteQuery.String() {
 				logOffset, err = res.Int("ack", "response", "log_position")
 				So(err, ShouldBeNil)
 				So(logOffset, ShouldBeGreaterThanOrEqualTo, 0)
@@ -414,7 +414,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("request")), ShouldNotBeNil)
 		So(ensureSuccess(res.String("request", "hash")), ShouldNotBeEmpty)
-		So(ensureSuccess(res.String("request", "type")), ShouldEqual, wt.WriteQuery.String())
+		So(ensureSuccess(res.String("request", "type")), ShouldEqual, types.WriteQuery.String())
 		So(ensureSuccess(res.Int("request", "count")), ShouldEqual, 1) // no transaction batch is used
 		So(ensureSuccess(res.ArrayOfObjects("request", "queries")), ShouldNotBeEmpty)
 		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldNotBeEmpty)

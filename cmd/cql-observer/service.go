@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -33,8 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
@@ -204,11 +202,11 @@ func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string
 
 		switch resetSubscribePosition {
 		case "newest":
-			fromPos = ct.ReplicateFromNewest
+			fromPos = types.ReplicateFromNewest
 		case "oldest":
-			fromPos = ct.ReplicateFromBeginning
+			fromPos = types.ReplicateFromBeginning
 		default:
-			fromPos = ct.ReplicateFromNewest
+			fromPos = types.ReplicateFromNewest
 		}
 
 		s.subscription[dbID] = fromPos
@@ -219,7 +217,7 @@ func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string
 	} else {
 		// not resetting
 		if _, exists := s.subscription[dbID]; !exists {
-			s.subscription[dbID] = ct.ReplicateFromNewest
+			s.subscription[dbID] = types.ReplicateFromNewest
 			shouldStartSubscribe = true
 		}
 	}
@@ -322,7 +320,7 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 	return
 }
 
-func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) (err error) {
+func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *types.SignedAckHeader) (err error) {
 	log.WithFields(log.Fields{
 		"ack": ack.Hash().String(),
 		"db":  dbID,
@@ -341,9 +339,9 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 	}
 
 	// fetch original query
-	if ack.Response.Request.QueryType == wt.WriteQuery {
-		req := &wt.GetRequestReq{}
-		resp := &wt.GetRequestResp{}
+	if ack.Response.Request.QueryType == types.WriteQuery {
+		req := &types.GetRequestReq{}
+		resp := &types.GetRequestResp{}
 
 		req.DatabaseID = dbID
 		req.LogOffset = ack.Response.LogOffset
@@ -400,7 +398,7 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *wt.SignedAckHeader) 
 	})
 }
 
-func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *ct.Block) (err error) {
+func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (err error) {
 	instance, err := s.getUpstream(dbID)
 	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / blockProducePeriod)
 	key := int32ToBytes(h)
@@ -483,11 +481,11 @@ func (s *Service) minerRequest(dbID proto.DatabaseID, method string, request int
 	return s.caller.CallNode(instance.Peers.Leader, method, request, response)
 }
 
-func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstance, err error) {
+func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *types.ServiceInstance, err error) {
 	log.WithField("db", dbID).Info("get peers info for database")
 
 	if iInstance, exists := s.upstreamServers.Load(dbID); exists {
-		instance = iInstance.(*wt.ServiceInstance)
+		instance = iInstance.(*types.ServiceInstance)
 		return
 	}
 
@@ -501,12 +499,12 @@ func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstan
 		return
 	}
 
-	req := &bp.GetDatabaseRequest{}
+	req := &types.GetDatabaseRequest{}
 	req.Header.DatabaseID = dbID
 	if err = req.Sign(privateKey); err != nil {
 		return
 	}
-	resp := &bp.GetDatabaseResponse{}
+	resp := &types.GetDatabaseResponse{}
 	// get peers list from block producer
 	if err = s.caller.CallNode(curBP, route.BPDBGetDatabase.String(), req, resp); err != nil {
 		return
@@ -521,7 +519,7 @@ func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *wt.ServiceInstan
 	return
 }
 
-func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *wt.SignedAckHeader, err error) {
+func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.SignedAckHeader, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(ackBucket).Bucket([]byte(dbID))
 
@@ -540,7 +538,7 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *wt.SignedAck
 	return
 }
 
-func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *wt.Request, err error) {
+func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *types.Request, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(logOffsetBucket).Bucket([]byte(dbID))
 
@@ -572,7 +570,7 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *wt.R
 	return
 }
 
-func (s *Service) getRequestByOffset(dbID proto.DatabaseID, offset uint64) (request *wt.Request, err error) {
+func (s *Service) getRequestByOffset(dbID proto.DatabaseID, offset uint64) (request *types.Request, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(requestBucket).Bucket([]byte(dbID))
 
@@ -595,7 +593,7 @@ func (s *Service) getRequestByOffset(dbID proto.DatabaseID, offset uint64) (requ
 	return
 }
 
-func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *ct.Block, err error) {
+func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *types.Block, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))
 
@@ -617,7 +615,7 @@ func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *ct.Bl
 }
 
 func (s *Service) getHighestBlockV2(
-	dbID proto.DatabaseID) (count, height int32, b *ct.Block, err error,
+	dbID proto.DatabaseID) (count, height int32, b *types.Block, err error,
 ) {
 	err = s.db.View(func(tx *bolt.Tx) (err error) {
 		var (
@@ -651,7 +649,7 @@ func (s *Service) getHighestBlockV2(
 	return
 }
 
-func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (b *ct.Block, err error) {
+func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (b *types.Block, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))
 
@@ -675,7 +673,7 @@ func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (b *ct.B
 }
 
 func (s *Service) getBlockByCount(
-	dbID proto.DatabaseID, count int32) (height int32, b *ct.Block, err error,
+	dbID proto.DatabaseID, count int32) (height int32, b *types.Block, err error,
 ) {
 	err = s.db.View(func(tx *bolt.Tx) (err error) {
 		var (
@@ -709,7 +707,7 @@ func (s *Service) getBlockByCount(
 	return
 }
 
-func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (height int32, b *ct.Block, err error) {
+func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (height int32, b *types.Block, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(blockHeightBucket).Bucket([]byte(dbID))
 
@@ -740,7 +738,7 @@ func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (height int32, b
 
 	if err == nil {
 		// compute height
-		var instance *wt.ServiceInstance
+		var instance *types.ServiceInstance
 		instance, err = s.getUpstream(dbID)
 		if err != nil {
 			return

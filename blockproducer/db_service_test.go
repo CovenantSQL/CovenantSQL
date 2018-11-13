@@ -26,7 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -71,20 +71,20 @@ func TestService(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// test get database
-		getReq := new(GetDatabaseRequest)
+		getReq := new(types.GetDatabaseRequest)
 		getReq.Header.DatabaseID = proto.DatabaseID("db")
 		err = getReq.Sign(privateKey)
 		So(err, ShouldBeNil)
 
-		getRes := new(GetDatabaseResponse)
+		getRes := new(types.GetDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetDatabase.String(), getReq, getRes)
 		So(err, ShouldBeNil)
 		So(getReq.Verify(), ShouldBeNil)
 		So(getRes.Header.InstanceMeta.DatabaseID, ShouldResemble, proto.DatabaseID("db"))
 
 		// get node databases
-		getAllReq := new(wt.InitService)
-		getAllRes := new(wt.InitServiceResponse)
+		getAllReq := new(types.InitService)
+		getAllRes := new(types.InitServiceResponse)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBGetNodeDatabases.String(), getAllReq, getAllRes)
 		So(err, ShouldBeNil)
 		So(getAllRes.Verify(), ShouldBeNil)
@@ -92,25 +92,25 @@ func TestService(t *testing.T) {
 		So(getAllRes.Header.Instances[0].DatabaseID, ShouldResemble, proto.DatabaseID("db"))
 
 		// create database, no metric received, should failed
-		createDBReq := new(CreateDatabaseRequest)
-		createDBReq.Header.ResourceMeta = wt.ResourceMeta{
+		createDBReq := new(types.CreateDatabaseRequest)
+		createDBReq.Header.ResourceMeta = types.ResourceMeta{
 			Node: 1,
 		}
 		err = createDBReq.Sign(privateKey)
 		So(err, ShouldBeNil)
-		createDBRes := new(CreateDatabaseResponse)
+		createDBRes := new(types.CreateDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBCreateDatabase.String(), createDBReq, createDBRes)
 		So(err, ShouldNotBeNil)
 
 		// trigger metrics, but does not allow block producer to service as miner
 		metric.NewCollectClient().UploadMetrics(nodeID)
-		createDBRes = new(CreateDatabaseResponse)
+		createDBRes = new(types.CreateDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBCreateDatabase.String(), createDBReq, createDBRes)
 		So(err, ShouldNotBeNil)
 
 		// allow block producer to service as miner, only use this in test case
 		dbService.includeBPNodesForAllocation = true
-		createDBRes = new(CreateDatabaseResponse)
+		createDBRes = new(types.CreateDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBCreateDatabase.String(), createDBReq, createDBRes)
 		So(err, ShouldBeNil)
 		So(createDBRes.Verify(), ShouldBeNil)
@@ -133,16 +133,16 @@ func TestService(t *testing.T) {
 		// use the database
 		serverID := createDBRes.Header.InstanceMeta.Peers.Leader
 		dbID := createDBRes.Header.InstanceMeta.DatabaseID
-		var queryReq *wt.Request
-		queryReq, err = buildQuery(wt.WriteQuery, 1, 1, dbID, []string{
+		var queryReq *types.Request
+		queryReq, err = buildQuery(types.WriteQuery, 1, 1, dbID, []string{
 			"create table test (test int)",
 			"insert into test values(1)",
 		})
 		So(err, ShouldBeNil)
-		queryRes := new(wt.Response)
+		queryRes := new(types.Response)
 		err = rpc.NewCaller().CallNode(serverID, route.DBSQuery.String(), queryReq, queryRes)
 		So(err, ShouldBeNil)
-		queryReq, err = buildQuery(wt.ReadQuery, 1, 2, dbID, []string{
+		queryReq, err = buildQuery(types.ReadQuery, 1, 2, dbID, []string{
 			"select * from test",
 		})
 		So(err, ShouldBeNil)
@@ -158,16 +158,16 @@ func TestService(t *testing.T) {
 		So(queryRes.Payload.Rows[0].Values[0], ShouldEqual, 1)
 
 		// drop database
-		dropDBReq := new(DropDatabaseRequest)
+		dropDBReq := new(types.DropDatabaseRequest)
 		dropDBReq.Header.DatabaseID = createDBRes.Header.InstanceMeta.DatabaseID
 		err = dropDBReq.Sign(privateKey)
 		So(err, ShouldBeNil)
-		dropDBRes := new(DropDatabaseResponse)
+		dropDBRes := new(types.DropDatabaseResponse)
 		err = rpc.NewCaller().CallNode(nodeID, route.BPDBDropDatabase.String(), dropDBReq, dropDBRes)
 		So(err, ShouldBeNil)
 
 		// get this database again to test if it is dropped
-		getReq = new(GetDatabaseRequest)
+		getReq = new(types.GetDatabaseRequest)
 		getReq.Header.DatabaseID = createDBRes.Header.InstanceMeta.DatabaseID
 		err = getReq.Sign(privateKey)
 		So(err, ShouldBeNil)
@@ -176,7 +176,7 @@ func TestService(t *testing.T) {
 	})
 }
 
-func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID proto.DatabaseID, queries []string) (query *wt.Request, err error) {
+func buildQuery(queryType types.QueryType, connID uint64, seqNo uint64, databaseID proto.DatabaseID, queries []string) (query *types.Request, err error) {
 	// get node id
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -192,15 +192,15 @@ func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID 
 	tm := time.Now().UTC()
 
 	// build queries
-	realQueries := make([]wt.Query, len(queries))
+	realQueries := make([]types.Query, len(queries))
 
 	for i, v := range queries {
 		realQueries[i].Pattern = v
 	}
 
-	query = &wt.Request{
-		Header: wt.SignedRequestHeader{
-			RequestHeader: wt.RequestHeader{
+	query = &types.Request{
+		Header: types.SignedRequestHeader{
+			RequestHeader: types.RequestHeader{
 				DatabaseID:   databaseID,
 				QueryType:    queryType,
 				NodeID:       nodeID,
@@ -209,7 +209,7 @@ func buildQuery(queryType wt.QueryType, connID uint64, seqNo uint64, databaseID 
 				Timestamp:    tm,
 			},
 		},
-		Payload: wt.RequestPayload{
+		Payload: types.RequestPayload{
 			Queries: realQueries,
 		},
 	}

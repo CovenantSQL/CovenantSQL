@@ -18,9 +18,9 @@ package blockproducer
 
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // ChainRPCService defines a main chain RPC server.
@@ -31,7 +31,7 @@ type ChainRPCService struct {
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
 	proto.Envelope
-	Block *types.Block
+	Block *pt.Block
 }
 
 // AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
@@ -42,7 +42,7 @@ type AdviseNewBlockResp struct {
 // AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
 type AdviseTxBillingReq struct {
 	proto.Envelope
-	TxBilling *types.Billing
+	TxBilling *pt.Billing
 }
 
 // AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
@@ -61,7 +61,7 @@ type FetchBlockResp struct {
 	proto.Envelope
 	Height uint32
 	Count  uint32
-	Block  *types.Block
+	Block  *pt.Block
 }
 
 // FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.
@@ -139,7 +139,7 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 }
 
 // AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
-func (s *ChainRPCService) AdviseBillingRequest(req *ct.AdviseBillingReq, resp *ct.AdviseBillingResp) error {
+func (s *ChainRPCService) AdviseBillingRequest(req *types.AdviseBillingReq, resp *types.AdviseBillingResp) error {
 	response, err := s.chain.produceBilling(req.Req)
 	if err != nil {
 		return err

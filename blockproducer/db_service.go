@@ -30,9 +30,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/types"
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -66,7 +65,7 @@ type DBService struct {
 }
 
 // CreateDatabase defines block producer create database logic.
-func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatabaseResponse) (err error) {
+func (s *DBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
 	// verify signature
 	if err = req.Verify(); err != nil {
 		return
@@ -99,7 +98,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	log.WithField("peers", peers).Debug("generated peers info")
 
 	// TODO(lambda): call accounting features, top up deposit
-	var genesisBlock *ct.Block
+	var genesisBlock *types.Block
 	if genesisBlock, err = s.generateGenesisBlock(dbID, req.Header.ResourceMeta); err != nil {
 		return
 	}
@@ -118,9 +117,9 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		return
 	}
 
-	initSvcReq := new(wt.UpdateService)
-	initSvcReq.Header.Op = wt.CreateDB
-	initSvcReq.Header.Instance = wt.ServiceInstance{
+	initSvcReq := new(types.UpdateService)
+	initSvcReq.Header.Op = types.CreateDB
+	initSvcReq.Header.Instance = types.ServiceInstance{
 		DatabaseID:   dbID,
 		Peers:        peers,
 		GenesisBlock: genesisBlock,
@@ -129,9 +128,9 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 		return
 	}
 
-	rollbackReq := new(wt.UpdateService)
-	rollbackReq.Header.Op = wt.DropDB
-	rollbackReq.Header.Instance = wt.ServiceInstance{
+	rollbackReq := new(types.UpdateService)
+	rollbackReq.Header.Op = types.DropDB
+	rollbackReq.Header.Instance = types.ServiceInstance{
 		DatabaseID: dbID,
 	}
 	if err = rollbackReq.Sign(privateKey); err != nil {
@@ -143,7 +142,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 	}
 
 	// save to meta
-	instanceMeta := wt.ServiceInstance{
+	instanceMeta := types.ServiceInstance{
 		DatabaseID:   dbID,
 		Peers:        peers,
 		ResourceMeta: req.Header.ResourceMeta,
@@ -168,7 +167,7 @@ func (s *DBService) CreateDatabase(req *CreateDatabaseRequest, resp *CreateDatab
 }
 
 // DropDatabase defines block producer drop database logic.
-func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseResponse) (err error) {
+func (s *DBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseResponse) (err error) {
 	// verify signature
 	if err = req.Verify(); err != nil {
 		return
@@ -185,15 +184,15 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 	}()
 
 	// get database peers
-	var instanceMeta wt.ServiceInstance
+	var instanceMeta types.ServiceInstance
 	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
 		return
 	}
 
 	// call miner nodes to drop database
-	dropDBSvcReq := new(wt.UpdateService)
-	dropDBSvcReq.Header.Op = wt.DropDB
-	dropDBSvcReq.Header.Instance = wt.ServiceInstance{
+	dropDBSvcReq := new(types.UpdateService)
+	dropDBSvcReq.Header.Op = types.DropDB
+	dropDBSvcReq.Header.Instance = types.ServiceInstance{
 		DatabaseID: req.Header.DatabaseID,
 	}
 	if dropDBSvcReq.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
@@ -228,7 +227,7 @@ func (s *DBService) DropDatabase(req *DropDatabaseRequest, resp *DropDatabaseRes
 }
 
 // GetDatabase defines block producer get database logic.
-func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseResponse) (err error) {
+func (s *DBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
 	// verify signature
 	if err = req.Verify(); err != nil {
 		return
@@ -245,7 +244,7 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 	}()
 
 	// fetch from meta
-	var instanceMeta wt.ServiceInstance
+	var instanceMeta types.ServiceInstance
 	if instanceMeta, err = s.ServiceMap.Get(req.Header.DatabaseID); err != nil {
 		return
 	}
@@ -268,9 +267,9 @@ func (s *DBService) GetDatabase(req *GetDatabaseRequest, resp *GetDatabaseRespon
 }
 
 // GetNodeDatabases defines block producer get node databases logic.
-func (s *DBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
+func (s *DBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
 	// fetch from meta
-	var instances []wt.ServiceInstance
+	var instances []types.ServiceInstance
 	if instances, err = s.ServiceMap.GetDatabases(req.GetNodeID().ToNodeID()); err != nil {
 		return
 	}
@@ -323,7 +322,7 @@ func (s *DBService) generateDatabaseID(reqNodeID *proto.RawNodeID) (dbID proto.D
 	}
 }
 
-func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (peers *proto.Peers, err error) {
+func (s *DBService) allocateNodes(lastTerm uint64, dbID proto.DatabaseID, resourceMeta types.ResourceMeta) (peers *proto.Peers, err error) {
 	curRange := int(resourceMeta.Node)
 	excludeNodes := make(map[proto.NodeID]bool)
 	var allocated []allocatedNode
@@ -506,7 +505,7 @@ func (s *DBService) buildPeers(term uint64, allocated []proto.NodeID) (peers *pr
 	return
 }
 
-func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.ResourceMeta) (genesisBlock *ct.Block, err error) {
+func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta types.ResourceMeta) (genesisBlock *types.Block, err error) {
 	// TODO(xq262144): following is stub code, real logic should be implemented in the future
 	emptyHash := hash.Hash{}
 
@@ -519,9 +518,9 @@ func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.
 		return
 	}
 
-	genesisBlock = &ct.Block{
-		SignedHeader: ct.SignedHeader{
-			Header: ct.Header{
+	genesisBlock = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version:     0x01000000,
 				Producer:    nodeID,
 				GenesisHash: emptyHash,
@@ -535,7 +534,7 @@ func (s *DBService) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta wt.
 	return
 }
 
-func (s *DBService) batchSendSvcReq(req *wt.UpdateService, rollbackReq *wt.UpdateService, nodes []proto.NodeID) (err error) {
+func (s *DBService) batchSendSvcReq(req *types.UpdateService, rollbackReq *types.UpdateService, nodes []proto.NodeID) (err error) {
 	if err = s.batchSendSingleSvcReq(req, nodes); err != nil {
 		s.batchSendSingleSvcReq(rollbackReq, nodes)
 	}
@@ -543,7 +542,7 @@ func (s *DBService) batchSendSvcReq(req *wt.UpdateService, rollbackReq *wt.Updat
 	return
 }
 
-func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.NodeID) (err error) {
+func (s *DBService) batchSendSingleSvcReq(req *types.UpdateService, nodes []proto.NodeID) (err error) {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(nodes))
 
@@ -551,7 +550,7 @@ func (s *DBService) batchSendSingleSvcReq(req *wt.UpdateService, nodes []proto.N
 		wg.Add(1)
 		go func(s proto.NodeID, ec chan error) {
 			defer wg.Done()
-			var resp wt.UpdateServiceResponse
+			var resp types.UpdateServiceResponse
 			ec <- rpc.NewCaller().CallNode(s, route.DBSDeploy.String(), req, &resp)
 		}(node, errCh)
 	}

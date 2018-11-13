@@ -113,21 +113,19 @@ func (cfs CFS) remove(ctx context.Context, parentID uint64, name string, checkCh
 	const deleteNamespace = `DELETE FROM fs_namespace WHERE (parentID, name) = (?, ?)`
 	const deleteInode = `DELETE FROM fs_inode WHERE id = ?`
 	const deleteBlock = `DELETE FROM fs_block WHERE id = ?`
-
-	err := client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
-		// Start by looking up the node ID.
-		var id uint64
-		if err := tx.QueryRow(lookupSQL, parentID, name).Scan(&id); err != nil {
+	// Start by looking up the node ID.
+	var id uint64
+	if err := cfs.db.QueryRow(lookupSQL, parentID, name).Scan(&id); err != nil {
+		return err
+	}
+	// Check if there are any children.
+	if checkChildren {
+		if err := checkIsEmpty(cfs.db, id); err != nil {
 			return err
 		}
+	}
 
-		// Check if there are any children.
-		if checkChildren {
-			if err := checkIsEmpty(tx, id); err != nil {
-				return err
-			}
-		}
-
+	err := client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 		// Delete all entries.
 		if _, err := tx.Exec(deleteNamespace, parentID, name); err != nil {
 			return err
@@ -177,7 +175,7 @@ func (cfs CFS) list(parentID uint64) ([]fuse.Dirent, error) {
 // validateRename takes a source and destination node and verifies that
 // a rename can be performed from source to destination.
 // source must not be nil. destination can be.
-func validateRename(tx *sql.Tx, source, destination *Node) error {
+func validateRename(e sqlExecutor, source, destination *Node) error {
 	if destination == nil {
 		// No object at destination: good.
 		return nil
@@ -186,7 +184,7 @@ func validateRename(tx *sql.Tx, source, destination *Node) error {
 	if source.isDir() {
 		if destination.isDir() {
 			// Both are directories: destination must be empty
-			return checkIsEmpty(tx, destination.ID)
+			return checkIsEmpty(e, destination.ID)
 		}
 		// directory -> file: not allowed.
 		return fuse.Errno(syscall.ENOTDIR)
@@ -214,24 +212,25 @@ func (cfs CFS) rename(
 	const insertNamespace = `INSERT INTO fs_namespace VALUES (?, ?, ?)`
 	const updateNamespace = `UPDATE fs_namespace SET id = ? WHERE (parentID, name) = (?, ?)`
 	const deleteInode = `DELETE FROM fs_inode WHERE id = ?`
-	err := client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
-		// Lookup source inode.
-		srcObject, err := getInode(tx, oldParentID, oldName)
-		if err != nil {
-			return err
-		}
 
-		// Lookup destination inode.
-		destObject, err := getInode(tx, newParentID, newName)
-		if err != nil && err != sql.ErrNoRows {
-			return err
-		}
+	// Lookup source inode.
+	srcObject, err := getInode(cfs.db, oldParentID, oldName)
+	if err != nil {
+		return err
+	}
 
-		// Check that the rename is allowed.
-		if err := validateRename(tx, srcObject, destObject); err != nil {
-			return err
-		}
+	// Lookup destination inode.
+	destObject, err := getInode(cfs.db, newParentID, newName)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
 
+	// Check that the rename is allowed.
+	if err := validateRename(cfs.db, srcObject, destObject); err != nil {
+		return err
+	}
+
+	err = client.ExecuteTx(ctx, cfs.db, nil /* txopts */, func(tx *sql.Tx) error {
 		// At this point we know the following:
 		// - srcObject is not nil
 		// - destObject may be nil. If not, its inode can be deleted.

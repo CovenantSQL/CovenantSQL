@@ -397,7 +397,7 @@ func prepareBenchTable(db *sql.DB) {
 	_, err := db.Exec("DROP TABLE IF EXISTS " + TABLENAME + ";")
 	So(err, ShouldBeNil)
 
-	_, err = db.Exec(`CREATE TABLE "` + TABLENAME + `" ("k" INT, "v1" TEXT, PRIMARY KEY("k"))`)
+	_, err = db.Exec(`CREATE TABLE ` + TABLENAME + ` ("k" INT, "v1" TEXT, PRIMARY KEY("k"))`)
 	So(err, ShouldBeNil)
 
 	_, err = db.Exec("REPLACE INTO "+TABLENAME+" VALUES(?, ?)", ROWSTART-1, "test")

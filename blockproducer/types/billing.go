@@ -19,6 +19,7 @@ package types
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -56,7 +57,7 @@ func NewBillingHeader(nonce pi.AccountNonce, bReq *BillingRequest, producer prot
 type Billing struct {
 	BillingHeader
 	pi.TransactionTypeMixin
-	DefaultHashSignVerifierImpl
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // NewBilling generates a new Billing.

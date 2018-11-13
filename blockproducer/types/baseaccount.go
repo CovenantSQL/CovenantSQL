@@ -50,8 +50,8 @@ func (b *BaseAccount) GetAccountNonce() pi.AccountNonce {
 	return pi.AccountNonce(0)
 }
 
-// GetHash implements interfaces/Transaction.GetHash.
-func (b *BaseAccount) GetHash() (h hash.Hash) {
+// Hash implements interfaces/Transaction.Hash.
+func (b *BaseAccount) Hash() (h hash.Hash) {
 	return
 }
 

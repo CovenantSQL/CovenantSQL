@@ -19,6 +19,7 @@ package verifier
 import (
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/pkg/errors"
 )
 
 //go:generate hsp
@@ -71,11 +72,11 @@ func (i *DefaultHashSignVerifierImpl) Verify(mh MarshalHasher) (err error) {
 	}
 	var h = hash.THashH(enc)
 	if !i.DataHash.IsEqual(&h) {
-		err = ErrHashValueNotMatch
+		err = errors.WithStack(ErrHashValueNotMatch)
 		return
 	}
 	if !i.Signature.Verify(h[:], i.Signee) {
-		err = ErrSignatureNotMatch
+		err = errors.WithStack(ErrSignatureNotMatch)
 		return
 	}
 	return

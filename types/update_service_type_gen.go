@@ -40,18 +40,8 @@ func (z *UpdateService) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	// map header, size 2
-	// map header, size 2
-	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82)
-	o = hsp.AppendInt32(o, int32(z.Header.UpdateServiceHeader.Op))
-	o = append(o, 0x82)
-	if oTemp, err := z.Header.UpdateServiceHeader.Instance.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x82)
-	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+	o = append(o, 0x82, 0x82)
+	if oTemp, err := z.Header.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -67,7 +57,7 @@ func (z *UpdateService) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *UpdateService) Msgsize() (s int) {
-	s = 1 + 7 + 1 + 20 + 1 + 3 + hsp.Int32Size + 9 + z.Header.UpdateServiceHeader.Instance.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 

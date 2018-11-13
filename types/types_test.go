@@ -311,7 +311,7 @@ func TestAck_Sign(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = ack.Sign(privKey, true)
 		So(err, ShouldNotBeNil)
-		So(err, ShouldBeIn, []error{
+		So(errors.Cause(err), ShouldBeIn, []error{
 			verifier.ErrHashValueNotMatch,
 			verifier.ErrSignatureNotMatch,
 		})
@@ -387,7 +387,7 @@ func TestNoAckReport_Sign(t *testing.T) {
 		// sign directly, embedded original response/request is not filled
 		err = noAck.Sign(privKey)
 		So(err, ShouldNotBeNil)
-		So(err, ShouldBeIn, []error{
+		So(errors.Cause(err), ShouldBeIn, []error{
 			verifier.ErrHashValueNotMatch,
 			verifier.ErrSignatureNotMatch,
 		})
@@ -504,7 +504,7 @@ func TestAggrNoAckReport_Sign(t *testing.T) {
 		// sign directly, embedded original response/request is not filled
 		err = aggrNoAck.Sign(privKey)
 		So(err, ShouldNotBeNil)
-		So(err, ShouldBeIn, []error{
+		So(errors.Cause(err), ShouldBeIn, []error{
 			verifier.ErrHashValueNotMatch,
 			verifier.ErrSignatureNotMatch,
 		})

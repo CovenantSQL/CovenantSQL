@@ -22,6 +22,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -74,7 +75,7 @@ func TestDefaultHashSignVerifierImpl(t *testing.T) {
 			Convey("When the hash is modified", func() {
 				obj.HSV.DataHash = hash.Hash{0x0, 0x0, 0x0, 0x1}
 				Convey("The verifier should return hash value not match error", func() {
-					err = obj.Verify()
+					err = errors.Cause(obj.Verify())
 					So(err, ShouldEqual, ErrHashValueNotMatch)
 				})
 			})
@@ -83,7 +84,7 @@ func TestDefaultHashSignVerifierImpl(t *testing.T) {
 				So(err, ShouldBeNil)
 				obj.HSV.Signee = pub
 				Convey("The verifier should return signature not match error", func() {
-					err = obj.Verify()
+					err = errors.Cause(obj.Verify())
 					So(err, ShouldEqual, ErrSignatureNotMatch)
 				})
 			})
@@ -91,7 +92,7 @@ func TestDefaultHashSignVerifierImpl(t *testing.T) {
 				var val = obj.HSV.Signature.R
 				val.Add(val, big.NewInt(1))
 				Convey("The verifier should return signature not match error", func() {
-					err = obj.Verify()
+					err = errors.Cause(obj.Verify())
 					So(err, ShouldEqual, ErrSignatureNotMatch)
 				})
 			})

@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/pkg/errors"
 )
 
 func TestSignAndVerify(t *testing.T) {
@@ -41,7 +42,7 @@ func TestSignAndVerify(t *testing.T) {
 
 	block.SignedHeader.HSV.DataHash[0]++
 
-	if err = block.Verify(); err != verifier.ErrHashValueNotMatch {
+	if err = errors.Cause(block.Verify()); err != verifier.ErrHashValueNotMatch {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 

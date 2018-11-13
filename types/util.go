@@ -18,6 +18,8 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
+	"github.com/pkg/errors"
 )
 
 type canMarshalHash interface {
@@ -30,7 +32,7 @@ func verifyHash(data canMarshalHash, h *hash.Hash) (err error) {
 		return
 	}
 	if !newHash.IsEqual(h) {
-		return ErrHashVerification
+		return errors.Cause(verifier.ErrHashValueNotMatch)
 	}
 	return
 }

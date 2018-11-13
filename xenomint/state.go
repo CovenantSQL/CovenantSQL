@@ -66,6 +66,12 @@ func (s *State) setNextTxID() {
 	s.current = val
 }
 
+func (s *State) setCommitPoint() {
+	var val = (s.current & uint64(0xffffffff00000000)) + uint64(1)<<32
+	s.cmpoint = val
+	s.current = val
+}
+
 func (s *State) rollbackID(id uint64) {
 	s.current = id
 }
@@ -315,23 +321,23 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 	return
 }
 
-func (s *State) replayBlock(block *types.Block) (err error) {
+func (s *State) ReplayBlock(block *types.Block) (err error) {
 	var (
-		ierr      error
-		savepoint uint64
+		ierr   error
+		lastsp uint64 // Last savepoint
 	)
 	s.Lock()
 	defer s.Unlock()
 	for i, q := range block.QueryTxs {
 		var query = &QueryTracker{req: q.Request, resp: &types.Response{Header: *q.Response}}
-		savepoint = s.getID()
-		if q.Response.ResponseHeader.LogOffset > savepoint {
+		lastsp = s.getID()
+		if q.Response.ResponseHeader.LogOffset > lastsp {
 			err = ErrMissingParent
 			return
 		}
 		// Match and skip already pooled query
-		if q.Response.ResponseHeader.LogOffset < savepoint {
-			if !s.pool.match(savepoint, q.Request) {
+		if q.Response.ResponseHeader.LogOffset < lastsp {
+			if !s.pool.match(lastsp, q.Request) {
 				err = ErrQueryConflict
 				return
 			}
@@ -344,20 +350,20 @@ func (s *State) replayBlock(block *types.Block) (err error) {
 			}
 			if q.Request.Header.QueryType != types.WriteQuery {
 				err = errors.Wrapf(ErrInvalidRequest, "replay block at %d:%d", i, j)
-				s.rollbackTo(savepoint)
+				s.rollbackTo(lastsp)
 				return
 			}
 			if _, ierr = s.writeSingle(&v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at %d:%d failed", i, j)
-				s.rollbackTo(savepoint)
+				s.rollbackTo(lastsp)
 				return
 			}
-			s.setSavepoint()
-			s.pool.enqueue(savepoint, query)
 		}
+		s.setSavepoint()
+		s.pool.enqueue(lastsp, query)
 	}
 	// Check if the current transaction is ok to commit
-	if s.pool.matchLast(savepoint) {
+	if s.pool.matchLast(lastsp) {
 		if err = s.unc.Commit(); err != nil {
 			// FATAL ERROR
 			return
@@ -366,11 +372,15 @@ func (s *State) replayBlock(block *types.Block) (err error) {
 			// FATAL ERROR
 			return
 		}
+		s.setNextTxID()
+	} else {
+		// Set commit point only, transaction is not actually committed. This commit point will be
+		// used on exiting.
+		s.setCommitPoint()
 	}
-	s.setNextTxID()
 	s.setSavepoint()
 	// Truncate pooled queries
-	s.pool.truncate(savepoint)
+	s.pool.truncate(lastsp)
 	return
 }
 
@@ -393,6 +403,24 @@ func (s *State) commit(out chan<- command) (err error) {
 	if out != nil {
 		out <- &commitRequest{queries: queries}
 	}
+	return
+}
+
+func (s *State) CommitEx() (queries []*QueryTracker, err error) {
+	s.Lock()
+	defer s.Unlock()
+	if err = s.unc.Commit(); err != nil {
+		// FATAL ERROR
+		return
+	}
+	if s.unc, err = s.strg.Writer().Begin(); err != nil {
+		// FATAL ERROR
+		return
+	}
+	s.setNextTxID()
+	s.setSavepoint()
+	queries = s.pool.queries
+	s.pool = newPool()
 	return
 }
 

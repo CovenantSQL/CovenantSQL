@@ -108,6 +108,9 @@ func (s *State) Close(commit bool) (err error) {
 			if err = s.rollback(); err != nil {
 				return
 			}
+			if err = s.unc.Commit(); err != nil {
+				return
+			}
 		}
 	}
 	if err = s.strg.Close(); err != nil {

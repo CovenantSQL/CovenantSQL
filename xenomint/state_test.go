@@ -33,7 +33,7 @@ import (
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
-			fl1  = path.Join(testingDataDir, fmt.Sprint(t.Name(), ".1"))
+			fl1  = path.Join(testingDataDir, fmt.Sprint(t.Name(), "x1"))
 			st1  *State
 			strg xi.Storage
 			err  error
@@ -59,11 +59,9 @@ func TestState(t *testing.T) {
 			err = st1.Close(false)
 			So(err, ShouldBeNil)
 			Convey("The storage should report error for any incoming query", func() {
-				var (
-					req = buildRequest(types.WriteQuery, []types.Query{
-						buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
-					})
-				)
+				var req = buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
+				})
 				_, _, err = st1.Query(req)
 				So(err, ShouldNotBeNil)
 				err = errors.Cause(err)

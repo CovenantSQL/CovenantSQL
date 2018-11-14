@@ -46,6 +46,7 @@ type SignedHeader struct {
 	HSV verifier.DefaultHashSignVerifierImpl
 }
 
+// Sign calls DefaultHashSignVerifierImpl to calculate header hash and sign it with signer.
 func (s *SignedHeader) Sign(signer *ca.PrivateKey) error {
 	return s.HSV.Sign(&s.Header, signer)
 }
@@ -75,6 +76,8 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 	return s.Verify()
 }
 
+// QueryAsTx defines a tx struct which is combined with request and signed response header
+// for block.
 type QueryAsTx struct {
 	Request  *Request
 	Response *SignedResponseHeader

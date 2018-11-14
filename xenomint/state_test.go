@@ -33,15 +33,16 @@ import (
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
-			fl1  = path.Join(testingDataDir, fmt.Sprint(t.Name(), "x1"))
-			st1  *State
-			strg xi.Storage
-			err  error
+			fl1          = path.Join(testingDataDir, fmt.Sprint(t.Name(), "x1"))
+			fl2          = path.Join(testingDataDir, fmt.Sprint(t.Name(), "x2"))
+			st1, st2     *State
+			strg1, strg2 xi.Storage
+			err          error
 		)
-		strg, err = xs.NewSqlite(fmt.Sprint("file:", fl1))
+		strg1, err = xs.NewSqlite(fmt.Sprint("file:", fl1))
 		So(err, ShouldBeNil)
-		So(strg, ShouldNotBeNil)
-		st1, err = NewState(strg)
+		So(strg1, ShouldNotBeNil)
+		st1, err = NewState(strg1)
 		So(err, ShouldBeNil)
 		So(st1, ShouldNotBeNil)
 		Reset(func() {
@@ -53,6 +54,23 @@ func TestState(t *testing.T) {
 			err = os.Remove(fmt.Sprint(fl1, "-shm"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
 			err = os.Remove(fmt.Sprint(fl1, "-wal"))
+			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
+		})
+		strg2, err = xs.NewSqlite(fmt.Sprint("file:", fl2))
+		So(err, ShouldBeNil)
+		So(strg1, ShouldNotBeNil)
+		st2, err = NewState(strg2)
+		So(err, ShouldBeNil)
+		So(st1, ShouldNotBeNil)
+		Reset(func() {
+			// Clean database file after each pass
+			err = st2.Close(true)
+			So(err, ShouldBeNil)
+			err = os.Remove(fl2)
+			So(err, ShouldBeNil)
+			err = os.Remove(fmt.Sprint(fl2, "-shm"))
+			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
+			err = os.Remove(fmt.Sprint(fl2, "-wal"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
 		})
 		Convey("When storage is closed", func() {
@@ -106,6 +124,10 @@ func TestState(t *testing.T) {
 			So(resp, ShouldNotBeNil)
 			err = st1.commit(nil)
 			So(err, ShouldBeNil)
+			_, resp, err = st2.Query(req)
+			So(err, ShouldBeNil)
+			So(resp, ShouldNotBeNil)
+			err = st2.commit(nil)
 			Convey("The state should not change after attempted writing in read query", func() {
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1"),
@@ -203,6 +225,48 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 						{Values: values[3][:]},
 					},
 				})
+			})
+			Convey("The state should be reproducable in another instance", func() {
+				var (
+					qt   *QueryTracker
+					reqs = []*types.Request{
+						buildRequest(types.WriteQuery, []types.Query{
+							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+						}),
+						buildRequest(types.WriteQuery, []types.Query{
+							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[1]...),
+							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?);
+INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
+						}),
+						buildRequest(types.WriteQuery, []types.Query{
+							buildQuery(`DELETE FROM "t1" WHERE "k"=?`, values[2][0]),
+						}),
+					}
+				)
+				for i := range reqs {
+					qt, resp, err = st1.Query(reqs[i])
+					So(err, ShouldBeNil)
+					So(qt, ShouldNotBeNil)
+					So(resp, ShouldNotBeNil)
+					qt.UpdateResp(resp)
+					// Replay to st2
+					err = st2.replay(reqs[i], resp)
+					So(err, ShouldBeNil)
+				}
+				// Should be in same state
+				for i := range values {
+					var resp1, resp2 *types.Response
+					req = buildRequest(types.WriteQuery, []types.Query{
+						buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[i][0]),
+					})
+					_, resp1, err = st1.Query(req)
+					So(err, ShouldBeNil)
+					So(resp1, ShouldNotBeNil)
+					_, resp2, err = st2.Query(req)
+					So(err, ShouldBeNil)
+					So(resp2, ShouldNotBeNil)
+					So(resp1.Payload, ShouldResemble, resp2.Payload)
+				}
 			})
 		})
 	})

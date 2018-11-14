@@ -32,6 +32,8 @@ script:
   - bash build.sh
   - go test -v -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
   - cd rpc && go test -test.bench ^BenchmarkPersistentCaller_Call$ -test.run ^$ && cd -
+  - bash cleanupDB.sh || true
+  - cd cmd/cql-miner && go test -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ && cd -
   - gocovmerge cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f cover.out
   - bash <(curl -s https://codecov.io/bash)
   - >-

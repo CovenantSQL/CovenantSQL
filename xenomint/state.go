@@ -365,7 +365,7 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 		}
 		// Match and skip already pooled query
 		if q.Response.ResponseHeader.LogOffset < lastsp {
-			if !s.pool.match(lastsp, q.Request) {
+			if !s.pool.match(q.Response.ResponseHeader.LogOffset, q.Request) {
 				err = ErrQueryConflict
 				return
 			}

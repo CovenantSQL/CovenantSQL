@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
@@ -395,14 +396,71 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 							}
 						}
 						// Try to replay modified block #0
-						blocks[0].QueryTxs[0].Request.Header.DataHash = hash.Hash{0x0, 0x0, 0x0, 0x1}
-						err = st2.ReplayBlock(blocks[0])
+						var blockx = &types.Block{
+							QueryTxs: []*types.QueryAsTx{
+								&types.QueryAsTx{
+									Request: &types.Request{
+										Header: types.SignedRequestHeader{
+											DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+												DataHash: [32]byte{
+													0, 0, 0, 0, 0, 0, 0, 1,
+													0, 0, 0, 0, 0, 0, 0, 1,
+													0, 0, 0, 0, 0, 0, 0, 1,
+													0, 0, 0, 0, 0, 0, 0, 1,
+												},
+											},
+										},
+									},
+									Response: &types.SignedResponseHeader{
+										ResponseHeader: types.ResponseHeader{
+											LogOffset: blocks[0].QueryTxs[0].Response.LogOffset,
+										},
+									},
+								},
+							},
+						}
+						blockx.QueryTxs[0].Request.Header.DataHash = hash.Hash{0x0, 0x0, 0x0, 0x1}
+						err = st2.ReplayBlock(blockx)
 						So(err, ShouldEqual, ErrQueryConflict)
 					},
 				)
 				Convey(
 					"The state should be reproducable with block replaying in empty instance #2",
 					func() {
+						// Block replaying
+						for i := range blocks {
+							err = st2.ReplayBlock(blocks[i])
+							So(err, ShouldBeNil)
+						}
+						// Should be in same state
+						for i := range values {
+							var resp1, resp2 *types.Response
+							req = buildRequest(types.ReadQuery, []types.Query{
+								buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[i][0]),
+							})
+							_, resp1, err = st1.Query(req)
+							So(err, ShouldBeNil)
+							So(resp1, ShouldNotBeNil)
+							_, resp2, err = st2.Query(req)
+							So(err, ShouldBeNil)
+							So(resp2, ShouldNotBeNil)
+							So(resp1.Payload, ShouldResemble, resp2.Payload)
+						}
+					},
+				)
+				Convey(
+					"The state should be reproducable with block replaying in synchronized"+
+						" instance #2",
+					func() {
+						// Replay by request to st2 first
+						for _, v := range blocks {
+							for _, w := range v.QueryTxs {
+								err = st2.Replay(w.Request, &types.Response{
+									Header: *w.Response,
+								})
+								So(err, ShouldBeNil)
+							}
+						}
 						// Block replaying
 						for i := range blocks {
 							err = st2.ReplayBlock(blocks[i])

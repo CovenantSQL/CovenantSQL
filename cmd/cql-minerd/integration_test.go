@@ -37,6 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -428,7 +429,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				_, err = db.Exec("INSERT INTO insert_table0 ( k, v1 ) VALUES"+
 					"(?, ?)", ROWSTART+ii, ii,
 				)
-				//log.Debug("ROWSTART+ii = %d", ROWSTART+ii)
+				if err != nil && err.Error() == sqlite3.ErrBusy.Error() {
+					// retry once
+					log.Debugf("ROWSTART+ii = %d retried", ROWSTART+ii)
+					_, err = db.Exec("INSERT INTO insert_table0 ( k, v1 ) VALUES"+
+						"(?, ?)", ROWSTART+ii, ii,
+					)
+				}
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -454,7 +461,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				} else { //has data before ROWSTART
 					index = rand.Int63n(count - 1)
 				}
-				//log.Debug("index = %d", index)
+				//log.Debugf("index = %d", index)
 				row := db.QueryRow("SELECT v1 FROM insert_table0 WHERE k = ? LIMIT 1", index)
 				var result []byte
 				err = row.Scan(&result)

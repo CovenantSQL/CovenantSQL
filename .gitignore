@@ -15,6 +15,7 @@ vendor/**/.gitignore
 node_*/
 kayak_test
 *.conf
+*.ldb
 *.db
 *.db-shm
 *.db-wal

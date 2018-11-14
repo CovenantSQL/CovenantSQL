@@ -94,7 +94,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./fuse/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/leader.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-fuse/leader.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, true,
 	); err == nil {
@@ -105,7 +105,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./fuse/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-fuse/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -116,7 +116,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./fuse/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-fuse/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -156,7 +156,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./fuse/node_miner_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-fuse/miner0.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
@@ -169,7 +169,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./fuse/node_miner_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-fuse/miner1.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -182,7 +182,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./fuse/node_miner_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-fuse/miner2.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {

@@ -409,8 +409,6 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		prepareBenchTable(db)
 	}
 
-	time.Sleep(100 * time.Minute)
-
 	var i int32
 	var insertedCount int
 

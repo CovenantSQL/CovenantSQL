@@ -256,7 +256,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 				// Should be in same state
 				for i := range values {
 					var resp1, resp2 *types.Response
-					req = buildRequest(types.WriteQuery, []types.Query{
+					req = buildRequest(types.ReadQuery, []types.Query{
 						buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[i][0]),
 					})
 					_, resp1, err = st1.Query(req)

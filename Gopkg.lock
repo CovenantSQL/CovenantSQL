@@ -3,6 +3,19 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2fab77e19256b26d733b70e1f68cd965cb87e38e3a619fa960cf319aef743d53"
+  name = "bazil.org/fuse"
+  packages = [
+    ".",
+    "fs",
+    "fs/fstestutil",
+    "fuseutil",
+  ]
+  pruneopts = "UT"
+  revision = "65cc252bf6691cb3c7014bcb2c8dc29de91e3a7e"
+
+[[projects]]
+  branch = "master"
   digest = "1:341f9de25b320f45124840fa084aa804a6659cfeae2ea93a45424fd73f9d7da5"
   name = "github.com/CovenantSQL/HashStablePack"
   packages = ["marshalhash"]
@@ -575,10 +588,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eceec1bdeb912f2aed8e5e9c8c81927649925095e1e4d5b85b331898fee06397"
+  digest = "1:67ee3460c086005f76f49c4d5f38a80ce11d68986de22979c75bf04e8372db9c"
   name = "golang.org/x/net"
   packages = [
     "bpf",
+    "context",
     "html",
     "html/atom",
     "internal/iana",
@@ -612,6 +626,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "bazil.org/fuse",
+    "bazil.org/fuse/fs",
+    "bazil.org/fuse/fs/fstestutil",
     "github.com/CovenantSQL/HashStablePack/marshalhash",
     "github.com/CovenantSQL/go-sqlite3-encrypt",
     "github.com/CovenantSQL/sqlparser",

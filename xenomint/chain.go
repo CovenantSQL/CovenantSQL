@@ -209,7 +209,6 @@ func (c *Chain) main(ctx context.Context) {
 			}
 		}
 	}
-	return
 }
 
 func (c *Chain) processIn(ctx context.Context) {

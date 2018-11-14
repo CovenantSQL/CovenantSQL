@@ -248,7 +248,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	var commitFuture <-chan *commitResult
 
 	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
-	tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
+		tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
 	var dbCost time.Duration
 
 	defer func() {

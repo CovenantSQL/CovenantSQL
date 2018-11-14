@@ -259,7 +259,7 @@ func (c *Chain) Stop() (err error) {
 	// Stop workers
 	c.stopWorkers()
 	// Close all opened resources
-	return c.state.close(true)
+	return c.state.Close(true)
 }
 
 // Start starts chain workers and RPC service.

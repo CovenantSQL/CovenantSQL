@@ -990,16 +990,29 @@ func (c *Chain) Stop() (err error) {
 		"time": c.rt.getChainTimeString(),
 	}).Debug("Chain service stopped")
 	// Close LevelDB file
-	err = c.bdb.Close()
+	var ierr error
+	if ierr = c.bdb.Close(); ierr != nil && err == nil {
+		err = ierr
+	}
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).Debug("Chain database closed")
-	err = c.tdb.Close()
+	}).WithError(ierr).Debug("Chain database closed")
+	if ierr = c.tdb.Close(); ierr != nil && err == nil {
+		err = ierr
+	}
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).Debug("Chain database closed")
+	}).WithError(ierr).Debug("Chain database closed")
+	// Close state
+	if ierr = c.st.Close(false); ierr != nil && err == nil {
+		err = ierr
+	}
+	log.WithFields(log.Fields{
+		"peer": c.rt.getPeerInfoString(),
+		"time": c.rt.getChainTimeString(),
+	}).WithError(ierr).Debug("Chain state storage closed")
 	return
 }
 

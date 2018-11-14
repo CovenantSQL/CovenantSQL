@@ -30,8 +30,9 @@ import (
 // State defines a xenomint state which is bound to a underlying storage.
 type State struct {
 	sync.RWMutex
-	strg xi.Storage
-	pool *pool
+	strg   xi.Storage
+	pool   *pool
+	closed bool
 
 	// TODO(leventeliu): Reload savepoint from last block on chain initialization, and rollback
 	// any ongoing transaction on exit.
@@ -92,19 +93,28 @@ func (s *State) getID() uint64 {
 	return atomic.LoadUint64(&s.current)
 }
 
-func (s *State) close(commit bool) (err error) {
+// Close commits any ongoing transaction if needed and closes the underlying storage.
+func (s *State) Close(commit bool) (err error) {
+	if s.closed {
+		return
+	}
 	if s.unc != nil {
 		if commit {
 			if err = s.unc.Commit(); err != nil {
 				return
 			}
 		} else {
-			if err = s.unc.Rollback(); err != nil {
+			// Only rollback to last commmit point
+			if err = s.rollback(); err != nil {
 				return
 			}
 		}
 	}
-	return s.strg.Close()
+	if err = s.strg.Close(); err != nil {
+		return
+	}
+	s.closed = true
+	return
 }
 
 func buildArgsFromSQLNamedArgs(args []types.NamedArg) (ifs []interface{}) {
@@ -273,12 +283,12 @@ func (s *State) rollbackTo(savepoint uint64) {
 
 func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
-		ierr      error
 		savepoint uint64
 		query     = &QueryTracker{Req: req}
 	)
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
-	func() {
+	if err = func() (err error) {
+		var ierr error
 		s.Lock()
 		defer s.Unlock()
 		savepoint = s.getID()
@@ -291,7 +301,10 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 		}
 		s.setSavepoint()
 		s.pool.enqueue(savepoint, query)
-	}()
+		return
+	}(); err != nil {
+		return
+	}
 	// Build query response
 	ref = query
 	resp = &types.Response{

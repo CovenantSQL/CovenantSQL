@@ -33,43 +33,38 @@ import (
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
-			fl     = path.Join(testingDataDir, t.Name())
-			st     *State
-			closed bool
-			strg   xi.Storage
-			err    error
+			fl1  = path.Join(testingDataDir, fmt.Sprint(t.Name(), ".1"))
+			st1  *State
+			strg xi.Storage
+			err  error
 		)
-		strg, err = xs.NewSqlite(fmt.Sprint("file:", fl))
+		strg, err = xs.NewSqlite(fmt.Sprint("file:", fl1))
 		So(err, ShouldBeNil)
 		So(strg, ShouldNotBeNil)
-		st, err = NewState(strg)
+		st1, err = NewState(strg)
 		So(err, ShouldBeNil)
-		So(st, ShouldNotBeNil)
+		So(st1, ShouldNotBeNil)
 		Reset(func() {
 			// Clean database file after each pass
-			if !closed {
-				err = st.close(true)
-				So(err, ShouldBeNil)
-				closed = true
-			}
-			err = os.Remove(fl)
+			err = st1.Close(true)
 			So(err, ShouldBeNil)
-			err = os.Remove(fmt.Sprint(fl, "-shm"))
+			err = os.Remove(fl1)
+			So(err, ShouldBeNil)
+			err = os.Remove(fmt.Sprint(fl1, "-shm"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
-			err = os.Remove(fmt.Sprint(fl, "-wal"))
+			err = os.Remove(fmt.Sprint(fl1, "-wal"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
 		})
 		Convey("When storage is closed", func() {
-			err = st.close(false)
+			err = st1.Close(false)
 			So(err, ShouldBeNil)
-			closed = true
 			Convey("The storage should report error for any incoming query", func() {
 				var (
 					req = buildRequest(types.WriteQuery, []types.Query{
 						buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
 					})
 				)
-				_, _, err = st.Query(req)
+				_, _, err = st1.Query(req)
 				So(err, ShouldNotBeNil)
 				err = errors.Cause(err)
 				So(err, ShouldNotBeNil)
@@ -84,10 +79,10 @@ func TestState(t *testing.T) {
 				})
 				resp *types.Response
 			)
-			_, resp, err = st.Query(req)
+			_, resp, err = st1.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
+			_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 				buildQuery(`SELECT * FROM "t1"`),
 			}))
 			So(err, ShouldNotBeNil)
@@ -97,18 +92,24 @@ func TestState(t *testing.T) {
 		})
 		Convey("When a basic KV table is created", func() {
 			var (
+				values = [][]interface{}{
+					{int64(1), []byte("v1")},
+					{int64(2), []byte("v2")},
+					{int64(3), []byte("v3")},
+					{int64(4), []byte("v4")},
+				}
 				req = buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`),
 				})
 				resp *types.Response
 			)
-			_, resp, err = st.Query(req)
+			_, resp, err = st1.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			err = st.commit(nil)
+			err = st1.commit(nil)
 			So(err, ShouldBeNil)
 			Convey("The state should not change after attempted writing in read query", func() {
-				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 1, "v1"),
 					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, 1),
 				}))
@@ -118,19 +119,45 @@ func TestState(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
 			})
+			Convey("The state should report invalid request with unknown query type", func() {
+				req = buildRequest(types.QueryType(0xff), []types.Query{
+					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+				})
+				_, resp, err = st1.Query(req)
+				So(err, ShouldEqual, ErrInvalidRequest)
+				So(resp, ShouldBeNil)
+				err = st1.Replay(req, nil)
+				So(err, ShouldEqual, ErrInvalidRequest)
+			})
+			Convey("The state should report error on malformed queries", func() {
+				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`XXXXXX INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+				}))
+				So(err, ShouldNotBeNil)
+				So(resp, ShouldBeNil)
+				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`INSERT INTO "t2" ("k", "v") VALUES (?, ?)`, values[0]...),
+				}))
+				So(err, ShouldNotBeNil)
+				So(resp, ShouldBeNil)
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`XXXXXX "v" FROM "t1"`),
+				}))
+				So(err, ShouldNotBeNil)
+				So(resp, ShouldBeNil)
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SELECT "v" FROM "t2"`),
+				}))
+				So(err, ShouldNotBeNil)
+				So(resp, ShouldBeNil)
+			})
 			Convey("The state should work properly with reading/writing queries", func() {
-				var values = [][]interface{}{
-					{int64(1), []byte("v1")},
-					{int64(2), []byte("v2")},
-					{int64(3), []byte("v3")},
-					{int64(4), []byte("v4")},
-				}
-				_, resp, err = st.Query(buildRequest(types.WriteQuery, []types.Query{
+				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
-				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[0][0]),
 				}))
 				So(err, ShouldBeNil)
@@ -141,14 +168,14 @@ func TestState(t *testing.T) {
 					Rows:      []types.ResponseRow{{Values: values[0][1:]}},
 				})
 
-				_, resp, err = st.Query(buildRequest(types.WriteQuery, []types.Query{
+				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[1]...),
 					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?);
 INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
-				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT "v" FROM "t1"`),
 				}))
 				So(err, ShouldBeNil)
@@ -164,7 +191,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 					},
 				})
 
-				_, resp, err = st.Query(buildRequest(types.ReadQuery, []types.Query{
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT * FROM "t1"`),
 				}))
 				So(err, ShouldBeNil)

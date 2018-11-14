@@ -292,6 +292,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 
 	// Read blocks and rebuild memory index
 	var (
+		id        uint64
 		index     int32
 		last      *blockNode
 		blockIter = chain.bdb.NewIterator(util.BytesPrefix(metaBlockIndex[:]), nil)
@@ -336,6 +337,12 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 			}
 		}
 
+		// Update id
+		if len(block.QueryTxs) != 0 {
+			var qt = block.QueryTxs[len(block.QueryTxs)-1]
+			id = qt.Response.LogOffset + uint64(len(qt.Request.Payload.Queries))
+		}
+
 		current = &blockNode{}
 		current.initBlockNode(chain.rt.getHeightFromTime(block.Timestamp()), block, parent)
 		chain.bi.addBlock(current)
@@ -349,7 +356,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	// Set chain state
 	st.node = last
 	chain.rt.setHead(st)
-	chain.st.InitTx(st.node.count + 1) // Prepare transaction for count+1
+	chain.st.InitTx(id)
 
 	// Read queries and rebuild memory index
 	respIter := chain.tdb.NewIterator(util.BytesPrefix(metaResponseIndex[:]), nil)

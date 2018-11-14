@@ -63,16 +63,12 @@ func (s *State) incSeq() {
 }
 
 func (s *State) setNextTxID() {
-	var val = (s.current & uint64(0xffffffff00000000)) + uint64(1)<<32
-	s.origin = val
-	s.cmpoint = val
-	s.current = val
+	s.origin = s.current
+	s.cmpoint = s.current
 }
 
 func (s *State) setCommitPoint() {
-	var val = (s.current & uint64(0xffffffff00000000)) + uint64(1)<<32
-	s.cmpoint = val
-	s.current = val
+	s.cmpoint = s.current
 }
 
 func (s *State) rollbackID(id uint64) {
@@ -81,11 +77,10 @@ func (s *State) rollbackID(id uint64) {
 
 // InitTx sets the initial id of the current transaction. This method is not safe for concurrency
 // and should only be called at initialization.
-func (s *State) InitTx(id int32) {
-	var val = uint64(id) << 32
-	s.origin = val
-	s.cmpoint = val
-	s.current = val
+func (s *State) InitTx(id uint64) {
+	s.origin = id
+	s.cmpoint = id
+	s.current = id
 	s.setSavepoint()
 }
 
@@ -334,7 +329,10 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 	defer s.Unlock()
 	savepoint = s.getID()
 	if resp.Header.ResponseHeader.LogOffset != savepoint {
-		err = ErrQueryConflict
+		err = errors.Wrapf(
+			ErrQueryConflict,
+			"local id %d vs replaying id %d", savepoint, resp.Header.ResponseHeader.LogOffset,
+		)
 		return
 	}
 	for i, v := range req.Payload.Queries {

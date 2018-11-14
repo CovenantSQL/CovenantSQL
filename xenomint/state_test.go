@@ -23,6 +23,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
@@ -283,6 +284,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 						},
 					},
 				})
+				err = errors.Cause(err)
 				So(err, ShouldEqual, ErrQueryConflict)
 			})
 			Convey("The state should be reproducable in another instance", func() {
@@ -326,6 +328,102 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 					So(resp2, ShouldNotBeNil)
 					So(resp1.Payload, ShouldResemble, resp2.Payload)
 				}
+			})
+			Convey("When queries are committed to blocks on state instance #1", func() {
+				var (
+					qt   *QueryTracker
+					reqs = []*types.Request{
+						buildRequest(types.WriteQuery, []types.Query{
+							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+						}),
+						buildRequest(types.WriteQuery, []types.Query{
+							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[1]...),
+							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?);
+INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
+						}),
+						buildRequest(types.WriteQuery, []types.Query{
+							buildQuery(`DELETE FROM "t1" WHERE "k"=?`, values[2][0]),
+						}),
+					}
+
+					cmtpos = 0
+					cmtps  = []int{1, len(reqs) - 1}
+					blocks = make([]*types.Block, len(cmtps))
+				)
+				for i := range reqs {
+					var resp *types.Response
+					qt, resp, err = st1.Query(reqs[i])
+					So(err, ShouldBeNil)
+					So(qt, ShouldNotBeNil)
+					So(resp, ShouldNotBeNil)
+					qt.UpdateResp(resp)
+					// Commit block if matches the next commit point
+					if cmtpos < len(cmtps) && i == cmtps[cmtpos] {
+						var qts []*QueryTracker
+						qts, err = st1.CommitEx()
+						So(err, ShouldBeNil)
+						So(qts, ShouldNotBeNil)
+						blocks[cmtpos] = &types.Block{
+							QueryTxs: make([]*types.QueryAsTx, len(qts)),
+						}
+						for i, v := range qts {
+							blocks[cmtpos].QueryTxs[i] = &types.QueryAsTx{
+								Request:  v.Req,
+								Response: &v.Resp.Header,
+							}
+						}
+						cmtpos++
+					}
+				}
+				Convey(
+					"The state should report missing parent while replaying later block first",
+					func() {
+						err = st2.ReplayBlock(blocks[len(blocks)-1])
+						So(err, ShouldEqual, ErrMissingParent)
+					},
+				)
+				Convey(
+					"The state should report conflict error while replaying modified query",
+					func() {
+						// Replay by request to st2 first
+						for _, v := range blocks {
+							for _, w := range v.QueryTxs {
+								err = st2.Replay(w.Request, &types.Response{
+									Header: *w.Response,
+								})
+								So(err, ShouldBeNil)
+							}
+						}
+						// Try to replay modified block #0
+						blocks[0].QueryTxs[0].Request.Header.DataHash = hash.Hash{0x0, 0x0, 0x0, 0x1}
+						err = st2.ReplayBlock(blocks[0])
+						So(err, ShouldEqual, ErrQueryConflict)
+					},
+				)
+				Convey(
+					"The state should be reproducable with block replaying in empty instance #2",
+					func() {
+						// Block replaying
+						for i := range blocks {
+							err = st2.ReplayBlock(blocks[i])
+							So(err, ShouldBeNil)
+						}
+						// Should be in same state
+						for i := range values {
+							var resp1, resp2 *types.Response
+							req = buildRequest(types.ReadQuery, []types.Query{
+								buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[i][0]),
+							})
+							_, resp1, err = st1.Query(req)
+							So(err, ShouldBeNil)
+							So(resp1, ShouldNotBeNil)
+							_, resp2, err = st2.Query(req)
+							So(err, ShouldBeNil)
+							So(resp2, ShouldNotBeNil)
+							So(resp1.Payload, ShouldResemble, resp2.Payload)
+						}
+					},
+				)
 			})
 		})
 	})

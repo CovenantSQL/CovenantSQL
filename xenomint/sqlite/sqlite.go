@@ -18,10 +18,9 @@ package sqlite
 
 import (
 	"database/sql"
-	"net/url"
-	"strings"
 
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/CovenantSQL/storage"
+	"github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 const (
@@ -40,16 +39,6 @@ func init() {
 	})
 }
 
-type dsnParams map[string]string
-
-func (p dsnParams) encode() string {
-	var vs = url.Values{}
-	for k, v := range p {
-		vs.Set(k, v)
-	}
-	return vs.Encode()
-}
-
 // SQLite3 is the sqlite3 implementation of the xenomint/interfaces.Storage interface.
 type SQLite3 struct {
 	filename    string
@@ -61,24 +50,33 @@ type SQLite3 struct {
 // NewSqlite returns a new SQLite3 instance attached to filename.
 func NewSqlite(filename string) (s *SQLite3, err error) {
 	var (
-		instance = &SQLite3{filename: filename}
-
-		shmRODSN = strings.Join([]string{filename, dsnParams{
-			"_journal_mode": "WAL",
-			"_query_only":   "on",
-			"cache":         "shared",
-		}.encode()}, "?")
-
-		privRODSN = strings.Join([]string{filename, dsnParams{
-			"_journal_mode": "WAL",
-			"_query_only":   "on",
-		}.encode()}, "?")
-
-		shmRWDSN = strings.Join([]string{filename, dsnParams{
-			"_journal_mode": "WAL",
-			"cache":         "shared",
-		}.encode()}, "?")
+		instance  = &SQLite3{filename: filename}
+		shmRODSN  string
+		privRODSN string
+		shmRWDSN  string
+		dsn       *storage.DSN
 	)
+
+	if dsn, err = storage.NewDSN(filename); err != nil {
+		return
+	}
+
+	dsnRO := dsn.Clone()
+	dsnRO.AddParam("_journal_mode", "WAL")
+	dsnRO.AddParam("_query_only", "on")
+	dsnRO.AddParam("cache", "shared")
+	shmRODSN = dsnRO.Format()
+
+	dsnPrivRO := dsn.Clone()
+	dsnPrivRO.AddParam("_journal_mode", "WAL")
+	dsnPrivRO.AddParam("_query_only", "on")
+	privRODSN = dsnPrivRO.Format()
+
+	dsnSHMRW := dsn.Clone()
+	dsnSHMRW.AddParam("_journal_mode", "WAL")
+	dsnSHMRW.AddParam("cache", "shared")
+	shmRWDSN = dsnSHMRW.Format()
+
 	if instance.dirtyReader, err = sql.Open(dirtyReadDriver, shmRODSN); err != nil {
 		return
 	}

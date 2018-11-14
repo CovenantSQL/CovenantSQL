@@ -164,15 +164,16 @@ func TestMultiChain(t *testing.T) {
 
 		// Create chain instance
 		config := &Config{
-			DatabaseID: testDatabaseID,
-			DataFile:   dbfile,
-			Genesis:    genesis,
-			Period:     testPeriod,
-			Tick:       testTick,
-			MuxService: mux,
-			Server:     peers.Servers[i],
-			Peers:      peers,
-			QueryTTL:   testQueryTTL,
+			DatabaseID:      testDatabaseID,
+			ChainFilePrefix: dbfile,
+			DataFile:        dbfile,
+			Genesis:         genesis,
+			Period:          testPeriod,
+			Tick:            testTick,
+			MuxService:      mux,
+			Server:          peers.Servers[i],
+			Peers:           peers,
+			QueryTTL:        testQueryTTL,
 		}
 		chain, err := NewChain(config)
 

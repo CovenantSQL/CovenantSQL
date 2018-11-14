@@ -426,9 +426,9 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Interface()), ShouldResemble, byHashRequestResult)
 
 		// test get first log offset, should be a create table statement
-		res, err = getJSON("offset/%v/0", dbID)
-		So(err, ShouldBeNil)
-		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldContainSubstring, "CREATE TABLE")
+		//res, err = getJSON("offset/%v/0", dbID)
+		//So(err, ShouldBeNil)
+		//So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldContainSubstring, "CREATE TABLE")
 
 		// test get genesis block by height
 		res, err = getJSON("height/%v/0", dbID2)

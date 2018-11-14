@@ -18,12 +18,17 @@ package xenomint
 
 import (
 	"database/sql"
+	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
+	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 )
 
@@ -33,22 +38,25 @@ type State struct {
 	strg   xi.Storage
 	pool   *pool
 	closed bool
+	nodeID proto.NodeID
 
 	// TODO(leventeliu): Reload savepoint from last block on chain initialization, and rollback
 	// any ongoing transaction on exit.
 	//
 	// unc is the uncommitted transaction.
-	unc     *sql.Tx
-	origin  uint64 // origin is the original savepoint of the current transaction
-	cmpoint uint64 // cmpoint is the last commit point of the current transaction
-	current uint64 // current is the current savepoint of the current transaction
+	unc             *sql.Tx
+	origin          uint64 // origin is the original savepoint of the current transaction
+	cmpoint         uint64 // cmpoint is the last commit point of the current transaction
+	current         uint64 // current is the current savepoint of the current transaction
+	hasSchemaChange uint32 // indicates schema change happends in this uncommitted transaction
 }
 
 // NewState returns a new State bound to strg.
-func NewState(strg xi.Storage) (s *State, err error) {
+func NewState(nodeID proto.NodeID, strg xi.Storage) (s *State, err error) {
 	var t = &State{
-		strg: strg,
-		pool: newPool(),
+		nodeID: nodeID,
+		strg:   strg,
+		pool:   newPool(),
 	}
 	if t.unc, err = t.strg.Writer().Begin(); err != nil {
 		return
@@ -95,7 +103,7 @@ func (s *State) Close(commit bool) (err error) {
 	}
 	if s.unc != nil {
 		if commit {
-			if err = s.unc.Commit(); err != nil {
+			if err = s.uncCommit(); err != nil {
 				return
 			}
 		} else {
@@ -103,7 +111,7 @@ func (s *State) Close(commit bool) (err error) {
 			if err = s.rollback(); err != nil {
 				return
 			}
-			if err = s.unc.Commit(); err != nil {
+			if err = s.uncCommit(); err != nil {
 				return
 			}
 		}
@@ -115,7 +123,62 @@ func (s *State) Close(commit bool) (err error) {
 	return
 }
 
-func buildArgsFromSQLNamedArgs(args []types.NamedArg) (ifs []interface{}) {
+func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
+	var (
+		tokenizer  = sqlparser.NewStringTokenizer(pattern)
+		stmt       sqlparser.Statement
+		lastPos    int
+		query      string
+		queryParts []string
+	)
+
+	for {
+		stmt, err = sqlparser.ParseNext(tokenizer)
+
+		if err != nil && err != io.EOF {
+			return
+		}
+
+		if err == io.EOF {
+			err = nil
+			break
+		}
+
+		query = pattern[lastPos : tokenizer.Position-1]
+		lastPos = tokenizer.Position + 1
+
+		// translate show statement
+		if showStmt, ok := stmt.(*sqlparser.Show); ok {
+			origQuery := query
+
+			switch showStmt.Type {
+			case "table":
+				if showStmt.ShowCreate {
+					query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
+						showStmt.OnTable.Name.String() + "\""
+				} else {
+					query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + ")"
+				}
+			case "index":
+				query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
+					showStmt.OnTable.Name.String() + "\""
+			case "tables":
+				query = "SELECT name FROM sqlite_master WHERE type = \"table\""
+			}
+
+			log.WithFields(log.Fields{
+				"from": origQuery,
+				"to":   query,
+			}).Debug("query translated")
+		} else if _, ok := stmt.(*sqlparser.DDL); ok {
+			containsDDL = true
+		}
+
+		queryParts = append(queryParts, query)
+	}
+
+	p = strings.Join(queryParts, "; ")
+
 	ifs = make([]interface{}, len(args))
 	for i, v := range args {
 		ifs[i] = sql.NamedArg{
@@ -142,12 +205,16 @@ func readSingle(
 	qer sqlQuerier, q *types.Query) (names []string, types []string, data [][]interface{}, err error,
 ) {
 	var (
-		rows *sql.Rows
-		cols []*sql.ColumnType
+		rows    *sql.Rows
+		cols    []*sql.ColumnType
+		pattern string
+		args    []interface{}
 	)
-	if rows, err = qer.Query(
-		q.Pattern, buildArgsFromSQLNamedArgs(q.Args)...,
-	); err != nil {
+
+	if _, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
+		return
+	}
+	if rows, err = qer.Query(pattern, args...); err != nil {
 		return
 	}
 	defer rows.Close()
@@ -204,8 +271,8 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
 				Request:   req.Header,
-				NodeID:    "",
-				Timestamp: time.Now(),
+				NodeID:    s.nodeID,
+				Timestamp: s.getLocalTime(),
 				RowCount:  uint64(len(data)),
 				LogOffset: s.getID(),
 			},
@@ -226,16 +293,30 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 		ierr           error
 		cnames, ctypes []string
 		data           [][]interface{}
+		querier        sqlQuerier
 	)
-	if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
-		err = errors.Wrap(ierr, "open tx failed")
-		return
-	}
-	defer tx.Rollback()
+
 	// FIXME(leventeliu): lock free but not consistent.
 	id = s.getID()
+
+	if atomic.LoadUint32(&s.hasSchemaChange) == 1 {
+		// lock transaction
+		s.Lock()
+		defer s.Unlock()
+		s.setSavepoint()
+		querier = s.unc
+		defer s.rollbackTo(id)
+	} else {
+		if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
+			err = errors.Wrap(ierr, "open tx failed")
+			return
+		}
+		querier = tx
+		defer tx.Rollback()
+	}
+
 	for i, v := range req.Payload.Queries {
-		if cnames, ctypes, data, ierr = readSingle(tx, &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			return
 		}
@@ -246,8 +327,8 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
 				Request:   req.Header,
-				NodeID:    "",
-				Timestamp: time.Now(),
+				NodeID:    s.nodeID,
+				Timestamp: s.getLocalTime(),
 				RowCount:  uint64(len(data)),
 				LogOffset: id,
 			},
@@ -262,7 +343,19 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 }
 
 func (s *State) writeSingle(q *types.Query) (res sql.Result, err error) {
-	if res, err = s.unc.Exec(q.Pattern, buildArgsFromSQLNamedArgs(q.Args)...); err == nil {
+	var (
+		containsDDL bool
+		pattern     string
+		args        []interface{}
+	)
+
+	if containsDDL, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
+		return
+	}
+	if res, err = s.unc.Exec(pattern, args...); err == nil {
+		if containsDDL {
+			atomic.StoreUint32(&s.hasSchemaChange, 1)
+		}
 		s.incSeq()
 	}
 	return
@@ -270,20 +363,24 @@ func (s *State) writeSingle(q *types.Query) (res sql.Result, err error) {
 
 func (s *State) setSavepoint() (savepoint uint64) {
 	savepoint = s.getID()
-	s.unc.Exec("SAVEPOINT ?", savepoint)
+	s.unc.Exec("SAVEPOINT \"?\"", savepoint)
 	return
 }
 
 func (s *State) rollbackTo(savepoint uint64) {
 	s.rollbackID(savepoint)
-	s.unc.Exec("ROLLBACK TO ?", savepoint)
+	s.unc.Exec("ROLLBACK TO \"?\"", savepoint)
 }
 
 func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
-		savepoint uint64
-		query     = &QueryTracker{Req: req}
+		savepoint         uint64
+		query             = &QueryTracker{Req: req}
+		totalAffectedRows int64
+		curAffectedRows   int64
+		lastInsertID      int64
 	)
+
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	if err = func() (err error) {
 		var ierr error
@@ -291,11 +388,16 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 		defer s.Unlock()
 		savepoint = s.getID()
 		for i, v := range req.Payload.Queries {
-			if _, ierr = s.writeSingle(&v); ierr != nil {
+			var res sql.Result
+			if res, ierr = s.writeSingle(&v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at #%d failed", i)
 				s.rollbackTo(savepoint)
 				return
 			}
+
+			curAffectedRows, _ = res.RowsAffected()
+			lastInsertID, _ = res.LastInsertId()
+			totalAffectedRows += curAffectedRows
 		}
 		s.setSavepoint()
 		s.pool.enqueue(savepoint, query)
@@ -308,11 +410,13 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
-				Request:   req.Header,
-				NodeID:    "",
-				Timestamp: time.Now(),
-				RowCount:  0,
-				LogOffset: savepoint,
+				Request:      req.Header,
+				NodeID:       s.nodeID,
+				Timestamp:    s.getLocalTime(),
+				RowCount:     0,
+				LogOffset:    savepoint,
+				AffectedRows: totalAffectedRows,
+				LastInsertID: lastInsertID,
 			},
 		},
 	}
@@ -392,7 +496,7 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 	}
 	// Check if the current transaction is ok to commit
 	if s.pool.matchLast(lastsp) {
-		if err = s.unc.Commit(); err != nil {
+		if err = s.uncCommit(); err != nil {
 			// FATAL ERROR
 			return
 		}
@@ -416,7 +520,7 @@ func (s *State) commit(out chan<- command) (err error) {
 	var queries []*QueryTracker
 	s.Lock()
 	defer s.Unlock()
-	if err = s.unc.Commit(); err != nil {
+	if err = s.uncCommit(); err != nil {
 		return
 	}
 	if s.unc, err = s.strg.Writer().Begin(); err != nil {
@@ -438,7 +542,7 @@ func (s *State) commit(out chan<- command) (err error) {
 func (s *State) CommitEx() (queries []*QueryTracker, err error) {
 	s.Lock()
 	defer s.Unlock()
-	if err = s.unc.Commit(); err != nil {
+	if err = s.uncCommit(); err != nil {
 		// FATAL ERROR
 		return
 	}
@@ -450,6 +554,17 @@ func (s *State) CommitEx() (queries []*QueryTracker, err error) {
 	s.setSavepoint()
 	queries = s.pool.queries
 	s.pool = newPool()
+	return
+}
+
+func (s *State) uncCommit() (err error) {
+	if err = s.unc.Commit(); err != nil {
+		return
+	}
+
+	// reset schema change flag
+	atomic.StoreUint32(&s.hasSchemaChange, 0)
+
 	return
 }
 
@@ -495,6 +610,10 @@ func (s *State) rollback() (err error) {
 	s.rollbackTo(s.cmpoint)
 	s.current = s.cmpoint
 	return
+}
+
+func (s *State) getLocalTime() time.Time {
+	return time.Now().UTC()
 }
 
 // Query does the query(ies) in req, pools the request and persists any change to

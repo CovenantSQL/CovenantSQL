@@ -338,51 +338,6 @@ func (s *Service) addAckedQuery(dbID proto.DatabaseID, ack *types.SignedAckHeade
 		return
 	}
 
-	// fetch original query
-	if ack.Response.Request.QueryType == types.WriteQuery {
-		req := &types.GetRequestReq{}
-		resp := &types.GetRequestResp{}
-
-		req.DatabaseID = dbID
-		req.LogOffset = ack.Response.LogOffset
-
-		if err = s.minerRequest(dbID, route.DBSGetRequest.String(), req, resp); err != nil {
-			return
-		}
-
-		key := offsetToBytes(req.LogOffset)
-		key = append(key, resp.Request.Header.Hash().AsBytes()...)
-
-		log.WithFields(log.Fields{
-			"offset":     req.LogOffset,
-			"reqHash":    resp.Request.Header.Hash().String(),
-			"reqQueries": resp.Request.Payload.Queries,
-		}).Debug("add write request")
-
-		var reqBytes *bytes.Buffer
-		if reqBytes, err = utils.EncodeMsgPack(resp.Request); err != nil {
-			return
-		}
-
-		if err = s.db.Update(func(tx *bolt.Tx) (err error) {
-			qb, err := tx.Bucket(requestBucket).CreateBucketIfNotExists([]byte(dbID))
-			if err != nil {
-				return
-			}
-			if err = qb.Put(key, reqBytes.Bytes()); err != nil {
-				return
-			}
-			ob, err := tx.Bucket(logOffsetBucket).CreateBucketIfNotExists([]byte(dbID))
-			if err != nil {
-				return
-			}
-			err = ob.Put(resp.Request.Header.Hash().AsBytes(), offsetToBytes(req.LogOffset))
-			return
-		}); err != nil {
-			return
-		}
-	}
-
 	// store ack
 	return s.db.Update(func(tx *bolt.Tx) (err error) {
 		ab, err := tx.Bucket(ackBucket).CreateBucketIfNotExists([]byte(dbID))

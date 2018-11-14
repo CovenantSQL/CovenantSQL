@@ -26,8 +26,9 @@ import (
 
 // Config represents a sql-chain config.
 type Config struct {
-	DatabaseID proto.DatabaseID
-	DataFile   string
+	DatabaseID      proto.DatabaseID
+	ChainFilePrefix string
+	DataFile        string
 
 	Genesis *types.Block
 	Period  time.Duration

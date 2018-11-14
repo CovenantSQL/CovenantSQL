@@ -19,9 +19,7 @@ package worker
 import (
 	"bytes"
 	"container/list"
-	"context"
 
-	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
@@ -91,7 +89,7 @@ func (db *Database) Check(rawReq interface{}) (err error) {
 	return
 }
 
-// Commit implements kayak.types.Handler.Commmit.
+// Commit implements kayak.types.Handler.Commit.
 func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 	// convert query and check syntax
 	var req *types.Request
@@ -101,14 +99,8 @@ func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 		return
 	}
 
-	var queries []storage.Query
-	if queries, err = convertAndSanitizeQuery(req.Payload.Queries); err != nil {
-		// return original parser error
-		return
-	}
-
 	// execute
-	return db.storage.Exec(context.Background(), queries)
+	return db.chain.Query(req)
 }
 
 func (db *Database) recordSequence(connID uint64, seqNo uint64) {

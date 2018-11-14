@@ -82,11 +82,28 @@ func (dsn *DSN) AddParam(key, value string) {
 		dsn.params = make(map[string]string)
 	}
 
-	dsn.params[key] = value
+	if value == "" {
+		delete(dsn.params, key)
+	} else {
+		dsn.params[key] = value
+	}
 }
 
 // GetParam gets the value.
 func (dsn *DSN) GetParam(key string) (value string, ok bool) {
 	value, ok = dsn.params[key]
+	return
+}
+
+// Clone returns a copy of current dsn.
+func (dsn *DSN) Clone() (copy *DSN) {
+	copy = &DSN{}
+	copy.filename = dsn.filename
+	copy.params = make(map[string]string, len(dsn.params))
+
+	for k, v := range dsn.params {
+		copy.params[k] = v
+	}
+
 	return
 }

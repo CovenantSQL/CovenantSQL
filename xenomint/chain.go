@@ -24,6 +24,7 @@ import (
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -112,11 +113,14 @@ func NewChain(filename string) (c *Chain, err error) {
 		ctx    context.Context
 		cancel context.CancelFunc
 	)
+	// generate empty nodeId
+	nodeID := proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000")
+
 	// TODO(leventeliu): add multiple storage engine support.
 	if strg, err = xs.NewSqlite(filename); err != nil {
 		return
 	}
-	if state, err = NewState(strg); err != nil {
+	if state, err = NewState(nodeID, strg); err != nil {
 		return
 	}
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {

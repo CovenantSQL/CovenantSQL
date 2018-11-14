@@ -108,16 +108,6 @@ func TestDBMS(t *testing.T) {
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, 0)
-				So(queryRes.Header.LogOffset, ShouldEqual, 0)
-
-				var reqGetRequest types.GetRequestReq
-				var respGetRequest *types.GetRequestResp
-
-				reqGetRequest.DatabaseID = dbID
-				reqGetRequest.LogOffset = queryRes.Header.LogOffset
-				err = testRequest(route.DBSGetRequest, reqGetRequest, &respGetRequest)
-				So(err, ShouldBeNil)
-				So(respGetRequest.Request.Header.Hash(), ShouldResemble, writeQuery.Header.Hash())
 
 				// sending read query
 				var readQuery *types.Request

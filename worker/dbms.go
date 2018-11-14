@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -285,32 +284,6 @@ func (dbms *DBMS) Ack(ack *types.Ack) (err error) {
 
 	// send query
 	return db.Ack(ack)
-}
-
-// GetRequest handles fetching original request of previous transactions.
-func (dbms *DBMS) GetRequest(dbID proto.DatabaseID, offset uint64) (query *types.Request, err error) {
-	var db *Database
-	var exists bool
-
-	if db, exists = dbms.getMeta(dbID); !exists {
-		err = ErrNotExists
-		return
-	}
-
-	var req interface{}
-	if req, err = db.getLog(offset); err != nil {
-		err = errors.Wrap(err, "get log failed")
-		return
-	}
-
-	// decode requests
-	var ok bool
-	if query, ok = req.(*types.Request); !ok {
-		err = errors.Wrap(kt.ErrInvalidLog, "convert log to request failed")
-		return
-	}
-
-	return
 }
 
 func (dbms *DBMS) getMeta(dbID proto.DatabaseID) (db *Database, exists bool) {

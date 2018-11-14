@@ -131,7 +131,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	// TODO(leventeliu): this is a rough solution, you may also want to clean database file and
 	// force rebuilding.
 	var fi os.FileInfo
-	if fi, err = os.Stat(c.DataFile + "-block-state.ldb"); err == nil && fi.Mode().IsDir() {
+	if fi, err = os.Stat(c.ChainFilePrefix + "-block-state.ldb"); err == nil && fi.Mode().IsDir() {
 		return LoadChain(c)
 	}
 
@@ -141,7 +141,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	}
 
 	// Open LevelDB for block and state
-	bdbFile := c.DataFile + "-block-state.ldb"
+	bdbFile := c.ChainFilePrefix + "-block-state.ldb"
 	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
 	if err != nil {
 		err = errors.Wrapf(err, "open leveldb %s", bdbFile)
@@ -151,7 +151,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	log.Debugf("Create new chain bdb %s", bdbFile)
 
 	// Open LevelDB for ack/request/response
-	tdbFile := c.DataFile + "-ack-req-resp.ldb"
+	tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
 	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
 	if err != nil {
 		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
@@ -165,10 +165,10 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		strg  xi.Storage
 		state *x.State
 	)
-	if strg, err = xs.NewSqlite(fmt.Sprintf("file:%s.%s", c.DataFile, "db")); err != nil {
+	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
 		return
 	}
-	if state, err = x.NewState(strg); err != nil {
+	if state, err = x.NewState(c.Server, strg); err != nil {
 		return
 	}
 
@@ -215,7 +215,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
 func LoadChain(c *Config) (chain *Chain, err error) {
 	// Open LevelDB for block and state
-	bdbFile := c.DataFile + "-block-state.ldb"
+	bdbFile := c.ChainFilePrefix + "-block-state.ldb"
 	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
 	if err != nil {
 		err = errors.Wrapf(err, "open leveldb %s", bdbFile)
@@ -223,7 +223,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	}
 
 	// Open LevelDB for ack/request/response
-	tdbFile := c.DataFile + "-ack-req-resp.ldb"
+	tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
 	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
 	if err != nil {
 		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
@@ -235,10 +235,10 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		strg   xi.Storage
 		xstate *x.State
 	)
-	if strg, err = xs.NewSqlite(fmt.Sprintf("file:%s.%s", c.DataFile, "db")); err != nil {
+	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
 		return
 	}
-	if xstate, err = x.NewState(strg); err != nil {
+	if xstate, err = x.NewState(c.Server, strg); err != nil {
 		return
 	}
 

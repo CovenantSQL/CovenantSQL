@@ -30,6 +30,8 @@ const (
 	LogRollback
 	// LogCommit defines the commit phase of a commit.
 	LogCommit
+	// LogCheckpoint defines the checkpoint log (created/virtually created by block production or log truncation).
+	LogCheckpoint
 	// LogBarrier defines barrier log, all open windows should be waiting this operations to complete.
 	LogBarrier
 	// LogNoop defines noop log.
@@ -44,6 +46,8 @@ func (t LogType) String() (s string) {
 		return "LogRollback"
 	case LogCommit:
 		return "LogCommit"
+	case LogCheckpoint:
+		return "LogCheckpoint"
 	case LogBarrier:
 		return "LogBarrier"
 	case LogNoop:

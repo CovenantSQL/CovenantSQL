@@ -77,8 +77,6 @@ const (
 	DBSAck
 	// DBSDeploy is used by BP to create/drop/update database
 	DBSDeploy
-	// DBSGetRequest is used by observer to view original request
-	DBSGetRequest
 	// DBCCall is used by Miner for data consistency
 	DBCCall
 	// BPDBCreateDatabase is used by client to create database
@@ -167,8 +165,6 @@ func (s RemoteFunc) String() string {
 		return "DBS.Ack"
 	case DBSDeploy:
 		return "DBS.Deploy"
-	case DBSGetRequest:
-		return "DBS.GetRequest"
 	case DBCCall:
 		return "DBC.Call"
 	case BPDBCreateDatabase:

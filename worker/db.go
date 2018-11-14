@@ -18,26 +18,20 @@ package worker
 
 import (
 	"context"
-	"database/sql"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime/trace"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
-	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 )
 
@@ -65,7 +59,6 @@ const (
 type Database struct {
 	cfg            *DBConfig
 	dbID           proto.DatabaseID
-	storage        *storage.Storage
 	kayakWal       *kl.LevelDBWal
 	kayakRuntime   *kayak.Runtime
 	kayakConfig    *kt.RuntimeConfig
@@ -108,11 +101,6 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 			if db.chain != nil {
 				db.chain.Stop()
 			}
-
-			// close storage
-			if db.storage != nil {
-				db.storage.Close()
-			}
 		}
 	}()
 
@@ -127,10 +115,6 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 		storageDSN.AddParam("_crypto_key", cfg.EncryptionKey)
 	}
 
-	if db.storage, err = storage.New(storageDSN.Format()); err != nil {
-		return
-	}
-
 	// init chain
 	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
 	if db.nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -139,10 +123,11 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 
 	// TODO(xq262144): make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
-		DatabaseID: cfg.DatabaseID,
-		DataFile:   chainFile,
-		Genesis:    genesisBlock,
-		Peers:      peers,
+		DatabaseID:      cfg.DatabaseID,
+		ChainFilePrefix: chainFile,
+		DataFile:        storageDSN.Format(),
+		Genesis:         genesisBlock,
+		Peers:           peers,
 
 		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
@@ -216,7 +201,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		return db.readQuery(request)
+		return db.chain.Query(request)
 	case types.WriteQuery:
 		return db.writeQuery(request)
 	default:
@@ -255,13 +240,6 @@ func (db *Database) Shutdown() (err error) {
 	if db.chain != nil {
 		// stop chain
 		if err = db.chain.Stop(); err != nil {
-			return
-		}
-	}
-
-	if db.storage != nil {
-		// stop storage
-		if err = db.storage.Close(); err != nil {
 			return
 		}
 	}
@@ -317,97 +295,19 @@ func (db *Database) writeQuery(request *types.Request) (response *types.Response
 	}
 
 	// call kayak runtime Process
-	var logOffset uint64
 	var result interface{}
-	result, logOffset, err = db.kayakRuntime.Apply(context.Background(), request)
-
-	if err != nil {
+	if result, _, err = db.kayakRuntime.Apply(context.Background(), request); err != nil {
+		err = errors.Wrap(err, "apply failed")
 		return
 	}
 
-	// get affected rows and last insert id
-	var affectedRows, lastInsertID int64
-
-	if execResult, ok := result.(storage.ExecResult); ok {
-		affectedRows = execResult.RowsAffected
-		lastInsertID = execResult.LastInsertID
-	}
-
-	return db.buildQueryResponse(request, logOffset, []string{}, []string{}, [][]interface{}{}, lastInsertID, affectedRows)
-}
-
-func (db *Database) readQuery(request *types.Request) (response *types.Response, err error) {
-	// call storage query directly
-	// TODO(xq262144): add timeout logic basic of client options
-	var columns, types []string
-	var data [][]interface{}
-	var queries []storage.Query
-
-	// sanitize dangerous queries
-	if queries, err = convertAndSanitizeQuery(request.Payload.Queries); err != nil {
+	var ok bool
+	if response, ok = (result).(*types.Response); !ok {
+		err = errors.Wrap(err, "invalid response type")
 		return
 	}
-
-	columns, types, data, err = db.storage.Query(context.Background(), queries)
-	if err != nil {
-		return
-	}
-
-	return db.buildQueryResponse(request, 0, columns, types, data, 0, 0)
-}
-
-func (db *Database) getLog(index uint64) (data interface{}, err error) {
-	var l *kt.Log
-	if l, err = db.kayakWal.Get(index); err != nil || l == nil {
-		err = errors.Wrap(err, "get log from kayak pool failed")
-		return
-	}
-
-	// decode log
-	data, err = db.DecodePayload(l.Data)
 
 	return
-}
-
-func (db *Database) buildQueryResponse(request *types.Request, offset uint64,
-	columns []string, declTypes []string, data [][]interface{}, lastInsertID int64, affectedRows int64) (response *types.Response, err error) {
-	// build response
-	response = new(types.Response)
-	response.Header.Request = request.Header
-	if response.Header.NodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-	response.Header.LogOffset = offset
-	response.Header.Timestamp = getLocalTime()
-	response.Header.RowCount = uint64(len(data))
-	response.Header.LastInsertID = lastInsertID
-	response.Header.AffectedRows = affectedRows
-
-	// set payload
-	response.Payload.Columns = columns
-	response.Payload.DeclTypes = declTypes
-	response.Payload.Rows = make([]types.ResponseRow, len(data))
-
-	for i, d := range data {
-		response.Payload.Rows[i].Values = d
-	}
-
-	// sign fields
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = getLocalPrivateKey(); err != nil {
-		return
-	}
-	if err = response.Sign(privateKey); err != nil {
-		return
-	}
-
-	// record response for future ack process
-	err = db.saveResponse(&response.Header)
-	return
-}
-
-func (db *Database) saveResponse(respHeader *types.SignedResponseHeader) (err error) {
-	return db.chain.VerifyAndPushResponsedQuery(respHeader)
 }
 
 func (db *Database) saveAck(ackHeader *types.SignedAckHeader) (err error) {
@@ -416,75 +316,4 @@ func (db *Database) saveAck(ackHeader *types.SignedAckHeader) (err error) {
 
 func getLocalTime() time.Time {
 	return time.Now().UTC()
-}
-
-func getLocalPrivateKey() (privateKey *asymmetric.PrivateKey, err error) {
-	return kms.GetLocalPrivateKey()
-}
-
-func convertAndSanitizeQuery(inQuery []types.Query) (outQuery []storage.Query, err error) {
-	outQuery = make([]storage.Query, len(inQuery))
-	for i, q := range inQuery {
-		tokenizer := sqlparser.NewStringTokenizer(q.Pattern)
-		var stmt sqlparser.Statement
-		var lastPos int
-		var query string
-		var originalQueries []string
-
-		for {
-			stmt, err = sqlparser.ParseNext(tokenizer)
-
-			if err != nil && err != io.EOF {
-				return
-			}
-
-			if err == io.EOF {
-				err = nil
-				break
-			}
-
-			query = q.Pattern[lastPos : tokenizer.Position-1]
-			lastPos = tokenizer.Position + 1
-
-			// translate show statement
-			if showStmt, ok := stmt.(*sqlparser.Show); ok {
-				origQuery := query
-
-				switch showStmt.Type {
-				case "table":
-					if showStmt.ShowCreate {
-						query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
-							showStmt.OnTable.Name.String() + "\""
-					} else {
-						query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + ")"
-					}
-				case "index":
-					query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
-						showStmt.OnTable.Name.String() + "\""
-				case "tables":
-					query = "SELECT name FROM sqlite_master WHERE type = \"table\""
-				}
-
-				log.WithFields(log.Fields{
-					"from": origQuery,
-					"to":   query,
-				}).Debug("query translated")
-			}
-
-			originalQueries = append(originalQueries, query)
-		}
-
-		// covert args
-		var args []sql.NamedArg
-
-		for _, v := range q.Args {
-			args = append(args, sql.Named(v.Name, v.Value))
-		}
-
-		outQuery[i] = storage.Query{
-			Pattern: strings.Join(originalQueries, "; "),
-			Args:    args,
-		}
-	}
-	return
 }

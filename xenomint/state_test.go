@@ -155,17 +155,42 @@ func TestState(t *testing.T) {
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				err = st1.Replay(buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`XXXXXX INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+				}), &types.Response{
+					Header: types.SignedResponseHeader{
+						ResponseHeader: types.ResponseHeader{
+							LogOffset: st1.getID(),
+						},
+					},
+				})
+				So(err, ShouldNotBeNil)
 				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO "t2" ("k", "v") VALUES (?, ?)`, values[0]...),
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				err = st1.Replay(buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`INSERT INTO "t2" ("k", "v") VALUES (?, ?)`, values[0]...),
+				}), &types.Response{
+					Header: types.SignedResponseHeader{
+						ResponseHeader: types.ResponseHeader{
+							LogOffset: st1.getID(),
+						},
+					},
+				})
+				So(err, ShouldNotBeNil)
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`XXXXXX "v" FROM "t1"`),
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SELECT "v" FROM "t2"`),
+				}))
+				So(err, ShouldNotBeNil)
+				So(resp, ShouldBeNil)
+				_, resp, err = st1.read(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT "v" FROM "t2"`),
 				}))
 				So(err, ShouldNotBeNil)
@@ -225,6 +250,40 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 						{Values: values[3][:]},
 					},
 				})
+
+				// Also test a non-transaction read implementation
+				_, resp, err = st1.read(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SELECT * FROM "t1"`),
+				}))
+				So(err, ShouldBeNil)
+				So(resp.Payload, ShouldResemble, types.ResponsePayload{
+					Columns:   []string{"k", "v"},
+					DeclTypes: []string{"INT", "TEXT"},
+					Rows: []types.ResponseRow{
+						{Values: values[0][:]},
+						{Values: values[1][:]},
+						{Values: values[2][:]},
+						{Values: values[3][:]},
+					},
+				})
+			})
+			Convey("The state should skip read query while replaying", func() {
+				err = st1.Replay(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SELECT * FROM "t1"`),
+				}), nil)
+				So(err, ShouldBeNil)
+			})
+			Convey("The state should report conflict state while replaying bad request", func() {
+				err = st1.Replay(buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+				}), &types.Response{
+					Header: types.SignedResponseHeader{
+						ResponseHeader: types.ResponseHeader{
+							LogOffset: uint64(0xff),
+						},
+					},
+				})
+				So(err, ShouldEqual, ErrQueryConflict)
 			})
 			Convey("The state should be reproducable in another instance", func() {
 				var (
@@ -250,7 +309,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 					So(resp, ShouldNotBeNil)
 					qt.UpdateResp(resp)
 					// Replay to st2
-					err = st2.replay(reqs[i], resp)
+					err = st2.Replay(reqs[i], resp)
 					So(err, ShouldBeNil)
 				}
 				// Should be in same state

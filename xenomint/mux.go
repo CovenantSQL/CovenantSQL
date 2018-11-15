@@ -106,34 +106,6 @@ func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err er
 	return
 }
 
-// MuxApplyRequest defines a request of the Apply RPC method.
-type MuxApplyRequest struct {
-	proto.DatabaseID
-	proto.Envelope
-	Request  *types.Request
-	Response *types.Response
-}
-
-// MuxApplyResponse defines a response of the Apply RPC method.
-type MuxApplyResponse struct {
-	proto.DatabaseID
-	proto.Envelope
-}
-
-// Apply is the RPC method to apply a write request on mux service.
-func (s *MuxService) Apply(req *MuxApplyRequest, resp *MuxApplyResponse) (err error) {
-	var c *Chain
-	if c, err = s.route(req.DatabaseID); err != nil {
-		return
-	}
-	c.enqueueIn(req)
-	resp = &MuxApplyResponse{
-		Envelope:   req.Envelope,
-		DatabaseID: req.DatabaseID,
-	}
-	return
-}
-
 // MuxLeaderCommitRequest a request of the MuxLeaderCommitResponse RPC method.
 type MuxLeaderCommitRequest struct {
 	proto.DatabaseID
@@ -149,54 +121,4 @@ type MuxLeaderCommitResponse struct {
 	// Height is the expected block height of this commit.
 	Height int32
 	Offset uint64
-}
-
-// LeaderCommit is the RPC method to commit block on mux service.
-func (s *MuxService) LeaderCommit(
-	req *MuxLeaderCommitRequest, resp *MuxLeaderCommitResponse) (err error,
-) {
-	var c *Chain
-	if c, err = s.route(req.DatabaseID); err != nil {
-		return
-	}
-	if err = c.commitBlock(); err != nil {
-		return
-	}
-	resp = &MuxLeaderCommitResponse{
-		Envelope:   req.Envelope,
-		DatabaseID: req.DatabaseID,
-	}
-	return
-}
-
-// MuxFollowerCommitRequest a request of the FollowerCommit RPC method.
-type MuxFollowerCommitRequest struct {
-	proto.DatabaseID
-	proto.Envelope
-	Height int32
-	Offset uint64
-}
-
-// MuxFollowerCommitResponse a response of the FollowerCommit RPC method.
-type MuxFollowerCommitResponse struct {
-	proto.DatabaseID
-	proto.Envelope
-	Height int32
-	Offset uint64
-}
-
-// FollowerCommit is the RPC method to commit block on mux service.
-func (s *MuxService) FollowerCommit(
-	req *MuxFollowerCommitRequest, resp *MuxFollowerCommitResponse) (err error,
-) {
-	var c *Chain
-	if c, err = s.route(req.DatabaseID); err != nil {
-		return
-	}
-	c.enqueueIn(req)
-	resp = &MuxFollowerCommitResponse{
-		Envelope:   req.Envelope,
-		DatabaseID: req.DatabaseID,
-	}
-	return
 }

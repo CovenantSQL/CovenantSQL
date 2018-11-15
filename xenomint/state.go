@@ -516,8 +516,7 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 	return
 }
 
-func (s *State) commit(out chan<- command) (err error) {
-	var queries []*QueryTracker
+func (s *State) commit() (err error) {
 	s.Lock()
 	defer s.Unlock()
 	if err = s.uncCommit(); err != nil {
@@ -528,13 +527,8 @@ func (s *State) commit(out chan<- command) (err error) {
 	}
 	s.setNextTxID()
 	s.setSavepoint()
-	queries = s.pool.queries
+	_ = s.pool.queries
 	s.pool = newPool()
-	// NOTE(leventeliu): Send commit request to the outcoming command queue within locking scope to
-	// prevent any extra writing before this commit.
-	if out != nil {
-		out <- &commitRequest{queries: queries}
-	}
 	return
 }
 

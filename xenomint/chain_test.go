@@ -142,7 +142,7 @@ func BenchmarkChainParallelWrite(b *testing.B) {
 				b.Fatalf("Failed to execute: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerBlock == 0 {
-				if err = c.state.commit(nil); err != nil {
+				if err = c.state.commit(); err != nil {
 					b.Fatalf("Failed to commit block: %v", err)
 				}
 			}
@@ -160,7 +160,7 @@ func BenchmarkChainParallelMixRW(b *testing.B) {
 				b.Fatalf("Failed to execute: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerBlock == 0 {
-				if err = c.state.commit(nil); err != nil {
+				if err = c.state.commit(); err != nil {
 					b.Fatalf("Failed to commit block: %v", err)
 				}
 			}

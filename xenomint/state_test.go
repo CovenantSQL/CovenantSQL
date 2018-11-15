@@ -123,12 +123,12 @@ func TestState(t *testing.T) {
 			_, resp, err = st1.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			err = st1.commit(nil)
+			err = st1.commit()
 			So(err, ShouldBeNil)
 			_, resp, err = st2.Query(req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
-			err = st2.commit(nil)
+			err = st2.commit()
 			Convey("The state should not change after attempted writing in read query", func() {
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, 1, "v1"),

@@ -37,7 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -426,13 +426,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt64(&i, 1)
-				_, err = db.Exec("INSERT INTO insert_table0 ( k, v1 ) VALUES"+
+				_, err = db.Exec("INSERT INTO "+TABLENAME+"( k, v1 ) VALUES"+
 					"(?, ?)", ROWSTART+ii, ii,
 				)
 				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
 					log.Warnf("ROWSTART+ii = %d retried", ROWSTART+ii)
-					_, err = db.Exec("INSERT INTO insert_table0 ( k, v1 ) VALUES"+
+					_, err = db.Exec("INSERT INTO"+TABLENAME+"( k, v1 ) VALUES"+
 						"(?, ?)", ROWSTART+ii, ii,
 					)
 				}
@@ -443,7 +443,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		})
 	})
 
-	rowCount := db.QueryRow("SELECT COUNT(1) FROM insert_table0")
+	rowCount := db.QueryRow("SELECT COUNT(1) FROM " + TABLENAME)
 	var count int64
 	err = rowCount.Scan(&count)
 	if err != nil {
@@ -462,7 +462,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 					index = rand.Int63n(count - 1)
 				}
 				//log.Debugf("index = %d", index)
-				row := db.QueryRow("SELECT v1 FROM insert_table0 WHERE k = ? LIMIT 1", index)
+				row := db.QueryRow("SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
 				var result []byte
 				err = row.Scan(&result)
 				if err != nil || (len(result) == 0) {

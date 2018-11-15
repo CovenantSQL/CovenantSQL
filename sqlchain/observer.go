@@ -26,17 +26,12 @@ import (
 )
 
 /*
-Observer implements interface like a sqlchain including AdviseNewBlock/AdviseAckedQuery.
+Observer implements method AdviseNewBlock to receive blocks from sqlchain node.
 Request/Response entity from sqlchain api is re-used for simplicity.
 
 type Observer interface {
 	AdviseNewBlock(*MuxAdviseNewBlockReq, *MuxAdviseNewBlockResp) error
-	AdviseAckedQuery(*MuxAdviseAckedQueryReq, *MuxAdviseAckedQueryResp) error
 }
-
-The observer could call DBS.GetRequest to fetch original request entity from the DBMS service.
-The whole observation of block producing and write query execution would be as follows.
-AdviseAckedQuery -> AdviseNewBlock -> GetRequest.
 */
 
 // observerReplicator defines observer replication state.
@@ -202,36 +197,6 @@ func (r *observerReplicator) replicate() {
 			"block":  block.BlockHash().String(),
 			"height": r.height,
 		}).Debug("finish block height hole detection, skipping")
-	}
-
-	// fetch acks in block
-	for _, h := range block.Queries {
-		var ack *types.SignedAckHeader
-		if ack, err = r.c.queryOrSyncAckedQuery(r.height, h, block.Producer()); err != nil || ack == nil {
-			log.WithFields(log.Fields{
-				"ack":    h.String(),
-				"height": r.height,
-			}).WithError(err).Warning("fetch ack of block height")
-			continue
-		}
-
-		// send advise to this block
-		req := &MuxAdviseAckedQueryReq{
-			Envelope:   proto.Envelope{},
-			DatabaseID: r.c.rt.databaseID,
-			AdviseAckedQueryReq: AdviseAckedQueryReq{
-				Query: ack,
-			},
-		}
-		resp := &MuxAdviseAckedQueryResp{}
-		err = r.c.cl.CallNode(r.nodeID, route.OBSAdviseAckedQuery.String(), req, resp)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"node":   r.nodeID,
-				"height": r.height,
-			}).WithError(err).Warning("send ack advise to observer")
-			return
-		}
 	}
 
 	// send block

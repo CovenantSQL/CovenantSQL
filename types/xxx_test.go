@@ -101,12 +101,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 		},
 	}
 
-	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
-		h := &hash.Hash{}
-		rand.Read(h[:])
-		b.PushAckedQuery(h)
-	}
-
 	if isGenesis {
 		// Compute nonce with public key
 		nonceCh := make(chan cpuminer.NonceInfo)

@@ -310,17 +310,6 @@ func TestMultiChain(t *testing.T) {
 				}
 				t.Logf("Checking block %v at height %d in peer %s",
 					node.block.BlockHash(), i, c.rt.getPeerInfoString())
-				for _, v := range node.block.Queries {
-					if ack, err := c.queryOrSyncAckedQuery(
-						i, v, node.block.Producer(),
-					); err != nil && ack == nil {
-						t.Errorf("Failed to fetch ack %v at height %d in peer %s: %v",
-							v, i, c.rt.getPeerInfoString(), err)
-					} else {
-						t.Logf("Successed to fetch ack %v at height %d in peer %s",
-							v, i, c.rt.getPeerInfoString())
-					}
-				}
 			}
 		}(v.chain)
 	}

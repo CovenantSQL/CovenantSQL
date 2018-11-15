@@ -107,8 +107,6 @@ const (
 	SQLCSubscribeTransactions
 	// SQLCCancelSubscription is used by sqlchain to handle observer subscription cancellation request
 	SQLCCancelSubscription
-	// OBSAdviseAckedQuery is used by sqlchain to push acked query to observers
-	OBSAdviseAckedQuery
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
 	OBSAdviseNewBlock
 	// MCCAdviseNewBlock is used by block producer to push block to adjacent nodes
@@ -195,8 +193,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.SubscribeTransactions"
 	case SQLCCancelSubscription:
 		return "SQLC.CancelSubscription"
-	case OBSAdviseAckedQuery:
-		return "OBS.AdviseAckedQuery"
 	case OBSAdviseNewBlock:
 		return "OBS.AdviseNewBlock"
 	case MCCAdviseNewBlock:

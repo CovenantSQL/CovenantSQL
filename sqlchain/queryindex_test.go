@@ -17,12 +17,10 @@
 package sqlchain
 
 import (
-	"math/rand"
-	"reflect"
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 
@@ -129,14 +127,15 @@ func TestCheckAckFromBlock(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
+	ackHash := b1.Acks[0].Header.Hash()
 	if _, err := qi.checkAckFromBlock(
-		0, b1.BlockHash(), b1.Queries[0],
+		0, b1.BlockHash(), &ackHash,
 	); errors.Cause(err) != ErrQueryExpired {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	if isKnown, err := qi.checkAckFromBlock(
-		height, b1.BlockHash(), b1.Queries[0],
+		height, b1.BlockHash(), &ackHash,
 	); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	} else if isKnown {
@@ -207,23 +206,29 @@ func TestCheckAckFromBlock(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	ackHash := ack1.Hash()
-	b1.Queries[0] = &ackHash
-	b2.Queries[0] = &ackHash
+	b1.Acks[0] = &types.Ack{
+		Header: *ack1,
+	}
+	b2.Acks[0] = &types.Ack{
+		Header: *ack1,
+	}
+	ack1Hash := ack1.Hash()
 	qi.setSignedBlock(height, b1)
 
 	if _, err := qi.checkAckFromBlock(
-		height, b2.BlockHash(), b2.Queries[0],
+		height, b2.BlockHash(), &ack1Hash,
 	); err != ErrQuerySignedByAnotherBlock {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	// Test checking same ack signed by another block
 	ack2Hash := ack2.Hash()
-	b2.Queries[0] = &ack2Hash
+	b2.Acks[0] = &types.Ack{
+		Header: *ack2,
+	}
 
 	if _, err = qi.checkAckFromBlock(
-		height, b2.BlockHash(), b2.Queries[0],
+		height, b2.BlockHash(), &ack2Hash,
 	); err != ErrQuerySignedByAnotherBlock {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -232,7 +237,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	qi.heightIndex.mustGet(height).seqIndex[req.GetQueryKey()].firstAck.signedBlock = nil
 
 	if _, err = qi.checkAckFromBlock(
-		height, b2.BlockHash(), b2.Queries[0],
+		height, b2.BlockHash(), &ack2Hash,
 	); err != nil {
 		t.Fatalf("Error occurred: %v", err)
 	}
@@ -241,7 +246,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 	qi.heightIndex.mustGet(height).seqIndex[req.GetQueryKey()] = nil
 
 	if _, err = qi.checkAckFromBlock(
-		height, b2.BlockHash(), b2.Queries[0],
+		height, b2.BlockHash(), &ack2Hash,
 	); err != ErrCorruptedIndex {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -257,142 +262,5 @@ func TestGetAck(t *testing.T) {
 
 	if _, err := qi.getAck(0, qh); errors.Cause(err) != ErrQueryNotCached {
 		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-
-func TestQueryIndex(t *testing.T) {
-	log.SetLevel(log.InfoLevel)
-	// Initialize clients and workers
-	clients, err := newRandomNodes(testClientNumber)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	workers, err := newRandomNodes(testWorkerNumber)
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	// Initialize index
-	qi := newQueryIndex()
-
-	// Create some responses and acknowledgements and insert to index
-	for i := 0; i < testBucketNumber; i++ {
-		qi.advanceBarrier(int32(i))
-		block, err := createRandomBlock(genesisHash, false)
-
-		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
-		}
-
-		block.Queries = block.Queries[:0]
-
-		for j := 0; j < testQueryNumberPerHeight; j++ {
-			cli := clients[rand.Intn(testClientNumber)]
-			req, err := createRandomQueryRequest(cli)
-			hasFirstAck := false
-
-			if err != nil {
-				t.Fatalf("Error occurred: %v", err)
-			}
-
-			ackNumber := rand.Intn(testQueryWorkerNumber + 1)
-
-			for k := 0; k < testQueryWorkerNumber; k++ {
-				worker := workers[(rand.Intn(testWorkerNumber)+k)%testWorkerNumber]
-				resp, err := createRandomQueryResponseWithRequest(req, worker)
-
-				if err != nil {
-					t.Fatalf("Error occurred: %v", err)
-				}
-
-				log.Debugf("i = %d, j = %d, k = %d\n\tseqno = %+v, req = %v, resp = %v", i, j, k,
-					resp.Request.GetQueryKey(), req.Hash().String(), resp.Hash().String())
-
-				if err = qi.addResponse(int32(i), resp); err != nil {
-					t.Fatalf("Error occurred: %v", err)
-				}
-
-				if k < ackNumber {
-					dupAckNumber := 1 + rand.Intn(2)
-
-					for l := 0; l < dupAckNumber; l++ {
-						ack, err := createRandomQueryAckWithResponse(resp, cli)
-
-						log.Debugf("i = %d, j = %d, k = %d, l = %d\n\tseqno = %+v, "+
-							"req = %v, resp = %v, ack = %v",
-							i, j, k, l,
-							ack.SignedRequestHeader().GetQueryKey(),
-							ack.SignedRequestHeader().Hash(),
-							ack.SignedResponseHeader().Hash(),
-							ack.Hash(),
-						)
-
-						if err != nil {
-							t.Fatalf("Error occurred: %v", err)
-						}
-
-						err = qi.addAck(int32(i), ack)
-
-						if !hasFirstAck {
-							if l == 0 && err != nil ||
-								l > 0 && err != nil && err != ErrMultipleAckOfResponse {
-								t.Fatalf("Error occurred: %v", err)
-							}
-						} else {
-							if l == 0 && err == nil {
-								t.Fatalf("Unexpected error: %v", err)
-							}
-						}
-
-						if err == nil {
-							hasFirstAck = true
-							ackHash := ack.Hash()
-							block.PushAckedQuery(&ackHash)
-						} else {
-							continue
-						}
-
-						ackHash := ack.Hash()
-						if rAck, err := qi.getAck(int32(i), &ackHash); err != nil {
-							t.Fatalf("Error occurred: %v", err)
-						} else if !reflect.DeepEqual(ack, rAck) {
-							t.Fatalf("Unexpected result:\n\torigin = %+v\n\toutput = %+v",
-								ack, rAck)
-						} else if !reflect.DeepEqual(
-							ack.SignedResponseHeader(), rAck.SignedResponseHeader()) {
-							t.Fatalf("Unexpected result:\n\torigin = %+v\n\toutput = %+v",
-								ack.SignedResponseHeader(), rAck.SignedResponseHeader())
-						}
-					}
-				}
-			}
-
-			qi.setSignedBlock(int32(i), block)
-
-			for j := range block.Queries {
-				if isKnown, err := qi.checkAckFromBlock(
-					int32(i), block.BlockHash(), block.Queries[j],
-				); err != nil {
-					t.Fatalf("Error occurred: %v", err)
-				} else if !isKnown {
-					t.Logf("Failed to check known ack: %s", block.Queries[j])
-				}
-			}
-
-			qi.resetSignedBlock(int32(i), block)
-
-			for j := range block.Queries {
-				if isKnown, err := qi.checkAckFromBlock(
-					int32(i), block.BlockHash(), block.Queries[j],
-				); err != nil {
-					t.Fatalf("Error occurred: %v", err)
-				} else if !isKnown {
-					t.Fatal("Unexpected result: block is known")
-				}
-			}
-		}
 	}
 }

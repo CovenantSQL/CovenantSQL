@@ -46,8 +46,13 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	h := &hash.Hash{}
-	block.PushAckedQuery(h)
+	block.Acks = append(block.Acks, &Ack{
+		Header: SignedAckHeader{
+			DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+				DataHash: hash.Hash{0x01},
+			},
+		},
+	})
 
 	if err = block.Verify(); err != ErrMerkleRootVerification {
 		t.Fatalf("Unexpected error: %v", err)

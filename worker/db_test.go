@@ -761,12 +761,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 				Timestamp:   time.Now().UTC(),
 			},
 		},
-		Queries: make([]*hash.Hash, rand.Intn(10)+10),
-	}
-
-	for i := range b.Queries {
-		b.Queries[i] = new(hash.Hash)
-		rand.Read(b.Queries[i][:])
 	}
 
 	if isGenesis {

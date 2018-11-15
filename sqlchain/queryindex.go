@@ -502,10 +502,11 @@ func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
 func (i *queryIndex) setSignedBlock(h int32, block *types.Block) {
 	b := i.getBarrier()
 
-	for _, v := range block.Queries {
+	for _, v := range block.Acks {
 		for x := b; x <= h; x++ {
 			if hi, ok := i.heightIndex.get(x); ok {
-				hi.setSignedBlock(block.BlockHash(), v)
+				ackHash := v.Header.Hash()
+				hi.setSignedBlock(block.BlockHash(), &ackHash)
 			}
 		}
 	}
@@ -514,10 +515,11 @@ func (i *queryIndex) setSignedBlock(h int32, block *types.Block) {
 func (i *queryIndex) resetSignedBlock(h int32, block *types.Block) {
 	b := i.getBarrier()
 
-	for _, v := range block.Queries {
+	for _, v := range block.Acks {
 		for x := b; x <= h; x++ {
 			if hi, ok := i.heightIndex.get(x); ok {
-				hi.resetSignedBlock(block.BlockHash(), v)
+				ackHash := v.Header.Hash()
+				hi.resetSignedBlock(block.BlockHash(), &ackHash)
 			}
 		}
 	}

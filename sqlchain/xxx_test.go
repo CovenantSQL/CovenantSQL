@@ -28,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -345,7 +346,15 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
 		h := &hash.Hash{}
 		rand.Read(h[:])
-		b.PushAckedQuery(h)
+		b.Acks = []*types.Ack{
+			{
+				Header: types.SignedAckHeader{
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: *h,
+					},
+				},
+			},
+		}
 	}
 
 	if isGenesis {
@@ -357,7 +366,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 			return
 		}
 
-		b.Queries = nil
 		b.SignedHeader.GenesisHash = hash.Hash{}
 		b.SignedHeader.Header.Producer = proto.NodeID(nis[0].Hash.String())
 	}
@@ -402,11 +410,6 @@ func createRandomBlockWithQueries(genesis, parent hash.Hash, acks []*types.Signe
 				Timestamp:   time.Now().UTC(),
 			},
 		},
-	}
-
-	for _, ack := range acks {
-		ackHash := ack.Hash()
-		b.PushAckedQuery(&ackHash)
 	}
 
 	err = b.PackAndSignBlock(priv)

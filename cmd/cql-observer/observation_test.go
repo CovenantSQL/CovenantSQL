@@ -187,7 +187,7 @@ func stopNodes() {
 }
 
 func getJSON(pattern string, args ...interface{}) (result *jsonq.JsonQuery, err error) {
-	url := "http://localhost:4663/v1/" + fmt.Sprintf(pattern, args...)
+	url := "http://localhost:4663/" + fmt.Sprintf(pattern, args...)
 	resp, err := http.Get(url)
 	if err != nil {
 		return
@@ -195,6 +195,15 @@ func getJSON(pattern string, args ...interface{}) (result *jsonq.JsonQuery, err 
 
 	var res map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		return
+	}
+	log.WithFields(log.Fields{
+		"pattern":  pattern,
+		"args":     args,
+		"response": res,
+		"code":     resp.StatusCode,
+	}).Debug("send test request")
 	result = jsonq.NewQuery(res)
 	success, err := result.Bool("success")
 	if err != nil {
@@ -353,38 +362,41 @@ func TestFullProcess(t *testing.T) {
 		time.Sleep(blockProducePeriod * 2)
 
 		// test get genesis block by height
-		res, err := getJSON("height/%v/0", dbID)
+		res, err := getJSON("v1/height/%v/0", dbID)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
 		// test get first containable block
-		res, err = getJSON("height/%v/1", dbID)
+		res, err = getJSON("v3/height/%v/1", dbID)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 1)
 		So(ensureSuccess(res.String("block", "hash")), ShouldNotBeEmpty)
 		So(ensureSuccess(res.String("block", "genesis_hash")), ShouldEqual, genesisHash)
-		So(ensureSuccess(res.ArrayOfStrings("block", "queries")), ShouldNotBeEmpty)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldNotBeEmpty)
 		blockHash := ensureSuccess(res.String("block", "hash")).(string)
 		byHeightBlockResult := ensureSuccess(res.Interface())
 
 		// test get block by hash
-		res, err = getJSON("block/%v/%v", dbID, blockHash)
+		res, err = getJSON("v3/block/%v/%v", dbID, blockHash)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface()), ShouldResemble, byHeightBlockResult)
+
+		// test get block by hash using v1 version, returns ack hashes as queries
+		res, err = getJSON("v1/block/%v/%v", dbID, blockHash)
+		So(err, ShouldBeNil)
 
 		ackHashes, err := res.ArrayOfStrings("block", "queries")
 		So(err, ShouldBeNil)
 		So(ackHashes, ShouldNotBeEmpty)
 
 		// test get acked query in block
-		var logOffset int
 		var reqHash string
 
 		for _, ackHash := range ackHashes {
-			res, err = getJSON("ack/%v/%v", dbID, ackHash)
+			res, err = getJSON("v1/ack/%v/%v", dbID, ackHash)
 			So(err, ShouldBeNil)
 			So(ensureSuccess(res.Interface("ack")), ShouldNotBeNil)
 			So(ensureSuccess(res.String("ack", "hash")), ShouldNotBeEmpty)
@@ -396,9 +408,6 @@ func TestFullProcess(t *testing.T) {
 			So(queryType, ShouldBeIn, []string{types.WriteQuery.String(), types.ReadQuery.String()})
 
 			if queryType == types.WriteQuery.String() {
-				logOffset, err = res.Int("ack", "response", "log_position")
-				So(err, ShouldBeNil)
-				So(logOffset, ShouldBeGreaterThanOrEqualTo, 0)
 				reqHash, err = res.String("ack", "request", "hash")
 				So(err, ShouldBeNil)
 				So(reqHash, ShouldNotBeEmpty)
@@ -407,10 +416,9 @@ func TestFullProcess(t *testing.T) {
 
 		// must contains a write query
 		So(reqHash, ShouldNotBeEmpty)
-		So(logOffset, ShouldBeGreaterThanOrEqualTo, 0)
 
 		// test get request entity by request hash
-		res, err = getJSON("request/%v/%v", dbID, reqHash)
+		res, err = getJSON("v1/request/%v/%v", dbID, reqHash)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("request")), ShouldNotBeNil)
 		So(ensureSuccess(res.String("request", "hash")), ShouldNotBeEmpty)
@@ -418,25 +426,14 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Int("request", "count")), ShouldEqual, 1) // no transaction batch is used
 		So(ensureSuccess(res.ArrayOfObjects("request", "queries")), ShouldNotBeEmpty)
 		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldNotBeEmpty)
-		byHashRequestResult := ensureSuccess(res.Interface())
-
-		// test get request entity by log offset
-		res, err = getJSON("offset/%v/%v", dbID, logOffset)
-		So(err, ShouldBeNil)
-		So(ensureSuccess(res.Interface()), ShouldResemble, byHashRequestResult)
-
-		// test get first log offset, should be a create table statement
-		//res, err = getJSON("offset/%v/0", dbID)
-		//So(err, ShouldBeNil)
-		//So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldContainSubstring, "CREATE TABLE")
 
 		// test get genesis block by height
-		res, err = getJSON("height/%v/0", dbID2)
+		res, err = getJSON("v3/height/%v/0", dbID2)
 		So(err, ShouldNotBeNil)
 		log.Info(err, res)
 
 		// test get genesis block by height
-		res, err = getJSON("head/%v", dbID2)
+		res, err = getJSON("v3/head/%v", dbID2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)

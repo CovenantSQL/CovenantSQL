@@ -458,21 +458,22 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 
 	if err == nil {
 		log.WithFields(log.Fields{
-			"peer":        c.rt.getPeerInfoString()[:14],
-			"time":        c.rt.getChainTimeString(),
-			"block":       b.BlockHash().String()[:8],
-			"producer":    b.Producer()[:8],
-			"querycount":  len(b.Queries),
-			"blocktime":   b.Timestamp().Format(time.RFC3339Nano),
-			"blockheight": c.rt.getHeightFromTime(b.Timestamp()),
-			"headblock": fmt.Sprintf("%s <- %s",
+			"peer":       c.rt.getPeerInfoString()[:14],
+			"time":       c.rt.getChainTimeString(),
+			"block":      b.BlockHash().String()[:8],
+			"producer":   b.Producer()[:8],
+			"queryCount": len(b.QueryTxs),
+			"ackCount":   len(b.Acks),
+			"blockTime":  b.Timestamp().Format(time.RFC3339Nano),
+			"height":     c.rt.getHeightFromTime(b.Timestamp()),
+			"head": fmt.Sprintf("%s <- %s",
 				func() string {
 					if st.node.parent != nil {
 						return st.node.parent.hash.String()[:8]
 					}
 					return "|"
 				}(), st.Head.String()[:8]),
-			"headheight": c.rt.getHead().Height,
+			"headHeight": c.rt.getHead().Height,
 		}).Info("Pushed new block")
 	}
 
@@ -622,89 +623,6 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 	wg.Wait()
 	// fire replication to observers
 	c.startStopReplication()
-	return
-}
-
-// produceBlock prepares, signs and advises the pending block to the other peers.
-func (c *Chain) produceBlock(now time.Time) (err error) {
-	// Pack and sign block
-	block := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    c.rt.getServer(),
-				GenesisHash: c.rt.genesisHash,
-				ParentHash:  c.rt.getHead().Head,
-				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
-				Timestamp: now,
-			},
-			// BlockHash/Signee/Signature: will be set by Block.PackAndSignBlock(PrivateKey)
-		},
-		Queries: c.qi.markAndCollectUnsignedAcks(c.rt.getNextTurn()),
-	}
-
-	if err = block.PackAndSignBlock(c.pk); err != nil {
-		return
-	}
-
-	// Send to pending list
-	c.blocks <- block
-	log.WithFields(log.Fields{
-		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeString(),
-		"curr_turn":       c.rt.getNextTurn(),
-		"using_timestamp": now.Format(time.RFC3339Nano),
-		"block_hash":      block.BlockHash().String(),
-	}).Debug("Produced new block")
-
-	// Advise new block to the other peers
-	req := &MuxAdviseNewBlockReq{
-		Envelope: proto.Envelope{
-			// TODO(leventeliu): Add fields.
-		},
-		DatabaseID: c.rt.databaseID,
-		AdviseNewBlockReq: AdviseNewBlockReq{
-			Block: block,
-			Count: func() int32 {
-				if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
-					return nd.count
-				}
-				if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
-					return pn.count + 1
-				}
-				return -1
-			}(),
-		},
-	}
-	peers := c.rt.getPeers()
-	wg := &sync.WaitGroup{}
-
-	for _, s := range peers.Servers {
-		if s != c.rt.getServer() {
-			wg.Add(1)
-			go func(id proto.NodeID) {
-				defer wg.Done()
-				resp := &MuxAdviseNewBlockResp{}
-				if err := c.cl.CallNode(
-					id, route.SQLCAdviseNewBlock.String(), req, resp); err != nil {
-					log.WithFields(log.Fields{
-						"peer":            c.rt.getPeerInfoString(),
-						"time":            c.rt.getChainTimeString(),
-						"curr_turn":       c.rt.getNextTurn(),
-						"using_timestamp": now.Format(time.RFC3339Nano),
-						"block_hash":      block.BlockHash().String(),
-					}).WithError(err).Error(
-						"Failed to advise new block")
-				}
-			}(s)
-		}
-	}
-
-	wg.Wait()
-
-	// fire replication to observers
-	c.startStopReplication()
-
 	return
 }
 
@@ -1300,8 +1218,9 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 			}
 		}
 
-		for _, v := range n.block.Queries {
-			if ack, err = c.queryOrSyncAckedQuery(n.height, v, n.block.Producer()); err != nil {
+		for _, v := range n.block.Acks {
+			ackHash := v.Header.Hash()
+			if ack, err = c.queryOrSyncAckedQuery(n.height, &ackHash, n.block.Producer()); err != nil {
 				return
 			}
 

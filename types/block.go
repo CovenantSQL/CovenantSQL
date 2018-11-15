@@ -86,7 +86,6 @@ type QueryAsTx struct {
 // Block is a node of blockchain.
 type Block struct {
 	SignedHeader SignedHeader
-	Queries      []*hash.Hash
 	FailedReqs   []*Request
 	QueryTxs     []*QueryAsTx
 	Acks         []*Ack
@@ -95,34 +94,14 @@ type Block struct {
 // PackAndSignBlock generates the signature for the Block from the given PrivateKey.
 func (b *Block) PackAndSignBlock(signer *ca.PrivateKey) (err error) {
 	// Calculate merkle root
-	var hs = make([]*hash.Hash, 0, len(b.Queries)+len(b.FailedReqs)+len(b.QueryTxs)+len(b.Acks))
-	for i := range b.Queries {
-		hs = append(hs, b.Queries[i])
-	}
-	for i := range b.FailedReqs {
-		hs = append(hs, &b.FailedReqs[i].Header.DataHash)
-	}
-	for i := range b.QueryTxs {
-		hs = append(hs, &b.QueryTxs[i].Response.DataHash)
-	}
-	for i := range b.Acks {
-		hs = append(hs, &b.Acks[i].Header.DataHash)
-	}
-	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(hs).GetRoot()
+	b.SignedHeader.MerkleRoot = b.computeMerkleRoot()
 	return b.SignedHeader.Sign(signer)
-}
-
-// PushAckedQuery pushes a acknowledged and verified query into the block.
-func (b *Block) PushAckedQuery(h *hash.Hash) {
-	b.Queries = append(b.Queries, h)
 }
 
 // Verify verifies the merkle root and header signature of the block.
 func (b *Block) Verify() (err error) {
 	// Verify merkle root
-	if MerkleRoot := *merkle.NewMerkle(b.Queries).GetRoot(); !MerkleRoot.IsEqual(
-		&b.SignedHeader.MerkleRoot,
-	) {
+	if merkleRoot := b.computeMerkleRoot(); !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
 		return ErrMerkleRootVerification
 	}
 	return b.SignedHeader.Verify()
@@ -169,6 +148,23 @@ func (b *Block) GenesisHash() *hash.Hash {
 // Signee returns the signee field  of the block signed header.
 func (b *Block) Signee() *ca.PublicKey {
 	return b.SignedHeader.HSV.Signee
+}
+
+func (b *Block) computeMerkleRoot() hash.Hash {
+	var hs = make([]*hash.Hash, 0, len(b.FailedReqs)+len(b.QueryTxs)+len(b.Acks))
+	for i := range b.FailedReqs {
+		h := b.FailedReqs[i].Header.Hash()
+		hs = append(hs, &h)
+	}
+	for i := range b.QueryTxs {
+		h := b.QueryTxs[i].Response.Hash()
+		hs = append(hs, &h)
+	}
+	for i := range b.Acks {
+		h := b.Acks[i].Header.Hash()
+		hs = append(hs, &h)
+	}
+	return *merkle.NewMerkle(hs).GetRoot()
 }
 
 // Blocks is Block (reference) array.

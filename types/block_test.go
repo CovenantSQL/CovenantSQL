@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestSignAndVerify(t *testing.T) {
@@ -291,4 +292,161 @@ func TestGenesis(t *testing.T) {
 	} else {
 		t.Fatal("Unexpected result: returned nil while expecting an error")
 	}
+}
+
+func Test(t *testing.T) {
+	Convey("CalcNextID should return correct id of each testing block", t, func() {
+		var (
+			nextid uint64
+			ok     bool
+
+			cases = [...]struct {
+				block  *Block
+				nextid uint64
+				ok     bool
+			}{
+				{
+					block: &Block{
+						QueryTxs: []*QueryAsTx{},
+					},
+					nextid: 0,
+					ok:     false,
+				}, {
+					block: &Block{
+						QueryTxs: nil,
+					},
+					nextid: 0,
+					ok:     false,
+				}, {
+					block: &Block{
+						QueryTxs: []*QueryAsTx{
+							&QueryAsTx{
+								Request: &Request{
+									Header: SignedRequestHeader{
+										RequestHeader: RequestHeader{
+											QueryType: ReadQuery,
+										},
+									},
+									Payload: RequestPayload{
+										Queries: make([]Query, 10),
+									},
+								},
+								Response: &SignedResponseHeader{
+									ResponseHeader: ResponseHeader{
+										LogOffset: 0,
+									},
+								},
+							},
+						},
+					},
+					nextid: 0,
+					ok:     false,
+				}, {
+					block: &Block{
+						QueryTxs: []*QueryAsTx{
+							&QueryAsTx{
+								Request: &Request{
+									Header: SignedRequestHeader{
+										RequestHeader: RequestHeader{
+											QueryType: WriteQuery,
+										},
+									},
+									Payload: RequestPayload{
+										Queries: make([]Query, 10),
+									},
+								},
+								Response: &SignedResponseHeader{
+									ResponseHeader: ResponseHeader{
+										LogOffset: 0,
+									},
+								},
+							},
+						},
+					},
+					nextid: 10,
+					ok:     true,
+				}, {
+					block: &Block{
+						QueryTxs: []*QueryAsTx{
+							&QueryAsTx{
+								Request: &Request{
+									Header: SignedRequestHeader{
+										RequestHeader: RequestHeader{
+											QueryType: ReadQuery,
+										},
+									},
+									Payload: RequestPayload{
+										Queries: make([]Query, 10),
+									},
+								},
+								Response: &SignedResponseHeader{
+									ResponseHeader: ResponseHeader{
+										LogOffset: 0,
+									},
+								},
+							}, &QueryAsTx{
+								Request: &Request{
+									Header: SignedRequestHeader{
+										RequestHeader: RequestHeader{
+											QueryType: WriteQuery,
+										},
+									},
+									Payload: RequestPayload{
+										Queries: make([]Query, 10),
+									},
+								},
+								Response: &SignedResponseHeader{
+									ResponseHeader: ResponseHeader{
+										LogOffset: 0,
+									},
+								},
+							}, &QueryAsTx{
+								Request: &Request{
+									Header: SignedRequestHeader{
+										RequestHeader: RequestHeader{
+											QueryType: ReadQuery,
+										},
+									},
+									Payload: RequestPayload{
+										Queries: make([]Query, 10),
+									},
+								},
+								Response: &SignedResponseHeader{
+									ResponseHeader: ResponseHeader{
+										LogOffset: 10,
+									},
+								},
+							}, &QueryAsTx{
+								Request: &Request{
+									Header: SignedRequestHeader{
+										RequestHeader: RequestHeader{
+											QueryType: WriteQuery,
+										},
+									},
+									Payload: RequestPayload{
+										Queries: make([]Query, 20),
+									},
+								},
+								Response: &SignedResponseHeader{
+									ResponseHeader: ResponseHeader{
+										LogOffset: 10,
+									},
+								},
+							},
+						},
+					},
+					nextid: 30,
+					ok:     true,
+				},
+			}
+		)
+
+		for _, v := range cases {
+			nextid, ok = v.block.CalcNextID()
+			So(ok, ShouldEqual, v.ok)
+			if ok {
+				So(nextid, ShouldEqual, v.nextid)
+			}
+		}
+	})
 }

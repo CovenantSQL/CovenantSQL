@@ -338,9 +338,8 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		}
 
 		// Update id
-		if len(block.QueryTxs) != 0 {
-			var qt = block.QueryTxs[len(block.QueryTxs)-1]
-			id = qt.Response.LogOffset + uint64(len(qt.Request.Payload.Queries))
+		if nid, ok := block.CalcNextID(); ok && nid > id {
+			id = nid
 		}
 
 		current = &blockNode{}

@@ -91,6 +91,23 @@ type Block struct {
 	Acks         []*Ack
 }
 
+// CalcNextID calculates the next query id by examinating every query in block, and adds write
+// query number to the last offset.
+//
+// TODO(leventeliu): too tricky. Consider simply adding next id to each block header.
+func (b *Block) CalcNextID() (id uint64, ok bool) {
+	for _, v := range b.QueryTxs {
+		if v.Request.Header.QueryType == WriteQuery {
+			var nid = v.Response.LogOffset + uint64(len(v.Request.Payload.Queries))
+			if nid > id {
+				id = nid
+			}
+			ok = true
+		}
+	}
+	return
+}
+
 // PackAndSignBlock generates the signature for the Block from the given PrivateKey.
 func (b *Block) PackAndSignBlock(signer *ca.PrivateKey) (err error) {
 	// Calculate merkle root

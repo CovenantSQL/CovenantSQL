@@ -360,7 +360,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 					// Commit block if matches the next commit point
 					if cmtpos < len(cmtps) && i == cmtps[cmtpos] {
 						var qts []*QueryTracker
-						qts, err = st1.CommitEx()
+						_, qts, err = st1.CommitEx()
 						So(err, ShouldBeNil)
 						So(qts, ShouldNotBeNil)
 						blocks[cmtpos] = &types.Block{

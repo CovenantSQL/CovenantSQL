@@ -19,6 +19,7 @@ package xenomint
 import (
 	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -45,12 +46,16 @@ func (q *QueryTracker) Ready() bool {
 }
 
 type pool struct {
+	// Failed queries: hash => Request
+	failed map[hash.Hash]*types.Request
+	// Succeeded queries and their index
 	queries []*QueryTracker
 	index   map[uint64]int
 }
 
 func newPool() *pool {
 	return &pool{
+		failed:  make(map[hash.Hash]*types.Request),
 		queries: make([]*QueryTracker, 0),
 		index:   make(map[uint64]int),
 	}
@@ -61,6 +66,22 @@ func (p *pool) enqueue(sp uint64, q *QueryTracker) {
 	p.queries = append(p.queries, q)
 	p.index[sp] = pos
 	return
+}
+
+func (p *pool) setFailed(req *types.Request) {
+	p.failed[req.Header.Hash()] = req
+}
+
+func (p *pool) failedList() (reqs []*types.Request) {
+	reqs = make([]*types.Request, 0, len(p.failed))
+	for _, v := range p.failed {
+		reqs = append(reqs, v)
+	}
+	return
+}
+
+func (p *pool) removeFailed(req *types.Request) {
+	delete(p.failed, req.Header.Hash())
 }
 
 func (p *pool) match(sp uint64, req *types.Request) bool {

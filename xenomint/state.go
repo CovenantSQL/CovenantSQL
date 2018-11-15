@@ -262,6 +262,8 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 	for i, v := range req.Payload.Queries {
 		if cnames, ctypes, data, ierr = readSingle(s.strg.DirtyReader(), &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
+			// Add to failed pool list
+			s.pool.setFailed(req)
 			return
 		}
 	}
@@ -295,10 +297,7 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 		data           [][]interface{}
 		querier        sqlQuerier
 	)
-
-	// FIXME(leventeliu): lock free but not consistent.
 	id = s.getID()
-
 	if atomic.LoadUint32(&s.hasSchemaChange) == 1 {
 		// lock transaction
 		s.Lock()
@@ -318,6 +317,8 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 	for i, v := range req.Payload.Queries {
 		if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
+			// Add to failed pool list
+			s.pool.setFailed(req)
 			return
 		}
 	}
@@ -391,6 +392,8 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 			var res sql.Result
 			if res, ierr = s.writeSingle(&v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at #%d failed", i)
+				// Add to failed pool list
+				s.pool.setFailed(req)
 				s.rollbackTo(savepoint)
 				return
 			}
@@ -494,6 +497,10 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 		s.setSavepoint()
 		s.pool.enqueue(lastsp, query)
 	}
+	// Remove duplicate failed queries from local pool
+	for _, r := range block.FailedReqs {
+		s.pool.removeFailed(r)
+	}
 	// Check if the current transaction is ok to commit
 	if s.pool.matchLast(lastsp) {
 		if err = s.uncCommit(); err != nil {
@@ -533,7 +540,7 @@ func (s *State) commit() (err error) {
 }
 
 // CommitEx commits the current transaction and returns all the pooled queries.
-func (s *State) CommitEx() (queries []*QueryTracker, err error) {
+func (s *State) CommitEx() (failed []*types.Request, queries []*QueryTracker, err error) {
 	s.Lock()
 	defer s.Unlock()
 	if err = s.uncCommit(); err != nil {
@@ -546,6 +553,8 @@ func (s *State) CommitEx() (queries []*QueryTracker, err error) {
 	}
 	s.setNextTxID()
 	s.setSavepoint()
+	// Return pooled items and reset
+	failed = s.pool.failedList()
 	queries = s.pool.queries
 	s.pool = newPool()
 	return
@@ -626,6 +635,12 @@ func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Respon
 
 // Replay replays a write log from other peer to replicate storage state.
 func (s *State) Replay(req *types.Request, resp *types.Response) (err error) {
+	// NOTE(leventeliu): in the current implementation, failed requests are not tracked in remote
+	// nodes (while replaying via Replay calls). Because we don't want to actually replay read
+	// queries in all synchronized nodes, meanwhile, whether a request will fail or not
+	// remains unknown until we actually replay it -- a dead end here.
+	// So we just keep failed requests in local pool and report them in the next local block
+	// producing.
 	switch req.Header.QueryType {
 	case types.ReadQuery:
 		return

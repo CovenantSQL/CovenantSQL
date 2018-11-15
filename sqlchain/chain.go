@@ -531,8 +531,11 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 
 // produceBlockV2 prepares, signs and advises the pending block to the other peers.
 func (c *Chain) produceBlockV2(now time.Time) (err error) {
-	var qts []*x.QueryTracker
-	if qts, err = c.st.CommitEx(); err != nil {
+	var (
+		frs []*types.Request
+		qts []*x.QueryTracker
+	)
+	if frs, qts, err = c.st.CommitEx(); err != nil {
 		return
 	}
 	var block = &types.Block{
@@ -546,7 +549,8 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 				Timestamp: now,
 			},
 		},
-		QueryTxs: make([]*types.QueryAsTx, len(qts)),
+		FailedReqs: frs,
+		QueryTxs:   make([]*types.QueryAsTx, len(qts)),
 	}
 	for i, v := range qts {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?

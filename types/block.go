@@ -87,6 +87,7 @@ type QueryAsTx struct {
 type Block struct {
 	SignedHeader SignedHeader
 	Queries      []*hash.Hash
+	FailedReqs   []*Request
 	QueryTxs     []*QueryAsTx
 	Acks         []*Ack
 }
@@ -94,9 +95,12 @@ type Block struct {
 // PackAndSignBlock generates the signature for the Block from the given PrivateKey.
 func (b *Block) PackAndSignBlock(signer *ca.PrivateKey) (err error) {
 	// Calculate merkle root
-	var hs = make([]*hash.Hash, 0, len(b.Queries)+len(b.QueryTxs)+len(b.Acks))
+	var hs = make([]*hash.Hash, 0, len(b.Queries)+len(b.FailedReqs)+len(b.QueryTxs)+len(b.Acks))
 	for i := range b.Queries {
 		hs = append(hs, b.Queries[i])
+	}
+	for i := range b.FailedReqs {
+		hs = append(hs, &b.FailedReqs[i].Header.DataHash)
 	}
 	for i := range b.QueryTxs {
 		hs = append(hs, &b.QueryTxs[i].Response.DataHash)

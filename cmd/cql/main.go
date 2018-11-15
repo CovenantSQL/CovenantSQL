@@ -29,9 +29,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
@@ -39,6 +36,10 @@ import (
 	"github.com/xo/usql/handler"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const name = "cql"
@@ -220,8 +221,8 @@ func main() {
 			return
 		}
 
-		log.Infof("stable coin balance is: %#v", stableCoinBalance)
-		log.Infof("covenant coin balance is: %#v", covenantCoinBalance)
+		log.Infof("stable coin balance is: %d", stableCoinBalance)
+		log.Infof("covenant coin balance is: %d", covenantCoinBalance)
 
 		return
 	}

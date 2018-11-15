@@ -16,6 +16,7 @@ kayak_test
 *.db
 *.db-shm
 *.db-wal
+*.ldb
 .DS_Store
 msgpack-20180824
 

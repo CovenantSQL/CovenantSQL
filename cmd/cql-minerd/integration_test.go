@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -389,17 +391,22 @@ func TestFullProcess(t *testing.T) {
 	})
 }
 
+const ROWSTART = 1000000
+const TABLENAME = "insert_table0"
+
 func prepareBenchTable(db *sql.DB) {
-	_, err := db.Exec("DROP TABLE IF EXISTS test;")
+	_, err := db.Exec("DROP TABLE IF EXISTS " + TABLENAME + ";")
 	So(err, ShouldBeNil)
 
-	_, err = db.Exec("CREATE TABLE test ( indexedColumn, nonIndexedColumn );")
+	_, err = db.Exec(`CREATE TABLE ` + TABLENAME + ` ("k" INT, "v1" TEXT, PRIMARY KEY("k"))`)
 	So(err, ShouldBeNil)
 
-	_, err = db.Exec("CREATE INDEX testIndexedColumn ON test ( indexedColumn );")
+	_, err = db.Exec("REPLACE INTO "+TABLENAME+" VALUES(?, ?)", ROWSTART-1, "test")
 	So(err, ShouldBeNil)
+}
 
-	_, err = db.Exec("INSERT INTO test VALUES(?, ?)", 4, 4)
+func cleanBenchTable(db *sql.DB) {
+	_, err := db.Exec("DELETE FROM "+TABLENAME+" WHERE k >= ?", ROWSTART)
 	So(err, ShouldBeNil)
 }
 
@@ -409,38 +416,26 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		prepareBenchTable(db)
 	}
 
-	var i int32
-	var insertedCount int
+	cleanBenchTable(db)
 
-	rand.Seed(time.Now().UnixNano())
-	start := (rand.Int31() % 100) * 10000
+	var i int64
+	i = -1
 
-	//b.Run("benchmark Single INSERT", func(b *testing.B) {
-	//	b.ResetTimer()
-	//	insertedCount = b.N
-	//	for i := 0; i < b.N; i++ {
-	//		_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-	//			"(?, ?)", int(start)+i, i,
-	//		)
-	//		if err != nil {
-	//			b.Fatal(err)
-	//		}
-	//	}
-	//})
-	//
-	//if createDB {
-	//	prepareBenchTable(db)
-	//}
-	//
-	b.Run("benchmark Multi INSERT", func(b *testing.B) {
+	b.Run("benchmark INSERT", func(b *testing.B) {
 		b.ResetTimer()
-		insertedCount = b.N
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				ii := atomic.AddInt32(&i, 1)
-				_, err = db.Exec("INSERT INTO test ( indexedColumn, nonIndexedColumn ) VALUES"+
-					"(?, ?)", start+ii, ii,
+				ii := atomic.AddInt64(&i, 1)
+				_, err = db.Exec("INSERT INTO "+TABLENAME+"( k, v1 ) VALUES"+
+					"(?, ?)", ROWSTART+ii, ii,
 				)
+				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
+					// retry forever
+					log.Warnf("ROWSTART+ii = %d retried", ROWSTART+ii)
+					_, err = db.Exec("INSERT INTO"+TABLENAME+"( k, v1 ) VALUES"+
+						"(?, ?)", ROWSTART+ii, ii,
+					)
+				}
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -448,37 +443,42 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		})
 	})
 
-	rowCount := db.QueryRow("SELECT COUNT(1) FROM test")
-	var count int
+	rowCount := db.QueryRow("SELECT COUNT(1) FROM " + TABLENAME)
+	var count int64
 	err = rowCount.Scan(&count)
 	if err != nil {
 		b.Fatal(err)
 	}
-	log.Warnf("Row Count: %d", count)
+	log.Warnf("Row Count: %v", count)
 
 	b.Run("benchmark SELECT", func(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				i := atomic.AddInt32(&i, 1)
-				index := int(i)%insertedCount + int(start) + 1
-				row := db.QueryRow("SELECT nonIndexedColumn FROM test WHERE indexedColumn = ? LIMIT 1", index)
-				var result int
+				var index int64
+				if createDB { //only data by insert
+					index = rand.Int63n(count-1) + ROWSTART
+				} else { //has data before ROWSTART
+					index = rand.Int63n(count - 1)
+				}
+				//log.Debugf("index = %d", index)
+				row := db.QueryRow("SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
+				var result []byte
 				err = row.Scan(&result)
-				if err != nil || result < 0 {
-					log.Errorf("i = %d", i)
+				if err != nil || (len(result) == 0) {
+					log.Errorf("index = %d", index)
 					b.Fatal(err)
 				}
 			}
 		})
 	})
 
-	row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
+	//row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 
-	var result int
-	err = row.Scan(&result)
-	So(err, ShouldBeNil)
-	So(result, ShouldEqual, 4)
+	//var result int
+	//err = row.Scan(&result)
+	//So(err, ShouldBeNil)
+	//So(result, ShouldEqual, 4)
 
 	err = db.Close()
 	So(err, ShouldBeNil)
@@ -545,17 +545,33 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 }
 
 func BenchmarkSQLite(b *testing.B) {
-	os.Remove("./foo.db")
-	defer os.Remove("./foo.db")
+	var db *sql.DB
+	var createDB bool
+	millionFile := fmt.Sprintf("/data/sqlite_bigdata/insert_multi_sqlitedb0_1_%v", ROWSTART)
+	f, err := os.Open(millionFile)
+	if err != nil && os.IsNotExist(err) {
+		os.Remove("./foo.db")
+		defer os.Remove("./foo.db")
 
-	db, err := sql.Open("sqlite3", "./foo.db?_journal_mode=WAL&_synchronous=NORMAL&cache=shared")
-	if err != nil {
-		log.Fatal(err)
+		db, err = sql.Open("sqlite3", "./foo.db?_journal_mode=WAL&_synchronous=NORMAL&cache=shared")
+		if err != nil {
+			log.Fatal(err)
+		}
+		createDB = true
+		defer db.Close()
+	} else {
+		f.Close()
+		db, err = sql.Open("sqlite3", millionFile+"?_journal_mode=WAL&_synchronous=NORMAL&cache=shared")
+		log.Infof("Testing sqlite3 million data exist file %v", millionFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		createDB = false
+		defer db.Close()
 	}
-	defer db.Close()
 
 	Convey("bench SQLite", b, func() {
-		benchDB(b, db, true)
+		benchDB(b, db, createDB)
 	})
 }
 

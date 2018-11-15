@@ -334,15 +334,15 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 					qt   *QueryTracker
 					reqs = []*types.Request{
 						buildRequest(types.WriteQuery, []types.Query{
-							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[0]...),
 						}),
 						buildRequest(types.WriteQuery, []types.Query{
-							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[1]...),
-							buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?);
-INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[1]...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?);
+INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						}),
 						buildRequest(types.WriteQuery, []types.Query{
-							buildQuery(`DELETE FROM "t1" WHERE "k"=?`, values[2][0]),
+							buildQuery(`DELETE FROM t1 WHERE k=?`, values[2][0]),
 						}),
 					}
 
@@ -424,7 +424,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 					},
 				)
 				Convey(
-					"The state should be reproducable with block replaying in empty instance #2",
+					"The state should be reproducible with block replaying in empty instance #2",
 					func() {
 						// Block replaying
 						for i := range blocks {
@@ -435,7 +435,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 						for i := range values {
 							var resp1, resp2 *types.Response
 							req = buildRequest(types.ReadQuery, []types.Query{
-								buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[i][0]),
+								buildQuery(`SELECT v FROM t1 WHERE k=?`, values[i][0]),
 							})
 							_, resp1, err = st1.Query(req)
 							So(err, ShouldBeNil)
@@ -448,7 +448,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 					},
 				)
 				Convey(
-					"The state should be reproducable with block replaying in synchronized"+
+					"The state should be reproducible with block replaying in synchronized"+
 						" instance #2",
 					func() {
 						// Replay by request to st2 first
@@ -469,7 +469,7 @@ INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, concat(values[2:4])...),
 						for i := range values {
 							var resp1, resp2 *types.Response
 							req = buildRequest(types.ReadQuery, []types.Query{
-								buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[i][0]),
+								buildQuery(`SELECT v FROM t1 WHERE k=?`, values[i][0]),
 							})
 							_, resp1, err = st1.Query(req)
 							So(err, ShouldBeNil)

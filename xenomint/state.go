@@ -48,7 +48,7 @@ type State struct {
 	origin          uint64 // origin is the original savepoint of the current transaction
 	cmpoint         uint64 // cmpoint is the last commit point of the current transaction
 	current         uint64 // current is the current savepoint of the current transaction
-	hasSchemaChange uint32 // indicates schema change happends in this uncommitted transaction
+	hasSchemaChange uint32 // indicates schema change happens in this uncommitted transaction
 }
 
 // NewState returns a new State bound to strg.

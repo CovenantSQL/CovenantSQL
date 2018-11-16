@@ -67,12 +67,14 @@ func newConn(cfg *Config) (c *conn, err error) {
 		queries:     make([]wt.Query, 0),
 	}
 
+	var peers *proto.Peers
 	// get peers from BP
-	if _, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
+	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		log.WithError(err).Error("cacheGetPeers failed")
 		c = nil
 		return
 	}
+	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 
 	err = c.startAckWorkers(2)
 	if err != nil {
@@ -346,7 +348,6 @@ func (c *conn) sendQuery(queryType wt.QueryType, queries []wt.Query) (affectedRo
 		return
 	}
 
-	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 	var response wt.Response
 	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return

@@ -24,7 +24,7 @@ import (
 
 var (
 	// DefaultMaxReqTimeGap defines max time gap between request and server.
-	DefaultMaxReqTimeGap = time.Second * 5
+	DefaultMaxReqTimeGap = time.Minute
 )
 
 // DBMSConfig defines the local multi-database management system config.

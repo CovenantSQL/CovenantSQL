@@ -67,7 +67,7 @@ func TestSubscribeOnceAndManySubscribe(t *testing.T) {
 	bus := New()
 	event := bi.TransactionType(1)
 	flag := 0
-	fn := func() { flag += 1 }
+	fn := func() { flag++ }
 	bus.SubscribeOnce(event, fn)
 	bus.Subscribe(event, fn)
 	bus.Subscribe(event, fn)
@@ -160,7 +160,7 @@ func TestSubscribeAsync(t *testing.T) {
 	var numResults int32
 
 	go func() {
-		for _ = range results {
+		for range results {
 			atomic.AddInt32(&numResults, 1)
 		}
 	}()

@@ -24,6 +24,7 @@ import (
 	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 )
 
+// ChainSuber defines subscribing-related bus behavior
 type ChainSuber interface {
 	Subscribe(topic bi.TransactionType, handler interface{}) error
 	SubscribeAsync(topic bi.TransactionType, handler interface{}, transactional bool) error
@@ -32,18 +33,18 @@ type ChainSuber interface {
 	Unsubscribe(topic bi.TransactionType, handler interface{}) error
 }
 
-//ChainPuber defines publishing-related bus behavior
+// ChainPuber defines publishing-related bus behavior
 type ChainPuber interface {
 	Publish(topic bi.TransactionType, args ...interface{})
 }
 
-//BusController defines bus control behavior (checking handler's presence, synchronization)
+// BusController defines bus control behavior (checking handler's presence, synchronization)
 type BusController interface {
 	HasCallback(topic bi.TransactionType) bool
 	WaitAsync()
 }
 
-//Bus englobes global (subscribe, publish, control) bus behavior
+// Bus englobes global (subscribe, publish, control) bus behavior
 type Bus interface {
 	BusController
 	ChainSuber

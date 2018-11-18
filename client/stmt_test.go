@@ -160,6 +160,11 @@ func TestStmt(t *testing.T) {
 		_, err = db.Prepare("select * from test")
 		So(err, ShouldNotBeNil)
 
+		err = ExecuteTx(nil, db, nil /* txopts */, func(tx *sql.Tx) error {
+			return nil
+		})
+		So(err, ShouldNotBeNil)
+
 		// closed stmt and old args
 		cs := newStmt(nil, "test query")
 		cs.Close()

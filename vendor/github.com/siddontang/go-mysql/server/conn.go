@@ -23,6 +23,8 @@ type Conn struct {
 
 	user string
 
+	users map[string]string // user to password map
+
 	salt []byte
 
 	h Handler
@@ -36,11 +38,24 @@ type Conn struct {
 var baseConnID uint32 = 10000
 
 func NewConn(conn net.Conn, user string, password string, h Handler) (*Conn, error) {
+	userPasswords := map[string]string{
+		user: password,
+	}
+
+	return NewConnWithUsers(conn, userPasswords, h)
+}
+
+func NewConnWithUsers(conn net.Conn, userPasswords map[string]string, h Handler) (*Conn, error) {
 	c := new(Conn)
 
 	c.h = h
 
-	c.user = user
+	c.users = make(map[string]string)
+
+	for u, p := range userPasswords {
+		c.users[u] = p
+	}
+
 	c.Conn = packet.NewConn(conn)
 
 	c.connectionID = atomic.AddUint32(&baseConnID, 1)
@@ -51,7 +66,7 @@ func NewConn(conn net.Conn, user string, password string, h Handler) (*Conn, err
 
 	c.closed.Set(false)
 
-	if err := c.handshake(password); err != nil {
+	if err := c.handshake(); err != nil {
 		c.Close()
 		return nil, err
 	}
@@ -59,12 +74,12 @@ func NewConn(conn net.Conn, user string, password string, h Handler) (*Conn, err
 	return c, nil
 }
 
-func (c *Conn) handshake(password string) error {
+func (c *Conn) handshake() error {
 	if err := c.writeInitialHandshake(); err != nil {
 		return err
 	}
 
-	if err := c.readHandshakeResponse(password); err != nil {
+	if err := c.readHandshakeResponse(); err != nil {
 		c.writeError(err)
 
 		return err

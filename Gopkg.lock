@@ -53,7 +53,7 @@
   revision = "b72b1571892216ba2a42fb8abeb726d082b4c4d1"
 
 [[projects]]
-  digest = "1:9253f97cfbbe049b631877c80badecc69620711b3e335f6cf97a7809681da388"
+  digest = "1:26777bf96d1c96d9be38c7c9795196b088c91c597ec5dae5bf6c02dc3c3520e9"
   name = "github.com/alecthomas/chroma"
   packages = [
     ".",
@@ -89,8 +89,8 @@
     "styles",
   ]
   pruneopts = "UT"
-  revision = "5d7fef2ae60b501bbf28d476c3f273b8017d8261"
-  version = "v0.5.0"
+  revision = "5a473179cfe450c6d80407452c241428de387f6b"
+  version = "v0.6.0"
 
 [[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
@@ -168,12 +168,12 @@
   revision = "816b6608b3c8c1e871bc9cf777f390e2532081fe"
 
 [[projects]]
-  digest = "1:544229a3ca0fb2dd5ebc2896d3d2ff7ce096d9751635301e44e37e761349ee70"
+  digest = "1:547f5df5f708c880f0af507317c8d022b8d62053a5cb075e23c6eeed09eb2e4e"
   name = "github.com/fortytw2/leaktest"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a5ef70473c97b71626b9abeda80ee92ba2a7de9e"
-  version = "v1.2.0"
+  revision = "9a23578d06a26ec1b47bfc8965bf5e7011df8bd6"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
@@ -205,7 +205,7 @@
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
   pruneopts = "UT"
-  revision = "0766667cb4d1cfb8d5fde1fe210ae41ead3cf589"
+  revision = "d547d1d9531ed93dbdebcbff7f83e7c876a1e0ee"
 
 [[projects]]
   digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
@@ -248,20 +248,20 @@
   revision = "4896c6bd164172da9f78789f233b470a3a6fb359"
 
 [[projects]]
-  digest = "1:1e15f4e455f94aeaedfcf9c75b3e1c449b5acba1551c58446b4b45be507c707b"
+  digest = "1:4b63210654b1f2b664f74ec434a1bb1cb442b3d75742cc064a10808d1cca6361"
   name = "github.com/jtolds/gls"
   packages = ["."]
   pruneopts = "UT"
-  revision = "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
-  version = "v4.2.1"
+  revision = "b4936e06046bbecbb94cae9c18127ebe510a2cb9"
+  version = "v4.20"
 
 [[projects]]
   branch = "master"
-  digest = "1:cdc32003a67007f608c767cfbea5b7a07ed7418ec9aed579707e3185086a6878"
+  digest = "1:7d1a655e1f16ccaf1adb026bdeece28499ecb0ead32d32accc6ed6f2c40cacee"
   name = "github.com/juju/errors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a4583d0a56eac4bdd939e38050d0c69abe0a9b41"
+  revision = "089d3ea4e4d597bd98acac068193d341983326a3"
 
 [[projects]]
   branch = "master"
@@ -312,12 +312,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:c22d250c583ec1136ecad8b74a43f408c08ddbbcbae715341ec4a49f332628e0"
+  digest = "1:b20d8767957e40b9302a8caaee88caa698513fbd972509a54555302c3aebfa04"
   name = "github.com/miekg/dns"
   packages = ["."]
   pruneopts = "UT"
-  revision = "915ca3d5ffd945235828a097c917311a9d86ebb4"
-  version = "v1.0.14"
+  revision = "7064f7248f5fa5fd79382a76328b4e200b79e4ae"
+  version = "v1.0.15"
 
 [[projects]]
   branch = "master"
@@ -345,14 +345,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f696f304d2a14745859a153f1041b66e0e2cf150eff731beb6431e93e27ddc5c"
+  digest = "1:735956b5e94182229dfbdc5b401d7a71f20f54f1259dbc2969ec2b56bfbb34f2"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "f30f428035633da15d00d3dfefb0128c5e569ef4"
+  revision = "3fb53dff765f8a3e0f9d8b1d5b86d4f8c4eb3a09"
 
 [[projects]]
   branch = "master"
@@ -373,7 +373,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "7e9e6cabbd393fc208072eedef99188d0ce788b6"
+  revision = "1f2c4f3cd6db5fd6f68f36af6b6d5d936fd93c4e"
 
 [[projects]]
   branch = "master"
@@ -428,7 +428,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d3384958d1ace51e2187c9747d806eee27d1aebdb1a4df798058a8cacc19b379"
+  digest = "1:25913ccf8c947d80f59e211b41225a85bd8e491f22b61a8c7e04f5774b2c01d3"
   name = "github.com/siddontang/go-mysql"
   packages = [
     "mysql",
@@ -436,7 +436,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "7f644882a1f315e77bfda60b4f689a45a2eec228"
+  revision = "d8fba0f23b9b3abe91c6f01842c72edd925ccb93"
   source = "github.com/CovenantSQL/go-mysql"
 
 [[projects]]
@@ -473,7 +473,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:59483b8e8183f10ab21a85ba1f4cbb4a2335d48891801f79ed7b9499f44d383c"
+  digest = "1:9ff9e1808adfc43f788f1c1e9fd2660c285b522243da985a4c043ec6f2a2d736"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -490,7 +490,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "6b91fda63f2e36186f1c9d0e48578defb69c5d43"
+  revision = "f9080354173f192dfc8821931eacf9cfd6819253"
 
 [[projects]]
   digest = "1:d9eb1d964a449cf51455fdac2ec3451c664af8e8b93c23d9c31d22b84ea82fde"
@@ -518,19 +518,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4a2baa112d6e7d222e78fc4702796592a47c5a6341e34e9b0ee39582e32cdf99"
+  digest = "1:cbe0326a31e9351aa78c5ae05e90ee99beb7f1f9b4f0aa9438d8174cc91a08aa"
   name = "github.com/xo/dburl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e33971d4c1320eca4c3585875e410c1eeadc4c3a"
+  revision = "f3ca07bd6afccbc084c872c7b49d666f50d0a1f6"
 
 [[projects]]
   branch = "master"
-  digest = "1:3863946ace74cbd518a33a2e8dd145a13aba1fc37a0e89788154083f183fca11"
+  digest = "1:2f33ea228f93fce4751f285a233ca262f51afa47336a1695f8967c9e83a1f42d"
   name = "github.com/xo/tblfmt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e82d5611beb24993cc6afc59cdacf6e598891d12"
+  revision = "0b109994b29d40a7e603c678b3d6823dbc0a1309"
 
 [[projects]]
   branch = "master"
@@ -584,11 +584,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "4d3f4d9ffa16a13f451c3b2999e9c49e9750bf06"
+  revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
 
 [[projects]]
   branch = "master"
-  digest = "1:67ee3460c086005f76f49c4d5f38a80ce11d68986de22979c75bf04e8372db9c"
+  digest = "1:e1fab80fa3cdc778a1d71494b403f287c50d810e9e65455baf5bd6982c5494c4"
   name = "golang.org/x/net"
   packages = [
     "bpf",
@@ -601,18 +601,18 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "b7e296877c6e5e01665044d943c8e6d10ce72a99"
+  revision = "adae6a3d119ae4890b46832a2e88a95adc62b8e7"
 
 [[projects]]
   branch = "master"
-  digest = "1:417d27a82efb8473554234a282be33d23b0d6adc121e636b55950f913ac071d6"
+  digest = "1:a089387bbfcfa884e5aafeebb85929993195bb8959766b1d20102841d47e0b0e"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "9b800f95dbbc54abff0acf7ee32d88ba4e328c89"
+  revision = "93218def8b18e66adbdab3eca8ec334700329f1f"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"

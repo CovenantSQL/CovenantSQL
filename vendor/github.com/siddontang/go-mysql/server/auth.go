@@ -58,7 +58,7 @@ func (c *Conn) writeInitialHandshake() error {
 	return c.WritePacket(data)
 }
 
-func (c *Conn) readHandshakeResponse(password string) error {
+func (c *Conn) readHandshakeResponse() error {
 	data, err := c.ReadPacket()
 
 	if err != nil {
@@ -85,9 +85,13 @@ func (c *Conn) readHandshakeResponse(password string) error {
 	user := string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
 	pos += len(user) + 1
 
-	if c.user != user {
+	var password string
+	var userExists bool
+	if password, userExists = c.users[user]; !userExists {
 		return NewDefaultError(ER_NO_SUCH_USER, user, c.RemoteAddr().String())
 	}
+
+	c.user = user
 
 	var auth []byte
 

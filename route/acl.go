@@ -92,8 +92,6 @@ const (
 	// SQLCAdviseBinLog is usd by sqlchain to advise binlog between adjacent node
 	SQLCAdviseBinLog
 	// SQLCAdviseResponsedQuery is used by sqlchain to advice response query between adjacent node
-	SQLCAdviseResponsedQuery
-	// SQLCAdviseAckedQuery is used by sqlchain to advise response ack between adjacent node
 	SQLCAdviseAckedQuery
 	// SQLCFetchBlock is used by sqlchain to fetch block from adjacent nodes
 	SQLCFetchBlock

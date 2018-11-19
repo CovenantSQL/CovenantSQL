@@ -383,6 +383,7 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (
 		"count":    count,
 		"height":   h,
 		"producer": b.Producer(),
+		"block":    b,
 	}).Debugf("Add new block %v -> %v", b.BlockHash(), b.ParentHash())
 
 	if err = s.db.Update(func(tx *bolt.Tx) (err error) {
@@ -525,13 +526,13 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Signed
 		}
 
 		// get block height and object offset in block
-		if len(ackBucket) <= 8 {
+		if len(ackBytes) != 8 {
 			// invalid data payload
 			return ErrInconsistentData
 		}
 
-		blockHeight = bytesToInt32(ackBucket[:4])
-		dataOffset = bytesToInt32(ackBucket[4:])
+		blockHeight = bytesToInt32(ackBytes[:4])
+		dataOffset = bytesToInt32(ackBytes[4:])
 
 		return
 	}); err != nil {
@@ -544,7 +545,7 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Signed
 		return
 	}
 
-	if dataOffset < 0 || int32(len(b.Acks)) < dataOffset {
+	if dataOffset < 0 || int32(len(b.Acks)) <= dataOffset {
 		err = ErrInconsistentData
 		return
 	}
@@ -578,13 +579,13 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *type
 		}
 
 		// get block height and object offset in block
-		if len(reqBytes) <= 8 {
+		if len(reqBytes) != 8 {
 			// invalid data payload
 			return ErrInconsistentData
 		}
 
 		blockHeight = bytesToInt32(reqBytes[:4])
-		dataOffset = bytesToInt32(ackBucket[4:])
+		dataOffset = bytesToInt32(reqBytes[4:])
 
 		return
 	}); err != nil {
@@ -597,7 +598,7 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *type
 		return
 	}
 
-	if dataOffset < 0 || int32(len(b.QueryTxs)) < dataOffset {
+	if dataOffset < 0 || int32(len(b.QueryTxs)) <= dataOffset {
 		err = ErrInconsistentData
 		return
 	}
@@ -625,19 +626,19 @@ func (s *Service) getResponseHeader(dbID proto.DatabaseID, h *hash.Hash) (respon
 			return ErrNotFound
 		}
 
-		reqBytes := bucket.Get(h.AsBytes())
-		if reqBytes == nil {
+		respBytes := bucket.Get(h.AsBytes())
+		if respBytes == nil {
 			return ErrNotFound
 		}
 
 		// get block height and object offset in block
-		if len(reqBytes) <= 8 {
+		if len(respBytes) != 8 {
 			// invalid data payload
 			return ErrInconsistentData
 		}
 
-		blockHeight = bytesToInt32(reqBytes[:4])
-		dataOffset = bytesToInt32(ackBucket[4:])
+		blockHeight = bytesToInt32(respBytes[:4])
+		dataOffset = bytesToInt32(respBytes[4:])
 
 		return
 	}); err != nil {
@@ -650,7 +651,7 @@ func (s *Service) getResponseHeader(dbID proto.DatabaseID, h *hash.Hash) (respon
 		return
 	}
 
-	if dataOffset < 0 || int32(len(b.QueryTxs)) < dataOffset {
+	if dataOffset < 0 || int32(len(b.QueryTxs)) <= dataOffset {
 		err = ErrInconsistentData
 		return
 	}

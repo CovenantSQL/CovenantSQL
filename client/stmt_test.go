@@ -173,6 +173,9 @@ func TestStmt(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		_, err = cs.Exec([]driver.Value{2})
+		err = ExecuteTx(nil, db, nil /* txopts */, func(tx *sql.Tx) error {
+			return nil
+		})
 		So(err, ShouldNotBeNil)
 	})
 }

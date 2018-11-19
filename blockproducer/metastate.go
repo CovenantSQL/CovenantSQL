@@ -77,9 +77,6 @@ func (s *metaState) loadOrStoreAccountObject(
 
 func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
 	var o *accountObject
-	s.Lock()
-	defer s.Unlock()
-
 	defer func() {
 		log.WithFields(log.Fields{
 			"account": addr.String(),
@@ -87,6 +84,9 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 			"loaded":  loaded,
 		}).Debug("queried stable account")
 	}()
+	
+	s.Lock()
+	defer s.Unlock()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.StableCoinBalance
@@ -101,9 +101,6 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 
 func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
 	var o *accountObject
-	s.Lock()
-	defer s.Unlock()
-
 	defer func() {
 		log.WithFields(log.Fields{
 			"account": addr.String(),
@@ -111,6 +108,9 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 			"loaded":  loaded,
 		}).Debug("queried covenant account")
 	}()
+
+	s.Lock()
+	defer s.Unlock()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.CovenantCoinBalance

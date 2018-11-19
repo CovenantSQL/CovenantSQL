@@ -67,12 +67,14 @@ func newConn(cfg *Config) (c *conn, err error) {
 		queries:     make([]types.Query, 0),
 	}
 
+	var peers *proto.Peers
 	// get peers from BP
-	if _, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
+	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		log.WithError(err).Error("cacheGetPeers failed")
 		c = nil
 		return
 	}
+	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 
 	err = c.startAckWorkers(2)
 	if err != nil {

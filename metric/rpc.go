@@ -147,6 +147,6 @@ func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID) (err error) {
 	if err != nil {
 		log.Errorf("calling RPC %s failed: %s", reqType, err)
 	}
-	log.Infof("resp %s: %v", reqType, resp)
+	log.Debugf("resp %s: %v", reqType, resp)
 	return
 }

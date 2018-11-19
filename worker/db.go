@@ -20,7 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime/trace"
+	//"runtime/trace"
 	"sync"
 	"time"
 
@@ -272,10 +272,10 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *types.Request) (response *types.Response, err error) {
-	ctx := context.Background()
-	ctx, task := trace.NewTask(ctx, "writeQuery")
-	defer task.End()
-	defer trace.StartRegion(ctx, "writeQueryRegion").End()
+	//ctx := context.Background()
+	//ctx, task := trace.NewTask(ctx, "writeQuery")
+	//defer task.End()
+	//defer trace.StartRegion(ctx, "writeQueryRegion").End()
 
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {

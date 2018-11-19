@@ -96,7 +96,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 
 	err := client.Init(config, []byte(password))
 	if err != nil {
@@ -133,6 +133,8 @@ func main() {
 	defer func() {
 		_ = c.Close()
 	}()
+
+	log.Infof("DB: %s mount on %s succeed", dsn, mountPoint)
 
 	go func() {
 		sig := make(chan os.Signal, 1)

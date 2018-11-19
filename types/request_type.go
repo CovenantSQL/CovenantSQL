@@ -17,6 +17,7 @@
 package types
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -73,6 +74,11 @@ type QueryKey struct {
 	SeqNo        uint64       `json:"seq"`
 }
 
+// String implements fmt.Stringer for logging purpose.
+func (k *QueryKey) String() string {
+	return fmt.Sprintf("%s#%016x#%016x", string(k.NodeID[:8]), k.ConnectionID, k.SeqNo)
+}
+
 // SignedRequestHeader defines a signed query request header.
 type SignedRequestHeader struct {
 	RequestHeader
@@ -86,6 +92,7 @@ type Request struct {
 	Payload RequestPayload      `json:"p"`
 }
 
+// String implements fmt.Stringer for logging purpose.
 func (t QueryType) String() string {
 	switch t {
 	case ReadQuery:

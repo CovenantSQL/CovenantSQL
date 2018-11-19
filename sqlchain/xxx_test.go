@@ -346,12 +346,10 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
 		h := &hash.Hash{}
 		rand.Read(h[:])
-		b.Acks = []*types.Ack{
+		b.Acks = []*types.SignedAckHeader{
 			{
-				Header: types.SignedAckHeader{
-					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
-						DataHash: *h,
-					},
+				DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+					DataHash: *h,
 				},
 			},
 		}

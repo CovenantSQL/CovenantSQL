@@ -68,7 +68,7 @@ var (
 	// ErrCorruptedIndex indicates that a corrupted index item is detected.
 	ErrCorruptedIndex = errors.New("corrupted index item")
 
-	// ErrUnknownMuxRequest indicates that the a multiplexing request endpoint is not found.
+	// ErrUnknownMuxRequest indicates that the multiplexing request endpoint is not found.
 	ErrUnknownMuxRequest = errors.New("unknown multiplexing request")
 
 	// ErrUnknownProducer indicates that the block has an unknown producer.
@@ -77,8 +77,8 @@ var (
 	// ErrInvalidProducer indicates that the block has an invalid producer.
 	ErrInvalidProducer = errors.New("invalid block producer")
 
-	// ErrUnavailableBillingRang indicates that the billing range is not abailable now.
-	ErrUnavailableBillingRang = errors.New("unabailable billing range")
+	// ErrUnavailableBillingRang indicates that the billing range is not available now.
+	ErrUnavailableBillingRang = errors.New("unavailable billing range")
 
 	// ErrHashNotMatch indicates that a message hash value doesn't match the original hash value
 	// given in its hash field.
@@ -90,6 +90,13 @@ var (
 	// ErrAckQueryNotFound indicates that an acknowledged query record is not found.
 	ErrAckQueryNotFound = errors.New("acknowledged query not found")
 
+	// ErrQueryNotFound indicates that a query is not found in the index.
+	ErrQueryNotFound = errors.New("query not found")
+
 	// ErrInvalidRequest indicates the query is invalid.
 	ErrInvalidRequest = errors.New("invalid request")
+
+	// ErrResponseSeqNotMatch indicates that a response sequence id doesn't match the original one
+	// in the index.
+	ErrResponseSeqNotMatch = errors.New("response sequence id doesn't match")
 )

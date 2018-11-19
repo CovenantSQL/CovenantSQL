@@ -47,11 +47,9 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	block.Acks = append(block.Acks, &Ack{
-		Header: SignedAckHeader{
-			DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
-				DataHash: hash.Hash{0x01},
-			},
+	block.Acks = append(block.Acks, &SignedAckHeader{
+		DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+			DataHash: hash.Hash{0x01},
 		},
 	})
 

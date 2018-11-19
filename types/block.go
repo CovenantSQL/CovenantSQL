@@ -88,7 +88,7 @@ type Block struct {
 	SignedHeader SignedHeader
 	FailedReqs   []*Request
 	QueryTxs     []*QueryAsTx
-	Acks         []*Ack
+	Acks         []*SignedAckHeader
 }
 
 // CalcNextID calculates the next query id by examinating every query in block, and adds write
@@ -178,7 +178,7 @@ func (b *Block) computeMerkleRoot() hash.Hash {
 		hs = append(hs, &h)
 	}
 	for i := range b.Acks {
-		h := b.Acks[i].Header.Hash()
+		h := b.Acks[i].Hash()
 		hs = append(hs, &h)
 	}
 	return *merkle.NewMerkle(hs).GetRoot()

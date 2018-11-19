@@ -17,6 +17,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -664,5 +665,28 @@ func TestOther_MarshalHash(t *testing.T) {
 		s, err = tm2.MarshalHash()
 		So(err, ShouldBeNil)
 		So(s, ShouldNotBeEmpty)
+	})
+}
+
+func TestQueryTypeStringer(t *testing.T) {
+	Convey("Query type stringer should return expected string", t, func() {
+		var cases = [...]struct {
+			i fmt.Stringer
+			s string
+		}{
+			{
+				i: ReadQuery,
+				s: "read",
+			}, {
+				i: WriteQuery,
+				s: "write",
+			}, {
+				i: QueryType(0xffff),
+				s: "unknown",
+			},
+		}
+		for _, v := range cases {
+			So(v.s, ShouldEqual, fmt.Sprintf("%v", v.i))
+		}
 	})
 }

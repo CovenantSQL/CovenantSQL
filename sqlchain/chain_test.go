@@ -345,7 +345,7 @@ func TestMultiChain(t *testing.T) {
 
 						if err != nil {
 							t.Errorf("Error occurred: %v", err)
-						} else if err = c.VerifyAndPushResponsedQuery(resp); err != nil {
+						} else if err = c.addResponse(resp); err != nil {
 							t.Errorf("Error occurred: %v", err)
 						}
 

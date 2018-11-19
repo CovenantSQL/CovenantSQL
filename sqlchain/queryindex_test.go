@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 
@@ -127,7 +126,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	ackHash := b1.Acks[0].Header.Hash()
+	ackHash := b1.Acks[0].Hash()
 	if _, err := qi.checkAckFromBlock(
 		0, b1.BlockHash(), &ackHash,
 	); errors.Cause(err) != ErrQueryExpired {
@@ -206,12 +205,8 @@ func TestCheckAckFromBlock(t *testing.T) {
 		t.Fatalf("Error occurred: %v", err)
 	}
 
-	b1.Acks[0] = &types.Ack{
-		Header: *ack1,
-	}
-	b2.Acks[0] = &types.Ack{
-		Header: *ack1,
-	}
+	b1.Acks[0] = ack1
+	b2.Acks[0] = ack2
 	ack1Hash := ack1.Hash()
 	qi.setSignedBlock(height, b1)
 
@@ -223,9 +218,7 @@ func TestCheckAckFromBlock(t *testing.T) {
 
 	// Test checking same ack signed by another block
 	ack2Hash := ack2.Hash()
-	b2.Acks[0] = &types.Ack{
-		Header: *ack2,
-	}
+	b2.Acks[0] = ack2
 
 	if _, err = qi.checkAckFromBlock(
 		height, b2.BlockHash(), &ack2Hash,

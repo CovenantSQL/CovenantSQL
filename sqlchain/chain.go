@@ -93,7 +93,8 @@ type Chain struct {
 	// tdb stores ack/request/response
 	tdb *leveldb.DB
 	bi  *blockIndex
-	qi  *queryIndex
+	qi  *queryIndex // TODO(leventeliu): remove query index.
+	ai  *ackIndex
 	st  *x.State
 	cl  *rpc.Caller
 	rt  *runtime
@@ -185,6 +186,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		tdb:          tdb,
 		bi:           newBlockIndex(c),
 		qi:           newQueryIndex(),
+		ai:           newAckIndex(),
 		st:           state,
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(c),
@@ -255,6 +257,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		tdb:          tdb,
 		bi:           newBlockIndex(c),
 		qi:           newQueryIndex(),
+		ai:           newAckIndex(),
 		st:           xstate,
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(c),
@@ -455,6 +458,27 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 	c.bi.addBlock(node)
 	c.qi.setSignedBlock(h, b)
 
+	// Keep track of the queries from the new block
+	var ierr error
+	for i, v := range b.QueryTxs {
+		if ierr = c.addResponse(v.Response); ierr != nil {
+			log.WithFields(log.Fields{
+				"index":      i,
+				"producer":   b.Producer(),
+				"block_hash": b.BlockHash(),
+			}).WithError(ierr).Warn("Failed to add response to ackIndex")
+		}
+	}
+	for i, v := range b.Acks {
+		if ierr = c.remove(v); ierr != nil {
+			log.WithFields(log.Fields{
+				"index":      i,
+				"producer":   b.Producer(),
+				"block_hash": b.BlockHash(),
+			}).WithError(ierr).Warn("Failed to remove Ack from ackIndex")
+		}
+	}
+
 	if err == nil {
 		log.WithFields(log.Fields{
 			"peer":       c.rt.getPeerInfoString()[:14],
@@ -522,8 +546,13 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	}
 
 	if err = c.qi.addAck(h, ack); err != nil {
-		err = errors.Wrapf(err, "add ack h %d hash %s", h, ack.Hash())
-		return err
+		err = errors.Wrapf(err, "add ack %v at height %d", ack.Hash(), h)
+		return
+	}
+
+	if err = c.register(ack); err != nil {
+		err = errors.Wrapf(err, "register ack %v at height %d", ack.Hash(), h)
+		return
 	}
 
 	return
@@ -551,6 +580,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		},
 		FailedReqs: frs,
 		QueryTxs:   make([]*types.QueryAsTx, len(qts)),
+		Acks:       c.ai.acks(c.rt.getHeightFromTime(now)),
 	}
 	for i, v := range qts {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
@@ -691,6 +721,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	defer func() {
 		c.rt.setNextTurn()
 		c.qi.advanceBarrier(c.rt.getMinValidHeight())
+		c.ai.advance(c.rt.getMinValidHeight())
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
 		c.heights <- c.rt.getHead().Height
@@ -1218,7 +1249,7 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 		}
 
 		for _, v := range n.block.Acks {
-			ackHash := v.Header.Hash()
+			ackHash := v.Hash()
 			if ack, err = c.queryOrSyncAckedQuery(n.height, &ackHash, n.block.Producer()); err != nil {
 				return
 			}
@@ -1496,6 +1527,9 @@ func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 	if err = resp.Sign(c.pk); err != nil {
 		return
 	}
+	if err = c.addResponse(&resp.Header); err != nil {
+		return
+	}
 	ref.UpdateResp(resp)
 	return
 }
@@ -1510,5 +1544,20 @@ func (c *Chain) Replay(req *types.Request, resp *types.Response) (err error) {
 	default:
 		err = ErrInvalidRequest
 	}
+	if err = c.addResponse(&resp.Header); err != nil {
+		return
+	}
 	return
+}
+
+func (c *Chain) addResponse(resp *types.SignedResponseHeader) (err error) {
+	return c.ai.addResponse(c.rt.getHeightFromTime(resp.Request.Timestamp), resp)
+}
+
+func (c *Chain) register(ack *types.SignedAckHeader) (err error) {
+	return c.ai.register(c.rt.getHeightFromTime(ack.SignedRequestHeader().Timestamp), ack)
+}
+
+func (c *Chain) remove(ack *types.SignedAckHeader) (err error) {
+	return c.ai.remove(c.rt.getHeightFromTime(ack.SignedRequestHeader().Timestamp), ack)
 }

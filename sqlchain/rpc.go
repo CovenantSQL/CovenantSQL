@@ -47,15 +47,6 @@ type AdviseBinLogReq struct {
 type AdviseBinLogResp struct {
 }
 
-// AdviseResponsedQueryReq defines a request of the AdviseAckedQuery RPC method.
-type AdviseResponsedQueryReq struct {
-	Query *types.SignedResponseHeader
-}
-
-// AdviseResponsedQueryResp defines a response of the AdviseAckedQuery RPC method.
-type AdviseResponsedQueryResp struct {
-}
-
 // AdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type AdviseAckedQueryReq struct {
 	Query *types.SignedAckHeader
@@ -137,12 +128,6 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 func (s *ChainRPCService) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
 	// TODO(leventeliu): need implementation.
 	return nil
-}
-
-// AdviseResponsedQuery is the RPC method to advise a new responsed query to the target server.
-func (s *ChainRPCService) AdviseResponsedQuery(
-	req *AdviseResponsedQueryReq, resp *AdviseResponsedQueryResp) error {
-	return s.chain.VerifyAndPushResponsedQuery(req.Query)
 }
 
 // AdviseAckedQuery is the RPC method to advise a new acknowledged query to the target server.

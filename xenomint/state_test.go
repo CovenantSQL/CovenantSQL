@@ -252,6 +252,28 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 					},
 				})
 
+				// Test show statements
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SHOW TABLE t1`),
+				}))
+				So(err, ShouldBeNil)
+				So(resp, ShouldNotBeNil)
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SHOW CREATE TABLE t1`),
+				}))
+				So(err, ShouldBeNil)
+				So(resp, ShouldNotBeNil)
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SHOW INDEX FROM TABLE t1`),
+				}))
+				So(err, ShouldBeNil)
+				So(resp, ShouldNotBeNil)
+				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
+					buildQuery(`SHOW TABLES`),
+				}))
+				So(err, ShouldBeNil)
+				So(resp, ShouldNotBeNil)
+
 				// Also test a non-transaction read implementation
 				_, resp, err = st1.read(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT * FROM t1`),

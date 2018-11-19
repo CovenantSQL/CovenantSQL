@@ -571,42 +571,6 @@ func (s *State) uncCommit() (err error) {
 	return
 }
 
-func (s *State) partialCommit(qs []*types.Response) (err error) {
-	var (
-		i  int
-		v  *types.Response
-		q  *QueryTracker
-		rm []*QueryTracker
-
-		pl = len(s.pool.queries)
-	)
-	if len(qs) > pl {
-		err = ErrLocalBehindRemote
-		return
-	}
-	for i, v = range qs {
-		var loc = s.pool.queries[i]
-		if loc.Req.Header.Hash() != v.Header.Request.Hash() ||
-			loc.Resp.Header.LogOffset != v.Header.LogOffset {
-			err = ErrQueryConflict
-			return
-		}
-	}
-	if i < pl-1 {
-		s.rollbackTo(s.pool.queries[i+1].Resp.Header.LogOffset)
-	}
-	// Reset pool
-	rm = s.pool.queries[:i+1]
-	s.pool = newPool()
-	// Rewrite
-	for _, q = range rm {
-		if _, _, err = s.write(q.Req); err != nil {
-			return
-		}
-	}
-	return
-}
-
 func (s *State) rollback() (err error) {
 	s.Lock()
 	defer s.Unlock()

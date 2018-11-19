@@ -503,30 +503,6 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 	return
 }
 
-// pushResponedQuery pushes a responsed, signed and verified query into the chain.
-func (c *Chain) pushResponedQuery(resp *types.SignedResponseHeader) (err error) {
-	h := c.rt.getHeightFromTime(resp.Request.Timestamp)
-	k := heightToKey(h)
-	var enc *bytes.Buffer
-
-	if enc, err = utils.EncodeMsgPack(resp); err != nil {
-		return
-	}
-
-	tdbKey := utils.ConcatAll(metaResponseIndex[:], k, resp.Hash().AsBytes())
-	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put response %d %s", h, resp.Hash().String())
-		return
-	}
-
-	if err = c.qi.addResponse(h, resp); err != nil {
-		err = errors.Wrapf(err, "add resp h %d hash %s", h, resp.Hash())
-		return err
-	}
-
-	return
-}
-
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	log.Debugf("push ack %s", ack.Hash().String())
@@ -1165,22 +1141,6 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	}
 
 	return c.pushBlock(block)
-}
-
-// VerifyAndPushResponsedQuery verifies a responsed and signed query, and pushed it if valid.
-func (c *Chain) VerifyAndPushResponsedQuery(resp *types.SignedResponseHeader) (err error) {
-	// TODO(leventeliu): check resp.
-	if c.rt.queryTimeIsExpired(resp.Timestamp) {
-		err = errors.Wrapf(ErrQueryExpired, "Verify response query, min valid height %d, response height %d", c.rt.getMinValidHeight(), c.rt.getHeightFromTime(resp.Timestamp))
-		return
-	}
-
-	if err = resp.Verify(); err != nil {
-		err = errors.Wrapf(err, "")
-		return
-	}
-
-	return c.pushResponedQuery(resp)
 }
 
 // VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.

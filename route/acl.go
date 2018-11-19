@@ -177,8 +177,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.AdviseNewBlock"
 	case SQLCAdviseBinLog:
 		return "SQLC.AdviseBinLog"
-	case SQLCAdviseResponsedQuery:
-		return "SQLC.AdviseResponsedQuery"
 	case SQLCAdviseAckedQuery:
 		return "SQLC.AdviseAckedQuery"
 	case SQLCFetchBlock:

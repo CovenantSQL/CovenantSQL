@@ -75,20 +75,6 @@ type MuxAdviseBinLogResp struct {
 	AdviseBinLogResp
 }
 
-// MuxAdviseResponsedQueryReq defines a request of the AdviseAckedQuery RPC method.
-type MuxAdviseResponsedQueryReq struct {
-	proto.Envelope
-	proto.DatabaseID
-	AdviseResponsedQueryReq
-}
-
-// MuxAdviseResponsedQueryResp defines a response of the AdviseAckedQuery RPC method.
-type MuxAdviseResponsedQueryResp struct {
-	proto.Envelope
-	proto.DatabaseID
-	AdviseResponsedQueryResp
-}
-
 // MuxAdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type MuxAdviseAckedQueryReq struct {
 	proto.Envelope
@@ -204,19 +190,6 @@ func (s *MuxService) AdviseBinLog(req *MuxAdviseBinLogReq, resp *MuxAdviseBinLog
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
 		return v.(*ChainRPCService).AdviseBinLog(&req.AdviseBinLogReq, &resp.AdviseBinLogResp)
-	}
-
-	return ErrUnknownMuxRequest
-}
-
-// AdviseResponsedQuery is the RPC method to advise a new responsed query to the target server.
-func (s *MuxService) AdviseResponsedQuery(
-	req *MuxAdviseResponsedQueryReq, resp *MuxAdviseResponsedQueryResp) error {
-	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
-		resp.Envelope = req.Envelope
-		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).AdviseResponsedQuery(
-			&req.AdviseResponsedQueryReq, &resp.AdviseResponsedQueryResp)
 	}
 
 	return ErrUnknownMuxRequest

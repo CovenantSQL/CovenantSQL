@@ -297,10 +297,10 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 	return
 }
 
-func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack *types.Ack) (err error) {
+func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack *types.SignedAckHeader) (err error) {
 	log.WithFields(log.Fields{
 		"height": height,
-		"ack":    ack.Header.Hash().String(),
+		"ack":    ack.Hash().String(),
 		"db":     dbID,
 	}).Debug("add ack")
 
@@ -322,7 +322,7 @@ func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack 
 		if err != nil {
 			return
 		}
-		err = ab.Put(ack.Header.Hash().AsBytes(), utils.ConcatAll(int32ToBytes(height), int32ToBytes(offset)))
+		err = ab.Put(ack.Hash().AsBytes(), utils.ConcatAll(int32ToBytes(height), int32ToBytes(offset)))
 		return
 	})
 }
@@ -506,7 +506,7 @@ func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *types.ServiceIns
 	return
 }
 
-func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Ack, err error) {
+func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.SignedAckHeader, err error) {
 	var (
 		blockHeight int32
 		dataOffset  int32
@@ -552,7 +552,7 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Ack, e
 	ack = b.Acks[int(dataOffset)]
 
 	// verify hash
-	ackHash := ack.Header.Hash()
+	ackHash := ack.Hash()
 	if !ackHash.IsEqual(h) {
 		err = ErrInconsistentData
 	}

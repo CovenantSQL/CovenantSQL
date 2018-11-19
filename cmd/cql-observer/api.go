@@ -403,7 +403,7 @@ func (a *explorerAPI) formatBlock(height int32, b *types.Block) (res map[string]
 	queries := make([]string, 0, len(b.Acks))
 
 	for _, q := range b.Acks {
-		queries = append(queries, q.Header.Hash().String())
+		queries = append(queries, q.Hash().String())
 	}
 
 	return map[string]interface{}{
@@ -505,27 +505,27 @@ func (a *explorerAPI) formatResponseHeader(resp *types.SignedResponseHeader) map
 	}
 }
 
-func (a *explorerAPI) formatAck(ack *types.Ack) map[string]interface{} {
+func (a *explorerAPI) formatAck(ack *types.SignedAckHeader) map[string]interface{} {
 	return map[string]interface{}{
 		"ack": map[string]interface{}{
 			"request": map[string]interface{}{
-				"hash":      ack.Header.Response.Request.Hash().String(),
-				"timestamp": a.formatTime(ack.Header.Response.Request.Timestamp),
-				"node":      ack.Header.Response.Request.NodeID,
-				"type":      ack.Header.Response.Request.QueryType.String(),
-				"count":     ack.Header.Response.Request.BatchCount,
+				"hash":      ack.Response.Request.Hash().String(),
+				"timestamp": a.formatTime(ack.Response.Request.Timestamp),
+				"node":      ack.Response.Request.NodeID,
+				"type":      ack.Response.Request.QueryType.String(),
+				"count":     ack.Response.Request.BatchCount,
 			},
 			"response": map[string]interface{}{
-				"hash":           ack.Header.Response.Hash().String(),
-				"timestamp":      a.formatTime(ack.Header.Response.Timestamp),
-				"node":           ack.Header.Response.NodeID,
-				"log_id":         ack.Header.Response.LogOffset, // savepoint id in eventual consistency mode
-				"last_insert_id": ack.Header.Response.LastInsertID,
-				"affected_rows":  ack.Header.Response.AffectedRows,
+				"hash":           ack.Response.Hash().String(),
+				"timestamp":      a.formatTime(ack.Response.Timestamp),
+				"node":           ack.Response.NodeID,
+				"log_id":         ack.Response.LogOffset, // savepoint id in eventual consistency mode
+				"last_insert_id": ack.Response.LastInsertID,
+				"affected_rows":  ack.Response.AffectedRows,
 			},
-			"hash":      ack.Header.Hash().String(),
-			"timestamp": a.formatTime(ack.Header.Timestamp),
-			"node":      ack.Header.NodeID,
+			"hash":      ack.Hash().String(),
+			"timestamp": a.formatTime(ack.Timestamp),
+			"node":      ack.NodeID,
 		},
 	}
 }

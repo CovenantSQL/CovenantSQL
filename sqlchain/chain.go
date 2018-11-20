@@ -44,6 +44,10 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
+const (
+	minBlockCacheTTL = int32(100)
+)
+
 var (
 	metaState         = [4]byte{'S', 'T', 'A', 'T'}
 	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
@@ -359,6 +363,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	st.node = last
 	chain.rt.setHead(st)
 	chain.st.InitTx(id)
+	chain.pruneBlockCache()
 
 	// Read queries and rebuild memory index
 	respIter := chain.tdb.NewIterator(util.BytesPrefix(metaResponseIndex[:]), nil)
@@ -695,6 +700,7 @@ func (c *Chain) syncHead() {
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
 	defer func() {
+		c.pruneBlockCache()
 		c.rt.setNextTurn()
 		c.qi.advanceBarrier(c.rt.getMinValidHeight())
 		c.ai.advance(c.rt.getMinValidHeight())
@@ -1187,6 +1193,11 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 	}
 
 	for ; n != nil && n.height >= low; n = n.parent {
+		// TODO(leventeliu): block maybe released, use persistence version in this case.
+		if n.block == nil {
+			continue
+		}
+
 		if lowBlock == nil {
 			lowBlock = n.block
 		}
@@ -1520,4 +1531,22 @@ func (c *Chain) register(ack *types.SignedAckHeader) (err error) {
 
 func (c *Chain) remove(ack *types.SignedAckHeader) (err error) {
 	return c.ai.remove(c.rt.getHeightFromTime(ack.SignedRequestHeader().Timestamp), ack)
+}
+
+func (c *Chain) pruneBlockCache() {
+	var (
+		head    = c.rt.getHead().node
+		lastCnt int32
+	)
+	if head == nil {
+		return
+	}
+	lastCnt = head.count - c.rt.blockCacheTTL
+	// Move to last count position
+	for ; head != nil && head.count > lastCnt; head = head.parent {
+	}
+	// Prune block references
+	for ; head != nil && head.block != nil; head = head.parent {
+		head.block = nil
+	}
 }

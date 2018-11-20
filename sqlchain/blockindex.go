@@ -26,7 +26,7 @@ import (
 
 type blockNode struct {
 	parent *blockNode
-	block  *types.Block // TODO(leventeliu): cleanup history blocks to release memory.
+	block  *types.Block
 	hash   hash.Hash
 	height int32 // height is the chain height of the head
 	count  int32 // count counts the blocks (except genesis) at this head

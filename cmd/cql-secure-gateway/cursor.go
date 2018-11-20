@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -507,8 +508,21 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 	// HACK(xq262144), this feature is supported by sqlite only, replace with query plan analysis for mysql engine
 	// normal statement, using explain to calculate param and result column count
 	// using opcode descriptions in https://www.sqlite.org/opcode.html to resolve
+
+	// resolve parameter count
+	var paramCount uint32
+	sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
+		if v, ok := node.(*sqlparser.SQLVal); ok && v.Type == sqlparser.ValArg {
+			atomic.AddUint32(&paramCount, 1)
+		}
+		return true, nil
+	}, stmt)
+
+	// build dummy args, golang implementation requires argument to execute explain statement
+	dummyArgs := make([]interface{}, paramCount)
+
 	var rows *sql.Rows
-	if rows, err = conn.Query("EXPLAIN " + query); err != nil {
+	if rows, err = conn.Query("EXPLAIN "+query, dummyArgs...); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}

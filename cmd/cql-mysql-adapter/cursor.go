@@ -19,6 +19,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -26,7 +27,17 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/sqlparser"
 	my "github.com/siddontang/go-mysql/mysql"
+)
+
+// preset column counts for special statements
+const (
+	columnCountShowCreateTable = 1 // sql
+	columnCountShowTableInfo   = 6 // cid|name|type|notnull|dflt_value|pk
+	columnCountShowIndex       = 1 // name
+	columnCountShowTables      = 1 // name
+	columnCountExplain         = 8 // addr|opcode|p1|p2|p3|p4|p5|comment
 )
 
 var (
@@ -146,9 +157,11 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 		processed = true
 	} else if emptyResultWithResultSetQuery.MatchString(query) { // send empty result include non-nil result set
 		// return empty result with empty result set
-		var resultSet *my.Resultset
-		var columns []string
-		var row []interface{}
+		var (
+			resultSet *my.Resultset
+			columns   []string
+			row       []interface{}
+		)
 
 		for k, v := range mysqlServerVariables {
 			if strings.Contains(query, k) {
@@ -362,12 +375,15 @@ func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*
 		fieldGlob = strings.NewReplacer("_", "?", "%", "*").Replace(fieldWildcard)
 	}
 
-	var cid, defaultValue interface{}
-	var columnName, typeString string
-	var isNotNull, isPK bool
+	var (
+		cid, defaultValue      interface{}
+		columnName, typeString string
+		isNotNull, isPK        bool
+	)
 
 	for columns.Next() {
 		if err = columns.Scan(&cid, &columnName, &typeString, &isNotNull, &defaultValue, &isPK); err != nil {
+			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
 
@@ -407,20 +423,168 @@ func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*
 // HandleStmtPrepare handle COM_STMT_PREPARE, params is the param number for this statement, columns is the column number
 // context will be used later for statement execute.
 func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, context interface{}, err error) {
-	// TODO(xq26144), not implemented
-	// According to the libmysql standard: https://github.com/mysql/mysql-server/blob/8.0/libmysql/libmysql.cc#L1599
-	// the COM_STMT_PREPARE should return the correct bind parameter count (which can be implemented by newly created parser)
-	// and should return the correct number of return fields (which can not be implemented right now with new query plan logic embedded)
+	// for special queries
+	var processed bool
+	var r *my.Result
 
-	err = my.NewError(my.ER_NOT_SUPPORTED_YET, "stmt prepare is not supported yet")
+	log.WithField("query", query).Info("received query")
+
+	if r, processed, err = c.handleSpecialQuery(query); processed {
+		// set context as result
+		context = r
+		return
+	}
+
+	var conn *sql.DB
+
+	if conn, err = c.ensureDatabase(); err != nil {
+		return
+	}
+
+	// tokenize commands
+	var (
+		tokenizer   = sqlparser.NewStringTokenizer(query)
+		stmt        sqlparser.Statement
+		lastPos     int
+		singleQuery string
+	)
+
+	for {
+		stmt, err = sqlparser.ParseNext(tokenizer)
+
+		// parse statement failed
+		if err != nil && err != io.EOF {
+			return
+		}
+
+		if err == io.EOF {
+			err = nil
+			break
+		}
+
+		if lastPos != 0 {
+			// multiple queries
+			err = my.NewError(my.ER_SYNTAX_ERROR, "could not prepare multiple statements")
+			return
+		}
+
+		singleQuery = query[lastPos : tokenizer.Position-1]
+		lastPos = tokenizer.Position + 1
+	}
+
+	if strings.TrimSpace(singleQuery) == "" {
+		// empty query
+		err = my.NewError(my.ER_SYNTAX_ERROR, "query is empty")
+		return
+	}
+
+	// calculate param count for special statements
+	switch s := stmt.(type) {
+	case *sqlparser.Show:
+		params = 0
+		switch s.Type {
+		case "table":
+			if s.ShowCreate {
+				columns = columnCountShowCreateTable
+			} else {
+				columns = columnCountShowTableInfo
+			}
+		case "index":
+			columns = columnCountShowIndex
+		case "tables":
+			columns = columnCountShowTables
+		default:
+			err = my.NewError(my.ER_UNKNOWN_ERROR, "unknown query")
+		}
+		return
+	case *sqlparser.Explain:
+		params = 0
+		columns = columnCountExplain
+		return
+	}
+
+	// HACK(xq262144), this feature is supported by sqlite only, replace with query plan analysis for mysql engine
+	// normal statement, using explain to calculate param and result column count
+	// using opcode descriptions in https://www.sqlite.org/opcode.html to resolve
+	var rows *sql.Rows
+	if rows, err = conn.Query("EXPLAIN " + query); err != nil {
+		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+		return
+	}
+
+	defer rows.Close()
+
+	var (
+		opcode                    string
+		p1, p2                    int
+		addr, p3, p4, p5, comment interface{} // not care about this fields
+	)
+
+	for rows.Next() {
+		if err = rows.Scan(&addr, &opcode, &p1, &p2, &p3, &p4, &p5, &comment); err != nil {
+			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+			return
+		}
+
+		// p1 for variables is
+		if opcode == "Variable" && p1 > params {
+			params = p1
+		}
+
+		// p2 is the result column count
+		if opcode == "ResultRow" {
+			columns = p2
+		}
+	}
+
 	return
 }
 
 // HandleStmtExecute handle COM_STMT_EXECUTE, context is the previous one set in prepare
 // query is the statement prepare query, and args is the params for this statement.
-func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []interface{}) (result *my.Result, err error) {
-	// same to COM_STMT_PREPARE
-	err = my.NewError(my.ER_NOT_SUPPORTED_YET, "stmt execute is not supported yet")
+func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []interface{}) (r *my.Result, err error) {
+	// special query
+	if context != nil {
+		var ok bool
+		if r, ok = context.(*my.Result); ok {
+			return
+		}
+	}
+
+	var conn *sql.DB
+
+	if conn, err = c.ensureDatabase(); err != nil {
+		return
+	}
+
+	// normal query
+	if readQuery.MatchString(query) {
+		var rows *sql.Rows
+		if rows, err = conn.Query(query, args...); err != nil {
+			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+			return
+		}
+
+		// build result set
+		return c.buildResultSet(rows)
+	}
+
+	var result sql.Result
+	if result, err = conn.Exec(query, args...); err != nil {
+		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
+		return
+	}
+
+	lastInsertID, _ := result.LastInsertId()
+	affectedRows, _ := result.RowsAffected()
+
+	r = &my.Result{
+		Status:       0,
+		InsertId:     uint64(lastInsertID),
+		AffectedRows: uint64(affectedRows),
+		Resultset:    nil,
+	}
+
 	return
 }
 

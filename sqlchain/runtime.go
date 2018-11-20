@@ -47,6 +47,8 @@ type runtime struct {
 	tick time.Duration
 	// queryTTL sets the unacknowledged query TTL in block periods.
 	queryTTL int32
+	// blockCacheTTL sets the cached block numbers.
+	blockCacheTTL int32
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
 	// price sets query price in gases.
@@ -85,11 +87,17 @@ type runtime struct {
 // newRunTime returns a new sql-chain runtime instance with the specified config.
 func newRunTime(c *Config) (r *runtime) {
 	r = &runtime{
-		stopCh:          make(chan struct{}),
-		databaseID:      c.DatabaseID,
-		period:          c.Period,
-		tick:            c.Tick,
-		queryTTL:        c.QueryTTL,
+		stopCh:     make(chan struct{}),
+		databaseID: c.DatabaseID,
+		period:     c.Period,
+		tick:       c.Tick,
+		queryTTL:   c.QueryTTL,
+		blockCacheTTL: func() int32 {
+			if c.BlockCacheTTL < minBlockCacheTTL {
+				return minBlockCacheTTL
+			}
+			return c.BlockCacheTTL
+		}(),
 		muxService:      c.MuxService,
 		price:           c.Price,
 		producingReward: c.ProducingReward,

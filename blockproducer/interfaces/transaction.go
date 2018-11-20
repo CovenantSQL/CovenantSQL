@@ -97,7 +97,7 @@ func (t TransactionType) String() string {
 type Transaction interface {
 	GetAccountAddress() proto.AccountAddress
 	GetAccountNonce() AccountNonce
-	GetHash() hash.Hash
+	Hash() hash.Hash
 	GetTransactionType() TransactionType
 	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error

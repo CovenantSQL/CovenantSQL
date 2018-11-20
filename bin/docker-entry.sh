@@ -4,11 +4,11 @@ echo nameserver 1.1.1.1 > /etc/resolv.conf
 
 case "${COVENANT_ROLE}" in
 miner)
-    exec /app/cql-minerd -config "${COVENANT_CONF}"
+    exec /app/cql-minerd -config "${COVENANT_CONF}" "${@}"
     ;;
 blockproducer)
     rm -f /app/node_*/chain.db
-    exec /app/cqld -config "${COVENANT_CONF}"
+    exec /app/cqld -config "${COVENANT_CONF}" "${@}"
     ;;
 observer)
     rm -f /app/node_observer/observer.db

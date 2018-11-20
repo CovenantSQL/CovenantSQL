@@ -82,13 +82,13 @@ func TestBilling_SerializeDeserialize(t *testing.T) {
 	}
 
 	if !tb.Signature.IsEqual(dec.Signature) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signature, tb.Signature)
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signature, dec.Signature)
 	}
 	if !tb.Signee.IsEqual(dec.Signee) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signee, tb.Signee)
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signee, dec.Signee)
 	}
-	if !tb.Hash.IsEqual(&dec.Hash) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Hash, tb.Hash)
+	if tb.Hash() != dec.Hash() {
+		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Hash(), dec.Hash())
 	}
 }
 
@@ -131,20 +131,6 @@ func TestBilling_PackAndSignTx(t *testing.T) {
 
 	if tb.GetDatabaseID() == nil {
 		t.Fatal("Get nil DatabaseID")
-	}
-
-	// verify failed hash
-	tb.Hash = hash.Hash{}
-
-	err = tb.Verify()
-	if err == nil {
-		t.Fatal("Verify signature should failed")
-	}
-
-	tb.Hash = h
-	err = tb.Verify()
-	if err != nil {
-		t.Fatalf("Verify signature failed: %v", err)
 	}
 
 	tb.Signature = nil

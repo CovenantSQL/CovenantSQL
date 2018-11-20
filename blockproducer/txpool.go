@@ -94,7 +94,7 @@ func (p *txPool) hasTx(tx pi.Transaction) (ok bool) {
 		return
 	}
 	// Check transaction hash
-	if ok = (tx.GetHash() == te.transactions[index].GetHash()); !ok {
+	if ok = (tx.Hash() == te.transactions[index].Hash()); !ok {
 		log.Debug("transaction hash already exists")
 		return
 	}
@@ -112,7 +112,7 @@ func (p *txPool) cmpAndMoveNextTx(tx pi.Transaction) (ok bool) {
 		return
 	}
 	// Check transaction hash
-	if ok = (tx.GetHash() == te.transactions[0].GetHash()); !ok {
+	if ok = (tx.Hash() == te.transactions[0].Hash()); !ok {
 		return
 	}
 	// Move forward

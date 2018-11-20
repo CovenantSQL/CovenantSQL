@@ -23,14 +23,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/pkg/errors"
 )
 
@@ -132,7 +131,7 @@ func (dbms *DBMS) Init() (err error) {
 	}
 
 	// load current peers info from block producer
-	var dbMapping []wt.ServiceInstance
+	var dbMapping []types.ServiceInstance
 	if dbMapping, err = dbms.getMappedInstances(); err != nil {
 		err = errors.Wrap(err, "get mapped instances failed")
 		return
@@ -147,7 +146,7 @@ func (dbms *DBMS) Init() (err error) {
 	return
 }
 
-func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err error) {
+func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (err error) {
 	currentInstance := make(map[proto.DatabaseID]bool)
 
 	for _, instanceConf := range conf {
@@ -177,7 +176,7 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []wt.ServiceInstance) (err 
 }
 
 // Create add new database to the miner dbms.
-func (dbms *DBMS) Create(instance *wt.ServiceInstance, cleanup bool) (err error) {
+func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err error) {
 	if _, alreadyExists := dbms.getMeta(instance.DatabaseID); alreadyExists {
 		return ErrAlreadyExists
 	}
@@ -245,7 +244,7 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 }
 
 // Update apply the new peers config to dbms.
-func (dbms *DBMS) Update(instance *wt.ServiceInstance) (err error) {
+func (dbms *DBMS) Update(instance *types.ServiceInstance) (err error) {
 	var db *Database
 	var exists bool
 
@@ -258,7 +257,7 @@ func (dbms *DBMS) Update(instance *wt.ServiceInstance) (err error) {
 }
 
 // Query handles query request in dbms.
-func (dbms *DBMS) Query(req *wt.Request) (res *wt.Response, err error) {
+func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 	var db *Database
 	var exists bool
 
@@ -273,7 +272,7 @@ func (dbms *DBMS) Query(req *wt.Request) (res *wt.Response, err error) {
 }
 
 // Ack handles ack of previous response.
-func (dbms *DBMS) Ack(ack *wt.Ack) (err error) {
+func (dbms *DBMS) Ack(ack *types.Ack) (err error) {
 	var db *Database
 	var exists bool
 
@@ -285,32 +284,6 @@ func (dbms *DBMS) Ack(ack *wt.Ack) (err error) {
 
 	// send query
 	return db.Ack(ack)
-}
-
-// GetRequest handles fetching original request of previous transactions.
-func (dbms *DBMS) GetRequest(dbID proto.DatabaseID, offset uint64) (query *wt.Request, err error) {
-	var db *Database
-	var exists bool
-
-	if db, exists = dbms.getMeta(dbID); !exists {
-		err = ErrNotExists
-		return
-	}
-
-	var req interface{}
-	if req, err = db.getLog(offset); err != nil {
-		err = errors.Wrap(err, "get log failed")
-		return
-	}
-
-	// decode requests
-	var ok bool
-	if query, ok = req.(*wt.Request); !ok {
-		err = errors.Wrap(kt.ErrInvalidLog, "convert log to request failed")
-		return
-	}
-
-	return
 }
 
 func (dbms *DBMS) getMeta(dbID proto.DatabaseID) (db *Database, exists bool) {
@@ -338,14 +311,14 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 	return dbms.writeMeta()
 }
 
-func (dbms *DBMS) getMappedInstances() (instances []wt.ServiceInstance, err error) {
+func (dbms *DBMS) getMappedInstances() (instances []types.ServiceInstance, err error) {
 	var bpNodeID proto.NodeID
 	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
 		return
 	}
 
-	req := &wt.InitService{}
-	res := new(wt.InitServiceResponse)
+	req := &types.InitService{}
+	res := new(types.InitServiceResponse)
 
 	if err = rpc.NewCaller().CallNode(bpNodeID, route.BPDBGetNodeDatabases.String(), req, res); err != nil {
 		return

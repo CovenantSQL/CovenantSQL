@@ -215,7 +215,7 @@ func (s *Service) getTxByHash(h *hash.Hash) (tx pi.Transaction, c uint32, height
 			continue
 		}
 
-		if curH := curTx.GetHash(); h.IsEqual(&curH) {
+		if curH := curTx.Hash(); h.IsEqual(&curH) {
 			tx = curTx
 			break
 		}
@@ -367,7 +367,7 @@ func (s *Service) saveTransaction(c uint32, tx pi.Transaction) (err error) {
 		return ErrNilTransaction
 	}
 
-	txHash := tx.GetHash()
+	txHash := tx.Hash()
 
 	var txKey []byte
 

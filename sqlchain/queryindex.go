@@ -22,9 +22,8 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/pkg/errors"
 )
 
@@ -37,8 +36,8 @@ var (
 type requestTracker struct {
 	// TODO(leventeliu): maybe we don't need them to be "signed" here. Given that the response or
 	// Ack is already verified, simply use Header.
-	response *wt.SignedResponseHeader
-	ack      *wt.SignedAckHeader
+	response *types.SignedResponseHeader
+	ack      *types.SignedAckHeader
 	// signedBlock is the hash of the block in the currently best chain which contains this query.
 	signedBlock *hash.Hash
 }
@@ -60,7 +59,7 @@ func newQueryTracker() *queryTracker {
 }
 
 // updateAck updates the query tracker with a verified SignedAckHeader.
-func (s *requestTracker) updateAck(ack *wt.SignedAckHeader) (isNew bool, err error) {
+func (s *requestTracker) updateAck(ack *types.SignedAckHeader) (isNew bool, err error) {
 	if s.ack == nil {
 		// A later Ack can overwrite the original Response setting
 		*s = requestTracker{
@@ -69,7 +68,7 @@ func (s *requestTracker) updateAck(ack *wt.SignedAckHeader) (isNew bool, err err
 		}
 
 		isNew = true
-	} else if !s.ack.Hash.IsEqual(&ack.Hash) {
+	} else if s.ack.Hash() != ack.Hash() {
 		// This may happen when a client sends multiple acknowledgements for a same query (same
 		// response header hash)
 		err = ErrMultipleAckOfResponse
@@ -82,11 +81,11 @@ func (s *requestTracker) updateAck(ack *wt.SignedAckHeader) (isNew bool, err err
 type hashIndex map[hash.Hash]*requestTracker
 
 // seqIndex defines a queryTracker index using sequence number as key.
-type seqIndex map[wt.QueryKey]*queryTracker
+type seqIndex map[types.QueryKey]*queryTracker
 
 // ensure returns the *queryTracker associated with the given key. It creates a new item if the
 // key doesn't exist.
-func (i seqIndex) ensure(k wt.QueryKey) (v *queryTracker) {
+func (i seqIndex) ensure(k types.QueryKey) (v *queryTracker) {
 	var ok bool
 
 	if v, ok = i[k]; !ok {
@@ -110,11 +109,11 @@ func (i seqIndex) ensure(k wt.QueryKey) (v *queryTracker) {
 // |  ...   |                                 |                           | | | | +-...               |
 // +--------+           +------------------+  |                           | | | | +-SeqNo: seq#0      |
 // | hash#3 |-----+  +->| queryTracker     |  |                           | | | | +-...               |
-// +--------+     |  |  | +-firstAck (nil) |  |                           | | | +-Hash = hash#0 |
+// +--------+     |  |  | +-firstAck (nil) |  |                           | | | +-Hash:        hash#0 |
 // |  ...   |     |  |  | +-queries        |  |                           | | | +-Signee ====> pubk#0 |
 // +--------+     |  |  |   +-[0]          |--+                           | | | +-Signature => sign#0 |
 // | hash#6 |--+  |  |  |   +-...          |                              | | +-...                   |
-// +--------+  |  |  |  +------------------+                              | +-Hash = hash#1     |
+// +--------+  |  |  |  +------------------+                              | +-Hash:        hash#1     |
 // |  ...   |  |  |  |                                                    | +-Signee ====> pubk#1     |
 //             |  |  |                                                    | +-Signature => sign#1     |
 //             |  |  |                                                    +---------------------------+
@@ -130,15 +129,15 @@ func (i seqIndex) ensure(k wt.QueryKey) (v *queryTracker) {
 // |  ...   |  |     |                    | |                             | | | | | | +-...               |
 //             |     |                    | |                             | | | | | | +-SeqNo: seq#1      |
 //             |     |                    | |                             | | | | | | +-...               |
-//             |     |                    | |                             | | | | | +-Hash = hash#2 |
+//             |     |                    | |                             | | | | | +-Hash:        hash#2 |
 //             |     |                    | |                             | | | | | +-Signee ====> pubk#2 |
 //             |     |                    | |                             | | | | | +-Signature => sign#2 |
 //  seqIndex   |     |                    | |    +----------------+       | | | | +-...                   |
-//             +------------------------------+->| requestTracker |       | | | +-Hash = hash#3     |
+//             +------------------------------+->| requestTracker |       | | | +-Hash:        hash#3     |
 // |  ...   |        |                    | | |  | +-response     |---+   | | | +-signee ====> pubk#3     |
 // +--------+        |                    | | |  | +-ack (nil)    |   |   | | | +-Signature => sign#3     |
 // | seq#0  |--------+                    | | |  | +-...          |   |   | | +-...                       |
-// +--------+                             | | |  +----------------+   |   | +-Hash = hash#4         |
+// +--------+                             | | |  +----------------+   |   | +-Hash:        hash#4         |
 // |  ...   |                             | | |                       |   | +-Signee ====> pubk#2         |
 // +--------+           +--------------+  | | |                       |   | +-Signature => sign#4         |
 // | seq#1  |---------->| queryTracker |  | | |                       |   +-------------------------------+
@@ -153,11 +152,11 @@ func (i seqIndex) ensure(k wt.QueryKey) (v *queryTracker) {
 //                                                                        | | | | +-...               |
 //                                                                        | | | | +-SeqNo: seq#1      |
 //                                                                        | | | | +-...               |
-//                                                                        | | | +-Hash = hash#5 |
+//                                                                        | | | +-Hash:        hash#5 |
 //                                                                        | | | +-Signee ====> pubk#5 |
 //                                                                        | | | +-Signature => sign#5 |
 //                                                                        | | +-...                   |
-//                                                                        | +-Hash = hash#6     |
+//                                                                        | +-Hash:        hash#6     |
 //                                                                        | +-Signee ====> pubk#6     |
 //                                                                        | +-Signature => sign#6     |
 //                                                                        +---------------------------+
@@ -173,16 +172,16 @@ func newMultiIndex() *multiIndex {
 	return &multiIndex{
 		respIndex: make(map[hash.Hash]*requestTracker),
 		ackIndex:  make(map[hash.Hash]*requestTracker),
-		seqIndex:  make(map[wt.QueryKey]*queryTracker),
+		seqIndex:  make(map[types.QueryKey]*queryTracker),
 	}
 }
 
 // addResponse adds the responsed query to the index.
-func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
+func (i *multiIndex) addResponse(resp *types.SignedResponseHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 
-	if v, ok := i.respIndex[resp.Hash]; ok {
+	if v, ok := i.respIndex[resp.Hash()]; ok {
 		if v == nil || v.response == nil {
 			// TODO(leventeliu): consider to panic.
 			err = ErrCorruptedIndex
@@ -202,7 +201,7 @@ func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
 		response: resp,
 	}
 
-	i.respIndex[resp.Hash] = s
+	i.respIndex[resp.Hash()] = s
 	q := i.seqIndex.ensure(resp.Request.GetQueryKey())
 	q.queries = append(q.queries, s)
 
@@ -210,7 +209,7 @@ func (i *multiIndex) addResponse(resp *wt.SignedResponseHeader) (err error) {
 }
 
 // addAck adds the acknowledged query to the index.
-func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
+func (i *multiIndex) addAck(ack *types.SignedAckHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 	var v *requestTracker
@@ -226,7 +225,7 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 
 		// Add hash -> ack index anyway, so that we can find the request tracker later, even if
 		// there is a earlier acknowledgement for the same request
-		i.ackIndex[ack.Hash] = v
+		i.ackIndex[ack.Hash()] = v
 
 		// This also updates the item indexed by ackIndex and seqIndex
 		var isNew bool
@@ -246,7 +245,7 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 		}
 
 		i.respIndex[ack.ResponseHash()] = v
-		i.ackIndex[ack.Hash] = v
+		i.ackIndex[ack.Hash()] = v
 		q.queries = append(q.queries, v)
 	}
 
@@ -255,14 +254,14 @@ func (i *multiIndex) addAck(ack *wt.SignedAckHeader) (err error) {
 	// We will keep the first ack counted anyway. But, should we report it to someone?
 	if q.firstAck == nil {
 		q.firstAck = v
-	} else if !q.firstAck.ack.Hash.IsEqual(&ack.Hash) {
+	} else if q.firstAck.ack.Hash() != ack.Hash() {
 		err = ErrMultipleAckOfSeqNo
 	}
 
 	return
 }
 
-func (i *multiIndex) getAck(header *hash.Hash) (ack *wt.SignedAckHeader, ok bool) {
+func (i *multiIndex) getAck(header *hash.Hash) (ack *types.SignedAckHeader, ok bool) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -345,7 +344,7 @@ func (i *multiIndex) checkAckFromBlock(b *hash.Hash, ack *hash.Hash) (isKnown bo
 	qs := i.seqIndex[q.ack.SignedRequestHeader().GetQueryKey()]
 
 	// Check it as a first acknowledgement
-	if i.respIndex[q.response.Hash] != q || qs == nil || qs.firstAck == nil {
+	if i.respIndex[q.response.Hash()] != q || qs == nil || qs.firstAck == nil {
 		err = ErrCorruptedIndex
 		return
 	}
@@ -384,7 +383,8 @@ func (i *multiIndex) markAndCollectUnsignedAcks(qs *[]*hash.Hash) {
 	for _, q := range i.seqIndex {
 		if ack := q.firstAck; ack != nil && ack.signedBlock == nil {
 			ack.signedBlock = placeHolder
-			*qs = append(*qs, &ack.ack.Hash)
+			ackHash := ack.ack.Hash()
+			*qs = append(*qs, &ackHash)
 		}
 	}
 }
@@ -466,14 +466,14 @@ func newQueryIndex() *queryIndex {
 }
 
 // addResponse adds the responsed query to the index.
-func (i *queryIndex) addResponse(h int32, resp *wt.SignedResponseHeader) error {
+func (i *queryIndex) addResponse(h int32, resp *types.SignedResponseHeader) error {
 	// TODO(leventeliu): we should ensure that the Request uses coordinated timestamp, instead of
 	// any client local time.
 	return i.heightIndex.ensureHeight(h).addResponse(resp)
 }
 
 // addAck adds the acknowledged query to the index.
-func (i *queryIndex) addAck(h int32, ack *wt.SignedAckHeader) error {
+func (i *queryIndex) addAck(h int32, ack *types.SignedAckHeader) error {
 	return i.heightIndex.ensureHeight(h).addAck(ack)
 }
 
@@ -499,32 +499,34 @@ func (i *queryIndex) checkAckFromBlock(h int32, b *hash.Hash, ack *hash.Hash) (
 }
 
 // setSignedBlock updates the signed block in index for the acknowledged queries in the block.
-func (i *queryIndex) setSignedBlock(h int32, block *ct.Block) {
+func (i *queryIndex) setSignedBlock(h int32, block *types.Block) {
 	b := i.getBarrier()
 
-	for _, v := range block.Queries {
+	for _, v := range block.Acks {
 		for x := b; x <= h; x++ {
 			if hi, ok := i.heightIndex.get(x); ok {
-				hi.setSignedBlock(block.BlockHash(), v)
+				ackHash := v.Hash()
+				hi.setSignedBlock(block.BlockHash(), &ackHash)
 			}
 		}
 	}
 }
 
-func (i *queryIndex) resetSignedBlock(h int32, block *ct.Block) {
+func (i *queryIndex) resetSignedBlock(h int32, block *types.Block) {
 	b := i.getBarrier()
 
-	for _, v := range block.Queries {
+	for _, v := range block.Acks {
 		for x := b; x <= h; x++ {
 			if hi, ok := i.heightIndex.get(x); ok {
-				hi.resetSignedBlock(block.BlockHash(), v)
+				ackHash := v.Hash()
+				hi.resetSignedBlock(block.BlockHash(), &ackHash)
 			}
 		}
 	}
 }
 
 // getAck gets the acknowledged queries from the index.
-func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *wt.SignedAckHeader, err error) {
+func (i *queryIndex) getAck(h int32, header *hash.Hash) (ack *types.SignedAckHeader, err error) {
 	b := i.getBarrier()
 
 	if h < b {

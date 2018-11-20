@@ -29,7 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -279,13 +279,13 @@ func TestMultiNode(t *testing.T) {
 							br, err := generateRandomBillingRequest()
 							c.So(err, ShouldBeNil)
 
-							bReq := &ct.AdviseBillingReq{
+							bReq := &types.AdviseBillingReq{
 								Envelope: proto.Envelope{
 									// TODO(lambda): Add fields.
 								},
 								Req: br,
 							}
-							bResp := &ct.AdviseBillingResp{}
+							bResp := &types.AdviseBillingResp{}
 							log.WithFields(log.Fields{
 								"node":        val,
 								"requestHash": br.RequestHash,

@@ -19,6 +19,7 @@ package types
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -44,7 +45,7 @@ func (h *CreateDatabaseHeader) GetAccountNonce() pi.AccountNonce {
 type CreateDatabase struct {
 	CreateDatabaseHeader
 	pi.TransactionTypeMixin
-	DefaultHashSignVerifierImpl
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // NewCreateDatabase returns new instance.

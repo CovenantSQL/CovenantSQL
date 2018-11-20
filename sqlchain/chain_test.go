@@ -164,15 +164,16 @@ func TestMultiChain(t *testing.T) {
 
 		// Create chain instance
 		config := &Config{
-			DatabaseID: testDatabaseID,
-			DataFile:   dbfile,
-			Genesis:    genesis,
-			Period:     testPeriod,
-			Tick:       testTick,
-			MuxService: mux,
-			Server:     peers.Servers[i],
-			Peers:      peers,
-			QueryTTL:   testQueryTTL,
+			DatabaseID:      testDatabaseID,
+			ChainFilePrefix: dbfile,
+			DataFile:        dbfile,
+			Genesis:         genesis,
+			Period:          testPeriod,
+			Tick:            testTick,
+			MuxService:      mux,
+			Server:          peers.Servers[i],
+			Peers:           peers,
+			QueryTTL:        testQueryTTL,
 		}
 		chain, err := NewChain(config)
 
@@ -309,17 +310,6 @@ func TestMultiChain(t *testing.T) {
 				}
 				t.Logf("Checking block %v at height %d in peer %s",
 					node.block.BlockHash(), i, c.rt.getPeerInfoString())
-				for _, v := range node.block.Queries {
-					if ack, err := c.queryOrSyncAckedQuery(
-						i, v, node.block.Producer(),
-					); err != nil && ack == nil {
-						t.Errorf("Failed to fetch ack %v at height %d in peer %s: %v",
-							v, i, c.rt.getPeerInfoString(), err)
-					} else {
-						t.Logf("Successed to fetch ack %v at height %d in peer %s",
-							v, i, c.rt.getPeerInfoString())
-					}
-				}
 			}
 		}(v.chain)
 	}
@@ -355,7 +345,7 @@ func TestMultiChain(t *testing.T) {
 
 						if err != nil {
 							t.Errorf("Error occurred: %v", err)
-						} else if err = c.VerifyAndPushResponsedQuery(resp); err != nil {
+						} else if err = c.addResponse(resp); err != nil {
 							t.Errorf("Error occurred: %v", err)
 						}
 

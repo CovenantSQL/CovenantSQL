@@ -67,7 +67,7 @@ func (b *Block) GetTxHashes() []*hash.Hash {
 	hs := make([]*hash.Hash, len(b.Transactions))
 
 	for i, v := range b.Transactions {
-		h := v.GetHash()
+		h := v.Hash()
 		hs[i] = &h
 	}
 	return hs

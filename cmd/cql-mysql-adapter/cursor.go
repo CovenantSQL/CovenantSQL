@@ -290,7 +290,7 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 }
 
 // HandleQuery handle COM_QUERY comamnd, like SELECT, INSERT, UPDATE, etc...
-// if Result has a Resultset (SELECT, SHOW, etc...), we will send this as the repsonse, otherwise, we will send Result.
+// if Result has a Resultset (SELECT, SHOW, etc...), we will send this as the response, otherwise, we will send Result.
 func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	var processed bool
 

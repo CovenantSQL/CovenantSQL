@@ -14,371 +14,425 @@
  * limitations under the License.
  */
 
-// Package storage implements simple key-value storage interfaces based on sqlite3.
-//
-// Although a sql.DB should be safe for concurrent use according to
-// https://golang.org/pkg/database/sql/#OpenDB, the go-sqlite3 implementation only guarantees
-// the safety of concurrent readers. See https://github.com/mattn/go-sqlite3/issues/148 for details.
-//
-// As a result, here are some suggestions:
-//
-//	1. Perform as many concurrent GetValue(s) operations as you like;
-//	2. Use only one goroutine to perform SetValue(s)/DelValue(s) operations;
-//	3. Or implement a simple busy waiting yourself on a go-sqlite3.ErrLocked error if you must use
-//	   concurrent writers.
 package storage
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
+
+	"github.com/CovenantSQL/CovenantSQL/twopc"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	// Register CovenantSQL/go-sqlite3-encrypt engine.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 var (
 	index = struct {
-		mu *sync.Mutex
+		sync.Mutex
 		db map[string]*sql.DB
 	}{
-		&sync.Mutex{},
-		make(map[string]*sql.DB),
+		db: make(map[string]*sql.DB),
 	}
 )
 
+// Query represents the single query of sqlite.
+type Query struct {
+	Pattern string
+	Args    []sql.NamedArg
+}
+
+// ExecLog represents the execution log of sqlite.
+type ExecLog struct {
+	ConnectionID uint64
+	SeqNo        uint64
+	Timestamp    int64
+	Queries      []Query
+}
+
+// ExecResult represents the execution result of sqlite.
+type ExecResult struct {
+	LastInsertID int64
+	RowsAffected int64
+}
+
 func openDB(dsn string) (db *sql.DB, err error) {
-	index.mu.Lock()
-	defer index.mu.Unlock()
+	// Rebuild DSN.
+	d, err := NewDSN(dsn)
 
-	db = index.db[dsn]
-	if db == nil {
-		db, err = sql.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	d.AddParam("_journal_mode", "WAL")
+	d.AddParam("_synchronous", "NORMAL")
+	fdsn := d.Format()
+
+	fn := d.GetFileName()
+	mode, _ := d.GetParam("mode")
+	cache, _ := d.GetParam("cache")
+
+	if (fn == ":memory:" || mode == "memory") && cache != "shared" {
+		// Return a new DB instance if it's in memory and private.
+		db, err = sql.Open("sqlite3", fdsn)
+		return
+	}
+
+	index.Lock()
+	db, ok := index.db[d.filename]
+	index.Unlock()
+
+	if !ok {
+		db, err = sql.Open("sqlite3", fdsn)
+
 		if err != nil {
 			return nil, err
 		}
 
-		index.db[dsn] = db
+		index.Lock()
+		index.db[d.filename] = db
+		index.Unlock()
 	}
 
-	return db, err
+	return
 }
 
-// Storage represents a key-value storage.
+// TxID represents a transaction ID.
+type TxID struct {
+	ConnectionID uint64
+	SeqNo        uint64
+	Timestamp    int64
+}
+
+func equalTxID(x, y *TxID) bool {
+	return x.ConnectionID == y.ConnectionID && x.SeqNo == y.SeqNo && x.Timestamp == y.Timestamp
+}
+
+// Storage represents a underlying storage implementation based on sqlite3.
 type Storage struct {
-	dsn   string
-	table string
-	db    *sql.DB
+	sync.Mutex
+	dsn     string
+	db      *sql.DB
+	tx      *sql.Tx // Current tx
+	id      TxID
+	queries []Query
 }
 
-// KV represents a key-value pair.
-type KV struct {
-	Key   string
-	Value []byte
-}
-
-// OpenStorage opens a database using the specified DSN and ensures that the specified table exists.
-func OpenStorage(dsn string, table string) (st *Storage, err error) {
-	// Open database
-	var db *sql.DB
-	db, err = openDB(dsn)
+// New returns a new storage connected by dsn.
+func New(dsn string) (st *Storage, err error) {
+	db, err := openDB(dsn)
 
 	if err != nil {
-		return st, err
+		return
 	}
 
-	// Ensure table
-	stmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` (`key` TEXT PRIMARY KEY, `value` BLOB)",
-		table)
+	return &Storage{
+		dsn: dsn,
+		db:  db,
+	}, nil
+}
 
-	if _, err = db.Exec(stmt); err != nil {
-		return st, err
+// Prepare implements prepare method of two-phase commit worker.
+func (s *Storage) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
+	el, ok := wb.(*ExecLog)
+
+	if !ok {
+		return errors.New("unexpected WriteBatch type")
 	}
 
-	st = &Storage{dsn, table, db}
-	return st, err
-}
+	s.Lock()
+	defer s.Unlock()
 
-// SetValue sets or replace the value to key.
-func (s *Storage) SetValue(key string, value []byte) (err error) {
-	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
-	_, err = s.db.Exec(stmt, key, value)
-
-	return err
-}
-
-// SetValueIfNotExist sets the value to key if it doesn't exist.
-func (s *Storage) SetValueIfNotExist(key string, value []byte) (err error) {
-	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
-	_, err = s.db.Exec(stmt, key, value)
-
-	return err
-}
-
-// DelValue deletes the value of key.
-func (s *Storage) DelValue(key string) (err error) {
-	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE `key` = ?", s.table)
-	_, err = s.db.Exec(stmt, key)
-
-	return err
-}
-
-// GetValue fetches the value of key.
-func (s *Storage) GetValue(key string) (value []byte, err error) {
-	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
-
-	if err = s.db.QueryRow(stmt, key).Scan(&value); err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return value, err
-}
-
-// SetValues sets or replaces the key-value pairs in kvs.
-//
-// Note that this is not a transaction. We use a prepared statement to send these queries. Each
-// call may fail while part of the queries succeed.
-func (s *Storage) SetValues(kvs []KV) (err error) {
-	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
-	pStmt, err := s.db.Prepare(stmt)
-
-	if err != nil {
-		return err
-	}
-
-	defer pStmt.Close()
-
-	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
-			return err
+	if s.tx != nil {
+		if equalTxID(&s.id, &TxID{el.ConnectionID, el.SeqNo, el.Timestamp}) {
+			s.queries = el.Queries
+			return nil
 		}
+
+		return fmt.Errorf("twopc: inconsistent state, currently in tx: "+
+			"conn = %d, seq = %d, time = %d", s.id.ConnectionID, s.id.SeqNo, s.id.Timestamp)
+	}
+
+	s.tx, err = s.db.BeginTx(ctx, nil)
+
+	if err != nil {
+		return
+	}
+
+	s.id = TxID{el.ConnectionID, el.SeqNo, el.Timestamp}
+	s.queries = el.Queries
+
+	return nil
+}
+
+// Commit implements commit method of two-phase commit worker.
+func (s *Storage) Commit(ctx context.Context, wb twopc.WriteBatch) (result interface{}, err error) {
+	el, ok := wb.(*ExecLog)
+
+	if !ok {
+		err = errors.New("unexpected WriteBatch type")
+		return
+	}
+
+	s.Lock()
+	defer s.Unlock()
+
+	if s.tx != nil {
+		if equalTxID(&s.id, &TxID{el.ConnectionID, el.SeqNo, el.Timestamp}) {
+			// get last insert id and affected rows result
+			execResult := ExecResult{}
+
+			for _, q := range s.queries {
+				// convert arguments types
+				args := make([]interface{}, len(q.Args))
+
+				for i, v := range q.Args {
+					args[i] = v
+				}
+
+				var res sql.Result
+				res, err = s.tx.ExecContext(ctx, q.Pattern, args...)
+
+				if err != nil {
+					log.WithError(err).Debug("commit query failed")
+					s.tx.Rollback()
+					s.tx = nil
+					s.queries = nil
+					return
+				}
+
+				lastInsertID, _ := res.LastInsertId()
+				rowsAffected, _ := res.RowsAffected()
+
+				execResult.LastInsertID = lastInsertID
+				execResult.RowsAffected += rowsAffected
+			}
+
+			s.tx.Commit()
+			s.tx = nil
+			s.queries = nil
+			result = execResult
+
+			return
+		}
+
+		err = fmt.Errorf("twopc: inconsistent state, currently in tx: "+
+			"conn = %d, seq = %d, time = %d", s.id.ConnectionID, s.id.SeqNo, s.id.Timestamp)
+		return
+	}
+
+	err = errors.New("twopc: tx not prepared")
+	return
+}
+
+// Rollback implements rollback method of two-phase commit worker.
+func (s *Storage) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
+	el, ok := wb.(*ExecLog)
+
+	if !ok {
+		return errors.New("unexpected WriteBatch type")
+	}
+
+	s.Lock()
+	defer s.Unlock()
+
+	if !equalTxID(&s.id, &TxID{el.ConnectionID, el.SeqNo, el.Timestamp}) {
+		return fmt.Errorf("twopc: inconsistent state, currently in tx: "+
+			"conn = %d, seq = %d, time = %d", s.id.ConnectionID, s.id.SeqNo, s.id.Timestamp)
+	}
+
+	if s.tx != nil {
+		s.tx.Rollback()
+		s.tx = nil
+		s.queries = nil
 	}
 
 	return nil
 }
 
-// SetValuesIfNotExist sets the key-value pairs in kvs if the key doesn't exist.
-//
-// Note that this is not a transaction. We use a prepared statement to send these queries. Each
-// call may fail while part of the queries succeed.
-func (s *Storage) SetValuesIfNotExist(kvs []KV) (err error) {
-	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
-	pStmt, err := s.db.Prepare(stmt)
+// Query implements read-only query feature.
+func (s *Storage) Query(ctx context.Context, queries []Query) (columns []string, types []string,
+	data [][]interface{}, err error) {
+	data = make([][]interface{}, 0)
 
-	if err != nil {
-		return err
+	if len(queries) == 0 {
+		return
 	}
 
-	defer pStmt.Close()
-
-	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
-			return err
-		}
+	var tx *sql.Tx
+	var txOptions = &sql.TxOptions{
+		ReadOnly: true,
 	}
 
-	return nil
-}
-
-// DelValues deletes the values of the keys.
-//
-// Note that this is not a transaction. We use a prepared statement to send these queries. Each
-// call may fail while part of the queries succeed.
-func (s *Storage) DelValues(keys []string) (err error) {
-	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE `key` = ?", s.table)
-	pStmt, err := s.db.Prepare(stmt)
-
-	if err != nil {
-		return err
+	if tx, err = s.db.BeginTx(ctx, txOptions); err != nil {
+		return
 	}
 
-	defer pStmt.Close()
+	// always rollback on complete
+	defer tx.Rollback()
 
-	for _, key := range keys {
-		if _, err = pStmt.Exec(key); err != nil {
-			return err
-		}
+	q := queries[len(queries)-1]
+
+	// convert arguments types
+	args := make([]interface{}, len(q.Args))
+
+	for i, v := range q.Args {
+		args[i] = v
 	}
 
-	return nil
-}
-
-// GetValues fetches the values of keys.
-//
-// Note that this is not a transaction. We use a prepared statement to send these queries. Each
-// call may fail while part of the queries succeed and some values may be altered during the
-// queries. But the results will be returned only if all the queries succeed.
-func (s *Storage) GetValues(keys []string) (kvs []KV, err error) {
-	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
-	pStmt, err := s.db.Prepare(stmt)
-
-	if err != nil {
-		return nil, err
+	var rows *sql.Rows
+	if rows, err = tx.Query(q.Pattern, args...); err != nil {
+		return
 	}
 
-	defer pStmt.Close()
+	// free result set
+	defer rows.Close()
 
-	kvs = make([]KV, len(keys))
-
-	for index, key := range keys {
-		kvs[index].Key = key
-
-		if err = pStmt.QueryRow(key).Scan(&kvs[index].Value); err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
+	// get rows meta
+	if columns, err = rows.Columns(); err != nil {
+		return
 	}
 
-	return kvs, nil
-}
-
-// SetValuesTx sets or replaces the key-value pairs in kvs as a transaction.
-func (s *Storage) SetValuesTx(kvs []KV) (err error) {
-	// Begin transaction
-	tx, err := s.db.Begin()
-
-	if err != nil {
-		return err
+	// if there is empty columns, treat result as empty
+	if len(columns) == 0 {
+		return
 	}
 
-	defer func() {
+	// get types meta
+	if types, err = s.transformColumnTypes(rows.ColumnTypes()); err != nil {
+		return
+	}
+
+	rs := newRowScanner(len(columns))
+
+	for rows.Next() {
+		err = rows.Scan(rs.ScanArgs()...)
 		if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
+			return
 		}
-	}()
 
-	// Prepare statement
-	stmt := fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
-	pStmt, err := tx.Prepare(stmt)
+		data = append(data, rs.GetRow())
+	}
 
+	err = rows.Err()
+	return
+}
+
+// Exec implements write query feature.
+func (s *Storage) Exec(ctx context.Context, queries []Query) (result ExecResult, err error) {
+	if len(queries) == 0 {
+		return
+	}
+
+	var tx *sql.Tx
+	var txOptions = &sql.TxOptions{
+		ReadOnly: false,
+	}
+
+	if tx, err = s.db.BeginTx(ctx, txOptions); err != nil {
+		return
+	}
+
+	defer tx.Rollback()
+
+	for _, q := range queries {
+		// convert arguments types
+		args := make([]interface{}, len(q.Args))
+
+		for i, v := range q.Args {
+			args[i] = v
+		}
+
+		var r sql.Result
+		if r, err = tx.Exec(q.Pattern, args...); err != nil {
+			log.WithError(err).Debug("execute query failed")
+			return
+		}
+
+		var affected int64
+		affected, _ = r.RowsAffected()
+		result.RowsAffected += affected
+		result.LastInsertID, _ = r.LastInsertId()
+	}
+
+	tx.Commit()
+
+	return
+}
+
+// Close implements database safe close feature.
+func (s *Storage) Close() (err error) {
+	d, err := NewDSN(s.dsn)
 	if err != nil {
-		return err
+		return
 	}
 
-	defer pStmt.Close()
+	index.Lock()
+	defer index.Unlock()
+	delete(index.db, d.filename)
+	return s.db.Close()
+}
 
-	// Execute queries
-	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
-			return err
-		}
+func (s *Storage) transformColumnTypes(columnTypes []*sql.ColumnType, e error) (types []string, err error) {
+	if e != nil {
+		err = e
+		return
 	}
+
+	types = make([]string, len(columnTypes))
+
+	for i, c := range columnTypes {
+		types[i] = c.DatabaseTypeName()
+	}
+
+	return
+}
+
+// golang does trick convert, use rowScanner to return the original result type in sqlite3 driver
+type rowScanner struct {
+	fieldCnt int
+	column   int           // current column
+	fields   []interface{} // temp fields
+	scanArgs []interface{}
+}
+
+func newRowScanner(fieldCnt int) (s *rowScanner) {
+	s = &rowScanner{
+		fieldCnt: fieldCnt,
+		column:   0,
+		fields:   make([]interface{}, fieldCnt),
+		scanArgs: make([]interface{}, fieldCnt),
+	}
+
+	for i := 0; i != fieldCnt; i++ {
+		s.scanArgs[i] = s
+	}
+
+	return
+}
+
+func (s *rowScanner) Scan(src interface{}) error {
+	if s.fieldCnt <= s.column {
+		// read complete
+		return io.EOF
+	}
+
+	s.fields[s.column] = src
+	s.column++
 
 	return nil
 }
 
-// SetValuesIfNotExistTx sets the key-value pairs in kvs if the key doesn't exist as a transaction.
-func (s *Storage) SetValuesIfNotExistTx(kvs []KV) (err error) {
-	// Begin transaction
-	tx, err := s.db.Begin()
-
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
-
-	// Prepare statement
-	stmt := fmt.Sprintf("INSERT OR IGNORE INTO `%s` (`key`, `value`) VALUES (?, ?)", s.table)
-	pStmt, err := tx.Prepare(stmt)
-
-	if err != nil {
-		return err
-	}
-
-	defer pStmt.Close()
-
-	// Execute queries
-	for _, row := range kvs {
-		if _, err = pStmt.Exec(row.Key, row.Value); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func (s *rowScanner) GetRow() []interface{} {
+	return s.fields
 }
 
-// DelValuesTx deletes the values of the keys as a transaction.
-func (s *Storage) DelValuesTx(keys []string) (err error) {
-	// Begin transaction
-	tx, err := s.db.Begin()
-
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
-
-	// Prepare statement
-	stmt := fmt.Sprintf("DELETE FROM `%s` WHERE `key` = ?", s.table)
-	pStmt, err := tx.Prepare(stmt)
-
-	if err != nil {
-		return err
-	}
-
-	defer pStmt.Close()
-
-	// Execute queries
-	for _, key := range keys {
-		if _, err = pStmt.Exec(key); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// GetValuesTx fetches the values of keys as a transaction.
-func (s *Storage) GetValuesTx(keys []string) (kvs []KV, err error) {
-	// Begin transaction
-	tx, err := s.db.Begin()
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
-
-	// Prepare statement
-	stmt := fmt.Sprintf("SELECT `value` FROM `%s` WHERE `key` = ?", s.table)
-	pStmt, err := tx.Prepare(stmt)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer pStmt.Close()
-
-	// Execute queries
-	kvs = make([]KV, len(keys))
-
-	for index, key := range keys {
-		kvs[index].Key = key
-		err = pStmt.QueryRow(key).Scan(&kvs[index].Value)
-
-		if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
-	}
-
-	return kvs, nil
+func (s *rowScanner) ScanArgs() []interface{} {
+	// reset
+	s.column = 0
+	s.fields = make([]interface{}, s.fieldCnt)
+	return s.scanArgs
 }

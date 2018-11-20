@@ -17,12 +17,12 @@
 package worker
 
 import (
-	"context"
-	"runtime/trace"
+	//"context"
+	//"runtime/trace"
 
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 )
@@ -53,16 +53,16 @@ func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (serv
 }
 
 // Query rpc, called by client to issue read/write query.
-func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) {
+func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err error) {
 	// Just need to verify signature in db.saveAck
 	//if err = req.Verify(); err != nil {
 	//	dbQueryFailCounter.Mark(1)
 	//	return
 	//}
-	ctx := context.Background()
-	ctx, task := trace.NewTask(ctx, "Query")
-	defer task.End()
-	defer trace.StartRegion(ctx, "QueryRegion").End()
+	//ctx := context.Background()
+	//ctx, task := trace.NewTask(ctx, "Query")
+	//defer task.End()
+	//defer trace.StartRegion(ctx, "QueryRegion").End()
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
@@ -71,7 +71,7 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 		return
 	}
 
-	var r *wt.Response
+	var r *types.Response
 	if r, err = rpc.dbms.Query(req); err != nil {
 		dbQueryFailCounter.Mark(1)
 		return
@@ -84,15 +84,15 @@ func (rpc *DBMSRPCService) Query(req *wt.Request, res *wt.Response) (err error) 
 }
 
 // Ack rpc, called by client to confirm read request.
-func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
+func (rpc *DBMSRPCService) Ack(ack *types.Ack, _ *types.AckResponse) (err error) {
 	// Just need to verify signature in db.saveAck
 	//if err = ack.Verify(); err != nil {
 	//	return
 	//}
-	ctx := context.Background()
-	ctx, task := trace.NewTask(ctx, "Ack")
-	defer task.End()
-	defer trace.StartRegion(ctx, "AckRegion").End()
+	//ctx := context.Background()
+	//ctx, task := trace.NewTask(ctx, "Ack")
+	//defer task.End()
+	//defer trace.StartRegion(ctx, "AckRegion").End()
 
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {
@@ -107,7 +107,7 @@ func (rpc *DBMSRPCService) Ack(ack *wt.Ack, _ *wt.AckResponse) (err error) {
 }
 
 // Deploy rpc, called by BP to create/drop database and update peers.
-func (rpc *DBMSRPCService) Deploy(req *wt.UpdateService, _ *wt.UpdateServiceResponse) (err error) {
+func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServiceResponse) (err error) {
 	// verify request node is block producer
 	if !route.IsPermitted(&req.Envelope, route.DBSDeploy) {
 		err = errors.Wrap(ErrInvalidRequest, "node not permitted for deploy request")
@@ -121,20 +121,13 @@ func (rpc *DBMSRPCService) Deploy(req *wt.UpdateService, _ *wt.UpdateServiceResp
 
 	// create/drop/update
 	switch req.Header.Op {
-	case wt.CreateDB:
+	case types.CreateDB:
 		err = rpc.dbms.Create(&req.Header.Instance, true)
-	case wt.UpdateDB:
+	case types.UpdateDB:
 		err = rpc.dbms.Update(&req.Header.Instance)
-	case wt.DropDB:
+	case types.DropDB:
 		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}
 
-	return
-}
-
-// GetRequest rpc, called by observer to fetch original request by log offset.
-func (rpc *DBMSRPCService) GetRequest(req *wt.GetRequestReq, resp *wt.GetRequestResp) (err error) {
-	// TODO(xq262144), check permission
-	resp.Request, err = rpc.dbms.GetRequest(req.DatabaseID, req.LogOffset)
 	return
 }

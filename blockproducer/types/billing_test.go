@@ -120,4 +120,36 @@ func TestBilling_PackAndSignTx(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Verify signature failed: %v", err)
 	}
+
+	// get
+	addr := hash.Hash(tb.GetAccountAddress())
+	if addr.IsEqual(&hash.Hash{}) {
+		t.Fatal("Get hash failed")
+	}
+
+	tb.GetAccountNonce()
+
+	if tb.GetDatabaseID() == nil {
+		t.Fatal("Get nil DatabaseID")
+	}
+
+	// verify failed hash
+	tb.Hash = hash.Hash{}
+
+	err = tb.Verify()
+	if err == nil {
+		t.Fatal("Verify signature should failed")
+	}
+
+	tb.Hash = h
+	err = tb.Verify()
+	if err != nil {
+		t.Fatalf("Verify signature failed: %v", err)
+	}
+
+	tb.Signature = nil
+	err = tb.Verify()
+	if err == nil {
+		t.Fatal("Verify signature should failed")
+	}
 }

@@ -17,7 +17,10 @@
 package client
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -95,10 +98,84 @@ func TestStmt(t *testing.T) {
 		_, err = stmt.Exec()
 		So(err, ShouldNotBeNil)
 
+		ctx := context.Background()
+		err = ExecuteTx(ctx, db, nil /* txopts */, func(tx *sql.Tx) error {
+			_, err := tx.Exec("insert into test values(?)", 7)
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("insert into test values(?)", 8)
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("insert into test values(?)", 9)
+			if err != nil {
+				return err
+			}
+			return err
+		})
+		So(err, ShouldBeNil)
+
+		row = db.QueryRow("select count(1) as cnt from test")
+		So(row, ShouldNotBeNil)
+		err = row.Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 6)
+
+		err = ExecuteTx(ctx, db, nil /* txopts */, func(tx *sql.Tx) error {
+			_, err := tx.Exec("insert into test values(?)", 10)
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("insert into testNoExist values(?)", 11)
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("insert into test values(?)", 12)
+			if err != nil {
+				return err
+			}
+			return err
+		})
+		So(err, ShouldNotBeNil)
+
+		err = ExecuteTx(ctx, db, nil /* txopts */, func(tx *sql.Tx) error {
+			_, err := tx.Exec("insert into test values(?)", 10)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("some error")
+		})
+		So(err, ShouldNotBeNil)
+
+		row = db.QueryRow("select count(1) as cnt from test")
+		So(row, ShouldNotBeNil)
+		err = row.Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 6)
+
 		db.Close()
 
 		// prepare on closed
 		_, err = db.Prepare("select * from test")
+		So(err, ShouldNotBeNil)
+
+		err = ExecuteTx(nil, db, nil /* txopts */, func(tx *sql.Tx) error {
+			return nil
+		})
+		So(err, ShouldNotBeNil)
+
+		// closed stmt and old args
+		cs := newStmt(nil, "test query")
+		cs.Close()
+
+		_, err = cs.Query([]driver.Value{1})
+		So(err, ShouldNotBeNil)
+
+		_, err = cs.Exec([]driver.Value{2})
+		err = ExecuteTx(nil, db, nil /* txopts */, func(tx *sql.Tx) error {
+			return nil
+		})
 		So(err, ShouldNotBeNil)
 	})
 }

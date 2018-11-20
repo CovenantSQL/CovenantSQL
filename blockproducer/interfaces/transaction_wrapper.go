@@ -77,14 +77,6 @@ func (w *TransactionWrapper) CodecEncodeSelf(e *codec.Encoder) {
 		return
 	}
 
-	// if the transaction is supports type transaction mixin
-	var rawTx interface{} = w.Transaction
-	if _, ok := rawTx.(ContainsTransactionTypeMixin); ok {
-		// encode directly
-		helperEncoder.EncFallback(w.Transaction)
-		return
-	}
-
 	// translate wrapper to two fields array wrapped by map
 	encDriver.WriteArrayStart(2)
 	encDriver.WriteArrayElem()
@@ -146,7 +138,6 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 				helperDecoder.DecFallback(&w.Transaction, true)
 			}
 		} else {
-			helperDecoder.DecSwallow()
 			helperDecoder.DecStructFieldNotFound(i, "")
 		}
 	}

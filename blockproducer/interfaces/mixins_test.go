@@ -14,14 +14,19 @@
  * limitations under the License.
  */
 
-package common
+package interfaces
 
-const (
-	// AddressLength is the fixed length of a CovenantSQL node address.
-	AddressLength = 64
-	// UUIDLength is the fixed length of a UUID.
-	UUIDLength = 16
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-// UUID is a unique identity which may be used as a Raft transaction ID.
-type UUID [UUIDLength]byte
+func TestTransactionTypeMixin(t *testing.T) {
+	Convey("test transaction type mixin", t, func() {
+		m := NewTransactionTypeMixin(TransactionTypeBaseAccount)
+		So(m.GetTransactionType(), ShouldEqual, TransactionTypeBaseAccount)
+		m.SetTransactionType(TransactionTypeTransfer)
+		So(m.GetTransactionType(), ShouldEqual, TransactionTypeTransfer)
+	})
+}

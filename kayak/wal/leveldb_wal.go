@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -37,20 +36,15 @@ var (
 	logHeaderKeyPrefix = []byte{'L', 'H'}
 	// logDataKeyPrefix defines the leveldb data key prefix.
 	logDataKeyPrefix = []byte{'L', 'D'}
-	// baseIndexKey defines the base index key.
-	baseIndexKey = []byte{'B', 'I'}
 )
 
 // LevelDBWal defines a toy wal using leveldb as storage.
 type LevelDBWal struct {
-	db          *leveldb.DB
-	it          iterator.Iterator
-	base        uint64
-	closed      uint32
-	readLock    sync.Mutex
-	read        uint32
-	pending     []uint64
-	pendingLock sync.Mutex
+	db       *leveldb.DB
+	it       iterator.Iterator
+	closed   uint32
+	readLock sync.Mutex
+	read     uint32
 }
 
 // NewLevelDBWal returns new leveldb wal instance.
@@ -59,15 +53,6 @@ func NewLevelDBWal(filename string) (p *LevelDBWal, err error) {
 	if p.db, err = leveldb.OpenFile(filename, nil); err != nil {
 		err = errors.Wrap(err, "open database failed")
 		return
-	}
-
-	// load current base
-	var baseValue []byte
-	if baseValue, err = p.db.Get(baseIndexKey, nil); err == nil {
-		// decode base
-		p.base = p.bytesToUint64(baseValue)
-	} else {
-		err = nil
 	}
 
 	return
@@ -80,14 +65,11 @@ func (p *LevelDBWal) Write(l *kt.Log) (err error) {
 		return
 	}
 
+	// mark wal as already read
+	atomic.CompareAndSwapUint32(&p.read, 0, 1)
+
 	if l == nil {
 		err = ErrInvalidLog
-		return
-	}
-
-	if l.Index < p.base {
-		// already exists
-		err = ErrAlreadyExists
 		return
 	}
 
@@ -130,13 +112,16 @@ func (p *LevelDBWal) Write(l *kt.Log) (err error) {
 		return
 	}
 
-	p.updatePending(l.Index)
-
 	return
 }
 
 // Read implements Wal.Read.
 func (p *LevelDBWal) Read() (l *kt.Log, err error) {
+	if atomic.LoadUint32(&p.closed) == 1 {
+		err = ErrWalClosed
+		return
+	}
+
 	if atomic.LoadUint32(&p.read) == 1 {
 		err = io.EOF
 		return
@@ -154,10 +139,6 @@ func (p *LevelDBWal) Read() (l *kt.Log, err error) {
 	if p.it.Next() {
 		// load
 		l, err = p.load(p.it.Value())
-		// update base and pending
-		if err == nil {
-			p.updatePending(l.Index)
-		}
 		return
 	}
 
@@ -209,34 +190,6 @@ func (p *LevelDBWal) Close() {
 	}
 }
 
-func (p *LevelDBWal) updatePending(index uint64) {
-	p.pendingLock.Lock()
-	defer p.pendingLock.Unlock()
-
-	if atomic.CompareAndSwapUint64(&p.base, index, index+1) {
-		// process pending
-		for len(p.pending) > 0 {
-			if !atomic.CompareAndSwapUint64(&p.base, p.pending[0], p.pending[0]+1) {
-				break
-			}
-			p.pending = p.pending[1:]
-		}
-
-		// commit base index to database
-		_ = p.db.Put(baseIndexKey, p.uint64ToBytes(atomic.LoadUint64(&p.base)), nil)
-	} else {
-		i := sort.Search(len(p.pending), func(i int) bool {
-			return p.pending[i] >= index
-		})
-
-		if len(p.pending) == i || p.pending[i] != index {
-			p.pending = append(p.pending, 0)
-			copy(p.pending[i+1:], p.pending[i:])
-			p.pending[i] = index
-		}
-	}
-}
-
 func (p *LevelDBWal) load(logHeader []byte) (l *kt.Log, err error) {
 	l = new(kt.Log)
 
@@ -265,8 +218,4 @@ func (p *LevelDBWal) uint64ToBytes(o uint64) (res []byte) {
 	res = make([]byte, 8)
 	binary.BigEndian.PutUint64(res, o)
 	return
-}
-
-func (p *LevelDBWal) bytesToUint64(b []byte) uint64 {
-	return binary.BigEndian.Uint64(b)
 }

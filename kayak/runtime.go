@@ -126,7 +126,17 @@ type commitResult struct {
 
 // NewRuntime creates new kayak Runtime.
 func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
+	if cfg == nil {
+		err = errors.Wrap(kt.ErrInvalidConfig, "nil config")
+		return
+	}
+
 	peers := cfg.Peers
+
+	if peers == nil {
+		err = errors.Wrap(kt.ErrInvalidConfig, "nil peers")
+		return
+	}
 
 	// verify peers
 	if err = peers.Verify(); err != nil {
@@ -312,6 +322,10 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 		return
 	}
 
+	// Leader pending map handling.
+	r.markPendingPrepare(prepareLog.Index)
+	defer r.markPrepareFinished(prepareLog.Index)
+
 	tmLeaderPrepare = time.Now()
 
 	// send prepare to all nodes
@@ -374,7 +388,8 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 ROLLBACK:
 	// rollback local
 	var rollbackLog *kt.Log
-	if rollbackLog, err = r.leaderLogRollback(prepareLog.Index); err != nil {
+	var logErr error
+	if rollbackLog, logErr = r.leaderLogRollback(prepareLog.Index); logErr != nil {
 		// serve error, construct rollback log failed, internal error
 		// TODO(): CHANGE LEADER
 		return
@@ -497,6 +512,8 @@ func (r *Runtime) followerRollback(l *kt.Log) (err error) {
 		err = errors.Wrap(err, "write follower rollback log failed")
 	}
 
+	r.markPrepareFinished(l.Index)
+
 	return
 }
 
@@ -518,6 +535,8 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 	if cResult != nil {
 		err = cResult.err
 	}
+
+	r.markPrepareFinished(l.Index)
 
 	return
 }
@@ -659,10 +678,8 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker 
 	result, err = r.sh.Commit(req.data)
 	dbCost = time.Now().Sub(tmStartDB)
 
-	if err == nil {
-		// mark last commit
-		atomic.StoreUint64(&r.lastCommit, l.Index)
-	}
+	// mark last commit
+	atomic.StoreUint64(&r.lastCommit, l.Index)
 
 	// send commit
 	tracker = r.rpc(l, r.minCommitFollowers)
@@ -699,9 +716,8 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	// do commit, not wrapping underlying handler commit error
 	_, err = r.sh.Commit(req.data)
 
-	if err == nil {
-		atomic.StoreUint64(&r.lastCommit, req.log.Index)
-	}
+	// mark last commit
+	atomic.StoreUint64(&r.lastCommit, req.log.Index)
 
 	req.result <- &commitResult{err: err}
 
@@ -757,7 +773,7 @@ func (r *Runtime) readLogs() (err error) {
 	for {
 		if l, err = r.wal.Read(); err != nil && err != io.EOF {
 			err = errors.Wrap(err, "load previous logs in wal failed")
-			break
+			return
 		} else if err == io.EOF {
 			err = nil
 			break
@@ -773,16 +789,16 @@ func (r *Runtime) readLogs() (err error) {
 			var prepareLog *kt.Log
 			if lastCommit, prepareLog, err = r.getPrepareLog(l); err != nil {
 				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
-				break
+				return
 			}
 			if lastCommit != r.lastCommit {
 				err = errors.Wrapf(err,
 					"last commit record in wal mismatched (expected: %v, actual: %v)", r.lastCommit, lastCommit)
-				break
+				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {
 				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
-				break
+				return
 			}
 			r.lastCommit = l.Index
 			// resolve previous prepared
@@ -790,18 +806,20 @@ func (r *Runtime) readLogs() (err error) {
 		case kt.LogRollback:
 			var prepareLog *kt.Log
 			if _, prepareLog, err = r.getPrepareLog(l); err != nil {
-				err = errors.Wrap(err, "previous prepare doe snot exists, node need full recovery")
+				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
 				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {
 				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
-				break
+				return
 			}
 			// resolve previous prepared
 			delete(r.pendingPrepares, prepareLog.Index)
+		case kt.LogBarrier:
+		case kt.LogNoop:
 		default:
 			err = errors.Wrapf(kt.ErrInvalidLog, "invalid log type: %v", l.Type)
-			break
+			return
 		}
 
 		// record nextIndex
@@ -878,16 +896,6 @@ func (r *Runtime) getCaller(id proto.NodeID) Caller {
 	var caller Caller = rpc.NewPersistentCaller(id)
 	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
 	return rawCaller.(Caller)
-}
-
-// SetCaller injects caller for test purpose.
-func (r *Runtime) SetCaller(id proto.NodeID, c Caller) {
-	r.callerMap.Store(id, c)
-}
-
-// RemoveCaller removes cached caller.
-func (r *Runtime) RemoveCaller(id proto.NodeID) {
-	r.callerMap.Delete(id)
 }
 
 func (r *Runtime) goFunc(f func()) {

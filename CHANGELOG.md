@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.0.4](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.4) (2018-11-08)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.3...v0.0.4)
+
+**Fixed bugs:**
+
+- Potential deadlock in testing [\#93](https://github.com/CovenantSQL/CovenantSQL/issues/93)
+
+**Closed issues:**
+
+- Where can I find covenantsql.io/covenantsql\_adapter [\#53](https://github.com/CovenantSQL/CovenantSQL/issues/53)
+
+**Merged pull requests:**
+
+- Fix loadChain failure, remove the lock in sync\(\) [\#114](https://github.com/CovenantSQL/CovenantSQL/pull/114) ([zeqing-guo](https://github.com/zeqing-guo))
+- Kayak performance improvement refactor [\#112](https://github.com/CovenantSQL/CovenantSQL/pull/112) ([xq262144](https://github.com/xq262144))
+- Fix index out of bound, refactor part of sqlchain code [\#110](https://github.com/CovenantSQL/CovenantSQL/pull/110) ([leventeliu](https://github.com/leventeliu))
+- Support lastInsertID/affectedRows in kayak [\#109](https://github.com/CovenantSQL/CovenantSQL/pull/109) ([xq262144](https://github.com/xq262144))
+
 ## [v0.0.3](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.3) (2018-11-04)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.2...v0.0.3)
@@ -7,7 +26,6 @@
 **Fixed bugs:**
 
 - Cannot receive tokens from testnet [\#84](https://github.com/CovenantSQL/CovenantSQL/issues/84)
-- Potential deadlock in testing [\#93](https://github.com/CovenantSQL/CovenantSQL/issues/93)
 
 **Closed issues:**
 
@@ -48,27 +66,6 @@
 ## [v0.0.1](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.1) (2018-09-27)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/82811a8fcac65d74aefbb506450e4477ecdad048...v0.0.1)
-
-**TestNet**
- 
-1. Ready for CLI or SDK usage. For now, Linux & OSX supported only.
-1. SQL Chain Explorer is ready.
-
-**TestNet Known Issues**
-
-1. Main Chain
-   1. Allocation algorithm for BlockProducer and Miner is incomplete.
-   1. Joining as BP or Miner is unsupported for now. _Fix@2018-10-12_
-   1. Forking Recovery algorithm is incomplete.
-1. Connector
-   1. [Java](https://github.com/CovenantSQL/covenant-connector) and [Golang Connector](https://github.com/CovenantSQL/CovenantSQL/tree/develop/client) is ready.
-   1. ĐApp support for ETH or EOS is incomplete. 
-   1. Java connector protocol is based on RESTful HTTPS, change to Golang DH-RPC latter.
-1. Database
-   1. Cartesian product or big join caused OOM. _Fix@2018-10-12_
-   1. SQL Query filter is incomplete. _Fix@2018-10-12_
-   1. Forking Recovery algorithm is incomplete.
-   1. Database for TestNet is World Open on [Explorer](https://explorer.dbhub.org).
 
 **Closed issues:**
 

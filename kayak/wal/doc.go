@@ -14,4 +14,5 @@
  * limitations under the License.
  */
 
+// Package wal defines toy implementations of kayak wal.
 package wal

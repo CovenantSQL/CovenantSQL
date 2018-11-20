@@ -14,5 +14,11 @@
  * limitations under the License.
  */
 
-// Package common defines some common types which are used by multiple modules.
-package common
+package kayak
+
+import "github.com/CovenantSQL/CovenantSQL/proto"
+
+// SetCaller injects caller for test purpose.
+func (r *Runtime) SetCaller(id proto.NodeID, c Caller) {
+	r.callerMap.Store(id, c)
+}

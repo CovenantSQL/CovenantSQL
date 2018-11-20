@@ -77,8 +77,6 @@ const (
 	DBSAck
 	// DBSDeploy is used by BP to create/drop/update database
 	DBSDeploy
-	// DBSGetRequest is used by observer to view original request
-	DBSGetRequest
 	// DBCCall is used by Miner for data consistency
 	DBCCall
 	// BPDBCreateDatabase is used by client to create database
@@ -94,8 +92,6 @@ const (
 	// SQLCAdviseBinLog is usd by sqlchain to advise binlog between adjacent node
 	SQLCAdviseBinLog
 	// SQLCAdviseResponsedQuery is used by sqlchain to advice response query between adjacent node
-	SQLCAdviseResponsedQuery
-	// SQLCAdviseAckedQuery is used by sqlchain to advise response ack between adjacent node
 	SQLCAdviseAckedQuery
 	// SQLCFetchBlock is used by sqlchain to fetch block from adjacent nodes
 	SQLCFetchBlock
@@ -109,8 +105,6 @@ const (
 	SQLCSubscribeTransactions
 	// SQLCCancelSubscription is used by sqlchain to handle observer subscription cancellation request
 	SQLCCancelSubscription
-	// OBSAdviseAckedQuery is used by sqlchain to push acked query to observers
-	OBSAdviseAckedQuery
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
 	OBSAdviseNewBlock
 	// MCCAdviseNewBlock is used by block producer to push block to adjacent nodes
@@ -167,8 +161,6 @@ func (s RemoteFunc) String() string {
 		return "DBS.Ack"
 	case DBSDeploy:
 		return "DBS.Deploy"
-	case DBSGetRequest:
-		return "DBS.GetRequest"
 	case DBCCall:
 		return "DBC.Call"
 	case BPDBCreateDatabase:
@@ -183,8 +175,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.AdviseNewBlock"
 	case SQLCAdviseBinLog:
 		return "SQLC.AdviseBinLog"
-	case SQLCAdviseResponsedQuery:
-		return "SQLC.AdviseResponsedQuery"
 	case SQLCAdviseAckedQuery:
 		return "SQLC.AdviseAckedQuery"
 	case SQLCFetchBlock:
@@ -199,8 +189,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.SubscribeTransactions"
 	case SQLCCancelSubscription:
 		return "SQLC.CancelSubscription"
-	case OBSAdviseAckedQuery:
-		return "OBS.AdviseAckedQuery"
 	case OBSAdviseNewBlock:
 		return "OBS.AdviseNewBlock"
 	case MCCAdviseNewBlock:

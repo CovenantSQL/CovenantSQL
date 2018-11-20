@@ -29,10 +29,10 @@ import (
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	"github.com/CovenantSQL/CovenantSQL/storage"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/pkg/errors"
 )
 
@@ -182,7 +182,7 @@ func (s *LocalStorage) compileLog(payload *KayakPayload) (result *compiledLog, e
 			nodeToSet: &nodeToSet,
 		}
 	case CmdSetDatabase:
-		var instance wt.ServiceInstance
+		var instance types.ServiceInstance
 		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
 			log.WithError(err).Error("compileLog: unmarshal instance meta failed")
 			return
@@ -201,7 +201,7 @@ func (s *LocalStorage) compileLog(payload *KayakPayload) (result *compiledLog, e
 			},
 		}
 	case CmdDeleteDatabase:
-		var instance wt.ServiceInstance
+		var instance types.ServiceInstance
 		if err = utils.DecodeMsgPack(payload.Data, &instance); err != nil {
 			log.WithError(err).Error("compileLog: unmarshal instance id failed")
 			return
@@ -294,7 +294,7 @@ func (s *KayakKVServer) Reset() (err error) {
 }
 
 // GetDatabase implements blockproducer.DBMetaPersistence.
-func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
 	var result [][]interface{}
 	query := "SELECT `meta` FROM `databases` WHERE `id` = ? LIMIT 1"
 	_, _, result, err = s.KVStorage.Query(context.Background(), []storage.Query{
@@ -327,7 +327,7 @@ func (s *KayakKVServer) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceI
 }
 
 // SetDatabase implements blockproducer.DBMetaPersistence.
-func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
+func (s *KayakKVServer) SetDatabase(meta types.ServiceInstance) (err error) {
 	var metaBuf *bytes.Buffer
 	if metaBuf, err = utils.EncodeMsgPack(meta); err != nil {
 		return
@@ -348,7 +348,7 @@ func (s *KayakKVServer) SetDatabase(meta wt.ServiceInstance) (err error) {
 
 // DeleteDatabase implements blockproducer.DBMetaPersistence.
 func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
-	meta := wt.ServiceInstance{
+	meta := types.ServiceInstance{
 		DatabaseID: dbID,
 	}
 
@@ -370,7 +370,7 @@ func (s *KayakKVServer) DeleteDatabase(dbID proto.DatabaseID) (err error) {
 }
 
 // GetAllDatabases implements blockproducer.DBMetaPersistence.
-func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err error) {
+func (s *KayakKVServer) GetAllDatabases() (instances []types.ServiceInstance, err error) {
 	var result [][]interface{}
 	query := "SELECT `meta` FROM `databases`"
 	_, _, result, err = s.KVStorage.Query(context.Background(), []storage.Query{
@@ -383,14 +383,14 @@ func (s *KayakKVServer) GetAllDatabases() (instances []wt.ServiceInstance, err e
 		return
 	}
 
-	instances = make([]wt.ServiceInstance, 0, len(result))
+	instances = make([]types.ServiceInstance, 0, len(result))
 
 	for _, row := range result {
 		if len(row) <= 0 {
 			continue
 		}
 
-		var instance wt.ServiceInstance
+		var instance types.ServiceInstance
 		var rawInstanceMeta []byte
 		var ok bool
 		if rawInstanceMeta, ok = row[0].([]byte); !ok {

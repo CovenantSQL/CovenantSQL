@@ -190,7 +190,7 @@ func (bus *ChainBus) removeHandler(topic string, idx int) {
 	}
 	l := len(bus.handlers[topic])
 
-	if !(0 <= idx && idx < l) {
+	if 0 > idx || idx >= l {
 		return
 	}
 

@@ -1,1 +1,3 @@
 test/
+bin/cql*
+*.cover.out

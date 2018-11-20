@@ -33,7 +33,7 @@ func TestNew(t *testing.T) {
 func TestHasCallback(t *testing.T) {
 	bus := New()
 	bus.Subscribe("/event/test", func() {})
-	if bus.HasCallback(string(2)) {
+	if bus.HasCallback("/event/test2") {
 		t.Fail()
 	}
 	if !bus.HasCallback("/event/test") {

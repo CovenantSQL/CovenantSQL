@@ -19,18 +19,18 @@ package sqlchain
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // Config represents a sql-chain config.
 type Config struct {
-	DatabaseID proto.DatabaseID
-	DataFile   string
+	DatabaseID      proto.DatabaseID
+	ChainFilePrefix string
+	DataFile        string
 
-	Genesis *ct.Block
+	Genesis *types.Block
 	Period  time.Duration
 	Tick    time.Duration
 
@@ -39,7 +39,7 @@ type Config struct {
 	Server     proto.NodeID
 
 	// Price sets query price in gases.
-	Price           map[wt.QueryType]uint64
+	Price           map[types.QueryType]uint64
 	ProducingReward uint64
 	BillingPeriods  int32
 
@@ -47,7 +47,7 @@ type Config struct {
 	QueryTTL int32
 
 	// DBAccount info
-	TokenType    types.TokenType
+	TokenType    pt.TokenType
 	GasPrice     uint64
 	UpdatePeriod uint64
 }

@@ -30,10 +30,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/pkg/errors"
 )
 
@@ -88,14 +87,14 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 			}
 
 			// load genesis block
-			var block *ct.Block
+			var block *types.Block
 			if block, err = loadGenesisBlock(testFixture); err != nil {
 				err = errors.Wrap(err, "load genesis block failed")
 				return
 			}
 
 			// add to dbms
-			instance := &wt.ServiceInstance{
+			instance := &types.ServiceInstance{
 				DatabaseID:   testFixture.DatabaseID,
 				Peers:        dbPeers,
 				GenesisBlock: block,
@@ -110,7 +109,7 @@ func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
 	return
 }
 
-func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *ct.Block, err error) {
+func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *types.Block, err error) {
 	if fixture.GenesisBlockFile == "" {
 		err = os.ErrNotExist
 		return
@@ -148,7 +147,7 @@ func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *ct.Block, err 
 }
 
 // copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -159,9 +158,9 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &ct.Block{
-		SignedHeader: ct.SignedHeader{
-			Header: ct.Header{
+	b = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,
@@ -169,12 +168,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				Timestamp:   time.Now().UTC(),
 			},
 		},
-		Queries: make([]*hash.Hash, rand.Intn(10)+10),
-	}
-
-	for i := range b.Queries {
-		b.Queries[i] = new(hash.Hash)
-		rand.Read(b.Queries[i][:])
 	}
 
 	if isGenesis {

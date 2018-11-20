@@ -26,7 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"runtime/trace"
+	//"runtime/trace"
 	"syscall"
 	"time"
 
@@ -254,22 +254,22 @@ func main() {
 		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, minerName, addr)
 	}
 
-	if traceFile != "" {
-		f, err := os.Create(traceFile)
-		if err != nil {
-			log.WithError(err).Fatal("failed to create trace output file")
-		}
-		defer func() {
-			if err := f.Close(); err != nil {
-				log.WithError(err).Fatal("failed to close trace file")
-			}
-		}()
+	//if traceFile != "" {
+	//	f, err := os.Create(traceFile)
+	//	if err != nil {
+	//		log.WithError(err).Fatal("failed to create trace output file")
+	//	}
+	//	defer func() {
+	//		if err := f.Close(); err != nil {
+	//			log.WithError(err).Fatal("failed to close trace file")
+	//		}
+	//	}()
 
-		if err := trace.Start(f); err != nil {
-			log.WithError(err).Fatal("failed to start trace")
-		}
-		defer trace.Stop()
-	}
+	//	if err := trace.Start(f); err != nil {
+	//		log.WithError(err).Fatal("failed to start trace")
+	//	}
+	//	defer trace.Stop()
+	//}
 
 	<-signalCh
 

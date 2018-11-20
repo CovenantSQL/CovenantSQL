@@ -12,12 +12,6 @@ func (z *Transfer) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
 	o = append(o, 0x83, 0x83)
-	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x83)
 	if oTemp, err := z.TransferHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -29,12 +23,18 @@ func (z *Transfer) MarshalHash() (o []byte, err error) {
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
+	o = append(o, 0x83)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Transfer) Msgsize() (s int) {
-	s = 1 + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 15 + z.TransferHeader.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize()
+	s = 1 + 15 + z.TransferHeader.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 

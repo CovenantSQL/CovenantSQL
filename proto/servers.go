@@ -18,7 +18,7 @@ package proto
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 )
 
 //go:generate hsp
@@ -34,9 +34,7 @@ type PeersHeader struct {
 // Peers defines the peers configuration.
 type Peers struct {
 	PeersHeader
-	Hash      hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // Clone makes a deep copy of Peers.
@@ -45,48 +43,18 @@ func (p *Peers) Clone() (copy Peers) {
 	copy.Term = p.Term
 	copy.Leader = p.Leader
 	copy.Servers = append(copy.Servers, p.Servers...)
-	copy.Hash = p.Hash
-	copy.Signee = p.Signee
-	copy.Signature = p.Signature
+	copy.DefaultHashSignVerifierImpl = p.DefaultHashSignVerifierImpl
 	return
 }
 
 // Sign generates signature.
 func (p *Peers) Sign(signer *asymmetric.PrivateKey) (err error) {
-	var enc []byte
-	if enc, err = p.PeersHeader.MarshalHash(); err != nil {
-		return
-	}
-
-	var h = hash.THashH(enc)
-	if p.Signature, err = signer.Sign(h[:]); err != nil {
-		return
-	}
-
-	p.Hash = h
-	p.Signee = signer.PubKey()
-	return
+	return p.DefaultHashSignVerifierImpl.Sign(&p.PeersHeader, signer)
 }
 
 // Verify verify signature.
 func (p *Peers) Verify() (err error) {
-	var enc []byte
-	if enc, err = p.PeersHeader.MarshalHash(); err != nil {
-		return
-	}
-
-	var h = hash.THashH(enc)
-	if !p.Hash.IsEqual(&h) {
-		err = ErrHashVerification
-		return
-	}
-
-	if !p.Signature.Verify(h[:], p.Signee) {
-		err = ErrSignVerification
-		return
-	}
-
-	return
+	return p.DefaultHashSignVerifierImpl.Verify(&p.PeersHeader)
 }
 
 // Find finds the index of the server with the specified key in the server list.

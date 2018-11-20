@@ -40,7 +40,7 @@ func (e *TestTransactionEncode) GetAccountNonce() pi.AccountNonce {
 	return pi.AccountNonce(0)
 }
 
-func (e *TestTransactionEncode) GetHash() hash.Hash {
+func (e *TestTransactionEncode) Hash() hash.Hash {
 	return hash.Hash{}
 }
 

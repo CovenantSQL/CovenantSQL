@@ -676,7 +676,7 @@ func (c *Chain) processTxs() {
 					"next_turn":   c.rt.getNextTurn(),
 					"head_height": c.rt.getHead().Height,
 					"head_block":  c.rt.getHead().Head.String(),
-					"transaction": tx.GetHash().String(),
+					"transaction": tx.Hash().String(),
 				}).Debugf("Failed to push tx with error: %v", err)
 			}
 		case <-c.stopCh:

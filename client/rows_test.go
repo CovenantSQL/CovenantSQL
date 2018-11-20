@@ -21,21 +21,21 @@ import (
 	"io"
 	"testing"
 
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestRowsStructure(t *testing.T) {
 	Convey("test rows", t, func() {
-		r := newRows(&wt.Response{
-			Payload: wt.ResponsePayload{
+		r := newRows(&types.Response{
+			Payload: types.ResponsePayload{
 				Columns: []string{
 					"a",
 				},
 				DeclTypes: []string{
 					"int",
 				},
-				Rows: []wt.ResponseRow{
+				Rows: []types.ResponseRow{
 					{
 						Values: []interface{}{1},
 					},

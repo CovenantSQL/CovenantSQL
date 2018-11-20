@@ -711,7 +711,7 @@ func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx
 
 	var (
 		enc   *bytes.Buffer
-		hash  = t.GetHash()
+		hash  = t.Hash()
 		addr  = t.GetAccountAddress()
 		nonce = t.GetAccountNonce()
 		ttype = t.GetTransactionType()

@@ -38,11 +38,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 const (
@@ -57,7 +56,7 @@ var (
 // fake BPDB service
 type stubBPDBService struct{}
 
-func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp.CreateDatabaseResponse) (err error) {
+func (s *stubBPDBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
 	if resp.Header.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db")); err != nil {
 		return
 	}
@@ -74,11 +73,11 @@ func (s *stubBPDBService) CreateDatabase(req *bp.CreateDatabaseRequest, resp *bp
 	return
 }
 
-func (s *stubBPDBService) DropDatabase(req *bp.DropDatabaseRequest, resp *bp.DropDatabaseRequest) (err error) {
+func (s *stubBPDBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseRequest) (err error) {
 	return
 }
 
-func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDatabaseResponse) (err error) {
+func (s *stubBPDBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
 	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
 		return
 	}
@@ -95,8 +94,8 @@ func (s *stubBPDBService) GetDatabase(req *bp.GetDatabaseRequest, resp *bp.GetDa
 	return
 }
 
-func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitServiceResponse) (err error) {
-	resp.Header.Instances = make([]wt.ServiceInstance, 0)
+func (s *stubBPDBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
+	resp.Header.Instances = make([]types.ServiceInstance, 0)
 	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
 		return
 	}
@@ -110,7 +109,7 @@ func (s *stubBPDBService) GetNodeDatabases(req *wt.InitService, resp *wt.InitSer
 	return
 }
 
-func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return
@@ -187,10 +186,10 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	}
 
 	// add database
-	var req *wt.UpdateService
-	var res wt.UpdateServiceResponse
+	var req *types.UpdateService
+	var res types.UpdateServiceResponse
 	var peers *proto.Peers
-	var block *ct.Block
+	var block *types.Block
 
 	dbID := proto.DatabaseID("db")
 
@@ -203,9 +202,9 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	}
 
 	// build create database request
-	req = new(wt.UpdateService)
-	req.Header.Op = wt.CreateDB
-	req.Header.Instance = wt.ServiceInstance{
+	req = new(types.UpdateService)
+	req.Header.Op = types.CreateDB
+	req.Header.Instance = types.ServiceInstance{
 		DatabaseID:   dbID,
 		Peers:        peers,
 		GenesisBlock: block,
@@ -306,7 +305,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 }
 
 // copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -317,9 +316,9 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &ct.Block{
-		SignedHeader: ct.SignedHeader{
-			Header: ct.Header{
+	b = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,
@@ -327,12 +326,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				Timestamp:   time.Now().UTC(),
 			},
 		},
-		Queries: make([]*hash.Hash, rand.Intn(10)+10),
-	}
-
-	for i := range b.Queries {
-		b.Queries[i] = new(hash.Hash)
-		rand.Read(b.Queries[i][:])
 	}
 
 	if isGenesis {

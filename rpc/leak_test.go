@@ -43,7 +43,8 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db"))
 	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-shm"))
 	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-wal"))
-	os.Remove(FJ(testWorkingDir, "./leak/leader/kayak.db"))
+	os.Remove(FJ(testWorkingDir, "./leak/kayak.db"))
+	os.RemoveAll(FJ(testWorkingDir, "./leak/kayak.ldb"))
 
 	leader, err := utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld"),

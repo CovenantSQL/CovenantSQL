@@ -48,7 +48,7 @@ func StartProfile(cpuprofile, memprofile string) error {
 			log.WithField("file", memprofile).WithError(err).Error("failed to create memory profile file")
 			return err
 		}
-		log.WithField("file", cpuprofile).WithError(err).Info("writing memory profiling to file")
+		log.WithField("file", memprofile).WithError(err).Info("writing memory profiling to file")
 		prof.mem = f
 		runtime.MemProfileRate = 4096
 	}

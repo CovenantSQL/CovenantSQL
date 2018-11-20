@@ -207,16 +207,17 @@ type Statement interface {
 	SQLNode
 }
 
-func (*Union) iStatement()  {}
-func (*Select) iStatement() {}
-func (*Stream) iStatement() {}
-func (*Insert) iStatement() {}
-func (*Update) iStatement() {}
-func (*Delete) iStatement() {}
-func (*Set) iStatement()    {}
-func (*DBDDL) iStatement()  {}
-func (*DDL) iStatement()    {}
-func (*Show) iStatement()   {}
+func (*Union) iStatement()   {}
+func (*Select) iStatement()  {}
+func (*Stream) iStatement()  {}
+func (*Insert) iStatement()  {}
+func (*Update) iStatement()  {}
+func (*Delete) iStatement()  {}
+func (*Set) iStatement()     {}
+func (*DBDDL) iStatement()   {}
+func (*DDL) iStatement()     {}
+func (*Show) iStatement()    {}
+func (*Explain) iStatement() {}
 
 // ParenSelect can actually not be a top level statement,
 // but we have to allow it because it's a requirement
@@ -1270,6 +1271,19 @@ func (node *Show) HasOnTable() bool {
 }
 
 func (node *Show) walkSubtree(visit Visit) error {
+	return nil
+}
+
+// Explain represents a explain statement.
+type Explain struct {
+}
+
+// Format formats the node.
+func (node *Explain) Format(buf *TrackedBuffer) {
+	buf.WriteString("explain")
+}
+
+func (node *Explain) walkSubtree(visit Visit) error {
 	return nil
 }
 

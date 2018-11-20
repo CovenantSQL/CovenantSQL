@@ -32,7 +32,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9552f97d556ffa281b8d5c23280aad519e9792a02222cded90467882ff675063"
+  digest = "1:baa85b6c43f7fa2d05914718fda404f6ce9a63aed243809c4090326730f0ecd8"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -42,7 +42,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "21a792a5b3b3ecddc9a836fb3da0468f0bd0434f"
+  revision = "d9be292d3627ca3e62ec927e73b34a09b0b0b06d"
 
 [[projects]]
   branch = "master"
@@ -51,6 +51,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "b72b1571892216ba2a42fb8abeb726d082b4c4d1"
+
+[[projects]]
+  digest = "1:5d3e23515e7916c152cc665eda0f7eaf6fdf8fdfe7c3dbac97049bcbd649b33f"
+  name = "github.com/Knetic/govaluate"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d216395917cc49052c7c7094cf57f09657ca08a8"
+  version = "v3.0.0"
 
 [[projects]]
   digest = "1:26777bf96d1c96d9be38c7c9795196b088c91c597ec5dae5bf6c02dc3c3520e9"
@@ -123,6 +131,25 @@
   packages = ["base58"]
   pruneopts = "UT"
   revision = "ab6388e0c60ae4834a1f57511e20c17b5f78be4b"
+
+[[projects]]
+  digest = "1:76ca0dfcbf951d1868c7449453981dba9e1f79034706d1500a5a785000f5f222"
+  name = "github.com/casbin/casbin"
+  packages = [
+    ".",
+    "config",
+    "effect",
+    "log",
+    "model",
+    "persist",
+    "persist/file-adapter",
+    "rbac",
+    "rbac/default-role-manager",
+    "util",
+  ]
+  pruneopts = "UT"
+  revision = "542e16cac74562eefac970a7d0d1467640d1f1cb"
+  version = "v1.7.0"
 
 [[projects]]
   digest = "1:c28625428387b63dd7154eb857f51e700465cfbf7c06f619e71f2da33cefe47e"
@@ -373,7 +400,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "1f2c4f3cd6db5fd6f68f36af6b6d5d936fd93c4e"
+  revision = "b36ad289a3eaecdc52470a19591146a2c0ffb532"
 
 [[projects]]
   branch = "master"
@@ -605,14 +632,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a089387bbfcfa884e5aafeebb85929993195bb8959766b1d20102841d47e0b0e"
+  digest = "1:48b757e61d662021f49a6a0afc67dacae27ee0c3a8f858d927126bcdf49222d3"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "93218def8b18e66adbdab3eca8ec334700329f1f"
+  revision = "ec83556a53fe16b65c452a104ea9d1e86a671852"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -636,6 +663,9 @@
     "github.com/beevik/ntp",
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
+    "github.com/casbin/casbin",
+    "github.com/casbin/casbin/model",
+    "github.com/casbin/casbin/persist",
     "github.com/coreos/bbolt",
     "github.com/cyberdelia/go-metrics-graphite",
     "github.com/dyatlov/go-opengraph/opengraph",

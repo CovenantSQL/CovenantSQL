@@ -136,7 +136,7 @@ func forceEOF(yylex interface{}) {
 // DDL Tokens
 %token <bytes> CREATE ALTER DROP RENAME ADD
 %token <bytes> TABLE INDEX TO IGNORE IF UNIQUE PRIMARY COLUMN CONSTRAINT FOREIGN
-%token <bytes> SHOW DESCRIBE DATE ESCAPE
+%token <bytes> SHOW DESCRIBE DATE ESCAPE EXPLAIN
 
 // Type Tokens
 %token <bytes> TINYINT SMALLINT MEDIUMINT INT INTEGER BIGINT INTNUM
@@ -844,6 +844,10 @@ other_statement:
 | DESCRIBE table_name
   {
     $$ = &Show{Type: "table", OnTable: $2}
+  }
+| EXPLAIN force_eof
+  {
+    $$ = &Explain{}
   }
 
 comment_opt:
@@ -1968,6 +1972,7 @@ reserved_keyword:
 | VALUES
 | WHEN
 | WHERE
+| EXPLAIN
 
 /*
   These are non-reserved Vitess, because they don't cause conflicts in the grammar.
@@ -2027,6 +2032,11 @@ closeb:
   ')'
   {
     decNesting(yylex)
+  }
+
+force_eof:
+  {
+    forceEOF(yylex)
   }
 
 ddl_force_eof:

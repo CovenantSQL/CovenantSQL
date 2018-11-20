@@ -19,11 +19,9 @@ package worker
 import (
 	"bytes"
 	"container/list"
-	"context"
 
-	"github.com/CovenantSQL/CovenantSQL/sqlchain/storage"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 	"github.com/pkg/errors"
 )
 
@@ -44,7 +42,7 @@ func (db *Database) EncodePayload(request interface{}) (data []byte, err error) 
 
 // DecodePayload implements kayak.types.Handler.DecodePayload.
 func (db *Database) DecodePayload(data []byte) (request interface{}, err error) {
-	var req *wt.Request
+	var req *types.Request
 
 	if err = utils.DecodeMsgPack(data, &req); err != nil {
 		err = errors.Wrap(err, "decode request failed")
@@ -58,9 +56,9 @@ func (db *Database) DecodePayload(data []byte) (request interface{}, err error) 
 
 // Check implements kayak.types.Handler.Check.
 func (db *Database) Check(rawReq interface{}) (err error) {
-	var req *wt.Request
+	var req *types.Request
 	var ok bool
-	if req, ok = rawReq.(*wt.Request); !ok || req == nil {
+	if req, ok = rawReq.(*types.Request); !ok || req == nil {
 		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
 		return
 	}
@@ -91,24 +89,18 @@ func (db *Database) Check(rawReq interface{}) (err error) {
 	return
 }
 
-// Commit implements kayak.types.Handler.Commmit.
+// Commit implements kayak.types.Handler.Commit.
 func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 	// convert query and check syntax
-	var req *wt.Request
+	var req *types.Request
 	var ok bool
-	if req, ok = rawReq.(*wt.Request); !ok || req == nil {
+	if req, ok = rawReq.(*types.Request); !ok || req == nil {
 		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
 		return
 	}
 
-	var queries []storage.Query
-	if queries, err = convertAndSanitizeQuery(req.Payload.Queries); err != nil {
-		// return original parser error
-		return
-	}
-
 	// execute
-	return db.storage.Exec(context.Background(), queries)
+	return db.chain.Query(req)
 }
 
 func (db *Database) recordSequence(connID uint64, seqNo uint64) {

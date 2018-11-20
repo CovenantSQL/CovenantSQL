@@ -48,6 +48,11 @@ func (h Hash) String() string {
 	return hex.EncodeToString(h[:])
 }
 
+// AsBytes returns internal bytes of hash.
+func (h Hash) AsBytes() []byte {
+	return h[:]
+}
+
 // CloneBytes returns a copy of the bytes which represent the hash as a byte
 // slice.
 //

@@ -21,23 +21,17 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 /*
-Observer implements interface like a sqlchain including AdviseNewBlock/AdviseAckedQuery.
+Observer implements method AdviseNewBlock to receive blocks from sqlchain node.
 Request/Response entity from sqlchain api is re-used for simplicity.
 
 type Observer interface {
 	AdviseNewBlock(*MuxAdviseNewBlockReq, *MuxAdviseNewBlockResp) error
-	AdviseAckedQuery(*MuxAdviseAckedQueryReq, *MuxAdviseAckedQueryResp) error
 }
-
-The observer could call DBS.GetRequest to fetch original request entity from the DBMS service.
-The whole observation of block producing and write query execution would be as follows.
-AdviseAckedQuery -> AdviseNewBlock -> GetRequest.
 */
 
 // observerReplicator defines observer replication state.
@@ -93,7 +87,7 @@ func (r *observerReplicator) replicate() {
 
 	curHeight := r.c.rt.getHead().Height
 
-	if r.height == ct.ReplicateFromNewest {
+	if r.height == types.ReplicateFromNewest {
 		log.WithFields(log.Fields{
 			"node":   r.nodeID,
 			"height": curHeight,
@@ -121,7 +115,7 @@ func (r *observerReplicator) replicate() {
 	}).Debug("try replicating block for observer")
 
 	// replicate one record
-	var block *ct.Block
+	var block *types.Block
 	if block, err = r.c.FetchBlock(r.height); err != nil {
 		// fetch block failed
 		log.WithField("height", r.height).WithError(err).Warning("fetch block with height failed")
@@ -136,7 +130,7 @@ func (r *observerReplicator) replicate() {
 		// find last available block
 		log.Debug("start block height hole detection")
 
-		var lastBlock, nextBlock *ct.Block
+		var lastBlock, nextBlock *types.Block
 		var lastHeight, nextHeight int32
 
 		for h := r.height - 1; h >= 0; h-- {
@@ -203,36 +197,6 @@ func (r *observerReplicator) replicate() {
 			"block":  block.BlockHash().String(),
 			"height": r.height,
 		}).Debug("finish block height hole detection, skipping")
-	}
-
-	// fetch acks in block
-	for _, h := range block.Queries {
-		var ack *wt.SignedAckHeader
-		if ack, err = r.c.queryOrSyncAckedQuery(r.height, h, block.Producer()); err != nil || ack == nil {
-			log.WithFields(log.Fields{
-				"ack":    h.String(),
-				"height": r.height,
-			}).WithError(err).Warning("fetch ack of block height")
-			continue
-		}
-
-		// send advise to this block
-		req := &MuxAdviseAckedQueryReq{
-			Envelope:   proto.Envelope{},
-			DatabaseID: r.c.rt.databaseID,
-			AdviseAckedQueryReq: AdviseAckedQueryReq{
-				Query: ack,
-			},
-		}
-		resp := &MuxAdviseAckedQueryResp{}
-		err = r.c.cl.CallNode(r.nodeID, route.OBSAdviseAckedQuery.String(), req, resp)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"node":   r.nodeID,
-				"height": r.height,
-			}).WithError(err).Warning("send ack advise to observer")
-			return
-		}
 	}
 
 	// send block

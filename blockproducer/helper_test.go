@@ -38,11 +38,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
 )
 
 const (
@@ -54,7 +53,7 @@ var (
 )
 
 // copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error) {
+func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
 	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -65,9 +64,9 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &ct.Block{
-		SignedHeader: ct.SignedHeader{
-			Header: ct.Header{
+	b = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: rootHash,
@@ -75,12 +74,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 				Timestamp:   time.Now().UTC(),
 			},
 		},
-		Queries: make([]*hash.Hash, rand.Intn(10)+10),
-	}
-
-	for i := range b.Queries {
-		b.Queries[i] = new(hash.Hash)
-		rand.Read(b.Queries[i][:])
 	}
 
 	if isGenesis {
@@ -113,7 +106,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *ct.Block, err error
 // fake a persistence driver.
 type stubDBMetaPersistence struct{}
 
-func (p *stubDBMetaPersistence) GetDatabase(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+func (p *stubDBMetaPersistence) GetDatabase(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
 	// for test purpose, name with db prefix consider it exists
 	if !strings.HasPrefix(string(dbID), "db") {
 		err = ErrNoSuchDatabase
@@ -123,7 +116,7 @@ func (p *stubDBMetaPersistence) GetDatabase(dbID proto.DatabaseID) (instance wt.
 	return p.getInstanceMeta(dbID)
 }
 
-func (p *stubDBMetaPersistence) SetDatabase(meta wt.ServiceInstance) (err error) {
+func (p *stubDBMetaPersistence) SetDatabase(meta types.ServiceInstance) (err error) {
 	return
 }
 
@@ -131,13 +124,13 @@ func (p *stubDBMetaPersistence) DeleteDatabase(dbID proto.DatabaseID) (err error
 	return
 }
 
-func (p *stubDBMetaPersistence) GetAllDatabases() (instances []wt.ServiceInstance, err error) {
-	instances = make([]wt.ServiceInstance, 1)
+func (p *stubDBMetaPersistence) GetAllDatabases() (instances []types.ServiceInstance, err error) {
+	instances = make([]types.ServiceInstance, 1)
 	instances[0], err = p.getInstanceMeta("db")
 	return
 }
 
-func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance wt.ServiceInstance, err error) {
+func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
 	var privKey *asymmetric.PrivateKey
 	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
 		return

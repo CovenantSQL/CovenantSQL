@@ -48,8 +48,6 @@ var (
 	ErrSmallerSequenceID = errors.New("SequanceID should be bigger than the old one")
 	// ErrInvalidBillingRequest defines BillingRequest is invalid
 	ErrInvalidBillingRequest = errors.New("The BillingRequest is invalid")
-	// ErrSignVerification indicates a failed signature verification.
-	ErrSignVerification = errors.New("signature verification failed")
 
 	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
 	ErrBalanceOverflow = errors.New("balance overflow")

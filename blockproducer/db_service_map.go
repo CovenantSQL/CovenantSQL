@@ -20,21 +20,21 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
 
 // DBMetaPersistence defines database meta persistence api.
 type DBMetaPersistence interface {
-	GetDatabase(dbID proto.DatabaseID) (wt.ServiceInstance, error)
-	SetDatabase(meta wt.ServiceInstance) error
+	GetDatabase(dbID proto.DatabaseID) (types.ServiceInstance, error)
+	SetDatabase(meta types.ServiceInstance) error
 	DeleteDatabase(dbID proto.DatabaseID) error
-	GetAllDatabases() ([]wt.ServiceInstance, error)
+	GetAllDatabases() ([]types.ServiceInstance, error)
 }
 
 // DBServiceMap defines database instance meta.
 type DBServiceMap struct {
-	dbMap   map[proto.DatabaseID]wt.ServiceInstance
+	dbMap   map[proto.DatabaseID]types.ServiceInstance
 	nodeMap map[proto.NodeID]map[proto.DatabaseID]bool
 	persist DBMetaPersistence
 	sync.RWMutex
@@ -44,7 +44,7 @@ type DBServiceMap struct {
 func InitServiceMap(persistImpl DBMetaPersistence) (s *DBServiceMap, err error) {
 	s = &DBServiceMap{
 		persist: persistImpl,
-		dbMap:   make(map[proto.DatabaseID]wt.ServiceInstance),
+		dbMap:   make(map[proto.DatabaseID]types.ServiceInstance),
 		nodeMap: make(map[proto.NodeID]map[proto.DatabaseID]bool),
 	}
 
@@ -52,7 +52,7 @@ func InitServiceMap(persistImpl DBMetaPersistence) (s *DBServiceMap, err error) 
 	s.Lock()
 	defer s.Unlock()
 
-	var allDatabases []wt.ServiceInstance
+	var allDatabases []types.ServiceInstance
 
 	if allDatabases, err = s.persist.GetAllDatabases(); err != nil {
 		return
@@ -73,7 +73,7 @@ func InitServiceMap(persistImpl DBMetaPersistence) (s *DBServiceMap, err error) 
 }
 
 // Set add database to meta.
-func (c *DBServiceMap) Set(meta wt.ServiceInstance) (err error) {
+func (c *DBServiceMap) Set(meta types.ServiceInstance) (err error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -82,7 +82,7 @@ func (c *DBServiceMap) Set(meta wt.ServiceInstance) (err error) {
 	}
 
 	// remove previous records
-	var oldMeta wt.ServiceInstance
+	var oldMeta types.ServiceInstance
 	var ok bool
 
 	if oldMeta, ok = c.dbMap[meta.DatabaseID]; ok {
@@ -110,7 +110,7 @@ func (c *DBServiceMap) Set(meta wt.ServiceInstance) (err error) {
 }
 
 // Get find database from meta.
-func (c *DBServiceMap) Get(dbID proto.DatabaseID) (meta wt.ServiceInstance, err error) {
+func (c *DBServiceMap) Get(dbID proto.DatabaseID) (meta types.ServiceInstance, err error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -135,7 +135,7 @@ func (c *DBServiceMap) Delete(dbID proto.DatabaseID) (err error) {
 	c.Lock()
 	defer c.Unlock()
 
-	var meta wt.ServiceInstance
+	var meta types.ServiceInstance
 	var ok bool
 
 	// delete from cache
@@ -156,15 +156,15 @@ func (c *DBServiceMap) Delete(dbID proto.DatabaseID) (err error) {
 }
 
 // GetDatabases return database config.
-func (c *DBServiceMap) GetDatabases(nodeID proto.NodeID) (dbs []wt.ServiceInstance, err error) {
+func (c *DBServiceMap) GetDatabases(nodeID proto.NodeID) (dbs []types.ServiceInstance, err error) {
 	c.RLock()
 	defer c.RUnlock()
 
-	dbs = make([]wt.ServiceInstance, 0)
+	dbs = make([]types.ServiceInstance, 0)
 
 	for dbID, ok := range c.nodeMap[nodeID] {
 		if ok {
-			var db wt.ServiceInstance
+			var db types.ServiceInstance
 			if db, ok = c.dbMap[dbID]; ok {
 				dbs = append(dbs, db)
 			}

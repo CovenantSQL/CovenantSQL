@@ -26,7 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -66,7 +66,7 @@ func TestServiceMap(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		// test get exists
-		var instance wt.ServiceInstance
+		var instance types.ServiceInstance
 		instance, err = svcMap.Get(proto.DatabaseID("db"))
 		So(instance.DatabaseID, ShouldResemble, proto.DatabaseID("db"))
 
@@ -116,7 +116,7 @@ func TestServiceMap(t *testing.T) {
 		So(svcMap.dbMap, ShouldNotContainKey, proto.DatabaseID("db2"))
 
 		// test get databases
-		var instances []wt.ServiceInstance
+		var instances []types.ServiceInstance
 		instances, err = svcMap.GetDatabases(nodeID)
 		So(instances, ShouldHaveLength, 1)
 		So(instances[0].DatabaseID, ShouldResemble, proto.DatabaseID("db"))

@@ -27,8 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -63,10 +62,10 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// add database
-		var req *wt.UpdateService
-		var res wt.UpdateServiceResponse
+		var req *types.UpdateService
+		var res types.UpdateServiceResponse
 		var peers *proto.Peers
-		var block *ct.Block
+		var block *types.Block
 
 		dbID := proto.DatabaseID("db")
 
@@ -79,9 +78,9 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// call with no BP privilege
-		req = new(wt.UpdateService)
-		req.Header.Op = wt.CreateDB
-		req.Header.Instance = wt.ServiceInstance{
+		req = new(types.UpdateService)
+		req.Header.Op = types.CreateDB
+		req.Header.Instance = types.ServiceInstance{
 			DatabaseID:   dbID,
 			Peers:        peers,
 			GenesisBlock: block,
@@ -96,9 +95,9 @@ func TestDBMS(t *testing.T) {
 
 			Convey("queries", func() {
 				// sending write query
-				var writeQuery *wt.Request
-				var queryRes *wt.Response
-				writeQuery, err = buildQueryWithDatabaseID(wt.WriteQuery, 1, 1, dbID, []string{
+				var writeQuery *types.Request
+				var queryRes *types.Response
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 1, dbID, []string{
 					"create table test (test int)",
 					"insert into test values(1)",
 				})
@@ -109,20 +108,10 @@ func TestDBMS(t *testing.T) {
 				err = queryRes.Verify()
 				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, 0)
-				So(queryRes.Header.LogOffset, ShouldEqual, 0)
-
-				var reqGetRequest wt.GetRequestReq
-				var respGetRequest *wt.GetRequestResp
-
-				reqGetRequest.DatabaseID = dbID
-				reqGetRequest.LogOffset = queryRes.Header.LogOffset
-				err = testRequest(route.DBSGetRequest, reqGetRequest, &respGetRequest)
-				So(err, ShouldBeNil)
-				So(respGetRequest.Request.Header.Hash, ShouldResemble, writeQuery.Header.Hash)
 
 				// sending read query
-				var readQuery *wt.Request
-				readQuery, err = buildQueryWithDatabaseID(wt.ReadQuery, 1, 2, dbID, []string{
+				var readQuery *types.Request
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 2, dbID, []string{
 					"select * from test",
 				})
 				So(err, ShouldBeNil)
@@ -139,20 +128,20 @@ func TestDBMS(t *testing.T) {
 				So(queryRes.Payload.Rows[0].Values[0], ShouldEqual, 1)
 
 				// sending read ack
-				var ack *wt.Ack
+				var ack *types.Ack
 				ack, err = buildAck(queryRes)
 				So(err, ShouldBeNil)
 
-				var ackRes wt.AckResponse
+				var ackRes types.AckResponse
 				err = testRequest(route.DBSAck, ack, &ackRes)
 				So(err, ShouldBeNil)
 			})
 
 			Convey("query non-existent database", func() {
 				// sending write query
-				var writeQuery *wt.Request
-				var queryRes *wt.Response
-				writeQuery, err = buildQueryWithDatabaseID(wt.WriteQuery, 1, 1,
+				var writeQuery *types.Request
+				var queryRes *types.Response
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 1,
 					proto.DatabaseID("db_not_exists"), []string{
 						"create table test (test int)",
 						"insert into test values(1)",
@@ -168,9 +157,9 @@ func TestDBMS(t *testing.T) {
 				peers, err = getPeers(2)
 				So(err, ShouldBeNil)
 
-				req = new(wt.UpdateService)
-				req.Header.Op = wt.UpdateDB
-				req.Header.Instance = wt.ServiceInstance{
+				req = new(types.UpdateService)
+				req.Header.Op = types.UpdateDB
+				req.Header.Instance = types.ServiceInstance{
 					DatabaseID: dbID,
 					Peers:      peers,
 				}
@@ -183,9 +172,9 @@ func TestDBMS(t *testing.T) {
 
 			Convey("drop database before shutdown", func() {
 				// drop database
-				req = new(wt.UpdateService)
-				req.Header.Op = wt.DropDB
-				req.Header.Instance = wt.ServiceInstance{
+				req = new(types.UpdateService)
+				req.Header.Op = types.DropDB
+				req.Header.Instance = types.ServiceInstance{
 					DatabaseID: dbID,
 				}
 				err = req.Sign(privateKey)

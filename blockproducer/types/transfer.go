@@ -19,6 +19,7 @@ package types
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -35,7 +36,7 @@ type TransferHeader struct {
 type Transfer struct {
 	TransferHeader
 	pi.TransactionTypeMixin
-	DefaultHashSignVerifierImpl
+	verifier.DefaultHashSignVerifierImpl
 }
 
 // NewTransfer returns new instance.

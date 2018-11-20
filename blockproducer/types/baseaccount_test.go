@@ -35,7 +35,7 @@ func TestBaseAccount(t *testing.T) {
 		})
 		So(ba.GetAccountAddress(), ShouldEqual, addr)
 		So(ba.GetAccountNonce(), ShouldEqual, 0)
-		So(ba.GetHash(), ShouldEqual, hash.Hash{})
+		So(ba.Hash(), ShouldEqual, hash.Hash{})
 		priv, _, err := asymmetric.GenSecp256k1KeyPair()
 		So(err, ShouldBeNil)
 		So(ba.Sign(priv), ShouldBeNil)

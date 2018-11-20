@@ -21,8 +21,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // ChainRPCService defines a sql-chain RPC server.
@@ -32,7 +31,7 @@ type ChainRPCService struct {
 
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
-	Block *ct.Block
+	Block *types.Block
 	Count int32
 }
 
@@ -48,18 +47,9 @@ type AdviseBinLogReq struct {
 type AdviseBinLogResp struct {
 }
 
-// AdviseResponsedQueryReq defines a request of the AdviseAckedQuery RPC method.
-type AdviseResponsedQueryReq struct {
-	Query *wt.SignedResponseHeader
-}
-
-// AdviseResponsedQueryResp defines a response of the AdviseAckedQuery RPC method.
-type AdviseResponsedQueryResp struct {
-}
-
 // AdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
 type AdviseAckedQueryReq struct {
-	Query *wt.SignedAckHeader
+	Query *types.SignedAckHeader
 }
 
 // AdviseAckedQueryResp defines a response of the AdviseAckedQuery RPC method.
@@ -74,7 +64,7 @@ type FetchBlockReq struct {
 // FetchBlockResp defines a response of the FetchBlock RPC method.
 type FetchBlockResp struct {
 	Height int32
-	Block  *ct.Block
+	Block  *types.Block
 }
 
 // FetchAckedQueryReq defines a request of the FetchAckedQuery RPC method.
@@ -85,7 +75,7 @@ type FetchAckedQueryReq struct {
 
 // FetchAckedQueryResp defines a request of the FetchAckedQuery RPC method.
 type FetchAckedQueryResp struct {
-	Ack *wt.SignedAckHeader
+	Ack *types.SignedAckHeader
 }
 
 // SignBillingReq defines a request of the SignBilling RPC method.
@@ -138,12 +128,6 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 func (s *ChainRPCService) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
 	// TODO(leventeliu): need implementation.
 	return nil
-}
-
-// AdviseResponsedQuery is the RPC method to advise a new responsed query to the target server.
-func (s *ChainRPCService) AdviseResponsedQuery(
-	req *AdviseResponsedQueryReq, resp *AdviseResponsedQueryResp) error {
-	return s.chain.VerifyAndPushResponsedQuery(req.Query)
 }
 
 // AdviseAckedQuery is the RPC method to advise a new acknowledged query to the target server.

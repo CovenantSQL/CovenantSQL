@@ -18,13 +18,13 @@ func (z *Billing) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x83)
-	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x83)
-	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -34,7 +34,7 @@ func (z *Billing) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Billing) Msgsize() (s int) {
-	s = 1 + 14 + z.BillingHeader.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize()
+	s = 1 + 14 + z.BillingHeader.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 

@@ -23,7 +23,7 @@ import (
 	"os"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/types"
+	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/otypes"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"

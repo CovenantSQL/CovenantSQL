@@ -25,8 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -35,8 +33,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	wt "github.com/CovenantSQL/CovenantSQL/worker/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -85,7 +84,7 @@ func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 }
 
 // ResourceMeta defines new database resources requirement descriptions.
-type ResourceMeta wt.ResourceMeta
+type ResourceMeta types.ResourceMeta
 
 // Init defines init process for client.
 func Init(configFile string, masterKey []byte) (err error) {
@@ -123,8 +122,8 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		return
 	}
 
-	req := new(bp.CreateDatabaseRequest)
-	req.Header.ResourceMeta = wt.ResourceMeta(meta)
+	req := new(types.CreateDatabaseRequest)
+	req.Header.ResourceMeta = types.ResourceMeta(meta)
 	var privateKey *asymmetric.PrivateKey
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		err = errors.Wrap(err, "get local private key failed")
@@ -134,7 +133,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		err = errors.Wrap(err, "sign request failed")
 		return
 	}
-	res := new(bp.CreateDatabaseResponse)
+	res := new(types.CreateDatabaseResponse)
 
 	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
 		err = errors.Wrap(err, "call BPDB.CreateDatabase failed")
@@ -164,7 +163,7 @@ func Drop(dsn string) (err error) {
 		return
 	}
 
-	req := new(bp.DropDatabaseRequest)
+	req := new(types.DropDatabaseRequest)
 	req.Header.DatabaseID = proto.DatabaseID(cfg.DatabaseID)
 	var privateKey *asymmetric.PrivateKey
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
@@ -173,7 +172,7 @@ func Drop(dsn string) (err error) {
 	if err = req.Sign(privateKey); err != nil {
 		return
 	}
-	res := new(bp.DropDatabaseResponse)
+	res := new(types.DropDatabaseResponse)
 	err = requestBP(route.BPDBDropDatabase, req, res)
 
 	return
@@ -337,7 +336,7 @@ func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers
 }
 
 func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *proto.Peers, err error) {
-	req := new(bp.GetDatabaseRequest)
+	req := new(types.GetDatabaseRequest)
 	req.Header.DatabaseID = dbID
 
 	defer func() {
@@ -351,7 +350,7 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 		return
 	}
 
-	res := new(bp.GetDatabaseResponse)
+	res := new(types.GetDatabaseResponse)
 	if err = requestBP(route.BPDBGetDatabase, req, res); err != nil {
 		return
 	}

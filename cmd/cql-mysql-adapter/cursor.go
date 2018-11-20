@@ -502,6 +502,9 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 		params = 0
 		columns = columnCountExplain
 		return
+	case *sqlparser.DDL:
+		err = my.NewError(my.ER_UNKNOWN_ERROR, "could not prepare ddl statement")
+		return
 	}
 
 	// HACK(xq262144), this feature is supported by sqlite only, replace with query plan analysis for mysql engine

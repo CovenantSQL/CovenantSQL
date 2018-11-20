@@ -1,0 +1,7 @@
+language: go
+go:
+  - 1.10.x
+  - 1.11.x
+  - tip
+script:
+  - go test -v -coverprofile=coverage.out

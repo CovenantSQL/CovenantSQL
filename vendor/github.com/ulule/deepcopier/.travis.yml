@@ -1,0 +1,10 @@
+language: go
+before_install:
+  - go get github.com/stretchr/testify
+  - go get github.com/oleiade/reflections
+  - go get github.com/lib/pq
+  - go get github.com/guregu/null
+  - go get github.com/satori/go.uuid
+go:
+  - 1.9
+script: make test

@@ -1,0 +1,15 @@
+language: go
+go:
+  - 1.10.x
+  - tip
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - ncurses-bin
+before_install:
+  - go get github.com/mattn/goveralls
+script:
+  - go test -v -coverprofile=coverage.out
+  - goveralls -service=travis-ci -coverprofile=coverage.out

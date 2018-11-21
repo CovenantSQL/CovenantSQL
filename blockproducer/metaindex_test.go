@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -121,13 +121,13 @@ func TestMetaIndex(t *testing.T) {
 		Convey("When account objects are stored", func() {
 			mi.storeAccountObject(&accountObject{
 				Account: pt.Account{
-					Address:             addr1,
+					Address:      addr1,
 					TokenBalance: [pt.SupportTokenNumber]uint64{10, 10},
 				},
 			})
 			mi.storeAccountObject(&accountObject{
 				Account: pt.Account{
-					Address:             addr2,
+					Address:      addr2,
 					TokenBalance: [pt.SupportTokenNumber]uint64{10, 10},
 				},
 			})

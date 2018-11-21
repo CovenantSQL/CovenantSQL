@@ -25,5 +25,4 @@ var (
 	ErrSignVerification = errors.New("signature verification failed")
 	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
 	ErrBillingNotMatch = errors.New("billing request doesn't match")
-
 )

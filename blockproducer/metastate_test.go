@@ -17,15 +17,15 @@
 package blockproducer
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/types"
 	"math"
 	"os"
 	"path"
 	"testing"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -695,13 +695,13 @@ func TestMetaState(t *testing.T) {
 				txs = []pi.Transaction{
 					pt.NewBaseAccount(
 						&pt.Account{
-							Address:             addr1,
+							Address:      addr1,
 							TokenBalance: [pt.SupportTokenNumber]uint64{100, 100},
 						},
 					),
 					pt.NewBaseAccount(
 						&pt.Account{
-							Address:             addr2,
+							Address:      addr2,
 							TokenBalance: [pt.SupportTokenNumber]uint64{100, 100},
 						},
 					),

@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"sync"
 
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
 	"github.com/ulule/deepcopier"

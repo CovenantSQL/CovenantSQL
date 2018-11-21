@@ -17,7 +17,6 @@
 package types
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -28,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -66,17 +66,17 @@ func generateRandomAccountAddresses(n int) (s []proto.AccountAddress) {
 
 func generateRandomProfile() *SQLChainProfile {
 	return &SQLChainProfile{
-		ID:      *generateRandomDatabaseID(),
-		Owner:   proto.AccountAddress(generateRandomHash()),
-		Users:   generateRandomSQLChainUsers(rand.Intn(10) + 1),
+		ID:    *generateRandomDatabaseID(),
+		Owner: proto.AccountAddress(generateRandomHash()),
+		Users: generateRandomSQLChainUsers(rand.Intn(10) + 1),
 	}
 }
 
 func generateRandomAccount() *Account {
 	return &Account{
-		Address:             proto.AccountAddress(generateRandomHash()),
+		Address:      proto.AccountAddress(generateRandomHash()),
 		TokenBalance: [SupportTokenNumber]uint64{rand.Uint64(), rand.Uint64()},
-		Rating:              rand.Float64(),
+		Rating:       rand.Float64(),
 	}
 }
 
@@ -345,4 +345,3 @@ func TestMain(m *testing.M) {
 	setup()
 	os.Exit(m.Run())
 }
-

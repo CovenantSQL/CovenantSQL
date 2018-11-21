@@ -26,10 +26,10 @@ import (
 
 func TestMarshalHashAccountStable(t *testing.T) {
 	v := Account{
-		Address:             proto.AccountAddress{0x10},
+		Address:      proto.AccountAddress{0x10},
 		TokenBalance: [SupportTokenNumber]uint64{10, 10},
-		Rating:              1110,
-		NextNonce:           1,
+		Rating:       1110,
+		NextNonce:    1,
 	}
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -46,10 +46,10 @@ func TestMarshalHashAccountStable(t *testing.T) {
 
 func TestMarshalHashAccountStable2(t *testing.T) {
 	v1 := Account{
-		Address:             proto.AccountAddress{0x10},
+		Address:      proto.AccountAddress{0x10},
 		TokenBalance: [SupportTokenNumber]uint64{10, 10},
-		Rating:              1110,
-		NextNonce:           1,
+		Rating:       1110,
+		NextNonce:    1,
 	}
 	enc, err := utils.EncodeMsgPack(&v1)
 	if err != nil {

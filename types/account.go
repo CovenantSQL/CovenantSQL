@@ -65,8 +65,8 @@ const (
 
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
-	Address    proto.AccountAddress
-	Permission UserPermission
+	Address        proto.AccountAddress
+	Permission     UserPermission
 	AdvancePayment uint64
 	Arrears        uint64
 	Pledge         uint64
@@ -85,23 +85,23 @@ type MinerInfo struct {
 
 // SQLChainProfile defines a SQLChainProfile related to an account.
 type SQLChainProfile struct {
-	ID      proto.DatabaseID
-	Address proto.AccountAddress
-	Period  uint64
+	ID       proto.DatabaseID
+	Address  proto.AccountAddress
+	Period   uint64
 	GasPrice uint64
 
 	TokenType TokenType
 
-	Owner   proto.AccountAddress
-	Miners  []*MinerInfo
+	Owner  proto.AccountAddress
+	Miners []*MinerInfo
 
-	Users   []*SQLChainUser
+	Users []*SQLChainUser
 }
 
 // Account store its balance, and other mate data.
 type Account struct {
-	Address             proto.AccountAddress
-	TokenBalance 	 	[SupportTokenNumber]uint64
-	Rating              float64
-	NextNonce           pi.AccountNonce
+	Address      proto.AccountAddress
+	TokenBalance [SupportTokenNumber]uint64
+	Rating       float64
+	NextNonce    pi.AccountNonce
 }

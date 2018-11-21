@@ -17,14 +17,15 @@
 package types
 
 import (
+	"math/rand"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"math/rand"
 )
 
 var (
-	uuidLen     = 32
+	uuidLen = 32
 )
 
 const (
@@ -99,4 +100,3 @@ func generateRandomGasAmount(n int) []*proto.AddrAndGas {
 
 	return gasAmount
 }
-

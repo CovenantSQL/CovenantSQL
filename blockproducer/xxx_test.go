@@ -17,7 +17,6 @@
 package blockproducer
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/types"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -26,13 +25,14 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -118,13 +118,13 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.BPBlock, err e
 		var (
 			ba1 = pt.NewBaseAccount(
 				&pt.Account{
-					Address:             testAddress1,
+					Address:      testAddress1,
 					TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
 			ba2 = pt.NewBaseAccount(
 				&pt.Account{
-					Address:             testAddress2,
+					Address:      testAddress2,
 					TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
@@ -277,7 +277,7 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *types.Billing, err
 
 	txBaseAccount := pt.NewBaseAccount(
 		&pt.Account{
-			Address:             header.Producer,
+			Address:      header.Producer,
 			TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 		},
 	)

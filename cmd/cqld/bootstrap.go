@@ -25,7 +25,6 @@ import (
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
-	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -35,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
@@ -286,7 +286,7 @@ func loadGenesis() *types.BPBlock {
 		}).Debug("setting one balance fixture in genesis block")
 		genesis.Transactions = append(genesis.Transactions, types.NewBaseAccount(
 			&types.Account{
-				Address:             proto.AccountAddress(ba.Address),
+				Address:      proto.AccountAddress(ba.Address),
 				TokenBalance: [types.SupportTokenNumber]uint64{ba.StableCoinBalance, ba.CovenantCoinBalance},
 			}))
 	}

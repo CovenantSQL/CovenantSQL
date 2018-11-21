@@ -19,9 +19,9 @@ package blockproducer
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 const (

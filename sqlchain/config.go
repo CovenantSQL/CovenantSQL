@@ -45,6 +45,8 @@ type Config struct {
 	// QueryTTL sets the unacknowledged query TTL in block periods.
 	QueryTTL int32
 
+	BlockCacheTTL int32
+
 	// DBAccount info
 	TokenType    types.TokenType
 	GasPrice     uint64

@@ -84,7 +84,7 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 			"loaded":  loaded,
 		}).Debug("queried stable account")
 	}()
-	
+
 	s.Lock()
 	defer s.Unlock()
 

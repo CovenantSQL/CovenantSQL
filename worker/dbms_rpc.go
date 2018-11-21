@@ -19,7 +19,6 @@ package worker
 import (
 	//"context"
 	//"runtime/trace"
-
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"

@@ -146,8 +146,7 @@ func TestChain(t *testing.T) {
 				tb, err := generateRandomAccountBilling()
 				So(err, ShouldBeNil)
 				receivedTbs[i] = tb
-				err = chain.processTx(tb)
-				So(err, ShouldBeNil)
+				chain.processTx(tb)
 			}
 
 			nextNonce, err = chain.ms.nextNonce(testAddress1)

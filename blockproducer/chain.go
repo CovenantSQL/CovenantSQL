@@ -18,13 +18,13 @@ package blockproducer
 
 import (
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"os"
 	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -48,6 +48,7 @@ var (
 	metaSQLChainIndexBucket        = []byte("covenantsql-sqlchain-index-bucket")
 	gasPrice                uint32 = 1
 	accountAddress          proto.AccountAddress
+	txEvent                 = "/BP/Tx"
 )
 
 // Chain defines the main chain.
@@ -132,14 +133,14 @@ func NewChain(cfg *Config) (*Chain, error) {
 		bi:            newBlockIndex(),
 		rt:            newRuntime(cfg, accountAddress),
 		cl:            caller,
-		bs: 		   bus,
+		bs:            bus,
 		blocksFromRPC: make(chan *pt.Block),
 		pendingTxs:    make(chan pi.Transaction),
 		stopCh:        make(chan struct{}),
 	}
 
 	// sub chain events
-	chain.bs.Subscribe("/BP/", chain.addTx)
+	chain.bs.Subscribe(txEvent, chain.addTx)
 
 	log.WithField("genesis", cfg.Genesis).Debug("pushing genesis block")
 
@@ -176,6 +177,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		return nil, err
 	}
 
+	caller := rpc.NewCaller()
 	bus := chainbus.New()
 
 	chain = &Chain{
@@ -183,14 +185,14 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		ms:            newMetaState(),
 		bi:            newBlockIndex(),
 		rt:            newRuntime(cfg, accountAddress),
-		cl:            rpc.NewCaller(),
+		cl:            caller,
 		bs:            bus,
 		blocksFromRPC: make(chan *pt.Block),
 		pendingTxs:    make(chan pi.Transaction),
 		stopCh:        make(chan struct{}),
 	}
 
-	chain.bs.Subscribe("/BP/TransferToken", chain.addTx)
+	chain.bs.Subscribe(txEvent, chain.addTx)
 
 	err = chain.db.View(func(tx *bolt.Tx) (err error) {
 		meta := tx.Bucket(metaBucket[:])
@@ -658,11 +660,19 @@ func (c *Chain) processBlocks() {
 }
 
 func (c *Chain) addTx(tx pi.Transaction) {
-	c.pendingTxs <- tx
+	if err := c.db.Update(c.ms.applyTransactionProcedure(tx)); err != nil {
+		log.WithFields(log.Fields{
+			"peer":        c.rt.getPeerInfoString(),
+			"next_turn":   c.rt.getNextTurn(),
+			"head_height": c.rt.getHead().Height,
+			"head_block":  c.rt.getHead().Head.String(),
+			"transaction": tx.Hash().String(),
+		}).Debugf("Failed to push tx with error: %v", err)
+	}
 }
 
-func (c *Chain) processTx(tx pi.Transaction) (err error) {
-	return c.db.Update(c.ms.applyTransactionProcedure(tx))
+func (c *Chain) processTx(tx pi.Transaction) {
+	c.bs.Publish(txEvent, tx)
 }
 
 func (c *Chain) processTxs() {
@@ -670,15 +680,7 @@ func (c *Chain) processTxs() {
 	for {
 		select {
 		case tx := <-c.pendingTxs:
-			if err := c.processTx(tx); err != nil {
-				log.WithFields(log.Fields{
-					"peer":        c.rt.getPeerInfoString(),
-					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.rt.getHead().Height,
-					"head_block":  c.rt.getHead().Head.String(),
-					"transaction": tx.Hash().String(),
-				}).Debugf("Failed to push tx with error: %v", err)
-			}
+			c.processTx(tx)
 		case <-c.stopCh:
 			return
 		}

@@ -617,7 +617,7 @@ func (s *State) Replay(req *types.Request, resp *types.Response) (err error) {
 }
 
 // Stat prints the statistic message of the State object.
-func (s *State) Stat() {
+func (s *State) Stat(id proto.DatabaseID) {
 	var (
 		p = func() *pool {
 			s.RLock()
@@ -628,6 +628,7 @@ func (s *State) Stat() {
 		tc = atomic.LoadInt32(&p.trackerCount)
 	)
 	log.WithFields(log.Fields{
+		"database_id":               id,
 		"pooled_fail_request_count": fc,
 		"pooled_query_tracker":      tc,
 	}).Info("Xeno pool stats")

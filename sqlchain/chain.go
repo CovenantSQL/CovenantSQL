@@ -694,6 +694,7 @@ func (c *Chain) syncHead() {
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
 	defer func() {
+		c.stat()
 		c.pruneBlockCache()
 		c.rt.setNextTurn()
 		c.ai.advance(c.rt.getMinValidHeight())
@@ -751,7 +752,6 @@ func (c *Chain) mainCycle() {
 			return
 		default:
 			c.syncHead()
-			c.stat()
 
 			if t, d := c.rt.nextTick(); d > 0 {
 				//log.WithFields(log.Fields{
@@ -1452,11 +1452,12 @@ func (c *Chain) stat() {
 	)
 	// Print chain stats
 	log.WithFields(log.Fields{
+		"database_id":           c.rt.databaseID,
 		"multiIndex_count":      ic,
 		"response_header_count": rc,
 		"query_tracker_count":   tc,
 		"cached_block_count":    bc,
 	}).Info("Chain mem stats")
 	// Print xeno stats
-	c.st.Stat()
+	c.st.Stat(c.rt.databaseID)
 }

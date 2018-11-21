@@ -25,7 +25,7 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -167,7 +167,7 @@ func (a *explorerAPI) formatTime(t time.Time) float64 {
 	return float64(t.UnixNano()) / 1e6
 }
 
-func (a *explorerAPI) formatBlock(count uint32, height uint32, b *pt.Block) map[string]interface{} {
+func (a *explorerAPI) formatBlock(count uint32, height uint32, b *pt.BPBlock) map[string]interface{} {
 	txs := make([]map[string]interface{}, 0, len(b.Transactions))
 
 	for _, tx := range b.Transactions {
@@ -207,8 +207,8 @@ func (a *explorerAPI) formatRawTx(t pi.Transaction) (res map[string]interface{})
 		res = map[string]interface{}{
 			"next_nonce":       tx.NextNonce,
 			"address":          tx.Address,
-			"stable_balance":   tx.StableCoinBalance,
-			"covenant_balance": tx.CovenantCoinBalance,
+			"stable_balance":   tx.TokenBalance[pt.Particle],
+			"covenant_balance": tx.TokenBalance[pt.Wave],
 			"rating":           tx.Rating,
 		}
 	case *pi.TransactionWrapper:

@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashBlock(t *testing.T) {
-	v := Block{}
+func TestMarshalHashBPBlock(t *testing.T) {
+	v := BPBlock{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashBlock(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashBlock(b *testing.B) {
-	v := Block{}
+func BenchmarkMarshalHashBPBlock(b *testing.B) {
+	v := BPBlock{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashBlock(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgBlock(b *testing.B) {
-	v := Block{}
+func BenchmarkAppendMsgBPBlock(b *testing.B) {
+	v := BPBlock{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgBlock(b *testing.B) {
 	}
 }
 
-func TestMarshalHashHeader(t *testing.T) {
-	v := Header{}
+func TestMarshalHashBPHeader(t *testing.T) {
+	v := BPHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashHeader(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashHeader(b *testing.B) {
-	v := Header{}
+func BenchmarkMarshalHashBPHeader(b *testing.B) {
+	v := BPHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,8 +71,8 @@ func BenchmarkMarshalHashHeader(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgHeader(b *testing.B) {
-	v := Header{}
+func BenchmarkAppendMsgBPHeader(b *testing.B) {
+	v := BPHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -83,8 +83,8 @@ func BenchmarkAppendMsgHeader(b *testing.B) {
 	}
 }
 
-func TestMarshalHashSignedHeader(t *testing.T) {
-	v := SignedHeader{}
+func TestMarshalHashBPSignedHeader(t *testing.T) {
+	v := BPSignedHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -99,8 +99,8 @@ func TestMarshalHashSignedHeader(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashSignedHeader(b *testing.B) {
-	v := SignedHeader{}
+func BenchmarkMarshalHashBPSignedHeader(b *testing.B) {
+	v := BPSignedHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -108,8 +108,8 @@ func BenchmarkMarshalHashSignedHeader(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgSignedHeader(b *testing.B) {
-	v := SignedHeader{}
+func BenchmarkAppendMsgBPSignedHeader(b *testing.B) {
+	v := BPSignedHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

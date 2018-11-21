@@ -25,8 +25,7 @@ import (
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -262,13 +261,13 @@ func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer)
 	return
 }
 
-func loadGenesis() *types.Block {
+func loadGenesis() *types.BPBlock {
 	genesisInfo := conf.GConf.BP.BPGenesis
 	log.WithField("config", genesisInfo).Info("load genesis config")
 
-	genesis := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
+	genesis := &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
 				Version:    genesisInfo.Version,
 				Producer:   proto.AccountAddress(genesisInfo.Producer),
 				MerkleRoot: genesisInfo.MerkleRoot,
@@ -285,11 +284,10 @@ func loadGenesis() *types.Block {
 			"stableCoinBalance":   ba.StableCoinBalance,
 			"covenantCoinBalance": ba.CovenantCoinBalance,
 		}).Debug("setting one balance fixture in genesis block")
-		genesis.Transactions = append(genesis.Transactions, pt.NewBaseAccount(
-			&pt.Account{
+		genesis.Transactions = append(genesis.Transactions, types.NewBaseAccount(
+			&types.Account{
 				Address:             proto.AccountAddress(ba.Address),
-				StableCoinBalance:   ba.StableCoinBalance,
-				CovenantCoinBalance: ba.CovenantCoinBalance,
+				TokenBalance: [types.SupportTokenNumber]uint64{ba.StableCoinBalance, ba.CovenantCoinBalance},
 			}))
 	}
 

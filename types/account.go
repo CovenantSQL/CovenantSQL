@@ -49,26 +49,59 @@ const (
 	NumberOfUserPermission
 )
 
+// Status defines status of a SQLChain user/miner.
+type Status int32
+
+const (
+	// Normal defines no bad thing happens.
+	Normal Status = iota
+	// Reminder defines the user needs to increase advance payment.
+	Reminder
+	// Arrears defines the user is in arrears.
+	Arrears
+	// Arbitration defines the user/miner is in an arbitration.
+	Arbitration
+)
+
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
 	Address    proto.AccountAddress
 	Permission UserPermission
+	AdvancePayment uint64
+	Arrears        uint64
+	Pledge         uint64
+	Status         Status
+}
+
+// MinerInfo defines a miner.
+type MinerInfo struct {
+	Address        proto.AccountAddress
+	Name           string
+	PendingIncome  uint64
+	ReceivedIncome uint64
+	Pledge         uint64
+	Status         Status
 }
 
 // SQLChainProfile defines a SQLChainProfile related to an account.
 type SQLChainProfile struct {
 	ID      proto.DatabaseID
-	Deposit uint64
+	Address proto.AccountAddress
+	Period  uint64
+	GasPrice uint64
+
+	TokenType TokenType
+
 	Owner   proto.AccountAddress
-	Miners  []proto.AccountAddress
+	Miners  []*MinerInfo
+
 	Users   []*SQLChainUser
 }
 
 // Account store its balance, and other mate data.
 type Account struct {
 	Address             proto.AccountAddress
-	StableCoinBalance   uint64
-	CovenantCoinBalance uint64
+	TokenBalance 	 	[SupportTokenNumber]uint64
 	Rating              float64
 	NextNonce           pi.AccountNonce
 }

@@ -18,7 +18,7 @@ package blockproducer
 
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
@@ -31,7 +31,7 @@ type ChainRPCService struct {
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
 	proto.Envelope
-	Block *pt.Block
+	Block *pt.BPBlock
 }
 
 // AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
@@ -42,7 +42,7 @@ type AdviseNewBlockResp struct {
 // AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
 type AdviseTxBillingReq struct {
 	proto.Envelope
-	TxBilling *pt.Billing
+	TxBilling *types.Billing
 }
 
 // AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
@@ -61,7 +61,7 @@ type FetchBlockResp struct {
 	proto.Envelope
 	Height uint32
 	Count  uint32
-	Block  *pt.Block
+	Block  *pt.BPBlock
 }
 
 // FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.

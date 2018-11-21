@@ -26,7 +26,7 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -111,7 +111,7 @@ func (s *Service) start() (err error) {
 	return
 }
 
-func (s *Service) getBlockByCount(c uint32) (b *pt.Block, count uint32, height uint32, err error) {
+func (s *Service) getBlockByCount(c uint32) (b *pt.BPBlock, count uint32, height uint32, err error) {
 	var bKey []byte
 	bKey = append(bKey, blockKeyPrefix...)
 	bKey = append(bKey, uint32ToBytes(c)...)
@@ -141,7 +141,7 @@ func (s *Service) getBlockByCount(c uint32) (b *pt.Block, count uint32, height u
 	return
 }
 
-func (s *Service) getBlockByHash(h *hash.Hash) (b *pt.Block, count uint32, height uint32, err error) {
+func (s *Service) getBlockByHash(h *hash.Hash) (b *pt.BPBlock, count uint32, height uint32, err error) {
 	if h == nil {
 		err = ErrNotFound
 		return
@@ -163,7 +163,7 @@ func (s *Service) getBlockByHash(h *hash.Hash) (b *pt.Block, count uint32, heigh
 	return s.getBlockByCount(count)
 }
 
-func (s *Service) getBlockByHeight(h uint32) (b *pt.Block, count uint32, height uint32, err error) {
+func (s *Service) getBlockByHeight(h uint32) (b *pt.BPBlock, count uint32, height uint32, err error) {
 	var bKey []byte
 	bKey = append(bKey, blockHeightPrefix...)
 	bKey = append(bKey, uint32ToBytes(h)...)
@@ -200,7 +200,7 @@ func (s *Service) getTxByHash(h *hash.Hash) (tx pi.Transaction, c uint32, height
 
 	c = bytesToUint32(bCountData)
 
-	var b *pt.Block
+	var b *pt.BPBlock
 	if b, _, height, err = s.getBlockByCount(c); err != nil {
 		return
 	}
@@ -326,7 +326,7 @@ func (s *Service) requestBlock() {
 	}
 }
 
-func (s *Service) processBlock(c uint32, h uint32, b *pt.Block) (err error) {
+func (s *Service) processBlock(c uint32, h uint32, b *pt.BPBlock) (err error) {
 	if b == nil {
 		log.WithField("count", c).Warning("processed nil block")
 		return ErrNilBlock
@@ -380,7 +380,7 @@ func (s *Service) saveTransaction(c uint32, tx pi.Transaction) (err error) {
 	return
 }
 
-func (s *Service) saveBlock(c uint32, h uint32, b *pt.Block) (err error) {
+func (s *Service) saveBlock(c uint32, h uint32, b *pt.BPBlock) (err error) {
 	if b == nil {
 		return ErrNilBlock
 	}

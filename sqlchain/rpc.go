@@ -17,7 +17,6 @@
 package sqlchain
 
 import (
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -80,7 +79,7 @@ type FetchAckedQueryResp struct {
 
 // SignBillingReq defines a request of the SignBilling RPC method.
 type SignBillingReq struct {
-	pt.BillingRequest
+	types.BillingRequest
 }
 
 // SignBillingResp defines a response of the SignBilling RPC method.

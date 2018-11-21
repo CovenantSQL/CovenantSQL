@@ -28,8 +28,8 @@ import (
 
 //go:generate hsp
 
-// Header defines the main chain block header.
-type Header struct {
+// BPHeader defines the main chain block header.
+type BPHeader struct {
 	Version    int32
 	Producer   proto.AccountAddress
 	MerkleRoot hash.Hash
@@ -37,16 +37,16 @@ type Header struct {
 	Timestamp  time.Time
 }
 
-// SignedHeader defines the main chain header with the signature.
-type SignedHeader struct {
-	Header
+// BPSignedHeader defines the main chain header with the signature.
+type BPSignedHeader struct {
+	BPHeader
 	BlockHash hash.Hash
 	Signee    *asymmetric.PublicKey
 	Signature *asymmetric.Signature
 }
 
 // Verify verifies the signature.
-func (s *SignedHeader) Verify() error {
+func (s *BPSignedHeader) Verify() error {
 	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
 		return ErrSignVerification
 	}
@@ -54,14 +54,14 @@ func (s *SignedHeader) Verify() error {
 	return nil
 }
 
-// Block defines the main chain block.
-type Block struct {
-	SignedHeader SignedHeader
+// BPBlock defines the main chain block.
+type BPBlock struct {
+	SignedHeader BPSignedHeader
 	Transactions []pi.Transaction
 }
 
 // GetTxHashes returns all hashes of tx in block.{Billings, ...}
-func (b *Block) GetTxHashes() []*hash.Hash {
+func (b *BPBlock) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
 	// get hashes in block.Transactions
 	hs := make([]*hash.Hash, len(b.Transactions))
@@ -74,11 +74,11 @@ func (b *Block) GetTxHashes() []*hash.Hash {
 }
 
 // PackAndSignBlock computes block's hash and sign it.
-func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
+func (b *BPBlock) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 	hs := b.GetTxHashes()
 
 	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(hs).GetRoot()
-	enc, err := b.SignedHeader.Header.MarshalHash()
+	enc, err := b.SignedHeader.BPHeader.MarshalHash()
 
 	if err != nil {
 		return err
@@ -96,14 +96,14 @@ func (b *Block) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 }
 
 // Verify verifies whether the block is valid.
-func (b *Block) Verify() error {
+func (b *BPBlock) Verify() error {
 	hs := b.GetTxHashes()
 	merkleRoot := *merkle.NewMerkle(hs).GetRoot()
 	if !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
 		return ErrMerkleRootVerification
 	}
 
-	enc, err := b.SignedHeader.Header.MarshalHash()
+	enc, err := b.SignedHeader.BPHeader.MarshalHash()
 	if err != nil {
 		return err
 	}
@@ -117,21 +117,21 @@ func (b *Block) Verify() error {
 }
 
 // Timestamp returns timestamp of block.
-func (b *Block) Timestamp() time.Time {
+func (b *BPBlock) Timestamp() time.Time {
 	return b.SignedHeader.Timestamp
 }
 
 // Producer returns the producer of block.
-func (b *Block) Producer() proto.AccountAddress {
+func (b *BPBlock) Producer() proto.AccountAddress {
 	return b.SignedHeader.Producer
 }
 
 // ParentHash returns the parent hash field of the block header.
-func (b *Block) ParentHash() *hash.Hash {
+func (b *BPBlock) ParentHash() *hash.Hash {
 	return &b.SignedHeader.ParentHash
 }
 
 // BlockHash returns the parent hash field of the block header.
-func (b *Block) BlockHash() *hash.Hash {
+func (b *BPBlock) BlockHash() *hash.Hash {
 	return &b.SignedHeader.BlockHash
 }

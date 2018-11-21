@@ -18,12 +18,13 @@ package blockproducer
 
 import (
 	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"os"
 	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -60,7 +61,7 @@ type Chain struct {
 	cl *rpc.Caller
 	bs chainbus.Bus
 
-	blocksFromRPC chan *pt.Block
+	blocksFromRPC chan *pt.BPBlock
 	pendingTxs    chan pi.Transaction
 	stopCh        chan struct{}
 }
@@ -134,7 +135,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 		rt:            newRuntime(cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
-		blocksFromRPC: make(chan *pt.Block),
+		blocksFromRPC: make(chan *pt.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
 		stopCh:        make(chan struct{}),
 	}
@@ -187,7 +188,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		rt:            newRuntime(cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
-		blocksFromRPC: make(chan *pt.Block),
+		blocksFromRPC: make(chan *pt.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
 		stopCh:        make(chan struct{}),
 	}
@@ -213,7 +214,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		nodes := make([]blockNode, blocks.Stats().KeyN)
 
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
-			block := &pt.Block{}
+			block := &pt.BPBlock{}
 			if err = utils.DecodeMsgPack(v, block); err != nil {
 				log.WithError(err).Error("load block failed")
 				return err
@@ -263,7 +264,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
-func (c *Chain) checkBlock(b *pt.Block) (err error) {
+func (c *Chain) checkBlock(b *pt.BPBlock) (err error) {
 	// TODO(lambda): process block fork
 	if !b.ParentHash().IsEqual(&c.rt.getHead().Head) {
 		log.WithFields(log.Fields{
@@ -279,7 +280,7 @@ func (c *Chain) checkBlock(b *pt.Block) (err error) {
 		return ErrInvalidMerkleTreeRoot
 	}
 
-	enc, err := b.SignedHeader.Header.MarshalHash()
+	enc, err := b.SignedHeader.BPHeader.MarshalHash()
 	if err != nil {
 		return err
 	}
@@ -291,7 +292,7 @@ func (c *Chain) checkBlock(b *pt.Block) (err error) {
 	return nil
 }
 
-func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
+func (c *Chain) pushBlockWithoutCheck(b *pt.BPBlock) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
 	log.Debugf("current block %s, height %d, its parent %s", b.BlockHash(), h, b.ParentHash())
 	node := newBlockNode(c.rt.chainInitTime, c.rt.period, b, c.rt.getHead().Node)
@@ -336,7 +337,7 @@ func (c *Chain) pushBlockWithoutCheck(b *pt.Block) error {
 	return err
 }
 
-func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
+func (c *Chain) pushGenesisBlock(b *pt.BPBlock) (err error) {
 	err = c.pushBlockWithoutCheck(b)
 	if err != nil {
 		log.WithError(err).Error("push genesis block failed")
@@ -344,7 +345,7 @@ func (c *Chain) pushGenesisBlock(b *pt.Block) (err error) {
 	return
 }
 
-func (c *Chain) pushBlock(b *pt.Block) error {
+func (c *Chain) pushBlock(b *pt.BPBlock) error {
 	err := c.checkBlock(b)
 	if err != nil {
 		err = errors.Wrap(err, "check block failed")
@@ -365,9 +366,9 @@ func (c *Chain) produceBlock(now time.Time) error {
 		return err
 	}
 
-	b := &pt.Block{
-		SignedHeader: pt.SignedHeader{
-			Header: pt.Header{
+	b := &pt.BPBlock{
+		SignedHeader: pt.BPSignedHeader{
+			BPHeader: pt.BPHeader{
 				Version:    blockVersion,
 				Producer:   c.rt.accountAddress,
 				ParentHash: c.rt.getHead().Head,
@@ -422,7 +423,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 	return err
 }
 
-func (c *Chain) produceBilling(br *pt.BillingRequest) (_ *pt.BillingRequest, err error) {
+func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingRequest, err error) {
 	// TODO(lambda): simplify the function
 	if err = c.checkBillingRequest(br); err != nil {
 		return
@@ -462,8 +463,8 @@ func (c *Chain) produceBilling(br *pt.BillingRequest) (_ *pt.BillingRequest, err
 		return
 	}
 	var (
-		tc = pt.NewBillingHeader(nc, br, accountAddress, receivers, fees, rewards)
-		tb = pt.NewBilling(tc)
+		tc = types.NewBillingHeader(nc, br, accountAddress, receivers, fees, rewards)
+		tb = types.NewBilling(tc)
 	)
 	if err = tb.Sign(privKey); err != nil {
 		return
@@ -480,7 +481,7 @@ func (c *Chain) produceBilling(br *pt.BillingRequest) (_ *pt.BillingRequest, err
 // 1. period of sqlchain;
 // 2. request's hash
 // 3. miners' signatures.
-func (c *Chain) checkBillingRequest(br *pt.BillingRequest) (err error) {
+func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
 	// period of sqlchain;
 	// TODO(lambda): get and check period and miner list of specific sqlchain
 
@@ -488,13 +489,13 @@ func (c *Chain) checkBillingRequest(br *pt.BillingRequest) (err error) {
 	return
 }
 
-func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.Block, count uint32, err error) {
+func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.BPBlock, count uint32, err error) {
 	node := c.rt.getHead().Node.ancestor(h)
 	if node == nil {
 		return nil, 0, ErrNoSuchBlock
 	}
 
-	b = &pt.Block{}
+	b = &pt.BPBlock{}
 	k := node.indexKey()
 
 	err = c.db.View(func(tx *bolt.Tx) error {
@@ -508,13 +509,13 @@ func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.Block, count uint32, err err
 	return b, node.count, nil
 }
 
-func (c *Chain) fetchBlockByCount(count uint32) (b *pt.Block, height uint32, err error) {
+func (c *Chain) fetchBlockByCount(count uint32) (b *pt.BPBlock, height uint32, err error) {
 	node := c.rt.getHead().Node.ancestorByCount(count)
 	if node == nil {
 		return nil, 0, ErrNoSuchBlock
 	}
 
-	b = &pt.Block{}
+	b = &pt.BPBlock{}
 	k := node.indexKey()
 
 	err = c.db.View(func(tx *bolt.Tx) error {
@@ -604,7 +605,7 @@ func (c *Chain) Start() error {
 func (c *Chain) processBlocks() {
 	rsCh := make(chan struct{})
 	rsWG := &sync.WaitGroup{}
-	returnStash := func(stash []*pt.Block) {
+	returnStash := func(stash []*pt.BPBlock) {
 		defer rsWG.Done()
 		for _, block := range stash {
 			select {
@@ -621,14 +622,14 @@ func (c *Chain) processBlocks() {
 		c.rt.wg.Done()
 	}()
 
-	var stash []*pt.Block
+	var stash []*pt.BPBlock
 	for {
 		select {
 		case block := <-c.blocksFromRPC:
 			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
 				if stash == nil {
-					stash = make([]*pt.Block, 0)
+					stash = make([]*pt.BPBlock, 0)
 				}
 				stash = append(stash, block)
 			} else {

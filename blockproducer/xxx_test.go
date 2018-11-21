@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -25,7 +26,7 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -82,7 +83,7 @@ func randStringBytes(n int) string {
 	return string(b)
 }
 
-func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err error) {
+func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.BPBlock, err error) {
 	// Generate key pair
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -93,9 +94,9 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &pt.Block{
-		SignedHeader: pt.SignedHeader{
-			Header: pt.Header{
+	b = &pt.BPBlock{
+		SignedHeader: pt.BPSignedHeader{
+			BPHeader: pt.BPHeader{
 				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
@@ -118,15 +119,13 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 			ba1 = pt.NewBaseAccount(
 				&pt.Account{
 					Address:             testAddress1,
-					StableCoinBalance:   testInitBalance,
-					CovenantCoinBalance: testInitBalance,
+					TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
 			ba2 = pt.NewBaseAccount(
 				&pt.Account{
 					Address:             testAddress2,
-					StableCoinBalance:   testInitBalance,
-					CovenantCoinBalance: testInitBalance,
+					TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
 		)
@@ -143,7 +142,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 	return
 }
 
-func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *pt.Block, err error) {
+func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *pt.BPBlock, err error) {
 	// Generate key pair
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -154,9 +153,9 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &pt.Block{
-		SignedHeader: pt.SignedHeader{
-			Header: pt.Header{
+	b = &pt.BPBlock{
+		SignedHeader: pt.BPSignedHeader{
+			BPHeader: pt.BPHeader{
 				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
@@ -188,8 +187,8 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	return
 }
 
-func generateRandomBillingRequestHeader() *pt.BillingRequestHeader {
-	return &pt.BillingRequestHeader{
+func generateRandomBillingRequestHeader() *types.BillingRequestHeader {
+	return &types.BillingRequestHeader{
 		DatabaseID: *generateRandomDatabaseID(),
 		LowBlock:   generateRandomHash(),
 		LowHeight:  rand.Int31(),
@@ -199,9 +198,9 @@ func generateRandomBillingRequestHeader() *pt.BillingRequestHeader {
 	}
 }
 
-func generateRandomBillingRequest() (*pt.BillingRequest, error) {
+func generateRandomBillingRequest() (*types.BillingRequest, error) {
 	reqHeader := generateRandomBillingRequestHeader()
-	req := pt.BillingRequest{
+	req := types.BillingRequest{
 		Header: *reqHeader,
 	}
 	h, err := req.PackRequestHeader()
@@ -231,8 +230,8 @@ func generateRandomBillingRequest() (*pt.BillingRequest, error) {
 	return &req, nil
 }
 
-func generateRandomBillingHeader() (tc *pt.BillingHeader, err error) {
-	var req *pt.BillingRequest
+func generateRandomBillingHeader() (tc *types.BillingHeader, err error) {
+	var req *types.BillingRequest
 	if req, err = generateRandomBillingRequest(); err != nil {
 		return
 	}
@@ -258,11 +257,11 @@ func generateRandomBillingHeader() (tc *pt.BillingHeader, err error) {
 	}
 	producer := proto.AccountAddress(generateRandomHash())
 
-	tc = pt.NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
+	tc = types.NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
 	return tc, nil
 }
 
-func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error) {
+func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *types.Billing, error) {
 	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, nil, err
@@ -270,7 +269,7 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error)
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 	header.Producer, _ = crypto.PubKeyHash(priv.PubKey())
 
-	txBilling := pt.NewBilling(header)
+	txBilling := types.NewBilling(header)
 
 	if err := txBilling.Sign(priv); err != nil {
 		return nil, nil, err
@@ -279,8 +278,7 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error)
 	txBaseAccount := pt.NewBaseAccount(
 		&pt.Account{
 			Address:             header.Producer,
-			StableCoinBalance:   testInitBalance,
-			CovenantCoinBalance: testInitBalance,
+			TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 		},
 	)
 
@@ -291,7 +289,7 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error)
 	return txBaseAccount, txBilling, nil
 }
 
-func generateRandomAccountBilling() (*pt.Billing, error) {
+func generateRandomAccountBilling() (*types.Billing, error) {
 	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, err
@@ -299,7 +297,7 @@ func generateRandomAccountBilling() (*pt.Billing, error) {
 	header.Producer = testAddress1
 	testAddress1Nonce++
 	header.Nonce = testAddress1Nonce
-	txBilling := pt.NewBilling(header)
+	txBilling := types.NewBilling(header)
 
 	if err := txBilling.Sign(testPrivKey); err != nil {
 		return nil, err

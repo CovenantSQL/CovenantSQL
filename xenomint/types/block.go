@@ -54,7 +54,7 @@ func (h *SignedBlockHeader) Verify() error {
 	return h.DefaultHashSignVerifierImpl.Verify(&h.BlockHeader)
 }
 
-// Block defines a block including a signed block header and its query list.
+// BPBlock defines a block including a signed block header and its query list.
 type Block struct {
 	SignedBlockHeader
 	ReadQueries  []*types.Ack

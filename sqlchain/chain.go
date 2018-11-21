@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -106,7 +105,7 @@ type Chain struct {
 	acks      chan *types.AckHeader
 
 	// DBAccount info
-	tokenType    pt.TokenType
+	tokenType    types.TokenType
 	gasPrice     uint64
 	updatePeriod uint64
 
@@ -550,7 +549,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 				Producer:    c.rt.getServer(),
 				GenesisHash: c.rt.genesisHash,
 				ParentHash:  c.rt.getHead().Head,
-				// MerkleRoot: will be set by Block.PackAndSignBlock(PrivateKey)
+				// MerkleRoot: will be set by BPBlock.PackAndSignBlock(PrivateKey)
 				Timestamp: now,
 			},
 		},
@@ -1164,7 +1163,7 @@ func (c *Chain) UpdatePeers(peers *proto.Peers) error {
 }
 
 // getBilling returns a billing request from the blocks within height range [low, high].
-func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) {
+func (c *Chain) getBilling(low, high int32) (req *types.BillingRequest, err error) {
 	// Height `n` is ensured (or skipped) if `Next Turn` > `n` + 1
 	if c.rt.getNextTurn() <= high+1 {
 		err = ErrUnavailableBillingRang
@@ -1243,8 +1242,8 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 		gasAmounts = append(gasAmounts, v)
 	}
 
-	req = &pt.BillingRequest{
-		Header: pt.BillingRequestHeader{
+	req = &types.BillingRequest{
+		Header: types.BillingRequestHeader{
 			DatabaseID: c.rt.databaseID,
 			LowBlock:   *lowBlock.BlockHash(),
 			LowHeight:  low,
@@ -1256,7 +1255,7 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 	return
 }
 
-func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
+func (c *Chain) collectBillingSignatures(billings *types.BillingRequest) {
 	defer c.rt.wg.Done()
 	// Process sign billing responses, note that range iterating over channel will only break if
 	// the channle is closed
@@ -1347,7 +1346,7 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 // (inclusive).
 func (c *Chain) LaunchBilling(low, high int32) (err error) {
 	var (
-		req *pt.BillingRequest
+		req *types.BillingRequest
 	)
 
 	defer log.WithFields(log.Fields{
@@ -1371,11 +1370,11 @@ func (c *Chain) LaunchBilling(low, high int32) (err error) {
 }
 
 // SignBilling signs a billing request.
-func (c *Chain) SignBilling(req *pt.BillingRequest) (
+func (c *Chain) SignBilling(req *types.BillingRequest) (
 	pub *asymmetric.PublicKey, sig *asymmetric.Signature, err error,
 ) {
 	var (
-		loc *pt.BillingRequest
+		loc *types.BillingRequest
 	)
 	defer log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),

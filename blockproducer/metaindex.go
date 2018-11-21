@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"sync"
 
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
@@ -126,7 +126,7 @@ func (i *metaIndex) IncreaseAccountStableBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeAdd(&ao.StableCoinBalance, &amount); err != nil {
+		if err = safeAdd(&ao.TokenBalance[pt.Particle], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -161,7 +161,7 @@ func (i *metaIndex) DecreaseAccountStableBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeSub(&ao.StableCoinBalance, &amount); err != nil {
+		if err = safeSub(&ao.TokenBalance[pt.Particle], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -196,7 +196,7 @@ func (i *metaIndex) IncreaseAccountCovenantBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeAdd(&ao.CovenantCoinBalance, &amount); err != nil {
+		if err = safeAdd(&ao.TokenBalance[pt.Wave], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -231,7 +231,7 @@ func (i *metaIndex) DecreaseAccountCovenantBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeSub(&ao.CovenantCoinBalance, &amount); err != nil {
+		if err = safeSub(&ao.TokenBalance[pt.Wave], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++

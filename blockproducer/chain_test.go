@@ -24,7 +24,6 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -141,7 +140,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldNotBeNil)
 
 			// receive txs
-			receivedTbs := make([]*pt.Billing, 9)
+			receivedTbs := make([]*types.Billing, 9)
 			for i := range receivedTbs {
 				tb, err := generateRandomAccountBilling()
 				So(err, ShouldBeNil)

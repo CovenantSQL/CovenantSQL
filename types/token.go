@@ -16,23 +16,7 @@
 
 package types
 
-import (
-	"bytes"
-	"encoding/binary"
-
-	"github.com/CovenantSQL/HashStablePack/marshalhash"
-)
-
-// SupportTokenNumber defines the number of token covenantsql supports
-const SupportTokenNumber int32 = 4
-
-// Token defines token's number.
-var Token = [SupportTokenNumber]string{
-	"Particle",
-	"Ether",
-	"EOS",
-	"Bitcoin",
-}
+//go:generate hsp
 
 // TokenType defines token's type
 type TokenType int32
@@ -40,28 +24,42 @@ type TokenType int32
 const (
 	// Particle defines covenantsql's token
 	Particle TokenType = iota
+	// Wave defines covenantsql's token
+	Wave
 	// Ether defines Ethereum.
 	Ether
 	// EOS defines EOS.
 	EOS
 	// Bitcoin defines Bitcoin.
 	Bitcoin
+	// SupportTokenNumber defines the number of token covenantsql supports
+	SupportTokenNumber
 )
+
+// TokenList lists supporting token.
+var TokenList = map[TokenType]string{
+	Particle: "Particle",
+	Wave:     "Wave",
+	Ether:    "Ether",
+	EOS:      "EOS",
+	Bitcoin:  "Bitcoin",
+}
 
 // String returns token's symbol.
 func (t TokenType) String() string {
-	if t < 0 || int32(t) >= SupportTokenNumber {
+	if t < 0 || t >= SupportTokenNumber {
 		return "Unknown"
 	}
 
-	return Token[int(t)]
+	return TokenList[t]
 }
 
 // FromString returns token's number.
 func FromString(t string) TokenType {
-	for i := range Token {
-		if t == Token[i] {
-			return TokenType(i)
+	var i TokenType
+	for ; i < SupportTokenNumber; i++ {
+		if TokenList[i] == t {
+			return i
 		}
 	}
 	return -1
@@ -69,17 +67,5 @@ func FromString(t string) TokenType {
 
 // Listed returns if the token is listed in list.
 func (t *TokenType) Listed() bool {
-	return (*t) >= 0 && int32(*t) < SupportTokenNumber
-}
-
-// MarshalHash marshals for hash.
-func (t *TokenType) MarshalHash() (o []byte, err error) {
-	var binBuf bytes.Buffer
-	binary.Write(&binBuf, binary.BigEndian, t)
-	return binBuf.Bytes(), nil
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
-func (t *TokenType) Msgsize() (s int) {
-	return marshalhash.BytesPrefixSize + 4
+	return (*t) >= 0 && *t < SupportTokenNumber
 }

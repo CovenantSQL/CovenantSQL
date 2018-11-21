@@ -17,13 +17,14 @@
 package blockproducer
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"math"
 	"os"
 	"path"
 	"testing"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/coreos/bbolt"
 	. "github.com/smartystreets/goconvey/convey"
@@ -262,8 +263,8 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					So(ao, ShouldNotBeNil)
 					So(ao.Address, ShouldEqual, addr1)
-					So(ao.StableCoinBalance, ShouldEqual, incSta)
-					So(ao.CovenantCoinBalance, ShouldEqual, incCov)
+					So(ao.TokenBalance[pt.Particle], ShouldEqual, incSta)
+					So(ao.TokenBalance[pt.Wave], ShouldEqual, incCov)
 					bl, loaded = ms.loadAccountStableBalance(addr1)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, incSta)
@@ -283,8 +284,8 @@ func TestMetaState(t *testing.T) {
 							So(loaded, ShouldBeTrue)
 							So(ao, ShouldNotBeNil)
 							So(ao.Address, ShouldEqual, addr1)
-							So(ao.StableCoinBalance, ShouldEqual, incSta-decSta)
-							So(ao.CovenantCoinBalance, ShouldEqual, incCov-decCov)
+							So(ao.TokenBalance[pt.Particle], ShouldEqual, incSta-decSta)
+							So(ao.TokenBalance[pt.Wave], ShouldEqual, incCov-decCov)
 						},
 					)
 				})
@@ -582,8 +583,8 @@ func TestMetaState(t *testing.T) {
 							Amount:   0,
 						},
 					)
-					t2 = pt.NewBilling(
-						&pt.BillingHeader{
+					t2 = types.NewBilling(
+						&types.BillingHeader{
 							Nonce:     2,
 							Producer:  addr1,
 							Receivers: []*proto.AccountAddress{&addr2},
@@ -695,15 +696,13 @@ func TestMetaState(t *testing.T) {
 					pt.NewBaseAccount(
 						&pt.Account{
 							Address:             addr1,
-							StableCoinBalance:   100,
-							CovenantCoinBalance: 100,
+							TokenBalance: [pt.SupportTokenNumber]uint64{100, 100},
 						},
 					),
 					pt.NewBaseAccount(
 						&pt.Account{
 							Address:             addr2,
-							StableCoinBalance:   100,
-							CovenantCoinBalance: 100,
+							TokenBalance: [pt.SupportTokenNumber]uint64{100, 100},
 						},
 					),
 					pt.NewTransfer(
@@ -714,8 +713,8 @@ func TestMetaState(t *testing.T) {
 							Amount:   10,
 						},
 					),
-					pt.NewBilling(
-						&pt.BillingHeader{
+					types.NewBilling(
+						&types.BillingHeader{
 							Nonce:     2,
 							Producer:  addr1,
 							Receivers: []*proto.AccountAddress{&addr2},
@@ -723,8 +722,8 @@ func TestMetaState(t *testing.T) {
 							Rewards:   []uint64{1},
 						},
 					),
-					pt.NewBilling(
-						&pt.BillingHeader{
+					types.NewBilling(
+						&types.BillingHeader{
 							Nonce:     1,
 							Producer:  addr2,
 							Receivers: []*proto.AccountAddress{&addr1},

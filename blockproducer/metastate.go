@@ -18,10 +18,11 @@ package blockproducer
 
 import (
 	"bytes"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"sync"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -89,11 +90,11 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 	defer s.Unlock()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.StableCoinBalance
+		b = o.TokenBalance[pt.Particle]
 		return
 	}
 	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.StableCoinBalance
+		b = o.TokenBalance[pt.Particle]
 		return
 	}
 	return
@@ -113,11 +114,11 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	defer s.Unlock()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.CovenantCoinBalance
+		b = o.TokenBalance[pt.Wave]
 		return
 	}
 	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.CovenantCoinBalance
+		b = o.TokenBalance[pt.Wave]
 		return
 	}
 	return
@@ -138,17 +139,17 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 			return
 		}
 		var (
-			cb = ao.CovenantCoinBalance
-			sb = ao.StableCoinBalance
+			cb = ao.TokenBalance[pt.Wave]
+			sb = ao.TokenBalance[pt.Particle]
 		)
-		if err = safeAdd(&cb, &v.Account.CovenantCoinBalance); err != nil {
+		if err = safeAdd(&cb, &v.Account.TokenBalance[pt.Wave]); err != nil {
 			return
 		}
-		if err = safeAdd(&sb, &v.Account.StableCoinBalance); err != nil {
+		if err = safeAdd(&sb, &v.Account.TokenBalance[pt.Particle]); err != nil {
 			return
 		}
-		ao.CovenantCoinBalance = cb
-		ao.StableCoinBalance = sb
+		ao.TokenBalance[pt.Wave] = cb
+		ao.TokenBalance[pt.Particle] = sb
 	}
 	return
 }
@@ -393,7 +394,7 @@ func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount 
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeAdd(&dst.Account.StableCoinBalance, &amount)
+	return safeAdd(&dst.Account.TokenBalance[pt.Particle], &amount)
 }
 
 func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
@@ -411,7 +412,7 @@ func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount 
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeSub(&dst.Account.StableCoinBalance, &amount)
+	return safeSub(&dst.Account.TokenBalance[pt.Particle], &amount)
 }
 
 func (s *metaState) transferAccountStableBalance(
@@ -447,8 +448,8 @@ func (s *metaState) transferAccountStableBalance(
 
 	// Try transfer
 	var (
-		sb = so.StableCoinBalance
-		rb = ro.StableCoinBalance
+		sb = so.TokenBalance[pt.Particle]
+		rb = ro.TokenBalance[pt.Particle]
 	)
 	if err = safeSub(&sb, &amount); err != nil {
 		return
@@ -470,8 +471,8 @@ func (s *metaState) transferAccountStableBalance(
 		ro = cpy
 		s.dirty.accounts[receiver] = cpy
 	}
-	so.StableCoinBalance = sb
-	ro.StableCoinBalance = rb
+	so.TokenBalance[pt.Particle] = sb
+	ro.TokenBalance[pt.Particle] = rb
 	return
 }
 
@@ -490,7 +491,7 @@ func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amoun
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeAdd(&dst.Account.CovenantCoinBalance, &amount)
+	return safeAdd(&dst.Account.TokenBalance[pt.Wave], &amount)
 }
 
 func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
@@ -508,7 +509,7 @@ func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amoun
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeSub(&dst.Account.CovenantCoinBalance, &amount)
+	return safeSub(&dst.Account.TokenBalance[pt.Wave], &amount)
 }
 
 func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseID) error {
@@ -528,7 +529,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 		SQLChainProfile: pt.SQLChainProfile{
 			ID:     id,
 			Owner:  addr,
-			Miners: make([]proto.AccountAddress, 0),
+			Miners: make([]*pt.MinerInfo, 0),
 			Users: []*pt.SQLChainUser{
 				{
 					Address:    addr,
@@ -660,7 +661,7 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	return
 }
 
-func (s *metaState) applyBilling(tx *pt.Billing) (err error) {
+func (s *metaState) applyBilling(tx *types.Billing) (err error) {
 	for i, v := range tx.Receivers {
 		// Create empty receiver account if not found
 		s.loadOrStoreAccountObject(*v, &accountObject{Account: pt.Account{Address: *v}})
@@ -679,7 +680,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *pt.Transfer:
 		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
-	case *pt.Billing:
+	case *types.Billing:
 		err = s.applyBilling(t)
 	case *pt.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})

@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -33,7 +33,7 @@ type blockNode struct {
 	count  uint32
 }
 
-func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.Block, parent *blockNode) *blockNode {
+func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BPBlock, parent *blockNode) *blockNode {
 	var count uint32
 
 	h := uint32(block.Timestamp().Sub(chainInitTime) / period)
@@ -62,7 +62,7 @@ func (bn *blockNode) indexKey() (key []byte) {
 	return
 }
 
-func (bn *blockNode) initBlockNode(block *types.Block, parent *blockNode) {
+func (bn *blockNode) initBlockNode(block *types.BPBlock, parent *blockNode) {
 	bn.hash = block.SignedHeader.BlockHash
 	bn.parent = nil
 	bn.height = 0

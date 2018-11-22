@@ -140,6 +140,10 @@ func NewResolver() *Resolver {
 	}
 }
 
+func (r *Resolver) ReloadMeta() {
+	r.meta.reloadMeta()
+}
+
 func (r *Resolver) Close() {
 	r.meta.stop()
 }

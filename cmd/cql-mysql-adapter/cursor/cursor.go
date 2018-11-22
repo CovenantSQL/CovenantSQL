@@ -363,6 +363,10 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 		Resultset:    nil,
 	}
 
+	if q.IsDDL() {
+		rsv.ReloadMeta()
+	}
+
 	return
 }
 

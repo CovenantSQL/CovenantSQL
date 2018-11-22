@@ -19,26 +19,15 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/resolver"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/sqlparser"
 	my "github.com/siddontang/go-mysql/mysql"
-)
-
-// preset column counts for special statements
-const (
-	columnCountShowCreateTable = 1 // sql
-	columnCountShowTableInfo   = 6 // cid|name|type|notnull|dflt_value|pk
-	columnCountShowIndex       = 1 // name
-	columnCountShowTables      = 1 // name
-	columnCountExplain         = 8 // addr|opcode|p1|p2|p3|p4|p5|comment
 )
 
 var (
@@ -49,7 +38,6 @@ var (
 	showVariablesQuery            = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+VARIABLES.*$")
 	showDatabasesQuery            = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+DATABASES.*$")
 	useDatabaseQuery              = regexp.MustCompile("^(?i)\\s*USE\\s+`?(\\w+)`?\\s*$")
-	readQuery                     = regexp.MustCompile("^(?i)\\s*(?:SELECT|SHOW|DESC)")
 	mysqlServerVariables          = map[string]interface{}{
 		"max_allowed_packet":       255 * 255 * 255,
 		"auto_increment_increment": 1,
@@ -65,15 +53,16 @@ var (
 
 // Cursor is a mysql connection handler, like a cursor of normal database.
 type Cursor struct {
-	server        *Server
-	curDBLock     sync.Mutex
+	curUser       string
+	curDBLock     sync.RWMutex
 	curDB         string
 	curDBInstance *sql.DB
+	curResolver   *resolver.Resolver
 }
 
 // NewCursor returns a new cursor.
-func NewCursor(s *Server) (c *Cursor) {
-	return &Cursor{server: s}
+func NewCursor() (c *Cursor) {
+	return &Cursor{}
 }
 
 func (c *Cursor) buildResultSet(rows *sql.Rows) (r *my.Result, err error) {
@@ -106,7 +95,13 @@ func (c *Cursor) buildResultSet(rows *sql.Rows) (r *my.Result, err error) {
 	return
 }
 
-func (c *Cursor) ensureDatabase() (conn *sql.DB, err error) {
+func (c *Cursor) getCurDB() string {
+	c.curDBLock.RLock()
+	defer c.curDBLock.RUnlock()
+	return c.curDB
+}
+
+func (c *Cursor) ensureDatabase() (conn *sql.DB, rsv *resolver.Resolver, err error) {
 	c.curDBLock.Lock()
 	defer c.curDBLock.Unlock()
 
@@ -116,6 +111,7 @@ func (c *Cursor) ensureDatabase() (conn *sql.DB, err error) {
 	}
 
 	conn = c.curDBInstance
+	rsv = c.curResolver
 
 	return
 }
@@ -210,10 +206,7 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 		processed = true
 	} else if showDatabasesQuery.MatchString(query) { // send show databases result
 		// return result including current database
-		var curDBStr string
-		c.curDBLock.Lock()
-		curDBStr = c.curDB
-		c.curDBLock.Unlock()
+		curDBStr := c.getCurDB()
 
 		var resultSet *my.Resultset
 
@@ -251,16 +244,14 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 
 		switch strings.ToUpper(matches[1]) {
 		case "DATABASE":
-			c.curDBLock.Lock()
 			resultSet, _ = my.BuildSimpleTextResultset(
 				[]string{"DATABASE()"},
-				[][]interface{}{{c.curDB}},
+				[][]interface{}{{c.getCurDB()}},
 			)
-			c.curDBLock.Unlock()
 		case "USER":
 			resultSet, _ = my.BuildSimpleTextResultset(
 				[]string{"USER()"},
-				[][]interface{}{{c.server.mysqlUser}},
+				[][]interface{}{{c.curUser}},
 			)
 		}
 
@@ -287,6 +278,19 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 		return my.NewError(my.ER_BAD_DB_ERROR, fmt.Sprintf("invalid database: %v", dbName))
 	}
 
+	if dbName == c.curDB {
+		// same database
+		return
+	}
+
+	// close previous database and resolver
+	if c.curResolver != nil {
+		c.curResolver.Close()
+	}
+	if c.curDBInstance != nil {
+		c.curDBInstance.Close()
+	}
+
 	// connect database
 	cfg := client.NewConfig()
 	cfg.DatabaseID = dbName
@@ -299,6 +303,8 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 
 	c.curDB = dbName
 	c.curDBInstance = db
+	c.curResolver = resolver.NewResolver()
+	c.curResolver.RegisterDB(dbName, c.curDBInstance)
 
 	return
 }
@@ -314,16 +320,25 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 		return
 	}
 
-	var conn *sql.DB
+	var (
+		conn *sql.DB
+		rsv  *resolver.Resolver
+		q    *resolver.Query
+	)
 
-	if conn, err = c.ensureDatabase(); err != nil {
+	if conn, rsv, err = c.ensureDatabase(); err != nil {
 		return
 	}
 
-	// as normal query
-	if readQuery.MatchString(query) {
+	if q, err = rsv.ResolveSingleQuery(c.getCurDB(), query); err != nil {
+		err = my.NewError(my.ER_SYNTAX_ERROR, err.Error())
+		return
+	}
+
+	// normal query
+	if q.IsRead() {
 		var rows *sql.Rows
-		if rows, err = conn.Query(query); err != nil {
+		if rows, err = conn.Query(q.Query); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
@@ -333,7 +348,7 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	}
 
 	var result sql.Result
-	if result, err = conn.Exec(query); err != nil {
+	if result, err = conn.Exec(q.Query); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}
@@ -355,7 +370,7 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*my.Field, err error) {
 	var conn *sql.DB
 
-	if conn, err = c.ensureDatabase(); err != nil {
+	if conn, _, err = c.ensureDatabase(); err != nil {
 		return
 	}
 
@@ -436,123 +451,27 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 		return
 	}
 
-	var conn *sql.DB
-
-	if conn, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
-	// tokenize commands
 	var (
-		tokenizer   = sqlparser.NewStringTokenizer(query)
-		stmt        sqlparser.Statement
-		lastPos     int
-		singleQuery string
+		rsv *resolver.Resolver
+		q   *resolver.Query
 	)
 
-	for {
-		stmt, err = sqlparser.ParseNext(tokenizer)
-
-		// parse statement failed
-		if err != nil && err != io.EOF {
-			return
-		}
-
-		if err == io.EOF {
-			err = nil
-			break
-		}
-
-		if lastPos != 0 {
-			// multiple queries
-			err = my.NewError(my.ER_SYNTAX_ERROR, "could not prepare multiple statements")
-			return
-		}
-
-		singleQuery = query[lastPos : tokenizer.Position-1]
-		lastPos = tokenizer.Position + 1
-	}
-
-	if strings.TrimSpace(singleQuery) == "" {
-		// empty query
-		err = my.NewError(my.ER_SYNTAX_ERROR, "query is empty")
+	if _, rsv, err = c.ensureDatabase(); err != nil {
 		return
 	}
 
-	// calculate param count for special statements
-	switch s := stmt.(type) {
-	case *sqlparser.Show:
-		params = 0
-		switch s.Type {
-		case "table":
-			if s.ShowCreate {
-				columns = columnCountShowCreateTable
-			} else {
-				columns = columnCountShowTableInfo
-			}
-		case "index":
-			columns = columnCountShowIndex
-		case "tables":
-			columns = columnCountShowTables
-		default:
-			err = my.NewError(my.ER_UNKNOWN_ERROR, "unknown query")
-		}
+	if q, err = rsv.ResolveSingleQuery(c.getCurDB(), query); err != nil {
+		err = my.NewError(my.ER_SYNTAX_ERROR, err.Error())
 		return
-	case *sqlparser.Explain:
-		params = 0
-		columns = columnCountExplain
-		return
-	case *sqlparser.DDL:
-		err = my.NewError(my.ER_UNKNOWN_ERROR, "could not prepare ddl statement")
+	}
+	if q.IsDDL() {
+		err = my.NewError(my.ER_SYNTAX_ERROR, "could not prepare ddl")
 		return
 	}
 
-	// HACK(xq262144), this feature is supported by sqlite only, replace with query plan analysis for mysql engine
-	// normal statement, using explain to calculate param and result column count
-	// using opcode descriptions in https://www.sqlite.org/opcode.html to resolve
-
-	// resolve parameter count
-	var paramCount uint32
-	sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
-		if v, ok := node.(*sqlparser.SQLVal); ok && v.Type == sqlparser.ValArg {
-			atomic.AddUint32(&paramCount, 1)
-		}
-		return true, nil
-	}, stmt)
-
-	// build dummy args, golang implementation requires argument to execute explain statement
-	dummyArgs := make([]interface{}, paramCount)
-
-	var rows *sql.Rows
-	if rows, err = conn.Query("EXPLAIN "+query, dummyArgs...); err != nil {
-		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
-		return
-	}
-
-	defer rows.Close()
-
-	var (
-		opcode                    string
-		p1, p2                    int
-		addr, p3, p4, p5, comment interface{} // not care about this fields
-	)
-
-	for rows.Next() {
-		if err = rows.Scan(&addr, &opcode, &p1, &p2, &p3, &p4, &p5, &comment); err != nil {
-			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
-			return
-		}
-
-		// p1 for variables is
-		if opcode == "Variable" && p1 > params {
-			params = p1
-		}
-
-		// p2 is the result column count
-		if opcode == "ResultRow" {
-			columns = p2
-		}
-	}
+	params = q.ParamCount
+	columns = len(q.ResultColumns)
+	context = q
 
 	return
 }
@@ -560,24 +479,30 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 // HandleStmtExecute handle COM_STMT_EXECUTE, context is the previous one set in prepare
 // query is the statement prepare query, and args is the params for this statement.
 func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []interface{}) (r *my.Result, err error) {
-	// special query
-	if context != nil {
-		var ok bool
-		if r, ok = context.(*my.Result); ok {
-			return
-		}
+	var q *resolver.Query
+
+	switch v := context.(type) {
+	case *my.Result:
+		// special query
+		r = v
+		return
+	case *resolver.Query:
+		q = v
+	default:
+		err = my.NewError(my.ER_UNKNOWN_ERROR, "invalid prepared statement")
+		return
 	}
 
 	var conn *sql.DB
 
-	if conn, err = c.ensureDatabase(); err != nil {
+	if conn, _, err = c.ensureDatabase(); err != nil {
 		return
 	}
 
 	// normal query
-	if readQuery.MatchString(query) {
+	if q.IsRead() {
 		var rows *sql.Rows
-		if rows, err = conn.Query(query, args...); err != nil {
+		if rows, err = conn.Query(q.Query, args...); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
@@ -587,7 +512,7 @@ func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []int
 	}
 
 	var result sql.Result
-	if result, err = conn.Exec(query, args...); err != nil {
+	if result, err = conn.Exec(q.Query, args...); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}
@@ -615,4 +540,9 @@ func (c *Cursor) HandleStmtClose(context interface{}) (err error) {
 // default implementation for this method will return an ER_UNKNOWN_ERROR.
 func (c *Cursor) HandleOtherCommand(cmd byte, data []byte) (err error) {
 	return my.NewError(my.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d is not supported now", cmd))
+}
+
+// SetUser set back current user.
+func (c *Cursor) SetUser(user string) {
+	c.curUser = user
 }

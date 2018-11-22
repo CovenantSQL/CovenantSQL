@@ -23,7 +23,6 @@ type Query struct {
 	Query         string
 	ParamCount    int
 	ResultColumns []string
-	RelyColumns   map[string][]string
 }
 
 func (q *Query) IsDDL() bool {

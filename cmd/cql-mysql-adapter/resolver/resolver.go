@@ -36,93 +36,125 @@ var (
 	columnsExplain         = []string{"addr", "opcode", "p1", "p2", "p3", "p4", "p5", "comment"}
 )
 
-type tableColumnMapping struct {
-	tableDict    map[string]int
-	tableColumns []*tableColumns
+type TableColumnMapping struct {
+	TableDict    map[string]int
+	TableColumns []*TableColumns
 }
 
-type tableColumns struct {
-	table   string
-	columns []string
+type TableColumns struct {
+	Table   string
+	Columns []string
 }
 
-func newTableColumnMapping() *tableColumnMapping {
-	return &tableColumnMapping{
-		tableDict: make(map[string]int),
+func NewTableColumnMapping() *TableColumnMapping {
+	return &TableColumnMapping{
+		TableDict: make(map[string]int),
 	}
 }
 
-func (m *tableColumnMapping) add(table string, columns []string) {
-	if o, ok := m.tableDict[table]; ok {
-		if len(m.tableColumns) > o && m.tableColumns[o].table == table {
-			m.tableColumns[o].columns = append(m.tableColumns[o].columns[:0], columns...)
+func (m *TableColumnMapping) Add(table string, columns []string) {
+	if o, ok := m.TableDict[table]; ok {
+		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
+			m.TableColumns[o].Columns = append(m.TableColumns[o].Columns[:0], columns...)
 		}
 	} else {
-		m.tableColumns = append(m.tableColumns, &tableColumns{
-			table:   table,
-			columns: columns,
+		m.TableColumns = append(m.TableColumns, &TableColumns{
+			Table:   table,
+			Columns: columns,
 		})
-		m.tableDict[table] = len(m.tableColumns) - 1
+		m.TableDict[table] = len(m.TableColumns) - 1
 	}
 }
 
-func (m *tableColumnMapping) appendColumn(table string, columns []string) {
-	if o, ok := m.tableDict[table]; ok {
-		if len(m.tableColumns) > o && m.tableColumns[o].table == table {
-			m.tableColumns[o].columns = append(m.tableColumns[o].columns, columns...)
+func (m *TableColumnMapping) AppendColumn(table string, columns []string) {
+	if o, ok := m.TableDict[table]; ok {
+		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
+			m.TableColumns[o].Columns = append(m.TableColumns[o].Columns, columns...)
 		}
 	} else {
-		m.tableColumns = append(m.tableColumns, &tableColumns{
-			table:   table,
-			columns: columns,
+		m.TableColumns = append(m.TableColumns, &TableColumns{
+			Table:   table,
+			Columns: columns,
 		})
-		m.tableDict[table] = len(m.tableColumns) - 1
+		m.TableDict[table] = len(m.TableColumns) - 1
 	}
 }
 
-func (m *tableColumnMapping) clear() {
-	m.tableDict = make(map[string]int)
-	m.tableColumns = m.tableColumns[:0]
+func (m *TableColumnMapping) UnionColumn(table string, columns []string) {
+	if o, ok := m.TableDict[table]; ok {
+		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
+			columnMap := make(map[string]bool, len(m.TableColumns[o].Columns))
+			for _, c := range m.TableColumns[o].Columns {
+				columnMap[c] = true
+			}
+			for _, c := range columns {
+				if !columnMap[c] {
+					m.TableColumns[o].Columns = append(m.TableColumns[o].Columns, c)
+				}
+			}
+		}
+	} else {
+		m.TableColumns = append(m.TableColumns, &TableColumns{
+			Table:   table,
+			Columns: columns,
+		})
+		m.TableDict[table] = len(m.TableColumns) - 1
+	}
 }
 
-func (m *tableColumnMapping) union(o *tableColumnMapping) {
+func (m *TableColumnMapping) Clear() {
+	m.TableDict = make(map[string]int)
+	m.TableColumns = m.TableColumns[:0]
+}
+
+func (m *TableColumnMapping) Union(o *TableColumnMapping) {
 	if o == nil {
 		return
 	}
 
-	for _, v := range o.tableColumns {
-		if _, exists := m.tableDict[v.table]; !exists {
+	for _, v := range o.TableColumns {
+		if _, exists := m.TableDict[v.Table]; !exists {
 			// add
-			m.add(v.table, v.columns)
+			m.Add(v.Table, v.Columns)
 		}
 	}
 }
 
-func (m *tableColumnMapping) update(o *tableColumnMapping) {
+func (m *TableColumnMapping) Update(o *TableColumnMapping) {
 	if o == nil {
 		return
 	}
 
-	for _, v := range o.tableColumns {
-		m.add(v.table, v.columns)
+	for _, v := range o.TableColumns {
+		m.Add(v.Table, v.Columns)
 	}
 }
 
-func (m *tableColumnMapping) merge(o *tableColumnMapping) {
+func (m *TableColumnMapping) Merge(o *TableColumnMapping) {
 	if o == nil {
 		return
 	}
 
-	for _, v := range o.tableColumns {
-		m.appendColumn(v.table, v.columns)
+	for _, v := range o.TableColumns {
+		m.AppendColumn(v.Table, v.Columns)
 	}
 }
 
-func (m *tableColumnMapping) get(table string) (columns []string, exists bool) {
+func (m *TableColumnMapping) MergeDistinct(o *TableColumnMapping) {
+	if o == nil {
+		return
+	}
+
+	for _, v := range o.TableColumns {
+		m.UnionColumn(v.Table, v.Columns)
+	}
+}
+
+func (m *TableColumnMapping) Get(table string) (columns []string, exists bool) {
 	var o int
-	if o, exists = m.tableDict[table]; exists {
-		if len(m.tableColumns) > o && m.tableColumns[o].table == table {
-			columns = m.tableColumns[o].columns[:]
+	if o, exists = m.TableDict[table]; exists {
+		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
+			columns = m.TableColumns[o].Columns[:]
 			return
 		}
 	}
@@ -131,25 +163,25 @@ func (m *tableColumnMapping) get(table string) (columns []string, exists bool) {
 }
 
 type Resolver struct {
-	meta *metaHandler
+	Meta *MetaHandler
 }
 
 func NewResolver() *Resolver {
 	return &Resolver{
-		meta: NewMetaHandler(),
+		Meta: NewMetaHandler(),
 	}
 }
 
 func (r *Resolver) ReloadMeta() {
-	r.meta.reloadMeta()
+	r.Meta.ReloadMeta()
 }
 
 func (r *Resolver) Close() {
-	r.meta.stop()
+	r.Meta.Stop()
 }
 
-func (r *Resolver) RegisterDB(dbID string, conn dbHandler) {
-	r.meta.addConn(dbID, conn)
+func (r *Resolver) RegisterDB(dbID string, conn DBHandler) {
+	r.Meta.AddConn(dbID, conn)
 }
 
 func (r *Resolver) ResolveQuery(dbID string, query string) (queries []*Query, err error) {
@@ -168,11 +200,11 @@ func (r *Resolver) Resolve(dbID string, stmt sqlparser.Statement) (q *Query, err
 	q = &Query{
 		Stmt: stmt,
 	}
-	if q.ParamCount, err = r.buildParamCount(stmt); err != nil {
+	if q.ParamCount, err = r.BuildParamCount(stmt); err != nil {
 		return
 	}
 	var tableSeq int32
-	if q.ResultColumns, err = r.buildResultColumns(&tableSeq, dbID, stmt); err != nil {
+	if q.ResultColumns, err = r.BuildResultColumns(&tableSeq, dbID, stmt); err != nil {
 		return
 	}
 
@@ -212,11 +244,11 @@ func (r *Resolver) resolveQuery(dbID string, query string, maxQueries int) (quer
 			Query: query[lastPos : tokenizer.Position-1],
 		}
 		lastPos = tokenizer.Position + 1
-		if q.ParamCount, err = r.buildParamCount(stmt); err != nil {
+		if q.ParamCount, err = r.BuildParamCount(stmt); err != nil {
 			return
 		}
 		var tableSeq int32
-		if q.ResultColumns, err = r.buildResultColumns(&tableSeq, dbID, stmt); err != nil {
+		if q.ResultColumns, err = r.BuildResultColumns(&tableSeq, dbID, stmt); err != nil {
 			return
 		}
 		queries = append(queries, q)
@@ -225,7 +257,7 @@ func (r *Resolver) resolveQuery(dbID string, query string, maxQueries int) (quer
 	return
 }
 
-func (r *Resolver) buildParamCount(stmt sqlparser.Statement) (params int, err error) {
+func (r *Resolver) BuildParamCount(stmt sqlparser.Statement) (params int, err error) {
 	params = 0
 	argDedup := make(map[string]bool)
 	err = sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
@@ -242,13 +274,13 @@ func (r *Resolver) buildParamCount(stmt sqlparser.Statement) (params int, err er
 }
 
 func (r *Resolver) buildResultColumnsWithTableName(tableSeq *int32, dbID string, stmt sqlparser.SQLNode) (
-	columnMapping *tableColumnMapping, err error) {
+	columnMapping *TableColumnMapping, err error) {
 	var (
 		tb                 = sqlparser.NewTrackedBuffer(nil)
 		tempTableName      string
-		tempColumnsMapping *tableColumnMapping
+		tempColumnsMapping *TableColumnMapping
 	)
-	columnMapping = newTableColumnMapping()
+	columnMapping = NewTableColumnMapping()
 
 	switch s := stmt.(type) {
 	case *sqlparser.AliasedTableExpr:
@@ -260,47 +292,47 @@ func (r *Resolver) buildResultColumnsWithTableName(tableSeq *int32, dbID string,
 		if tempColumnsMapping, err = r.buildResultColumnsWithTableName(tableSeq, dbID, s.Expr); err != nil {
 			return
 		}
-		for _, v := range tempColumnsMapping.tableColumns {
+		for _, v := range tempColumnsMapping.TableColumns {
 			// merge columns in sub columns
 			// case: SELECT * FROM (test, test2) AS e;
 			// will produce columns in test and test2
-			columnMapping.appendColumn(tempTableName, v.columns)
+			columnMapping.AppendColumn(tempTableName, v.Columns)
 		}
 	case *sqlparser.ParenTableExpr:
 		for _, e := range s.Exprs {
 			if tempColumnsMapping, err = r.buildResultColumnsWithTableName(tableSeq, dbID, e); err != nil {
 				return
 			}
-			columnMapping.merge(tempColumnsMapping)
+			columnMapping.Merge(tempColumnsMapping)
 		}
 	case *sqlparser.JoinTableExpr:
 		// no semi join, all fields should be accessible in projection
 		if tempColumnsMapping, err = r.buildResultColumnsWithTableName(tableSeq, dbID, s.LeftExpr); err != nil {
 			return
 		}
-		columnMapping.merge(tempColumnsMapping)
+		columnMapping.Merge(tempColumnsMapping)
 		if tempColumnsMapping, err = r.buildResultColumnsWithTableName(tableSeq, dbID, s.RightExpr); err != nil {
 			return
 		}
-		columnMapping.merge(tempColumnsMapping)
+		columnMapping.Merge(tempColumnsMapping)
 	case *sqlparser.Subquery:
 		// allocate anonymous name
 		var tempColumns []string
 		tempTableName = fmt.Sprintf("_t%d", atomic.AddInt32(tableSeq, 1))
-		if tempColumns, err = r.buildResultColumns(tableSeq, dbID, s.Select); err != nil {
+		if tempColumns, err = r.BuildResultColumns(tableSeq, dbID, s.Select); err != nil {
 			return
 		}
-		columnMapping.add(tempTableName, tempColumns)
+		columnMapping.Add(tempTableName, tempColumns)
 	case sqlparser.TableName:
 		tb.Reset()
 		var tempColumns []string
 		tempTableName = tb.WriteNode(s).String()
 		// load table columns from meta
-		if tempColumns, err = r.meta.getTable(dbID, tempTableName); err != nil {
+		if tempColumns, err = r.Meta.GetTable(dbID, tempTableName); err != nil {
 			err = errors.Wrapf(err, "no such table: %v.%s", dbID, tempTableName)
 			return
 		}
-		columnMapping.add(tempTableName, tempColumns)
+		columnMapping.Add(tempTableName, tempColumns)
 	default:
 		// invalid query
 		err = errors.Wrapf(ErrQueryLogicError, "invalid query")
@@ -308,7 +340,7 @@ func (r *Resolver) buildResultColumnsWithTableName(tableSeq *int32, dbID string,
 	return
 }
 
-func (r *Resolver) buildResultColumns(tableSeq *int32, dbID string, stmt sqlparser.Statement) (columns []string, err error) {
+func (r *Resolver) BuildResultColumns(tableSeq *int32, dbID string, stmt sqlparser.Statement) (columns []string, err error) {
 	switch s := stmt.(type) {
 	case *sqlparser.Show:
 		switch s.Type {
@@ -328,7 +360,7 @@ func (r *Resolver) buildResultColumns(tableSeq *int32, dbID string, stmt sqlpars
 	case *sqlparser.Union:
 		// columns should be equalized between left and right fork
 		var tempColumns []string
-		if tempColumns, err = r.buildResultColumns(tableSeq, dbID, s.Left); err != nil {
+		if tempColumns, err = r.BuildResultColumns(tableSeq, dbID, s.Left); err != nil {
 			return
 		}
 		columns = append(columns, tempColumns...)
@@ -339,7 +371,7 @@ func (r *Resolver) buildResultColumns(tableSeq *int32, dbID string, stmt sqlpars
 		// check if contains star expression
 		var (
 			containsStarExpression bool
-			tableColumns           = newTableColumnMapping()
+			tableColumns           = NewTableColumnMapping()
 		)
 
 		for _, re := range s.SelectExprs {
@@ -351,12 +383,12 @@ func (r *Resolver) buildResultColumns(tableSeq *int32, dbID string, stmt sqlpars
 		// load from
 		if containsStarExpression {
 			for _, rfe := range s.From {
-				var tempTableColumns *tableColumnMapping
+				var tempTableColumns *TableColumnMapping
 				if tempTableColumns, err = r.buildResultColumnsWithTableName(tableSeq, dbID, rfe); err != nil {
 					return
 				}
 
-				tableColumns.merge(tempTableColumns)
+				tableColumns.Merge(tempTableColumns)
 			}
 		}
 
@@ -377,7 +409,7 @@ func (r *Resolver) buildResultColumns(tableSeq *int32, dbID string, stmt sqlpars
 				if !e.TableName.IsEmpty() {
 					tb.Reset()
 					relyTableName := tb.WriteNode(e.TableName).String()
-					if subColumns, exists := tableColumns.get(relyTableName); exists {
+					if subColumns, exists := tableColumns.Get(relyTableName); exists {
 						columns = append(columns, subColumns...)
 					} else {
 						// not exists, err
@@ -386,8 +418,8 @@ func (r *Resolver) buildResultColumns(tableSeq *int32, dbID string, stmt sqlpars
 					}
 				} else {
 					// combine all columns
-					for _, v := range tableColumns.tableColumns {
-						columns = append(columns, v.columns...)
+					for _, v := range tableColumns.TableColumns {
+						columns = append(columns, v.Columns...)
 					}
 				}
 			}

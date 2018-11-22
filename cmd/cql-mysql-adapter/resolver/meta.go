@@ -19,6 +19,7 @@ package resolver
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,37 +28,37 @@ import (
 )
 
 const (
-	metaRefreshInterval = time.Minute
+	MetaRefreshInterval = time.Minute
 )
 
 var (
 	ErrDBNotExists    = errors.New("database not exists")
-	ErrTableNotExists = errors.New("table not exists")
+	ErrTableNotExists = errors.New("Table not exists")
 )
 
-type dbHandler interface {
+type DBHandler interface {
 	Query(query string, args ...interface{}) (rows *sql.Rows, err error)
 }
 
-type dbMetaHandler struct {
+type DBMetaHandler struct {
 	l            sync.RWMutex
 	dbID         string
-	conn         dbHandler
+	conn         DBHandler
 	tables       []string
 	tableMapping map[string][]string
 }
 
-type metaHandler struct {
+type MetaHandler struct {
 	l        sync.RWMutex
-	dbMap    map[string]*dbMetaHandler
+	dbMap    map[string]*DBMetaHandler
 	wg       sync.WaitGroup
 	stopCh   chan struct{}
 	stopOnce sync.Once
 }
 
-func NewMetaHandler() (h *metaHandler) {
-	h = &metaHandler{
-		dbMap:  make(map[string]*dbMetaHandler),
+func NewMetaHandler() (h *MetaHandler) {
+	h = &MetaHandler{
+		dbMap:  make(map[string]*DBMetaHandler),
 		stopCh: make(chan struct{}),
 	}
 
@@ -66,18 +67,18 @@ func NewMetaHandler() (h *metaHandler) {
 	return
 }
 
-func (h *metaHandler) autoReloadMeta() {
+func (h *MetaHandler) autoReloadMeta() {
 	for {
 		select {
 		case <-h.stopCh:
 			return
-		case <-time.After(metaRefreshInterval):
+		case <-time.After(MetaRefreshInterval):
 		}
-		h.reloadMeta()
+		h.ReloadMeta()
 	}
 }
 
-func (h *metaHandler) stop() {
+func (h *MetaHandler) Stop() {
 	h.stopOnce.Do(func() {
 		if h.stopCh != nil {
 			select {
@@ -90,27 +91,27 @@ func (h *metaHandler) stop() {
 	})
 }
 
-func (h *metaHandler) addConn(dbID string, conn dbHandler) {
+func (h *MetaHandler) AddConn(dbID string, conn DBHandler) {
 	h.l.RLock()
 	_, exists := h.dbMap[dbID]
 	h.l.RUnlock()
 	if !exists {
-		h.setConn(dbID, conn)
+		h.SetConn(dbID, conn)
 	}
 }
 
-func (h *metaHandler) setConn(dbID string, conn dbHandler) {
+func (h *MetaHandler) SetConn(dbID string, conn DBHandler) {
 	h.l.Lock()
 	defer h.l.Unlock()
 
 	h.dbMap[dbID] = NewDBMetaHandler(dbID, conn)
 }
 
-func (h *metaHandler) getConn(dbID string) (conn dbHandler, exists bool) {
+func (h *MetaHandler) GetConn(dbID string) (conn DBHandler, exists bool) {
 	h.l.RLock()
 	defer h.l.RUnlock()
 
-	var dh *dbMetaHandler
+	var dh *DBMetaHandler
 
 	if dh, exists = h.dbMap[dbID]; exists && dh != nil {
 		conn = dh.conn
@@ -119,12 +120,12 @@ func (h *metaHandler) getConn(dbID string) (conn dbHandler, exists bool) {
 	return
 }
 
-func (h *metaHandler) getTables(dbID string) (tables []string, err error) {
+func (h *MetaHandler) GetTables(dbID string) (tables []string, err error) {
 	h.l.RLock()
 	defer h.l.RUnlock()
 
 	if v := h.dbMap[dbID]; v != nil {
-		tables, err = v.cacheGetTables()
+		tables, err = v.CacheGetTables()
 	} else {
 		err = errors.Wrapf(ErrDBNotExists, "database %v not exists", dbID)
 	}
@@ -132,12 +133,12 @@ func (h *metaHandler) getTables(dbID string) (tables []string, err error) {
 	return
 }
 
-func (h *metaHandler) getTable(dbID string, tableName string) (columns []string, err error) {
+func (h *MetaHandler) GetTable(dbID string, tableName string) (columns []string, err error) {
 	h.l.RLock()
 	defer h.l.RUnlock()
 
 	if v := h.dbMap[dbID]; v != nil {
-		columns, err = v.cacheGetTable(tableName)
+		columns, err = v.CacheGetTable(tableName)
 	} else {
 		err = errors.Wrapf(ErrDBNotExists, "database %v not exists", dbID)
 	}
@@ -145,25 +146,25 @@ func (h *metaHandler) getTable(dbID string, tableName string) (columns []string,
 	return
 }
 
-func (h *metaHandler) reloadMeta() {
+func (h *MetaHandler) ReloadMeta() {
 	h.l.RLock()
 	defer h.l.RUnlock()
 
 	for _, v := range h.dbMap {
-		v.reloadMeta()
+		v.ReloadMeta()
 	}
 }
 
-func NewDBMetaHandler(dbID string, conn dbHandler) *dbMetaHandler {
-	return &dbMetaHandler{
+func NewDBMetaHandler(dbID string, conn DBHandler) *DBMetaHandler {
+	return &DBMetaHandler{
 		tableMapping: make(map[string][]string),
 		dbID:         dbID,
 		conn:         conn,
 	}
 }
 
-func (h *dbMetaHandler) reloadMeta() {
-	h.getTables()
+func (h *DBMetaHandler) ReloadMeta() {
+	h.GetTables()
 	h.l.RLock()
 	defer h.l.RUnlock()
 	for t := range h.tableMapping {
@@ -171,7 +172,7 @@ func (h *dbMetaHandler) reloadMeta() {
 	}
 }
 
-func (h *dbMetaHandler) cacheGetTables() (tables []string, err error) {
+func (h *DBMetaHandler) CacheGetTables() (tables []string, err error) {
 	h.l.RLock()
 	tables = append(tables, h.tables...)
 	h.l.RUnlock()
@@ -179,10 +180,10 @@ func (h *dbMetaHandler) cacheGetTables() (tables []string, err error) {
 		return
 	}
 
-	return h.getTables()
+	return h.GetTables()
 }
 
-func (h *dbMetaHandler) getTables() (tables []string, err error) {
+func (h *DBMetaHandler) GetTables() (tables []string, err error) {
 	h.l.Lock()
 	defer h.l.Unlock()
 
@@ -212,8 +213,9 @@ func (h *dbMetaHandler) getTables() (tables []string, err error) {
 	return
 }
 
-func (h *dbMetaHandler) cacheGetTable(tableName string) (columns []string, err error) {
+func (h *DBMetaHandler) CacheGetTable(tableName string) (columns []string, err error) {
 	h.l.RLock()
+	tableName = strings.ToLower(tableName)
 	columns = append(columns, h.tableMapping[tableName]...)
 	h.l.RUnlock()
 	if len(columns) > 0 {
@@ -221,12 +223,12 @@ func (h *dbMetaHandler) cacheGetTable(tableName string) (columns []string, err e
 	}
 
 	// trigger get tables
-	h.getTables()
+	h.GetTables()
 
-	return h.getTable(tableName)
+	return h.GetTable(tableName)
 }
 
-func (h *dbMetaHandler) getTable(tableName string) (columns []string, err error) {
+func (h *DBMetaHandler) GetTable(tableName string) (columns []string, err error) {
 	h.l.Lock()
 	defer h.l.Unlock()
 	rows, err := h.conn.Query(fmt.Sprintf("DESC `%s`", tableName))
@@ -256,7 +258,7 @@ func (h *dbMetaHandler) getTable(tableName string) (columns []string, err error)
 	}
 
 	columns = tempColumns
-	h.tableMapping[tableName] = columns
+	h.tableMapping[strings.ToLower(tableName)] = columns
 
 	return
 }

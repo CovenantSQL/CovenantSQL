@@ -103,20 +103,6 @@ type MuxFetchBlockResp struct {
 	FetchBlockResp
 }
 
-// MuxFetchAckedQueryReq defines a request of the FetchAckedQuery RPC method.
-type MuxFetchAckedQueryReq struct {
-	proto.Envelope
-	proto.DatabaseID
-	FetchAckedQueryReq
-}
-
-// MuxFetchAckedQueryResp defines a request of the FetchAckedQuery RPC method.
-type MuxFetchAckedQueryResp struct {
-	proto.Envelope
-	proto.DatabaseID
-	FetchAckedQueryResp
-}
-
 // MuxSignBillingReq defines a request of the SignBilling RPC method.
 type MuxSignBillingReq struct {
 	proto.Envelope
@@ -214,19 +200,6 @@ func (s *MuxService) FetchBlock(req *MuxFetchBlockReq, resp *MuxFetchBlockResp) 
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
 		return v.(*ChainRPCService).FetchBlock(&req.FetchBlockReq, &resp.FetchBlockResp)
-	}
-
-	return ErrUnknownMuxRequest
-}
-
-// FetchAckedQuery is the RPC method to fetch a known block from the target server.
-func (s *MuxService) FetchAckedQuery(
-	req *MuxFetchAckedQueryReq, resp *MuxFetchAckedQueryResp) (err error) {
-	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
-		resp.Envelope = req.Envelope
-		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).FetchAckedQuery(
-			&req.FetchAckedQueryReq, &resp.FetchAckedQueryResp)
 	}
 
 	return ErrUnknownMuxRequest

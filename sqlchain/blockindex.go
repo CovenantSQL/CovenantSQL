@@ -85,19 +85,14 @@ func (n *blockNode) indexKey() (key []byte) {
 }
 
 type blockIndex struct {
-	cfg *Config
-
 	mu    sync.RWMutex
 	index map[hash.Hash]*blockNode
 }
 
-func newBlockIndex(cfg *Config) (index *blockIndex) {
-	index = &blockIndex{
-		cfg:   cfg,
+func newBlockIndex() (index *blockIndex) {
+	return &blockIndex{
 		index: make(map[hash.Hash]*blockNode),
 	}
-
-	return index
 }
 
 func (i *blockIndex) addBlock(newBlock *blockNode) {

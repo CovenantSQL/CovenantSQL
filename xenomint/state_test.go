@@ -36,6 +36,7 @@ import (
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
+			id1          = proto.DatabaseID("db-x1")
 			fl1          = path.Join(testingDataDir, fmt.Sprint(t.Name(), "x1"))
 			fl2          = path.Join(testingDataDir, fmt.Sprint(t.Name(), "x2"))
 			st1, st2     *State
@@ -156,6 +157,7 @@ func TestState(t *testing.T) {
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				st1.Stat(id1)
 				err = st1.Replay(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`XXXXXX INTO t1 (k, v) VALUES (?, ?)`, values[0]...),
 				}), &types.Response{
@@ -171,6 +173,7 @@ func TestState(t *testing.T) {
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				st1.Stat(id1)
 				err = st1.Replay(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO t2 (k, v) VALUES (?, ?)`, values[0]...),
 				}), &types.Response{
@@ -181,21 +184,25 @@ func TestState(t *testing.T) {
 					},
 				})
 				So(err, ShouldNotBeNil)
+				st1.Stat(id1)
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`XXXXXX v FROM t1`),
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				st1.Stat(id1)
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT v FROM t2`),
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				st1.Stat(id1)
 				_, resp, err = st1.read(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT v FROM t2`),
 				}))
 				So(err, ShouldNotBeNil)
 				So(resp, ShouldBeNil)
+				st1.Stat(id1)
 			})
 			Convey("The state should work properly with reading/writing queries", func() {
 				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
@@ -213,6 +220,7 @@ func TestState(t *testing.T) {
 					DeclTypes: []string{"TEXT"},
 					Rows:      []types.ResponseRow{{Values: values[0][1:]}},
 				})
+				st1.Stat(id1)
 
 				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[1]...),
@@ -236,6 +244,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						{Values: values[3][1:]},
 					},
 				})
+				st1.Stat(id1)
 
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
 					buildQuery(`SELECT * FROM t1`),
@@ -251,6 +260,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						{Values: values[3][:]},
 					},
 				})
+				st1.Stat(id1)
 
 				// Test show statements
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
@@ -273,6 +283,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 				}))
 				So(err, ShouldBeNil)
 				So(resp, ShouldNotBeNil)
+				st1.Stat(id1)
 
 				// Also test a non-transaction read implementation
 				_, resp, err = st1.read(buildRequest(types.ReadQuery, []types.Query{
@@ -289,6 +300,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						{Values: values[3][:]},
 					},
 				})
+				st1.Stat(id1)
 			})
 			Convey("The state should skip read query while replaying", func() {
 				err = st1.Replay(buildRequest(types.ReadQuery, []types.Query{

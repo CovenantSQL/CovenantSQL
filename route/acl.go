@@ -91,12 +91,10 @@ const (
 	SQLCAdviseNewBlock
 	// SQLCAdviseBinLog is usd by sqlchain to advise binlog between adjacent node
 	SQLCAdviseBinLog
-	// SQLCAdviseResponsedQuery is used by sqlchain to advice response query between adjacent node
+	// SQLCAdviseAckedQuery is used by sqlchain to advice response query between adjacent node
 	SQLCAdviseAckedQuery
 	// SQLCFetchBlock is used by sqlchain to fetch block from adjacent nodes
 	SQLCFetchBlock
-	// SQLCFetchAckedQuery is used by sqlchain to fetch response ack from adjacent nodes
-	SQLCFetchAckedQuery
 	// SQLCSignBilling is used by sqlchain to response billing signature for periodic billing request
 	SQLCSignBilling
 	// SQLCLaunchBilling is used by blockproducer to trigger the billing process in sqlchain
@@ -179,8 +177,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.AdviseAckedQuery"
 	case SQLCFetchBlock:
 		return "SQLC.FetchBlock"
-	case SQLCFetchAckedQuery:
-		return "SQLC.FetchAckedQuery"
 	case SQLCSignBilling:
 		return "SQLC.SignBilling"
 	case SQLCLaunchBilling:

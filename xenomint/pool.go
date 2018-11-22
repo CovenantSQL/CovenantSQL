@@ -18,6 +18,7 @@ package xenomint
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -51,6 +52,9 @@ type pool struct {
 	// Succeeded queries and their index
 	queries []*QueryTracker
 	index   map[uint64]int
+	// Atomic counters for stats
+	failedRequestCount int32
+	trackerCount       int32
 }
 
 func newPool() *pool {
@@ -65,11 +69,13 @@ func (p *pool) enqueue(sp uint64, q *QueryTracker) {
 	var pos = len(p.queries)
 	p.queries = append(p.queries, q)
 	p.index[sp] = pos
+	atomic.StoreInt32(&p.trackerCount, int32(len(p.queries)))
 	return
 }
 
 func (p *pool) setFailed(req *types.Request) {
 	p.failed[req.Header.Hash()] = req
+	atomic.StoreInt32(&p.failedRequestCount, int32(len(p.failed)))
 }
 
 func (p *pool) failedList() (reqs []*types.Request) {
@@ -82,6 +88,7 @@ func (p *pool) failedList() (reqs []*types.Request) {
 
 func (p *pool) removeFailed(req *types.Request) {
 	delete(p.failed, req.Header.Hash())
+	atomic.StoreInt32(&p.failedRequestCount, int32(len(p.failed)))
 }
 
 func (p *pool) match(sp uint64, req *types.Request) bool {
@@ -130,4 +137,5 @@ func (p *pool) truncate(sp uint64) {
 	}
 	p.index = ni
 	p.queries = p.queries[pos+1:]
+	atomic.StoreInt32(&p.trackerCount, int32(len(p.queries)))
 }

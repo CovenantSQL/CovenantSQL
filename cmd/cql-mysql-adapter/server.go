@@ -19,6 +19,7 @@ package main
 import (
 	"net"
 
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/cursor"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	mys "github.com/siddontang/go-mysql/server"
 )
@@ -59,7 +60,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	cur := NewCursor()
+	cur := cursor.NewCursor()
 	h, err := mys.NewConn(conn, s.mysqlUser, s.mysqlPassword, cur)
 
 	if err != nil {

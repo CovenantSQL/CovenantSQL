@@ -18,10 +18,11 @@ package resolver
 
 import (
 	"fmt"
-	"github.com/CovenantSQL/sqlparser"
-	"github.com/pkg/errors"
 	"io"
 	"sync/atomic"
+
+	"github.com/CovenantSQL/sqlparser"
+	"github.com/pkg/errors"
 )
 
 var (

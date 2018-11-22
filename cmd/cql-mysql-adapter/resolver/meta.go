@@ -19,10 +19,11 @@ package resolver
 import (
 	"database/sql"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 	"sync"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 const (

@@ -55,7 +55,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	cur := NewCursor(s)
+	cur := NewCursor()
 	h, err := mys.NewConnWithUsers(conn, s.cfg.AuthConfig.Users, cur)
 
 	if err != nil {

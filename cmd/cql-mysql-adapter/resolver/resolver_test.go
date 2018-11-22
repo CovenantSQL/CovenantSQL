@@ -17,10 +17,11 @@
 package resolver
 
 import (
+	"testing"
+
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func runTest(c C, r *Resolver, dbID string, query string, paramCount int, resultColumns []string) {

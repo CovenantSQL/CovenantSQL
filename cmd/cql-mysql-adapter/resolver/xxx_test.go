@@ -19,6 +19,7 @@ package resolver
 import (
 	"crypto/rand"
 	"database/sql"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"

@@ -66,13 +66,8 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
 	n = benchmarkKeySpace
 	// Setup query requests
 	var (
-		sel = `SELECT "v1", "v2", "v3" FROM "bench" WHERE "k"=?`
-		ins = `INSERT INTO "bench" VALUES (?, ?, ?, ?)
-	ON CONFLICT("k") DO UPDATE SET
-		"v1"="excluded"."v1",
-		"v2"="excluded"."v2",
-		"v3"="excluded"."v3"
-`
+		sel  = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+		ins  = `INSERT OR REPLACE INTO bench VALUES (?, ?, ?, ?)`
 		priv *ca.PrivateKey
 		src  = make([][]interface{}, benchmarkKeySpace)
 	)

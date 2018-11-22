@@ -111,13 +111,8 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 
 	// Setup query requests
 	var (
-		sel = `SELECT "v1", "v2", "v3" FROM "bench" WHERE "k"=?`
-		ins = `INSERT INTO "bench" VALUES (?, ?, ?, ?)
-	ON CONFLICT("k") DO UPDATE SET
-		"v1"="excluded"."v1",
-		"v2"="excluded"."v2",
-		"v3"="excluded"."v3"
-`
+		sel = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+		ins = `INSERT OR REPLACE INTO bench VALUES (?, ?, ?, ?)`
 		src = make([][]interface{}, benchmarkKeySpace)
 	)
 	r = make([]*MuxQueryRequest, 2*benchmarkKeySpace)

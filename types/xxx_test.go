@@ -32,9 +32,86 @@ import (
 )
 
 var (
-	genesisHash = hash.Hash{}
+	genesisHash       = hash.Hash{}
+	testingPrivateKey *asymmetric.PrivateKey
+	testingPublicKey  *asymmetric.PublicKey
 )
 
+func randBytes(n int) (b []byte) {
+	b = make([]byte, n)
+	rand.Read(b)
+	return
+}
+
+func buildQuery(query string, args ...interface{}) Query {
+	var nargs = make([]NamedArg, len(args))
+	for i := range args {
+		nargs[i] = NamedArg{
+			Name:  "",
+			Value: args[i],
+		}
+	}
+	return Query{
+		Pattern: query,
+		Args:    nargs,
+	}
+}
+
+func buildRequest(qt QueryType, qs []Query) (r *Request) {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
+	r = &Request{
+		Header: SignedRequestHeader{
+			RequestHeader: RequestHeader{
+				NodeID:    id,
+				Timestamp: time.Now().UTC(),
+				QueryType: qt,
+			},
+		},
+		Payload: RequestPayload{Queries: qs},
+	}
+	if err = r.Sign(testingPrivateKey); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func buildResponse(header *SignedRequestHeader, cols []string, types []string, rows []ResponseRow) (r *Response) {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
+	r = &Response{
+		Header: SignedResponseHeader{
+			ResponseHeader: ResponseHeader{
+				Request:      *header,
+				NodeID:       id,
+				Timestamp:    time.Now().UTC(),
+				RowCount:     0,
+				LogOffset:    0,
+				LastInsertID: 0,
+				AffectedRows: 0,
+			},
+		},
+		Payload: ResponsePayload{
+			Columns:   cols,
+			DeclTypes: types,
+			Rows:      rows,
+		},
+	}
+	if err = r.Sign(testingPrivateKey); err != nil {
+		panic(err)
+	}
+	return
+}
 func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
@@ -52,8 +129,8 @@ func setup() {
 
 	kms.Unittest = true
 
-	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
-		kms.SetLocalKeyPair(priv, pub)
+	if testingPrivateKey, testingPublicKey, err = asymmetric.GenSecp256k1KeyPair(); err == nil {
+		kms.SetLocalKeyPair(testingPrivateKey, testingPublicKey)
 	} else {
 		panic(err)
 	}

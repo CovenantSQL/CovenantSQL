@@ -17,11 +17,14 @@
 package xenomint
 
 import (
+	"time"
+
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 	xt "github.com/CovenantSQL/CovenantSQL/xenomint/types"
@@ -83,14 +86,35 @@ func NewChain(filename string) (c *Chain, err error) {
 
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
-	var ref *QueryTracker
+	var (
+		ref   *QueryTracker
+		start = time.Now()
+
+		queried, signed, updated time.Duration
+	)
+	defer func() {
+		var fields = log.Fields{}
+		if queried > 0 {
+			fields["1#queried"] = float64(queried.Nanoseconds()) / 1000
+		}
+		if signed > 0 {
+			fields["2#signed"] = float64((signed - queried).Nanoseconds()) / 1000
+		}
+		if updated > 0 {
+			fields["3#updated"] = float64((updated - signed).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Chain.Query duration stat (us)")
+	}()
 	if ref, resp, err = c.state.Query(req); err != nil {
 		return
 	}
+	queried = time.Since(start)
 	if err = resp.Sign(c.priv); err != nil {
 		return
 	}
+	signed = time.Since(start)
 	ref.UpdateResp(resp)
+	updated = time.Since(start)
 	return
 }
 

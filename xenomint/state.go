@@ -348,17 +348,33 @@ func (s *State) writeSingle(q *types.Query) (res sql.Result, err error) {
 		containsDDL bool
 		pattern     string
 		args        []interface{}
+		//start       = time.Now()
+
+		//parsed, executed time.Duration
 	)
 
+	//defer func() {
+	//	var fields = log.Fields{}
+	//	fields["savepoint"] = s.current
+	//	if parsed > 0 {
+	//		fields["1#parsed"] = float64(parsed.Nanoseconds()) / 1000
+	//	}
+	//	if executed > 0 {
+	//		fields["2#executed"] = float64((executed - parsed).Nanoseconds()) / 1000
+	//	}
+	//	log.WithFields(fields).Debug("writeSingle duration stat (us)")
+	//}()
 	if containsDDL, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
 		return
 	}
+	//parsed = time.Since(start)
 	if res, err = s.unc.Exec(pattern, args...); err == nil {
 		if containsDDL {
 			atomic.StoreUint32(&s.hasSchemaChange, 1)
 		}
 		s.incSeq()
 	}
+	//executed = time.Since(start)
 	return
 }
 
@@ -380,13 +396,39 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 		totalAffectedRows int64
 		curAffectedRows   int64
 		lastInsertID      int64
+		start             = time.Now()
+
+		lockAcquired, writeDone, enqueued, lockReleased, respBuilt time.Duration
 	)
+
+	defer func() {
+		var fields = log.Fields{}
+		fields["savepoint"] = savepoint
+		fields["1#lockAcquired"] = float64(lockAcquired.Nanoseconds()) / 1000
+		if writeDone > 0 {
+			fields["2#writeDone"] = float64((writeDone - lockAcquired).Nanoseconds()) / 1000
+		}
+		if enqueued > 0 {
+			fields["3#enqueued"] = float64((enqueued - writeDone).Nanoseconds()) / 1000
+		}
+		if lockReleased > 0 {
+			fields["4#lockReleased"] = float64((lockReleased - enqueued).Nanoseconds()) / 1000
+		}
+		if respBuilt > 0 {
+			fields["5#respBuilt"] = float64((respBuilt - lockReleased).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Write duration stat (us)")
+	}()
 
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	if err = func() (err error) {
 		var ierr error
 		s.Lock()
-		defer s.Unlock()
+		lockAcquired = time.Since(start)
+		defer func() {
+			s.Unlock()
+			lockReleased = time.Since(start)
+		}()
 		savepoint = s.getID()
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
@@ -403,7 +445,9 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 			totalAffectedRows += curAffectedRows
 		}
 		s.setSavepoint()
+		writeDone = time.Since(start)
 		s.pool.enqueue(savepoint, query)
+		enqueued = time.Since(start)
 		return
 	}(); err != nil {
 		return
@@ -423,6 +467,7 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 			},
 		},
 	}
+	respBuilt = time.Since(start)
 	return
 }
 
@@ -524,25 +569,77 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 }
 
 func (s *State) commit() (err error) {
+	var (
+		start = time.Now()
+
+		lockAcquired, committed, poolCleaned, lockReleased time.Duration
+	)
+
+	defer func() {
+		var fields = log.Fields{}
+		fields["1#lockAcquired"] = float64(lockAcquired.Nanoseconds()) / 1000
+		if committed > 0 {
+			fields["2#committed"] = float64((committed - lockAcquired).Nanoseconds()) / 1000
+		}
+		if poolCleaned > 0 {
+			fields["3#poolCleaned"] = float64((poolCleaned - committed).Nanoseconds()) / 1000
+		}
+		if lockReleased > 0 {
+			fields["4#lockReleased"] = float64((lockReleased - poolCleaned).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Commit duration stat (us)")
+	}()
+
 	s.Lock()
-	defer s.Unlock()
+	defer func() {
+		s.Unlock()
+		lockReleased = time.Since(start)
+	}()
+	lockAcquired = time.Since(start)
 	if err = s.uncCommit(); err != nil {
 		return
 	}
 	if s.unc, err = s.strg.Writer().Begin(); err != nil {
 		return
 	}
+	committed = time.Since(start)
 	s.setNextTxID()
 	s.setSavepoint()
 	_ = s.pool.queries
 	s.pool = newPool()
+	poolCleaned = time.Since(start)
 	return
 }
 
 // CommitEx commits the current transaction and returns all the pooled queries.
 func (s *State) CommitEx() (failed []*types.Request, queries []*QueryTracker, err error) {
+	var (
+		start = time.Now()
+
+		lockAcquired, committed, poolCleaned, lockReleased time.Duration
+	)
+
+	defer func() {
+		var fields = log.Fields{}
+		fields["1#lockAcquired"] = float64(lockAcquired.Nanoseconds()) / 1000
+		if committed > 0 {
+			fields["2#committed"] = float64((committed - lockAcquired).Nanoseconds()) / 1000
+		}
+		if poolCleaned > 0 {
+			fields["3#poolCleaned"] = float64((poolCleaned - committed).Nanoseconds()) / 1000
+		}
+		if lockReleased > 0 {
+			fields["4#lockReleased"] = float64((lockReleased - poolCleaned).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Commit duration stat (us)")
+	}()
+
 	s.Lock()
-	defer s.Unlock()
+	lockAcquired = time.Since(start)
+	defer func() {
+		s.Unlock()
+		lockReleased = time.Since(start)
+	}()
 	if err = s.uncCommit(); err != nil {
 		// FATAL ERROR
 		return
@@ -551,12 +648,14 @@ func (s *State) CommitEx() (failed []*types.Request, queries []*QueryTracker, er
 		// FATAL ERROR
 		return
 	}
+	committed = time.Since(start)
 	s.setNextTxID()
 	s.setSavepoint()
 	// Return pooled items and reset
 	failed = s.pool.failedList()
 	queries = s.pool.queries
 	s.pool = newPool()
+	poolCleaned = time.Since(start)
 	return
 }
 

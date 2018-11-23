@@ -63,7 +63,7 @@ func StopProfile() {
 		log.Info("CPU profiling stopped")
 	}
 	if prof.mem != nil {
-		pprof.Lookup("heap").WriteTo(prof.mem, 0)
+		pprof.WriteHeapProfile(prof.mem)
 		prof.mem.Close()
 		log.Info("memory profiling stopped")
 	}

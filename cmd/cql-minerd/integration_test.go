@@ -427,13 +427,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt64(&i, 1)
-				_, err = db.Exec("INSERT INTO "+TABLENAME+"( k, v1 ) VALUES"+
+				_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 					"(?, ?)", ROWSTART+ii, ii,
 				)
 				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
 					log.Warnf("ROWSTART+ii = %d retried", ROWSTART+ii)
-					_, err = db.Exec("INSERT INTO"+TABLENAME+"( k, v1 ) VALUES"+
+					_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 						"(?, ?)", ROWSTART+ii, ii,
 					)
 				}

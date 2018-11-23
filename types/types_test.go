@@ -741,6 +741,32 @@ func benchmarkDec(b *testing.B, v interface{}) {
 	}
 }
 
+type ver interface {
+	Verify() error
+}
+
+type ser interface {
+	Sign(*asymmetric.PrivateKey) error
+}
+
+func benchmarkVerify(b *testing.B, v ver) {
+	var err error
+	for i := 0; i < b.N; i++ {
+		if err = v.Verify(); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func benchmarkSign(b *testing.B, s ser) {
+	var err error
+	for i := 0; i < b.N; i++ {
+		if err = s.Sign(testingPrivateKey); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
 func BenchmarkTypes(b *testing.B) {
 	var (
 		// Build a approximate 1KB request
@@ -775,5 +801,11 @@ func BenchmarkTypes(b *testing.B) {
 		var name = reflect.ValueOf(v).Elem().Type().Name()
 		b.Run(fmt.Sprint(name, "Enc"), func(b *testing.B) { benchmarkEnc(b, v) })
 		b.Run(fmt.Sprint(name, "Dec"), func(b *testing.B) { benchmarkDec(b, v) })
+		if x, ok := v.(ver); ok {
+			b.Run(fmt.Sprint(name, "Verify"), func(b *testing.B) { benchmarkVerify(b, x) })
+		}
+		if x, ok := v.(ser); ok {
+			b.Run(fmt.Sprint(name, "Sign"), func(b *testing.B) { benchmarkSign(b, x) })
+		}
 	}
 }

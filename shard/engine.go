@@ -15,29 +15,3 @@
  */
 
 package shard
-
-import (
-	"context"
-	"database/sql/driver"
-	"errors"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/sqlparser"
-)
-
-// buildInsertPlan builds the route for an INSERT statement.
-func buildInsertPlan(ins *sqlparser.Insert) (*Insert, error) {
-	log.Debugf("buildInsertPlan got %#v", ins)
-
-	if ins.Action == sqlparser.ReplaceStr {
-		return nil, errors.New("unsupported: REPLACE INTO with sharded schema")
-	}
-	return &Insert{}, nil
-}
-
-type Insert struct {
-}
-
-func (*Insert) ExecContext(ctx context.Context) (result driver.Result, err error) {
-	panic("implement me")
-}

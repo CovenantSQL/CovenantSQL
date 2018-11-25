@@ -18,16 +18,27 @@ package blockproducer
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/pkg/errors"
 	"sync"
+	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/types"
 	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
 	"github.com/ulule/deepcopier"
+)
+
+var (
+	sqlchainPeriod uint64 = 60 * 24 * 30
+	sqlchainGasPrice uint64 = 10
 )
 
 // TODO(leventeliu): lock optimization.
@@ -184,6 +195,34 @@ func (s *metaState) loadOrStoreSQLChainObject(
 	return
 }
 
+func (s *metaState) loadProviderObject(k proto.AccountAddress) (o *providerObject, loaded bool) {
+	s.RLock()
+	defer s.RUnlock()
+	if o, loaded = s.dirty.provider[k]; loaded {
+		if o == nil {
+			loaded = false
+		}
+		return
+	}
+	if o, loaded = s.readonly.provider[k]; loaded {
+		return
+	}
+	return
+}
+
+func (s *metaState) loadOrStoreProviderObject(k proto.AccountAddress, v *providerObject) (o *providerObject, loaded bool) {
+	s.Lock()
+	defer s.Unlock()
+	if o, loaded = s.dirty.provider[k]; loaded && o != nil {
+		return
+	}
+	if o, loaded = s.readonly.provider[k]; loaded {
+		return
+	}
+	s.dirty.provider[k] = v
+	return
+}
+
 func (s *metaState) deleteAccountObject(k proto.AccountAddress) {
 	s.Lock()
 	defer s.Unlock()
@@ -198,12 +237,20 @@ func (s *metaState) deleteSQLChainObject(k proto.DatabaseID) {
 	s.dirty.databases[k] = nil
 }
 
+func (s *metaState) deleteProviderObject(k proto.AccountAddress) {
+	s.Lock()
+	defer s.Unlock()
+	// Use a nil pointer to mark a deletion, which will be later used by commit procedure.
+	s.dirty.provider[k] = nil
+}
+
 func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 	return func(tx *bolt.Tx) (err error) {
 		var (
 			enc *bytes.Buffer
 			ab  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
 			cb  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
+			pb  = tx.Bucket(metaBucket[:]).Bucket(metaProviderIndexBucket)
 		)
 		s.Lock()
 		defer s.Unlock()
@@ -243,6 +290,24 @@ func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 				}
 			}
 		}
+		for k, v := range s.dirty.provider {
+			if v != nil {
+				// New/update object
+				s.readonly.provider[k] = v
+				if enc, err = utils.EncodeMsgPack(v.ProviderProfile); err != nil {
+					return
+				}
+				if err = pb.Put(k[:], enc.Bytes()); err != nil {
+					return
+				}
+			} else {
+				// Delete object
+				delete(s.readonly.provider, k)
+				if err = pb.Delete(k[:]); err != nil {
+					return
+				}
+			}
+		}
 		// Clean dirty map and tx pool
 		s.dirty = newMetaIndex()
 		s.pool = newTxPool()
@@ -258,6 +323,7 @@ func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.T
 			enc *bytes.Buffer
 			ab  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
 			cb  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
+			pb  = tx.Bucket(metaBucket[:]).Bucket(metaProviderIndexBucket)
 		)
 		s.Lock()
 		defer s.Unlock()
@@ -318,6 +384,24 @@ func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.T
 				}
 			}
 		}
+		for k, v := range cm.dirty.provider {
+			if v != nil {
+				// New/update object
+				cm.readonly.provider[k] = v
+				if enc, err = utils.EncodeMsgPack(v.Provider); err != nil {
+					return
+				}
+				if err = pb.Put(k[:], enc.Bytes()); err != nil {
+					return
+				}
+			} else {
+				// Delete object
+				delete(cm.readonly.provider, k)
+				if err = pb.Delete(k[:]); err != nil {
+					return
+				}
+			}
+		}
 
 		// Rebuild dirty map
 		cm.dirty = newMetaIndex()
@@ -348,6 +432,7 @@ func (s *metaState) reloadProcedure() (_ func(*bolt.Tx) error) {
 		var (
 			ab = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
 			cb = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
+			pb = tx.Bucket(metaBucket[:]).Bucket(metaProviderIndexBucket)
 		)
 		if err = ab.ForEach(func(k, v []byte) (err error) {
 			ao := &accountObject{}
@@ -365,6 +450,16 @@ func (s *metaState) reloadProcedure() (_ func(*bolt.Tx) error) {
 				return
 			}
 			s.readonly.databases[co.SQLChainProfile.ID] = co
+			return
+		}); err != nil {
+			return
+		}
+		if err = pb.ForEach(func(k, v []byte) (err error) {
+			ao := &providerObject{}
+			if err = utils.DecodeMsgPack(v, &ao.Provider); err != nil {
+				return
+			}
+			s.readonly.provider[ao.ProviderProfile.Provider] = ao
 			return
 		}); err != nil {
 			return
@@ -388,7 +483,8 @@ func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			return ErrAccountNotFound
+			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			return err
 		}
 		dst = &accountObject{}
 		deepcopier.Copy(&src.Account).To(&dst.Account)
@@ -485,7 +581,8 @@ func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amoun
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			return ErrAccountNotFound
+			err := errors.Wrap(ErrAccountNotFound, "increase covenant balance fail")
+			return err
 		}
 		dst = &accountObject{}
 		deepcopier.Copy(&src.Account).To(&dst.Account)
@@ -635,6 +732,9 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 	if o, loaded = s.dirty.accounts[addr]; !loaded {
 		if o, loaded = s.readonly.accounts[addr]; !loaded {
 			err = ErrAccountNotFound
+			log.WithFields(log.Fields{
+				"addr": addr.String(),
+			}).WithError(err).Error("unexpected error")
 			return
 		}
 	}
@@ -661,7 +761,7 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	return
 }
 
-func (s *metaState) applyBilling(tx *types.Billing) (err error) {
+func (s *metaState) applyBilling(tx *pt.Billing) (err error) {
 	for i, v := range tx.Receivers {
 		// Create empty receiver account if not found
 		s.loadOrStoreAccountObject(*v, &accountObject{Account: pt.Account{Address: *v}})
@@ -676,14 +776,104 @@ func (s *metaState) applyBilling(tx *types.Billing) (err error) {
 	return
 }
 
+func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
+	sender, err := crypto.PubKeyHash(tx.Signee)
+	if err != nil {
+		err = errors.Wrap(err, "updateProviderList failed")
+		return
+	}
+	pp := pt.ProviderProfile{
+		Provider: sender,
+		Space: tx.Space,
+		Memory: tx.Memory,
+		LoadAvgPerCPU: tx.LoadAvgPerCPU,
+	}
+	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
+	return
+}
+
+func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
+	sender, err := crypto.PubKeyHash(tx.Signee)
+	if err != nil {
+		err = errors.Wrapf(err, "match failed with real sender: %s, sender: %s",
+			sender.String(), tx.Owner.String())
+		return
+	}
+	for i := range tx.ResourceMeta.TargetMiners {
+		if _, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
+			err = errors.Wrapf(ErrNoSuchMiner, "miner address: %s", tx.ResourceMeta.TargetMiners[i])
+			return
+		}
+	}
+	// generate new sqlchain id and address
+	addrAndNonce := fmt.Sprintf("%s%d", tx.Owner.String(), tx.Nonce)
+	rawID := hash.THashH([]byte(addrAndNonce))
+	dbID := proto.DatabaseID(rawID.String())
+	dbAddr, err := dbID.AccountAddress()
+	if err != nil {
+		err = errors.Wrapf(err, "unexpected error when convert dbid: %v", dbID)
+		return
+	}
+	// generate userinfo
+	users := make([]*pt.SQLChainUser, 1)
+	users[0] = &pt.SQLChainUser{
+		Address: sender,
+		Permission: pt.Admin,
+	}
+	// generate genesis block
+	gb, err := s.generateGenesisBlock(dbID, tx.ResourceMeta)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"dbID": dbID,
+			"resourceMeta": tx.ResourceMeta,
+		}).WithError(err).Error("unexpected error")
+		return err
+	}
+	// create sqlchain
+	sp := &pt.SQLChainProfile{
+		ID: dbID,
+		Address: dbAddr,
+		Period: sqlchainPeriod,
+		GasPrice: sqlchainGasPrice,
+		TokenType: pt.Particle,
+		Owner: sender,
+		Users: users,
+		Genesis: gb,
+	}
+	if _, loaded := s.loadSQLChainObject(dbID); loaded {
+		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", dbID)
+		return
+	}
+	s.loadOrStoreSQLChainObject(dbID, &sqlchainObject{SQLChainProfile: *sp})
+	for _, miner := range tx.ResourceMeta.TargetMiners {
+		s.deleteProviderObject(miner)
+	}
+	return
+}
+
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *pt.Transfer:
+		realSender, err := crypto.PubKeyHash(t.Signee)
+		if err != nil {
+			err = errors.Wrap(err, "applyTx failed")
+			return err
+		}
+		if realSender != t.Sender {
+			err = errors.Wrapf(ErrInvalidSender,
+				"applyTx failed: real sender %s, sender %s", realSender.String(), t.Sender.String())
+			// TODO(lambda): update test cases and return err
+			log.Debug(err)
+		}
 		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
-	case *types.Billing:
+	case *pt.Billing:
 		err = s.applyBilling(t)
 	case *pt.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
+	case *pt.ProvideService:
+		err = s.updateProviderList(t)
+	case *pt.CreateDatabase:
+		err = s.matchProvidersWithUser(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
 		err = s.applyTransaction(t.Unwrap())
@@ -780,3 +970,34 @@ func (s *metaState) pullTxs() (txs []pi.Transaction) {
 	}
 	return
 }
+
+func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta pt.ResourceMeta) (genesisBlock *pt.Block, err error) {
+	// TODO(xq262144): following is stub code, real logic should be implemented in the future
+	emptyHash := hash.Hash{}
+
+	var privKey *asymmetric.PrivateKey
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	var nodeID proto.NodeID
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+
+	genesisBlock = &pt.Block{
+		SignedHeader: pt.SignedHeader{
+			Header: pt.Header{
+				Version:     0x01000000,
+				Producer:    nodeID,
+				GenesisHash: emptyHash,
+				ParentHash:  emptyHash,
+				Timestamp:   time.Now().UTC(),
+			},
+		},
+	}
+
+	err = genesisBlock.PackAndSignBlock(privKey)
+
+	return
+}
+

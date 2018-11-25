@@ -104,6 +104,37 @@ type AddTxResp struct {
 	proto.Envelope
 }
 
+// SubReq defines a request of the Sub RPC method.
+type SubReq struct {
+	proto.Envelope
+	Topic    string
+	Callback string
+}
+
+// SubResp defines a response of the Sub RPC method.
+type SubResp struct {
+	proto.Envelope
+	Result string
+}
+
+// OrderMakerReq defines a request of the order maker in database market.
+type OrderMakerReq struct {
+	proto.Envelope
+
+}
+
+// OrderTakerReq defines a request of the order taker in database market.
+type OrderTakerReq struct {
+	proto.Envelope
+	DBMeta pt.ResourceMeta
+}
+
+// OrderTakerResp defines a response of the order taker in database market.
+type OrderTakerResp struct {
+	proto.Envelope
+	databaseID proto.DatabaseID
+}
+
 // QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
 type QueryAccountStableBalanceReq struct {
 	proto.Envelope
@@ -215,4 +246,11 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
 	return
+}
+
+// Sub is the RPC method to subscribe some event.
+func (s *ChainRPCService) Sub(req *SubReq, resp *SubResp) (err error) {
+	return s.chain.bs.Subscribe(req.Topic, func(request interface{}, response interface{}) {
+		s.chain.cl.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
+	})
 }

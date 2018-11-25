@@ -18,6 +18,8 @@
 package proto
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -142,3 +144,14 @@ func (e *Envelope) SetNodeID(nodeID *RawNodeID) {
 
 // DatabaseID is database name, will be generated from UUID
 type DatabaseID string
+
+// AccountAddress converts DatabaseID to AccountAddress.
+func (d *DatabaseID) AccountAddress() (a AccountAddress, err error) {
+	h, err := hash.NewHashFromStr(string(*d))
+	if err != nil {
+		err = errors.Wrap(err, "fail to convert string to hash")
+		return
+	}
+	a = AccountAddress(*h)
+	return
+}

@@ -55,10 +55,16 @@ type sqlchainObject struct {
 	pt.SQLChainProfile
 }
 
+type providerObject struct {
+	sync.RWMutex
+	pt.ProviderProfile
+}
+
 type metaIndex struct {
 	sync.RWMutex
 	accounts  map[proto.AccountAddress]*accountObject
 	databases map[proto.DatabaseID]*sqlchainObject
+	provider map[proto.AccountAddress]*providerObject
 }
 
 func newMetaIndex() *metaIndex {
@@ -92,6 +98,18 @@ func (i *metaIndex) deleteSQLChainObject(k proto.DatabaseID) {
 	delete(i.databases, k)
 }
 
+func (i *metaIndex) storeProviderObject(o *providerObject) {
+	i.Lock()
+	defer i.Unlock()
+	i.provider[o.Provider] = o
+}
+
+func (i *metaIndex) deleteProviderObject(k proto.AccountAddress) {
+	i.Lock()
+	defer i.Unlock()
+	delete(i.provider, k)
+}
+
 func (i *metaIndex) deepCopy() (cpy *metaIndex) {
 	cpy = newMetaIndex()
 	for k, v := range i.accounts {
@@ -103,6 +121,11 @@ func (i *metaIndex) deepCopy() (cpy *metaIndex) {
 		cpyv := &sqlchainObject{}
 		deepcopier.Copy(v).To(cpyv)
 		cpy.databases[k] = cpyv
+	}
+	for k, v := range i.provider {
+		cpyv := &providerObject{}
+		deepcopier.Copy(v).To(cpyv)
+		cpy.provider[k] = cpyv
 	}
 	return
 }

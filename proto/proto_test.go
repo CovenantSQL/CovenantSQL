@@ -43,3 +43,23 @@ func TestEnvelope_GetSet(t *testing.T) {
 		So(env.GetVersion(), ShouldEqual, "0.0.1")
 	})
 }
+
+func TestDatabaseID_AccountAddress(t *testing.T) {
+	target := []string{
+		"1224a1e9f72eb00d08afa4030dc642edefb6e3249aafe20cf1a5f9d46d0c0bbe",
+		"5b0b8fd3b0700bd0858f3d61ff0a1b621dbbeb2013a3aab5df2885dc10ccf6ce",
+		"b90f502d8aa95573cdc3c50ea1552aa1c163b567980e2555fe84cfd1d5e78765",
+	}
+
+	Convey("AccountAddress convert", t, func() {
+		for i := range target {
+			dbid := DatabaseID(target[i])
+			h, err := hash.NewHashFromStr(target[i])
+			So(err, ShouldBeNil)
+			a, err := dbid.AccountAddress()
+			So(err, ShouldBeNil)
+			So(h[:], ShouldResemble, a[:])
+		}
+
+	})
+}

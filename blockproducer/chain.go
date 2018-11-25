@@ -47,6 +47,7 @@ var (
 	metaTransactionBucket          = []byte("covenantsql-tx-index-bucket")
 	metaAccountIndexBucket         = []byte("covenantsql-account-index-bucket")
 	metaSQLChainIndexBucket        = []byte("covenantsql-sqlchain-index-bucket")
+	metaProviderIndexBucket = []byte("covenantsql-provider-index-bucket")
 	gasPrice                uint32 = 1
 	accountAddress          proto.AccountAddress
 	txEvent                 = "/BP/Tx"
@@ -117,6 +118,11 @@ func NewChain(cfg *Config) (*Chain, error) {
 		}
 
 		_, err = bucket.CreateBucketIfNotExists(metaSQLChainIndexBucket)
+		if err != nil {
+			return
+		}
+
+		_, err = bucket.CreateBucketIfNotExists(metaProviderIndexBucket)
 		return
 	})
 	if err != nil {

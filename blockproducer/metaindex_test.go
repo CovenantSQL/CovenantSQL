@@ -61,6 +61,9 @@ func TestMetaIndex(t *testing.T) {
 			if _, err = meta.CreateBucket(metaSQLChainIndexBucket); err != nil {
 				return
 			}
+			if _, err = meta.CreateBucket(metaProviderIndexBucket); err != nil {
+				return
+			}
 			if txbk, err = meta.CreateBucket(metaTransactionBucket); err != nil {
 				return
 			}

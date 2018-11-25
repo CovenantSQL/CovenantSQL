@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"github.com/pkg/errors"
 	"math"
 	"os"
 	"path"
@@ -64,6 +65,9 @@ func TestMetaState(t *testing.T) {
 				return
 			}
 			if _, err = meta.CreateBucket(metaSQLChainIndexBucket); err != nil {
+				return
+			}
+			if _, err = meta.CreateBucket(metaProviderIndexBucket); err != nil {
 				return
 			}
 			if txbk, err = meta.CreateBucket(metaTransactionBucket); err != nil {
@@ -307,7 +311,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance increased",
 						func() {
 							err = ms.increaseAccountStableBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.increaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -325,7 +329,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance increased",
 						func() {
 							err = ms.increaseAccountCovenantBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.increaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},

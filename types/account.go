@@ -93,9 +93,20 @@ type SQLChainProfile struct {
 	TokenType TokenType
 
 	Owner  proto.AccountAddress
+	// first miner in the list is leader
 	Miners []*MinerInfo
 
 	Users []*SQLChainUser
+
+	Genesis *Block
+}
+
+// ProviderProfile defines a provider list.
+type ProviderProfile struct {
+	Provider proto.AccountAddress
+	Space         uint64 // reserved storage space in bytes
+	Memory        uint64 // reserved memory in bytes
+	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
 }
 
 // Account store its balance, and other mate data.

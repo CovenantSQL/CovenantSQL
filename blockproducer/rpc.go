@@ -120,7 +120,6 @@ type SubResp struct {
 // OrderMakerReq defines a request of the order maker in database market.
 type OrderMakerReq struct {
 	proto.Envelope
-
 }
 
 // OrderTakerReq defines a request of the order taker in database market.

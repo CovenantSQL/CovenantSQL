@@ -17,7 +17,6 @@
 package blockproducer
 
 import (
-	"github.com/pkg/errors"
 	"math"
 	"os"
 	"path"
@@ -28,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -108,7 +108,7 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 			err = ms.deleteSQLChainUser(dbid1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbid1, addr1, pt.ReadWrite)
+			err = ms.alterSQLChainUser(dbid1, addr1, pt.Write)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
@@ -172,9 +172,9 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+					err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+					err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
 						err = ms.deleteSQLChainUser(dbid3, addr2)
@@ -185,7 +185,7 @@ func TestMetaState(t *testing.T) {
 					Convey("The metaState object should be ok to alter user", func() {
 						err = ms.alterSQLChainUser(dbid3, addr2, pt.Read)
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbid3, addr2, pt.ReadWrite)
+						err = ms.alterSQLChainUser(dbid3, addr2, pt.Write)
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
@@ -200,7 +200,7 @@ func TestMetaState(t *testing.T) {
 						Convey("The metaState object should be ok to alter user", func() {
 							err = ms.alterSQLChainUser(dbid3, addr2, pt.Read)
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbid3, addr2, pt.ReadWrite)
+							err = ms.alterSQLChainUser(dbid3, addr2, pt.Write)
 							So(err, ShouldBeNil)
 						})
 					})
@@ -209,9 +209,9 @@ func TestMetaState(t *testing.T) {
 					err = db.Update(ms.commitProcedure())
 					So(err, ShouldBeNil)
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+						err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+						err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {

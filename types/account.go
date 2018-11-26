@@ -43,8 +43,8 @@ const (
 	Admin UserPermission = iota
 	// Read defines the reader user permission.
 	Read
-	// ReadWrite defines the reader/writer user permission.
-	ReadWrite
+	// Write defines the reader/writer user permission.
+	Write
 	// NumberOfUserPermission defines the user permission number.
 	NumberOfUserPermission
 )
@@ -61,6 +61,8 @@ const (
 	Arrears
 	// Arbitration defines the user/miner is in an arbitration.
 	Arbitration
+	// NumberOfStatus defines the number of status.
+	NumberOfStatus
 )
 
 // SQLChainUser defines a SQLChain user.
@@ -92,7 +94,7 @@ type SQLChainProfile struct {
 
 	TokenType TokenType
 
-	Owner  proto.AccountAddress
+	Owner proto.AccountAddress
 	// first miner in the list is leader
 	Miners []*MinerInfo
 
@@ -103,7 +105,7 @@ type SQLChainProfile struct {
 
 // ProviderProfile defines a provider list.
 type ProviderProfile struct {
-	Provider proto.AccountAddress
+	Provider      proto.AccountAddress
 	Space         uint64 // reserved storage space in bytes
 	Memory        uint64 // reserved memory in bytes
 	LoadAvgPerCPU uint64 // max loadAvg15 per CPU

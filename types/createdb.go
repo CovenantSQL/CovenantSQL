@@ -27,9 +27,9 @@ import (
 
 // CreateDatabaseHeader defines the database creation transaction header.
 type CreateDatabaseHeader struct {
-	Owner proto.AccountAddress
+	Owner        proto.AccountAddress
 	ResourceMeta ResourceMeta
-	Nonce pi.AccountNonce
+	Nonce        pi.AccountNonce
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.

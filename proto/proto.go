@@ -18,9 +18,10 @@
 package proto
 
 import (
+	"time"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/pkg/errors"
-	"time"
 )
 
 //go:generate hsp

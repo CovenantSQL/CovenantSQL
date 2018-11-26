@@ -63,8 +63,10 @@ const (
 	TransactionTypeBaseAccount
 	// TransactionTypeCreateDatabase defines database creation transaction type.
 	TransactionTypeCreateDatabase
-	// TransactionTypeProvideService define miner providing database service type.
+	// TransactionTypeProvideService defines miner providing database service type.
 	TransactionTypeProvideService
+	// TransactionUpdatePermission defines admin user grant/revoke permission type.
+	TransactionUpdatePermission
 	// TransactionTypeNumber defines transaction types number.
 	TransactionTypeNumber
 )
@@ -91,6 +93,8 @@ func (t TransactionType) String() string {
 		return "CreateDatabase"
 	case TransactionTypeProvideService:
 		return "ProvideService"
+	case TransactionUpdatePermission:
+		return "UpdatePermission"
 	default:
 		return "Unknown"
 	}

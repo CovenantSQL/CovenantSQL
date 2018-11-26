@@ -78,4 +78,8 @@ var (
 	ErrInvalidSender = errors.New("invalid sender")
 	// ErrNoSuchMiner indicates that this miner does not exist or register.
 	ErrNoSuchMiner = errors.New("no such miner")
+	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
+	ErrAccountPermissionDeny = errors.New("account permission deny")
+	// ErrInvalidPermission indicates that the permission is invalid.
+	ErrInvalidPermission = errors.New("invalid permission")
 )

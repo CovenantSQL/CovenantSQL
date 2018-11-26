@@ -19,25 +19,25 @@ package blockproducer
 import (
 	"bytes"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/pkg/errors"
 	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
+	"github.com/pkg/errors"
 	"github.com/ulule/deepcopier"
 )
 
 var (
-	sqlchainPeriod uint64 = 60 * 24 * 30
+	sqlchainPeriod   uint64 = 60 * 24 * 30
 	sqlchainGasPrice uint64 = 10
 )
 
@@ -783,9 +783,9 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		return
 	}
 	pp := pt.ProviderProfile{
-		Provider: sender,
-		Space: tx.Space,
-		Memory: tx.Memory,
+		Provider:      sender,
+		Space:         tx.Space,
+		Memory:        tx.Memory,
 		LoadAvgPerCPU: tx.LoadAvgPerCPU,
 	}
 	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
@@ -817,28 +817,28 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	// generate userinfo
 	users := make([]*pt.SQLChainUser, 1)
 	users[0] = &pt.SQLChainUser{
-		Address: sender,
+		Address:    sender,
 		Permission: pt.Admin,
 	}
 	// generate genesis block
 	gb, err := s.generateGenesisBlock(dbID, tx.ResourceMeta)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"dbID": dbID,
+			"dbID":         dbID,
 			"resourceMeta": tx.ResourceMeta,
 		}).WithError(err).Error("unexpected error")
 		return err
 	}
 	// create sqlchain
 	sp := &pt.SQLChainProfile{
-		ID: dbID,
-		Address: dbAddr,
-		Period: sqlchainPeriod,
-		GasPrice: sqlchainGasPrice,
+		ID:        dbID,
+		Address:   dbAddr,
+		Period:    sqlchainPeriod,
+		GasPrice:  sqlchainGasPrice,
 		TokenType: pt.Particle,
-		Owner: sender,
-		Users: users,
-		Genesis: gb,
+		Owner:     sender,
+		Users:     users,
+		Genesis:   gb,
 	}
 	if _, loaded := s.loadSQLChainObject(dbID); loaded {
 		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", dbID)
@@ -847,6 +847,61 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	s.loadOrStoreSQLChainObject(dbID, &sqlchainObject{SQLChainProfile: *sp})
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
+	}
+	return
+}
+
+func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
+	sender, err := crypto.PubKeyHash(tx.Signee)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"tx": tx.Hash().String(),
+		}).WithError(err).Error("unexpected err")
+		return
+	}
+	so, loaded := s.loadSQLChainObject(tx.TargetSQLChain.DatabaseID())
+	if !loaded {
+		log.WithFields(log.Fields{
+			"dbID": tx.TargetSQLChain.DatabaseID(),
+		}).WithError(ErrDatabaseNotFound).Error("unexpected error")
+		return ErrDatabaseNotFound
+	}
+	if tx.Permission >= pt.NumberOfUserPermission {
+		log.WithFields(log.Fields{
+			"permission": tx.Permission,
+			"dbID":       tx.TargetSQLChain.DatabaseID(),
+		}).WithError(ErrInvalidPermission).Error("unexpected error")
+		return ErrInvalidPermission
+	}
+
+	// check whether sender is admin and find targetUser
+	isAdmin := false
+	targetUserIndex := -1
+	for i, u := range so.Users {
+		isAdmin = isAdmin || (sender == u.Address && u.Permission == pt.Admin)
+		if tx.TargetUser == u.Address {
+			targetUserIndex = i
+		}
+	}
+
+	if !isAdmin {
+		log.WithFields(log.Fields{
+			"sender": sender,
+			"dbID":   tx.TargetSQLChain,
+		}).WithError(ErrAccountPermissionDeny).Error("unexpected error")
+		return ErrAccountPermissionDeny
+	}
+
+	// update targetUser's permission
+	if targetUserIndex == -1 {
+		u := pt.SQLChainUser{
+			Address:    tx.TargetUser,
+			Permission: tx.Permission,
+			Status:     pt.Normal,
+		}
+		so.Users = append(so.Users, &u)
+	} else {
+		so.Users[targetUserIndex].Permission = tx.Permission
 	}
 	return
 }
@@ -874,6 +929,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.updateProviderList(t)
 	case *pt.CreateDatabase:
 		err = s.matchProvidersWithUser(t)
+	case *pt.UpdatePermission:
+		err = s.updatePermission(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
 		err = s.applyTransaction(t.Unwrap())
@@ -1000,4 +1057,3 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta pt.
 
 	return
 }
-

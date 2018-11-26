@@ -64,7 +64,7 @@ type metaIndex struct {
 	sync.RWMutex
 	accounts  map[proto.AccountAddress]*accountObject
 	databases map[proto.DatabaseID]*sqlchainObject
-	provider map[proto.AccountAddress]*providerObject
+	provider  map[proto.AccountAddress]*providerObject
 }
 
 func newMetaIndex() *metaIndex {

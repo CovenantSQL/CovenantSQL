@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -64,7 +65,7 @@ type Chain struct {
 
 	blocksFromRPC chan *pt.BPBlock
 	pendingTxs    chan pi.Transaction
-	stopCh        chan struct{}
+	ctx           context.Context
 }
 
 // NewChain creates a new blockchain.
@@ -129,21 +130,23 @@ func NewChain(cfg *Config) (*Chain, error) {
 		return nil, err
 	}
 
-	// init rpc and chain bus
-	caller := rpc.NewCaller()
-	bus := chainbus.New()
-
 	// create chain
+	var (
+		bus    = chainbus.New()
+		caller = rpc.NewCaller()
+		ctx    = context.Background()
+	)
+
 	chain := &Chain{
 		db:            db,
 		ms:            newMetaState(),
 		bi:            newBlockIndex(),
-		rt:            newRuntime(cfg, accountAddress),
+		rt:            newRuntime(ctx, cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
 		blocksFromRPC: make(chan *pt.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
-		stopCh:        make(chan struct{}),
+		ctx:           ctx,
 	}
 
 	// sub chain events
@@ -184,19 +187,22 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		return nil, err
 	}
 
-	caller := rpc.NewCaller()
-	bus := chainbus.New()
+	var (
+		bus    = chainbus.New()
+		caller = rpc.NewCaller()
+		ctx    = context.Background()
+	)
 
 	chain = &Chain{
 		db:            db,
 		ms:            newMetaState(),
 		bi:            newBlockIndex(),
-		rt:            newRuntime(cfg, accountAddress),
+		rt:            newRuntime(ctx, cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
 		blocksFromRPC: make(chan *pt.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
-		stopCh:        make(chan struct{}),
+		ctx:           ctx,
 	}
 
 	chain.bs.Subscribe(txEvent, chain.addTx)
@@ -397,32 +403,34 @@ func (c *Chain) produceBlock(now time.Time) error {
 	}
 
 	peers := c.rt.getPeers()
-	wg := &sync.WaitGroup{}
 	for _, s := range peers.Servers {
 		if !s.IsEqual(&c.rt.nodeID) {
-			wg.Add(1)
-			go func(id proto.NodeID) {
-				defer wg.Done()
-				blockReq := &AdviseNewBlockReq{
-					Envelope: proto.Envelope{
-						// TODO(lambda): Add fields.
-					},
-					Block: b,
-				}
-				blockResp := &AdviseNewBlockResp{}
-				if err := c.cl.CallNode(id, route.MCCAdviseNewBlock.String(), blockReq, blockResp); err != nil {
-					log.WithFields(log.Fields{
-						"peer":       c.rt.getPeerInfoString(),
-						"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
-						"block_hash": b.BlockHash(),
-					}).WithError(err).Error(
-						"failed to advise new block")
-				} else {
-					log.WithFields(log.Fields{
-						"node": id,
-					}).Debug("success advising block")
-				}
-			}(s)
+			c.rt.goFunc(func(ctx context.Context, wg *sync.WaitGroup) {
+				// Bind NodeID to subroutine
+				func(_ context.Context, wg *sync.WaitGroup, id proto.NodeID) {
+					// TODO(leventeliu): context is not used, WaitGroup is not guaranteed to be
+					// waitable.
+					defer wg.Done()
+					blockReq := &AdviseNewBlockReq{
+						Envelope: proto.Envelope{
+							// TODO(lambda): Add fields.
+						},
+						Block: b,
+					}
+					blockResp := &AdviseNewBlockResp{}
+					if err := c.cl.CallNode(id, route.MCCAdviseNewBlock.String(), blockReq, blockResp); err != nil {
+						log.WithFields(log.Fields{
+							"peer":       c.rt.getPeerInfoString(),
+							"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
+							"block_hash": b.BlockHash(),
+						}).WithError(err).Error("failed to advise new block")
+					} else {
+						log.WithFields(log.Fields{
+							"node": id,
+						}).Debug("success advising block")
+					}
+				}(ctx, wg, s)
+			})
 		}
 	}
 
@@ -597,35 +605,37 @@ func (c *Chain) Start() error {
 		return err
 	}
 
-	c.rt.wg.Add(1)
-	go c.processBlocks()
-	c.rt.wg.Add(1)
-	go c.processTxs()
-	c.rt.wg.Add(1)
-	go c.mainCycle()
+	c.rt.goFunc(c.processBlocks)
+	c.rt.goFunc(c.processTxs)
+	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
 
 	return nil
 }
 
-func (c *Chain) processBlocks() {
-	rsCh := make(chan struct{})
-	rsWG := &sync.WaitGroup{}
-	returnStash := func(stash []*pt.BPBlock) {
-		defer rsWG.Done()
-		for _, block := range stash {
-			select {
-			case c.blocksFromRPC <- block:
-			case <-rsCh:
-				return
+func (c *Chain) processBlocks(ctx context.Context, wg *sync.WaitGroup) {
+	var (
+		returnStash = func(ctx context.Context, wg *sync.WaitGroup, stash []*pt.BPBlock) {
+			defer wg.Done()
+			for _, block := range stash {
+				select {
+				case c.blocksFromRPC <- block:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
-	}
+		// Subroutine control
+		subCtx, subCancel = context.WithCancel(ctx)
+		subWg             = &sync.WaitGroup{}
+	)
 
 	defer func() {
-		close(rsCh)
-		rsWG.Wait()
-		c.rt.wg.Done()
+		// Wait for subroutines to exit
+		subCancel()
+		subWg.Wait()
+		// Parent done
+		wg.Done()
 	}()
 
 	var stash []*pt.BPBlock
@@ -634,9 +644,6 @@ func (c *Chain) processBlocks() {
 		case block := <-c.blocksFromRPC:
 			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
-				if stash == nil {
-					stash = make([]*pt.BPBlock, 0)
-				}
 				stash = append(stash, block)
 			} else {
 				// Process block
@@ -655,12 +662,12 @@ func (c *Chain) processBlocks() {
 
 				// Return all stashed blocks to pending channel
 				if stash != nil {
-					rsWG.Add(1)
-					go returnStash(stash)
+					subWg.Add(1)
+					go returnStash(subCtx, subWg, stash)
 					stash = nil
 				}
 			}
-		case <-c.stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -682,32 +689,26 @@ func (c *Chain) processTx(tx pi.Transaction) {
 	c.bs.Publish(txEvent, tx)
 }
 
-func (c *Chain) processTxs() {
-	defer c.rt.wg.Done()
+func (c *Chain) processTxs(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		select {
 		case tx := <-c.pendingTxs:
 			c.processTx(tx)
-		case <-c.stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (c *Chain) mainCycle() {
-	defer func() {
-		c.rt.wg.Done()
-		// Signal worker goroutines to stop
-		close(c.stopCh)
-	}()
-
+func (c *Chain) mainCycle(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		select {
-		case <-c.rt.stopCh:
+		case <-ctx.Done():
 			return
 		default:
 			c.syncHead()
-
 			if t, d := c.rt.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.getPeerInfoString(),
@@ -755,8 +756,7 @@ func (c *Chain) syncHead() {
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
-					}).WithError(err).Debug(
-						"Failed to fetch block from peer")
+					}).WithError(err).Debug("Failed to fetch block from peer")
 				} else {
 					c.blocksFromRPC <- resp.Block
 					log.WithFields(log.Fields{
@@ -765,8 +765,7 @@ func (c *Chain) syncHead() {
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
-					}).Debug(
-						"Fetch block from remote peer successfully")
+					}).Debug("Fetch block from remote peer successfully")
 					succ = true
 					break
 				}

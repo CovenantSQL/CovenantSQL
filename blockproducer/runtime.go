@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -29,8 +30,9 @@ import (
 // copy from /sqlchain/runtime.go
 // rt define the runtime of main chain.
 type rt struct {
-	wg     sync.WaitGroup
-	stopCh chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
 
 	// chainInitTime is the initial cycle time, when the Genesis block is produced.
 	chainInitTime time.Time
@@ -74,15 +76,18 @@ func (r *rt) now() time.Time {
 	return time.Now().UTC().Add(r.offset)
 }
 
-func newRuntime(cfg *Config, accountAddress proto.AccountAddress) *rt {
+func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAddress) *rt {
 	var index uint32
 	for i, s := range cfg.Peers.Servers {
 		if cfg.NodeID.IsEqual(&s) {
 			index = uint32(i)
 		}
 	}
+	var cld, ccl = context.WithCancel(ctx)
 	return &rt{
-		stopCh:         make(chan struct{}),
+		ctx:            cld,
+		cancel:         ccl,
+		wg:             &sync.WaitGroup{},
 		chainInitTime:  cfg.Genesis.SignedHeader.Timestamp,
 		accountAddress: accountAddress,
 		server:         cfg.Server,
@@ -170,14 +175,11 @@ func (r *rt) setHead(head *State) {
 }
 
 func (r *rt) stop() {
-	r.stopService()
-	select {
-	case <-r.stopCh:
-	default:
-		close(r.stopCh)
-	}
+	r.cancel()
 	r.wg.Wait()
 }
 
-func (r *rt) stopService() {
+func (r *rt) goFunc(f func(ctx context.Context, wg *sync.WaitGroup)) {
+	r.wg.Add(1)
+	go f(r.ctx, r.wg)
 }

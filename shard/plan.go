@@ -63,28 +63,33 @@ func (dp *BasePrimitive) ExecContext(ctx context.Context) (result driver.Result,
 }
 
 // BuildFromStmt builds a plan based on the AST provided.
-func BuildFromStmt(query string, args []driver.NamedValue, stmt sqlparser.Statement, c *ShardingConn) (*Plan, error) {
-	var err error
-	plan := &Plan{}
+func BuildFromStmt(query string, args []driver.NamedValue, stmt sqlparser.Statement, c *ShardingConn) (plan *Plan, err error) {
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
 		return nil, errors.New("unsupported construct: select")
 	case *sqlparser.Insert:
+		plan = &Plan{
+			Original: query,
+		}
 		plan.Instructions, err = buildInsertPlan(query, stmt, args, c)
-	case *sqlparser.Update:
-		return nil, errors.New("unsupported construct: update")
-	case *sqlparser.Delete:
-		return nil, errors.New("unsupported construct: delete")
-	case *sqlparser.Union:
-		return nil, errors.New("unsupported construct: union")
-	case *sqlparser.Set:
-		return nil, errors.New("unsupported construct: set")
-	case *sqlparser.Show:
-		return nil, errors.New("unsupported construct: show")
-	case *sqlparser.DDL:
-		return nil, errors.New("unsupported construct: ddl")
-	case *sqlparser.DBDDL:
-		return nil, errors.New("unsupported construct: ddl on database")
+	case *sqlparser.DDL,
+		*sqlparser.Show,
+		*sqlparser.Set,
+		*sqlparser.Union,
+		*sqlparser.Delete,
+		*sqlparser.Update,
+		*sqlparser.DBDDL:
+		// FIXME(auxten) if contains any statement other than sqlparser.Insert, we just
+		// execute it for test
+		plan = &Plan{
+			Original: query,
+			Instructions: &BasePrimitive{
+				query:   query,
+				args:    args,
+				rawConn: c.rawConn,
+			},
+		}
+
 	default:
 		panic(fmt.Sprintf("BUG: unexpected statement type: %T", stmt))
 	}

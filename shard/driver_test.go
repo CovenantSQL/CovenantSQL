@@ -30,10 +30,10 @@ import (
 func TestShardingDriver(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	Convey("", t, func() {
-		os.Remove("./foo.db")
-		defer os.Remove("./foo.db")
+		os.Remove("./foo_s.db")
+		//defer os.Remove("./foo_s.db")
 
-		db, err := sql.Open(DBSchemeAlias, "./foo.db")
+		db, err := sql.Open(DBSchemeAlias, "./foo_s.db")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -49,7 +49,7 @@ func TestSQLite3Driver(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	Convey("", t, func() {
 		os.Remove("./foo.db")
-		defer os.Remove("./foo.db")
+		//defer os.Remove("./foo.db")
 
 		db, err := sql.Open("sqlite3", "./foo.db")
 		if err != nil {
@@ -87,6 +87,20 @@ func executeSQL(isSharding bool, db *sql.DB) (err error) {
 		6, "xx", 1536699999,
 		7, "xxx", time.Now(),
 		8, "xxx", 1536699999.11)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = db.Exec(`insert into foo(id, name, time) values(?, :vv1, :vv2);`,
+		9, sql.Named("vv1", "sss"), sql.Named("vv2", 1536699999.11))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = db.Exec(`insert into foo(id, name, time) values(:id, :name, :time);`,
+		sql.Named("id", 10),
+		sql.Named("name", "sss"),
+		sql.Named("time", 1536111111.11))
 	if err != nil {
 		log.Fatal(err)
 	}

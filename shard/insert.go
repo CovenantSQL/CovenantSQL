@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
+	"github.com/y0ssar1an/q"
 )
 
 const SHARD_SUFFIX = "_ts_"
@@ -38,7 +39,7 @@ func buildInsertPlan(query string,
 	c *ShardingConn,
 ) (instructions Primitive, err error) {
 	log.Debugf("buildInsertPlan got %s\n insert:%#v\n args: %#v", query, ins, args)
-	//q.Q(ins, args)
+	q.Q(ins, args)
 
 	if conf, ok := c.conf[ins.Table.Name.CompliantName()]; ok {
 		if !conf.ShardColName.IsEmpty() && conf.ShardInterval > 0 {
@@ -76,7 +77,8 @@ func buildInsertPlan(query string,
 								singleIns, err = c.prepareShardInstruction(insertTS, ins, row, rowArgs, conf)
 								//singleIns, err = c.prepareShardInstruction(insertTS, ins, row, args, conf)
 								if err != nil {
-									return nil, errors.Wrap(err, "prepare shard instruction failed")
+									return nil,
+										errors.Wrap(err, "prepare shard instruction failed")
 								}
 								allInserts.Instructions = append(allInserts.Instructions, singleIns)
 								return allInserts, nil
@@ -282,12 +284,12 @@ func generateNamedArgs(args []driver.NamedValue, row sqlparser.ValTuple) (rowArg
 		if colVal, ok := col.(*sqlparser.SQLVal); ok {
 			if colVal.Type == sqlparser.ValArg {
 				var colArgIndex int64
-				var err error
-				colArgIndex, err = getValArgIndex(colVal)
-				if err == nil {
+				if len(colVal.Val) > 1 {
+					colName := string(colVal.Val[1:])
+					colArgIndex, _ = getValArgIndex(colVal)
 					for _, a := range args {
-						if a.Name == string(colVal.Val) || a.Ordinal == int(colArgIndex) {
-							namedArg := sql.Named(string(colVal.Val[1:]), a.Value)
+						if a.Name == colName || a.Ordinal == int(colArgIndex) {
+							namedArg := sql.Named(colName, a.Value)
 							rowArgs = append(rowArgs, namedArg)
 						}
 					}

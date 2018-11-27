@@ -51,19 +51,34 @@ func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS in
 		}
 
 	case sqlparser.ValArg:
-		argIndex, err = getValArgIndex(sqlVal)
-		if err != nil {
-			log.Warn(err)
-		}
-		for _, a := range args {
-			// Name has higher priority
-			if a.Name == string(sqlVal.Val) || a.Ordinal == int(argIndex) {
-				arg = &driver.NamedValue{
-					Name:    a.Name,
-					Ordinal: a.Ordinal,
-					Value:   a.Value,
+		if len(sqlVal.Val) > 1 {
+			for _, a := range args {
+				// Name has higher priority
+				if a.Name == string(sqlVal.Val[1:]) {
+					arg = &driver.NamedValue{
+						Name:    a.Name,
+						Ordinal: a.Ordinal,
+						Value:   a.Value,
+					}
+					break
 				}
-				break
+			}
+			if arg == nil {
+				argIndex, err = getValArgIndex(sqlVal)
+				if err != nil {
+					log.Warn(err)
+				} else {
+					for _, a := range args {
+						if a.Ordinal == int(argIndex) {
+							arg = &driver.NamedValue{
+								Name:    a.Name,
+								Ordinal: a.Ordinal,
+								Value:   a.Value,
+							}
+							break
+						}
+					}
+				}
 			}
 		}
 

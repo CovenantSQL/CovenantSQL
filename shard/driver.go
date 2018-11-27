@@ -215,7 +215,7 @@ func (c *ShardingConn) SetShardConfig(
 }
 
 func (c *ShardingConn) Close() (err error) {
-	//TODO(auxten)
+	c.rawDB.Close()
 	err = c.rawConn.Close()
 	return
 }
@@ -253,10 +253,10 @@ func (c *ShardingConn) ExecContext(
 	var (
 		tokenizer   = sqlparser.NewStringTokenizer(query)
 		lastPos     int
-		lastArgs    int
 		singleQuery string
 		queries     []string
 		stmts       []sqlparser.Statement
+		argss       [][]driver.NamedValue
 	)
 
 	for {
@@ -275,56 +275,21 @@ func (c *ShardingConn) ExecContext(
 		lastPos = tokenizer.Position
 		queries = append(queries, singleQuery)
 		stmts = append(stmts, stmt)
-		//q.Q(stmt, args[lastArgs:lastArgs+numInputs], stmt)
+	}
+
+	argss, err = c.splitArgs(queries, args)
+	if err != nil {
+		return
 	}
 
 	// Build query plans
 	plans := make([]*Plan, len(queries))
-	argss := make([][]driver.NamedValue, len(queries))
 	for i, q := range queries {
-		var (
-			plan       *Plan
-			sqliteStmt driver.Stmt
-			numInputs  int
-			j          int
-			a          driver.NamedValue
-		)
-
-		insertStmt, ok := stmts[i].(*sqlparser.Insert)
-		if ok {
-			sqliteStmt, err = c.rawConn.Prepare(q)
-			if err == nil {
-				numInputs = sqliteStmt.NumInput()
-				sqliteStmt.Close()
-			}
-			// Copy to fix args ordinal error
-			newArgs := make([]driver.NamedValue, numInputs)
-			for j, a = range args[lastArgs : lastArgs+numInputs] {
-				newArgs[j] = driver.NamedValue{
-					Name:    a.Name,
-					Ordinal: j + 1,
-					Value:   a.Value,
-				}
-			}
-			argss[i] = newArgs
-			lastArgs += numInputs
-
-			plan, err = BuildFromStmt(q, argss[i], insertStmt, c)
-			if err != nil {
-				log.Errorf("build shard statement for %v failed: %v", q, err)
-				return
-			}
-		} else {
-			// FIXME(auxten) if contains any statement other than sqlparser.Insert, we just
-			// execute it for test
-			plan = &Plan{
-				Original: q,
-				Instructions: &BasePrimitive{
-					query:   q,
-					args:    args,
-					rawConn: c.rawConn,
-				},
-			}
+		var plan *Plan
+		plan, err = BuildFromStmt(q, argss[i], stmts[i], c)
+		if err != nil {
+			return nil,
+				errors.Wrapf(err, "build shard statement for %v failed", q)
 		}
 		plans[i] = plan
 	}
@@ -348,6 +313,38 @@ func (c *ShardingConn) ExecContext(
 	}
 
 	return shardResult, err
+}
+func (c *ShardingConn) splitArgs(queries []string, args []driver.NamedValue) (argss [][]driver.NamedValue, err error) {
+	var (
+		sqliteStmt driver.Stmt
+		numInputs  int
+		j          int
+		lastArgs   int
+		a          driver.NamedValue
+	)
+	argss = make([][]driver.NamedValue, len(queries))
+
+	for i, q := range queries {
+		sqliteStmt, err = c.rawConn.Prepare(q)
+		if err == nil {
+			numInputs = sqliteStmt.NumInput()
+			sqliteStmt.Close()
+		} else {
+			return nil, errors.Wrapf(err, "get input count failed for %s", q)
+		}
+		// Copy to fix args ordinal error
+		newArgs := make([]driver.NamedValue, numInputs)
+		for j, a = range args[lastArgs : lastArgs+numInputs] {
+			newArgs[j] = driver.NamedValue{
+				Name:    a.Name,
+				Ordinal: j + 1,
+				Value:   a.Value,
+			}
+		}
+		argss[i] = newArgs
+		lastArgs += numInputs
+	}
+	return
 }
 
 func (c *ShardingConn) QueryContext(

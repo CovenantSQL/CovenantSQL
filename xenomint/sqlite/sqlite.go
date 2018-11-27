@@ -19,26 +19,24 @@ package sqlite
 import (
 	"database/sql"
 
-	"github.com/CovenantSQL/CovenantSQL/shard"
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 const (
-	serializableDriver = "cqlts"
+	serializableDriver = "sqlite3"
 	dirtyReadDriver    = "sqlite3-dirty-reader"
 )
 
 func init() {
-	driver := &shard.ShardingDriver{RawDriver: &sqlite3.SQLiteDriver{}}
-	driver.RawDriver.ConnectHook = func(c *sqlite3.SQLiteConn) (err error) {
-		if _, err = c.Exec("PRAGMA read_uncommitted=1", nil); err != nil {
+	sql.Register(dirtyReadDriver, &sqlite3.SQLiteDriver{
+		ConnectHook: func(c *sqlite3.SQLiteConn) (err error) {
+			if _, err = c.Exec("PRAGMA read_uncommitted=1", nil); err != nil {
+				return
+			}
 			return
-		}
-		return
-	}
-
-	sql.Register(dirtyReadDriver, driver)
+		},
+	})
 }
 
 // SQLite3 is the sqlite3 implementation of the xenomint/interfaces.Storage interface.

@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/coreos/bbolt"
 	"github.com/ulule/deepcopier"
@@ -47,17 +47,17 @@ func safeSub(x, y *uint64) (err error) {
 
 type accountObject struct {
 	sync.RWMutex
-	pt.Account
+	types.Account
 }
 
 type sqlchainObject struct {
 	sync.RWMutex
-	pt.SQLChainProfile
+	types.SQLChainProfile
 }
 
 type providerObject struct {
 	sync.RWMutex
-	pt.ProviderProfile
+	types.ProviderProfile
 }
 
 type metaIndex struct {
@@ -150,7 +150,7 @@ func (i *metaIndex) IncreaseAccountStableBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeAdd(&ao.TokenBalance[pt.Particle], &amount); err != nil {
+		if err = safeAdd(&ao.TokenBalance[types.Particle], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -185,7 +185,7 @@ func (i *metaIndex) DecreaseAccountStableBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeSub(&ao.TokenBalance[pt.Particle], &amount); err != nil {
+		if err = safeSub(&ao.TokenBalance[types.Particle], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -220,7 +220,7 @@ func (i *metaIndex) IncreaseAccountCovenantBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeAdd(&ao.TokenBalance[pt.Wave], &amount); err != nil {
+		if err = safeAdd(&ao.TokenBalance[types.Wave], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -255,7 +255,7 @@ func (i *metaIndex) DecreaseAccountCovenantBalance(
 			err = ErrAccountNotFound
 			return
 		}
-		if err = safeSub(&ao.TokenBalance[pt.Wave], &amount); err != nil {
+		if err = safeSub(&ao.TokenBalance[types.Wave], &amount); err != nil {
 			return
 		}
 		ao.NextNonce++
@@ -292,7 +292,7 @@ func (i *metaIndex) CreateSQLChain(
 		}
 		// Create new sqlchainProfile
 		co = &sqlchainObject{
-			SQLChainProfile: pt.SQLChainProfile{
+			SQLChainProfile: types.SQLChainProfile{
 				ID:    id,
 				Owner: addr,
 			},

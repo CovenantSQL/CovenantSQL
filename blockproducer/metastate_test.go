@@ -31,7 +31,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
@@ -140,37 +139,37 @@ func TestMetaState(t *testing.T) {
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
 			err = ms.createSQLChain(addr1, dbid1)
 			So(err, ShouldEqual, ErrAccountNotFound)
-			err = ms.addSQLChainUser(dbid1, addr1, pt.Admin)
+			err = ms.addSQLChainUser(dbid1, addr1, types.Admin)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 			err = ms.deleteSQLChainUser(dbid1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbid1, addr1, pt.Write)
+			err = ms.alterSQLChainUser(dbid1, addr1, types.Write)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
 			ao, loaded = ms.loadOrStoreAccountObject(addr1, &accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address: addr1,
 				},
 			})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address: addr2,
 				},
 			})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &sqlchainObject{
-				SQLChainProfile: pt.SQLChainProfile{
+				SQLChainProfile: types.SQLChainProfile{
 					ID: dbid1,
 				},
 			})
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &sqlchainObject{
-				SQLChainProfile: pt.SQLChainProfile{
+				SQLChainProfile: types.SQLChainProfile{
 					ID: dbid2,
 				},
 			})
@@ -208,9 +207,9 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
+					err = ms.addSQLChainUser(dbid3, addr2, types.Write)
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
+					err = ms.addSQLChainUser(dbid3, addr2, types.Write)
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
 						err = ms.deleteSQLChainUser(dbid3, addr2)
@@ -219,9 +218,9 @@ func TestMetaState(t *testing.T) {
 						So(err, ShouldBeNil)
 					})
 					Convey("The metaState object should be ok to alter user", func() {
-						err = ms.alterSQLChainUser(dbid3, addr2, pt.Read)
+						err = ms.alterSQLChainUser(dbid3, addr2, types.Read)
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbid3, addr2, pt.Write)
+						err = ms.alterSQLChainUser(dbid3, addr2, types.Write)
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
@@ -234,9 +233,9 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 						})
 						Convey("The metaState object should be ok to alter user", func() {
-							err = ms.alterSQLChainUser(dbid3, addr2, pt.Read)
+							err = ms.alterSQLChainUser(dbid3, addr2, types.Read)
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbid3, addr2, pt.Write)
+							err = ms.alterSQLChainUser(dbid3, addr2, types.Write)
 							So(err, ShouldBeNil)
 						})
 					})
@@ -245,9 +244,9 @@ func TestMetaState(t *testing.T) {
 					err = db.Update(ms.commitProcedure())
 					So(err, ShouldBeNil)
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
+						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbid3, addr2, pt.Write)
+						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {
@@ -303,8 +302,8 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					So(ao, ShouldNotBeNil)
 					So(ao.Address, ShouldEqual, addr1)
-					So(ao.TokenBalance[pt.Particle], ShouldEqual, incSta)
-					So(ao.TokenBalance[pt.Wave], ShouldEqual, incCov)
+					So(ao.TokenBalance[types.Particle], ShouldEqual, incSta)
+					So(ao.TokenBalance[types.Wave], ShouldEqual, incCov)
 					bl, loaded = ms.loadAccountStableBalance(addr1)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, incSta)
@@ -324,8 +323,8 @@ func TestMetaState(t *testing.T) {
 							So(loaded, ShouldBeTrue)
 							So(ao, ShouldNotBeNil)
 							So(ao.Address, ShouldEqual, addr1)
-							So(ao.TokenBalance[pt.Particle], ShouldEqual, incSta-decSta)
-							So(ao.TokenBalance[pt.Wave], ShouldEqual, incCov-decCov)
+							So(ao.TokenBalance[types.Particle], ShouldEqual, incSta-decSta)
+							So(ao.TokenBalance[types.Wave], ShouldEqual, incCov-decCov)
 						},
 					)
 				})
@@ -612,11 +611,11 @@ func TestMetaState(t *testing.T) {
 			Convey("When transactions are added", func() {
 				var (
 					n  pi.AccountNonce
-					t0 = pt.NewBaseAccount(&pt.Account{
+					t0 = types.NewBaseAccount(&types.Account{
 						Address: addr1,
 					})
-					t1 = pt.NewTransfer(
-						&pt.TransferHeader{
+					t1 = types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
@@ -733,20 +732,20 @@ func TestMetaState(t *testing.T) {
 		Convey("When base account txs are added", func() {
 			var (
 				txs = []pi.Transaction{
-					pt.NewBaseAccount(
-						&pt.Account{
+					types.NewBaseAccount(
+						&types.Account{
 							Address:      addr1,
-							TokenBalance: [pt.SupportTokenNumber]uint64{100, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{100, 100},
 						},
 					),
-					pt.NewBaseAccount(
-						&pt.Account{
+					types.NewBaseAccount(
+						&types.Account{
 							Address:      addr2,
-							TokenBalance: [pt.SupportTokenNumber]uint64{100, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{100, 100},
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
@@ -771,32 +770,32 @@ func TestMetaState(t *testing.T) {
 							Rewards:   []uint64{1},
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    2,
 							Amount:   1,
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    3,
 							Amount:   10,
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    3,
 							Amount:   1,
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    4,
@@ -901,50 +900,50 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			ao, loaded = ms.loadOrStoreAccountObject(addr1,
-				&accountObject{Account: pt.Account{
+				&accountObject{Account: types.Account{
 					Address: addr1,
 				},
 				})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address: addr2,
 				},
 			})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			ao, loaded = ms.loadOrStoreAccountObject(addr3, &accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address: addr3,
 				},
 			})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			ao, loaded = ms.loadOrStoreAccountObject(addr4, &accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address: addr4,
 				},
 			})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 			Convey("When provider transaction is invalid", func() {
-				invalidPs := pt.ProvideService{
-					ProvideServiceHeader: pt.ProvideServiceHeader{
+				invalidPs := types.ProvideService{
+					ProvideServiceHeader: types.ProvideServiceHeader{
 						Contract: addr2,
 					},
 				}
 				invalidPs.Sign(privKey1)
-				invalidCd1 := pt.CreateDatabase{
-					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+				invalidCd1 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr2,
 					},
 				}
 				invalidCd1.Sign(privKey1)
-				invalidCd2 := pt.CreateDatabase{
-					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+				invalidCd2 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr1,
-						ResourceMeta: pt.ResourceMeta{
+						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
 					},
@@ -959,28 +958,28 @@ func TestMetaState(t *testing.T) {
 				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
 			})
 			Convey("When SQLChain create", func() {
-				ps := pt.ProvideService{
-					ProvideServiceHeader: pt.ProvideServiceHeader{
+				ps := types.ProvideService{
+					ProvideServiceHeader: types.ProvideServiceHeader{
 						Contract:   addr2,
 						TargetUser: addr1,
 					},
 				}
 				err = ps.Sign(privKey2)
 				So(err, ShouldBeNil)
-				cd1 := pt.CreateDatabase{
-					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+				cd1 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr1,
-						ResourceMeta: pt.ResourceMeta{
+						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
 					},
 				}
 				cd1.Sign(privKey1)
 				So(err, ShouldBeNil)
-				cd2 := pt.CreateDatabase{
-					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+				cd2 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr3,
-						ResourceMeta: pt.ResourceMeta{
+						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
 					},
@@ -1000,11 +999,11 @@ func TestMetaState(t *testing.T) {
 				dbAccount, err := dbID.AccountAddress()
 				So(err, ShouldBeNil)
 
-				up := pt.UpdatePermission{
-					UpdatePermissionHeader: pt.UpdatePermissionHeader{
+				up := types.UpdatePermission{
+					UpdatePermissionHeader: types.UpdatePermissionHeader{
 						TargetSQLChain: addr1,
 						TargetUser:     addr3,
-						Permission:     pt.Read,
+						Permission:     types.Read,
 						Nonce:          cd1.Nonce + 1,
 					},
 				}
@@ -1020,7 +1019,7 @@ func TestMetaState(t *testing.T) {
 				// test permission update
 				// addr1(admin) update addr3 as admin
 				up.TargetUser = addr3
-				up.Permission = pt.Admin
+				up.Permission = types.Admin
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(&up))
@@ -1028,7 +1027,7 @@ func TestMetaState(t *testing.T) {
 				// addr3(admin) update addr4 as read
 				up.TargetUser = addr4
 				up.Nonce = 0
-				up.Permission = pt.Read
+				up.Permission = types.Read
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(&up))
@@ -1042,7 +1041,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				// addr3(admin) update addr3(admin) as read fail
 				up.TargetUser = addr3
-				up.Permission = pt.Read
+				up.Permission = types.Read
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
@@ -1057,15 +1056,15 @@ func TestMetaState(t *testing.T) {
 				co, loaded = ms.loadSQLChainObject(*dbID)
 				for _, user := range co.Users {
 					if user.Address == addr1 {
-						So(user.Permission, ShouldEqual, pt.Read)
+						So(user.Permission, ShouldEqual, types.Read)
 						continue
 					}
 					if user.Address == addr3 {
-						So(user.Permission, ShouldEqual, pt.Admin)
+						So(user.Permission, ShouldEqual, types.Admin)
 						continue
 					}
 					if user.Address == addr4 {
-						So(user.Permission, ShouldEqual, pt.Read)
+						So(user.Permission, ShouldEqual, types.Read)
 						continue
 					}
 				}

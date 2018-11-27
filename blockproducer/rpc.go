@@ -20,7 +20,6 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 )
 
 // ChainRPCService defines a main chain RPC server.
@@ -31,7 +30,7 @@ type ChainRPCService struct {
 // AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
 type AdviseNewBlockReq struct {
 	proto.Envelope
-	Block *pt.BPBlock
+	Block *types.BPBlock
 }
 
 // AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
@@ -61,7 +60,7 @@ type FetchBlockResp struct {
 	proto.Envelope
 	Height uint32
 	Count  uint32
-	Block  *pt.BPBlock
+	Block  *types.BPBlock
 }
 
 // FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.
@@ -125,7 +124,7 @@ type OrderMakerReq struct {
 // OrderTakerReq defines a request of the order taker in database market.
 type OrderTakerReq struct {
 	proto.Envelope
-	DBMeta pt.ResourceMeta
+	DBMeta types.ResourceMeta
 }
 
 // OrderTakerResp defines a response of the order taker in database market.

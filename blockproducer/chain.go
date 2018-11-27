@@ -34,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/coreos/bbolt"
@@ -63,7 +62,7 @@ type Chain struct {
 	cl *rpc.Caller
 	bs chainbus.Bus
 
-	blocksFromRPC chan *pt.BPBlock
+	blocksFromRPC chan *types.BPBlock
 	pendingTxs    chan pi.Transaction
 	ctx           context.Context
 }
@@ -144,7 +143,7 @@ func NewChain(cfg *Config) (*Chain, error) {
 		rt:            newRuntime(ctx, cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
-		blocksFromRPC: make(chan *pt.BPBlock),
+		blocksFromRPC: make(chan *types.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
 		ctx:           ctx,
 	}
@@ -200,7 +199,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		rt:            newRuntime(ctx, cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
-		blocksFromRPC: make(chan *pt.BPBlock),
+		blocksFromRPC: make(chan *types.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
 		ctx:           ctx,
 	}
@@ -226,7 +225,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 		nodes := make([]blockNode, blocks.Stats().KeyN)
 
 		if err = blocks.ForEach(func(k, v []byte) (err error) {
-			block := &pt.BPBlock{}
+			block := &types.BPBlock{}
 			if err = utils.DecodeMsgPack(v, block); err != nil {
 				log.WithError(err).Error("load block failed")
 				return err
@@ -276,7 +275,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 }
 
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
-func (c *Chain) checkBlock(b *pt.BPBlock) (err error) {
+func (c *Chain) checkBlock(b *types.BPBlock) (err error) {
 	// TODO(lambda): process block fork
 	if !b.ParentHash().IsEqual(&c.rt.getHead().Head) {
 		log.WithFields(log.Fields{
@@ -304,7 +303,7 @@ func (c *Chain) checkBlock(b *pt.BPBlock) (err error) {
 	return nil
 }
 
-func (c *Chain) pushBlockWithoutCheck(b *pt.BPBlock) error {
+func (c *Chain) pushBlockWithoutCheck(b *types.BPBlock) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
 	log.Debugf("current block %s, height %d, its parent %s", b.BlockHash(), h, b.ParentHash())
 	node := newBlockNode(c.rt.chainInitTime, c.rt.period, b, c.rt.getHead().Node)
@@ -349,7 +348,7 @@ func (c *Chain) pushBlockWithoutCheck(b *pt.BPBlock) error {
 	return err
 }
 
-func (c *Chain) pushGenesisBlock(b *pt.BPBlock) (err error) {
+func (c *Chain) pushGenesisBlock(b *types.BPBlock) (err error) {
 	err = c.pushBlockWithoutCheck(b)
 	if err != nil {
 		log.WithError(err).Error("push genesis block failed")
@@ -357,7 +356,7 @@ func (c *Chain) pushGenesisBlock(b *pt.BPBlock) (err error) {
 	return
 }
 
-func (c *Chain) pushBlock(b *pt.BPBlock) error {
+func (c *Chain) pushBlock(b *types.BPBlock) error {
 	err := c.checkBlock(b)
 	if err != nil {
 		err = errors.Wrap(err, "check block failed")
@@ -378,9 +377,9 @@ func (c *Chain) produceBlock(now time.Time) error {
 		return err
 	}
 
-	b := &pt.BPBlock{
-		SignedHeader: pt.BPSignedHeader{
-			BPHeader: pt.BPHeader{
+	b := &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
 				Version:    blockVersion,
 				Producer:   c.rt.accountAddress,
 				ParentHash: c.rt.getHead().Head,
@@ -505,13 +504,13 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
 	return
 }
 
-func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.BPBlock, count uint32, err error) {
+func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, err error) {
 	node := c.rt.getHead().Node.ancestor(h)
 	if node == nil {
 		return nil, 0, ErrNoSuchBlock
 	}
 
-	b = &pt.BPBlock{}
+	b = &types.BPBlock{}
 	k := node.indexKey()
 
 	err = c.db.View(func(tx *bolt.Tx) error {
@@ -525,13 +524,13 @@ func (c *Chain) fetchBlockByHeight(h uint32) (b *pt.BPBlock, count uint32, err e
 	return b, node.count, nil
 }
 
-func (c *Chain) fetchBlockByCount(count uint32) (b *pt.BPBlock, height uint32, err error) {
+func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32, err error) {
 	node := c.rt.getHead().Node.ancestorByCount(count)
 	if node == nil {
 		return nil, 0, ErrNoSuchBlock
 	}
 
-	b = &pt.BPBlock{}
+	b = &types.BPBlock{}
 	k := node.indexKey()
 
 	err = c.db.View(func(tx *bolt.Tx) error {
@@ -617,7 +616,7 @@ func (c *Chain) Start() error {
 
 func (c *Chain) processBlocks(ctx context.Context, wg *sync.WaitGroup) {
 	var (
-		returnStash = func(ctx context.Context, wg *sync.WaitGroup, stash []*pt.BPBlock) {
+		returnStash = func(ctx context.Context, wg *sync.WaitGroup, stash []*types.BPBlock) {
 			defer wg.Done()
 			for _, block := range stash {
 				select {
@@ -640,7 +639,7 @@ func (c *Chain) processBlocks(ctx context.Context, wg *sync.WaitGroup) {
 		wg.Done()
 	}()
 
-	var stash []*pt.BPBlock
+	var stash []*types.BPBlock
 	for {
 		select {
 		case block := <-c.blocksFromRPC:

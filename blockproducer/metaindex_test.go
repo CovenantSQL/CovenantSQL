@@ -23,7 +23,7 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -89,12 +89,12 @@ func TestMetaIndex(t *testing.T) {
 		})
 		Convey("When database objects are stored", func() {
 			mi.storeSQLChainObject(&sqlchainObject{
-				SQLChainProfile: pt.SQLChainProfile{
+				SQLChainProfile: types.SQLChainProfile{
 					ID: dbid1,
 				},
 			})
 			mi.storeSQLChainObject(&sqlchainObject{
-				SQLChainProfile: pt.SQLChainProfile{
+				SQLChainProfile: types.SQLChainProfile{
 					ID: dbid2,
 				},
 			})
@@ -123,15 +123,15 @@ func TestMetaIndex(t *testing.T) {
 		})
 		Convey("When account objects are stored", func() {
 			mi.storeAccountObject(&accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address:      addr1,
-					TokenBalance: [pt.SupportTokenNumber]uint64{10, 10},
+					TokenBalance: [types.SupportTokenNumber]uint64{10, 10},
 				},
 			})
 			mi.storeAccountObject(&accountObject{
-				Account: pt.Account{
+				Account: types.Account{
 					Address:      addr2,
-					TokenBalance: [pt.SupportTokenNumber]uint64{10, 10},
+					TokenBalance: [types.SupportTokenNumber]uint64{10, 10},
 				},
 			})
 			Convey("The account objects should be retrievable", func() {

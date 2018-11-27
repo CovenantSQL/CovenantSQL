@@ -32,7 +32,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -83,7 +82,7 @@ func randStringBytes(n int) string {
 	return string(b)
 }
 
-func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.BPBlock, err error) {
+func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.BPBlock, err error) {
 	// Generate key pair
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -94,9 +93,9 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.BPBlock, err e
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &pt.BPBlock{
-		SignedHeader: pt.BPSignedHeader{
-			BPHeader: pt.BPHeader{
+	b = &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
 				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
@@ -116,16 +115,16 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.BPBlock, err e
 	} else {
 		// Create base accounts
 		var (
-			ba1 = pt.NewBaseAccount(
-				&pt.Account{
+			ba1 = types.NewBaseAccount(
+				&types.Account{
 					Address:      testAddress1,
-					TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
+					TokenBalance: [types.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
-			ba2 = pt.NewBaseAccount(
-				&pt.Account{
+			ba2 = types.NewBaseAccount(
+				&types.Account{
 					Address:      testAddress2,
-					TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
+					TokenBalance: [types.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
 		)
@@ -142,7 +141,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.BPBlock, err e
 	return
 }
 
-func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *pt.BPBlock, err error) {
+func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *types.BPBlock, err error) {
 	// Generate key pair
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
@@ -153,9 +152,9 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &pt.BPBlock{
-		SignedHeader: pt.BPSignedHeader{
-			BPHeader: pt.BPHeader{
+	b = &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
 				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
@@ -169,8 +168,8 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	}
 
 	testAddress1Nonce++
-	var tr = pt.NewTransfer(
-		&pt.TransferHeader{
+	var tr = types.NewTransfer(
+		&types.TransferHeader{
 			Sender:   testAddress1,
 			Receiver: testAddress2,
 			Nonce:    testAddress1Nonce,
@@ -261,7 +260,7 @@ func generateRandomBillingHeader() (tc *types.BillingHeader, err error) {
 	return tc, nil
 }
 
-func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *types.Billing, error) {
+func generateRandomBillingAndBaseAccount() (*types.BaseAccount, *types.Billing, error) {
 	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, nil, err
@@ -275,10 +274,10 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *types.Billing, err
 		return nil, nil, err
 	}
 
-	txBaseAccount := pt.NewBaseAccount(
-		&pt.Account{
+	txBaseAccount := types.NewBaseAccount(
+		&types.Account{
 			Address:      header.Producer,
-			TokenBalance: [pt.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
+			TokenBalance: [types.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 		},
 	)
 

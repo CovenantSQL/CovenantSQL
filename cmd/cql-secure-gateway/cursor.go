@@ -18,10 +18,12 @@ package main
 
 import "github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/cursor"
 
+// Cursor defines wrapper for mysql adapter cursor object.
 type Cursor struct {
 	*cursor.Cursor
 }
 
+// NewCursor returns new cursor object.
 func NewCursor() *Cursor {
 	return &Cursor{
 		Cursor: cursor.NewCursor(),

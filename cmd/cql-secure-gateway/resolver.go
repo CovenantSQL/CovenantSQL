@@ -25,27 +25,86 @@ import (
 )
 
 var (
-	ErrInvalidStatement    = errors.New("invalid statement")
-	ErrInvalidColumn       = errors.New("invalid column")
-	ErrInvalidTable        = errors.New("invalid table")
-	ErrAmbiguousColumnName = errors.New("ambiguous column name")
+	// ErrQueryLogicError redefines mysql adapter query logic error for convenience.
+	ErrQueryLogicError = resolver.ErrQueryLogicError
 )
 
+const (
+	// FilterOp defines the select filter operator.
+	FilterOp Op = "FILTER"
+	// DistinctOp the distinct operation in select/aggr function.
+	DistinctOp Op = "DISTINCT"
+	// AliasOp defines the table alias/column alias operation.
+	AliasOp Op = "ALIAS"
+	// AndOp defines the logical and operation.
+	AndOp Op = "AND"
+	// OrOp defines the logical or operation.
+	OrOp Op = "OR"
+	// NotOp defines the logical not operation.
+	NotOp Op = "NOT"
+	// LiteralOp defines the literal value.
+	LiteralOp Op = "LITERAL"
+	// ParameterOp defines the parameter placeholder.
+	ParameterOp Op = "PARAMETER"
+	// BinaryOp defines the binary operator such as + / -.
+	BinaryOp Op = "BINARY"
+	// UnaryOp defines the unary operator such as ~.
+	UnaryOp Op = "UNARY"
+	// CaseConditionOp defines the condition branch of the case expression.
+	CaseConditionOp Op = "CASE_CONDITION"
+	// CaseOp defines the expression branch of the case expression.
+	CaseOp Op = "CASE"
+	// ComparisonOp defines the comparison expression such as > >= <= =.
+	ComparisonOp Op = "COMPARISON"
+	// ConvertOp defines the convert expression.
+	ConvertOp Op = "CONVERT"
+	// ExistsOp defines the exists expression.
+	ExistsOp Op = "EXISTS"
+	// FunctionOp defines the function call expression such as max/min/count.
+	FunctionOp Op = "FUNCTION"
+	// GroupConcatOp defines the group concat function expression.
+	GroupConcatOp Op = "GROUP_CONCAT"
+	// IsOp defines the is expression such as is not null/is null/is true/is false.
+	IsOp Op = "IS"
+	// RangeOp defines the range compare expression such as between and operator.
+	RangeOp Op = "RANGE"
+	// SubQueryOp defines the sub-query expression.
+	SubQueryOp Op = "SUB_QUERY"
+	// OrderByOp defines the order by expression.
+	OrderByOp Op = "ORDER_BY"
+	// GroupByOp defines the group by expression.
+	GroupByOp Op = "GROUP_BY"
+	// JoinUsingOp defines the using operator part of the join expression.
+	JoinUsingOp Op = "JOIN_USING"
+	// AssignmentOp defines the assignment operation of insert/update column/values.
+	AssignmentOp Op = "ASSIGNMENT"
+)
+
+// Op defines the operation type.
+type Op string
+
+// Resolver defines the query resolver process object for secure gateway.
 type Resolver struct {
 	*resolver.Resolver
 }
 
+// Query defines the resolved query of the secure gateway.
 type Query struct {
 	*resolver.Query
+	PhysicalColumnRely []*ColumnResult
 }
 
+// Columns defines the column array for resolving.
 type Columns []*Column
 
+// Computation defines a single column operation.
 type Computation struct {
-	Op       string
+	Op       Op
+	Data     interface{}
 	Operands Columns
 }
 
+// ResolveColName resolves column name with qualifier in current columns symbol table.
 func (c Columns) ResolveColName(col *sqlparser.ColName) (column *Column, err error) {
 	if col == nil {
 		return
@@ -65,10 +124,11 @@ func (c Columns) ResolveColName(col *sqlparser.ColName) (column *Column, err err
 
 	// not found
 	tb := sqlparser.NewTrackedBuffer(nil)
-	err = errors.Wrapf(ErrInvalidColumn, "column %s not found", tb.WriteNode(col).String())
+	err = errors.Wrapf(ErrQueryLogicError, "column %s not found", tb.WriteNode(col).String())
 	return
 }
 
+// ResolveColIdent resolves column name in current columns symbol table.
 func (c Columns) ResolveColIdent(col sqlparser.ColIdent) (column *Column, err error) {
 	found := false
 	for _, item := range c {
@@ -78,7 +138,7 @@ func (c Columns) ResolveColIdent(col sqlparser.ColIdent) (column *Column, err er
 				// ambiguous
 				tb1 := sqlparser.NewTrackedBuffer(nil)
 				tb2 := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrAmbiguousColumnName,
+				err = errors.Wrapf(ErrQueryLogicError,
 					"ambiguous column %s, candidates: %s, %s", col.String(),
 					tb1.WriteNode(&column.ColName).String(),
 					tb2.WriteNode(&item.ColName).String())
@@ -91,27 +151,30 @@ func (c Columns) ResolveColIdent(col sqlparser.ColIdent) (column *Column, err er
 	}
 
 	if !found {
-		err = errors.Wrapf(ErrInvalidColumn, "column %s not found", col.String())
+		err = errors.Wrapf(ErrQueryLogicError, "column %s not found", col.String())
 		return
 	}
 
 	return
 }
 
+// NewColumns returns new columns symbol table.
 func NewColumns(cols ...*Column) Columns {
 	return Columns(cols)
 }
 
+// Column defines the resolved column.
 type Column struct {
 	ColName     sqlparser.ColName
 	IsPhysical  bool
 	Computation *Computation
 }
 
+// ColumnResult defines the resolved column result.
 type ColumnResult struct {
 	TableName string
 	ColName   string
-	Ops       [][]string
+	Ops       [][]Op
 }
 
 func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColumns Columns) (cols Columns, err error) {
@@ -143,7 +206,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "and",
+				Op:       AndOp,
 				Operands: cols,
 			},
 		})
@@ -159,7 +222,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "or",
+				Op:       OrOp,
 				Operands: cols,
 			},
 		})
@@ -170,34 +233,18 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "not",
+				Op:       NotOp,
 				Operands: tempColumns,
 			},
 		})
 	case *sqlparser.ParenExpr:
 		return r.buildExpression(dbID, e.Expr, originColumns)
-
-		/* literal constant */
-	case sqlparser.BoolVal:
+	case sqlparser.BoolVal, *sqlparser.NullVal, *sqlparser.TimeExpr:
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op: "bool_literal",
-			},
-		})
-	case *sqlparser.NullVal:
-		cols = NewColumns(&Column{
-			IsPhysical: false,
-			Computation: &Computation{
-				Op: "null_literal",
-			},
-		})
-	case *sqlparser.TimeExpr:
-		// treat time expression as literal
-		cols = NewColumns(&Column{
-			IsPhysical: false,
-			Computation: &Computation{
-				Op: "time_literal",
+				Op:   LiteralOp,
+				Data: e,
 			},
 		})
 	case sqlparser.ValTuple:
@@ -209,25 +256,20 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		}
 	case *sqlparser.SQLVal:
 		switch e.Type {
-		case sqlparser.StrVal, sqlparser.HexVal:
+		case sqlparser.StrVal, sqlparser.HexVal, sqlparser.IntVal, sqlparser.FloatVal, sqlparser.HexNum, sqlparser.BitVal:
 			cols = NewColumns(&Column{
 				IsPhysical: false,
 				Computation: &Computation{
-					Op: "string_literal",
-				},
-			})
-		case sqlparser.IntVal, sqlparser.FloatVal, sqlparser.HexNum, sqlparser.BitVal:
-			cols = NewColumns(&Column{
-				IsPhysical: false,
-				Computation: &Computation{
-					Op: "numeric_literal",
+					Op:   LiteralOp,
+					Data: e,
 				},
 			})
 		case sqlparser.ValArg:
 			cols = NewColumns(&Column{
 				IsPhysical: false,
 				Computation: &Computation{
-					Op: "parameter",
+					Op:   ParameterOp,
+					Data: e,
 				},
 			})
 		default:
@@ -248,7 +290,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "binary_op",
+				Op:       BinaryOp,
 				Operands: cols,
 			},
 		})
@@ -268,7 +310,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 			cols = append(cols, &Column{
 				IsPhysical: false,
 				Computation: &Computation{
-					Op:       "case_condition",
+					Op:       CaseConditionOp,
 					Operands: tempColumns,
 				},
 			})
@@ -283,7 +325,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "case",
+				Op:       CaseOp,
 				Operands: cols,
 			},
 		})
@@ -298,7 +340,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "compare",
+				Op:       ComparisonOp,
 				Operands: cols,
 			},
 		})
@@ -309,7 +351,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "convert",
+				Op:       ConvertOp,
 				Operands: tempColumns,
 			},
 		})
@@ -322,19 +364,34 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 			cols = NewColumns(&Column{
 				IsPhysical: false,
 				Computation: &Computation{
-					Op:       "exists",
+					Op:       ExistsOp,
 					Operands: tempColumns,
 				},
 			})
 		}
 	case *sqlparser.FuncExpr:
+		// if the expression is count(*), we resolve to simple count(1) expression
+		if !e.Distinct && e.Name.EqualString("count") && len(e.Exprs) == 1 {
+			if v, ok := e.Exprs[0].(*sqlparser.StarExpr); ok {
+				if v.TableName.IsEmpty() {
+					cols = NewColumns(&Column{
+						IsPhysical: false,
+						Computation: &Computation{
+							Op: FunctionOp,
+						},
+					})
+					return
+				}
+			}
+		}
+
 		if tempColumns, err = r.buildSelectExprs(dbID, e.Exprs, e.Distinct, originColumns); err != nil {
 			return
 		}
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "function",
+				Op:       FunctionOp,
 				Operands: tempColumns,
 			},
 		})
@@ -343,26 +400,11 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 			return
 		}
 		cols = append(cols, tempColumns...)
-		if tempColumns, err = r.buildOrderBy(dbID, e.OrderBy, cols); err != nil {
-			return
-		}
-		cols = append(cols, tempColumns...)
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "group_concat",
+				Op:       GroupConcatOp,
 				Operands: cols,
-			},
-		})
-	case *sqlparser.IntervalExpr:
-		if tempColumns, err = r.buildExpression(dbID, e.Expr, originColumns); err != nil {
-			return
-		}
-		cols = NewColumns(&Column{
-			IsPhysical: false,
-			Computation: &Computation{
-				Op:       "interval",
-				Operands: tempColumns,
 			},
 		})
 	case *sqlparser.IsExpr:
@@ -372,28 +414,8 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "is",
+				Op:       IsOp,
 				Operands: tempColumns,
-			},
-		})
-	case *sqlparser.SubstrExpr:
-		if tempColumns, err = r.buildExpression(dbID, e.From, originColumns); err != nil {
-			return
-		}
-		cols = append(cols, tempColumns...)
-		if tempColumns, err = r.buildExpression(dbID, e.To, originColumns); err != nil {
-			return
-		}
-		cols = append(cols, tempColumns...)
-		if tempColumns, err = r.buildExpression(dbID, e.Name, originColumns); err != nil {
-			return
-		}
-		cols = append(cols, tempColumns...)
-		cols = NewColumns(&Column{
-			IsPhysical: false,
-			Computation: &Computation{
-				Op:       "substr",
-				Operands: cols,
 			},
 		})
 	case *sqlparser.RangeCond:
@@ -406,7 +428,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "range",
+				Op:       RangeOp,
 				Operands: cols,
 			},
 		})
@@ -417,8 +439,8 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "unary_op",
-				Operands: cols,
+				Op:       UnaryOp,
+				Operands: tempColumns,
 			},
 		})
 	case *sqlparser.Subquery:
@@ -428,14 +450,14 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 		}
 
 		if len(tempColumns) != 1 {
-			err = errors.Wrapf(ErrInvalidStatement, "sub query returns %d columns", len(tempColumns))
+			err = errors.Wrapf(ErrQueryLogicError, "sub query returns %d columns", len(tempColumns))
 			return
 		}
 
 		cols = NewColumns(&Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "sub_query",
+				Op:       SubQueryOp,
 				Operands: tempColumns,
 			},
 		})
@@ -458,7 +480,7 @@ func (r *Resolver) buildOrder(dbID string, order *sqlparser.Order, originColumns
 	}
 
 	if len(cols) != 1 {
-		err = errors.Wrapf(ErrInvalidStatement, "sub query returns %d columns", len(cols))
+		err = errors.Wrapf(ErrQueryLogicError, "sub query returns %d columns", len(cols))
 		return
 	}
 
@@ -466,7 +488,7 @@ func (r *Resolver) buildOrder(dbID string, order *sqlparser.Order, originColumns
 	cols = NewColumns(&Column{
 		IsPhysical: false,
 		Computation: &Computation{
-			Op:       "order_by",
+			Op:       OrderByOp,
 			Operands: cols,
 		},
 	})
@@ -485,7 +507,7 @@ func (r *Resolver) buildGroupBy(dbID string, groupBy sqlparser.GroupBy, originCo
 		cols = append(cols, &Column{
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "group_by",
+				Op:       GroupByOp,
 				Operands: tempColumns,
 			},
 		})
@@ -550,7 +572,7 @@ func (r *Resolver) buildAllColumnInTableExpr(dbID string, tableExpr sqlparser.Ta
 			}
 		default:
 			tb := sqlparser.NewTrackedBuffer(nil)
-			err = errors.Wrapf(ErrInvalidStatement, "invalid table expression %s", tb.WriteNode(te.Expr).String())
+			err = errors.Wrapf(ErrQueryLogicError, "invalid table expression %s", tb.WriteNode(te.Expr).String())
 			return
 		}
 
@@ -566,7 +588,7 @@ func (r *Resolver) buildAllColumnInTableExpr(dbID string, tableExpr sqlparser.Ta
 					},
 					IsPhysical: false,
 					Computation: &Computation{
-						Op:       "alias",
+						Op:       AliasOp,
 						Operands: Columns([]*Column{c}),
 					},
 				})
@@ -607,7 +629,7 @@ func (r *Resolver) buildAllColumnInTableExpr(dbID string, tableExpr sqlparser.Ta
 				}
 
 				if !found {
-					err = errors.Wrapf(ErrInvalidColumn, "column not found %s", uc.String())
+					err = errors.Wrapf(ErrQueryLogicError, "column not found %s", uc.String())
 					return
 				}
 			}
@@ -615,7 +637,7 @@ func (r *Resolver) buildAllColumnInTableExpr(dbID string, tableExpr sqlparser.Ta
 			cols = append(cols, &Column{
 				IsPhysical: false,
 				Computation: &Computation{
-					Op:       "join_using",
+					Op:       JoinUsingOp,
 					Operands: args,
 				},
 			})
@@ -638,7 +660,7 @@ func (r *Resolver) buildAllColumnInTableExpr(dbID string, tableExpr sqlparser.Ta
 		return
 	default:
 		tb := sqlparser.NewTrackedBuffer(nil)
-		err = errors.Wrapf(ErrInvalidStatement, "invalid table expression %s", tb.WriteNode(tableExpr).String())
+		err = errors.Wrapf(ErrQueryLogicError, "invalid table expression %s", tb.WriteNode(tableExpr).String())
 		return
 	}
 }
@@ -672,28 +694,32 @@ func (r *Resolver) buildLimit(dbID string, limitCond *sqlparser.Limit) (cols Col
 }
 
 func (r *Resolver) buildUpdateExprs(dbID string, updateExprs sqlparser.UpdateExprs, originColumns Columns) (cols Columns, err error) {
+	var (
+		tempCol  *Column
+		tempCols Columns
+	)
 	for _, ue := range updateExprs {
-		colTableName := ue.Name.Qualifier.Name.String()
-		found := false
-
-		for _, oc := range originColumns {
-			if colTableName != "" && !strings.EqualFold(oc.ColName.Qualifier.Name.String(), colTableName) {
-				// table name not matched
-				continue
-			}
-
-			if ue.Name.Name.Equal(oc.ColName.Name) {
-				// matched
-				found = true
-				cols = append(cols, oc)
-			}
-		}
-
-		if !found {
-			tb := sqlparser.NewTrackedBuffer(nil)
-			err = errors.Wrapf(ErrInvalidColumn, "no such column %s", tb.WriteNode(ue).String())
+		if tempCol, err = originColumns.ResolveColName(ue.Name); err != nil {
 			return
 		}
+
+		// resolve expression
+		if tempCols, err = r.buildExpression(dbID, ue.Expr, originColumns); err != nil {
+			return
+		}
+
+		if len(tempCols) != 1 {
+			err = errors.Wrapf(ErrQueryLogicError, "invalid expression column count %d", len(tempCols))
+			return
+		}
+
+		cols = append(cols, &Column{
+			IsPhysical: false,
+			Computation: &Computation{
+				Op:       AssignmentOp,
+				Operands: NewColumns(tempCol, tempCols[0]),
+			},
+		})
 	}
 
 	return
@@ -713,7 +739,7 @@ func (r *Resolver) buildInsertColumns(dbID string, insertCols sqlparser.Columns,
 		}
 
 		if !found {
-			err = errors.Wrapf(ErrInvalidColumn, "no such column %s", ic.String())
+			err = errors.Wrapf(ErrQueryLogicError, "no such column %s", ic.String())
 			return
 		}
 	}
@@ -721,25 +747,54 @@ func (r *Resolver) buildInsertColumns(dbID string, insertCols sqlparser.Columns,
 	return
 }
 
-func (r *Resolver) buildInsertRows(dbID string, insertRows sqlparser.InsertRows) (cols Columns, err error) {
+func (r *Resolver) buildInsertRows(dbID string, insertRows sqlparser.InsertRows, insertCols Columns) (cols Columns, err error) {
+	var tempCols Columns
+
 	switch n := insertRows.(type) {
 	case sqlparser.SelectStatement:
-		return r.buildSelectStatement(dbID, n, nil)
+		if tempCols, err = r.buildSelectStatement(dbID, n, nil); err != nil {
+			return
+		}
+		if len(tempCols) != len(insertCols) {
+			err = errors.Wrap(ErrQueryLogicError, "insert column count mismatched")
+			return
+		}
+		// build assignment operations
+		for i, c := range insertCols {
+			cols = append(cols, &Column{
+				IsPhysical: false,
+				Computation: &Computation{
+					Op:       AssignmentOp,
+					Operands: NewColumns(c, tempCols[i]),
+				},
+			})
+		}
 	case sqlparser.Values:
 		// parse values
-		var tempCols Columns
 		for _, v := range n {
 			if tempCols, err = r.buildExpression(dbID, sqlparser.Expr(v), nil); err != nil {
 				return
 			}
-			cols = append(cols, tempCols...)
+			if len(tempCols) != len(insertCols) {
+				err = errors.Wrap(ErrQueryLogicError, "insert column count mismatched")
+				return
+			}
+			for i, c := range insertCols {
+				cols = append(cols, &Column{
+					IsPhysical: false,
+					Computation: &Computation{
+						Op:       AssignmentOp,
+						Operands: NewColumns(c, tempCols[i]),
+					},
+				})
+			}
 		}
-		return
 	default:
 		tb := sqlparser.NewTrackedBuffer(nil)
-		err = errors.Wrapf(ErrInvalidStatement, "invalid insert values type %s", tb.WriteNode(insertRows).String())
-		return
+		err = errors.Wrapf(ErrQueryLogicError, "invalid insert values type %s", tb.WriteNode(insertRows).String())
 	}
+
+	return
 }
 
 func (r *Resolver) buildSelectExpr(dbID string, selectExpr sqlparser.SelectExpr, hasDistinct bool, originColumns Columns) (cols Columns, err error) {
@@ -752,7 +807,7 @@ func (r *Resolver) buildSelectExpr(dbID string, selectExpr sqlparser.SelectExpr,
 
 		// must be one column result
 		if len(tempCols) != 1 {
-			err = errors.Wrapf(ErrInvalidStatement, "sub query returns %d columns", len(tempCols))
+			err = errors.Wrapf(ErrQueryLogicError, "sub query returns %d columns", len(tempCols))
 			return
 		}
 
@@ -769,7 +824,7 @@ func (r *Resolver) buildSelectExpr(dbID string, selectExpr sqlparser.SelectExpr,
 			},
 			IsPhysical: false,
 			Computation: &Computation{
-				Op:       "alias",
+				Op:       AliasOp,
 				Operands: Columns{tempCols[0]},
 			},
 		})
@@ -788,7 +843,7 @@ func (r *Resolver) buildSelectExpr(dbID string, selectExpr sqlparser.SelectExpr,
 			}
 
 			if len(starColumns) == 0 {
-				err = errors.Wrapf(ErrInvalidTable, "no such table %s", e.TableName.Name.String())
+				err = errors.Wrapf(ErrQueryLogicError, "no such table %s", e.TableName.Name.String())
 				return
 			}
 
@@ -796,20 +851,22 @@ func (r *Resolver) buildSelectExpr(dbID string, selectExpr sqlparser.SelectExpr,
 		}
 	}
 
-	cols = func() Columns {
-		newCols := NewColumns()
-		for _, c := range cols {
-			newCols = append(newCols, &Column{
-				ColName:    c.ColName,
-				IsPhysical: false,
-				Computation: &Computation{
-					Op:       "distinct",
-					Operands: cols,
-				},
-			})
-		}
-		return newCols
-	}()
+	if hasDistinct {
+		cols = func() Columns {
+			newCols := NewColumns()
+			for _, c := range cols {
+				newCols = append(newCols, &Column{
+					ColName:    c.ColName,
+					IsPhysical: false,
+					Computation: &Computation{
+						Op:       DistinctOp,
+						Operands: cols,
+					},
+				})
+			}
+			return newCols
+		}()
+	}
 
 	return
 }
@@ -832,7 +889,7 @@ func (r *Resolver) filterDependentCols(originColumns Columns) (cols Columns) {
 	for _, c := range originColumns {
 		if !c.IsPhysical {
 			// do not add dependency that only contains aliases
-			if c.Computation != nil && c.Computation.Op == "alias" {
+			if c.Computation != nil && c.Computation.Op == AliasOp {
 				tempCols := r.filterDependentCols(c.Computation.Operands)
 				if len(tempCols) == 0 {
 					continue
@@ -912,7 +969,7 @@ func (r *Resolver) buildSelectStatement(dbID string, stmt sqlparser.SelectStatem
 					ColName:    c.ColName,
 					IsPhysical: false,
 					Computation: &Computation{
-						Op:       "filter",
+						Op:       FilterOp,
 						Operands: cols,
 					},
 				})
@@ -950,28 +1007,28 @@ func (r *Resolver) buildSelectStatement(dbID string, stmt sqlparser.SelectStatem
 			}
 			return newCols
 		}()
-	case *sqlparser.ParenSelect:
-		// not supported in sqlite
-		err = errors.Wrap(ErrInvalidStatement, "invalid paren select statement")
+	default:
+		err = errors.Wrap(ErrQueryLogicError, "invalid select statement")
 	}
 	return
 }
 
+// GetDependentPhysicalColumns returns the physical table dependency column result.
 func (r *Resolver) GetDependentPhysicalColumns(dbID string, stmt sqlparser.Statement) (columns []*ColumnResult, err error) {
 	var (
 		cols      Columns
 		columnMap = make(map[string]map[string]int)
-		visit     func(opStack []string, cols Columns)
+		visit     func(opStack []Op, cols Columns)
 	)
 	columns = make([]*ColumnResult, 0)
 	if cols, err = r.BuildPhysicalColumnsTransformations(dbID, stmt); err != nil {
 		return
 	}
-	visit = func(opStack []string, cols Columns) {
+	visit = func(opStack []Op, cols Columns) {
 		for _, c := range cols {
 			if !c.IsPhysical {
 				if c.Computation != nil {
-					subStack := make([]string, len(opStack)+1)
+					subStack := make([]Op, len(opStack)+1)
 					subStack[0] = c.Computation.Op
 					copy(subStack[1:], opStack)
 					visit(subStack, c.Computation.Operands)
@@ -989,7 +1046,7 @@ func (r *Resolver) GetDependentPhysicalColumns(dbID string, stmt sqlparser.State
 					columns = append(columns, &ColumnResult{
 						TableName: tableName,
 						ColName:   colName,
-						Ops:       [][]string{opStack},
+						Ops:       [][]Op{opStack},
 					})
 				} else {
 					// exists
@@ -1002,6 +1059,7 @@ func (r *Resolver) GetDependentPhysicalColumns(dbID string, stmt sqlparser.State
 	return
 }
 
+// BuildPhysicalColumnsTransformations returns the physical column dependency tree.
 func (r *Resolver) BuildPhysicalColumnsTransformations(dbID string, stmt sqlparser.Statement) (cols Columns, err error) {
 	var (
 		tempCols   Columns
@@ -1016,21 +1074,32 @@ func (r *Resolver) BuildPhysicalColumnsTransformations(dbID string, stmt sqlpars
 		if originCols, err = r.buildAllColumnInTable(dbID, n.Table); err != nil {
 			return
 		}
-		// insert columns can be projected
-		if tempCols, err = r.buildInsertColumns(dbID, n.Columns, originCols); err != nil {
-			return
+		// no columns specified
+		if len(n.Columns) == 0 {
+			// use all columns
+			cols = append(cols, originCols...)
+		} else {
+			// insert columns can be projected
+			if tempCols, err = r.buildInsertColumns(dbID, n.Columns, originCols); err != nil {
+				return
+			}
+			if len(tempCols) > len(originCols) {
+				err = errors.Wrapf(ErrQueryLogicError, "invalid column count for table insert")
+				return
+			}
+			cols = append(cols, tempCols...)
 		}
-		cols = append(cols, tempCols...)
 		// insert values has no relation to the table
-		if tempCols, err = r.buildInsertRows(dbID, n.Rows); err != nil {
+		if tempCols, err = r.buildInsertRows(dbID, n.Rows, cols); err != nil {
 			return
 		}
 		cols = append(cols, tempCols...)
-		// update expression can be projected, on duplication expression is the same as update expression
-		if tempCols, err = r.buildUpdateExprs(dbID, sqlparser.UpdateExprs(n.OnDup), originCols); err != nil {
+
+		if len(n.OnDup) != 0 {
+			// not supported
+			err = errors.Wrapf(ErrQueryLogicError, "on duplicate/conflict statement is not supported")
 			return
 		}
-		cols = append(cols, tempCols...)
 	case *sqlparser.Update:
 		// in update, origin cols is always physical cols
 		if originCols, err = r.buildAllColumnInTableExprs(dbID, n.TableExprs, nil); err != nil {
@@ -1078,8 +1147,89 @@ func (r *Resolver) BuildPhysicalColumnsTransformations(dbID string, stmt sqlpars
 		// no physical column rely, but requires extra privilege
 	default:
 		// invalid statement
-		err = errors.Wrap(ErrInvalidStatement, "unknown statement")
+		err = errors.Wrap(ErrQueryLogicError, "unknown statement")
 	}
 
 	return
+}
+
+// ResolveQuery parses string query and returns multiple query resolver result.
+func (r *Resolver) ResolveQuery(dbID string, query string) (q []*Query, err error) {
+	var (
+		queries   []*resolver.Query
+		colResult []*ColumnResult
+	)
+
+	if queries, err = r.Resolver.ResolveQuery(dbID, query); err != nil {
+		return
+	}
+
+	for _, query := range queries {
+		if colResult, err = r.GetDependentPhysicalColumns(dbID, query.Stmt); err != nil {
+			return
+		}
+
+		q = append(q, &Query{
+			Query:              query,
+			PhysicalColumnRely: colResult,
+		})
+	}
+
+	return
+}
+
+// ResolveSingleQuery parse string query and make sure there is only one query in the query string.
+func (r *Resolver) ResolveSingleQuery(dbID string, queryStr string) (q *Query, err error) {
+	var (
+		query     *resolver.Query
+		colResult []*ColumnResult
+	)
+
+	if query, err = r.Resolver.ResolveSingleQuery(dbID, queryStr); err != nil {
+		return
+	}
+
+	if colResult, err = r.GetDependentPhysicalColumns(dbID, query.Stmt); err != nil {
+		return
+	}
+
+	q = &Query{
+		Query:              query,
+		PhysicalColumnRely: colResult,
+	}
+	return
+}
+
+// Resolve process sqlparser statement and returns resolved result.
+func (r *Resolver) Resolve(dbID string, stmt sqlparser.Statement) (q *Query, err error) {
+	var (
+		query     *resolver.Query
+		colResult []*ColumnResult
+	)
+
+	if query, err = r.Resolver.Resolve(dbID, stmt); err != nil {
+		return
+	}
+
+	if colResult, err = r.GetDependentPhysicalColumns(dbID, stmt); err != nil {
+		return
+	}
+
+	q = &Query{
+		Query:              query,
+		PhysicalColumnRely: colResult,
+	}
+	return
+}
+
+// IsShowOrExplain returns if the query is show or explain statement.
+func (q *Query) IsShowOrExplain() bool {
+	if q.Stmt != nil {
+		switch q.Stmt.(type) {
+		case *sqlparser.Show, *sqlparser.Explain:
+			return true
+		}
+	}
+
+	return false
 }

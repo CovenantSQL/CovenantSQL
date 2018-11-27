@@ -26,8 +26,10 @@ import (
 )
 
 var (
+	// ErrQueryLogicError defines query logic error.
 	ErrQueryLogicError = errors.New("contains logic error in query")
-	ErrTooMuchQueries  = errors.New("too much queries")
+	// ErrTooMuchQueries defines two much queries in a single request.
+	ErrTooMuchQueries = errors.New("too much queries")
 
 	columnsShowCreateTable = []string{"sql"}
 	columnsShowTableInfo   = []string{"cid", "name", "type", "notnull", "dflt_value", "pk"}
@@ -36,22 +38,26 @@ var (
 	columnsExplain         = []string{"addr", "opcode", "p1", "p2", "p3", "p4", "p5", "comment"}
 )
 
+// TableColumnMapping defines a table column mapping object.
 type TableColumnMapping struct {
 	TableDict    map[string]int
 	TableColumns []*TableColumns
 }
 
+// TableColumns defines a table columns mapping object.
 type TableColumns struct {
 	Table   string
 	Columns []string
 }
 
+// NewTableColumnMapping returns new table column mapping object.
 func NewTableColumnMapping() *TableColumnMapping {
 	return &TableColumnMapping{
 		TableDict: make(map[string]int),
 	}
 }
 
+// Add table and columns to column mapping object.
 func (m *TableColumnMapping) Add(table string, columns []string) {
 	if o, ok := m.TableDict[table]; ok {
 		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
@@ -66,6 +72,7 @@ func (m *TableColumnMapping) Add(table string, columns []string) {
 	}
 }
 
+// AppendColumn appends new records table to column mapping.
 func (m *TableColumnMapping) AppendColumn(table string, columns []string) {
 	if o, ok := m.TableDict[table]; ok {
 		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
@@ -80,6 +87,7 @@ func (m *TableColumnMapping) AppendColumn(table string, columns []string) {
 	}
 }
 
+// UnionColumn union and distinct records in table to column mapping.
 func (m *TableColumnMapping) UnionColumn(table string, columns []string) {
 	if o, ok := m.TableDict[table]; ok {
 		if len(m.TableColumns) > o && m.TableColumns[o].Table == table {
@@ -102,11 +110,13 @@ func (m *TableColumnMapping) UnionColumn(table string, columns []string) {
 	}
 }
 
+// Clear clears the table column mapping object.
 func (m *TableColumnMapping) Clear() {
 	m.TableDict = make(map[string]int)
 	m.TableColumns = m.TableColumns[:0]
 }
 
+// Union union distinct two table column mapping object.
 func (m *TableColumnMapping) Union(o *TableColumnMapping) {
 	if o == nil {
 		return
@@ -120,6 +130,7 @@ func (m *TableColumnMapping) Union(o *TableColumnMapping) {
 	}
 }
 
+// Update update current column mapping object using new records.
 func (m *TableColumnMapping) Update(o *TableColumnMapping) {
 	if o == nil {
 		return
@@ -130,6 +141,7 @@ func (m *TableColumnMapping) Update(o *TableColumnMapping) {
 	}
 }
 
+// Merge append new records to current column mapping object.
 func (m *TableColumnMapping) Merge(o *TableColumnMapping) {
 	if o == nil {
 		return
@@ -140,6 +152,7 @@ func (m *TableColumnMapping) Merge(o *TableColumnMapping) {
 	}
 }
 
+// MergeDistinct union distinct two table column mapping object records.
 func (m *TableColumnMapping) MergeDistinct(o *TableColumnMapping) {
 	if o == nil {
 		return
@@ -150,6 +163,7 @@ func (m *TableColumnMapping) MergeDistinct(o *TableColumnMapping) {
 	}
 }
 
+// Get get table columns from the mapping object.
 func (m *TableColumnMapping) Get(table string) (columns []string, exists bool) {
 	var o int
 	if o, exists = m.TableDict[table]; exists {
@@ -162,32 +176,39 @@ func (m *TableColumnMapping) Get(table string) (columns []string, exists bool) {
 	return
 }
 
+// Resolver defines the query resolver processor object.
 type Resolver struct {
 	Meta *MetaHandler
 }
 
+// NewResolver returns a new query resolver processor object.
 func NewResolver() *Resolver {
 	return &Resolver{
 		Meta: NewMetaHandler(),
 	}
 }
 
+// ReloadMeta reloads underlying meta handler.
 func (r *Resolver) ReloadMeta() {
 	r.Meta.ReloadMeta()
 }
 
+// Close close the resolver especially the underlying meta handler.
 func (r *Resolver) Close() {
 	r.Meta.Stop()
 }
 
+// RegisterDB register database connection to resolver.
 func (r *Resolver) RegisterDB(dbID string, conn DBHandler) {
 	r.Meta.AddConn(dbID, conn)
 }
 
+// ResolveQuery parses string query and returns multiple query resolver result.
 func (r *Resolver) ResolveQuery(dbID string, query string) (queries []*Query, err error) {
 	return r.resolveQuery(dbID, query, -1)
 }
 
+// ResolveSingleQuery parse string query and make sure there is only one query in the query string.
 func (r *Resolver) ResolveSingleQuery(dbID string, query string) (q *Query, err error) {
 	var queries []*Query
 	if queries, err = r.resolveQuery(dbID, query, 1); err == nil && len(queries) > 0 {
@@ -196,6 +217,7 @@ func (r *Resolver) ResolveSingleQuery(dbID string, query string) (q *Query, err 
 	return
 }
 
+// Resolve process sqlparser statement and returns resolved result.
 func (r *Resolver) Resolve(dbID string, stmt sqlparser.Statement) (q *Query, err error) {
 	q = &Query{
 		Stmt: stmt,
@@ -257,6 +279,7 @@ func (r *Resolver) resolveQuery(dbID string, query string, maxQueries int) (quer
 	return
 }
 
+// BuildParamCount process sqlparser statement and returns the required parameter count in query.
 func (r *Resolver) BuildParamCount(stmt sqlparser.Statement) (params int, err error) {
 	params = 0
 	argDedup := make(map[string]bool)
@@ -340,6 +363,7 @@ func (r *Resolver) buildResultColumnsWithTableName(tableSeq *int32, dbID string,
 	return
 }
 
+// BuildResultColumns returns the result columns (detected name and count) of sqlparser statement.
 func (r *Resolver) BuildResultColumns(tableSeq *int32, dbID string, stmt sqlparser.Statement) (columns []string, err error) {
 	switch s := stmt.(type) {
 	case *sqlparser.Show:

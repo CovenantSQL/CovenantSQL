@@ -28,18 +28,23 @@ import (
 )
 
 const (
+	// MetaRefreshInterval defines the default database meta re-scan interval.
 	MetaRefreshInterval = time.Minute
 )
 
 var (
-	ErrDBNotExists    = errors.New("database not exists")
+	// ErrDBNotExists defines the no database found meta error.
+	ErrDBNotExists = errors.New("database not exists")
+	// ErrTableNotExists defines the no table found meta error.
 	ErrTableNotExists = errors.New("Table not exists")
 )
 
+// DBHandler defines registered database connection referenced in meta resolver.
 type DBHandler interface {
 	Query(query string, args ...interface{}) (rows *sql.Rows, err error)
 }
 
+// DBMetaHandler defines single database meta resolve handler.
 type DBMetaHandler struct {
 	l            sync.RWMutex
 	dbID         string
@@ -48,6 +53,7 @@ type DBMetaHandler struct {
 	tableMapping map[string][]string
 }
 
+// MetaHandler defines unified database meta resolve handler.
 type MetaHandler struct {
 	l        sync.RWMutex
 	dbMap    map[string]*DBMetaHandler
@@ -56,6 +62,7 @@ type MetaHandler struct {
 	stopOnce sync.Once
 }
 
+// NewMetaHandler returns a new MetaHandler instance.
 func NewMetaHandler() (h *MetaHandler) {
 	h = &MetaHandler{
 		dbMap:  make(map[string]*DBMetaHandler),
@@ -78,6 +85,7 @@ func (h *MetaHandler) autoReloadMeta() {
 	}
 }
 
+// Stop stops all running meta refresher.
 func (h *MetaHandler) Stop() {
 	h.stopOnce.Do(func() {
 		if h.stopCh != nil {
@@ -91,6 +99,7 @@ func (h *MetaHandler) Stop() {
 	})
 }
 
+// AddConn add new database connection to meta refresher.
 func (h *MetaHandler) AddConn(dbID string, conn DBHandler) {
 	h.l.RLock()
 	_, exists := h.dbMap[dbID]
@@ -100,6 +109,7 @@ func (h *MetaHandler) AddConn(dbID string, conn DBHandler) {
 	}
 }
 
+// SetConn set new database connection to meta refresher.
 func (h *MetaHandler) SetConn(dbID string, conn DBHandler) {
 	h.l.Lock()
 	defer h.l.Unlock()
@@ -107,6 +117,7 @@ func (h *MetaHandler) SetConn(dbID string, conn DBHandler) {
 	h.dbMap[dbID] = NewDBMetaHandler(dbID, conn)
 }
 
+// GetConn gets database connection from meta resolver.
 func (h *MetaHandler) GetConn(dbID string) (conn DBHandler, exists bool) {
 	h.l.RLock()
 	defer h.l.RUnlock()
@@ -120,6 +131,7 @@ func (h *MetaHandler) GetConn(dbID string) (conn DBHandler, exists bool) {
 	return
 }
 
+// GetTables gets tables list from specified database.
 func (h *MetaHandler) GetTables(dbID string) (tables []string, err error) {
 	h.l.RLock()
 	defer h.l.RUnlock()
@@ -133,6 +145,7 @@ func (h *MetaHandler) GetTables(dbID string) (tables []string, err error) {
 	return
 }
 
+// GetTable gets table column from specified database and table.
 func (h *MetaHandler) GetTable(dbID string, tableName string) (columns []string, err error) {
 	h.l.RLock()
 	defer h.l.RUnlock()
@@ -146,6 +159,7 @@ func (h *MetaHandler) GetTable(dbID string, tableName string) (columns []string,
 	return
 }
 
+// ReloadMeta manually reload database meta (just a cache clean).
 func (h *MetaHandler) ReloadMeta() {
 	h.l.RLock()
 	defer h.l.RUnlock()
@@ -155,6 +169,7 @@ func (h *MetaHandler) ReloadMeta() {
 	}
 }
 
+// NewDBMetaHandler returns new database meta refresher instance.
 func NewDBMetaHandler(dbID string, conn DBHandler) *DBMetaHandler {
 	return &DBMetaHandler{
 		tableMapping: make(map[string][]string),
@@ -163,6 +178,7 @@ func NewDBMetaHandler(dbID string, conn DBHandler) *DBMetaHandler {
 	}
 }
 
+// ReloadMeta manually reload single database meta (just a cache clean).
 func (h *DBMetaHandler) ReloadMeta() {
 	h.GetTables()
 	h.l.RLock()
@@ -172,6 +188,7 @@ func (h *DBMetaHandler) ReloadMeta() {
 	}
 }
 
+// CacheGetTables get database tables with cache.
 func (h *DBMetaHandler) CacheGetTables() (tables []string, err error) {
 	h.l.RLock()
 	tables = append(tables, h.tables...)
@@ -183,6 +200,7 @@ func (h *DBMetaHandler) CacheGetTables() (tables []string, err error) {
 	return h.GetTables()
 }
 
+// GetTables get database tables without cache.
 func (h *DBMetaHandler) GetTables() (tables []string, err error) {
 	h.l.Lock()
 	defer h.l.Unlock()
@@ -213,6 +231,7 @@ func (h *DBMetaHandler) GetTables() (tables []string, err error) {
 	return
 }
 
+// CacheGetTable get database table columns with cache.
 func (h *DBMetaHandler) CacheGetTable(tableName string) (columns []string, err error) {
 	h.l.RLock()
 	tableName = strings.ToLower(tableName)
@@ -228,6 +247,7 @@ func (h *DBMetaHandler) CacheGetTable(tableName string) (columns []string, err e
 	return h.GetTable(tableName)
 }
 
+// GetTable get database table columns without cache.
 func (h *DBMetaHandler) GetTable(tableName string) (columns []string, err error) {
 	h.l.Lock()
 	defer h.l.Unlock()

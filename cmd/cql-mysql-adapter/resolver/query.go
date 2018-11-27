@@ -18,6 +18,7 @@ package resolver
 
 import "github.com/CovenantSQL/sqlparser"
 
+// Query defines a resolver result query.
 type Query struct {
 	Stmt          sqlparser.Statement
 	Query         string
@@ -25,6 +26,7 @@ type Query struct {
 	ResultColumns []string
 }
 
+// IsDDL returns whether a resolved query is DDL or not.
 func (q *Query) IsDDL() bool {
 	if q.Stmt != nil {
 		_, ok := q.Stmt.(*sqlparser.DDL)
@@ -34,12 +36,11 @@ func (q *Query) IsDDL() bool {
 	return false
 }
 
+// IsRead returns whether a resolved query is READ query.
 func (q *Query) IsRead() bool {
 	if q.Stmt != nil {
 		switch q.Stmt.(type) {
-		case *sqlparser.Show:
-			return true
-		case sqlparser.SelectStatement:
+		case *sqlparser.Show, *sqlparser.Explain, sqlparser.SelectStatement:
 			return true
 		}
 	}

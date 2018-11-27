@@ -72,23 +72,7 @@ func buildInsertPlan(query string,
 									return nil,
 										errors.Wrapf(err, "get shard timestamp failed for: %s", query)
 								}
-
-								for _, col := range row {
-									if colVal, ok := col.(*sqlparser.SQLVal); ok {
-										if colVal.Type == sqlparser.ValArg {
-											var colArgIndex int64
-											colArgIndex, err = getValArgIndex(colVal)
-											if err == nil {
-												for _, a := range args {
-													if a.Name == string(colVal.Val) || a.Ordinal == int(colArgIndex) {
-														namedArg := sql.Named(string(colVal.Val[1:]), a.Value)
-														rowArgs = append(rowArgs, namedArg)
-													}
-												}
-											}
-										}
-									}
-								}
+								rowArgs = generateNamedArgs(args, row)
 								singleIns, err = c.prepareShardInstruction(insertTS, ins, row, rowArgs, conf)
 								//singleIns, err = c.prepareShardInstruction(insertTS, ins, row, args, conf)
 								if err != nil {
@@ -289,5 +273,27 @@ func (sc *ShardingConn) prepareShardInstruction(insertTS int64,
 		rawDB:     sc.rawDB,
 	}
 	log.Debugf("New SQL: %s %v", p.query, p.namedArgs)
+	return
+}
+
+func generateNamedArgs(args []driver.NamedValue, row sqlparser.ValTuple) (rowArgs []interface{}) {
+	rowArgs = make([]interface{}, 0, len(row))
+	for _, col := range row {
+		if colVal, ok := col.(*sqlparser.SQLVal); ok {
+			if colVal.Type == sqlparser.ValArg {
+				var colArgIndex int64
+				var err error
+				colArgIndex, err = getValArgIndex(colVal)
+				if err == nil {
+					for _, a := range args {
+						if a.Name == string(colVal.Val) || a.Ordinal == int(colArgIndex) {
+							namedArg := sql.Named(string(colVal.Val[1:]), a.Value)
+							rowArgs = append(rowArgs, namedArg)
+						}
+					}
+				}
+			}
+		}
+	}
 	return
 }

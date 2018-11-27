@@ -31,7 +31,7 @@ func TestShardingDriver(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	Convey("", t, func() {
 		os.Remove("./foo.db")
-		//defer os.Remove("./foo.db")
+		defer os.Remove("./foo.db")
 
 		db, err := sql.Open(DBSchemeAlias, "./foo.db")
 		if err != nil {
@@ -49,7 +49,7 @@ func TestSQLite3Driver(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	Convey("", t, func() {
 		os.Remove("./foo.db")
-		//defer os.Remove("./foo.db")
+		defer os.Remove("./foo.db")
 
 		db, err := sql.Open("sqlite3", "./foo.db")
 		if err != nil {
@@ -113,7 +113,7 @@ func executeSQL(isSharding bool, db *sql.DB) (err error) {
 		log.Fatal(err)
 	}
 	defer rows.Close()
-	if rows.Next() {
+	if isSharding == rows.Next() {
 		log.Fatal("should be empty in table foo")
 	}
 	err = rows.Err()
@@ -121,29 +121,31 @@ func executeSQL(isSharding bool, db *sql.DB) (err error) {
 		log.Fatal(err)
 	}
 
-	_, err = db.Exec("update foo_ts_0000000000 set name = 'auxten' where id = 1;")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	rows, err = db.Query("select id, name, time from foo_ts_0000000000")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id int
-		var name string
-		var time interface{}
-		err = rows.Scan(&id, &name, &time)
+	if isSharding {
+		_, err = db.Exec("update foo_ts_0000000000 set name = 'auxten' where id = 1;")
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(id, name, time)
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
+
+		rows, err = db.Query("select id, name, time from foo_ts_0000000000")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id int
+			var name string
+			var time interface{}
+			err = rows.Scan(&id, &name, &time)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println(id, name, time)
+		}
+		err = rows.Err()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	stmt, err = db.Prepare("select name from foo where id = ?")
@@ -153,7 +155,7 @@ func executeSQL(isSharding bool, db *sql.DB) (err error) {
 	defer stmt.Close()
 	var name string
 	err = stmt.QueryRow("1").Scan(&name)
-	if err == nil {
+	if isSharding == (err == nil) {
 		log.Fatal(err)
 	}
 	err = nil

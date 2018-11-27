@@ -407,18 +407,20 @@ func (c *Chain) produceBlock(now time.Time) error {
 		if !s.IsEqual(&c.rt.nodeID) {
 			c.rt.goFunc(func(ctx context.Context, wg *sync.WaitGroup) {
 				// Bind NodeID to subroutine
-				func(_ context.Context, wg *sync.WaitGroup, id proto.NodeID) {
-					// TODO(leventeliu): context is not used, WaitGroup is not guaranteed to be
-					// waitable.
+				func(ctx context.Context, wg *sync.WaitGroup, id proto.NodeID) {
 					defer wg.Done()
-					blockReq := &AdviseNewBlockReq{
-						Envelope: proto.Envelope{
-							// TODO(lambda): Add fields.
-						},
-						Block: b,
-					}
-					blockResp := &AdviseNewBlockResp{}
-					if err := c.cl.CallNode(id, route.MCCAdviseNewBlock.String(), blockReq, blockResp); err != nil {
+					var (
+						blockReq = &AdviseNewBlockReq{
+							Envelope: proto.Envelope{
+								// TODO(lambda): Add fields.
+							},
+							Block: b,
+						}
+						blockResp = &AdviseNewBlockResp{}
+					)
+					if err := c.cl.CallNodeWithContext(
+						ctx, id, route.MCCAdviseNewBlock.String(), blockReq, blockResp,
+					); err != nil {
 						log.WithFields(log.Fields{
 							"peer":       c.rt.getPeerInfoString(),
 							"now_time":   time.Now().UTC().Format(time.RFC3339Nano),

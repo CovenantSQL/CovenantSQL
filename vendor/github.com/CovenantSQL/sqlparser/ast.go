@@ -1790,8 +1790,6 @@ func (*FuncExpr) iExpr()         {}
 func (*CaseExpr) iExpr()         {}
 func (*ValuesFuncExpr) iExpr()   {}
 func (*ConvertExpr) iExpr()      {}
-func (*SubstrExpr) iExpr()       {}
-func (*ConvertUsingExpr) iExpr() {}
 func (*MatchExpr) iExpr()        {}
 func (*GroupConcatExpr) iExpr()  {}
 func (*Default) iExpr()          {}
@@ -2639,40 +2637,6 @@ func (node *ValuesFuncExpr) replace(from, to Expr) bool {
 	return false
 }
 
-// SubstrExpr represents a call to SubstrExpr(column, value_expression) or SubstrExpr(column, value_expression,value_expression)
-// also supported syntax SubstrExpr(column from value_expression for value_expression)
-type SubstrExpr struct {
-	Name *ColName
-	From Expr
-	To   Expr
-}
-
-// Format formats the node.
-func (node *SubstrExpr) Format(buf *TrackedBuffer) {
-
-	if node.To == nil {
-		buf.Myprintf("substr(%v, %v)", node.Name, node.From)
-	} else {
-		buf.Myprintf("substr(%v, %v, %v)", node.Name, node.From, node.To)
-	}
-}
-
-func (node *SubstrExpr) replace(from, to Expr) bool {
-	return replaceExprs(from, to, &node.From, &node.To)
-}
-
-func (node *SubstrExpr) walkSubtree(visit Visit) error {
-	if node == nil {
-		return nil
-	}
-	return Walk(
-		visit,
-		node.Name,
-		node.From,
-		node.To,
-	)
-}
-
 // ConvertExpr represents a call to CONVERT(expr, type)
 // or it's equivalent CAST(expr AS type). Both are rewritten to the former.
 type ConvertExpr struct {
@@ -2697,31 +2661,6 @@ func (node *ConvertExpr) walkSubtree(visit Visit) error {
 }
 
 func (node *ConvertExpr) replace(from, to Expr) bool {
-	return replaceExprs(from, to, &node.Expr)
-}
-
-// ConvertUsingExpr represents a call to CONVERT(expr USING charset).
-type ConvertUsingExpr struct {
-	Expr Expr
-	Type string
-}
-
-// Format formats the node.
-func (node *ConvertUsingExpr) Format(buf *TrackedBuffer) {
-	buf.Myprintf("convert(%v using %s)", node.Expr, node.Type)
-}
-
-func (node *ConvertUsingExpr) walkSubtree(visit Visit) error {
-	if node == nil {
-		return nil
-	}
-	return Walk(
-		visit,
-		node.Expr,
-	)
-}
-
-func (node *ConvertUsingExpr) replace(from, to Expr) bool {
 	return replaceExprs(from, to, &node.Expr)
 }
 

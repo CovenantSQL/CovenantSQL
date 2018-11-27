@@ -20,7 +20,7 @@
   name = "github.com/CovenantSQL/HashStablePack"
   packages = ["marshalhash"]
   pruneopts = "UT"
-  revision = "f5d7cc3bf3356c85eadcb0f66007f2f2b7ee81bc"
+  revision = "ea383e6c5f56c8db09130378d7eaf1631d14ecc0"
 
 [[projects]]
   branch = "develop"
@@ -32,7 +32,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:baa85b6c43f7fa2d05914718fda404f6ce9a63aed243809c4090326730f0ecd8"
+  digest = "1:519e30d8e2f43fcde79a23993cd4e8fe609841d8e7666cc26f8dff0d2613f2c4"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -42,7 +42,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "d9be292d3627ca3e62ec927e73b34a09b0b0b06d"
+  revision = "765b8d4e9426de3b49bfb96e520093504fb0d509"
 
 [[projects]]
   branch = "master"
@@ -118,11 +118,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c0decf632843204d2b8781de7b26e7038584e2dcccc7e2f401e88ae85b1df2b7"
+  digest = "1:093bf93a65962e8191e3e8cd8fc6c363f83d43caca9739c906531ba7210a9904"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "67e573d211ace594f1366b4ce9d39726c4b19bd0"
+  revision = "3dcf298fed2d5fd65918dc560b3942b2aa0629e8"
 
 [[projects]]
   branch = "master"
@@ -372,14 +372,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:735956b5e94182229dfbdc5b401d7a71f20f54f1259dbc2969ec2b56bfbb34f2"
+  digest = "1:60550d27cee0a4d6f3ef35c169b9f0cf596636f77df11e2acea8626ce76d959c"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "3fb53dff765f8a3e0f9d8b1d5b86d4f8c4eb3a09"
+  revision = "32b1bb4674c4db541df5b547bb1a325337522022"
 
 [[projects]]
   branch = "master"
@@ -400,7 +400,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "b36ad289a3eaecdc52470a19591146a2c0ffb532"
+  revision = "4724e9255275ce38f7179b2478abeae4e28c904f"
 
 [[projects]]
   branch = "master"
@@ -413,7 +413,7 @@
     "xfs",
   ]
   pruneopts = "UT"
-  revision = "185b4288413d2a0dd0806f78c90dde719829e5ae"
+  revision = "619930b0b4713cc1280189bf0a4c54b3fb506f60"
 
 [[projects]]
   branch = "master"
@@ -500,7 +500,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9ff9e1808adfc43f788f1c1e9fd2660c285b522243da985a4c043ec6f2a2d736"
+  digest = "1:2c4379920afd63d262751932c18dfaa30d92ee8241403a919cd7a3e4cf9561d6"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -517,7 +517,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "f9080354173f192dfc8821931eacf9cfd6819253"
+  revision = "d5f8e13ca70d404acb9f9f8daab06b3818425145"
 
 [[projects]]
   digest = "1:d9eb1d964a449cf51455fdac2ec3451c664af8e8b93c23d9c31d22b84ea82fde"
@@ -603,7 +603,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:583f2f436bab7b59a7bd3e759f1375b06f460760ed1f9235604d143eaab83009"
+  digest = "1:cfd661f1a52594117f2a753bb640a86d4dbf3e0d778c2641bfbc750e6a1c8be7"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
@@ -611,7 +611,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+  revision = "e657309f52e71501f9934566ac06dc5c2f7f11a1"
 
 [[projects]]
   branch = "master"
@@ -632,14 +632,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:48b757e61d662021f49a6a0afc67dacae27ee0c3a8f858d927126bcdf49222d3"
+  digest = "1:f343f077a5b0bc3a3788b3a04e24dd417e3e25b2acb529c413e212d2c42416ef"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "ec83556a53fe16b65c452a104ea9d1e86a671852"
+  revision = "62eef0e2fa9b2c385f7b2778e763486da6880d37"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"

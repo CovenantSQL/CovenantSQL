@@ -156,7 +156,6 @@ func forceEOF(yylex interface{}) {
 %token <bytes> CURRENT_TIMESTAMP CURRENT_DATE CURRENT_TIME
 %token <bytes> REPLACE
 %token <bytes> CAST
-%token <bytes> SUBSTR
 %token <bytes> GROUP_CONCAT SEPARATOR
 
 // MySQL reserved words that are unused by this grammar will map to this token.
@@ -1439,14 +1438,6 @@ function_call_keyword:
   {
     $$ = &ConvertExpr{Expr: $3, Type: $5}
   }
-| SUBSTR openb column_name ',' value_expression closeb
-  {
-    $$ = &SubstrExpr{Name: $3, From: $5, To: nil}
-  }
-| SUBSTR openb column_name ',' value_expression ',' value_expression closeb
-  {
-    $$ = &SubstrExpr{Name: $3, From: $5, To: $7}
-  }
 | GROUP_CONCAT openb distinct_opt select_expression_list order_by_opt separator_opt closeb
   {
     $$ = &GroupConcatExpr{Distinct: $3, Exprs: $4, OrderBy: $5, Separator: $6}
@@ -1914,7 +1905,6 @@ reserved_keyword:
 | CURRENT_DATE
 | CURRENT_TIME
 | CURRENT_TIMESTAMP
-| SUBSTR
 | DEFAULT
 | DELETE
 | DESC

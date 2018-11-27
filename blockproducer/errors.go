@@ -64,7 +64,7 @@ var (
 	// ErrDatabaseUserExists indicates that the database user already exists.
 	ErrDatabaseUserExists = errors.New("database user already exists")
 	// ErrDatabaseCannotCreate indicates that database cannot be created.
-	ErrDatabaseCannotCreate = errors.New("database cannot be created.")
+	ErrDatabaseCannotCreate = errors.New("database cannot be created")
 	// ErrInvalidAccountNonce indicates that a transaction has a invalid account nonce.
 	ErrInvalidAccountNonce = errors.New("invalid account nonce")
 	// ErrUnknownTransactionType indicates that a transaction has a unknown type and cannot be
@@ -82,4 +82,6 @@ var (
 	ErrAccountPermissionDeny = errors.New("account permission deny")
 	// ErrInvalidPermission indicates that the permission is invalid.
 	ErrInvalidPermission = errors.New("invalid permission")
+	// ErrMinerUserNotMatch indicates that the miner and user do not match.
+	ErrMinerUserNotMatch = errors.New("miner and user do not match")
 )

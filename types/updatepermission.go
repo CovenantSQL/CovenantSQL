@@ -18,6 +18,7 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -31,11 +32,6 @@ type UpdatePermissionHeader struct {
 	TargetUser     proto.AccountAddress
 	Permission     UserPermission
 	Nonce          interfaces.AccountNonce
-}
-
-// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
-func (u *UpdatePermissionHeader) GetAccountAddress() proto.AccountAddress {
-	return u.TargetSQLChain
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
@@ -66,6 +62,12 @@ func (up *UpdatePermission) Sign(signer *asymmetric.PrivateKey) (err error) {
 // Verify implements interfaces/Transaction.Verify.
 func (up *UpdatePermission) Verify() error {
 	return up.DefaultHashSignVerifierImpl.Verify(&up.UpdatePermissionHeader)
+}
+
+// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
+func (up *UpdatePermission) GetAccountAddress() proto.AccountAddress {
+	addr, _ := crypto.PubKeyHash(up.Signee)
+	return addr
 }
 
 func init() {

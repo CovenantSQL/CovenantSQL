@@ -460,7 +460,7 @@ func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 
-	// Create key paire for test
+	// Create key pairs for test
 	if testPrivKey, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
 		panic(err)
 	}

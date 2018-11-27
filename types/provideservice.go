@@ -18,6 +18,7 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -31,12 +32,8 @@ type ProvideServiceHeader struct {
 	Space         uint64 // reserved storage space in bytes
 	Memory        uint64 // reserved memory in bytes
 	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
+	TargetUser    proto.AccountAddress
 	Nonce         interfaces.AccountNonce
-}
-
-// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
-func (h *ProvideServiceHeader) GetAccountAddress() proto.AccountAddress {
-	return h.Contract
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
@@ -67,6 +64,12 @@ func (ps *ProvideService) Sign(signer *asymmetric.PrivateKey) (err error) {
 // Verify implements interfaces/Transaction.Verify.
 func (ps *ProvideService) Verify() error {
 	return ps.DefaultHashSignVerifierImpl.Verify(&ps.ProvideServiceHeader)
+}
+
+// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
+func (ps *ProvideService) GetAccountAddress() proto.AccountAddress {
+	addr, _ := crypto.PubKeyHash(ps.Signee)
+	return addr
 }
 
 func init() {

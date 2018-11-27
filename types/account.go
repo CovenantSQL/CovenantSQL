@@ -43,7 +43,7 @@ const (
 	Admin UserPermission = iota
 	// Read defines the reader user permission.
 	Read
-	// Write defines the reader/writer user permission.
+	// Write defines the writer user permission.
 	Write
 	// NumberOfUserPermission defines the user permission number.
 	NumberOfUserPermission
@@ -109,6 +109,7 @@ type ProviderProfile struct {
 	Space         uint64 // reserved storage space in bytes
 	Memory        uint64 // reserved memory in bytes
 	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
+	TargetUser    proto.AccountAddress
 }
 
 // Account store its balance, and other mate data.

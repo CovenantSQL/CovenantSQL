@@ -18,6 +18,7 @@ package types
 
 import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -30,11 +31,6 @@ type CreateDatabaseHeader struct {
 	Owner        proto.AccountAddress
 	ResourceMeta ResourceMeta
 	Nonce        pi.AccountNonce
-}
-
-// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
-func (h *CreateDatabaseHeader) GetAccountAddress() proto.AccountAddress {
-	return h.Owner
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
@@ -65,6 +61,12 @@ func (cd *CreateDatabase) Sign(signer *asymmetric.PrivateKey) (err error) {
 // Verify implements interfaces/Transaction.Verify.
 func (cd *CreateDatabase) Verify() error {
 	return cd.DefaultHashSignVerifierImpl.Verify(&cd.CreateDatabaseHeader)
+}
+
+// GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
+func (cd *CreateDatabase) GetAccountAddress() proto.AccountAddress {
+	addr, _ := crypto.PubKeyHash(cd.Signee)
+	return addr
 }
 
 func init() {

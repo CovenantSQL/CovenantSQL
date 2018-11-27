@@ -18,7 +18,6 @@ package blockproducer
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 	"time"
 
@@ -782,11 +781,16 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		err = errors.Wrap(err, "updateProviderList failed")
 		return
 	}
+	if sender != tx.Contract {
+		err = errors.Wrap(ErrInvalidSender, "updateProviderList failed")
+		return
+	}
 	pp := pt.ProviderProfile{
 		Provider:      sender,
 		Space:         tx.Space,
 		Memory:        tx.Memory,
 		LoadAvgPerCPU: tx.LoadAvgPerCPU,
+		TargetUser:    tx.TargetUser,
 	}
 	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
 	return
@@ -795,20 +799,39 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
-		err = errors.Wrapf(err, "match failed with real sender: %s, sender: %s",
+		err = errors.Wrap(err, "matchProviders failed")
+		return
+	}
+	if sender != tx.Owner {
+		err = errors.Wrapf(ErrInvalidSender, "match failed with real sender: %s, sender: %s",
 			sender.String(), tx.Owner.String())
 		return
 	}
 	for i := range tx.ResourceMeta.TargetMiners {
-		if _, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
-			err = errors.Wrapf(ErrNoSuchMiner, "miner address: %s", tx.ResourceMeta.TargetMiners[i])
-			return
+		if po, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
+			log.WithFields(log.Fields{
+				"miner_addr": tx.ResourceMeta.TargetMiners[i].String(),
+				"user_addr":  sender.String(),
+			}).Error(err)
+			err = ErrNoSuchMiner
+			break
+		} else {
+			if po.TargetUser != sender {
+				log.WithFields(log.Fields{
+					"miner_addr": tx.ResourceMeta.TargetMiners[i].String(),
+					"user_addr":  sender.String(),
+				}).Error(ErrMinerUserNotMatch)
+				err = ErrMinerUserNotMatch
+				break
+			}
 		}
 	}
+	if err != nil {
+		return
+	}
+
 	// generate new sqlchain id and address
-	addrAndNonce := fmt.Sprintf("%s%d", tx.Owner.String(), tx.Nonce)
-	rawID := hash.THashH([]byte(addrAndNonce))
-	dbID := proto.DatabaseID(rawID.String())
+	dbID := proto.FromAccountAndNonce(tx.Owner, uint32(tx.Nonce))
 	dbAddr, err := dbID.AccountAddress()
 	if err != nil {
 		err = errors.Wrapf(err, "unexpected error when convert dbid: %v", dbID)
@@ -821,7 +844,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		Permission: pt.Admin,
 	}
 	// generate genesis block
-	gb, err := s.generateGenesisBlock(dbID, tx.ResourceMeta)
+	gb, err := s.generateGenesisBlock(*dbID, tx.ResourceMeta)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"dbID":         dbID,
@@ -831,7 +854,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	}
 	// create sqlchain
 	sp := &pt.SQLChainProfile{
-		ID:        dbID,
+		ID:        *dbID,
 		Address:   dbAddr,
 		Period:    sqlchainPeriod,
 		GasPrice:  sqlchainGasPrice,
@@ -840,11 +863,14 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		Users:     users,
 		Genesis:   gb,
 	}
-	if _, loaded := s.loadSQLChainObject(dbID); loaded {
-		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", dbID)
+	if _, loaded := s.loadSQLChainObject(*dbID); loaded {
+		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", string(*dbID))
 		return
 	}
-	s.loadOrStoreSQLChainObject(dbID, &sqlchainObject{SQLChainProfile: *sp})
+	s.loadOrStoreAccountObject(dbAddr, &accountObject{
+		Account: pt.Account{Address: dbAddr},
+	})
+	s.loadOrStoreSQLChainObject(*dbID, &sqlchainObject{SQLChainProfile: *sp})
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
 	}
@@ -857,6 +883,10 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 		log.WithFields(log.Fields{
 			"tx": tx.Hash().String(),
 		}).WithError(err).Error("unexpected err")
+		return
+	}
+	if sender == tx.TargetUser {
+		err = errors.Wrap(ErrInvalidSender, "user cannot update its permission by itself")
 		return
 	}
 	so, loaded := s.loadSQLChainObject(tx.TargetSQLChain.DatabaseID())

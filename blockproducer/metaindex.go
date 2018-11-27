@@ -71,6 +71,7 @@ func newMetaIndex() *metaIndex {
 	return &metaIndex{
 		accounts:  make(map[proto.AccountAddress]*accountObject),
 		databases: make(map[proto.DatabaseID]*sqlchainObject),
+		provider:  make(map[proto.AccountAddress]*providerObject),
 	}
 }
 

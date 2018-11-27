@@ -42,30 +42,36 @@ func (z *ProvideService) Msgsize() (s int) {
 func (z *ProvideServiceHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	// map header, size 6
+	o = append(o, 0x86, 0x86)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	if oTemp, err := z.Contract.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
+	if oTemp, err := z.TargetUser.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.Space)
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.Memory)
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.LoadAvgPerCPU)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ProvideServiceHeader) Msgsize() (s int) {
-	s = 1 + 6 + z.Nonce.Msgsize() + 9 + z.Contract.Msgsize() + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
+	s = 1 + 6 + z.Nonce.Msgsize() + 9 + z.Contract.Msgsize() + 11 + z.TargetUser.Msgsize() + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
 	return
 }

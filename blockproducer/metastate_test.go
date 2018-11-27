@@ -20,10 +20,16 @@ import (
 	"math"
 	"os"
 	"path"
+	"sync"
 	"testing"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/coreos/bbolt"
@@ -34,21 +40,46 @@ import (
 func TestMetaState(t *testing.T) {
 	Convey("Given a new metaState object and a persistence db instance", t, func() {
 		var (
-			ao      *accountObject
-			co      *sqlchainObject
-			bl      uint64
-			loaded  bool
-			addr1   = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
-			addr2   = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
-			addr3   = proto.AccountAddress{0x0, 0x0, 0x0, 0x3}
-			dbid1   = proto.DatabaseID("db#1")
-			dbid2   = proto.DatabaseID("db#2")
-			dbid3   = proto.DatabaseID("db#3")
-			ms      = newMetaState()
-			fl      = path.Join(testDataDir, t.Name())
-			db, err = bolt.Open(fl, 0600, nil)
+			ao       *accountObject
+			co       *sqlchainObject
+			po       *providerObject
+			bl       uint64
+			loaded   bool
+			privKey1 *asymmetric.PrivateKey
+			privKey2 *asymmetric.PrivateKey
+			privKey3 *asymmetric.PrivateKey
+			privKey4 *asymmetric.PrivateKey
+			addr1    proto.AccountAddress
+			addr2    proto.AccountAddress
+			addr3    proto.AccountAddress
+			addr4    proto.AccountAddress
+			dbid1    = proto.DatabaseID("db#1")
+			dbid2    = proto.DatabaseID("db#2")
+			dbid3    = proto.DatabaseID("db#3")
+			ms       = newMetaState()
+			fl       = path.Join(testDataDir, t.Name())
+			db, err  = bolt.Open(fl, 0600, nil)
 		)
 		So(err, ShouldBeNil)
+
+		// Create key pairs and addresses for test
+		privKey1, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		privKey2, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		privKey3, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		privKey4, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		addr1, err = crypto.PubKeyHash(privKey1.PubKey())
+		So(err, ShouldBeNil)
+		addr2, err = crypto.PubKeyHash(privKey2.PubKey())
+		So(err, ShouldBeNil)
+		addr3, err = crypto.PubKeyHash(privKey3.PubKey())
+		So(err, ShouldBeNil)
+		addr4, err = crypto.PubKeyHash(privKey4.PubKey())
+		So(err, ShouldBeNil)
+
 		Reset(func() {
 			// Clean database file after each pass
 			err = db.Close()
@@ -93,6 +124,11 @@ func TestMetaState(t *testing.T) {
 		Convey("The database state should be empty", func() {
 			co, loaded = ms.loadSQLChainObject(dbid1)
 			So(co, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+		})
+		Convey("The provider state should be empty", func() {
+			po, loaded = ms.loadProviderObject(addr1)
+			So(po, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The nonce state should be empty", func() {
@@ -597,9 +633,9 @@ func TestMetaState(t *testing.T) {
 						},
 					)
 				)
-				err = t1.Sign(testPrivKey)
+				err = t1.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = t2.Sign(testPrivKey)
+				err = t2.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(t0))
 				So(err, ShouldBeNil)
@@ -627,7 +663,7 @@ func TestMetaState(t *testing.T) {
 
 				Convey("The metaState should report error if tx fails verification", func() {
 					t1.Nonce = pi.AccountNonce(10)
-					err = t1.Sign(testPrivKey)
+					err = t1.Sign(privKey1)
 					So(err, ShouldBeNil)
 					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
@@ -636,7 +672,7 @@ func TestMetaState(t *testing.T) {
 					So(t1.Nonce, ShouldEqual, ms.dirty.accounts[addr1].NextNonce)
 					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldNotBeNil)
-					err = t1.Sign(testPrivKey)
+					err = t1.Sign(privKey1)
 					So(err, ShouldBeNil)
 					err = db.Update(ms.applyTransactionProcedure(t1))
 					So(err, ShouldBeNil)
@@ -685,7 +721,7 @@ func TestMetaState(t *testing.T) {
 					"The partial commit procedure should not be appliable for modified tx",
 					func() {
 						t1.Nonce = pi.AccountNonce(10)
-						err = t1.Sign(testPrivKey)
+						err = t1.Sign(privKey1)
 						So(err, ShouldBeNil)
 						err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
 						So(err, ShouldEqual, ErrTransactionMismatch)
@@ -769,9 +805,16 @@ func TestMetaState(t *testing.T) {
 					),
 				}
 			)
+			txs[0].Sign(privKey1)
+			txs[1].Sign(privKey2)
+			txs[2].Sign(privKey1)
+			txs[3].Sign(privKey1)
+			txs[4].Sign(privKey2)
+			txs[5].Sign(privKey2)
+			txs[6].Sign(privKey1)
+			txs[7].Sign(privKey2)
+			txs[8].Sign(privKey2)
 			for _, tx := range txs {
-				err = tx.Sign(testPrivKey)
-				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(tx))
 				So(err, ShouldBeNil)
 			}
@@ -842,6 +885,190 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, 118)
 				})
+			})
+		})
+		Convey("When SQLChain are created", func() {
+			conf.GConf, err = conf.LoadConfig("../test/node_standalone/config.yaml")
+			So(err, ShouldBeNil)
+
+			privKeyFile := "../test/node_standalone/private.key"
+			pubKeyFile := "../test/node_standalone/public.keystore"
+			os.Remove(pubKeyFile)
+			defer os.Remove(pubKeyFile)
+			route.Once = sync.Once{}
+			route.InitKMS(pubKeyFile)
+			err = kms.InitLocalKeyPair(privKeyFile, []byte(""))
+			So(err, ShouldBeNil)
+
+			ao, loaded = ms.loadOrStoreAccountObject(addr1,
+				&accountObject{Account: pt.Account{
+					Address: addr1,
+				},
+				})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
+				Account: pt.Account{
+					Address: addr2,
+				},
+			})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			ao, loaded = ms.loadOrStoreAccountObject(addr3, &accountObject{
+				Account: pt.Account{
+					Address: addr3,
+				},
+			})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			ao, loaded = ms.loadOrStoreAccountObject(addr4, &accountObject{
+				Account: pt.Account{
+					Address: addr4,
+				},
+			})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			Convey("When provider transaction is invalid", func() {
+				invalidPs := pt.ProvideService{
+					ProvideServiceHeader: pt.ProvideServiceHeader{
+						Contract: addr2,
+					},
+				}
+				invalidPs.Sign(privKey1)
+				invalidCd1 := pt.CreateDatabase{
+					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+						Owner: addr2,
+					},
+				}
+				invalidCd1.Sign(privKey1)
+				invalidCd2 := pt.CreateDatabase{
+					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+						Owner: addr1,
+						ResourceMeta: pt.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+						},
+					},
+				}
+				invalidCd2.Sign(privKey1)
+
+				err = db.Update(ms.applyTransactionProcedure(&invalidPs))
+				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				err = db.Update(ms.applyTransactionProcedure(&invalidCd1))
+				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				err = db.Update(ms.applyTransactionProcedure(&invalidCd2))
+				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
+			})
+			Convey("When SQLChain create", func() {
+				ps := pt.ProvideService{
+					ProvideServiceHeader: pt.ProvideServiceHeader{
+						Contract:   addr2,
+						TargetUser: addr1,
+					},
+				}
+				err = ps.Sign(privKey2)
+				So(err, ShouldBeNil)
+				cd1 := pt.CreateDatabase{
+					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+						Owner: addr1,
+						ResourceMeta: pt.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+						},
+					},
+				}
+				cd1.Sign(privKey1)
+				So(err, ShouldBeNil)
+				cd2 := pt.CreateDatabase{
+					CreateDatabaseHeader: pt.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: pt.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+						},
+					},
+				}
+				cd2.Sign(privKey3)
+				So(err, ShouldBeNil)
+
+				err = db.Update(ms.applyTransactionProcedure(&ps))
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(&cd2))
+				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
+				err = db.Update(ms.applyTransactionProcedure(&cd1))
+				So(err, ShouldBeNil)
+				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
+				co, loaded = ms.loadSQLChainObject(*dbID)
+				So(loaded, ShouldBeTrue)
+				dbAccount, err := dbID.AccountAddress()
+				So(err, ShouldBeNil)
+
+				up := pt.UpdatePermission{
+					UpdatePermissionHeader: pt.UpdatePermissionHeader{
+						TargetSQLChain: addr1,
+						TargetUser:     addr3,
+						Permission:     pt.Read,
+						Nonce:          cd1.Nonce + 1,
+					},
+				}
+				up.Sign(privKey1)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+				up.Permission = 4
+				up.TargetSQLChain = dbAccount
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(errors.Cause(err), ShouldEqual, ErrInvalidPermission)
+				// test permission update
+				// addr1(admin) update addr3 as admin
+				up.TargetUser = addr3
+				up.Permission = pt.Admin
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(err, ShouldBeNil)
+				// addr3(admin) update addr4 as read
+				up.TargetUser = addr4
+				up.Nonce = 0
+				up.Permission = pt.Read
+				err = up.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(err, ShouldBeNil)
+				// addr3(admin) update addr1(admin) as read
+				up.TargetUser = addr1
+				up.Nonce = up.Nonce + 1
+				err = up.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(err, ShouldBeNil)
+				// addr3(admin) update addr3(admin) as read fail
+				up.TargetUser = addr3
+				up.Permission = pt.Read
+				up.Nonce = up.Nonce + 1
+				err = up.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				// addr1(read) update addr3(admin) fail
+				up.Nonce = cd1.Nonce + 2
+				err = up.Sign(privKey1)
+				err = db.Update(ms.applyTransactionProcedure(&up))
+				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
+
+				co, loaded = ms.loadSQLChainObject(*dbID)
+				for _, user := range co.Users {
+					if user.Address == addr1 {
+						So(user.Permission, ShouldEqual, pt.Read)
+						continue
+					}
+					if user.Address == addr3 {
+						So(user.Permission, ShouldEqual, pt.Admin)
+						continue
+					}
+					if user.Address == addr4 {
+						So(user.Permission, ShouldEqual, pt.Read)
+						continue
+					}
+				}
 			})
 		})
 	})

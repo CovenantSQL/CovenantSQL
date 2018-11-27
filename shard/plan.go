@@ -18,11 +18,10 @@ package shard
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"sync"
-	"time"
 
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
@@ -39,18 +38,6 @@ type Plan struct {
 	// Instructions contains the instructions needed to
 	// fulfil the query.
 	Instructions Primitive
-	// Mutex to protect the stats
-	mu sync.Mutex
-	// Count of times this plan was executed
-	ExecCount uint64
-	// Total execution time
-	ExecTime time.Duration
-	// Total number of shard queries
-	ShardQueries uint64
-	// Total number of rows
-	Rows uint64
-	// Total number of errors
-	Errors uint64
 }
 
 // Primitive is the interface that needs to be satisfied by
@@ -59,31 +46,31 @@ type Primitive interface {
 	ExecContext(ctx context.Context) (result driver.Result, err error)
 }
 
-// DefaultPrimitive is the primitive just execute the origin query with origin args on rawConn
-type DefaultPrimitive struct {
-	// OriginQuery is the original query.
-	OriginQuery string
-	// OriginArgs is the original args.
-	OriginArgs []driver.NamedValue
-	// RawConn is the raw sqlite3 conn
-	RawConn *sqlite3.SQLiteConn
+// BasePrimitive is the primitive just execute the origin query with origin args on rawConn
+type BasePrimitive struct {
+	// query is the original query.
+	query string
+	// args is the original args.
+	args []driver.NamedValue
+	// rawConn is the raw sqlite3 conn
+	rawConn *sqlite3.SQLiteConn
+	// rawDB is the userspace sql conn
+	rawDB *sql.DB
 }
 
-func (dp *DefaultPrimitive) ExecContext(ctx context.Context) (result driver.Result, err error) {
-	return dp.RawConn.ExecContext(ctx, dp.OriginQuery, dp.OriginArgs)
+func (dp *BasePrimitive) ExecContext(ctx context.Context) (result driver.Result, err error) {
+	return dp.rawConn.ExecContext(ctx, dp.query, dp.args)
 }
 
 // BuildFromStmt builds a plan based on the AST provided.
-func BuildFromStmt(query string, stmt sqlparser.Statement) (*Plan, error) {
+func BuildFromStmt(query string, args []driver.NamedValue, stmt sqlparser.Statement, c *ShardingConn) (*Plan, error) {
 	var err error
-	plan := &Plan{
-		Original: query,
-	}
+	plan := &Plan{}
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
 		return nil, errors.New("unsupported construct: select")
 	case *sqlparser.Insert:
-		plan.Instructions, err = buildInsertPlan(stmt)
+		plan.Instructions, err = buildInsertPlan(query, stmt, args, c)
 	case *sqlparser.Update:
 		return nil, errors.New("unsupported construct: update")
 	case *sqlparser.Delete:

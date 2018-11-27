@@ -22,11 +22,15 @@ import (
 	"database/sql/driver"
 	"io"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
+	"github.com/pkg/errors"
 )
 
 var _ = log.Printf
@@ -35,7 +39,8 @@ const (
 	// DBScheme defines the dsn scheme.
 	DBScheme = "covenantsqlts"
 	// DBSchemeAlias defines the alias dsn scheme.
-	DBSchemeAlias = "cqlts"
+	DBSchemeAlias    = "cqlts"
+	ShardSchemaToken = `/*SHARD*/`
 )
 
 func init() {
@@ -50,10 +55,19 @@ type ShardingDriver struct {
 }
 
 type ShardingConn struct {
+	sync.Mutex
 	rawConn        *sqlite3.SQLiteConn
-	shardTableName sqlparser.TableName
-	shardColName   sqlparser.ColIdent
-	shardInterval  int64
+	rawDB          *sql.DB
+	conf           map[string]*ShardingConf //map[tableName]*ShardingConf
+	shardingTables sync.Map                 //map[shardTableName]true
+}
+
+type ShardingConf struct {
+	ShardTableName sqlparser.TableName
+	ShardColName   sqlparser.ColIdent
+	ShardInterval  int64 // in seconds
+	ShardStarttime time.Time
+	ShardSchema    string
 }
 
 type ShardingTx struct {
@@ -62,8 +76,10 @@ type ShardingTx struct {
 }
 
 type ShardingStmt struct {
-	c       *ShardingConn
-	rawStmt *sqlite3.SQLiteStmt
+	c        *ShardingConn
+	rawDB    *sql.DB
+	rawQuery string
+	rawStmt  *sqlite3.SQLiteStmt
 }
 
 type ShardingRows struct {
@@ -84,32 +100,117 @@ func (d *ShardingDriver) Open(dsn string) (conn driver.Conn, err error) {
 	if d.RawDriver == nil {
 		d.RawDriver = &sqlite3.SQLiteDriver{}
 	}
+
+	shardConn := &ShardingConn{}
 	rawConn, err := d.RawDriver.Open(dsn)
 	if err == nil {
-		conn = &ShardingConn{
-			rawConn: rawConn.(*sqlite3.SQLiteConn),
+		shardConn.rawConn = rawConn.(*sqlite3.SQLiteConn)
+		shardConn.rawDB, err = sql.Open("sqlite3", dsn)
+		if err == nil {
+			err = shardConn.loadShardConfig()
+			if err == nil {
+				conn = shardConn
+				return
+			}
 		}
 	}
+
+	log.Errorf("open shard db: %s failed: %v", dsn, err)
 	return
 }
 
 func (c *ShardingConn) BeginTx(ctx context.Context, opts driver.TxOptions) (tx driver.Tx, err error) {
-	//TODO(auxten)
-	rawTx, err := c.rawConn.BeginTx(ctx, opts)
-	if err == nil {
-		tx = &ShardingTx{
-			rawTx: rawTx.(*sqlite3.SQLiteTx),
-		}
+	//TODO(auxten) BeginTx on every shard table
+	panic("transaction is to be implemented")
+}
+
+func (c *ShardingConn) loadShardConfig() (err error) {
+	var (
+		tablename string
+		colname   string
+		sinterval int64
+		starttime time.Time
+		sschema   string
+	)
+	// Create sharding meta table
+	_, err = c.rawDB.Exec(`
+		CREATE TABLE IF NOT EXISTS __SHARDING_META (
+			tablename TEXT UNIQUE not null,
+			colname TEXT not null,
+			sinterval INTEGER,
+			starttime TIMESTAMP,
+			sschema TEXT not null
+			);
+		CREATE INDEX IF NOT EXISTS tableindex__SHARDING_META ON __SHARDING_META ( tablename );
+		CREATE INDEX IF NOT EXISTS colindex__SHARDING_META ON __SHARDING_META ( colname );`)
+	if err != nil {
+		return errors.Wrapf(err, "create sharding meta table failed: %v", err)
 	}
+
+	c.conf = make(map[string]*ShardingConf)
+	rows, err := c.rawDB.Query("select tablename, colname, sinterval, starttime, sschema from __SHARDING_META")
+	if err != nil {
+		return errors.Wrapf(err, "query sharding meta table")
+	}
+	defer rows.Close()
+	if rows.Next() {
+		err = rows.Scan(&tablename, &colname, &sinterval, &starttime, &sschema)
+		if err != nil {
+			return errors.Wrapf(err, "load shard conf failed: %v", err)
+		}
+		if sinterval < 10 {
+			return errors.New("shard interval should greater or equal 10 seconds")
+		}
+		conf := &ShardingConf{
+			ShardTableName: sqlparser.TableName{
+				Name:      sqlparser.NewTableIdent(tablename),
+				Qualifier: sqlparser.TableIdent{},
+			},
+			ShardColName:   sqlparser.NewColIdent(colname),
+			ShardInterval:  sinterval,
+			ShardStarttime: starttime,
+			ShardSchema:    sschema,
+		}
+		c.conf[tablename] = conf
+	}
+
 	return
 }
 
 func (c *ShardingConn) SetShardConfig(
-	tableName sqlparser.TableName, colName sqlparser.ColIdent, shardInterval int64) (err error) {
-	c.shardTableName = tableName
-	c.shardColName = colName
-	c.shardInterval = shardInterval
+	tableName string, colName string, shardInterval int64, starttime int64, shardSchema string) (err error) {
+
+	c.Lock()
+	defer c.Unlock()
 	//TODO(auxten) do some check if the column is suitable as sharding key
+	_, err = c.rawDB.Exec(shardSchema)
+	if err != nil {
+		return
+	}
+
+	var rowCount int
+	row := c.rawDB.QueryRow("select count(1) from " + tableName)
+	err = row.Scan(&rowCount)
+	if err == nil {
+		// if row count is not 0, sharding conf can not be changed
+		if rowCount == 0 {
+			_, err = c.rawDB.Exec(`
+            INSERT INTO __SHARDING_META(tablename,colname,sinterval,starttime,sschema)
+			  VALUES(?,?,?,?,?)
+			  ON CONFLICT(tablename) DO UPDATE SET
+			    colname=excluded.colname,
+			    sinterval=excluded.sinterval,
+				starttime=excluded.starttime,
+				sschema=excluded.sschema;`,
+				tableName, colName, shardInterval, starttime, shardSchema)
+			if err == nil {
+				err = c.loadShardConfig()
+				return
+			}
+		}
+	}
+
+	log.Errorf("set sharding conf for table %s failed: %v", tableName, err)
 	return
 }
 
@@ -124,9 +225,35 @@ func (c *ShardingConn) ExecContext(
 	query string,
 	args []driver.NamedValue) (result driver.Result, err error) {
 
+	// SHARDCONFIG tableName colName shardInterval shardStartTime schema
+	if strings.HasPrefix(query, "SHARDCONFIG") {
+		shardConfig := strings.SplitN(query, " ", 6)
+		log.Debugf("SHARDCONFIG %#v", shardConfig)
+		if len(shardConfig) == 6 {
+			var shardInterval, startTime int64
+			shardInterval, err = strconv.ParseInt(shardConfig[3], 10, 64)
+			if err != nil {
+				return nil, errors.New("SHARDCONFIG 3rd args should in int64")
+			}
+			startTime, err = strconv.ParseInt(shardConfig[4], 10, 64)
+			if err != nil {
+				return nil, errors.New("SHARDCONFIG 4th args should in int64")
+			}
+			err = c.SetShardConfig(shardConfig[1], shardConfig[2], shardInterval, startTime, shardConfig[5])
+			if err != nil {
+				log.Errorf("set shard config failed: %v", err)
+				return
+			}
+			return &ShardingResult{}, nil
+		} else {
+			return nil, errors.New("SHARDCONFIG should have 5 args")
+		}
+	}
+
 	var (
 		tokenizer   = sqlparser.NewStringTokenizer(query)
 		lastPos     int
+		lastArgs    int
 		singleQuery string
 		queries     []string
 		stmts       []sqlparser.Statement
@@ -145,20 +272,44 @@ func (c *ShardingConn) ExecContext(
 		}
 
 		singleQuery = query[lastPos : tokenizer.Position-1]
-		lastPos = tokenizer.Position + 1
+		lastPos = tokenizer.Position
 		queries = append(queries, singleQuery)
 		stmts = append(stmts, stmt)
-
-		log.Infof("parsed Exec: %#v, args %v", stmt, args)
+		//q.Q(stmt, args[lastArgs:lastArgs+numInputs], stmt)
 	}
 
 	// Build query plans
 	plans := make([]*Plan, len(queries))
+	argss := make([][]driver.NamedValue, len(queries))
 	for i, q := range queries {
-		var plan *Plan
+		var (
+			plan       *Plan
+			sqliteStmt driver.Stmt
+			numInputs  int
+			j          int
+			a          driver.NamedValue
+		)
+
 		insertStmt, ok := stmts[i].(*sqlparser.Insert)
 		if ok {
-			plan, err = BuildFromStmt(q, insertStmt)
+			sqliteStmt, err = c.rawConn.Prepare(q)
+			if err == nil {
+				numInputs = sqliteStmt.NumInput()
+				sqliteStmt.Close()
+			}
+			// Copy to fix args ordinal error
+			newArgs := make([]driver.NamedValue, numInputs)
+			for j, a = range args[lastArgs : lastArgs+numInputs] {
+				newArgs[j] = driver.NamedValue{
+					Name:    a.Name,
+					Ordinal: j + 1,
+					Value:   a.Value,
+				}
+			}
+			argss[i] = newArgs
+			lastArgs += numInputs
+
+			plan, err = BuildFromStmt(q, argss[i], insertStmt, c)
 			if err != nil {
 				log.Errorf("build shard statement for %v failed: %v", q, err)
 				return
@@ -168,17 +319,17 @@ func (c *ShardingConn) ExecContext(
 			// execute it for test
 			plan = &Plan{
 				Original: q,
-				Instructions: &DefaultPrimitive{
-					OriginQuery: q,
-					OriginArgs:  args,
-					RawConn:     c.rawConn,
+				Instructions: &BasePrimitive{
+					query:   q,
+					args:    args,
+					rawConn: c.rawConn,
 				},
-				mu: sync.Mutex{},
 			}
 		}
 		plans[i] = plan
 	}
 
+	//q.Q(plans)
 	// Execute query plans
 	shardResult := &ShardingResult{}
 
@@ -186,8 +337,8 @@ func (c *ShardingConn) ExecContext(
 		var r driver.Result
 		r, err = p.Instructions.ExecContext(ctx)
 		if err != nil {
-			log.Errorf("exec plan %s failed: %v", p.Original, err)
-			return
+			return nil,
+				errors.Wrapf(err, "exec plan %v for %s failed", p, p.Original)
 		} else {
 			var ra int64
 			ra, shardResult.Err = r.RowsAffected()
@@ -214,18 +365,19 @@ func (c *ShardingConn) QueryContext(
 }
 
 func (c *ShardingConn) PrepareContext(ctx context.Context, query string) (stmt driver.Stmt, err error) {
-	//TODO(auxten)
 	rawStmt, err := c.rawConn.PrepareContext(ctx, query)
 	if err == nil {
 		stmt = &ShardingStmt{
-			rawStmt: rawStmt.(*sqlite3.SQLiteStmt),
+			c:        c,
+			rawStmt:  rawStmt.(*sqlite3.SQLiteStmt),
+			rawQuery: query,
+			rawDB:    c.rawDB,
 		}
 	}
 	return
 }
 
 func (s *ShardingStmt) Close() (err error) {
-	//TODO(auxten)
 	err = s.rawStmt.Close()
 	return
 }
@@ -236,19 +388,7 @@ func (s *ShardingStmt) NumInput() int {
 }
 
 func (s *ShardingStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (result driver.Result, err error) {
-	//TODO(auxten)
-	log.Infof("parsed q: %#v args: %#v", s.rawStmt, args)
-
-	r, err := s.rawStmt.ExecContext(ctx, args)
-	if err == nil {
-		shardResult := &ShardingResult{}
-		var ra int64
-		ra, shardResult.Err = r.RowsAffected()
-		shardResult.RowsAffectedi += ra
-		shardResult.LastInsertIdi, _ = r.LastInsertId()
-		result = shardResult
-	}
-	return
+	return s.c.ExecContext(ctx, s.rawQuery, args)
 }
 
 func (s *ShardingStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (rows driver.Rows, err error) {
@@ -263,13 +403,13 @@ func (s *ShardingStmt) QueryContext(ctx context.Context, args []driver.NamedValu
 }
 
 func (tx *ShardingTx) Commit() error {
-	//TODO(auxten)
-	return tx.rawTx.Commit()
+	//TODO(auxten) BeginTx on every shard table
+	panic("transaction is to be implemented")
 }
 
 func (tx *ShardingTx) Rollback() error {
-	//TODO(auxten)
-	return tx.rawTx.Rollback()
+	//TODO(auxten) BeginTx on every shard table
+	panic("transaction is to be implemented")
 }
 
 // LastInsertId teturn last inserted ID.

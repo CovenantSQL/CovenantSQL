@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
+	"github.com/y0ssar1an/q"
 )
 
 var _ = log.Printf
@@ -96,7 +97,6 @@ type ShardingResult struct {
 }
 
 func (d *ShardingDriver) Open(dsn string) (conn driver.Conn, err error) {
-	//TODO(auxten)
 	if d.RawDriver == nil {
 		d.RawDriver = &sqlite3.SQLiteDriver{}
 	}
@@ -119,12 +119,12 @@ func (d *ShardingDriver) Open(dsn string) (conn driver.Conn, err error) {
 	return
 }
 
-func (c *ShardingConn) BeginTx(ctx context.Context, opts driver.TxOptions) (tx driver.Tx, err error) {
+func (sc *ShardingConn) BeginTx(ctx context.Context, opts driver.TxOptions) (tx driver.Tx, err error) {
 	//TODO(auxten) BeginTx on every shard table
 	panic("transaction is to be implemented")
 }
 
-func (c *ShardingConn) loadShardConfig() (err error) {
+func (sc *ShardingConn) loadShardConfig() (err error) {
 	var (
 		tablename string
 		colname   string
@@ -133,7 +133,7 @@ func (c *ShardingConn) loadShardConfig() (err error) {
 		sschema   string
 	)
 	// Create sharding meta table
-	_, err = c.rawDB.Exec(`
+	_, err = sc.rawDB.Exec(`
 		CREATE TABLE IF NOT EXISTS __SHARDING_META (
 			tablename TEXT UNIQUE not null,
 			colname TEXT not null,
@@ -147,8 +147,8 @@ func (c *ShardingConn) loadShardConfig() (err error) {
 		return errors.Wrapf(err, "create sharding meta table failed: %v", err)
 	}
 
-	c.conf = make(map[string]*ShardingConf)
-	rows, err := c.rawDB.Query("select tablename, colname, sinterval, starttime, sschema from __SHARDING_META")
+	sc.conf = make(map[string]*ShardingConf)
+	rows, err := sc.rawDB.Query("select tablename, colname, sinterval, starttime, sschema from __SHARDING_META")
 	if err != nil {
 		return errors.Wrapf(err, "query sharding meta table")
 	}
@@ -171,30 +171,30 @@ func (c *ShardingConn) loadShardConfig() (err error) {
 			ShardStarttime: starttime,
 			ShardSchema:    sschema,
 		}
-		c.conf[tablename] = conf
+		sc.conf[tablename] = conf
 	}
 
 	return
 }
 
-func (c *ShardingConn) SetShardConfig(
+func (sc *ShardingConn) SetShardConfig(
 	tableName string, colName string, shardInterval int64, starttime int64, shardSchema string) (err error) {
 
-	c.Lock()
-	defer c.Unlock()
+	sc.Lock()
+	defer sc.Unlock()
 	//TODO(auxten) do some check if the column is suitable as sharding key
-	_, err = c.rawDB.Exec(shardSchema)
+	_, err = sc.rawDB.Exec(shardSchema)
 	if err != nil {
 		return
 	}
 
 	var rowCount int
-	row := c.rawDB.QueryRow("select count(1) from " + tableName)
+	row := sc.rawDB.QueryRow("select count(1) from " + tableName)
 	err = row.Scan(&rowCount)
 	if err == nil {
 		// if row count is not 0, sharding conf can not be changed
 		if rowCount == 0 {
-			_, err = c.rawDB.Exec(`
+			_, err = sc.rawDB.Exec(`
             INSERT INTO __SHARDING_META(tablename,colname,sinterval,starttime,sschema)
 			  VALUES(?,?,?,?,?)
 			  ON CONFLICT(tablename) DO UPDATE SET
@@ -204,7 +204,7 @@ func (c *ShardingConn) SetShardConfig(
 				sschema=excluded.sschema;`,
 				tableName, colName, shardInterval, starttime, shardSchema)
 			if err == nil {
-				err = c.loadShardConfig()
+				err = sc.loadShardConfig()
 				return
 			}
 		}
@@ -214,16 +214,19 @@ func (c *ShardingConn) SetShardConfig(
 	return
 }
 
-func (c *ShardingConn) Close() (err error) {
-	c.rawDB.Close()
-	err = c.rawConn.Close()
+func (sc *ShardingConn) Close() (err error) {
+	sc.rawDB.Close()
+	err = sc.rawConn.Close()
 	return
 }
 
-func (c *ShardingConn) ExecContext(
+func (sc *ShardingConn) ExecContext(
 	ctx context.Context,
 	query string,
 	args []driver.NamedValue) (result driver.Result, err error) {
+
+	// trim space for easier life
+	query = strings.TrimSpace(query)
 
 	// SHARDCONFIG tableName colName shardInterval shardStartTime schema
 	if strings.HasPrefix(query, "SHARDCONFIG") {
@@ -239,7 +242,7 @@ func (c *ShardingConn) ExecContext(
 			if err != nil {
 				return nil, errors.New("SHARDCONFIG 4th args should in int64")
 			}
-			err = c.SetShardConfig(shardConfig[1], shardConfig[2], shardInterval, startTime, shardConfig[5])
+			err = sc.SetShardConfig(shardConfig[1], shardConfig[2], shardInterval, startTime, shardConfig[5])
 			if err != nil {
 				log.Errorf("set shard config failed: %v", err)
 				return
@@ -251,33 +254,12 @@ func (c *ShardingConn) ExecContext(
 	}
 
 	var (
-		tokenizer   = sqlparser.NewStringTokenizer(query)
-		lastPos     int
-		singleQuery string
-		queries     []string
-		stmts       []sqlparser.Statement
-		argss       [][]driver.NamedValue
+		queries []string
+		stmts   []sqlparser.Statement
+		argss   [][]driver.NamedValue
 	)
 
-	for {
-		var stmt sqlparser.Statement
-		stmt, err = sqlparser.ParseNext(tokenizer)
-		if err != nil && err != io.EOF {
-			return
-		}
-
-		if err == io.EOF {
-			err = nil
-			break
-		}
-
-		singleQuery = query[lastPos : tokenizer.Position-1]
-		lastPos = tokenizer.Position
-		queries = append(queries, singleQuery)
-		stmts = append(stmts, stmt)
-	}
-
-	argss, err = c.splitArgs(queries, args)
+	queries, stmts, argss, err = sc.splitQueryArgs(query, args)
 	if err != nil {
 		return
 	}
@@ -286,7 +268,7 @@ func (c *ShardingConn) ExecContext(
 	plans := make([]*Plan, len(queries))
 	for i, q := range queries {
 		var plan *Plan
-		plan, err = BuildFromStmt(q, argss[i], stmts[i], c)
+		plan, err = BuildFromStmt(q, argss[i], stmts[i], sc)
 		if err != nil {
 			return nil,
 				errors.Wrapf(err, "build shard statement for %v failed", q)
@@ -314,61 +296,57 @@ func (c *ShardingConn) ExecContext(
 
 	return shardResult, err
 }
-func (c *ShardingConn) splitArgs(queries []string, args []driver.NamedValue) (argss [][]driver.NamedValue, err error) {
-	var (
-		sqliteStmt driver.Stmt
-		numInputs  int
-		j          int
-		lastArgs   int
-		a          driver.NamedValue
-	)
-	argss = make([][]driver.NamedValue, len(queries))
 
-	for i, q := range queries {
-		sqliteStmt, err = c.rawConn.Prepare(q)
-		if err == nil {
-			numInputs = sqliteStmt.NumInput()
-			sqliteStmt.Close()
-		} else {
-			return nil, errors.Wrapf(err, "get input count failed for %s", q)
-		}
-		// Copy to fix args ordinal error
-		newArgs := make([]driver.NamedValue, numInputs)
-		for j, a = range args[lastArgs : lastArgs+numInputs] {
-			newArgs[j] = driver.NamedValue{
-				Name:    a.Name,
-				Ordinal: j + 1,
-				Value:   a.Value,
-			}
-		}
-		argss[i] = newArgs
-		lastArgs += numInputs
-	}
-	return
-}
-
-func (c *ShardingConn) QueryContext(
+func (sc *ShardingConn) QueryContext(
 	ctx context.Context,
 	query string,
 	args []driver.NamedValue) (rows driver.Rows, err error) {
-	//TODO(auxten)
-	rawRows, err := c.rawConn.QueryContext(ctx, query, args)
-	if err == nil {
-		rows = &ShardingRows{
-			rawRows: rawRows.(*sqlite3.SQLiteRows),
-		}
+
+	// trim space for easier life
+	query = strings.TrimSpace(query)
+
+	var (
+		queries []string
+		stmts   []sqlparser.Statement
+		argss   [][]driver.NamedValue
+	)
+
+	queries, stmts, argss, err = sc.splitQueryArgs(query, args)
+	if err != nil {
+		return
 	}
+
+	q.Q(queries, stmts, argss)
+
+	// Only build query plan for the last query
+	queryCount := len(queries)
+	qLast := queries[queryCount-1]
+	aLast := argss[queryCount-1]
+	sLast := stmts[queryCount-1]
+	var plan *Plan
+	plan, err = BuildFromStmt(qLast, aLast, sLast, sc)
+	if err != nil {
+		return nil,
+			errors.Wrapf(err, "build shard statement for %v failed", qLast)
+	}
+
+	rows, err = plan.Instructions.QueryContext(ctx)
+	if err != nil {
+		return nil,
+			errors.Wrapf(err, "exec plan %v for %s failed", plan, plan.Original)
+	}
+
 	return
 }
 
-func (c *ShardingConn) PrepareContext(ctx context.Context, query string) (stmt driver.Stmt, err error) {
-	rawStmt, err := c.rawConn.PrepareContext(ctx, query)
+func (sc *ShardingConn) PrepareContext(ctx context.Context, query string) (stmt driver.Stmt, err error) {
+	rawStmt, err := sc.rawConn.PrepareContext(ctx, query)
 	if err == nil {
 		stmt = &ShardingStmt{
-			c:        c,
+			c:        sc,
 			rawStmt:  rawStmt.(*sqlite3.SQLiteStmt),
 			rawQuery: query,
-			rawDB:    c.rawDB,
+			rawDB:    sc.rawDB,
 		}
 	}
 	return
@@ -395,6 +373,67 @@ func (s *ShardingStmt) QueryContext(ctx context.Context, args []driver.NamedValu
 		rows = &ShardingRows{
 			rawRows: rawRows.(*sqlite3.SQLiteRows),
 		}
+	}
+	return
+}
+
+func (sc *ShardingConn) splitQueryArgs(query string, args []driver.NamedValue) (
+	queries []string, stmts []sqlparser.Statement, argss [][]driver.NamedValue, err error) {
+	var (
+		tokenizer   = sqlparser.NewStringTokenizer(query)
+		lastPos     int
+		singleQuery string
+		sqliteStmt  driver.Stmt
+		numInputs   int
+		j           int
+		lastArgs    int
+		a           driver.NamedValue
+	)
+
+	for {
+		var stmt sqlparser.Statement
+		stmt, err = sqlparser.ParseNext(tokenizer)
+		if err != nil && err != io.EOF {
+			return
+		}
+
+		if err == io.EOF {
+			err = nil
+			break
+		}
+
+		singleQuery = strings.TrimSpace(query[lastPos : tokenizer.Position-1])
+		lastPos = tokenizer.Position
+		queries = append(queries, singleQuery)
+		stmts = append(stmts, stmt)
+	}
+
+	argss = make([][]driver.NamedValue, len(queries))
+
+	for i, q := range queries {
+		sqliteStmt, err = sc.rawConn.Prepare(q)
+		if err == nil {
+			numInputs = sqliteStmt.NumInput()
+			sqliteStmt.Close()
+		} else {
+			return nil, nil, nil,
+				errors.Wrapf(err, "get input count failed for %s", q)
+		}
+		// Copy to fix args ordinal error
+		newArgs := make([]driver.NamedValue, numInputs)
+		if len(args) < lastArgs+numInputs {
+			return nil, nil, nil,
+				errors.Wrapf(err, "not enough args to execute query: got %d", len(args))
+		}
+		for j, a = range args[lastArgs : lastArgs+numInputs] {
+			newArgs[j] = driver.NamedValue{
+				Name:    a.Name,
+				Ordinal: j + 1,
+				Value:   a.Value,
+			}
+		}
+		argss[i] = newArgs
+		lastArgs += numInputs
 	}
 	return
 }
@@ -453,19 +492,19 @@ func (r *ShardingRows) ColumnTypeScanType(i int) reflect.Type {
 }
 
 /************************* Deprecated interface func below *************************/
-func (c *ShardingConn) Begin() (driver.Tx, error) {
+func (sc *ShardingConn) Begin() (driver.Tx, error) {
 	panic("ConnBeginTx was not called")
 }
 
-func (c *ShardingConn) Exec(query string, args []driver.Value) (driver.Result, error) {
+func (sc *ShardingConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	panic("ExecContext was not called")
 }
 
-func (c *ShardingConn) Query(query string, args []driver.Value) (driver.Rows, error) {
+func (sc *ShardingConn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	panic("QueryContext was not called")
 }
 
-func (c *ShardingConn) Prepare(query string) (driver.Stmt, error) {
+func (sc *ShardingConn) Prepare(query string) (driver.Stmt, error) {
 	panic("PrepareContext was not called")
 }
 

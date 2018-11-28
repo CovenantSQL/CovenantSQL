@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -43,7 +42,8 @@ type Plan struct {
 // Primitive is the interface that needs to be satisfied by
 // all primitives of a plan.
 type Primitive interface {
-	ExecContext(ctx context.Context) (result driver.Result, err error)
+	ExecContext(ctx context.Context, tx *sql.Tx) (driver.Result, error)
+	QueryContext(ctx context.Context) (driver.Rows, error)
 }
 
 // BasePrimitive is the primitive just execute the origin query with origin args on rawConn
@@ -58,19 +58,23 @@ type BasePrimitive struct {
 	rawDB *sql.DB
 }
 
-func (dp *BasePrimitive) ExecContext(ctx context.Context) (result driver.Result, err error) {
+func (dp *BasePrimitive) QueryContext(ctx context.Context) (driver.Rows, error) {
+	return dp.rawConn.QueryContext(ctx, dp.query, dp.args)
+}
+
+func (dp *BasePrimitive) ExecContext(ctx context.Context, tx *sql.Tx) (result driver.Result, err error) {
 	return dp.rawConn.ExecContext(ctx, dp.query, dp.args)
 }
 
 // BuildFromStmt builds a plan based on the AST provided.
 func BuildFromStmt(query string, args []driver.NamedValue, stmt sqlparser.Statement, c *ShardingConn) (plan *Plan, err error) {
+	plan = &Plan{
+		Original: query,
+	}
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
-		return nil, errors.New("unsupported construct: select")
+		plan.Instructions, err = buildSelectPlan(query, stmt, args, c)
 	case *sqlparser.Insert:
-		plan = &Plan{
-			Original: query,
-		}
 		plan.Instructions, err = buildInsertPlan(query, stmt, args, c)
 	case *sqlparser.DDL,
 		*sqlparser.Show,
@@ -81,13 +85,11 @@ func BuildFromStmt(query string, args []driver.NamedValue, stmt sqlparser.Statem
 		*sqlparser.DBDDL:
 		// FIXME(auxten) if contains any statement other than sqlparser.Insert, we just
 		// execute it for test
-		plan = &Plan{
-			Original: query,
-			Instructions: &BasePrimitive{
-				query:   query,
-				args:    args,
-				rawConn: c.rawConn,
-			},
+		plan.Instructions = &BasePrimitive{
+			query:   query,
+			args:    args,
+			rawConn: c.rawConn,
+			rawDB:   c.rawDB,
 		}
 
 	default:

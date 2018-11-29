@@ -179,7 +179,10 @@ func (r *rt) stop() {
 	r.wg.Wait()
 }
 
-func (r *rt) goFunc(f func(ctx context.Context, wg *sync.WaitGroup)) {
+func (r *rt) goFunc(f func(ctx context.Context)) {
 	r.wg.Add(1)
-	go f(r.ctx, r.wg)
+	go func() {
+		f(r.ctx)
+		r.wg.Done()
+	}()
 }

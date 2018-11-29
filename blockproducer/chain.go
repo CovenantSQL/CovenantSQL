@@ -406,8 +406,7 @@ func (c *Chain) produceBlock(now time.Time) error {
 		if !s.IsEqual(&c.rt.nodeID) {
 			// Bind NodeID to subroutine
 			func(id proto.NodeID) {
-				c.rt.goFunc(func(ctx context.Context, wg *sync.WaitGroup) {
-					defer wg.Done()
+				c.rt.goFunc(func(ctx context.Context) {
 					var (
 						blockReq = &AdviseNewBlockReq{
 							Envelope: proto.Envelope{
@@ -614,7 +613,7 @@ func (c *Chain) Start() error {
 	return nil
 }
 
-func (c *Chain) processBlocks(ctx context.Context, wg *sync.WaitGroup) {
+func (c *Chain) processBlocks(ctx context.Context) {
 	var (
 		returnStash = func(ctx context.Context, wg *sync.WaitGroup, stash []*types.BPBlock) {
 			defer wg.Done()
@@ -635,8 +634,6 @@ func (c *Chain) processBlocks(ctx context.Context, wg *sync.WaitGroup) {
 		// Wait for subroutines to exit
 		subCancel()
 		subWg.Wait()
-		// Parent done
-		wg.Done()
 	}()
 
 	var stash []*types.BPBlock
@@ -690,8 +687,7 @@ func (c *Chain) processTx(tx pi.Transaction) {
 	c.bs.Publish(txEvent, tx)
 }
 
-func (c *Chain) processTxs(ctx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (c *Chain) processTxs(ctx context.Context) {
 	for {
 		select {
 		case tx := <-c.pendingTxs:
@@ -702,8 +698,7 @@ func (c *Chain) processTxs(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func (c *Chain) mainCycle(ctx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():

@@ -272,6 +272,7 @@ func main() {
 	//}
 
 	<-signalCh
+	utils.StopProfile()
 
 	log.Info("miner stopped")
 }

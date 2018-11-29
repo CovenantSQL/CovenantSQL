@@ -182,7 +182,7 @@ func (r *rt) stop() {
 func (r *rt) goFunc(f func(ctx context.Context)) {
 	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		f(r.ctx)
-		r.wg.Done()
 	}()
 }

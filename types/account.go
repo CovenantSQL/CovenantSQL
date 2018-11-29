@@ -83,7 +83,7 @@ type MinerInfo struct {
 	ReceivedIncome uint64
 	Pledge         uint64
 	Status         Status
-	EncryptionKey string
+	EncryptionKey  string
 }
 
 // SQLChainProfile defines a SQLChainProfile related to an account.

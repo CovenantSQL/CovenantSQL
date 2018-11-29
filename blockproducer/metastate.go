@@ -18,6 +18,9 @@ package blockproducer
 
 import (
 	"bytes"
+	"sync"
+	"time"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -30,8 +33,6 @@ import (
 	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	"github.com/ulule/deepcopier"
-	"sync"
-	"time"
 )
 
 var (
@@ -969,7 +970,7 @@ func (s *metaState) updateKeys(tx *pt.IssueKeys) (err error) {
 	}
 
 	// update miner's key
-	keyMap := make(map[proto.AccountAddress] string)
+	keyMap := make(map[proto.AccountAddress]string)
 	for i := range tx.MinerKeys {
 		keyMap[tx.MinerKeys[i].Miner] = tx.MinerKeys[i].EncryptionKey
 	}

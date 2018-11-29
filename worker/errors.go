@@ -48,5 +48,4 @@ var (
 
 	// ErrInvalidPermission indicates that the requester sends a unrecognized permission.
 	ErrInvalidPermission = errors.New("invalid permission")
-
 )

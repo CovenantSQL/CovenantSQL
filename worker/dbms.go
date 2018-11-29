@@ -18,12 +18,12 @@ package worker
 
 import (
 	"bytes"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"

@@ -27,14 +27,14 @@ import (
 //go:generate hsp
 
 type MinerKey struct {
-	Miner proto.AccountAddress
+	Miner         proto.AccountAddress
 	EncryptionKey string
 }
 
 type IssueKeysHeader struct {
 	TargetSQLChain proto.AccountAddress
-	MinerKeys []MinerKey
-	Nonce interfaces.AccountNonce
+	MinerKeys      []MinerKey
+	Nonce          interfaces.AccountNonce
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
@@ -52,7 +52,7 @@ type IssueKeys struct {
 // NewIssueKeys returns new instance.
 func NewIssueKeys(header *IssueKeysHeader) *IssueKeys {
 	return &IssueKeys{
-		IssueKeysHeader: *header,
+		IssueKeysHeader:      *header,
 		TransactionTypeMixin: *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeIssueKeys),
 	}
 }

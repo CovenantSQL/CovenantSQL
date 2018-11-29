@@ -404,9 +404,9 @@ func (c *Chain) produceBlock(now time.Time) error {
 	peers := c.rt.getPeers()
 	for _, s := range peers.Servers {
 		if !s.IsEqual(&c.rt.nodeID) {
-			c.rt.goFunc(func(ctx context.Context, wg *sync.WaitGroup) {
-				// Bind NodeID to subroutine
-				func(ctx context.Context, wg *sync.WaitGroup, id proto.NodeID) {
+			// Bind NodeID to subroutine
+			func(id proto.NodeID) {
+				c.rt.goFunc(func(ctx context.Context, wg *sync.WaitGroup) {
 					defer wg.Done()
 					var (
 						blockReq = &AdviseNewBlockReq{
@@ -430,8 +430,8 @@ func (c *Chain) produceBlock(now time.Time) error {
 							"node": id,
 						}).Debug("success advising block")
 					}
-				}(ctx, wg, s)
-			})
+				})
+			}(s)
 		}
 	}
 

@@ -20,10 +20,36 @@ import "github.com/CovenantSQL/sqlparser"
 
 // Query defines a resolver result query.
 type Query struct {
+	Database      string
 	Stmt          sqlparser.Statement
 	Query         string
 	ParamCount    int
 	ResultColumns []string
+}
+
+// GetDatabase returns current database id.
+func (q *Query) GetDatabase() string {
+	return q.Database
+}
+
+// GetParamCount returns current query parameter count.
+func (q *Query) GetParamCount() int {
+	return q.ParamCount
+}
+
+// GetResultColumnCount returns current query result column count.
+func (q *Query) GetResultColumnCount() int {
+	return len(q.ResultColumns)
+}
+
+// GetQuery returns parser refined query string.
+func (q *Query) GetQuery() string {
+	return q.Query
+}
+
+// GetStmt returns parser resolved statement ast.
+func (q *Query) GetStmt() sqlparser.Statement {
+	return q.Stmt
 }
 
 // IsDDL returns whether a resolved query is DDL or not.
@@ -43,6 +69,26 @@ func (q *Query) IsRead() bool {
 		case *sqlparser.Show, *sqlparser.Explain, sqlparser.SelectStatement:
 			return true
 		}
+	}
+
+	return false
+}
+
+// IsShow returns whether a resolved query is a show query.
+func (q *Query) IsShow() bool {
+	if q.Stmt != nil {
+		_, ok := q.Stmt.(*sqlparser.Show)
+		return ok
+	}
+
+	return false
+}
+
+// IsExplain returns whether a resolved query is a explain query.
+func (q *Query) IsExplain() bool {
+	if q.Stmt != nil {
+		_, ok := q.Stmt.(*sqlparser.Explain)
+		return ok
 	}
 
 	return false

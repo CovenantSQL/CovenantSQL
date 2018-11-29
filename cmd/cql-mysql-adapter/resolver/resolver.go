@@ -195,12 +195,20 @@ func (r *Resolver) ReloadMeta() {
 
 // Close close the resolver especially the underlying meta handler.
 func (r *Resolver) Close() {
+	// stop meta refresher
 	r.Meta.Stop()
+	// close all underlying database connection
+	r.Meta.Close()
 }
 
 // RegisterDB register database connection to resolver.
-func (r *Resolver) RegisterDB(dbID string, conn DBHandler) {
-	r.Meta.AddConn(dbID, conn)
+func (r *Resolver) RegisterDB(dbID string, conn DBHandler) (added bool) {
+	return r.Meta.AddConn(dbID, conn)
+}
+
+// GetDB returns database connection of a database.
+func (r *Resolver) GetDB(dbID string) (DBHandler, bool) {
+	return r.Meta.GetConn(dbID)
 }
 
 // ResolveQuery parses string query and returns multiple query resolver result.
@@ -220,7 +228,8 @@ func (r *Resolver) ResolveSingleQuery(dbID string, query string) (q *Query, err 
 // Resolve process sqlparser statement and returns resolved result.
 func (r *Resolver) Resolve(dbID string, stmt sqlparser.Statement) (q *Query, err error) {
 	q = &Query{
-		Stmt: stmt,
+		Stmt:     stmt,
+		Database: dbID,
 	}
 	if q.ParamCount, err = r.BuildParamCount(stmt); err != nil {
 		return
@@ -261,18 +270,12 @@ func (r *Resolver) resolveQuery(dbID string, query string, maxQueries int) (quer
 			return
 		}
 
-		q = &Query{
-			Stmt:  stmt,
-			Query: query[lastPos : tokenizer.Position-1],
+		if q, err = r.Resolve(dbID, stmt); err != nil {
+			return
 		}
+
+		q.Query = query[lastPos : tokenizer.Position-1]
 		lastPos = tokenizer.Position + 1
-		if q.ParamCount, err = r.BuildParamCount(stmt); err != nil {
-			return
-		}
-		var tableSeq int32
-		if q.ResultColumns, err = r.BuildResultColumns(&tableSeq, dbID, stmt); err != nil {
-			return
-		}
 		queries = append(queries, q)
 	}
 

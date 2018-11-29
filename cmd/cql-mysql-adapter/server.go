@@ -28,6 +28,7 @@ import (
 type Server struct {
 	listenAddr    string
 	listener      net.Listener
+	h             *Handler
 	mysqlUser     string
 	mysqlPassword string
 }
@@ -38,6 +39,7 @@ func NewServer(listenAddr string, user string, password string) (s *Server, err 
 		listenAddr:    listenAddr,
 		mysqlUser:     user,
 		mysqlPassword: password,
+		h:             NewHandler(),
 	}
 
 	if s.listener, err = net.Listen("tcp", listenAddr); err != nil {
@@ -60,7 +62,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	cur := cursor.NewCursor()
+	cur := cursor.NewCursor(s.h)
 	h, err := mys.NewConn(conn, s.mysqlUser, s.mysqlPassword, cur)
 
 	if err != nil {

@@ -42,6 +42,8 @@ var (
 // DBHandler defines registered database connection referenced in meta resolver.
 type DBHandler interface {
 	Query(query string, args ...interface{}) (rows *sql.Rows, err error)
+	Exec(query string, args ...interface{}) (result sql.Result, err error)
+	Close() error
 }
 
 // DBMetaHandler defines single database meta resolve handler.
@@ -99,14 +101,27 @@ func (h *MetaHandler) Stop() {
 	})
 }
 
-// AddConn add new database connection to meta refresher.
-func (h *MetaHandler) AddConn(dbID string, conn DBHandler) {
-	h.l.RLock()
-	_, exists := h.dbMap[dbID]
-	h.l.RUnlock()
-	if !exists {
-		h.SetConn(dbID, conn)
+// Close close all registered databases.
+func (h *MetaHandler) Close() {
+	h.l.Lock()
+	defer h.l.Unlock()
+
+	for k := range h.dbMap {
+		h.dbMap[k].Close()
+		delete(h.dbMap, k)
 	}
+}
+
+// AddConn add new database connection to meta refresher.
+func (h *MetaHandler) AddConn(dbID string, conn DBHandler) (added bool) {
+	h.l.Lock()
+	defer h.l.Unlock()
+	_, exists := h.dbMap[dbID]
+	if !exists {
+		h.dbMap[dbID] = NewDBMetaHandler(dbID, conn)
+		added = true
+	}
+	return
 }
 
 // SetConn set new database connection to meta refresher.
@@ -281,4 +296,11 @@ func (h *DBMetaHandler) GetTable(tableName string) (columns []string, err error)
 	h.tableMapping[strings.ToLower(tableName)] = columns
 
 	return
+}
+
+// Close close the underlying database connection.
+func (h *DBMetaHandler) Close() {
+	h.l.Lock()
+	defer h.l.Unlock()
+	h.conn.Close()
 }

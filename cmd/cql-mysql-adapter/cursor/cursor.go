@@ -24,8 +24,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/resolver"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	my "github.com/siddontang/go-mysql/mysql"
 )
@@ -53,16 +51,15 @@ var (
 
 // Cursor is a mysql connection handler, like a cursor of normal database.
 type Cursor struct {
-	curUser       string
-	curDBLock     sync.RWMutex
-	curDB         string
-	curDBInstance *sql.DB
-	curResolver   *resolver.Resolver
+	curUser   string
+	curDBLock sync.RWMutex
+	curDB     string
+	h         Handler
 }
 
 // NewCursor returns a new cursor.
-func NewCursor() (c *Cursor) {
-	return &Cursor{}
+func NewCursor(h Handler) (c *Cursor) {
+	return &Cursor{h: h}
 }
 
 func (c *Cursor) buildResultSet(rows *sql.Rows) (r *my.Result, err error) {
@@ -99,21 +96,6 @@ func (c *Cursor) getCurDB() string {
 	c.curDBLock.RLock()
 	defer c.curDBLock.RUnlock()
 	return c.curDB
-}
-
-func (c *Cursor) ensureDatabase() (conn *sql.DB, rsv *resolver.Resolver, err error) {
-	c.curDBLock.Lock()
-	defer c.curDBLock.Unlock()
-
-	if c.curDB == "" {
-		err = my.NewError(my.ER_NO_DB_ERROR, "select database before any query")
-		return
-	}
-
-	conn = c.curDBInstance
-	rsv = c.curResolver
-
-	return
 }
 
 func (c *Cursor) detectColumnType(typeStr string) (typeByte uint8) {
@@ -283,28 +265,7 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 		return
 	}
 
-	// close previous database and resolver
-	if c.curResolver != nil {
-		c.curResolver.Close()
-	}
-	if c.curDBInstance != nil {
-		c.curDBInstance.Close()
-	}
-
-	// connect database
-	cfg := client.NewConfig()
-	cfg.DatabaseID = dbName
-
-	var db *sql.DB
-
-	if db, err = sql.Open("covenantsql", cfg.FormatDSN()); err != nil {
-		return
-	}
-
-	c.curDB = dbName
-	c.curDBInstance = db
-	c.curResolver = resolver.NewResolver()
-	c.curResolver.RegisterDB(dbName, c.curDBInstance)
+	err = c.h.EnsureDatabase(dbName)
 
 	return
 }
@@ -320,17 +281,9 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 		return
 	}
 
-	var (
-		conn *sql.DB
-		rsv  *resolver.Resolver
-		q    *resolver.Query
-	)
+	var q Query
 
-	if conn, rsv, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
-	if q, err = rsv.ResolveSingleQuery(c.getCurDB(), query); err != nil {
+	if q, err = c.h.Resolve(c.getCurDB(), query); err != nil {
 		err = my.NewError(my.ER_SYNTAX_ERROR, err.Error())
 		return
 	}
@@ -338,7 +291,7 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	// normal query
 	if q.IsRead() {
 		var rows *sql.Rows
-		if rows, err = conn.Query(q.Query); err != nil {
+		if rows, err = c.h.Query(q); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
@@ -348,7 +301,7 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 	}
 
 	var result sql.Result
-	if result, err = conn.Exec(q.Query); err != nil {
+	if result, err = c.h.Exec(q); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}
@@ -363,24 +316,14 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 		Resultset:    nil,
 	}
 
-	if q.IsDDL() {
-		rsv.ReloadMeta()
-	}
-
 	return
 }
 
 // HandleFieldList handle COM_FILED_LIST command.
 func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*my.Field, err error) {
-	var conn *sql.DB
-
-	if conn, _, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
 	// send show tables command
 	var columns *sql.Rows
-	if columns, err = conn.Query(fmt.Sprintf("DESC `%s`", table)); err != nil {
+	if columns, err = c.h.QueryString(c.getCurDB(), fmt.Sprintf("DESC `%s`", table)); err != nil {
 		// wrap error
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
@@ -455,16 +398,9 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 		return
 	}
 
-	var (
-		rsv *resolver.Resolver
-		q   *resolver.Query
-	)
+	var q Query
 
-	if _, rsv, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
-	if q, err = rsv.ResolveSingleQuery(c.getCurDB(), query); err != nil {
+	if q, err = c.h.Resolve(c.getCurDB(), query); err != nil {
 		err = my.NewError(my.ER_SYNTAX_ERROR, err.Error())
 		return
 	}
@@ -473,8 +409,8 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 		return
 	}
 
-	params = q.ParamCount
-	columns = len(q.ResultColumns)
+	params = q.GetParamCount()
+	columns = q.GetResultColumnCount()
 	context = q
 
 	return
@@ -483,30 +419,24 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 // HandleStmtExecute handle COM_STMT_EXECUTE, context is the previous one set in prepare
 // query is the statement prepare query, and args is the params for this statement.
 func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []interface{}) (r *my.Result, err error) {
-	var q *resolver.Query
+	var q Query
 
 	switch v := context.(type) {
 	case *my.Result:
 		// special query
 		r = v
 		return
-	case *resolver.Query:
+	case Query:
 		q = v
 	default:
 		err = my.NewError(my.ER_UNKNOWN_ERROR, "invalid prepared statement")
 		return
 	}
 
-	var conn *sql.DB
-
-	if conn, _, err = c.ensureDatabase(); err != nil {
-		return
-	}
-
 	// normal query
 	if q.IsRead() {
 		var rows *sql.Rows
-		if rows, err = conn.Query(q.Query, args...); err != nil {
+		if rows, err = c.h.Query(q, args...); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
@@ -516,7 +446,7 @@ func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []int
 	}
 
 	var result sql.Result
-	if result, err = conn.Exec(q.Query, args...); err != nil {
+	if result, err = c.h.Exec(q, args...); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}

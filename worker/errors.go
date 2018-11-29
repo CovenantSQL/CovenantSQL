@@ -42,4 +42,11 @@ var (
 
 	// ErrUnknownMuxRequest indicates that the a multiplexing request endpoint is not found.
 	ErrUnknownMuxRequest = errors.New("unknown multiplexing request")
+
+	// ErrPermissionDeny indicates that the requester has no permission to send read or write query.
+	ErrPermissionDeny = errors.New("permission deny")
+
+	// ErrInvalidPermission indicates that the requester sends a unrecognized permission.
+	ErrInvalidPermission = errors.New("invalid permission")
+
 )

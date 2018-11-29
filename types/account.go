@@ -41,10 +41,10 @@ type UserPermission int32
 const (
 	// Admin defines the admin user permission.
 	Admin UserPermission = iota
-	// Read defines the reader user permission.
-	Read
 	// Write defines the writer user permission.
 	Write
+	// Read defines the reader user permission.
+	Read
 	// NumberOfUserPermission defines the user permission number.
 	NumberOfUserPermission
 )
@@ -83,6 +83,7 @@ type MinerInfo struct {
 	ReceivedIncome uint64
 	Pledge         uint64
 	Status         Status
+	EncryptionKey string
 }
 
 // SQLChainProfile defines a SQLChainProfile related to an account.

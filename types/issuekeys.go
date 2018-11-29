@@ -26,50 +26,53 @@ import (
 
 //go:generate hsp
 
-// UpdatePermissionHeader defines the updating sqlchain permission transaction header.
-type UpdatePermissionHeader struct {
+type MinerKey struct {
+	Miner proto.AccountAddress
+	EncryptionKey string
+}
+
+type IssueKeysHeader struct {
 	TargetSQLChain proto.AccountAddress
-	TargetUser     proto.AccountAddress
-	Permission     UserPermission
-	Nonce          interfaces.AccountNonce
+	MinerKeys []MinerKey
+	Nonce interfaces.AccountNonce
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.
-func (u *UpdatePermissionHeader) GetAccountNonce() interfaces.AccountNonce {
-	return u.Nonce
+func (h *IssueKeysHeader) GetAccountNonce() interfaces.AccountNonce {
+	return h.Nonce
 }
 
-// UpdatePermission defines the updating sqlchain permission transaction.
-type UpdatePermission struct {
-	UpdatePermissionHeader
+// IssueKeys defines the database creation transaction.
+type IssueKeys struct {
+	IssueKeysHeader
 	interfaces.TransactionTypeMixin
 	verifier.DefaultHashSignVerifierImpl
 }
 
-// NewUpdatePermission returns new instance.
-func NewUpdatePermission(header *UpdatePermissionHeader) *UpdatePermission {
-	return &UpdatePermission{
-		UpdatePermissionHeader: *header,
-		TransactionTypeMixin:   *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeUpdatePermission),
+// NewIssueKeys returns new instance.
+func NewIssueKeys(header *IssueKeysHeader) *IssueKeys {
+	return &IssueKeys{
+		IssueKeysHeader: *header,
+		TransactionTypeMixin: *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeIssueKeys),
 	}
 }
 
 // Sign implements interfaces/Transaction.Sign.
-func (up *UpdatePermission) Sign(signer *asymmetric.PrivateKey) (err error) {
-	return up.DefaultHashSignVerifierImpl.Sign(&up.UpdatePermissionHeader, signer)
+func (ik *IssueKeys) Sign(signer *asymmetric.PrivateKey) (err error) {
+	return ik.DefaultHashSignVerifierImpl.Sign(&ik.IssueKeysHeader, signer)
 }
 
 // Verify implements interfaces/Transaction.Verify.
-func (up *UpdatePermission) Verify() error {
-	return up.DefaultHashSignVerifierImpl.Verify(&up.UpdatePermissionHeader)
+func (ik *IssueKeys) Verify() error {
+	return ik.DefaultHashSignVerifierImpl.Verify(&ik.IssueKeysHeader)
 }
 
 // GetAccountAddress implements interfaces/Transaction.GetAccountAddress.
-func (up *UpdatePermission) GetAccountAddress() proto.AccountAddress {
-	addr, _ := crypto.PubKeyHash(up.Signee)
+func (ik *IssueKeys) GetAccountAddress() proto.AccountAddress {
+	addr, _ := crypto.PubKeyHash(ik.Signee)
 	return addr
 }
 
 func init() {
-	interfaces.RegisterTransaction(interfaces.TransactionTypeUpdatePermission, (*UpdatePermission)(nil))
+	interfaces.RegisterTransaction(interfaces.TransactionTypeIssueKeys, (*IssueKeys)(nil))
 }

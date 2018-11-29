@@ -18,6 +18,7 @@ package worker
 
 import (
 	"bytes"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -48,6 +49,8 @@ type DBMS struct {
 	kayakMux *DBKayakMuxService
 	chainMux *sqlchain.MuxService
 	rpc      *DBMSRPCService
+	// TODO(lambda): change it to chain bus after chain bus finished.
+	profileMap map[proto.DatabaseID]*types.SQLChainProfile
 }
 
 // NewDBMS returns new database management instance.
@@ -261,6 +264,16 @@ func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 	var db *Database
 	var exists bool
 
+	// check permission
+	addr, err := crypto.PubKeyHash(req.Header.Signee)
+	if err != nil {
+		return
+	}
+	err = dbms.checkPermission(addr, req)
+	if err != nil {
+		return
+	}
+
 	// find database
 	if db, exists = dbms.getMeta(req.Header.DatabaseID); !exists {
 		err = ErrNotExists
@@ -331,6 +344,41 @@ func (dbms *DBMS) getMappedInstances() (instances []types.ServiceInstance, err e
 
 	instances = res.Header.Instances
 
+	return
+}
+
+func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request) (err error) {
+	// TODO(lambda): change it to chain bus after chain bus finished.
+	profile := dbms.profileMap[req.Header.DatabaseID]
+	if profile != nil {
+		var i int
+		var user *types.SQLChainUser
+		for i, user = range profile.Users {
+			if user.Address == addr {
+				break
+			}
+		}
+		profileLen := len(profile.Users)
+		if i < profileLen && profileLen > 0 {
+			if req.Header.QueryType == types.ReadQuery {
+				if profile.Users[i].Permission > types.Read {
+					err = ErrPermissionDeny
+					return
+				}
+			} else if req.Header.QueryType == types.WriteQuery {
+				if profile.Users[i].Permission > types.Write {
+					err = ErrPermissionDeny
+					return
+				}
+			} else {
+				err = ErrInvalidPermission
+				return
+			}
+		} else {
+			err = ErrPermissionDeny
+			return
+		}
+	}
 	return
 }
 

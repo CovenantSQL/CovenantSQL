@@ -18,9 +18,6 @@ package blockproducer
 
 import (
 	"bytes"
-	"sync"
-	"time"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -33,6 +30,8 @@ import (
 	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	"github.com/ulule/deepcopier"
+	"sync"
+	"time"
 )
 
 var (
@@ -893,14 +892,14 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 	if !loaded {
 		log.WithFields(log.Fields{
 			"dbID": tx.TargetSQLChain.DatabaseID(),
-		}).WithError(ErrDatabaseNotFound).Error("unexpected error")
+		}).WithError(ErrDatabaseNotFound).Error("unexpected error in updatePermission")
 		return ErrDatabaseNotFound
 	}
 	if tx.Permission >= pt.NumberOfUserPermission {
 		log.WithFields(log.Fields{
 			"permission": tx.Permission,
 			"dbID":       tx.TargetSQLChain.DatabaseID(),
-		}).WithError(ErrInvalidPermission).Error("unexpected error")
+		}).WithError(ErrInvalidPermission).Error("unexpected error in updatePermission")
 		return ErrInvalidPermission
 	}
 
@@ -918,7 +917,7 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 		log.WithFields(log.Fields{
 			"sender": sender,
 			"dbID":   tx.TargetSQLChain,
-		}).WithError(ErrAccountPermissionDeny).Error("unexpected error")
+		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updatePermission")
 		return ErrAccountPermissionDeny
 	}
 
@@ -932,6 +931,52 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 		so.Users = append(so.Users, &u)
 	} else {
 		so.Users[targetUserIndex].Permission = tx.Permission
+	}
+	return
+}
+
+func (s *metaState) updateKeys(tx *pt.IssueKeys) (err error) {
+	sender := tx.GetAccountAddress()
+	so, loaded := s.loadSQLChainObject(tx.TargetSQLChain.DatabaseID())
+	if !loaded {
+		log.WithFields(log.Fields{
+			"dbID": tx.TargetSQLChain.DatabaseID(),
+		}).WithError(ErrDatabaseNotFound).Error("unexpected error in updateKeys")
+		return ErrDatabaseNotFound
+	}
+
+	// check sender's permission
+	if so.Owner != sender {
+		log.WithFields(log.Fields{
+			"sender": sender,
+			"dbID":   tx.TargetSQLChain,
+		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
+		return ErrAccountPermissionDeny
+	}
+	isAdmin := false
+	for _, user := range so.Users {
+		if sender == user.Address && user.Permission == pt.Admin {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		log.WithFields(log.Fields{
+			"sender": sender,
+			"dbID":   tx.TargetSQLChain,
+		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
+		return ErrAccountPermissionDeny
+	}
+
+	// update miner's key
+	keyMap := make(map[proto.AccountAddress] string)
+	for i := range tx.MinerKeys {
+		keyMap[tx.MinerKeys[i].Miner] = tx.MinerKeys[i].EncryptionKey
+	}
+	for _, miner := range so.Miners {
+		if key, ok := keyMap[miner.Address]; ok {
+			miner.EncryptionKey = key
+		}
 	}
 	return
 }
@@ -961,6 +1006,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.matchProvidersWithUser(t)
 	case *pt.UpdatePermission:
 		err = s.updatePermission(t)
+	case *pt.IssueKeys:
+		err = s.updateKeys(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
 		err = s.applyTransaction(t.Unwrap())

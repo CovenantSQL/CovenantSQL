@@ -43,29 +43,31 @@ func (z *Account) Msgsize() (s int) {
 func (z *MinerInfo) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 6
-	o = append(o, 0x86, 0x86)
+	// map header, size 7
+	o = append(o, 0x87, 0x87)
 	o = hsp.AppendInt32(o, int32(z.Status))
-	o = append(o, 0x86)
+	o = append(o, 0x87)
 	if oTemp, err := z.Address.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x86)
+	o = append(o, 0x87)
 	o = hsp.AppendString(o, z.Name)
-	o = append(o, 0x86)
+	o = append(o, 0x87)
+	o = hsp.AppendString(o, z.EncryptionKey)
+	o = append(o, 0x87)
 	o = hsp.AppendUint64(o, z.PendingIncome)
-	o = append(o, 0x86)
+	o = append(o, 0x87)
 	o = hsp.AppendUint64(o, z.ReceivedIncome)
-	o = append(o, 0x86)
+	o = append(o, 0x87)
 	o = hsp.AppendUint64(o, z.Pledge)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *MinerInfo) Msgsize() (s int) {
-	s = 1 + 7 + hsp.Int32Size + 8 + z.Address.Msgsize() + 5 + hsp.StringPrefixSize + len(z.Name) + 14 + hsp.Uint64Size + 15 + hsp.Uint64Size + 7 + hsp.Uint64Size
+	s = 1 + 7 + hsp.Int32Size + 8 + z.Address.Msgsize() + 5 + hsp.StringPrefixSize + len(z.Name) + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 14 + hsp.Uint64Size + 15 + hsp.Uint64Size + 7 + hsp.Uint64Size
 	return
 }
 
@@ -73,25 +75,31 @@ func (z *MinerInfo) Msgsize() (s int) {
 func (z *ProviderProfile) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	// map header, size 5
+	o = append(o, 0x85, 0x85)
 	if oTemp, err := z.Provider.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
+	if oTemp, err := z.TargetUser.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x85)
 	o = hsp.AppendUint64(o, z.Space)
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	o = hsp.AppendUint64(o, z.Memory)
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	o = hsp.AppendUint64(o, z.LoadAvgPerCPU)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ProviderProfile) Msgsize() (s int) {
-	s = 1 + 9 + z.Provider.Msgsize() + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
+	s = 1 + 9 + z.Provider.Msgsize() + 11 + z.TargetUser.Msgsize() + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
 	return
 }
 

@@ -110,7 +110,7 @@ func forceEOF(yylex interface{}) {
 %left <bytes> JOIN LEFT RIGHT INNER OUTER CROSS NATURAL
 %left <bytes> ON USING
 %token <empty> '(' ',' ')'
-%token <bytes> ID HEX STRING INTEGRAL FLOAT HEXNUM VALUE_ARG LIST_ARG COMMENT
+%token <bytes> ID HEX STRING INTEGRAL FLOAT HEXNUM VALUE_ARG POS_ARG LIST_ARG COMMENT
 %token <bytes> NULL TRUE FALSE
 %token <bytes> FULL COLUMNS
 
@@ -207,7 +207,7 @@ func forceEOF(yylex interface{}) {
 %type <columns> ins_column_list column_list
 %type <updateExprs> update_list
 %type <updateExpr> update_expression
-%type <str> ignore_opt default_opt
+%type <str> ignore_opt
 %type <byt> exists_opt
 %type <empty> not_exists_opt constraint_opt
 %type <bytes> reserved_keyword non_reserved_keyword
@@ -1137,20 +1137,6 @@ expression:
   {
     $$ = $1
   }
-| DEFAULT default_opt
-  {
-    $$ = &Default{ColName: $2}
-  }
-
-default_opt:
-  /* empty */
-  {
-    $$ = ""
-  }
-| openb ID closeb
-  {
-    $$ = string($2)
-  }
 
 boolean_value:
   TRUE
@@ -1642,6 +1628,10 @@ value:
 | VALUE_ARG
   {
     $$ = NewValArg($1)
+  }
+| POS_ARG
+  {
+    $$ = NewPosArg($1)
   }
 | NULL
   {

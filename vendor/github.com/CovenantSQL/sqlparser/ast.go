@@ -94,6 +94,36 @@ func ParseNext(tokenizer *Tokenizer) (Statement, error) {
 	return tokenizer.ParseTree, nil
 }
 
+// ParseMultiple returns multiple parsed original query and parsed statement.
+func ParseMultiple(tokenizer *Tokenizer) (queries []string, statements []Statement, err error) {
+	var lastPos int
+
+	for {
+		if tokenizer.lastChar == ';' {
+			tokenizer.next()
+			tokenizer.skipBlank()
+			lastPos = tokenizer.Position - 1
+		}
+		if tokenizer.lastChar == eofChar {
+			break
+		}
+
+		tokenizer.reset()
+		tokenizer.multi = true
+		if yyParse(tokenizer) != 0 && tokenizer.partialDDL == nil {
+			err = tokenizer.LastError
+			return
+		}
+		if tokenizer.partialDDL != nil {
+			statements = append(statements, tokenizer.partialDDL)
+		} else {
+			statements = append(statements, tokenizer.ParseTree)
+		}
+		queries = append(queries, string(tokenizer.buf[lastPos:tokenizer.Position-1]))
+	}
+	return
+}
+
 // SplitStatement returns the first sql statement up to either a ; or EOF
 // and the remainder from the given buffer
 func SplitStatement(blob string) (string, string, error) {
@@ -1767,33 +1797,33 @@ type Expr interface {
 	SQLNode
 }
 
-func (*AndExpr) iExpr()          {}
-func (*OrExpr) iExpr()           {}
-func (*NotExpr) iExpr()          {}
-func (*ParenExpr) iExpr()        {}
-func (*ComparisonExpr) iExpr()   {}
-func (*RangeCond) iExpr()        {}
-func (*IsExpr) iExpr()           {}
-func (*ExistsExpr) iExpr()       {}
-func (*SQLVal) iExpr()           {}
-func (*NullVal) iExpr()          {}
-func (BoolVal) iExpr()           {}
-func (*ColName) iExpr()          {}
-func (ValTuple) iExpr()          {}
-func (*Subquery) iExpr()         {}
-func (ListArg) iExpr()           {}
-func (*BinaryExpr) iExpr()       {}
-func (*UnaryExpr) iExpr()        {}
-func (*IntervalExpr) iExpr()     {}
-func (*CollateExpr) iExpr()      {}
-func (*FuncExpr) iExpr()         {}
-func (*CaseExpr) iExpr()         {}
-func (*ValuesFuncExpr) iExpr()   {}
-func (*ConvertExpr) iExpr()      {}
-func (*MatchExpr) iExpr()        {}
-func (*GroupConcatExpr) iExpr()  {}
-func (*Default) iExpr()          {}
-func (*TimeExpr) iExpr()         {}
+func (*AndExpr) iExpr()         {}
+func (*OrExpr) iExpr()          {}
+func (*NotExpr) iExpr()         {}
+func (*ParenExpr) iExpr()       {}
+func (*ComparisonExpr) iExpr()  {}
+func (*RangeCond) iExpr()       {}
+func (*IsExpr) iExpr()          {}
+func (*ExistsExpr) iExpr()      {}
+func (*SQLVal) iExpr()          {}
+func (*NullVal) iExpr()         {}
+func (BoolVal) iExpr()          {}
+func (*ColName) iExpr()         {}
+func (ValTuple) iExpr()         {}
+func (*Subquery) iExpr()        {}
+func (ListArg) iExpr()          {}
+func (*BinaryExpr) iExpr()      {}
+func (*UnaryExpr) iExpr()       {}
+func (*IntervalExpr) iExpr()    {}
+func (*CollateExpr) iExpr()     {}
+func (*FuncExpr) iExpr()        {}
+func (*CaseExpr) iExpr()        {}
+func (*ValuesFuncExpr) iExpr()  {}
+func (*ConvertExpr) iExpr()     {}
+func (*MatchExpr) iExpr()       {}
+func (*GroupConcatExpr) iExpr() {}
+func (*Default) iExpr()         {}
+func (*TimeExpr) iExpr()        {}
 
 // ReplaceExpr finds the from expression from root
 // and replaces it with to. If from matches root,
@@ -2120,6 +2150,7 @@ const (
 	HexVal
 	ValArg
 	BitVal
+	PosArg
 )
 
 // SQLVal represents a single value.
@@ -2163,6 +2194,11 @@ func NewValArg(in []byte) *SQLVal {
 	return &SQLVal{Type: ValArg, Val: in}
 }
 
+// NewPosArg build a new PosArg.
+func NewPosArg(in []byte) *SQLVal {
+	return &SQLVal{Type: PosArg, Val: in}
+}
+
 // Format formats the node.
 func (node *SQLVal) Format(buf *TrackedBuffer) {
 	switch node.Type {
@@ -2176,6 +2212,8 @@ func (node *SQLVal) Format(buf *TrackedBuffer) {
 		buf.Myprintf("B'%s'", []byte(node.Val))
 	case ValArg:
 		buf.WriteArg(string(node.Val))
+	case PosArg:
+		buf.WriteArg("?")
 	default:
 		panic("unexpected")
 	}

@@ -32,7 +32,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:519e30d8e2f43fcde79a23993cd4e8fe609841d8e7666cc26f8dff0d2613f2c4"
+  digest = "1:72eed3fbb752e4ff388da196ff30a50a0e15524b3a2b12c6ab6430b89eb67f1e"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -42,7 +42,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "765b8d4e9426de3b49bfb96e520093504fb0d509"
+  revision = "78095ffffebc9ad7ece9e07a0acfa5afdd3a0505"
 
 [[projects]]
   branch = "master"
@@ -122,7 +122,7 @@
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "3dcf298fed2d5fd65918dc560b3942b2aa0629e8"
+  revision = "7d2daa5bfef28c5e282571bc06416516936115ee"
 
 [[projects]]
   branch = "master"
@@ -339,12 +339,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:b20d8767957e40b9302a8caaee88caa698513fbd972509a54555302c3aebfa04"
+  digest = "1:702ff5d8a0196ccb0627f35996efd1081be00c8ae1719402adbffc6e0f8f59ac"
   name = "github.com/miekg/dns"
   packages = ["."]
   pruneopts = "UT"
-  revision = "7064f7248f5fa5fd79382a76328b4e200b79e4ae"
-  version = "v1.0.15"
+  revision = "7586a3cbe8ccfc63f82de3ab2ceeb08c9939af72"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -361,6 +361,14 @@
   pruneopts = "UT"
   revision = "bb6d471dc95d4fe11e432687f8b70ff496cf3136"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:ea261e1479d92802a6e274d33c126d54c12edec06c36bf0999d04aeca936f184"
+  name = "github.com/pingcap/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1176802fff62540cc87d289bd40c52a2d6b2ea16"
+  version = "v0.11.0"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
@@ -404,7 +412,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ef74914912f99c79434d9c09658274678bc85080ebe3ab32bec3940ebce5e1fc"
+  digest = "1:9ea97158ea06d60b1f324aa384f6a4cbd596a81b3cae994e17108b195f398d01"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
@@ -413,7 +421,7 @@
     "xfs",
   ]
   pruneopts = "UT"
-  revision = "619930b0b4713cc1280189bf0a4c54b3fb506f60"
+  revision = "aa55a523dc0a8297edf51bb75e8eec13eb3be45d"
 
 [[projects]]
   branch = "master"
@@ -500,7 +508,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2c4379920afd63d262751932c18dfaa30d92ee8241403a919cd7a3e4cf9561d6"
+  digest = "1:685fdfea42d825ebd39ee0994354b46c374cf2c2b2d97a41a8dee1807c6a9b62"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -517,7 +525,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "d5f8e13ca70d404acb9f9f8daab06b3818425145"
+  revision = "b001fa50d6b27f3f0bb175a87d0cb55426d0a0ae"
 
 [[projects]]
   digest = "1:d9eb1d964a449cf51455fdac2ec3451c664af8e8b93c23d9c31d22b84ea82fde"
@@ -611,7 +619,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "e657309f52e71501f9934566ac06dc5c2f7f11a1"
+  revision = "eb0de9b17e854e9b1ccd9963efafc79862359959"
 
 [[projects]]
   branch = "master"
@@ -628,26 +636,26 @@
     "ipv6",
   ]
   pruneopts = "UT"
-  revision = "adae6a3d119ae4890b46832a2e88a95adc62b8e7"
+  revision = "351d144fa1fc0bd934e2408202be0c29f25e35a0"
 
 [[projects]]
   branch = "master"
-  digest = "1:f343f077a5b0bc3a3788b3a04e24dd417e3e25b2acb529c413e212d2c42416ef"
+  digest = "1:0c7cb58af944f9690af91474a75371eecfe54c1ce3771a8dc08924430ee785d3"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "62eef0e2fa9b2c385f7b2778e763486da6880d37"
+  revision = "4ed8d59d0b35e1e29334a206d1b3f38b1e5dfb31"
 
 [[projects]]
-  digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
+  digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
-  version = "v2.2.1"
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -677,6 +685,7 @@
     "github.com/lufia/iostat",
     "github.com/miekg/dns",
     "github.com/minio/blake2b-simd",
+    "github.com/pingcap/errors",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_model/go",

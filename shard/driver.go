@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,7 +66,7 @@ type ShardingConf struct {
 	ShardTableName sqlparser.TableName
 	ShardColName   sqlparser.ColIdent
 	ShardInterval  int64 // in seconds
-	ShardStarttime time.Time
+	ShardStartTime time.Time
 	ShardSchema    string
 }
 
@@ -84,8 +83,9 @@ type ShardingStmt struct {
 }
 
 type ShardingRows struct {
+	plan    *Plan
 	stmt    *ShardingStmt
-	rawRows *sqlite3.SQLiteRows
+	rawRows *sql.Rows
 }
 
 // ShardingResult implements sql.Result.
@@ -126,52 +126,52 @@ func (sc *ShardingConn) BeginTx(ctx context.Context, opts driver.TxOptions) (tx 
 
 func (sc *ShardingConn) loadShardConfig() (err error) {
 	var (
-		tablename string
-		colname   string
-		sinterval int64
-		starttime time.Time
-		sschema   string
+		tableName string
+		colName   string
+		sInterval int64
+		startTime time.Time
+		sSchema   string
 	)
 	// Create sharding meta table
 	_, err = sc.rawDB.Exec(`
 		CREATE TABLE IF NOT EXISTS __SHARDING_META (
-			tablename TEXT UNIQUE not null,
-			colname TEXT not null,
-			sinterval INTEGER,
-			starttime TIMESTAMP,
-			sschema TEXT not null
+			tableName TEXT UNIQUE not null,
+			colName TEXT not null,
+			sInterval INTEGER,
+			startTime TIMESTAMP,
+			sSchema TEXT not null
 			);
-		CREATE INDEX IF NOT EXISTS tableindex__SHARDING_META ON __SHARDING_META ( tablename );
-		CREATE INDEX IF NOT EXISTS colindex__SHARDING_META ON __SHARDING_META ( colname );`)
+		CREATE INDEX IF NOT EXISTS tableindex__SHARDING_META ON __SHARDING_META ( tableName );
+		CREATE INDEX IF NOT EXISTS colindex__SHARDING_META ON __SHARDING_META ( colName );`)
 	if err != nil {
 		return errors.Wrapf(err, "create sharding meta table failed: %v", err)
 	}
 
 	sc.conf = make(map[string]*ShardingConf)
-	rows, err := sc.rawDB.Query("select tablename, colname, sinterval, starttime, sschema from __SHARDING_META")
+	rows, err := sc.rawDB.Query("select tableName, colName, sInterval, startTime, sSchema from __SHARDING_META")
 	if err != nil {
 		return errors.Wrapf(err, "query sharding meta table")
 	}
 	defer rows.Close()
 	if rows.Next() {
-		err = rows.Scan(&tablename, &colname, &sinterval, &starttime, &sschema)
+		err = rows.Scan(&tableName, &colName, &sInterval, &startTime, &sSchema)
 		if err != nil {
 			return errors.Wrapf(err, "load shard conf failed: %v", err)
 		}
-		if sinterval < 10 {
+		if sInterval < 10 {
 			return errors.New("shard interval should greater or equal 10 seconds")
 		}
 		conf := &ShardingConf{
 			ShardTableName: sqlparser.TableName{
-				Name:      sqlparser.NewTableIdent(tablename),
+				Name:      sqlparser.NewTableIdent(tableName),
 				Qualifier: sqlparser.TableIdent{},
 			},
-			ShardColName:   sqlparser.NewColIdent(colname),
-			ShardInterval:  sinterval,
-			ShardStarttime: starttime,
-			ShardSchema:    sschema,
+			ShardColName:   sqlparser.NewColIdent(colName),
+			ShardInterval:  sInterval,
+			ShardStartTime: startTime,
+			ShardSchema:    sSchema,
 		}
-		sc.conf[tablename] = conf
+		sc.conf[tableName] = conf
 	}
 
 	return
@@ -282,10 +282,11 @@ func (sc *ShardingConn) ExecContext(
 
 	for _, p := range plans {
 		var r driver.Result
-		r, err = p.Instructions.ExecContext(ctx)
+		r, err = p.Instructions.ExecContext(ctx, nil)
 		if err != nil {
 			return nil,
-				errors.Wrapf(err, "exec plan %v for %s failed", p, p.Original)
+				errors.Wrapf(err, "exec plan %#v for %s %#v failed",
+					p, p.OriginQuery, p.OriginArgs)
 		} else {
 			var ra int64
 			ra, shardResult.Err = r.RowsAffected()
@@ -309,6 +310,8 @@ func (sc *ShardingConn) QueryContext(
 		queries []string
 		stmts   []sqlparser.Statement
 		argss   [][]driver.NamedValue
+		plan    *Plan
+		sqlRows *sql.Rows
 	)
 
 	queries, stmts, argss, err = sc.splitQueryArgs(query, args)
@@ -323,17 +326,33 @@ func (sc *ShardingConn) QueryContext(
 	qLast := queries[queryCount-1]
 	aLast := argss[queryCount-1]
 	sLast := stmts[queryCount-1]
-	var plan *Plan
 	plan, err = BuildFromStmt(qLast, aLast, sLast, sc)
 	if err != nil {
 		return nil,
 			errors.Wrapf(err, "build shard statement for %v failed", qLast)
 	}
 
-	rows, err = plan.Instructions.QueryContext(ctx)
-	if err != nil {
-		return nil,
-			errors.Wrapf(err, "exec plan %v for %s failed", plan, plan.Original)
+	switch plan.Instructions.(type) {
+	case *BasePrimitive:
+		rows, err = plan.Instructions.(*BasePrimitive).QueryContext(ctx)
+	case *Select:
+		err = plan.PrepareMergeTable(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "filling merge table")
+		}
+		sqlRows, err = plan.QueryContext(ctx)
+		if err != nil {
+			return nil,
+				errors.Wrapf(err, "exec plan %v for %s %#v failed",
+					plan, plan.OriginQuery, plan.OriginArgs)
+		}
+		rows = &ShardingRows{
+			stmt:    nil,
+			rawRows: sqlRows,
+		}
+
+	default:
+		panic("unknown plan instruction type")
 	}
 
 	return
@@ -367,14 +386,7 @@ func (s *ShardingStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 }
 
 func (s *ShardingStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (rows driver.Rows, err error) {
-	//TODO(auxten)
-	rawRows, err := s.rawStmt.QueryContext(ctx, args)
-	if err == nil {
-		rows = &ShardingRows{
-			rawRows: rawRows.(*sqlite3.SQLiteRows),
-		}
-	}
-	return
+	return s.c.QueryContext(ctx, s.rawQuery, args)
 }
 
 func (sc *ShardingConn) splitQueryArgs(query string, args []driver.NamedValue) (
@@ -415,25 +427,22 @@ func (sc *ShardingConn) splitQueryArgs(query string, args []driver.NamedValue) (
 		if err == nil {
 			numInputs = sqliteStmt.NumInput()
 			sqliteStmt.Close()
-		} else {
-			return nil, nil, nil,
-				errors.Wrapf(err, "get input count failed for %s", q)
-		}
-		// Copy to fix args ordinal error
-		newArgs := make([]driver.NamedValue, numInputs)
-		if len(args) < lastArgs+numInputs {
-			return nil, nil, nil,
-				errors.Wrapf(err, "not enough args to execute query: got %d", len(args))
-		}
-		for j, a = range args[lastArgs : lastArgs+numInputs] {
-			newArgs[j] = driver.NamedValue{
-				Name:    a.Name,
-				Ordinal: j + 1,
-				Value:   a.Value,
+			// Copy to fix args ordinal error
+			newArgs := make([]driver.NamedValue, numInputs)
+			if len(args) < lastArgs+numInputs {
+				return nil, nil, nil,
+					errors.Wrapf(err, "not enough args to execute query: got %d", len(args))
 			}
+			for j, a = range args[lastArgs : lastArgs+numInputs] {
+				newArgs[j] = driver.NamedValue{
+					Name:    a.Name,
+					Ordinal: j + 1,
+					Value:   a.Value,
+				}
+			}
+			argss[i] = newArgs
+			lastArgs += numInputs
 		}
-		argss[i] = newArgs
-		lastArgs += numInputs
 	}
 	return
 }
@@ -462,33 +471,30 @@ func (r *ShardingResult) RowsAffected() (int64, error) {
 
 func (r *ShardingRows) Columns() []string {
 	//TODO(auxten)
-	return r.rawRows.Columns()
+	rows, _ := r.rawRows.Columns()
+	return rows
 }
 
 func (r *ShardingRows) Close() (err error) {
-	//TODO(auxten)
-	err = r.rawRows.Close()
+	if r.rawRows != nil {
+		err = r.rawRows.Close()
+	}
+	if r.plan != nil {
+		_ = r.plan.destroyMergeTable()
+	}
 	return
 }
 
 func (r *ShardingRows) Next(dest []driver.Value) error {
-	//TODO(auxten)
-	return r.rawRows.Next(dest)
-}
-
-// ColumnTypeDatabaseTypeName implement RowsColumnTypeDatabaseTypeName.
-func (r *ShardingRows) ColumnTypeDatabaseTypeName(i int) string {
-	return r.rawRows.ColumnTypeDatabaseTypeName(i)
-}
-
-// ColumnTypeNullable implement RowsColumnTypeNullable.
-func (r *ShardingRows) ColumnTypeNullable(i int) (nullable, ok bool) {
-	return r.rawRows.ColumnTypeNullable(i)
-}
-
-// ColumnTypeScanType implement RowsColumnTypeScanType.
-func (r *ShardingRows) ColumnTypeScanType(i int) reflect.Type {
-	return r.rawRows.ColumnTypeScanType(i)
+	if r.rawRows.Next() {
+		s := make([]interface{}, len(dest))
+		for i, _ := range dest {
+			s[i] = &dest[i]
+		}
+		return r.rawRows.Scan(s...)
+	} else {
+		return io.EOF
+	}
 }
 
 /************************* Deprecated interface func below *************************/

@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
-	"github.com/siddontang/go/log"
 )
 
 func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS int64, err error) {
@@ -84,7 +84,7 @@ func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS in
 
 		if arg == nil {
 			return -1,
-				fmt.Errorf("unsupported: %s named args",
+				errors.Errorf("unsupported: %s named args",
 					string(sqlVal.Val))
 		}
 
@@ -105,7 +105,7 @@ func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS in
 			insertTS = arg.Value.(time.Time).Unix()
 		case bool, []byte:
 			return -1,
-				fmt.Errorf("unsupported: sharding key in arg: %v", arg)
+				errors.Errorf("unsupported: sharding key in arg: %v", arg)
 		}
 
 	case sqlparser.FloatVal, sqlparser.HexNum, sqlparser.HexVal, sqlparser.BitVal:
@@ -128,7 +128,7 @@ func getValArgIndex(sqlVal *sqlparser.SQLVal) (argIndex int64, err error) {
 		}
 		return
 	}
-	return -1, fmt.Errorf("no val index got in %s", string(sqlVal.Val))
+	return -1, errors.Errorf("no val index got in %s", string(sqlVal.Val))
 }
 
 func shardSuffix(shardID int64) string {
@@ -139,10 +139,46 @@ func shardTableName(t *sqlparser.TableName, shardID int64) string {
 	return fmt.Sprintf("%s%s", t.Name.String(), shardSuffix(shardID))
 }
 
-func generateShardSchema(originSchema string, shardID int64) (string, error) {
-	//TODO(auxten): check and add "IF NOT EXISTS"
-	if !strings.Contains(originSchema, ShardSchemaToken) {
-		return "", fmt.Errorf("not found '%s' in schema: %s", ShardSchemaToken, originSchema)
+func (sc *ShardingConn) getTableShards(tableName string) (shards []string, err error) {
+	q := fmt.Sprintf(`select name from sqlite_master where name like "%s%s%%";`,
+		tableName, SHARD_SUFFIX)
+	rows, err := sc.rawDB.Query(q)
+	if err != nil {
+		err = errors.Wrapf(err, "get table shards by: %s", q)
+		return
 	}
+
+	shards = make([]string, 0, 16)
+	defer rows.Close()
+	for rows.Next() {
+		var table string
+		err = rows.Scan(&table)
+		if err != nil {
+			err = errors.Wrapf(err, "get table shards by: %s", q)
+			return
+		}
+		shards = append(shards, table)
+	}
+	err = rows.Err()
+	if err != nil {
+		err = errors.Wrapf(err, "get table shards by: %s", q)
+	}
+	return
+}
+
+func (sc *ShardingConn) getTableSchema(tableName string) (schema string, err error) {
+	//TODO(auxten): check and add "IF NOT EXISTS"
+	if conf, ok := sc.conf[tableName]; ok {
+		if strings.Contains(conf.ShardSchema, ShardSchemaToken) {
+			return conf.ShardSchema, nil
+		} else {
+			return "", errors.Errorf("not found '%s' in schema: %s", ShardSchemaToken, conf.ShardSchema)
+		}
+	} else {
+		return "", errors.Errorf("not found schema for table: %s", tableName)
+	}
+}
+
+func generateShardSchema(originSchema string, shardID int64) (string, error) {
 	return strings.Replace(originSchema, ShardSchemaToken, shardSuffix(shardID), -1), nil
 }

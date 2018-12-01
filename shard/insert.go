@@ -21,13 +21,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
-	"github.com/y0ssar1an/q"
 )
 
 const SHARD_SUFFIX = "_ts_"
@@ -39,8 +37,6 @@ func buildInsertPlan(query string,
 	c *ShardingConn,
 ) (instructions Primitive, err error) {
 	log.Debugf("buildInsertPlan got %s\n insert:%#v\n args: %#v", query, ins, args)
-	q.Q(ins, args)
-
 	if conf, ok := c.conf[ins.Table.Name.CompliantName()]; ok {
 		if !conf.ShardColName.IsEmpty() && conf.ShardInterval > 0 {
 			if ins.Action == sqlparser.ReplaceStr {
@@ -51,7 +47,7 @@ func buildInsertPlan(query string,
 			}
 			shardColIndex := ins.Columns.FindColumn(conf.ShardColName)
 			if shardColIndex < 0 {
-				return nil, fmt.Errorf("sharding column not found in %s", query)
+				return nil, errors.Errorf("sharding column not found in %s", query)
 			} else {
 				if rows, ok := ins.Rows.(sqlparser.Values); ok {
 					allInserts := &Insert{
@@ -73,9 +69,9 @@ func buildInsertPlan(query string,
 									return nil,
 										errors.Wrapf(err, "get shard timestamp failed for: %s", query)
 								}
-								rowArgs = generateNamedArgs(args, row)
-								singleIns, err = c.prepareShardInstruction(insertTS, ins, row, rowArgs, conf)
-								//singleIns, err = c.prepareShardInstruction(insertTS, ins, row, args, conf)
+								rowArgs = toValuesNamedArgs(args, row)
+								singleIns, err = c.prepareInsertInstruction(insertTS, ins, row, rowArgs, conf)
+								//singleIns, err = c.prepareInsertInstruction(insertTS, ins, row, args, conf)
 								if err != nil {
 									return nil,
 										errors.Wrap(err, "prepare shard instruction failed")
@@ -86,24 +82,21 @@ func buildInsertPlan(query string,
 								//TODO(auxten) val can be sqlparser.FuncExpr, process SQL like this:
 								// insert into foo(id, name, time) values(61, 'foo', strftime('%s','now'));
 								return nil,
-									fmt.Errorf("non SQLVal type in column is not supported: %s", query)
+									errors.Errorf("non SQLVal type in column is not supported: %s", query)
 							}
 
 						} else {
 							return nil,
-								fmt.Errorf("bug: shardColIndex outof range %s", query)
+								errors.Errorf("bug: shardColIndex outof range %s", query)
 						}
 					}
 				} else {
 					return nil,
-						fmt.Errorf("non Values type in Rows is not supported: %s", query)
+						errors.Errorf("non Values type in Rows is not supported: %s", query)
 				}
 			}
-		} else if strings.HasPrefix(
-			ins.Table.Name.String(), conf.ShardTableName.Name.String()+SHARD_SUFFIX) {
-			return nil, errors.New("unsupported: query on sharding table directly")
 		} else {
-			return nil, fmt.Errorf("sharding conf set but not configured: %#v", conf)
+			return nil, errors.Errorf("sharding conf set but not configured: %#v", conf)
 		}
 	}
 
@@ -111,6 +104,7 @@ func buildInsertPlan(query string,
 		query:   query,
 		args:    args,
 		rawConn: c.rawConn,
+		rawDB:   c.rawDB,
 	}, nil
 }
 
@@ -129,11 +123,15 @@ type SingleRowPrimitive struct {
 	rawDB *sql.DB
 }
 
-func (s *SingleRowPrimitive) ExecContext(ctx context.Context) (result driver.Result, err error) {
-	panic("only run with transaction")
+func (s *SingleRowPrimitive) QueryContext(ctx context.Context) (driver.Rows, error) {
+	panic("should not call query in insert")
 }
 
-func (ins *Insert) ExecContext(ctx context.Context) (result driver.Result, err error) {
+func (s *SingleRowPrimitive) ExecContext(ctx context.Context, tx *sql.Tx) (result driver.Result, err error) {
+	return tx.ExecContext(ctx, s.query, s.namedArgs...)
+}
+
+func (ins *Insert) ExecContext(ctx context.Context, _ *sql.Tx) (result driver.Result, err error) {
 	ins.Lock()
 	defer ins.Unlock()
 	var (
@@ -153,7 +151,7 @@ func (ins *Insert) ExecContext(ctx context.Context) (result driver.Result, err e
 			break
 		}
 		txs[i] = tx
-		r, err = tx.ExecContext(ctx, ins.query, ins.namedArgs...)
+		r, err = ins.ExecContext(ctx, tx)
 		if err != nil {
 			log.Errorf("execute tx failed: %v", err)
 			break
@@ -205,44 +203,47 @@ func (ins *Insert) ExecContext(ctx context.Context) (result driver.Result, err e
 	}
 }
 
+func (ins *Insert) QueryContext(ctx context.Context) (driver.Rows, error) {
+	panic("should not call query in insert")
+}
+
 func (sc *ShardingConn) prepareShardTable(t *sqlparser.TableName, shardID int64) (err error) {
 	sTable := shardTableName(t, shardID)
 	if _, ok := sc.shardingTables.Load(sTable); !ok {
-		sc.Lock()
-		conf, gotConf := sc.conf[t.Name.CompliantName()]
-		sc.Unlock()
-		if gotConf {
-			var shardSchema string
-			shardSchema, err = generateShardSchema(conf.ShardSchema, shardID)
-			if err == nil {
-				_, err = sc.rawDB.Exec(shardSchema)
-				if err == nil {
-					sc.shardingTables.Store(sTable, true)
-					return
-				} else {
-					return fmt.Errorf("creating shard table %s with %s failed: %v",
-						sTable, shardSchema, err)
-				}
-			} else {
-				return
-			}
-
-		} else {
-			return fmt.Errorf("original schema for %s not found", t.Name.CompliantName())
+		sc.getTableSchema(t.Name.CompliantName())
+		var originSchema string
+		var shardSchema string
+		originSchema, err = sc.getTableSchema(t.Name.CompliantName())
+		if err != nil {
+			return
 		}
+		shardSchema, err = generateShardSchema(originSchema, shardID)
+		if err == nil {
+			_, err = sc.rawDB.Exec(shardSchema)
+			if err == nil {
+				sc.shardingTables.Store(sTable, true)
+				return
+			} else {
+				return errors.Errorf("creating shard table %s with %s failed: %v",
+					sTable, shardSchema, err)
+			}
+		} else {
+			return
+		}
+
 	}
 	return
 }
 
-func (sc *ShardingConn) prepareShardInstruction(insertTS int64,
+func (sc *ShardingConn) prepareInsertInstruction(insertTS int64,
 	ins *sqlparser.Insert,
 	row sqlparser.ValTuple,
 	rowArgs []interface{},
 	conf *ShardingConf) (p *SingleRowPrimitive, err error) {
 
-	timestampDiff := insertTS - conf.ShardStarttime.Unix()
+	timestampDiff := insertTS - conf.ShardStartTime.Unix()
 	if timestampDiff < 0 {
-		return nil, fmt.Errorf("insert time %d before shard start time", insertTS)
+		return nil, errors.Errorf("insert time %d before shard start time", insertTS)
 	}
 	shardID := timestampDiff / conf.ShardInterval
 	log.Debugf("shardID: %d, timestamp diff: %d", shardID, timestampDiff)
@@ -278,9 +279,35 @@ func (sc *ShardingConn) prepareShardInstruction(insertTS int64,
 	return
 }
 
-func generateNamedArgs(args []driver.NamedValue, row sqlparser.ValTuple) (rowArgs []interface{}) {
-	rowArgs = make([]interface{}, 0, len(row))
-	for _, col := range row {
+func toUserSpaceArgs(args []driver.NamedValue) (uArgs []interface{}) {
+	uArgs = make([]interface{}, len(args))
+	for i, a := range args {
+		if a.Name == "" {
+			uArgs[i] = a.Value
+		} else {
+			uArgs[i] = sql.Named(a.Name, a.Value)
+		}
+	}
+	return
+}
+
+func toNamedArgs(args []driver.NamedValue) (rowArgs []interface{}) {
+	rowArgs = make([]interface{}, len(args))
+	for i, a := range args {
+		var namedArg sql.NamedArg
+		if a.Name == "" {
+			namedArg = sql.Named(fmt.Sprintf("v%d", a.Ordinal), a.Value)
+		} else {
+			namedArg = sql.Named(a.Name, a.Value)
+		}
+		rowArgs[i] = namedArg
+	}
+	return
+}
+
+func toValuesNamedArgs(args []driver.NamedValue, columns []sqlparser.Expr) (rowArgs []interface{}) {
+	rowArgs = make([]interface{}, 0, len(columns))
+	for _, col := range columns {
 		if colVal, ok := col.(*sqlparser.SQLVal); ok {
 			if colVal.Type == sqlparser.ValArg {
 				var colArgIndex int64

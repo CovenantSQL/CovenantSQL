@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -426,13 +427,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt64(&i, 1)
-				_, err = db.Exec("INSERT INTO "+TABLENAME+"( k, v1 ) VALUES"+
+				_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 					"(?, ?)", ROWSTART+ii, ii,
 				)
 				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
 					log.Warnf("ROWSTART+ii = %d retried", ROWSTART+ii)
-					_, err = db.Exec("INSERT INTO"+TABLENAME+"( k, v1 ) VALUES"+
+					_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 						"(?, ?)", ROWSTART+ii, ii,
 					)
 				}
@@ -442,6 +443,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 			}
 		})
 	})
+
+	routineCount := runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
 
 	rowCount := db.QueryRow("SELECT COUNT(1) FROM " + TABLENAME)
 	var count int64
@@ -472,6 +480,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 			}
 		})
 	})
+
+	routineCount = runtime.NumGoroutine()
+	if routineCount > 100 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
 
 	//row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 

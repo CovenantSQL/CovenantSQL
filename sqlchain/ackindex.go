@@ -18,10 +18,18 @@ package sqlchain
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
+)
+
+var (
+	// Global atomic counters for stats
+	multiIndexCount int32
+	responseCount   int32
+	ackTrackerCount int32
 )
 
 type ackTracker struct {
@@ -48,6 +56,7 @@ func (i *multiAckIndex) addResponse(resp *types.SignedResponseHeader) (err error
 		return
 	}
 	i.ri[key] = resp
+	atomic.AddInt32(&responseCount, 1)
 	return
 }
 
@@ -70,16 +79,19 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 		resp: resp,
 		ack:  ack,
 	}
+	atomic.AddInt32(&responseCount, -1)
+	atomic.AddInt32(&ackTrackerCount, 1)
 	return
 }
 
 func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 	var key = ack.SignedRequestHeader().GetQueryKey()
-	log.Debugf("Removing key %s <-- ack %s", &key, ack.Hash())
+	log.Debugf("Removing key %s -x- ack %s", &key, ack.Hash())
 	i.Lock()
 	defer i.Unlock()
 	if _, ok := i.ri[key]; ok {
 		delete(i.ri, key)
+		atomic.AddInt32(&responseCount, -1)
 		return
 	}
 	if oack, ok := i.qi[key]; ok {
@@ -89,6 +101,7 @@ func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 			return
 		}
 		delete(i.qi, key)
+		atomic.AddInt32(&ackTrackerCount, -1)
 		return
 	}
 	err = errors.Wrapf(ErrQueryNotFound, "remove key %s -x- ack %s", &key, ack.Hash())
@@ -162,6 +175,7 @@ func (i *ackIndex) load(h int32) (mi *multiAckIndex, err error) {
 			qi: make(map[types.QueryKey]*ackTracker),
 		}
 		i.hi[h] = mi
+		atomic.AddInt32(&multiIndexCount, 1)
 	}
 	return
 }
@@ -180,7 +194,10 @@ func (i *ackIndex) advance(h int32) {
 	// Record expired and not acknowledged queries
 	for _, v := range dl {
 		v.expire()
+		atomic.AddInt32(&responseCount, int32(-len(v.ri)))
+		atomic.AddInt32(&ackTrackerCount, int32(-len(v.qi)))
 	}
+	atomic.AddInt32(&multiIndexCount, int32(-len(dl)))
 }
 
 func (i *ackIndex) addResponse(h int32, resp *types.SignedResponseHeader) (err error) {

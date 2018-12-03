@@ -18,7 +18,6 @@ package xenomint
 
 import (
 	"database/sql"
-	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -126,42 +125,34 @@ func (s *State) Close(commit bool) (err error) {
 func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
 	var (
 		tokenizer  = sqlparser.NewStringTokenizer(pattern)
-		stmt       sqlparser.Statement
-		lastPos    int
-		query      string
 		queryParts []string
+		statements []sqlparser.Statement
+		i          int
+		origQuery  string
+		query      string
 	)
 
-	for {
-		stmt, err = sqlparser.ParseNext(tokenizer)
+	if queryParts, statements, err = sqlparser.ParseMultiple(tokenizer); err != nil {
+		err = errors.Wrap(err, "parse sql failed")
+		return
+	}
 
-		if err != nil && err != io.EOF {
-			return
-		}
+	for i = range queryParts {
+		switch stmt := statements[i].(type) {
+		case *sqlparser.Show:
+			origQuery = queryParts[i]
 
-		if err == io.EOF {
-			err = nil
-			break
-		}
-
-		query = pattern[lastPos : tokenizer.Position-1]
-		lastPos = tokenizer.Position + 1
-
-		// translate show statement
-		if showStmt, ok := stmt.(*sqlparser.Show); ok {
-			origQuery := query
-
-			switch showStmt.Type {
+			switch stmt.Type {
 			case "table":
-				if showStmt.ShowCreate {
+				if stmt.ShowCreate {
 					query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
-						showStmt.OnTable.Name.String() + "\""
+						stmt.OnTable.Name.String() + "\""
 				} else {
-					query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + ")"
+					query = "PRAGMA table_info(" + stmt.OnTable.Name.String() + ")"
 				}
 			case "index":
 				query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
-					showStmt.OnTable.Name.String() + "\""
+					stmt.OnTable.Name.String() + "\""
 			case "tables":
 				query = "SELECT name FROM sqlite_master WHERE type = \"table\""
 			}
@@ -170,11 +161,11 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 				"from": origQuery,
 				"to":   query,
 			}).Debug("query translated")
-		} else if _, ok := stmt.(*sqlparser.DDL); ok {
+
+			queryParts[i] = query
+		case *sqlparser.DDL:
 			containsDDL = true
 		}
-
-		queryParts = append(queryParts, query)
 	}
 
 	p = strings.Join(queryParts, "; ")

@@ -77,7 +77,6 @@ func buildInsertPlan(query string,
 										errors.Wrap(err, "prepare shard instruction failed")
 								}
 								allInserts.Instructions = append(allInserts.Instructions, singleIns)
-								return allInserts, nil
 							} else {
 								//TODO(auxten) val can be sqlparser.FuncExpr, process SQL like this:
 								// insert into foo(id, name, time) values(61, 'foo', strftime('%s','now'));
@@ -90,6 +89,8 @@ func buildInsertPlan(query string,
 								errors.Errorf("bug: shardColIndex outof range %s", query)
 						}
 					}
+					return allInserts, nil
+
 				} else {
 					return nil,
 						errors.Errorf("non Values type in Rows is not supported: %s", query)
@@ -136,24 +137,24 @@ func (ins *Insert) ExecContext(ctx context.Context, _ *sql.Tx) (result driver.Re
 	defer ins.Unlock()
 	var (
 		shardingResult = &ShardingResult{}
-		txs            = make([]*sql.Tx, len(ins.Instructions))
+		tx             *sql.Tx
 		rs             = make([]sql.Result, len(ins.Instructions))
 	)
 
-	for i, ins := range ins.Instructions {
+	for i, singleRowPrimitive := range ins.Instructions {
 		var (
-			tx *sql.Tx
-			r  sql.Result
+			r sql.Result
 		)
-		tx, err = ins.rawDB.BeginTx(ctx, nil)
-		if err != nil {
-			log.Errorf("begin tx failed: %v", err)
-			break
+		if i == 0 {
+			tx, err = singleRowPrimitive.rawDB.BeginTx(ctx, nil)
+			if err != nil {
+				err = errors.Wrap(err, "begin tx failed")
+				break
+			}
 		}
-		txs[i] = tx
-		r, err = ins.ExecContext(ctx, tx)
+		r, err = singleRowPrimitive.ExecContext(ctx, tx)
 		if err != nil {
-			log.Errorf("execute tx failed: %v", err)
+			err = errors.Wrap(err, "execute tx failed")
 			break
 		}
 		rs[i] = r
@@ -161,24 +162,19 @@ func (ins *Insert) ExecContext(ctx context.Context, _ *sql.Tx) (result driver.Re
 
 	// if any error, rollback all
 	if err != nil {
-		for _, tx := range txs {
-			if tx == nil {
-				break
-			}
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf("rollback tx failed: %v", err)
+		if tx != nil {
+			er := tx.Rollback()
+			if er != nil {
+				err = errors.Wrapf(err, "rollback tx failed: %v", er)
 			}
 		}
-		return nil, err
+		return
 	} else {
-		for _, tx := range txs {
-			if tx == nil {
-				break
-			}
+		if tx != nil {
 			err = tx.Commit()
 			if err != nil {
-				log.Errorf("commit tx failed: %v", err)
+				err = errors.Wrap(err, "commit tx failed")
+				return
 			}
 		}
 
@@ -189,14 +185,14 @@ func (ins *Insert) ExecContext(ctx context.Context, _ *sql.Tx) (result driver.Re
 			var ra int64
 			ra, err = r.RowsAffected()
 			if err != nil {
-				log.Errorf("get rows affected failed: %v", err)
-				return nil, err
+				err = errors.Wrap(err, "get rows affected failed")
+				return
 			}
 			shardingResult.RowsAffectedi += ra
 			shardingResult.LastInsertIdi, err = r.LastInsertId()
 			if err != nil {
-				log.Errorf("get last insert id failed: %v", err)
-				return nil, err
+				err = errors.Wrap(err, "get last insert id failed")
+				return
 			}
 		}
 		return shardingResult, nil

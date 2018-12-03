@@ -17,7 +17,6 @@
 package cursor
 
 import (
-	"database/sql"
 	"io"
 	"time"
 )
@@ -82,7 +81,7 @@ func (s *rowScanner) ScanArgs() []interface{} {
 	return s.scanArgs
 }
 
-func readAllRows(rows *sql.Rows) (result [][]interface{}, err error) {
+func readAllRows(rows Rows) (result [][]interface{}, err error) {
 	var columns []string
 	if columns, err = rows.Columns(); err != nil {
 		return

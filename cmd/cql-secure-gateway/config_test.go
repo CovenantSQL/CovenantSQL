@@ -48,7 +48,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -61,13 +61,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
       - Key: key2.key
         Fields:
           - db1.tbl3.col*
@@ -91,7 +88,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -104,13 +101,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
       - Key: key2.key
         Fields:
           - db1.tbl3.col*
@@ -136,7 +130,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -149,13 +143,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
       - Key: key2.key
         Fields:
           - db1.tbl3.col*
@@ -177,7 +168,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -190,13 +181,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
           - db1.tbl3.col1
       - Key: key2.key
         Fields:
@@ -219,7 +207,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -232,16 +220,13 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key2.key
         Fields:
           - db1.tbl2.col2
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
 `
 	invalidEncryptionField = `
 SecureGateway:
@@ -260,7 +245,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -273,13 +258,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
       - Key: key2.key
         Fields:
           - db1.tbl3.col*
@@ -302,7 +284,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -315,13 +297,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
       - Key: key2.key
         Fields:
           - db1.tbl3.col*
@@ -344,7 +323,7 @@ SecureGateway:
           Field: db1.tbl1.col1
           Action: write
         - User: read_group
-          Field: tbl2_fields
+          Field: db1.tbl2.col*
           Action: read
         - User: admin_group
           Field: db1.tbl3.col*
@@ -357,13 +336,10 @@ SecureGateway:
           - user1
           - user2
           - user3
-      FieldGroups:
-        tbl2_fields:
-          - db1.tbl2.col*
     Encryption:
       - Key: key1.key
         Fields: 
-          - tbl2_fields
+          - db1.tbl2.col*
       - Key: key2.key
         Fields:
           - db1.tbl3.col*

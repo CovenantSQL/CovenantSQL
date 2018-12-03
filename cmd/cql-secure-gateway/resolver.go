@@ -78,6 +78,8 @@ const (
 	JoinUsingOp Op = "JOIN_USING"
 	// AssignmentOp defines the assignment operation of insert/update column/values.
 	AssignmentOp Op = "ASSIGNMENT"
+	// DeleteOp defines the delete operation of fields.
+	DeleteOp Op = "DELETE"
 )
 
 // Op defines the operation type.
@@ -91,7 +93,10 @@ type Resolver struct {
 // Query defines the resolved query of the secure gateway.
 type Query struct {
 	*resolver.Query
-	PhysicalColumnRely []*ColumnResult
+	PhysicalColumnTransformations Columns
+	PhysicalColumnRely            []*ColumnResult
+	DecryptConfig                 map[int]*encryptionConfig
+	EncryptConfig                 map[int]*encryptionConfig
 }
 
 // Columns defines the column array for resolving.
@@ -175,6 +180,13 @@ type ColumnResult struct {
 	TableName string
 	ColName   string
 	Ops       [][]Op
+}
+
+// NewResolver returns the new resolver object.
+func NewResolver() *Resolver {
+	return &Resolver{
+		Resolver: resolver.NewResolver(),
+	}
 }
 
 func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColumns Columns) (cols Columns, err error) {
@@ -1015,15 +1027,20 @@ func (r *Resolver) buildSelectStatement(dbID string, stmt sqlparser.SelectStatem
 
 // GetDependentPhysicalColumns returns the physical table dependency column result.
 func (r *Resolver) GetDependentPhysicalColumns(dbID string, stmt sqlparser.Statement) (columns []*ColumnResult, err error) {
+	var cols Columns
+	if cols, err = r.BuildPhysicalColumnsTransformations(dbID, stmt); err != nil {
+		return
+	}
+	return r.BuildAggregatedPhysicalColumnsTransformations(dbID, cols)
+}
+
+// BuildAggregatedPhysicalColumnsTransformations returns the aggregated physical column related transformations.
+func (r *Resolver) BuildAggregatedPhysicalColumnsTransformations(dbID string, cols Columns) (columns []*ColumnResult, err error) {
 	var (
-		cols      Columns
 		columnMap = make(map[string]map[string]int)
 		visit     func(opStack []Op, cols Columns)
 	)
 	columns = make([]*ColumnResult, 0)
-	if cols, err = r.BuildPhysicalColumnsTransformations(dbID, stmt); err != nil {
-		return
-	}
 	visit = func(opStack []Op, cols Columns) {
 		for _, c := range cols {
 			if !c.IsPhysical {
@@ -1059,7 +1076,7 @@ func (r *Resolver) GetDependentPhysicalColumns(dbID string, stmt sqlparser.State
 	return
 }
 
-// BuildPhysicalColumnsTransformations returns the physical column dependency tree.
+// BuildPhysicalColumnsTransformations returns the physical column transformation tree.
 func (r *Resolver) BuildPhysicalColumnsTransformations(dbID string, stmt sqlparser.Statement) (cols Columns, err error) {
 	var (
 		tempCols   Columns
@@ -1139,6 +1156,16 @@ func (r *Resolver) BuildPhysicalColumnsTransformations(dbID string, stmt sqlpars
 			return
 		}
 		cols = append(cols, tempCols...)
+		for _, c := range originCols {
+			cols = append(cols, &Column{
+				ColName:    c.ColName,
+				IsPhysical: false,
+				Computation: &Computation{
+					Op:       DeleteOp,
+					Operands: NewColumns(c),
+				},
+			})
+		}
 	case *sqlparser.DDL:
 		// requires table privilege, if create table statement is passed, requires extra privilege
 	case *sqlparser.Show:
@@ -1155,24 +1182,18 @@ func (r *Resolver) BuildPhysicalColumnsTransformations(dbID string, stmt sqlpars
 
 // ResolveQuery parses string query and returns multiple query resolver result.
 func (r *Resolver) ResolveQuery(dbID string, query string) (q []*Query, err error) {
-	var (
-		queries   []*resolver.Query
-		colResult []*ColumnResult
-	)
+	var queries []*resolver.Query
 
 	if queries, err = r.Resolver.ResolveQuery(dbID, query); err != nil {
 		return
 	}
 
 	for _, query := range queries {
-		if colResult, err = r.GetDependentPhysicalColumns(dbID, query.Stmt); err != nil {
+		newQuery := &Query{Query: query}
+		if err = r.buildResolveResult(dbID, newQuery); err != nil {
 			return
 		}
-
-		q = append(q, &Query{
-			Query:              query,
-			PhysicalColumnRely: colResult,
-		})
+		q = append(q, newQuery)
 	}
 
 	return
@@ -1180,56 +1201,30 @@ func (r *Resolver) ResolveQuery(dbID string, query string) (q []*Query, err erro
 
 // ResolveSingleQuery parse string query and make sure there is only one query in the query string.
 func (r *Resolver) ResolveSingleQuery(dbID string, queryStr string) (q *Query, err error) {
-	var (
-		query     *resolver.Query
-		colResult []*ColumnResult
-	)
-
-	if query, err = r.Resolver.ResolveSingleQuery(dbID, queryStr); err != nil {
+	q = &Query{}
+	if q.Query, err = r.Resolver.ResolveSingleQuery(dbID, queryStr); err != nil {
 		return
 	}
-
-	if colResult, err = r.GetDependentPhysicalColumns(dbID, query.Stmt); err != nil {
-		return
-	}
-
-	q = &Query{
-		Query:              query,
-		PhysicalColumnRely: colResult,
-	}
+	err = r.buildResolveResult(dbID, q)
 	return
 }
 
 // Resolve process sqlparser statement and returns resolved result.
 func (r *Resolver) Resolve(dbID string, stmt sqlparser.Statement) (q *Query, err error) {
-	var (
-		query     *resolver.Query
-		colResult []*ColumnResult
-	)
+	q = &Query{}
 
-	if query, err = r.Resolver.Resolve(dbID, stmt); err != nil {
+	if q.Query, err = r.Resolver.Resolve(dbID, stmt); err != nil {
 		return
 	}
-
-	if colResult, err = r.GetDependentPhysicalColumns(dbID, stmt); err != nil {
-		return
-	}
-
-	q = &Query{
-		Query:              query,
-		PhysicalColumnRely: colResult,
-	}
+	err = r.buildResolveResult(dbID, q)
 	return
 }
 
-// IsShowOrExplain returns if the query is show or explain statement.
-func (q *Query) IsShowOrExplain() bool {
-	if q.Stmt != nil {
-		switch q.Stmt.(type) {
-		case *sqlparser.Show, *sqlparser.Explain:
-			return true
-		}
+func (r *Resolver) buildResolveResult(dbID string, q *Query) (err error) {
+	if q.PhysicalColumnTransformations, err = r.BuildPhysicalColumnsTransformations(dbID, q.Stmt); err != nil {
+		return
 	}
+	q.PhysicalColumnRely, err = r.BuildAggregatedPhysicalColumnsTransformations(dbID, q.PhysicalColumnTransformations)
 
-	return false
+	return
 }

@@ -19,6 +19,7 @@ package resolver
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync/atomic"
 
 	"github.com/CovenantSQL/sqlparser"
@@ -251,6 +252,9 @@ func (r *Resolver) resolveQuery(dbID string, query string, maxQueries int) (quer
 		queryCount int
 	)
 
+	// resolve :name to ValArg, ? to PosArg type
+	tokenizer.SeparatePositionalArgs = true
+
 	for {
 		stmt, err = sqlparser.ParseNext(tokenizer)
 
@@ -274,8 +278,8 @@ func (r *Resolver) resolveQuery(dbID string, query string, maxQueries int) (quer
 			return
 		}
 
-		q.Query = query[lastPos : tokenizer.Position-1]
-		lastPos = tokenizer.Position + 1
+		q.Query = strings.TrimSpace(query[lastPos : tokenizer.Position-1])
+		lastPos = tokenizer.Position
 		queries = append(queries, q)
 	}
 

@@ -19,6 +19,7 @@ package main
 import (
 	"net"
 
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/cursor"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	mys "github.com/siddontang/go-mysql/server"
 )
@@ -27,12 +28,14 @@ import (
 type Server struct {
 	listener net.Listener
 	cfg      *sgConfig
+	h        *Handler
 }
 
 // NewServer bind the service port and return a runnable adapter.
 func NewServer(sc *sgConfig) (s *Server, err error) {
 	s = &Server{
 		cfg: sc,
+		h:   NewHandler(sc.AuthConfig),
 	}
 
 	if s.listener, err = net.Listen("tcp", sc.ListenAddr); err != nil {
@@ -55,7 +58,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	cur := NewCursor()
+	cur := cursor.NewCursor(s.h)
 	h, err := mys.NewConnWithUsers(conn, s.cfg.AuthConfig.Users, cur)
 
 	if err != nil {
@@ -77,4 +80,5 @@ func (s *Server) handleConn(conn net.Conn) {
 // Shutdown ends the server.
 func (s *Server) Shutdown() {
 	s.listener.Close()
+	s.h.Close()
 }

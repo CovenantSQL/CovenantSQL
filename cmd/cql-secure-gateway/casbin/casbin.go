@@ -17,12 +17,20 @@
 package casbin
 
 import (
+	"strings"
+
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
 	"github.com/casbin/casbin/persist"
 )
 
-const modelConf = `
+const (
+	// ReadAction defines action for read.
+	ReadAction = "read"
+	// WriteAction defines action for read, includes read permission when appear in policy config.
+	WriteAction = "write"
+
+	modelConf = `
 [request_definition]
 r = sub, obj, act
 
@@ -31,13 +39,13 @@ p = sub, obj, act
 
 [role_definition]
 g = _, _
-g2 = _, _
 
 [policy_effect]
 e = some(where (p.eft == allow))
 
 [matchers]
-m = g(r.sub, p.sub) && g2(r.obj, p.obj) && r.act == p.act`
+m = g(r.sub, p.sub) && hasPrivilege(r.obj, p.obj, r.act, p.act)`
+)
 
 // NewCasbin returns a casbin enforcer instance with
 // fixed rbac_model_with_resource_roles model and custom structured config.
@@ -51,5 +59,29 @@ func NewCasbin(cfg *Config) (e *casbin.Enforcer, err error) {
 		return
 	}
 	e = casbin.NewEnforcer(m, rule)
+	e.AddFunction("hasPrivilege", func(args ...interface{}) (v interface{}, err error) {
+		var (
+			s1            = args[0].(string)
+			s2            = args[1].(string)
+			requestAction = args[2].(string)
+			policyAction  = args[3].(string)
+			f1, f2        *Field
+		)
+
+		if !strings.EqualFold(requestAction, policyAction) &&
+			!(strings.EqualFold(requestAction, ReadAction) && strings.EqualFold(policyAction, WriteAction)) {
+			v = false
+			return
+		}
+		if f1, err = NewFieldFromString(s1); err != nil {
+			return
+		}
+		if f2, err = NewFieldFromString(s2); err != nil {
+			return
+		}
+
+		v = f1.MatchesField(f2)
+		return
+	})
 	return
 }

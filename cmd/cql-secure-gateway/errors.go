@@ -28,4 +28,14 @@ var (
 	ErrFieldEncryption = errors.New("invalid field encryption config")
 	// ErrInvalidField defines invalid field format.
 	ErrInvalidField = cw.ErrInvalidField
+	// ErrUnauthorizedQuery defines error for unauthorized query.
+	ErrUnauthorizedQuery = errors.New("unauthorized query")
+	// ErrUnsupportedEncryptionFieldQuery defines error for unsupported encryption field query.
+	ErrUnsupportedEncryptionFieldQuery = errors.New("unsupported encryption field query")
+	// ErrNilPointer defines error for nil output.
+	ErrNilPointer = errors.New("destination pointer is nil")
+	// ErrNotPointer defines error for scanning to non pointer type.
+	ErrNotPointer = errors.New("destination not a pointer")
+	// ErrUnsupportedType defines invalid type to encrypt/decrypt.
+	ErrUnsupportedType = errors.New("unsupported type for encryption")
 )

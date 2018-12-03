@@ -35,12 +35,21 @@ type Query interface {
 	GetResultColumnCount() int
 }
 
+// Rows define mocked rows for handler to process.
+type Rows interface {
+	Close() error
+	Columns() ([]string, error)
+	Err() error
+	Next() bool
+	Scan(...interface{}) error
+}
+
 // Handler defines callback function utilized by cursor object.
 type Handler interface {
 	EnsureDatabase(dbID string) error
-	Resolve(dbID string, query string) (Query, error)
-	Query(q Query, args ...interface{}) (*sql.Rows, error)
+	Resolve(user string, dbID string, query string) (Query, error)
+	Query(q Query, args ...interface{}) (Rows, error)
 	Exec(q Query, args ...interface{}) (sql.Result, error)
-	QueryString(dbID string, query string, args ...interface{}) (*sql.Rows, error)
+	QueryString(dbID string, query string, args ...interface{}) (Rows, error)
 	ExecString(dbID string, query string, args ...interface{}) (sql.Result, error)
 }

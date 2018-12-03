@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	dbIDRegex                     = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
+	dbIDRegex                     = regexp.MustCompile("^[a-zA-Z0-9_]+$")
 	specialSelectQuery            = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER)\\(\\)\\s*;?\\s*$")
 	emptyResultQuery              = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SET|ROLLBACK).*$")
 	emptyResultWithResultSetQuery = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+WARNINGS).*$")
@@ -62,7 +62,7 @@ func NewCursor(h Handler) (c *Cursor) {
 	return &Cursor{h: h}
 }
 
-func (c *Cursor) buildResultSet(rows *sql.Rows) (r *my.Result, err error) {
+func (c *Cursor) buildResultSet(rows Rows) (r *my.Result, err error) {
 	// get columns
 	var columns []string
 	if columns, err = rows.Columns(); err != nil {
@@ -283,14 +283,14 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 
 	var q Query
 
-	if q, err = c.h.Resolve(c.getCurDB(), query); err != nil {
+	if q, err = c.h.Resolve(c.curUser, c.getCurDB(), query); err != nil {
 		err = my.NewError(my.ER_SYNTAX_ERROR, err.Error())
 		return
 	}
 
 	// normal query
 	if q.IsRead() {
-		var rows *sql.Rows
+		var rows Rows
 		if rows, err = c.h.Query(q); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
@@ -322,7 +322,7 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 // HandleFieldList handle COM_FILED_LIST command.
 func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*my.Field, err error) {
 	// send show tables command
-	var columns *sql.Rows
+	var columns Rows
 	if columns, err = c.h.QueryString(c.getCurDB(), fmt.Sprintf("DESC `%s`", table)); err != nil {
 		// wrap error
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
@@ -400,7 +400,7 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 
 	var q Query
 
-	if q, err = c.h.Resolve(c.getCurDB(), query); err != nil {
+	if q, err = c.h.Resolve(c.curUser, c.getCurDB(), query); err != nil {
 		err = my.NewError(my.ER_SYNTAX_ERROR, err.Error())
 		return
 	}
@@ -435,7 +435,7 @@ func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []int
 
 	// normal query
 	if q.IsRead() {
-		var rows *sql.Rows
+		var rows Rows
 		if rows, err = c.h.Query(q, args...); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return

@@ -34,24 +34,163 @@ var (
 	ErrEmptyConfigItem = errors.New("empty config item")
 )
 
+// Field defines a single database column.
+type Field struct {
+	Database string
+	Table    string
+	Column   string
+}
+
+// NewField creates new field object instance.
+func NewField(db, table, col string) (f *Field, err error) {
+	db = strings.TrimSpace(db)
+	table = strings.TrimSpace(table)
+	col = strings.TrimSpace(col)
+
+	for _, s := range []string{db, table, col} {
+		if s == "" {
+			err = errors.Wrapf(ErrInvalidField,
+				"invalid field: %s, <db>/<table>/<column> parts should not be blanked", f)
+			return
+		}
+	}
+
+	f = &Field{
+		Database: db,
+		Table:    table,
+		Column:   col,
+	}
+
+	return
+}
+
+// NewFieldFromString creates new field object instance from string field representation.
+func NewFieldFromString(fieldStr string) (f *Field, err error) {
+	f = &Field{}
+	err = f.loadFromStr(fieldStr)
+	return
+}
+
+// MatchesString test if string field matches.
+func (f *Field) MatchesString(fieldStr string) bool {
+	var (
+		field *Field
+		err   error
+	)
+	if field, err = NewFieldFromString(fieldStr); err != nil {
+		// ignore error
+		return false
+	}
+	return f.MatchesField(field)
+}
+
+// MatchesField test if field matches.
+func (f *Field) MatchesField(field *Field) bool {
+	if f == nil || field == nil {
+		return false
+	}
+
+	var s1, s2 string
+	for i := 0; i != 3; i++ {
+		switch i {
+		case 0:
+			s1 = f.Database
+			s2 = field.Database
+		case 1:
+			s1 = f.Table
+			s2 = field.Table
+		case 2:
+			s1 = f.Column
+			s2 = field.Column
+		}
+
+		if !tryGlobMatch(s1, s2) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// IsWildcard returns whether the field is a wildcard or plain.
+func (f *Field) IsWildcard() bool {
+	if f == nil {
+		return false
+	}
+
+	return strings.ContainsRune(f.Database, '*') ||
+		strings.ContainsRune(f.Table, '*') ||
+		strings.ContainsRune(f.Column, '*')
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler interface.
+func (f *Field) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+	var fieldStr string
+
+	if err = unmarshal(&fieldStr); err != nil {
+		return
+	}
+
+	return f.loadFromStr(fieldStr)
+}
+
+func (f *Field) loadFromStr(fieldStr string) (err error) {
+	var parts []string
+
+	// split field into parts
+	parts = strings.Split(fieldStr, ".")
+	if len(parts) != 3 {
+		err = errors.Wrapf(ErrInvalidField,
+			"invalid field: %s, should be in form \"<db>.<table>.<column>\", wildcard is supported", f)
+		return
+	}
+
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+
+		if p == "" {
+			err = errors.Wrapf(ErrInvalidField,
+				"invalid field: %s, <db>/<table>/<column> parts should not be blanked", f)
+			return
+		}
+
+		switch i {
+		case 0:
+			f.Database = p
+		case 1:
+			f.Table = p
+		case 2:
+			f.Column = p
+		}
+	}
+
+	return
+}
+
+// MarshalYAML implements yaml.Marshaler interface.
+func (f Field) MarshalYAML() (interface{}, error) {
+	return f.String(), nil
+}
+
+// String returns the string representation of field.
+func (f *Field) String() string {
+	return strings.ToLower(fmt.Sprintf("%s.%s.%s", f.Database, f.Table, f.Column))
+}
+
 // Policy defines single resource policy.
 type Policy struct {
 	User   string `yaml:"User"`
-	Field  string `yaml:"Field"`
+	Field  Field  `yaml:"Field"`
 	Action string `yaml:"Action"`
 }
 
 // UserGroup defines single user group relation.
 type UserGroup map[string][]string
 
-// FieldGroup defines single field group relation.
-type FieldGroup map[string][]string
-
 // Config defines the rules config for casbin adapter.
 type Config struct {
-	Policies   []Policy   `yaml:"Policies"`
-	UserGroup  UserGroup  `yaml:"UserGroups"`
-	FieldGroup FieldGroup `yaml:"FieldGroups"`
+	Policies  []Policy  `yaml:"Policies"`
+	UserGroup UserGroup `yaml:"UserGroups"`
 }
 
 // Adapter defines a adapter for casbin to access rules.
@@ -81,16 +220,9 @@ func NewAdapter(cfg *Config) (a *Adapter, err error) {
 func (a *Adapter) validate() (err error) {
 	// validate non-group fields
 	for _, p := range a.cfg.Policies {
-		if p.User == "" || p.Field == "" || p.Action == "" {
+		if p.User == "" || p.Action == "" {
 			err = errors.Wrapf(ErrEmptyConfigItem, "%#v contains empty field", p)
 			return
-		}
-
-		if _, exists := a.cfg.FieldGroup[p.Field]; !exists {
-			// must be a valid field
-			if err = a.validateField(p.Field); err != nil {
-				return
-			}
 		}
 	}
 
@@ -108,48 +240,6 @@ func (a *Adapter) validate() (err error) {
 		}
 	}
 
-	// validate fields
-	for fieldGroup, fields := range a.cfg.FieldGroup {
-		if fieldGroup == "" {
-			err = errors.Wrapf(ErrEmptyConfigItem, "field group name should not be empty")
-			return
-		}
-
-		// should all be valid field
-		for _, f := range fields {
-			if f == "" {
-				err = errors.Wrapf(ErrEmptyConfigItem, "field name should not be empty")
-				return
-			}
-
-			if err = a.validateField(f); err != nil {
-				return
-			}
-		}
-	}
-
-	return
-}
-
-func (a *Adapter) validateField(f string) (err error) {
-	parts := strings.Split(f, ".")
-
-	if len(parts) != 3 {
-		err = errors.Wrapf(ErrInvalidField,
-			"invalid field: %s, should be in form \"<db>.<table>.<column>\", wildcard is supported", f)
-		return
-	}
-
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-
-		if p == "" {
-			err = errors.Wrapf(ErrInvalidField,
-				"invalid field: %s, <db>/<table>/<column> parts should not be blanked", f)
-			return
-		}
-	}
-
 	return
 }
 
@@ -159,7 +249,7 @@ func (a *Adapter) LoadPolicy(model model.Model) (err error) {
 
 	// load policy
 	for _, p := range a.cfg.Policies {
-		line := fmt.Sprintf("p, %s, %s, %s", p.User, p.Field, p.Action)
+		line := fmt.Sprintf("p, %s, %s, %s", p.User, p.Field.String(), p.Action)
 		persist.LoadPolicyLine(line, model)
 	}
 
@@ -167,14 +257,6 @@ func (a *Adapter) LoadPolicy(model model.Model) (err error) {
 	for userGroup, users := range a.cfg.UserGroup {
 		for _, user := range users {
 			line := fmt.Sprintf("g, %s, %s", user, userGroup)
-			persist.LoadPolicyLine(line, model)
-		}
-	}
-
-	// load field groups
-	for fieldGroup, fields := range a.cfg.FieldGroup {
-		for _, field := range fields {
-			line := fmt.Sprintf("g2, %s, %s", field, fieldGroup)
 			persist.LoadPolicyLine(line, model)
 		}
 	}

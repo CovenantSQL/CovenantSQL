@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package main
+package handler
 
 import (
 	"database/sql"
@@ -39,6 +39,13 @@ func NewHandler() *Handler {
 	}
 }
 
+// NewHandlerWithResolver returns the new mysql handler with resolver.
+func NewHandlerWithResolver(r *resolver.Resolver) *Handler {
+	return &Handler{
+		r: r,
+	}
+}
+
 // EnsureDatabase returns whether a database is valid or not.
 func (h *Handler) EnsureDatabase(dbID string) (err error) {
 	_, err = h.ensureDatabase(dbID)
@@ -46,7 +53,7 @@ func (h *Handler) EnsureDatabase(dbID string) (err error) {
 }
 
 // Resolve resolves query to ast and various parse results.
-func (h *Handler) Resolve(dbID string, query string) (q cursor.Query, err error) {
+func (h *Handler) Resolve(user string, dbID string, query string) (q cursor.Query, err error) {
 	if _, err = h.ensureDatabase(dbID); err != nil {
 		return
 	}
@@ -57,7 +64,7 @@ func (h *Handler) Resolve(dbID string, query string) (q cursor.Query, err error)
 }
 
 // Query executes a resolved read query.
-func (h *Handler) Query(q cursor.Query, args ...interface{}) (rows *sql.Rows, err error) {
+func (h *Handler) Query(q cursor.Query, args ...interface{}) (rows cursor.Rows, err error) {
 	if !q.IsRead() {
 		err = errors.Wrapf(resolver.ErrQueryLogicError, "not a read query")
 		return
@@ -78,7 +85,7 @@ func (h *Handler) Exec(q cursor.Query, args ...interface{}) (res sql.Result, err
 }
 
 // QueryString executes a string query without resolving.
-func (h *Handler) QueryString(dbID string, query string, args ...interface{}) (rows *sql.Rows, err error) {
+func (h *Handler) QueryString(dbID string, query string, args ...interface{}) (rows cursor.Rows, err error) {
 	var db resolver.DBHandler
 	if db, err = h.ensureDatabase(dbID); err != nil {
 		return

@@ -22,30 +22,111 @@ import (
 	"github.com/casbin/casbin"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/yaml.v2"
 )
+
+func mustNewField(c C, fieldStr string) (f Field) {
+	var (
+		err error
+		pf  *Field
+	)
+	pf, err = NewFieldFromString(fieldStr)
+	f = *pf
+	c.So(err, ShouldBeNil)
+	return
+}
+
+func TestNewField(t *testing.T) {
+	Convey("test new field", t, func() {
+		var (
+			f   *Field
+			err error
+		)
+		f, err = NewFieldFromString("db1.tbl1.col1")
+		So(f, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+		So(f.Database, ShouldEqual, "db1")
+		So(f.Table, ShouldEqual, "tbl1")
+		So(f.Column, ShouldEqual, "col1")
+		So(f.String(), ShouldEqual, "db1.tbl1.col1")
+
+		// test marshal unmarshal
+		var yamlBytes []byte
+		yamlBytes, err = yaml.Marshal(f)
+		So(err, ShouldBeNil)
+		So(yamlBytes, ShouldNotBeEmpty)
+
+		var uField *Field
+		err = yaml.Unmarshal(yamlBytes, &uField)
+		So(err, ShouldBeNil)
+		So(uField, ShouldResemble, f)
+
+		// test load invalid field
+		_, err = NewFieldFromString("")
+		So(err, ShouldNotBeNil)
+
+		_, err = NewFieldFromString("  ")
+		So(err, ShouldNotBeNil)
+
+		_, err = NewFieldFromString("db1")
+		So(err, ShouldNotBeNil)
+
+		_, err = NewFieldFromString("db1.tbl1")
+		So(err, ShouldNotBeNil)
+
+		_, err = NewFieldFromString("db1..col1")
+		So(err, ShouldNotBeNil)
+
+		_, err = NewFieldFromString("db1.col1.")
+		So(err, ShouldNotBeNil)
+
+		_, err = NewFieldFromString(".tbl1.col1")
+		So(err, ShouldNotBeNil)
+
+		// trivial cases
+		f, err = NewFieldFromString("a . b . c")
+		So(err, ShouldBeNil)
+		So(f.Database, ShouldEqual, "a")
+		So(f.Table, ShouldEqual, "b")
+		So(f.Column, ShouldEqual, "c")
+
+		// invalid marshal
+		yamlBytes, err = yaml.Marshal(map[string]string{"a": "1"})
+		So(err, ShouldBeNil)
+		So(yamlBytes, ShouldNotBeEmpty)
+		err = yaml.Unmarshal(yamlBytes, &uField)
+		So(err, ShouldNotBeNil)
+	})
+}
 
 func TestCasbin(t *testing.T) {
 	Convey("test casbin", t, func(c C) {
 		testEnforce := func(e *casbin.Enforcer, sub string, obj interface{}, act string, res bool) {
-			c.So(e.Enforce(sub, obj, act), ShouldEqual, res)
+			actual, _ := e.EnforceSafe(sub, obj, act)
+			c.So(actual, ShouldEqual, res)
 		}
 
 		cfg := &Config{
 			Policies: []Policy{
 				{
 					User:   "alice",
-					Field:  "db1.tbl1.col1",
-					Action: "read",
+					Field:  mustNewField(c, "db1.tbl1.*"),
+					Action: ReadAction,
 				},
 				{
 					User:   "bob",
-					Field:  "db1.tbl2.col1",
-					Action: "write",
+					Field:  mustNewField(c, "db1.tbl2.col1"),
+					Action: WriteAction,
 				},
 				{
 					User:   "data_group_admin",
-					Field:  "field_group",
-					Action: "write",
+					Field:  mustNewField(c, "db1.tbl1.col2"),
+					Action: WriteAction,
+				},
+				{
+					User:   "data_group_admin",
+					Field:  mustNewField(c, "db1.tbl2.col1"),
+					Action: WriteAction,
 				},
 			},
 			UserGroup: map[string][]string{
@@ -53,27 +134,27 @@ func TestCasbin(t *testing.T) {
 					"alice",
 				},
 			},
-			FieldGroup: map[string][]string{
-				"field_group": {
-					"db1.tbl1.col1",
-					"db1.tbl2.col1",
-				},
-			},
 		}
 
 		e, err := NewCasbin(cfg)
 		So(err, ShouldBeNil)
 
-		testEnforce(e, "alice", "db1.tbl1.col1", "read", true)
-		testEnforce(e, "alice", "db1.tbl1.col1", "write", true)
-		testEnforce(e, "alice", "db1.tbl2.col1", "read", false)
-		testEnforce(e, "alice", "db1.tbl2.col1", "write", true)
-		testEnforce(e, "bob", "db1.tbl1.col1", "read", false)
-		testEnforce(e, "bob", "db1.tbl1.col1", "write", false)
-		testEnforce(e, "bob", "db1.tbl2.col1", "read", false)
-		testEnforce(e, "bob", "db1.tbl2.col1", "write", true)
+		testEnforce(e, "alice", "db1.tbl1.col1", ReadAction, true)
+		testEnforce(e, "alice", "db1.tbl1.col1", WriteAction, false)
+		testEnforce(e, "alice", "db1.tbl2.col1", ReadAction, true)
+		testEnforce(e, "alice", "db1.tbl2.col1", WriteAction, true)
+		testEnforce(e, "alice", "db1.tbl1.col2", ReadAction, true)
+		testEnforce(e, "alice", "db1.tbl1.col2", WriteAction, true)
+		testEnforce(e, "alice", "db1.tbl1.col3", ReadAction, true)
+		testEnforce(e, "alice", "db1.tbl1.col3", WriteAction, false)
+		testEnforce(e, "bob", "db1.tbl1.col1", ReadAction, false)
+		testEnforce(e, "bob", "db1.tbl1.col1", WriteAction, false)
+		testEnforce(e, "bob", "db1.tbl2.col1", ReadAction, true)
+		testEnforce(e, "bob", "db1.tbl2.col1", WriteAction, true)
+		testEnforce(e, "bob", "db1", ReadAction, false)
+		testEnforce(e, "bob", "db1.tbl1.col1", ReadAction, false)
 	})
-	Convey("test invalid field config", t, func() {
+	Convey("test invalid config", t, func(c C) {
 		// nil config
 		_, err := NewCasbin(nil)
 		So(err, ShouldNotBeNil)
@@ -84,8 +165,8 @@ func TestCasbin(t *testing.T) {
 			Policies: []Policy{
 				{
 					User:   "user1",
-					Field:  "db1.tbl1.col1",
-					Action: "read",
+					Field:  mustNewField(c, "db1.tbl1.col1"),
+					Action: ReadAction,
 				},
 			},
 		}
@@ -97,26 +178,12 @@ func TestCasbin(t *testing.T) {
 			Policies: []Policy{
 				{
 					User:   "",
-					Field:  "db1.tbl1.col1",
-					Action: "read",
+					Field:  mustNewField(c, "db1.tbl1.col1"),
+					Action: ReadAction,
 				},
 			},
 		}
 
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrEmptyConfigItem)
-
-		// empty field
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "user1",
-					Field:  "",
-					Action: "read",
-				},
-			},
-		}
 		_, err = NewCasbin(cfg)
 		So(err, ShouldNotBeNil)
 		So(errors.Cause(err), ShouldEqual, ErrEmptyConfigItem)
@@ -126,7 +193,7 @@ func TestCasbin(t *testing.T) {
 			Policies: []Policy{
 				{
 					User:   "user1",
-					Field:  "db1.tbl1.col1",
+					Field:  mustNewField(c, "db1.tbl1.col1"),
 					Action: "",
 				},
 			},
@@ -135,55 +202,13 @@ func TestCasbin(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(errors.Cause(err), ShouldEqual, ErrEmptyConfigItem)
 
-		// invalid field, not enough field parts
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "user1",
-					Field:  "db1",
-					Action: "read",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidField)
-
-		// invalid field, more than required field parts
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "user1",
-					Field:  "db1.tbl1.col1.what?",
-					Action: "read",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidField)
-
-		// invalid field, contains empty field part
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "user1",
-					Field:  "db1..col1",
-					Action: "read",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidField)
-
 		// correct control group with user groups
 		cfg = &Config{
 			Policies: []Policy{
 				{
 					User:   "a",
-					Field:  "fg1",
-					Action: "read",
+					Field:  mustNewField(c, "db1.tbl1.col1"),
+					Action: ReadAction,
 				},
 			},
 			UserGroup: map[string][]string{
@@ -192,14 +217,6 @@ func TestCasbin(t *testing.T) {
 				},
 				"b": {
 					"user1",
-				},
-			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-				},
-				"fg2": {
-					"db1.tbl1.col1",
 				},
 			},
 		}
@@ -211,8 +228,8 @@ func TestCasbin(t *testing.T) {
 			Policies: []Policy{
 				{
 					User:   "a",
-					Field:  "fg1",
-					Action: "read",
+					Field:  mustNewField(c, "db1.tbl1.col1"),
+					Action: ReadAction,
 				},
 			},
 			UserGroup: map[string][]string{
@@ -221,44 +238,6 @@ func TestCasbin(t *testing.T) {
 				},
 				"": {
 					"user1",
-				},
-			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-				},
-				"fg2": {
-					"db1.tbl1.col1",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrEmptyConfigItem)
-
-		// empty group name in field groups
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "a",
-					Field:  "fg1",
-					Action: "read",
-				},
-			},
-			UserGroup: map[string][]string{
-				"a": {
-					"user1",
-				},
-				"b": {
-					"user1",
-				},
-			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-				},
-				"": {
-					"db1.tbl1.col1",
 				},
 			},
 		}
@@ -271,8 +250,8 @@ func TestCasbin(t *testing.T) {
 			Policies: []Policy{
 				{
 					User:   "a",
-					Field:  "fg1",
-					Action: "read",
+					Field:  mustNewField(c, "db1.tbl1.col1"),
+					Action: ReadAction,
 				},
 			},
 			UserGroup: map[string][]string{
@@ -284,110 +263,10 @@ func TestCasbin(t *testing.T) {
 					"user1",
 				},
 			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-				},
-				"fg2": {
-					"db1.tbl1.col1",
-				},
-			},
 		}
 		_, err = NewCasbin(cfg)
 		So(err, ShouldNotBeNil)
 		So(errors.Cause(err), ShouldEqual, ErrEmptyConfigItem)
-
-		// empty field name in field groups
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "a",
-					Field:  "fg1",
-					Action: "read",
-				},
-			},
-			UserGroup: map[string][]string{
-				"a": {
-					"user1",
-				},
-				"b": {
-					"user1",
-				},
-			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-					"",
-				},
-				"fg2": {
-					"db1.tbl1.col1",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrEmptyConfigItem)
-
-		// unknown field group
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "a",
-					Field:  "fg3",
-					Action: "read",
-				},
-			},
-			UserGroup: map[string][]string{
-				"a": {
-					"user1",
-				},
-				"b": {
-					"user1",
-				},
-			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-				},
-				"fg2": {
-					"db1.tbl1.col1",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidField)
-
-		// invalid field in field group
-		cfg = &Config{
-			Policies: []Policy{
-				{
-					User:   "a",
-					Field:  "fg1",
-					Action: "read",
-				},
-			},
-			UserGroup: map[string][]string{
-				"a": {
-					"user1",
-				},
-				"b": {
-					"user1",
-				},
-			},
-			FieldGroup: map[string][]string{
-				"fg1": {
-					"db1.tbl1.col1",
-					"db1",
-				},
-				"fg2": {
-					"db1.tbl1.col1",
-				},
-			},
-		}
-		_, err = NewCasbin(cfg)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidField)
 	})
 	Convey("unsupported features", t, func() {
 		a, err := NewAdapter(&Config{})
@@ -402,5 +281,25 @@ func TestCasbin(t *testing.T) {
 		So(err, ShouldEqual, ErrNotSupported)
 		err = a.RemoveFilteredPolicy("", "", 0)
 		So(err, ShouldEqual, ErrNotSupported)
+	})
+}
+
+func TestField(t *testing.T) {
+	Convey("test field", t, func(c C) {
+		// normal field matches wildcard field
+		f := mustNewField(c, "db1.tbl1.col1")
+		So(f.MatchesString("db1.tbl1.col1"), ShouldBeTrue)
+		So(f.MatchesString("db1.tbl1.c*1"), ShouldBeTrue)
+		So(f.MatchesString("db*"), ShouldBeFalse)
+		So(f.MatchesField(nil), ShouldBeFalse)
+		So((*Field)(nil).MatchesField(&f), ShouldBeFalse)
+		So(f.MatchesString("db1.tbl2.col1"), ShouldBeFalse)
+		// reverse that
+		f = mustNewField(c, "db1.tb*.col1")
+		So(f.MatchesString("db1.tb1.col1"), ShouldBeTrue)
+		So(f.MatchesString("db1.tb2.col1"), ShouldBeTrue)
+		So(f.MatchesString("db2.tb1.col1"), ShouldBeFalse)
+		So(f.MatchesString("db1.tb*.col1"), ShouldBeTrue)
+		So(f.MatchesString("db1.*tb.col1"), ShouldBeFalse)
 	})
 }

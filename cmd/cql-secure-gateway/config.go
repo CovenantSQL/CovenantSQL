@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
+	"sync"
 
 	cw "github.com/CovenantSQL/CovenantSQL/cmd/cql-secure-gateway/casbin"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -35,15 +35,17 @@ import (
 type encryptionConfig struct {
 	KeyPath string                 `yaml:"Key"`    // key path for encryption config
 	Key     *asymmetric.PrivateKey `yaml:"-"`      // encryption key
-	Fields  []string               `yaml:"Fields"` // encrypted fields config, support field group defines in grants config
+	Fields  []cw.Field             `yaml:"Fields"` // encrypted fields config, support field group defines in grants config
 }
 
 type authConfig struct {
-	Users                   map[string]string   `yaml:"Users"`      // user to password mapping
-	Grants                  *cw.Config          `yaml:"Grants"`     // casbin grants config
-	Enforcer                *casbin.Enforcer    `yaml:"-"`          // casbin enforcer
-	Encryption              []*encryptionConfig `yaml:"Encryption"` // encryption fields settings
-	FlattenEncryptionConfig map[string]int      `yaml:"-"`          // field to key offset
+	encryptionCacheLock          sync.RWMutex
+	Users                        map[string]string   `yaml:"Users"`      // user to password mapping
+	Grants                       *cw.Config          `yaml:"Grants"`     // casbin grants config
+	Enforcer                     *casbin.Enforcer    `yaml:"-"`          // casbin enforcer
+	Encryption                   []*encryptionConfig `yaml:"Encryption"` // encryption fields settings
+	EncryptionFieldCache         map[string]int      `yaml:"-"`          // field cache of encryption
+	WildcardEncryptionFieldCache map[string]int      `yaml:"-"`          // field cache of wildcard encryption fields
 }
 
 type sgConfig struct {
@@ -118,7 +120,11 @@ func (ac *authConfig) buildEncryption() (err error) {
 		}
 	}
 
-	ac.FlattenEncryptionConfig = make(map[string]int)
+	ac.EncryptionFieldCache = map[string]int{}
+	ac.WildcardEncryptionFieldCache = map[string]int{}
+
+	ac.encryptionCacheLock.Lock()
+	defer ac.encryptionCacheLock.Unlock()
 
 	// load and validate encryption config to match with grants
 	for i, ec := range ac.Encryption {
@@ -145,28 +151,8 @@ func (ac *authConfig) buildSingleEncryptionConfig(wd string, configIndex int, ec
 
 	// validate fields
 	for _, f := range ec.Fields {
-		if ac.Grants != nil && ac.Grants.FieldGroup != nil {
-			if _, exists := ac.Grants.FieldGroup[f]; exists {
-				// exists in field group
-				// flatten
-
-				for _, sf := range ac.Grants.FieldGroup[f] {
-					if err = ac.setFieldEncryptionKey(sf, configIndex); err != nil {
-						return
-					}
-				}
-
-				continue
-			}
-		}
-
-		// validate as normal <db>.<table>.<column> field
-		if err = ac.validateField(f); err != nil {
-			return
-		}
-
 		// set to flatten mapping
-		if err = ac.setFieldEncryptionKey(f, configIndex); err != nil {
+		if err = ac.checkAndBuildEncryptionCache(&f, configIndex); err != nil {
 			return
 		}
 	}
@@ -174,50 +160,95 @@ func (ac *authConfig) buildSingleEncryptionConfig(wd string, configIndex int, ec
 	return
 }
 
-func (ac *authConfig) setFieldEncryptionKey(f string, ecOffset int) (err error) {
+func (ac *authConfig) checkAndBuildEncryptionCache(f *cw.Field, ecOffset int) (err error) {
 	// check field encryption configuration over-lapping
 	// iterate existing setting
 
-	for p, o := range ac.FlattenEncryptionConfig {
-		var m bool
-		if m, err = fieldMatches(p, f); err != nil {
-			return
-		}
-
-		if m && o != ecOffset {
-			err = errors.Wrapf(ErrFieldEncryption,
-				"duplicated encryption assigned to column (previous: %s -> %s, current: %s -> %s)",
-				p, ac.Encryption[o].KeyPath,
-				f, ac.Encryption[ecOffset].KeyPath,
-			)
-			return
+	for field, o := range ac.EncryptionFieldCache {
+		if f.MatchesString(field) {
+			if o != ecOffset {
+				err = errors.Wrapf(ErrFieldEncryption,
+					"duplicated encryption assigned to column (previous: %s -> %s, current: %s -> %s)",
+					field, ac.Encryption[o].KeyPath,
+					f.String(), ac.Encryption[ecOffset].KeyPath,
+				)
+				return
+			}
 		}
 	}
 
-	// set new record
-	ac.FlattenEncryptionConfig[f] = ecOffset
+	if !f.IsWildcard() {
+		for field, o := range ac.WildcardEncryptionFieldCache {
+			if f.MatchesString(field) {
+				if o != ecOffset {
+					err = errors.Wrapf(ErrFieldEncryption,
+						"duplicated encryption assigned to column (previous: %s -> %s, current: %s -> %s)",
+						field, ac.Encryption[o].KeyPath,
+						f.String(), ac.Encryption[ecOffset].KeyPath,
+					)
+					return
+				}
+			}
+		}
+
+		// set
+		ac.EncryptionFieldCache[f.String()] = ecOffset
+	} else {
+		ac.WildcardEncryptionFieldCache[f.String()] = ecOffset
+	}
 
 	return
 }
 
-func (ac *authConfig) validateField(f string) (err error) {
-	parts := strings.Split(f, ".")
-
-	if len(parts) != 3 {
-		err = errors.Wrapf(ErrInvalidField,
-			"invalid field: %s, should be in form \"<db>.<table>.<column>\", wildcard is supported", f)
+// GetEncryptionConfig returns encryption config for specified field.
+func (ac *authConfig) GetEncryptionConfig(f *cw.Field) (ecConfig *encryptionConfig, err error) {
+	if f == nil {
+		return
+	}
+	if f.IsWildcard() {
+		err = errors.Wrap(ErrInvalidField, "could not get wildcard field encryption key")
 		return
 	}
 
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
+	var (
+		fieldStr        = f.String()
+		ecOffset        = -1
+		shouldFillCache bool
+	)
 
-		if p == "" {
-			err = errors.Wrapf(ErrInvalidField,
-				"invalid field: %s, <db>/<table>/<column> parts should not be blanked", f)
+	func() {
+		ac.encryptionCacheLock.RLock()
+		defer ac.encryptionCacheLock.RUnlock()
+		if o, exists := ac.EncryptionFieldCache[fieldStr]; exists {
+			// hit
+			ecOffset = o
 			return
 		}
+		for wf, o := range ac.WildcardEncryptionFieldCache {
+			if f.MatchesString(wf) {
+				// hit
+				ecOffset = o
+				shouldFillCache = true
+				return
+			}
+		}
+		// plain field
+		shouldFillCache = true
+	}()
+
+	if shouldFillCache {
+		func() {
+			ac.encryptionCacheLock.Lock()
+			defer ac.encryptionCacheLock.Unlock()
+
+			ac.EncryptionFieldCache[fieldStr] = ecOffset
+		}()
 	}
 
+	if ecOffset < 0 {
+		return
+	}
+
+	ecConfig = ac.Encryption[ecOffset]
 	return
 }

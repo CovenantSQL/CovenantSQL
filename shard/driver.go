@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
-	"github.com/y0ssar1an/q"
 )
 
 var _ = log.Printf
@@ -319,7 +318,7 @@ func (sc *ShardingConn) QueryContext(
 		return
 	}
 
-	q.Q(queries, stmts, argss)
+	//q.Q(queries, stmts, argss)
 
 	// Only build query plan for the last query
 	queryCount := len(queries)

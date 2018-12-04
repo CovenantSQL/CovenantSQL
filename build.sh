@@ -1,6 +1,8 @@
 #!/bin/bash -x
 set -e
 
+param=$1
+
 branch=`git rev-parse --abbrev-ref HEAD`
 commitid=`git rev-parse --short HEAD`
 builddate=`date +%Y%m%d%H%M%S`
@@ -24,15 +26,16 @@ go build -ldflags "-X main.version=${version} ${GOLDFLAGS}"  -o bin/cql-utils ${
 
 cqld_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cqld"
 CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -tags "${platform} sqlite_omit_load_extension" -o bin/cqld ${cqld_pkgpath}
-CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -o bin/cqld.test ${cqld_pkgpath}
+
+#CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B ${GOLDFLAGS}" -o bin/cqld.test ${cqld_pkgpath}
 
 cql_minerd_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd"
 CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/cql-minerd ${cql_minerd_pkgpath}
-CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" -o bin/cql-minerd.test ${cql_minerd_pkgpath}
+#CGO_ENABLED=1 go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags "${platform} sqlite_omit_load_extension testbinary" -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M ${GOLDFLAGS}" -o bin/cql-minerd.test ${cql_minerd_pkgpath}
 
 cql_observer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-observer"
 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/cql-observer ${cql_observer_pkgpath}
-go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/cql-observer.test ${cql_observer_pkgpath}
+#go test -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c -tags 'testbinary' -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" -o bin/cql-observer.test ${cql_observer_pkgpath}
 
 cli_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql"
 CGO_ENABLED=1 go build -ldflags "-X main.version=${version} -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C ${GOLDFLAGS}" --tags ${platform}" sqlite_omit_load_extension" -o bin/cql ${cli_pkgpath}

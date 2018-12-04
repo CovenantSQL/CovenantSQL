@@ -519,3 +519,109 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 		})
 	})
 }
+
+func TestConvertQueryAndBuildArgs(t *testing.T) {
+	Convey("Test query rewrite and sanitizer", t, func() {
+		var (
+			containsDDL    bool
+			sanitizedQuery string
+			sanitizedArgs  []interface{}
+			err            error
+		)
+
+		// show tables query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SHOW TABLES", []types.NamedArg{})
+		So(containsDDL, ShouldBeFalse)
+		So(sanitizedQuery, ShouldContainSubstring, "sqlite_master")
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// show index query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SHOW INDEX FROM TABLE a", []types.NamedArg{})
+		So(containsDDL, ShouldBeFalse)
+		So(sanitizedQuery, ShouldContainSubstring, "sqlite_master")
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// show create table query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SHOW CREATE TABLE a", []types.NamedArg{})
+		So(containsDDL, ShouldBeFalse)
+		So(sanitizedQuery, ShouldContainSubstring, "sqlite_master")
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// desc table query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"DESC a", []types.NamedArg{})
+		So(containsDDL, ShouldBeFalse)
+		So(sanitizedQuery, ShouldContainSubstring, "table_info")
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// contains ddl query
+		ddlQuery := "CREATE TABLE test (test int)"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(containsDDL, ShouldBeTrue)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// test invalid query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"CREATE 1", []types.NamedArg{})
+		So(err, ShouldNotBeNil)
+
+		// contains stateful query parts, create table with default current_timestamp
+		ddlQuery = "CREATE TABLE test (test datetime default current_timestamp)"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+
+		// contains stateful query parts, using time expression
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT current_timestamp", []types.NamedArg{})
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT current_date", []types.NamedArg{})
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT current_time", []types.NamedArg{})
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+
+		// contains stateful query parts, using random function
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT random()", []types.NamedArg{})
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+
+		// counterpart to prove successful parsing of normal query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT 1; SELECT func(); SELECT * FROM a", []types.NamedArg{})
+		So(err, ShouldBeNil)
+
+		// counterpart with args
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT ?", []types.NamedArg{{Value: "1"}})
+		So(err, ShouldBeNil)
+		So(sanitizedArgs, ShouldHaveLength, 1)
+
+		// counterpart with valid default value of column definition
+		ddlQuery = "CREATE TABLE test (test int default 1)"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(containsDDL, ShouldBeTrue)
+		So(err, ShouldBeNil)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
+		So(sanitizedArgs, ShouldHaveLength, 0)
+	})
+}

@@ -35,4 +35,6 @@ var (
 	ErrLocalBehindRemote = errors.New("local state is behind the remote")
 	// ErrMuxServiceNotFound indicates that the multiplexing service endpoint is not found.
 	ErrMuxServiceNotFound = errors.New("mux service not found")
+	// ErrStatefulQueryParts indicates query contains stateful query parts.
+	ErrStatefulQueryParts = errors.New("query contains stateful query parts")
 )

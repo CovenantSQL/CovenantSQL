@@ -17,6 +17,7 @@
 package xenomint
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"strings"
@@ -125,6 +126,8 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 	}
 
 	for i = range queryParts {
+		walkNodes := []sqlparser.SQLNode{statements[i]}
+
 		switch stmt := statements[i].(type) {
 		case *sqlparser.Show:
 			origQuery = queryParts[i]
@@ -152,6 +155,46 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 			queryParts[i] = query
 		case *sqlparser.DDL:
 			containsDDL = true
+			if stmt.TableSpec != nil {
+				// walk table default values for invalid stateful expressions
+				for _, c := range stmt.TableSpec.Columns {
+					if c == nil || c.Type.Default == nil {
+						continue
+					}
+
+					walkNodes = append(walkNodes, c.Type.Default)
+				}
+			}
+		}
+
+		// scan query and test if there is any stateful query logic like time expression or random function
+		err = sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
+			switch n := node.(type) {
+			case *sqlparser.SQLVal:
+				if n.Type == sqlparser.ValArg && bytes.EqualFold([]byte("CURRENT_TIMESTAMP"), n.Val) {
+					// current_timestamp literal in default expression
+					err = errors.Wrap(ErrStatefulQueryParts, "DEFAULT CURRENT_TIMESTAMP not supported")
+					return
+				}
+			case *sqlparser.TimeExpr:
+				tb := sqlparser.NewTrackedBuffer(nil)
+				err = errors.Wrapf(ErrStatefulQueryParts, "time expression %s not supported",
+					tb.WriteNode(n).String())
+				return
+			case *sqlparser.FuncExpr:
+				if n.Name.EqualString("random") {
+					// random function detected
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrStatefulQueryParts, "stateful function call %s not supported",
+						tb.WriteNode(n).String())
+					return
+				}
+			}
+			return true, nil
+		}, walkNodes...)
+		if err != nil {
+			err = errors.Wrapf(err, "parse sql failed")
+			return
 		}
 	}
 

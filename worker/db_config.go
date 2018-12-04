@@ -34,4 +34,5 @@ type DBConfig struct {
 	SpaceLimit             uint64
 	UseEventualConsistency bool
 	ConsistencyLevel       float64
+	SlowQueryTime          time.Duration
 }

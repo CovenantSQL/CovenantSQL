@@ -408,13 +408,13 @@ func (c *Chain) produceBlock(now time.Time) error {
 			func(id proto.NodeID) {
 				c.rt.goFunc(func(ctx context.Context) {
 					var (
-						blockReq = &AdviseNewBlockReq{
+						blockReq = &types.AdviseNewBlockReq{
 							Envelope: proto.Envelope{
 								// TODO(lambda): Add fields.
 							},
 							Block: b,
 						}
-						blockResp = &AdviseNewBlockResp{}
+						blockResp = &types.AdviseNewBlockResp{}
 					)
 					if err := c.cl.CallNodeWithContext(
 						ctx, id, route.MCCAdviseNewBlock.String(), blockReq, blockResp,
@@ -504,43 +504,65 @@ func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, err error) {
-	node := c.rt.getHead().Node.ancestor(h)
-	if node == nil {
-		return nil, 0, ErrNoSuchBlock
+	n := c.rt.getHead().Node.ancestor(h)
+	if n == nil {
+		err = errors.Wrapf(ErrNoSuchBlock, "not %d height block", count)
+		return
 	}
 
-	b = &types.BPBlock{}
-	k := node.indexKey()
-
-	err = c.db.View(func(tx *bolt.Tx) error {
-		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
-		return utils.DecodeMsgPack(v, b)
-	})
+	b, err = c.fetchBlockByIndexKey(n.indexKey())
 	if err != nil {
-		return nil, 0, err
+		err = errors.Wrapf(err, "not %d height block", count)
+		return
 	}
 
-	return b, node.count, nil
+	return b, n.count, nil
 }
 
 func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32, err error) {
-	node := c.rt.getHead().Node.ancestorByCount(count)
-	if node == nil {
-		return nil, 0, ErrNoSuchBlock
+	n := c.rt.getHead().Node.ancestorByCount(count)
+	if n == nil {
+		err = errors.Wrapf(ErrNoSuchBlock, "not %d count block", count)
+		return
 	}
 
-	b = &types.BPBlock{}
-	k := node.indexKey()
+	b, err = c.fetchBlockByIndexKey(n.indexKey())
+	if err != nil {
+		err = errors.Wrapf(err, "not %d count block", count)
+		return
+	}
 
+	return b, n.height, nil
+}
+
+func (c *Chain) fetchLastBlock() (b *types.BPBlock, count uint32, height uint32, err error) {
+	n := c.rt.getHead().Node
+	if n == nil {
+		err = errors.Wrap(ErrNoSuchBlock, "no last block")
+		return
+	}
+
+	b, err = c.fetchBlockByIndexKey(n.indexKey())
+	if err != nil {
+		err = errors.Wrap(err, "no last block")
+		return
+	}
+	count = n.count
+	height = n.height
+	return
+}
+
+func (c *Chain) fetchBlockByIndexKey(key []byte) (b *types.BPBlock, err error) {
+	b = &types.BPBlock{}
 	err = c.db.View(func(tx *bolt.Tx) error {
-		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(k)
+		v := tx.Bucket(metaBucket[:]).Bucket(metaBlockIndexBucket).Get(key)
 		return utils.DecodeMsgPack(v, b)
 	})
 	if err != nil {
-		return nil, 0, err
+		return
 	}
 
-	return b, node.height, nil
+	return
 }
 
 // runCurrentTurn does the check and runs block producing if its my turn.
@@ -732,13 +754,13 @@ func (c *Chain) syncHead() {
 	if h := c.rt.getNextTurn() - 1; c.rt.getHead().Height < h {
 		log.Debugf("sync header with height %d", h)
 		var err error
-		req := &FetchBlockReq{
+		req := &types.FetchBlockReq{
 			Envelope: proto.Envelope{
 				// TODO(lambda): Add fields.
 			},
 			Height: h,
 		}
-		resp := &FetchBlockResp{}
+		resp := &types.FetchBlockResp{}
 		peers := c.rt.getPeers()
 		succ := false
 

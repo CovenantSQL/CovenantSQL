@@ -17,8 +17,6 @@
 package blockproducer
 
 import (
-	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -27,142 +25,8 @@ type ChainRPCService struct {
 	chain *Chain
 }
 
-// AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
-type AdviseNewBlockReq struct {
-	proto.Envelope
-	Block *types.BPBlock
-}
-
-// AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
-type AdviseNewBlockResp struct {
-	proto.Envelope
-}
-
-// AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
-type AdviseTxBillingReq struct {
-	proto.Envelope
-	TxBilling *types.Billing
-}
-
-// AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
-type AdviseTxBillingResp struct {
-	proto.Envelope
-}
-
-// FetchBlockReq defines a request of the FetchBlock RPC method.
-type FetchBlockReq struct {
-	proto.Envelope
-	Height uint32
-}
-
-// FetchBlockResp defines a response of the FetchBlock RPC method.
-type FetchBlockResp struct {
-	proto.Envelope
-	Height uint32
-	Count  uint32
-	Block  *types.BPBlock
-}
-
-// FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.
-type FetchBlockByCountReq struct {
-	proto.Envelope
-	Count uint32
-}
-
-// FetchTxBillingReq defines a request of the FetchTxBilling RPC method.
-type FetchTxBillingReq struct {
-	proto.Envelope
-}
-
-// FetchTxBillingResp defines a response of the FetchTxBilling RPC method.
-type FetchTxBillingResp struct {
-	proto.Envelope
-}
-
-// NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
-type NextAccountNonceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// NextAccountNonceResp defines a response of the NextAccountNonce RPC method.
-type NextAccountNonceResp struct {
-	proto.Envelope
-	Addr  proto.AccountAddress
-	Nonce pi.AccountNonce
-}
-
-// AddTxReq defines a request of the AddTx RPC method.
-type AddTxReq struct {
-	proto.Envelope
-	Tx pi.Transaction
-}
-
-// AddTxResp defines a response of the AddTx RPC method.
-type AddTxResp struct {
-	proto.Envelope
-}
-
-// SubReq defines a request of the Sub RPC method.
-type SubReq struct {
-	proto.Envelope
-	Topic    string
-	Callback string
-}
-
-// SubResp defines a response of the Sub RPC method.
-type SubResp struct {
-	proto.Envelope
-	Result string
-}
-
-// OrderMakerReq defines a request of the order maker in database market.
-type OrderMakerReq struct {
-	proto.Envelope
-}
-
-// OrderTakerReq defines a request of the order taker in database market.
-type OrderTakerReq struct {
-	proto.Envelope
-	DBMeta types.ResourceMeta
-}
-
-// OrderTakerResp defines a response of the order taker in database market.
-type OrderTakerResp struct {
-	proto.Envelope
-	databaseID proto.DatabaseID
-}
-
-// QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountStableBalanceResp defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
-// QueryAccountCovenantBalanceReq defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountCovenantBalanceResp defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
 // AdviseNewBlock is the RPC method to advise a new block to target server.
-func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
+func (s *ChainRPCService) AdviseNewBlock(req *types.AdviseNewBlockReq, resp *types.AdviseNewBlockResp) error {
 	s.chain.blocksFromRPC <- req.Block
 	return nil
 }
@@ -178,7 +42,7 @@ func (s *ChainRPCService) AdviseBillingRequest(req *types.AdviseBillingReq, resp
 }
 
 // FetchBlock is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
+func (s *ChainRPCService) FetchBlock(req *types.FetchBlockReq, resp *types.FetchBlockResp) error {
 	resp.Height = req.Height
 	block, count, err := s.chain.fetchBlockByHeight(req.Height)
 	if err != nil {
@@ -189,8 +53,19 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 	return err
 }
 
+func (s *ChainRPCService) FetchLastBlock(req *types.FetchLastBlockReq, resp *types.FetchBlockResp) error {
+	b, c, h, err := s.chain.fetchLastBlock()
+	if err != nil {
+		return err
+	}
+	resp.Block = b
+	resp.Count = c
+	resp.Height = h
+	return nil
+}
+
 // FetchBlockByCount is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *FetchBlockResp) error {
+func (s *ChainRPCService) FetchBlockByCount(req *types.FetchBlockByCountReq, resp *types.FetchBlockResp) error {
 	resp.Count = req.Count
 	block, height, err := s.chain.fetchBlockByCount(req.Count)
 	if err != nil {
@@ -202,13 +77,13 @@ func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *Fet
 }
 
 // FetchTxBilling is the RPC method to fetch a known billing tx from the target server.
-func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
+func (s *ChainRPCService) FetchTxBilling(req *types.FetchTxBillingReq, resp *types.FetchTxBillingResp) error {
 	return nil
 }
 
 // NextAccountNonce is the RPC method to query the next nonce of an account.
 func (s *ChainRPCService) NextAccountNonce(
-	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
+	req *types.NextAccountNonceReq, resp *types.NextAccountNonceResp) (err error,
 ) {
 	if resp.Nonce, err = s.chain.ms.nextNonce(req.Addr); err != nil {
 		return
@@ -218,7 +93,7 @@ func (s *ChainRPCService) NextAccountNonce(
 }
 
 // AddTx is the RPC method to add a transaction.
-func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
+func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err error) {
 	if req.Tx == nil {
 		return ErrUnknownTransactionType
 	}
@@ -230,7 +105,7 @@ func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
 
 // QueryAccountStableBalance is the RPC method to query acccount stable coin balance.
 func (s *ChainRPCService) QueryAccountStableBalance(
-	req *QueryAccountStableBalanceReq, resp *QueryAccountStableBalanceResp) (err error,
+	req *types.QueryAccountStableBalanceReq, resp *types.QueryAccountStableBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.ms.loadAccountStableBalance(req.Addr)
@@ -239,7 +114,7 @@ func (s *ChainRPCService) QueryAccountStableBalance(
 
 // QueryAccountCovenantBalance is the RPC method to query acccount covenant coin balance.
 func (s *ChainRPCService) QueryAccountCovenantBalance(
-	req *QueryAccountCovenantBalanceReq, resp *QueryAccountCovenantBalanceResp) (err error,
+	req *types.QueryAccountCovenantBalanceReq, resp *types.QueryAccountCovenantBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
@@ -247,7 +122,7 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 }
 
 // Sub is the RPC method to subscribe some event.
-func (s *ChainRPCService) Sub(req *SubReq, resp *SubResp) (err error) {
+func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error) {
 	return s.chain.bs.Subscribe(req.Topic, func(request interface{}, response interface{}) {
 		s.chain.cl.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
 	})

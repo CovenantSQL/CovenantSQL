@@ -185,8 +185,8 @@ func GetStableCoinBalance() (balance uint64, err error) {
 		return
 	}
 
-	req := new(bp.QueryAccountStableBalanceReq)
-	resp := new(bp.QueryAccountStableBalanceResp)
+	req := new(types.QueryAccountStableBalanceReq)
+	resp := new(types.QueryAccountStableBalanceResp)
 
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -211,8 +211,8 @@ func GetCovenantCoinBalance() (balance uint64, err error) {
 		return
 	}
 
-	req := new(bp.QueryAccountCovenantBalanceReq)
-	resp := new(bp.QueryAccountCovenantBalanceResp)
+	req := new(types.QueryAccountCovenantBalanceReq)
+	resp := new(types.QueryAccountCovenantBalanceResp)
 
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {

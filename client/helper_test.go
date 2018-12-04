@@ -28,7 +28,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -136,13 +135,13 @@ func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types
 	return
 }
 
-func (s *stubBPDBService) QueryAccountStableBalance(req *bp.QueryAccountStableBalanceReq,
-	resp *bp.QueryAccountStableBalanceResp) (err error) {
+func (s *stubBPDBService) QueryAccountStableBalance(req *types.QueryAccountStableBalanceReq,
+	resp *types.QueryAccountStableBalanceResp) (err error) {
 	return
 }
 
-func (s *stubBPDBService) QueryAccountCovenantBalance(req *bp.QueryAccountCovenantBalanceReq,
-	resp *bp.QueryAccountCovenantBalanceResp) (err error) {
+func (s *stubBPDBService) QueryAccountCovenantBalance(req *types.QueryAccountCovenantBalanceReq,
+	resp *types.QueryAccountCovenantBalanceResp) (err error) {
 	return
 }
 

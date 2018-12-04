@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer"
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -42,7 +41,7 @@ var (
 	rpcServiceMap = map[string]interface{}{
 		route.DHTRPCName:           &route.DHTService{},
 		route.DBRPCName:            &worker.DBMSRPCService{},
-		route.BPDBRPCName:          &blockproducer.DBService{},
+		route.BPDBRPCName:          &bp.DBService{},
 		route.SQLChainRPCName:      &sqlchain.MuxService{},
 		route.BlockProducerRPCName: &bp.ChainRPCService{},
 	}

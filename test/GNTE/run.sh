@@ -20,6 +20,13 @@ BENCHRESULT_FILE=${PROJECT_DIR}/bench.log
 if [ -f ${BENCHRESULT_FILE} ];then
     rm -rf ${BENCHRESULT_FILE}
 fi
+tmp_file=${PROJECT_DIR}/tmp.log
+if [ -f ${tmp_file} ];then
+    rm -rf ${tmp_file}
+fi
+
+# Clean submodule
+cd ${TEST_WD}/GNTE/ && git clean -dfx
 
 for gnte_yaml in ${yaml[@]};
 do
@@ -40,10 +47,16 @@ do
     # Bench GNTE
     cd ${PROJECT_DIR}/cmd/cql-minerd/
     bash -x ./benchGNTE.sh
-    echo "${gnte_yaml}" >> ${BENCHRESULT_FILE}
-    grep BenchmarkMinerGNTE gnte.log >> ${BENCHRESULT_FILE}
-    echo "" >> ${BENCHRESULT_FILE}
+    echo "${gnte_yaml}" >> ${tmp_file}
+    grep BenchmarkMinerGNTE gnte.log >> ${tmp_file}
+    echo "" >> ${tmp_file}
 done
+
+# clean GNTE docker
+cd ${TEST_WD} && bash ./GNTE/scripts/cleanupDB.sh
+cd ${TEST_WD} && bash ./GNTE/scripts/clean.sh
+
+perl -lane 'print $F[0], "\t", 1000000000.0/$F[2] if $F[2]; print if /script/' ${tmp_file} > ${BENCHRESULT_FILE}
 #cd ${TEST_WD}/GNTE && bash -x ./generate.sh stopall miner
 #cd test/GNTE/GNTE/scripts/node_miner_10.250.100.3/
 #cd data/randomid

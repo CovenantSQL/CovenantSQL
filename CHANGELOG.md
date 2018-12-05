@@ -1,5 +1,33 @@
 # Changelog
 
+## [v0.0.5](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.5) (2018-11-23)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.4...v0.0.5)
+
+**Fixed bugs:**
+
+- Stuck in 2pc inconsistent state error [\#56](https://github.com/CovenantSQL/CovenantSQL/issues/56)
+
+**Closed issues:**
+
+- 用 cql 来查看你的钱包余额时出错 [\#111](https://github.com/CovenantSQL/CovenantSQL/issues/111)
+
+**Merged pull requests:**
+
+- Fix table name should add space in one test case. [\#128](https://github.com/CovenantSQL/CovenantSQL/pull/128) ([laodouya](https://github.com/laodouya))
+- Fix memory exhausting issue [\#127](https://github.com/CovenantSQL/CovenantSQL/pull/127) ([leventeliu](https://github.com/leventeliu))
+- Add block cache pruning [\#126](https://github.com/CovenantSQL/CovenantSQL/pull/126) ([leventeliu](https://github.com/leventeliu))
+- Utils/Profiler log field name wrong. [\#124](https://github.com/CovenantSQL/CovenantSQL/pull/124) ([laodouya](https://github.com/laodouya))
+- Add simple Pub Sub framework and fix bug during long march [\#122](https://github.com/CovenantSQL/CovenantSQL/pull/122) ([auxten](https://github.com/auxten))
+- Move client.conn.pCaller init in newConn [\#121](https://github.com/CovenantSQL/CovenantSQL/pull/121) ([auxten](https://github.com/auxten))
+- Fix broken BenchmarkMinerXXX add BenchmarkMinerTwo to travis [\#120](https://github.com/CovenantSQL/CovenantSQL/pull/120) ([auxten](https://github.com/auxten))
+- FUSE on CovenantSQL [\#119](https://github.com/CovenantSQL/CovenantSQL/pull/119) ([auxten](https://github.com/auxten))
+- Integration bench test support on exist database file. [\#118](https://github.com/CovenantSQL/CovenantSQL/pull/118) ([laodouya](https://github.com/laodouya))
+- Move HashSignVerifier definition to crypto package [\#117](https://github.com/CovenantSQL/CovenantSQL/pull/117) ([leventeliu](https://github.com/leventeliu))
+- Increase project test coverage and fix bugs in kayak [\#116](https://github.com/CovenantSQL/CovenantSQL/pull/116) ([xq262144](https://github.com/xq262144))
+- Fix invalid parent, and increate block producing period on main chain [\#115](https://github.com/CovenantSQL/CovenantSQL/pull/115) ([zeqing-guo](https://github.com/zeqing-guo))
+- A shard chain eventual consistency implementation [\#103](https://github.com/CovenantSQL/CovenantSQL/pull/103) ([leventeliu](https://github.com/leventeliu))
+
 ## [v0.0.4](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.4) (2018-11-08)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.3...v0.0.4)

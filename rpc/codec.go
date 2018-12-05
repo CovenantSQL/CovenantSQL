@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"context"
 	"net/rpc"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -26,13 +27,15 @@ import (
 type NodeAwareServerCodec struct {
 	rpc.ServerCodec
 	NodeID *proto.RawNodeID
+	Ctx    context.Context
 }
 
 // NewNodeAwareServerCodec returns new NodeAwareServerCodec with normal rpc.ServerCode and proto.RawNodeID
-func NewNodeAwareServerCodec(codec rpc.ServerCodec, nodeID *proto.RawNodeID) *NodeAwareServerCodec {
+func NewNodeAwareServerCodec(codec rpc.ServerCodec, nodeID *proto.RawNodeID, ctx context.Context) *NodeAwareServerCodec {
 	return &NodeAwareServerCodec{
 		ServerCodec: codec,
 		NodeID:      nodeID,
+		Ctx:         ctx,
 	}
 }
 
@@ -51,6 +54,8 @@ func (nc *NodeAwareServerCodec) ReadRequestBody(body interface{}) (err error) {
 	if r, ok := body.(proto.EnvelopeAPI); ok {
 		// inject node id to rpc envelope
 		r.SetNodeID(nc.NodeID)
+		// inject context
+		r.SetContext(nc.Ctx)
 	}
 
 	return

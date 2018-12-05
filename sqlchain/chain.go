@@ -1356,7 +1356,9 @@ func (c *Chain) replicationCycle(ctx context.Context) {
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 	var ref *x.QueryTracker
-	if ref, resp, err = c.st.QueryWithContext(c.rt.ctx, req); err != nil {
+	// TODO(leventeliu): we're using an external context passed by request. Make sure that
+	// cancelling will be propagated to this context before chain instance stops.
+	if ref, resp, err = c.st.QueryWithContext(req.GetContext(), req); err != nil {
 		return
 	}
 	if err = resp.Sign(c.pk); err != nil {
@@ -1375,7 +1377,7 @@ func (c *Chain) Replay(req *types.Request, resp *types.Response) (err error) {
 	case types.ReadQuery:
 		return
 	case types.WriteQuery:
-		return c.st.ReplayWithContext(c.rt.ctx, req, resp)
+		return c.st.ReplayWithContext(req.GetContext(), req, resp)
 	default:
 		err = ErrInvalidRequest
 	}

@@ -17,6 +17,7 @@
 package xenomint
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"strings"
@@ -107,7 +108,7 @@ func (s *State) Close(commit bool) (err error) {
 				return
 			}
 		} else {
-			// Only rollback to last commmit point
+			// Only rollback to last commit point
 			if err = s.rollback(); err != nil {
 				return
 			}
@@ -199,10 +200,13 @@ func buildTypeNamesFromSQLColumnTypes(types []*sql.ColumnType) (names []string) 
 
 type sqlQuerier interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 }
 
 func readSingle(
-	qer sqlQuerier, q *types.Query) (names []string, types []string, data [][]interface{}, err error,
+	ctx context.Context, qer sqlQuerier, q *types.Query,
+) (
+	names []string, types []string, data [][]interface{}, err error,
 ) {
 	var (
 		rows    *sql.Rows
@@ -214,7 +218,7 @@ func readSingle(
 	if _, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
 		return
 	}
-	if rows, err = qer.Query(pattern, args...); err != nil {
+	if rows, err = qer.QueryContext(ctx, pattern, args...); err != nil {
 		return
 	}
 	defer rows.Close()
@@ -253,6 +257,12 @@ func buildRowsFromNativeData(data [][]interface{}) (rows []types.ResponseRow) {
 }
 
 func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
+	return s.readWithContext(context.Background(), req)
+}
+
+func (s *State) readWithContext(
+	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
+) {
 	var (
 		ierr           error
 		cnames, ctypes []string
@@ -260,7 +270,7 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 	)
 	// TODO(leventeliu): no need to run every read query here.
 	for i, v := range req.Payload.Queries {
-		if cnames, ctypes, data, ierr = readSingle(s.strg.DirtyReader(), &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(ctx, s.strg.DirtyReader(), &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			// Add to failed pool list
 			s.pool.setFailed(req)
@@ -288,7 +298,9 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 	return
 }
 
-func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
+func (s *State) readTx(
+	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
+) {
 	var (
 		tx             *sql.Tx
 		id             uint64
@@ -315,7 +327,7 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 	}
 
 	for i, v := range req.Payload.Queries {
-		if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(ctx, querier, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			// Add to failed pool list
 			s.pool.setFailed(req)
@@ -343,7 +355,9 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 	return
 }
 
-func (s *State) writeSingle(q *types.Query) (res sql.Result, err error) {
+func (s *State) writeSingle(
+	ctx context.Context, q *types.Query) (res sql.Result, err error,
+) {
 	var (
 		containsDDL bool
 		pattern     string
@@ -353,7 +367,7 @@ func (s *State) writeSingle(q *types.Query) (res sql.Result, err error) {
 	if containsDDL, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
 		return
 	}
-	if res, err = s.unc.Exec(pattern, args...); err == nil {
+	if res, err = s.unc.ExecContext(ctx, pattern, args...); err == nil {
 		if containsDDL {
 			atomic.StoreUint32(&s.hasSchemaChange, 1)
 		}
@@ -373,7 +387,9 @@ func (s *State) rollbackTo(savepoint uint64) {
 	s.unc.Exec("ROLLBACK TO \"?\"", savepoint)
 }
 
-func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
+func (s *State) write(
+	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
+) {
 	var (
 		savepoint         uint64
 		query             = &QueryTracker{Req: req}
@@ -390,7 +406,7 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 		savepoint = s.getID()
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
-			if res, ierr = s.writeSingle(&v); ierr != nil {
+			if res, ierr = s.writeSingle(ctx, &v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at #%d failed", i)
 				// Add to failed pool list
 				s.pool.setFailed(req)
@@ -426,7 +442,7 @@ func (s *State) write(req *types.Request) (ref *QueryTracker, resp *types.Respon
 	return
 }
 
-func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
+func (s *State) replay(ctx context.Context, req *types.Request, resp *types.Response) (err error) {
 	var (
 		ierr      error
 		savepoint uint64
@@ -443,7 +459,7 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 		return
 	}
 	for i, v := range req.Payload.Queries {
-		if _, ierr = s.writeSingle(&v); ierr != nil {
+		if _, ierr = s.writeSingle(ctx, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "execute at #%d failed", i)
 			s.rollbackTo(savepoint)
 			return
@@ -457,6 +473,12 @@ func (s *State) replay(req *types.Request, resp *types.Response) (err error) {
 // ReplayBlock replays the queries from block. It also checks and skips some preceding pooled
 // queries.
 func (s *State) ReplayBlock(block *types.Block) (err error) {
+	return s.ReplayBlockWithContext(context.Background(), block)
+}
+
+// ReplayBlockWithContext replays the queries from block with context. It also checks and
+// skips some preceding pooled queries.
+func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) (err error) {
 	var (
 		ierr   error
 		lastsp uint64 // Last savepoint
@@ -488,7 +510,7 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 				s.rollbackTo(lastsp)
 				return
 			}
-			if _, ierr = s.writeSingle(&v); ierr != nil {
+			if _, ierr = s.writeSingle(ctx, &v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at %d:%d failed", i, j)
 				s.rollbackTo(lastsp)
 				return
@@ -501,7 +523,7 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 	for _, r := range block.FailedReqs {
 		s.pool.removeFailed(r)
 	}
-	// Check if the current transaction is ok to commit
+	// Check if the current transaction is OK to commit
 	if s.pool.matchLast(lastsp) {
 		if err = s.uncCommit(); err != nil {
 			// FATAL ERROR
@@ -541,13 +563,21 @@ func (s *State) commit() (err error) {
 
 // CommitEx commits the current transaction and returns all the pooled queries.
 func (s *State) CommitEx() (failed []*types.Request, queries []*QueryTracker, err error) {
+	return s.CommitExWithContext(context.Background())
+}
+
+// CommitExWithContext commits the current transaction and returns all the pooled queries
+// with context.
+func (s *State) CommitExWithContext(
+	ctx context.Context) (failed []*types.Request, queries []*QueryTracker, err error,
+) {
 	s.Lock()
 	defer s.Unlock()
 	if err = s.uncCommit(); err != nil {
 		// FATAL ERROR
 		return
 	}
-	if s.unc, err = s.strg.Writer().Begin(); err != nil {
+	if s.unc, err = s.strg.Writer().BeginTx(ctx, nil); err != nil {
 		// FATAL ERROR
 		return
 	}
@@ -586,11 +616,19 @@ func (s *State) getLocalTime() time.Time {
 // Query does the query(ies) in req, pools the request and persists any change to
 // the underlying storage.
 func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
+	return s.QueryWithContext(context.Background(), req)
+}
+
+// QueryWithContext does the query(ies) in req, pools the request and persists any change to
+// the underlying storage.
+func (s *State) QueryWithContext(
+	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
+) {
 	switch req.Header.QueryType {
 	case types.ReadQuery:
-		return s.readTx(req)
+		return s.readTx(ctx, req)
 	case types.WriteQuery:
-		return s.write(req)
+		return s.write(ctx, req)
 	default:
 		err = ErrInvalidRequest
 	}
@@ -599,6 +637,13 @@ func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Respon
 
 // Replay replays a write log from other peer to replicate storage state.
 func (s *State) Replay(req *types.Request, resp *types.Response) (err error) {
+	return s.ReplayWithContext(context.Background(), req, resp)
+}
+
+// ReplayWithContext replays a write log from other peer to replicate storage state with context.
+func (s *State) ReplayWithContext(
+	ctx context.Context, req *types.Request, resp *types.Response) (err error,
+) {
 	// NOTE(leventeliu): in the current implementation, failed requests are not tracked in remote
 	// nodes (while replaying via Replay calls). Because we don't want to actually replay read
 	// queries in all synchronized nodes, meanwhile, whether a request will fail or not
@@ -609,7 +654,7 @@ func (s *State) Replay(req *types.Request, resp *types.Response) (err error) {
 	case types.ReadQuery:
 		return
 	case types.WriteQuery:
-		return s.replay(req, resp)
+		return s.replay(ctx, req, resp)
 	default:
 		err = ErrInvalidRequest
 	}

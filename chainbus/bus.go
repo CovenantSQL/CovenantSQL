@@ -68,8 +68,8 @@ type eventHandler struct {
 func New() Bus {
 	b := &ChainBus{
 		handlers: make(map[string][]*eventHandler),
-		lock: sync.Mutex{},
-		wg: sync.WaitGroup{},
+		lock:     sync.Mutex{},
+		wg:       sync.WaitGroup{},
 	}
 	return b
 }
@@ -223,4 +223,3 @@ func (bus *ChainBus) setUpPublish(topic string, args ...interface{}) []reflect.V
 func (bus *ChainBus) WaitAsync() {
 	bus.wg.Wait()
 }
-

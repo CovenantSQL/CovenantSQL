@@ -19,6 +19,10 @@ package sqlchain
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -26,9 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type BusService struct {
@@ -36,24 +37,24 @@ type BusService struct {
 
 	caller *rpc.Caller
 
-	lock     sync.Mutex // a lock for the map
-	wg       sync.WaitGroup
+	lock   sync.Mutex // a lock for the map
+	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	checkInterval time.Duration
-	blockCount uint32
+	blockCount    uint32
 }
 
 func NewBusService(ctx context.Context, checkInterval time.Duration) *BusService {
 	ctd, ccl := context.WithCancel(ctx)
 	bs := &BusService{
-		Bus: chainbus.New(),
-		lock: sync.Mutex{},
-		wg: sync.WaitGroup{},
-		caller: rpc.NewCaller(),
-		ctx: ctd,
-		cancel: ccl,
+		Bus:           chainbus.New(),
+		lock:          sync.Mutex{},
+		wg:            sync.WaitGroup{},
+		caller:        rpc.NewCaller(),
+		ctx:           ctd,
+		cancel:        ccl,
 		checkInterval: checkInterval,
 	}
 	return bs
@@ -68,7 +69,7 @@ func (bs *BusService) subscribeBlock(ctx context.Context) {
 		case <-ctx.Done():
 			log.Info("exit subscription service")
 			return
-		case <- time.After(bs.checkInterval):
+		case <-time.After(bs.checkInterval):
 			// fetch block from remote block producer
 			c := atomic.LoadUint32(&bs.blockCount)
 			b := bs.requestBlock(c)
@@ -142,4 +143,3 @@ func (bs *BusService) Stop() {
 	bs.cancel()
 	bs.wg.Wait()
 }
-

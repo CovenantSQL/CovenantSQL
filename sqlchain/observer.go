@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"context"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -59,7 +60,6 @@ func newObserverReplicator(nodeID proto.NodeID, startHeight int32, c *Chain) *ob
 func (r *observerReplicator) setNewHeight(newHeight int32) {
 	r.replLock.Lock()
 	defer r.replLock.Unlock()
-
 	r.height = newHeight
 }
 
@@ -241,15 +241,13 @@ func (r *observerReplicator) tick() {
 	default:
 	}
 }
-func (r *observerReplicator) run() {
-	defer r.c.replWg.Done()
-
+func (r *observerReplicator) run(ctx context.Context) {
 	for {
 		select {
 		case <-r.triggerCh:
 			// replication
 			r.replicate()
-		case <-r.c.stopCh:
+		case <-ctx.Done():
 			r.stop()
 			return
 		case <-r.stopCh:

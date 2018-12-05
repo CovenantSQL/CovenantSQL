@@ -16,7 +16,7 @@ echo ${PROJECT_DIR}
 #Notice!!!!: uncomment this when you run this manually.
 #cd ${PROJECT_DIR} && ./build.sh
 
-BENCHRESULT_FILE=${PROJECT_DIR}/bench.log
+BENCHRESULT_FILE=${PROJECT_DIR}/bench.txt
 if [ -f ${BENCHRESULT_FILE} ];then
     rm -rf ${BENCHRESULT_FILE}
 fi

@@ -17,6 +17,7 @@
 package proto
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,5 +42,11 @@ func TestEnvelope_GetSet(t *testing.T) {
 
 		env.SetVersion("0.0.1")
 		So(env.GetVersion(), ShouldEqual, "0.0.1")
+
+		ctx := env.GetContext()
+		So(ctx, ShouldEqual, context.Background())
+		cldCtx, _ := context.WithCancel(ctx)
+		env.SetContext(cldCtx)
+		So(env.GetContext(), ShouldEqual, cldCtx)
 	})
 }

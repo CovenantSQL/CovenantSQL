@@ -106,7 +106,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 }
 
 // Reconnect tries to rebuild RPC client
-func (c *PersistentCaller) Reconnect(method string) (err error)  {
+func (c *PersistentCaller) Reconnect(method string) (err error) {
 	c.Lock()
 	c.Close()
 	c.client = nil

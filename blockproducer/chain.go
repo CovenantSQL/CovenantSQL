@@ -36,6 +36,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 )
@@ -65,6 +66,8 @@ type Chain struct {
 	blocksFromRPC chan *types.BPBlock
 	pendingTxs    chan pi.Transaction
 	ctx           context.Context
+
+	st xi.Storage
 }
 
 // NewChain creates a new blockchain.
@@ -213,7 +216,7 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 			return ErrMetaStateNotFound
 		}
 
-		state := &State{}
+		state := &Obsolete{}
 		if err = utils.DecodeMsgPack(metaEnc, state); err != nil {
 			return
 		}
@@ -307,7 +310,7 @@ func (c *Chain) pushBlockWithoutCheck(b *types.BPBlock) error {
 	h := c.rt.getHeightFromTime(b.Timestamp())
 	log.Debugf("current block %s, height %d, its parent %s", b.BlockHash(), h, b.ParentHash())
 	node := newBlockNode(c.rt.chainInitTime, c.rt.period, b, c.rt.getHead().Node)
-	state := &State{
+	state := &Obsolete{
 		Node:   node,
 		Head:   node.hash,
 		Height: node.height,

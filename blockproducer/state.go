@@ -20,8 +20,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
-// State store the node info of chain.
-type State struct {
+// Obsolete stores the node info of chain.
+type Obsolete struct {
 	Node   *blockNode
 	Head   hash.Hash
 	Height uint32

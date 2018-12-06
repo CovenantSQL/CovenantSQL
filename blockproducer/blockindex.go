@@ -31,6 +31,15 @@ type blockNode struct {
 	parent *blockNode
 	height uint32
 	count  uint32
+	block  *types.BPBlock
+}
+
+func newBlockNodeEx(b *types.BPBlock, p *blockNode) *blockNode {
+	return &blockNode{
+		hash:   b.SignedHeader.BlockHash,
+		parent: p,
+		block:  b,
+	}
 }
 
 func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BPBlock, parent *blockNode) *blockNode {
@@ -50,6 +59,7 @@ func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BP
 		parent: parent,
 		height: h,
 		count:  count,
+		block:  block,
 	}
 
 	return bn
@@ -95,6 +105,17 @@ func (bn *blockNode) ancestorByCount(c uint32) *blockNode {
 		ancestor = ancestor.parent
 	}
 	return ancestor
+}
+
+func (bn *blockNode) lastIrreversible(comfirm uint32) (irr *blockNode) {
+	var count = bn.count - comfirm
+	for irr = bn; irr.count == 0 && irr.count > count; irr = irr.parent {
+	}
+	return
+}
+
+func (bn *blockNode) hasAncestor(anc *blockNode) bool {
+	return bn.ancestorByCount(anc.count).hash == anc.hash
 }
 
 type blockIndex struct {

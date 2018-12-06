@@ -19,12 +19,17 @@ package blockproducer
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
 // copy from /sqlchain/runtime.go
@@ -53,12 +58,14 @@ type rt struct {
 	peersMutex sync.Mutex
 	peers      *proto.Peers
 	nodeID     proto.NodeID
+	minComfirm uint32
 
 	stateMutex sync.Mutex // Protects following fields.
 	// nextTurn is the height of the next block.
 	nextTurn uint32
 	// head is the current head of the best chain.
-	head *State
+	head          *Obsolete
+	optionalHeads []*Obsolete
 
 	// timeMutex protects following time-relative fields.
 	timeMutex sync.Mutex
@@ -66,9 +73,93 @@ type rt struct {
 	//
 	// TODO(leventeliu): update offset in ping cycle.
 	offset time.Duration
+
+	// Cached state
+	cacheMu   sync.RWMutex
+	irre      *blockNode
+	immutable *view
+	current   *branch
+	optional  []*branch
+	txPool    map[hash.Hash]pi.Transaction
 }
 
-// now returns the current coodinated chain time.
+func (r *rt) addTx(tx pi.Transaction) {
+	var k = tx.Hash()
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	if _, ok := r.txPool[k]; !ok {
+		r.txPool[k] = tx
+	}
+	r.current.addTx(tx)
+	for _, v := range r.optional {
+		v.addTx(tx)
+	}
+}
+
+func (r *rt) produceBlock(st xi.Storage) (err error) {
+	var (
+		br       *branch
+		bl       *types.BPBlock
+		irre     *blockNode
+		newIrres []*blockNode
+	)
+	r.cacheMu.Lock()
+	r.cacheMu.Unlock()
+
+	// Try to produce new block
+	if br, bl, err = r.current.produceBlock(); err != nil {
+		return
+	}
+
+	// Find new irreversible blocks
+	//
+	// NOTE(leventeliu):
+	// May have multiple new irreversible blocks here if peer list shrinks.
+	// May also have no new irreversible block at all if peer list expands.
+	irre = br.head.lastIrreversible(r.minComfirm)
+	for n := irre; n.count > r.irre.count; n = n.parent {
+		newIrres = append(newIrres, n)
+	}
+
+	var (
+		sps []storageProcedure
+		up  storageCallback
+	)
+
+	// Prepare storage procedures to update immutable
+	sps = append(sps, addBlock(bl))
+	// Note that block nodes are pushed in reverse order and should be applied in ascending order
+	for i := len(newIrres) - 1; i >= 0; i-- {
+		var v = newIrres[i]
+		sps = append(
+			sps,
+			updateImmutable(v.block.Transactions),
+			deleteTxs(v.block.Transactions),
+		)
+	}
+	sps = append(sps, updateIrreversible(irre.hash))
+
+	// Prepare callback to update cache
+	up = func() {
+		// Replace current branch
+		r.current = br
+		// Prune branches
+		var brs = make([]*branch, 0, len(r.optional))
+		for _, v := range r.optional {
+			if v.head.hasAncestor(irre) {
+				brs = append(brs, v)
+			}
+		}
+		r.optional = brs
+		// Update last irreversible block
+		r.irre = irre
+	}
+
+	// Write to immutable database and update cache
+	return store(st, sps, up)
+}
+
+// now returns the current coordinated chain time.
 func (r *rt) now() time.Time {
 	r.timeMutex.Lock()
 	defer r.timeMutex.Unlock()
@@ -83,7 +174,18 @@ func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAd
 			index = uint32(i)
 		}
 	}
-	var cld, ccl = context.WithCancel(ctx)
+	var (
+		cld, ccl = context.WithCancel(ctx)
+		l        = float64(len(cfg.Peers.Servers))
+		t        float64
+		m        float64
+	)
+	if t = cfg.ComfirmThreshold; t <= 0.0 {
+		t = float64(2) / 3.0
+	}
+	if m = math.Ceil(l*t + 1); m > l {
+		m = l
+	}
 	return &rt{
 		ctx:            cld,
 		cancel:         ccl,
@@ -97,8 +199,9 @@ func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAd
 		tick:           cfg.Tick,
 		peers:          cfg.Peers,
 		nodeID:         cfg.NodeID,
+		minComfirm:     uint32(m),
 		nextTurn:       1,
-		head:           &State{},
+		head:           &Obsolete{},
 		offset:         time.Duration(0),
 	}
 }
@@ -162,13 +265,13 @@ func (r *rt) getPeers() *proto.Peers {
 	return &peers
 }
 
-func (r *rt) getHead() *State {
+func (r *rt) getHead() *Obsolete {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 	return r.head
 }
 
-func (r *rt) setHead(head *State) {
+func (r *rt) setHead(head *Obsolete) {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 	r.head = head

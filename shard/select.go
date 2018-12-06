@@ -38,6 +38,7 @@ func buildSelectPlan(query string,
 	if sel.Distinct != "" {
 		return nil, errors.New("unsupported: DISTINCT in SELECT")
 	}
+
 	if len(sel.From) == 1 {
 		if tableExpr, ok := sel.From[0].(*sqlparser.AliasedTableExpr); ok {
 			if tableName, ok := tableExpr.Expr.(sqlparser.TableName); ok {

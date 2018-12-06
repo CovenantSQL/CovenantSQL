@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -177,7 +178,7 @@ func (sc *ShardingConn) loadShardConfig() (err error) {
 }
 
 func (sc *ShardingConn) SetShardConfig(
-	tableName string, colName string, shardInterval int64, starttime int64, shardSchema string) (err error) {
+	tableName string, colName string, shardInterval int64, starttime int64, shardSchema string) (result sql.Result, err error) {
 
 	sc.Lock()
 	defer sc.Unlock()
@@ -193,7 +194,7 @@ func (sc *ShardingConn) SetShardConfig(
 	if err == nil {
 		// if row count is not 0, sharding conf can not be changed
 		if rowCount == 0 {
-			_, err = sc.rawDB.Exec(`
+			result, err = sc.rawDB.Exec(`
             INSERT INTO __SHARDING_META(tablename,colname,sinterval,starttime,sschema)
 			  VALUES(?,?,?,?,?)
 			  ON CONFLICT(tablename) DO UPDATE SET
@@ -233,6 +234,7 @@ func (sc *ShardingConn) ExecContext(
 		log.Debugf("SHARDCONFIG %#v", shardConfig)
 		if len(shardConfig) == 6 {
 			var shardInterval, startTime int64
+			var r sql.Result
 			shardInterval, err = strconv.ParseInt(shardConfig[3], 10, 64)
 			if err != nil {
 				return nil, errors.New("SHARDCONFIG 3rd args should in int64")
@@ -241,12 +243,18 @@ func (sc *ShardingConn) ExecContext(
 			if err != nil {
 				return nil, errors.New("SHARDCONFIG 4th args should in int64")
 			}
-			err = sc.SetShardConfig(shardConfig[1], shardConfig[2], shardInterval, startTime, shardConfig[5])
+			r, err = sc.SetShardConfig(shardConfig[1], shardConfig[2], shardInterval, startTime, shardConfig[5])
 			if err != nil {
 				log.Errorf("set shard config failed: %v", err)
 				return
 			}
-			return &ShardingResult{}, nil
+			li, _ := r.LastInsertId()
+			ra, _ := r.LastInsertId()
+			return &ShardingResult{
+				LastInsertIdi: li,
+				RowsAffectedi: ra,
+				Err:           nil,
+			}, nil
 		} else {
 			return nil, errors.New("SHARDCONFIG should have 5 args")
 		}
@@ -289,7 +297,7 @@ func (sc *ShardingConn) ExecContext(
 		} else {
 			var ra int64
 			ra, shardResult.Err = r.RowsAffected()
-			shardResult.RowsAffectedi += ra
+			shardResult.RowsAffectedi = ra
 			shardResult.LastInsertIdi, _ = r.LastInsertId()
 		}
 	}
@@ -346,6 +354,7 @@ func (sc *ShardingConn) QueryContext(
 					plan, plan.OriginQuery, plan.OriginArgs)
 		}
 		rows = &ShardingRows{
+			plan:    plan,
 			stmt:    nil,
 			rawRows: sqlRows,
 		}
@@ -368,6 +377,46 @@ func (sc *ShardingConn) PrepareContext(ctx context.Context, query string) (stmt 
 		}
 	}
 	return
+}
+
+func (sc *ShardingConn) getTableShards(tableName string) (shards []string, err error) {
+	q := fmt.Sprintf(`select name from sqlite_master where name like "%s%s%%";`,
+		tableName, SHARD_SUFFIX)
+	rows, err := sc.rawDB.Query(q)
+	if err != nil {
+		err = errors.Wrapf(err, "get table shards by: %s", q)
+		return
+	}
+
+	shards = make([]string, 0, 16)
+	defer rows.Close()
+	for rows.Next() {
+		var table string
+		err = rows.Scan(&table)
+		if err != nil {
+			err = errors.Wrapf(err, "get table shards by: %s", q)
+			return
+		}
+		shards = append(shards, table)
+	}
+	err = rows.Err()
+	if err != nil {
+		err = errors.Wrapf(err, "get table shards by: %s", q)
+	}
+	return
+}
+
+func (sc *ShardingConn) getTableSchema(tableName string) (schema string, err error) {
+	//TODO(auxten): check and add "IF NOT EXISTS"
+	if conf, ok := sc.conf[tableName]; ok {
+		if strings.Contains(conf.ShardSchema, ShardSchemaToken) {
+			return conf.ShardSchema, nil
+		} else {
+			return "", errors.Errorf("not found '%s' in schema: %s", ShardSchemaToken, conf.ShardSchema)
+		}
+	} else {
+		return "", errors.Errorf("not found schema for table: %s", tableName)
+	}
 }
 
 func (s *ShardingStmt) Close() (err error) {

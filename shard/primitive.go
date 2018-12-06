@@ -65,14 +65,16 @@ func BuildFromStmt(query string, args []driver.NamedValue, stmt sqlparser.Statem
 		plan.Instructions, err = buildSelectPlan(query, stmt, args, c)
 	case *sqlparser.Insert:
 		plan.Instructions, err = buildInsertPlan(query, stmt, args, c)
+	case *sqlparser.Delete:
+		plan.Instructions, err = buildDeletePlan(query, stmt, args, c)
+	case *sqlparser.Update:
+		plan.Instructions, err = buildUpdatePlan(query, stmt, args, c)
 	case *sqlparser.DDL,
 		*sqlparser.Show,
 		*sqlparser.Set,
 		*sqlparser.Union,
-		*sqlparser.Delete,
-		*sqlparser.Update,
 		*sqlparser.DBDDL:
-		// FIXME(auxten) if contains any statement other than sqlparser.Insert, we just
+		// FIXME(auxten) if contains any statement have not support, we just
 		// execute it for test
 		plan.Instructions = &BasePrimitive{
 			query:   query,

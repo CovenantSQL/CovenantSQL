@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -37,14 +36,15 @@ func buildInsertPlan(query string,
 	c *ShardingConn,
 ) (instructions Primitive, err error) {
 	log.Debugf("buildInsertPlan got %s\n insert:%#v\n args: %#v", query, ins, args)
+	if ins.Action == sqlparser.ReplaceStr {
+		return nil, errors.New("unsupported: REPLACE INTO with sharded schema")
+	}
+	if ins.OnDup != nil {
+		return nil, errors.New("unsupported: OnDup with sharded schema")
+	}
+
 	if conf, ok := c.conf[ins.Table.Name.CompliantName()]; ok {
 		if !conf.ShardColName.IsEmpty() && conf.ShardInterval > 0 {
-			if ins.Action == sqlparser.ReplaceStr {
-				return nil, errors.New("unsupported: REPLACE INTO with sharded schema")
-			}
-			if ins.OnDup != nil {
-				return nil, errors.New("unsupported: OnDup with sharded schema")
-			}
 			shardColIndex := ins.Columns.FindColumn(conf.ShardColName)
 			if shardColIndex < 0 {
 				return nil, errors.Errorf("sharding column not found in %s", query)
@@ -52,14 +52,14 @@ func buildInsertPlan(query string,
 				if rows, ok := ins.Rows.(sqlparser.Values); ok {
 					allInserts := &Insert{
 						Mutex:        sync.Mutex{},
-						Instructions: make([]*SingleRowPrimitive, 0, len(rows)),
+						Instructions: make([]*SinglePrimitive, 0, len(rows)),
 					}
 
 					for _, row := range rows {
 						if shardColIndex <= len(row)-1 {
 							var (
 								insertTS  int64
-								singleIns *SingleRowPrimitive
+								singleIns *SinglePrimitive
 								rowArgs   []interface{}
 							)
 							val := row[shardColIndex]
@@ -111,11 +111,11 @@ func buildInsertPlan(query string,
 
 type Insert struct {
 	sync.Mutex
-	Instructions []*SingleRowPrimitive
+	Instructions []*SinglePrimitive
 }
 
-// SingleRowPrimitive is the primitive just insert one row to one shard
-type SingleRowPrimitive struct {
+// SinglePrimitive is the primitive just insert one row to one shard
+type SinglePrimitive struct {
 	// query is the original query.
 	query string
 	// namedArgs is the named args
@@ -124,79 +124,18 @@ type SingleRowPrimitive struct {
 	rawDB *sql.DB
 }
 
-func (s *SingleRowPrimitive) QueryContext(ctx context.Context) (driver.Rows, error) {
+func (s *SinglePrimitive) QueryContext(ctx context.Context) (driver.Rows, error) {
 	panic("should not call query in insert")
 }
 
-func (s *SingleRowPrimitive) ExecContext(ctx context.Context, tx *sql.Tx) (result driver.Result, err error) {
+func (s *SinglePrimitive) ExecContext(ctx context.Context, tx *sql.Tx) (result driver.Result, err error) {
 	return tx.ExecContext(ctx, s.query, s.namedArgs...)
 }
 
 func (ins *Insert) ExecContext(ctx context.Context, _ *sql.Tx) (result driver.Result, err error) {
 	ins.Lock()
 	defer ins.Unlock()
-	var (
-		shardingResult = &ShardingResult{}
-		tx             *sql.Tx
-		rs             = make([]sql.Result, len(ins.Instructions))
-	)
-
-	for i, singleRowPrimitive := range ins.Instructions {
-		var (
-			r sql.Result
-		)
-		if i == 0 {
-			tx, err = singleRowPrimitive.rawDB.BeginTx(ctx, nil)
-			if err != nil {
-				err = errors.Wrap(err, "begin tx failed")
-				break
-			}
-		}
-		r, err = singleRowPrimitive.ExecContext(ctx, tx)
-		if err != nil {
-			err = errors.Wrap(err, "execute tx failed")
-			break
-		}
-		rs[i] = r
-	}
-
-	// if any error, rollback all
-	if err != nil {
-		if tx != nil {
-			er := tx.Rollback()
-			if er != nil {
-				err = errors.Wrapf(err, "rollback tx failed: %v", er)
-			}
-		}
-		return
-	} else {
-		if tx != nil {
-			err = tx.Commit()
-			if err != nil {
-				err = errors.Wrap(err, "commit tx failed")
-				return
-			}
-		}
-
-		for _, r := range rs {
-			if r == nil {
-				break
-			}
-			var ra int64
-			ra, err = r.RowsAffected()
-			if err != nil {
-				err = errors.Wrap(err, "get rows affected failed")
-				return
-			}
-			shardingResult.RowsAffectedi += ra
-			shardingResult.LastInsertIdi, err = r.LastInsertId()
-			if err != nil {
-				err = errors.Wrap(err, "get last insert id failed")
-				return
-			}
-		}
-		return shardingResult, nil
-	}
+	return execInstructionsTx(ctx, ins.Instructions)
 }
 
 func (ins *Insert) QueryContext(ctx context.Context) (driver.Rows, error) {
@@ -235,7 +174,7 @@ func (sc *ShardingConn) prepareInsertInstruction(insertTS int64,
 	ins *sqlparser.Insert,
 	row sqlparser.ValTuple,
 	rowArgs []interface{},
-	conf *ShardingConf) (p *SingleRowPrimitive, err error) {
+	conf *ShardingConf) (p *SinglePrimitive, err error) {
 
 	timestampDiff := insertTS - conf.ShardStartTime.Unix()
 	if timestampDiff < 0 {
@@ -266,59 +205,11 @@ func (sc *ShardingConn) prepareInsertInstruction(insertTS int64,
 	}
 	buf := sqlparser.NewTrackedBuffer(nil)
 	newIns.Format(buf)
-	p = &SingleRowPrimitive{
+	p = &SinglePrimitive{
 		query:     buf.String(),
 		namedArgs: rowArgs,
 		rawDB:     sc.rawDB,
 	}
 	log.Debugf("New SQL: %s %v", p.query, p.namedArgs)
-	return
-}
-
-func toUserSpaceArgs(args []driver.NamedValue) (uArgs []interface{}) {
-	uArgs = make([]interface{}, len(args))
-	for i, a := range args {
-		if a.Name == "" {
-			uArgs[i] = a.Value
-		} else {
-			uArgs[i] = sql.Named(a.Name, a.Value)
-		}
-	}
-	return
-}
-
-func toNamedArgs(args []driver.NamedValue) (rowArgs []interface{}) {
-	rowArgs = make([]interface{}, len(args))
-	for i, a := range args {
-		var namedArg sql.NamedArg
-		if a.Name == "" {
-			namedArg = sql.Named(fmt.Sprintf("v%d", a.Ordinal), a.Value)
-		} else {
-			namedArg = sql.Named(a.Name, a.Value)
-		}
-		rowArgs[i] = namedArg
-	}
-	return
-}
-
-func toValuesNamedArgs(args []driver.NamedValue, columns []sqlparser.Expr) (rowArgs []interface{}) {
-	rowArgs = make([]interface{}, 0, len(columns))
-	for _, col := range columns {
-		if colVal, ok := col.(*sqlparser.SQLVal); ok {
-			if colVal.Type == sqlparser.ValArg {
-				var colArgIndex int64
-				if len(colVal.Val) > 1 {
-					colName := string(colVal.Val[1:])
-					colArgIndex, _ = getValArgIndex(colVal)
-					for _, a := range args {
-						if a.Name == colName || a.Ordinal == int(colArgIndex) {
-							namedArg := sql.Named(colName, a.Value)
-							rowArgs = append(rowArgs, namedArg)
-						}
-					}
-				}
-			}
-		}
-	}
 	return
 }

@@ -22,6 +22,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +92,14 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 		7, "xxx", time.Now().AddDate(0, 0, 7),
 		8, "xxx", float64(time.Now().AddDate(0, 0, 8).Unix())+0.11)
 
+	checkExec(t, dbs, db,
+		`insert into xxx(id, name, time) values(?, ?, ?),(?, ?, ?);
+				insert into foo(id, name, time) values(161, 'foo', '2018-09-11');
+				insert into xxx(id, name, time) values(?, ?, ?);`,
+		6, "xx", time.Now().AddDate(0, 0, 6).Unix(),
+		7, "xxx", time.Now().AddDate(0, 0, 7),
+		8, "xxx", float64(time.Now().AddDate(0, 0, 8).Unix())+0.11)
+
 	// half success in one insert
 	checkExec(t, dbs, db,
 		`insert into foo(id, name, time) values(?, ?, ?),(?, ?, ?)`,
@@ -100,7 +109,7 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 	checkExec(t, dbs, db, `insert into foo(xxx, time) values(:vv1, :vv2);`,
 		sql.Named("vv1", "sss"), sql.Named("vv2", 1536000001.11))
 
-	checkExec(t, dbs, db, `insert into foo(id, name, time) values(162, 'foo', strftime('%s','now'));`)
+	mustFailExec(t, dbs, `insert into foo(id, name, time) values(162, 'foo', strftime('%s','now'));`)
 
 	checkExec(t, dbs, db, `insert into foo(name, time) values(:vv1, :vv2);`,
 		sql.Named("vv1", "sss"), sql.Named("vv2", 1536000001.11))
@@ -148,6 +157,41 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 	dbstmt.Close()
 	dbsstmt.Close()
 
+	checkExec(t, dbs, db, `delete from foo where name = :vv1 and time = :vv2;`,
+		sql.Named("vv1", "sss"), sql.Named("vv2", 1536000001.11))
+
+	checkQuery(t, dbs, db, "select id, name, time from foo")
+
+	checkExec(t, dbs, db, `delete from foo where id > 1;`)
+
+	checkExec(t, dbs, db, `delete from xxx where id > 1;`)
+
+	checkQuery(t, dbs, db, "select id, name, time from foo")
+
+	checkExec(t, dbs, db, `update foo set name = "CovenantSQL", ? = 10 where id = 11111;`, "id")
+
+	checkExec(t, dbs, db, `update foo set name = "CovenantSQL", id = 10 where id = 11111;`)
+
+	checkExec(t, dbs, db, `update foo set name = "CovenantSQL" where id = 1;`)
+
+	checkQuery(t, dbs, db, "select id, name, time from foo")
+
+	mustFailExec(t, dbs, "delete from foo, bar where id > 1;")
+
+	mustFailExec(t, dbs, "update foo set time = 1111111111;")
+
+	mustFailExec(t, dbs, "update foo set time = 0 limit 1;")
+
+	mustFailExec(t, dbs, "update foo set time = 0 order by id limit 1;")
+
+	mustFailQuery(t, dbs, "select * from foo group by id")
+
+	mustFailQuery(t, dbs, "select * from foo group by id having id > 1")
+
+	mustFailQuery(t, dbs, "select distinct(name) from foo")
+
+	mustFailQuery(t, dbs, "select * from foo, bar")
+
 	return
 }
 
@@ -155,24 +199,25 @@ func checkQuery(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args ...int
 	var dberr, dbserr error
 	rows, dberr := db.Query(query, args...)
 	srows, dbserr := dbs.Query(query, args...)
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-			t.FailNow()
-		}
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+		t.FailNow()
 	}
+	if dberr != nil {
+		return
+	}
+
+	defer rows.Close()
+	defer srows.Close()
 
 	dbcol, dberr := rows.Columns()
 	dbscol, dbserr := srows.Columns()
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+		t.FailNow()
+	}
 	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-			t.FailNow()
-		}
+		return
 	}
 
 	if !reflect.DeepEqual(dbcol, dbscol) {
@@ -180,8 +225,6 @@ func checkQuery(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args ...int
 		t.FailNow()
 	}
 
-	defer rows.Close()
-	defer srows.Close()
 	for rows.Next() {
 		srows.Next()
 		//if !srows.Next() {
@@ -191,24 +234,20 @@ func checkQuery(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args ...int
 
 		dest := make([]interface{}, len(dbcol))
 		destr := make([]interface{}, len(dbcol))
-		for i, _ := range dest {
+		for i := range dest {
 			destr[i] = &dest[i]
 		}
 		dberr = rows.Scan(destr...)
 
 		sdest := make([]interface{}, len(dbcol))
 		sdestr := make([]interface{}, len(dbcol))
-		for i, _ := range dest {
+		for i := range dest {
 			sdestr[i] = &sdest[i]
 		}
 		dbserr = rows.Scan(sdestr...)
-		if dberr != nil {
-			if isSameTypeError(t, dberr, dbserr) {
-				return
-			} else {
-				log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-				t.FailNow()
-			}
+		if !isSameTypeError(t, dberr, dbserr) {
+			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+			t.FailNow()
 		}
 
 		if !reflect.DeepEqual(destr, sdestr) {
@@ -220,48 +259,37 @@ func checkQuery(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args ...int
 	}
 	dberr = rows.Err()
 	dbserr = srows.Err()
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-			t.FailNow()
-		}
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+		t.FailNow()
 	}
-
 }
 
 func checkStmtQuery(t *testing.T, dbs *sql.Stmt, db *sql.Stmt, args ...interface{}) {
 	var dberr, dbserr error
 	rows, dberr := db.Query(args...)
 	srows, dbserr := dbs.Query(args...)
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
-			t.FailNow()
-		}
-	}
-
-	dbcol, dberr := rows.Columns()
-	dbscol, dbserr := srows.Columns()
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
-			t.FailNow()
-		}
-	}
-
-	if !reflect.DeepEqual(dbcol, dbscol) {
-		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dbcol, dbscol, args)
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
 		t.FailNow()
+	}
+	if dberr != nil {
+		return
 	}
 
 	defer rows.Close()
 	defer srows.Close()
+
+	dbcol, dberr := rows.Columns()
+	dbscol, dbserr := srows.Columns()
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
+		t.FailNow()
+	}
+	if !reflect.DeepEqual(dbcol, dbscol) {
+		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dbcol, dbscol, args)
+		t.FailNow()
+	}
 	for rows.Next() {
 		srows.Next()
 		//if !srows.Next() {
@@ -271,26 +299,21 @@ func checkStmtQuery(t *testing.T, dbs *sql.Stmt, db *sql.Stmt, args ...interface
 
 		dest := make([]interface{}, len(dbcol))
 		destr := make([]interface{}, len(dbcol))
-		for i, _ := range dest {
+		for i := range dest {
 			destr[i] = &dest[i]
 		}
 		dberr = rows.Scan(destr...)
 
 		sdest := make([]interface{}, len(dbcol))
 		sdestr := make([]interface{}, len(dbcol))
-		for i, _ := range dest {
+		for i := range dest {
 			sdestr[i] = &sdest[i]
 		}
 		dbserr = rows.Scan(sdestr...)
-		if dberr != nil {
-			if isSameTypeError(t, dberr, dbserr) {
-				return
-			} else {
-				log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
-				t.FailNow()
-			}
+		if !isSameTypeError(t, dberr, dbserr) {
+			log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
+			t.FailNow()
 		}
-
 		if !reflect.DeepEqual(destr, sdestr) {
 			log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", destr, sdestr, args)
 			t.FailNow()
@@ -300,45 +323,85 @@ func checkStmtQuery(t *testing.T, dbs *sql.Stmt, db *sql.Stmt, args ...interface
 	}
 	dberr = rows.Err()
 	dbserr = srows.Err()
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
-			t.FailNow()
-		}
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
+		t.FailNow()
 	}
 }
 
 func checkExec(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args ...interface{}) {
 	var dberr, dbserr error
-	_, dberr = db.Exec(query, args...)
-	_, dbserr = dbs.Exec(query, args...)
+	r, dberr := db.Exec(query, args...)
+	sr, dbserr := dbs.Exec(query, args...)
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+		t.FailNow()
+	}
 	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-			t.FailNow()
-		}
+		return
+	}
+
+	rowCount, dberr := r.RowsAffected()
+	srowCount, dbserr := sr.RowsAffected()
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+		t.FailNow()
+	}
+	if rowCount != srowCount {
+		log.Errorf("\nrowCount: %d\nsrowCount: %d\nquery: %s\nargs: %#v\n", rowCount, srowCount, query, args)
+		t.FailNow()
 	}
 }
 
 func checkStmtExec(t *testing.T, dbs *sql.Stmt, db *sql.Stmt, args ...interface{}) {
 	var dberr, dbserr error
-	_, dberr = db.Exec(args...)
-	_, dbserr = dbs.Exec(args...)
+	r, dberr := db.Exec(args...)
+	sr, dbserr := dbs.Exec(args...)
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, errors.Cause(dbserr), args)
+		t.FailNow()
+	}
 	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, errors.Cause(dbserr), args)
-			t.FailNow()
-		}
+		return
+	}
+
+	rowCount, dberr := r.RowsAffected()
+	srowCount, dbserr := sr.RowsAffected()
+	if !isSameTypeError(t, dberr, dbserr) {
+		log.Errorf("\ndb: %v\ndbs: %v\nargs: %#v\n", dberr, dbserr, args)
+		t.FailNow()
+	}
+	if rowCount != srowCount {
+		log.Errorf("\nrowCount: %d\nsrowCount: %d\nargs: %#v\n", rowCount, srowCount, args)
+		t.FailNow()
+	}
+
+}
+
+func mustFailExec(t *testing.T, dbs *sql.DB, query string, args ...interface{}) {
+	r, err := dbs.Exec(query, args...)
+	if err == nil || r != nil {
+		t.Fatal("should be error but not")
+	}
+}
+
+func mustFailQuery(t *testing.T, dbs *sql.DB, query string, args ...interface{}) {
+	r, err := dbs.Query(query, args...)
+	if err == nil || r != nil {
+		t.Fatal("should be error but not")
 	}
 }
 
 func isSameTypeError(t *testing.T, dberr error, dbserr error) bool {
+	if dberr == nil {
+		if dbserr == nil {
+			return true
+		} else {
+			return false
+		}
+	} else if dbserr == nil {
+		return false
+	}
 	root1 := errors.Cause(dberr)
 	root2 := errors.Cause(dbserr)
 	if root1 == nil || root2 == nil {
@@ -347,6 +410,9 @@ func isSameTypeError(t *testing.T, dberr error, dbserr error) bool {
 	var re = regexp.MustCompile(`_ts_\d{10}`)
 	r1 := re.ReplaceAllLiteralString(root1.Error(), "")
 	r2 := re.ReplaceAllLiteralString(root2.Error(), "")
+	if strings.Contains(r1, "syntax error") && strings.Contains(r2, "syntax error") {
+		return true
+	}
 	return r1 == r2
 }
 
@@ -354,13 +420,11 @@ func checkPrepare(t *testing.T, dbs *sql.DB, db *sql.DB, query string) (dbsstmt,
 	var dberr, dbserr error
 	dbstmt, dberr = db.Prepare(query)
 	dbsstmt, dbserr = dbs.Prepare(query)
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\n", dberr, dbserr, query)
-			t.FailNow()
-		}
+	if isSameTypeError(t, dberr, dbserr) {
+		return
+	} else {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\n", dberr, dbserr, query)
+		t.FailNow()
 	}
 
 	return
@@ -371,26 +435,22 @@ func checkPrepareExec(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args 
 
 	dbstmt, dberr := db.Prepare(query)
 	dbsstmt, dbserr := dbs.Prepare(query)
-	if dberr != nil {
-		if isSameTypeError(t, dberr, dbserr) {
-			return
-		} else {
-			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-			t.FailNow()
-		}
+	if isSameTypeError(t, dberr, dbserr) {
+		return
+	} else {
+		log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+		t.FailNow()
 	}
 
 	defer dbstmt.Close()
 	for _, arg := range args {
 		_, dberr = dbstmt.Exec(arg...)
 		_, dbserr = dbsstmt.Exec(arg...)
-		if dberr != nil {
-			if isSameTypeError(t, dberr, dbserr) {
-				return
-			} else {
-				log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
-				t.FailNow()
-			}
+		if isSameTypeError(t, dberr, dbserr) {
+			return
+		} else {
+			log.Errorf("\ndb: %v\ndbs: %v\nquery: %s\nargs: %#v\n", dberr, dbserr, query, args)
+			t.FailNow()
 		}
 	}
 }

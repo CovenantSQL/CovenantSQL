@@ -158,7 +158,6 @@ func main() {
 
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	utils.StartProfile(cpuProfile, memProfile)
-	defer utils.StopProfile()
 
 	// set generate key pair config
 	conf.GConf.GenerateKeyPair = genKeyPair
@@ -272,6 +271,7 @@ func main() {
 	//}
 
 	<-signalCh
+	utils.StopProfile()
 
 	log.Info("miner stopped")
 }

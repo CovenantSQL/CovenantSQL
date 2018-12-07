@@ -155,7 +155,7 @@ sessionLoop:
 				<-muxConn.GetDieCh()
 				cancelFunc()
 			}()
-			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID, ctx)
+			nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}

@@ -39,7 +39,7 @@ type Config struct {
 
 // NewConfig creates a new config with default value.
 func NewConfig() *Config {
-	return &Config{}
+	return &Config{UseLeader: true}
 }
 
 // FormatDSN formats the given Config into a DSN string which can be passed to the driver.

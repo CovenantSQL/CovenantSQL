@@ -31,7 +31,7 @@ type NodeAwareServerCodec struct {
 }
 
 // NewNodeAwareServerCodec returns new NodeAwareServerCodec with normal rpc.ServerCode and proto.RawNodeID
-func NewNodeAwareServerCodec(codec rpc.ServerCodec, nodeID *proto.RawNodeID, ctx context.Context) *NodeAwareServerCodec {
+func NewNodeAwareServerCodec(ctx context.Context, codec rpc.ServerCodec, nodeID *proto.RawNodeID) *NodeAwareServerCodec {
 	return &NodeAwareServerCodec{
 		ServerCodec: codec,
 		NodeID:      nodeID,

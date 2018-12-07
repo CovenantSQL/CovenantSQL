@@ -35,7 +35,10 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -316,7 +319,7 @@ func stopNodes() {
 func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	Convey("test full process", t, func() {
+	Convey("test full process", t, func(c C) {
 		startNodes()
 		defer stopNodes()
 		var err error
@@ -384,11 +387,49 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(resultBytes, ShouldResemble, []byte("ha\001ppy"))
 
+		Convey("test query cancel", func(c C) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				// sleep 10s
+				_, er := db.Exec("INSERT INTO test VALUES(sleep(10000000000))")
+				if er != nil {
+					log.Errorf("insert sleep: %v", er)
+				}
+				wg.Done()
+			}()
+			time.Sleep(time.Second)
+			go func() {
+				db.Exec("UPDATE test SET test = 100;")
+			}()
+			time.Sleep(time.Second)
+			for _, n := range conf.GConf.KnownNodes {
+				if n.Role == proto.Miner {
+					rpc.GetSessionPoolInstance().Remove(n.ID)
+				}
+			}
+			time.Sleep(time.Second)
+
+			row := db.QueryRow("SELECT * FROM test WHERE test = 4 LIMIT 1")
+			var result int
+			err = row.Scan(&result)
+			c.So(err, ShouldBeNil)
+			c.So(result, ShouldEqual, 4)
+			wg.Wait()
+			time.Sleep(10 * time.Second)
+			row = db.QueryRow("SELECT * FROM test WHERE test = 10000000000 LIMIT 1")
+			err = row.Scan(&result)
+			c.So(err, ShouldBeNil)
+			c.So(result, ShouldEqual, 4)
+
+			c.So(err, ShouldBeNil)
+		})
+
 		err = db.Close()
 		So(err, ShouldBeNil)
 
-		err = client.Drop(dsn)
-		So(err, ShouldBeNil)
+		//err = client.Drop(dsn)
+		//So(err, ShouldBeNil)
 	})
 }
 

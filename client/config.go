@@ -18,6 +18,7 @@ package client
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -28,6 +29,12 @@ type Config struct {
 	// additional configs should be filled
 	// such as read/write/exec timeout
 	// currently no timeout is supported.
+
+	// UseLeader use leader nodes to do queries
+	UseLeader bool
+
+	// UseFollower use follower nodes to do queries
+	UseFollower bool
 }
 
 // NewConfig creates a new config with default value.
@@ -45,6 +52,8 @@ func (cfg *Config) FormatDSN() string {
 	}
 
 	newQuery := u.Query()
+	newQuery.Add("use_leader", strconv.FormatBool(cfg.UseLeader))
+	newQuery.Add("use_follower", strconv.FormatBool(cfg.UseFollower))
 	u.RawQuery = newQuery.Encode()
 
 	return u.String()
@@ -58,11 +67,19 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 
 	var u *url.URL
 	if u, err = url.Parse(dsn); err != nil {
-		return
+		return nil, err
 	}
 
 	cfg = NewConfig()
 	cfg.DatabaseID = u.Host
 
-	return
+	q := u.Query()
+	// option: use_leader, use_follower
+	cfg.UseLeader, _ = strconv.ParseBool(q.Get("use_leader"))
+	cfg.UseFollower, _ = strconv.ParseBool(q.Get("use_follower"))
+	if !cfg.UseLeader && !cfg.UseFollower {
+		cfg.UseLeader = true
+	}
+
+	return cfg, nil
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 // conn implements an interface sql.Conn.
@@ -41,10 +43,20 @@ type conn struct {
 	localNodeID proto.NodeID
 	privKey     *asymmetric.PrivateKey
 
-	ackCh         chan *types.Ack
 	inTransaction bool
 	closed        int32
-	pCaller       *rpc.PersistentCaller
+
+	leader          *pconn
+	follower        *pconn
+	pCaller         *rpc.PersistentCaller
+	pFollowerCaller *rpc.PersistentCaller
+}
+
+// pconn represents a connection to a peer
+type pconn struct {
+	parent  *conn
+	ackCh   chan *types.Ack
+	pCaller *rpc.PersistentCaller
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
@@ -67,14 +79,41 @@ func newConn(cfg *Config) (c *conn, err error) {
 		queries:     make([]types.Query, 0),
 	}
 
-	var peers *proto.Peers
 	// get peers from BP
+	var peers *proto.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
 		log.WithError(err).Error("cacheGetPeers failed")
 		c = nil
 		return
 	}
-	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
+
+	if cfg.UseLeader {
+		c.pCaller = rpc.NewPersistentCaller(peers.Leader)
+		c.leader = &pconn{
+			parent:  c,
+			pCaller: c.pCaller,
+		}
+	}
+
+	// choose a random follower node
+	if cfg.UseFollower && len(peers.Servers) > 1 {
+		for {
+			rand.Seed(time.Now().UnixNano())
+			node := peers.Servers[rand.Intn(len(peers.Servers))]
+			if node != peers.Leader {
+				c.pFollowerCaller = rpc.NewPersistentCaller(node)
+				c.follower = &pconn{
+					parent:  c,
+					pCaller: c.pFollowerCaller,
+				}
+				break
+			}
+		}
+	}
+
+	if c.leader == nil && c.follower == nil {
+		return nil, errors.New("no follower peers found")
+	}
 
 	err = c.startAckWorkers(2)
 	if err != nil {
@@ -88,6 +127,29 @@ func newConn(cfg *Config) (c *conn, err error) {
 }
 
 func (c *conn) startAckWorkers(workerCount int) (err error) {
+	if c.leader != nil {
+		if err := c.leader.startAckWorkers(workerCount); err != nil {
+			return err
+		}
+	}
+	if c.follower != nil {
+		if err := c.follower.startAckWorkers(workerCount); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *conn) stopAckWorkers() {
+	if c.leader != nil {
+		close(c.leader.ackCh)
+	}
+	if c.follower != nil {
+		close(c.follower.ackCh)
+	}
+}
+
+func (c *pconn) startAckWorkers(workerCount int) (err error) {
 	c.ackCh = make(chan *types.Ack, workerCount*4)
 	for i := 0; i < workerCount; i++ {
 		go c.ackWorker()
@@ -95,50 +157,44 @@ func (c *conn) startAckWorkers(workerCount int) (err error) {
 	return
 }
 
-func (c *conn) stopAckWorkers() {
+func (c *pconn) stopAckWorkers() {
 	close(c.ackCh)
 }
 
-func (c *conn) ackWorker() {
-	if rawPeers, ok := peerList.Load(c.dbID); ok {
-		if peers, ok := rawPeers.(*proto.Peers); ok {
-			var (
-				oneTime sync.Once
-				pc      *rpc.PersistentCaller
-				err     error
-			)
+func (c *pconn) ackWorker() {
+	var (
+		oneTime sync.Once
+		pc      *rpc.PersistentCaller
+		err     error
+	)
 
-		ackWorkerLoop:
-			for {
-				ack, got := <-c.ackCh
-				if !got { //closed and empty
-					break ackWorkerLoop
-				}
-				oneTime.Do(func() {
-					pc = rpc.NewPersistentCaller(peers.Leader)
-				})
-				if err = ack.Sign(c.privKey, false); err != nil {
-					log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
-					continue
-				}
+ackWorkerLoop:
+	for {
+		ack, got := <-c.ackCh
+		if !got { //closed and empty
+			break ackWorkerLoop
+		}
+		oneTime.Do(func() {
+			pc = rpc.NewPersistentCaller(c.pCaller.TargetID)
+		})
+		if err = ack.Sign(c.parent.privKey, false); err != nil {
+			log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
+			continue
+		}
 
-				var ackRes types.AckResponse
-				// send ack back
-				if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
-					log.WithError(err).Warning("send ack failed")
-					continue
-				}
-			}
-			if pc != nil {
-				pc.CloseStream()
-			}
-			log.Debug("ack worker quiting")
-			return
+		var ackRes types.AckResponse
+		// send ack back
+		if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
+			log.WithError(err).Warning("send ack failed")
+			continue
 		}
 	}
 
-	log.Fatal("must GetPeers first")
-	return
+	if pc != nil {
+		pc.CloseStream()
+	}
+
+	log.Debug("ack worker quiting")
 }
 
 // Prepare implements the driver.Conn.Prepare method.
@@ -307,9 +363,15 @@ func (c *conn) addQuery(queryType types.QueryType, query *types.Query) (affected
 }
 
 func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
-	var peers *proto.Peers
-	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
-		return
+	var uc *pconn // peer connection used to execute the queries
+
+	uc = c.leader
+	// use follower pconn only when the query is readonly
+	if queryType == types.ReadQuery && c.follower != nil {
+		uc = c.follower
+	}
+	if uc == nil {
+		uc = c.follower
 	}
 
 	// allocate sequence
@@ -322,7 +384,7 @@ func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affe
 			"type":   queryType.String(),
 			"connID": connID,
 			"seqNo":  seqNo,
-			"target": peers.Leader,
+			"target": uc.pCaller.TargetID,
 			"source": c.localNodeID,
 		}).WithError(err).Debug("send query")
 	}()
@@ -365,7 +427,7 @@ func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affe
 	}
 
 	// build ack
-	c.ackCh <- &types.Ack{
+	uc.ackCh <- &types.Ack{
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
 				Response:  response.Header,

@@ -68,20 +68,21 @@ func NewState(nodeID proto.NodeID, strg xi.Storage) (s *State, err error) {
 }
 
 func (s *State) incSeq() {
-	s.current++
+	atomic.AddUint64(&s.current, 1)
 }
 
 func (s *State) setNextTxID() {
-	s.origin = s.current
-	s.cmpoint = s.current
+	current := s.getID()
+	s.origin = current
+	s.cmpoint = current
 }
 
 func (s *State) setCommitPoint() {
-	s.cmpoint = s.current
+	s.cmpoint = s.getID()
 }
 
 func (s *State) rollbackID(id uint64) {
-	s.current = id
+	atomic.StoreUint64(&s.current, id)
 }
 
 // InitTx sets the initial id of the current transaction. This method is not safe for concurrency
@@ -89,7 +90,7 @@ func (s *State) rollbackID(id uint64) {
 func (s *State) InitTx(id uint64) {
 	s.origin = id
 	s.cmpoint = id
-	s.current = id
+	s.rollbackID(id)
 	s.setSavepoint()
 }
 
@@ -605,7 +606,6 @@ func (s *State) rollback() (err error) {
 	s.Lock()
 	defer s.Unlock()
 	s.rollbackTo(s.cmpoint)
-	s.current = s.cmpoint
 	return
 }
 

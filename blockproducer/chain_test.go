@@ -98,7 +98,7 @@ func TestChain(t *testing.T) {
 		for {
 			time.Sleep(testPeriod)
 			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-				chain.rt.getHead().Head, chain.rt.getHead().Height, chain.rt.nextTurn,
+				chain.rt.currentBranch().head.hash, chain.rt.currentBranch().head.height, chain.rt.nextTurn,
 				chain.rt.chainInitTime.Add(
 					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
 				chain.rt.isMyTurn())
@@ -118,7 +118,7 @@ func TestChain(t *testing.T) {
 			}
 
 			// generate block
-			block, err := generateRandomBlockWithTransactions(chain.rt.getHead().Head, tbs)
+			block, err := generateRandomBlockWithTransactions(chain.rt.currentBranch().head.hash, tbs)
 			So(err, ShouldBeNil)
 			err = chain.pushBlock(block)
 			So(err, ShouldBeNil)
@@ -128,10 +128,10 @@ func TestChain(t *testing.T) {
 				// should be packed
 				So(nextNonce >= val.GetAccountNonce(), ShouldBeTrue)
 			}
-			So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
-			// So(chain.rt.getHead().Height, ShouldEqual, height)
+			// So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
+			// So(chain.rt.currentBranch().head.height, ShouldEqual, height)
 
-			height := chain.rt.getHead().Height
+			height := chain.rt.currentBranch().head.height
 			specificHeightBlock1, _, err := chain.fetchBlockByHeight(height)
 			So(err, ShouldBeNil)
 			So(block.SignedHeader.BlockHash, ShouldResemble, specificHeightBlock1.SignedHeader.BlockHash)
@@ -155,15 +155,15 @@ func TestChain(t *testing.T) {
 				So(chain.ms.pool.hasTx(val), ShouldBeTrue)
 			}
 
-			// So(height, ShouldEqual, chain.rt.getHead().Height)
+			// So(height, ShouldEqual, chain.rt.currentBranch().head.height)
 			height++
 
 			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.rt.getHead().Height,
+				chain.rt.currentBranch().head.height,
 				block.ParentHash(),
 				block.BlockHash())
 
-			if chain.rt.getHead().Height >= testPeriodNumber {
+			if chain.rt.currentBranch().head.height >= testPeriodNumber {
 				break
 			}
 		}

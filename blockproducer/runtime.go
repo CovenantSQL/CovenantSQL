@@ -24,6 +24,7 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -64,9 +65,6 @@ type rt struct {
 	stateMutex sync.Mutex // Protects following fields.
 	// nextTurn is the height of the next block.
 	nextTurn uint32
-	// head is the current head of the best chain.
-	head          *Obsolete
-	optionalHeads []*Obsolete
 
 	// timeMutex protects following time-relative fields.
 	timeMutex sync.Mutex
@@ -236,10 +234,12 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	return
 }
 
-func (r *rt) produceBlock(st xi.Storage) (err error) {
+func (r *rt) produceBlock(
+	st xi.Storage, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
+) {
 	var (
-		br *branch
 		bl *types.BPBlock
+		br *branch
 	)
 	r.cacheMu.Lock()
 	defer r.cacheMu.Unlock()
@@ -248,8 +248,14 @@ func (r *rt) produceBlock(st xi.Storage) (err error) {
 	if br, bl, err = r.current.produceBlock(); err != nil {
 		return
 	}
-
-	return r.switchBranch(st, bl, r.currIdx, br)
+	if err = bl.PackAndSignBlock(priv); err != nil {
+		return
+	}
+	if err = r.switchBranch(st, bl, r.currIdx, br); err != nil {
+		return
+	}
+	out = bl
+	return
 }
 
 // now returns the current coordinated chain time.
@@ -294,7 +300,6 @@ func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAd
 		nodeID:         cfg.NodeID,
 		minComfirm:     uint32(m),
 		nextTurn:       1,
-		head:           &Obsolete{},
 		offset:         time.Duration(0),
 	}
 }
@@ -358,16 +363,10 @@ func (r *rt) getPeers() *proto.Peers {
 	return &peers
 }
 
-func (r *rt) getHead() *Obsolete {
-	r.stateMutex.Lock()
-	defer r.stateMutex.Unlock()
-	return r.head
-}
-
-func (r *rt) setHead(head *Obsolete) {
-	r.stateMutex.Lock()
-	defer r.stateMutex.Unlock()
-	r.head = head
+func (r *rt) currentBranch() *branch {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+	return r.current
 }
 
 func (r *rt) stop() {

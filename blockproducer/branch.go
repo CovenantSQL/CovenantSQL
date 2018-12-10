@@ -25,29 +25,18 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-type view struct {
-}
-
-func (v *view) apply(tx pi.Transaction) (err error) {
-	return
-}
-
-func (v *view) makeCopy() *view {
-	return &view{}
-}
-
 type branch struct {
 	head     *blockNode
-	preview  *view
+	preview  *metaState
 	packed   map[hash.Hash]pi.Transaction
 	unpacked map[hash.Hash]pi.Transaction
 }
 
 func fork(
-	from, to *blockNode, v *view, txPool map[hash.Hash]pi.Transaction) (br *branch, err error,
+	from, to *blockNode, v *metaState, txPool map[hash.Hash]pi.Transaction) (br *branch, err error,
 ) {
 	var (
-		diff = to.blockNodeListFrom(from.count)
+		list = to.blockNodeListFrom(from.count)
 		inst = &branch{
 			head:     to,
 			preview:  v.makeCopy(),
@@ -60,7 +49,7 @@ func fork(
 		inst.unpacked[k] = v
 	}
 	// Apply new blocks to view and pool
-	for _, bn := range diff {
+	for _, bn := range list {
 		for _, v := range bn.block.Transactions {
 			var k = v.Hash()
 			// Check in tx pool

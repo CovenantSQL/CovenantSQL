@@ -78,7 +78,7 @@ type rt struct {
 	// Cached state
 	cacheMu   sync.RWMutex
 	irre      *blockNode
-	immutable *view
+	immutable *metaState
 	currIdx   int
 	current   *branch
 	branches  []*branch
@@ -115,14 +115,42 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	irre = head.head.lastIrreversible(r.minComfirm)
 	newIrres = irre.blockNodeListFrom(r.irre.count)
 
-	// Prepare storage procedures to update immutable
+	// Apply irreversible blocks to create dirty map on immutable cache
+	//
+	// TODO(leventeliu): use old metaState for now, better use separated dirty cache.
+	for _, b := range newIrres {
+		for _, tx := range b.block.Transactions {
+			if err := r.immutable.apply(tx); err != nil {
+				log.WithError(err).Fatal("Failed to apply block to immutable database")
+			}
+		}
+	}
+
+	// Prepare storage procedures to update immutable database
 	sps = append(sps, addBlock(bl))
+	for k, v := range r.immutable.dirty.accounts {
+		if v != nil {
+			sps = append(sps, updateAccount(&v.Account))
+		} else {
+			sps = append(sps, deleteAccount(k))
+		}
+	}
+	for k, v := range r.immutable.dirty.databases {
+		if v != nil {
+			sps = append(sps, updateShardChain(&v.SQLChainProfile))
+		} else {
+			sps = append(sps, deleteShardChain(k))
+		}
+	}
+	for k, v := range r.immutable.dirty.provider {
+		if v != nil {
+			sps = append(sps, updateProvider(&v.ProviderProfile))
+		} else {
+			sps = append(sps, deleteProvider(k))
+		}
+	}
 	for _, n := range newIrres {
-		sps = append(
-			sps,
-			updateImmutable(n.block.Transactions),
-			deleteTxs(n.block.Transactions),
-		)
+		sps = append(sps, deleteTxs(n.block.Transactions))
 	}
 	sps = append(sps, updateIrreversible(irre.hash))
 
@@ -131,13 +159,7 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 		// Update last irreversible block
 		r.irre = irre
 		// Apply irreversible blocks to immutable database
-		for _, b := range newIrres {
-			for _, tx := range b.block.Transactions {
-				if err := r.immutable.apply(tx); err != nil {
-					log.WithError(err).Fatal("Failed to apply block to immutable database")
-				}
-			}
-		}
+		r.immutable.commit()
 		// Prune branches
 		var (
 			idx int
@@ -168,16 +190,17 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	}
 
 	// Write to immutable database and update cache
-	return store(st, sps, up)
+	if err = store(st, sps, up); err != nil {
+		r.immutable.clean()
+	}
+	return
 }
 
 func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	var (
-		ok       bool
-		br       *branch
-		parent   *blockNode
-		irre     *blockNode
-		newIrres []*blockNode
+		ok     bool
+		br     *branch
+		parent *blockNode
 	)
 	r.cacheMu.Lock()
 	defer r.cacheMu.Unlock()
@@ -197,25 +220,16 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 			// Switch branch or grow current branch
 			return r.switchBranch(st, bl, i, br)
 		}
-		// Create a fork
+		// Fork and create new branch
 		if parent, ok = v.head.findNodeAfterCount(bl.SignedHeader.ParentHash, r.irre.count); ok {
-			if br, err = fork(r.irre, parent, r.immutable, r.txPool); err != nil {
+			var head = newBlockNodeEx(bl, parent)
+			if br, err = fork(r.irre, head, r.immutable, r.txPool); err != nil {
 				return
 			}
-			if br, err = v.applyBlock(bl); err != nil {
-				return
-			}
-			if br.head.count > r.current.head.count {
-				// Switch branch
-				irre = br.head.lastIrreversible(r.minComfirm)
-				for n := irre; n.count > r.irre.count; n = n.parent {
-					newIrres = append(newIrres, n)
-				}
-			} else {
-				// Update branch
-				r.branches[i] = br
-			}
-			return
+			return store(st,
+				[]storageProcedure{addBlock(bl)},
+				func() { r.branches = append(r.branches, br) },
+			)
 		}
 	}
 

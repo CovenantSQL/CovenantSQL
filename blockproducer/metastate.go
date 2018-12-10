@@ -243,6 +243,42 @@ func (s *metaState) deleteProviderObject(k proto.AccountAddress) {
 	s.dirty.provider[k] = nil
 }
 
+func (s *metaState) commit() {
+	s.Lock()
+	defer s.Unlock()
+	for k, v := range s.dirty.accounts {
+		if v != nil {
+			// New/update object
+			s.readonly.accounts[k] = v
+		} else {
+			// Delete object
+			delete(s.readonly.accounts, k)
+		}
+	}
+	for k, v := range s.dirty.databases {
+		if v != nil {
+			// New/update object
+			s.readonly.databases[k] = v
+		} else {
+			// Delete object
+			delete(s.readonly.databases, k)
+		}
+	}
+	for k, v := range s.dirty.provider {
+		if v != nil {
+			// New/update object
+			s.readonly.provider[k] = v
+		} else {
+			// Delete object
+			delete(s.readonly.provider, k)
+		}
+	}
+	// Clean dirty map and tx pool
+	s.dirty = newMetaIndex()
+	s.pool = newTxPool()
+	return
+}
+
 func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
 	return func(tx *bolt.Tx) (err error) {
 		var (
@@ -1134,4 +1170,46 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta pt.
 	err = genesisBlock.PackAndSignBlock(privKey)
 
 	return
+}
+
+func (s *metaState) apply(t pi.Transaction) (err error) {
+	// NOTE(leventeliu): bypass pool in this method.
+	var (
+		addr  = t.GetAccountAddress()
+		nonce = t.GetAccountNonce()
+	)
+	// Check account nonce
+	var nextNonce pi.AccountNonce
+	if nextNonce, err = s.nextNonce(addr); err != nil {
+		if t.GetTransactionType() != pi.TransactionTypeBaseAccount {
+			return
+		}
+		// Consider the first nonce 0
+		err = nil
+	}
+	if nextNonce != nonce {
+		err = ErrInvalidAccountNonce
+		log.WithFields(log.Fields{
+			"actual":   nonce,
+			"expected": nextNonce,
+		}).WithError(err).Debug("nonce not match during transaction apply")
+		return
+	}
+	// Try to apply transaction to metaState
+	if err = s.applyTransaction(t); err != nil {
+		log.WithError(err).Debug("apply transaction failed")
+		return
+	}
+	if err = s.increaseNonce(addr); err != nil {
+		return
+	}
+	return
+}
+
+func (s *metaState) makeCopy() *metaState {
+	return &metaState{
+		dirty:    newMetaIndex(),
+		readonly: s.readonly.deepCopy(),
+		pool:     newTxPool(),
+	}
 }

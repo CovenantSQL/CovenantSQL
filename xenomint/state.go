@@ -17,8 +17,10 @@
 package xenomint
 
 import (
+	"context"
 	"database/sql"
 	"io"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -202,7 +204,7 @@ type sqlQuerier interface {
 }
 
 func readSingle(
-	qer sqlQuerier, q *types.Query) (names []string, types []string, data [][]interface{}, err error,
+	ctx context.Context, qer sqlQuerier, q *types.Query) (names []string, types []string, data [][]interface{}, err error,
 ) {
 	var (
 		rows    *sql.Rows
@@ -210,7 +212,7 @@ func readSingle(
 		pattern string
 		args    []interface{}
 	)
-
+	defer trace.StartRegion(ctx, "QueryreadSingle").End()
 	if _, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
 		return
 	}
@@ -260,7 +262,7 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 	)
 	// TODO(leventeliu): no need to run every read query here.
 	for i, v := range req.Payload.Queries {
-		if cnames, ctypes, data, ierr = readSingle(s.strg.DirtyReader(), &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(req.Ctx, s.strg.DirtyReader(), &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			// Add to failed pool list
 			s.pool.setFailed(req)
@@ -290,32 +292,38 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 
 func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
-		tx             *sql.Tx
+		//tx             *sql.Tx
 		id             uint64
 		ierr           error
 		cnames, ctypes []string
 		data           [][]interface{}
 		querier        sqlQuerier
 	)
+	defer trace.StartRegion(req.Ctx, "QueryreadTx").End()
 	id = s.getID()
 	if atomic.LoadUint32(&s.hasSchemaChange) == 1 {
 		// lock transaction
 		s.Lock()
-		defer s.Unlock()
-		s.setSavepoint()
-		querier = s.unc
-		defer s.rollbackTo(id)
-	} else {
-		if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
-			err = errors.Wrap(ierr, "open tx failed")
-			return
-		}
-		querier = tx
-		defer tx.Rollback()
+		s.uncCommit()
+		s.unc, err = s.strg.Writer().BeginTx(req.Ctx, nil)
+		s.Unlock()
+		//	defer s.Unlock()
+		//	s.setSavepoint()
+		//	querier = s.unc
+		//	defer s.rollbackTo(id)
 	}
+	//} else {
+	querier = s.strg.Writer()
+	//if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
+	//	err = errors.Wrap(ierr, "open tx failed")
+	//	return
+	//}
+	//querier = tx
+	//defer tx.Rollback()
+	//}
 
 	for i, v := range req.Payload.Queries {
-		if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
+		if cnames, ctypes, data, ierr = readSingle(req.Ctx, querier, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			// Add to failed pool list
 			s.pool.setFailed(req)

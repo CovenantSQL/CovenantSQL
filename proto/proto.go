@@ -18,6 +18,7 @@
 package proto
 
 import (
+	"context"
 	"time"
 )
 
@@ -39,10 +40,11 @@ type EnvelopeAPI interface {
 
 // Envelope is the protocol header
 type Envelope struct {
-	Version string        `json:"v"`
-	TTL     time.Duration `json:"t"`
-	Expire  time.Duration `json:"e"`
-	NodeID  *RawNodeID    `json:"id"`
+	Version string          `json:"v"`
+	TTL     time.Duration   `json:"t"`
+	Expire  time.Duration   `json:"e"`
+	NodeID  *RawNodeID      `json:"id"`
+	Ctx     context.Context `json:"-"`
 }
 
 // PingReq is Ping RPC request

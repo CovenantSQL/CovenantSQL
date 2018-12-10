@@ -18,10 +18,12 @@ package sqlchain
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
 	rt "runtime"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1383,6 +1385,12 @@ func (c *Chain) replicationCycle() {
 
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
+	ctx := context.Background()
+	ctx, task := trace.NewTask(ctx, "Query")
+	req.Ctx = ctx
+	defer task.End()
+	defer trace.StartRegion(req.Ctx, "QueryMain").End()
+
 	var ref *x.QueryTracker
 	if ref, resp, err = c.st.Query(req); err != nil {
 		return

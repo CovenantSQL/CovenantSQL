@@ -109,12 +109,6 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 		stderr = logFD
 	}
 
-	err = cmd.Cmd.Start()
-	if err != nil {
-		log.WithError(err).Error("cmd.Start() failed")
-		return
-	}
-
 	go func() {
 		_, err := io.Copy(stdout, stdoutIn)
 		if err != nil {
@@ -130,6 +124,12 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 			return
 		}
 	}()
+
+	err = cmd.Cmd.Start()
+	if err != nil {
+		log.WithError(err).Error("cmd.Start() failed")
+		return
+	}
 
 	return
 }

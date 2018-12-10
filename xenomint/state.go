@@ -310,15 +310,18 @@ func (s *State) readTx(
 		data           [][]interface{}
 		querier        sqlQuerier
 	)
-	id = s.getID()
 	if atomic.LoadUint32(&s.hasSchemaChange) == 1 {
 		// lock transaction
 		s.Lock()
 		defer s.Unlock()
+		id = s.getID()
 		s.setSavepoint()
 		querier = s.unc
 		defer s.rollbackTo(id)
+
+		// TODO(): should detect query type, any timeout write query will cause underlying transaction to rollback
 	} else {
+		id = s.getID()
 		if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
 			err = errors.Wrap(ierr, "open tx failed")
 			return
@@ -326,6 +329,16 @@ func (s *State) readTx(
 		querier = tx
 		defer tx.Rollback()
 	}
+
+	defer func() {
+		if ctx.Err() != nil {
+			log.WithError(ctx.Err()).WithFields(log.Fields{
+				"req":       req,
+				"id":        id,
+				"dirtyRead": atomic.LoadUint32(&s.hasSchemaChange) != 1,
+			}).Warning("read query canceled")
+		}
+	}()
 
 	for i, v := range req.Payload.Queries {
 		if cnames, ctypes, data, ierr = readSingle(ctx, querier, &v); ierr != nil {
@@ -398,6 +411,12 @@ func (s *State) write(
 		curAffectedRows   int64
 		lastInsertID      int64
 	)
+
+	defer func() {
+		if ctx.Err() != nil {
+			log.WithError(err).WithField("req", req).Warning("write query canceled")
+		}
+	}()
 
 	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	if err = func() (err error) {

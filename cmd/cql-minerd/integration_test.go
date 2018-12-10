@@ -387,7 +387,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(resultBytes, ShouldResemble, []byte("ha\001ppy"))
 
-		Convey("test query cancel", func(c C) {
+		Convey("test query cancel", FailureContinues, func(c C) {
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
@@ -400,7 +400,8 @@ func TestFullProcess(t *testing.T) {
 			}()
 			time.Sleep(time.Second)
 			go func() {
-				db.Exec("UPDATE test SET test = 100;")
+				_, err = db.Exec("UPDATE test SET test = 100;")
+				c.So(err, ShouldNotBeNil)
 			}()
 			time.Sleep(time.Second)
 			for _, n := range conf.GConf.KnownNodes {
@@ -410,17 +411,52 @@ func TestFullProcess(t *testing.T) {
 			}
 			time.Sleep(time.Second)
 
-			row := db.QueryRow("SELECT * FROM test WHERE test = 4 LIMIT 1")
+			// ensure connection
+			db.Query("SELECT 1")
+
 			var result int
-			err = row.Scan(&result)
+			err = db.QueryRow("SELECT * FROM test WHERE test = 4 LIMIT 1").Scan(&result)
 			c.So(err, ShouldBeNil)
 			c.So(result, ShouldEqual, 4)
+
 			wg.Wait()
-			time.Sleep(10 * time.Second)
+			time.Sleep(30 * time.Second)
+
+			go func() {
+				_, err = db.Query("SELECT * FROM test WHERE test = sleep(10000000000)")
+				// call write query using read query interface
+				//_, err = db.Query("INSERT INTO test VALUES(sleep(10000000000))")
+				c.So(err, ShouldNotBeNil)
+			}()
+			time.Sleep(time.Second)
+			for _, n := range conf.GConf.KnownNodes {
+				if n.Role == proto.Miner {
+					rpc.GetSessionPoolInstance().Remove(n.ID)
+				}
+			}
+
+			time.Sleep(time.Second)
+
+			// ensure connection
+			db.Query("SELECT 1")
+
+			time.Sleep(time.Second)
+
+			func() {
+				rows, err := db.Query("SELECT * FROM test")
+				c.So(err, ShouldBeNil)
+				defer rows.Close()
+				var res int
+				for rows.Next() {
+					err = rows.Scan(&res)
+					c.So(err, ShouldBeNil)
+					log.WithField("record", res).Info("got record from test database")
+				}
+			}()
 			row = db.QueryRow("SELECT * FROM test WHERE test = 10000000000 LIMIT 1")
 			err = row.Scan(&result)
 			c.So(err, ShouldBeNil)
-			c.So(result, ShouldEqual, 4)
+			c.So(result, ShouldEqual, 10000000000)
 
 			c.So(err, ShouldBeNil)
 		})
@@ -428,8 +464,8 @@ func TestFullProcess(t *testing.T) {
 		err = db.Close()
 		So(err, ShouldBeNil)
 
-		//err = client.Drop(dsn)
-		//So(err, ShouldBeNil)
+		err = client.Drop(dsn)
+		So(err, ShouldBeNil)
 	})
 }
 

@@ -388,19 +388,20 @@ func TestFullProcess(t *testing.T) {
 		So(resultBytes, ShouldResemble, []byte("ha\001ppy"))
 
 		Convey("test query cancel", FailureContinues, func(c C) {
+			/* test cancel write query */
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
-				// sleep 10s
-				_, er := db.Exec("INSERT INTO test VALUES(sleep(10000000000))")
-				if er != nil {
-					log.Errorf("insert sleep: %v", er)
-				}
-				wg.Done()
+				defer wg.Done()
+				db.Exec("INSERT INTO test VALUES(sleep(10000000000))")
 			}()
 			time.Sleep(time.Second)
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
+				var err error
 				_, err = db.Exec("UPDATE test SET test = 100;")
+				// should be canceled
 				c.So(err, ShouldNotBeNil)
 			}()
 			time.Sleep(time.Second)
@@ -414,14 +415,15 @@ func TestFullProcess(t *testing.T) {
 			// ensure connection
 			db.Query("SELECT 1")
 
+			// test before write operation complete
 			var result int
 			err = db.QueryRow("SELECT * FROM test WHERE test = 4 LIMIT 1").Scan(&result)
 			c.So(err, ShouldBeNil)
 			c.So(result, ShouldEqual, 4)
 
 			wg.Wait()
-			time.Sleep(30 * time.Second)
 
+			/* test cancel read query */
 			go func() {
 				_, err = db.Query("SELECT * FROM test WHERE test = sleep(10000000000)")
 				// call write query using read query interface
@@ -434,25 +436,11 @@ func TestFullProcess(t *testing.T) {
 					rpc.GetSessionPoolInstance().Remove(n.ID)
 				}
 			}
-
 			time.Sleep(time.Second)
-
 			// ensure connection
 			db.Query("SELECT 1")
 
-			time.Sleep(time.Second)
-
-			func() {
-				rows, err := db.Query("SELECT * FROM test")
-				c.So(err, ShouldBeNil)
-				defer rows.Close()
-				var res int
-				for rows.Next() {
-					err = rows.Scan(&res)
-					c.So(err, ShouldBeNil)
-					log.WithField("record", res).Info("got record from test database")
-				}
-			}()
+			/* test long running write query */
 			row = db.QueryRow("SELECT * FROM test WHERE test = 10000000000 LIMIT 1")
 			err = row.Scan(&result)
 			c.So(err, ShouldBeNil)

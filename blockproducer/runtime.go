@@ -29,6 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
@@ -78,85 +79,163 @@ type rt struct {
 	cacheMu   sync.RWMutex
 	irre      *blockNode
 	immutable *view
+	currIdx   int
 	current   *branch
-	optional  []*branch
+	branches  []*branch
 	txPool    map[hash.Hash]pi.Transaction
 }
 
-func (r *rt) addTx(tx pi.Transaction) {
-	var k = tx.Hash()
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-	if _, ok := r.txPool[k]; !ok {
-		r.txPool[k] = tx
-	}
-	r.current.addTx(tx)
-	for _, v := range r.optional {
-		v.addTx(tx)
-	}
+func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
+	return store(st, []storageProcedure{addTx(tx)}, func() {
+		var k = tx.Hash()
+		r.cacheMu.Lock()
+		defer r.cacheMu.Unlock()
+		if _, ok := r.txPool[k]; !ok {
+			r.txPool[k] = tx
+		}
+		for _, v := range r.branches {
+			v.addTx(tx)
+		}
+	})
 }
 
-func (r *rt) produceBlock(st xi.Storage) (err error) {
+func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *branch) (err error) {
 	var (
-		br       *branch
-		bl       *types.BPBlock
 		irre     *blockNode
 		newIrres []*blockNode
+		sps      []storageProcedure
+		up       storageCallback
 	)
-	r.cacheMu.Lock()
-	r.cacheMu.Unlock()
-
-	// Try to produce new block
-	if br, bl, err = r.current.produceBlock(); err != nil {
-		return
-	}
 
 	// Find new irreversible blocks
 	//
 	// NOTE(leventeliu):
-	// May have multiple new irreversible blocks here if peer list shrinks.
-	// May also have no new irreversible block at all if peer list expands.
-	irre = br.head.lastIrreversible(r.minComfirm)
-	for n := irre; n.count > r.irre.count; n = n.parent {
-		newIrres = append(newIrres, n)
-	}
-
-	var (
-		sps []storageProcedure
-		up  storageCallback
-	)
+	// May have multiple new irreversible blocks here if peer list shrinks. May also have
+	// no new irreversible block at all if peer list expands.
+	irre = head.head.lastIrreversible(r.minComfirm)
+	newIrres = irre.blockNodeListFrom(r.irre.count)
 
 	// Prepare storage procedures to update immutable
 	sps = append(sps, addBlock(bl))
-	// Note that block nodes are pushed in reverse order and should be applied in ascending order
-	for i := len(newIrres) - 1; i >= 0; i-- {
-		var v = newIrres[i]
+	for _, n := range newIrres {
 		sps = append(
 			sps,
-			updateImmutable(v.block.Transactions),
-			deleteTxs(v.block.Transactions),
+			updateImmutable(n.block.Transactions),
+			deleteTxs(n.block.Transactions),
 		)
 	}
 	sps = append(sps, updateIrreversible(irre.hash))
 
 	// Prepare callback to update cache
 	up = func() {
-		// Replace current branch
-		r.current = br
-		// Prune branches
-		var brs = make([]*branch, 0, len(r.optional))
-		for _, v := range r.optional {
-			if v.head.hasAncestor(irre) {
-				brs = append(brs, v)
-			}
-		}
-		r.optional = brs
 		// Update last irreversible block
 		r.irre = irre
+		// Apply irreversible blocks to immutable database
+		for _, b := range newIrres {
+			for _, tx := range b.block.Transactions {
+				if err := r.immutable.apply(tx); err != nil {
+					log.WithError(err).Fatal("Failed to apply block to immutable database")
+				}
+			}
+		}
+		// Prune branches
+		var (
+			idx int
+			brs = make([]*branch, 0, len(r.branches))
+		)
+		for i, b := range r.branches {
+			if i == origin {
+				// Current branch
+				brs = append(brs, head)
+				idx = len(brs) - 1
+			} else if b.head.hasAncestor(irre) {
+				brs = append(brs, b)
+			}
+		}
+		// Replace current branches
+		r.current = head
+		r.currIdx = idx
+		r.branches = brs
+		// Clear packed transactions
+		for _, b := range newIrres {
+			for _, br := range r.branches {
+				br.clearPackedTxs(b.block.Transactions)
+			}
+			for _, tx := range b.block.Transactions {
+				delete(r.txPool, tx.Hash())
+			}
+		}
 	}
 
 	// Write to immutable database and update cache
 	return store(st, sps, up)
+}
+
+func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
+	var (
+		ok       bool
+		br       *branch
+		parent   *blockNode
+		irre     *blockNode
+		newIrres []*blockNode
+	)
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+
+	for i, v := range r.branches {
+		// Grow a branch
+		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
+			if br, err = v.applyBlock(bl); err != nil {
+				return
+			}
+
+			// Grow a branch while the current branch is not changed
+			if br.head.count <= r.current.head.count {
+				return store(st, []storageProcedure{addBlock(bl)}, func() { r.branches[i] = br })
+			}
+
+			// Switch branch or grow current branch
+			return r.switchBranch(st, bl, i, br)
+		}
+		// Create a fork
+		if parent, ok = v.head.findNodeAfterCount(bl.SignedHeader.ParentHash, r.irre.count); ok {
+			if br, err = fork(r.irre, parent, r.immutable, r.txPool); err != nil {
+				return
+			}
+			if br, err = v.applyBlock(bl); err != nil {
+				return
+			}
+			if br.head.count > r.current.head.count {
+				// Switch branch
+				irre = br.head.lastIrreversible(r.minComfirm)
+				for n := irre; n.count > r.irre.count; n = n.parent {
+					newIrres = append(newIrres, n)
+				}
+			} else {
+				// Update branch
+				r.branches[i] = br
+			}
+			return
+		}
+	}
+
+	return
+}
+
+func (r *rt) produceBlock(st xi.Storage) (err error) {
+	var (
+		br *branch
+		bl *types.BPBlock
+	)
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+
+	// Try to produce new block
+	if br, bl, err = r.current.produceBlock(); err != nil {
+		return
+	}
+
+	return r.switchBranch(st, bl, r.currIdx, br)
 }
 
 // now returns the current coordinated chain time.

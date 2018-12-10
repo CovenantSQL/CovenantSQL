@@ -78,6 +78,20 @@ func addBlock(b *types.BPBlock) storageProcedure {
 	}
 }
 
+func addTx(tx pi.Transaction) storageProcedure {
+	var (
+		enc *bytes.Buffer
+		err error
+	)
+	if enc, err = utils.EncodeMsgPack(tx); err != nil {
+		return errPass(err)
+	}
+	return func(tx *sql.Tx) (err error) {
+		_, err = tx.Exec(`INSERT INTO "txPool" VALUES (?, ?)`, enc.Bytes())
+		return
+	}
+}
+
 func updateImmutable(tx []pi.Transaction) storageProcedure {
 	return nil
 }

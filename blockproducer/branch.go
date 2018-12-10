@@ -43,6 +43,46 @@ type branch struct {
 	unpacked map[hash.Hash]pi.Transaction
 }
 
+func fork(
+	from, to *blockNode, v *view, txPool map[hash.Hash]pi.Transaction) (br *branch, err error,
+) {
+	var (
+		diff = to.blockNodeListFrom(from.count)
+		inst = &branch{
+			head:     to,
+			preview:  v.makeCopy(),
+			packed:   make(map[hash.Hash]pi.Transaction),
+			unpacked: make(map[hash.Hash]pi.Transaction),
+		}
+	)
+	// Copy pool
+	for k, v := range txPool {
+		inst.unpacked[k] = v
+	}
+	// Apply new blocks to view and pool
+	for _, bn := range diff {
+		for _, v := range bn.block.Transactions {
+			var k = v.Hash()
+			// Check in tx pool
+			if _, ok := inst.unpacked[k]; ok {
+				delete(inst.unpacked, k)
+			} else if err = v.Verify(); err != nil {
+				return
+			}
+			if _, ok := inst.packed[k]; ok {
+				err = ErrExistedTx
+				return
+			}
+			inst.packed[k] = v
+			// Apply to preview
+			if err = inst.preview.apply(v); err != nil {
+				return
+			}
+		}
+	}
+	return
+}
+
 func (b *branch) makeCopy() *branch {
 	var (
 		p = make(map[hash.Hash]pi.Transaction)

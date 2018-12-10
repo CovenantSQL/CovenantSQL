@@ -429,19 +429,19 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				ii := atomic.AddInt64(&i, 1)
 				index := ROWSTART + ii
 				//start := time.Now()
-				_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
+				_, er := db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 					"(?, ?)", index, ii,
 				)
 				//log.Warnf("Insert index = %d %v", index, time.Since(start))
-				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
+				for er != nil && er.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
 					log.Warnf("index = %d retried", index)
-					_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
+					_, er = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 						"(?, ?)", index, ii,
 					)
 				}
-				if err != nil {
-					b.Fatal(err)
+				if er != nil {
+					b.Fatal(er)
 				}
 			}
 		})
@@ -477,10 +477,10 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				row := db.QueryRow("SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
 				//log.Warnf("Select index = %d %v", index, time.Since(start))
 				var result []byte
-				err = row.Scan(&result)
-				if err != nil || (len(result) == 0) {
+				er := row.Scan(&result)
+				if er != nil || (len(result) == 0) {
 					log.Errorf("index = %d", index)
-					b.Fatal(err)
+					b.Fatal(er)
 				}
 			}
 		})

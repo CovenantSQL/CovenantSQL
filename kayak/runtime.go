@@ -38,6 +38,11 @@ const (
 	commitWindow = 0
 	// prepare window
 	trackerWindow = 10
+
+	// runtime running states
+	stateNotStarted = 0
+	stateStarted    = 1
+	stateStopped    = 2
 )
 
 // Runtime defines the main kayak Runtime.
@@ -46,11 +51,15 @@ type Runtime struct {
 	// index for next log.
 	nextIndexLock sync.Mutex
 	nextIndex     uint64
+	// lastTruncated defines the last log truncation point.
+	lastTruncated uint64
 	// lastCommit, last commit log index
 	lastCommit uint64
 	// pendingPrepares, prepares needs to be committed/rollback
 	pendingPrepares     map[uint64]bool
 	pendingPreparesLock sync.RWMutex
+	// missing log channel
+	missingLogCh chan uint64
 
 	/// Runtime entities
 	// current node id.
@@ -62,6 +71,8 @@ type Runtime struct {
 	wal kt.Wal
 	// underlying handler
 	sh kt.Handler
+	// recovering state
+	isRecovering bool
 
 	/// Peers info
 	// peers defines the server peers.
@@ -76,16 +87,20 @@ type Runtime struct {
 	minPreparedFollowers int
 	// calculated min follower nodes for commit.
 	minCommitFollowers int
+	// followerStates stores the follower progress state.
+	followerStates map[proto.NodeID]*kt.State
 
 	/// RPC related
 	// callerMap caches the caller for peering nodes.
 	callerMap sync.Map // map[proto.NodeID]Caller
 	// service name for mux service.
 	serviceName string
-	// rpc method for coordination requests.
-	rpcMethod string
-	// tracks the outgoing rpc requests.
-	rpcTrackCh chan *rpcTracker
+	// applyRPC method for apply requests.
+	applyRPCMethod string
+	// applyRPC method for log synchronization requests.
+	fetchLogRPCMethod string
+	// tracks the outgoing applyRPC requests.
+	applyRPCTrackCh chan *applyRPCTracker
 
 	//// Parameters
 	// prepare threshold defines the minimum node count requirement for prepare operation.
@@ -96,6 +111,8 @@ type Runtime struct {
 	prepareTimeout time.Duration
 	// commit timeout defines the max allowed time for commit operation.
 	commitTimeout time.Duration
+	// timeout to actively fetch log from leader.
+	logFetchTimeout time.Duration
 	// channel for awaiting commits.
 	commitCh chan *commitReq
 
@@ -121,7 +138,7 @@ type commitResult struct {
 	dbCost time.Duration
 	result interface{}
 	err    error
-	rpc    *rpcTracker
+	rpc    *applyRPCTracker
 }
 
 // NewRuntime creates new kayak Runtime.
@@ -189,10 +206,10 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 		minPreparedFollowers: minPreparedFollowers,
 		minCommitFollowers:   minCommitFollowers,
 
-		// rpc related
-		serviceName: cfg.ServiceName,
-		rpcMethod:   fmt.Sprintf("%v.%v", cfg.ServiceName, cfg.MethodName),
-		rpcTrackCh:  make(chan *rpcTracker, trackerWindow),
+		// applyRPC related
+		serviceName:     cfg.ServiceName,
+		applyRPCMethod:  fmt.Sprintf("%v.%v", cfg.ServiceName, cfg.MethodName),
+		applyRPCTrackCh: make(chan *applyRPCTracker, trackerWindow),
 
 		// commits related
 		prepareThreshold: cfg.PrepareThreshold,
@@ -200,6 +217,10 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 		commitThreshold:  cfg.CommitThreshold,
 		commitTimeout:    cfg.CommitTimeout,
 		commitCh:         make(chan *commitReq, commitWindow),
+
+		// log synchronization
+		logFetchTimeout: cfg.LogFetchTimeout,
+		missingLogCh:    make(chan uint64, commitWindow*2),
 
 		// stop coordinator
 		stopCh: make(chan struct{}),
@@ -215,13 +236,17 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 
 // Start starts the Runtime.
 func (r *Runtime) Start() (err error) {
-	if !atomic.CompareAndSwapUint32(&r.started, 0, 1) {
+	if !atomic.CompareAndSwapUint32(&r.started, stateNotStarted, stateStarted) {
 		return
 	}
 
 	// start commit cycle
 	r.goFunc(r.commitCycle)
-	// start rpc tracker collector
+
+	// start missing log fetcher
+	r.goFunc(r.missingLogFetcher)
+
+	// start applyRPC tracker collector
 	// TODO():
 
 	return
@@ -229,7 +254,7 @@ func (r *Runtime) Start() (err error) {
 
 // Shutdown waits for the Runtime to stop.
 func (r *Runtime) Shutdown() (err error) {
-	if !atomic.CompareAndSwapUint32(&r.started, 1, 2) {
+	if !atomic.CompareAndSwapUint32(&r.started, stateStarted, stateStopped) {
 		return
 	}
 
@@ -245,12 +270,18 @@ func (r *Runtime) Shutdown() (err error) {
 
 // Apply defines entry for Leader node.
 func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{}, logIndex uint64, err error) {
-	var commitFuture <-chan *commitResult
-	var cResult *commitResult
+	if atomic.LoadUint32(&r.started) != stateStarted {
+		err = kt.ErrNotStarted
+		return
+	}
 
-	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
+	var (
+		commitFuture <-chan *commitResult
+		cResult      *commitResult
+		tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
 		tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
-	var dbCost time.Duration
+		dbCost time.Duration
+	)
 
 	defer func() {
 		fields := log.Fields{
@@ -330,7 +361,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	tmLeaderPrepare = time.Now()
 
 	// send prepare to all nodes
-	prepareTracker := r.rpc(prepareLog, r.minPreparedFollowers)
+	prepareTracker := r.applyRPC(prepareLog, r.minPreparedFollowers)
 	prepareCtx, prepareCtxCancelFunc := context.WithTimeout(ctx, r.prepareTimeout)
 	defer prepareCtxCancelFunc()
 	prepareErrors, prepareDone, _ := prepareTracker.get(prepareCtx)
@@ -398,15 +429,45 @@ ROLLBACK:
 	tmLeaderRollback = time.Now()
 
 	// async send rollback to all nodes
-	r.rpc(rollbackLog, 0)
+	r.applyRPC(rollbackLog, 0)
 
 	tmRollback = time.Now()
 
 	return
 }
 
+// GetState returns the runtime state.
+func (r *Runtime) GetState() (st *kt.State, err error) {
+	r.peersLock.RLock()
+	defer r.peersLock.RUnlock()
+	st = &kt.State{
+		IsRecovering:  r.isRecovering,
+		Role:          r.role,
+		LastTruncated: r.lastTruncated,
+		LastCommitted: r.lastCommit,
+		LastOffset:    r.nextIndex - 1,
+	}
+
+	return
+}
+
+// FetchLog fetches log from the underlying wal.
+func (r *Runtime) FetchLog(logIndex uint64) (l *kt.Log, err error) {
+	if atomic.LoadUint32(&r.started) != stateStarted {
+		err = kt.ErrNotStarted
+		return
+	}
+
+	return r.wal.Get(logIndex)
+}
+
 // FollowerApply defines entry for follower node.
-func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
+func (r *Runtime) FollowerApply(l *kt.Log) (st *kt.State, err error) {
+	if atomic.LoadUint32(&r.started) != stateStarted {
+		err = kt.ErrNotStarted
+		return
+	}
+
 	if l == nil {
 		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
 		return
@@ -451,11 +512,25 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		r.updateNextIndex(l)
 	}
 
+	// get current state
+	st = &kt.State{
+		IsRecovering:  r.isRecovering,
+		Role:          r.role,
+		LastTruncated: r.lastTruncated,
+		LastCommitted: r.lastCommit,
+		LastOffset:    r.nextIndex - 1,
+	}
+
 	return
 }
 
 // UpdatePeers defines entry for peers update logic.
 func (r *Runtime) UpdatePeers(peers *proto.Peers) (err error) {
+	if atomic.LoadUint32(&r.started) != stateStarted {
+		err = kt.ErrNotStarted
+		return
+	}
+
 	r.peersLock.Lock()
 	defer r.peersLock.Unlock()
 
@@ -633,7 +708,6 @@ func (r *Runtime) followerCommitResult(ctx context.Context, commitLog *kt.Log, p
 }
 
 func (r *Runtime) commitCycle() {
-	// TODO(): panic recovery
 	for {
 		var cReq *commitReq
 
@@ -646,6 +720,12 @@ func (r *Runtime) commitCycle() {
 		if cReq != nil {
 			r.doCommit(cReq)
 		}
+	}
+}
+
+func (r *Runtime) missingLogFetcher() {
+	for {
+
 	}
 }
 
@@ -665,7 +745,7 @@ func (r *Runtime) doCommit(req *commitReq) {
 	}
 }
 
-func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker *rpcTracker, result interface{}, err error) {
+func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker *applyRPCTracker, result interface{}, err error) {
 	if req.log != nil {
 		// mis-use follower commit for leader
 		log.Fatal("INVALID EXISTING LOG FOR LEADER COMMIT")
@@ -693,13 +773,17 @@ func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker 
 	atomic.StoreUint64(&r.lastCommit, l.Index)
 
 	// send commit
-	tracker = r.rpc(l, r.minCommitFollowers)
+	tracker = r.applyRPC(l, r.minCommitFollowers)
 
-	// TODO(): text log for rpc errors
+	// TODO(): text log for applyRPC errors
 
 	// TODO(): mark uncommitted nodes and remove from peers
 
 	return
+}
+
+func (r *Runtime) checkAndSynchronizeLogs() {
+
 }
 
 func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
@@ -711,6 +795,8 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	// check for last commit availability
 	myLastCommit := atomic.LoadUint64(&r.lastCommit)
 	if req.lastCommit != myLastCommit {
+		// should synchronize the logs
+
 		// TODO(): need counter for retries, infinite commit re-order would cause troubles
 		go func(req *commitReq) {
 			r.commitCh <- req
@@ -887,16 +973,16 @@ func (r *Runtime) errorSummary(errs map[proto.NodeID]error) error {
 }
 
 /// rpc related
-func (r *Runtime) rpc(l *kt.Log, minCount int) (tracker *rpcTracker) {
-	req := &kt.RPCRequest{
+func (r *Runtime) applyRPC(l *kt.Log, minCount int) (tracker *applyRPCTracker) {
+	req := &kt.ApplyRequest{
 		Instance: r.instanceID,
 		Log:      l,
 	}
 
-	tracker = newTracker(r, req, minCount)
+	tracker = newApplyTracker(r, req, minCount)
 	tracker.send()
 
-	// TODO(): track this rpc
+	// TODO(): track this applyRPC
 
 	// TODO(): log remote errors
 
@@ -913,6 +999,13 @@ func (r *Runtime) goFunc(f func()) {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
+		defer func() {
+			if e := recover(); e != nil {
+				log.WithField("panic", e).Error("sub-routine panic with error")
+				// try restart
+				r.goFunc(f)
+			}
+		}()
 		f()
 	}()
 }

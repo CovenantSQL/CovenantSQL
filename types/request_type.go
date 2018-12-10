@@ -65,6 +65,7 @@ type RequestHeader struct {
 	Timestamp    time.Time        `json:"t"`  // time in UTC zone
 	BatchCount   uint64           `json:"bc"` // query count in this request
 	QueriesHash  hash.Hash        `json:"qh"` // hash of query payload
+	LogOffset    uint64           `hspack:"-"`
 }
 
 // QueryKey defines an unique query key of a request.

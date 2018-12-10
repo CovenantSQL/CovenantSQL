@@ -39,6 +39,6 @@ func NewKayakService(server *rpc.Server, serviceName string, rt *kayak.Runtime) 
 }
 
 // Call handles kayak call.
-func (s *KayakService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
+func (s *KayakService) Call(req *kt.ApplyRequest, _ *interface{}) (err error) {
 	return s.rt.FollowerApply(req.Log)
 }

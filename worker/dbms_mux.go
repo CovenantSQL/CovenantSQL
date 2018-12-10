@@ -56,7 +56,7 @@ func (s *DBKayakMuxService) unregister(id proto.DatabaseID) {
 }
 
 // Call handles kayak call.
-func (s *DBKayakMuxService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
+func (s *DBKayakMuxService) Call(req *kt.ApplyRequest, _ *interface{}) (err error) {
 	// call apply to specified kayak
 	// treat req.Instance as DatabaseID
 	id := proto.DatabaseID(req.Instance)

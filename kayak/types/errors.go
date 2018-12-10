@@ -35,4 +35,6 @@ var (
 	ErrNeedRecovery = errors.New("need recovery")
 	// ErrInvalidConfig represents invalid kayak runtime config.
 	ErrInvalidConfig = errors.New("invalid runtime config")
+	// ErrNotStarted defines error which the runtime is not started or already stopped.
+	ErrNotStarted = errors.New("runtime not started")
 )

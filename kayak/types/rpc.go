@@ -18,8 +18,32 @@ package types
 
 import "github.com/CovenantSQL/CovenantSQL/proto"
 
-// RPCRequest defines the RPC request entity.
-type RPCRequest struct {
+// ApplyRequest defines the kayak apply RPC request entity.
+type ApplyRequest struct {
+	proto.Envelope
+	Instance string
+	Log      *Log
+}
+
+// State defines the kayak runtime state attributes.
+type State struct {
+	Instance      string           // instance id
+	IsRecovering  bool             // the runtime recovery state
+	Role          proto.ServerRole // the runtime application role
+	LastTruncated uint64           // the last truncated wal index
+	LastCommitted uint64           // the last commit type log index
+	LastOffset    uint64           // the last log entry index (log end offset, not high watermark)
+}
+
+// FetchRequest defines the kayak log fetch RPC request entity.
+type FetchRequest struct {
+	proto.Envelope
+	Instance string
+	Index    uint64
+}
+
+// FetchResponse defines the kayak log fetch RPC response entity.
+type FetchResponse struct {
 	proto.Envelope
 	Instance string
 	Log      *Log

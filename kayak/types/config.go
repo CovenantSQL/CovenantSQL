@@ -34,6 +34,8 @@ type RuntimeConfig struct {
 	PrepareTimeout time.Duration
 	// maximum allowed time for commit operation.
 	CommitTimeout time.Duration
+	// timeout for follower to actively fetch logs from leader or maybe other nodes.
+	LogFetchTimeout time.Duration
 	// init peers of node.
 	Peers *proto.Peers
 	// wal for kayak.

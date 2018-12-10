@@ -44,7 +44,7 @@ func TestTracker(t *testing.T) {
 		nodeID1 := proto.NodeID("000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5")
 		nodeID2 := proto.NodeID("000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade")
 		r := &Runtime{
-			rpcMethod: "test",
+			applyRPCMethod: "test",
 			followers: []proto.NodeID{
 				nodeID1,
 				nodeID2,
@@ -52,18 +52,18 @@ func TestTracker(t *testing.T) {
 		}
 		r.SetCaller(nodeID1, &fakeTrackerCaller{c: c})
 		r.SetCaller(nodeID2, &fakeTrackerCaller{c: c})
-		t1 := newTracker(r, 1, 0)
+		t1 := newApplyTracker(r, 1, 0)
 		t1.send()
 		_, meets, _ := t1.get(context.Background())
 		So(meets, ShouldBeTrue)
 
-		t2 := newTracker(r, 1, 1)
+		t2 := newApplyTracker(r, 1, 1)
 		t2.send()
 		r2, meets, _ := t2.get(context.Background())
 		So(r2, ShouldNotBeEmpty)
 		So(meets, ShouldBeTrue)
 
-		t3 := newTracker(r, 1, 1)
+		t3 := newApplyTracker(r, 1, 1)
 		t3.send()
 		ctx1, cancelCtx1 := context.WithTimeout(context.Background(), time.Millisecond*1)
 		defer cancelCtx1()
@@ -76,14 +76,14 @@ func TestTracker(t *testing.T) {
 		So(r3, ShouldNotBeEmpty)
 		So(meets, ShouldBeTrue)
 
-		t4 := newTracker(r, 1, 2)
+		t4 := newApplyTracker(r, 1, 2)
 		t4.send()
 		r4, meets, finished := t4.get(context.Background())
 		So(r4, ShouldHaveLength, 2)
 		So(meets, ShouldBeTrue)
 		So(finished, ShouldBeTrue)
 
-		t5 := newTracker(r, 2, 2)
+		t5 := newApplyTracker(r, 2, 2)
 		t5.send()
 		ctx2, cancelCtx2 := context.WithTimeout(context.Background(), time.Millisecond*1)
 		defer cancelCtx2()

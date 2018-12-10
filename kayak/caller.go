@@ -16,7 +16,7 @@
 
 package kayak
 
-// Caller defines the rpc caller, supports mocks for the default rpc.PersistCaller.
+// Caller defines the applyRPC caller, supports mocks for the default applyRPC.PersistCaller.
 type Caller interface {
 	Call(method string, req interface{}, resp interface{}) error
 }

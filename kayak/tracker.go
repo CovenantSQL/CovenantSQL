@@ -24,16 +24,16 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// rpcTracker defines the rpc call tracker
-// support tracking the rpc result.
-type rpcTracker struct {
+// applyRPCTracker defines the applyRPC call tracker
+// support tracking the applyRPC result.
+type applyRPCTracker struct {
 	// related runtime
 	r *Runtime
 	// target nodes, a copy of current followers
 	nodes []proto.NodeID
-	// rpc method
+	// applyRPC method
 	method string
-	// rpc request
+	// applyRPC request
 	req interface{}
 	// minimum response count
 	minCount int
@@ -49,7 +49,7 @@ type rpcTracker struct {
 	closed   uint32
 }
 
-func newTracker(r *Runtime, req interface{}, minCount int) (t *rpcTracker) {
+func newApplyTracker(r *Runtime, req interface{}, minCount int) (t *applyRPCTracker) {
 	// copy nodes
 	nodes := append([]proto.NodeID(nil), r.followers...)
 
@@ -60,10 +60,10 @@ func newTracker(r *Runtime, req interface{}, minCount int) (t *rpcTracker) {
 		minCount = 0
 	}
 
-	t = &rpcTracker{
+	t = &applyRPCTracker{
 		r:        r,
 		nodes:    nodes,
-		method:   r.rpcMethod,
+		method:   r.applyRPCMethod,
 		req:      req,
 		minCount: minCount,
 		errors:   make(map[proto.NodeID]error, len(nodes)),
@@ -73,7 +73,7 @@ func newTracker(r *Runtime, req interface{}, minCount int) (t *rpcTracker) {
 	return
 }
 
-func (t *rpcTracker) send() {
+func (t *applyRPCTracker) send() {
 	if !atomic.CompareAndSwapUint32(&t.sent, 0, 1) {
 		return
 	}
@@ -88,7 +88,7 @@ func (t *rpcTracker) send() {
 	}
 }
 
-func (t *rpcTracker) callSingle(idx int) {
+func (t *applyRPCTracker) callSingle(idx int) {
 	err := t.r.getCaller(t.nodes[idx]).Call(t.method, t.req, nil)
 	defer t.wg.Done()
 	t.errLock.Lock()
@@ -101,7 +101,7 @@ func (t *rpcTracker) callSingle(idx int) {
 	}
 }
 
-func (t *rpcTracker) done() {
+func (t *applyRPCTracker) done() {
 	t.doneOnce.Do(func() {
 		if t.doneCh != nil {
 			select {
@@ -113,7 +113,7 @@ func (t *rpcTracker) done() {
 	})
 }
 
-func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, meets bool, finished bool) {
+func (t *applyRPCTracker) get(ctx context.Context) (errors map[proto.NodeID]error, meets bool, finished bool) {
 	for {
 		select {
 		case <-t.doneCh:
@@ -150,7 +150,7 @@ func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, me
 	return
 }
 
-func (t *rpcTracker) close() {
+func (t *applyRPCTracker) close() {
 	if !atomic.CompareAndSwapUint32(&t.closed, 0, 1) {
 		return
 	}

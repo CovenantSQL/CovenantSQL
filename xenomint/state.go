@@ -288,14 +288,19 @@ func (s *State) read(req *types.Request) (ref *QueryTracker, resp *types.Respons
 	return
 }
 
+var (
+	cnames []string
+	ctypes []string
+	data   [][]interface{}
+	ierr   error
+	once   sync.Once
+)
+
 func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	var (
-		tx             *sql.Tx
-		id             uint64
-		ierr           error
-		cnames, ctypes []string
-		data           [][]interface{}
-		querier        sqlQuerier
+		tx      *sql.Tx
+		id      uint64
+		querier sqlQuerier
 	)
 	id = s.getID()
 	if atomic.LoadUint32(&s.hasSchemaChange) == 1 {
@@ -315,12 +320,14 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 	}
 
 	for i, v := range req.Payload.Queries {
-		if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
-			err = errors.Wrapf(ierr, "query at #%d failed", i)
-			// Add to failed pool list
-			s.pool.setFailed(req)
-			return
-		}
+		once.Do(func() {
+			if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
+				err = errors.Wrapf(ierr, "query at #%d failed", i)
+				// Add to failed pool list
+				s.pool.setFailed(req)
+				return
+			}
+		})
 	}
 	// Build query response
 	ref = &QueryTracker{Req: req}

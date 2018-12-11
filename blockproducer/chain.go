@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -438,56 +437,16 @@ func (c *Chain) Start() error {
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
-	var (
-		returnStash = func(ctx context.Context, wg *sync.WaitGroup, stash []*types.BPBlock) {
-			defer wg.Done()
-			for _, block := range stash {
-				select {
-				case c.blocksFromRPC <- block:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-		// Subroutine control
-		subCtx, subCancel = context.WithCancel(ctx)
-		subWg             = &sync.WaitGroup{}
-	)
-
-	defer func() {
-		// Wait for subroutines to exit
-		subCancel()
-		subWg.Wait()
-	}()
-
-	var stash []*types.BPBlock
 	for {
 		select {
 		case block := <-c.blocksFromRPC:
-			if h := c.rt.getHeightFromTime(block.Timestamp()); h > c.rt.getNextTurn()-1 {
-				// Stash newer blocks for later check
-				stash = append(stash, block)
-			} else {
-				// Process block
-				if h < c.rt.getNextTurn()-1 {
-					// TODO(lambda): check and add to fork list.
-				} else {
-					err := c.pushBlock(block)
-					if err != nil {
-						log.WithFields(log.Fields{
-							"block_hash":        block.BlockHash(),
-							"block_parent_hash": block.ParentHash(),
-							"block_timestamp":   block.Timestamp(),
-						}).Debug(err)
-					}
-				}
-
-				// Return all stashed blocks to pending channel
-				if stash != nil {
-					subWg.Add(1)
-					go returnStash(subCtx, subWg, stash)
-					stash = nil
-				}
+			err := c.pushBlock(block)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"block_hash":        block.BlockHash(),
+					"block_parent_hash": block.ParentHash(),
+					"block_timestamp":   block.Timestamp(),
+				}).Debug(err)
 			}
 		case <-ctx.Done():
 			return

@@ -35,11 +35,20 @@ type blockNode struct {
 	block *types.BPBlock
 }
 
-func newBlockNodeEx(b *types.BPBlock, p *blockNode) *blockNode {
+func newBlockNodeEx(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
 	return &blockNode{
-		hash:   b.SignedHeader.BlockHash,
 		parent: p,
-		block:  b,
+
+		count: func() uint32 {
+			if p != nil {
+				return p.count + 1
+			}
+			return 0
+		}(),
+		height: h,
+
+		hash:  b.SignedHeader.BlockHash,
+		block: b,
 	}
 }
 
@@ -55,7 +64,7 @@ func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BP
 	} else {
 		count = 0
 	}
-	bn := &blockNode{
+	n := &blockNode{
 		hash:   *block.BlockHash(),
 		parent: parent,
 		height: h,
@@ -63,34 +72,23 @@ func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BP
 		block:  block,
 	}
 
-	return bn
+	return n
 }
 
-func (bn *blockNode) indexKey() (key []byte) {
+func (n *blockNode) indexKey() (key []byte) {
 	key = make([]byte, hash.HashSize+4)
-	binary.BigEndian.PutUint32(key[0:4], bn.height)
-	copy(key[4:hash.HashSize], bn.hash[:])
+	binary.BigEndian.PutUint32(key[0:4], n.height)
+	copy(key[4:hash.HashSize], n.hash[:])
 	return
 }
 
-func (bn *blockNode) initBlockNode(block *types.BPBlock, parent *blockNode) {
-	bn.hash = block.SignedHeader.BlockHash
-	bn.parent = nil
-	bn.height = 0
-
-	if parent != nil {
-		bn.parent = parent
-		bn.height = parent.height + 1
-	}
-}
-
-// blockNodeListFrom return the block node list (forkPoint, bn].
-func (bn *blockNode) blockNodeListFrom(forkPoint uint32) (bl []*blockNode) {
-	if bn.count <= forkPoint {
+// fetchNodeList returns the block node list within range (from, n.count] from node head n.
+func (n *blockNode) fetchNodeList(from uint32) (bl []*blockNode) {
+	if n.count <= from {
 		return
 	}
-	bl = make([]*blockNode, bn.count-forkPoint)
-	var iter = bn
+	bl = make([]*blockNode, n.count-from)
+	var iter = n
 	for i := len(bl) - 1; i >= 0; i-- {
 		bl[i] = iter
 		iter = iter.parent
@@ -98,47 +96,53 @@ func (bn *blockNode) blockNodeListFrom(forkPoint uint32) (bl []*blockNode) {
 	return
 }
 
-func (bn *blockNode) ancestor(h uint32) *blockNode {
-	if h > bn.height {
+func (n *blockNode) ancestor(h uint32) *blockNode {
+	if h > n.height {
 		return nil
 	}
 
-	ancestor := bn
+	ancestor := n
 	for ancestor != nil && ancestor.height != h {
 		ancestor = ancestor.parent
 	}
 	return ancestor
 }
 
-func (bn *blockNode) ancestorByCount(c uint32) *blockNode {
-	if c > bn.count {
+func (n *blockNode) ancestorByCount(c uint32) *blockNode {
+	if c > n.count {
 		return nil
 	}
 
-	ancestor := bn
+	ancestor := n
 	for ancestor != nil && ancestor.count != c {
 		ancestor = ancestor.parent
 	}
 	return ancestor
 }
 
-func (bn *blockNode) lastIrreversible(comfirm uint32) (irr *blockNode) {
+// lastIrreversible returns the last irreversible block node with the given confirmations
+// from head n. Especially, the block at count 0, also known as the genesis block,
+// is irreversible.
+func (n *blockNode) lastIrreversible(confirm uint32) (irr *blockNode) {
 	var count uint32
-	if bn.count > comfirm {
-		count = bn.count - comfirm
+	if n.count > confirm {
+		count = n.count - confirm
 	}
-	for irr = bn; irr.count > count; irr = irr.parent {
+	for irr = n; irr.count > count; irr = irr.parent {
 	}
 	return
 }
 
-func (bn *blockNode) hasAncestor(anc *blockNode) bool {
-	return bn.ancestorByCount(anc.count).hash == anc.hash
+func (n *blockNode) hasAncestor(anc *blockNode) bool {
+	var match = n.ancestorByCount(anc.count)
+	return match != nil && match.hash == anc.hash
 }
 
-func (bn *blockNode) findNodeAfterCount(hash hash.Hash, min uint32) (match *blockNode, ok bool) {
-	for match = bn; match.count >= min; match = match.parent {
-		if match.hash.IsEqual(&hash) {
+func (n *blockNode) canForkFrom(
+	parent hash.Hash, lastIrreCount uint32) (match *blockNode, ok bool,
+) {
+	for match = n; match.count >= lastIrreCount; match = match.parent {
+		if match.hash.IsEqual(&parent) {
 			ok = true
 			return
 		}

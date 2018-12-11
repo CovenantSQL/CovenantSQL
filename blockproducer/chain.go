@@ -54,98 +54,129 @@ var (
 
 // Chain defines the main chain.
 type Chain struct {
-	rt *rt
-	st xi.Storage
-	cl *rpc.Caller
-	bs chainbus.Bus
+	ctx context.Context
+	rt  *rt
+	st  xi.Storage
+	cl  *rpc.Caller
+	bs  chainbus.Bus
 
-	blocksFromRPC chan *types.BPBlock
+	pendingBlocks chan *types.BPBlock
 	pendingTxs    chan pi.Transaction
-	ctx           context.Context
 }
 
 // NewChain creates a new blockchain.
-func NewChain(cfg *Config) (*Chain, error) {
+func NewChain(cfg *Config) (c *Chain, err error) {
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
 		return LoadChain(cfg)
 	}
 
-	// get accountAddress
-	pubKey, err := kms.GetLocalPublicKey()
-	if err != nil {
-		return nil, err
+	var (
+		bus    = chainbus.New()
+		caller = rpc.NewCaller()
+		ctx    = context.Background()
+		pubKey *asymmetric.PublicKey
+		st     xi.Storage
+		addr   proto.AccountAddress
+		inst   *Chain
+	)
+
+	// Open storage
+	if st, err = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); err != nil {
+		return
 	}
-	accountAddress, err := crypto.PubKeyHash(pubKey)
-	if err != nil {
-		return nil, err
+
+	// get accountAddress
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
+		return
 	}
 
 	// create chain
-	var (
-		bus    = chainbus.New()
-		caller = rpc.NewCaller()
-		ctx    = context.Background()
-	)
+	inst = &Chain{
+		ctx: ctx,
+		rt:  newRuntime(ctx, cfg, addr),
+		st:  st,
+		cl:  caller,
+		bs:  bus,
 
-	chain := &Chain{
-		rt:            newRuntime(ctx, cfg, accountAddress),
-		cl:            caller,
-		bs:            bus,
-		blocksFromRPC: make(chan *types.BPBlock),
+		pendingBlocks: make(chan *types.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
-		ctx:           ctx,
 	}
 
-	// sub chain events
-	chain.bs.Subscribe(txEvent, chain.addTx)
-
-	log.WithField("genesis", cfg.Genesis).Debug("pushing genesis block")
-
-	if err = chain.pushGenesisBlock(cfg.Genesis); err != nil {
-		return nil, err
+	// Push genesis block
+	if err = inst.pushGenesisBlock(cfg.Genesis); err != nil {
+		return
 	}
 
 	log.WithFields(log.Fields{
-		"index":     chain.rt.index,
-		"bp_number": chain.rt.bpNum,
-		"period":    chain.rt.period.String(),
-		"tick":      chain.rt.tick.String(),
-		"height":    chain.rt.currentBranch().head.height,
+		"index":     inst.rt.locSvIndex,
+		"bp_number": inst.rt.serversNum,
+		"period":    inst.rt.period.String(),
+		"tick":      inst.rt.tick.String(),
+		"height":    inst.rt.head().height,
 	}).Debug("current chain state")
 
-	return chain, nil
+	// sub chain events
+	inst.bs.Subscribe(txEvent, inst.addTx)
+
+	c = inst
+	return
 }
 
 // LoadChain rebuilds the chain from db.
-func LoadChain(cfg *Config) (chain *Chain, err error) {
-	// get accountAddress
-	pubKey, err := kms.GetLocalPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	accountAddress, err = crypto.PubKeyHash(pubKey)
-	if err != nil {
-		return nil, err
-	}
-
+func LoadChain(cfg *Config) (c *Chain, err error) {
 	var (
 		bus    = chainbus.New()
 		caller = rpc.NewCaller()
 		ctx    = context.Background()
+		pubKey *asymmetric.PublicKey
+		st     xi.Storage
+		addr   proto.AccountAddress
+		inst   *Chain
 	)
 
-	chain = &Chain{
-		rt:            newRuntime(ctx, cfg, accountAddress),
-		cl:            caller,
-		bs:            bus,
-		blocksFromRPC: make(chan *types.BPBlock),
-		pendingTxs:    make(chan pi.Transaction),
-		ctx:           ctx,
+	// Open storage
+	if st, err = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); err != nil {
+		return
 	}
 
-	chain.bs.Subscribe(txEvent, chain.addTx)
+	// get accountAddress
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
+		return
+	}
 
-	return chain, nil
+	// create chain
+	inst = &Chain{
+		ctx: ctx,
+		rt:  newRuntime(ctx, cfg, addr),
+		st:  st,
+		cl:  caller,
+		bs:  bus,
+
+		pendingBlocks: make(chan *types.BPBlock),
+		pendingTxs:    make(chan pi.Transaction),
+	}
+
+	// Load chain state from database
+
+	log.WithFields(log.Fields{
+		"index":     inst.rt.locSvIndex,
+		"bp_number": inst.rt.serversNum,
+		"period":    inst.rt.period.String(),
+		"tick":      inst.rt.tick.String(),
+		"height":    inst.rt.head().height,
+	}).Debug("current chain state")
+
+	// sub chain events
+	inst.bs.Subscribe(txEvent, inst.addTx)
+
+	c = inst
+	return
 }
 
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
@@ -206,7 +237,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
-	if b, err = c.rt.produceBlock(c.st, priv); err != nil {
+	if b, err = c.rt.produceBlock(c.st, now, priv); err != nil {
 		return
 	}
 	log.WithField("block", b).Debug("produced new block")
@@ -230,7 +261,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 						ctx, id, route.MCCAdviseNewBlock.String(), blockReq, blockResp,
 					); err != nil {
 						log.WithFields(log.Fields{
-							"peer":       c.rt.getPeerInfoString(),
+							"peer":       c.rt.peerInfo(),
 							"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
 							"block_hash": b.BlockHash(),
 						}).WithError(err).Error("failed to advise new block")
@@ -331,7 +362,7 @@ func (c *Chain) fetchBlock(h hash.Hash) (b *types.BPBlock, err error) {
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, err error) {
-	var node = c.rt.currentBranch().head.ancestor(h)
+	var node = c.rt.head().ancestor(h)
 	if node == nil {
 		err = ErrNoSuchBlock
 		return
@@ -349,7 +380,7 @@ func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, er
 }
 
 func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32, err error) {
-	var node = c.rt.currentBranch().head.ancestorByCount(count)
+	var node = c.rt.head().ancestorByCount(count)
 	if node == nil {
 		err = ErrNoSuchBlock
 		return
@@ -370,8 +401,8 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 func (c *Chain) runCurrentTurn(now time.Time) {
 	log.WithFields(log.Fields{
 		"next_turn":  c.rt.getNextTurn(),
-		"bp_number":  c.rt.bpNum,
-		"node_index": c.rt.index,
+		"bp_number":  c.rt.serversNum,
+		"node_index": c.rt.locSvIndex,
 	}).Info("check turns")
 	defer c.rt.setNextTurn()
 
@@ -389,13 +420,13 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 // sync synchronizes blocks and queries from the other peers.
 func (c *Chain) sync() error {
 	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
+		"peer": c.rt.peerInfo(),
 	}).Debug("synchronizing chain state")
 
 	// sync executes firstly alone, so it's ok to sync without locking runtime
 	for {
 		now := c.rt.now()
-		height := c.rt.getHeightFromTime(now)
+		height := c.rt.height(now)
 
 		log.WithFields(log.Fields{
 			"height":   height,
@@ -439,7 +470,7 @@ func (c *Chain) Start() error {
 func (c *Chain) processBlocks(ctx context.Context) {
 	for {
 		select {
-		case block := <-c.blocksFromRPC:
+		case block := <-c.pendingBlocks:
 			err := c.pushBlock(block)
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -484,10 +515,10 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			c.syncHead()
 			if t, d := c.rt.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
-					"peer":        c.rt.getPeerInfoString(),
+					"peer":        c.rt.peerInfo(),
 					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.rt.currentBranch().head.height,
-					"head_block":  c.rt.currentBranch().head.hash.String(),
+					"head_height": c.rt.head().height,
+					"head_block":  c.rt.head().hash.String(),
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
 				}).Debug("Main cycle")
@@ -502,11 +533,11 @@ func (c *Chain) mainCycle(ctx context.Context) {
 func (c *Chain) syncHead() {
 	// Try to fetch if the the block of the current turn is not advised yet
 	log.WithFields(log.Fields{
-		"index":     c.rt.index,
+		"index":     c.rt.locSvIndex,
 		"next_turn": c.rt.getNextTurn(),
-		"height":    c.rt.currentBranch().head.height,
+		"height":    c.rt.head().height,
 	}).Debug("sync header")
-	if h := c.rt.getNextTurn() - 1; c.rt.currentBranch().head.height < h {
+	if h := c.rt.getNextTurn() - 1; c.rt.head().height < h {
 		log.Debugf("sync header with height %d", h)
 		var err error
 		req := &FetchBlockReq{
@@ -524,20 +555,20 @@ func (c *Chain) syncHead() {
 				err = c.cl.CallNode(s, route.MCCFetchBlock.String(), req, resp)
 				if err != nil || resp.Block == nil {
 					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
+						"peer":        c.rt.peerInfo(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
 						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.currentBranch().head.height,
-						"head_block":  c.rt.currentBranch().head.hash.String(),
+						"head_height": c.rt.head().height,
+						"head_block":  c.rt.head().hash.String(),
 					}).WithError(err).Debug("Failed to fetch block from peer")
 				} else {
-					c.blocksFromRPC <- resp.Block
+					c.pendingBlocks <- resp.Block
 					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
+						"peer":        c.rt.peerInfo(),
 						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
 						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.currentBranch().head.height,
-						"head_block":  c.rt.currentBranch().head.hash.String(),
+						"head_height": c.rt.head().height,
+						"head_block":  c.rt.head().hash.String(),
 					}).Debug("Fetch block from remote peer successfully")
 					succ = true
 					break
@@ -547,10 +578,10 @@ func (c *Chain) syncHead() {
 
 		if !succ {
 			log.WithFields(log.Fields{
-				"peer":        c.rt.getPeerInfoString(),
+				"peer":        c.rt.peerInfo(),
 				"curr_turn":   c.rt.getNextTurn(),
-				"head_height": c.rt.currentBranch().head.height,
-				"head_block":  c.rt.currentBranch().head.hash.String(),
+				"head_height": c.rt.head().height,
+				"head_block":  c.rt.head().hash.String(),
 			}).Debug(
 				"Cannot get block from any peer")
 		}
@@ -560,8 +591,10 @@ func (c *Chain) syncHead() {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Stopping chain")
+	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Stopping chain")
 	c.rt.stop()
-	log.WithFields(log.Fields{"peer": c.rt.getPeerInfoString()}).Debug("Chain service stopped")
+	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain service stopped")
+	close(c.pendingBlocks)
+	close(c.pendingTxs)
 	return
 }

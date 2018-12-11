@@ -84,4 +84,6 @@ var (
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
+	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
+	ErrMultipleGenesis = errors.New("multiple genesis blocks")
 )

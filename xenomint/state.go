@@ -19,6 +19,7 @@ package xenomint
 import (
 	"database/sql"
 	"io"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -304,21 +305,26 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 	)
 	id = s.getID()
 	if atomic.LoadUint32(&s.hasSchemaChange) == 1 {
+		r1 := trace.StartRegion(req.Ctx, "readTxGetReaderunc")
 		// lock transaction
-		s.Lock()
-		defer s.Unlock()
-		s.setSavepoint()
+		//s.Lock()
+		//defer s.Unlock()
+		//s.setSavepoint()
 		querier = s.unc
-		defer s.rollbackTo(id)
+		//defer s.rollbackTo(id)
+		r1.End()
 	} else {
+		r1 := trace.StartRegion(req.Ctx, "readTxGetReaderdirty")
 		if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
 			err = errors.Wrap(ierr, "open tx failed")
 			return
 		}
 		querier = tx
 		defer tx.Rollback()
+		r1.End()
 	}
 
+	r2 := trace.StartRegion(req.Ctx, "readTxreadSingle")
 	for i, v := range req.Payload.Queries {
 		once.Do(func() {
 			if cnames, ctypes, data, ierr = readSingle(querier, &v); ierr != nil {
@@ -329,6 +335,9 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 			}
 		})
 	}
+	r2.End()
+
+	r3 := trace.StartRegion(req.Ctx, "readTxBuildResp")
 	// Build query response
 	ref = &QueryTracker{Req: req}
 	resp = &types.Response{
@@ -347,6 +356,7 @@ func (s *State) readTx(req *types.Request) (ref *QueryTracker, resp *types.Respo
 			Rows:      buildRowsFromNativeData(data),
 		},
 	}
+	r3.End()
 	return
 }
 
@@ -694,6 +704,7 @@ func (s *State) getLocalTime() time.Time {
 func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
 	switch req.Header.QueryType {
 	case types.ReadQuery:
+		defer trace.StartRegion(req.Ctx, "readTXall").End()
 		return s.readTx(req)
 	case types.WriteQuery:
 		return s.write(req)

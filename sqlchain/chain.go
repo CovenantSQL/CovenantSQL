@@ -1392,16 +1392,24 @@ func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 	defer trace.StartRegion(req.Ctx, "QueryMain").End()
 
 	var ref *x.QueryTracker
+	r1 := trace.StartRegion(req.Ctx, "QueryQuery")
 	if ref, resp, err = c.st.Query(req); err != nil {
 		return
 	}
+	r1.End()
+	r2 := trace.StartRegion(req.Ctx, "QuerySign")
 	if err = resp.Sign(c.pk); err != nil {
 		return
 	}
+	r2.End()
+	r3 := trace.StartRegion(req.Ctx, "QueryaddResponse")
 	if err = c.addResponse(&resp.Header); err != nil {
 		return
 	}
+	r3.End()
+	r4 := trace.StartRegion(req.Ctx, "QueryUpdateResp")
 	ref.UpdateResp(resp)
+	r4.End()
 	return
 }
 

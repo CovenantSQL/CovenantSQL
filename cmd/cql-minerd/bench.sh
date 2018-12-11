@@ -1,5 +1,6 @@
 #!/bin/bash
 
+../../cleanupDB.sh && \ 
 ../../build.sh && \
 go test -bench=^BenchmarkSQLite$ -benchtime=10s -run ^$ && \
 go test -bench=^BenchmarkMinerOne$ -benchtime=10s -run ^$ && \

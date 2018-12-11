@@ -582,7 +582,12 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		return
 	}
 	// Send to pending list
-	c.blocks <- block
+	select {
+	case c.blocks <- block:
+	case <-c.rt.ctx.Done():
+		err = c.rt.ctx.Err()
+		return
+	}
 	log.WithFields(log.Fields{
 		"peer":            c.rt.getPeerInfoString(),
 		"time":            c.rt.getChainTimeString(),
@@ -672,7 +677,12 @@ func (c *Chain) syncHead() {
 						"Failed to fetch block from peer")
 				} else {
 					statBlock(resp.Block)
-					c.blocks <- resp.Block
+					select {
+					case c.blocks <- resp.Block:
+					case <-c.rt.ctx.Done():
+						err = c.rt.ctx.Err()
+						return
+					}
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"time":        c.rt.getChainTimeString(),

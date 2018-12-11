@@ -5,6 +5,8 @@ PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
 ListenAddr: "10.250.100.5:4661"
 ThisNodeID: "00eda359cd2aa0920cdd37b083b896cb18cd26b3bd51744d1b4f127830f820f2"
+QPS: 1000
+Period: 3600
 ValidDNSKeys:
   oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com

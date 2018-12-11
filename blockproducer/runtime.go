@@ -297,7 +297,7 @@ func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAd
 		t        float64
 		m        float64
 	)
-	if t = cfg.ComfirmThreshold; t <= 0.0 {
+	if t = cfg.ConfirmThreshold; t <= 0.0 {
 		t = float64(2) / 3.0
 	}
 	if m = math.Ceil(l*t + 1); m > l {

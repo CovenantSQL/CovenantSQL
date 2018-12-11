@@ -28,11 +28,12 @@ import (
 
 // ProvideServiceHeader define the miner providing service transaction header.
 type ProvideServiceHeader struct {
-	Contract      proto.AccountAddress
 	Space         uint64 // reserved storage space in bytes
 	Memory        uint64 // reserved memory in bytes
 	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
 	TargetUser    proto.AccountAddress
+	GasPrice uint64
+	TokenType TokenType
 	Nonce         interfaces.AccountNonce
 }
 

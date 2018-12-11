@@ -75,31 +75,41 @@ func (z *MinerInfo) Msgsize() (s int) {
 func (z *ProviderProfile) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	// map header, size 8
+	o = append(o, 0x88, 0x88)
+	if oTemp, err := z.TokenType.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x88)
 	if oTemp, err := z.Provider.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x88)
 	if oTemp, err := z.TargetUser.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
-	o = hsp.AppendUint64(o, z.Space)
-	o = append(o, 0x85)
+	o = append(o, 0x88)
 	o = hsp.AppendUint64(o, z.Memory)
-	o = append(o, 0x85)
+	o = append(o, 0x88)
 	o = hsp.AppendUint64(o, z.LoadAvgPerCPU)
+	o = append(o, 0x88)
+	o = hsp.AppendUint64(o, z.Deposit)
+	o = append(o, 0x88)
+	o = hsp.AppendUint64(o, z.GasPrice)
+	o = append(o, 0x88)
+	o = hsp.AppendUint64(o, z.Space)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ProviderProfile) Msgsize() (s int) {
-	s = 1 + 9 + z.Provider.Msgsize() + 11 + z.TargetUser.Msgsize() + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
+	s = 1 + 10 + z.TokenType.Msgsize() + 9 + z.Provider.Msgsize() + 11 + z.TargetUser.Msgsize() + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size + 8 + hsp.Uint64Size + 9 + hsp.Uint64Size + 6 + hsp.Uint64Size
 	return
 }
 
@@ -237,13 +247,13 @@ func (z *SQLChainUser) MarshalHash() (o []byte, err error) {
 	o = append(o, 0x86)
 	o = hsp.AppendUint64(o, z.Arrears)
 	o = append(o, 0x86)
-	o = hsp.AppendUint64(o, z.Pledge)
+	o = hsp.AppendUint64(o, z.Deposit)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SQLChainUser) Msgsize() (s int) {
-	s = 1 + 7 + hsp.Int32Size + 11 + hsp.Int32Size + 8 + z.Address.Msgsize() + 15 + hsp.Uint64Size + 8 + hsp.Uint64Size + 7 + hsp.Uint64Size
+	s = 1 + 7 + hsp.Int32Size + 11 + hsp.Int32Size + 8 + z.Address.Msgsize() + 15 + hsp.Uint64Size + 8 + hsp.Uint64Size + 8 + hsp.Uint64Size
 	return
 }
 

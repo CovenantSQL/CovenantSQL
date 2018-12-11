@@ -367,16 +367,16 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 }
 
 func (c *Chain) fetchLastBlock() (b *types.BPBlock, count uint32, height uint32, err error) {
-	 var node = c.rt.currentBranch().head
-	 if node == nil {
-	 	err = ErrNoSuchBlock
-	 	return
-	 } else if node.block != nil {
-	 	b = node.block
-	 	height = node.height
-	 	count = node.count
-	 	return
-	 }
+	var node = c.rt.currentBranch().head
+	if node == nil {
+		err = ErrNoSuchBlock
+		return
+	} else if node.block != nil {
+		b = node.block
+		height = node.height
+		count = node.count
+		return
+	}
 	// Not cached, read from database
 	if b, err = c.fetchBlock(node.hash); err != nil {
 		return

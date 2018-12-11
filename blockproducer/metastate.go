@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"bytes"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"sync"
 	"time"
 
@@ -817,16 +818,23 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		err = errors.Wrap(err, "updateProviderList failed")
 		return
 	}
-	if sender != tx.Contract {
-		err = errors.Wrap(ErrInvalidSender, "updateProviderList failed")
+
+	// deposit
+	var (
+		balance uint64 = 10
+	)
+	if err = s.decreaseAccountStableBalance(sender, balance); err != nil {
 		return
 	}
+
 	pp := pt.ProviderProfile{
 		Provider:      sender,
 		Space:         tx.Space,
 		Memory:        tx.Memory,
 		LoadAvgPerCPU: tx.LoadAvgPerCPU,
 		TargetUser:    tx.TargetUser,
+		Deposit: balance,
+		GasPrice: tx.GasPrice,
 	}
 	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
 	return
@@ -843,6 +851,16 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 			sender.String(), tx.Owner.String())
 		return
 	}
+
+	var (
+		minAdvancePayment = uint64(tx.GasPrice) * uint64(conf.GConf.QPS) *
+			uint64(conf.GConf.Period) * uint64(len(tx.ResourceMeta.TargetMiners))
+	)
+	if tx.AdvancePayment < minAdvancePayment {
+		err = ErrInsufficientAdvancePayment
+		return
+	}
+
 	for i := range tx.ResourceMeta.TargetMiners {
 		if po, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
 			log.WithFields(log.Fields{
@@ -858,6 +876,10 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 					"user_addr":  sender.String(),
 				}).Error(ErrMinerUserNotMatch)
 				err = ErrMinerUserNotMatch
+				break
+			}
+			if po.GasPrice > tx.GasPrice {
+				err = ErrGasPriceMismatch
 				break
 			}
 		}
@@ -878,6 +900,8 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	users[0] = &pt.SQLChainUser{
 		Address:    sender,
 		Permission: pt.Admin,
+		Deposit: minAdvancePayment,
+		AdvancePayment: tx.AdvancePayment,
 	}
 	// generate genesis block
 	gb, err := s.generateGenesisBlock(*dbID, tx.ResourceMeta)

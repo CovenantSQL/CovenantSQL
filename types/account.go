@@ -71,7 +71,7 @@ type SQLChainUser struct {
 	Permission     UserPermission
 	AdvancePayment uint64
 	Arrears        uint64
-	Pledge         uint64
+	Deposit         uint64
 	Status         Status
 }
 
@@ -111,6 +111,9 @@ type ProviderProfile struct {
 	Memory        uint64 // reserved memory in bytes
 	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
 	TargetUser    proto.AccountAddress
+	Deposit uint64 // default 10 Particle
+	GasPrice uint64
+	TokenType TokenType // default Particle
 }
 
 // Account store its balance, and other mate data.

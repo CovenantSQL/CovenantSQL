@@ -30,6 +30,9 @@ import (
 type CreateDatabaseHeader struct {
 	Owner        proto.AccountAddress
 	ResourceMeta ResourceMeta
+	GasPrice uint64
+	AdvancePayment uint64
+	TokenType TokenType
 	Nonce        pi.AccountNonce
 }
 

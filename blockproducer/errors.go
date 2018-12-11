@@ -84,4 +84,8 @@ var (
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
+	// ErrGasPriceMismatch indicates that the gas price of miner and user do not match.
+	ErrGasPriceMismatch = errors.New("gas price mismatches")
+	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
+	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
 )

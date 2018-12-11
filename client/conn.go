@@ -348,7 +348,6 @@ func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affe
 		return
 	}
 
-	c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 	var response types.Response
 	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return

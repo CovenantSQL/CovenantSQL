@@ -66,17 +66,6 @@ type FetchBlockResp struct {
 	Block  *types.Block
 }
 
-// FetchAckedQueryReq defines a request of the FetchAckedQuery RPC method.
-type FetchAckedQueryReq struct {
-	Height          int32
-	SignedAckedHash *hash.Hash
-}
-
-// FetchAckedQueryResp defines a request of the FetchAckedQuery RPC method.
-type FetchAckedQueryResp struct {
-	Ack *types.SignedAckHeader
-}
-
 // SignBillingReq defines a request of the SignBilling RPC method.
 type SignBillingReq struct {
 	types.BillingRequest
@@ -139,13 +128,6 @@ func (s *ChainRPCService) AdviseAckedQuery(
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
 	resp.Height = req.Height
 	resp.Block, err = s.chain.FetchBlock(req.Height)
-	return
-}
-
-// FetchAckedQuery is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchAckedQuery(req *FetchAckedQueryReq, resp *FetchAckedQueryResp,
-) (err error) {
-	resp.Ack, err = s.chain.FetchAckedQuery(req.Height, req.SignedAckedHash)
 	return
 }
 

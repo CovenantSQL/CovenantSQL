@@ -31,6 +31,15 @@ type blockNode struct {
 	parent *blockNode
 	height uint32
 	count  uint32
+	block  *types.BPBlock
+}
+
+func newBlockNodeEx(b *types.BPBlock, p *blockNode) *blockNode {
+	return &blockNode{
+		hash:   b.SignedHeader.BlockHash,
+		parent: p,
+		block:  b,
+	}
 }
 
 func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BPBlock, parent *blockNode) *blockNode {
@@ -50,6 +59,7 @@ func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BP
 		parent: parent,
 		height: h,
 		count:  count,
+		block:  block,
 	}
 
 	return bn
@@ -71,6 +81,20 @@ func (bn *blockNode) initBlockNode(block *types.BPBlock, parent *blockNode) {
 		bn.parent = parent
 		bn.height = parent.height + 1
 	}
+}
+
+// blockNodeListFrom return the block node list (forkPoint, bn].
+func (bn *blockNode) blockNodeListFrom(forkPoint uint32) (bl []*blockNode) {
+	if bn.count <= forkPoint {
+		return
+	}
+	bl = make([]*blockNode, bn.count-forkPoint)
+	var iter = bn
+	for i := len(bl) - 1; i >= 0; i-- {
+		bl[i] = iter
+		iter = iter.parent
+	}
+	return
 }
 
 func (bn *blockNode) ancestor(h uint32) *blockNode {
@@ -95,6 +119,31 @@ func (bn *blockNode) ancestorByCount(c uint32) *blockNode {
 		ancestor = ancestor.parent
 	}
 	return ancestor
+}
+
+func (bn *blockNode) lastIrreversible(comfirm uint32) (irr *blockNode) {
+	var count uint32
+	if bn.count > comfirm {
+		count = bn.count - comfirm
+	}
+	for irr = bn; irr.count > count; irr = irr.parent {
+	}
+	return
+}
+
+func (bn *blockNode) hasAncestor(anc *blockNode) bool {
+	return bn.ancestorByCount(anc.count).hash == anc.hash
+}
+
+func (bn *blockNode) findNodeAfterCount(hash hash.Hash, min uint32) (match *blockNode, ok bool) {
+	for match = bn; match.count >= min; match = match.parent {
+		if match.hash.IsEqual(&hash) {
+			ok = true
+			return
+		}
+	}
+	match = nil
+	return
 }
 
 type blockIndex struct {

@@ -21,12 +21,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	rt "runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -44,7 +45,7 @@ import (
 )
 
 const (
-	minBlockCacheTTL = int32(100)
+	minBlockCacheTTL = int32(30)
 )
 
 var (
@@ -54,11 +55,21 @@ var (
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
 	metaAckIndex      = [4]byte{'Q', 'A', 'C', 'K'}
 	leveldbConf       = opt.Options{}
+
+	// Atomic counters for stats
+	cachedBlockCount int32
 )
 
 func init() {
 	leveldbConf.BlockSize = 4 * 1024 * 1024
 	leveldbConf.Compression = opt.SnappyCompression
+}
+
+func statBlock(b *types.Block) {
+	atomic.AddInt32(&cachedBlockCount, 1)
+	rt.SetFinalizer(b, func(_ *types.Block) {
+		atomic.AddInt32(&cachedBlockCount, -1)
+	})
 }
 
 // heightToKey converts a height in int32 to a key in bytes.
@@ -96,7 +107,6 @@ type Chain struct {
 	// tdb stores ack/request/response
 	tdb *leveldb.DB
 	bi  *blockIndex
-	qi  *queryIndex // TODO(leventeliu): remove query index.
 	ai  *ackIndex
 	st  *x.State
 	cl  *rpc.Caller
@@ -187,8 +197,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 	chain = &Chain{
 		bdb:          bdb,
 		tdb:          tdb,
-		bi:           newBlockIndex(c),
-		qi:           newQueryIndex(),
+		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
 		st:           state,
 		cl:           rpc.NewCaller(),
@@ -258,8 +267,7 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 	chain = &Chain{
 		bdb:          bdb,
 		tdb:          tdb,
-		bi:           newBlockIndex(c),
-		qi:           newQueryIndex(),
+		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
 		st:           xstate,
 		cl:           rpc.NewCaller(),
@@ -380,11 +388,6 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 			"height": h,
 			"header": resp.Hash().String(),
 		}).Debug("Loaded new resp header")
-		err = chain.qi.addResponse(h, resp)
-		if err != nil {
-			err = errors.Wrapf(err, "load resp, height %d, hash %s", h, resp.Hash().String())
-			return
-		}
 	}
 	if err = respIter.Error(); err != nil {
 		err = errors.Wrap(err, "load resp")
@@ -406,11 +409,6 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 			"height": h,
 			"header": ack.Hash().String(),
 		}).Debug("Loaded new ack header")
-		err = chain.qi.addAck(h, ack)
-		if err != nil {
-			err = errors.Wrapf(err, "load ack, height %d, hash %s", h, ack.Hash().String())
-			return
-		}
 	}
 	if err = respIter.Error(); err != nil {
 		err = errors.Wrap(err, "load ack")
@@ -460,7 +458,6 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 	}
 	c.rt.setHead(st)
 	c.bi.addBlock(node)
-	c.qi.setSignedBlock(h, b)
 
 	// Keep track of the queries from the new block
 	var ierr error
@@ -525,11 +522,6 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 		return
 	}
 
-	if err = c.qi.addAck(h, ack); err != nil {
-		err = errors.Wrapf(err, "add ack %v at height %d", ack.Hash(), h)
-		return
-	}
-
 	if err = c.register(ack); err != nil {
 		err = errors.Wrapf(err, "register ack %v at height %d", ack.Hash(), h)
 		return
@@ -562,6 +554,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		QueryTxs:   make([]*types.QueryAsTx, len(qts)),
 		Acks:       c.ai.acks(c.rt.getHeightFromTime(now)),
 	}
+	statBlock(block)
 	for i, v := range qts {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
 		for !v.Ready() {
@@ -667,6 +660,7 @@ func (c *Chain) syncHead() {
 					}).WithError(err).Debug(
 						"Failed to fetch block from peer")
 				} else {
+					statBlock(resp.Block)
 					c.blocks <- resp.Block
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
@@ -699,9 +693,9 @@ func (c *Chain) syncHead() {
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
 	defer func() {
+		c.stat()
 		c.pruneBlockCache()
 		c.rt.setNextTurn()
-		c.qi.advanceBarrier(c.rt.getMinValidHeight())
 		c.ai.advance(c.rt.getMinValidHeight())
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
@@ -968,6 +962,7 @@ func (c *Chain) FetchBlock(height int32) (b *types.Block, err error) {
 		}
 
 		b = &types.Block{}
+		statBlock(b)
 		err = utils.DecodeMsgPack(v, b)
 		if err != nil {
 			err = errors.Wrapf(err, "fetch block %s", string(k))
@@ -976,84 +971,6 @@ func (c *Chain) FetchBlock(height int32) (b *types.Block, err error) {
 	}
 
 	return
-}
-
-// FetchAckedQuery fetches the acknowledged query from local cache.
-func (c *Chain) FetchAckedQuery(height int32, header *hash.Hash) (
-	ack *types.SignedAckHeader, err error,
-) {
-	if ack, err = c.qi.getAck(height, header); err != nil || ack == nil {
-		for h := height - c.rt.queryTTL - 1; h <= height; h++ {
-			k := heightToKey(h)
-			ackKey := utils.ConcatAll(metaAckIndex[:], k, header[:])
-			var v []byte
-			if v, err = c.tdb.Get(ackKey, nil); err != nil {
-				// if err == leveldb.ErrNotFound, just loop for next h
-				if err != leveldb.ErrNotFound {
-					err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
-					return
-				}
-			} else {
-				var dec = &types.SignedAckHeader{}
-				if err = utils.DecodeMsgPack(v, dec); err != nil {
-					err = errors.Wrapf(err, "fetch ack in height %d hash %s", h, header.String())
-					return
-				}
-				ack = dec
-				break
-			}
-		}
-	}
-	if ack == nil {
-		err = errors.Wrapf(ErrAckQueryNotFound, "fetch ack not found")
-	}
-	return
-}
-
-// syncAckedQuery uses RPC call to synchronize an acknowledged query from a remote node.
-func (c *Chain) syncAckedQuery(height int32, header *hash.Hash, id proto.NodeID) (
-	ack *types.SignedAckHeader, err error,
-) {
-	req := &MuxFetchAckedQueryReq{
-		Envelope: proto.Envelope{
-			// TODO(leventeliu): Add fields.
-		},
-		DatabaseID: c.rt.databaseID,
-		FetchAckedQueryReq: FetchAckedQueryReq{
-			Height:          height,
-			SignedAckedHash: header,
-		},
-	}
-	resp := &MuxFetchAckedQueryResp{}
-
-	if err = c.cl.CallNode(id, route.SQLCFetchAckedQuery.String(), req, resp); err != nil {
-		log.WithFields(log.Fields{
-			"peer": c.rt.getPeerInfoString(),
-			"time": c.rt.getChainTimeString(),
-		}).WithError(err).Error(
-			"Failed to fetch acked query")
-		return
-	}
-
-	if err = c.VerifyAndPushAckedQuery(resp.Ack); err != nil {
-		return
-	}
-
-	ack = resp.Ack
-	return
-}
-
-// queryOrSyncAckedQuery tries to query an acknowledged query from local index, and also tries to
-// synchronize it from a remote node if not found locally.
-func (c *Chain) queryOrSyncAckedQuery(height int32, header *hash.Hash, id proto.NodeID) (
-	ack *types.SignedAckHeader, err error,
-) {
-	if ack, err = c.FetchAckedQuery(
-		height, header,
-	); (err == nil && ack != nil) || id == c.rt.getServer() {
-		return
-	}
-	return c.syncAckedQuery(height, header, id)
 }
 
 // CheckAndPushNewBlock implements ChainRPCServer.CheckAndPushNewBlock.
@@ -1121,25 +1038,6 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	// 	...
 	// }
 
-	//// Check queries
-	//for _, q := range block.Queries {
-	//	var ok bool
-
-	//	if ok, err = c.qi.checkAckFromBlock(height, block.BlockHash(), q); err != nil {
-	//		return
-	//	}
-
-	//	if !ok {
-	//		if _, err = c.syncAckedQuery(height, q, block.Producer()); err != nil {
-	//			return
-	//		}
-
-	//		if _, err = c.qi.checkAckFromBlock(height, block.BlockHash(), q); err != nil {
-	//			return
-	//		}
-	//	}
-	//}
-
 	// Replicate local state from the new block
 	if err = c.st.ReplayBlock(block); err != nil {
 		return
@@ -1179,7 +1077,6 @@ func (c *Chain) getBilling(low, high int32) (req *types.BillingRequest, err erro
 	var (
 		n                   *blockNode
 		addr                proto.AccountAddress
-		ack                 *types.SignedAckHeader
 		lowBlock, highBlock *types.Block
 		billings            = make(map[proto.AccountAddress]*proto.AddrAndGas)
 	)
@@ -1219,22 +1116,17 @@ func (c *Chain) getBilling(low, high int32) (req *types.BillingRequest, err erro
 		}
 
 		for _, v := range n.block.Acks {
-			ackHash := v.Hash()
-			if ack, err = c.queryOrSyncAckedQuery(n.height, &ackHash, n.block.Producer()); err != nil {
-				return
-			}
-
-			if addr, err = crypto.PubKeyHash(ack.SignedResponseHeader().Signee); err != nil {
+			if addr, err = crypto.PubKeyHash(v.SignedResponseHeader().Signee); err != nil {
 				return
 			}
 
 			if billing, ok := billings[addr]; ok {
-				billing.GasAmount += c.rt.price[ack.SignedRequestHeader().QueryType] *
-					ack.SignedRequestHeader().BatchCount
+				billing.GasAmount += c.rt.price[v.SignedRequestHeader().QueryType] *
+					v.SignedRequestHeader().BatchCount
 			} else {
 				billings[addr] = &proto.AddrAndGas{
 					AccountAddress: addr,
-					RawNodeID:      *ack.SignedResponseHeader().NodeID.ToRawNodeID(),
+					RawNodeID:      *v.SignedResponseHeader().NodeID.ToRawNodeID(),
 					GasAmount:      c.rt.producingReward,
 				}
 			}
@@ -1548,4 +1440,23 @@ func (c *Chain) pruneBlockCache() {
 	for ; head != nil && head.block != nil; head = head.parent {
 		head.block = nil
 	}
+}
+
+func (c *Chain) stat() {
+	var (
+		ic = atomic.LoadInt32(&multiIndexCount)
+		rc = atomic.LoadInt32(&responseCount)
+		tc = atomic.LoadInt32(&ackTrackerCount)
+		bc = atomic.LoadInt32(&cachedBlockCount)
+	)
+	// Print chain stats
+	log.WithFields(log.Fields{
+		"database_id":           c.rt.databaseID,
+		"multiIndex_count":      ic,
+		"response_header_count": rc,
+		"query_tracker_count":   tc,
+		"cached_block_count":    bc,
+	}).Info("Chain mem stats")
+	// Print xeno stats
+	c.st.Stat(c.rt.databaseID)
 }

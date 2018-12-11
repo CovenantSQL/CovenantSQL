@@ -36,8 +36,9 @@ type Config struct {
 
 	Server *rpc.Server
 
-	Peers  *proto.Peers
-	NodeID proto.NodeID
+	Peers            *proto.Peers
+	NodeID           proto.NodeID
+	ComfirmThreshold float64
 
 	Period time.Duration
 	Tick   time.Duration

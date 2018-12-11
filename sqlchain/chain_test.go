@@ -308,8 +308,10 @@ func TestMultiChain(t *testing.T) {
 						i, c.rt.getPeerInfoString())
 					continue
 				}
-				t.Logf("Checking block %v at height %d in peer %s",
-					node.block.BlockHash(), i, c.rt.getPeerInfoString())
+				if node.block != nil {
+					t.Logf("Checking block %v at height %d in peer %s",
+						node.block.BlockHash(), i, c.rt.getPeerInfoString())
+				}
 			}
 		}(v.chain)
 	}

@@ -85,7 +85,7 @@ func (s *ChainRPCService) FetchTxBilling(req *types.FetchTxBillingReq, resp *typ
 func (s *ChainRPCService) NextAccountNonce(
 	req *types.NextAccountNonceReq, resp *types.NextAccountNonceResp) (err error,
 ) {
-	if resp.Nonce, err = s.chain.ms.nextNonce(req.Addr); err != nil {
+	if resp.Nonce, err = s.chain.rt.nextNonce(req.Addr); err != nil {
 		return
 	}
 	resp.Addr = req.Addr
@@ -108,7 +108,7 @@ func (s *ChainRPCService) QueryAccountStableBalance(
 	req *types.QueryAccountStableBalanceReq, resp *types.QueryAccountStableBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.ms.loadAccountStableBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.rt.loadAccountStableBalance(req.Addr)
 	return
 }
 
@@ -117,7 +117,7 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 	req *types.QueryAccountCovenantBalanceReq, resp *types.QueryAccountCovenantBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.rt.loadAccountCovenantBalance(req.Addr)
 	return
 }
 

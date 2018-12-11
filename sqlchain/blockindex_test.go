@@ -108,8 +108,7 @@ func TestInitBlockNode(t *testing.T) {
 }
 
 func TestAncestor(t *testing.T) {
-	cfg := &Config{}
-	index := newBlockIndex(cfg)
+	index := newBlockIndex()
 	parent := (*blockNode)(nil)
 
 	for h, b := range testBlocks {
@@ -142,8 +141,7 @@ func TestAncestor(t *testing.T) {
 }
 
 func TestIndex(t *testing.T) {
-	cfg := &Config{}
-	index := newBlockIndex(cfg)
+	index := newBlockIndex()
 	parent := (*blockNode)(nil)
 
 	for h, b := range testBlocks {

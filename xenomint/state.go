@@ -105,6 +105,8 @@ func (s *State) Close(commit bool) (err error) {
 	}
 	if s.unc != nil {
 		if commit {
+			s.Lock()
+			defer s.Unlock()
 			if err = s.uncCommit(); err != nil {
 				return
 			}
@@ -113,6 +115,8 @@ func (s *State) Close(commit bool) (err error) {
 			if err = s.rollback(); err != nil {
 				return
 			}
+			s.Lock()
+			defer s.Unlock()
 			if err = s.uncCommit(); err != nil {
 				return
 			}

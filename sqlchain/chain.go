@@ -547,7 +547,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		frs []*types.Request
 		qts []*x.QueryTracker
 	)
-	if frs, qts, err = c.st.CommitExWithContext(c.rt.ctx); err != nil {
+	if frs, qts, err = c.st.CommitEx(); err != nil {
 		return
 	}
 	var block = &types.Block{

@@ -97,6 +97,24 @@ func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
 	})
 }
 
+func (r *rt) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+	return r.current.preview.nextNonce(addr)
+}
+
+func (r *rt) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+	return r.immutable.loadAccountCovenantBalance(addr)
+}
+
+func (r *rt) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+	return r.immutable.loadAccountStableBalance(addr)
+}
+
 func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *branch) (err error) {
 	var (
 		irre     *blockNode

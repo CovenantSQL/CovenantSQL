@@ -55,16 +55,14 @@ var (
 
 // Chain defines the main chain.
 type Chain struct {
-	ms *metaState
 	rt *rt
+	st xi.Storage
 	cl *rpc.Caller
 	bs chainbus.Bus
 
 	blocksFromRPC chan *types.BPBlock
 	pendingTxs    chan pi.Transaction
 	ctx           context.Context
-
-	st xi.Storage
 }
 
 // NewChain creates a new blockchain.
@@ -91,7 +89,6 @@ func NewChain(cfg *Config) (*Chain, error) {
 	)
 
 	chain := &Chain{
-		ms:            newMetaState(),
 		rt:            newRuntime(ctx, cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
@@ -139,7 +136,6 @@ func LoadChain(cfg *Config) (chain *Chain, err error) {
 	)
 
 	chain = &Chain{
-		ms:            newMetaState(),
 		rt:            newRuntime(ctx, cfg, accountAddress),
 		cl:            caller,
 		bs:            bus,
@@ -288,7 +284,7 @@ func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingReques
 	// generate and push the txbilling
 	// 1. generate txbilling
 	var nc pi.AccountNonce
-	if nc, err = c.ms.nextNonce(accountAddress); err != nil {
+	if nc, err = c.rt.nextNonce(accountAddress); err != nil {
 		return
 	}
 	var (

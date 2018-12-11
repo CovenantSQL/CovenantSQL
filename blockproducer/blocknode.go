@@ -18,7 +18,6 @@ package blockproducer
 
 import (
 	"encoding/binary"
-	"sync"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -27,11 +26,13 @@ import (
 )
 
 type blockNode struct {
-	hash   hash.Hash
 	parent *blockNode
-	height uint32
+	// Extra fields
 	count  uint32
-	block  *types.BPBlock
+	height uint32
+	// Cached fields for quick reference
+	hash  hash.Hash
+	block *types.BPBlock
 }
 
 func newBlockNodeEx(b *types.BPBlock, p *blockNode) *blockNode {
@@ -144,39 +145,4 @@ func (bn *blockNode) findNodeAfterCount(hash hash.Hash, min uint32) (match *bloc
 	}
 	match = nil
 	return
-}
-
-type blockIndex struct {
-	mu    sync.RWMutex
-	index map[hash.Hash]*blockNode
-}
-
-func newBlockIndex() *blockIndex {
-	bi := &blockIndex{
-		index: make(map[hash.Hash]*blockNode),
-	}
-
-	return bi
-}
-
-func (bi *blockIndex) addBlock(b *blockNode) {
-	bi.mu.Lock()
-	defer bi.mu.Unlock()
-
-	bi.index[b.hash] = b
-}
-
-func (bi *blockIndex) hasBlock(h hash.Hash) bool {
-	bi.mu.RLock()
-	defer bi.mu.RUnlock()
-
-	_, has := bi.index[h]
-	return has
-}
-
-func (bi *blockIndex) lookupNode(h *hash.Hash) *blockNode {
-	bi.mu.RLock()
-	defer bi.mu.RUnlock()
-
-	return bi.index[*h]
 }

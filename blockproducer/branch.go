@@ -69,6 +69,7 @@ func fork(
 			}
 		}
 	}
+	inst.preview.commit()
 	return
 }
 
@@ -124,6 +125,7 @@ func (b *branch) applyBlock(bl *types.BPBlock) (br *branch, err error) {
 			return
 		}
 	}
+	cpy.preview.commit()
 	cpy.head = newBlockNodeEx(bl, cpy.head)
 	br = cpy
 	return
@@ -164,6 +166,7 @@ func (b *branch) produceBlock() (br *branch, bl *types.BPBlock, err error) {
 	}
 	// Create new block and update head
 	bl = newBlock(out)
+	cpy.preview.commit()
 	cpy.head = newBlockNodeEx(bl, cpy.head)
 	br = cpy
 	return

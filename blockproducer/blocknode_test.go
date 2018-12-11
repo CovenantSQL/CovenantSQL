@@ -18,7 +18,6 @@ package blockproducer
 
 import (
 	"encoding/binary"
-	"reflect"
 	"testing"
 	"time"
 
@@ -110,53 +109,5 @@ func TestAncestor(t *testing.T) {
 	bn = child.ancestor(0)
 	if bn == nil || bn.height != 0 {
 		t.Fatal("block node should not be nil and its height should be 0")
-	}
-}
-
-func TestIndexBlock(t *testing.T) {
-	chainInitTime := time.Now()
-	period := time.Second
-
-	bi := newBlockIndex()
-
-	if bi == nil {
-		t.Fatal("unexpected result: nil")
-	}
-
-	block0, err := generateRandomBlock(hash.Hash{}, true)
-	if err != nil {
-		t.Fatalf("Unexcepted error: %v", err)
-	}
-	bn0 := newBlockNode(chainInitTime, period, block0, nil)
-
-	time.Sleep(time.Second)
-
-	block1, err := generateRandomBlock(hash.Hash{}, true)
-	if err != nil {
-		t.Fatalf("Unexcepted error: %v", err)
-	}
-	bn1 := newBlockNode(chainInitTime, period, block1, bn0)
-
-	time.Sleep(time.Second)
-
-	block2, err := generateRandomBlock(hash.Hash{}, true)
-	if err != nil {
-		t.Fatalf("Unexcepted error: %v", err)
-	}
-	bn2 := newBlockNode(chainInitTime, period, block2, bn1)
-
-	bi.addBlock(bn0)
-	bi.addBlock(bn1)
-
-	if bi.hasBlock(bn2.hash) {
-		t.Fatalf("unexpected block index: %v", bn2)
-	}
-	if !bi.hasBlock(bn1.hash) {
-		t.Fatalf("lack of block index: %v", bn1)
-	}
-
-	bn3 := bi.lookupNode(&bn0.hash)
-	if !reflect.DeepEqual(bn0, bn3) {
-		t.Fatalf("two values should be equal: \n\tv0=%+v\n\tv1=%+v", bn0, bn3)
 	}
 }

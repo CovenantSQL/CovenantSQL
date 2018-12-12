@@ -99,9 +99,9 @@ func newRuntime(
 	}
 	for _, v := range heads {
 		log.WithFields(log.Fields{
-			"irre_hash":  irre.hash.String(),
+			"irre_hash":  irre.hash.Short(4),
 			"irre_count": irre.count,
-			"head_hash":  v.hash.String(),
+			"head_hash":  v.hash.Short(4),
 			"head_count": v.count,
 		}).Debug("Checking head")
 		if v.hasAncestor(irre) {

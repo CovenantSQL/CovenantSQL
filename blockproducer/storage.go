@@ -349,8 +349,8 @@ func loadBlocks(
 			return
 		}
 		log.WithFields(log.Fields{
-			"hash":   bh.String(),
-			"parent": ph.String(),
+			"hash":   bh.Short(4),
+			"parent": ph.Short(4),
 		}).Debug("Loaded new block")
 		// Add genesis block
 		if ph.IsEqual(&root) {
@@ -362,8 +362,8 @@ func loadBlocks(
 			index[bh] = bn
 			headsIndex[bh] = bn
 			log.WithFields(log.Fields{
-				"hash":   bh.String(),
-				"parent": ph.String(),
+				"hash":   bh.Short(4),
+				"parent": ph.Short(4),
 			}).Debug("Set genesis block")
 			continue
 		}

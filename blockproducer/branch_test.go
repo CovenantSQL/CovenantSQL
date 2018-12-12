@@ -15,20 +15,3 @@
  */
 
 package blockproducer
-
-import (
-	"testing"
-	"time"
-)
-
-var (
-	testPeersNumber                 = 1
-	testPeriod                      = 1 * time.Second
-	testTick                        = 100 * time.Millisecond
-	testPeriodNumber         uint32 = 10
-	testClientNumberPerChain        = 10
-)
-
-func TestChain(t *testing.T) {
-
-}

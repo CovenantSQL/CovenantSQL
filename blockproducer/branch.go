@@ -186,7 +186,7 @@ func (b *branch) produceBlock(
 	if err = block.PackAndSignBlock(signer); err != nil {
 		return
 	}
-	cpy.head = newBlockNodeEx(h, block, cpy.head)
+	cpy.head = newBlockNode(h, block, cpy.head)
 	br = cpy
 	bl = block
 	return

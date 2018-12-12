@@ -350,7 +350,7 @@ func loadBlocks(
 				err = ErrMultipleGenesis
 				return
 			}
-			bn = newBlockNodeEx(0, dec, nil)
+			bn = newBlockNode(0, dec, nil)
 			index[bh] = bn
 			headsIndex[bh] = bn
 			return
@@ -360,7 +360,7 @@ func loadBlocks(
 			err = ErrParentNotFound
 			return
 		}
-		bn = newBlockNodeEx(v1, dec, pn)
+		bn = newBlockNode(v1, dec, pn)
 		index[bh] = bn
 		if _, ok = headsIndex[ph]; ok {
 			delete(headsIndex, ph)

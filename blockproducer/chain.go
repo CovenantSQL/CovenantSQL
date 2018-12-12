@@ -66,6 +66,11 @@ type Chain struct {
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
+	return NewChainWithContext(context.Background(), cfg)
+}
+
+// NewChainWithContext creates a new blockchain with context.
+func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
 		existed bool
 
@@ -82,7 +87,6 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 		rt     *rt
 		bus    = chainbus.New()
 		caller = rpc.NewCaller()
-		ctx    = context.Background()
 	)
 
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {

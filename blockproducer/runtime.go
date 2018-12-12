@@ -283,7 +283,7 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	for i, v := range r.branches {
 		// Grow a branch
 		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
-			head = newBlockNodeEx(height, bl, v.head)
+			head = newBlockNode(height, bl, v.head)
 			if br, err = v.applyBlock(head); err != nil {
 				return
 			}
@@ -299,7 +299,7 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 		}
 		// Fork and create new branch
 		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, r.lastIrre.count); ok {
-			head = newBlockNodeEx(height, bl, parent)
+			head = newBlockNode(height, bl, parent)
 			if br, err = fork(r.lastIrre, head, r.immutable, r.txPool); err != nil {
 				return
 			}

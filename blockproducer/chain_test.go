@@ -17,8 +17,15 @@
 package blockproducer
 
 import (
+	"path"
 	"testing"
 	"time"
+
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -30,5 +37,59 @@ var (
 )
 
 func TestChain(t *testing.T) {
+	Convey("Given a new chain", t, func() {
+		var (
+			rawids = [...]proto.RawNodeID{
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x1}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x2}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x3}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x4}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x5}},
+			}
 
+			err     error
+			config  *Config
+			genesis *types.BPBlock
+			leader  proto.NodeID
+			servers []proto.NodeID
+			chain   *Chain
+		)
+
+		genesis = &types.BPBlock{
+			SignedHeader: types.BPSignedHeader{
+				BPHeader: types.BPHeader{
+					Timestamp: time.Time{},
+				},
+			},
+			Transactions: []pi.Transaction{
+				types.NewBaseAccount(&types.Account{}),
+			},
+		}
+		err = genesis.PackAndSignBlock(testingPrivateKey)
+		So(err, ShouldBeNil)
+
+		for _, v := range rawids {
+			servers = append(servers, v.ToNodeID())
+		}
+		leader = servers[0]
+
+		config = &Config{
+			Genesis:  genesis,
+			DataFile: path.Join(testingDataDir, t.Name()),
+			Server:   nil,
+			Peers: &proto.Peers{
+				PeersHeader: proto.PeersHeader{
+					Leader:  leader,
+					Servers: servers,
+				},
+			},
+			NodeID: leader,
+			Period: time.Duration(1 * time.Second),
+			Tick:   time.Duration(100 * time.Millisecond),
+		}
+
+		chain, err = NewChain(config)
+		So(err, ShouldBeNil)
+		So(chain, ShouldNotBeNil)
+	})
 }

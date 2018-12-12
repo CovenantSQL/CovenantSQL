@@ -72,6 +72,7 @@ func fork(
 		}
 	}
 	inst.preview.commit()
+	br = inst
 	return
 }
 

@@ -94,18 +94,25 @@ func newRuntime(
 		br, head  *branch
 		headIndex int
 	)
+	if len(heads) == 0 {
+		log.Fatal("At least one branch head is needed")
+	}
 	for _, v := range heads {
+		log.WithFields(log.Fields{
+			"irre_hash":  irre.hash.ShortString(),
+			"irre_count": irre.count,
+			"head_hash":  v.hash.ShortString(),
+			"head_count": v.count,
+		}).Debug("Checking head")
 		if v.hasAncestor(irre) {
-			if v.hasAncestor(irre) {
-				if br, err = fork(irre, v, immutable, txPool); err != nil {
-					log.WithError(err).Fatal("Failed to rebuild branch")
-				}
-				branches = append(branches, br)
+			if br, err = fork(irre, v, immutable, txPool); err != nil {
+				log.WithError(err).Fatal("Failed to rebuild branch")
 			}
+			branches = append(branches, br)
 		}
 	}
 	for i, v := range branches {
-		if v.head.count > branches[headIndex].head.count {
+		if head == nil || v.head.count > head.head.count {
 			headIndex = i
 			head = v
 		}

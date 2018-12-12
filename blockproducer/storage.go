@@ -28,44 +28,46 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
+	"github.com/pkg/errors"
 )
 
 var (
 	ddls = [...]string{
 		// Chain state tables
 		`CREATE TABLE IF NOT EXISTS "blocks" (
-	"height"    INT
-	"hash"		TEXT
-	"parent"	TEXT
-	"encoded"	BLOB
-	UNIQUE INDEX ("hash")
+	"height"    INT,
+	"hash"		TEXT,
+	"parent"	TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("hash")
 )`,
 		`CREATE TABLE IF NOT EXISTS "txPool" (
-	"type"		INT
-	"hash"		TEXT
-	"encoded"	BLOB
-	UNIQUE INDEX ("hash")
+	"type"		INT,
+	"hash"		TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("hash")
 )`,
 		`CREATE TABLE IF NOT EXISTS "irreversible" (
-	"id"		INT
-	"hash"		TEXT
+	"id"		INT,
+	"hash"		TEXT,
+	UNIQUE ("id")
 )`,
 		// Meta state tables
 		`CREATE TABLE IF NOT EXISTS "accounts" (
-	"address"	TEXT
-	"encoded"	BLOB
-	UNIQUE INDEX ("address")
+	"address"	TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("address")
 )`,
 		`CREATE TABLE IF NOT EXISTS "shardChain" (
-	"address"	TEXT
-	"id"		TEXT
-	"encoded"	BLOB
-	UNIQUE INDEX ("address", "id")
+	"address"	TEXT,
+	"id"		TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("address", "id")
 )`,
 		`CREATE TABLE IF NOT EXISTS "provider" (
-	"address"	TEXT
-	"encoded"	BLOB
-	UNIQUE INDEX ("address")
+	"address"	TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("address")
 )`,
 	}
 )
@@ -105,11 +107,13 @@ func errPass(err error) storageProcedure {
 }
 
 func openStorage(path string) (st xi.Storage, err error) {
-	if st, err = xs.NewSqlite(path); err != nil {
+	var ierr error
+	if st, ierr = xs.NewSqlite(path); ierr != nil {
 		return
 	}
 	for _, v := range ddls {
-		if _, err = st.Writer().Exec(v); err != nil {
+		if _, ierr = st.Writer().Exec(v); ierr != nil {
+			err = errors.Wrap(ierr, v)
 			return
 		}
 	}
@@ -307,7 +311,7 @@ func loadBlocks(
 	var (
 		rows *sql.Rows
 
-		genesis    = hash.Hash{}
+		root       = hash.Hash{}
 		index      = make(map[hash.Hash]*blockNode)
 		headsIndex = make(map[hash.Hash]*blockNode)
 
@@ -344,16 +348,24 @@ func loadBlocks(
 		if err = utils.DecodeMsgPack(v4, dec); err != nil {
 			return
 		}
+		log.WithFields(log.Fields{
+			"hash":   bh.String(),
+			"parent": ph.String(),
+		}).Debug("Loaded new block")
 		// Add genesis block
-		if ph.IsEqual(&genesis) {
-			if _, ok = index[ph]; ok {
+		if ph.IsEqual(&root) {
+			if len(index) != 0 {
 				err = ErrMultipleGenesis
 				return
 			}
 			bn = newBlockNode(0, dec, nil)
 			index[bh] = bn
 			headsIndex[bh] = bn
-			return
+			log.WithFields(log.Fields{
+				"hash":   bh.String(),
+				"parent": ph.String(),
+			}).Debug("Set genesis block")
+			continue
 		}
 		// Add normal block
 		if pn, ok = index[ph]; ok {

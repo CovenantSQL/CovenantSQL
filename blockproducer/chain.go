@@ -73,6 +73,7 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
 		existed bool
+		ierr    error
 
 		st        xi.Storage
 		irre      *blockNode
@@ -94,22 +95,25 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Open storage
-	if st, err = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); err != nil {
+	if st, ierr = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); ierr != nil {
+		err = errors.Wrap(ierr, "failed to open storage")
 		return
 	}
 
 	// Storage genesis
 	if !existed {
-		if err = store(st, []storageProcedure{
+		if ierr = store(st, []storageProcedure{
 			updateIrreversible(cfg.Genesis.SignedHeader.BlockHash),
 			addBlock(0, cfg.Genesis),
-		}, nil); err != nil {
+		}, nil); ierr != nil {
+			err = errors.Wrap(ierr, "failed to initialize storage")
 			return
 		}
 	}
 
 	// Load and create runtime
-	if irre, heads, immutable, txPool, err = loadDatabase(st); err != nil {
+	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
+		err = errors.Wrap(ierr, "failed to load data from storage")
 		return
 	}
 	rt = newRuntime(ctx, cfg, addr, irre, heads, immutable, txPool)

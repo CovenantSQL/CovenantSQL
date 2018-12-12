@@ -20,13 +20,14 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -40,13 +41,22 @@ var (
 	uuidLen            = 32
 	peerNum     uint32 = 32
 
-	testAddress1      = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
-	testAddress2      = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
-	testInitBalance   = uint64(10000)
-	testDifficulty    = 4
-	testDataDir       string
-	testAddress1Nonce pi.AccountNonce
-	testPrivKey       *asymmetric.PrivateKey
+	testAddress1    = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
+	testAddress2    = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
+	testInitBalance = uint64(10000)
+	testDifficulty  = 4
+
+	testAddress1Nonce         pi.AccountNonce
+	testingDataDir            string
+	testingTraceFile          *os.File
+	testingPrivateKeyFile     string
+	testingPublicKeyStoreFile string
+	testingNonceDifficulty    int
+
+	testingPrivateKey *ca.PrivateKey
+	testingPublicKey  *ca.PublicKey
+
+	testingMasterKey = []byte(`?08Rl%WUih4V0H+c`)
 )
 
 const (
@@ -84,7 +94,7 @@ func randStringBytes(n int) string {
 
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.BPBlock, err error) {
 	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := ca.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -128,10 +138,10 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.BPBlock, er
 				},
 			)
 		)
-		if err = ba1.Sign(testPrivKey); err != nil {
+		if err = ba1.Sign(testingPrivateKey); err != nil {
 			return
 		}
-		if err = ba2.Sign(testPrivKey); err != nil {
+		if err = ba2.Sign(testingPrivateKey); err != nil {
 			return
 		}
 		b.Transactions = append(b.Transactions, ba1, ba2)
@@ -143,7 +153,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.BPBlock, er
 
 func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *types.BPBlock, err error) {
 	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := ca.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -207,12 +217,12 @@ func generateRandomBillingRequest() (*types.BillingRequest, error) {
 		return nil, err
 	}
 
-	signees := make([]*asymmetric.PublicKey, peerNum)
-	signatures := make([]*asymmetric.Signature, peerNum)
+	signees := make([]*ca.PublicKey, peerNum)
+	signatures := make([]*ca.Signature, peerNum)
 
 	for i := range signees {
 		// Generate key pair
-		priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+		priv, pub, err := ca.GenSecp256k1KeyPair()
 		if err != nil {
 			return nil, err
 		}
@@ -235,8 +245,8 @@ func generateRandomBillingHeader() (tc *types.BillingHeader, err error) {
 		return
 	}
 
-	var priv *asymmetric.PrivateKey
-	if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+	var priv *ca.PrivateKey
+	if priv, _, err = ca.GenSecp256k1KeyPair(); err != nil {
 		return
 	}
 
@@ -265,7 +275,7 @@ func generateRandomBillingAndBaseAccount() (*types.BaseAccount, *types.Billing, 
 	if err != nil {
 		return nil, nil, err
 	}
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := ca.GenSecp256k1KeyPair()
 	header.Producer, _ = crypto.PubKeyHash(priv.PubKey())
 
 	txBilling := types.NewBilling(header)
@@ -298,7 +308,7 @@ func generateRandomAccountBilling() (*types.Billing, error) {
 	header.Nonce = testAddress1Nonce
 	txBilling := types.NewBilling(header)
 
-	if err := txBilling.Sign(testPrivKey); err != nil {
+	if err := txBilling.Sign(testingPrivateKey); err != nil {
 		return nil, err
 	}
 
@@ -325,7 +335,7 @@ func generateRandomHash() hash.Hash {
 	return h
 }
 
-func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
+func registerNodesWithPublicKey(pub *ca.PublicKey, diff int, num int) (
 	nis []cpuminer.NonceInfo, err error) {
 	nis = make([]cpuminer.NonceInfo, num)
 
@@ -369,7 +379,7 @@ func createRandomString(offset, length int, s *string) {
 	*s = string(buff)
 }
 
-func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err error) {
+func createTestPeersWithPrivKeys(priv *ca.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err error) {
 	if num <= 0 {
 		return
 	}
@@ -459,13 +469,23 @@ func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 
-	// Create key pairs for test
-	if testPrivKey, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+	// Create temp dir for test data
+	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
 
-	// Create temp dir for test data
-	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	// Initialze kms
+	testingNonceDifficulty = 2
+	testingPrivateKeyFile = path.Join(testingDataDir, "private.key")
+	testingPublicKeyStoreFile = path.Join(testingDataDir, "public.keystore")
+	if testingPrivateKey, testingPublicKey, err = ca.GenSecp256k1KeyPair(); err != nil {
+		panic(err)
+	}
+	kms.Unittest = true
+	kms.SetLocalKeyPair(testingPrivateKey, testingPublicKey)
+	if err = kms.SavePrivateKey(
+		testingPrivateKeyFile, testingPrivateKey, testingMasterKey,
+	); err != nil {
 		panic(err)
 	}
 
@@ -475,7 +495,7 @@ func setup() {
 }
 
 func teardown() {
-	if err := os.RemoveAll(testDataDir); err != nil {
+	if err := os.RemoveAll(testingDataDir); err != nil {
 		panic(err)
 	}
 }

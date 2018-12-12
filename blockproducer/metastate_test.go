@@ -965,17 +965,17 @@ func TestMetaState(t *testing.T) {
 				invalidPs := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
 						TargetUser: addr1,
-						Nonce: 1,
+						Nonce:      1,
 					},
 				}
 				err = invalidPs.Sign(privKey3)
 				So(err, ShouldBeNil)
 				invalidCd1 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
-						Owner: addr2,
-						GasPrice: 1,
+						Owner:     addr2,
+						GasPrice:  1,
 						TokenType: types.Particle,
-						Nonce: 1,
+						Nonce:     1,
 					},
 				}
 				err = invalidCd1.Sign(privKey1)
@@ -986,10 +986,10 @@ func TestMetaState(t *testing.T) {
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
-						GasPrice: 1,
+						GasPrice:       1,
 						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.Period) * 1,
-						TokenType: types.Particle,
-						Nonce: 1,
+						TokenType:      types.Particle,
+						Nonce:          1,
 					},
 				}
 				err = invalidCd2.Sign(privKey1)
@@ -1000,9 +1000,9 @@ func TestMetaState(t *testing.T) {
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
-						GasPrice: 1,
+						GasPrice:  1,
 						TokenType: types.Particle,
-						Nonce: 1,
+						Nonce:     1,
 					},
 				}
 				err = invalidCd3.Sign(privKey3)
@@ -1034,9 +1034,9 @@ func TestMetaState(t *testing.T) {
 				ps := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
 						TargetUser: addr1,
-						GasPrice: 1,
-						TokenType: types.Particle,
-						Nonce: 1,
+						GasPrice:   1,
+						TokenType:  types.Particle,
+						Nonce:      1,
 					},
 				}
 				err = ps.Sign(privKey2)
@@ -1047,10 +1047,10 @@ func TestMetaState(t *testing.T) {
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
-						GasPrice: 1,
+						GasPrice:       1,
 						AdvancePayment: 3600000,
-						TokenType: types.Particle,
-						Nonce: 1,
+						TokenType:      types.Particle,
+						Nonce:          1,
 					},
 				}
 				err = cd1.Sign(privKey1)
@@ -1061,10 +1061,10 @@ func TestMetaState(t *testing.T) {
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
-						GasPrice: 1,
+						GasPrice:       1,
 						AdvancePayment: 3600000,
-						TokenType: types.Particle,
-						Nonce: 1,
+						TokenType:      types.Particle,
+						Nonce:          1,
 					},
 				}
 				err = cd2.Sign(privKey3)
@@ -1077,7 +1077,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				b2, loaded = ms.loadAccountStableBalance(addr2)
 				So(loaded, ShouldBeTrue)
-				So(b1 - b2, ShouldEqual, conf.GConf.MinProviderDeposit)
+				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
 				err = db.Update(ms.applyTransactionProcedure(&cd2))
 				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
 				b1, loaded = ms.loadAccountStableBalance(addr1)
@@ -1088,7 +1088,7 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
 					uint64(conf.GConf.Period) * uint64(len(cd2.ResourceMeta.TargetMiners))
-				So(b1 - b2, ShouldEqual, cd1.AdvancePayment + minAdvancePayment)
+				So(b1-b2, ShouldEqual, cd1.AdvancePayment+minAdvancePayment)
 				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
 				co, loaded = ms.loadSQLChainObject(*dbID)
 				So(loaded, ShouldBeTrue)

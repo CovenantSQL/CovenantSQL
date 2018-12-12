@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -124,17 +125,47 @@ func TestChain(t *testing.T) {
 		chain, err = NewChain(config)
 		So(err, ShouldBeNil)
 		So(chain, ShouldNotBeNil)
+
+		// Close chain on reset
+		Reset(func() {
+			err = chain.Stop()
+			So(err, ShouldBeNil)
+			err = os.Remove(config.DataFile)
+			So(err, ShouldBeNil)
+		})
+
 		Convey("When transfer transactions are added", func() {
 			var (
-				nonce pi.AccountNonce
-				t1    pi.Transaction
+				nonce      pi.AccountNonce
+				t1, t2, t3 pi.Transaction
 			)
 			nonce, err = chain.rt.nextNonce(addr1)
 			So(err, ShouldBeNil)
+			So(nonce, ShouldEqual, 1)
 			t1, err = newTransfer(nonce, priv1, addr1, addr2, 1)
+			So(err, ShouldBeNil)
+			t2, err = newTransfer(nonce+1, priv1, addr1, addr2, 1)
+			So(err, ShouldBeNil)
+			t3, err = newTransfer(nonce+2, priv1, addr1, addr2, 1)
 			So(err, ShouldBeNil)
 			err = chain.rt.addTx(chain.st, t1)
 			So(err, ShouldBeNil)
+			err = chain.rt.addTx(chain.st, t1)
+			So(err, ShouldEqual, ErrExistedTx)
+			Convey("The chain should be able to produce new block", func() {
+				err = chain.produceBlock(chain.rt.genesisTime.Add(chain.rt.period))
+				So(err, ShouldBeNil)
+				Convey("The chain should be able to produce new block", func() {
+					err = chain.rt.addTx(chain.st, t2)
+					So(err, ShouldBeNil)
+					err = chain.produceBlock(chain.rt.genesisTime.Add(2 * chain.rt.period))
+					So(err, ShouldBeNil)
+					err = chain.rt.addTx(chain.st, t3)
+					So(err, ShouldBeNil)
+					err = chain.produceBlock(chain.rt.genesisTime.Add(3 * chain.rt.period))
+					So(err, ShouldBeNil)
+				})
+			})
 		})
 	})
 }

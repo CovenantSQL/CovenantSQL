@@ -17,6 +17,7 @@ package blockproducer
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"time"
 
@@ -148,10 +149,6 @@ func (b *branch) sortUnpackedTxs() (txs []pi.Transaction) {
 	return
 }
 
-func newBlock(out []pi.Transaction) (bl *types.BPBlock) {
-	return
-}
-
 func (b *branch) produceBlock(
 	h uint32, ts time.Time, addr proto.AccountAddress, signer *ca.PrivateKey,
 ) (
@@ -197,4 +194,21 @@ func (b *branch) clearPackedTxs(txs []pi.Transaction) {
 	for _, v := range txs {
 		delete(b.packed, v.Hash())
 	}
+}
+
+func (b *branch) sprint(from uint32) (buff string) {
+	var nodes = b.head.fetchNodeList(from)
+	for i, v := range nodes {
+		var hex = v.hash.Short(4)
+		if i == 0 {
+			buff += fmt.Sprintf("* %s <-- %s", v.parent.hash.Short(4), hex)
+			continue
+		}
+		if d := v.height - nodes[i-1].height; d > 1 {
+			buff += fmt.Sprintf(" <-- (skip %d blocks) <-- %s", d, hex)
+		} else {
+			buff += fmt.Sprintf(" <-- %s", hex)
+		}
+	}
+	return
 }

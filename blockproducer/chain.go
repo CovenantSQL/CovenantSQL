@@ -601,6 +601,8 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Stopping chain")
 	c.rt.stop()
 	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain service stopped")
+	c.st.Close()
+	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain database closed")
 	close(c.pendingBlocks)
 	close(c.pendingTxs)
 	return

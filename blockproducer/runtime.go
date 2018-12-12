@@ -32,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
+	"github.com/pkg/errors"
 )
 
 // rt defines the runtime of main chain.
@@ -147,13 +148,16 @@ func newRuntime(
 }
 
 func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
+	var k = tx.Hash()
+	r.Lock()
+	defer r.Unlock()
+	if _, ok := r.txPool[k]; ok {
+		err = ErrExistedTx
+		return
+	}
+
 	return store(st, []storageProcedure{addTx(tx)}, func() {
-		var k = tx.Hash()
-		r.Lock()
-		defer r.Unlock()
-		if _, ok := r.txPool[k]; !ok {
-			r.txPool[k] = tx
-		}
+		r.txPool[k] = tx
 		for _, v := range r.branches {
 			v.addTx(tx)
 		}
@@ -324,21 +328,29 @@ func (r *rt) produceBlock(
 	st xi.Storage, now time.Time, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
 ) {
 	var (
-		bl *types.BPBlock
-		br *branch
+		bl   *types.BPBlock
+		br   *branch
+		ierr error
 	)
 	r.Lock()
 	defer r.Unlock()
 	// Try to produce new block
-	if br, bl, err = r.headBranch.produceBlock(
+	if br, bl, ierr = r.headBranch.produceBlock(
 		r.height(now), now, r.address, priv,
-	); err != nil {
+	); ierr != nil {
+		err = errors.Wrapf(ierr, "failed to produce block at head %s",
+			r.headBranch.head.hash.Short(4))
 		return
 	}
-	if err = r.switchBranch(st, bl, r.headIndex, br); err != nil {
+	if ierr = r.switchBranch(st, bl, r.headIndex, br); ierr != nil {
+		err = errors.Wrapf(ierr, "failed to switch branch #%d:%s",
+			r.headIndex, r.headBranch.head.hash.Short(4))
 		return
 	}
 	out = bl
+	log.WithFields(log.Fields{
+		"head_branch": r.headBranch.sprint(r.lastIrre.count),
+	}).Debug("Produced new block on head branch")
 	return
 }
 

@@ -17,10 +17,8 @@
 package xenomint
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
-	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 )
 
@@ -107,106 +104,6 @@ func (s *State) Close(commit bool) (err error) {
 		return
 	}
 	s.closed = true
-	return
-}
-
-func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
-	var (
-		tokenizer  = sqlparser.NewStringTokenizer(pattern)
-		queryParts []string
-		statements []sqlparser.Statement
-		i          int
-		origQuery  string
-		query      string
-	)
-
-	if queryParts, statements, err = sqlparser.ParseMultiple(tokenizer); err != nil {
-		err = errors.Wrap(err, "parse sql failed")
-		return
-	}
-
-	for i = range queryParts {
-		walkNodes := []sqlparser.SQLNode{statements[i]}
-
-		switch stmt := statements[i].(type) {
-		case *sqlparser.Show:
-			origQuery = queryParts[i]
-
-			switch stmt.Type {
-			case "table":
-				if stmt.ShowCreate {
-					query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
-						stmt.OnTable.Name.String() + "\""
-				} else {
-					query = "PRAGMA table_info(" + stmt.OnTable.Name.String() + ")"
-				}
-			case "index":
-				query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
-					stmt.OnTable.Name.String() + "\""
-			case "tables":
-				query = "SELECT name FROM sqlite_master WHERE type = \"table\""
-			}
-
-			log.WithFields(log.Fields{
-				"from": origQuery,
-				"to":   query,
-			}).Debug("query translated")
-
-			queryParts[i] = query
-		case *sqlparser.DDL:
-			containsDDL = true
-			if stmt.TableSpec != nil {
-				// walk table default values for invalid stateful expressions
-				for _, c := range stmt.TableSpec.Columns {
-					if c == nil || c.Type.Default == nil {
-						continue
-					}
-
-					walkNodes = append(walkNodes, c.Type.Default)
-				}
-			}
-		}
-
-		// scan query and test if there is any stateful query logic like time expression or random function
-		err = sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
-			switch n := node.(type) {
-			case *sqlparser.SQLVal:
-				if n.Type == sqlparser.ValArg && bytes.EqualFold([]byte("CURRENT_TIMESTAMP"), n.Val) {
-					// current_timestamp literal in default expression
-					err = errors.Wrap(ErrStatefulQueryParts, "DEFAULT CURRENT_TIMESTAMP not supported")
-					return
-				}
-			case *sqlparser.TimeExpr:
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrStatefulQueryParts, "time expression %s not supported",
-					tb.WriteNode(n).String())
-				return
-			case *sqlparser.FuncExpr:
-				if n.Name.EqualString("random") {
-					// random function detected
-					tb := sqlparser.NewTrackedBuffer(nil)
-					err = errors.Wrapf(ErrStatefulQueryParts, "stateful function call %s not supported",
-						tb.WriteNode(n).String())
-					return
-				}
-			}
-			return true, nil
-		}, walkNodes...)
-		if err != nil {
-			err = errors.Wrapf(err, "parse sql failed")
-			return
-		}
-	}
-
-	p = strings.Join(queryParts, "; ")
-
-	ifs = make([]interface{}, len(args))
-	for i, v := range args {
-		ifs[i] = sql.NamedArg{
-			Name:  v.Name,
-			Value: v.Value,
-		}
-	}
 	return
 }
 

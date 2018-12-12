@@ -48,6 +48,18 @@ func (h Hash) String() string {
 	return hex.EncodeToString(h[:])
 }
 
+// Short returns the hexadecimal string of the first `n` reversed byte(s).
+func (h Hash) Short(n int) string {
+	for i := 0; i < HashSize/2; i++ {
+		h[i], h[HashSize-1-i] = h[HashSize-1-i], h[i]
+	}
+	var l = HashSize
+	if n < l {
+		l = n
+	}
+	return hex.EncodeToString(h[:l])
+}
+
 // AsBytes returns internal bytes of hash.
 func (h Hash) AsBytes() []byte {
 	return h[:]

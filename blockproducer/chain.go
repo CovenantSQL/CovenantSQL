@@ -66,8 +66,14 @@ type Chain struct {
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
+	return NewChainWithContext(context.Background(), cfg)
+}
+
+// NewChainWithContext creates a new blockchain with context.
+func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
 		existed bool
+		ierr    error
 
 		st        xi.Storage
 		irre      *blockNode
@@ -82,7 +88,6 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 		rt     *rt
 		bus    = chainbus.New()
 		caller = rpc.NewCaller()
-		ctx    = context.Background()
 	)
 
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
@@ -90,22 +95,54 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 	}
 
 	// Open storage
-	if st, err = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); err != nil {
+	if st, ierr = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); ierr != nil {
+		err = errors.Wrap(ierr, "failed to open storage")
 		return
 	}
 
 	// Storage genesis
 	if !existed {
-		if err = store(st, []storageProcedure{
-			updateIrreversible(cfg.Genesis.SignedHeader.BlockHash),
-			addBlock(0, cfg.Genesis),
-		}, nil); err != nil {
+		// TODO(leventeliu): reuse rt.switchBranch to construct initial state.
+		var init = newMetaState()
+		for _, v := range cfg.Genesis.Transactions {
+			if ierr = init.apply(v); ierr != nil {
+				err = errors.Wrap(ierr, "failed to initialize immutable state")
+				return
+			}
+		}
+		var sps []storageProcedure
+		sps = append(sps, addBlock(0, cfg.Genesis))
+		for k, v := range init.dirty.accounts {
+			if v != nil {
+				sps = append(sps, updateAccount(&v.Account))
+			} else {
+				sps = append(sps, deleteAccount(k))
+			}
+		}
+		for k, v := range init.dirty.databases {
+			if v != nil {
+				sps = append(sps, updateShardChain(&v.SQLChainProfile))
+			} else {
+				sps = append(sps, deleteShardChain(k))
+			}
+		}
+		for k, v := range init.dirty.provider {
+			if v != nil {
+				sps = append(sps, updateProvider(&v.ProviderProfile))
+			} else {
+				sps = append(sps, deleteProvider(k))
+			}
+		}
+		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.BlockHash))
+		if ierr = store(st, sps, nil); ierr != nil {
+			err = errors.Wrap(ierr, "failed to initialize storage")
 			return
 		}
 	}
 
 	// Load and create runtime
-	if irre, heads, immutable, txPool, err = loadDatabase(st); err != nil {
+	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
+		err = errors.Wrap(ierr, "failed to load data from storage")
 		return
 	}
 	rt = newRuntime(ctx, cfg, addr, irre, heads, immutable, txPool)
@@ -476,6 +513,10 @@ func (c *Chain) addTx(tx pi.Transaction) {
 }
 
 func (c *Chain) processTx(tx pi.Transaction) {
+	if err := tx.Verify(); err != nil {
+		log.WithError(err).Error("Failed to verify transaction")
+		return
+	}
 	if err := c.rt.addTx(c.st, tx); err != nil {
 		log.WithError(err).Error("Failed to add transaction")
 	}
@@ -580,6 +621,8 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Stopping chain")
 	c.rt.stop()
 	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain service stopped")
+	c.st.Close()
+	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain database closed")
 	close(c.pendingBlocks)
 	close(c.pendingTxs)
 	return

@@ -32,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
+	"github.com/pkg/errors"
 )
 
 // rt defines the runtime of main chain.
@@ -94,18 +95,25 @@ func newRuntime(
 		br, head  *branch
 		headIndex int
 	)
+	if len(heads) == 0 {
+		log.Fatal("At least one branch head is needed")
+	}
 	for _, v := range heads {
+		log.WithFields(log.Fields{
+			"irre_hash":  irre.hash.Short(4),
+			"irre_count": irre.count,
+			"head_hash":  v.hash.Short(4),
+			"head_count": v.count,
+		}).Debug("Checking head")
 		if v.hasAncestor(irre) {
-			if v.hasAncestor(irre) {
-				if br, err = fork(irre, v, immutable, txPool); err != nil {
-					log.WithError(err).Fatal("Failed to rebuild branch")
-				}
-				branches = append(branches, br)
+			if br, err = fork(irre, v, immutable, txPool); err != nil {
+				log.WithError(err).Fatal("Failed to rebuild branch")
 			}
+			branches = append(branches, br)
 		}
 	}
 	for i, v := range branches {
-		if v.head.count > branches[headIndex].head.count {
+		if head == nil || v.head.count > head.head.count {
 			headIndex = i
 			head = v
 		}
@@ -140,13 +148,16 @@ func newRuntime(
 }
 
 func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
+	var k = tx.Hash()
+	r.Lock()
+	defer r.Unlock()
+	if _, ok := r.txPool[k]; ok {
+		err = ErrExistedTx
+		return
+	}
+
 	return store(st, []storageProcedure{addTx(tx)}, func() {
-		var k = tx.Hash()
-		r.Lock()
-		defer r.Unlock()
-		if _, ok := r.txPool[k]; !ok {
-			r.txPool[k] = tx
-		}
+		r.txPool[k] = tx
 		for _, v := range r.branches {
 			v.addTx(tx)
 		}
@@ -283,7 +294,7 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	for i, v := range r.branches {
 		// Grow a branch
 		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
-			head = newBlockNodeEx(height, bl, v.head)
+			head = newBlockNode(height, bl, v.head)
 			if br, err = v.applyBlock(head); err != nil {
 				return
 			}
@@ -299,7 +310,7 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 		}
 		// Fork and create new branch
 		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, r.lastIrre.count); ok {
-			head = newBlockNodeEx(height, bl, parent)
+			head = newBlockNode(height, bl, parent)
 			if br, err = fork(r.lastIrre, head, r.immutable, r.txPool); err != nil {
 				return
 			}
@@ -317,21 +328,29 @@ func (r *rt) produceBlock(
 	st xi.Storage, now time.Time, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
 ) {
 	var (
-		bl *types.BPBlock
-		br *branch
+		bl   *types.BPBlock
+		br   *branch
+		ierr error
 	)
 	r.Lock()
 	defer r.Unlock()
 	// Try to produce new block
-	if br, bl, err = r.headBranch.produceBlock(
+	if br, bl, ierr = r.headBranch.produceBlock(
 		r.height(now), now, r.address, priv,
-	); err != nil {
+	); ierr != nil {
+		err = errors.Wrapf(ierr, "failed to produce block at head %s",
+			r.headBranch.head.hash.Short(4))
 		return
 	}
-	if err = r.switchBranch(st, bl, r.headIndex, br); err != nil {
+	if ierr = r.switchBranch(st, bl, r.headIndex, br); ierr != nil {
+		err = errors.Wrapf(ierr, "failed to switch branch #%d:%s",
+			r.headIndex, r.headBranch.head.hash.Short(4))
 		return
 	}
 	out = bl
+	log.WithFields(log.Fields{
+		"head_branch": r.headBranch.sprint(r.lastIrre.count),
+	}).Debug("Produced new block on head branch")
 	return
 }
 

@@ -17,12 +17,8 @@
 package blockproducer
 
 import (
-	"encoding/binary"
-	"time"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type blockNode struct {
@@ -35,7 +31,7 @@ type blockNode struct {
 	block *types.BPBlock
 }
 
-func newBlockNodeEx(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
+func newBlockNode(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
 	return &blockNode{
 		parent: p,
 
@@ -50,36 +46,6 @@ func newBlockNodeEx(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
 		hash:  b.SignedHeader.BlockHash,
 		block: b,
 	}
-}
-
-func newBlockNode(chainInitTime time.Time, period time.Duration, block *types.BPBlock, parent *blockNode) *blockNode {
-	var count uint32
-
-	h := uint32(block.Timestamp().Sub(chainInitTime) / period)
-
-	log.Debugf("chain init time %s, block generation time %s, block height %d", chainInitTime.String(), block.Timestamp().String(), h)
-
-	if parent != nil {
-		count = parent.count + 1
-	} else {
-		count = 0
-	}
-	n := &blockNode{
-		hash:   *block.BlockHash(),
-		parent: parent,
-		height: h,
-		count:  count,
-		block:  block,
-	}
-
-	return n
-}
-
-func (n *blockNode) indexKey() (key []byte) {
-	key = make([]byte, hash.HashSize+4)
-	binary.BigEndian.PutUint32(key[0:4], n.height)
-	copy(key[4:hash.HashSize], n.hash[:])
-	return
 }
 
 // fetchNodeList returns the block node list within range (from, n.count] from node head n.
@@ -102,9 +68,13 @@ func (n *blockNode) ancestor(h uint32) *blockNode {
 	}
 
 	ancestor := n
-	for ancestor != nil && ancestor.height != h {
+	for ancestor != nil && ancestor.height > h {
 		ancestor = ancestor.parent
 	}
+	if ancestor != nil && ancestor.height != h {
+		ancestor = nil
+	}
+
 	return ancestor
 }
 

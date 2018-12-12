@@ -128,6 +128,17 @@ func TestHashString(t *testing.T) {
 		t.Errorf("String: wrong hash string - got %v, want %v",
 			hashStr, wantStr)
 	}
+	for n := 0; n < 2*HashSize; n++ {
+		var l = HashSize
+		if n < l {
+			l = n
+		}
+		expect := string([]byte(wantStr)[:2*l])
+		actual := hash.Short(n)
+		if expect != actual {
+			t.Errorf("Short result mismatched: expect=%s actual=%s", expect, actual)
+		}
+	}
 }
 
 // TestNewHashFromStr executes tests against the NewHashFromStr function.

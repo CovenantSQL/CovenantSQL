@@ -56,7 +56,7 @@ func TestMetaState(t *testing.T) {
 			dbid2    = proto.DatabaseID("db#2")
 			dbid3    = proto.DatabaseID("db#3")
 			ms       = newMetaState()
-			fl       = path.Join(testDataDir, t.Name())
+			fl       = path.Join(testingDataDir, t.Name())
 			db, err  = bolt.Open(fl, 0600, nil)
 		)
 		So(err, ShouldBeNil)

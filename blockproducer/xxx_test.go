@@ -26,12 +26,14 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -49,7 +51,8 @@ var (
 	testAddress1Nonce         pi.AccountNonce
 	testingDataDir            string
 	testingTraceFile          *os.File
-	testingPrivateKeyFile     string
+	testingConfigFile         = "../test/node_standalone/config.yaml"
+	testingPrivateKeyFile     = "../test/node_standalone/private.key"
 	testingPublicKeyStoreFile string
 	testingNonceDifficulty    int
 
@@ -476,18 +479,19 @@ func setup() {
 
 	// Initialze kms
 	testingNonceDifficulty = 2
-	testingPrivateKeyFile = path.Join(testingDataDir, "private.key")
 	testingPublicKeyStoreFile = path.Join(testingDataDir, "public.keystore")
-	if testingPrivateKey, testingPublicKey, err = ca.GenSecp256k1KeyPair(); err != nil {
+
+	if conf.GConf, err = conf.LoadConfig(testingConfigFile); err != nil {
 		panic(err)
 	}
-	kms.Unittest = true
-	kms.SetLocalKeyPair(testingPrivateKey, testingPublicKey)
-	if err = kms.SavePrivateKey(
-		testingPrivateKeyFile, testingPrivateKey, testingMasterKey,
-	); err != nil {
+	route.InitKMS(testingPublicKeyStoreFile)
+	if err = kms.InitLocalKeyPair(testingPrivateKeyFile, []byte{}); err != nil {
 		panic(err)
 	}
+	if testingPrivateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		panic(err)
+	}
+	testingPublicKey = testingPrivateKey.PubKey()
 
 	// Setup logging
 	log.SetOutput(os.Stdout)

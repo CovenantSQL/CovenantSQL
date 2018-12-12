@@ -63,23 +63,23 @@ type rt struct {
 	txPool       map[hash.Hash]pi.Transaction
 }
 
-func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAddress) *rt {
+func newRuntime(
+	ctx context.Context, cfg *Config, accountAddress proto.AccountAddress,
+	irre *blockNode, heads []*blockNode, immutable *metaState, txPool map[hash.Hash]pi.Transaction,
+) *rt {
 	var index uint32
 	for i, s := range cfg.Peers.Servers {
 		if cfg.NodeID.IsEqual(&s) {
 			index = uint32(i)
 		}
 	}
+
 	var (
 		cld, ccl = context.WithCancel(ctx)
 		l        = float64(len(cfg.Peers.Servers))
 		t        float64
 		m        float64
 		err      error
-
-		genesis    = newBlockNodeEx(0, cfg.Genesis, nil)
-		immutable  = newMetaState()
-		headBranch *branch
 	)
 	if t = cfg.ComfirmThreshold; t <= 0.0 {
 		t = float64(2) / 3.0
@@ -87,18 +87,30 @@ func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAd
 	if m = math.Ceil(l*t + 1); m > l {
 		m = l
 	}
-	for _, tx := range genesis.block.Transactions {
-		if err = immutable.apply(tx); err != nil {
-			log.WithError(err).Fatal("Failed to initialize immutable state from genesis")
+
+	// Rebuild branches
+	var (
+		branches  []*branch
+		br, head  *branch
+		headIndex int
+	)
+	for _, v := range heads {
+		if v.hasAncestor(irre) {
+			if v.hasAncestor(irre) {
+				if br, err = fork(irre, v, immutable, txPool); err != nil {
+					log.WithError(err).Fatal("Failed to rebuild branch")
+				}
+				branches = append(branches, br)
+			}
 		}
 	}
-	immutable.commit()
-	headBranch = &branch{
-		head:     genesis,
-		preview:  immutable.makeCopy(),
-		packed:   make(map[hash.Hash]pi.Transaction),
-		unpacked: make(map[hash.Hash]pi.Transaction),
+	for i, v := range branches {
+		if v.head.count > branches[headIndex].head.count {
+			headIndex = i
+			head = v
+		}
 	}
+
 	return &rt{
 		ctx:    cld,
 		cancel: ccl,
@@ -118,12 +130,12 @@ func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAd
 		nextTurn:   1,
 		offset:     time.Duration(0),
 
-		lastIrre:   genesis,
+		lastIrre:   irre,
 		immutable:  immutable,
-		headIndex:  0,
-		headBranch: headBranch,
-		branches:   []*branch{headBranch},
-		txPool:     make(map[hash.Hash]pi.Transaction),
+		headIndex:  headIndex,
+		headBranch: head,
+		branches:   branches,
+		txPool:     txPool,
 	}
 }
 

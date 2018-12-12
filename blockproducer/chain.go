@@ -66,24 +66,49 @@ type Chain struct {
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
+	var (
+		existed bool
+
+		st        xi.Storage
+		irre      *blockNode
+		heads     []*blockNode
+		immutable *metaState
+		txPool    map[hash.Hash]pi.Transaction
+
+		addr   proto.AccountAddress
+		pubKey *asymmetric.PublicKey
+
+		inst   *Chain
+		rt     *rt
+		bus    = chainbus.New()
+		caller = rpc.NewCaller()
+		ctx    = context.Background()
+	)
+
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
-		return LoadChain(cfg)
+		existed = true
 	}
-
-	var (
-		bus    = chainbus.New()
-		caller = rpc.NewCaller()
-		ctx    = context.Background()
-		pubKey *asymmetric.PublicKey
-		st     xi.Storage
-		addr   proto.AccountAddress
-		inst   *Chain
-	)
 
 	// Open storage
 	if st, err = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); err != nil {
 		return
 	}
+
+	// Storage genesis
+	if !existed {
+		if err = store(st, []storageProcedure{
+			updateIrreversible(cfg.Genesis.SignedHeader.BlockHash),
+			addBlock(0, cfg.Genesis),
+		}, nil); err != nil {
+			return
+		}
+	}
+
+	// Load and create runtime
+	if irre, heads, immutable, txPool, err = loadDatabase(st); err != nil {
+		return
+	}
+	rt = newRuntime(ctx, cfg, addr, irre, heads, immutable, txPool)
 
 	// get accountAddress
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -96,7 +121,7 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 	// create chain
 	inst = &Chain{
 		ctx: ctx,
-		rt:  newRuntime(ctx, cfg, addr),
+		rt:  rt,
 		st:  st,
 		cl:  caller,
 		bs:  bus,
@@ -104,65 +129,6 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 		pendingBlocks: make(chan *types.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
 	}
-
-	// Push genesis block
-	if err = inst.pushGenesisBlock(cfg.Genesis); err != nil {
-		return
-	}
-
-	log.WithFields(log.Fields{
-		"index":     inst.rt.locSvIndex,
-		"bp_number": inst.rt.serversNum,
-		"period":    inst.rt.period.String(),
-		"tick":      inst.rt.tick.String(),
-		"height":    inst.rt.head().height,
-	}).Debug("current chain state")
-
-	// sub chain events
-	inst.bs.Subscribe(txEvent, inst.addTx)
-
-	c = inst
-	return
-}
-
-// LoadChain rebuilds the chain from db.
-func LoadChain(cfg *Config) (c *Chain, err error) {
-	var (
-		bus    = chainbus.New()
-		caller = rpc.NewCaller()
-		ctx    = context.Background()
-		pubKey *asymmetric.PublicKey
-		st     xi.Storage
-		addr   proto.AccountAddress
-		inst   *Chain
-	)
-
-	// Open storage
-	if st, err = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); err != nil {
-		return
-	}
-
-	// get accountAddress
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
-		return
-	}
-
-	// create chain
-	inst = &Chain{
-		ctx: ctx,
-		rt:  newRuntime(ctx, cfg, addr),
-		st:  st,
-		cl:  caller,
-		bs:  bus,
-
-		pendingBlocks: make(chan *types.BPBlock),
-		pendingTxs:    make(chan pi.Transaction),
-	}
-
-	// Load chain state from database
 
 	log.WithFields(log.Fields{
 		"index":     inst.rt.locSvIndex,

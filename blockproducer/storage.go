@@ -88,7 +88,9 @@ func store(st xi.Storage, sps []storageProcedure, cb storageCallback) (err error
 		}
 	}
 	// CALLBACK: MUST NOT FAIL
-	cb()
+	if cb != nil {
+		cb()
+	}
 	// COMMIT
 	if err = tx.Commit(); err != nil {
 		log.WithError(err).Fatalf("Failed to commit storage transaction")

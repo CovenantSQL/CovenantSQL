@@ -102,10 +102,39 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 	// Storage genesis
 	if !existed {
-		if ierr = store(st, []storageProcedure{
-			updateIrreversible(cfg.Genesis.SignedHeader.BlockHash),
-			addBlock(0, cfg.Genesis),
-		}, nil); ierr != nil {
+		// TODO(leventeliu): reuse rt.switchBranch to construct initial state.
+		var init = newMetaState()
+		for _, v := range cfg.Genesis.Transactions {
+			if ierr = init.apply(v); ierr != nil {
+				err = errors.Wrap(ierr, "failed to initialize immutable state")
+				return
+			}
+		}
+		var sps []storageProcedure
+		sps = append(sps, addBlock(0, cfg.Genesis))
+		for k, v := range init.dirty.accounts {
+			if v != nil {
+				sps = append(sps, updateAccount(&v.Account))
+			} else {
+				sps = append(sps, deleteAccount(k))
+			}
+		}
+		for k, v := range init.dirty.databases {
+			if v != nil {
+				sps = append(sps, updateShardChain(&v.SQLChainProfile))
+			} else {
+				sps = append(sps, deleteShardChain(k))
+			}
+		}
+		for k, v := range init.dirty.provider {
+			if v != nil {
+				sps = append(sps, updateProvider(&v.ProviderProfile))
+			} else {
+				sps = append(sps, deleteProvider(k))
+			}
+		}
+		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.BlockHash))
+		if ierr = store(st, sps, nil); ierr != nil {
 			err = errors.Wrap(ierr, "failed to initialize storage")
 			return
 		}
@@ -464,6 +493,10 @@ func (c *Chain) addTx(tx pi.Transaction) {
 }
 
 func (c *Chain) processTx(tx pi.Transaction) {
+	if err := tx.Verify(); err != nil {
+		log.WithError(err).Error("Failed to verify transaction")
+		return
+	}
 	if err := c.rt.addTx(c.st, tx); err != nil {
 		log.WithError(err).Error("Failed to add transaction")
 	}

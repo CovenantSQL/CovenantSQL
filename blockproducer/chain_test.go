@@ -22,7 +22,10 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
@@ -36,8 +39,24 @@ var (
 	testClientNumberPerChain        = 10
 )
 
+func newTransfer(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	sender, receiver proto.AccountAddress, amount uint64,
+) (
+	t *types.Transfer, err error,
+) {
+	t = types.NewTransfer(&types.TransferHeader{
+		Sender:   sender,
+		Receiver: receiver,
+		Nonce:    nonce,
+		Amount:   amount,
+	})
+	err = t.Sign(signer)
+	return
+}
+
 func TestChain(t *testing.T) {
-	Convey("Given a new chain", t, func() {
+	Convey("Given a new block producer chain", t, func() {
 		var (
 			rawids = [...]proto.RawNodeID{
 				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x1}},
@@ -53,16 +72,30 @@ func TestChain(t *testing.T) {
 			leader  proto.NodeID
 			servers []proto.NodeID
 			chain   *Chain
+
+			priv1, priv2 *asymmetric.PrivateKey
+			addr1, addr2 proto.AccountAddress
 		)
+
+		priv1, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+		priv2, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		addr1, err = crypto.PubKeyHash(priv1.PubKey())
+		So(err, ShouldBeNil)
+		addr2, err = crypto.PubKeyHash(priv2.PubKey())
 
 		genesis = &types.BPBlock{
 			SignedHeader: types.BPSignedHeader{
 				BPHeader: types.BPHeader{
-					Timestamp: time.Time{},
+					Timestamp: time.Now().UTC(),
 				},
 			},
 			Transactions: []pi.Transaction{
-				types.NewBaseAccount(&types.Account{}),
+				types.NewBaseAccount(&types.Account{
+					Address:      addr1,
+					TokenBalance: [5]uint64{1000, 1000, 1000, 1000, 1000},
+				}),
 			},
 		}
 		err = genesis.PackAndSignBlock(testingPrivateKey)
@@ -91,5 +124,17 @@ func TestChain(t *testing.T) {
 		chain, err = NewChain(config)
 		So(err, ShouldBeNil)
 		So(chain, ShouldNotBeNil)
+		Convey("When transfer transactions are added", func() {
+			var (
+				nonce pi.AccountNonce
+				t1    pi.Transaction
+			)
+			nonce, err = chain.rt.nextNonce(addr1)
+			So(err, ShouldBeNil)
+			t1, err = newTransfer(nonce, priv1, addr1, addr2, 1)
+			So(err, ShouldBeNil)
+			err = chain.rt.addTx(chain.st, t1)
+			So(err, ShouldBeNil)
+		})
 	})
 }

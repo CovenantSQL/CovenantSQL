@@ -34,60 +34,116 @@ import (
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
-// copy from /sqlchain/runtime.go
-// rt define the runtime of main chain.
+// rt defines the runtime of main chain.
 type rt struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
 
-	// chainInitTime is the initial cycle time, when the Genesis block is produced.
-	chainInitTime time.Time
+	// The following fields are read-only in runtime.
+	server      *rpc.Server
+	address     proto.AccountAddress
+	genesisTime time.Time
+	period      time.Duration
+	tick        time.Duration
 
-	accountAddress proto.AccountAddress
-	server         *rpc.Server
+	sync.RWMutex // protects following fields
+	peers        *proto.Peers
+	nodeID       proto.NodeID
+	comfirms     uint32
+	serversNum   uint32
+	locSvIndex   uint32
+	nextTurn     uint32
+	offset       time.Duration
+	lastIrre     *blockNode
+	immutable    *metaState
+	headIndex    int
+	headBranch   *branch
+	branches     []*branch
+	txPool       map[hash.Hash]pi.Transaction
+}
 
-	bpNum uint32
-	// index is the index of the current server in the peer list.
-	index uint32
+func newRuntime(
+	ctx context.Context, cfg *Config, accountAddress proto.AccountAddress,
+	irre *blockNode, heads []*blockNode, immutable *metaState, txPool map[hash.Hash]pi.Transaction,
+) *rt {
+	var index uint32
+	for i, s := range cfg.Peers.Servers {
+		if cfg.NodeID.IsEqual(&s) {
+			index = uint32(i)
+		}
+	}
 
-	// period is the block producing cycle.
-	period time.Duration
-	// tick defines the maximum duration between each cycle.
-	tick time.Duration
+	var (
+		cld, ccl = context.WithCancel(ctx)
+		l        = float64(len(cfg.Peers.Servers))
+		t        float64
+		m        float64
+		err      error
+	)
+	if t = cfg.ConfirmThreshold; t <= 0.0 {
+		t = float64(2) / 3.0
+	}
+	if m = math.Ceil(l*t + 1); m > l {
+		m = l
+	}
 
-	// peersMutex protects following peers-relative fields.
-	peersMutex sync.Mutex
-	peers      *proto.Peers
-	nodeID     proto.NodeID
-	minComfirm uint32
+	// Rebuild branches
+	var (
+		branches  []*branch
+		br, head  *branch
+		headIndex int
+	)
+	for _, v := range heads {
+		if v.hasAncestor(irre) {
+			if v.hasAncestor(irre) {
+				if br, err = fork(irre, v, immutable, txPool); err != nil {
+					log.WithError(err).Fatal("Failed to rebuild branch")
+				}
+				branches = append(branches, br)
+			}
+		}
+	}
+	for i, v := range branches {
+		if v.head.count > branches[headIndex].head.count {
+			headIndex = i
+			head = v
+		}
+	}
 
-	stateMutex sync.Mutex // Protects following fields.
-	// nextTurn is the height of the next block.
-	nextTurn uint32
+	return &rt{
+		ctx:    cld,
+		cancel: ccl,
+		wg:     &sync.WaitGroup{},
 
-	// timeMutex protects following time-relative fields.
-	timeMutex sync.Mutex
-	// offset is the time difference calculated by: coodinatedChainTime - time.Now().
-	//
-	// TODO(leventeliu): update offset in ping cycle.
-	offset time.Duration
+		server:      cfg.Server,
+		address:     accountAddress,
+		genesisTime: cfg.Genesis.SignedHeader.Timestamp,
+		period:      cfg.Period,
+		tick:        cfg.Tick,
 
-	// Cached state
-	cacheMu   sync.RWMutex
-	irre      *blockNode
-	immutable *metaState
-	currIdx   int
-	current   *branch
-	branches  []*branch
-	txPool    map[hash.Hash]pi.Transaction
+		peers:      cfg.Peers,
+		nodeID:     cfg.NodeID,
+		comfirms:   uint32(m),
+		serversNum: uint32(len(cfg.Peers.Servers)),
+		locSvIndex: index,
+		nextTurn:   1,
+		offset:     time.Duration(0),
+
+		lastIrre:   irre,
+		immutable:  immutable,
+		headIndex:  headIndex,
+		headBranch: head,
+		branches:   branches,
+		txPool:     txPool,
+	}
 }
 
 func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
 	return store(st, []storageProcedure{addTx(tx)}, func() {
 		var k = tx.Hash()
-		r.cacheMu.Lock()
-		defer r.cacheMu.Unlock()
+		r.Lock()
+		defer r.Unlock()
 		if _, ok := r.txPool[k]; !ok {
 			r.txPool[k] = tx
 		}
@@ -98,20 +154,20 @@ func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
 }
 
 func (r *rt) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
-	r.cacheMu.RLock()
-	defer r.cacheMu.RUnlock()
-	return r.current.preview.nextNonce(addr)
+	r.RLock()
+	defer r.RUnlock()
+	return r.headBranch.preview.nextNonce(addr)
 }
 
 func (r *rt) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
-	r.cacheMu.RLock()
-	defer r.cacheMu.RUnlock()
+	r.RLock()
+	defer r.RUnlock()
 	return r.immutable.loadAccountCovenantBalance(addr)
 }
 
 func (r *rt) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
-	r.cacheMu.RLock()
-	defer r.cacheMu.RUnlock()
+	r.RLock()
+	defer r.RUnlock()
 	return r.immutable.loadAccountStableBalance(addr)
 }
 
@@ -121,6 +177,7 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 		newIrres []*blockNode
 		sps      []storageProcedure
 		up       storageCallback
+		height   = r.height(bl.Timestamp())
 	)
 
 	// Find new irreversible blocks
@@ -128,8 +185,8 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	// NOTE(leventeliu):
 	// May have multiple new irreversible blocks here if peer list shrinks. May also have
 	// no new irreversible block at all if peer list expands.
-	irre = head.head.lastIrreversible(r.minComfirm)
-	newIrres = irre.blockNodeListFrom(r.irre.count)
+	irre = head.head.lastIrreversible(r.comfirms)
+	newIrres = irre.fetchNodeList(r.lastIrre.count)
 
 	// Apply irreversible blocks to create dirty map on immutable cache
 	//
@@ -143,7 +200,7 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	}
 
 	// Prepare storage procedures to update immutable database
-	sps = append(sps, addBlock(bl))
+	sps = append(sps, addBlock(height, bl))
 	for k, v := range r.immutable.dirty.accounts {
 		if v != nil {
 			sps = append(sps, updateAccount(&v.Account))
@@ -173,7 +230,7 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	// Prepare callback to update cache
 	up = func() {
 		// Update last irreversible block
-		r.irre = irre
+		r.lastIrre = irre
 		// Apply irreversible blocks to immutable database
 		r.immutable.commit()
 		// Prune branches
@@ -191,8 +248,8 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 			}
 		}
 		// Replace current branches
-		r.current = head
-		r.currIdx = idx
+		r.headBranch = head
+		r.headIndex = idx
 		r.branches = brs
 		// Clear packed transactions
 		for _, b := range newIrres {
@@ -217,33 +274,37 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 		ok     bool
 		br     *branch
 		parent *blockNode
+		head   *blockNode
+		height = r.height(bl.Timestamp())
 	)
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
+	r.Lock()
+	defer r.Unlock()
 
 	for i, v := range r.branches {
 		// Grow a branch
 		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
-			if br, err = v.applyBlock(bl); err != nil {
+			head = newBlockNodeEx(height, bl, v.head)
+			if br, err = v.applyBlock(head); err != nil {
 				return
 			}
-
 			// Grow a branch while the current branch is not changed
-			if br.head.count <= r.current.head.count {
-				return store(st, []storageProcedure{addBlock(bl)}, func() { r.branches[i] = br })
+			if br.head.count <= r.headBranch.head.count {
+				return store(st,
+					[]storageProcedure{addBlock(height, bl)},
+					func() { r.branches[i] = br },
+				)
 			}
-
 			// Switch branch or grow current branch
 			return r.switchBranch(st, bl, i, br)
 		}
 		// Fork and create new branch
-		if parent, ok = v.head.findNodeAfterCount(bl.SignedHeader.ParentHash, r.irre.count); ok {
-			var head = newBlockNodeEx(bl, parent)
-			if br, err = fork(r.irre, head, r.immutable, r.txPool); err != nil {
+		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, r.lastIrre.count); ok {
+			head = newBlockNodeEx(height, bl, parent)
+			if br, err = fork(r.lastIrre, head, r.immutable, r.txPool); err != nil {
 				return
 			}
 			return store(st,
-				[]storageProcedure{addBlock(bl)},
+				[]storageProcedure{addBlock(height, bl)},
 				func() { r.branches = append(r.branches, br) },
 			)
 		}
@@ -253,23 +314,21 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 }
 
 func (r *rt) produceBlock(
-	st xi.Storage, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
+	st xi.Storage, now time.Time, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
 ) {
 	var (
 		bl *types.BPBlock
 		br *branch
 	)
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-
+	r.Lock()
+	defer r.Unlock()
 	// Try to produce new block
-	if br, bl, err = r.current.produceBlock(); err != nil {
+	if br, bl, err = r.headBranch.produceBlock(
+		r.height(now), now, r.address, priv,
+	); err != nil {
 		return
 	}
-	if err = bl.PackAndSignBlock(priv); err != nil {
-		return
-	}
-	if err = r.switchBranch(st, bl, r.currIdx, br); err != nil {
+	if err = r.switchBranch(st, bl, r.headIndex, br); err != nil {
 		return
 	}
 	out = bl
@@ -278,48 +337,9 @@ func (r *rt) produceBlock(
 
 // now returns the current coordinated chain time.
 func (r *rt) now() time.Time {
-	r.timeMutex.Lock()
-	defer r.timeMutex.Unlock()
-	// TODO(lambda): why does sqlchain not need UTC
+	r.RLock()
+	defer r.RUnlock()
 	return time.Now().UTC().Add(r.offset)
-}
-
-func newRuntime(ctx context.Context, cfg *Config, accountAddress proto.AccountAddress) *rt {
-	var index uint32
-	for i, s := range cfg.Peers.Servers {
-		if cfg.NodeID.IsEqual(&s) {
-			index = uint32(i)
-		}
-	}
-	var (
-		cld, ccl = context.WithCancel(ctx)
-		l        = float64(len(cfg.Peers.Servers))
-		t        float64
-		m        float64
-	)
-	if t = cfg.ConfirmThreshold; t <= 0.0 {
-		t = float64(2) / 3.0
-	}
-	if m = math.Ceil(l*t + 1); m > l {
-		m = l
-	}
-	return &rt{
-		ctx:            cld,
-		cancel:         ccl,
-		wg:             &sync.WaitGroup{},
-		chainInitTime:  cfg.Genesis.SignedHeader.Timestamp,
-		accountAddress: accountAddress,
-		server:         cfg.Server,
-		bpNum:          uint32(len(cfg.Peers.Servers)),
-		index:          index,
-		period:         cfg.Period,
-		tick:           cfg.Tick,
-		peers:          cfg.Peers,
-		nodeID:         cfg.NodeID,
-		minComfirm:     uint32(m),
-		nextTurn:       1,
-		offset:         time.Duration(0),
-	}
 }
 
 func (r *rt) startService(chain *Chain) {
@@ -328,63 +348,67 @@ func (r *rt) startService(chain *Chain) {
 
 // nextTick returns the current clock reading and the duration till the next turn. If duration
 // is less or equal to 0, use the clock reading to run the next cycle - this avoids some problem
-// caused by concurrently time synchronization.
+// caused by concurrent time synchronization.
 func (r *rt) nextTick() (t time.Time, d time.Duration) {
-	t = r.now()
-	d = r.chainInitTime.Add(time.Duration(r.nextTurn) * r.period).Sub(t)
-
+	var nt uint32
+	nt, t = func() (nt uint32, t time.Time) {
+		r.RLock()
+		defer r.RUnlock()
+		nt = r.nextTurn
+		t = time.Now().UTC().Add(r.offset)
+		return
+	}()
+	d = r.genesisTime.Add(time.Duration(nt) * r.period).Sub(t)
 	if d > r.tick {
 		d = r.tick
 	}
-
 	return
 }
 
 func (r *rt) isMyTurn() bool {
-	r.stateMutex.Lock()
-	defer r.stateMutex.Unlock()
-	return r.nextTurn%r.bpNum == r.index
+	r.RLock()
+	defer r.RUnlock()
+	return r.nextTurn%r.serversNum == r.locSvIndex
 }
 
 // setNextTurn prepares the runtime state for the next turn.
 func (r *rt) setNextTurn() {
-	r.stateMutex.Lock()
-	defer r.stateMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	r.nextTurn++
 }
 
-func (r *rt) getIndexTotalServer() (uint32, uint32, proto.NodeID) {
-	return r.index, r.bpNum, r.nodeID
-}
-
-func (r *rt) getPeerInfoString() string {
-	index, bpNum, nodeID := r.getIndexTotalServer()
+func (r *rt) peerInfo() string {
+	var index, bpNum, nodeID = func() (uint32, uint32, proto.NodeID) {
+		r.RLock()
+		defer r.RUnlock()
+		return r.locSvIndex, r.serversNum, r.nodeID
+	}()
 	return fmt.Sprintf("[%d/%d] %s", index, bpNum, nodeID)
 }
 
-// getHeightFromTime calculates the height with this sql-chain config of a given time reading.
-func (r *rt) getHeightFromTime(t time.Time) uint32 {
-	return uint32(t.Sub(r.chainInitTime) / r.period)
+// height calculates the height with this sql-chain config of a given time reading.
+func (r *rt) height(t time.Time) uint32 {
+	return uint32(t.Sub(r.genesisTime) / r.period)
 }
 
 func (r *rt) getNextTurn() uint32 {
-	r.stateMutex.Lock()
-	defer r.stateMutex.Unlock()
-
+	r.RLock()
+	defer r.RUnlock()
 	return r.nextTurn
 }
 
 func (r *rt) getPeers() *proto.Peers {
-	r.peersMutex.Lock()
-	defer r.peersMutex.Unlock()
-	peers := r.peers.Clone()
+	r.RLock()
+	defer r.RUnlock()
+	var peers = r.peers.Clone()
 	return &peers
 }
 
-func (r *rt) currentBranch() *branch {
-	r.cacheMu.RLock()
-	defer r.cacheMu.RUnlock()
-	return r.current
+func (r *rt) head() *blockNode {
+	r.RLock()
+	defer r.RUnlock()
+	return r.headBranch.head
 }
 
 func (r *rt) stop() {

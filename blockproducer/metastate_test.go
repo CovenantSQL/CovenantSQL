@@ -927,39 +927,116 @@ func TestMetaState(t *testing.T) {
 			})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
+
+			// increase account balance
+			var (
+				txs = []pi.Transaction{
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr1,
+							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr2,
+							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr3,
+							TokenBalance: [types.SupportTokenNumber]uint64{100000, 100},
+						},
+					),
+				}
+			)
+
+			err = txs[0].Sign(privKey1)
+			So(err, ShouldBeNil)
+			err = txs[1].Sign(privKey2)
+			So(err, ShouldBeNil)
+			err = txs[2].Sign(privKey3)
+			for i := range txs {
+				err = db.Update(ms.applyTransactionProcedure(txs[i]))
+			}
+
 			Convey("When provider transaction is invalid", func() {
 				invalidPs := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
+						TargetUser: addr1,
+						Nonce: 1,
 					},
 				}
-				invalidPs.Sign(privKey1)
+				err = invalidPs.Sign(privKey3)
+				So(err, ShouldBeNil)
 				invalidCd1 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr2,
+						GasPrice: 1,
+						TokenType: types.Particle,
+						Nonce: 1,
 					},
 				}
-				invalidCd1.Sign(privKey1)
+				err = invalidCd1.Sign(privKey1)
+				So(err, ShouldBeNil)
 				invalidCd2 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr1,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
+						GasPrice: 1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.Period) * 1,
+						TokenType: types.Particle,
+						Nonce: 1,
 					},
 				}
-				invalidCd2.Sign(privKey1)
+				err = invalidCd2.Sign(privKey1)
+				So(err, ShouldBeNil)
+				invalidCd3 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+						},
+						GasPrice: 1,
+						TokenType: types.Particle,
+						Nonce: 1,
+					},
+				}
+				err = invalidCd3.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd4 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+						},
+						Nonce: 1,
+					},
+				}
+				err = invalidCd4.Sign(privKey3)
+				So(err, ShouldBeNil)
 
 				err = db.Update(ms.applyTransactionProcedure(&invalidPs))
-				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
 				err = db.Update(ms.applyTransactionProcedure(&invalidCd1))
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
 				err = db.Update(ms.applyTransactionProcedure(&invalidCd2))
 				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
+				err = db.Update(ms.applyTransactionProcedure(&invalidCd3))
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
+				err = db.Update(ms.applyTransactionProcedure(&invalidCd4))
+				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
 			})
 			Convey("When SQLChain create", func() {
 				ps := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
 						TargetUser: addr1,
+						GasPrice: 1,
+						TokenType: types.Particle,
+						Nonce: 1,
 					},
 				}
 				err = ps.Sign(privKey2)
@@ -970,9 +1047,13 @@ func TestMetaState(t *testing.T) {
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
+						GasPrice: 1,
+						AdvancePayment: 3600000,
+						TokenType: types.Particle,
+						Nonce: 1,
 					},
 				}
-				cd1.Sign(privKey1)
+				err = cd1.Sign(privKey1)
 				So(err, ShouldBeNil)
 				cd2 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
@@ -980,17 +1061,34 @@ func TestMetaState(t *testing.T) {
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
 						},
+						GasPrice: 1,
+						AdvancePayment: 3600000,
+						TokenType: types.Particle,
+						Nonce: 1,
 					},
 				}
-				cd2.Sign(privKey3)
+				err = cd2.Sign(privKey3)
 				So(err, ShouldBeNil)
 
+				var b1, b2 uint64
+				b1, loaded = ms.loadAccountStableBalance(addr2)
+				So(loaded, ShouldBeTrue)
 				err = db.Update(ms.applyTransactionProcedure(&ps))
 				So(err, ShouldBeNil)
+				b2, loaded = ms.loadAccountStableBalance(addr2)
+				So(loaded, ShouldBeTrue)
+				So(b1 - b2, ShouldEqual, conf.GConf.MinProviderDeposit)
 				err = db.Update(ms.applyTransactionProcedure(&cd2))
 				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
+				b1, loaded = ms.loadAccountStableBalance(addr1)
+				So(loaded, ShouldBeTrue)
 				err = db.Update(ms.applyTransactionProcedure(&cd1))
 				So(err, ShouldBeNil)
+				b2, loaded = ms.loadAccountStableBalance(addr1)
+				So(loaded, ShouldBeTrue)
+				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
+					uint64(conf.GConf.Period) * uint64(len(cd2.ResourceMeta.TargetMiners))
+				So(b1 - b2, ShouldEqual, cd1.AdvancePayment + minAdvancePayment)
 				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
 				co, loaded = ms.loadSQLChainObject(*dbID)
 				So(loaded, ShouldBeTrue)
@@ -1005,7 +1103,8 @@ func TestMetaState(t *testing.T) {
 						Nonce:          cd1.Nonce + 1,
 					},
 				}
-				up.Sign(privKey1)
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
 				err = db.Update(ms.applyTransactionProcedure(&up))
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
 				up.Permission = 4
@@ -1024,7 +1123,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				// addr3(admin) update addr4 as read
 				up.TargetUser = addr4
-				up.Nonce = 0
+				up.Nonce = cd2.Nonce
 				up.Permission = types.Read
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)

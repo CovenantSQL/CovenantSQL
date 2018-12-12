@@ -7,6 +7,7 @@ ListenAddr: "10.250.100.9:4661"
 ThisNodeID: "004e5cf49e88f6e35e344f35d73ffe6232d4ebe93a63a825e171b8f6f2a88859"
 QPS: 1000
 Period: 3600
+MinProviderDeposit: 1000000
 ValidDNSKeys:
   oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com

@@ -88,4 +88,8 @@ var (
 	ErrGasPriceMismatch = errors.New("gas price mismatches")
 	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
 	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
+	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
+	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrInvalidGasPrice indicates that the gas price is invalid.
+	ErrInvalidGasPrice = errors.New("gas price is invalid")
 )

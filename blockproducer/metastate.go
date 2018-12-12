@@ -18,11 +18,11 @@ package blockproducer
 
 import (
 	"bytes"
-	"github.com/CovenantSQL/CovenantSQL/conf"
 	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -510,6 +510,44 @@ func (s *metaState) clean() {
 	s.dirty = newMetaIndex()
 }
 
+func (s *metaState) increaseAccountToken(k proto.AccountAddress, amount uint64, tokenType pt.TokenType) error {
+	s.Lock()
+	defer s.Unlock()
+	var (
+		src, dst *accountObject
+		ok       bool
+	)
+	if dst, ok = s.dirty.accounts[k]; !ok {
+		if src, ok = s.readonly.accounts[k]; !ok {
+			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			return err
+		}
+		dst = &accountObject{}
+		deepcopier.Copy(&src.Account).To(&dst.Account)
+		s.dirty.accounts[k] = dst
+	}
+	return safeAdd(&dst.Account.TokenBalance[tokenType], &amount)
+}
+
+func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, tokenType pt.TokenType) error {
+	s.Lock()
+	defer s.Unlock()
+	var (
+		src, dst *accountObject
+		ok       bool
+	)
+	if dst, ok = s.dirty.accounts[k]; !ok {
+		if src, ok = s.readonly.accounts[k]; !ok {
+			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			return err
+		}
+		dst = &accountObject{}
+		deepcopier.Copy(&src.Account).To(&dst.Account)
+		s.dirty.accounts[k] = dst
+	}
+	return safeSub(&dst.Account.TokenBalance[tokenType], &amount)
+}
+
 func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
 	s.Lock()
 	defer s.Unlock()
@@ -821,9 +859,9 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 
 	// deposit
 	var (
-		balance uint64 = 10
+		minDeposit = conf.GConf.MinProviderDeposit
 	)
-	if err = s.decreaseAccountStableBalance(sender, balance); err != nil {
+	if err = s.decreaseAccountStableBalance(sender, minDeposit); err != nil {
 		return
 	}
 
@@ -833,8 +871,8 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		Memory:        tx.Memory,
 		LoadAvgPerCPU: tx.LoadAvgPerCPU,
 		TargetUser:    tx.TargetUser,
-		Deposit: balance,
-		GasPrice: tx.GasPrice,
+		Deposit:       minDeposit,
+		GasPrice:      tx.GasPrice,
 	}
 	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
 	return
@@ -849,6 +887,11 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	if sender != tx.Owner {
 		err = errors.Wrapf(ErrInvalidSender, "match failed with real sender: %s, sender: %s",
 			sender.String(), tx.Owner.String())
+		return
+	}
+
+	if tx.GasPrice <= 0 {
+		err = ErrInvalidGasPrice
 		return
 	}
 
@@ -896,11 +939,20 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		return
 	}
 	// generate userinfo
+	var all = minAdvancePayment
+	err = safeAdd(&all, &tx.AdvancePayment)
+	if err != nil {
+		return
+	}
+	err = s.decreaseAccountToken(sender, all, tx.TokenType)
+	if err != nil {
+		return
+	}
 	users := make([]*pt.SQLChainUser, 1)
 	users[0] = &pt.SQLChainUser{
-		Address:    sender,
-		Permission: pt.Admin,
-		Deposit: minAdvancePayment,
+		Address:        sender,
+		Permission:     pt.Admin,
+		Deposit:        minAdvancePayment,
 		AdvancePayment: tx.AdvancePayment,
 	}
 	// generate genesis block

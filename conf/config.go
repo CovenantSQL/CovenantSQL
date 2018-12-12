@@ -135,8 +135,9 @@ type Config struct {
 	KnownNodes  []proto.Node `yaml:"KnownNodes"`
 	SeedBPNodes []proto.Node `yaml:"-"`
 
-	QPS uint32 `yaml:"QPS"`
+	QPS    uint32 `yaml:"QPS"`
 	Period uint32 `yaml:"Period"` // Period is for sql chain miners syncing billing with main chain
+	MinProviderDeposit uint64 `yaml:"MinProviderDeposit"`
 }
 
 // GConf is the global config pointer.

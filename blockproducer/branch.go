@@ -10,8 +10,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * See the License for the specific language governing permissions and * limitations under the License.
  */
 
 package blockproducer
@@ -19,9 +18,12 @@ package blockproducer
 import (
 	"bytes"
 	"sort"
+	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -36,7 +38,7 @@ func fork(
 	from, to *blockNode, v *metaState, txPool map[hash.Hash]pi.Transaction) (br *branch, err error,
 ) {
 	var (
-		list = to.blockNodeListFrom(from.count)
+		list = to.fetchNodeList(from.count)
 		inst = &branch{
 			head:     to,
 			preview:  v.makeCopy(),
@@ -69,6 +71,7 @@ func fork(
 			}
 		}
 	}
+	inst.preview.commit()
 	return
 }
 
@@ -100,13 +103,13 @@ func (b *branch) addTx(tx pi.Transaction) {
 	}
 }
 
-func (b *branch) applyBlock(bl *types.BPBlock) (br *branch, err error) {
-	if !b.head.hash.IsEqual(bl.ParentHash()) {
+func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
+	if !b.head.hash.IsEqual(n.block.ParentHash()) {
 		err = ErrParentNotMatch
 		return
 	}
 	var cpy = b.makeCopy()
-	for _, v := range bl.Transactions {
+	for _, v := range n.block.Transactions {
 		var k = v.Hash()
 		// Check in tx pool
 		if _, ok := cpy.unpacked[k]; ok {
@@ -124,7 +127,8 @@ func (b *branch) applyBlock(bl *types.BPBlock) (br *branch, err error) {
 			return
 		}
 	}
-	cpy.head = newBlockNodeEx(bl, cpy.head)
+	cpy.preview.commit()
+	cpy.head = n
 	br = cpy
 	return
 }
@@ -147,7 +151,11 @@ func newBlock(out []pi.Transaction) (bl *types.BPBlock) {
 	return
 }
 
-func (b *branch) produceBlock() (br *branch, bl *types.BPBlock, err error) {
+func (b *branch) produceBlock(
+	h uint32, ts time.Time, addr proto.AccountAddress, signer *ca.PrivateKey,
+) (
+	br *branch, bl *types.BPBlock, err error,
+) {
 	var (
 		cpy = b.makeCopy()
 		txs = cpy.sortUnpackedTxs()
@@ -162,10 +170,25 @@ func (b *branch) produceBlock() (br *branch, bl *types.BPBlock, err error) {
 		cpy.packed[k] = v
 		out = append(out, v)
 	}
+	cpy.preview.commit()
 	// Create new block and update head
-	bl = newBlock(out)
-	cpy.head = newBlockNodeEx(bl, cpy.head)
+	var block = &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
+				Version:    0x01000000,
+				Producer:   addr,
+				ParentHash: cpy.head.hash,
+				Timestamp:  ts,
+			},
+		},
+		Transactions: out,
+	}
+	if err = block.PackAndSignBlock(signer); err != nil {
+		return
+	}
+	cpy.head = newBlockNodeEx(h, block, cpy.head)
 	br = cpy
+	bl = block
 	return
 }
 

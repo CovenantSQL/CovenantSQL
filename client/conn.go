@@ -81,9 +81,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	// get peers from BP
 	var peers *proto.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
-		log.WithError(err).Error("cacheGetPeers failed")
-		c = nil
-		return
+		return nil, errors.WithMessage(err, "cacheGetPeers failed")
 	}
 
 	if cfg.UseLeader {
@@ -113,38 +111,19 @@ func newConn(cfg *Config) (c *conn, err error) {
 		return nil, errors.New("no follower peers found")
 	}
 
-	err = c.startAckWorkers(2)
-	if err != nil {
-		log.WithError(err).Error("startAckWorkers failed")
-		c = nil
-		return
+	if c.leader != nil {
+		if err := c.leader.startAckWorkers(2); err != nil {
+			return nil, errors.WithMessage(err, "leader startAckWorkers failed")
+		}
 	}
+	if c.follower != nil {
+		if err := c.follower.startAckWorkers(2); err != nil {
+			return nil, errors.WithMessage(err, "follower startAckWorkers failed")
+		}
+	}
+
 	log.WithField("db", c.dbID).Debug("new connection to database")
-
 	return
-}
-
-func (c *conn) startAckWorkers(workerCount int) (err error) {
-	if c.leader != nil {
-		if err := c.leader.startAckWorkers(workerCount); err != nil {
-			return err
-		}
-	}
-	if c.follower != nil {
-		if err := c.follower.startAckWorkers(workerCount); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *conn) stopAckWorkers() {
-	if c.leader != nil {
-		c.leader.stopAckWorkers()
-	}
-	if c.follower != nil {
-		c.follower.stopAckWorkers()
-	}
 }
 
 func (c *pconn) startAckWorkers(workerCount int) (err error) {
@@ -195,6 +174,14 @@ ackWorkerLoop:
 	log.Debug("ack worker quiting")
 }
 
+func (c *pconn) close() error {
+	c.stopAckWorkers()
+	if c.pCaller != nil {
+		c.pCaller.CloseStream()
+	}
+	return nil
+}
+
 // Prepare implements the driver.Conn.Prepare method.
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
 	return c.PrepareContext(context.Background(), query)
@@ -206,8 +193,12 @@ func (c *conn) Close() error {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		log.WithField("db", c.dbID).Debug("closed connection")
 	}
-	c.stopAckWorkers()
-	c.pCaller.CloseStream()
+	if c.leader != nil {
+		c.leader.close()
+	}
+	if c.follower != nil {
+		c.follower.close()
+	}
 	return nil
 }
 

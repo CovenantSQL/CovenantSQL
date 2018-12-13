@@ -208,14 +208,6 @@ func (c *Chain) pushBlockWithoutCheck(b *types.BPBlock) (err error) {
 	return err
 }
 
-func (c *Chain) pushGenesisBlock(b *types.BPBlock) (err error) {
-	err = c.pushBlockWithoutCheck(b)
-	if err != nil {
-		log.WithError(err).Error("push genesis block failed")
-	}
-	return
-}
-
 func (c *Chain) pushBlock(b *types.BPBlock) error {
 	err := c.checkBlock(b)
 	if err != nil {
@@ -279,72 +271,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	}
 
 	return err
-}
-
-func (c *Chain) produceBilling(br *types.BillingRequest) (_ *types.BillingRequest, err error) {
-	// TODO(lambda): simplify the function
-	if err = c.checkBillingRequest(br); err != nil {
-		return
-	}
-
-	// update stable coin's balance
-	// TODO(lambda): because there is no token distribution,
-	// we only increase miners' balance but not decrease customer's balance
-	var (
-		accountNumber = len(br.Header.GasAmounts)
-		receivers     = make([]*proto.AccountAddress, accountNumber)
-		fees          = make([]uint64, accountNumber)
-		rewards       = make([]uint64, accountNumber)
-	)
-
-	for i, addrAndGas := range br.Header.GasAmounts {
-		receivers[i] = &addrAndGas.AccountAddress
-		fees[i] = addrAndGas.GasAmount * uint64(gasPrice)
-		rewards[i] = 0
-	}
-
-	// add block producer signature
-	var privKey *asymmetric.PrivateKey
-	privKey, err = kms.GetLocalPrivateKey()
-	if err != nil {
-		return
-	}
-
-	if _, _, err = br.SignRequestHeader(privKey, false); err != nil {
-		return
-	}
-
-	// generate and push the txbilling
-	// 1. generate txbilling
-	var nc pi.AccountNonce
-	if nc, err = c.rt.nextNonce(accountAddress); err != nil {
-		return
-	}
-	var (
-		tc = types.NewBillingHeader(nc, br, accountAddress, receivers, fees, rewards)
-		tb = types.NewBilling(tc)
-	)
-	if err = tb.Sign(privKey); err != nil {
-		return
-	}
-	log.WithField("billingRequestHash", br.RequestHash).Debug("generated billing transaction")
-
-	// 2. push tx
-	c.pendingTxs <- tb
-
-	return br, nil
-}
-
-// checkBillingRequest checks followings by order:
-// 1. period of sqlchain;
-// 2. request's hash
-// 3. miners' signatures.
-func (c *Chain) checkBillingRequest(br *types.BillingRequest) (err error) {
-	// period of sqlchain;
-	// TODO(lambda): get and check period and miner list of specific sqlchain
-
-	err = br.VerifySignatures()
-	return
 }
 
 func (c *Chain) fetchBlock(h hash.Hash) (b *types.BPBlock, err error) {

@@ -38,17 +38,6 @@ type AdviseNewBlockResp struct {
 	proto.Envelope
 }
 
-// AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
-type AdviseTxBillingReq struct {
-	proto.Envelope
-	TxBilling *types.Billing
-}
-
-// AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
-type AdviseTxBillingResp struct {
-	proto.Envelope
-}
-
 // FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	proto.Envelope
@@ -67,16 +56,6 @@ type FetchBlockResp struct {
 type FetchBlockByCountReq struct {
 	proto.Envelope
 	Count uint32
-}
-
-// FetchTxBillingReq defines a request of the FetchTxBilling RPC method.
-type FetchTxBillingReq struct {
-	proto.Envelope
-}
-
-// FetchTxBillingResp defines a response of the FetchTxBilling RPC method.
-type FetchTxBillingResp struct {
-	proto.Envelope
 }
 
 // NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
@@ -167,16 +146,6 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 	return nil
 }
 
-// AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
-func (s *ChainRPCService) AdviseBillingRequest(req *types.AdviseBillingReq, resp *types.AdviseBillingResp) error {
-	response, err := s.chain.produceBilling(req.Req)
-	if err != nil {
-		return err
-	}
-	resp.Resp = response
-	return nil
-}
-
 // FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
 	resp.Height = req.Height
@@ -199,11 +168,6 @@ func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *Fet
 	resp.Block = block
 	resp.Height = height
 	return err
-}
-
-// FetchTxBilling is the RPC method to fetch a known billing tx from the target server.
-func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
-	return nil
 }
 
 // NextAccountNonce is the RPC method to query the next nonce of an account.

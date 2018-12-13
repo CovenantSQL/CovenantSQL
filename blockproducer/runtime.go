@@ -256,6 +256,10 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 				idx = len(brs) - 1
 			} else if b.head.hasAncestor(irre) {
 				brs = append(brs, b)
+			} else {
+				log.WithFields(log.Fields{
+					"branch": fmt.Sprintf("%04d", i),
+				}).Debugf("Pruning branch")
 			}
 		}
 		// Replace current branches
@@ -328,6 +332,8 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 			// Switch branch or grow current branch
 			return r.switchBranch(st, bl, i, br)
 		}
+	}
+	for _, v := range r.branches {
 		// Fork and create new branch
 		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, r.lastIrre.count); ok {
 			head = newBlockNode(height, bl, parent)

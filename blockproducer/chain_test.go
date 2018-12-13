@@ -70,6 +70,7 @@ func TestChain(t *testing.T) {
 			err     error
 			config  *Config
 			genesis *types.BPBlock
+			begin   time.Time
 			leader  proto.NodeID
 			servers []proto.NodeID
 			chain   *Chain
@@ -101,6 +102,7 @@ func TestChain(t *testing.T) {
 		}
 		err = genesis.PackAndSignBlock(testingPrivateKey)
 		So(err, ShouldBeNil)
+		begin = genesis.Timestamp()
 
 		for _, v := range rawids {
 			servers = append(servers, v.ToNodeID())
@@ -140,6 +142,8 @@ func TestChain(t *testing.T) {
 			var (
 				nonce      pi.AccountNonce
 				t1, t2, t3 pi.Transaction
+				f0, f1     *branch
+				bl         *types.BPBlock
 			)
 			nonce, err = chain.rt.nextNonce(addr1)
 			So(err, ShouldBeNil)
@@ -150,31 +154,90 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 			t3, err = newTransfer(nonce+2, priv1, addr1, addr2, 1)
 			So(err, ShouldBeNil)
+
+			// Fork from #0
+			f0 = chain.rt.headBranch.makeCopy()
+
 			err = chain.rt.addTx(chain.st, t1)
 			So(err, ShouldBeNil)
-			err = chain.rt.addTx(chain.st, t1)
-			So(err, ShouldEqual, ErrExistedTx)
-			Convey("The chain should be able to produce new block", func() {
-				err = chain.produceBlock(chain.rt.genesisTime.Add(chain.rt.period))
+			Convey("The chain should report error on duplicated transaction", func() {
+				err = chain.rt.addTx(chain.st, t1)
+				So(err, ShouldEqual, ErrExistedTx)
+			})
+			err = chain.produceBlock(begin.Add(chain.rt.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#0 and apply
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			// Fork from #1
+			f1 = chain.rt.headBranch.makeCopy()
+
+			err = chain.rt.addTx(chain.st, t2)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(2 * chain.rt.period))
+			So(err, ShouldBeNil)
+
+			err = chain.rt.addTx(chain.st, t3)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(3 * chain.rt.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			err = chain.produceBlock(begin.Add(4 * chain.rt.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(4, begin.Add(4*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			err = chain.produceBlock(begin.Add(5 * chain.rt.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(5, begin.Add(5*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			err = chain.produceBlock(begin.Add(6 * chain.rt.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(6, begin.Add(6*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+			f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.rt.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			Convey("The chain should have same state after reloading", func() {
+				err = chain.Stop()
 				So(err, ShouldBeNil)
-				Convey("The chain should be able to produce new block", func() {
-					err = chain.rt.addTx(chain.st, t2)
-					So(err, ShouldBeNil)
-					err = chain.produceBlock(chain.rt.genesisTime.Add(2 * chain.rt.period))
-					So(err, ShouldBeNil)
-					err = chain.rt.addTx(chain.st, t3)
-					So(err, ShouldBeNil)
-					err = chain.produceBlock(chain.rt.genesisTime.Add(3 * chain.rt.period))
-					So(err, ShouldBeNil)
-					Convey("The chain should have same state after reloading", func() {
-						err = chain.Stop()
-						So(err, ShouldBeNil)
-						chain, err = NewChain(config)
-						So(err, ShouldBeNil)
-						So(chain, ShouldNotBeNil)
-						chain.rt.log()
-					})
-				})
+				chain, err = NewChain(config)
+				So(err, ShouldBeNil)
+				So(chain, ShouldNotBeNil)
+				chain.rt.log()
 			})
 		})
 	})

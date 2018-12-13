@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/pkg/errors"
 )
 
 type branch struct {
@@ -155,13 +156,14 @@ func (b *branch) produceBlock(
 	br *branch, bl *types.BPBlock, err error,
 ) {
 	var (
-		cpy = b.makeCopy()
-		txs = cpy.sortUnpackedTxs()
-		out = make([]pi.Transaction, 0, len(txs))
+		cpy  = b.makeCopy()
+		txs  = cpy.sortUnpackedTxs()
+		out  = make([]pi.Transaction, 0, len(txs))
+		ierr error
 	)
 	for _, v := range txs {
 		var k = v.Hash()
-		if err = cpy.preview.apply(v); err != nil {
+		if ierr = cpy.preview.apply(v); ierr != nil {
 			continue
 		}
 		delete(cpy.unpacked, k)
@@ -181,7 +183,8 @@ func (b *branch) produceBlock(
 		},
 		Transactions: out,
 	}
-	if err = block.PackAndSignBlock(signer); err != nil {
+	if ierr = block.PackAndSignBlock(signer); ierr != nil {
+		err = errors.Wrap(ierr, "failed to sign block")
 		return
 	}
 	cpy.head = newBlockNode(h, block, cpy.head)
@@ -203,8 +206,9 @@ func (b *branch) sprint(from uint32) (buff string) {
 			var p = v.parent
 			buff += fmt.Sprintf("* #%d:%d %s {%d}",
 				p.height, p.count, p.hash.Short(4), len(p.block.Transactions))
-		} else if d := v.height - nodes[i-1].height; d > 1 {
-			buff += fmt.Sprintf(" <-- (skip %d blocks)", d)
+		}
+		if d := v.height - v.parent.height; d > 1 {
+			buff += fmt.Sprintf(" <-- (skip %d blocks)", d-1)
 		}
 		buff += fmt.Sprintf(" <-- #%d:%d %s {%d}",
 			v.height, v.count, v.hash.Short(4), len(v.block.Transactions))

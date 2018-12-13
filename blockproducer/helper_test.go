@@ -23,7 +23,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"runtime"
+	gort "runtime"
 	"strings"
 	"sync"
 	"time"
@@ -165,7 +165,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	log.WithField("d", d).Debug("created temp dir")
 
 	// init conf
-	_, testFile, _, _ := runtime.Caller(0)
+	_, testFile, _, _ := gort.Caller(0)
 	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
 	os.Remove(pubKeyStoreFile)
 	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")

@@ -55,7 +55,7 @@ var (
 // Chain defines the main chain.
 type Chain struct {
 	ctx context.Context
-	rt  *rt
+	rt  *runtime
 	st  xi.Storage
 	cl  *rpc.Caller
 	bs  chainbus.Bus
@@ -85,7 +85,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		pubKey *asymmetric.PublicKey
 
 		inst   *Chain
-		rt     *rt
+		rt     *runtime
 		bus    = chainbus.New()
 		caller = rpc.NewCaller()
 	)

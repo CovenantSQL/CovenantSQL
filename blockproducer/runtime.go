@@ -35,8 +35,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// rt defines the runtime of main chain.
-type rt struct {
+// runtime defines the runtime of main chain.
+type runtime struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
@@ -67,7 +67,7 @@ type rt struct {
 func newRuntime(
 	ctx context.Context, cfg *Config, accountAddress proto.AccountAddress,
 	irre *blockNode, heads []*blockNode, immutable *metaState, txPool map[hash.Hash]pi.Transaction,
-) *rt {
+) *runtime {
 	var index uint32
 	for i, s := range cfg.Peers.Servers {
 		if cfg.NodeID.IsEqual(&s) {
@@ -119,7 +119,7 @@ func newRuntime(
 		}
 	}
 
-	return &rt{
+	return &runtime{
 		ctx:    cld,
 		cancel: ccl,
 		wg:     &sync.WaitGroup{},
@@ -147,7 +147,7 @@ func newRuntime(
 	}
 }
 
-func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
+func (r *runtime) addTx(st xi.Storage, tx pi.Transaction) (err error) {
 	var k = tx.Hash()
 	r.Lock()
 	defer r.Unlock()
@@ -164,25 +164,25 @@ func (r *rt) addTx(st xi.Storage, tx pi.Transaction) (err error) {
 	})
 }
 
-func (r *rt) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
+func (r *runtime) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
 	r.RLock()
 	defer r.RUnlock()
 	return r.headBranch.preview.nextNonce(addr)
 }
 
-func (r *rt) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+func (r *runtime) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
 	r.RLock()
 	defer r.RUnlock()
 	return r.immutable.loadAccountCovenantBalance(addr)
 }
 
-func (r *rt) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+func (r *runtime) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
 	r.RLock()
 	defer r.RUnlock()
 	return r.immutable.loadAccountStableBalance(addr)
 }
 
-func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *branch) (err error) {
+func (r *runtime) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *branch) (err error) {
 	var (
 		irre     *blockNode
 		newIrres []*blockNode
@@ -289,7 +289,7 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	return
 }
 
-func (r *rt) log() {
+func (r *runtime) log() {
 	r.RLock()
 	defer r.RUnlock()
 	for i, v := range r.branches {
@@ -307,7 +307,7 @@ func (r *rt) log() {
 	return
 }
 
-func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
+func (r *runtime) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	var (
 		ok     bool
 		br     *branch
@@ -355,7 +355,7 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	return
 }
 
-func (r *rt) produceBlock(
+func (r *runtime) produceBlock(
 	st xi.Storage, now time.Time, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
 ) {
 	var (
@@ -386,20 +386,20 @@ func (r *rt) produceBlock(
 }
 
 // now returns the current coordinated chain time.
-func (r *rt) now() time.Time {
+func (r *runtime) now() time.Time {
 	r.RLock()
 	defer r.RUnlock()
 	return time.Now().UTC().Add(r.offset)
 }
 
-func (r *rt) startService(chain *Chain) {
+func (r *runtime) startService(chain *Chain) {
 	r.server.RegisterService(route.BlockProducerRPCName, &ChainRPCService{chain: chain})
 }
 
 // nextTick returns the current clock reading and the duration till the next turn. If duration
 // is less or equal to 0, use the clock reading to run the next cycle - this avoids some problem
 // caused by concurrent time synchronization.
-func (r *rt) nextTick() (t time.Time, d time.Duration) {
+func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 	var nt uint32
 	nt, t = func() (nt uint32, t time.Time) {
 		r.RLock()
@@ -415,20 +415,20 @@ func (r *rt) nextTick() (t time.Time, d time.Duration) {
 	return
 }
 
-func (r *rt) isMyTurn() bool {
+func (r *runtime) isMyTurn() bool {
 	r.RLock()
 	defer r.RUnlock()
 	return r.nextTurn%r.serversNum == r.locSvIndex
 }
 
 // setNextTurn prepares the runtime state for the next turn.
-func (r *rt) setNextTurn() {
+func (r *runtime) setNextTurn() {
 	r.Lock()
 	defer r.Unlock()
 	r.nextTurn++
 }
 
-func (r *rt) peerInfo() string {
+func (r *runtime) peerInfo() string {
 	var index, bpNum, nodeID = func() (uint32, uint32, proto.NodeID) {
 		r.RLock()
 		defer r.RUnlock()
@@ -438,35 +438,35 @@ func (r *rt) peerInfo() string {
 }
 
 // height calculates the height with this sql-chain config of a given time reading.
-func (r *rt) height(t time.Time) uint32 {
+func (r *runtime) height(t time.Time) uint32 {
 	return uint32(t.Sub(r.genesisTime) / r.period)
 }
 
-func (r *rt) getNextTurn() uint32 {
+func (r *runtime) getNextTurn() uint32 {
 	r.RLock()
 	defer r.RUnlock()
 	return r.nextTurn
 }
 
-func (r *rt) getPeers() *proto.Peers {
+func (r *runtime) getPeers() *proto.Peers {
 	r.RLock()
 	defer r.RUnlock()
 	var peers = r.peers.Clone()
 	return &peers
 }
 
-func (r *rt) head() *blockNode {
+func (r *runtime) head() *blockNode {
 	r.RLock()
 	defer r.RUnlock()
 	return r.headBranch.head
 }
 
-func (r *rt) stop() {
+func (r *runtime) stop() {
 	r.cancel()
 	r.wg.Wait()
 }
 
-func (r *rt) goFunc(f func(ctx context.Context)) {
+func (r *runtime) goFunc(f func(ctx context.Context)) {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()

@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/rpc"
@@ -149,7 +150,12 @@ sessionLoop:
 				}
 				break sessionLoop
 			}
-			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			go func() {
+				<-muxConn.GetDieCh()
+				cancelFunc()
+			}()
+			nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}

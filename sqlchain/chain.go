@@ -18,6 +18,7 @@ package sqlchain
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -112,8 +113,8 @@ type Chain struct {
 	st  *x.State
 	cl  *rpc.Caller
 	rt  *runtime
+	ctx context.Context // ctx is the root context of Chain
 
-	stopCh    chan struct{}
 	blocks    chan *types.Block
 	heights   chan int32
 	responses chan *types.ResponseHeader
@@ -132,8 +133,6 @@ type Chain struct {
 	observerReplicators map[proto.NodeID]*observerReplicator
 	// replCh defines the replication trigger channel for replication check.
 	replCh chan struct{}
-	// replWg defines the waitGroups for running replications.
-	replWg sync.WaitGroup
 
 	// Cached fileds, may need to renew some of this fields later.
 	//
@@ -143,6 +142,11 @@ type Chain struct {
 
 // NewChain creates a new sql-chain struct.
 func NewChain(c *Config) (chain *Chain, err error) {
+	return NewChainWithContext(context.Background(), c)
+}
+
+// NewChainWithContext creates a new sql-chain struct with context.
+func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err error) {
 	// TODO(leventeliu): this is a rough solution, you may also want to clean database file and
 	// force rebuilding.
 	var fi os.FileInfo
@@ -202,8 +206,8 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		ai:           newAckIndex(),
 		st:           state,
 		cl:           rpc.NewCaller(),
-		rt:           newRunTime(c),
-		stopCh:       make(chan struct{}),
+		rt:           newRunTime(ctx, c),
+		ctx:          ctx,
 		blocks:       make(chan *types.Block),
 		heights:      make(chan int32, 1),
 		responses:    make(chan *types.ResponseHeader),
@@ -229,6 +233,12 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
 func LoadChain(c *Config) (chain *Chain, err error) {
+	return LoadChainWithContext(context.Background(), c)
+}
+
+// LoadChainWithContext loads the chain state from the specified database and rebuilds
+// a memory index with context.
+func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err error) {
 	// Open LevelDB for block and state
 	bdbFile := c.ChainFilePrefix + "-block-state.ldb"
 	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
@@ -272,8 +282,8 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		ai:           newAckIndex(),
 		st:           xstate,
 		cl:           rpc.NewCaller(),
-		rt:           newRunTime(c),
-		stopCh:       make(chan struct{}),
+		rt:           newRunTime(ctx, c),
+		ctx:          ctx,
 		blocks:       make(chan *types.Block),
 		heights:      make(chan int32, 1),
 		responses:    make(chan *types.ResponseHeader),
@@ -572,7 +582,12 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		return
 	}
 	// Send to pending list
-	c.blocks <- block
+	select {
+	case c.blocks <- block:
+	case <-c.rt.ctx.Done():
+		err = c.rt.ctx.Err()
+		return
+	}
 	log.WithFields(log.Fields{
 		"peer":            c.rt.getPeerInfoString(),
 		"time":            c.rt.getChainTimeString(),
@@ -609,28 +624,28 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 			go func(id proto.NodeID) {
 				defer wg.Done()
 				resp := &MuxAdviseNewBlockResp{}
-				if err := c.cl.CallNode(
-					id, route.SQLCAdviseNewBlock.String(), req, resp); err != nil {
+				if err := c.cl.CallNodeWithContext(
+					c.rt.ctx, id, route.SQLCAdviseNewBlock.String(), req, resp,
+				); err != nil {
 					log.WithFields(log.Fields{
 						"peer":            c.rt.getPeerInfoString(),
 						"time":            c.rt.getChainTimeString(),
 						"curr_turn":       c.rt.getNextTurn(),
 						"using_timestamp": now.Format(time.RFC3339Nano),
 						"block_hash":      block.BlockHash().String(),
-					}).WithError(err).Error(
-						"Failed to advise new block")
+					}).WithError(err).Error("Failed to advise new block")
 				}
 			}(s)
 		}
 	}
 	wg.Wait()
 	// fire replication to observers
-	c.startStopReplication()
+	c.startStopReplication(c.rt.ctx)
 	return
 }
 
 func (c *Chain) syncHead() {
-	// Try to fetch if the the block of the current turn is not advised yet
+	// Try to fetch if the block of the current turn is not advised yet
 	if h := c.rt.getNextTurn() - 1; c.rt.getHead().Height < h {
 		var err error
 		req := &MuxFetchBlockReq{
@@ -662,7 +677,12 @@ func (c *Chain) syncHead() {
 						"Failed to fetch block from peer")
 				} else {
 					statBlock(resp.Block)
-					c.blocks <- resp.Block
+					select {
+					case c.blocks <- resp.Block:
+					case <-c.rt.ctx.Done():
+						err = c.rt.ctx.Err()
+						return
+					}
 					log.WithFields(log.Fields{
 						"peer":        c.rt.getPeerInfoString(),
 						"time":        c.rt.getChainTimeString(),
@@ -739,16 +759,10 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 }
 
 // mainCycle runs main cycle of the sql-chain.
-func (c *Chain) mainCycle() {
-	defer func() {
-		c.rt.wg.Done()
-		// Signal worker goroutines to stop
-		close(c.stopCh)
-	}()
-
+func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
-		case <-c.rt.stopCh:
+		case <-ctx.Done():
 			return
 		default:
 			c.syncHead()
@@ -795,24 +809,26 @@ func (c *Chain) sync() (err error) {
 	return
 }
 
-func (c *Chain) processBlocks() {
-	rsCh := make(chan struct{})
-	rsWG := &sync.WaitGroup{}
+func (c *Chain) processBlocks(ctx context.Context) {
+	var (
+		cld, ccl = context.WithCancel(ctx)
+		wg       = &sync.WaitGroup{}
+	)
+
 	returnStash := func(stash []*types.Block) {
-		defer rsWG.Done()
+		defer wg.Done()
 		for _, block := range stash {
 			select {
 			case c.blocks <- block:
-			case <-rsCh:
+			case <-cld.Done():
 				return
 			}
 		}
 	}
 
 	defer func() {
-		close(rsCh)
-		rsWG.Wait()
-		c.rt.wg.Done()
+		ccl()
+		wg.Wait()
 	}()
 
 	var stash []*types.Block
@@ -825,7 +841,7 @@ func (c *Chain) processBlocks() {
 				"stashs": len(stash),
 			}).Debug("Read new height from channel")
 			if stash != nil {
-				rsWG.Add(1)
+				wg.Add(1)
 				go returnStash(stash)
 				stash = nil
 			}
@@ -863,30 +879,8 @@ func (c *Chain) processBlocks() {
 				}
 			}
 			// fire replication to observers
-			c.startStopReplication()
-		case <-c.stopCh:
-			return
-		}
-	}
-}
-
-func (c *Chain) processResponses() {
-	// TODO(leventeliu): implement that
-	defer c.rt.wg.Done()
-	for {
-		select {
-		case <-c.stopCh:
-			return
-		}
-	}
-}
-
-func (c *Chain) processAcks() {
-	// TODO(leventeliu): implement that
-	defer c.rt.wg.Done()
-	for {
-		select {
-		case <-c.stopCh:
+			c.startStopReplication(c.rt.ctx)
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -898,16 +892,9 @@ func (c *Chain) Start() (err error) {
 		return
 	}
 
-	c.rt.wg.Add(1)
-	go c.processBlocks()
-	c.rt.wg.Add(1)
-	go c.processResponses()
-	c.rt.wg.Add(1)
-	go c.processAcks()
-	c.rt.wg.Add(1)
-	go c.mainCycle()
-	c.rt.wg.Add(1)
-	go c.replicationCycle()
+	c.rt.goFunc(c.processBlocks)
+	c.rt.goFunc(c.mainCycle)
+	c.rt.goFunc(c.replicationCycle)
 	c.rt.startService(c)
 	return
 }
@@ -923,7 +910,7 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).Debug("Chain service stopped")
+	}).Debug("Chain service and workers stopped")
 	// Close LevelDB file
 	var ierr error
 	if ierr = c.bdb.Close(); ierr != nil && err == nil {
@@ -1040,7 +1027,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	// }
 
 	// Replicate local state from the new block
-	if err = c.st.ReplayBlock(block); err != nil {
+	if err = c.st.ReplayBlockWithContext(c.rt.ctx, block); err != nil {
 		return
 	}
 
@@ -1159,10 +1146,9 @@ func (c *Chain) getBilling(low, high int32) (req *pt.BillingRequest, err error) 
 	return
 }
 
-func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
-	defer c.rt.wg.Done()
+func (c *Chain) collectBillingSignatures(ctx context.Context, billings *pt.BillingRequest) {
 	// Process sign billing responses, note that range iterating over channel will only break if
-	// the channle is closed
+	// the channel is closed
 	req := &MuxSignBillingReq{
 		Envelope: proto.Envelope{
 			// TODO(leventeliu): Add fields.
@@ -1212,7 +1198,9 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 		}
 
 		var resp interface{}
-		if err = c.cl.CallNode(bpNodeID, route.MCCAdviseBillingRequest.String(), bpReq, resp); err != nil {
+		if err = c.cl.CallNodeWithContext(
+			ctx, bpNodeID, route.MCCAdviseBillingRequest.String(), bpReq, resp,
+		); err != nil {
 			return
 		}
 	}()
@@ -1232,12 +1220,13 @@ func (c *Chain) collectBillingSignatures(billings *pt.BillingRequest) {
 				defer rpcWG.Done()
 				resp := &MuxSignBillingResp{}
 
-				if err := c.cl.CallNode(id, route.SQLCSignBilling.String(), req, resp); err != nil {
+				if err := c.cl.CallNodeWithContext(
+					ctx, id, route.SQLCSignBilling.String(), req, resp,
+				); err != nil {
 					log.WithFields(log.Fields{
 						"peer": c.rt.getPeerInfoString(),
 						"time": c.rt.getChainTimeString(),
-					}).WithError(err).Error(
-						"Failed to send sign billing request")
+					}).WithError(err).Error("Failed to send sign billing request")
 				}
 
 				respC <- &resp.SignBillingResp
@@ -1268,8 +1257,7 @@ func (c *Chain) LaunchBilling(low, high int32) (err error) {
 		return
 	}
 
-	c.rt.wg.Add(1)
-	go c.collectBillingSignatures(req)
+	c.rt.goFunc(func(ctx context.Context) { c.collectBillingSignatures(ctx, req) })
 	return
 }
 
@@ -1307,7 +1295,7 @@ func (c *Chain) addSubscription(nodeID proto.NodeID, startHeight int32) (err err
 	c.observerLock.Lock()
 	defer c.observerLock.Unlock()
 	c.observers[nodeID] = startHeight
-	c.startStopReplication()
+	c.startStopReplication(c.rt.ctx)
 	return
 }
 
@@ -1316,15 +1304,15 @@ func (c *Chain) cancelSubscription(nodeID proto.NodeID) (err error) {
 	c.observerLock.Lock()
 	defer c.observerLock.Unlock()
 	delete(c.observers, nodeID)
-	c.startStopReplication()
+	c.startStopReplication(c.rt.ctx)
 	return
 }
 
-func (c *Chain) startStopReplication() {
+func (c *Chain) startStopReplication(ctx context.Context) {
 	if c.replCh != nil {
 		select {
 		case c.replCh <- struct{}{}:
-		case <-c.stopCh:
+		case <-ctx.Done():
 		default:
 		}
 	}
@@ -1344,10 +1332,9 @@ func (c *Chain) populateObservers() {
 			}
 		} else {
 			// start new replication routine
-			c.replWg.Add(1)
 			replicator := newObserverReplicator(nodeID, startHeight, c)
 			c.observerReplicators[nodeID] = replicator
-			go replicator.run()
+			c.rt.goFunc(replicator.run)
 		}
 	}
 
@@ -1360,12 +1347,7 @@ func (c *Chain) populateObservers() {
 	}
 }
 
-func (c *Chain) replicationCycle() {
-	defer func() {
-		c.replWg.Wait()
-		c.rt.wg.Done()
-	}()
-
+func (c *Chain) replicationCycle(ctx context.Context) {
 	for {
 		select {
 		case <-c.replCh:
@@ -1375,7 +1357,7 @@ func (c *Chain) replicationCycle() {
 			for _, replicator := range c.observerReplicators {
 				replicator.tick()
 			}
-		case <-c.stopCh:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -1384,7 +1366,9 @@ func (c *Chain) replicationCycle() {
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 	var ref *x.QueryTracker
-	if ref, resp, err = c.st.Query(req); err != nil {
+	// TODO(leventeliu): we're using an external context passed by request. Make sure that
+	// cancelling will be propagated to this context before chain instance stops.
+	if ref, resp, err = c.st.QueryWithContext(req.GetContext(), req); err != nil {
 		return
 	}
 	if err = resp.Sign(c.pk); err != nil {
@@ -1403,7 +1387,7 @@ func (c *Chain) Replay(req *types.Request, resp *types.Response) (err error) {
 	case types.ReadQuery:
 		return
 	case types.WriteQuery:
-		return c.st.Replay(req, resp)
+		return c.st.ReplayWithContext(req.GetContext(), req, resp)
 	default:
 		err = ErrInvalidRequest
 	}

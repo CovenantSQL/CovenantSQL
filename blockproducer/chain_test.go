@@ -226,6 +226,41 @@ func TestChain(t *testing.T) {
 				So(chain, ShouldNotBeNil)
 				chain.rt.log()
 			})
+
+			Convey("The chain APIs should return expected results", func() {
+				var (
+					bl            *types.BPBlock
+					count, height uint32
+				)
+
+				_, _, err = chain.fetchBlockByHeight(100)
+				So(err, ShouldEqual, ErrNoSuchBlock)
+
+				_, _, err = chain.fetchBlockByCount(100)
+				So(err, ShouldEqual, ErrNoSuchBlock)
+
+				bl, count, err = chain.fetchBlockByHeight(0)
+				So(err, ShouldBeNil)
+				So(count, ShouldEqual, 0)
+				So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+
+				bl, height, err = chain.fetchBlockByCount(0)
+				So(err, ShouldBeNil)
+				So(height, ShouldEqual, 0)
+				So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+
+				// Try to use the no-cache version
+				var node = chain.rt.headBranch.head.ancestorByCount(5)
+				node.block = nil // Clear cached block
+				bl, count, err = chain.fetchBlockByHeight(node.height)
+				So(err, ShouldBeNil)
+				So(count, ShouldEqual, node.count)
+				So(bl.BlockHash(), ShouldResemble, &node.hash)
+				bl, height, err = chain.fetchBlockByCount(node.count)
+				So(err, ShouldBeNil)
+				So(height, ShouldEqual, node.height)
+				So(bl.BlockHash(), ShouldResemble, &node.hash)
+			})
 		})
 	})
 }

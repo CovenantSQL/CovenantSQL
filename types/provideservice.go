@@ -52,7 +52,7 @@ type ProvideService struct {
 func NewProvideService(h *ProvideServiceHeader) *ProvideService {
 	return &ProvideService{
 		ProvideServiceHeader: *h,
-		TransactionTypeMixin: *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeProvideService),
+		TransactionTypeMixin: *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeCreateDatabase),
 	}
 }
 

@@ -56,6 +56,34 @@ func newTransfer(
 	return
 }
 
+func newCreateDatabase(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	owner proto.AccountAddress,
+) (
+	t *types.CreateDatabase, err error,
+) {
+	t = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner: owner,
+		Nonce: nonce,
+	})
+	err = t.Sign(signer)
+	return
+}
+
+func newProvideService(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	contract proto.AccountAddress,
+) (
+	t *types.ProvideService, err error,
+) {
+	t = types.NewProvideService(&types.ProvideServiceHeader{
+		Contract: contract,
+		Nonce:    nonce,
+	})
+	err = t.Sign(signer)
+	return
+}
+
 func TestChain(t *testing.T) {
 	Convey("Given a new block producer chain", t, func() {
 		var (
@@ -140,11 +168,13 @@ func TestChain(t *testing.T) {
 
 		Convey("When transfer transactions are added", func() {
 			var (
-				nonce      pi.AccountNonce
-				t1, t2, t3 pi.Transaction
-				f0, f1     *branch
-				bl         *types.BPBlock
+				nonce          pi.AccountNonce
+				t1, t2, t3, t4 pi.Transaction
+				f0, f1         *branch
+				bl             *types.BPBlock
 			)
+
+			// Create transactions for testing
 			nonce, err = chain.rt.nextNonce(addr1)
 			So(err, ShouldBeNil)
 			So(nonce, ShouldEqual, 1)
@@ -152,7 +182,9 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 			t2, err = newTransfer(nonce+1, priv1, addr1, addr2, 1)
 			So(err, ShouldBeNil)
-			t3, err = newTransfer(nonce+2, priv1, addr1, addr2, 1)
+			t3, err = newCreateDatabase(nonce+2, priv1, addr1)
+			So(err, ShouldBeNil)
+			t4, err = newProvideService(nonce+3, priv1, addr1)
 			So(err, ShouldBeNil)
 
 			// Fork from #0
@@ -183,6 +215,8 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			err = chain.rt.addTx(chain.st, t3)
+			So(err, ShouldBeNil)
+			err = chain.rt.addTx(chain.st, t4)
 			So(err, ShouldBeNil)
 			err = chain.produceBlock(begin.Add(3 * chain.rt.period))
 			So(err, ShouldBeNil)

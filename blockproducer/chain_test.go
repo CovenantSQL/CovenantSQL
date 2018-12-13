@@ -128,8 +128,10 @@ func TestChain(t *testing.T) {
 
 		// Close chain on reset
 		Reset(func() {
-			err = chain.Stop()
-			So(err, ShouldBeNil)
+			if chain != nil {
+				err = chain.Stop()
+				So(err, ShouldBeNil)
+			}
 			err = os.Remove(config.DataFile)
 			So(err, ShouldBeNil)
 		})
@@ -164,6 +166,14 @@ func TestChain(t *testing.T) {
 					So(err, ShouldBeNil)
 					err = chain.produceBlock(chain.rt.genesisTime.Add(3 * chain.rt.period))
 					So(err, ShouldBeNil)
+					Convey("The chain should have same state after reloading", func() {
+						err = chain.Stop()
+						So(err, ShouldBeNil)
+						chain, err = NewChain(config)
+						So(err, ShouldBeNil)
+						So(chain, ShouldNotBeNil)
+						chain.rt.log()
+					})
 				})
 			})
 		})

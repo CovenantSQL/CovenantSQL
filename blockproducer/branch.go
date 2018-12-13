@@ -199,16 +199,15 @@ func (b *branch) clearPackedTxs(txs []pi.Transaction) {
 func (b *branch) sprint(from uint32) (buff string) {
 	var nodes = b.head.fetchNodeList(from)
 	for i, v := range nodes {
-		var hex = v.hash.Short(4)
 		if i == 0 {
-			buff += fmt.Sprintf("* %s <-- %s", v.parent.hash.Short(4), hex)
-			continue
+			var p = v.parent
+			buff += fmt.Sprintf("* #%d:%d %s {%d}",
+				p.height, p.count, p.hash.Short(4), len(p.block.Transactions))
+		} else if d := v.height - nodes[i-1].height; d > 1 {
+			buff += fmt.Sprintf(" <-- (skip %d blocks)", d)
 		}
-		if d := v.height - nodes[i-1].height; d > 1 {
-			buff += fmt.Sprintf(" <-- (skip %d blocks) <-- %s", d, hex)
-		} else {
-			buff += fmt.Sprintf(" <-- %s", hex)
-		}
+		buff += fmt.Sprintf(" <-- #%d:%d %s {%d}",
+			v.height, v.count, v.hash.Short(4), len(v.block.Transactions))
 	}
 	return
 }

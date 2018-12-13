@@ -316,6 +316,7 @@ func loadBlocks(
 		headsIndex = make(map[hash.Hash]*blockNode)
 
 		// Scan buffer
+		id     uint32
 		v1     uint32
 		v2, v3 string
 		v4     []byte
@@ -327,7 +328,7 @@ func loadBlocks(
 
 	// Load blocks
 	if rows, err = st.Reader().Query(
-		`SELECT "height", "hash", "parent", "encoded" FROM "blocks" ORDER BY "rowid"`,
+		`SELECT "rowid", "height", "hash", "parent", "encoded" FROM "blocks" ORDER BY "rowid"`,
 	); err != nil {
 		return
 	}
@@ -335,7 +336,7 @@ func loadBlocks(
 
 	for rows.Next() {
 		// Scan and decode block
-		if err = rows.Scan(&v1, &v2, &v3, &v4); err != nil {
+		if err = rows.Scan(&id, &v1, &v2, &v3, &v4); err != nil {
 			return
 		}
 		if err = hash.Decode(&bh, v2); err != nil {
@@ -349,6 +350,8 @@ func loadBlocks(
 			return
 		}
 		log.WithFields(log.Fields{
+			"rowid":  id,
+			"height": v1,
 			"hash":   bh.Short(4),
 			"parent": ph.Short(4),
 		}).Debug("Loaded new block")
@@ -362,14 +365,16 @@ func loadBlocks(
 			index[bh] = bn
 			headsIndex[bh] = bn
 			log.WithFields(log.Fields{
+				"rowid":  id,
+				"height": v1,
 				"hash":   bh.Short(4),
 				"parent": ph.Short(4),
 			}).Debug("Set genesis block")
 			continue
 		}
 		// Add normal block
-		if pn, ok = index[ph]; ok {
-			err = ErrParentNotFound
+		if pn, ok = index[ph]; !ok {
+			err = errors.Wrapf(ErrParentNotFound, "parent %s not found", ph.Short(4))
 			return
 		}
 		bn = newBlockNode(v1, dec, pn)
@@ -381,7 +386,7 @@ func loadBlocks(
 	}
 
 	if irre, ok = index[irreHash]; !ok {
-		err = ErrParentNotFound
+		err = errors.Wrapf(ErrParentNotFound, "irreversible block %s not found", ph.Short(4))
 		return
 	}
 

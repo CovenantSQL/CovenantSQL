@@ -280,6 +280,24 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 	return
 }
 
+func (r *rt) log() {
+	r.RLock()
+	defer r.RUnlock()
+	for i, v := range r.branches {
+		var buff string
+		if i == r.headIndex {
+			buff += "[head] "
+		} else {
+			buff += fmt.Sprintf("[%04d] ", i)
+		}
+		buff += v.sprint(r.lastIrre.count)
+		log.WithFields(log.Fields{
+			"branch": buff,
+		}).Debug("Runtime state")
+	}
+	return
+}
+
 func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	var (
 		ok     bool
@@ -288,6 +306,8 @@ func (r *rt) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 		head   *blockNode
 		height = r.height(bl.Timestamp())
 	)
+
+	defer r.log()
 	r.Lock()
 	defer r.Unlock()
 
@@ -332,8 +352,11 @@ func (r *rt) produceBlock(
 		br   *branch
 		ierr error
 	)
+
+	defer r.log()
 	r.Lock()
 	defer r.Unlock()
+
 	// Try to produce new block
 	if br, bl, ierr = r.headBranch.produceBlock(
 		r.height(now), now, r.address, priv,
@@ -348,9 +371,6 @@ func (r *rt) produceBlock(
 		return
 	}
 	out = bl
-	log.WithFields(log.Fields{
-		"head_branch": r.headBranch.sprint(r.lastIrre.count),
-	}).Debug("Produced new block on head branch")
 	return
 }
 

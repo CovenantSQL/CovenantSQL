@@ -258,7 +258,12 @@ func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *br
 				brs = append(brs, b)
 			} else {
 				log.WithFields(log.Fields{
-					"branch": fmt.Sprintf("%04d", i),
+					"branch": func() string {
+						if i == r.headIndex {
+							return "[head]"
+						}
+						return fmt.Sprintf("[%04d]", i)
+					}(),
 				}).Debugf("Pruning branch")
 			}
 		}

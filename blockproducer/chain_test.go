@@ -166,6 +166,7 @@ func TestChain(t *testing.T) {
 			})
 			err = chain.produceBlock(begin.Add(chain.rt.period))
 			So(err, ShouldBeNil)
+
 			// Create a sibling block from fork#0 and apply
 			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.rt.period), addr2, priv2)
 			So(err, ShouldBeNil)
@@ -192,34 +193,20 @@ func TestChain(t *testing.T) {
 			err = chain.pushBlock(bl)
 			So(err, ShouldBeNil)
 
-			err = chain.produceBlock(begin.Add(4 * chain.rt.period))
-			So(err, ShouldBeNil)
-			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(4, begin.Add(4*chain.rt.period), addr2, priv2)
-			So(err, ShouldBeNil)
-			So(bl, ShouldNotBeNil)
-			err = chain.pushBlock(bl)
-			So(err, ShouldBeNil)
+			// This should trigger a branch pruning on fork #0
+			for i := uint32(4); i <= 6; i++ {
+				err = chain.produceBlock(begin.Add(time.Duration(i) * chain.rt.period))
+				So(err, ShouldBeNil)
+				// Create a sibling block from fork#1 and apply
+				f1, bl, err = f1.produceBlock(
+					i, begin.Add(time.Duration(i)*chain.rt.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+			}
 
-			err = chain.produceBlock(begin.Add(5 * chain.rt.period))
-			So(err, ShouldBeNil)
-			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(5, begin.Add(5*chain.rt.period), addr2, priv2)
-			So(err, ShouldBeNil)
-			So(bl, ShouldNotBeNil)
-			err = chain.pushBlock(bl)
-			So(err, ShouldBeNil)
-
-			err = chain.produceBlock(begin.Add(6 * chain.rt.period))
-			So(err, ShouldBeNil)
-			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(6, begin.Add(6*chain.rt.period), addr2, priv2)
-			So(err, ShouldBeNil)
-			So(bl, ShouldNotBeNil)
-			err = chain.pushBlock(bl)
-			So(err, ShouldBeNil)
-
-			// Create a sibling block from fork#1 and apply
+			// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
 			f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.rt.period), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)

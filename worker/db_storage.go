@@ -19,6 +19,7 @@ package worker
 import (
 	"bytes"
 	"container/list"
+	"context"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -98,6 +99,9 @@ func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
 		return
 	}
+
+	// reset context, commit should never be canceled
+	req.SetContext(context.Background())
 
 	// execute
 	return db.chain.Query(req)

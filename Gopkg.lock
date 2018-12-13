@@ -559,12 +559,12 @@
   source = "github.com/CovenantSQL/usql"
 
 [[projects]]
-  digest = "1:07aaea55c778d9f0461a429eb19a134f17e9ac3232a5a28b16dfe57c637889bc"
+  branch = "master"
+  digest = "1:fd9ee7072a8121eb2a1592611023924f00492432ef923e561110e4c5e380f285"
   name = "github.com/xtaci/smux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "545ecee9d2a96ef4cf3c420c6b4095ac313fe870"
-  version = "v1.09"
+  revision = "6cf098d439391c8f8f6a485f8928f47575b6002e"
 
 [[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"

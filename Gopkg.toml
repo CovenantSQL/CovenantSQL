@@ -62,6 +62,10 @@
   branch = "master"
 
 [[override]]
+  name = "github.com/xtaci/smux"
+  branch = "master"
+
+[[override]]
   name = "github.com/siddontang/go-mysql"
   source = "github.com/CovenantSQL/go-mysql"
   branch = "master"

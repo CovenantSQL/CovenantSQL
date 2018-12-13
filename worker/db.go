@@ -17,9 +17,9 @@
 package worker
 
 import (
-	"context"
 	"os"
 	"path/filepath"
+
 	//"runtime/trace"
 	"sync"
 	"time"
@@ -296,7 +296,7 @@ func (db *Database) writeQuery(request *types.Request) (response *types.Response
 
 	// call kayak runtime Process
 	var result interface{}
-	if result, _, err = db.kayakRuntime.Apply(context.Background(), request); err != nil {
+	if result, _, err = db.kayakRuntime.Apply(request.GetContext(), request); err != nil {
 		err = errors.Wrap(err, "apply failed")
 		return
 	}

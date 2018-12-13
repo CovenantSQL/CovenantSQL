@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/pkg/errors"
 )
 
 // ChainRPCService defines a main chain RPC server.
@@ -103,7 +104,7 @@ func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err
 	return
 }
 
-// QueryAccountStableBalance is the RPC method to query acccount stable coin balance.
+// QueryAccountStableBalance is the RPC method to query account stable coin balance.
 func (s *ChainRPCService) QueryAccountStableBalance(
 	req *types.QueryAccountStableBalanceReq, resp *types.QueryAccountStableBalanceResp) (err error,
 ) {
@@ -112,13 +113,26 @@ func (s *ChainRPCService) QueryAccountStableBalance(
 	return
 }
 
-// QueryAccountCovenantBalance is the RPC method to query acccount covenant coin balance.
+// QueryAccountCovenantBalance is the RPC method to query account covenant coin balance.
 func (s *ChainRPCService) QueryAccountCovenantBalance(
 	req *types.QueryAccountCovenantBalanceReq, resp *types.QueryAccountCovenantBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.rt.loadAccountCovenantBalance(req.Addr)
 	return
+}
+
+// QuerySQLChainProfile is the RPC method to query SQLChainProfile.
+func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
+	resp *types.QuerySQLChainProfileResp) (err error) {
+	p, ok := s.chain.rt.loadSQLChainProfile(req.DBID)
+	if ok {
+		resp.Profile = *p
+		return
+	} else {
+		err = errors.Wrap(err, "rpc query sqlchain profile failed")
+		return
+	}
 }
 
 // Sub is the RPC method to subscribe some event.

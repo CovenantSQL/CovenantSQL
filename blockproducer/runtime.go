@@ -182,6 +182,14 @@ func (r *rt) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64
 	return r.immutable.loadAccountStableBalance(addr)
 }
 
+func (r *rt) loadSQLChainProfile(dbid proto.DatabaseID) (p *types.SQLChainProfile, ok bool) {
+	r.RLock()
+	defer r.RUnlock()
+	so, ok := r.immutable.loadSQLChainObject(dbid)
+	p = &so.SQLChainProfile
+	return
+}
+
 func (r *rt) switchBranch(st xi.Storage, bl *types.BPBlock, origin int, head *branch) (err error) {
 	var (
 		irre     *blockNode

@@ -107,6 +107,18 @@ func (bs *BusService) requestBlock(count uint32) (block *types.BPBlock) {
 	return
 }
 
+func (bs *BusService) RequestSQLProfile(dbid *proto.DatabaseID) (p *types.SQLChainProfile) {
+	req := &types.QuerySQLChainProfileReq{DBID: *dbid}
+	resp := &types.QuerySQLChainProfileResp{}
+	if err := bs.requestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
+		log.WithError(err).Warning("fetch sqlchain profile failed")
+		return
+	}
+
+	p = &resp.Profile
+	return
+}
+
 func (bs *BusService) requestBP(method string, request interface{}, response interface{}) (err error) {
 	var bpNodeID proto.NodeID
 	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {

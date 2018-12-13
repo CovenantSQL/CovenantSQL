@@ -873,6 +873,7 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		TargetUser:    tx.TargetUser,
 		Deposit:       minDeposit,
 		GasPrice:      tx.GasPrice,
+		NodeID: tx.NodeID,
 	}
 	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
 	return
@@ -904,6 +905,10 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		return
 	}
 
+	var (
+		miners [len(tx.ResourceMeta.TargetMiners)]*pt.MinerInfo
+	)
+
 	for i := range tx.ResourceMeta.TargetMiners {
 		if po, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
 			log.WithFields(log.Fields{
@@ -924,6 +929,11 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 			if po.GasPrice > tx.GasPrice {
 				err = ErrGasPriceMismatch
 				break
+			}
+			miners[i] = &pt.MinerInfo{
+				Address: po.Provider,
+				NodeID: po.NodeID,
+				Deposit: po.Deposit,
 			}
 		}
 	}
@@ -964,6 +974,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		}).WithError(err).Error("unexpected error")
 		return err
 	}
+
 	// create sqlchain
 	sp := &pt.SQLChainProfile{
 		ID:        *dbID,
@@ -974,7 +985,9 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		Owner:     sender,
 		Users:     users,
 		Genesis:   gb,
+		Miners: miners[:],
 	}
+
 	if _, loaded := s.loadSQLChainObject(*dbID); loaded {
 		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", string(*dbID))
 		return

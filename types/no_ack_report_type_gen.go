@@ -57,24 +57,7 @@ func (z *AggrNoAckReportHeader) MarshalHash() (o []byte, err error) {
 	o = append(o, 0x84)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Reports)))
 	for za0001 := range z.Reports {
-		// map header, size 2
-		// map header, size 3
-		o = append(o, 0x82, 0x82, 0x83, 0x83)
-		if oTemp, err := z.Reports[za0001].NoAckReportHeader.NodeID.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-		o = append(o, 0x83)
-		o = hsp.AppendTime(o, z.Reports[za0001].NoAckReportHeader.Timestamp)
-		o = append(o, 0x83)
-		if oTemp, err := z.Reports[za0001].NoAckReportHeader.Response.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-		o = append(o, 0x82)
-		if oTemp, err := z.Reports[za0001].DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		if oTemp, err := z.Reports[za0001].MarshalHash(); err != nil {
 			return nil, err
 		} else {
 			o = hsp.AppendBytes(o, oTemp)
@@ -101,7 +84,7 @@ func (z *AggrNoAckReportHeader) Msgsize() (s int) {
 	}
 	s += 8 + hsp.ArrayHeaderSize
 	for za0001 := range z.Reports {
-		s += 1 + 18 + 1 + 7 + z.Reports[za0001].NoAckReportHeader.NodeID.Msgsize() + 10 + hsp.TimeSize + 9 + z.Reports[za0001].NoAckReportHeader.Response.Msgsize() + 28 + z.Reports[za0001].DefaultHashSignVerifierImpl.Msgsize()
+		s += z.Reports[za0001].Msgsize()
 	}
 	s += 7 + z.NodeID.Msgsize() + 10 + hsp.TimeSize
 	return
@@ -112,24 +95,8 @@ func (z *NoAckReport) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	// map header, size 2
-	// map header, size 3
-	o = append(o, 0x82, 0x82, 0x82, 0x82, 0x83, 0x83)
-	if oTemp, err := z.Header.NoAckReportHeader.NodeID.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x83)
-	o = hsp.AppendTime(o, z.Header.NoAckReportHeader.Timestamp)
-	o = append(o, 0x83)
-	if oTemp, err := z.Header.NoAckReportHeader.Response.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x82)
-	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+	o = append(o, 0x82, 0x82)
+	if oTemp, err := z.Header.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -145,7 +112,7 @@ func (z *NoAckReport) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *NoAckReport) Msgsize() (s int) {
-	s = 1 + 7 + 1 + 18 + 1 + 7 + z.Header.NoAckReportHeader.NodeID.Msgsize() + 10 + hsp.TimeSize + 9 + z.Header.NoAckReportHeader.Response.Msgsize() + 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize() + 9 + z.Envelope.Msgsize()
+	s = 1 + 7 + z.Header.Msgsize() + 9 + z.Envelope.Msgsize()
 	return
 }
 

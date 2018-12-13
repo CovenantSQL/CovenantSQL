@@ -78,10 +78,11 @@ type SQLChainUser struct {
 // MinerInfo defines a miner.
 type MinerInfo struct {
 	Address        proto.AccountAddress
+	NodeID         proto.NodeID
 	Name           string
 	PendingIncome  uint64
 	ReceivedIncome uint64
-	Pledge         uint64
+	Deposit        uint64
 	Status         Status
 	EncryptionKey  string
 }
@@ -114,6 +115,7 @@ type ProviderProfile struct {
 	Deposit       uint64 // default 10 Particle
 	GasPrice      uint64
 	TokenType     TokenType // default Particle
+	NodeID proto.NodeID
 }
 
 // Account store its balance, and other mate data.

@@ -18,6 +18,10 @@ package worker
 
 import (
 	"bytes"
+	"context"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -40,6 +44,8 @@ const (
 
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
+
+	CheckInterval = 1
 )
 
 // DBMS defines a database management instance.
@@ -51,6 +57,8 @@ type DBMS struct {
 	rpc      *DBMSRPCService
 	// TODO(lambda): change it to chain bus after chain bus finished.
 	profileMap map[proto.DatabaseID]*types.SQLChainProfile
+	busService *sqlchain.BusService
+	address proto.AccountAddress
 }
 
 // NewDBMS returns new database management instance.
@@ -71,8 +79,29 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 		return
 	}
 
+	// init chain bus service
+	ctx := context.Background()
+	bs := sqlchain.NewBusService(ctx, CheckInterval)
+	dbms.busService = bs
+
+	// cache address of node
+	var (
+		pk *asymmetric.PublicKey
+		addr proto.AccountAddress
+	)
+	if pk, err = kms.GetLocalPublicKey(); err != nil {
+		err = errors.Wrap(err, "failed to cache public key")
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pk); err != nil {
+		err = errors.Wrap(err, "generate address failed")
+		return
+	}
+	dbms.address = addr
+
 	// init service
 	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
+
 
 	return
 }
@@ -146,7 +175,54 @@ func (dbms *DBMS) Init() (err error) {
 		return
 	}
 
+	dbms.busService.Start()
+	if err = dbms.busService.Subscribe("CreateDatabase", dbms.createDatabase); err != nil {
+		err = errors.Wrap(err, "init chain bus failed")
+		return
+	}
+
 	return
+}
+
+func (dbms *DBMS) createDatabase(tx interfaces.Transaction) {
+	var cd *types.CreateDatabase
+	switch t := tx.(type) {
+	case *types.CreateDatabase:
+		cd = t
+	default:
+		log.WithFields(log.Fields{
+			"tx_type": t.GetTransactionType().String(),
+			"tx_hash": t.Hash().String(),
+			"tx_addr": t.GetAccountAddress().String(),
+		}).WithError(ErrInvalidTransactionType)
+	}
+
+	if cd.Owner != dbms.address {
+		return
+	}
+
+	dbid := proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
+	p := dbms.busService.RequestSQLProfile(dbid)
+	var nodeIDs [len(p.Miners)]proto.NodeID
+	for i, mi := range p.Miners {
+		nodeIDs[i] = mi.NodeID
+	}
+	peers := proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Leader: nodeIDs[0],
+			Servers: nodeIDs[:],
+		},
+	}
+	si := types.ServiceInstance{
+		DatabaseID: *dbid,
+		Peers: &peers,
+		ResourceMeta: cd.ResourceMeta,
+		GenesisBlock: p.Genesis,
+	}
+	err := dbms.Create(&si, true)
+	if err != nil {
+		log.WithError(err).Error("create database error")
+	}
 }
 
 func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (err error) {
@@ -396,6 +472,8 @@ func (dbms *DBMS) Shutdown() (err error) {
 
 	// persist meta
 	err = dbms.writeMeta()
+
+	dbms.busService.Stop()
 
 	return
 }

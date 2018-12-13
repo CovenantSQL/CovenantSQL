@@ -158,3 +158,16 @@ type QueryAccountCovenantBalanceResp struct {
 	OK      bool
 	Balance uint64
 }
+
+// QuerySQLChainProfileReq defines a request of the QuerySQLChainProfile RPC method.
+type QuerySQLChainProfileReq struct {
+	proto.Envelope
+	DBID proto.DatabaseID
+}
+
+// QuerySQLChainProfileResp defines a response of the QuerySQLChainProfile RPC method.
+type QuerySQLChainProfileResp struct {
+	proto.Envelope
+	Profile SQLChainProfile
+}
+

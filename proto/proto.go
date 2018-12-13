@@ -18,6 +18,7 @@
 package proto
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -34,19 +35,22 @@ type EnvelopeAPI interface {
 	GetTTL() time.Duration
 	GetExpire() time.Duration
 	GetNodeID() *RawNodeID
+	GetContext() context.Context
 
 	SetVersion(string)
 	SetTTL(time.Duration)
 	SetExpire(time.Duration)
 	SetNodeID(*RawNodeID)
+	SetContext(context.Context)
 }
 
 // Envelope is the protocol header
 type Envelope struct {
-	Version string        `json:"v"`
-	TTL     time.Duration `json:"t"`
-	Expire  time.Duration `json:"e"`
-	NodeID  *RawNodeID    `json:"id"`
+	Version string          `json:"v"`
+	TTL     time.Duration   `json:"t"`
+	Expire  time.Duration   `json:"e"`
+	NodeID  *RawNodeID      `json:"id"`
+	_ctx    context.Context `json:"-"`
 }
 
 // PingReq is Ping RPC request
@@ -124,6 +128,14 @@ func (e *Envelope) GetNodeID() *RawNodeID {
 	return e.NodeID
 }
 
+// GetContext returns context from envelop which is set in server Accept
+func (e *Envelope) GetContext() context.Context {
+	if e._ctx == nil {
+		return context.Background()
+	}
+	return e._ctx
+}
+
 // SetVersion implements EnvelopeAPI.SetVersion
 func (e *Envelope) SetVersion(ver string) {
 	e.Version = ver
@@ -142,6 +154,11 @@ func (e *Envelope) SetExpire(exp time.Duration) {
 // SetNodeID implements EnvelopeAPI.SetNodeID
 func (e *Envelope) SetNodeID(nodeID *RawNodeID) {
 	e.NodeID = nodeID
+}
+
+// SetContext set a ctx in envelope
+func (e *Envelope) SetContext(ctx context.Context) {
+	e._ctx = ctx
 }
 
 // DatabaseID is database name, will be generated from UUID

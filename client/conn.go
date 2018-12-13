@@ -45,10 +45,8 @@ type conn struct {
 	inTransaction bool
 	closed        int32
 
-	leader          *pconn
-	follower        *pconn
-	pCaller         *rpc.PersistentCaller
-	pFollowerCaller *rpc.PersistentCaller
+	leader   *pconn
+	follower *pconn
 }
 
 // pconn represents a connection to a peer
@@ -85,10 +83,9 @@ func newConn(cfg *Config) (c *conn, err error) {
 	}
 
 	if cfg.UseLeader {
-		c.pCaller = rpc.NewPersistentCaller(peers.Leader)
 		c.leader = &pconn{
 			parent:  c,
-			pCaller: c.pCaller,
+			pCaller: rpc.NewPersistentCaller(peers.Leader),
 		}
 	}
 
@@ -97,10 +94,9 @@ func newConn(cfg *Config) (c *conn, err error) {
 		for {
 			node := peers.Servers[randSource.Intn(len(peers.Servers))]
 			if node != peers.Leader {
-				c.pFollowerCaller = rpc.NewPersistentCaller(node)
 				c.follower = &pconn{
 					parent:  c,
-					pCaller: c.pFollowerCaller,
+					pCaller: rpc.NewPersistentCaller(node),
 				}
 				break
 			}
@@ -400,7 +396,7 @@ func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affe
 	}
 
 	var response types.Response
-	if err = c.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
+	if err = uc.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
 

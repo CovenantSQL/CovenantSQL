@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -98,8 +97,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	// choose a random follower node
 	if cfg.UseFollower && len(peers.Servers) > 1 {
 		for {
-			rand.Seed(time.Now().UnixNano())
-			node := peers.Servers[rand.Intn(len(peers.Servers))]
+			node := peers.Servers[randSource.Intn(len(peers.Servers))]
 			if node != peers.Leader {
 				c.pFollowerCaller = rpc.NewPersistentCaller(node)
 				c.follower = &pconn{
@@ -142,10 +140,10 @@ func (c *conn) startAckWorkers(workerCount int) (err error) {
 
 func (c *conn) stopAckWorkers() {
 	if c.leader != nil {
-		close(c.leader.ackCh)
+		c.leader.stopAckWorkers()
 	}
 	if c.follower != nil {
-		close(c.follower.ackCh)
+		c.follower.stopAckWorkers()
 	}
 }
 
@@ -171,7 +169,7 @@ func (c *pconn) ackWorker() {
 ackWorkerLoop:
 	for {
 		ack, got := <-c.ackCh
-		if !got { //closed and empty
+		if !got { // closed and empty
 			break ackWorkerLoop
 		}
 		oneTime.Do(func() {

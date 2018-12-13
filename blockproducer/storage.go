@@ -311,7 +311,6 @@ func loadBlocks(
 	var (
 		rows *sql.Rows
 
-		root       = hash.Hash{}
 		index      = make(map[hash.Hash]*blockNode)
 		headsIndex = make(map[hash.Hash]*blockNode)
 
@@ -356,7 +355,7 @@ func loadBlocks(
 			"parent": ph.Short(4),
 		}).Debug("Loaded new block")
 		// Add genesis block
-		if ph.IsEqual(&root) {
+		if v1 == 0 {
 			if len(index) != 0 {
 				err = ErrMultipleGenesis
 				return

@@ -26,11 +26,13 @@ import (
 
 //go:generate hsp
 
+// MinerKey defines an encryption key associated with miner address.
 type MinerKey struct {
 	Miner         proto.AccountAddress
 	EncryptionKey string
 }
 
+// IssueKeysHeader defines an encryption key header.
 type IssueKeysHeader struct {
 	TargetSQLChain proto.AccountAddress
 	MinerKeys      []MinerKey

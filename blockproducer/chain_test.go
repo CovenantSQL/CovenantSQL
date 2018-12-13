@@ -240,6 +240,23 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 			}
 
+			Convey("The chain immutable should be updated to irreversible block", func() {
+				// Add more blocks to trigger immutable updating
+				for i := uint32(7); i <= 12; i++ {
+					err = chain.produceBlock(begin.Add(time.Duration(i) * chain.rt.period))
+					So(err, ShouldBeNil)
+				}
+				Convey("The chain should have same state after reloading", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					chain, err = NewChain(config)
+					So(err, ShouldBeNil)
+					So(chain, ShouldNotBeNil)
+					chain.rt.log()
+				})
+
+			})
+
 			// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
 			f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.rt.period), addr2, priv2)
 			So(err, ShouldBeNil)

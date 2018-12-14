@@ -97,7 +97,7 @@ func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS in
 			insertTSf, _ := arg.Value.(float64)
 			insertTS = int64(insertTSf)
 		case string:
-			insertTime, err = ParseTime(string(sqlVal.Val))
+			insertTime, err = ParseTime(arg.Value.(string))
 			if err != nil {
 				return -1,
 					errors.Wrapf(err, "unsupported: sharding key in arg: %v", arg)

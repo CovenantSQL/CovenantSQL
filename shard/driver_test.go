@@ -166,6 +166,8 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 
 	checkExec(t, dbs, db, `delete from xxx where id > 1;`)
 
+	checkExec(t, dbs, db, `delete from bar where test > 100;`)
+
 	checkQuery(t, dbs, db, "select id, name, time from foo")
 
 	checkExec(t, dbs, db, `update foo set name = "CovenantSQL", ? = 10 where id = 11111;`, "id")
@@ -174,15 +176,17 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 
 	checkExec(t, dbs, db, `update foo set name = "CovenantSQL" where id = 1;`)
 
+	checkExec(t, dbs, db, `update bar set test = 1 where test = 1;`)
+
 	checkQuery(t, dbs, db, "select id, name, time from foo")
 
-	mustFailExec(t, dbs, "delete from foo, bar where id > 1;")
+	mustFailExec(t, dbs, "delete from foo, bar where foo.id > 1;")
 
 	mustFailExec(t, dbs, "update foo set time = 1111111111;")
 
-	mustFailExec(t, dbs, "update foo set time = 0 limit 1;")
+	mustFailExec(t, dbs, "update foo set time = 0 where id = 1 limit 1;")
 
-	mustFailExec(t, dbs, "update foo set time = 0 order by id limit 1;")
+	mustFailExec(t, dbs, "update foo set time = 0 where id = 1 order by id limit 1;")
 
 	mustFailQuery(t, dbs, "select * from foo group by id")
 

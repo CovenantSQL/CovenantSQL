@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -352,7 +353,6 @@ func (c *Chain) sync() error {
 		"peer": c.rt.peerInfo(),
 	}).Debug("synchronizing chain state")
 
-	// sync executes firstly alone, so it's ok to sync without locking runtime
 	for {
 		now := c.rt.now()
 		height := c.rt.height(now)
@@ -445,13 +445,13 @@ func (c *Chain) mainCycle(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			c.syncHead()
+			c.syncHead(ctx)
 			if t, d := c.rt.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
 					"peer":        c.rt.peerInfo(),
 					"next_turn":   c.rt.getNextTurn(),
 					"head_height": c.rt.head().height,
-					"head_block":  c.rt.head().hash.String(),
+					"head_block":  c.rt.head().hash.Short(4),
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
 				}).Debug("Main cycle")
@@ -463,60 +463,53 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	}
 }
 
-func (c *Chain) syncHead() {
-	// Try to fetch if the the block of the current turn is not advised yet
-	log.WithFields(log.Fields{
-		"index":     c.rt.locSvIndex,
-		"next_turn": c.rt.getNextTurn(),
-		"height":    c.rt.head().height,
-	}).Debug("sync header")
-	if h := c.rt.getNextTurn() - 1; c.rt.head().height < h {
-		log.Debugf("sync header with height %d", h)
-		var err error
-		req := &FetchBlockReq{
-			Envelope: proto.Envelope{
-				// TODO(lambda): Add fields.
-			},
-			Height: h,
-		}
-		resp := &FetchBlockResp{}
-		peers := c.rt.getPeers()
-		succ := false
+func (c *Chain) syncHead(ctx context.Context) {
+	var (
+		nextHeight = c.rt.getNextTurn() - 1
+		cld, ccl   = context.WithCancel(ctx)
+		wg         = &sync.WaitGroup{}
+	)
 
-		for i, s := range peers.Servers {
-			if !s.IsEqual(&c.rt.nodeID) {
-				err = c.cl.CallNode(s, route.MCCFetchBlock.String(), req, resp)
-				if err != nil || resp.Block == nil {
+	defer func() {
+		ccl()
+		wg.Wait()
+	}()
+
+	if c.rt.head().height >= nextHeight {
+		return
+	}
+
+	for _, v := range c.rt.getPeers().Servers {
+		if !v.IsEqual(&c.rt.nodeID) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var (
+					err error
+					req = &FetchBlockReq{
+						Envelope: proto.Envelope{
+							// TODO(lambda): Add fields.
+						},
+						Height: nextHeight,
+					}
+					resp = &FetchBlockResp{}
+				)
+				if err = c.cl.CallNodeWithContext(
+					cld, v, route.MCCFetchBlock.String(), req, resp,
+				); err != nil {
 					log.WithFields(log.Fields{
-						"peer":        c.rt.peerInfo(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.head().height,
-						"head_block":  c.rt.head().hash.String(),
-					}).WithError(err).Debug("Failed to fetch block from peer")
-				} else {
-					c.pendingBlocks <- resp.Block
-					log.WithFields(log.Fields{
-						"peer":        c.rt.peerInfo(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.head().height,
-						"head_block":  c.rt.head().hash.String(),
-					}).Debug("Fetch block from remote peer successfully")
-					succ = true
-					break
+						"remote": v,
+						"height": nextHeight,
+					}).WithError(err).Warn("Failed to fetch block")
 				}
-			}
-		}
-
-		if !succ {
-			log.WithFields(log.Fields{
-				"peer":        c.rt.peerInfo(),
-				"curr_turn":   c.rt.getNextTurn(),
-				"head_height": c.rt.head().height,
-				"head_block":  c.rt.head().hash.String(),
-			}).Debug(
-				"Cannot get block from any peer")
+				log.WithFields(log.Fields{
+					"remote": v,
+					"height": nextHeight,
+					"parent": resp.Block.ParentHash().Short(4),
+					"hash":   resp.Block.BlockHash().Short(4),
+				}).Debug("Fetched new block from remote peer")
+				c.pendingBlocks <- resp.Block
+			}()
 		}
 	}
 }

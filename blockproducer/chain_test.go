@@ -254,63 +254,65 @@ func TestChain(t *testing.T) {
 					So(chain, ShouldNotBeNil)
 					chain.rt.log()
 				})
-
 			})
 
-			// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
-			f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.rt.period), addr2, priv2)
-			So(err, ShouldBeNil)
-			So(bl, ShouldNotBeNil)
-			err = chain.pushBlock(bl)
-			So(err, ShouldBeNil)
-			f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.rt.period), addr2, priv2)
-			So(err, ShouldBeNil)
-			So(bl, ShouldNotBeNil)
-			err = chain.pushBlock(bl)
-			So(err, ShouldBeNil)
-
-			Convey("The chain should have same state after reloading", func() {
-				err = chain.Stop()
-				So(err, ShouldBeNil)
-				chain, err = NewChain(config)
-				So(err, ShouldBeNil)
-				So(chain, ShouldNotBeNil)
+			Convey("The chain head should switch to fork #1 if it grows to count 7", func() {
+				// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
 				chain.rt.log()
-			})
-
-			Convey("The chain APIs should return expected results", func() {
-				var (
-					bl            *types.BPBlock
-					count, height uint32
-				)
-
-				_, _, err = chain.fetchBlockByHeight(100)
-				So(err, ShouldEqual, ErrNoSuchBlock)
-
-				_, _, err = chain.fetchBlockByCount(100)
-				So(err, ShouldEqual, ErrNoSuchBlock)
-
-				bl, count, err = chain.fetchBlockByHeight(0)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.rt.period), addr2, priv2)
 				So(err, ShouldBeNil)
-				So(count, ShouldEqual, 0)
-				So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.rt.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
 
-				bl, height, err = chain.fetchBlockByCount(0)
-				So(err, ShouldBeNil)
-				So(height, ShouldEqual, 0)
-				So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+				Convey("The chain should have same state after reloading", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					chain, err = NewChain(config)
+					So(err, ShouldBeNil)
+					So(chain, ShouldNotBeNil)
+					chain.rt.log()
+				})
 
-				// Try to use the no-cache version
-				var node = chain.rt.headBranch.head.ancestorByCount(5)
-				node.block = nil // Clear cached block
-				bl, count, err = chain.fetchBlockByHeight(node.height)
-				So(err, ShouldBeNil)
-				So(count, ShouldEqual, node.count)
-				So(bl.BlockHash(), ShouldResemble, &node.hash)
-				bl, height, err = chain.fetchBlockByCount(node.count)
-				So(err, ShouldBeNil)
-				So(height, ShouldEqual, node.height)
-				So(bl.BlockHash(), ShouldResemble, &node.hash)
+				Convey("The chain APIs should return expected results", func() {
+					var (
+						bl            *types.BPBlock
+						count, height uint32
+					)
+
+					_, _, err = chain.fetchBlockByHeight(100)
+					So(err, ShouldEqual, ErrNoSuchBlock)
+
+					_, _, err = chain.fetchBlockByCount(100)
+					So(err, ShouldEqual, ErrNoSuchBlock)
+
+					bl, count, err = chain.fetchBlockByHeight(0)
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, 0)
+					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+
+					bl, height, err = chain.fetchBlockByCount(0)
+					So(err, ShouldBeNil)
+					So(height, ShouldEqual, 0)
+					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+
+					// Try to use the no-cache version
+					var node = chain.rt.headBranch.head.ancestorByCount(5)
+					node.block = nil // Clear cached block
+					bl, count, err = chain.fetchBlockByHeight(node.height)
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, node.count)
+					So(bl.BlockHash(), ShouldResemble, &node.hash)
+					bl, height, err = chain.fetchBlockByCount(node.count)
+					So(err, ShouldBeNil)
+					So(height, ShouldEqual, node.height)
+					So(bl.BlockHash(), ShouldResemble, &node.hash)
+				})
 			})
 		})
 	})

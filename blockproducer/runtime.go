@@ -135,7 +135,7 @@ func newRuntime(
 		comfirms:   uint32(m),
 		serversNum: uint32(len(cfg.Peers.Servers)),
 		locSvIndex: index,
-		nextTurn:   1,
+		nextTurn:   irre.height + 1,
 		offset:     time.Duration(0),
 
 		lastIrre:   irre,
@@ -310,6 +310,7 @@ func (r *runtime) log() {
 func (r *runtime) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 	var (
 		ok     bool
+		ierr   error
 		br     *branch
 		parent *blockNode
 		head   *blockNode
@@ -324,7 +325,8 @@ func (r *runtime) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 		// Grow a branch
 		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
 			head = newBlockNode(height, bl, v.head)
-			if br, err = v.applyBlock(head); err != nil {
+			if br, ierr = v.applyBlock(head); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to apply block %s", head.hash.Short(4))
 				return
 			}
 			// Grow a branch while the current branch is not changed
@@ -338,11 +340,17 @@ func (r *runtime) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 			return r.switchBranch(st, bl, i, br)
 		}
 	}
+
 	for _, v := range r.branches {
+		if n := v.head.ancestor(height); n != nil && n.hash.IsEqual(bl.BlockHash()) {
+			// Return silently if block exists in the current branch
+			return
+		}
 		// Fork and create new branch
 		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, r.lastIrre.count); ok {
 			head = newBlockNode(height, bl, parent)
-			if br, err = fork(r.lastIrre, head, r.immutable, r.txPool); err != nil {
+			if br, ierr = fork(r.lastIrre, head, r.immutable, r.txPool); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
 				return
 			}
 			return store(st,
@@ -352,6 +360,7 @@ func (r *runtime) applyBlock(st xi.Storage, bl *types.BPBlock) (err error) {
 		}
 	}
 
+	err = ErrParentNotFound
 	return
 }
 

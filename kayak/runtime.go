@@ -35,7 +35,7 @@ import (
 
 const (
 	// commit channel window size
-	commitWindow = 10
+	commitWindow = 0
 	// prepare window
 	trackerWindow = 10
 )
@@ -246,6 +246,7 @@ func (r *Runtime) Shutdown() (err error) {
 // Apply defines entry for Leader node.
 func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{}, logIndex uint64, err error) {
 	var commitFuture <-chan *commitResult
+	var cResult *commitResult
 
 	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
 		tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
@@ -350,35 +351,34 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 
 	tmCommitEnqueue = time.Now()
 
-	select {
-	case cResult := <-commitFuture:
-		if cResult != nil {
-			logIndex = prepareLog.Index
-			result = cResult.result
-			err = cResult.err
-
-			tmCommitDequeue = cResult.start
-			dbCost = cResult.dbCost
-			tmLeaderCommit = time.Now()
-
-			// wait until context deadline or commit done
-			if cResult.rpc != nil {
-				cResult.rpc.get(ctx)
-			}
-		} else {
-			log.Fatal("IMPOSSIBLE BRANCH")
-			select {
-			case <-ctx.Done():
-				err = errors.Wrap(ctx.Err(), "process commit timeout")
-				goto ROLLBACK
-			default:
-			}
-		}
-	case <-ctx.Done():
-		// pipeline commit timeout
+	if commitFuture == nil {
 		logIndex = prepareLog.Index
 		err = errors.Wrap(ctx.Err(), "enqueue commit timeout")
 		goto ROLLBACK
+	}
+
+	cResult = <-commitFuture
+	if cResult != nil {
+		logIndex = prepareLog.Index
+		result = cResult.result
+		err = cResult.err
+
+		tmCommitDequeue = cResult.start
+		dbCost = cResult.dbCost
+		tmLeaderCommit = time.Now()
+
+		// wait until context deadline or commit done
+		if cResult.rpc != nil {
+			cResult.rpc.get(ctx)
+		}
+	} else {
+		log.Fatal("IMPOSSIBLE BRANCH")
+		select {
+		case <-ctx.Done():
+			err = errors.Wrap(ctx.Err(), "process commit timeout")
+			goto ROLLBACK
+		default:
+		}
 	}
 
 	tmCommit = time.Now()
@@ -572,6 +572,7 @@ func (r *Runtime) leaderCommitResult(ctx context.Context, reqPayload interface{}
 
 	select {
 	case <-ctx.Done():
+		res = nil
 	case r.commitCh <- req:
 	}
 

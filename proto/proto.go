@@ -126,6 +126,9 @@ func (e *Envelope) GetNodeID() *RawNodeID {
 
 // GetContext returns context from envelop which is set in server Accept
 func (e *Envelope) GetContext() context.Context {
+	if e._ctx == nil {
+		return context.Background()
+	}
 	return e._ctx
 }
 

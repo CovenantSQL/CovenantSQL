@@ -482,7 +482,7 @@ func (c *Chain) syncHead(ctx context.Context) {
 	for _, v := range c.rt.getPeers().Servers {
 		if !v.IsEqual(&c.rt.nodeID) {
 			wg.Add(1)
-			go func() {
+			go func(id proto.NodeID) {
 				defer wg.Done()
 				var (
 					err error
@@ -495,21 +495,22 @@ func (c *Chain) syncHead(ctx context.Context) {
 					resp = &FetchBlockResp{}
 				)
 				if err = c.cl.CallNodeWithContext(
-					cld, v, route.MCCFetchBlock.String(), req, resp,
+					cld, id, route.MCCFetchBlock.String(), req, resp,
 				); err != nil {
 					log.WithFields(log.Fields{
-						"remote": v,
+						"remote": id,
 						"height": nextHeight,
 					}).WithError(err).Warn("Failed to fetch block")
+					return
 				}
 				log.WithFields(log.Fields{
-					"remote": v,
+					"remote": id,
 					"height": nextHeight,
 					"parent": resp.Block.ParentHash().Short(4),
 					"hash":   resp.Block.BlockHash().Short(4),
 				}).Debug("Fetched new block from remote peer")
 				c.pendingBlocks <- resp.Block
-			}()
+			}(v)
 		}
 	}
 }

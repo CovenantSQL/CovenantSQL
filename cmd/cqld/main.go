@@ -59,8 +59,6 @@ var (
 
 	clientMode      bool
 	clientOperation string
-
-	logLevel = log.DebugLevel
 )
 
 const name = `cqld`
@@ -95,7 +93,7 @@ func initLogs() {
 func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(logLevel)
+	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 
 	if showVersion {

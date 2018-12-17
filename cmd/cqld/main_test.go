@@ -18,14 +18,9 @@
 
 package main
 
-import (
-	"testing"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-)
+import "testing"
 
 func TestMain(m *testing.M) {
 	defer m.Run()
-	logLevel = log.ErrorLevel
 	main()
 }

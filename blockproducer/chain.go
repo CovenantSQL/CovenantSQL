@@ -25,6 +25,7 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -342,53 +343,40 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	}
 }
 
-// sync synchronizes blocks and queries from the other peers.
-func (c *Chain) sync() error {
-	log.WithFields(log.Fields{
-		"peer": c.rt.peerInfo(),
-	}).Debug("synchronizing chain state")
-
+func (c *Chain) syncHeads() {
 	for {
-		now := c.rt.now()
-		height := c.rt.height(now)
-
-		log.WithFields(log.Fields{
-			"height":   height,
-			"nextTurn": c.rt.nextTurn,
-		}).Info("try sync heights")
-		if c.rt.nextTurn >= height {
-			log.WithFields(log.Fields{
-				"height":   height,
-				"nextTurn": c.rt.nextTurn,
-			}).Info("return heights")
+		var h = c.rt.height(c.rt.now())
+		if c.rt.getNextTurn() > h {
 			break
 		}
-
-		for c.rt.nextTurn <= height {
-			// TODO(lambda): fetch blocks and txes.
-			c.rt.nextTurn++
+		for c.rt.getNextTurn() <= h {
+			// TODO(leventeliu): use the test mode flag to bypass the long-running synchronizing
+			// on startup by now, need better solution here.
+			if !conf.GConf.IsTestMode {
+				log.WithFields(log.Fields{
+					"next_turn": c.rt.getNextTurn(),
+					"height":    h,
+				}).Debug("Synchronizing head blocks")
+				c.syncHead(c.rt.ctx)
+			}
+			c.rt.setNextTurn()
 		}
 	}
-
-	return nil
 }
 
 // Start starts the chain by step:
 // 1. sync the chain
 // 2. goroutine for getting blocks
 // 3. goroutine for getting txes.
-func (c *Chain) Start() error {
-	err := c.sync()
-	if err != nil {
-		return err
-	}
-
+func (c *Chain) Start() {
+	// Start blocks/txs processing goroutines
 	c.rt.goFunc(c.processBlocks)
 	c.rt.goFunc(c.processTxs)
+	// Synchronize heads to current block period
+	c.syncHeads()
+	// Start main cycle and service
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
-
-	return nil
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
@@ -525,12 +513,14 @@ func (c *Chain) syncHead(ctx context.Context) {
 					cld, id, route.MCCFetchBlock.String(), req, resp,
 				); err != nil {
 					log.WithFields(log.Fields{
+						"local":  c.rt.peerInfo(),
 						"remote": id,
 						"height": nextHeight,
 					}).WithError(err).Warn("Failed to fetch block")
 					return
 				}
 				log.WithFields(log.Fields{
+					"local":  c.rt.peerInfo(),
 					"remote": id,
 					"height": nextHeight,
 					"parent": resp.Block.ParentHash().Short(4),

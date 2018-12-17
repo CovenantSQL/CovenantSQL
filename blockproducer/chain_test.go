@@ -119,7 +119,7 @@ func TestChain(t *testing.T) {
 		genesis = &types.BPBlock{
 			SignedHeader: types.BPSignedHeader{
 				BPHeader: types.BPHeader{
-					Timestamp: time.Now().Add(-30 * time.Second),
+					Timestamp: time.Now().Add(-10 * time.Second),
 				},
 			},
 			Transactions: []pi.Transaction{
@@ -150,7 +150,7 @@ func TestChain(t *testing.T) {
 			},
 			NodeID: leader,
 			Period: time.Duration(1 * time.Second),
-			Tick:   time.Duration(100 * time.Millisecond),
+			Tick:   time.Duration(300 * time.Millisecond),
 		}
 
 		chain, err = NewChain(config)
@@ -322,13 +322,12 @@ func TestChain(t *testing.T) {
 					defer sv.Stop()
 
 					chain.rt.server = sv
-					err = chain.Start()
-					So(err, ShouldBeNil)
+					chain.Start()
 					defer func() {
 						chain.Stop()
 						chain = nil
 					}()
-					time.Sleep(5 * chain.rt.period)
+					time.Sleep(15 * chain.rt.period)
 				})
 			})
 		})

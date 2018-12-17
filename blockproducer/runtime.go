@@ -302,7 +302,7 @@ func (r *runtime) log() {
 		buff += v.sprint(r.lastIrre.count)
 		log.WithFields(log.Fields{
 			"branch": buff,
-		}).Debug("Runtime state")
+		}).Info("Runtime state")
 	}
 	return
 }

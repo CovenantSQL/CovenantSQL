@@ -56,11 +56,10 @@ var (
 
 // Chain defines the main chain.
 type Chain struct {
-	ctx context.Context
-	rt  *runtime
-	st  xi.Storage
-	cl  *rpc.Caller
-	bs  chainbus.Bus
+	rt *runtime
+	st xi.Storage
+	cl *rpc.Caller
+	bs chainbus.Bus
 
 	pendingBlocks chan *types.BPBlock
 	pendingTxs    chan pi.Transaction
@@ -159,11 +158,10 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 	// create chain
 	inst = &Chain{
-		ctx: ctx,
-		rt:  rt,
-		st:  st,
-		cl:  caller,
-		bs:  bus,
+		rt: rt,
+		st: st,
+		cl: caller,
+		bs: bus,
 
 		pendingBlocks: make(chan *types.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),

@@ -19,6 +19,7 @@ package blockproducer
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -56,13 +57,39 @@ var (
 
 // Chain defines the main chain.
 type Chain struct {
-	rt *runtime
+	// Routine controlling components
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
+	// RPC components
+	server *rpc.Server
+	cl     *rpc.Caller
+	// Other components
 	st xi.Storage
-	cl *rpc.Caller
 	bs chainbus.Bus
-
+	// Channels for incoming blocks and transactions
 	pendingBlocks chan *types.BPBlock
 	pendingTxs    chan pi.Transaction
+	// The following fields are read-only in runtime
+	address     proto.AccountAddress
+	genesisTime time.Time
+	period      time.Duration
+	tick        time.Duration
+
+	sync.RWMutex // protects following fields
+	peers        *proto.Peers
+	nodeID       proto.NodeID
+	comfirms     uint32
+	serversNum   uint32
+	locSvIndex   uint32
+	nextTurn     uint32
+	offset       time.Duration
+	lastIrre     *blockNode
+	immutable    *metaState
+	headIndex    int
+	headBranch   *branch
+	branches     []*branch
+	txPool       map[hash.Hash]pi.Transaction
 }
 
 // NewChain creates a new blockchain.
@@ -74,7 +101,13 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
 		existed bool
+		ok      bool
 		ierr    error
+
+		cld, ccl = context.WithCancel(ctx)
+		l        = float64(len(cfg.Peers.Servers))
+		t        float64
+		m        float64
 
 		st        xi.Storage
 		irre      *blockNode
@@ -82,13 +115,15 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		immutable *metaState
 		txPool    map[hash.Hash]pi.Transaction
 
-		addr   proto.AccountAddress
-		pubKey *asymmetric.PublicKey
+		branches  []*branch
+		br, head  *branch
+		headIndex int
 
-		inst   *Chain
-		rt     *runtime
-		bus    = chainbus.New()
-		caller = rpc.NewCaller()
+		pubKey     *asymmetric.PublicKey
+		addr       proto.AccountAddress
+		locSvIndex int32
+
+		bus = chainbus.New()
 	)
 
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
@@ -103,7 +138,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 	// Storage genesis
 	if !existed {
-		// TODO(leventeliu): reuse rt.switchBranch to construct initial state.
+		// TODO(leventeliu): reuse chain.switchBranch to construct initial state.
 		var init = newMetaState()
 		for _, v := range cfg.Genesis.Transactions {
 			if ierr = init.apply(v); ierr != nil {
@@ -141,14 +176,39 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		}
 	}
 
-	// Load and create runtime
+	// Load from database and rebuild branches
 	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
 		err = errors.Wrap(ierr, "failed to load data from storage")
 		return
 	}
-	rt = newRuntime(ctx, cfg, addr, irre, heads, immutable, txPool)
+	for _, v := range heads {
+		log.WithFields(log.Fields{
+			"irre_hash":  irre.hash.Short(4),
+			"irre_count": irre.count,
+			"head_hash":  v.hash.Short(4),
+			"head_count": v.count,
+		}).Debug("Checking head")
+		if v.hasAncestor(irre) {
+			if br, err = fork(irre, v, immutable, txPool); err != nil {
+				log.WithError(err).Fatal("Failed to rebuild branch")
+			}
+			branches = append(branches, br)
+		}
+	}
+	if len(branches) == 0 {
+		err = ErrNoAvailableBranch
+		return
+	}
 
-	// get accountAddress
+	// Set head branch
+	for i, v := range branches {
+		if head == nil || v.head.count > head.head.count {
+			headIndex = i
+			head = v
+		}
+	}
+
+	// Get accountAddress
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
 		return
 	}
@@ -156,29 +216,60 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 
+	// Setup peer list
+	if locSvIndex, ok = cfg.Peers.Find(cfg.NodeID); !ok {
+		err = ErrLocalNodeNotFound
+		return
+	}
+	if t = cfg.ComfirmThreshold; t <= 0.0 {
+		t = float64(2) / 3.0
+	}
+	if m = math.Ceil(l*t + 1); m > l {
+		m = l
+	}
+
 	// create chain
-	inst = &Chain{
-		rt: rt,
+	c = &Chain{
+		ctx:    cld,
+		cancel: ccl,
+		wg:     &sync.WaitGroup{},
+
+		server: cfg.Server,
+		cl:     rpc.NewCaller(),
+
 		st: st,
-		cl: caller,
 		bs: bus,
 
 		pendingBlocks: make(chan *types.BPBlock),
 		pendingTxs:    make(chan pi.Transaction),
+
+		address:     addr,
+		genesisTime: cfg.Genesis.SignedHeader.Timestamp,
+		period:      cfg.Period,
+		tick:        cfg.Tick,
+
+		peers:      cfg.Peers,
+		nodeID:     cfg.NodeID,
+		comfirms:   uint32(m),
+		serversNum: uint32(len(cfg.Peers.Servers)),
+		locSvIndex: uint32(locSvIndex),
+		nextTurn:   head.head.height + 1,
+		offset:     time.Duration(0), // TODO(leventeliu): initialize offset
+
+		lastIrre:   irre,
+		immutable:  immutable,
+		headIndex:  headIndex,
+		headBranch: head,
+		branches:   branches,
+		txPool:     txPool,
 	}
-
 	log.WithFields(log.Fields{
-		"index":     inst.rt.locSvIndex,
-		"bp_number": inst.rt.serversNum,
-		"period":    inst.rt.period.String(),
-		"tick":      inst.rt.tick.String(),
-		"height":    inst.rt.head().height,
+		"index":     c.locSvIndex,
+		"bp_number": c.serversNum,
+		"period":    c.period.String(),
+		"tick":      c.tick.String(),
+		"height":    c.head().height,
 	}).Debug("current chain state")
-
-	// sub chain events
-	inst.bs.Subscribe(txEvent, inst.addTx)
-
-	c = inst
 	return
 }
 
@@ -201,26 +292,17 @@ func (c *Chain) checkBlock(b *types.BPBlock) (err error) {
 	return nil
 }
 
-func (c *Chain) pushBlockWithoutCheck(b *types.BPBlock) (err error) {
-	if err = c.rt.applyBlock(c.st, b); err != nil {
-		return err
+func (c *Chain) pushBlock(b *types.BPBlock) (err error) {
+	var ierr error
+	if ierr = c.checkBlock(b); ierr != nil {
+		err = errors.Wrap(ierr, "failed to check block")
+		return
 	}
-	return err
-}
-
-func (c *Chain) pushBlock(b *types.BPBlock) error {
-	err := c.checkBlock(b)
-	if err != nil {
-		err = errors.Wrap(err, "check block failed")
-		return err
+	if ierr = c.applyBlock(b); ierr != nil {
+		err = errors.Wrap(ierr, "failed to apply block")
+		return
 	}
-
-	err = c.pushBlockWithoutCheck(b)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
 func (c *Chain) produceBlock(now time.Time) (err error) {
@@ -232,16 +314,16 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
-	if b, err = c.rt.produceBlock(c.st, now, priv); err != nil {
+	if b, err = c.produceAndStoreBlock(now, priv); err != nil {
 		return
 	}
 	log.WithField("block", b).Debug("produced new block")
 
-	for _, s := range c.rt.getPeers().Servers {
-		if !s.IsEqual(&c.rt.nodeID) {
+	for _, s := range c.getPeers().Servers {
+		if !s.IsEqual(&c.nodeID) {
 			// Bind NodeID to subroutine
 			func(id proto.NodeID) {
-				c.rt.goFuncWithTimeout(func(ctx context.Context) {
+				c.goFuncWithTimeout(func(ctx context.Context) {
 					var (
 						req = &AdviseNewBlockReq{
 							Envelope: proto.Envelope{
@@ -254,13 +336,13 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 							ctx, id, route.MCCAdviseNewBlock.String(), req, resp)
 					)
 					log.WithFields(log.Fields{
-						"local":       c.rt.peerInfo(),
+						"local":       c.peerInfo(),
 						"remote":      id,
 						"block_time":  b.Timestamp(),
 						"block_hash":  b.BlockHash().Short(4),
 						"parent_hash": b.ParentHash().Short(4),
 					}).WithError(err).Debug("Broadcasting new block to other peers")
-				}, c.rt.period)
+				}, c.period)
 			}(s)
 		}
 	}
@@ -286,7 +368,7 @@ func (c *Chain) fetchBlock(h hash.Hash) (b *types.BPBlock, err error) {
 }
 
 func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, err error) {
-	var node = c.rt.head().ancestor(h)
+	var node = c.head().ancestor(h)
 	if node == nil {
 		err = ErrNoSuchBlock
 		return
@@ -304,7 +386,7 @@ func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, er
 }
 
 func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32, err error) {
-	var node = c.rt.head().ancestorByCount(count)
+	var node = c.head().ancestorByCount(count)
 	if node == nil {
 		err = ErrNoSuchBlock
 		return
@@ -324,17 +406,17 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
 	log.WithFields(log.Fields{
-		"next_turn":  c.rt.getNextTurn(),
-		"bp_number":  c.rt.serversNum,
-		"node_index": c.rt.locSvIndex,
+		"next_turn":  c.getNextTurn(),
+		"bp_number":  c.serversNum,
+		"node_index": c.locSvIndex,
 	}).Info("check turns")
-	defer c.rt.setNextTurn()
+	defer c.setNextTurn()
 
-	if !c.rt.isMyTurn() {
+	if !c.isMyTurn() {
 		return
 	}
 
-	log.WithField("height", c.rt.getNextTurn()).Info("producing a new block")
+	log.WithField("height", c.getNextTurn()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
 			"failed to produce block")
@@ -343,21 +425,21 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 
 func (c *Chain) syncHeads() {
 	for {
-		var h = c.rt.height(c.rt.now())
-		if c.rt.getNextTurn() > h {
+		var h = c.height(c.now())
+		if c.getNextTurn() > h {
 			break
 		}
-		for c.rt.getNextTurn() <= h {
+		for c.getNextTurn() <= h {
 			// TODO(leventeliu): use the test mode flag to bypass the long-running synchronizing
 			// on startup by now, need better solution here.
 			if !conf.GConf.IsTestMode {
 				log.WithFields(log.Fields{
-					"next_turn": c.rt.getNextTurn(),
+					"next_turn": c.getNextTurn(),
 					"height":    h,
 				}).Debug("Synchronizing head blocks")
-				c.syncHead(c.rt.ctx)
+				c.syncHead(c.ctx)
 			}
-			c.rt.setNextTurn()
+			c.setNextTurn()
 		}
 	}
 }
@@ -368,13 +450,15 @@ func (c *Chain) syncHeads() {
 // 3. goroutine for getting txes.
 func (c *Chain) Start() {
 	// Start blocks/txs processing goroutines
-	c.rt.goFunc(c.processBlocks)
-	c.rt.goFunc(c.processTxs)
+	c.goFunc(c.processBlocks)
+	c.goFunc(c.processTxs)
 	// Synchronize heads to current block period
 	c.syncHeads()
+	// TODO(leventeliu): subscribe ChainBus.
+	// ...
 	// Start main cycle and service
-	c.rt.goFunc(c.mainCycle)
-	c.rt.startService(c)
+	c.goFunc(c.mainCycle)
+	c.startService(c)
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
@@ -397,11 +481,11 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 func (c *Chain) addTx(tx pi.Transaction) {
 	// Simple non-blocking broadcasting
-	for _, v := range c.rt.getPeers().Servers {
-		if !v.IsEqual(&c.rt.nodeID) {
+	for _, v := range c.getPeers().Servers {
+		if !v.IsEqual(&c.nodeID) {
 			// Bind NodeID to subroutine
 			func(id proto.NodeID) {
-				c.rt.goFuncWithTimeout(func(ctx context.Context) {
+				c.goFuncWithTimeout(func(ctx context.Context) {
 					var (
 						req = &AddTxReq{
 							Envelope: proto.Envelope{
@@ -414,20 +498,20 @@ func (c *Chain) addTx(tx pi.Transaction) {
 							ctx, id, route.MCCAddTx.String(), req, resp)
 					)
 					log.WithFields(log.Fields{
-						"local":   c.rt.peerInfo(),
+						"local":   c.peerInfo(),
 						"remote":  id,
 						"tx_hash": tx.Hash().Short(4),
 						"tx_type": tx.GetTransactionType(),
 					}).WithError(err).Debug("Broadcasting transaction to other peers")
-				}, c.rt.period)
+				}, c.period)
 			}(v)
 		}
 	}
 
 	select {
 	case c.pendingTxs <- tx:
-	case <-c.rt.ctx.Done():
-		log.WithError(c.rt.ctx.Err()).Error("Add transaction aborted")
+	case <-c.ctx.Done():
+		log.WithError(c.ctx.Err()).Error("Add transaction aborted")
 	}
 }
 
@@ -436,7 +520,7 @@ func (c *Chain) processTx(tx pi.Transaction) {
 		log.WithError(err).Error("Failed to verify transaction")
 		return
 	}
-	if err := c.rt.addTx(c.st, tx); err != nil {
+	if err := c.storeTx(tx); err != nil {
 		log.WithError(err).Error("Failed to add transaction")
 	}
 }
@@ -459,12 +543,12 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			return
 		default:
 			c.syncHead(ctx)
-			if t, d := c.rt.nextTick(); d > 0 {
+			if t, d := c.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
-					"peer":        c.rt.peerInfo(),
-					"next_turn":   c.rt.getNextTurn(),
-					"head_height": c.rt.head().height,
-					"head_block":  c.rt.head().hash.Short(4),
+					"peer":        c.peerInfo(),
+					"next_turn":   c.getNextTurn(),
+					"head_height": c.head().height,
+					"head_block":  c.head().hash.Short(4),
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
 				}).Debug("Main cycle")
@@ -478,7 +562,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 
 func (c *Chain) syncHead(ctx context.Context) {
 	var (
-		nextHeight = c.rt.getNextTurn() - 1
+		nextHeight = c.getNextTurn() - 1
 		cld, ccl   = context.WithCancel(ctx)
 		wg         = &sync.WaitGroup{}
 	)
@@ -488,12 +572,12 @@ func (c *Chain) syncHead(ctx context.Context) {
 		wg.Wait()
 	}()
 
-	if c.rt.head().height >= nextHeight {
+	if c.head().height >= nextHeight {
 		return
 	}
 
-	for _, v := range c.rt.getPeers().Servers {
-		if !v.IsEqual(&c.rt.nodeID) {
+	for _, v := range c.getPeers().Servers {
+		if !v.IsEqual(&c.nodeID) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
@@ -511,14 +595,14 @@ func (c *Chain) syncHead(ctx context.Context) {
 					cld, id, route.MCCFetchBlock.String(), req, resp,
 				); err != nil {
 					log.WithFields(log.Fields{
-						"local":  c.rt.peerInfo(),
+						"local":  c.peerInfo(),
 						"remote": id,
 						"height": nextHeight,
 					}).WithError(err).Warn("Failed to fetch block")
 					return
 				}
 				log.WithFields(log.Fields{
-					"local":  c.rt.peerInfo(),
+					"local":  c.peerInfo(),
 					"remote": id,
 					"height": nextHeight,
 					"parent": resp.Block.ParentHash().Short(4),
@@ -537,12 +621,362 @@ func (c *Chain) syncHead(ctx context.Context) {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Stopping chain")
-	c.rt.stop()
-	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain service stopped")
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("Stopping chain")
+	c.stop()
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("Chain service stopped")
 	c.st.Close()
-	log.WithFields(log.Fields{"peer": c.rt.peerInfo()}).Debug("Chain database closed")
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("Chain database closed")
 	close(c.pendingBlocks)
 	close(c.pendingTxs)
 	return
+}
+
+func (c *Chain) storeTx(tx pi.Transaction) (err error) {
+	var k = tx.Hash()
+	c.Lock()
+	defer c.Unlock()
+	if _, ok := c.txPool[k]; ok {
+		err = ErrExistedTx
+		return
+	}
+
+	return store(c.st, []storageProcedure{addTx(tx)}, func() {
+		c.txPool[k] = tx
+		for _, v := range c.branches {
+			v.addTx(tx)
+		}
+	})
+}
+
+func (c *Chain) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.headBranch.preview.nextNonce(addr)
+}
+
+func (c *Chain) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.immutable.loadAccountCovenantBalance(addr)
+}
+
+func (c *Chain) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.immutable.loadAccountStableBalance(addr)
+}
+
+func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err error) {
+	var (
+		irre     *blockNode
+		newIrres []*blockNode
+		sps      []storageProcedure
+		up       storageCallback
+		height   = c.height(bl.Timestamp())
+	)
+
+	// Find new irreversible blocks
+	//
+	// NOTE(leventeliu):
+	// May have multiple new irreversible blocks here if peer list shrinks. May also have
+	// no new irreversible block at all if peer list expands.
+	irre = head.head.lastIrreversible(c.comfirms)
+	newIrres = irre.fetchNodeList(c.lastIrre.count)
+
+	// Apply irreversible blocks to create dirty map on immutable cache
+	//
+	// TODO(leventeliu): use old metaState for now, better use separated dirty cache.
+	for _, b := range newIrres {
+		for _, tx := range b.block.Transactions {
+			if err := c.immutable.apply(tx); err != nil {
+				log.WithError(err).Fatal("Failed to apply block to immutable database")
+			}
+		}
+	}
+
+	// Prepare storage procedures to update immutable database
+	sps = append(sps, addBlock(height, bl))
+	for k, v := range c.immutable.dirty.accounts {
+		if v != nil {
+			sps = append(sps, updateAccount(&v.Account))
+		} else {
+			sps = append(sps, deleteAccount(k))
+		}
+	}
+	for k, v := range c.immutable.dirty.databases {
+		if v != nil {
+			sps = append(sps, updateShardChain(&v.SQLChainProfile))
+		} else {
+			sps = append(sps, deleteShardChain(k))
+		}
+	}
+	for k, v := range c.immutable.dirty.provider {
+		if v != nil {
+			sps = append(sps, updateProvider(&v.ProviderProfile))
+		} else {
+			sps = append(sps, deleteProvider(k))
+		}
+	}
+	for _, n := range newIrres {
+		sps = append(sps, deleteTxs(n.block.Transactions))
+	}
+	sps = append(sps, updateIrreversible(irre.hash))
+
+	// Prepare callback to update cache
+	up = func() {
+		// Update last irreversible block
+		c.lastIrre = irre
+		// Apply irreversible blocks to immutable database
+		c.immutable.commit()
+		// Prune branches
+		var (
+			idx int
+			brs = make([]*branch, 0, len(c.branches))
+		)
+		for i, b := range c.branches {
+			if i == origin {
+				// Current branch
+				brs = append(brs, head)
+				idx = len(brs) - 1
+			} else if b.head.hasAncestor(irre) {
+				brs = append(brs, b)
+			} else {
+				log.WithFields(log.Fields{
+					"branch": func() string {
+						if i == c.headIndex {
+							return "[head]"
+						}
+						return fmt.Sprintf("[%04d]", i)
+					}(),
+				}).Debugf("Pruning branch")
+			}
+		}
+		// Replace current branches
+		c.headBranch = head
+		c.headIndex = idx
+		c.branches = brs
+		// Clear packed transactions
+		for _, b := range newIrres {
+			for _, br := range c.branches {
+				br.clearPackedTxs(b.block.Transactions)
+			}
+			for _, tx := range b.block.Transactions {
+				delete(c.txPool, tx.Hash())
+			}
+		}
+	}
+
+	// Write to immutable database and update cache
+	if err = store(c.st, sps, up); err != nil {
+		c.immutable.clean()
+	}
+	// TODO(leventeliu): trigger ChainBus.Publish.
+	// ...
+	return
+}
+
+func (c *Chain) stat() {
+	c.RLock()
+	defer c.RUnlock()
+	for i, v := range c.branches {
+		var buff string
+		if i == c.headIndex {
+			buff += "[head] "
+		} else {
+			buff += fmt.Sprintf("[%04d] ", i)
+		}
+		buff += v.sprint(c.lastIrre.count)
+		log.WithFields(log.Fields{
+			"branch": buff,
+		}).Info("Runtime state")
+	}
+	return
+}
+
+func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
+	var (
+		ok     bool
+		ierr   error
+		br     *branch
+		parent *blockNode
+		head   *blockNode
+		height = c.height(bl.Timestamp())
+	)
+
+	defer c.stat()
+	c.Lock()
+	defer c.Unlock()
+
+	for i, v := range c.branches {
+		// Grow a branch
+		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
+			head = newBlockNode(height, bl, v.head)
+			if br, ierr = v.applyBlock(head); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to apply block %s", head.hash.Short(4))
+				return
+			}
+			// Grow a branch while the current branch is not changed
+			if br.head.count <= c.headBranch.head.count {
+				return store(c.st,
+					[]storageProcedure{addBlock(height, bl)},
+					func() { c.branches[i] = br },
+				)
+			}
+			// Switch branch or grow current branch
+			return c.switchBranch(bl, i, br)
+		}
+	}
+
+	for _, v := range c.branches {
+		if n := v.head.ancestor(height); n != nil && n.hash.IsEqual(bl.BlockHash()) {
+			// Return silently if block exists in the current branch
+			return
+		}
+		// Fork and create new branch
+		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, c.lastIrre.count); ok {
+			head = newBlockNode(height, bl, parent)
+			if br, ierr = fork(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
+				return
+			}
+			return store(c.st,
+				[]storageProcedure{addBlock(height, bl)},
+				func() { c.branches = append(c.branches, br) },
+			)
+		}
+	}
+
+	err = ErrParentNotFound
+	return
+}
+
+func (c *Chain) produceAndStoreBlock(
+	now time.Time, priv *asymmetric.PrivateKey) (out *types.BPBlock, err error,
+) {
+	var (
+		bl   *types.BPBlock
+		br   *branch
+		ierr error
+	)
+
+	defer c.stat()
+	c.Lock()
+	defer c.Unlock()
+
+	// Try to produce new block
+	if br, bl, ierr = c.headBranch.produceBlock(
+		c.height(now), now, c.address, priv,
+	); ierr != nil {
+		err = errors.Wrapf(ierr, "failed to produce block at head %s",
+			c.headBranch.head.hash.Short(4))
+		return
+	}
+	if ierr = c.switchBranch(bl, c.headIndex, br); ierr != nil {
+		err = errors.Wrapf(ierr, "failed to switch branch #%d:%s",
+			c.headIndex, c.headBranch.head.hash.Short(4))
+		return
+	}
+	out = bl
+	return
+}
+
+// now returns the current coordinated chain time.
+func (c *Chain) now() time.Time {
+	c.RLock()
+	defer c.RUnlock()
+	return time.Now().UTC().Add(c.offset)
+}
+
+func (c *Chain) startService(chain *Chain) {
+	c.server.RegisterService(route.BlockProducerRPCName, &ChainRPCService{chain: chain})
+}
+
+// nextTick returns the current clock reading and the duration till the next turn. If duration
+// is less or equal to 0, use the clock reading to run the next cycle - this avoids some problem
+// caused by concurrent time synchronization.
+func (c *Chain) nextTick() (t time.Time, d time.Duration) {
+	var nt uint32
+	nt, t = func() (nt uint32, t time.Time) {
+		c.RLock()
+		defer c.RUnlock()
+		nt = c.nextTurn
+		t = time.Now().UTC().Add(c.offset)
+		return
+	}()
+	d = c.genesisTime.Add(time.Duration(nt) * c.period).Sub(t)
+	if d > c.tick {
+		d = c.tick
+	}
+	return
+}
+
+func (c *Chain) isMyTurn() bool {
+	c.RLock()
+	defer c.RUnlock()
+	return c.nextTurn%c.serversNum == c.locSvIndex
+}
+
+// setNextTurn prepares the chain state for the next turn.
+func (c *Chain) setNextTurn() {
+	c.Lock()
+	defer c.Unlock()
+	c.nextTurn++
+}
+
+func (c *Chain) peerInfo() string {
+	var index, bpNum, nodeID = func() (uint32, uint32, proto.NodeID) {
+		c.RLock()
+		defer c.RUnlock()
+		return c.locSvIndex, c.serversNum, c.nodeID
+	}()
+	return fmt.Sprintf("[%d/%d] %s", index, bpNum, nodeID)
+}
+
+// height calculates the height with this sql-chain config of a given time reading.
+func (c *Chain) height(t time.Time) uint32 {
+	return uint32(t.Sub(c.genesisTime) / c.period)
+}
+
+func (c *Chain) getNextTurn() uint32 {
+	c.RLock()
+	defer c.RUnlock()
+	return c.nextTurn
+}
+
+func (c *Chain) getPeers() *proto.Peers {
+	c.RLock()
+	defer c.RUnlock()
+	var peers = c.peers.Clone()
+	return &peers
+}
+
+func (c *Chain) head() *blockNode {
+	c.RLock()
+	defer c.RUnlock()
+	return c.headBranch.head
+}
+
+func (c *Chain) stop() {
+	c.cancel()
+	c.wg.Wait()
+}
+
+func (c *Chain) goFunc(f func(ctx context.Context)) {
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		f(c.ctx)
+	}()
+}
+
+func (c *Chain) goFuncWithTimeout(f func(ctx context.Context), timeout time.Duration) {
+	c.wg.Add(1)
+	go func() {
+		var ctx, ccl = context.WithTimeout(c.ctx, timeout)
+		defer func() {
+			ccl()
+			c.wg.Done()
+		}()
+		f(ctx)
+	}()
 }

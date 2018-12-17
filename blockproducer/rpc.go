@@ -174,7 +174,7 @@ func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *Fet
 func (s *ChainRPCService) NextAccountNonce(
 	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
 ) {
-	if resp.Nonce, err = s.chain.rt.nextNonce(req.Addr); err != nil {
+	if resp.Nonce, err = s.chain.nextNonce(req.Addr); err != nil {
 		return
 	}
 	resp.Addr = req.Addr
@@ -195,7 +195,7 @@ func (s *ChainRPCService) QueryAccountStableBalance(
 	req *QueryAccountStableBalanceReq, resp *QueryAccountStableBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.rt.loadAccountStableBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.loadAccountStableBalance(req.Addr)
 	return
 }
 
@@ -204,7 +204,7 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 	req *QueryAccountCovenantBalanceReq, resp *QueryAccountCovenantBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.rt.loadAccountCovenantBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.loadAccountCovenantBalance(req.Addr)
 	return
 }
 

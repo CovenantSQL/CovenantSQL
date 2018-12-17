@@ -86,4 +86,8 @@ var (
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrLocalNodeNotFound indicates that the local node id is not found in the given peer list.
+	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
+	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.
+	ErrNoAvailableBranch = errors.New("no available branch from state storage")
 )

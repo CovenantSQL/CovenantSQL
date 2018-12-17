@@ -60,7 +60,6 @@ func buildDeletePlan(query string,
 				var shards []string
 				shards, err = c.getTableShards(originTableName.CompliantName())
 				delInstructions := &Delete{
-					Mutex:        sync.Mutex{},
 					Instructions: make([]*SinglePrimitive, len(shards)),
 				}
 

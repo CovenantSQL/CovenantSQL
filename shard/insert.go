@@ -51,7 +51,6 @@ func buildInsertPlan(query string,
 			} else {
 				if rows, ok := ins.Rows.(sqlparser.Values); ok {
 					allInserts := &Insert{
-						Mutex:        sync.Mutex{},
 						Instructions: make([]*SinglePrimitive, 0, len(rows)),
 					}
 
@@ -165,7 +164,6 @@ func (sc *ShardingConn) prepareShardTable(t *sqlparser.TableName, shardID int64)
 		} else {
 			return
 		}
-
 	}
 	return
 }

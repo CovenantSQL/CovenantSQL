@@ -27,3 +27,4 @@ package shard
 //  - we should change the primary key of first inserted row in shard table
 //  - SHARDCONF use json
 // - handle DDL query
+// - Optimize temp table create, current implementation copy too much to temp table

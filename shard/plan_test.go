@@ -29,3 +29,16 @@ func TestIsColNamesEqual(t *testing.T) {
 		So(isColNamesEqual([]string{"aaa", "", "bbb"}, []string{"aa", "", "bbb"}), ShouldBeFalse)
 	})
 }
+
+func TestPlan_CreateMergeTable(t *testing.T) {
+	Convey("ok statement", t, func() {
+		plan := &Plan{}
+		err := plan.CreateMergeTable("create table test (test int)")
+		So(err, ShouldBeNil)
+	})
+	Convey("error create statement", t, func() {
+		plan := &Plan{}
+		err := plan.CreateMergeTable("createx table test (test int)")
+		So(err, ShouldBeNil)
+	})
+}

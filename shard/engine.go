@@ -25,9 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS int64, err error) {
@@ -90,24 +91,27 @@ func getShardTS(sqlVal *sqlparser.SQLVal, args []driver.NamedValue) (insertTS in
 					string(sqlVal.Val))
 		}
 
-		switch arg.Value.(type) {
+		switch v := arg.Value.(type) {
 		case int64:
-			insertTS, _ = arg.Value.(int64)
+			insertTS = v
 		case float64:
-			insertTSf, _ := arg.Value.(float64)
+			insertTSf := v
 			insertTS = int64(insertTSf)
 		case string:
-			insertTime, err = ParseTime(arg.Value.(string))
+			insertTime, err = ParseTime(v)
 			if err != nil {
 				return -1,
 					errors.Wrapf(err, "unsupported: sharding key in arg: %v", arg)
 			}
 			insertTS = insertTime.Unix()
 		case time.Time:
-			insertTS = arg.Value.(time.Time).Unix()
+			insertTS = v.Unix()
 		case bool, []byte:
 			return -1,
 				errors.Errorf("unsupported: sharding key in arg: %v", arg)
+		default:
+			return -1,
+				errors.Errorf("unsupported: sharding key type: %T", v)
 		}
 
 	case sqlparser.FloatVal, sqlparser.HexNum, sqlparser.HexVal, sqlparser.BitVal:

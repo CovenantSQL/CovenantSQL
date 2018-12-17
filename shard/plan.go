@@ -62,7 +62,7 @@ func (plan *Plan) PrepareMergeTable(ctx context.Context) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "create merge table")
 	}
-	// parallel select, scan, process "auto increase id", insert
+	// parallel select, scan, insert
 
 	// IT'S IMPORTANT to make errCh buf fit the instructionsSize + 1, otherwise
 	//  deadlock may caused by multiple selector & merger blocking at putting error into errCh
@@ -204,7 +204,6 @@ func (plan *Plan) merger(ctx context.Context,
 	}
 	// errCh closed and empty means temp table preparation succeed
 	return
-
 }
 
 func (plan *Plan) mergeInsert(ctx context.Context,

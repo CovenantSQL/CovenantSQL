@@ -83,7 +83,6 @@ func TestGetShardTs(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(its, ShouldEqual, -1)
 
-
 		its, err = getShardTS(&sqlparser.SQLVal{
 			Type: sqlparser.ValArg,
 			Val:  []byte{':', 'v', '1'},
@@ -97,7 +96,6 @@ func TestGetShardTs(t *testing.T) {
 			})
 		So(err, ShouldBeNil)
 		So(its, ShouldEqual, 11111111111)
-
 
 		its, err = getShardTS(&sqlparser.SQLVal{
 			Type: sqlparser.ValArg,
@@ -150,6 +148,20 @@ func TestGetShardTs(t *testing.T) {
 					Name:    "v1",
 					Ordinal: 1,
 					Value:   true,
+				},
+			})
+		So(err, ShouldNotBeNil)
+		So(its, ShouldEqual, -1)
+
+		its, err = getShardTS(&sqlparser.SQLVal{
+			Type: sqlparser.ValArg,
+			Val:  []byte{':', 'v', '1'},
+		},
+			[]driver.NamedValue{
+				{
+					Name:    "v1",
+					Ordinal: 1,
+					Value:   nil,
 				},
 			})
 		So(err, ShouldNotBeNil)

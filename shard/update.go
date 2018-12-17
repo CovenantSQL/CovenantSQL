@@ -67,7 +67,6 @@ func buildUpdatePlan(query string,
 				var shards []string
 				shards, err = c.getTableShards(originTableName.CompliantName())
 				updateInstructions := &Update{
-					Mutex:        sync.Mutex{},
 					Instructions: make([]*SinglePrimitive, len(shards)),
 				}
 

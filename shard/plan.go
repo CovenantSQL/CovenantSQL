@@ -187,7 +187,7 @@ func (plan *Plan) merger(ctx context.Context,
 				}
 				err = plan.mergeInsert(ctx, colNames, rowBuf)
 				if err != nil {
-					errCh <- errors.Wrapf(ctx.Err(),
+					errCh <- errors.Wrapf(err,
 						"insert rows to temp table")
 					return
 				}

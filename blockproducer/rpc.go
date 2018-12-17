@@ -186,9 +186,7 @@ func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
 	if req.Tx == nil {
 		return ErrUnknownTransactionType
 	}
-
-	s.chain.pendingTxs <- req.Tx
-
+	s.chain.addTx(req.Tx)
 	return
 }
 

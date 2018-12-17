@@ -238,35 +238,30 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	}
 	log.WithField("block", b).Debug("produced new block")
 
-	var peers = c.rt.getPeers()
-	for _, s := range peers.Servers {
+	for _, s := range c.rt.getPeers().Servers {
 		if !s.IsEqual(&c.rt.nodeID) {
 			// Bind NodeID to subroutine
 			func(id proto.NodeID) {
-				c.rt.goFunc(func(ctx context.Context) {
+				c.rt.goFuncWithTimeout(func(ctx context.Context) {
 					var (
-						blockReq = &AdviseNewBlockReq{
+						req = &AdviseNewBlockReq{
 							Envelope: proto.Envelope{
 								// TODO(lambda): Add fields.
 							},
 							Block: b,
 						}
-						blockResp = &AdviseNewBlockResp{}
+						resp = &AdviseNewBlockResp{}
+						err  = c.cl.CallNodeWithContext(
+							ctx, id, route.MCCAdviseNewBlock.String(), req, resp)
 					)
-					if err := c.cl.CallNodeWithContext(
-						ctx, id, route.MCCAdviseNewBlock.String(), blockReq, blockResp,
-					); err != nil {
-						log.WithFields(log.Fields{
-							"peer":       c.rt.peerInfo(),
-							"now_time":   time.Now().UTC().Format(time.RFC3339Nano),
-							"block_hash": b.BlockHash(),
-						}).WithError(err).Error("failed to advise new block")
-					} else {
-						log.WithFields(log.Fields{
-							"node": id,
-						}).Debug("success advising block")
-					}
-				})
+					log.WithFields(log.Fields{
+						"local":       c.rt.peerInfo(),
+						"remote":      id,
+						"block_time":  b.Timestamp(),
+						"block_hash":  b.BlockHash().Short(4),
+						"parent_hash": b.ParentHash().Short(4),
+					}).WithError(err).Debug("Broadcasting new block to other peers")
+				}, c.rt.period)
 			}(s)
 		}
 	}
@@ -415,7 +410,39 @@ func (c *Chain) processBlocks(ctx context.Context) {
 }
 
 func (c *Chain) addTx(tx pi.Transaction) {
-	c.pendingTxs <- tx
+	// Simple non-blocking broadcasting
+	for _, v := range c.rt.getPeers().Servers {
+		if !v.IsEqual(&c.rt.nodeID) {
+			// Bind NodeID to subroutine
+			func(id proto.NodeID) {
+				c.rt.goFuncWithTimeout(func(ctx context.Context) {
+					var (
+						req = &AddTxReq{
+							Envelope: proto.Envelope{
+								// TODO(lambda): Add fields.
+							},
+							Tx: tx,
+						}
+						resp = &AddTxResp{}
+						err  = c.cl.CallNodeWithContext(
+							ctx, id, route.MCCAddTx.String(), req, resp)
+					)
+					log.WithFields(log.Fields{
+						"local":   c.rt.peerInfo(),
+						"remote":  id,
+						"tx_hash": tx.Hash().Short(4),
+						"tx_type": tx.GetTransactionType(),
+					}).WithError(err).Debug("Broadcasting transaction to other peers")
+				}, c.rt.period)
+			}(v)
+		}
+	}
+
+	select {
+	case c.pendingTxs <- tx:
+	case <-c.rt.ctx.Done():
+		log.WithError(c.rt.ctx.Err()).Error("Add transaction aborted")
+	}
 }
 
 func (c *Chain) processTx(tx pi.Transaction) {
@@ -509,7 +536,11 @@ func (c *Chain) syncHead(ctx context.Context) {
 					"parent": resp.Block.ParentHash().Short(4),
 					"hash":   resp.Block.BlockHash().Short(4),
 				}).Debug("Fetched new block from remote peer")
-				c.pendingBlocks <- resp.Block
+				select {
+				case c.pendingBlocks <- resp.Block:
+				case <-cld.Done():
+					log.WithError(cld.Err()).Warn("Add pending block aborted")
+				}
 			}(v)
 		}
 	}

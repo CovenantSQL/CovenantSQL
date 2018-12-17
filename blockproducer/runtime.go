@@ -482,3 +482,15 @@ func (r *runtime) goFunc(f func(ctx context.Context)) {
 		f(r.ctx)
 	}()
 }
+
+func (r *runtime) goFuncWithTimeout(f func(ctx context.Context), timeout time.Duration) {
+	r.wg.Add(1)
+	go func() {
+		var ctx, ccl = context.WithTimeout(r.ctx, timeout)
+		defer func() {
+			ccl()
+			r.wg.Done()
+		}()
+		f(ctx)
+	}()
+}

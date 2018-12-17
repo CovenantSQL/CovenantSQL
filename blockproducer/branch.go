@@ -142,7 +142,10 @@ func (b *branch) sortUnpackedTxs() (txs []pi.Transaction) {
 		txs = append(txs, v)
 	}
 	sort.Slice(txs, func(i, j int) bool {
-		if cmp := bytes.Compare(txs[i].Hash().AsBytes(), txs[j].Hash().AsBytes()); cmp != 0 {
+		if cmp := bytes.Compare(
+			hash.Hash(txs[i].GetAccountAddress()).AsBytes(),
+			hash.Hash(txs[j].GetAccountAddress()).AsBytes(),
+		); cmp != 0 {
 			return cmp < 0
 		}
 		return txs[i].GetAccountNonce() < txs[j].GetAccountNonce()

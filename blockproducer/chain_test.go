@@ -119,7 +119,7 @@ func TestChain(t *testing.T) {
 		genesis = &types.BPBlock{
 			SignedHeader: types.BPSignedHeader{
 				BPHeader: types.BPHeader{
-					Timestamp: time.Now().UTC(),
+					Timestamp: time.Now().Add(-30 * time.Second),
 				},
 			},
 			Transactions: []pi.Transaction{

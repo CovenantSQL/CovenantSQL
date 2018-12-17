@@ -28,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -312,6 +313,22 @@ func TestChain(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(height, ShouldEqual, node.height)
 					So(bl.BlockHash(), ShouldResemble, &node.hash)
+				})
+
+				Convey("Test run chain", func() {
+					var sv = rpc.NewServer()
+					err = sv.InitRPCServer("localhost:0", testingPrivateKeyFile, []byte{})
+					So(err, ShouldBeNil)
+					defer sv.Stop()
+
+					chain.rt.server = sv
+					err = chain.Start()
+					So(err, ShouldBeNil)
+					defer func() {
+						chain.Stop()
+						chain = nil
+					}()
+					time.Sleep(5 * chain.rt.period)
 				})
 			})
 		})

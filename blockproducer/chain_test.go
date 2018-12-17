@@ -33,14 +33,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var (
-	testPeersNumber                 = 1
-	testPeriod                      = 1 * time.Second
-	testTick                        = 100 * time.Millisecond
-	testPeriodNumber         uint32 = 10
-	testClientNumberPerChain        = 10
-)
-
 func newTransfer(
 	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
 	sender, receiver proto.AccountAddress, amount uint64,
@@ -260,6 +252,9 @@ func TestChain(t *testing.T) {
 			Convey("The chain head should switch to fork #1 if it grows to count 7", func() {
 				// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
 				chain.stat()
+				f1.addTx(t2)
+				f1.addTx(t3)
+				f1.addTx(t4)
 				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)

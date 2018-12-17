@@ -26,17 +26,43 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	supportedFuncs = map[string]bool{
+		"sum":   true,
+		"max":   true,
+		"min":   true,
+		"count": true,
+	}
+)
+
 // buildSelectPlan builds the route for an SELECT statement.
 func buildSelectPlan(query string,
 	sel *sqlparser.Select,
 	args []driver.NamedValue,
 	c *ShardingConn,
 ) (instructions Primitive, err error) {
+
 	if sel.GroupBy != nil || sel.Having != nil {
 		return nil, errors.New("unsupported: GROUP or HAVING in SELECT")
 	}
 	if sel.Distinct != "" {
 		return nil, errors.New("unsupported: DISTINCT in SELECT")
+	}
+
+	err = sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
+		switch node := node.(type) {
+		case *sqlparser.FuncExpr:
+			if _, ok := supportedFuncs[node.Name.Lowered()]; !ok {
+				return false,
+					errors.Errorf("unsupported: select has func %s", node.Name.Lowered())
+			}
+		case *sqlparser.Subquery:
+			return false, errors.New("unsupported: select has subquery")
+		}
+		return true, nil
+	}, sel)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(sel.From) == 1 {
@@ -48,14 +74,15 @@ func buildSelectPlan(query string,
 						var shards []string
 						shards, err = c.getTableShards(tableName.Name.CompliantName())
 						selectInstructions := &Select{
-							Mutex:        sync.Mutex{},
 							shardTable:   tableName.Name.CompliantName(),
 							Instructions: make([]*SingleSelectPrimitive, len(shards)),
 						}
 
 						//TODO(auxten) deep copy a new select is better
 						originFrom := sel.From[0]
+						originSelectExpr := sel.SelectExprs
 						for i, shard := range shards {
+							sel.SelectExprs = sqlparser.SelectExprs{&sqlparser.StarExpr{}}
 							sel.From[0] = &sqlparser.AliasedTableExpr{
 								Expr: sqlparser.TableName{
 									Name:      sqlparser.NewTableIdent(shard),
@@ -74,6 +101,7 @@ func buildSelectPlan(query string,
 							}
 						}
 						sel.From[0] = originFrom
+						sel.SelectExprs = originSelectExpr
 						return selectInstructions, nil
 					} else {
 						return nil,

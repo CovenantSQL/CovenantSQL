@@ -23,10 +23,13 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -144,6 +147,17 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 	checkQuery(t, dbs, db, "select id, name, time, xx from foo")
 
 	checkQuery(t, dbs, db, "select id, name, time from foo")
+
+	checkQuery(t, dbs, db, "select id, name, time from foo where id = 1")
+
+	checkQuery(t, dbs, db, "select count(id) from foo")
+	checkQuery(t, dbs, db, "select count(*) from foo")
+
+	mustFailQuery(t, dbs, "select * from foo where id = (select id from foo where id = 1)")
+
+	mustFailQuery(t, dbs, "select avg(id) from foo")
+
+	checkQuery(t, dbs, db, "select sum(id) from foo")
 
 	dbsstmt, dbstmt = checkPrepare(t, dbs, db, "select name from foo where id = ?")
 	checkStmtQuery(t, dbsstmt, dbstmt, "1")
@@ -457,4 +471,75 @@ func checkPrepareExec(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args 
 			t.FailNow()
 		}
 	}
+}
+
+func TestGetTableSchema(t *testing.T) {
+	const tableSchemaTpl = `
+	create table if not exists foo%s (id integer not null primary key, name text, time timestamp );
+	create index if not exists fooindex%s on foo%s ( time );
+	`
+	var sqlStmt = fmt.Sprintf(tableSchemaTpl, ShardSchemaToken, ShardSchemaToken, ShardSchemaToken)
+
+	Convey("", t, func() {
+		sc := &ShardingConn{
+			rawConn: &sqlite3.SQLiteConn{},
+			rawDB:   &sql.DB{},
+			conf: map[string]*ShardingConf{
+				"t1": {
+					ShardTableName: sqlparser.TableName{},
+					ShardColName:   sqlparser.ColIdent{},
+					ShardInterval:  0,
+					ShardStartTime: time.Time{},
+					ShardSchema:    sqlStmt,
+				},
+			},
+			shardingTables: sync.Map{},
+		}
+
+		schema, err := sc.getTableSchema("t1")
+		So(err, ShouldBeNil)
+		So(schema, ShouldNotBeNil)
+	})
+
+	Convey("", t, func() {
+		sc := &ShardingConn{
+			rawConn: &sqlite3.SQLiteConn{},
+			rawDB:   &sql.DB{},
+			conf: map[string]*ShardingConf{
+				"t1": {
+					ShardTableName: sqlparser.TableName{},
+					ShardColName:   sqlparser.ColIdent{},
+					ShardInterval:  0,
+					ShardStartTime: time.Time{},
+					ShardSchema:    "",
+				},
+			},
+			shardingTables: sync.Map{},
+		}
+
+		schema, err := sc.getTableSchema("t1")
+		So(err, ShouldNotBeNil)
+		So(schema, ShouldBeNil)
+	})
+
+	Convey("", t, func() {
+		sc := &ShardingConn{
+			rawConn: &sqlite3.SQLiteConn{},
+			rawDB:   &sql.DB{},
+			conf: map[string]*ShardingConf{
+				"t1": {
+					ShardTableName: sqlparser.TableName{},
+					ShardColName:   sqlparser.ColIdent{},
+					ShardInterval:  0,
+					ShardStartTime: time.Time{},
+					ShardSchema:    "",
+				},
+			},
+			shardingTables: sync.Map{},
+		}
+
+		schema, err := sc.getTableSchema("txxx")
+		So(err, ShouldNotBeNil)
+		So(schema, ShouldBeNil)
+	})
 }

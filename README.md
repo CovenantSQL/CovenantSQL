@@ -26,6 +26,7 @@
             alt="Join the chat at https://gitter.im/CovenantSQL/CovenantSQL"></a>
 </p>
 
+[中文简介](https://github.com/ConnorLi96/CovenantSQL/blob/develop/README-zh.md)
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain with features:
 

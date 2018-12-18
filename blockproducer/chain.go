@@ -79,7 +79,7 @@ type Chain struct {
 	sync.RWMutex // protects following fields
 	peers        *proto.Peers
 	nodeID       proto.NodeID
-	comfirms     uint32
+	confirms     uint32
 	serversNum   uint32
 	locSvIndex   uint32
 	nextHeight   uint32
@@ -250,7 +250,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 		peers:      cfg.Peers,
 		nodeID:     cfg.NodeID,
-		comfirms:   uint32(m),
+		confirms:   uint32(m),
 		serversNum: uint32(len(cfg.Peers.Servers)),
 		locSvIndex: uint32(locSvIndex),
 		nextHeight: head.head.height + 1,
@@ -685,7 +685,7 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 	// NOTE(leventeliu):
 	// May have multiple new irreversible blocks here if peer list shrinks. May also have
 	// no new irreversible block at all if peer list expands.
-	irre = head.head.lastIrreversible(c.comfirms)
+	irre = head.head.lastIrreversible(c.confirms)
 	newIrres = irre.fetchNodeList(c.lastIrre.count)
 
 	// Apply irreversible blocks to create dirty map on immutable cache

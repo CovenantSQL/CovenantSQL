@@ -25,7 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 	"github.com/ulule/deepcopier"
 )
 
@@ -84,7 +84,7 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 			"loaded":  loaded,
 		}).Debug("queried stable account")
 	}()
-	
+
 	s.Lock()
 	defer s.Unlock()
 

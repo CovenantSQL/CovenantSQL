@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Database defines single database subscription status.

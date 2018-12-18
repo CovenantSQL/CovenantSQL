@@ -322,6 +322,10 @@ func TestChain(t *testing.T) {
 						chain.Stop()
 						chain = nil
 					}()
+					chain.addTx(t1)
+					chain.addTx(t2)
+					chain.addTx(t3)
+					chain.addTx(t4)
 					time.Sleep(15 * chain.period)
 				})
 			})

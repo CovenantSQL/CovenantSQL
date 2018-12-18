@@ -17,8 +17,6 @@
 package blockproducer
 
 import (
-	"bytes"
-	"sync"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -28,9 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	pt "github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	"github.com/ulule/deepcopier"
 )
@@ -43,22 +39,17 @@ var (
 // TODO(leventeliu): lock optimization.
 
 type metaState struct {
-	sync.RWMutex
 	dirty, readonly *metaIndex
-	pool            *txPool
 }
 
 func newMetaState() *metaState {
 	return &metaState{
 		dirty:    newMetaIndex(),
 		readonly: newMetaIndex(),
-		pool:     newTxPool(),
 	}
 }
 
 func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *accountObject, loaded bool) {
-	s.RLock()
-	defer s.RUnlock()
 	if o, loaded = s.dirty.accounts[k]; loaded {
 		if o == nil {
 			loaded = false
@@ -74,8 +65,6 @@ func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *accountObject,
 func (s *metaState) loadOrStoreAccountObject(
 	k proto.AccountAddress, v *accountObject) (o *accountObject, loaded bool,
 ) {
-	s.Lock()
-	defer s.Unlock()
 	if o, loaded = s.dirty.accounts[k]; loaded && o != nil {
 		return
 	}
@@ -95,9 +84,6 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 			"loaded":  loaded,
 		}).Debug("queried stable account")
 	}()
-
-	s.Lock()
-	defer s.Unlock()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.TokenBalance[pt.Particle]
@@ -120,9 +106,6 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 		}).Debug("queried covenant account")
 	}()
 
-	s.Lock()
-	defer s.Unlock()
-
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
 		b = o.TokenBalance[pt.Wave]
 		return
@@ -142,8 +125,6 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 	// Since a transfer tx may create an empty receiver account, this method should try to cover
 	// the side effect.
 	if ao, ok := s.loadOrStoreAccountObject(k, v); ok {
-		ao.Lock()
-		defer ao.Unlock()
 		if ao.Account.NextNonce != 0 {
 			err = ErrAccountExists
 			return
@@ -165,8 +146,6 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 }
 
 func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, loaded bool) {
-	s.RLock()
-	defer s.RUnlock()
 	if o, loaded = s.dirty.databases[k]; loaded {
 		if o == nil {
 			loaded = false
@@ -182,8 +161,6 @@ func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, l
 func (s *metaState) loadOrStoreSQLChainObject(
 	k proto.DatabaseID, v *sqlchainObject) (o *sqlchainObject, loaded bool,
 ) {
-	s.Lock()
-	defer s.Unlock()
 	if o, loaded = s.dirty.databases[k]; loaded && o != nil {
 		return
 	}
@@ -195,8 +172,6 @@ func (s *metaState) loadOrStoreSQLChainObject(
 }
 
 func (s *metaState) loadProviderObject(k proto.AccountAddress) (o *providerObject, loaded bool) {
-	s.RLock()
-	defer s.RUnlock()
 	if o, loaded = s.dirty.provider[k]; loaded {
 		if o == nil {
 			loaded = false
@@ -210,8 +185,6 @@ func (s *metaState) loadProviderObject(k proto.AccountAddress) (o *providerObjec
 }
 
 func (s *metaState) loadOrStoreProviderObject(k proto.AccountAddress, v *providerObject) (o *providerObject, loaded bool) {
-	s.Lock()
-	defer s.Unlock()
 	if o, loaded = s.dirty.provider[k]; loaded && o != nil {
 		return
 	}
@@ -223,29 +196,21 @@ func (s *metaState) loadOrStoreProviderObject(k proto.AccountAddress, v *provide
 }
 
 func (s *metaState) deleteAccountObject(k proto.AccountAddress) {
-	s.Lock()
-	defer s.Unlock()
 	// Use a nil pointer to mark a deletion, which will be later used by commit procedure.
 	s.dirty.accounts[k] = nil
 }
 
 func (s *metaState) deleteSQLChainObject(k proto.DatabaseID) {
-	s.Lock()
-	defer s.Unlock()
 	// Use a nil pointer to mark a deletion, which will be later used by commit procedure.
 	s.dirty.databases[k] = nil
 }
 
 func (s *metaState) deleteProviderObject(k proto.AccountAddress) {
-	s.Lock()
-	defer s.Unlock()
 	// Use a nil pointer to mark a deletion, which will be later used by commit procedure.
 	s.dirty.provider[k] = nil
 }
 
 func (s *metaState) commit() {
-	s.Lock()
-	defer s.Unlock()
 	for k, v := range s.dirty.accounts {
 		if v != nil {
 			// New/update object
@@ -273,245 +238,16 @@ func (s *metaState) commit() {
 			delete(s.readonly.provider, k)
 		}
 	}
-	// Clean dirty map and tx pool
+	// Clean dirty map
 	s.dirty = newMetaIndex()
-	s.pool = newTxPool()
 	return
 }
 
-func (s *metaState) commitProcedure() (_ func(*bolt.Tx) error) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			enc *bytes.Buffer
-			ab  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			cb  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-			pb  = tx.Bucket(metaBucket[:]).Bucket(metaProviderIndexBucket)
-		)
-		s.Lock()
-		defer s.Unlock()
-		for k, v := range s.dirty.accounts {
-			if v != nil {
-				// New/update object
-				s.readonly.accounts[k] = v
-				if enc, err = utils.EncodeMsgPack(v.Account); err != nil {
-					return
-				}
-				if err = ab.Put(k[:], enc.Bytes()); err != nil {
-					return
-				}
-			} else {
-				// Delete object
-				delete(s.readonly.accounts, k)
-				if err = ab.Delete(k[:]); err != nil {
-					return
-				}
-			}
-		}
-		for k, v := range s.dirty.databases {
-			if v != nil {
-				// New/update object
-				s.readonly.databases[k] = v
-				if enc, err = utils.EncodeMsgPack(v.SQLChainProfile); err != nil {
-					return
-				}
-				if err = cb.Put([]byte(k), enc.Bytes()); err != nil {
-					return
-				}
-			} else {
-				// Delete object
-				delete(s.readonly.databases, k)
-				if err = cb.Delete([]byte(k)); err != nil {
-					return
-				}
-			}
-		}
-		for k, v := range s.dirty.provider {
-			if v != nil {
-				// New/update object
-				s.readonly.provider[k] = v
-				if enc, err = utils.EncodeMsgPack(v.ProviderProfile); err != nil {
-					return
-				}
-				if err = pb.Put(k[:], enc.Bytes()); err != nil {
-					return
-				}
-			} else {
-				// Delete object
-				delete(s.readonly.provider, k)
-				if err = pb.Delete(k[:]); err != nil {
-					return
-				}
-			}
-		}
-		// Clean dirty map and tx pool
-		s.dirty = newMetaIndex()
-		s.pool = newTxPool()
-		return
-	}
-}
-
-// partialCommitProcedure compares txs with pooled items, replays and commits the state due to txs
-// if txs matches part of or all the pooled items. Not committed txs will be left in the pool.
-func (s *metaState) partialCommitProcedure(txs []pi.Transaction) (_ func(*bolt.Tx) error) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			enc *bytes.Buffer
-			ab  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			cb  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-			pb  = tx.Bucket(metaBucket[:]).Bucket(metaProviderIndexBucket)
-		)
-		s.Lock()
-		defer s.Unlock()
-
-		// Make a half-deep copy of pool (txs are not copied, readonly) and deep copy of readonly
-		// state
-		var (
-			cp = s.pool.halfDeepCopy()
-			cm = &metaState{
-				dirty:    newMetaIndex(),
-				readonly: s.readonly.deepCopy(),
-			}
-		)
-		// Compare and replay commits, stop whenever a tx has mismatched
-		for _, v := range txs {
-			if !cp.cmpAndMoveNextTx(v) {
-				err = ErrTransactionMismatch
-				return
-			}
-			if err = cm.applyTransaction(v); err != nil {
-				return
-			}
-		}
-
-		for k, v := range cm.dirty.accounts {
-			if v != nil {
-				// New/update object
-				cm.readonly.accounts[k] = v
-				if enc, err = utils.EncodeMsgPack(v.Account); err != nil {
-					return
-				}
-				if err = ab.Put(k[:], enc.Bytes()); err != nil {
-					return
-				}
-			} else {
-				// Delete object
-				delete(cm.readonly.accounts, k)
-				if err = ab.Delete(k[:]); err != nil {
-					return
-				}
-			}
-		}
-		for k, v := range cm.dirty.databases {
-			if v != nil {
-				// New/update object
-				cm.readonly.databases[k] = v
-				if enc, err = utils.EncodeMsgPack(v.SQLChainProfile); err != nil {
-					return
-				}
-				if err = cb.Put([]byte(k), enc.Bytes()); err != nil {
-					return
-				}
-			} else {
-				// Delete object
-				delete(cm.readonly.databases, k)
-				if err = cb.Delete([]byte(k)); err != nil {
-					return
-				}
-			}
-		}
-		for k, v := range cm.dirty.provider {
-			if v != nil {
-				// New/update object
-				cm.readonly.provider[k] = v
-				if enc, err = utils.EncodeMsgPack(v.Provider); err != nil {
-					return
-				}
-				if err = pb.Put(k[:], enc.Bytes()); err != nil {
-					return
-				}
-			} else {
-				// Delete object
-				delete(cm.readonly.provider, k)
-				if err = pb.Delete(k[:]); err != nil {
-					return
-				}
-			}
-		}
-
-		// Rebuild dirty map
-		cm.dirty = newMetaIndex()
-		for _, v := range cp.entries {
-			for _, tx := range v.transactions {
-				if err = cm.applyTransaction(tx); err != nil {
-					return
-				}
-			}
-		}
-
-		// Clean dirty map and tx pool
-		s.pool = cp
-		s.readonly = cm.readonly
-		s.dirty = cm.dirty
-		return
-	}
-}
-
-func (s *metaState) reloadProcedure() (_ func(*bolt.Tx) error) {
-	return func(tx *bolt.Tx) (err error) {
-		s.Lock()
-		defer s.Unlock()
-		// Clean state
-		s.dirty = newMetaIndex()
-		s.readonly = newMetaIndex()
-		// Reload state
-		var (
-			ab = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			cb = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-			pb = tx.Bucket(metaBucket[:]).Bucket(metaProviderIndexBucket)
-		)
-		if err = ab.ForEach(func(k, v []byte) (err error) {
-			ao := &accountObject{}
-			if err = utils.DecodeMsgPack(v, &ao.Account); err != nil {
-				return
-			}
-			s.readonly.accounts[ao.Account.Address] = ao
-			return
-		}); err != nil {
-			return
-		}
-		if err = cb.ForEach(func(k, v []byte) (err error) {
-			co := &sqlchainObject{}
-			if err = utils.DecodeMsgPack(v, &co.SQLChainProfile); err != nil {
-				return
-			}
-			s.readonly.databases[co.SQLChainProfile.ID] = co
-			return
-		}); err != nil {
-			return
-		}
-		if err = pb.ForEach(func(k, v []byte) (err error) {
-			ao := &providerObject{}
-			if err = utils.DecodeMsgPack(v, &ao.Provider); err != nil {
-				return
-			}
-			s.readonly.provider[ao.ProviderProfile.Provider] = ao
-			return
-		}); err != nil {
-			return
-		}
-		return
-	}
-}
-
 func (s *metaState) clean() {
-	s.Lock()
-	defer s.Unlock()
 	s.dirty = newMetaIndex()
 }
 
 func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *accountObject
 		ok       bool
@@ -529,8 +265,6 @@ func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount 
 }
 
 func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *accountObject
 		ok       bool
@@ -556,8 +290,6 @@ func (s *metaState) transferAccountStableBalance(
 	// Create empty receiver account if not found
 	s.loadOrStoreAccountObject(receiver, &accountObject{Account: pt.Account{Address: receiver}})
 
-	s.Lock()
-	defer s.Unlock()
 	var (
 		so, ro     *accountObject
 		sd, rd, ok bool
@@ -608,8 +340,6 @@ func (s *metaState) transferAccountStableBalance(
 }
 
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *accountObject
 		ok       bool
@@ -627,8 +357,6 @@ func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amoun
 }
 
 func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *accountObject
 		ok       bool
@@ -645,8 +373,6 @@ func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amoun
 }
 
 func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseID) error {
-	s.Lock()
-	defer s.Unlock()
 	if _, ok := s.dirty.accounts[addr]; !ok {
 		if _, ok := s.readonly.accounts[addr]; !ok {
 			return ErrAccountNotFound
@@ -676,8 +402,6 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 func (s *metaState) addSQLChainUser(
 	k proto.DatabaseID, addr proto.AccountAddress, perm pt.UserPermission) (_ error,
 ) {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *sqlchainObject
 		ok       bool
@@ -703,8 +427,6 @@ func (s *metaState) addSQLChainUser(
 }
 
 func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAddress) error {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *sqlchainObject
 		ok       bool
@@ -731,8 +453,6 @@ func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAdd
 func (s *metaState) alterSQLChainUser(
 	k proto.DatabaseID, addr proto.AccountAddress, perm pt.UserPermission) (_ error,
 ) {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *sqlchainObject
 		ok       bool
@@ -754,12 +474,6 @@ func (s *metaState) alterSQLChainUser(
 }
 
 func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce, err error) {
-	s.Lock()
-	defer s.Unlock()
-	if e, ok := s.pool.getTxEntries(addr); ok {
-		nonce = e.nextNonce()
-		return
-	}
 	var (
 		o      *accountObject
 		loaded bool
@@ -778,8 +492,6 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 }
 
 func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
-	s.Lock()
-	defer s.Unlock()
 	var (
 		src, dst *accountObject
 		ok       bool
@@ -1054,94 +766,6 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	return
 }
 
-// applyTransaction tries to apply t to the metaState and push t to the memory pool if and
-// only if it can be applied correctly.
-func (s *metaState) applyTransactionProcedure(t pi.Transaction) (_ func(*bolt.Tx) error) {
-	var (
-		err     error
-		errPass = func(*bolt.Tx) error {
-			return err
-		}
-	)
-
-	log.WithField("tx", t).Debug("try applying transaction")
-
-	// Static checks, which have no relation with metaState
-	if err = t.Verify(); err != nil {
-		return errPass
-	}
-
-	var (
-		enc   *bytes.Buffer
-		hash  = t.Hash()
-		addr  = t.GetAccountAddress()
-		nonce = t.GetAccountNonce()
-		ttype = t.GetTransactionType()
-	)
-	if enc, err = utils.EncodeMsgPack(t); err != nil {
-		log.WithField("tx", t).WithError(err).Debug("encode failed on applying transaction")
-		return errPass
-	}
-
-	// metaState-related checks will be performed within bolt.Tx to guarantee consistency
-	return func(tx *bolt.Tx) (err error) {
-		log.WithField("tx", t).Debug("processing transaction")
-
-		// Check tx existense
-		// TODO(leventeliu): maybe move outside?
-		if s.pool.hasTx(t) {
-			log.Debug("transaction already in pool, apply failed")
-			return
-		}
-		// Check account nonce
-		var nextNonce pi.AccountNonce
-		if nextNonce, err = s.nextNonce(addr); err != nil {
-			if t.GetTransactionType() != pi.TransactionTypeBaseAccount {
-				return
-			}
-			// Consider the first nonce 0
-			err = nil
-		}
-		if nextNonce != nonce {
-			err = ErrInvalidAccountNonce
-			log.WithFields(log.Fields{
-				"actual":   nonce,
-				"expected": nextNonce,
-			}).WithError(err).Debug("nonce not match during transaction apply")
-			return
-		}
-		// Try to put transaction before any state change, will be rolled back later
-		// if transaction doesn't apply
-		tb := tx.Bucket(metaBucket[:]).Bucket(metaTransactionBucket).Bucket(ttype.Bytes())
-		if err = tb.Put(hash[:], enc.Bytes()); err != nil {
-			log.WithError(err).Debug("store transaction to bucket failed")
-			return
-		}
-		// Try to apply transaction to metaState
-		if err = s.applyTransaction(t); err != nil {
-			log.WithError(err).Debug("apply transaction failed")
-			return
-		}
-		if err = s.increaseNonce(addr); err != nil {
-			// FIXME(leventeliu): should not fail here.
-			return
-		}
-		// Push to pool
-		s.pool.addTx(t, nextNonce)
-		return
-	}
-}
-
-func (s *metaState) pullTxs() (txs []pi.Transaction) {
-	s.Lock()
-	defer s.Unlock()
-	for _, v := range s.pool.entries {
-		// TODO(leventeliu): check race condition.
-		txs = append(txs, v.transactions...)
-	}
-	return
-}
-
 func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta pt.ResourceMeta) (genesisBlock *pt.Block, err error) {
 	// TODO(xq262144): following is stub code, real logic should be implemented in the future
 	emptyHash := hash.Hash{}
@@ -1210,6 +834,5 @@ func (s *metaState) makeCopy() *metaState {
 	return &metaState{
 		dirty:    newMetaIndex(),
 		readonly: s.readonly.deepCopy(),
-		pool:     newTxPool(),
 	}
 }

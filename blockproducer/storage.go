@@ -129,7 +129,8 @@ func addBlock(height uint32, b *types.BPBlock) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "blocks" VALUES (?, ?, ?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "blocks" ("height", "hash", "parent", "encoded")
+	VALUES (?, ?, ?, ?)`,
 			height,
 			b.BlockHash().String(),
 			b.ParentHash().String(),
@@ -147,7 +148,8 @@ func addTx(t pi.Transaction) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "txPool" VALUES (?, ?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "txPool" ("type", "hash", "encoded")
+	VALUES (?, ?, ?)`,
 			uint32(t.GetTransactionType()),
 			t.Hash().String(),
 			enc.Bytes())
@@ -157,7 +159,8 @@ func addTx(t pi.Transaction) storageProcedure {
 
 func updateIrreversible(h hash.Hash) storageProcedure {
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "irreversible" VALUES (?, ?)`, 0, h.String())
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "irreversible" ("id", "hash")
+	VALUES (?, ?)`, 0, h.String())
 		return
 	}
 }
@@ -191,7 +194,8 @@ func updateAccount(account *types.Account) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "accounts" VALUES (?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "accounts" ("address", "encoded")
+	VALUES (?, ?)`,
 			account.Address.String(),
 			enc.Bytes())
 		return
@@ -214,7 +218,8 @@ func updateShardChain(profile *types.SQLChainProfile) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "shardChain" VALUES (?, ?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "shardChain" ("address", "id", "encoded")
+	VALUES (?, ?, ?)`,
 			profile.Address.String(),
 			string(profile.ID),
 			enc.Bytes())
@@ -238,7 +243,7 @@ func updateProvider(profile *types.ProviderProfile) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "provider" VALUES (?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "provider" ("address", "encoded") VALUES (?, ?)`,
 			profile.Provider.String(),
 			enc.Bytes())
 		return

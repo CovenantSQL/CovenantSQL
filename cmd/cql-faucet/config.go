@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Config defines the configurable options for faucet application backend.

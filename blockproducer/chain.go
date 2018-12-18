@@ -105,9 +105,9 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		ierr    error
 
 		cld, ccl = context.WithCancel(ctx)
-		l        = float64(len(cfg.Peers.Servers))
+		l        = uint32(len(cfg.Peers.Servers))
 		t        float64
-		m        float64
+		m        uint32
 
 		st        xi.Storage
 		irre      *blockNode
@@ -224,7 +224,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	if t = cfg.ComfirmThreshold; t <= 0.0 {
 		t = float64(2) / 3.0
 	}
-	if m = math.Ceil(l*t + 1); m > l {
+	if m = uint32(math.Ceil(float64(l)*t + 1)); m > l {
 		m = l
 	}
 
@@ -250,8 +250,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 		peers:      cfg.Peers,
 		nodeID:     cfg.NodeID,
-		confirms:   uint32(m),
-		serversNum: uint32(len(cfg.Peers.Servers)),
+		confirms:   m,
+		serversNum: l,
 		locSvIndex: uint32(locSvIndex),
 		nextHeight: head.head.height + 1,
 		offset:     time.Duration(0), // TODO(leventeliu): initialize offset
@@ -474,6 +474,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				}).Debug(err)
 			}
 		case <-ctx.Done():
+			log.WithError(c.ctx.Err()).Info("abort block processing")
 			return
 		}
 	}
@@ -511,7 +512,7 @@ func (c *Chain) addTx(tx pi.Transaction) {
 	select {
 	case c.pendingTxs <- tx:
 	case <-c.ctx.Done():
-		log.WithError(c.ctx.Err()).Error("add transaction aborted")
+		log.WithError(c.ctx.Err()).Warn("add transaction aborted")
 	}
 }
 
@@ -531,21 +532,28 @@ func (c *Chain) processTxs(ctx context.Context) {
 		case tx := <-c.pendingTxs:
 			c.processTx(tx)
 		case <-ctx.Done():
+			log.WithError(c.ctx.Err()).Info("abort transaction processing")
 			return
 		}
 	}
 }
 
 func (c *Chain) mainCycle(ctx context.Context) {
+	var timer = time.NewTimer(0)
+	defer func() {
+		if !timer.Stop() {
+			<-timer.C
+		}
+	}()
 	for {
 		select {
-		case <-ctx.Done():
-			log.WithError(ctx.Err()).Debug("abort main cycle")
-			return
-		default:
+		case <-timer.C:
 			c.syncCurrentHead(ctx) // Try to fetch block at height `nextHeight-1`
-
-			if t, d := c.nextTick(); d > 0 {
+			var t, d = c.nextTick()
+			if d <= 0 {
+				// Try to produce block at `nextHeight` if it's my turn, and increase height by 1
+				c.advanceNextHeight(t)
+			} else {
 				log.WithFields(log.Fields{
 					"peer":        c.peerInfo(),
 					"next_height": c.getNextHeight(),
@@ -554,11 +562,11 @@ func (c *Chain) mainCycle(ctx context.Context) {
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
 				}).Debug("main cycle")
-				time.Sleep(d)
-			} else {
-				// Try to produce block at `nextHeight` if it's my turn, and increase height by 1
-				c.advanceNextHeight(t)
 			}
+			timer.Reset(d)
+		case <-ctx.Done():
+			log.WithError(ctx.Err()).Info("abort main cycle")
+			return
 		}
 	}
 }
@@ -795,7 +803,6 @@ func (c *Chain) stat() {
 			"branch": buff,
 		}).Info("runtime state")
 	}
-	return
 }
 
 func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
@@ -814,7 +821,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 
 	for i, v := range c.branches {
 		// Grow a branch
-		if v.head.hash.IsEqual(&bl.SignedHeader.ParentHash) {
+		if v.head.hash.IsEqual(bl.ParentHash()) {
 			head = newBlockNode(height, bl, v.head)
 			if br, ierr = v.applyBlock(head); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to apply block %s", head.hash.Short(4))

@@ -25,7 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	pt "github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 	"github.com/ulule/deepcopier"
@@ -86,11 +86,11 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.TokenBalance[pt.Particle]
+		b = o.TokenBalance[types.Particle]
 		return
 	}
 	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.TokenBalance[pt.Particle]
+		b = o.TokenBalance[types.Particle]
 		return
 	}
 	return
@@ -107,11 +107,11 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.TokenBalance[pt.Wave]
+		b = o.TokenBalance[types.Wave]
 		return
 	}
 	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.TokenBalance[pt.Wave]
+		b = o.TokenBalance[types.Wave]
 		return
 	}
 	return
@@ -130,17 +130,17 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 			return
 		}
 		var (
-			cb = ao.TokenBalance[pt.Wave]
-			sb = ao.TokenBalance[pt.Particle]
+			cb = ao.TokenBalance[types.Wave]
+			sb = ao.TokenBalance[types.Particle]
 		)
-		if err = safeAdd(&cb, &v.Account.TokenBalance[pt.Wave]); err != nil {
+		if err = safeAdd(&cb, &v.Account.TokenBalance[types.Wave]); err != nil {
 			return
 		}
-		if err = safeAdd(&sb, &v.Account.TokenBalance[pt.Particle]); err != nil {
+		if err = safeAdd(&sb, &v.Account.TokenBalance[types.Particle]); err != nil {
 			return
 		}
-		ao.TokenBalance[pt.Wave] = cb
-		ao.TokenBalance[pt.Particle] = sb
+		ao.TokenBalance[types.Wave] = cb
+		ao.TokenBalance[types.Particle] = sb
 	}
 	return
 }
@@ -261,7 +261,7 @@ func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount 
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeAdd(&dst.Account.TokenBalance[pt.Particle], &amount)
+	return safeAdd(&dst.Account.TokenBalance[types.Particle], &amount)
 }
 
 func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
@@ -277,7 +277,7 @@ func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount 
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeSub(&dst.Account.TokenBalance[pt.Particle], &amount)
+	return safeSub(&dst.Account.TokenBalance[types.Particle], &amount)
 }
 
 func (s *metaState) transferAccountStableBalance(
@@ -288,7 +288,7 @@ func (s *metaState) transferAccountStableBalance(
 	}
 
 	// Create empty receiver account if not found
-	s.loadOrStoreAccountObject(receiver, &accountObject{Account: pt.Account{Address: receiver}})
+	s.loadOrStoreAccountObject(receiver, &accountObject{Account: types.Account{Address: receiver}})
 
 	var (
 		so, ro     *accountObject
@@ -311,8 +311,8 @@ func (s *metaState) transferAccountStableBalance(
 
 	// Try transfer
 	var (
-		sb = so.TokenBalance[pt.Particle]
-		rb = ro.TokenBalance[pt.Particle]
+		sb = so.TokenBalance[types.Particle]
+		rb = ro.TokenBalance[types.Particle]
 	)
 	if err = safeSub(&sb, &amount); err != nil {
 		return
@@ -334,8 +334,8 @@ func (s *metaState) transferAccountStableBalance(
 		ro = cpy
 		s.dirty.accounts[receiver] = cpy
 	}
-	so.TokenBalance[pt.Particle] = sb
-	ro.TokenBalance[pt.Particle] = rb
+	so.TokenBalance[types.Particle] = sb
+	ro.TokenBalance[types.Particle] = rb
 	return
 }
 
@@ -353,7 +353,7 @@ func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amoun
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeAdd(&dst.Account.TokenBalance[pt.Wave], &amount)
+	return safeAdd(&dst.Account.TokenBalance[types.Wave], &amount)
 }
 
 func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
@@ -369,7 +369,7 @@ func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amoun
 		deepcopier.Copy(&src.Account).To(&dst.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeSub(&dst.Account.TokenBalance[pt.Wave], &amount)
+	return safeSub(&dst.Account.TokenBalance[types.Wave], &amount)
 }
 
 func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseID) error {
@@ -384,14 +384,14 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 		return ErrDatabaseExists
 	}
 	s.dirty.databases[id] = &sqlchainObject{
-		SQLChainProfile: pt.SQLChainProfile{
+		SQLChainProfile: types.SQLChainProfile{
 			ID:     id,
 			Owner:  addr,
-			Miners: make([]*pt.MinerInfo, 0),
-			Users: []*pt.SQLChainUser{
+			Miners: make([]*types.MinerInfo, 0),
+			Users: []*types.SQLChainUser{
 				{
 					Address:    addr,
-					Permission: pt.Admin,
+					Permission: types.Admin,
 				},
 			},
 		},
@@ -400,7 +400,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 }
 
 func (s *metaState) addSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm pt.UserPermission) (_ error,
+	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
 ) {
 	var (
 		src, dst *sqlchainObject
@@ -419,7 +419,7 @@ func (s *metaState) addSQLChainUser(
 			return ErrDatabaseUserExists
 		}
 	}
-	dst.SQLChainProfile.Users = append(dst.SQLChainProfile.Users, &pt.SQLChainUser{
+	dst.SQLChainProfile.Users = append(dst.SQLChainProfile.Users, &types.SQLChainUser{
 		Address:    addr,
 		Permission: perm,
 	})
@@ -451,7 +451,7 @@ func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAdd
 }
 
 func (s *metaState) alterSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm pt.UserPermission) (_ error,
+	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
 ) {
 	var (
 		src, dst *sqlchainObject
@@ -508,10 +508,10 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	return
 }
 
-func (s *metaState) applyBilling(tx *pt.Billing) (err error) {
+func (s *metaState) applyBilling(tx *types.Billing) (err error) {
 	for i, v := range tx.Receivers {
 		// Create empty receiver account if not found
-		s.loadOrStoreAccountObject(*v, &accountObject{Account: pt.Account{Address: *v}})
+		s.loadOrStoreAccountObject(*v, &accountObject{Account: types.Account{Address: *v}})
 
 		if err = s.increaseAccountCovenantBalance(*v, tx.Fees[i]); err != nil {
 			return
@@ -523,7 +523,7 @@ func (s *metaState) applyBilling(tx *pt.Billing) (err error) {
 	return
 }
 
-func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
+func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "updateProviderList failed")
@@ -533,7 +533,7 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		err = errors.Wrap(ErrInvalidSender, "updateProviderList failed")
 		return
 	}
-	pp := pt.ProviderProfile{
+	pp := types.ProviderProfile{
 		Provider:      sender,
 		Space:         tx.Space,
 		Memory:        tx.Memory,
@@ -544,7 +544,7 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 	return
 }
 
-func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
+func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "matchProviders failed")
@@ -586,10 +586,10 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		return
 	}
 	// generate userinfo
-	users := make([]*pt.SQLChainUser, 1)
-	users[0] = &pt.SQLChainUser{
+	users := make([]*types.SQLChainUser, 1)
+	users[0] = &types.SQLChainUser{
 		Address:    sender,
-		Permission: pt.Admin,
+		Permission: types.Admin,
 	}
 	// generate genesis block
 	gb, err := s.generateGenesisBlock(*dbID, tx.ResourceMeta)
@@ -601,12 +601,12 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		return err
 	}
 	// create sqlchain
-	sp := &pt.SQLChainProfile{
+	sp := &types.SQLChainProfile{
 		ID:        *dbID,
 		Address:   dbAddr,
 		Period:    sqlchainPeriod,
 		GasPrice:  sqlchainGasPrice,
-		TokenType: pt.Particle,
+		TokenType: types.Particle,
 		Owner:     sender,
 		Users:     users,
 		Genesis:   gb,
@@ -616,7 +616,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		return
 	}
 	s.loadOrStoreAccountObject(dbAddr, &accountObject{
-		Account: pt.Account{Address: dbAddr},
+		Account: types.Account{Address: dbAddr},
 	})
 	s.loadOrStoreSQLChainObject(*dbID, &sqlchainObject{SQLChainProfile: *sp})
 	for _, miner := range tx.ResourceMeta.TargetMiners {
@@ -625,7 +625,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 	return
 }
 
-func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
+func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -644,7 +644,7 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 		}).WithError(ErrDatabaseNotFound).Error("unexpected error in updatePermission")
 		return ErrDatabaseNotFound
 	}
-	if tx.Permission >= pt.NumberOfUserPermission {
+	if tx.Permission >= types.NumberOfUserPermission {
 		log.WithFields(log.Fields{
 			"permission": tx.Permission,
 			"dbID":       tx.TargetSQLChain.DatabaseID(),
@@ -656,7 +656,7 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 	isAdmin := false
 	targetUserIndex := -1
 	for i, u := range so.Users {
-		isAdmin = isAdmin || (sender == u.Address && u.Permission == pt.Admin)
+		isAdmin = isAdmin || (sender == u.Address && u.Permission == types.Admin)
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i
 		}
@@ -672,10 +672,10 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 
 	// update targetUser's permission
 	if targetUserIndex == -1 {
-		u := pt.SQLChainUser{
+		u := types.SQLChainUser{
 			Address:    tx.TargetUser,
 			Permission: tx.Permission,
-			Status:     pt.Normal,
+			Status:     types.Normal,
 		}
 		so.Users = append(so.Users, &u)
 	} else {
@@ -684,7 +684,7 @@ func (s *metaState) updatePermission(tx *pt.UpdatePermission) (err error) {
 	return
 }
 
-func (s *metaState) updateKeys(tx *pt.IssueKeys) (err error) {
+func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	sender := tx.GetAccountAddress()
 	so, loaded := s.loadSQLChainObject(tx.TargetSQLChain.DatabaseID())
 	if !loaded {
@@ -704,7 +704,7 @@ func (s *metaState) updateKeys(tx *pt.IssueKeys) (err error) {
 	}
 	isAdmin := false
 	for _, user := range so.Users {
-		if sender == user.Address && user.Permission == pt.Admin {
+		if sender == user.Address && user.Permission == types.Admin {
 			isAdmin = true
 			break
 		}
@@ -732,7 +732,7 @@ func (s *metaState) updateKeys(tx *pt.IssueKeys) (err error) {
 
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
-	case *pt.Transfer:
+	case *types.Transfer:
 		realSender, err := crypto.PubKeyHash(t.Signee)
 		if err != nil {
 			err = errors.Wrap(err, "applyTx failed")
@@ -745,17 +745,17 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 			log.Debug(err)
 		}
 		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
-	case *pt.Billing:
+	case *types.Billing:
 		err = s.applyBilling(t)
-	case *pt.BaseAccount:
+	case *types.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
-	case *pt.ProvideService:
+	case *types.ProvideService:
 		err = s.updateProviderList(t)
-	case *pt.CreateDatabase:
+	case *types.CreateDatabase:
 		err = s.matchProvidersWithUser(t)
-	case *pt.UpdatePermission:
+	case *types.UpdatePermission:
 		err = s.updatePermission(t)
-	case *pt.IssueKeys:
+	case *types.IssueKeys:
 		err = s.updateKeys(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
@@ -766,7 +766,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	return
 }
 
-func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta pt.ResourceMeta) (genesisBlock *pt.Block, err error) {
+func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta types.ResourceMeta) (genesisBlock *types.Block, err error) {
 	// TODO(xq262144): following is stub code, real logic should be implemented in the future
 	emptyHash := hash.Hash{}
 
@@ -779,9 +779,9 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta pt.
 		return
 	}
 
-	genesisBlock = &pt.Block{
-		SignedHeader: pt.SignedHeader{
-			Header: pt.Header{
+	genesisBlock = &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
 				Version:     0x01000000,
 				Producer:    nodeID,
 				GenesisHash: emptyHash,

@@ -1,5 +1,23 @@
 # Changelog
 
+## [v0.0.6](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.6) (2018-12-18)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.5...v0.0.6)
+
+**Closed issues:**
+
+- Could not run in docker based alpine image [\#134](https://github.com/CovenantSQL/CovenantSQL/issues/134)
+- Quickstart cli document 404 [\#97](https://github.com/CovenantSQL/CovenantSQL/issues/97)
+- Any plan to NodeJS support? [\#80](https://github.com/CovenantSQL/CovenantSQL/issues/80)
+
+**Merged pull requests:**
+
+- Add a Gitter chat badge to README.md [\#137](https://github.com/CovenantSQL/CovenantSQL/pull/137) ([gitter-badger](https://github.com/gitter-badger))
+- Add DSN options to enable SQL queries on follower nodes [\#136](https://github.com/CovenantSQL/CovenantSQL/pull/136) ([ggicci](https://github.com/ggicci))
+- If smux session dead, cancel the context passed to RPC through Envelope [\#133](https://github.com/CovenantSQL/CovenantSQL/pull/133) ([auxten](https://github.com/auxten))
+- Add new cloudflare.com DNSKEY [\#132](https://github.com/CovenantSQL/CovenantSQL/pull/132) ([auxten](https://github.com/auxten))
+- Prepare for auto bench in jenkins environment. [\#131](https://github.com/CovenantSQL/CovenantSQL/pull/131) ([laodouya](https://github.com/laodouya))
+
 ## [v0.0.5](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.5) (2018-11-23)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.4...v0.0.5)

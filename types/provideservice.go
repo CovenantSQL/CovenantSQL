@@ -52,7 +52,7 @@ type ProvideService struct {
 func NewProvideService(h *ProvideServiceHeader) *ProvideService {
 	return &ProvideService{
 		ProvideServiceHeader: *h,
-		TransactionTypeMixin: *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeCreateDatabase),
+		TransactionTypeMixin: *interfaces.NewTransactionTypeMixin(interfaces.TransactionTypeProvideService),
 	}
 }
 
@@ -73,5 +73,5 @@ func (ps *ProvideService) GetAccountAddress() proto.AccountAddress {
 }
 
 func init() {
-	interfaces.RegisterTransaction(interfaces.TransactionTypeCreateDatabase, (*ProvideService)(nil))
+	interfaces.RegisterTransaction(interfaces.TransactionTypeProvideService, (*ProvideService)(nil))
 }

@@ -140,14 +140,10 @@ func addBlock(height uint32, b *types.BPBlock) storageProcedure {
 
 func addTx(t pi.Transaction) storageProcedure {
 	var (
-		tt  = t
 		enc *bytes.Buffer
 		err error
 	)
-	if _, ok := tt.(*pi.TransactionWrapper); !ok {
-		tt = pi.WrapTransaction(tt)
-	}
-	if enc, err = utils.EncodeMsgPack(tt); err != nil {
+	if enc, err = utils.EncodeMsgPack(t); err != nil {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
@@ -294,11 +290,11 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 		if err = hash.Decode(&th, hex); err != nil {
 			return
 		}
-		var dec = &pi.TransactionWrapper{}
-		if err = utils.DecodeMsgPack(enc, dec); err != nil {
+		var dec pi.Transaction
+		if err = utils.DecodeMsgPack(enc, &dec); err != nil {
 			return
 		}
-		pool[th] = dec.Unwrap()
+		pool[th] = dec
 	}
 
 	txPool = pool

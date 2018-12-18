@@ -34,7 +34,7 @@ CovenantSQL是一个基于区块链技术的去中心化众筹式SQL数据库，
 - **隐私**:通过加密和授权许可进行访问
 - **不可篡改**:CovenantSQL中的查询历史记录是不可变但是可跟踪的
 
-我们相信[在下一个互联网时代，每个人都会有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
+我们相信[在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
 #### 一行代码接入区块链数据
 ```go

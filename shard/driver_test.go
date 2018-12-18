@@ -159,6 +159,8 @@ func testCases(t *testing.T, dbs *sql.DB, db *sql.DB) (err error) {
 
 	checkQuery(t, dbs, db, "select sum(id) from foo")
 
+	checkQuery(t, dbs, db, "select id, count(id), *, sum(id) from foo")
+
 	dbsstmt, dbstmt = checkPrepare(t, dbs, db, "select name from foo where id = ?")
 	checkStmtQuery(t, dbsstmt, dbstmt, "1")
 	fmt.Println("")
@@ -273,7 +275,7 @@ func checkQuery(t *testing.T, dbs *sql.DB, db *sql.DB, query string, args ...int
 			t.FailNow()
 		}
 
-		log.Debugf("query results: %#v", sdest)
+		log.Debugf("query results %s: %#v", query, sdest)
 	}
 	dberr = rows.Err()
 	dbserr = srows.Err()

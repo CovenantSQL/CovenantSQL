@@ -118,7 +118,7 @@ func TestWithField(t *testing.T) {
 	WithField("k", "v").Info("info")
 	WithField("k", "v").Infoln("Infoln")
 	WithField("k", "v").Infof("infof %d", 1)
-	WithField("k", "v").Warning("Warning")
+	WithField("k", "v").Warning("warning")
 	WithField("k", "v").Warningln("Warningln")
 	WithField("k", "v").Warningf("Warningf %d", 1)
 	WithField("k", "v").Warn("warn")

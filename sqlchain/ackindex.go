@@ -45,7 +45,7 @@ type multiAckIndex struct {
 
 func (i *multiAckIndex) addResponse(resp *types.SignedResponseHeader) (err error) {
 	var key = resp.ResponseHeader.Request.GetQueryKey()
-	log.Debugf("Adding key %s <-- resp %s", &key, resp.Hash())
+	log.Debugf("adding key %s <-- resp %s", &key, resp.Hash())
 	i.Lock()
 	defer i.Unlock()
 	if oresp, ok := i.ri[key]; ok {
@@ -66,7 +66,7 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 		ok   bool
 		key  = ack.SignedRequestHeader().GetQueryKey()
 	)
-	log.Debugf("Registering key %s <-- ack %s", &key, ack.Hash())
+	log.Debugf("registering key %s <-- ack %s", &key, ack.Hash())
 
 	i.Lock()
 	defer i.Unlock()
@@ -86,7 +86,7 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 
 func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 	var key = ack.SignedRequestHeader().GetQueryKey()
-	log.Debugf("Removing key %s -x- ack %s", &key, ack.Hash())
+	log.Debugf("removing key %s -x- ack %s", &key, ack.Hash())
 	i.Lock()
 	defer i.Unlock()
 	if _, ok := i.ri[key]; ok {
@@ -130,7 +130,7 @@ func (i *multiAckIndex) expire() {
 			"response_hash": v.Hash(),
 			"response_node": v.NodeID,
 			"response_time": v.Timestamp,
-		}).Warn("Query expires without acknowledgement")
+		}).Warn("query expires without acknowledgement")
 	}
 	for _, v := range i.qi {
 		log.WithFields(log.Fields{
@@ -144,7 +144,7 @@ func (i *multiAckIndex) expire() {
 			"ack_hash":      v.ack.Hash(),
 			"ack_node":      v.ack.NodeID,
 			"ack_time":      v.ack.Timestamp,
-		}).Warn("Query expires without block producing")
+		}).Warn("query expires without block producing")
 	}
 }
 

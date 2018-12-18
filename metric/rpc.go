@@ -137,7 +137,7 @@ func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID) (err error) {
 		log.Errorf("GatherMetricBytes failed: %s", err)
 		return
 	}
-	log.Debugf("Calling BP: %s", BPNodeID)
+	log.Debugf("calling BP: %s", BPNodeID)
 	reqType := MetricServiceName + ".UploadMetrics"
 	req := &proto.UploadMetricsReq{
 		MFBytes: mfb,

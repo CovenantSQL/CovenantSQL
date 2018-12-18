@@ -35,7 +35,7 @@ type Result struct {
 func (f *Foo) Bar(args *string, res *Result) error {
 	res.Data = len(*args)
 	log.Printf("Received %q, its length is %d", *args, res.Data)
-	//return fmt.Error("Whoops, error happened")
+	//return fmt.Error("whoops, error happened")
 	return nil
 }
 
@@ -51,7 +51,7 @@ var simpleCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoC
 
 func server() *CryptoListener {
 	if err := rpc.Register(new(Foo)); err != nil {
-		log.Error("Failed to register RPC method")
+		log.Error("failed to register RPC method")
 	}
 
 	listener, err := NewCryptoListener("tcp", service, simpleCipherHandler)
@@ -95,7 +95,7 @@ func client(pass string) (ret int, err error) {
 	res := new(Result)
 	args := strings.Repeat("a", contentLength)
 	if err := rpcClient.Call("Foo.Bar", args, &res); err != nil {
-		log.Error("Failed to call RPC", err)
+		log.Error("failed to call RPC", err)
 		return 0, err
 	}
 	log.Printf("Returned result is %d", res.Data)

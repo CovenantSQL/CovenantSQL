@@ -425,7 +425,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 	res, err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
 
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("error occurred: %s", err.Error())
 	}
 
 	if res.(int64) != 8 {
@@ -438,7 +438,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"-3", "-4", "+1"}})
 
 	if err == nil {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	} else {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}
@@ -449,7 +449,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"-5", "+9", "+1"}})
 
 	if err == nil {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	} else {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}
@@ -492,7 +492,7 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	res, err := c.Put(nodes, &RaftWriteBatchReq{TxID: 0, Cmds: []string{"+1", "-3", "+10"}})
 	if err != nil {
-		t.Fatalf("Error occurred: %s", err.Error())
+		t.Fatalf("error occurred: %s", err.Error())
 	}
 
 	if res.(int64) != 8 {
@@ -508,9 +508,9 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 1, Cmds: []string{"+1", "-3", "+10"}})
 	if err == nil {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	} else if err != beforePrepareError {
-		t.Fatal("Unexpected result: beforePrepare error is expected")
+		t.Fatal("unexpected result: beforePrepare error is expected")
 	} else {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}
@@ -524,9 +524,9 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 2, Cmds: []string{"+1", "-3", "+10"}})
 	if err == nil {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	} else if err != beforeCommitError {
-		t.Fatal("Unexpected result: beforeCommit error is expected")
+		t.Fatal("unexpected result: beforeCommit error is expected")
 	} else {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}
@@ -540,9 +540,9 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 
 	res, err = c.Put(nodes, &RaftWriteBatchReq{TxID: 3, Cmds: []string{"+1", "-3", "+10"}})
 	if err == nil {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	} else if err != beforeCommitError {
-		t.Fatal("Unexpected result: beforeCommit error is expected")
+		t.Fatal("unexpected result: beforeCommit error is expected")
 	} else {
 		t.Logf("Error occurred as expected: %s", err.Error())
 	}

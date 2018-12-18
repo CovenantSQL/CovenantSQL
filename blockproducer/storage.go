@@ -95,7 +95,7 @@ func store(st xi.Storage, sps []storageProcedure, cb storageCallback) (err error
 	}
 	// COMMIT
 	if err = tx.Commit(); err != nil {
-		log.WithError(err).Fatalf("Failed to commit storage transaction")
+		log.WithError(err).Fatalf("failed to commit storage transaction")
 	}
 	return
 }
@@ -349,7 +349,7 @@ func loadBlocks(
 			"height": v1,
 			"hash":   bh.Short(4),
 			"parent": ph.Short(4),
-		}).Debug("Loaded new block")
+		}).Debug("loaded new block")
 		// Add genesis block
 		if v1 == 0 {
 			if len(index) != 0 {
@@ -364,7 +364,7 @@ func loadBlocks(
 				"height": v1,
 				"hash":   bh.Short(4),
 				"parent": ph.Short(4),
-			}).Debug("Set genesis block")
+			}).Debug("set genesis block")
 			continue
 		}
 		// Add normal block

@@ -44,11 +44,11 @@ func loadConfig(path string) (config *Config, err error) {
 		wrapper = &configWrapper{}
 	)
 	if content, err = ioutil.ReadFile(path); err != nil {
-		log.WithError(err).Error("Failed to read config file")
+		log.WithError(err).Error("failed to read config file")
 		return
 	}
 	if err = yaml.Unmarshal(content, wrapper); err != nil {
-		log.WithError(err).Error("Failed to unmarshal config file")
+		log.WithError(err).Error("failed to unmarshal config file")
 		return
 	}
 	config = wrapper.Observer

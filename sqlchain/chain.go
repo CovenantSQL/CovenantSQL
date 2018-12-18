@@ -166,7 +166,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		return
 	}
 
-	log.Debugf("Create new chain bdb %s", bdbFile)
+	log.Debugf("create new chain bdb %s", bdbFile)
 
 	// Open LevelDB for ack/request/response
 	tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
@@ -176,7 +176,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		return
 	}
 
-	log.Debugf("Create new chain tdb %s", tdbFile)
+	log.Debugf("create new chain tdb %s", tdbFile)
 
 	// Open x.State
 	var (
@@ -312,7 +312,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	log.WithFields(log.Fields{
 		"peer":  chain.rt.getPeerInfoString(),
 		"state": st,
-	}).Debug("Loading state from database")
+	}).Debug("loading state from database")
 
 	// Read blocks and rebuild memory index
 	var (
@@ -339,7 +339,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		log.WithFields(log.Fields{
 			"peer":  chain.rt.getPeerInfoString(),
 			"block": block.BlockHash().String(),
-		}).Debug("Loading block from database")
+		}).Debug("loading block from database")
 
 		if last == nil {
 			if err = block.VerifyAsGenesis(); err != nil {
@@ -397,7 +397,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		log.WithFields(log.Fields{
 			"height": h,
 			"header": resp.Hash().String(),
-		}).Debug("Loaded new resp header")
+		}).Debug("loaded new resp header")
 	}
 	if err = respIter.Error(); err != nil {
 		err = errors.Wrap(err, "load resp")
@@ -418,7 +418,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		log.WithFields(log.Fields{
 			"height": h,
 			"header": ack.Hash().String(),
-		}).Debug("Loaded new ack header")
+		}).Debug("loaded new ack header")
 	}
 	if err = respIter.Error(); err != nil {
 		err = errors.Wrap(err, "load ack")
@@ -477,7 +477,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 				"index":      i,
 				"producer":   b.Producer(),
 				"block_hash": b.BlockHash(),
-			}).WithError(ierr).Warn("Failed to add response to ackIndex")
+			}).WithError(ierr).Warn("failed to add response to ackIndex")
 		}
 	}
 	for i, v := range b.Acks {
@@ -486,7 +486,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 				"index":      i,
 				"producer":   b.Producer(),
 				"block_hash": b.BlockHash(),
-			}).WithError(ierr).Warn("Failed to remove Ack from ackIndex")
+			}).WithError(ierr).Warn("failed to remove Ack from ackIndex")
 		}
 	}
 
@@ -508,7 +508,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 					return "|"
 				}(), st.Head.String()[:8]),
 			"headHeight": c.rt.getHead().Height,
-		}).Info("Pushed new block")
+		}).Info("pushed new block")
 	}
 
 	return
@@ -593,7 +593,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		"curr_turn":       c.rt.getNextTurn(),
 		"using_timestamp": now.Format(time.RFC3339Nano),
 		"block_hash":      block.BlockHash().String(),
-	}).Debug("Produced new block")
+	}).Debug("produced new block")
 	// Advise new block to the other peers
 	var (
 		req = &MuxAdviseNewBlockReq{
@@ -632,7 +632,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 						"curr_turn":       c.rt.getNextTurn(),
 						"using_timestamp": now.Format(time.RFC3339Nano),
 						"block_hash":      block.BlockHash().String(),
-					}).WithError(err).Error("Failed to advise new block")
+					}).WithError(err).Error("failed to advise new block")
 				}
 			}(s)
 		}
@@ -729,7 +729,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		"head_height":     c.rt.getHead().Height,
 		"head_block":      c.rt.getHead().Head.String(),
 		"using_timestamp": now.Format(time.RFC3339Nano),
-	}).Debug("Run current turn")
+	}).Debug("run current turn")
 
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {
 		log.WithFields(log.Fields{
@@ -775,7 +775,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 				//	"head_block":      c.rt.getHead().Head.String(),
 				//	"using_timestamp": t.Format(time.RFC3339Nano),
 				//	"duration":        d,
-				//}).Debug("Main cycle")
+				//}).Debug("main cycle")
 				time.Sleep(d)
 			} else {
 				c.runCurrentTurn(t)
@@ -789,7 +789,7 @@ func (c *Chain) sync() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).Debug("Synchronizing chain state")
+	}).Debug("synchronizing chain state")
 
 	for {
 		now := c.rt.now()
@@ -838,7 +838,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 			log.WithFields(log.Fields{
 				"height": h,
 				"stashs": len(stash),
-			}).Debug("Read new height from channel")
+			}).Debug("read new height from channel")
 			if stash != nil {
 				wg.Add(1)
 				go returnStash(stash)
@@ -854,7 +854,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				"head_block":   c.rt.getHead().Head.String(),
 				"block_height": height,
 				"block_hash":   block.BlockHash().String(),
-			}).Debug("Processing new block")
+			}).Debug("processing new block")
 
 			if height > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
@@ -873,7 +873,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 							"head_block":   c.rt.getHead().Head.String(),
 							"block_height": height,
 							"block_hash":   block.BlockHash().String(),
-						}).WithError(err).Error("Failed to check and push new block")
+						}).WithError(err).Error("failed to check and push new block")
 					}
 				}
 			}
@@ -904,12 +904,12 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).Debug("Stopping chain")
+	}).Debug("stopping chain")
 	c.rt.stop()
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).Debug("Chain service and workers stopped")
+	}).Debug("chain service and workers stopped")
 	// Close LevelDB file
 	var ierr error
 	if ierr = c.bdb.Close(); ierr != nil && err == nil {
@@ -918,14 +918,14 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).WithError(ierr).Debug("Chain database closed")
+	}).WithError(ierr).Debug("chain database closed")
 	if ierr = c.tdb.Close(); ierr != nil && err == nil {
 		err = ierr
 	}
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).WithError(ierr).Debug("Chain database closed")
+	}).WithError(ierr).Debug("chain database closed")
 	// Close state
 	if ierr = c.st.Close(false); ierr != nil && err == nil {
 		err = ierr
@@ -933,7 +933,7 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
-	}).WithError(ierr).Debug("Chain state storage closed")
+	}).WithError(ierr).Debug("chain state storage closed")
 	return
 }
 
@@ -982,7 +982,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 		"blockparent": block.ParentHash().String(),
 		"headblock":   head.Head.String(),
 		"headheight":  head.Height,
-	}).WithError(err).Debug("Checking new block from other peer")
+	}).WithError(err).Debug("checking new block from other peer")
 
 	if head.Height == height && head.Head.IsEqual(block.BlockHash()) {
 		// Maybe already set by FetchBlock
@@ -1225,7 +1225,7 @@ func (c *Chain) collectBillingSignatures(ctx context.Context, billings *types.Bi
 					log.WithFields(log.Fields{
 						"peer": c.rt.getPeerInfoString(),
 						"time": c.rt.getChainTimeString(),
-					}).WithError(err).Error("Failed to send sign billing request")
+					}).WithError(err).Error("failed to send sign billing request")
 				}
 
 				respC <- &resp.SignBillingResp
@@ -1246,7 +1246,7 @@ func (c *Chain) LaunchBilling(low, high int32) (err error) {
 		"time": c.rt.getChainTimeString(),
 		"low":  low,
 		"high": high,
-	}).WithError(err).Debug("Launched billing process")
+	}).WithError(err).Debug("launched billing process")
 
 	if req, err = c.getBilling(low, high); err != nil {
 		return
@@ -1272,7 +1272,7 @@ func (c *Chain) SignBilling(req *types.BillingRequest) (
 		"time": c.rt.getChainTimeString(),
 		"low":  req.Header.LowHeight,
 		"high": req.Header.HighHeight,
-	}).WithError(err).Debug("Processing sign billing request")
+	}).WithError(err).Debug("processing sign billing request")
 
 	// Verify billing results
 	if err = req.VerifySignatures(); err != nil {
@@ -1440,7 +1440,7 @@ func (c *Chain) stat() {
 		"response_header_count": rc,
 		"query_tracker_count":   tc,
 		"cached_block_count":    bc,
-	}).Info("Chain mem stats")
+	}).Info("chain mem stats")
 	// Print xeno stats
 	c.st.Stat(c.rt.databaseID)
 }

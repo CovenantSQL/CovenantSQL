@@ -53,11 +53,11 @@ func TestMarshalHashAccountStable2(t *testing.T) {
 	}
 	enc, err := utils.EncodeMsgPack(&v1)
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 	v2 := Account{}
 	if err = utils.DecodeMsgPack(enc.Bytes(), &v2); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 	bts1, err := v1.MarshalHash()
 	if err != nil {

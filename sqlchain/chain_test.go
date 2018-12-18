@@ -59,13 +59,13 @@ func TestIndexKey(t *testing.T) {
 		b1, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		b2, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		// Test partial order
@@ -75,12 +75,12 @@ func TestIndexKey(t *testing.T) {
 		k2 := bi2.indexKey()
 
 		if c1, c2 := bytes.Compare(k1, k2) < 0, bi1.height < bi2.height; c1 != c2 {
-			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
+			t.Fatalf("unexpected compare result: heights=%d,%d keys=%s,%s",
 				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
 		}
 
 		if c1, c2 := bytes.Compare(k1, k2) > 0, bi1.height > bi2.height; c1 != c2 {
-			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
+			t.Fatalf("unexpected compare result: heights=%d,%d keys=%s,%s",
 				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
 		}
 	}
@@ -92,20 +92,20 @@ func TestMultiChain(t *testing.T) {
 	genesis, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	gnonce, err := kms.GetNodeInfo(genesis.Producer())
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	// Create peer list: `testPeersNumber` miners + 1 block producer
 	nis, peers, err := createTestPeers(testPeersNumber + 1)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	for i, p := range peers.Servers {
@@ -149,7 +149,7 @@ func TestMultiChain(t *testing.T) {
 		server := rpc.NewServer()
 
 		if err = server.InitRPCServer("127.0.0.1:0", testPrivKeyFile, testMasterKey); err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		go server.Serve()
@@ -159,7 +159,7 @@ func TestMultiChain(t *testing.T) {
 		mux, err := NewMuxService(route.SQLChainRPCName, server)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		// Create chain instance
@@ -178,7 +178,7 @@ func TestMultiChain(t *testing.T) {
 		chain, err := NewChain(config)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		// Set chain parameters
@@ -238,13 +238,13 @@ func TestMultiChain(t *testing.T) {
 
 	// Start BP
 	if dht, err := route.NewDHTService(testDHTStoreFile, new(consistent.KMSStorage), true); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	} else if err = bpsvr.RegisterService(route.DHTRPCName, dht); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = bpsvr.RegisterService(metric.MetricServiceName, metric.NewCollectServer()); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	for _, n := range conf.GConf.KnownNodes {
@@ -259,7 +259,7 @@ func TestMultiChain(t *testing.T) {
 		}
 
 		if err = kms.SetNode(node); err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		if n.ID == conf.GConf.ThisNodeID {
@@ -272,12 +272,12 @@ func TestMultiChain(t *testing.T) {
 		defer func(p *chainParams) {
 			if _, err := kms.GetPublicKey(genesis.Producer()); err != nil {
 				if err = kms.SetPublicKey(genesis.Producer(), gnonce.Nonce, genesis.Signee()); err != nil {
-					t.Errorf("Error occurred: %v", err)
+					t.Errorf("error occurred: %v", err)
 				}
 			}
 
 			if chain, err := NewChain(p.config); err != nil {
-				t.Errorf("Error occurred: %v", err)
+				t.Errorf("error occurred: %v", err)
 			} else {
 				t.Logf("Load chain from file %s: head = %s height = %d",
 					p.dbfile, chain.rt.getHead().Head, chain.rt.getHead().Height)
@@ -288,7 +288,7 @@ func TestMultiChain(t *testing.T) {
 	// Start all chain instances
 	for _, v := range chains {
 		if err = v.chain.Start(); err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		defer func(c *Chain) {
@@ -330,7 +330,7 @@ func TestMultiChain(t *testing.T) {
 			cli, err := newRandomNode()
 
 			if err != nil {
-				t.Fatalf("Error occurred: %v", err)
+				t.Fatalf("error occurred: %v", err)
 			}
 
 			wg.Add(1)
@@ -346,18 +346,18 @@ func TestMultiChain(t *testing.T) {
 						resp, err := createRandomQueryResponse(p, wk)
 
 						if err != nil {
-							t.Errorf("Error occurred: %v", err)
+							t.Errorf("error occurred: %v", err)
 						} else if err = c.addResponse(resp); err != nil {
-							t.Errorf("Error occurred: %v", err)
+							t.Errorf("error occurred: %v", err)
 						}
 
 						time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
 						ack, err := createRandomQueryAckWithResponse(resp, p)
 
 						if err != nil {
-							t.Errorf("Error occurred: %v", err)
+							t.Errorf("error occurred: %v", err)
 						} else if err = c.VerifyAndPushAckedQuery(ack); err != nil {
-							t.Errorf("Error occurred: %v", err)
+							t.Errorf("error occurred: %v", err)
 						}
 					}
 				}

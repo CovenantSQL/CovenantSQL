@@ -88,7 +88,7 @@ func TestGetBP(t *testing.T) {
 	dc := NewDNSClient()
 	ips, err := dc.GetBPFromDNSSeed(BPDomain)
 	if err != nil {
-		t.Fatalf("Error: %v", err)
+		t.Fatalf("error: %v", err)
 	} else {
 		log.Debugf("BP addresses: %v", ips)
 	}
@@ -98,7 +98,7 @@ func TestGetBP(t *testing.T) {
 	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
 		t.Fatal("should be error")
 	} else {
-		log.Debugf("Error: %v", err)
+		log.Debugf("error: %v", err)
 	}
 }
 
@@ -113,7 +113,7 @@ func TestGetBPEnforced(t *testing.T) {
 	dc := NewDNSClient()
 	ips, err := dc.GetBPFromDNSSeed(BPDomain)
 	if err != nil {
-		t.Fatalf("Error: %v", err)
+		t.Fatalf("error: %v", err)
 	} else {
 		log.Debugf("BP addresses: %v", ips)
 	}
@@ -123,6 +123,6 @@ func TestGetBPEnforced(t *testing.T) {
 	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
 		t.Fatal("should be error")
 	} else {
-		log.Debugf("Error: %v", err)
+		log.Debugf("error: %v", err)
 	}
 }

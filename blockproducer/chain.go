@@ -187,7 +187,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			"irre_count": irre.count,
 			"head_hash":  v.hash.Short(4),
 			"head_count": v.count,
-		}).Debug("Checking head")
+		}).Debug("checking head")
 		if v.hasAncestor(irre) {
 			if br, ierr = fork(irre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
@@ -341,7 +341,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 						"block_time":  b.Timestamp(),
 						"block_hash":  b.BlockHash().Short(4),
 						"parent_hash": b.ParentHash().Short(4),
-					}).WithError(err).Debug("Broadcasting new block to other peers")
+					}).WithError(err).Debug("broadcasting new block to other peers")
 				}, c.period)
 			}(s)
 		}
@@ -436,7 +436,7 @@ func (c *Chain) syncHeads() {
 				log.WithFields(log.Fields{
 					"next_height": c.getNextHeight(),
 					"height":      h,
-				}).Debug("Synchronizing head blocks")
+				}).Debug("synchronizing head blocks")
 				c.syncCurrentHead(c.ctx)
 			}
 			c.increaseNextHeight()
@@ -502,7 +502,7 @@ func (c *Chain) addTx(tx pi.Transaction) {
 						"remote":  id,
 						"tx_hash": tx.Hash().Short(4),
 						"tx_type": tx.GetTransactionType(),
-					}).WithError(err).Debug("Broadcasting transaction to other peers")
+					}).WithError(err).Debug("broadcasting transaction to other peers")
 				}, c.period)
 			}(v)
 		}
@@ -511,17 +511,17 @@ func (c *Chain) addTx(tx pi.Transaction) {
 	select {
 	case c.pendingTxs <- tx:
 	case <-c.ctx.Done():
-		log.WithError(c.ctx.Err()).Error("Add transaction aborted")
+		log.WithError(c.ctx.Err()).Error("add transaction aborted")
 	}
 }
 
 func (c *Chain) processTx(tx pi.Transaction) {
 	if err := tx.Verify(); err != nil {
-		log.WithError(err).Error("Failed to verify transaction")
+		log.WithError(err).Error("failed to verify transaction")
 		return
 	}
 	if err := c.storeTx(tx); err != nil {
-		log.WithError(err).Error("Failed to add transaction")
+		log.WithError(err).Error("failed to add transaction")
 	}
 }
 
@@ -540,7 +540,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.WithError(ctx.Err()).Debug("Abort main cycle")
+			log.WithError(ctx.Err()).Debug("abort main cycle")
 			return
 		default:
 			c.syncCurrentHead(ctx) // Try to fetch block at height `nextHeight-1`
@@ -553,7 +553,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 					"head_block":  c.head().hash.Short(4),
 					"now_time":    t.Format(time.RFC3339Nano),
 					"duration":    d,
-				}).Debug("Main cycle")
+				}).Debug("main cycle")
 				time.Sleep(d)
 			} else {
 				// Try to produce block at `nextHeight` if it's my turn, and increase height by 1
@@ -603,7 +603,7 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 						"local":  c.peerInfo(),
 						"remote": id,
 						"height": h,
-					}).WithError(err).Warn("Failed to fetch block")
+					}).WithError(err).Warn("failed to fetch block")
 					return
 				}
 				log.WithFields(log.Fields{
@@ -612,11 +612,11 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 					"height": h,
 					"parent": resp.Block.ParentHash().Short(4),
 					"hash":   resp.Block.BlockHash().Short(4),
-				}).Debug("Fetched new block from remote peer")
+				}).Debug("fetched new block from remote peer")
 				select {
 				case c.pendingBlocks <- resp.Block:
 				case <-cld.Done():
-					log.WithError(cld.Err()).Warn("Add pending block aborted")
+					log.WithError(cld.Err()).Warn("add pending block aborted")
 				}
 			}(v)
 		}
@@ -626,11 +626,11 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("Stopping chain")
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("stopping chain")
 	c.stop()
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("Chain service stopped")
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain service stopped")
 	c.st.Close()
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("Chain database closed")
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain database closed")
 	close(c.pendingBlocks)
 	close(c.pendingTxs)
 	return
@@ -694,7 +694,7 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 	for _, b := range newIrres {
 		for _, tx := range b.block.Transactions {
 			if err := c.immutable.apply(tx); err != nil {
-				log.WithError(err).Fatal("Failed to apply block to immutable database")
+				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
 		}
 	}
@@ -753,7 +753,7 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 						}
 						return fmt.Sprintf("[%04d]", i)
 					}(),
-				}).Debugf("Pruning branch")
+				}).Debugf("pruning branch")
 			}
 		}
 		// Replace current branches
@@ -793,7 +793,7 @@ func (c *Chain) stat() {
 		buff += v.sprint(c.lastIrre.count)
 		log.WithFields(log.Fields{
 			"branch": buff,
-		}).Info("Runtime state")
+		}).Info("runtime state")
 	}
 	return
 }

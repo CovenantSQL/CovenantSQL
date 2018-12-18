@@ -293,7 +293,7 @@ func main() {
 			for name := range available {
 				bindings = append(bindings, name)
 			}
-			log.Infof("Available drivers are: %#v", bindings)
+			log.Infof("available drivers are: %#v", bindings)
 			return
 		}
 	}

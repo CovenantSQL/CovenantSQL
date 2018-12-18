@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 // SqTime provides a type that will correctly scan the various timestamps

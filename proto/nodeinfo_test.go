@@ -23,7 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {

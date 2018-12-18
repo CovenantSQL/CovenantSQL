@@ -82,7 +82,7 @@ type Chain struct {
 	comfirms     uint32
 	serversNum   uint32
 	locSvIndex   uint32
-	nextTurn     uint32
+	nextHeight   uint32
 	offset       time.Duration
 	lastIrre     *blockNode
 	immutable    *metaState
@@ -189,8 +189,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			"head_count": v.count,
 		}).Debug("Checking head")
 		if v.hasAncestor(irre) {
-			if br, err = fork(irre, v, immutable, txPool); err != nil {
-				log.WithError(err).Fatal("Failed to rebuild branch")
+			if br, ierr = fork(irre, v, immutable, txPool); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
 			}
 			branches = append(branches, br)
 		}
@@ -253,7 +253,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		comfirms:   uint32(m),
 		serversNum: uint32(len(cfg.Peers.Servers)),
 		locSvIndex: uint32(locSvIndex),
-		nextTurn:   head.head.height + 1,
+		nextHeight: head.head.height + 1,
 		offset:     time.Duration(0), // TODO(leventeliu): initialize offset
 
 		lastIrre:   irre,
@@ -403,20 +403,20 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 	return
 }
 
-// runCurrentTurn does the check and runs block producing if its my turn.
-func (c *Chain) runCurrentTurn(now time.Time) {
+// advanceNextHeight does the check and runs block producing if its my turn.
+func (c *Chain) advanceNextHeight(now time.Time) {
 	log.WithFields(log.Fields{
-		"next_turn":  c.getNextTurn(),
-		"bp_number":  c.serversNum,
-		"node_index": c.locSvIndex,
+		"next_height": c.getNextHeight(),
+		"bp_number":   c.serversNum,
+		"node_index":  c.locSvIndex,
 	}).Info("check turns")
-	defer c.setNextTurn()
+	defer c.increaseNextHeight()
 
 	if !c.isMyTurn() {
 		return
 	}
 
-	log.WithField("height", c.getNextTurn()).Info("producing a new block")
+	log.WithField("height", c.getNextHeight()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
 			"failed to produce block")
@@ -425,21 +425,21 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 
 func (c *Chain) syncHeads() {
 	for {
-		var h = c.height(c.now())
-		if c.getNextTurn() > h {
+		var h = c.heightOfTime(c.now())
+		if c.getNextHeight() > h {
 			break
 		}
-		for c.getNextTurn() <= h {
+		for c.getNextHeight() <= h {
 			// TODO(leventeliu): use the test mode flag to bypass the long-running synchronizing
 			// on startup by now, need better solution here.
 			if !conf.GConf.IsTestMode {
 				log.WithFields(log.Fields{
-					"next_turn": c.getNextTurn(),
-					"height":    h,
+					"next_height": c.getNextHeight(),
+					"height":      h,
 				}).Debug("Synchronizing head blocks")
-				c.syncHead(c.ctx)
+				c.syncCurrentHead(c.ctx)
 			}
-			c.setNextTurn()
+			c.increaseNextHeight()
 		}
 	}
 }
@@ -540,13 +540,15 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			log.WithError(ctx.Err()).Debug("Abort main cycle")
 			return
 		default:
-			c.syncHead(ctx)
+			c.syncCurrentHead(ctx) // Try to fetch block at height `nextHeight-1`
+
 			if t, d := c.nextTick(); d > 0 {
 				log.WithFields(log.Fields{
 					"peer":        c.peerInfo(),
-					"next_turn":   c.getNextTurn(),
+					"next_height": c.getNextHeight(),
 					"head_height": c.head().height,
 					"head_block":  c.head().hash.Short(4),
 					"now_time":    t.Format(time.RFC3339Nano),
@@ -554,28 +556,31 @@ func (c *Chain) mainCycle(ctx context.Context) {
 				}).Debug("Main cycle")
 				time.Sleep(d)
 			} else {
-				c.runCurrentTurn(t)
+				// Try to produce block at `nextHeight` if it's my turn, and increase height by 1
+				c.advanceNextHeight(t)
 			}
 		}
 	}
 }
 
-func (c *Chain) syncHead(ctx context.Context) {
+func (c *Chain) syncCurrentHead(ctx context.Context) {
 	var (
-		nextHeight = c.getNextTurn() - 1
-		cld, ccl   = context.WithCancel(ctx)
-		wg         = &sync.WaitGroup{}
+		h        = c.getNextHeight() - 1
+		cld, ccl = context.WithTimeout(ctx, c.tick)
+		wg       = &sync.WaitGroup{}
 	)
 
 	defer func() {
-		ccl()
 		wg.Wait()
+		ccl()
 	}()
 
-	if c.head().height >= nextHeight {
+	if c.head().height >= h {
 		return
 	}
 
+	// Initiate blocking gossip calls to fetch block of the current height,
+	// with timeout of one tick.
 	for _, v := range c.getPeers().Servers {
 		if !v.IsEqual(&c.nodeID) {
 			wg.Add(1)
@@ -587,7 +592,7 @@ func (c *Chain) syncHead(ctx context.Context) {
 						Envelope: proto.Envelope{
 							// TODO(lambda): Add fields.
 						},
-						Height: nextHeight,
+						Height: h,
 					}
 					resp = &FetchBlockResp{}
 				)
@@ -597,14 +602,14 @@ func (c *Chain) syncHead(ctx context.Context) {
 					log.WithFields(log.Fields{
 						"local":  c.peerInfo(),
 						"remote": id,
-						"height": nextHeight,
+						"height": h,
 					}).WithError(err).Warn("Failed to fetch block")
 					return
 				}
 				log.WithFields(log.Fields{
 					"local":  c.peerInfo(),
 					"remote": id,
-					"height": nextHeight,
+					"height": h,
 					"parent": resp.Block.ParentHash().Short(4),
 					"hash":   resp.Block.BlockHash().Short(4),
 				}).Debug("Fetched new block from remote peer")
@@ -672,7 +677,7 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 		newIrres []*blockNode
 		sps      []storageProcedure
 		up       storageCallback
-		height   = c.height(bl.Timestamp())
+		height   = c.heightOfTime(bl.Timestamp())
 	)
 
 	// Find new irreversible blocks
@@ -800,7 +805,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 		br     *branch
 		parent *blockNode
 		head   *blockNode
-		height = c.height(bl.Timestamp())
+		height = c.heightOfTime(bl.Timestamp())
 	)
 
 	defer c.stat()
@@ -865,7 +870,7 @@ func (c *Chain) produceAndStoreBlock(
 
 	// Try to produce new block
 	if br, bl, ierr = c.headBranch.produceBlock(
-		c.height(now), now, c.address, priv,
+		c.heightOfTime(now), now, c.address, priv,
 	); ierr != nil {
 		err = errors.Wrapf(ierr, "failed to produce block at head %s",
 			c.headBranch.head.hash.Short(4))
@@ -895,15 +900,15 @@ func (c *Chain) startService(chain *Chain) {
 // is less or equal to 0, use the clock reading to run the next cycle - this avoids some problem
 // caused by concurrent time synchronization.
 func (c *Chain) nextTick() (t time.Time, d time.Duration) {
-	var nt uint32
-	nt, t = func() (nt uint32, t time.Time) {
+	var h uint32
+	h, t = func() (nt uint32, t time.Time) {
 		c.RLock()
 		defer c.RUnlock()
-		nt = c.nextTurn
+		nt = c.nextHeight
 		t = time.Now().UTC().Add(c.offset)
 		return
 	}()
-	d = c.genesisTime.Add(time.Duration(nt) * c.period).Sub(t)
+	d = c.genesisTime.Add(time.Duration(h) * c.period).Sub(t)
 	if d > c.tick {
 		d = c.tick
 	}
@@ -913,14 +918,14 @@ func (c *Chain) nextTick() (t time.Time, d time.Duration) {
 func (c *Chain) isMyTurn() bool {
 	c.RLock()
 	defer c.RUnlock()
-	return c.nextTurn%c.serversNum == c.locSvIndex
+	return c.nextHeight%c.serversNum == c.locSvIndex
 }
 
-// setNextTurn prepares the chain state for the next turn.
-func (c *Chain) setNextTurn() {
+// increaseNextHeight prepares the chain state for the next turn.
+func (c *Chain) increaseNextHeight() {
 	c.Lock()
 	defer c.Unlock()
-	c.nextTurn++
+	c.nextHeight++
 }
 
 func (c *Chain) peerInfo() string {
@@ -932,15 +937,15 @@ func (c *Chain) peerInfo() string {
 	return fmt.Sprintf("[%d/%d] %s", index, bpNum, nodeID)
 }
 
-// height calculates the height with this sql-chain config of a given time reading.
-func (c *Chain) height(t time.Time) uint32 {
+// heightOfTime calculates the heightOfTime with this sql-chain config of a given time reading.
+func (c *Chain) heightOfTime(t time.Time) uint32 {
 	return uint32(t.Sub(c.genesisTime) / c.period)
 }
 
-func (c *Chain) getNextTurn() uint32 {
+func (c *Chain) getNextHeight() uint32 {
 	c.RLock()
 	defer c.RUnlock()
-	return c.nextTurn
+	return c.nextHeight
 }
 
 func (c *Chain) getPeers() *proto.Peers {

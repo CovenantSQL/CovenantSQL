@@ -80,7 +80,7 @@ that inspired us:
 | RPC                |     `net/rpc`    |
 | Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
 | Pooling            |  Session Pool  |
-| Multiplex          |      Yamux     |
+| Multiplex          |      [smux](https://github.com/xtaci/smux)     |
 | Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
 | Network            |       TCP or KCP for optional later      |
 

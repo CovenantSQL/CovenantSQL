@@ -23,10 +23,10 @@ import (
 
 // state represents a snapshot of current best chain.
 type state struct {
-	node   *blockNode
-	Head   hash.Hash
-	Height int32
-	Profile *types.SQLChainProfile
+	node        *blockNode
+	Head        hash.Hash
+	Height      int32
+	Profile     *types.SQLChainProfile
 	BlockHeight int32
 }
 

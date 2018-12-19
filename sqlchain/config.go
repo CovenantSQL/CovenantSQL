@@ -38,7 +38,7 @@ type Config struct {
 	Server     proto.NodeID
 
 	// Price sets query price in gases.
-	Profile *types.SQLChainProfile
+	Profile         *types.SQLChainProfile
 	Price           map[types.QueryType]uint64
 	ProducingReward uint64
 	BillingPeriods  int32

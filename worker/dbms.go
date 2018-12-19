@@ -50,12 +50,12 @@ const (
 
 // DBMS defines a database management instance.
 type DBMS struct {
-	cfg      *DBMSConfig
-	dbMap    sync.Map
-	chainMap sync.Map
-	kayakMux *DBKayakMuxService
-	chainMux *sqlchain.MuxService
-	rpc      *DBMSRPCService
+	cfg        *DBMSConfig
+	dbMap      sync.Map
+	chainMap   sync.Map
+	kayakMux   *DBKayakMuxService
+	chainMux   *sqlchain.MuxService
+	rpc        *DBMSRPCService
 	busService *sqlchain.BusService
 	address    proto.AccountAddress
 }
@@ -207,9 +207,9 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	}
 
 	var (
-		dbid = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
-		p = dbms.busService.RequestSQLProfile(dbid)
-		nodeIDs [len(p.Miners)]proto.NodeID
+		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
+		p             = dbms.busService.RequestSQLProfile(dbid)
+		nodeIDs       [len(p.Miners)]proto.NodeID
 		isTargetMiner = false
 	)
 
@@ -234,7 +234,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		Peers:        &peers,
 		ResourceMeta: cd.ResourceMeta,
 		GenesisBlock: p.Genesis,
-		Profile: p,
+		Profile:      p,
 	}
 	err := dbms.Create(&si, true)
 	if err != nil {
@@ -496,9 +496,9 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request)
 	}
 
 	var (
-		i int
+		i    int
 		user *types.SQLChainUser
-		s = state.(types.ChainState)
+		s    = state.(types.ChainState)
 	)
 
 	for i, user = range s.Users {

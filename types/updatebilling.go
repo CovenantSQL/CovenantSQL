@@ -28,22 +28,22 @@ import (
 
 // MinerIncome defines the income of miner.
 type MinerIncome struct {
-	Miner proto.AccountAddress
+	Miner  proto.AccountAddress
 	Income uint64
 }
 
 // UserCost defines the cost of user.
 type UserCost struct {
-	User proto.AccountAddress
-	Cost uint64
+	User   proto.AccountAddress
+	Cost   uint64
 	Miners []*MinerIncome
 }
 
 // UpdateBillingHeader defines the UpdateBilling transaction header.
 type UpdateBillingHeader struct {
 	Receiver proto.AccountAddress
-	Nonce            pi.AccountNonce
-	Users []*UserCost
+	Nonce    pi.AccountNonce
+	Users    []*UserCost
 }
 
 // UpdateBilling defines the UpdateBilling transaction.
@@ -56,7 +56,7 @@ type UpdateBilling struct {
 // NewUpdateBilling returns new instance.
 func NewUpdateBilling(header *UpdateBillingHeader) *UpdateBilling {
 	return &UpdateBilling{
-		UpdateBillingHeader:       *header,
+		UpdateBillingHeader:  *header,
 		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeTransfer),
 	}
 }

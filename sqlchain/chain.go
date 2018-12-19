@@ -20,13 +20,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"os"
 	rt "runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -120,7 +120,7 @@ type Chain struct {
 	acks      chan *types.AckHeader
 
 	// DBAccount info
-	databaseID proto.DatabaseID
+	databaseID   proto.DatabaseID
 	tokenType    types.TokenType
 	gasPrice     uint64
 	updatePeriod uint64
@@ -204,23 +204,23 @@ func NewChain(c *Config, busService *BusService) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		bdb:          bdb,
-		tdb:          tdb,
-		bi:           newBlockIndex(),
-		ai:           newAckIndex(),
-		st:           state,
-		cl:           rpc.NewCaller(),
-		rt:           newRunTime(c),
-		stopCh:       make(chan struct{}),
-		blocks:       make(chan *types.Block),
-		heights:      make(chan int32, 1),
-		responses:    make(chan *types.ResponseHeader),
-		acks:         make(chan *types.AckHeader),
+		bdb:       bdb,
+		tdb:       tdb,
+		bi:        newBlockIndex(),
+		ai:        newAckIndex(),
+		st:        state,
+		cl:        rpc.NewCaller(),
+		rt:        newRunTime(c),
+		stopCh:    make(chan struct{}),
+		blocks:    make(chan *types.Block),
+		heights:   make(chan int32, 1),
+		responses: make(chan *types.ResponseHeader),
+		acks:      make(chan *types.AckHeader),
 
 		tokenType:    c.TokenType,
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
-		databaseID: c.Profile.ID,
+		databaseID:   c.Profile.ID,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -282,23 +282,23 @@ func LoadChain(c *Config, busService *BusService) (chain *Chain, err error) {
 
 	// Create chain state
 	chain = &Chain{
-		bdb:          bdb,
-		tdb:          tdb,
-		bi:           newBlockIndex(),
-		ai:           newAckIndex(),
-		st:           xstate,
-		cl:           rpc.NewCaller(),
-		rt:           newRunTime(c),
-		stopCh:       make(chan struct{}),
-		blocks:       make(chan *types.Block),
-		heights:      make(chan int32, 1),
-		responses:    make(chan *types.ResponseHeader),
-		acks:         make(chan *types.AckHeader),
+		bdb:       bdb,
+		tdb:       tdb,
+		bi:        newBlockIndex(),
+		ai:        newAckIndex(),
+		st:        xstate,
+		cl:        rpc.NewCaller(),
+		rt:        newRunTime(c),
+		stopCh:    make(chan struct{}),
+		blocks:    make(chan *types.Block),
+		heights:   make(chan int32, 1),
+		responses: make(chan *types.ResponseHeader),
+		acks:      make(chan *types.AckHeader),
 
 		tokenType:    c.TokenType,
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
-		databaseID: c.Profile.ID,
+		databaseID:   c.Profile.ID,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -885,7 +885,7 @@ func (c *Chain) processBlocks() {
 					} else {
 						head := c.rt.getHead()
 						currentCount := uint64(head.node.count)
-						if currentCount % c.updatePeriod == 0 {
+						if currentCount%c.updatePeriod == 0 {
 							ub, err := c.billing(head.node)
 							if err != nil {
 								log.WithError(err).Error("billing failed")
@@ -1519,10 +1519,10 @@ func (c *Chain) stat() {
 
 func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	var (
-		i, j uint64
+		i, j      uint64
 		minerAddr proto.AccountAddress
-		userAddr proto.AccountAddress
-		usersMap = make(map[proto.AccountAddress]uint64)
+		userAddr  proto.AccountAddress
+		usersMap  = make(map[proto.AccountAddress]uint64)
 		minersMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
 	)
 
@@ -1636,9 +1636,8 @@ func (c *Chain) updatePermission(tx interfaces.Transaction, count uint32) {
 	}
 	if newUser {
 		head.Profile.Users = append(head.Profile.Users, &types.SQLChainUser{
-			Address: up.TargetUser,
+			Address:    up.TargetUser,
 			Permission: up.Permission,
 		})
 	}
 }
-

@@ -25,23 +25,23 @@ import (
 
 type ChainState struct {
 	DatabaseID proto.DatabaseID
-	Users []*SQLChainUser
-	Miner []*MinerInfo
-	GasPrice uint64
-	TokenType TokenType
-	MCHeight uint32
-	HeightTx []*hash.Hash
+	Users      []*SQLChainUser
+	Miner      []*MinerInfo
+	GasPrice   uint64
+	TokenType  TokenType
+	MCHeight   uint32
+	HeightTx   []*hash.Hash
 }
 
 func NewChainState(profile *SQLChainProfile, height uint32, createDB hash.Hash) *ChainState {
 	return &ChainState{
 		DatabaseID: profile.ID,
-		Users: profile.Users,
-		Miner: profile.Miners,
-		GasPrice: profile.GasPrice,
-		TokenType: profile.TokenType,
-		MCHeight: height,
-		HeightTx: []*hash.Hash{ &createDB },
+		Users:      profile.Users,
+		Miner:      profile.Miners,
+		GasPrice:   profile.GasPrice,
+		TokenType:  profile.TokenType,
+		MCHeight:   height,
+		HeightTx:   []*hash.Hash{&createDB},
 	}
 }
 
@@ -88,12 +88,12 @@ func (cs *ChainState) UpdatePermission(up *UpdatePermission, count uint32) (err 
 		if user.Address == up.TargetUser {
 			user.Permission = up.Permission
 			newUser = false
-		 	return cs.updateHeightAndTx(count, up.Hash())
+			return cs.updateHeightAndTx(count, up.Hash())
 		}
 	}
 	if newUser {
 		cs.Users = append(cs.Users, &SQLChainUser{
-			Address: up.TargetUser,
+			Address:    up.TargetUser,
 			Permission: up.Permission,
 		})
 		return cs.updateHeightAndTx(count, up.Hash())

@@ -45,7 +45,7 @@ type ServiceInstance struct {
 	Peers        *proto.Peers
 	ResourceMeta ResourceMeta
 	GenesisBlock *Block
-	Profile *SQLChainProfile
+	Profile      *SQLChainProfile
 }
 
 // InitServiceResponseHeader defines worker service init response header.

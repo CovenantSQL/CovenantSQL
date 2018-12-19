@@ -1140,13 +1140,13 @@ func (s *metaState) updateBilling(tx *pt.UpdateBilling) (err error) {
 		}
 	}
 	for _, user := range sqlchainObj.Users {
-		if user.AdvancePayment >= costMap[user.Address] * sqlchainObj.GasPrice {
+		if user.AdvancePayment >= costMap[user.Address]*sqlchainObj.GasPrice {
 			user.AdvancePayment -= costMap[user.Address] * sqlchainObj.GasPrice
 			for _, miner := range sqlchainObj.Miners {
 				miner.PendingIncome += userMap[user.Address][miner.Address] * sqlchainObj.GasPrice
 			}
 		} else {
-			rate := 1 - float64(user.AdvancePayment) / float64(costMap[user.Address] * sqlchainObj.GasPrice)
+			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*sqlchainObj.GasPrice)
 			user.AdvancePayment = 0
 			for _, miner := range sqlchainObj.Miners {
 				income := userMap[user.Address][miner.Address] * sqlchainObj.GasPrice

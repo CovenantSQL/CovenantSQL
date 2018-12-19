@@ -95,7 +95,7 @@ func store(st xi.Storage, sps []storageProcedure, cb storageCallback) (err error
 	}
 	// COMMIT
 	if err = tx.Commit(); err != nil {
-		log.WithError(err).Fatalf("Failed to commit storage transaction")
+		log.WithError(err).Fatal("failed to commit storage transaction")
 	}
 	return
 }
@@ -129,7 +129,8 @@ func addBlock(height uint32, b *types.BPBlock) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "blocks" VALUES (?, ?, ?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "blocks" ("height", "hash", "parent", "encoded")
+	VALUES (?, ?, ?, ?)`,
 			height,
 			b.BlockHash().String(),
 			b.ParentHash().String(),
@@ -140,18 +141,15 @@ func addBlock(height uint32, b *types.BPBlock) storageProcedure {
 
 func addTx(t pi.Transaction) storageProcedure {
 	var (
-		tt  = t
 		enc *bytes.Buffer
 		err error
 	)
-	if _, ok := tt.(*pi.TransactionWrapper); !ok {
-		tt = pi.WrapTransaction(tt)
-	}
-	if enc, err = utils.EncodeMsgPack(tt); err != nil {
+	if enc, err = utils.EncodeMsgPack(t); err != nil {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "txPool" VALUES (?, ?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "txPool" ("type", "hash", "encoded")
+	VALUES (?, ?, ?)`,
 			uint32(t.GetTransactionType()),
 			t.Hash().String(),
 			enc.Bytes())
@@ -161,7 +159,8 @@ func addTx(t pi.Transaction) storageProcedure {
 
 func updateIrreversible(h hash.Hash) storageProcedure {
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "irreversible" VALUES (?, ?)`, 0, h.String())
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "irreversible" ("id", "hash")
+	VALUES (?, ?)`, 0, h.String())
 		return
 	}
 }
@@ -195,7 +194,8 @@ func updateAccount(account *types.Account) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "accounts" VALUES (?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "accounts" ("address", "encoded")
+	VALUES (?, ?)`,
 			account.Address.String(),
 			enc.Bytes())
 		return
@@ -218,7 +218,8 @@ func updateShardChain(profile *types.SQLChainProfile) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "shardChain" VALUES (?, ?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "shardChain" ("address", "id", "encoded")
+	VALUES (?, ?, ?)`,
 			profile.Address.String(),
 			string(profile.ID),
 			enc.Bytes())
@@ -242,7 +243,7 @@ func updateProvider(profile *types.ProviderProfile) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
-		_, err = tx.Exec(`INSERT OR REPLACE INTO "provider" VALUES (?, ?)`,
+		_, err = tx.Exec(`INSERT OR REPLACE INTO "provider" ("address", "encoded") VALUES (?, ?)`,
 			profile.Provider.String(),
 			enc.Bytes())
 		return
@@ -294,11 +295,11 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 		if err = hash.Decode(&th, hex); err != nil {
 			return
 		}
-		var dec = &pi.TransactionWrapper{}
-		if err = utils.DecodeMsgPack(enc, dec); err != nil {
+		var dec pi.Transaction
+		if err = utils.DecodeMsgPack(enc, &dec); err != nil {
 			return
 		}
-		pool[th] = dec.Unwrap()
+		pool[th] = dec
 	}
 
 	txPool = pool
@@ -311,11 +312,11 @@ func loadBlocks(
 	var (
 		rows *sql.Rows
 
-		root       = hash.Hash{}
 		index      = make(map[hash.Hash]*blockNode)
 		headsIndex = make(map[hash.Hash]*blockNode)
 
 		// Scan buffer
+		id     uint32
 		v1     uint32
 		v2, v3 string
 		v4     []byte
@@ -327,7 +328,7 @@ func loadBlocks(
 
 	// Load blocks
 	if rows, err = st.Reader().Query(
-		`SELECT "height", "hash", "parent", "encoded" FROM "blocks" ORDER BY "rowid"`,
+		`SELECT "rowid", "height", "hash", "parent", "encoded" FROM "blocks" ORDER BY "rowid"`,
 	); err != nil {
 		return
 	}
@@ -335,7 +336,7 @@ func loadBlocks(
 
 	for rows.Next() {
 		// Scan and decode block
-		if err = rows.Scan(&v1, &v2, &v3, &v4); err != nil {
+		if err = rows.Scan(&id, &v1, &v2, &v3, &v4); err != nil {
 			return
 		}
 		if err = hash.Decode(&bh, v2); err != nil {
@@ -349,11 +350,13 @@ func loadBlocks(
 			return
 		}
 		log.WithFields(log.Fields{
+			"rowid":  id,
+			"height": v1,
 			"hash":   bh.Short(4),
 			"parent": ph.Short(4),
-		}).Debug("Loaded new block")
+		}).Debug("loaded new block")
 		// Add genesis block
-		if ph.IsEqual(&root) {
+		if v1 == 0 {
 			if len(index) != 0 {
 				err = ErrMultipleGenesis
 				return
@@ -362,14 +365,16 @@ func loadBlocks(
 			index[bh] = bn
 			headsIndex[bh] = bn
 			log.WithFields(log.Fields{
+				"rowid":  id,
+				"height": v1,
 				"hash":   bh.Short(4),
 				"parent": ph.Short(4),
-			}).Debug("Set genesis block")
+			}).Debug("set genesis block")
 			continue
 		}
 		// Add normal block
-		if pn, ok = index[ph]; ok {
-			err = ErrParentNotFound
+		if pn, ok = index[ph]; !ok {
+			err = errors.Wrapf(ErrParentNotFound, "parent %s not found", ph.Short(4))
 			return
 		}
 		bn = newBlockNode(v1, dec, pn)
@@ -381,7 +386,7 @@ func loadBlocks(
 	}
 
 	if irre, ok = index[irreHash]; !ok {
-		err = ErrParentNotFound
+		err = errors.Wrapf(ErrParentNotFound, "irreversible block %s not found", ph.Short(4))
 		return
 	}
 

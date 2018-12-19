@@ -32,16 +32,6 @@ func (s *ChainRPCService) AdviseNewBlock(req *types.AdviseNewBlockReq, resp *typ
 	return nil
 }
 
-// AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
-func (s *ChainRPCService) AdviseBillingRequest(req *types.AdviseBillingReq, resp *types.AdviseBillingResp) error {
-	response, err := s.chain.produceBilling(req.Req)
-	if err != nil {
-		return err
-	}
-	resp.Resp = response
-	return nil
-}
-
 // FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchBlock(req *types.FetchBlockReq, resp *types.FetchBlockResp) error {
 	resp.Height = req.Height
@@ -86,7 +76,7 @@ func (s *ChainRPCService) FetchTxBilling(req *types.FetchTxBillingReq, resp *typ
 func (s *ChainRPCService) NextAccountNonce(
 	req *types.NextAccountNonceReq, resp *types.NextAccountNonceResp) (err error,
 ) {
-	if resp.Nonce, err = s.chain.rt.nextNonce(req.Addr); err != nil {
+	if resp.Nonce, err = s.chain.nextNonce(req.Addr); err != nil {
 		return
 	}
 	resp.Addr = req.Addr
@@ -98,9 +88,7 @@ func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err
 	if req.Tx == nil {
 		return ErrUnknownTransactionType
 	}
-
-	s.chain.pendingTxs <- req.Tx
-
+	s.chain.addTx(req.Tx)
 	return
 }
 
@@ -109,7 +97,7 @@ func (s *ChainRPCService) QueryAccountStableBalance(
 	req *types.QueryAccountStableBalanceReq, resp *types.QueryAccountStableBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.rt.loadAccountStableBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.loadAccountStableBalance(req.Addr)
 	return
 }
 
@@ -118,14 +106,14 @@ func (s *ChainRPCService) QueryAccountCovenantBalance(
 	req *types.QueryAccountCovenantBalanceReq, resp *types.QueryAccountCovenantBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.rt.loadAccountCovenantBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.loadAccountCovenantBalance(req.Addr)
 	return
 }
 
 // QuerySQLChainProfile is the RPC method to query SQLChainProfile.
 func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
 	resp *types.QuerySQLChainProfileResp) (err error) {
-	p, ok := s.chain.rt.loadSQLChainProfile(req.DBID)
+	p, ok := s.chain.loadSQLChainProfile(req.DBID)
 	if ok {
 		resp.Profile = *p
 		return

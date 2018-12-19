@@ -92,4 +92,8 @@ var (
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
 	// ErrInvalidGasPrice indicates that the gas price is invalid.
 	ErrInvalidGasPrice = errors.New("gas price is invalid")
+	// ErrLocalNodeNotFound indicates that the local node id is not found in the given peer list.
+	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
+	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.
+	ErrNoAvailableBranch = errors.New("no available branch from state storage")
 )

@@ -31,24 +31,24 @@ func TestSignAndVerify(t *testing.T) {
 	block, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = block.Verify(); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	block.SignedHeader.BlockHash[0]++
 
 	if err = block.Verify(); err != ErrHashVerification {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	h := &hash.Hash{}
 	block.PushAckedQuery(h)
 
 	if err = block.Verify(); err != ErrMerkleRootVerification {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -56,29 +56,29 @@ func TestHeaderMarshalUnmarshaler(t *testing.T) {
 	block, err := createRandomBlock(genesisHash, false)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	origin := &block.SignedHeader.Header
 	enc, err := utils.EncodeMsgPack(origin)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	dec := &Header{}
 	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts1, err := origin.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts2, err := dec.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if !bytes.Equal(bts1, bts2) {
@@ -86,7 +86,7 @@ func TestHeaderMarshalUnmarshaler(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(origin, dec) {
-		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
+		t.Fatalf("values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
 	}
 }
 
@@ -94,30 +94,30 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 	block, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	origin := &block.SignedHeader
 	enc, err := utils.EncodeMsgPack(origin)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	dec := &SignedHeader{}
 
 	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts1, err := origin.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts2, err := dec.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if !bytes.Equal(bts1, bts2) {
@@ -125,26 +125,26 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(origin.Header, dec.Header) {
-		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin.Header, dec.Header)
+		t.Fatalf("values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin.Header, dec.Header)
 	}
 
 	if err = origin.Verify(); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = dec.Verify(); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 }
 
 func TestBlockMarshalUnmarshaler(t *testing.T) {
 	origin, err := createRandomBlock(genesisHash, false)
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 	origin2, err := createRandomBlock(genesisHash, false)
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	blocks := make(Blocks, 0, 2)
@@ -159,12 +159,12 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 
 	bts1, err := blocks.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts2, err := blocks2.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if !bytes.Equal(bts1, bts2) {
@@ -174,23 +174,23 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 	enc, err := utils.EncodeMsgPack(origin)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	dec := &Block{}
 
 	if err = utils.DecodeMsgPack(enc.Bytes(), dec); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts1, err = origin.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	bts2, err = dec.MarshalHash()
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if !bytes.Equal(bts1, bts2) {
@@ -198,7 +198,7 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(origin, dec) {
-		t.Fatalf("Values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
+		t.Fatalf("values don't match:\n\tv1 = %+v\n\tv2 = %+v", origin, dec)
 	}
 }
 
@@ -206,47 +206,47 @@ func TestGenesis(t *testing.T) {
 	genesis, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	// Test non-genesis block
 	genesis, err = createRandomBlock(genesisHash, false)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	}
 
 	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	}
 
 	// Test altered public key block
 	genesis, err = createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	_, pub, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	genesis.SignedHeader.Signee = pub
@@ -254,20 +254,20 @@ func TestGenesis(t *testing.T) {
 	if err = genesis.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	}
 
 	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	}
 
 	// Test altered signature
 	genesis, err = createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	genesis.SignedHeader.Signature.R.Add(genesis.SignedHeader.Signature.R, big.NewInt(int64(1)))
@@ -276,12 +276,12 @@ func TestGenesis(t *testing.T) {
 	if err = genesis.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
-		t.Fatal("Unexpected result: returned nil while expecting an error")
+		t.Fatal("unexpected result: returned nil while expecting an error")
 	}
 }

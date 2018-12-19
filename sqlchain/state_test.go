@@ -36,14 +36,14 @@ func TestState(t *testing.T) {
 	buffer, err := utils.EncodeMsgPack(st)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	rState := &state{}
 	err = utils.DecodeMsgPack(buffer.Bytes(), rState)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	//err = rState.UnmarshalBinary(nil)
@@ -51,10 +51,10 @@ func TestState(t *testing.T) {
 	//if err != nil {
 	//	t.Logf("Error occurred as expected: %v", err)
 	//} else {
-	//	t.Fatal("Unexpected result: returned nil while expecting an error")
+	//	t.Fatal("unexpected result: returned nil while expecting an error")
 	//}
 
 	if !reflect.DeepEqual(st, rState) {
-		t.Fatalf("Values don't match: v1 = %v, v2 = %v", st, rState)
+		t.Fatalf("values don't match: v1 = %v, v2 = %v", st, rState)
 	}
 }

@@ -32,7 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/env"
@@ -293,7 +293,7 @@ func main() {
 			for name := range available {
 				bindings = append(bindings, name)
 			}
-			log.Infof("Available drivers are: %#v", bindings)
+			log.Infof("available drivers are: %#v", bindings)
 			return
 		}
 	}

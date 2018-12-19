@@ -17,9 +17,9 @@
 package worker
 
 import (
-	"context"
 	"os"
 	"path/filepath"
+
 	//"runtime/trace"
 	"sync"
 	"time"
@@ -71,7 +71,7 @@ type Database struct {
 
 // NewDatabase create a single database instance using config.
 func NewDatabase(cfg *DBConfig, peers *proto.Peers,
-	profile *types.SQLChainProfile, busService *sqlchain.BusService) (db *Database, err error) {
+	profile *types.SQLChainProfile) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
@@ -142,7 +142,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 
 		Profile: profile,
 	}
-	if db.chain, err = sqlchain.NewChain(chainCfg, busService); err != nil {
+	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return
 	} else if err = db.chain.Start(); err != nil {
 		return
@@ -299,7 +299,7 @@ func (db *Database) writeQuery(request *types.Request) (response *types.Response
 
 	// call kayak runtime Process
 	var result interface{}
-	if result, _, err = db.kayakRuntime.Apply(context.Background(), request); err != nil {
+	if result, _, err = db.kayakRuntime.Apply(request.GetContext(), request); err != nil {
 		err = errors.Wrap(err, "apply failed")
 		return
 	}

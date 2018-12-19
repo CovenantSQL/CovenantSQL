@@ -31,7 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 )
 
 // PublicKeyStore holds db and bucket name
@@ -82,7 +82,7 @@ func init() {
 // InitBP initializes kms.BP struct with conf.GConf
 func InitBP() {
 	if conf.GConf == nil {
-		log.Fatal("Must call conf.LoadConfig first")
+		log.Fatal("must call conf.LoadConfig first")
 	}
 	BP = conf.GConf.BP
 

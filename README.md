@@ -21,8 +21,12 @@
     <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs">
         <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
             alt="follow on Twitter"></a>
+    <a href="https://gitter.im/CovenantSQL/CovenantSQL?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
+        <img src="https://badges.gitter.im/CovenantSQL/CovenantSQL.svg"
+            alt="Join the chat at https://gitter.im/CovenantSQL/CovenantSQL"></a>
 </p>
 
+[中文简介](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README-zh.md)
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain with features:
 
@@ -77,7 +81,7 @@ that inspired us:
 | RPC                |     `net/rpc`    |
 | Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
 | Pooling            |  Session Pool  |
-| Multiplex          |      Yamux     |
+| Multiplex          |      [smux](https://github.com/xtaci/smux)     |
 | Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
 | Network            |       TCP or KCP for optional later      |
 
@@ -112,5 +116,4 @@ Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitt
           <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
               alt="follow on Twitter"></a>
 
-
-
+- [![Join the chat at https://gitter.im/CovenantSQL/CovenantSQL](https://badges.gitter.im/CovenantSQL/CovenantSQL.svg)](https://gitter.im/CovenantSQL/CovenantSQL?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)

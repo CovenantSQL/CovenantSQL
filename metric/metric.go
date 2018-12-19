@@ -60,7 +60,7 @@ func StartMetricCollector() (registry *prometheus.Registry) {
 		return nil
 	}
 
-	log.Info("Enabled collectors:")
+	log.Info("enabled collectors:")
 	var collectors []string
 	for n := range nc.Collectors {
 		collectors = append(collectors, n)

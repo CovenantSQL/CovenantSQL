@@ -115,7 +115,7 @@ func (mfm *MetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 			ret[newName] = metricVal
 		}
 	}
-	log.Debugf("Crucial Metric added: %v", ret)
+	log.Debugf("crucial Metric added: %v", ret)
 
 	return
 }

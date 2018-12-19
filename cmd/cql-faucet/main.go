@@ -58,7 +58,7 @@ func main() {
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %s", f.Name, f.Value)
+		log.Infof("args %#v : %s", f.Name, f.Value)
 	})
 
 	// init client

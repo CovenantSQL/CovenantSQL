@@ -198,18 +198,14 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	case *types.CreateDatabase:
 		cd = t
 	default:
-		log.WithFields(log.Fields{
-			"tx_type": t.GetTransactionType().String(),
-			"tx_hash": t.Hash().String(),
-			"tx_addr": t.GetAccountAddress().String(),
-		}).WithError(ErrInvalidTransactionType).Debug("unexpected error")
+		log.WithError(ErrInvalidTransactionType).Warning("unexpected error")
 		return
 	}
 
 	var (
 		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
 		p             = dbms.busService.RequestSQLProfile(dbid)
-		nodeIDs       [len(p.Miners)]proto.NodeID
+		nodeIDs       = make([]proto.NodeID, len(p.Miners))
 		isTargetMiner = false
 	)
 
@@ -248,11 +244,7 @@ func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
 	case *types.UpdatePermission:
 		up = t
 	default:
-		log.WithFields(log.Fields{
-			"tx_type": t.GetTransactionType().String(),
-			"tx_hash": t.Hash().String(),
-			"tx_addr": t.GetAccountAddress().String(),
-		}).WithError(ErrInvalidTransactionType).Debug("unexpected error")
+		log.WithError(ErrInvalidTransactionType).Warning("unexpected error")
 		return
 	}
 
@@ -352,7 +344,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		SpaceLimit:      instance.ResourceMeta.Space,
 	}
 
-	if db, err = NewDatabase(dbCfg, instance.Peers, instance.Profile, dbms.busService); err != nil {
+	if db, err = NewDatabase(dbCfg, instance.Peers, instance.Profile); err != nil {
 		return
 	}
 

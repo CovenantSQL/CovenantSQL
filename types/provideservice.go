@@ -75,5 +75,5 @@ func (ps *ProvideService) GetAccountAddress() proto.AccountAddress {
 }
 
 func init() {
-	interfaces.RegisterTransaction(interfaces.TransactionTypeCreateDatabase, (*ProvideService)(nil))
+	interfaces.RegisterTransaction(interfaces.TransactionTypeProvideService, (*ProvideService)(nil))
 }

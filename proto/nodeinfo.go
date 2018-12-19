@@ -167,13 +167,13 @@ func (id *NodeID) UnmarshalBinary(keyBytes []byte) (err error) {
 func (node *Node) InitNodeCryptoInfo(timeThreshold time.Duration) (err error) {
 	_, node.PublicKey, err = asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
-		log.Error("Failed to generate key pair")
+		log.Error("failed to generate key pair")
 	}
 
 	nonce := asymmetric.GetPubKeyNonce(node.PublicKey, NewNodeIDDifficulty, timeThreshold, nil)
 	node.ID = NodeID(nonce.Hash.String())
 	node.Nonce = nonce.Nonce
-	log.Debugf("Node: %#v", node)
+	log.Debugf("node: %#v", node)
 	return
 }
 

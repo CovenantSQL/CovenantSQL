@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+
 	//"runtime/trace"
 	"syscall"
 	"time"
@@ -39,8 +40,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"github.com/cyberdelia/go-metrics-graphite"
-	"github.com/rcrowley/go-metrics"
+	graphite "github.com/cyberdelia/go-metrics-graphite"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 const logo = `
@@ -127,7 +128,7 @@ func main() {
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %s", f.Name, f.Value)
+		log.Infof("args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error
@@ -158,7 +159,6 @@ func main() {
 
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	utils.StartProfile(cpuProfile, memProfile)
-	defer utils.StopProfile()
 
 	// set generate key pair config
 	conf.GConf.GenerateKeyPair = genKeyPair
@@ -272,6 +272,7 @@ func main() {
 	//}
 
 	<-signalCh
+	utils.StopProfile()
 
 	log.Info("miner stopped")
 }

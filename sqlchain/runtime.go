@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -29,8 +30,9 @@ import (
 
 // runtime represents a chain runtime state.
 type runtime struct {
-	wg     sync.WaitGroup
-	stopCh chan struct{}
+	wg     *sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// chainInitTime is the initial cycle time, when the Genesis blcok is produced.
 	chainInitTime time.Time
@@ -85,9 +87,13 @@ type runtime struct {
 }
 
 // newRunTime returns a new sql-chain runtime instance with the specified config.
-func newRunTime(c *Config) (r *runtime) {
+func newRunTime(ctx context.Context, c *Config) (r *runtime) {
+	var cld, ccl = context.WithCancel(ctx)
 	r = &runtime{
-		stopCh:     make(chan struct{}),
+		wg:     &sync.WaitGroup{},
+		ctx:    cld,
+		cancel: ccl,
+
 		databaseID: c.DatabaseID,
 		period:     c.Period,
 		tick:       c.Tick,
@@ -204,11 +210,7 @@ func (r *runtime) getQueryGas(t types.QueryType) uint64 {
 // stop sends a signal to the Runtime stop channel by closing it.
 func (r *runtime) stop() {
 	r.stopService()
-	select {
-	case <-r.stopCh:
-	default:
-		close(r.stopCh)
-	}
+	r.cancel()
 	r.wg.Wait()
 }
 
@@ -327,4 +329,12 @@ func (r *runtime) setHead(head *state) {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 	r.head = head
+}
+
+func (r *runtime) goFunc(f func(context.Context)) {
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		f(r.ctx)
+	}()
 }

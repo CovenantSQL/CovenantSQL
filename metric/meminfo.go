@@ -48,7 +48,7 @@ func (c *meminfoCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get meminfo: %s", err)
 	}
-	log.Debugf("Set node_mem: %#v", memInfo)
+	log.Debugf("set node_mem: %#v", memInfo)
 	for k, v := range memInfo {
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(

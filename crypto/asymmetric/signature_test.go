@@ -159,7 +159,7 @@ func BenchmarkGenKey(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, _, err := GenSecp256k1KeyPair(); err != nil {
-			b.Fatalf("Error occurred: %v", err)
+			b.Fatalf("error occurred: %v", err)
 		}
 	}
 }
@@ -175,14 +175,14 @@ func BenchmarkGenKeySignVerify(b *testing.B) {
 		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		priv, pub, err := GenSecp256k1KeyPair()
 		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
+			b.Fatalf("error occurred: %v", err)
 		}
 		sig, err := priv.Sign(hash[:])
 		if err != nil {
-			b.Fatalf("Error occurred: %d, %v", i, err)
+			b.Fatalf("error occurred: %d, %v", i, err)
 		}
 		if !sig.Verify(hash[:], pub) {
-			b.Fatalf("Error occurred: %d", i)
+			b.Fatalf("error occurred: %d", i)
 		}
 	}
 }
@@ -211,7 +211,7 @@ func BenchmarkSign(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := priv.Sign(hash[:])
 			if err != nil {
-				b.Fatalf("Error occurred: %v", err)
+				b.Fatalf("error occurred: %v", err)
 			}
 		}
 	})
@@ -226,7 +226,7 @@ func BenchmarkSign(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := secp256k1.Sign(hash, privP)
 			if err != nil {
-				b.Fatalf("Error occurred: %v", err)
+				b.Fatalf("error occurred: %v", err)
 			}
 		}
 	})
@@ -297,7 +297,7 @@ func BenchmarkVerify(b *testing.B) {
 		hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		sig, err := priv.Sign(hash[:])
 		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
+			b.Fatalf("error occurred: %v", err)
 		}
 
 		b.ReportAllocs()
@@ -314,7 +314,7 @@ func BenchmarkVerify(b *testing.B) {
 
 		s, err := secp256k1.Sign(hash, privP)
 		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
+			b.Fatalf("error occurred: %v", err)
 		}
 
 		b.ReportAllocs()
@@ -441,7 +441,7 @@ func BenchmarkParsePublicKey(b *testing.B) {
 		_, err := ParsePubKey(buffer)
 
 		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
+			b.Fatalf("error occurred: %v", err)
 		}
 	}
 }
@@ -453,7 +453,7 @@ func BenchmarkSignatureSerialization(b *testing.B) {
 	sig, err := priv.Sign(hash[:])
 
 	if err != nil {
-		b.Fatalf("Error occurred: %v", err)
+		b.Fatalf("error occurred: %v", err)
 	}
 
 	b.ReportAllocs()
@@ -471,7 +471,7 @@ func BenchmarkParseSignature(b *testing.B) {
 	buffer := sig.Serialize()
 
 	if err != nil {
-		b.Fatalf("Error occurred: %v", err)
+		b.Fatalf("error occurred: %v", err)
 	}
 
 	b.ReportAllocs()
@@ -480,7 +480,7 @@ func BenchmarkParseSignature(b *testing.B) {
 		_, err := ParseSignature(buffer)
 
 		if err != nil {
-			b.Fatalf("Error occurred: %v", err)
+			b.Fatalf("error occurred: %v", err)
 		}
 	}
 }

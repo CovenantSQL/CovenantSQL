@@ -35,7 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 )
 
 const (
@@ -384,7 +384,7 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (
 		"height":   h,
 		"producer": b.Producer(),
 		"block":    b,
-	}).Debugf("Add new block %v -> %v", b.BlockHash(), b.ParentHash())
+	}).Debugf("add new block %v -> %v", b.BlockHash(), b.ParentHash())
 
 	if err = s.db.Update(func(tx *bolt.Tx) (err error) {
 		bb, err := tx.Bucket(blockBucket).CreateBucketIfNotExists([]byte(dbID))

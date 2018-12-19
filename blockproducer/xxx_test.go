@@ -495,7 +495,7 @@ func setup() {
 
 	// Setup logging
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 }
 
 func teardown() {

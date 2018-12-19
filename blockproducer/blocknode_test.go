@@ -94,7 +94,7 @@ func TestBlockNode(t *testing.T) {
 			n0 --- n1 --- n2 --- n3 --- x ---- n4
 			               \          (skip)
 			                \
-						     +---n3p -- n4p
+			                 +---n3p -- n4p
 		*/
 
 		So(n0.count, ShouldEqual, 0)

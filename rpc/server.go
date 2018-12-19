@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/rpc"
@@ -102,7 +103,7 @@ serverLoop:
 	for {
 		select {
 		case <-s.stopCh:
-			log.Info("Stopping Server Loop")
+			log.Info("stopping Server Loop")
 			break serverLoop
 		default:
 			conn, err := s.Listener.Accept()
@@ -137,7 +138,7 @@ sessionLoop:
 	for {
 		select {
 		case <-s.stopCh:
-			log.Info("Stopping Session Loop")
+			log.Info("stopping Session Loop")
 			break sessionLoop
 		default:
 			muxConn, err := sess.AcceptStream()
@@ -149,7 +150,12 @@ sessionLoop:
 				}
 				break sessionLoop
 			}
-			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			go func() {
+				<-muxConn.GetDieCh()
+				cancelFunc()
+			}()
+			nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}

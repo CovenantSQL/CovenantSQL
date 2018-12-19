@@ -124,7 +124,7 @@ func clientRequest(reqType string, sql string) (err error) {
 				if client, err = rpc.InitClientConn(conn); err != nil {
 					return
 				}
-				log.WithField("bp", bp.ID).Debug("Calling BP")
+				log.WithField("bp", bp.ID).Debug("calling BP")
 				reqType = "FindNeighbor"
 				req := &proto.FindNeighborReq{
 					ID:    proto.NodeID(flag.Arg(0)),

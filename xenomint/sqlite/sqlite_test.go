@@ -305,17 +305,17 @@ func setupBenchmarkStorage(b *testing.B) (
 		stmt *sql.Stmt
 	)
 	if st, err = NewSqlite(fmt.Sprint("file:", fl)); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	if _, err = st.Writer().Exec(
 		`CREATE TABLE "t2" ("k" INT, "v1" TEXT, "v2" TEXT, "v3" TEXT, PRIMARY KEY("k"))`,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	if stmt, err = st.Writer().Prepare(
 		`INSERT INTO "t2" VALUES (?, ?, ?, ?)`,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	for i := 0; i < benchmarkKeySubspaceLength; i++ {
 		var (
@@ -328,7 +328,7 @@ func setupBenchmarkStorage(b *testing.B) (
 			args[i+1] = string(vals[i][:])
 		}
 		if _, err = stmt.Exec(args[:]...); err != nil {
-			b.Fatalf("Failed to setup bench environment: %v", err)
+			b.Fatalf("failed to setup bench environment: %v", err)
 		}
 		if i%10000 == 0 {
 			fmt.Printf("Done setup key at %v\n", i)
@@ -377,16 +377,16 @@ func teardownBenchmarkStorage(b *testing.B, st xi.Storage) {
 		err error
 	)
 	if err = st.Close(); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fl); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 }
 
@@ -405,7 +405,7 @@ func teardownSubBenchmarkStorage(b *testing.B, st xi.Storage) {
 		err error
 	)
 	if _, err = st.Writer().Exec(d, benchmarkNewKeyOffset); err != nil {
-		b.Fatalf("Failed to teardown sub bench environment: %v", err)
+		b.Fatalf("failed to teardown sub bench environment: %v", err)
 	}
 }
 
@@ -426,45 +426,45 @@ func BenchmarkStorage(b *testing.B) {
 		read = func(b *testing.B, conn *sql.DB, dest []interface{}) {
 			var err error
 			if err = conn.QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-				b.Fatalf("Failed to query values: %v", err)
+				b.Fatalf("failed to query values: %v", err)
 			}
 		}
 		readTx = func(b *testing.B, i int, conn *sql.DB, dest []interface{}) {
 			var err error
 			if i%benchmarkQueriesPerTx == 0 {
 				if tx, err = conn.Begin(); err != nil {
-					b.Fatalf("Failed to begin transaction: %v", err)
+					b.Fatalf("failed to begin transaction: %v", err)
 				}
 			}
 			// Query in [n, 2n-1] key space
 			if err = tx.QueryRow(q, nrkg.next()).Scan(dest...); err != nil && err != sql.ErrNoRows {
-				b.Fatalf("Failed to query values: %v", err)
+				b.Fatalf("failed to query values: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
 				if err = tx.Rollback(); err != nil {
-					b.Fatalf("Failed to close transaction: %v", err)
+					b.Fatalf("failed to close transaction: %v", err)
 				}
 			}
 		}
 		write = func(b *testing.B, conn *sql.DB) {
 			var err error
 			if _, err = conn.Exec(e, src[ipkg.next()]...); err != nil {
-				b.Errorf("Failed to execute: %v", err)
+				b.Errorf("failed to execute: %v", err)
 			}
 		}
 		writeTx = func(b *testing.B, i int, conn *sql.DB) {
 			var err error
 			if i%benchmarkQueriesPerTx == 0 {
 				if tx, err = st.Writer().Begin(); err != nil {
-					b.Errorf("Failed to begin transaction: %v", err)
+					b.Errorf("failed to begin transaction: %v", err)
 				}
 			}
 			if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
-				b.Errorf("Failed to execute: %v", err)
+				b.Errorf("failed to execute: %v", err)
 			}
 			if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
 				if err = tx.Commit(); err != nil {
-					b.Errorf("Failed to commit transaction: %v", err)
+					b.Errorf("failed to commit transaction: %v", err)
 				}
 			}
 		}
@@ -636,7 +636,7 @@ func BenchmarkStorage(b *testing.B) {
 //	)
 //	for i := 0; i < b.N; i++ {
 //		if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//			b.Fatalf("Failed to query values: %v", err)
+//			b.Fatalf("failed to query values: %v", err)
 //		}
 //	}
 //	teardownBenchmarkStorage(b, st)
@@ -650,7 +650,7 @@ func BenchmarkStorage(b *testing.B) {
 //	)
 //	for i := 0; i < b.N; i++ {
 //		if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//			b.Fatalf("Failed to query values: %v", err)
+//			b.Fatalf("failed to query values: %v", err)
 //		}
 //	}
 //	teardownBenchmarkStorage(b, st)
@@ -666,7 +666,7 @@ func BenchmarkStorage(b *testing.B) {
 //		b.ResetTimer()
 //		for i := 0; i < b.N; i++ {
 //			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-//				b.Errorf("Failed to execute: %v", err)
+//				b.Errorf("failed to execute: %v", err)
 //			}
 //		}
 //	})
@@ -682,15 +682,15 @@ func BenchmarkStorage(b *testing.B) {
 //	for i := 0; i < b.N; i++ {
 //		if i%benchmarkQueriesPerTx == 0 {
 //			if tx, err = st.Writer().Begin(); err != nil {
-//				b.Errorf("Failed to begin transaction: %v", err)
+//				b.Errorf("failed to begin transaction: %v", err)
 //			}
 //		}
 //		if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
-//			b.Errorf("Failed to execute: %v", err)
+//			b.Errorf("failed to execute: %v", err)
 //		}
 //		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
 //			if err = tx.Commit(); err != nil {
-//				b.Errorf("Failed to commit transaction: %v", err)
+//				b.Errorf("failed to commit transaction: %v", err)
 //			}
 //		}
 //	}
@@ -715,7 +715,7 @@ func busyWrite(
 			return
 		default:
 			if _, err = st.Writer().Exec(e, src[kg.next()]...); err != nil {
-				b.Errorf("Failed to execute: %v", err)
+				b.Errorf("failed to execute: %v", err)
 			}
 		}
 	}
@@ -735,7 +735,7 @@ func busyWriteTx(
 		// Begin
 		if i%benchmarkQueriesPerTx == 0 {
 			if tx, err = st.Writer().Begin(); err != nil {
-				b.Errorf("Failed to begin transaction: %v", err)
+				b.Errorf("failed to begin transaction: %v", err)
 			}
 		}
 		// Exec
@@ -744,7 +744,7 @@ func busyWriteTx(
 			// Also commit on exiting
 			if tx != nil {
 				if err = tx.Commit(); err != nil {
-					b.Errorf("Failed to commit transaction: %v", err)
+					b.Errorf("failed to commit transaction: %v", err)
 				}
 				tx = nil
 			}
@@ -752,13 +752,13 @@ func busyWriteTx(
 		default:
 			// Exec
 			if _, err = tx.Exec(e, src[kg.next()]...); err != nil {
-				b.Errorf("Failed to execute: %v", err)
+				b.Errorf("failed to execute: %v", err)
 			}
 		}
 		// Commit
 		if (i+1)%benchmarkQueriesPerTx == 0 {
 			if err = tx.Commit(); err != nil {
-				b.Errorf("Failed to commit transaction: %v", err)
+				b.Errorf("failed to commit transaction: %v", err)
 			}
 			tx = nil
 		}
@@ -784,7 +784,7 @@ func idleWriteTx(
 		// Begin
 		if i%benchmarkQueriesPerTx == 0 {
 			if tx, err = st.Writer().Begin(); err != nil {
-				b.Errorf("Failed to begin transaction: %v", err)
+				b.Errorf("failed to begin transaction: %v", err)
 			}
 		}
 		// Exec
@@ -792,13 +792,13 @@ func idleWriteTx(
 		case <-ticker.C:
 			// Exec
 			if _, err = tx.Exec(e, src[kg.next()]...); err != nil {
-				b.Errorf("Failed to execute: %v", err)
+				b.Errorf("failed to execute: %v", err)
 			}
 		case <-sc:
 			// Also commit on exiting
 			if tx != nil {
 				if err = tx.Commit(); err != nil {
-					b.Errorf("Failed to commit transaction: %v", err)
+					b.Errorf("failed to commit transaction: %v", err)
 				}
 				tx = nil
 			}
@@ -807,7 +807,7 @@ func idleWriteTx(
 		// Commit
 		if (i+1)%benchmarkQueriesPerTx == 0 {
 			if err = tx.Commit(); err != nil {
-				b.Errorf("Failed to commit transaction: %v", err)
+				b.Errorf("failed to commit transaction: %v", err)
 			}
 			tx = nil
 		}
@@ -839,7 +839,7 @@ func idleWriteTx(
 //		if err = getReader(st).QueryRow(
 //			q, trkg.next(),
 //		).Scan(dest...); err != nil && err != sql.ErrNoRows {
-//			b.Fatalf("Failed to query values: %v", err)
+//			b.Fatalf("failed to query values: %v", err)
 //		}
 //	}
 //
@@ -893,16 +893,16 @@ func idleWriteTx(
 //	for i := 0; i < b.N; i++ {
 //		if i%benchmarkQueriesPerTx == 0 {
 //			if tx, err = getReader(st).Begin(); err != nil {
-//				b.Fatalf("Failed to begin transaction: %v", err)
+//				b.Fatalf("failed to begin transaction: %v", err)
 //			}
 //		}
 //		// Query in [n, 2n-1] key space
 //		if err = tx.QueryRow(q, nrkg.next()).Scan(dest...); err != nil && err != sql.ErrNoRows {
-//			b.Fatalf("Failed to query values: %v", err)
+//			b.Fatalf("failed to query values: %v", err)
 //		}
 //		if (i+1)%benchmarkQueriesPerTx == 0 || i == b.N-1 {
 //			if err = tx.Rollback(); err != nil {
-//				b.Fatalf("Failed to close transaction: %v", err)
+//				b.Fatalf("failed to close transaction: %v", err)
 //			}
 //		}
 //	}
@@ -947,11 +947,11 @@ func idleWriteTx(
 //	for i := 0; i < b.N; i++ {
 //		if rand.Int()%2 == 0 {
 //			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//				b.Fatalf("Failed to query values: %v", err)
+//				b.Fatalf("failed to query values: %v", err)
 //			}
 //		} else {
 //			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-//				b.Fatalf("Failed to execute: %v", err)
+//				b.Fatalf("failed to execute: %v", err)
 //			}
 //		}
 //	}
@@ -967,11 +967,11 @@ func idleWriteTx(
 //	for i := 0; i < b.N; i++ {
 //		if rand.Int()%2 == 0 {
 //			if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//				b.Fatalf("Failed to query values: %v", err)
+//				b.Fatalf("failed to query values: %v", err)
 //			}
 //		} else {
 //			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-//				b.Fatalf("Failed to execute: %v", err)
+//				b.Fatalf("failed to execute: %v", err)
 //			}
 //		}
 //	}
@@ -989,7 +989,7 @@ func idleWriteTx(
 //		)
 //		for pb.Next() {
 //			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//				b.Fatalf("Failed to query values: %v", err)
+//				b.Fatalf("failed to query values: %v", err)
 //			}
 //		}
 //	})
@@ -1007,7 +1007,7 @@ func idleWriteTx(
 //		)
 //		for pb.Next() {
 //			if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//				b.Fatalf("Failed to query values: %v", err)
+//				b.Fatalf("failed to query values: %v", err)
 //			}
 //		}
 //	})
@@ -1020,7 +1020,7 @@ func idleWriteTx(
 //		var err error
 //		for pb.Next() {
 //			if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-//				b.Fatalf("Failed to execute: %v", err)
+//				b.Fatalf("failed to execute: %v", err)
 //			}
 //		}
 //	})
@@ -1037,11 +1037,11 @@ func idleWriteTx(
 //		for pb.Next() {
 //			if rand.Int()%2 == 0 {
 //				if err = st.DirtyReader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//					b.Fatalf("Failed to query values: %v", err)
+//					b.Fatalf("failed to query values: %v", err)
 //				}
 //			} else {
 //				if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-//					b.Fatalf("Failed to execute: %v", err)
+//					b.Fatalf("failed to execute: %v", err)
 //				}
 //			}
 //		}
@@ -1059,11 +1059,11 @@ func idleWriteTx(
 //		for pb.Next() {
 //			if rand.Int()%2 == 0 {
 //				if err = st.Reader().QueryRow(q, rrkg.next()).Scan(dest...); err != nil {
-//					b.Fatalf("Failed to query values: %v", err)
+//					b.Fatalf("failed to query values: %v", err)
 //				}
 //			} else {
 //				if _, err = st.Writer().Exec(e, src[ipkg.next()]...); err != nil {
-//					b.Fatalf("Failed to execute: %v", err)
+//					b.Fatalf("failed to execute: %v", err)
 //				}
 //			}
 //		}

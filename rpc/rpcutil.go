@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"net"
 	"net/rpc"
+	"strings"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -65,6 +66,7 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.client == nil {
+		log.Debug("init new rpc client")
 		var conn net.Conn
 		conn, err = DialToNode(c.TargetID, c.pool, isAnonymous)
 		if err != nil {
@@ -93,11 +95,13 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 		if err == io.EOF ||
 			err == io.ErrUnexpectedEOF ||
 			err == io.ErrClosedPipe ||
-			err == rpc.ErrShutdown {
+			err == rpc.ErrShutdown ||
+			strings.Contains(strings.ToLower(err.Error()), "shut down") ||
+			strings.Contains(strings.ToLower(err.Error()), "broken pipe") {
 			// if got EOF, retry once
-			err = c.Reconnect(method)
-			if err != nil {
-				log.WithField("rpc", method).WithError(err).Error("reconnect failed")
+			reconnectErr := c.ResetClient(method)
+			if reconnectErr != nil {
+				log.WithField("rpc", method).WithError(reconnectErr).Error("reconnect failed")
 			}
 		}
 		log.WithField("rpc", method).WithError(err).Error("call RPC failed")
@@ -105,17 +109,12 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 	return
 }
 
-// Reconnect tries to rebuild RPC client
-func (c *PersistentCaller) Reconnect(method string) (err error) {
+// ResetClient resets client.
+func (c *PersistentCaller) ResetClient(method string) (err error) {
 	c.Lock()
 	c.Close()
 	c.client = nil
 	c.Unlock()
-	err = c.initClient(method == route.DHTPing.String())
-	if err != nil {
-		log.WithField("rpc", method).WithError(err).Error("second init client for RPC failed")
-		return
-	}
 	return
 }
 
@@ -353,4 +352,14 @@ func SetCurrentBP(bpNodeID proto.NodeID) {
 	currentBPLock.Lock()
 	defer currentBPLock.Unlock()
 	currentBP = bpNodeID
+}
+
+
+// RequstBP sends request to main chain.
+func RequestBP(method string, req interface{}, resp interface{}) (err error) {
+	var bp proto.NodeID
+	if bp, err = GetCurrentBP(); err != nil {
+		return err
+	}
+	return NewCaller().CallNode(bp, method, req, resp)
 }

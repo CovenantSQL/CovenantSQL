@@ -12,6 +12,7 @@ group:
       - # bp10.250.1.4
         ip: 10.250.1.4/32
         cmd: "cd /scripts && ./bin/cqld -config ./node_2/config.yaml"
+    delay: "20ms"
     rate: "1000mbit"
   -
     name: miner
@@ -40,6 +41,7 @@ group:
       - # miner10.250.100.9
         ip: 10.250.100.9/32
         cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.9/config.yaml"
+    delay: "20ms"
     rate: "1000mbit"
   -
     name: client
@@ -50,6 +52,7 @@ group:
       - # node_adapter
         ip: 10.250.0.254/32
         cmd: "cd /scripts && ./bin/cql-adapter -config ./node_c/config.yaml"
+    delay: "20ms"
     rate: "1000mbit"
 
 network:
@@ -57,17 +60,20 @@ network:
     groups:
       - bp
       - miner
+    delay: "20ms"
     rate: "1000mbit"
 
   -
     groups:
       - bp
       - client
+    delay: "20ms"
     rate: "1000mbit"
 
   -
     groups:
       - client
       - miner
+    delay: "20ms"
     rate: "1000mbit"
 

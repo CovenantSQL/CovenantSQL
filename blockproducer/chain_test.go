@@ -28,16 +28,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
-)
-
-var (
-	testPeersNumber                 = 1
-	testPeriod                      = 1 * time.Second
-	testTick                        = 100 * time.Millisecond
-	testPeriodNumber         uint32 = 10
-	testClientNumberPerChain        = 10
 )
 
 func newTransfer(
@@ -51,6 +44,34 @@ func newTransfer(
 		Receiver: receiver,
 		Nonce:    nonce,
 		Amount:   amount,
+	})
+	err = t.Sign(signer)
+	return
+}
+
+func newCreateDatabase(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	owner proto.AccountAddress,
+) (
+	t *types.CreateDatabase, err error,
+) {
+	t = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner: owner,
+		Nonce: nonce,
+	})
+	err = t.Sign(signer)
+	return
+}
+
+func newProvideService(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	contract proto.AccountAddress,
+) (
+	t *types.ProvideService, err error,
+) {
+	t = types.NewProvideService(&types.ProvideServiceHeader{
+		Contract: contract,
+		Nonce:    nonce,
 	})
 	err = t.Sign(signer)
 	return
@@ -70,6 +91,7 @@ func TestChain(t *testing.T) {
 			err     error
 			config  *Config
 			genesis *types.BPBlock
+			begin   time.Time
 			leader  proto.NodeID
 			servers []proto.NodeID
 			chain   *Chain
@@ -89,7 +111,7 @@ func TestChain(t *testing.T) {
 		genesis = &types.BPBlock{
 			SignedHeader: types.BPSignedHeader{
 				BPHeader: types.BPHeader{
-					Timestamp: time.Now().UTC(),
+					Timestamp: time.Now().Add(-10 * time.Second),
 				},
 			},
 			Transactions: []pi.Transaction{
@@ -101,6 +123,7 @@ func TestChain(t *testing.T) {
 		}
 		err = genesis.PackAndSignBlock(testingPrivateKey)
 		So(err, ShouldBeNil)
+		begin = genesis.Timestamp()
 
 		for _, v := range rawids {
 			servers = append(servers, v.ToNodeID())
@@ -119,7 +142,7 @@ func TestChain(t *testing.T) {
 			},
 			NodeID: leader,
 			Period: time.Duration(1 * time.Second),
-			Tick:   time.Duration(100 * time.Millisecond),
+			Tick:   time.Duration(300 * time.Millisecond),
 		}
 
 		chain, err = NewChain(config)
@@ -128,42 +151,182 @@ func TestChain(t *testing.T) {
 
 		// Close chain on reset
 		Reset(func() {
-			err = chain.Stop()
-			So(err, ShouldBeNil)
+			if chain != nil {
+				err = chain.Stop()
+				So(err, ShouldBeNil)
+			}
 			err = os.Remove(config.DataFile)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("When transfer transactions are added", func() {
 			var (
-				nonce      pi.AccountNonce
-				t1, t2, t3 pi.Transaction
+				nonce          pi.AccountNonce
+				t1, t2, t3, t4 pi.Transaction
+				f0, f1         *branch
+				bl             *types.BPBlock
 			)
-			nonce, err = chain.rt.nextNonce(addr1)
+
+			// Create transactions for testing
+			nonce, err = chain.nextNonce(addr1)
 			So(err, ShouldBeNil)
 			So(nonce, ShouldEqual, 1)
 			t1, err = newTransfer(nonce, priv1, addr1, addr2, 1)
 			So(err, ShouldBeNil)
 			t2, err = newTransfer(nonce+1, priv1, addr1, addr2, 1)
 			So(err, ShouldBeNil)
-			t3, err = newTransfer(nonce+2, priv1, addr1, addr2, 1)
+			t3, err = newCreateDatabase(nonce+2, priv1, addr1)
 			So(err, ShouldBeNil)
-			err = chain.rt.addTx(chain.st, t1)
+			t4, err = newProvideService(nonce+3, priv1, addr1)
 			So(err, ShouldBeNil)
-			err = chain.rt.addTx(chain.st, t1)
-			So(err, ShouldEqual, ErrExistedTx)
-			Convey("The chain should be able to produce new block", func() {
-				err = chain.produceBlock(chain.rt.genesisTime.Add(chain.rt.period))
+
+			// Fork from #0
+			f0 = chain.headBranch.makeCopy()
+
+			err = chain.storeTx(t1)
+			So(err, ShouldBeNil)
+			Convey("The chain should report error on duplicated transaction", func() {
+				err = chain.storeTx(t1)
+				So(err, ShouldEqual, ErrExistedTx)
+			})
+			err = chain.produceBlock(begin.Add(chain.period))
+			So(err, ShouldBeNil)
+
+			// Create a sibling block from fork#0 and apply
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			// Fork from #1
+			f1 = chain.headBranch.makeCopy()
+
+			err = chain.storeTx(t2)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(2 * chain.period))
+			So(err, ShouldBeNil)
+
+			err = chain.storeTx(t3)
+			So(err, ShouldBeNil)
+			err = chain.storeTx(t4)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(3 * chain.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			// This should trigger a branch pruning on fork #0
+			for i := uint32(4); i <= 6; i++ {
+				err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
 				So(err, ShouldBeNil)
-				Convey("The chain should be able to produce new block", func() {
-					err = chain.rt.addTx(chain.st, t2)
+				// Create a sibling block from fork#1 and apply
+				f1, bl, err = f1.produceBlock(
+					i, begin.Add(time.Duration(i)*chain.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+			}
+
+			Convey("The chain immutable should be updated to irreversible block", func() {
+				// Add more blocks to trigger immutable updating
+				for i := uint32(7); i <= 12; i++ {
+					err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
 					So(err, ShouldBeNil)
-					err = chain.produceBlock(chain.rt.genesisTime.Add(2 * chain.rt.period))
+				}
+				Convey("The chain should have same state after reloading", func() {
+					err = chain.Stop()
 					So(err, ShouldBeNil)
-					err = chain.rt.addTx(chain.st, t3)
+					chain, err = NewChain(config)
 					So(err, ShouldBeNil)
-					err = chain.produceBlock(chain.rt.genesisTime.Add(3 * chain.rt.period))
+					So(chain, ShouldNotBeNil)
+					chain.stat()
+				})
+			})
+
+			Convey("The chain head should switch to fork #1 if it grows to count 7", func() {
+				// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
+				chain.stat()
+				f1.addTx(t2)
+				f1.addTx(t3)
+				f1.addTx(t4)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+
+				Convey("The chain should have same state after reloading", func() {
+					err = chain.Stop()
 					So(err, ShouldBeNil)
+					chain, err = NewChain(config)
+					So(err, ShouldBeNil)
+					So(chain, ShouldNotBeNil)
+					chain.stat()
+				})
+
+				Convey("The chain APIs should return expected results", func() {
+					var (
+						bl            *types.BPBlock
+						count, height uint32
+					)
+
+					_, _, err = chain.fetchBlockByHeight(100)
+					So(err, ShouldEqual, ErrNoSuchBlock)
+
+					_, _, err = chain.fetchBlockByCount(100)
+					So(err, ShouldEqual, ErrNoSuchBlock)
+
+					bl, count, err = chain.fetchBlockByHeight(0)
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, 0)
+					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+
+					bl, height, err = chain.fetchBlockByCount(0)
+					So(err, ShouldBeNil)
+					So(height, ShouldEqual, 0)
+					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
+
+					// Try to use the no-cache version
+					var node = chain.headBranch.head.ancestorByCount(5)
+					node.block = nil // Clear cached block
+					bl, count, err = chain.fetchBlockByHeight(node.height)
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, node.count)
+					So(bl.BlockHash(), ShouldResemble, &node.hash)
+					bl, height, err = chain.fetchBlockByCount(node.count)
+					So(err, ShouldBeNil)
+					So(height, ShouldEqual, node.height)
+					So(bl.BlockHash(), ShouldResemble, &node.hash)
+				})
+
+				Convey("Test run chain", func() {
+					var sv = rpc.NewServer()
+					err = sv.InitRPCServer("localhost:0", testingPrivateKeyFile, []byte{})
+					So(err, ShouldBeNil)
+					defer sv.Stop()
+
+					chain.server = sv
+					chain.Start()
+					defer func() {
+						chain.Stop()
+						chain = nil
+					}()
+					chain.addTx(t1)
+					chain.addTx(t2)
+					chain.addTx(t3)
+					chain.addTx(t4)
+					time.Sleep(15 * chain.period)
 				})
 			})
 		})

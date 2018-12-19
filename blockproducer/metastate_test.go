@@ -19,7 +19,6 @@ package blockproducer
 import (
 	"math"
 	"os"
-	"path"
 	"sync"
 	"testing"
 
@@ -31,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/coreos/bbolt"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -44,6 +42,7 @@ func TestMetaState(t *testing.T) {
 			po       *providerObject
 			bl       uint64
 			loaded   bool
+			err      error
 			privKey1 *asymmetric.PrivateKey
 			privKey2 *asymmetric.PrivateKey
 			privKey3 *asymmetric.PrivateKey
@@ -56,8 +55,6 @@ func TestMetaState(t *testing.T) {
 			dbid2    = proto.DatabaseID("db#2")
 			dbid3    = proto.DatabaseID("db#3")
 			ms       = newMetaState()
-			fl       = path.Join(testingDataDir, t.Name())
-			db, err  = bolt.Open(fl, 0600, nil)
 		)
 		So(err, ShouldBeNil)
 
@@ -79,38 +76,6 @@ func TestMetaState(t *testing.T) {
 		addr4, err = crypto.PubKeyHash(privKey4.PubKey())
 		So(err, ShouldBeNil)
 
-		Reset(func() {
-			// Clean database file after each pass
-			err = db.Close()
-			So(err, ShouldBeNil)
-			err = os.Truncate(fl, 0)
-			So(err, ShouldBeNil)
-		})
-		err = db.Update(func(tx *bolt.Tx) (err error) {
-			var meta, txbk *bolt.Bucket
-			if meta, err = tx.CreateBucket(metaBucket[:]); err != nil {
-				return
-			}
-			if _, err = meta.CreateBucket(metaAccountIndexBucket); err != nil {
-				return
-			}
-			if _, err = meta.CreateBucket(metaSQLChainIndexBucket); err != nil {
-				return
-			}
-			if _, err = meta.CreateBucket(metaProviderIndexBucket); err != nil {
-				return
-			}
-			if txbk, err = meta.CreateBucket(metaTransactionBucket); err != nil {
-				return
-			}
-			for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
-				if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
-					return
-				}
-			}
-			return
-		})
-		So(err, ShouldBeNil)
 		Convey("The account state should be empty", func() {
 			ao, loaded = ms.loadAccountObject(addr1)
 			So(ao, ShouldBeNil)
@@ -224,8 +189,7 @@ func TestMetaState(t *testing.T) {
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
-						err = db.Update(ms.commitProcedure())
-						So(err, ShouldBeNil)
+						ms.commit()
 						Convey("The metaState object should be ok to delete user", func() {
 							err = ms.deleteSQLChainUser(dbid3, addr2)
 							So(err, ShouldBeNil)
@@ -241,8 +205,7 @@ func TestMetaState(t *testing.T) {
 					})
 				})
 				Convey("When metaState change is committed", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldBeNil)
+					ms.commit()
 					Convey("The metaState object should be ok to add users for database", func() {
 						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
 						So(err, ShouldBeNil)
@@ -329,8 +292,7 @@ func TestMetaState(t *testing.T) {
 					)
 				})
 				Convey("When metaState changes are committed", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldBeNil)
+					ms.commit()
 					Convey(
 						"The account balance should be kept correctly in account object",
 						func() {
@@ -387,8 +349,8 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 							err = ms.increaseAccountStableBalance(addr2, math.MaxUint64)
 							So(err, ShouldBeNil)
-							err = db.Update(ms.commitProcedure())
-							So(err, ShouldBeNil)
+
+							ms.commit()
 							err = ms.transferAccountStableBalance(addr2, addr1, math.MaxUint64)
 							So(err, ShouldEqual, ErrBalanceOverflow)
 							err = ms.transferAccountStableBalance(addr2, addr3, 1)
@@ -404,43 +366,8 @@ func TestMetaState(t *testing.T) {
 					)
 				})
 			})
-			Convey("When a new account key slot is overwritten", func() {
-				err = db.Update(func(tx *bolt.Tx) (err error) {
-					var bucket = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-					if err = bucket.Delete(addr1[:]); err != nil {
-						return
-					}
-					if _, err = bucket.CreateBucket(addr1[:]); err != nil {
-						return
-					}
-					return
-				})
-				So(err, ShouldBeNil)
-				Convey("The reloadProcedure should report error", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldNotBeNil)
-				})
-			})
-			Convey("When a new database key slot is overwritten", func() {
-				err = db.Update(func(tx *bolt.Tx) (err error) {
-					var bucket = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-					if err = bucket.Delete([]byte(dbid1)); err != nil {
-						return
-					}
-					if _, err = bucket.CreateBucket([]byte(dbid1)); err != nil {
-						return
-					}
-					return
-				})
-				So(err, ShouldBeNil)
-				Convey("The reloadProcedure should report error", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldNotBeNil)
-				})
-			})
 			Convey("When metaState changes are committed", func() {
-				err = db.Update(ms.commitProcedure())
-				So(err, ShouldBeNil)
+				ms.commit()
 				Convey("The cached object should be retrievable from readonly map", func() {
 					var loaded bool
 					_, loaded = ms.loadAccountObject(addr1)
@@ -452,74 +379,6 @@ func TestMetaState(t *testing.T) {
 					_, loaded = ms.loadOrStoreSQLChainObject(dbid2, nil)
 					So(loaded, ShouldBeTrue)
 				})
-				Convey("The metaState should be reproducible from the persistence db", func() {
-					var (
-						oa1, oa2, ra1, ra2 *accountObject
-						oc1, oc2, rc1, rc2 *sqlchainObject
-						loaded             bool
-						rms                = newMetaState()
-						err                = db.View(rms.reloadProcedure())
-					)
-					So(err, ShouldBeNil)
-					oa1, loaded = ms.loadAccountObject(addr1)
-					So(loaded, ShouldBeTrue)
-					So(oa1, ShouldNotBeNil)
-					oa2, loaded = ms.loadAccountObject(addr2)
-					So(loaded, ShouldBeTrue)
-					So(oa2, ShouldNotBeNil)
-					ra1, loaded = rms.loadAccountObject(addr1)
-					So(loaded, ShouldBeTrue)
-					So(ra1, ShouldNotBeNil)
-					ra2, loaded = rms.loadAccountObject(addr2)
-					So(loaded, ShouldBeTrue)
-					So(ra2, ShouldNotBeNil)
-					So(&oa1.Account, ShouldResemble, &ra1.Account)
-					So(&oa2.Account, ShouldResemble, &ra2.Account)
-					oc1, loaded = ms.loadSQLChainObject(dbid1)
-					So(loaded, ShouldBeTrue)
-					So(oc1, ShouldNotBeNil)
-					oc2, loaded = ms.loadSQLChainObject(dbid2)
-					So(loaded, ShouldBeTrue)
-					So(oc2, ShouldNotBeNil)
-					rc1, loaded = rms.loadSQLChainObject(dbid1)
-					So(loaded, ShouldBeTrue)
-					So(rc1, ShouldNotBeNil)
-					rc2, loaded = rms.loadSQLChainObject(dbid2)
-					So(loaded, ShouldBeTrue)
-					So(rc2, ShouldNotBeNil)
-					So(&oc1.SQLChainProfile, ShouldResemble, &rc1.SQLChainProfile)
-					So(&oc2.SQLChainProfile, ShouldResemble, &rc2.SQLChainProfile)
-				})
-				Convey("When the some accountObject is corrupted", func() {
-					err = db.Update(func(tx *bolt.Tx) (err error) {
-						return tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket).Put(
-							addr1[:], []byte{0x1, 0x2, 0x3, 0x4a},
-						)
-					})
-					So(err, ShouldBeNil)
-					Convey("The reloadProcedure should report error", func() {
-						var (
-							rms = newMetaState()
-							err = db.View(rms.reloadProcedure())
-						)
-						So(err, ShouldNotBeNil)
-					})
-				})
-				Convey("When the some sqlchainObject is corrupted", func() {
-					err = db.Update(func(tx *bolt.Tx) (err error) {
-						return tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket).Put(
-							[]byte(dbid1), []byte{0x1, 0x2, 0x3, 0x4a},
-						)
-					})
-					So(err, ShouldBeNil)
-					Convey("The reloadProcedure should report error", func() {
-						var (
-							rms = newMetaState()
-							err = db.View(rms.reloadProcedure())
-						)
-						So(err, ShouldNotBeNil)
-					})
-				})
 				Convey("When some objects are deleted", func() {
 					ms.deleteAccountObject(addr1)
 					ms.deleteSQLChainObject(dbid1)
@@ -528,83 +387,6 @@ func TestMetaState(t *testing.T) {
 						So(loaded, ShouldBeFalse)
 						_, loaded = ms.loadSQLChainObject(dbid1)
 						So(loaded, ShouldBeFalse)
-					})
-					Convey("When the deleted account key slot is overwritten", func() {
-						err = db.Update(func(tx *bolt.Tx) (err error) {
-							var bucket = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-							if err = bucket.Delete(addr1[:]); err != nil {
-								return
-							}
-							if _, err = bucket.CreateBucket(addr1[:]); err != nil {
-								return
-							}
-							return
-						})
-						So(err, ShouldBeNil)
-						Convey("The commitProcedure should report error", func() {
-							var err = db.Update(ms.commitProcedure())
-							So(err, ShouldNotBeNil)
-						})
-					})
-					Convey("When the deleted database key slot is overwritten", func() {
-						err = db.Update(func(tx *bolt.Tx) (err error) {
-							var bucket = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-							if err = bucket.Delete([]byte(dbid1)); err != nil {
-								return
-							}
-							if _, err = bucket.CreateBucket([]byte(dbid1)); err != nil {
-								return
-							}
-							return
-						})
-						So(err, ShouldBeNil)
-						Convey("The commitProcedure should report error", func() {
-							var err = db.Update(ms.commitProcedure())
-							So(err, ShouldNotBeNil)
-						})
-					})
-					Convey("When metaState changes are committed again", func() {
-						err = db.Update(ms.commitProcedure())
-						So(err, ShouldBeNil)
-						Convey(
-							"The metaState should also be reproducible from the persistence db",
-							func() {
-								var (
-									rms                = newMetaState()
-									err                = db.View(rms.reloadProcedure())
-									oa1, oa2, ra1, ra2 *accountObject
-									oc1, oc2, rc1, rc2 *sqlchainObject
-									loaded             bool
-								)
-								So(err, ShouldBeNil)
-								oa1, loaded = ms.loadAccountObject(addr1)
-								So(loaded, ShouldBeFalse)
-								So(oa1, ShouldBeNil)
-								oa2, loaded = ms.loadAccountObject(addr2)
-								So(loaded, ShouldBeTrue)
-								So(oa2, ShouldNotBeNil)
-								ra1, loaded = rms.loadAccountObject(addr1)
-								So(loaded, ShouldBeFalse)
-								So(ra1, ShouldBeNil)
-								ra2, loaded = rms.loadAccountObject(addr2)
-								So(loaded, ShouldBeTrue)
-								So(ra2, ShouldNotBeNil)
-								So(&oa2.Account, ShouldResemble, &ra2.Account)
-								oc1, loaded = ms.loadSQLChainObject(dbid1)
-								So(loaded, ShouldBeFalse)
-								So(oc1, ShouldBeNil)
-								oc2, loaded = ms.loadSQLChainObject(dbid2)
-								So(loaded, ShouldBeTrue)
-								So(oc2, ShouldNotBeNil)
-								rc1, loaded = rms.loadSQLChainObject(dbid1)
-								So(loaded, ShouldBeFalse)
-								So(rc1, ShouldBeNil)
-								rc2, loaded = rms.loadSQLChainObject(dbid2)
-								So(loaded, ShouldBeTrue)
-								So(rc2, ShouldNotBeNil)
-								So(&oc2.SQLChainProfile, ShouldResemble, &rc2.SQLChainProfile)
-							},
-						)
 					})
 				})
 			})
@@ -636,45 +418,25 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = t2.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(t0))
+				err = ms.apply(t0)
 				So(err, ShouldBeNil)
-				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 1)
-				err = db.Update(ms.applyTransactionProcedure(t1))
+				ms.commit()
+				err = ms.apply(t1)
 				So(err, ShouldBeNil)
-				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 2)
-				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(ms.pool.hasTx(t1), ShouldBeTrue)
-				err = db.Update(ms.applyTransactionProcedure(t2))
+				ms.commit()
+				err = ms.apply(t2)
 				So(err, ShouldBeNil)
-				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
-				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				_, loaded = ms.pool.entries[t2.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(ms.pool.hasTx(t1), ShouldBeTrue)
-				So(ms.pool.hasTx(t2), ShouldBeTrue)
 
 				Convey("The metaState should report error if tx fails verification", func() {
 					t1.Nonce = pi.AccountNonce(10)
 					err = t1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = db.Update(ms.applyTransactionProcedure(t1))
+					err = ms.apply(t1)
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
 					t1.Nonce, err = ms.nextNonce(addr1)
 					So(err, ShouldBeNil)
 					So(t1.Nonce, ShouldEqual, ms.dirty.accounts[addr1].NextNonce)
-					err = db.Update(ms.applyTransactionProcedure(t1))
-					So(err, ShouldNotBeNil)
-					err = t1.Sign(privKey1)
-					So(err, ShouldBeNil)
-					err = db.Update(ms.applyTransactionProcedure(t1))
-					So(err, ShouldBeNil)
+					ms.commit()
 				})
 				Convey("The metaState should automatically increase nonce", func() {
 					n, err = ms.nextNonce(addr1)
@@ -685,48 +447,6 @@ func TestMetaState(t *testing.T) {
 					err = ms.applyTransaction(nil)
 					So(err, ShouldEqual, ErrUnknownTransactionType)
 				})
-				Convey("The txs should be able to be pulled from pool", func() {
-					var txs = ms.pullTxs()
-					So(len(txs), ShouldEqual, 3)
-					for _, tx := range txs {
-						So(ms.pool.hasTx(tx), ShouldBeTrue)
-					}
-				})
-				Convey("The partial commit procedure should be appliable for empty txs", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 0)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
-				})
-				Convey("The partial commit procedure should be appliable for tx0", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 1)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 2)
-				})
-				Convey("The partial commit procedure should be appliable for tx0-1", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 2)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 1)
-				})
-				Convey("The partial commit procedure should be appliable for all tx", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 3)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 0)
-				})
-				Convey(
-					"The partial commit procedure should not be appliable for modified tx",
-					func() {
-						t1.Nonce = pi.AccountNonce(10)
-						err = t1.Sign(privKey1)
-						So(err, ShouldBeNil)
-						err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
-						So(err, ShouldEqual, ErrTransactionMismatch)
-						So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
-					},
-				)
 			})
 		})
 		Convey("When base account txs are added", func() {
@@ -814,9 +534,10 @@ func TestMetaState(t *testing.T) {
 			txs[7].Sign(privKey2)
 			txs[8].Sign(privKey2)
 			for _, tx := range txs {
-				err = db.Update(ms.applyTransactionProcedure(tx))
+				err = ms.apply(tx)
 				So(err, ShouldBeNil)
 			}
+			ms.commit()
 			Convey("The state should match the update result", func() {
 				bl, loaded = ms.loadAccountStableBalance(addr1)
 				So(loaded, ShouldBeTrue)
@@ -824,66 +545,6 @@ func TestMetaState(t *testing.T) {
 				bl, loaded = ms.loadAccountStableBalance(addr2)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 118)
-			})
-			Convey("When state change is partial committed #0", func() {
-				err = db.Update(ms.partialCommitProcedure(nil))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
-				})
-			})
-			Convey("When state change is partial committed #1", func() {
-				err = db.Update(ms.partialCommitProcedure(txs[:2]))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
-				})
-			})
-			Convey("When state change is partial committed #2", func() {
-				err = db.Update(ms.partialCommitProcedure(txs[:3]))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
-				})
-			})
-			Convey("When state change is partial committed #3", func() {
-				err = db.Update(ms.partialCommitProcedure(txs[:6]))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
-				})
-			})
-			Convey("When state change is partial committed #4", func() {
-				err = db.Update(ms.partialCommitProcedure(txs))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
-				})
 			})
 		})
 		Convey("When SQLChain are created", func() {
@@ -958,7 +619,9 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldBeNil)
 			err = txs[2].Sign(privKey3)
 			for i := range txs {
-				err = db.Update(ms.applyTransactionProcedure(txs[i]))
+				err = ms.apply(txs[i])
+				So(err, ShouldBeNil)
+				ms.commit()
 			}
 
 			Convey("When provider transaction is invalid", func() {
@@ -1019,15 +682,15 @@ func TestMetaState(t *testing.T) {
 				err = invalidCd4.Sign(privKey3)
 				So(err, ShouldBeNil)
 
-				err = db.Update(ms.applyTransactionProcedure(&invalidPs))
-				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
-				err = db.Update(ms.applyTransactionProcedure(&invalidCd1))
+				err = ms.apply(&invalidPs)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
-				err = db.Update(ms.applyTransactionProcedure(&invalidCd2))
+				err = ms.apply(&invalidCd1)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				err = ms.apply(&invalidCd2)
 				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
-				err = db.Update(ms.applyTransactionProcedure(&invalidCd3))
+				err = ms.apply(&invalidCd3)
 				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
-				err = db.Update(ms.applyTransactionProcedure(&invalidCd4))
+				err = ms.apply(&invalidCd4)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
 			})
 			Convey("When SQLChain create", func() {
@@ -1072,18 +735,19 @@ func TestMetaState(t *testing.T) {
 
 				var b1, b2 uint64
 				b1, loaded = ms.loadAccountStableBalance(addr2)
-				So(loaded, ShouldBeTrue)
-				err = db.Update(ms.applyTransactionProcedure(&ps))
+				err = ms.apply(&ps)
 				So(err, ShouldBeNil)
+				ms.commit()
 				b2, loaded = ms.loadAccountStableBalance(addr2)
 				So(loaded, ShouldBeTrue)
 				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
-				err = db.Update(ms.applyTransactionProcedure(&cd2))
+				err = ms.apply(&cd2)
 				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
 				b1, loaded = ms.loadAccountStableBalance(addr1)
 				So(loaded, ShouldBeTrue)
-				err = db.Update(ms.applyTransactionProcedure(&cd1))
+				err = ms.apply(&cd1)
 				So(err, ShouldBeNil)
+				ms.commit()
 				b2, loaded = ms.loadAccountStableBalance(addr1)
 				So(loaded, ShouldBeTrue)
 				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
@@ -1105,13 +769,13 @@ func TestMetaState(t *testing.T) {
 				}
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
 				up.Permission = 4
 				up.TargetSQLChain = dbAccount
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidPermission)
 				// test permission update
 				// addr1(admin) update addr3 as admin
@@ -1119,35 +783,38 @@ func TestMetaState(t *testing.T) {
 				up.Permission = types.Admin
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(err, ShouldBeNil)
+				ms.commit()
 				// addr3(admin) update addr4 as read
 				up.TargetUser = addr4
 				up.Nonce = cd2.Nonce
 				up.Permission = types.Read
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(err, ShouldBeNil)
+				ms.commit()
 				// addr3(admin) update addr1(admin) as read
 				up.TargetUser = addr1
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(err, ShouldBeNil)
+				ms.commit()
 				// addr3(admin) update addr3(admin) as read fail
 				up.TargetUser = addr3
 				up.Permission = types.Read
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 2
 				err = up.Sign(privKey1)
-				err = db.Update(ms.applyTransactionProcedure(&up))
+				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
 
 				co, loaded = ms.loadSQLChainObject(*dbID)

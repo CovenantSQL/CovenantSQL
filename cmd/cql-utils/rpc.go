@@ -34,7 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var (

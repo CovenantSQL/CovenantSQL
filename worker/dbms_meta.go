@@ -16,16 +16,21 @@
 
 package worker
 
-import "github.com/CovenantSQL/CovenantSQL/proto"
+import (
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
+)
 
 // DBMSMeta defines the meta structure.
 type DBMSMeta struct {
 	DBS map[proto.DatabaseID]bool
+	ChainState map[proto.DatabaseID]types.ChainState
 }
 
 // NewDBMSMeta returns new DBMSMeta struct.
 func NewDBMSMeta() (meta *DBMSMeta) {
 	return &DBMSMeta{
 		DBS: make(map[proto.DatabaseID]bool),
+		ChainState: make(map[proto.DatabaseID]types.ChainState),
 	}
 }

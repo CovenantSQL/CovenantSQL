@@ -111,8 +111,8 @@ func (z *ResourceMeta) Msgsize() (s int) {
 func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	// map header, size 5
+	o = append(o, 0x85, 0x85)
 	if z.GenesisBlock == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -122,7 +122,17 @@ func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
+	if z.Profile == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.Profile.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x85)
 	if z.Peers == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -132,13 +142,13 @@ func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	if oTemp, err := z.ResourceMeta.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
+	o = append(o, 0x85)
 	if oTemp, err := z.DatabaseID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -154,6 +164,12 @@ func (z *ServiceInstance) Msgsize() (s int) {
 		s += hsp.NilSize
 	} else {
 		s += z.GenesisBlock.Msgsize()
+	}
+	s += 8
+	if z.Profile == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.Profile.Msgsize()
 	}
 	s += 6
 	if z.Peers == nil {

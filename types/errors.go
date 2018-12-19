@@ -34,4 +34,12 @@ var (
 	ErrBillingNotMatch = errors.New("billing request doesn't match")
 	// ErrHashVerification indicates a failed hash verification.
 	ErrHashVerification = errors.New("hash verification failed")
+	// ErrNotExists defines errors on manipulating a non-exists database instance.
+	ErrNotExists = errors.New("database instance not exists")
+	// ErrNoSuchUser indicates that user do not exist.
+	ErrNoSuchUser = errors.New("user not exist")
+	// ErrOverflow indicates computing overflow.
+	ErrOverflow = errors.New("computing overflow")
+	// ErrInvalidHeight indicates that received height is smaller than current height.
+	ErrInvalidHeight = errors.New("received height is smaller than current height")
 )

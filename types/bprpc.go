@@ -170,4 +170,3 @@ type QuerySQLChainProfileResp struct {
 	proto.Envelope
 	Profile SQLChainProfile
 }
-

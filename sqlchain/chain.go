@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"os"
 	rt "runtime"
 	"sync"
@@ -102,7 +103,7 @@ func keyWithSymbolToHeight(k []byte) int32 {
 
 // Chain represents a sql-chain.
 type Chain struct {
-	// bdb stores state and block
+	// bdb stores state, profile and block
 	bdb *leveldb.DB
 	// tdb stores ack/request/response
 	tdb *leveldb.DB
@@ -119,6 +120,7 @@ type Chain struct {
 	acks      chan *types.AckHeader
 
 	// DBAccount info
+	databaseID proto.DatabaseID
 	tokenType    types.TokenType
 	gasPrice     uint64
 	updatePeriod uint64
@@ -138,15 +140,18 @@ type Chain struct {
 	//
 	// pk is the private key of the local miner.
 	pk *asymmetric.PrivateKey
+
+	// bus service for SQLChain
+	busService *BusService
 }
 
 // NewChain creates a new sql-chain struct.
-func NewChain(c *Config) (chain *Chain, err error) {
+func NewChain(c *Config, busService *BusService) (chain *Chain, err error) {
 	// TODO(leventeliu): this is a rough solution, you may also want to clean database file and
 	// force rebuilding.
 	var fi os.FileInfo
 	if fi, err = os.Stat(c.ChainFilePrefix + "-block-state.ldb"); err == nil && fi.Mode().IsDir() {
-		return LoadChain(c)
+		return LoadChain(c, busService)
 	}
 
 	err = c.Genesis.VerifyAsGenesis()
@@ -193,6 +198,10 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
+	// subscribe events
+	busService.Subscribe("/Transfer/", chain.updateAdvancePayment)
+	busService.Subscribe("/UpdatePermission/", chain.updatePermission)
+
 	// Create chain state
 	chain = &Chain{
 		bdb:          bdb,
@@ -207,9 +216,11 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		heights:      make(chan int32, 1),
 		responses:    make(chan *types.ResponseHeader),
 		acks:         make(chan *types.AckHeader),
+
 		tokenType:    c.TokenType,
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
+		databaseID: c.Profile.ID,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -217,6 +228,8 @@ func NewChain(c *Config) (chain *Chain, err error) {
 		replCh:              make(chan struct{}),
 
 		pk: pk,
+
+		busService: busService,
 	}
 
 	if err = chain.pushBlock(c.Genesis); err != nil {
@@ -227,7 +240,7 @@ func NewChain(c *Config) (chain *Chain, err error) {
 }
 
 // LoadChain loads the chain state from the specified database and rebuilds a memory index.
-func LoadChain(c *Config) (chain *Chain, err error) {
+func LoadChain(c *Config, busService *BusService) (chain *Chain, err error) {
 	// Open LevelDB for block and state
 	bdbFile := c.ChainFilePrefix + "-block-state.ldb"
 	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
@@ -263,6 +276,10 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		return
 	}
 
+	// subscribe events
+	busService.Subscribe("/Transfer/", chain.updateAdvancePayment)
+	busService.Subscribe("/UpdatePermission/", chain.updatePermission)
+
 	// Create chain state
 	chain = &Chain{
 		bdb:          bdb,
@@ -277,9 +294,11 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		heights:      make(chan int32, 1),
 		responses:    make(chan *types.ResponseHeader),
 		acks:         make(chan *types.AckHeader),
+
 		tokenType:    c.TokenType,
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
+		databaseID: c.Profile.ID,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -287,6 +306,8 @@ func LoadChain(c *Config) (chain *Chain, err error) {
 		replCh:              make(chan struct{}),
 
 		pk: pk,
+
+		busService: busService,
 	}
 
 	// Read state struct
@@ -623,6 +644,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 		}
 	}
 	wg.Wait()
+
 	// fire replication to observers
 	c.startStopReplication()
 	return
@@ -814,7 +836,9 @@ func (c *Chain) processBlocks() {
 		c.rt.wg.Done()
 	}()
 
-	var stash []*types.Block
+	var (
+		stash []*types.Block
+	)
 	for {
 		select {
 		case h := <-c.heights:
@@ -858,6 +882,38 @@ func (c *Chain) processBlocks() {
 							"block_height": height,
 							"block_hash":   block.BlockHash().String(),
 						}).WithError(err).Error("Failed to check and push new block")
+					} else {
+						head := c.rt.getHead()
+						currentCount := uint64(head.node.count)
+						if currentCount % c.updatePeriod == 0 {
+							ub, err := c.billing(head.node)
+							if err != nil {
+								log.WithError(err).Error("billing failed")
+							}
+							go func(ub *types.UpdateBilling) {
+								// allocate nonce
+								nonceReq := &types.NextAccountNonceReq{}
+								nonceResp := &types.NextAccountNonceResp{}
+								nonceReq.Addr = ub.Receiver
+								if err = utils.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+									// allocate nonce failed
+									log.WithError(err).Warning("allocate nonce for transaction failed")
+									return
+								}
+								ub.Nonce = nonceResp.Nonce
+								if err = ub.Sign(c.pk); err != nil {
+									log.WithError(err).Warning("sign tx failed")
+									return
+								}
+								addTxReq := types.AddTxReq{}
+								addTxResp := types.AddTxResp{}
+								addTxReq.Tx = ub
+								if err = utils.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
+									log.WithError(err).Warning("send tx failed")
+									return
+								}
+							}(ub)
+						}
 					}
 				}
 			}
@@ -1460,3 +1516,129 @@ func (c *Chain) stat() {
 	// Print xeno stats
 	c.st.Stat(c.rt.databaseID)
 }
+
+func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
+	var (
+		i, j uint64
+		minerAddr proto.AccountAddress
+		userAddr proto.AccountAddress
+		usersMap = make(map[proto.AccountAddress]uint64)
+		minersMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
+	)
+
+	for i = 0; i < c.updatePeriod && node != nil; i++ {
+		for _, ack := range node.block.Acks {
+			if minerAddr, err = crypto.PubKeyHash(ack.Signee); err != nil {
+				err = errors.Wrap(err, "billing fail: miner addr")
+				return
+			}
+			if userAddr, err = crypto.PubKeyHash(ack.Signee); err != nil {
+				err = errors.Wrap(err, "billing fail: user addr")
+				return
+			}
+
+			if ack.SignedRequestHeader().QueryType == types.ReadQuery {
+				if _, ok := minersMap[userAddr]; !ok {
+					minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
+				}
+				minersMap[userAddr][minerAddr] += 1
+				usersMap[userAddr] += 1
+			} else {
+				if _, ok := minersMap[userAddr]; !ok {
+					minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
+				}
+				minersMap[userAddr][minerAddr] += uint64(ack.SignedResponseHeader().AffectedRows)
+				usersMap[userAddr] += uint64(ack.SignedResponseHeader().AffectedRows)
+			}
+		}
+		node = node.parent
+	}
+
+	ub = types.NewUpdateBilling(&types.UpdateBillingHeader{
+		Users: make([]*types.UserCost, len(usersMap)),
+	})
+
+	i = 0
+	j = 0
+	for userAddr, cost := range usersMap {
+		ub.Users[i].User = userAddr
+		ub.Users[i].Cost = cost
+		miners := minersMap[userAddr]
+		ub.Users[i].Miners = make([]*types.MinerIncome, len(miners))
+
+		for k1, v1 := range miners {
+			ub.Users[i].Miners[j].Miner = k1
+			ub.Users[i].Miners[j].Income = v1
+			j += 1
+		}
+		j = 0
+		i += 1
+	}
+	ub.Receiver, err = c.databaseID.AccountAddress()
+	return
+}
+
+func (c *Chain) updateAdvancePayment(tx interfaces.Transaction, count uint32) {
+	var transfer *types.Transfer
+	switch t := tx.(type) {
+	case *types.Transfer:
+		transfer = t
+	default:
+		log.WithFields(log.Fields{
+			"tx_type": t.GetTransactionType().String(),
+			"tx_hash": t.Hash().String(),
+			"tx_addr": t.GetAccountAddress().String(),
+		}).WithError(ErrInvalidTransactionType)
+		return
+	}
+	if transfer.Receiver.DatabaseID() != c.databaseID {
+		return
+	}
+
+	head := c.rt.getHead()
+	for _, user := range head.Profile.Users {
+		// TODO(lambda): add token type in types.Transfer
+		if user.Address == transfer.Sender {
+			res, flow := utils.SafeAdd(user.AdvancePayment, transfer.Amount)
+			if !flow {
+				user.AdvancePayment = res
+				head.BlockHeight = int32(count)
+			}
+		}
+	}
+}
+
+func (c *Chain) updatePermission(tx interfaces.Transaction, count uint32) {
+	var up *types.UpdatePermission
+	switch t := tx.(type) {
+	case *types.UpdatePermission:
+		up = t
+	default:
+		log.WithFields(log.Fields{
+			"tx_type": t.GetTransactionType().String(),
+			"tx_hash": t.Hash().String(),
+			"tx_addr": t.GetAccountAddress().String(),
+		}).WithError(ErrInvalidTransactionType)
+		return
+	}
+	if up.TargetSQLChain.DatabaseID() != c.databaseID {
+		return
+	}
+
+	// BP checks the sender's permission on main, so it is unnecessary to do it again
+	head := c.rt.getHead()
+	newUser := true
+	for _, user := range head.Profile.Users {
+		if user.Address == up.TargetUser {
+			user.Permission = up.Permission
+			newUser = false
+		}
+	}
+	if newUser {
+		head.Profile.Users = append(head.Profile.Users, &types.SQLChainUser{
+			Address: up.TargetUser,
+			Permission: up.Permission,
+		})
+	}
+}
+

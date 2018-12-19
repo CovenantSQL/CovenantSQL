@@ -873,7 +873,7 @@ func (s *metaState) updateProviderList(tx *pt.ProvideService) (err error) {
 		TargetUser:    tx.TargetUser,
 		Deposit:       minDeposit,
 		GasPrice:      tx.GasPrice,
-		NodeID: tx.NodeID,
+		NodeID:        tx.NodeID,
 	}
 	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
 	return
@@ -932,7 +932,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 			}
 			miners[i] = &pt.MinerInfo{
 				Address: po.Provider,
-				NodeID: po.NodeID,
+				NodeID:  po.NodeID,
 				Deposit: po.Deposit,
 			}
 		}
@@ -985,7 +985,7 @@ func (s *metaState) matchProvidersWithUser(tx *pt.CreateDatabase) (err error) {
 		Owner:     sender,
 		Users:     users,
 		Genesis:   gb,
-		Miners: miners[:],
+		Miners:    miners[:],
 	}
 
 	if _, loaded := s.loadSQLChainObject(*dbID); loaded {
@@ -1107,6 +1107,59 @@ func (s *metaState) updateKeys(tx *pt.IssueKeys) (err error) {
 	return
 }
 
+func (s *metaState) updateBilling(tx *pt.UpdateBilling) (err error) {
+	sqlchainObj, loaded := s.loadSQLChainObject(tx.Receiver.DatabaseID())
+	if !loaded {
+		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
+		return
+	}
+
+	sqlchainObj.Lock()
+	defer sqlchainObj.Unlock()
+
+	if sqlchainObj.GasPrice == 0 {
+		return
+	}
+
+	// pending income to income
+	for _, miner := range sqlchainObj.Miners {
+		miner.ReceivedIncome += miner.PendingIncome
+	}
+
+	var (
+		costMap = make(map[proto.AccountAddress]uint64)
+		userMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
+	)
+	for _, userCost := range tx.Users {
+		costMap[userCost.User] = userCost.Cost
+		if _, ok := userMap[userCost.User]; !ok {
+			userMap[userCost.User] = make(map[proto.AccountAddress]uint64)
+		}
+		for _, minerIncome := range userCost.Miners {
+			userMap[userCost.User][minerIncome.Miner] += minerIncome.Income
+		}
+	}
+	for _, user := range sqlchainObj.Users {
+		if user.AdvancePayment >= costMap[user.Address] * sqlchainObj.GasPrice {
+			user.AdvancePayment -= costMap[user.Address] * sqlchainObj.GasPrice
+			for _, miner := range sqlchainObj.Miners {
+				miner.PendingIncome += userMap[user.Address][miner.Address] * sqlchainObj.GasPrice
+			}
+		} else {
+			rate := 1 - float64(user.AdvancePayment) / float64(costMap[user.Address] * sqlchainObj.GasPrice)
+			user.AdvancePayment = 0
+			for _, miner := range sqlchainObj.Miners {
+				income := userMap[user.Address][miner.Address] * sqlchainObj.GasPrice
+				minerIncome := uint64(float64(income) * rate)
+				miner.PendingIncome += minerIncome
+				for i := range miner.UserArrears {
+					miner.UserArrears[i].Arrears += (income - minerIncome)
+				}
+			}
+		}
+	}
+}
+
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *pt.Transfer:
@@ -1134,6 +1187,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.updatePermission(t)
 	case *pt.IssueKeys:
 		err = s.updateKeys(t)
+	case *pt.UpdateBilling:
+		err = s.updateBilling(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
 		err = s.applyTransaction(t.Unwrap())

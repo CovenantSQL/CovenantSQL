@@ -69,6 +69,8 @@ const (
 	TransactionTypeUpdatePermission
 	// TransactionTypeIssueKeys defines SQLChain owner assign symmetric key.
 	TransactionTypeIssueKeys
+	// TransactionTypeUpdateBilling defines SQLChain update billing information.
+	TransactionTypeUpdateBilling
 	// TransactionTypeNumber defines transaction types number.
 	TransactionTypeNumber
 )
@@ -99,6 +101,8 @@ func (t TransactionType) String() string {
 		return "UpdatePermission"
 	case TransactionTypeIssueKeys:
 		return "IssueKeys"
+	case TransactionTypeUpdateBilling:
+		return "UpdateBilling"
 	default:
 		return "Unknown"
 	}

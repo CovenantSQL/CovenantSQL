@@ -75,6 +75,12 @@ type SQLChainUser struct {
 	Status         Status
 }
 
+// UserArrears defines user's arrears.
+type UserArrears struct {
+	User proto.AccountAddress
+	Arrears uint64
+}
+
 // MinerInfo defines a miner.
 type MinerInfo struct {
 	Address        proto.AccountAddress
@@ -82,6 +88,7 @@ type MinerInfo struct {
 	Name           string
 	PendingIncome  uint64
 	ReceivedIncome uint64
+	UserArrears []*UserArrears
 	Deposit        uint64
 	Status         Status
 	EncryptionKey  string
@@ -93,6 +100,7 @@ type SQLChainProfile struct {
 	Address  proto.AccountAddress
 	Period   uint64
 	GasPrice uint64
+	LastUpdatedHeight uint32
 
 	TokenType TokenType
 
@@ -115,7 +123,7 @@ type ProviderProfile struct {
 	Deposit       uint64 // default 10 Particle
 	GasPrice      uint64
 	TokenType     TokenType // default Particle
-	NodeID proto.NodeID
+	NodeID        proto.NodeID
 }
 
 // Account store its balance, and other mate data.

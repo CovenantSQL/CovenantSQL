@@ -70,13 +70,14 @@ type Database struct {
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *proto.Peers,
+	profile *types.SQLChainProfile, busService *sqlchain.BusService) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
 	}
 
-	if peers == nil || genesisBlock == nil {
+	if peers == nil || profile.Genesis == nil {
 		err = ErrInvalidDBConfig
 		return
 	}
@@ -126,7 +127,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 		DatabaseID:      cfg.DatabaseID,
 		ChainFilePrefix: chainFile,
 		DataFile:        storageDSN.Format(),
-		Genesis:         genesisBlock,
+		Genesis:         profile.Genesis,
 		Peers:           peers,
 
 		// TODO(xq262144): should refactor server/node definition to conf/proto package
@@ -138,8 +139,10 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 		Period:   60 * time.Second,
 		Tick:     10 * time.Second,
 		QueryTTL: 10,
+
+		Profile: profile,
 	}
-	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
+	if db.chain, err = sqlchain.NewChain(chainCfg, busService); err != nil {
 		return
 	} else if err = db.chain.Start(); err != nil {
 		return

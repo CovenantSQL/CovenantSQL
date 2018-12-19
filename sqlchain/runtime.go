@@ -118,7 +118,7 @@ func newRunTime(c *Config) (r *runtime) {
 		}(),
 		total:    int32(len(c.Peers.Servers)),
 		nextTurn: 1,
-		head:     &state{},
+		head:     &state{Profile: c.Profile},
 		offset:   time.Duration(0),
 	}
 

@@ -61,7 +61,13 @@ func TestCreate(t *testing.T) {
 		var dsn string
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
-		So(dsn, ShouldEqual, "covenantsql://db")
+
+		recoveredCfg, err := ParseDSN(dsn)
+		So(err, ShouldBeNil)
+		So(recoveredCfg, ShouldResemble, &Config{
+			DatabaseID: "db",
+			UseLeader:  true,
+		})
 	})
 }
 

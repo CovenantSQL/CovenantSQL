@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type adapterConfig struct {

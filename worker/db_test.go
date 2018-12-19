@@ -18,6 +18,7 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -631,6 +632,7 @@ func buildQueryEx(queryType types.QueryType, connID uint64, seqNo uint64, timeSh
 			Queries: realQueries,
 		},
 	}
+	query.SetContext(context.Background())
 
 	err = query.Sign(privateKey)
 

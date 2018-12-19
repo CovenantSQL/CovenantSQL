@@ -35,10 +35,13 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -316,7 +319,7 @@ func stopNodes() {
 func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	Convey("test full process", t, func() {
+	Convey("test full process", t, func(c C) {
 		startNodes()
 		defer stopNodes()
 		var err error
@@ -384,6 +387,68 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(resultBytes, ShouldResemble, []byte("ha\001ppy"))
 
+		Convey("test query cancel", FailureContinues, func(c C) {
+			/* test cancel write query */
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				db.Exec("INSERT INTO test VALUES(sleep(10000000000))")
+			}()
+			time.Sleep(time.Second)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var err error
+				_, err = db.Exec("UPDATE test SET test = 100;")
+				// should be canceled
+				c.So(err, ShouldNotBeNil)
+			}()
+			time.Sleep(time.Second)
+			for _, n := range conf.GConf.KnownNodes {
+				if n.Role == proto.Miner {
+					rpc.GetSessionPoolInstance().Remove(n.ID)
+				}
+			}
+			time.Sleep(time.Second)
+
+			// ensure connection
+			db.Query("SELECT 1")
+
+			// test before write operation complete
+			var result int
+			err = db.QueryRow("SELECT * FROM test WHERE test = 4 LIMIT 1").Scan(&result)
+			c.So(err, ShouldBeNil)
+			c.So(result, ShouldEqual, 4)
+
+			wg.Wait()
+
+			/* test cancel read query */
+			go func() {
+				_, err = db.Query("SELECT * FROM test WHERE test = sleep(10000000000)")
+				// call write query using read query interface
+				//_, err = db.Query("INSERT INTO test VALUES(sleep(10000000000))")
+				c.So(err, ShouldNotBeNil)
+			}()
+			time.Sleep(time.Second)
+			for _, n := range conf.GConf.KnownNodes {
+				if n.Role == proto.Miner {
+					rpc.GetSessionPoolInstance().Remove(n.ID)
+				}
+			}
+			time.Sleep(time.Second)
+			// ensure connection
+			db.Query("SELECT 1")
+
+			/* test long running write query */
+			row = db.QueryRow("SELECT * FROM test WHERE test = 10000000000 LIMIT 1")
+			err = row.Scan(&result)
+			c.So(err, ShouldBeNil)
+			c.So(result, ShouldEqual, 10000000000)
+
+			c.So(err, ShouldBeNil)
+		})
+
 		err = db.Close()
 		So(err, ShouldBeNil)
 
@@ -427,14 +492,17 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				ii := atomic.AddInt64(&i, 1)
+				index := ROWSTART + ii
+				//start := time.Now()
 				_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
-					"(?, ?)", ROWSTART+ii, ii,
+					"(?, ?)", index, ii,
 				)
+				//log.Warnf("Insert index = %d %v", index, time.Since(start))
 				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
-					log.Warnf("ROWSTART+ii = %d retried", ROWSTART+ii)
+					log.Warnf("index = %d retried", index)
 					_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
-						"(?, ?)", ROWSTART+ii, ii,
+						"(?, ?)", index, ii,
 					)
 				}
 				if err != nil {
@@ -470,7 +538,9 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 					index = rand.Int63n(count - 1)
 				}
 				//log.Debugf("index = %d", index)
+				//start := time.Now()
 				row := db.QueryRow("SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
+				//log.Warnf("Select index = %d %v", index, time.Since(start))
 				var result []byte
 				err = row.Scan(&result)
 				if err != nil || (len(result) == 0) {

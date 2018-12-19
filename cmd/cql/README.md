@@ -30,12 +30,13 @@ INFO[0000] covenant coin balance is: 0                   caller="main.go:247 mai
 ```
 Here, I got **"stable coin balance is: 100"**.
 
-## Initialize a CovenantSQL `cli`
+## Initialize a CovenantSQL `cql`
 
-After you prepare your master key and config file, CovenantSQL `cli` can be initialized by:
+After you prepare your master key and config file, CovenantSQL `cql` can be initialized by:
 You can get a database id when create a new SQL Chain:
 
 ```bash
+# if a non-default password applied on master key, use `-password` to pass it
 $ cql -config conf/config.yaml -create 1
 INFO[0000]
 ### Public Key ###

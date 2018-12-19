@@ -24,7 +24,7 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

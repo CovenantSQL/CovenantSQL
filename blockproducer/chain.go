@@ -208,7 +208,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		err = ErrLocalNodeNotFound
 		return
 	}
-	if t = cfg.ComfirmThreshold; t <= 0.0 {
+	if t = cfg.ConfirmThreshold; t <= 0.0 {
 		t = float64(2) / 3.0
 	}
 	if m = uint32(math.Ceil(float64(l)*t + 1)); m > l {

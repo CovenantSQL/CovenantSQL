@@ -38,7 +38,7 @@ type Config struct {
 
 	Peers            *proto.Peers
 	NodeID           proto.NodeID
-	ComfirmThreshold float64
+	ConfirmThreshold float64
 
 	Period time.Duration
 	Tick   time.Duration

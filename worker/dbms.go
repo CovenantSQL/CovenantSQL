@@ -140,12 +140,6 @@ func (dbms *DBMS) writeMeta() (err error) {
 		return true
 	})
 
-	dbms.chainMap.Range(func(key, value interface{}) bool {
-		dbID := key.(proto.DatabaseID)
-		meta.ChainState[dbID] = value.(types.ChainState)
-		return true
-	})
-
 	var buf *bytes.Buffer
 	if buf, err = utils.EncodeMsgPack(meta); err != nil {
 		return
@@ -188,8 +182,47 @@ func (dbms *DBMS) Init() (err error) {
 		err = errors.Wrap(err, "init chain bus failed")
 		return
 	}
+	if err = dbms.busService.Subscribe("/UpdateBilling/", dbms.updateBilling); err != nil {
+		err = errors.Wrap(err, "init chain bus failed")
+		return
+	}
 
 	return
+}
+
+func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
+	var ub *types.UpdateBilling
+	switch t := tx.(type) {
+	case *types.UpdateBilling:
+		ub = t
+	default:
+		log.WithError(ErrInvalidTransactionType).Warning("unexpected error")
+		return
+	}
+
+	s, ok := dbms.chainMap.Load(ub.Receiver.DatabaseID())
+	if !ok {
+		return
+	}
+
+	var (
+		dbid = ub.Receiver.DatabaseID()
+		state = s.(types.UserState)
+	)
+
+	p, err := dbms.busService.RequestSQLProfile(&dbid)
+	if err != nil {
+		log.WithError(err).Warning("failed to call bp")
+		return
+	}
+
+	for _, user := range p.Users {
+		state.State[user.Address] = &types.PermStat{
+			Permission: user.Permission,
+			Status: user.Status,
+		}
+	}
+	dbms.chainMap.Store(ub.Receiver.DatabaseID(), state)
 }
 
 func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
@@ -204,10 +237,15 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 
 	var (
 		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
-		p             = dbms.busService.RequestSQLProfile(dbid)
-		nodeIDs       = make([]proto.NodeID, len(p.Miners))
 		isTargetMiner = false
 	)
+	p, err := dbms.busService.RequestSQLProfile(dbid)
+	if err != nil {
+		log.WithError(err).Warning("failed to call bp")
+		return
+	}
+
+	nodeIDs := make([]proto.NodeID, len(p.Miners))
 
 	for i, mi := range p.Miners {
 		if mi.Address == dbms.address {
@@ -218,6 +256,16 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	if !isTargetMiner {
 		return
 	}
+
+	state := types.NewUserState()
+	for _, user := range p.Users {
+		state.State[user.Address] = &types.PermStat{
+			Permission: user.Permission,
+			Status: user.Status,
+		}
+	}
+
+	dbms.chainMap.Store(dbid, state)
 
 	peers := proto.Peers{
 		PeersHeader: proto.PeersHeader{
@@ -232,7 +280,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		GenesisBlock: p.Genesis,
 		Profile:      p,
 	}
-	err := dbms.Create(&si, true)
+	err = dbms.Create(&si, true)
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
@@ -253,17 +301,9 @@ func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
 		return
 	}
 
-	newState := state.(types.ChainState)
-	err := newState.UpdatePermission(up, count)
-	if err != nil {
-		log.WithError(err).Debug("unexpected error")
-		return
-	}
+	newState := state.(types.UserState)
+	newState.UpdatePermission(up.TargetUser, up.Permission)
 	dbms.chainMap.Store(up.TargetSQLChain.DatabaseID(), newState)
-	err = dbms.writeMeta()
-	if err != nil {
-		log.WithError(err).Debug("unexpected error")
-	}
 }
 
 func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (err error) {
@@ -283,15 +323,6 @@ func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (e
 		if _, exists := currentInstance[dbID]; !exists {
 			toDropInstance[dbID] = true
 		}
-	}
-
-	// init chain state
-	for dbID, state := range meta.ChainState {
-		dbms.chainMap.Store(dbID, state)
-	}
-	err = dbms.writeMeta()
-	if err != nil {
-		return
 	}
 
 	// drop database
@@ -444,14 +475,6 @@ func (dbms *DBMS) addMeta(dbID proto.DatabaseID, db *Database) (err error) {
 	return dbms.writeMeta()
 }
 
-func (dbms *DBMS) addState(dbID proto.DatabaseID, state *types.ChainState) (err error) {
-	if _, alreadyExists := dbms.chainMap.LoadOrStore(dbID, state); alreadyExists {
-		return ErrAlreadyExists
-	}
-
-	return dbms.writeMeta()
-}
-
 func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 	dbms.dbMap.Delete(dbID)
 	return dbms.writeMeta()
@@ -488,36 +511,34 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request)
 	}
 
 	var (
-		i    int
-		user *types.SQLChainUser
-		s    = state.(types.ChainState)
+		s    = state.(types.UserState)
 	)
 
-	for i, user = range s.Users {
-		if user.Address == addr {
-			break
+	if permStat, ok := s.State[addr]; ok {
+		if !permStat.Status.EnableQuery() {
+			err = ErrPermissionDeny
+			return
 		}
-	}
-	profileLen := len(s.Users)
-	if i < profileLen && profileLen > 0 {
 		if req.Header.QueryType == types.ReadQuery {
-			if s.Users[i].Permission > types.Read {
+			if !permStat.Permission.CheckRead() {
 				err = ErrPermissionDeny
 				return
 			}
 		} else if req.Header.QueryType == types.WriteQuery {
-			if s.Users[i].Permission > types.Write {
+			if !permStat.Permission.CheckWrite() {
 				err = ErrPermissionDeny
 				return
 			}
 		} else {
 			err = ErrInvalidPermission
 			return
+
 		}
 	} else {
 		err = ErrPermissionDeny
 		return
 	}
+
 	return
 }
 

@@ -49,6 +49,22 @@ const (
 	NumberOfUserPermission
 )
 
+// CheckRead returns true if user owns read permission.
+func (up *UserPermission) CheckRead() bool {
+	return *up >= Admin && *up < NumberOfUserPermission
+}
+
+// CheckWrite returns true if user owns write permission.
+func (up *UserPermission) CheckWrite() bool {
+	return *up >= Admin && *up <= Write
+}
+
+
+// CheckAdmin returns true if user owns admin permission.
+func (up *UserPermission) CheckAdmin() bool {
+	return *up == Admin
+}
+
 // Status defines status of a SQLChain user/miner.
 type Status int32
 
@@ -64,6 +80,10 @@ const (
 	// NumberOfStatus defines the number of status.
 	NumberOfStatus
 )
+
+func (s *Status) EnableQuery() bool {
+	return *s >= Normal && *s <= Reminder
+}
 
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {

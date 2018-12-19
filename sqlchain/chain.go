@@ -1543,4 +1543,3 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	ub.Receiver, err = c.databaseID.AccountAddress()
 	return
 }
-

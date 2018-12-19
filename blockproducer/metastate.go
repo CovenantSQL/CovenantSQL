@@ -852,6 +852,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		} else {
 			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*sqlchainObj.GasPrice)
 			user.AdvancePayment = 0
+			user.Status = types.Arrears
 			for _, miner := range sqlchainObj.Miners {
 				income := userMap[user.Address][miner.Address] * sqlchainObj.GasPrice
 				minerIncome := uint64(float64(income) * rate)

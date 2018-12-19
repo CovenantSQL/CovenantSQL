@@ -380,7 +380,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	// Set chain state
 	st.node = last
 	chain.rt.setHead(st)
-	chain.st.InitTx(id)
+	chain.st.SetSeq(id)
 	chain.pruneBlockCache()
 
 	// Read queries and rebuild memory index

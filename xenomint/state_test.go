@@ -163,7 +163,7 @@ func TestState(t *testing.T) {
 				}), &types.Response{
 					Header: types.SignedResponseHeader{
 						ResponseHeader: types.ResponseHeader{
-							LogOffset: st1.getID(),
+							LogOffset: st1.getSeq(),
 						},
 					},
 				})
@@ -179,7 +179,7 @@ func TestState(t *testing.T) {
 				}), &types.Response{
 					Header: types.SignedResponseHeader{
 						ResponseHeader: types.ResponseHeader{
-							LogOffset: st1.getID(),
+							LogOffset: st1.getSeq(),
 						},
 					},
 				})

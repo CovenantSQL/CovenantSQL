@@ -91,10 +91,11 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		ok      bool
 		ierr    error
 
-		cld, ccl = context.WithCancel(ctx)
-		l        = uint32(len(cfg.Peers.Servers))
-		t        float64
-		m        uint32
+		cld context.Context
+		ccl context.CancelFunc
+		l   = uint32(len(cfg.Peers.Servers))
+		t   float64
+		m   uint32
 
 		st        xi.Storage
 		irre      *blockNode
@@ -178,6 +179,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		if v.hasAncestor(irre) {
 			if br, ierr = fork(irre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
+				return
 			}
 			branches = append(branches, br)
 		}
@@ -216,6 +218,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// create chain
+	cld, ccl = context.WithCancel(ctx)
 	c = &Chain{
 		ctx:    cld,
 		cancel: ccl,

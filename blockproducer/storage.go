@@ -316,10 +316,10 @@ func loadBlocks(
 		headsIndex = make(map[hash.Hash]*blockNode)
 
 		// Scan buffer
-		id     uint32
-		v1     uint32
-		v2, v3 string
-		v4     []byte
+		id           uint32
+		height       uint32
+		bnHex, pnHex string
+		enc          []byte
 
 		ok     bool
 		bh, ph hash.Hash
@@ -336,27 +336,27 @@ func loadBlocks(
 
 	for rows.Next() {
 		// Scan and decode block
-		if err = rows.Scan(&id, &v1, &v2, &v3, &v4); err != nil {
+		if err = rows.Scan(&id, &height, &bnHex, &pnHex, &enc); err != nil {
 			return
 		}
-		if err = hash.Decode(&bh, v2); err != nil {
+		if err = hash.Decode(&bh, bnHex); err != nil {
 			return
 		}
-		if err = hash.Decode(&ph, v3); err != nil {
+		if err = hash.Decode(&ph, pnHex); err != nil {
 			return
 		}
 		var dec = &types.BPBlock{}
-		if err = utils.DecodeMsgPack(v4, dec); err != nil {
+		if err = utils.DecodeMsgPack(enc, dec); err != nil {
 			return
 		}
 		log.WithFields(log.Fields{
 			"rowid":  id,
-			"height": v1,
+			"height": height,
 			"hash":   bh.Short(4),
 			"parent": ph.Short(4),
 		}).Debug("loaded new block")
 		// Add genesis block
-		if v1 == 0 {
+		if height == 0 {
 			if len(index) != 0 {
 				err = ErrMultipleGenesis
 				return
@@ -366,7 +366,7 @@ func loadBlocks(
 			headsIndex[bh] = bn
 			log.WithFields(log.Fields{
 				"rowid":  id,
-				"height": v1,
+				"height": height,
 				"hash":   bh.Short(4),
 				"parent": ph.Short(4),
 			}).Debug("set genesis block")
@@ -377,7 +377,7 @@ func loadBlocks(
 			err = errors.Wrapf(ErrParentNotFound, "parent %s not found", ph.Short(4))
 			return
 		}
-		bn = newBlockNode(v1, dec, pn)
+		bn = newBlockNode(height, dec, pn)
 		index[bh] = bn
 		if _, ok = headsIndex[ph]; ok {
 			delete(headsIndex, ph)

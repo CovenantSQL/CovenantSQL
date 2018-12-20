@@ -89,5 +89,6 @@ case $param in
         build_client
         ;;
 esac
+
 echo "done"
 

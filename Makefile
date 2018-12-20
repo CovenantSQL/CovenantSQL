@@ -1,4 +1,4 @@
-default: build
+default: docker
 
 IMAGE := covenantsql/covenantsql
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
@@ -15,7 +15,7 @@ IMAGE_TAR_GZ := $(IMAGE_TAR).gz
 status:
 	@echo "Commit: $(COMMIT) Version: $(VERSION) Ship Version: $(SHIP_VERSION)"
 
-build: status
+docker: status
 	docker build \
 		--tag $(IMAGE):$(VERSION) \
 		--tag $(IMAGE):latest \
@@ -35,6 +35,9 @@ start:
 	docker-compose up --no-start
 	docker-compose start
 
+stop:
+	docker-compose down
+
 logs:
 	docker-compose logs -f --tail=10
 
@@ -42,4 +45,16 @@ push:
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
-.PHONY: status build save start logs push
+bp:
+	./build.sh bp
+
+miner:
+	./build.sh miner
+
+client:
+	./build.sh client
+
+all:
+	./build.sh
+
+.PHONY: status docker save start stop logs push bp miner client all

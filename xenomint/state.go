@@ -422,7 +422,10 @@ func (s *State) write(
 	}()
 
 	if err = func() (err error) {
-		var ierr error
+		var (
+			ierr error
+			qcnt = len(req.Payload.Queries)
+		)
 		s.Lock()
 		lockAcquired = time.Since(start)
 		defer func() {
@@ -430,6 +433,14 @@ func (s *State) write(
 			lockReleased = time.Since(start)
 		}()
 		lastSeq = s.getSeq()
+		if qcnt > 1 {
+			// Set savepoint
+			if _, ierr = s.unc.Exec(`SAVEPOINT "?"`, lastSeq); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to create savepoint %d", lastSeq)
+				return
+			}
+			defer s.unc.Exec(`ROLLBACK TO "?"`, lastSeq)
+		}
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
 			if res, ierr = s.writeSingle(ctx, &v); ierr != nil {
@@ -443,6 +454,13 @@ func (s *State) write(
 			curAffectedRows, _ = res.RowsAffected()
 			lastInsertID, _ = res.LastInsertId()
 			totalAffectedRows += curAffectedRows
+		}
+		if qcnt > 1 {
+			// Release savepoint
+			if _, ierr = s.unc.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to release savepoint %d", lastSeq)
+				return
+			}
 		}
 		// Try to commit if the ongoing tx is too large or schema is changed
 		if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||

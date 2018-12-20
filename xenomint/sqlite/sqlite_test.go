@@ -628,6 +628,78 @@ func BenchmarkStorage(b *testing.B) {
 	}
 }
 
+func setupBenchmarkLargeWriteTx(
+	b *testing.B, st xi.Storage, e string, src [][]interface{}, n int) (tx *sql.Tx,
+) {
+	var err error
+	ipkg.reset()
+	if tx, err = st.Writer().Begin(); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	}
+	for i := 0; i < n; i++ {
+		if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
+			b.Fatalf("Failed to setup bench environment: %v", err)
+		}
+	}
+	if _, err = tx.Exec(`SAVEPOINT "xmark"`); err != nil {
+		b.Fatalf("Failed to setup bench environment: %v", err)
+	}
+	return
+}
+
+func resetBenchmarkLargeWriteTx(b *testing.B, tx *sql.Tx) {
+	var err error
+	b.StopTimer()
+	if _, err := tx.Exec(`ROLLBACK TO "xmark"`); err != nil {
+		b.Fatalf("Failed to reset bench environment: %v", err)
+	}
+	if _, err = tx.Exec(`SAVEPOINT "xmark"`); err != nil {
+		b.Fatalf("Failed to reset bench environment: %v", err)
+	}
+}
+
+func teardownBenchmarkLargeWriteTx(b *testing.B, tx *sql.Tx) {
+	if err := tx.Rollback(); err != nil {
+		b.Fatalf("Failed to teardown bench environment: %v", err)
+	}
+}
+
+func BenchmarkLargeWriteTx(b *testing.B) {
+	var (
+		st, _, _, e, src = setupBenchmarkStorage(b)
+
+		profiles = [...]int{0, 10, 100, 1000, 10000, 100000}
+		err      error
+	)
+	for _, v := range profiles {
+		func() {
+			var tx = setupBenchmarkLargeWriteTx(b, st, e, src, v)
+			defer teardownBenchmarkLargeWriteTx(b, tx)
+
+			b.Run(fmt.Sprintf("%s#%d", b.Name(), v), func(b *testing.B) {
+				defer resetBenchmarkLargeWriteTx(b, tx)
+				for i := 0; i < b.N; i++ {
+					if _, err = tx.Exec(e, src[ipkg.next()]...); err != nil {
+						b.Errorf("Failed to execute: %v", err)
+					}
+				}
+			})
+		}()
+	}
+	// A simple commit duration testing, but not benchmark
+	for _, v := range profiles {
+		var (
+			tx    = setupBenchmarkLargeWriteTx(b, st, e, src, v)
+			start = time.Now()
+		)
+		if err = tx.Commit(); err != nil {
+			b.Errorf("Failed to commit: %v", err)
+		}
+		b.Logf("Commit %d writes in %.3fms", v, float64(time.Since(start).Nanoseconds())/1000000)
+	}
+	teardownBenchmarkStorage(b, st)
+}
+
 //func BenchmarkStorageSequentialDirtyRead(b *testing.B) {
 //	var (
 //		st, q, dm, _, _ = setupBenchmarkStorage(b)

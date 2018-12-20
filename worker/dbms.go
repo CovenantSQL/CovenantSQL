@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -45,7 +46,7 @@ const (
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
 
-	CheckInterval = 1
+	CheckInterval = time.Second
 )
 
 // DBMS defines a database management instance.

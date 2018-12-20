@@ -59,7 +59,6 @@ func (up *UserPermission) CheckWrite() bool {
 	return *up >= Admin && *up <= Write
 }
 
-
 // CheckAdmin returns true if user owns admin permission.
 func (up *UserPermission) CheckAdmin() bool {
 	return *up == Admin

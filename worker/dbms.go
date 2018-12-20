@@ -206,7 +206,7 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 	}
 
 	var (
-		dbid = ub.Receiver.DatabaseID()
+		dbid  = ub.Receiver.DatabaseID()
 		state = s.(types.UserState)
 	)
 
@@ -219,7 +219,7 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 	for _, user := range p.Users {
 		state.State[user.Address] = &types.PermStat{
 			Permission: user.Permission,
-			Status: user.Status,
+			Status:     user.Status,
 		}
 	}
 	dbms.chainMap.Store(ub.Receiver.DatabaseID(), state)
@@ -261,7 +261,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	for _, user := range p.Users {
 		state.State[user.Address] = &types.PermStat{
 			Permission: user.Permission,
-			Status: user.Status,
+			Status:     user.Status,
 		}
 	}
 
@@ -511,7 +511,7 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request)
 	}
 
 	var (
-		s    = state.(types.UserState)
+		s = state.(types.UserState)
 	)
 
 	if permStat, ok := s.State[addr]; ok {

@@ -70,7 +70,7 @@ func newProvideService(
 	t *types.ProvideService, err error,
 ) {
 	t = types.NewProvideService(&types.ProvideServiceHeader{
-		Nonce:    nonce,
+		Nonce: nonce,
 	})
 	err = t.Sign(signer)
 	return

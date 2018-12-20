@@ -22,7 +22,7 @@ import (
 
 type PermStat struct {
 	Permission UserPermission
-	Status Status
+	Status     Status
 }
 
 type UserState struct {

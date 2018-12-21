@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+
 	//"runtime/trace"
 	"sync"
 	"time"
@@ -203,7 +204,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 	case types.ReadQuery:
 		return db.chain.Query(request)
 	case types.WriteQuery:
-		if db.cfg.EventualConsistency {
+		if db.cfg.ConsistencyLevel <= 0 {
 			// reset context
 			request.SetContext(context.Background())
 			return db.chain.Query(request)

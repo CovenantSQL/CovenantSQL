@@ -209,14 +209,14 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// new db
 	dbCfg := &DBConfig{
-		DatabaseID:          instance.DatabaseID,
-		DataDir:             rootDir,
-		KayakMux:            dbms.kayakMux,
-		ChainMux:            dbms.chainMux,
-		MaxWriteTimeGap:     dbms.cfg.MaxReqTimeGap,
-		EncryptionKey:       instance.ResourceMeta.EncryptionKey,
-		SpaceLimit:          instance.ResourceMeta.Space,
-		EventualConsistency: instance.ResourceMeta.EventualConsistency,
+		DatabaseID:       instance.DatabaseID,
+		DataDir:          rootDir,
+		KayakMux:         dbms.kayakMux,
+		ChainMux:         dbms.chainMux,
+		MaxWriteTimeGap:  dbms.cfg.MaxReqTimeGap,
+		EncryptionKey:    instance.ResourceMeta.EncryptionKey,
+		SpaceLimit:       instance.ResourceMeta.Space,
+		ConsistencyLevel: instance.ResourceMeta.ConsistencyLevel,
 	}
 
 	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {

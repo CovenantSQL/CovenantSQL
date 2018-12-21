@@ -17,7 +17,10 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
+	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 
@@ -27,6 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/ugorji/go/codec"
 )
 
 func getCommKeys() (*asymmetric.PrivateKey, *asymmetric.PublicKey) {
@@ -689,4 +693,119 @@ func TestQueryTypeStringer(t *testing.T) {
 			So(v.s, ShouldEqual, fmt.Sprintf("%v", v.i))
 		}
 	})
+}
+
+func benchmarkEnc(b *testing.B, v interface{}) {
+	var (
+		h = &codec.MsgpackHandle{
+			WriteExt:    true,
+			RawToString: true,
+		}
+		err error
+	)
+	for i := 0; i < b.N; i++ {
+		var enc = codec.NewEncoder(bytes.NewBuffer(nil), h)
+		if err = enc.Encode(v); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func benchmarkDec(b *testing.B, v interface{}) {
+	var (
+		r   []byte
+		err error
+
+		h = &codec.MsgpackHandle{
+			WriteExt:    true,
+			RawToString: true,
+		}
+		enc   = codec.NewEncoderBytes(&r, h)
+		recvt = reflect.ValueOf(v).Elem().Type()
+		recvs = make([]interface{}, b.N)
+	)
+	// Encode v and make receivers
+	if err = enc.Encode(v); err != nil {
+		b.Error(err)
+	}
+	for i := range recvs {
+		recvs[i] = reflect.New(recvt).Interface()
+	}
+	b.ResetTimer()
+	// Start benchmark
+	for i := 0; i < b.N; i++ {
+		var dec = codec.NewDecoder(bytes.NewReader(r), h)
+		if err = dec.Decode(recvs[i]); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+type ver interface {
+	Verify() error
+}
+
+type ser interface {
+	Sign(*asymmetric.PrivateKey) error
+}
+
+func benchmarkVerify(b *testing.B, v ver) {
+	var err error
+	for i := 0; i < b.N; i++ {
+		if err = v.Verify(); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func benchmarkSign(b *testing.B, s ser) {
+	var err error
+	for i := 0; i < b.N; i++ {
+		if err = s.Sign(testingPrivateKey); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func BenchmarkTypes(b *testing.B) {
+	var (
+		// Build a approximate 1KB request
+		req = buildRequest(WriteQuery, []Query{
+			buildQuery(
+				`INSERT INTO "t1" VALUES (?, ?, ?, ?)`,
+				rand.Int(),
+				randBytes(333),
+				randBytes(333),
+				randBytes(333),
+			),
+		})
+		// Build a approximate 1KB response with the previous request header
+		resp = buildResponse(
+			&req.Header,
+			[]string{"k", "v1", "v2", "v3"},
+			[]string{"INT", "TEXT", "TEXT", "TEXT"},
+			[]ResponseRow{
+				{
+					Values: []interface{}{
+						rand.Int(),
+						randBytes(333),
+						randBytes(333),
+						randBytes(333),
+					},
+				},
+			},
+		)
+	)
+	var subjects = [...]interface{}{req, resp}
+	for _, v := range subjects {
+		var name = reflect.ValueOf(v).Elem().Type().Name()
+		b.Run(fmt.Sprint(name, "Enc"), func(b *testing.B) { benchmarkEnc(b, v) })
+		b.Run(fmt.Sprint(name, "Dec"), func(b *testing.B) { benchmarkDec(b, v) })
+		if x, ok := v.(ver); ok {
+			b.Run(fmt.Sprint(name, "Verify"), func(b *testing.B) { benchmarkVerify(b, x) })
+		}
+		if x, ok := v.(ser); ok {
+			b.Run(fmt.Sprint(name, "Sign"), func(b *testing.B) { benchmarkSign(b, x) })
+		}
+	}
 }

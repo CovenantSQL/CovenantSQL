@@ -108,11 +108,11 @@ func (n *blockNode) hasAncestor(anc *blockNode) bool {
 	return match != nil && match.hash == anc.hash
 }
 
-func (n *blockNode) canForkFrom(
-	parent hash.Hash, lastIrreCount uint32) (match *blockNode, ok bool,
+func (n *blockNode) hasAncestorWithMinCount(
+	blockHash hash.Hash, minCount uint32) (match *blockNode, ok bool,
 ) {
-	for match = n; match.count >= lastIrreCount; match = match.parent {
-		if match.hash.IsEqual(&parent) {
+	for match = n; match.count >= minCount; match = match.parent {
+		if match.hash.IsEqual(&blockHash) {
 			ok = true
 			return
 		}

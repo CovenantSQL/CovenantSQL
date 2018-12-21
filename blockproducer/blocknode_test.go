@@ -131,17 +131,17 @@ func TestBlockNode(t *testing.T) {
 			ok bool
 		)
 
-		f, ok = n4.canForkFrom(n2.hash, n0.count)
+		f, ok = n4.hasAncestorWithMinCount(n2.hash, n0.count)
 		So(ok, ShouldBeTrue)
 		So(f, ShouldEqual, n2)
-		f, ok = n4.canForkFrom(n4.hash, n0.count)
+		f, ok = n4.hasAncestorWithMinCount(n4.hash, n0.count)
 		So(ok, ShouldBeTrue)
 		So(f, ShouldEqual, n4)
-		f, ok = n4.canForkFrom(n0.hash, n2.count)
+		f, ok = n4.hasAncestorWithMinCount(n0.hash, n2.count)
 		So(ok, ShouldBeFalse)
-		f, ok = n4.canForkFrom(n3p.hash, n2.count)
+		f, ok = n4.hasAncestorWithMinCount(n3p.hash, n2.count)
 		So(ok, ShouldBeFalse)
-		f, ok = n4p.canForkFrom(n3.hash, n2.count)
+		f, ok = n4p.hasAncestorWithMinCount(n3.hash, n2.count)
 		So(ok, ShouldBeFalse)
 	})
 }

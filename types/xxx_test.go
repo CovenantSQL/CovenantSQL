@@ -33,8 +33,10 @@ import (
 )
 
 var (
-	genesisHash = hash.Hash{}
-	uuidLen     = 32
+	uuidLen           = 32
+	genesisHash       = hash.Hash{}
+	testingPrivateKey *asymmetric.PrivateKey
+	testingPublicKey  *asymmetric.PublicKey
 )
 
 const (
@@ -46,22 +48,27 @@ func generateRandomSQLChainUser() *SQLChainUser {
 		Address:    proto.AccountAddress(generateRandomHash()),
 		Permission: UserPermission(rand.Int31n(int32(NumberOfUserPermission))),
 	}
+
 }
 
 func generateRandomSQLChainUsers(n int) (users []*SQLChainUser) {
 	users = make([]*SQLChainUser, n)
 	for i := range users {
 		users[i] = generateRandomSQLChainUser()
+
 	}
 	return
+
 }
 
 func generateRandomAccountAddresses(n int) (s []proto.AccountAddress) {
 	s = make([]proto.AccountAddress, n)
 	for i := range s {
 		s[i] = proto.AccountAddress(generateRandomHash())
+
 	}
 	return
+
 }
 
 func generateRandomProfile() *SQLChainProfile {
@@ -70,6 +77,7 @@ func generateRandomProfile() *SQLChainProfile {
 		Owner: proto.AccountAddress(generateRandomHash()),
 		Users: generateRandomSQLChainUsers(rand.Intn(10) + 1),
 	}
+
 }
 
 func generateRandomAccount() *Account {
@@ -78,41 +86,50 @@ func generateRandomAccount() *Account {
 		TokenBalance: [SupportTokenNumber]uint64{rand.Uint64(), rand.Uint64()},
 		Rating:       rand.Float64(),
 	}
+
 }
 
 func generateRandomBytes(n int32) []byte {
 	s := make([]byte, n)
 	for i := range s {
 		s[i] = byte(rand.Int31n(2))
+
 	}
 	return s
+
 }
 
 func generateRandomHash() hash.Hash {
 	h := hash.Hash{}
 	rand.Read(h[:])
 	return h
+
 }
 
 func generateRandomDatabaseID() *proto.DatabaseID {
 	id := proto.DatabaseID(randStringBytes(uuidLen))
 	return &id
+
 }
 
 func generateRandomDatabaseIDs(n int32) []proto.DatabaseID {
 	s := make([]proto.DatabaseID, n)
 	for i := range s {
 		s[i] = proto.DatabaseID(randStringBytes(uuidLen))
+
 	}
 	return s
+
 }
 
 func randStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+
 	}
 	return string(b)
+
 }
 
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err error) {
@@ -121,6 +138,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err erro
 
 	if err != nil {
 		return
+
 	}
 
 	h := hash.Hash{}
@@ -141,12 +159,15 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err erro
 		tb, err := generateRandomBilling()
 		if err != nil {
 			return nil, err
+
 		}
 		b.Transactions = append(b.Transactions, tb)
+
 	}
 
 	err = b.PackAndSignBlock(priv)
 	return
+
 }
 
 func generateRandomBillingRequestHeader() *BillingRequestHeader {
@@ -158,6 +179,7 @@ func generateRandomBillingRequestHeader() *BillingRequestHeader {
 		HighHeight: rand.Int31(),
 		GasAmounts: generateRandomGasAmount(peerNum),
 	}
+
 }
 
 func generateRandomBillingRequest() (req *BillingRequest, err error) {
@@ -167,6 +189,7 @@ func generateRandomBillingRequest() (req *BillingRequest, err error) {
 	}
 	if _, err = req.PackRequestHeader(); err != nil {
 		return nil, err
+
 	}
 
 	for i := 0; i < peerNum; i++ {
@@ -175,29 +198,36 @@ func generateRandomBillingRequest() (req *BillingRequest, err error) {
 
 		if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
 			return
+
 		}
 
 		if _, _, err = req.SignRequestHeader(priv, false); err != nil {
 			return
+
 		}
+
 	}
 
 	return
+
 }
 
 func generateRandomBillingHeader() (tc *BillingHeader, err error) {
 	var req *BillingRequest
 	if req, err = generateRandomBillingRequest(); err != nil {
 		return
+
 	}
 
 	var priv *asymmetric.PrivateKey
 	if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
 		return
+
 	}
 
 	if _, _, err = req.SignRequestHeader(priv, false); err != nil {
 		return
+
 	}
 
 	receivers := make([]*proto.AccountAddress, peerNum)
@@ -209,27 +239,33 @@ func generateRandomBillingHeader() (tc *BillingHeader, err error) {
 		receivers[i] = &accountAddress
 		fees[i] = rand.Uint64()
 		rewards[i] = rand.Uint64()
+
 	}
 
 	producer := proto.AccountAddress(generateRandomHash())
 	tc = NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
 	return tc, nil
+
 }
 
 func generateRandomBilling() (*Billing, error) {
 	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, err
+
 	}
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		return nil, err
+
 	}
 	txBilling := NewBilling(header)
 	if err := txBilling.Sign(priv); err != nil {
 		return nil, err
+
 	}
 	return txBilling, nil
+
 }
 
 func generateRandomGasAmount(n int) []*proto.AddrAndGas {
@@ -241,9 +277,87 @@ func generateRandomGasAmount(n int) []*proto.AddrAndGas {
 			RawNodeID:      proto.RawNodeID{Hash: generateRandomHash()},
 			GasAmount:      rand.Uint64(),
 		}
+
 	}
 
 	return gasAmount
+
+}
+
+func randBytes(n int) (b []byte) {
+	b = make([]byte, n)
+	rand.Read(b)
+	return
+}
+
+func buildQuery(query string, args ...interface{}) Query {
+	var nargs = make([]NamedArg, len(args))
+	for i := range args {
+		nargs[i] = NamedArg{
+			Name:  "",
+			Value: args[i],
+		}
+	}
+	return Query{
+		Pattern: query,
+		Args:    nargs,
+	}
+}
+
+func buildRequest(qt QueryType, qs []Query) (r *Request) {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
+	r = &Request{
+		Header: SignedRequestHeader{
+			RequestHeader: RequestHeader{
+				NodeID:    id,
+				Timestamp: time.Now().UTC(),
+				QueryType: qt,
+			},
+		},
+		Payload: RequestPayload{Queries: qs},
+	}
+	if err = r.Sign(testingPrivateKey); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func buildResponse(header *SignedRequestHeader, cols []string, types []string, rows []ResponseRow) (r *Response) {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
+	r = &Response{
+		Header: SignedResponseHeader{
+			ResponseHeader: ResponseHeader{
+				Request:      *header,
+				NodeID:       id,
+				Timestamp:    time.Now().UTC(),
+				RowCount:     0,
+				LogOffset:    0,
+				LastInsertID: 0,
+				AffectedRows: 0,
+			},
+		},
+		Payload: ResponsePayload{
+			Columns:   cols,
+			DeclTypes: types,
+			Rows:      rows,
+		},
+	}
+	if err = r.Sign(testingPrivateKey); err != nil {
+		panic(err)
+	}
+	return
 }
 
 func setup() {
@@ -263,8 +377,8 @@ func setup() {
 
 	kms.Unittest = true
 
-	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
-		kms.SetLocalKeyPair(priv, pub)
+	if testingPrivateKey, testingPublicKey, err = asymmetric.GenSecp256k1KeyPair(); err == nil {
+		kms.SetLocalKeyPair(testingPrivateKey, testingPublicKey)
 	} else {
 		panic(err)
 	}

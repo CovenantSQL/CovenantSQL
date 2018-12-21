@@ -25,12 +25,13 @@ import (
 
 // DBConfig defines the database config.
 type DBConfig struct {
-	DatabaseID       proto.DatabaseID
-	DataDir          string
-	KayakMux         *DBKayakMuxService
-	ChainMux         *sqlchain.MuxService
-	MaxWriteTimeGap  time.Duration
-	EncryptionKey    string
-	SpaceLimit       uint64
-	ConsistencyLevel float64
+	DatabaseID             proto.DatabaseID
+	DataDir                string
+	KayakMux               *DBKayakMuxService
+	ChainMux               *sqlchain.MuxService
+	MaxWriteTimeGap        time.Duration
+	EncryptionKey          string
+	SpaceLimit             uint64
+	UseEventualConsistency bool
+	ConsistencyLevel       float64
 }

@@ -79,7 +79,7 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(keyFilePath, encKey, 0400)
+	return ioutil.WriteFile(keyFilePath, encKey, 0600)
 }
 
 // InitLocalKeyPair initializes local private key

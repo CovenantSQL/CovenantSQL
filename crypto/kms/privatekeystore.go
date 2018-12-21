@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/btcsuite/btcutil/base58"
 )
 
 var (
@@ -34,6 +35,12 @@ var (
 	ErrNotKeyFile = errors.New("private key file empty")
 	// ErrHashNotMatch indicates specified key hash is wrong
 	ErrHashNotMatch = errors.New("private key hash not match")
+	// ErrPrivateKeyVersion indicates specified key is not base58 version
+	ErrInvalidBase58Version = errors.New("invalid base58 version")
+	// ErrPrivateKeyChecksum indicates specified key is not base58 checksum
+	ErrInvalidBase58Checksum = errors.New("invalid base58 checksum")
+
+	PrivateKeyStoreVersion byte = 0x23
 )
 
 // LoadPrivateKey loads private key from keyFilePath, and verifies the hash
@@ -45,7 +52,21 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 		return
 	}
 
-	decData, err := symmetric.DecryptWithPassword(fileContent, masterKey)
+	encData, version, err := base58.CheckDecode(string(fileContent))
+	switch err {
+	case base58.ErrChecksum:
+		return
+
+	case base58.ErrInvalidFormat:
+		// be compatible with the original binary private key format
+		encData = fileContent
+	}
+
+	if version != 0 && version != PrivateKeyStoreVersion {
+		return nil, ErrInvalidBase58Version
+	}
+
+	decData, err := symmetric.DecryptWithPassword(encData, masterKey)
 	if err != nil {
 		log.Error("decrypt private key error")
 		return
@@ -79,7 +100,10 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(keyFilePath, encKey, 0600)
+
+	base58EncKey := base58.CheckEncode(encKey, PrivateKeyStoreVersion)
+
+	return ioutil.WriteFile(keyFilePath, []byte(base58EncKey), 0600)
 }
 
 // InitLocalKeyPair initializes local private key

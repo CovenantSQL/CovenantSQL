@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sync/atomic"
 	"testing"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -29,7 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
+func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
 	// Setup chain state
 	var (
 		fl   = path.Join(testingDataDir, b.Name())
@@ -49,12 +50,12 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
 	); err != nil {
 		b.Fatalf("failed to setup bench environment: %v", err)
 	}
-	for i := 0; i < benchmarkKeySpace; i++ {
+	for i := 0; i < benchmarkReservedKeyLength; i++ {
 		var (
 			vals [benchmarkVNum][benchmarkVLen]byte
 			args [benchmarkVNum + 1]interface{}
 		)
-		args[0] = i
+		args[0] = i + benchmarkReservedKeyOffset
 		for i := range vals {
 			rand.Read(vals[i][:])
 			args[i+1] = string(vals[i][:])
@@ -63,27 +64,21 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
 			b.Fatalf("failed to setup bench environment: %v", err)
 		}
 	}
-	n = benchmarkKeySpace
 	// Setup query requests
 	var (
-		sel = `SELECT "v1", "v2", "v3" FROM "bench" WHERE "k"=?`
-		ins = `INSERT INTO "bench" VALUES (?, ?, ?, ?)
-	ON CONFLICT("k") DO UPDATE SET
-		"v1"="excluded"."v1",
-		"v2"="excluded"."v2",
-		"v3"="excluded"."v3"
-`
+		sel  = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+		ins  = `INSERT INTO bench VALUES (?, ?, ?, ?)`
 		priv *ca.PrivateKey
-		src  = make([][]interface{}, benchmarkKeySpace)
+		src  = make([][]interface{}, benchmarkNewKeyLength)
 	)
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		b.Fatalf("failed to setup bench environment: %v", err)
 	}
-	r = make([]*types.Request, 2*benchmarkKeySpace)
+	r = make([]*types.Request, benchmarkMaxKey)
 	// Read query key space [0, n-1]
-	for i := 0; i < benchmarkKeySpace; i++ {
+	for i := 0; i < benchmarkReservedKeyLength; i++ {
 		r[i] = buildRequest(types.ReadQuery, []types.Query{
-			buildQuery(sel, i),
+			buildQuery(sel, i+benchmarkReservedKeyOffset),
 		})
 		if err = r[i].Sign(priv); err != nil {
 			b.Fatalf("failed to setup bench environment: %v", err)
@@ -93,20 +88,23 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
 	for i := range src {
 		var vals [benchmarkVNum][benchmarkVLen]byte
 		src[i] = make([]interface{}, benchmarkVNum+1)
-		src[i][0] = i + benchmarkKeySpace
+		src[i][0] = i + benchmarkNewKeyOffset
 		for j := range vals {
 			rand.Read(vals[j][:])
 			src[i][j+1] = string(vals[j][:])
 		}
 	}
-	for i := 0; i < benchmarkKeySpace; i++ {
-		r[benchmarkKeySpace+i] = buildRequest(types.WriteQuery, []types.Query{
+	for i := 0; i < benchmarkNewKeyLength; i++ {
+		r[i+benchmarkNewKeyOffset] = buildRequest(types.WriteQuery, []types.Query{
 			buildQuery(ins, src[i]...),
 		})
-		if err = r[i+benchmarkKeySpace].Sign(priv); err != nil {
-			b.Fatalf("failed to setup bench environment: %v", err)
+		if err = r[i+benchmarkNewKeyOffset].Sign(priv); err != nil {
+			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
 	}
+
+	allKeyPermKeygen.reset()
+	newKeyPermKeygen.reset()
 
 	b.ResetTimer()
 	return
@@ -134,14 +132,17 @@ func teardownBenchmarkChain(b *testing.B, c *Chain) {
 }
 
 func BenchmarkChainParallelWrite(b *testing.B) {
-	var c, n, r = setupBenchmarkChain(b)
+	var c, r = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {
-		var err error
-		for i := 0; pb.Next(); i++ {
-			if _, err = c.Query(r[n+rand.Intn(n)]); err != nil {
-				b.Fatalf("failed to execute: %v", err)
+		var (
+			err     error
+			counter int32
+		)
+		for pb.Next() {
+			if _, err = c.Query(r[newKeyPermKeygen.next()]); err != nil {
+				b.Fatalf("Failed to execute: %v", err)
 			}
-			if (i+1)%benchmarkQueriesPerBlock == 0 {
+			if atomic.AddInt32(&counter, 1)%benchmarkQueriesPerBlock == 0 {
 				if err = c.state.commit(); err != nil {
 					b.Fatalf("failed to commit block: %v", err)
 				}
@@ -152,14 +153,17 @@ func BenchmarkChainParallelWrite(b *testing.B) {
 }
 
 func BenchmarkChainParallelMixRW(b *testing.B) {
-	var c, n, r = setupBenchmarkChain(b)
+	var c, r = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {
-		var err error
-		for i := 0; pb.Next(); i++ {
-			if _, err = c.Query(r[rand.Intn(2*n)]); err != nil {
-				b.Fatalf("failed to execute: %v", err)
+		var (
+			err     error
+			counter int32
+		)
+		for pb.Next() {
+			if _, err = c.Query(r[allKeyPermKeygen.next()]); err != nil {
+				b.Fatalf("Failed to execute: %v", err)
 			}
-			if (i+1)%benchmarkQueriesPerBlock == 0 {
+			if atomic.AddInt32(&counter, 1)%benchmarkQueriesPerBlock == 0 {
 				if err = c.state.commit(); err != nil {
 					b.Fatalf("failed to commit block: %v", err)
 				}

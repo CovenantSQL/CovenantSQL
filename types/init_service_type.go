@@ -31,12 +31,13 @@ type InitService struct {
 
 // ResourceMeta defines single database resource meta.
 type ResourceMeta struct {
-	TargetMiners  []proto.AccountAddress // designated miners
-	Node          uint16                 // reserved node count
-	Space         uint64                 // reserved storage space in bytes
-	Memory        uint64                 // reserved memory in bytes
-	LoadAvgPerCPU uint64                 // max loadAvg15 per CPU
-	EncryptionKey string                 `hspack:"-"` // encryption key for database instance
+	TargetMiners        []proto.AccountAddress // designated miners
+	Node                uint16                 // reserved node count
+	Space               uint64                 // reserved storage space in bytes
+	Memory              uint64                 // reserved memory in bytes
+	LoadAvgPerCPU       uint64                 // max loadAvg15 per CPU
+	EncryptionKey       string                 `hspack:"-"` // encryption key for database instance
+	EventualConsistency bool                   `hspack:"-"` // TODO, eventual consistency test, need later refactor
 }
 
 // ServiceInstance defines single instance to be initialized.

@@ -594,13 +594,15 @@ func TestMetaState(t *testing.T) {
 						Contract: addr2,
 					},
 				}
-				invalidPs.Sign(privKey1)
+				err = invalidPs.Sign(privKey1)
+				So(err, ShouldBeNil)
 				invalidCd1 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr2,
 					},
 				}
-				invalidCd1.Sign(privKey1)
+				err = invalidCd1.Sign(privKey1)
+				So(err, ShouldBeNil)
 				invalidCd2 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
 						Owner: addr1,
@@ -609,7 +611,8 @@ func TestMetaState(t *testing.T) {
 						},
 					},
 				}
-				invalidCd2.Sign(privKey1)
+				err = invalidCd2.Sign(privKey1)
+				So(err, ShouldBeNil)
 
 				err = ms.apply(&invalidPs)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
@@ -635,7 +638,7 @@ func TestMetaState(t *testing.T) {
 						},
 					},
 				}
-				cd1.Sign(privKey1)
+				err = cd1.Sign(privKey1)
 				So(err, ShouldBeNil)
 				cd2 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
@@ -645,7 +648,7 @@ func TestMetaState(t *testing.T) {
 						},
 					},
 				}
-				cd2.Sign(privKey3)
+				err = cd2.Sign(privKey3)
 				So(err, ShouldBeNil)
 
 				err = ms.apply(&ps)
@@ -670,7 +673,8 @@ func TestMetaState(t *testing.T) {
 						Nonce:          cd1.Nonce + 1,
 					},
 				}
-				up.Sign(privKey1)
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
 				up.Permission = 4
@@ -716,6 +720,7 @@ func TestMetaState(t *testing.T) {
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 2
 				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
 
@@ -734,6 +739,69 @@ func TestMetaState(t *testing.T) {
 						continue
 					}
 				}
+				Convey("Update key", func() {
+					invalidIk1 := &types.IssueKeys{}
+					err = invalidIk1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk1)
+					So(err, ShouldEqual, ErrInvalidAccountNonce)
+					invalidIk2 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: addr1,
+							Nonce:          2,
+						},
+					}
+					err = invalidIk2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk2)
+					So(err, ShouldEqual, ErrDatabaseNotFound)
+					invalidIk3 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: dbAccount,
+							Nonce:          2,
+						},
+					}
+					err = invalidIk3.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk3)
+					So(err, ShouldEqual, ErrAccountPermissionDeny)
+					ik1 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: dbAccount,
+							Nonce:          2,
+						},
+					}
+					err = ik1.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(ik1)
+					So(err, ShouldBeNil)
+					ms.commit()
+					encryptKey := "12345"
+					ik2 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							MinerKeys: []types.MinerKey{
+								{
+									Miner:         addr1,
+									EncryptionKey: encryptKey,
+								},
+							},
+							TargetSQLChain: dbAccount,
+							Nonce:          3,
+						},
+					}
+					err = ik2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(ik2)
+					So(err, ShouldBeNil)
+					ms.commit()
+
+					co, loaded = ms.loadSQLChainObject(*dbID)
+					for _, miner := range co.Miners {
+						if miner.Address == addr1 {
+							So(miner.EncryptionKey, ShouldEqual, encryptKey)
+						}
+					}
+				})
 			})
 		})
 	})

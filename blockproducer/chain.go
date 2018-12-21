@@ -629,8 +629,16 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain service stopped")
 	c.st.Close()
 	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain database closed")
-	close(c.pendingBlocks)
-	close(c.pendingTxs)
+
+	// FIXME(leventeliu): RPC server should provide an `unregister` method to detach chain service
+	// instance. Add it to Chain.stop(), then working channels can be closed safely.
+	// Otherwise a DATARACE (while closing a channel with a blocking write from RPC service) or
+	// `write on closed channel` panic may occur.
+	// Comment this out for now, IT IS A RESOURCE LEAK.
+	//
+	//close(c.pendingBlocks)
+	//close(c.pendingTxs)
+
 	return
 }
 

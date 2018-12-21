@@ -215,7 +215,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		tokenType:    c.TokenType,
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
-		databaseID:   c.Profile.ID,
+		databaseID:   c.DatabaseID,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -292,7 +292,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		tokenType:    c.TokenType,
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
-		databaseID:   c.Profile.ID,
+		databaseID:   c.DatabaseID,
 
 		// Observer related
 		observers:           make(map[proto.NodeID]int32),
@@ -603,7 +603,7 @@ func (c *Chain) produceBlockV2(now time.Time) (err error) {
 			Envelope: proto.Envelope{
 				// TODO(leventeliu): Add fields.
 			},
-			DatabaseID: c.rt.databaseID,
+			DatabaseID: c.databaseID,
 			AdviseNewBlockReq: AdviseNewBlockReq{
 				Block: block,
 				Count: func() int32 {
@@ -655,7 +655,7 @@ func (c *Chain) syncHead() {
 			Envelope: proto.Envelope{
 				// TODO(leventeliu): Add fields.
 			},
-			DatabaseID: c.rt.databaseID,
+			DatabaseID: c.databaseID,
 			FetchBlockReq: FetchBlockReq{
 				Height: h,
 			},
@@ -943,7 +943,7 @@ func (c *Chain) Stop() (err error) {
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
 	}).Debug("stopping chain")
-	c.rt.stop()
+	c.rt.stop(c.databaseID)
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
@@ -1172,7 +1172,7 @@ func (c *Chain) getBilling(low, high int32) (req *types.BillingRequest, err erro
 
 	req = &types.BillingRequest{
 		Header: types.BillingRequestHeader{
-			DatabaseID: c.rt.databaseID,
+			DatabaseID: c.databaseID,
 			LowBlock:   *lowBlock.BlockHash(),
 			LowHeight:  low,
 			HighBlock:  *highBlock.BlockHash(),
@@ -1190,7 +1190,7 @@ func (c *Chain) collectBillingSignatures(ctx context.Context, billings *types.Bi
 		Envelope: proto.Envelope{
 			// TODO(leventeliu): Add fields.
 		},
-		DatabaseID: c.rt.databaseID,
+		DatabaseID: c.databaseID,
 		SignBillingReq: SignBillingReq{
 			BillingRequest: *billings,
 		},
@@ -1473,14 +1473,14 @@ func (c *Chain) stat() {
 	)
 	// Print chain stats
 	log.WithFields(log.Fields{
-		"database_id":           c.rt.databaseID,
+		"database_id":           c.databaseID,
 		"multiIndex_count":      ic,
 		"response_header_count": rc,
 		"query_tracker_count":   tc,
 		"cached_block_count":    bc,
 	}).Info("chain mem stats")
 	// Print xeno stats
-	c.st.Stat(c.rt.databaseID)
+	c.st.Stat(c.databaseID)
 }
 
 func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
@@ -1527,14 +1527,18 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	i = 0
 	j = 0
 	for userAddr, cost := range usersMap {
-		ub.Users[i].User = userAddr
-		ub.Users[i].Cost = cost
+		ub.Users[i] = &types.UserCost{
+			User: userAddr,
+			Cost: cost,
+		}
 		miners := minersMap[userAddr]
 		ub.Users[i].Miners = make([]*types.MinerIncome, len(miners))
 
 		for k1, v1 := range miners {
-			ub.Users[i].Miners[j].Miner = k1
-			ub.Users[i].Miners[j].Income = v1
+			ub.Users[i].Miners[j] = &types.MinerIncome{
+				Miner:  k1,
+				Income: v1,
+			}
 			j += 1
 		}
 		j = 0

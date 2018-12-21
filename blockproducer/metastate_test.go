@@ -683,7 +683,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = ms.apply(&invalidPs)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
 				err = ms.apply(&invalidCd1)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
 				err = ms.apply(&invalidCd2)

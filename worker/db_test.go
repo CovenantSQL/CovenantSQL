@@ -84,6 +84,7 @@ func TestSingleDatabase(t *testing.T) {
 			KayakMux:        kayakMuxService,
 			ChainMux:        chainMuxService,
 			MaxWriteTimeGap: time.Second * 5,
+			UpdatePeriod:    2,
 		}
 
 		// create genesis block
@@ -445,6 +446,7 @@ func TestInitFailed(t *testing.T) {
 			KayakMux:        kayakMuxService,
 			ChainMux:        chainMuxService,
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
+			UpdatePeriod:    2,
 		}
 
 		// create genesis block
@@ -498,6 +500,7 @@ func TestDatabaseRecycle(t *testing.T) {
 			KayakMux:        kayakMuxService,
 			ChainMux:        chainMuxService,
 			MaxWriteTimeGap: time.Duration(5 * time.Second),
+			UpdatePeriod:    2,
 		}
 
 		// create genesis block

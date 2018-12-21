@@ -72,7 +72,11 @@ func (bs *BusService) subscribeBlock(ctx context.Context) {
 		case <-time.After(bs.checkInterval):
 			// fetch block from remote block producer
 			c := atomic.LoadUint32(&bs.blockCount)
+			log.Info(c)
 			b := bs.requestBlock(c)
+			if b == nil {
+				continue
+			}
 			bs.extractTxs(b, c)
 			atomic.AddUint32(&bs.blockCount, 1)
 		}

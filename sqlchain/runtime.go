@@ -41,8 +41,6 @@ type runtime struct {
 
 	// The following fields are copied from config, and should be constant during whole runtime.
 
-	// databaseID is the current runtime database ID.
-	databaseID proto.DatabaseID
 	// period is the block producing cycle.
 	period time.Duration
 	// tick defines the maximum duration between each cycle.
@@ -94,10 +92,9 @@ func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 		ctx:    cld,
 		cancel: ccl,
 
-		databaseID: c.DatabaseID,
-		period:     c.Period,
-		tick:       c.Tick,
-		queryTTL:   c.QueryTTL,
+		period:   c.Period,
+		tick:     c.Tick,
+		queryTTL: c.QueryTTL,
 		blockCacheTTL: func() int32 {
 			if c.BlockCacheTTL < minBlockCacheTTL {
 				return minBlockCacheTTL
@@ -124,7 +121,7 @@ func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 		}(),
 		total:    int32(len(c.Peers.Servers)),
 		nextTurn: 1,
-		head:     &state{Profile: c.Profile},
+		head:     &state{},
 		offset:   time.Duration(0),
 	}
 
@@ -208,8 +205,8 @@ func (r *runtime) getQueryGas(t types.QueryType) uint64 {
 }
 
 // stop sends a signal to the Runtime stop channel by closing it.
-func (r *runtime) stop() {
-	r.stopService()
+func (r *runtime) stop(dbid proto.DatabaseID) {
+	r.stopService(dbid)
 	r.cancel()
 	r.wg.Wait()
 }
@@ -291,11 +288,11 @@ func (r *runtime) getServer() proto.NodeID {
 }
 
 func (r *runtime) startService(chain *Chain) {
-	r.muxService.register(r.databaseID, &ChainRPCService{chain: chain})
+	r.muxService.register(chain.databaseID, &ChainRPCService{chain: chain})
 }
 
-func (r *runtime) stopService() {
-	r.muxService.unregister(r.databaseID)
+func (r *runtime) stopService(dbid proto.DatabaseID) {
+	r.muxService.unregister(dbid)
 }
 
 func (r *runtime) isMyTurn() (ret bool) {

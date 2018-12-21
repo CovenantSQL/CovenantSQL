@@ -202,7 +202,7 @@ func (r *observerReplicator) replicate() {
 	// send block
 	req := &MuxAdviseNewBlockReq{
 		Envelope:   proto.Envelope{},
-		DatabaseID: r.c.rt.databaseID,
+		DatabaseID: r.c.databaseID,
 		AdviseNewBlockReq: AdviseNewBlockReq{
 			Block: block,
 			Count: func() int32 {

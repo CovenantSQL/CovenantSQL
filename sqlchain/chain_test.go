@@ -44,6 +44,7 @@ var (
 	testDatabaseID           proto.DatabaseID = "tdb-test"
 	testPeriodNumber         int32            = 10
 	testClientNumberPerChain                  = 3
+	testUpdatePeriod         uint64           = 2
 )
 
 type chainParams struct {
@@ -174,6 +175,7 @@ func TestMultiChain(t *testing.T) {
 			Server:          peers.Servers[i],
 			Peers:           peers,
 			QueryTTL:        testQueryTTL,
+			UpdatePeriod:    testUpdatePeriod,
 		}
 		chain, err := NewChain(config)
 

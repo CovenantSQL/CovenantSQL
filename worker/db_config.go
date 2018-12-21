@@ -32,4 +32,5 @@ type DBConfig struct {
 	MaxWriteTimeGap time.Duration
 	EncryptionKey   string
 	SpaceLimit      uint64
+	UpdatePeriod    uint64
 }

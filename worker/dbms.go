@@ -46,7 +46,10 @@ const (
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
 
+	// CheckInterval defines the bus service period.
 	CheckInterval = time.Second
+
+	// UpdatePeriod defines the
 )
 
 // DBMS defines a database management instance.
@@ -279,7 +282,6 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		Peers:        &peers,
 		ResourceMeta: cd.ResourceMeta,
 		GenesisBlock: p.Genesis,
-		Profile:      p,
 	}
 	err = dbms.Create(&si, true)
 	if err != nil {
@@ -374,9 +376,10 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
 		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
 		SpaceLimit:      instance.ResourceMeta.Space,
+		UpdatePeriod:    2,
 	}
 
-	if db, err = NewDatabase(dbCfg, instance.Peers, instance.Profile); err != nil {
+	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {
 		return
 	}
 

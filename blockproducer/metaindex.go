@@ -17,8 +17,6 @@
 package blockproducer
 
 import (
-	"sync"
-
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/ulule/deepcopier"
@@ -55,7 +53,6 @@ type providerObject struct {
 }
 
 type metaIndex struct {
-	sync.RWMutex
 	accounts  map[proto.AccountAddress]*accountObject
 	databases map[proto.DatabaseID]*sqlchainObject
 	provider  map[proto.AccountAddress]*providerObject

@@ -1,11 +1,8 @@
 #!/bin/bash -x
 
-yaml[0]=./scripts/gnte_0ms.yaml
-yaml[1]=./scripts/gnte_5ms.yaml
-yaml[2]=./scripts/gnte_20ms.yaml
-yaml[3]=./scripts/gnte_100ms.yaml
-yaml[4]=./scripts/gnte_200ms.yaml
-
+yaml=(
+	./scripts/gnte_{0,5,20,100,200}ms.yaml
+)
 
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)

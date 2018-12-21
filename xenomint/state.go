@@ -41,14 +41,11 @@ type State struct {
 	closed bool
 	nodeID proto.NodeID
 
-	// TODO(leventeliu): Reload savepoint from last block on chain initialization, and rollback
-	// any ongoing transaction on exit.
-	//
 	// unc is the uncommitted transaction.
 	unc             *sql.Tx
-	origin          uint64 // origin is the original savepoint of the current transaction
-	cmpoint         uint64 // cmpoint is the last commit point of the current transaction
-	current         uint64 // current is the current savepoint of the current transaction
+	maxTx           uint64
+	lastCommitPoint uint64
+	current         uint64 // current is the current lastSeq of the current transaction
 	hasSchemaChange uint32 // indicates schema change happens in this uncommitted transaction
 }
 
@@ -58,11 +55,11 @@ func NewState(nodeID proto.NodeID, strg xi.Storage) (s *State, err error) {
 		nodeID: nodeID,
 		strg:   strg,
 		pool:   newPool(),
+		maxTx:  100,
 	}
 	if t.unc, err = t.strg.Writer().Begin(); err != nil {
 		return
 	}
-	t.setSavepoint()
 	s = t
 	return
 }
@@ -71,54 +68,38 @@ func (s *State) incSeq() {
 	atomic.AddUint64(&s.current, 1)
 }
 
-func (s *State) setNextTxID() {
-	current := s.getID()
-	s.origin = current
-	s.cmpoint = current
-}
-
-func (s *State) setCommitPoint() {
-	s.cmpoint = s.getID()
-}
-
-func (s *State) rollbackID(id uint64) {
+func (s *State) setSeq(id uint64) {
 	atomic.StoreUint64(&s.current, id)
 }
 
-// InitTx sets the initial id of the current transaction. This method is not safe for concurrency
-// and should only be called at initialization.
-func (s *State) InitTx(id uint64) {
-	s.origin = id
-	s.cmpoint = id
-	s.rollbackID(id)
-	s.setSavepoint()
+// SetSeq sets the initial id of the current transaction.
+func (s *State) SetSeq(id uint64) {
+	s.setSeq(id)
 }
 
-func (s *State) getID() uint64 {
+func (s *State) getSeq() uint64 {
 	return atomic.LoadUint64(&s.current)
+}
+
+func (s *State) getLastCommitPoint() uint64 {
+	return atomic.LoadUint64(&s.lastCommitPoint)
 }
 
 // Close commits any ongoing transaction if needed and closes the underlying storage.
 func (s *State) Close(commit bool) (err error) {
+	s.Lock()
+	defer s.Unlock()
 	if s.closed {
 		return
 	}
 	if s.unc != nil {
 		if commit {
-			s.Lock()
-			defer s.Unlock()
 			if err = s.uncCommit(); err != nil {
-				return
+				log.WithError(err).Fatal("failed to commit")
 			}
 		} else {
-			// Only rollback to last commit point
-			if err = s.rollback(); err != nil {
-				return
-			}
-			s.Lock()
-			defer s.Unlock()
-			if err = s.uncCommit(); err != nil {
-				return
+			if err = s.uncRollback(); err != nil {
+				log.WithError(err).Fatal("failed to rollback")
 			}
 		}
 	}
@@ -291,7 +272,7 @@ func (s *State) readWithContext(
 				NodeID:    s.nodeID,
 				Timestamp: s.getLocalTime(),
 				RowCount:  uint64(len(data)),
-				LogOffset: s.getID(),
+				LogOffset: s.getSeq(),
 			},
 		},
 		Payload: types.ResponsePayload{
@@ -307,8 +288,7 @@ func (s *State) readTx(
 	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
 ) {
 	var (
-		tx             *sql.Tx
-		id             uint64
+		id             = s.getSeq()
 		ierr           error
 		cnames, ctypes []string
 		data           [][]interface{}
@@ -318,14 +298,9 @@ func (s *State) readTx(
 		// lock transaction
 		s.Lock()
 		defer s.Unlock()
-		id = s.getID()
-		s.setSavepoint()
 		querier = s.unc
-		defer s.rollbackTo(id)
-
-		// TODO(): should detect query type, any timeout write query will cause underlying transaction to rollback
 	} else {
-		id = s.getID()
+		var tx *sql.Tx
 		if tx, ierr = s.strg.DirtyReader().Begin(); ierr != nil {
 			err = errors.Wrap(ierr, "open tx failed")
 			return
@@ -380,61 +355,99 @@ func (s *State) writeSingle(
 		containsDDL bool
 		pattern     string
 		args        []interface{}
+		//start       = time.Now()
+
+		//parsed, executed time.Duration
 	)
 
+	//defer func() {
+	//	var fields = log.Fields{}
+	//	fields["lastSeq"] = s.current
+	//	if parsed > 0 {
+	//		fields["1#parsed"] = float64(parsed.Nanoseconds()) / 1000
+	//	}
+	//	if executed > 0 {
+	//		fields["2#executed"] = float64((executed - parsed).Nanoseconds()) / 1000
+	//	}
+	//	log.WithFields(fields).Debug("writeSingle duration stat (us)")
+	//}()
 	if containsDDL, pattern, args, err = convertQueryAndBuildArgs(q.Pattern, q.Args); err != nil {
 		return
 	}
-	if res, err = s.unc.ExecContext(ctx, pattern, args...); err == nil {
+	//parsed = time.Since(start)
+	if res, err = s.unc.Exec(pattern, args...); err == nil {
 		if containsDDL {
 			atomic.StoreUint32(&s.hasSchemaChange, 1)
 		}
 		s.incSeq()
 	}
+	//executed = time.Since(start)
 	return
-}
-
-func (s *State) setSavepoint() (savepoint uint64) {
-	savepoint = s.getID()
-	s.unc.Exec("SAVEPOINT \"?\"", savepoint)
-	return
-}
-
-func (s *State) rollbackTo(savepoint uint64) {
-	s.rollbackID(savepoint)
-	s.unc.Exec("ROLLBACK TO \"?\"", savepoint)
 }
 
 func (s *State) write(
 	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
 ) {
 	var (
-		savepoint         uint64
+		lastSeq           uint64
 		query             = &QueryTracker{Req: req}
 		totalAffectedRows int64
 		curAffectedRows   int64
 		lastInsertID      int64
+		start             = time.Now()
+
+		lockAcquired, writeDone, enqueued, lockReleased, respBuilt time.Duration
 	)
 
 	defer func() {
+		var fields = log.Fields{}
+		fields["lastSeq"] = lastSeq
+		fields["1#lockAcquired"] = float64(lockAcquired.Nanoseconds()) / 1000
+		if writeDone > 0 {
+			fields["2#writeDone"] = float64((writeDone - lockAcquired).Nanoseconds()) / 1000
+		}
+		if enqueued > 0 {
+			fields["3#enqueued"] = float64((enqueued - writeDone).Nanoseconds()) / 1000
+		}
+		if lockReleased > 0 {
+			fields["4#lockReleased"] = float64((lockReleased - enqueued).Nanoseconds()) / 1000
+		}
+		if respBuilt > 0 {
+			fields["5#respBuilt"] = float64((respBuilt - lockReleased).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Write duration stat (us)")
 		if ctx.Err() != nil {
 			log.WithError(err).WithField("req", req).Warning("write query canceled")
 		}
 	}()
 
-	// TODO(leventeliu): savepoint is a sqlite-specified solution for nested transaction.
 	if err = func() (err error) {
-		var ierr error
+		var (
+			ierr error
+			qcnt = len(req.Payload.Queries)
+		)
 		s.Lock()
-		defer s.Unlock()
-		savepoint = s.getID()
+		lockAcquired = time.Since(start)
+		defer func() {
+			s.Unlock()
+			lockReleased = time.Since(start)
+		}()
+		lastSeq = s.getSeq()
+		if qcnt > 1 {
+			// Set savepoint
+			if _, ierr = s.unc.Exec(`SAVEPOINT "?"`, lastSeq); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to create savepoint %d", lastSeq)
+				return
+			}
+			defer s.unc.Exec(`ROLLBACK TO "?"`, lastSeq)
+		}
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
 			if res, ierr = s.writeSingle(ctx, &v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at #%d failed", i)
-				// Add to failed pool list
+				// TODO(leventeliu): request may actually be partial successed without
+				// rolling back.
 				s.pool.setFailed(req)
-				s.rollbackTo(savepoint)
 				return
 			}
 
@@ -442,8 +455,21 @@ func (s *State) write(
 			lastInsertID, _ = res.LastInsertId()
 			totalAffectedRows += curAffectedRows
 		}
-		s.setSavepoint()
-		s.pool.enqueue(savepoint, query)
+		if qcnt > 1 {
+			// Release savepoint
+			if _, ierr = s.unc.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
+				err = errors.Wrapf(ierr, "failed to release savepoint %d", lastSeq)
+				return
+			}
+		}
+		// Try to commit if the ongoing tx is too large or schema is changed
+		if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||
+			atomic.LoadUint32(&s.hasSchemaChange) != 0 {
+			s.tryCommit()
+		}
+		writeDone = time.Since(start)
+		s.pool.enqueue(lastSeq, query)
+		enqueued = time.Since(start)
 		return
 	}(); err != nil {
 		return
@@ -457,40 +483,44 @@ func (s *State) write(
 				NodeID:       s.nodeID,
 				Timestamp:    s.getLocalTime(),
 				RowCount:     0,
-				LogOffset:    savepoint,
+				LogOffset:    lastSeq,
 				AffectedRows: totalAffectedRows,
 				LastInsertID: lastInsertID,
 			},
 		},
 	}
+	respBuilt = time.Since(start)
 	return
 }
 
 func (s *State) replay(ctx context.Context, req *types.Request, resp *types.Response) (err error) {
 	var (
-		ierr      error
-		savepoint uint64
-		query     = &QueryTracker{Req: req, Resp: resp}
+		ierr    error
+		lastSeq uint64
+		query   = &QueryTracker{Req: req, Resp: resp}
 	)
 	s.Lock()
 	defer s.Unlock()
-	savepoint = s.getID()
-	if resp.Header.ResponseHeader.LogOffset != savepoint {
+	lastSeq = s.getSeq()
+	if resp.Header.ResponseHeader.LogOffset != lastSeq {
 		err = errors.Wrapf(
 			ErrQueryConflict,
-			"local id %d vs replaying id %d", savepoint, resp.Header.ResponseHeader.LogOffset,
+			"local id %d vs replaying id %d", lastSeq, resp.Header.ResponseHeader.LogOffset,
 		)
 		return
 	}
 	for i, v := range req.Payload.Queries {
 		if _, ierr = s.writeSingle(ctx, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "execute at #%d failed", i)
-			s.rollbackTo(savepoint)
 			return
 		}
 	}
-	s.setSavepoint()
-	s.pool.enqueue(savepoint, query)
+	// Try to commit if the ongoing tx is too large or schema is changed
+	if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||
+		atomic.LoadUint32(&s.hasSchemaChange) != 0 {
+		s.tryCommit()
+	}
+	s.pool.enqueue(lastSeq, query)
 	return
 }
 
@@ -505,13 +535,13 @@ func (s *State) ReplayBlock(block *types.Block) (err error) {
 func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) (err error) {
 	var (
 		ierr   error
-		lastsp uint64 // Last savepoint
+		lastsp uint64 // Last lastSeq
 	)
 	s.Lock()
 	defer s.Unlock()
 	for i, q := range block.QueryTxs {
 		var query = &QueryTracker{Req: q.Request, Resp: &types.Response{Header: *q.Response}}
-		lastsp = s.getID()
+		lastsp = s.getSeq()
 		if q.Response.ResponseHeader.LogOffset > lastsp {
 			err = ErrMissingParent
 			return
@@ -531,57 +561,64 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 			}
 			if q.Request.Header.QueryType != types.WriteQuery {
 				err = errors.Wrapf(ErrInvalidRequest, "replay block at %d:%d", i, j)
-				s.rollbackTo(lastsp)
 				return
 			}
 			if _, ierr = s.writeSingle(ctx, &v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at %d:%d failed", i, j)
-				s.rollbackTo(lastsp)
 				return
 			}
 		}
-		s.setSavepoint()
 		s.pool.enqueue(lastsp, query)
 	}
+	// Always try to commit after a block is successfully replayed
+	s.tryCommit()
 	// Remove duplicate failed queries from local pool
 	for _, r := range block.FailedReqs {
 		s.pool.removeFailed(r)
 	}
-	// Check if the current transaction is OK to commit
-	if s.pool.matchLast(lastsp) {
-		if err = s.uncCommit(); err != nil {
-			// FATAL ERROR
-			return
-		}
-		if s.unc, err = s.strg.Writer().Begin(); err != nil {
-			// FATAL ERROR
-			return
-		}
-		s.setNextTxID()
-	} else {
-		// Set commit point only, transaction is not actually committed. This commit point will be
-		// used on exiting.
-		s.setCommitPoint()
-	}
-	s.setSavepoint()
 	// Truncate pooled queries
 	s.pool.truncate(lastsp)
 	return
 }
 
 func (s *State) commit() (err error) {
+	var (
+		start = time.Now()
+
+		lockAcquired, committed, poolCleaned, lockReleased time.Duration
+	)
+
+	defer func() {
+		var fields = log.Fields{}
+		fields["1#lockAcquired"] = float64(lockAcquired.Nanoseconds()) / 1000
+		if committed > 0 {
+			fields["2#committed"] = float64((committed - lockAcquired).Nanoseconds()) / 1000
+		}
+		if poolCleaned > 0 {
+			fields["3#poolCleaned"] = float64((poolCleaned - committed).Nanoseconds()) / 1000
+		}
+		if lockReleased > 0 {
+			fields["4#lockReleased"] = float64((lockReleased - poolCleaned).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Commit duration stat (us)")
+	}()
+
 	s.Lock()
-	defer s.Unlock()
+	defer func() {
+		s.Unlock()
+		lockReleased = time.Since(start)
+	}()
+	lockAcquired = time.Since(start)
 	if err = s.uncCommit(); err != nil {
-		return
+		log.WithError(err).Fatal("failed to commit")
 	}
 	if s.unc, err = s.strg.Writer().Begin(); err != nil {
-		return
+		log.WithError(err).Fatal("failed to begin")
 	}
-	s.setNextTxID()
-	s.setSavepoint()
+	committed = time.Since(start)
 	_ = s.pool.queries
 	s.pool = newPool()
+	poolCleaned = time.Since(start)
 	return
 }
 
@@ -595,40 +632,70 @@ func (s *State) CommitEx() (failed []*types.Request, queries []*QueryTracker, er
 func (s *State) CommitExWithContext(
 	ctx context.Context) (failed []*types.Request, queries []*QueryTracker, err error,
 ) {
+	var (
+		start = time.Now()
+
+		lockAcquired, committed, poolCleaned, lockReleased time.Duration
+	)
+
+	defer func() {
+		var fields = log.Fields{}
+		fields["1#lockAcquired"] = float64(lockAcquired.Nanoseconds()) / 1000
+		if committed > 0 {
+			fields["2#committed"] = float64((committed - lockAcquired).Nanoseconds()) / 1000
+		}
+		if poolCleaned > 0 {
+			fields["3#poolCleaned"] = float64((poolCleaned - committed).Nanoseconds()) / 1000
+		}
+		if lockReleased > 0 {
+			fields["4#lockReleased"] = float64((lockReleased - poolCleaned).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Commit duration stat (us)")
+	}()
+
 	s.Lock()
-	defer s.Unlock()
-	if err = s.uncCommit(); err != nil {
-		// FATAL ERROR
-		return
-	}
-	if s.unc, err = s.strg.Writer().BeginTx(ctx, nil); err != nil {
-		// FATAL ERROR
-		return
-	}
-	s.setNextTxID()
-	s.setSavepoint()
+	lockAcquired = time.Since(start)
+	defer func() {
+		s.Unlock()
+		lockReleased = time.Since(start)
+	}()
+	// Always try to commit before the block is produced
+	s.tryCommit()
+	committed = time.Since(start)
 	// Return pooled items and reset
 	failed = s.pool.failedList()
 	queries = s.pool.queries
 	s.pool = newPool()
+	poolCleaned = time.Since(start)
 	return
+}
+
+func (s *State) tryCommit() {
+	var err error
+	if err = s.uncCommit(); err != nil {
+		log.WithError(err).Fatal("failed to commit")
+	}
+	if s.unc, err = s.strg.Writer().Begin(); err != nil {
+		log.WithError(err).Fatal("failed to begin")
+	}
 }
 
 func (s *State) uncCommit() (err error) {
 	if err = s.unc.Commit(); err != nil {
 		return
 	}
-
 	// reset schema change flag
 	atomic.StoreUint32(&s.hasSchemaChange, 0)
-
+	atomic.StoreUint64(&s.lastCommitPoint, s.getSeq())
 	return
 }
 
-func (s *State) rollback() (err error) {
-	s.Lock()
-	defer s.Unlock()
-	s.rollbackTo(s.cmpoint)
+func (s *State) uncRollback() (err error) {
+	if err = s.unc.Rollback(); err != nil {
+		return
+	}
+	// reset schema change flag
+	atomic.StoreUint32(&s.hasSchemaChange, 0)
 	return
 }
 

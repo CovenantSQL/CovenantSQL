@@ -814,6 +814,7 @@ func TestMetaState(t *testing.T) {
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 2
 				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
 
@@ -832,6 +833,69 @@ func TestMetaState(t *testing.T) {
 						continue
 					}
 				}
+				Convey("Update key", func() {
+					invalidIk1 := &types.IssueKeys{}
+					err = invalidIk1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk1)
+					So(err, ShouldEqual, ErrInvalidAccountNonce)
+					invalidIk2 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: addr1,
+							Nonce:          3,
+						},
+					}
+					err = invalidIk2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk2)
+					So(err, ShouldEqual, ErrDatabaseNotFound)
+					invalidIk3 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: dbAccount,
+							Nonce:          3,
+						},
+					}
+					err = invalidIk3.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk3)
+					So(err, ShouldEqual, ErrAccountPermissionDeny)
+					ik1 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: dbAccount,
+							Nonce:          3,
+						},
+					}
+					err = ik1.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(ik1)
+					So(err, ShouldBeNil)
+					ms.commit()
+					encryptKey := "12345"
+					ik2 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							MinerKeys: []types.MinerKey{
+								{
+									Miner:         addr1,
+									EncryptionKey: encryptKey,
+								},
+							},
+							TargetSQLChain: dbAccount,
+							Nonce:          4,
+						},
+					}
+					err = ik2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(ik2)
+					So(err, ShouldBeNil)
+					ms.commit()
+
+					co, loaded = ms.loadSQLChainObject(*dbID)
+					for _, miner := range co.Miners {
+						if miner.Address == addr1 {
+							So(miner.EncryptionKey, ShouldEqual, encryptKey)
+						}
+					}
+				})
 			})
 		})
 	})

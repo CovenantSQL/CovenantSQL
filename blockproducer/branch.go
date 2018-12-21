@@ -37,19 +37,21 @@ type branch struct {
 }
 
 func fork(
-	from, to *blockNode, v *metaState, txPool map[hash.Hash]pi.Transaction) (br *branch, err error,
+	from, to *blockNode, initState *metaState, initPool map[hash.Hash]pi.Transaction,
+) (
+	br *branch, err error,
 ) {
 	var (
 		list = to.fetchNodeList(from.count)
 		inst = &branch{
 			head:     to,
-			preview:  v.makeCopy(),
+			preview:  initState.makeCopy(),
 			packed:   make(map[hash.Hash]pi.Transaction),
 			unpacked: make(map[hash.Hash]pi.Transaction),
 		}
 	)
 	// Copy pool
-	for k, v := range txPool {
+	for k, v := range initPool {
 		inst.unpacked[k] = v
 	}
 	// Apply new blocks to view and pool

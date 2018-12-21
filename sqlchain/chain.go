@@ -382,7 +382,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	// Set chain state
 	st.node = last
 	chain.rt.setHead(st)
-	chain.st.InitTx(id)
+	chain.st.SetSeq(id)
 	chain.pruneBlockCache()
 
 	// Read queries and rebuild memory index
@@ -543,8 +543,8 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	return
 }
 
-// produceBlockV2 prepares, signs and advises the pending block to the other peers.
-func (c *Chain) produceBlockV2(now time.Time) (err error) {
+// produceBlock prepares, signs and advises the pending block to the other peers.
+func (c *Chain) produceBlock(now time.Time) (err error) {
 	var (
 		frs []*types.Request
 		qts []*x.QueryTracker
@@ -750,7 +750,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		return
 	}
 
-	if err := c.produceBlockV2(now); err != nil {
+	if err := c.produceBlock(now); err != nil {
 		log.WithFields(log.Fields{
 			"peer":            c.rt.getPeerInfoString(),
 			"time":            c.rt.getChainTimeString(),
@@ -1415,22 +1415,6 @@ func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 		return
 	}
 	ref.UpdateResp(resp)
-	return
-}
-
-// Replay replays a write log from other peer to replicate storage state.
-func (c *Chain) Replay(req *types.Request, resp *types.Response) (err error) {
-	switch req.Header.QueryType {
-	case types.ReadQuery:
-		return
-	case types.WriteQuery:
-		return c.st.ReplayWithContext(req.GetContext(), req, resp)
-	default:
-		err = ErrInvalidRequest
-	}
-	if err = c.addResponse(&resp.Header); err != nil {
-		return
-	}
 	return
 }
 

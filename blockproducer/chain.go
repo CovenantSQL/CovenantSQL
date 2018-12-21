@@ -126,7 +126,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 	// Storage genesis
 	if !existed {
-		// TODO(leventeliu): reuse chain.switchBranch to construct initial state.
+		// TODO(leventeliu): reuse chain.replaceAndSwitchToBranch to construct initial state.
 		var init = newMetaState()
 		for _, v := range cfg.Genesis.Transactions {
 			if ierr = init.apply(v); ierr != nil {
@@ -649,8 +649,16 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain service stopped")
 	c.st.Close()
 	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain database closed")
-	close(c.pendingBlocks)
-	close(c.pendingTxs)
+
+	// FIXME(leventeliu): RPC server should provide an `unregister` method to detach chain service
+	// instance. Add it to Chain.stop(), then working channels can be closed safely.
+	// Otherwise a DATARACE (while closing a channel with a blocking write from RPC service) or
+	// `write on closed channel` panic may occur.
+	// Comment this out for now, IT IS A RESOURCE LEAK.
+	//
+	//close(c.pendingBlocks)
+	//close(c.pendingTxs)
+
 	return
 }
 
@@ -697,13 +705,15 @@ func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types
 	return
 }
 
-func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err error) {
+func (c *Chain) replaceAndSwitchToBranch(
+	newBlock *types.BPBlock, originBrIdx int, newBranch *branch) (err error,
+) {
 	var (
-		irre     *blockNode
+		lastIrre *blockNode
 		newIrres []*blockNode
 		sps      []storageProcedure
 		up       storageCallback
-		height   = c.heightOfTime(bl.Timestamp())
+		height   = c.heightOfTime(newBlock.Timestamp())
 	)
 
 	// Find new irreversible blocks
@@ -711,8 +721,8 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 	// NOTE(leventeliu):
 	// May have multiple new irreversible blocks here if peer list shrinks. May also have
 	// no new irreversible block at all if peer list expands.
-	irre = head.head.lastIrreversible(c.confirms)
-	newIrres = irre.fetchNodeList(c.lastIrre.count)
+	lastIrre = newBranch.head.lastIrreversible(c.confirms)
+	newIrres = lastIrre.fetchNodeList(c.lastIrre.count)
 
 	// Apply irreversible blocks to create dirty map on immutable cache
 	//
@@ -726,7 +736,7 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 	}
 
 	// Prepare storage procedures to update immutable database
-	sps = append(sps, addBlock(height, bl))
+	sps = append(sps, addBlock(height, newBlock))
 	for k, v := range c.immutable.dirty.accounts {
 		if v != nil {
 			sps = append(sps, updateAccount(&v.Account))
@@ -751,12 +761,12 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 	for _, n := range newIrres {
 		sps = append(sps, deleteTxs(n.block.Transactions))
 	}
-	sps = append(sps, updateIrreversible(irre.hash))
+	sps = append(sps, updateIrreversible(lastIrre.hash))
 
 	// Prepare callback to update cache
 	up = func() {
 		// Update last irreversible block
-		c.lastIrre = irre
+		c.lastIrre = lastIrre
 		// Apply irreversible blocks to immutable database
 		c.immutable.commit()
 		// Prune branches
@@ -765,13 +775,15 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 			brs = make([]*branch, 0, len(c.branches))
 		)
 		for i, b := range c.branches {
-			if i == origin {
-				// Current branch
-				brs = append(brs, head)
+			if i == originBrIdx {
+				// Replace origin branch with new branch
+				brs = append(brs, newBranch)
 				idx = len(brs) - 1
-			} else if b.head.hasAncestor(irre) {
+			} else if b.head.hasAncestor(lastIrre) {
+				// Move to new branches slice
 				brs = append(brs, b)
 			} else {
+				// Prune this branch
 				log.WithFields(log.Fields{
 					"branch": func() string {
 						if i == c.headIndex {
@@ -783,7 +795,7 @@ func (c *Chain) switchBranch(bl *types.BPBlock, origin int, head *branch) (err e
 			}
 		}
 		// Replace current branches
-		c.headBranch = head
+		c.headBranch = newBranch
 		c.headIndex = idx
 		c.branches = brs
 		// Clear packed transactions
@@ -853,7 +865,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 				)
 			}
 			// Switch branch or grow current branch
-			return c.switchBranch(bl, i, br)
+			return c.replaceAndSwitchToBranch(bl, i, br)
 		}
 	}
 
@@ -863,7 +875,9 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			return
 		}
 		// Fork and create new branch
-		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, c.lastIrre.count); ok {
+		if parent, ok = v.head.hasAncestorWithMinCount(
+			bl.SignedHeader.ParentHash, c.lastIrre.count,
+		); ok {
 			head = newBlockNode(height, bl, parent)
 			if br, ierr = fork(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
@@ -901,7 +915,7 @@ func (c *Chain) produceAndStoreBlock(
 			c.headBranch.head.hash.Short(4))
 		return
 	}
-	if ierr = c.switchBranch(bl, c.headIndex, br); ierr != nil {
+	if ierr = c.replaceAndSwitchToBranch(bl, c.headIndex, br); ierr != nil {
 		err = errors.Wrapf(ierr, "failed to switch branch #%d:%s",
 			c.headIndex, c.headBranch.head.hash.Short(4))
 		return

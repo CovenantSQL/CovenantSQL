@@ -779,13 +779,6 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	}
 
 	// check sender's permission
-	if so.Owner != sender {
-		log.WithFields(log.Fields{
-			"sender": sender,
-			"dbID":   tx.TargetSQLChain,
-		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
-		return ErrAccountPermissionDeny
-	}
 	isAdmin := false
 	for _, user := range so.Users {
 		if sender == user.Address && user.Permission == types.Admin {

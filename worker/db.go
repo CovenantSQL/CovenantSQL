@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	//"runtime/trace"
@@ -205,6 +206,11 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 	case types.ReadQuery:
 		return db.chain.Query(request)
 	case types.WriteQuery:
+		if db.cfg.UseEventualConsistency {
+			// reset context
+			request.SetContext(context.Background())
+			return db.chain.Query(request)
+		}
 		return db.writeQuery(request)
 	default:
 		// TODO(xq262144): verbose errors with custom error structure

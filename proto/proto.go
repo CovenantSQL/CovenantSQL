@@ -19,7 +19,11 @@ package proto
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/pkg/errors"
 )
 
 //go:generate hsp
@@ -159,3 +163,22 @@ func (e *Envelope) SetContext(ctx context.Context) {
 
 // DatabaseID is database name, will be generated from UUID
 type DatabaseID string
+
+// AccountAddress converts DatabaseID to AccountAddress.
+func (d *DatabaseID) AccountAddress() (a AccountAddress, err error) {
+	h, err := hash.NewHashFromStr(string(*d))
+	if err != nil {
+		err = errors.Wrap(err, "fail to convert string to hash")
+		return
+	}
+	a = AccountAddress(*h)
+	return
+}
+
+// FromAccountAndNonce generates databaseID from Account and its nonce.
+func FromAccountAndNonce(accountAddress AccountAddress, nonce uint32) *DatabaseID {
+	addrAndNonce := fmt.Sprintf("%s%d", accountAddress.String(), nonce)
+	rawID := hash.THashH([]byte(addrAndNonce))
+	d := DatabaseID(rawID.String())
+	return &d
+}

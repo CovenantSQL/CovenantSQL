@@ -26,7 +26,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-
 	//"runtime/trace"
 	"syscall"
 	"time"
@@ -128,7 +127,7 @@ func main() {
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %s", f.Name, f.Value)
+		log.Infof("args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error

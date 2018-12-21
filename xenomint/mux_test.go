@@ -53,19 +53,19 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 	)
 	// Use testing private key to create several nodes
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	if nis, err = createNodesWithPublicKey(priv.PubKey(), testingNonceDifficulty, 3); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	} else if l := len(nis); l != 3 {
-		b.Fatalf("Failed to setup bench environment: unexpected length %d", l)
+		b.Fatalf("failed to setup bench environment: unexpected length %d", l)
 	}
 	// Setup block producer RPC and register server address
 	bpSv = rpc.NewServer()
 	if err = bpSv.InitRPCServer(
 		"localhost:0", testingPrivateKeyFile, testingMasterKey,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	nis[0].Addr = bpSv.Listener.Addr().String()
 	nis[0].Role = proto.Leader
@@ -74,7 +74,7 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 	if err = mnSv.InitRPCServer(
 		"localhost:0", testingPrivateKeyFile, testingMasterKey,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	nis[1].Addr = mnSv.Listener.Addr().String()
 	nis[1].Role = proto.Miner
@@ -96,9 +96,9 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 	if dht, err = route.NewDHTService(
 		testingPublicKeyStoreFile, &con.KMSStorage{}, true,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	} else if err = bpSv.RegisterService(route.DHTRPCName, dht); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	kms.SetLocalNodeIDNonce(nis[2].ID.ToRawNodeID().CloneBytes(), &nis[2].Nonce)
 	for i := range nis {
@@ -107,7 +107,7 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 	}
 	// Register mux service
 	if ms, err = NewMuxService(benchmarkRPCName, mnSv); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 
 	// Setup query requests
@@ -123,7 +123,7 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 			buildQuery(sel, i+benchmarkReservedKeyOffset),
 		})
 		if err = req.Sign(priv); err != nil {
-			b.Fatalf("Failed to setup bench environment: %v", err)
+			b.Fatalf("failed to setup bench environment: %v", err)
 		}
 		r[i] = &MuxQueryRequest{
 			DatabaseID: benchmarkDatabaseID,
@@ -145,7 +145,7 @@ func setupBenchmarkMuxParallel(b *testing.B) (
 			buildQuery(ins, src[i]...),
 		})
 		if err = req.Sign(priv); err != nil {
-			b.Fatalf("Failed to setup bench environment: %v", err)
+			b.Fatalf("failed to setup bench environment: %v", err)
 		}
 		r[i+benchmarkNewKeyOffset] = &MuxQueryRequest{
 			DatabaseID: benchmarkDatabaseID,
@@ -182,17 +182,17 @@ func setupSubBenchmarkMuxParallel(b *testing.B, ms *MuxService) (c *Chain) {
 		stmt *sql.Stmt
 	)
 	if c, err = NewChain(fmt.Sprint("file:", fl)); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	if _, err = c.state.strg.Writer().Exec(
 		`CREATE TABLE "bench" ("k" INT, "v1" TEXT, "v2" TEXT, "v3" TEXT, PRIMARY KEY("k"))`,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	if stmt, err = c.state.strg.Writer().Prepare(
 		`INSERT INTO "bench" VALUES (?, ?, ?, ?)`,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
 	for i := 0; i < benchmarkReservedKeyLength; i++ {
 		var (
@@ -205,7 +205,7 @@ func setupSubBenchmarkMuxParallel(b *testing.B, ms *MuxService) (c *Chain) {
 			args[i+1] = string(vals[i][:])
 		}
 		if _, err = stmt.Exec(args[:]...); err != nil {
-			b.Fatalf("Failed to setup bench environment: %v", err)
+			b.Fatalf("failed to setup bench environment: %v", err)
 		}
 	}
 	ms.register(benchmarkDatabaseID, c)
@@ -227,21 +227,21 @@ func teardownSubBenchmarkMuxParallel(b *testing.B, ms *MuxService) {
 	)
 	// Stop RPC server
 	if c, err = ms.route(benchmarkDatabaseID); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	ms.unregister(benchmarkDatabaseID)
 	// Close chain
 	if err = c.Stop(); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fl); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+		b.Fatalf("failed to teardown bench environment: %v", err)
 	}
 }
 
@@ -278,11 +278,11 @@ func BenchmarkMuxParallel(b *testing.B) {
 					if err = caller.Call(
 						method, &r[bm.kg.next()], &MuxQueryResponse{},
 					); err != nil {
-						b.Fatalf("Failed to execute: %v", err)
+						b.Fatalf("failed to execute: %v", err)
 					}
 					if atomic.AddInt32(&counter, 1)%benchmarkQueriesPerBlock == 0 {
 						if err = c.state.commit(); err != nil {
-							b.Fatalf("Failed to commit block: %v", err)
+							b.Fatalf("failed to commit block: %v", err)
 						}
 					}
 				}

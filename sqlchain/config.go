@@ -19,7 +19,6 @@ package sqlchain
 import (
 	"time"
 
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
@@ -49,7 +48,7 @@ type Config struct {
 	BlockCacheTTL int32
 
 	// DBAccount info
-	TokenType    pt.TokenType
+	TokenType    types.TokenType
 	GasPrice     uint64
 	UpdatePeriod uint64
 }

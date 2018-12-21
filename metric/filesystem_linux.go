@@ -39,11 +39,11 @@ func (c *filesystemCollector) GetStats() ([]filesystemStats, error) {
 	stats := []filesystemStats{}
 	for _, labels := range mps {
 		if c.ignoredMountPointsPattern.MatchString(labels.mountPoint) {
-			log.Debugf("Ignoring mount point: %s", labels.mountPoint)
+			log.Debugf("ignoring mount point: %s", labels.mountPoint)
 			continue
 		}
 		if c.ignoredFSTypesPattern.MatchString(labels.fsType) {
-			log.Debugf("Ignoring fs type: %s", labels.fsType)
+			log.Debugf("ignoring fs type: %s", labels.fsType)
 			continue
 		}
 
@@ -54,7 +54,7 @@ func (c *filesystemCollector) GetStats() ([]filesystemStats, error) {
 				labels:      labels,
 				deviceError: 1,
 			})
-			log.Debugf("Error on statfs() system call for %q: %s", labels.mountPoint, err)
+			log.Debugf("error on statfs() system call for %q: %s", labels.mountPoint, err)
 			continue
 		}
 

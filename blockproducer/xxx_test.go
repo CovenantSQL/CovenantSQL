@@ -20,18 +20,21 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -40,13 +43,23 @@ var (
 	uuidLen            = 32
 	peerNum     uint32 = 32
 
-	testAddress1      = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
-	testAddress2      = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
-	testInitBalance   = uint64(10000)
-	testDifficulty    = 4
-	testDataDir       string
-	testAddress1Nonce pi.AccountNonce
-	testPrivKey       *asymmetric.PrivateKey
+	testAddress1    = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
+	testAddress2    = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
+	testInitBalance = uint64(10000)
+	testDifficulty  = 4
+
+	testAddress1Nonce         pi.AccountNonce
+	testingDataDir            string
+	testingTraceFile          *os.File
+	testingConfigFile         = "../test/node_standalone/config.yaml"
+	testingPrivateKeyFile     = "../test/node_standalone/private.key"
+	testingPublicKeyStoreFile string
+	testingNonceDifficulty    int
+
+	testingPrivateKey *ca.PrivateKey
+	testingPublicKey  *ca.PublicKey
+
+	testingMasterKey = []byte(`?08Rl%WUih4V0H+c`)
 )
 
 const (
@@ -82,9 +95,9 @@ func randStringBytes(n int) string {
 	return string(b)
 }
 
-func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err error) {
+func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *types.BPBlock, err error) {
 	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := ca.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -93,9 +106,9 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &pt.Block{
-		SignedHeader: pt.SignedHeader{
-			Header: pt.Header{
+	b = &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
 				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
@@ -115,25 +128,23 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 	} else {
 		// Create base accounts
 		var (
-			ba1 = pt.NewBaseAccount(
-				&pt.Account{
-					Address:             testAddress1,
-					StableCoinBalance:   testInitBalance,
-					CovenantCoinBalance: testInitBalance,
+			ba1 = types.NewBaseAccount(
+				&types.Account{
+					Address:      testAddress1,
+					TokenBalance: [types.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
-			ba2 = pt.NewBaseAccount(
-				&pt.Account{
-					Address:             testAddress2,
-					StableCoinBalance:   testInitBalance,
-					CovenantCoinBalance: testInitBalance,
+			ba2 = types.NewBaseAccount(
+				&types.Account{
+					Address:      testAddress2,
+					TokenBalance: [types.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 				},
 			)
 		)
-		if err = ba1.Sign(testPrivKey); err != nil {
+		if err = ba1.Sign(testingPrivateKey); err != nil {
 			return
 		}
-		if err = ba2.Sign(testPrivKey); err != nil {
+		if err = ba2.Sign(testingPrivateKey); err != nil {
 			return
 		}
 		b.Transactions = append(b.Transactions, ba1, ba2)
@@ -143,9 +154,9 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *pt.Block, err err
 	return
 }
 
-func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *pt.Block, err error) {
+func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction) (b *types.BPBlock, err error) {
 	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := ca.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -154,9 +165,9 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	h := hash.Hash{}
 	rand.Read(h[:])
 
-	b = &pt.Block{
-		SignedHeader: pt.SignedHeader{
-			Header: pt.Header{
+	b = &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
 				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
@@ -170,8 +181,8 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	}
 
 	testAddress1Nonce++
-	var tr = pt.NewTransfer(
-		&pt.TransferHeader{
+	var tr = types.NewTransfer(
+		&types.TransferHeader{
 			Sender:   testAddress1,
 			Receiver: testAddress2,
 			Nonce:    testAddress1Nonce,
@@ -188,8 +199,8 @@ func generateRandomBlockWithTransactions(parent hash.Hash, tbs []pi.Transaction)
 	return
 }
 
-func generateRandomBillingRequestHeader() *pt.BillingRequestHeader {
-	return &pt.BillingRequestHeader{
+func generateRandomBillingRequestHeader() *types.BillingRequestHeader {
+	return &types.BillingRequestHeader{
 		DatabaseID: *generateRandomDatabaseID(),
 		LowBlock:   generateRandomHash(),
 		LowHeight:  rand.Int31(),
@@ -199,9 +210,9 @@ func generateRandomBillingRequestHeader() *pt.BillingRequestHeader {
 	}
 }
 
-func generateRandomBillingRequest() (*pt.BillingRequest, error) {
+func generateRandomBillingRequest() (*types.BillingRequest, error) {
 	reqHeader := generateRandomBillingRequestHeader()
-	req := pt.BillingRequest{
+	req := types.BillingRequest{
 		Header: *reqHeader,
 	}
 	h, err := req.PackRequestHeader()
@@ -209,12 +220,12 @@ func generateRandomBillingRequest() (*pt.BillingRequest, error) {
 		return nil, err
 	}
 
-	signees := make([]*asymmetric.PublicKey, peerNum)
-	signatures := make([]*asymmetric.Signature, peerNum)
+	signees := make([]*ca.PublicKey, peerNum)
+	signatures := make([]*ca.Signature, peerNum)
 
 	for i := range signees {
 		// Generate key pair
-		priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+		priv, pub, err := ca.GenSecp256k1KeyPair()
 		if err != nil {
 			return nil, err
 		}
@@ -231,14 +242,14 @@ func generateRandomBillingRequest() (*pt.BillingRequest, error) {
 	return &req, nil
 }
 
-func generateRandomBillingHeader() (tc *pt.BillingHeader, err error) {
-	var req *pt.BillingRequest
+func generateRandomBillingHeader() (tc *types.BillingHeader, err error) {
+	var req *types.BillingRequest
 	if req, err = generateRandomBillingRequest(); err != nil {
 		return
 	}
 
-	var priv *asymmetric.PrivateKey
-	if priv, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+	var priv *ca.PrivateKey
+	if priv, _, err = ca.GenSecp256k1KeyPair(); err != nil {
 		return
 	}
 
@@ -258,29 +269,28 @@ func generateRandomBillingHeader() (tc *pt.BillingHeader, err error) {
 	}
 	producer := proto.AccountAddress(generateRandomHash())
 
-	tc = pt.NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
+	tc = types.NewBillingHeader(pi.AccountNonce(rand.Uint32()), req, producer, receivers, fees, rewards)
 	return tc, nil
 }
 
-func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error) {
+func generateRandomBillingAndBaseAccount() (*types.BaseAccount, *types.Billing, error) {
 	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, nil, err
 	}
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := ca.GenSecp256k1KeyPair()
 	header.Producer, _ = crypto.PubKeyHash(priv.PubKey())
 
-	txBilling := pt.NewBilling(header)
+	txBilling := types.NewBilling(header)
 
 	if err := txBilling.Sign(priv); err != nil {
 		return nil, nil, err
 	}
 
-	txBaseAccount := pt.NewBaseAccount(
-		&pt.Account{
-			Address:             header.Producer,
-			StableCoinBalance:   testInitBalance,
-			CovenantCoinBalance: testInitBalance,
+	txBaseAccount := types.NewBaseAccount(
+		&types.Account{
+			Address:      header.Producer,
+			TokenBalance: [types.SupportTokenNumber]uint64{testInitBalance, testInitBalance},
 		},
 	)
 
@@ -291,7 +301,7 @@ func generateRandomBillingAndBaseAccount() (*pt.BaseAccount, *pt.Billing, error)
 	return txBaseAccount, txBilling, nil
 }
 
-func generateRandomAccountBilling() (*pt.Billing, error) {
+func generateRandomAccountBilling() (*types.Billing, error) {
 	header, err := generateRandomBillingHeader()
 	if err != nil {
 		return nil, err
@@ -299,9 +309,9 @@ func generateRandomAccountBilling() (*pt.Billing, error) {
 	header.Producer = testAddress1
 	testAddress1Nonce++
 	header.Nonce = testAddress1Nonce
-	txBilling := pt.NewBilling(header)
+	txBilling := types.NewBilling(header)
 
-	if err := txBilling.Sign(testPrivKey); err != nil {
+	if err := txBilling.Sign(testingPrivateKey); err != nil {
 		return nil, err
 	}
 
@@ -328,7 +338,7 @@ func generateRandomHash() hash.Hash {
 	return h
 }
 
-func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
+func registerNodesWithPublicKey(pub *ca.PublicKey, diff int, num int) (
 	nis []cpuminer.NonceInfo, err error) {
 	nis = make([]cpuminer.NonceInfo, num)
 
@@ -372,7 +382,7 @@ func createRandomString(offset, length int, s *string) {
 	*s = string(buff)
 }
 
-func createTestPeersWithPrivKeys(priv *asymmetric.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err error) {
+func createTestPeersWithPrivKeys(priv *ca.PrivateKey, num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err error) {
 	if num <= 0 {
 		return
 	}
@@ -462,23 +472,34 @@ func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 
-	// Create key paire for test
-	if testPrivKey, _, err = asymmetric.GenSecp256k1KeyPair(); err != nil {
+	// Create temp dir for test data
+	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
 
-	// Create temp dir for test data
-	if testDataDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	// Initialze kms
+	testingNonceDifficulty = 2
+	testingPublicKeyStoreFile = path.Join(testingDataDir, "public.keystore")
+
+	if conf.GConf, err = conf.LoadConfig(testingConfigFile); err != nil {
 		panic(err)
 	}
+	route.InitKMS(testingPublicKeyStoreFile)
+	if err = kms.InitLocalKeyPair(testingPrivateKeyFile, []byte{}); err != nil {
+		panic(err)
+	}
+	if testingPrivateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		panic(err)
+	}
+	testingPublicKey = testingPrivateKey.PubKey()
 
 	// Setup logging
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 }
 
 func teardown() {
-	if err := os.RemoveAll(testDataDir); err != nil {
+	if err := os.RemoveAll(testingDataDir); err != nil {
 		panic(err)
 	}
 }

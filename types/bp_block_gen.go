@@ -7,7 +7,7 @@ import (
 )
 
 // MarshalHash marshals for hash
-func (z *Block) MarshalHash() (o []byte, err error) {
+func (z *BPBlock) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
@@ -30,7 +30,7 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *Block) Msgsize() (s int) {
+func (z *BPBlock) Msgsize() (s int) {
 	s = 1 + 13 + z.SignedHeader.Msgsize() + 13 + hsp.ArrayHeaderSize
 	for za0001 := range z.Transactions {
 		s += z.Transactions[za0001].Msgsize()
@@ -39,7 +39,7 @@ func (z *Block) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
-func (z *Header) MarshalHash() (o []byte, err error) {
+func (z *BPHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 5
@@ -69,13 +69,13 @@ func (z *Header) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *Header) Msgsize() (s int) {
+func (z *BPHeader) Msgsize() (s int) {
 	s = 1 + 11 + z.MerkleRoot.Msgsize() + 11 + z.ParentHash.Msgsize() + 8 + hsp.Int32Size + 9 + z.Producer.Msgsize() + 10 + hsp.TimeSize
 	return
 }
 
 // MarshalHash marshals for hash
-func (z *SignedHeader) MarshalHash() (o []byte, err error) {
+func (z *BPSignedHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
@@ -100,7 +100,7 @@ func (z *SignedHeader) MarshalHash() (o []byte, err error) {
 		}
 	}
 	o = append(o, 0x84)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	if oTemp, err := z.BPHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -115,7 +115,7 @@ func (z *SignedHeader) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *SignedHeader) Msgsize() (s int) {
+func (z *BPSignedHeader) Msgsize() (s int) {
 	s = 1 + 7
 	if z.Signee == nil {
 		s += hsp.NilSize
@@ -128,6 +128,6 @@ func (z *SignedHeader) Msgsize() (s int) {
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 7 + z.Header.Msgsize() + 10 + z.BlockHash.Msgsize()
+	s += 9 + z.BPHeader.Msgsize() + 10 + z.BlockHash.Msgsize()
 	return
 }

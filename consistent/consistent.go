@@ -84,7 +84,7 @@ func InitConsistent(storePath string, persistImpl Persistence, initBP bool) (c *
 		// Load BlockProducer public key, set it in public key store
 		// as all kms.BP stuff is initialized on kms init()
 		if conf.GConf == nil {
-			log.Fatal("Must call conf.LoadConfig first")
+			log.Fatal("must call conf.LoadConfig first")
 		}
 		BPNodes = conf.GConf.SeedBPNodes
 	}

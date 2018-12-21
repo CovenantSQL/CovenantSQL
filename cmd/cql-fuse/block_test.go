@@ -445,7 +445,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(part1, readData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(part1))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(readData), len(part1))
 	}
 
 	verboseData, err := getAllBlocks(db, id)
@@ -453,7 +453,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, part1) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(part1))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(verboseData), len(part1))
 	}
 
 	// Write with hole in the middle.
@@ -469,7 +469,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(fullData, readData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
 	}
 
 	verboseData, err = getAllBlocks(db, id)
@@ -477,7 +477,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, fullData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
 	}
 
 	// Now write into the middle of the file.
@@ -492,7 +492,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(fullData, readData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
 	}
 
 	verboseData, err = getAllBlocks(db, id)
@@ -500,7 +500,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, fullData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
 	}
 
 	// New file.

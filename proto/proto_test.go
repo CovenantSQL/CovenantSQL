@@ -50,3 +50,56 @@ func TestEnvelope_GetSet(t *testing.T) {
 		So(env.GetContext(), ShouldEqual, cldCtx)
 	})
 }
+
+func TestDatabaseID_AccountAddress(t *testing.T) {
+	target := []string{
+		"1224a1e9f72eb00d08afa4030dc642edefb6e3249aafe20cf1a5f9d46d0c0bbe",
+		"5b0b8fd3b0700bd0858f3d61ff0a1b621dbbeb2013a3aab5df2885dc10ccf6ce",
+		"b90f502d8aa95573cdc3c50ea1552aa1c163b567980e2555fe84cfd1d5e78765",
+	}
+
+	Convey("AccountAddress convert", t, func() {
+		for i := range target {
+			dbid := DatabaseID(target[i])
+			h, err := hash.NewHashFromStr(target[i])
+			So(err, ShouldBeNil)
+			a, err := dbid.AccountAddress()
+			So(err, ShouldBeNil)
+			So(h[:], ShouldResemble, a[:])
+		}
+
+	})
+}
+
+func TestFromAccountAndNonce(t *testing.T) {
+	target := []struct {
+		account string
+		nonce   uint32
+		result  string
+	}{
+		{
+			"aecd0b238518f023a81db3bdce5b2f1211b4e383dac96efc5d7205c761e15519",
+			1,
+			"a2710c0f9550c2713e9ff25543d9b5ef96bdc4927ea8d56262bb938718b8b717",
+		},
+		{
+			"8374e39c82c847681341245d9964f31a15cf2844994ec64a9b99c38dd3b7f54b",
+			2,
+			"da05187b8da4ec8dc3320c7d103590573d4f40beed414ad2afed7c3bdbaca628",
+		},
+		{
+			"72cb315f225c8ce03cd4b8d8ef802e871f9aa0924ddd9a358b647f4187730b12",
+			0,
+			"293e94eecddd941eab73d47e0cb967102b271bd4fc3a1398c1c1496c3dd06f0f",
+		},
+	}
+	Convey("Generate DatabaseID", t, func() {
+		for i := range target {
+			h, err := hash.NewHashFromStr(target[i].account)
+			So(err, ShouldBeNil)
+			a := AccountAddress(*h)
+			dbID := FromAccountAndNonce(a, target[i].nonce)
+			So(string(*dbID), ShouldResemble, target[i].result)
+		}
+	})
+}

@@ -19,9 +19,9 @@ package blockproducer
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 const (
@@ -30,21 +30,22 @@ const (
 
 // Config is the main chain configuration.
 type Config struct {
-	Genesis *types.Block
+	Genesis *types.BPBlock
 
 	DataFile string
 
 	Server *rpc.Server
 
-	Peers  *proto.Peers
-	NodeID proto.NodeID
+	Peers            *proto.Peers
+	NodeID           proto.NodeID
+	ConfirmThreshold float64
 
 	Period time.Duration
 	Tick   time.Duration
 }
 
 // NewConfig creates new config.
-func NewConfig(genesis *types.Block, dataFile string,
+func NewConfig(genesis *types.BPBlock, dataFile string,
 	server *rpc.Server, peers *proto.Peers,
 	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
 	config := Config{

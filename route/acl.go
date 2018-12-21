@@ -140,7 +140,7 @@ const (
 	ObserverRPCName = "OBS"
 )
 
-// String returns the RemoteFunc string
+// String returns the RemoteFunc string.
 func (s RemoteFunc) String() string {
 	switch s {
 	case DHTPing:
@@ -211,7 +211,7 @@ func (s RemoteFunc) String() string {
 	return "Unknown"
 }
 
-// IsPermitted returns if the node is permitted to call the RPC func
+// IsPermitted returns if the node is permitted to call the RPC func.
 func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) {
 	callerETLSNodeID := callerEnvelope.GetNodeID()
 	// strict anonymous ETLS only used for Ping

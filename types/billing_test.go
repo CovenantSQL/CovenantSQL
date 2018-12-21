@@ -28,38 +28,38 @@ import (
 func TestBillingHeader_MarshalUnmarshalBinary(t *testing.T) {
 	tc, err := generateRandomBillingHeader()
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	enc, err := utils.EncodeMsgPack(tc)
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	dec := &BillingHeader{}
 	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	if tc.Nonce != dec.Nonce {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.Nonce, tc.Nonce)
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", tc.Nonce, tc.Nonce)
 	}
 	if tc.BillingRequest.RequestHash != dec.BillingRequest.RequestHash {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.RequestHash, tc.BillingRequest.RequestHash)
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.RequestHash, tc.BillingRequest.RequestHash)
 	}
 	if !tc.BillingRequest.Signatures[0].IsEqual(dec.BillingRequest.Signatures[0]) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.Signatures[0], dec.BillingRequest.Signatures[0])
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", tc.BillingRequest.Signatures[0], dec.BillingRequest.Signatures[0])
 	}
 	for i := range tc.Receivers {
 		if !reflect.DeepEqual(tc.Receivers[i], dec.Receivers[i]) {
-			t.Fatalf("Value not match: \n\ttc.Receivers[%d]=%v\n\tReceive[%d]=%v", i, i, tc.Receivers[i], tc.Receivers[0])
+			t.Fatalf("value not match: \n\ttc.Receivers[%d]=%v\n\tReceive[%d]=%v", i, i, tc.Receivers[i], tc.Receivers[0])
 		}
 		if tc.Rewards[i] != dec.Rewards[i] {
-			t.Fatalf("Value not match: \n\ttc.Rewards[%d]=%v\n\tRewards[%d]=%v", i, i, tc.Rewards[i], tc.Rewards[0])
+			t.Fatalf("value not match: \n\ttc.Rewards[%d]=%v\n\tRewards[%d]=%v", i, i, tc.Rewards[i], tc.Rewards[0])
 		}
 		if tc.Fees[i] != dec.Fees[i] {
-			t.Fatalf("Value not match: \n\ttc.Fees[%d]=%v\n\tFees[%d]=%v", i, i, tc.Fees[i], tc.Fees[0])
+			t.Fatalf("value not match: \n\ttc.Fees[%d]=%v\n\tFees[%d]=%v", i, i, tc.Fees[i], tc.Fees[0])
 		}
 	}
 }
@@ -67,75 +67,75 @@ func TestBillingHeader_MarshalUnmarshalBinary(t *testing.T) {
 func TestBilling_SerializeDeserialize(t *testing.T) {
 	tb, err := generateRandomBilling()
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	enc, err := utils.EncodeMsgPack(tb)
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	dec := Billing{}
 	err = utils.DecodeMsgPack(enc.Bytes(), &dec)
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	if !tb.Signature.IsEqual(dec.Signature) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signature, dec.Signature)
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", tb.Signature, dec.Signature)
 	}
 	if !tb.Signee.IsEqual(dec.Signee) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Signee, dec.Signee)
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", tb.Signee, dec.Signee)
 	}
 	if tb.Hash() != dec.Hash() {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", tb.Hash(), dec.Hash())
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", tb.Hash(), dec.Hash())
 	}
 }
 
 func TestBilling_PackAndSignTx(t *testing.T) {
 	tb, err := generateRandomBilling()
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 	tb.Sign(priv)
 	enc, err := tb.BillingHeader.MarshalHash()
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 	h := hash.THashH(enc[:])
 	sign, err := priv.Sign(h[:])
 	if err != nil {
-		t.Fatalf("Unexpeted error: %v", err)
+		t.Fatalf("unexpeted error: %v", err)
 	}
 	if !sign.IsEqual(tb.Signature) {
-		t.Fatalf("Value not match: \n\tv1=%v\n\tv2=%v", sign, tb.Signature)
+		t.Fatalf("value not match: \n\tv1=%v\n\tv2=%v", sign, tb.Signature)
 	}
 
 	err = tb.Verify()
 	if err != nil {
-		t.Fatalf("Verify signature failed: %v", err)
+		t.Fatalf("verify signature failed: %v", err)
 	}
 
 	// get
 	addr := hash.Hash(tb.GetAccountAddress())
 	if addr.IsEqual(&hash.Hash{}) {
-		t.Fatal("Get hash failed")
+		t.Fatal("get hash failed")
 	}
 
 	tb.GetAccountNonce()
 
 	if tb.GetDatabaseID() == nil {
-		t.Fatal("Get nil DatabaseID")
+		t.Fatal("get nil DatabaseID")
 	}
 
 	tb.Signature = nil
 	err = tb.Verify()
 	if err == nil {
-		t.Fatal("Verify signature should failed")
+		t.Fatal("verify signature should failed")
 	}
 }

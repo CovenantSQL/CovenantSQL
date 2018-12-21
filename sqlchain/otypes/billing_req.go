@@ -17,7 +17,7 @@
 package otypes
 
 import (
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/otypes"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 

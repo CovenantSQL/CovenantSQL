@@ -766,5 +766,5 @@ func (s *State) Stat(id proto.DatabaseID) {
 		"database_id":               id,
 		"pooled_fail_request_count": fc,
 		"pooled_query_tracker":      tc,
-	}).Info("Xeno pool stats")
+	}).Info("xeno pool stats")
 }

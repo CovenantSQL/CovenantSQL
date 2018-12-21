@@ -41,34 +41,82 @@ type UserPermission int32
 const (
 	// Admin defines the admin user permission.
 	Admin UserPermission = iota
+	// Write defines the writer user permission.
+	Write
 	// Read defines the reader user permission.
 	Read
-	// ReadWrite defines the reader/writer user permission.
-	ReadWrite
 	// NumberOfUserPermission defines the user permission number.
 	NumberOfUserPermission
 )
 
+// Status defines status of a SQLChain user/miner.
+type Status int32
+
+const (
+	// Normal defines no bad thing happens.
+	Normal Status = iota
+	// Reminder defines the user needs to increase advance payment.
+	Reminder
+	// Arrears defines the user is in arrears.
+	Arrears
+	// Arbitration defines the user/miner is in an arbitration.
+	Arbitration
+	// NumberOfStatus defines the number of status.
+	NumberOfStatus
+)
+
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
-	Address    proto.AccountAddress
-	Permission UserPermission
+	Address        proto.AccountAddress
+	Permission     UserPermission
+	AdvancePayment uint64
+	Arrears        uint64
+	Pledge         uint64
+	Status         Status
+}
+
+// MinerInfo defines a miner.
+type MinerInfo struct {
+	Address        proto.AccountAddress
+	Name           string
+	PendingIncome  uint64
+	ReceivedIncome uint64
+	Pledge         uint64
+	Status         Status
+	EncryptionKey  string
 }
 
 // SQLChainProfile defines a SQLChainProfile related to an account.
 type SQLChainProfile struct {
-	ID      proto.DatabaseID
-	Deposit uint64
-	Owner   proto.AccountAddress
-	Miners  []proto.AccountAddress
-	Users   []*SQLChainUser
+	ID       proto.DatabaseID
+	Address  proto.AccountAddress
+	Period   uint64
+	GasPrice uint64
+
+	TokenType TokenType
+
+	Owner proto.AccountAddress
+	// first miner in the list is leader
+	Miners []*MinerInfo
+
+	Users []*SQLChainUser
+
+	Genesis *Block
+}
+
+// ProviderProfile defines a provider list.
+type ProviderProfile struct {
+	Provider      proto.AccountAddress
+	Space         uint64 // reserved storage space in bytes
+	Memory        uint64 // reserved memory in bytes
+	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
+	TargetUser    proto.AccountAddress
 }
 
 // Account store its balance, and other mate data.
 type Account struct {
-	Address             proto.AccountAddress
-	StableCoinBalance   uint64
-	CovenantCoinBalance uint64
-	Rating              float64
-	NextNonce           pi.AccountNonce
+	Address      proto.AccountAddress
+	TokenBalance [SupportTokenNumber]uint64
+	Rating       float64
+	NextNonce    pi.AccountNonce
 }

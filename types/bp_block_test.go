@@ -28,24 +28,24 @@ import (
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
 
 	block, err := generateRandomBlock(genesisHash, false)
-	header := &block.SignedHeader.Header
+	header := &block.SignedHeader.BPHeader
 	if err != nil {
-		t.Fatalf("Failed to generate block: %v", err)
+		t.Fatalf("failed to generate block: %v", err)
 	}
 
 	enc, err := utils.EncodeMsgPack(header)
 	if err != nil {
-		t.Fatalf("Failed to mashal binary: %v", err)
+		t.Fatalf("failed to mashal binary: %v", err)
 	}
 
-	dec := &Header{}
+	dec := &BPHeader{}
 	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
-		t.Fatalf("Failed to unmashal binary: %v", err)
+		t.Fatalf("failed to unmashal binary: %v", err)
 	}
 
 	if !reflect.DeepEqual(header, dec) {
-		t.Fatalf("Value not math:\n\tv1 = %+v\n\tv2 = %+v", block, dec)
+		t.Fatalf("value not math:\n\tv1 = %+v\n\tv2 = %+v", block, dec)
 	}
 }
 
@@ -53,22 +53,22 @@ func TestSignedHeader_MarshalUnmashalBinary(t *testing.T) {
 	block, err := generateRandomBlock(genesisHash, false)
 	signedHeader := &block.SignedHeader
 	if err != nil {
-		t.Fatalf("Failed to generate block: %v", err)
+		t.Fatalf("failed to generate block: %v", err)
 	}
 
 	enc, err := utils.EncodeMsgPack(signedHeader)
 	if err != nil {
-		t.Fatalf("Failed to mashal binary: %v", err)
+		t.Fatalf("failed to mashal binary: %v", err)
 	}
 
-	dec := &SignedHeader{}
+	dec := &BPSignedHeader{}
 	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
-		t.Fatalf("Failed to unmashal binary: %v", err)
+		t.Fatalf("failed to unmashal binary: %v", err)
 	}
 
 	if !reflect.DeepEqual(signedHeader, dec) {
-		t.Fatalf("Value not math:\n\tv1 = %+v\n\tv2 = %+v", signedHeader, dec)
+		t.Fatalf("value not math:\n\tv1 = %+v\n\tv2 = %+v", signedHeader, dec)
 	}
 
 }
@@ -76,7 +76,7 @@ func TestSignedHeader_MarshalUnmashalBinary(t *testing.T) {
 func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 	block, err := generateRandomBlock(genesisHash, false)
 	if err != nil {
-		t.Fatalf("Failed to generate block: %v", err)
+		t.Fatalf("failed to generate block: %v", err)
 	}
 	h := reflect.TypeOf(block)
 	_, ok := h.(encoding.BinaryMarshaler)
@@ -86,13 +86,13 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 
 	enc, err := utils.EncodeMsgPack(block)
 	if err != nil {
-		t.Fatalf("Failed to mashal binary: %v", err)
+		t.Fatalf("failed to mashal binary: %v", err)
 	}
 
-	dec := &Block{}
+	dec := &BPBlock{}
 	err = utils.DecodeMsgPack(enc.Bytes(), dec)
 	if err != nil {
-		t.Fatalf("Failed to unmashal binary: %v", err)
+		t.Fatalf("failed to unmashal binary: %v", err)
 	}
 
 	bts1, err := block.MarshalHash()
@@ -111,27 +111,27 @@ func TestBlock_MarshalUnmarshalBinary(t *testing.T) {
 func TestBlock_PackAndSignBlock(t *testing.T) {
 	block, err := generateRandomBlock(genesisHash, false)
 	if err != nil {
-		t.Fatalf("Failed to generate block: %v", err)
+		t.Fatalf("failed to generate block: %v", err)
 	}
 
 	err = block.Verify()
 	if err != nil {
-		t.Fatalf("Failed to verify: %v", err)
+		t.Fatalf("failed to verify: %v", err)
 	}
 
 	block.SignedHeader.BlockHash[0]++
 	err = block.Verify()
 	if err != ErrHashVerification {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	tb, err := generateRandomBilling()
 	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	block.Transactions = append(block.Transactions, tb)
 	err = block.Verify()
 	if err != ErrMerkleRootVerification {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

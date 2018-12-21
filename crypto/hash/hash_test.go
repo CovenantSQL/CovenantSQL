@@ -125,8 +125,19 @@ func TestHashString(t *testing.T) {
 
 	hashStr := hash.String()
 	if hashStr != wantStr {
-		t.Errorf("String: wrong hash string - got %v, want %v",
+		t.Errorf("string: wrong hash string - got %v, want %v",
 			hashStr, wantStr)
+	}
+	for n := 0; n < 2*HashSize; n++ {
+		var l = HashSize
+		if n < l {
+			l = n
+		}
+		expect := string([]byte(wantStr)[:2*l])
+		actual := hash.Short(n)
+		if expect != actual {
+			t.Errorf("short result mismatched: expect=%s actual=%s", expect, actual)
+		}
 	}
 }
 
@@ -260,12 +271,12 @@ func TestHash_Difficulty(t *testing.T) {
 
 	nilDifficulty := (*Hash)(nil).Difficulty()
 	if nilDifficulty != -1 {
-		t.Errorf("Difficulty test nil expect -1 got %d", nilDifficulty)
+		t.Errorf("difficulty test nil expect -1 got %d", nilDifficulty)
 	}
 
 	newDifficulty := new(Hash).Difficulty()
 	if newDifficulty != 256 {
-		t.Errorf("Difficulty test new(Hash) expect 256 got %d", newDifficulty)
+		t.Errorf("difficulty test new(Hash) expect 256 got %d", newDifficulty)
 	}
 }
 

@@ -24,7 +24,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-
 	// Import sqlite3 manually.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )

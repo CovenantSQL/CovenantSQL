@@ -63,6 +63,8 @@ var (
 	ErrDatabaseExists = errors.New("database already exists")
 	// ErrDatabaseUserExists indicates that the database user already exists.
 	ErrDatabaseUserExists = errors.New("database user already exists")
+	// ErrDatabaseCannotCreate indicates that database cannot be created.
+	ErrDatabaseCannotCreate = errors.New("database cannot be created")
 	// ErrInvalidAccountNonce indicates that a transaction has a invalid account nonce.
 	ErrInvalidAccountNonce = errors.New("invalid account nonce")
 	// ErrUnknownTransactionType indicates that a transaction has a unknown type and cannot be
@@ -72,4 +74,20 @@ var (
 	ErrTransactionMismatch = errors.New("transaction mismatch")
 	// ErrMetaStateNotFound indicates that meta state not found in db.
 	ErrMetaStateNotFound = errors.New("meta state not found in db")
+	// ErrInvalidSender indicates that tx.Signee != tx.Sender.
+	ErrInvalidSender = errors.New("invalid sender")
+	// ErrNoSuchMiner indicates that this miner does not exist or register.
+	ErrNoSuchMiner = errors.New("no such miner")
+	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
+	ErrAccountPermissionDeny = errors.New("account permission deny")
+	// ErrInvalidPermission indicates that the permission is invalid.
+	ErrInvalidPermission = errors.New("invalid permission")
+	// ErrMinerUserNotMatch indicates that the miner and user do not match.
+	ErrMinerUserNotMatch = errors.New("miner and user do not match")
+	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
+	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrLocalNodeNotFound indicates that the local node id is not found in the given peer list.
+	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
+	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.
+	ErrNoAvailableBranch = errors.New("no available branch from state storage")
 )

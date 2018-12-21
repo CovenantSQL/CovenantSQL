@@ -835,7 +835,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			return
 		}
 		// Fork and create new branch
-		if parent, ok = v.head.canForkFrom(bl.SignedHeader.ParentHash, c.lastIrre.count); ok {
+		if parent, ok = v.head.hasAncestorWithMinCount(bl.SignedHeader.ParentHash, c.lastIrre.count); ok {
 			head = newBlockNode(height, bl, parent)
 			if br, ierr = fork(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))

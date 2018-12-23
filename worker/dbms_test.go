@@ -22,7 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -39,9 +41,13 @@ func TestDBMS(t *testing.T) {
 		cleanup, server, err = initNode()
 		So(err, ShouldBeNil)
 
-		var privateKey *asymmetric.PrivateKey
+		var (
+			privateKey *asymmetric.PrivateKey
+			publicKey  *asymmetric.PublicKey
+		)
 		privateKey, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
+		publicKey = privateKey.PubKey()
 
 		var rootDir string
 		rootDir, err = ioutil.TempDir("", "dbms_test_")
@@ -67,7 +73,10 @@ func TestDBMS(t *testing.T) {
 		var peers *proto.Peers
 		var block *types.Block
 
-		dbID := proto.DatabaseID("db")
+		dbAddr := proto.AccountAddress(hash.HashH([]byte{'d', 'b'}))
+		dbID := dbAddr.DatabaseID()
+		userAddr, err := crypto.PubKeyHash(publicKey)
+		So(err, ShouldBeNil)
 
 		// create sqlchain block
 		block, err = createRandomBlock(rootHash, true)
@@ -92,6 +101,29 @@ func TestDBMS(t *testing.T) {
 			// send update again
 			err = testRequest(route.DBSDeploy, req, &res)
 			So(err, ShouldBeNil)
+
+			// grant permission
+			up := &types.UpdatePermission{
+				UpdatePermissionHeader: types.UpdatePermissionHeader{
+					TargetSQLChain: dbAddr,
+					TargetUser:     userAddr,
+					Permission:     types.Admin,
+				},
+			}
+			err = up.Sign(privateKey)
+			So(err, ShouldBeNil)
+			dbms.updatePermission(up, 0)
+			us, ok := dbms.chainMap.Load(dbID)
+			So(ok, ShouldBeTrue)
+			userState := us.(types.UserState)
+			perm, ok := userState.GetPermission(userAddr)
+			So(ok, ShouldBeTrue)
+			So(perm, ShouldEqual, types.Admin)
+			stat, ok := userState.GetStatus(userAddr)
+			So(ok, ShouldBeTrue)
+			So(stat, ShouldEqual, types.UnknownStatus)
+			userState.UpdateStatus(userAddr, types.Normal)
+			dbms.chainMap.Store(dbID, userState)
 
 			Convey("queries", func() {
 				// sending write query

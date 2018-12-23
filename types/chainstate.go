@@ -36,7 +36,13 @@ func NewUserState() *UserState {
 }
 
 func (us *UserState) UpdatePermission(user proto.AccountAddress, perm UserPermission) {
-	us.State[user].Permission = perm
+	if state, ok := us.State[user]; ok {
+		state.Permission = perm
+	} else {
+		us.State[user] = &PermStat{
+			Permission: perm,
+		}
+	}
 }
 
 func (us *UserState) AddPermission(user proto.AccountAddress, perm UserPermission) {
@@ -44,7 +50,13 @@ func (us *UserState) AddPermission(user proto.AccountAddress, perm UserPermissio
 }
 
 func (us *UserState) UpdateStatus(user proto.AccountAddress, stat Status) {
-	us.State[user].Status = stat
+	if state, ok := us.State[user]; ok {
+		state.Status = stat
+	} else {
+		us.State[user] = &PermStat{
+			Status: stat,
+		}
+	}
 }
 
 func (us *UserState) AddStatus(user proto.AccountAddress, stat Status) {

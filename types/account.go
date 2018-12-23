@@ -39,8 +39,10 @@ const (
 type UserPermission int32
 
 const (
+	// Unknown defines the initial permission.
+	UnknownPerm UserPermission = iota
 	// Admin defines the admin user permission.
-	Admin UserPermission = iota
+	Admin
 	// Write defines the writer user permission.
 	Write
 	// Read defines the reader user permission.
@@ -68,8 +70,10 @@ func (up *UserPermission) CheckAdmin() bool {
 type Status int32
 
 const (
+	// Unknown defines initial status.
+	UnknownStatus Status = iota
 	// Normal defines no bad thing happens.
-	Normal Status = iota
+	Normal
 	// Reminder defines the user needs to increase advance payment.
 	Reminder
 	// Arrears defines the user is in arrears.

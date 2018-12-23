@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 )
 
@@ -88,6 +89,8 @@ func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err
 	if req.Tx == nil {
 		return ErrUnknownTransactionType
 	}
+	log.Infof("transaction type: %s, hash: %s, address: %s",
+		(req.Tx).GetTransactionType().String(), req.Tx.Hash(), req.Tx.GetAccountAddress())
 	s.chain.addTx(req.Tx)
 	return
 }

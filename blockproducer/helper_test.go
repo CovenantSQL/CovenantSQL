@@ -157,7 +157,7 @@ func (p *stubDBMetaPersistence) getInstanceMeta(dbID proto.DatabaseID) (instance
 	return
 }
 
-func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTService, metricService *metric.CollectServer, server *rpc.Server, err error) {
+func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTService, metricService *metric.CollectServer, server *rpc.Server, dbms *worker.DBMS, err error) {
 	var d string
 	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
 		return
@@ -202,7 +202,7 @@ func initNode(confRP, privateKeyRP string) (cleanupFunc func(), dht *route.DHTSe
 	}
 
 	// register database service
-	_, err = worker.NewDBMS(&worker.DBMSConfig{
+	dbms, err = worker.NewDBMS(&worker.DBMSConfig{
 		RootDir:       d,
 		Server:        server,
 		MaxReqTimeGap: worker.DefaultMaxReqTimeGap,

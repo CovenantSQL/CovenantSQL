@@ -30,6 +30,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -221,6 +222,20 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 
 	// send create database request
 	if err = testRequest(route.DBSDeploy, req, &res); err != nil {
+		return
+	}
+
+	// update private key permission in dbms for query
+	addr, err := crypto.PubKeyHash(privateKey.PubKey())
+	if err != nil {
+		return
+	}
+	permStat := &types.PermStat{
+		Permission: types.Admin,
+		Status:     types.Normal,
+	}
+	err = dbms.UpdatePermission(dbID, proto.AccountAddress(addr), permStat)
+	if err != nil {
 		return
 	}
 

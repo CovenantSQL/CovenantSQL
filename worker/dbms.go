@@ -305,8 +305,20 @@ func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
 	}
 
 	newState := state.(types.UserState)
-	newState.UpdatePermission(up.TargetUser, up.Permission)
+	newState.AddPermission(up.TargetUser, up.Permission)
 	dbms.chainMap.Store(up.TargetSQLChain.DatabaseID(), newState)
+}
+
+// UpdatePermission export the update permission interface for test.
+func (dbms *DBMS) UpdatePermission(dbid proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
+	s, loaded := dbms.chainMap.Load(dbid)
+	if !loaded {
+		err = errors.Wrap(ErrNotExists, "update permission failed")
+		return
+	}
+	state := s.(types.UserState)
+	state.State[user] = permStat
+	return
 }
 
 func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (err error) {
@@ -387,6 +399,11 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// add to meta
 	err = dbms.addMeta(instance.DatabaseID, db)
+
+	// init chainMap
+	dbms.chainMap.Store(instance.DatabaseID, types.UserState{
+		State: make(map[proto.AccountAddress]*types.PermStat),
+	})
 
 	return
 }

@@ -34,21 +34,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
-	baseDir        = utils.GetProjectSrcDir()
-	testWorkingDir = FJ(baseDir, "./test/")
-	logDir         = FJ(testWorkingDir, "./log/")
+	baseDir                    = utils.GetProjectSrcDir()
+	testWorkingDir             = FJ(baseDir, "./test/")
+	logDir                     = FJ(testWorkingDir, "./log/")
+	testGasPrice        uint64 = 1
+	testInitTokenAmount uint64 = 1000000000
+	testAdvancePayment  uint64 = 10000000
 )
 
 var nodeCmds []*utils.CMD
@@ -173,6 +181,7 @@ func startNodes() {
 		log.Errorf("start node failed: %v", err)
 	}
 }
+
 func startNodesProfile(bypassSign bool) {
 	ctx := context.Background()
 	bypassArg := ""
@@ -330,6 +339,117 @@ func TestFullProcess(t *testing.T) {
 
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
+
+		var (
+			clientPrivKey *asymmetric.PrivateKey
+			clientAddr    proto.AccountAddress
+
+			minersPrivKeys = make([]*asymmetric.PrivateKey, 3)
+			minersAddrs    = make([]proto.AccountAddress, 3)
+			minersNodeID   = make([]proto.NodeID, 3)
+		)
+
+		// get miners' private keys
+		minersPrivKeys[0], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_0/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		minersPrivKeys[1], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_1/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		minersPrivKeys[2], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_2/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		clientPrivKey, err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_c/private.key"), []byte{})
+		So(err, ShouldBeNil)
+
+		// get miners' addr
+		minersAddrs[0], err = crypto.PubKeyHash(minersPrivKeys[0].PubKey())
+		So(err, ShouldBeNil)
+		minersAddrs[1], err = crypto.PubKeyHash(minersPrivKeys[1].PubKey())
+		So(err, ShouldBeNil)
+		minersAddrs[2], err = crypto.PubKeyHash(minersPrivKeys[2].PubKey())
+		So(err, ShouldBeNil)
+		clientAddr, err = crypto.PubKeyHash(clientPrivKey.PubKey())
+		So(err, ShouldBeNil)
+
+		// get miners' node id
+		cfg, err := conf.LoadConfig(FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"))
+		So(err, ShouldBeNil)
+		minersNodeID[0] = cfg.ThisNodeID
+		cfg, err = conf.LoadConfig(FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"))
+		So(err, ShouldBeNil)
+		minersNodeID[1] = cfg.ThisNodeID
+		cfg, err = conf.LoadConfig(FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"))
+		So(err, ShouldBeNil)
+		minersNodeID[2] = cfg.ThisNodeID
+
+		// send miner and user with Particle
+		for i := range minersAddrs {
+			err = getToken(minersAddrs[i], minersPrivKeys[i], testInitTokenAmount, types.Particle)
+			So(err, ShouldBeNil)
+		}
+		err = getToken(clientAddr, clientPrivKey, testInitTokenAmount, types.Particle)
+		So(err, ShouldBeNil)
+
+		time.Sleep(10 * time.Second)
+		// miners provide service
+		for i := range minersAddrs {
+			nonce, err := getNonce(minersAddrs[i])
+			So(err, ShouldBeNil)
+
+			req := &types.AddTxReq{}
+			resp := &types.AddTxResp{}
+
+			req.Tx = types.NewProvideService(
+				&types.ProvideServiceHeader{
+					GasPrice:   testGasPrice,
+					TokenType:  types.Particle,
+					TargetUser: clientAddr,
+					NodeID:     minersNodeID[i],
+					Nonce:      nonce,
+				},
+			)
+			err = req.Tx.Sign(minersPrivKeys[i])
+			So(err, ShouldBeNil)
+			err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
+			So(err, ShouldBeNil)
+		}
+
+		// client send create database transaction
+		nonce, err := getNonce(clientAddr)
+		So(err, ShouldBeNil)
+		req := &types.AddTxReq{}
+		resp := &types.AddTxResp{}
+		req.Tx = types.NewCreateDatabase(
+			&types.CreateDatabaseHeader{
+				Owner: clientAddr,
+				ResourceMeta: types.ResourceMeta{
+					TargetMiners: minersAddrs,
+				},
+				GasPrice:       testGasPrice,
+				AdvancePayment: testAdvancePayment,
+				TokenType:      types.Particle,
+				Nonce:          nonce,
+			},
+		)
+		So(err, ShouldBeNil)
+		err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
+		So(err, ShouldBeNil)
+
+		// check sqlchain profile exist
+		dbID := proto.FromAccountAndNonce(clientAddr, uint32(nonce))
+		profileReq := &types.QuerySQLChainProfileReq{}
+		profileResp := &types.QuerySQLChainProfileResp{}
+		profileReq.DBID = *dbID
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		profile := profileResp.Profile
+		So(profile.Owner.String(), ShouldEqual, clientAddr.String())
+		So(profile.TokenType, ShouldEqual, types.Particle)
+		minersMap := make(map[proto.AccountAddress]bool)
+		for _, miner := range profile.Miners {
+			minersMap[miner.Address] = true
+		}
+		for _, miner := range minersAddrs {
+			So(minersMap[miner], ShouldBeTrue)
+		}
 
 		// create
 		dsn, err := client.Create(client.ResourceMeta{Node: 2})
@@ -777,4 +897,47 @@ func BenchmarkMinerGNTE8(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
 		benchGNTEMiner(b, 8, false)
 	})
+}
+
+func getToken(addr proto.AccountAddress, privKey *asymmetric.PrivateKey,
+	amount uint64, tokenType types.TokenType) (err error) {
+	tokenBalance := [types.SupportTokenNumber]uint64{}
+	tokenBalance[tokenType] = amount
+
+	req := &types.AddTxReq{}
+	resp := &types.AddTxResp{}
+	req.Tx = types.NewBaseAccount(
+		&types.Account{
+			Address:      addr,
+			TokenBalance: tokenBalance,
+		},
+	)
+
+	err = req.Tx.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign tx failed in getToken")
+		return
+	}
+
+	err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
+	if err != nil {
+		log.WithError(err).Warning("send request failed in getToken")
+	}
+	return
+}
+
+func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {
+	// allocate nonce
+	nonceReq := &types.NextAccountNonceReq{}
+	nonceResp := &types.NextAccountNonceResp{}
+	nonceReq.Addr = addr
+
+	if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+		// allocate nonce failed
+		log.WithError(err).Warning("allocate nonce for transaction failed")
+		return
+	}
+
+	nonce = nonceResp.Nonce
+	return
 }

@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
@@ -27,19 +28,23 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/worker"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestService(t *testing.T) {
 	Convey("test db service", t, func() {
 		// init node
-		var cleanup func()
-		var dht *route.DHTService
-		var metricService *metric.CollectServer
-		var server *rpc.Server
-		var err error
+		var (
+			cleanup       func()
+			dht           *route.DHTService
+			metricService *metric.CollectServer
+			server        *rpc.Server
+			dbms          *worker.DBMS
+			err           error
+		)
 
-		cleanup, dht, metricService, server, err = initNode(
+		cleanup, dht, metricService, server, dbms, err = initNode(
 			"../test/node_standalone/config.yaml",
 			"../test/node_standalone/private.key",
 		)
@@ -129,6 +134,16 @@ func TestService(t *testing.T) {
 			proto.DatabaseID("db"),
 			createDBRes.Header.InstanceMeta.DatabaseID,
 		})
+
+		// update private key permission in dbms for query
+		addr, err := crypto.PubKeyHash(privateKey.PubKey())
+		So(err, ShouldBeNil)
+		permStat := &types.PermStat{
+			Permission: types.Admin,
+			Status:     types.Normal,
+		}
+		err = dbms.UpdatePermission(createDBRes.Header.InstanceMeta.DatabaseID, proto.AccountAddress(addr), permStat)
+		So(err, ShouldBeNil)
 
 		// use the database
 		serverID := createDBRes.Header.InstanceMeta.Peers.Leader

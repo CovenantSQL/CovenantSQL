@@ -993,8 +993,8 @@ func (c *Chain) goFuncWithTimeout(f func(ctx context.Context), timeout time.Dura
 	go func() {
 		var ctx, ccl = context.WithTimeout(c.ctx, timeout)
 		defer func() {
-			ccl()
 			c.wg.Done()
+			ccl()
 		}()
 		f(ctx)
 	}()

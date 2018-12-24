@@ -491,7 +491,29 @@ func (c *Chain) processBlocks(ctx context.Context) {
 }
 
 func (c *Chain) addTx(tx pi.Transaction) {
+	select {
+	case c.pendingTxs <- tx:
+	case <-c.ctx.Done():
+		log.WithError(c.ctx.Err()).Warn("add transaction aborted")
+	}
+}
 
+func (c *Chain) processTx(tx pi.Transaction) {
+	if err := tx.Verify(); err != nil {
+		log.WithError(err).Errorf("failed to verify transaction with hash: %s, address: %s, tx type: %s", tx.Hash(), tx.GetAccountAddress(), tx.GetTransactionType().String())
+		return
+	}
+	if ok := func() (ok bool) {
+		c.RLock()
+		defer c.RUnlock()
+		_, ok = c.txPool[tx.Hash()]
+		return
+	}(); ok {
+		log.WithFields(log.Fields{
+			"tx_hash": tx.Hash().Short(4),
+		}).Debugf("tx already exists, abort processing")
+		return
+	}
 	// Simple non-blocking broadcasting
 	for _, v := range c.getPeers().Servers {
 		if !v.IsEqual(&c.nodeID) {
@@ -518,19 +540,6 @@ func (c *Chain) addTx(tx pi.Transaction) {
 				}, c.period)
 			}(v)
 		}
-	}
-
-	select {
-	case c.pendingTxs <- tx:
-	case <-c.ctx.Done():
-		log.WithError(c.ctx.Err()).Warn("add transaction aborted")
-	}
-}
-
-func (c *Chain) processTx(tx pi.Transaction) {
-	if err := tx.Verify(); err != nil {
-		log.WithError(err).Errorf("failed to verify transaction with hash: %s, address: %s, tx type: %s", tx.Hash(), tx.GetAccountAddress(), tx.GetTransactionType().String())
-		return
 	}
 	if err := c.storeTx(tx); err != nil {
 		log.WithError(err).Error("failed to add transaction")

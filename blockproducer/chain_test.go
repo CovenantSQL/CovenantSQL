@@ -189,7 +189,7 @@ func TestChain(t *testing.T) {
 				err = chain.storeTx(t1)
 				So(err, ShouldEqual, ErrExistedTx)
 			})
-			err = chain.produceBlock(begin.Add(chain.period))
+			err = chain.produceBlock(chain.ctx, begin.Add(chain.period))
 			So(err, ShouldBeNil)
 
 			// Create a sibling block from fork#0 and apply
@@ -204,14 +204,14 @@ func TestChain(t *testing.T) {
 
 			err = chain.storeTx(t2)
 			So(err, ShouldBeNil)
-			err = chain.produceBlock(begin.Add(2 * chain.period))
+			err = chain.produceBlock(chain.ctx, begin.Add(2*chain.period))
 			So(err, ShouldBeNil)
 
 			err = chain.storeTx(t3)
 			So(err, ShouldBeNil)
 			err = chain.storeTx(t4)
 			So(err, ShouldBeNil)
-			err = chain.produceBlock(begin.Add(3 * chain.period))
+			err = chain.produceBlock(chain.ctx, begin.Add(3*chain.period))
 			So(err, ShouldBeNil)
 			// Create a sibling block from fork#1 and apply
 			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period), addr2, priv2)
@@ -222,7 +222,7 @@ func TestChain(t *testing.T) {
 
 			// This should trigger a branch pruning on fork #0
 			for i := uint32(4); i <= 6; i++ {
-				err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
+				err = chain.produceBlock(chain.ctx, begin.Add(time.Duration(i)*chain.period))
 				So(err, ShouldBeNil)
 				// Create a sibling block from fork#1 and apply
 				f1, bl, err = f1.produceBlock(
@@ -236,7 +236,7 @@ func TestChain(t *testing.T) {
 			Convey("The chain immutable should be updated to irreversible block", func() {
 				// Add more blocks to trigger immutable updating
 				for i := uint32(7); i <= 12; i++ {
-					err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
+					err = chain.produceBlock(chain.ctx, begin.Add(time.Duration(i)*chain.period))
 					So(err, ShouldBeNil)
 				}
 				Convey("The chain should have same state after reloading", func() {

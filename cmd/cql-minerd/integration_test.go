@@ -380,15 +380,6 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		minersNodeID[2] = cfg.ThisNodeID
 
-		// send miner and user with Particle
-		for i := range minersAddrs {
-			err = getToken(minersAddrs[i], minersPrivKeys[i], testInitTokenAmount, types.Particle)
-			So(err, ShouldBeNil)
-		}
-		err = getToken(clientAddr, clientPrivKey, testInitTokenAmount, types.Particle)
-		So(err, ShouldBeNil)
-
-		time.Sleep(10 * time.Second)
 		// miners provide service
 		for i := range minersAddrs {
 			nonce, err := getNonce(minersAddrs[i])
@@ -429,6 +420,7 @@ func TestFullProcess(t *testing.T) {
 				Nonce:          nonce,
 			},
 		)
+		err = req.Tx.Sign(clientPrivKey)
 		So(err, ShouldBeNil)
 		err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
 		So(err, ShouldBeNil)
@@ -897,33 +889,6 @@ func BenchmarkMinerGNTE8(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
 		benchGNTEMiner(b, 8, false)
 	})
-}
-
-func getToken(addr proto.AccountAddress, privKey *asymmetric.PrivateKey,
-	amount uint64, tokenType types.TokenType) (err error) {
-	tokenBalance := [types.SupportTokenNumber]uint64{}
-	tokenBalance[tokenType] = amount
-
-	req := &types.AddTxReq{}
-	resp := &types.AddTxResp{}
-	req.Tx = types.NewBaseAccount(
-		&types.Account{
-			Address:      addr,
-			TokenBalance: tokenBalance,
-		},
-	)
-
-	err = req.Tx.Sign(privKey)
-	if err != nil {
-		log.WithError(err).Warning("sign tx failed in getToken")
-		return
-	}
-
-	err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
-	if err != nil {
-		log.WithError(err).Warning("send request failed in getToken")
-	}
-	return
 }
 
 func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {

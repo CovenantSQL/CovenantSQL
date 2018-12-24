@@ -491,6 +491,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 }
 
 func (c *Chain) addTx(tx pi.Transaction) {
+
 	// Simple non-blocking broadcasting
 	for _, v := range c.getPeers().Servers {
 		if !v.IsEqual(&c.nodeID) {
@@ -701,6 +702,9 @@ func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types
 	c.RLock()
 	defer c.RUnlock()
 	profileObj, ok := c.immutable.loadSQLChainObject(databaseID)
+	if !ok {
+		return
+	}
 	profile = &profileObj.SQLChainProfile
 	return
 }

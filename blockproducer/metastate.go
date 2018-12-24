@@ -587,6 +587,7 @@ func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 }
 
 func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error) {
+	log.Infof("create database: %s", tx.Hash())
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "matchProviders failed")
@@ -706,6 +707,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
 	}
+	log.Infof("success create sqlchain with database ID: %s", dbID)
 	return
 }
 
@@ -860,6 +862,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 }
 
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
+	log.Infof("get tx: %s", tx.GetTransactionType().String())
 	switch t := tx.(type) {
 	case *types.Transfer:
 		realSender, err := crypto.PubKeyHash(t.Signee)

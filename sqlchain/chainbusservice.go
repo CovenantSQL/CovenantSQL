@@ -73,14 +73,17 @@ func (bs *BusService) subscribeBlock(ctx context.Context) {
 			// fetch block from remote block producer
 			c := atomic.LoadUint32(&bs.blockCount)
 			log.Debugf("fetch block in count: %d", c)
-			b := bs.requestBlock(c)
+			b, newCount := bs.requestLastBlock()
 			if b == nil {
+				continue
+			}
+			if newCount == c {
 				continue
 			}
 			log.Debugf("success fetch block in count: %d, block hash: %s, number of block tx: %d",
 				c, b.BlockHash().String(), len(b.GetTxHashes()))
 			bs.extractTxs(b, c)
-			atomic.AddUint32(&bs.blockCount, 1)
+			atomic.StoreUint32(&bs.blockCount, newCount)
 		}
 	}
 
@@ -90,26 +93,13 @@ func (bs *BusService) requestLastBlock() (block *types.BPBlock, count uint32) {
 	req := &types.FetchLastBlockReq{}
 	resp := &types.FetchBlockResp{}
 
-	if err := bs.requestBP(route.MCCFetchLastBlock.String(), req, resp); err != nil {
+	if err := bs.requestBP(route.MCCFetchLastIrreversibleBlock.String(), req, resp); err != nil {
 		log.WithError(err).Warning("fetch last block failed")
 		return
 	}
 
 	block = resp.Block
 	count = resp.Count
-	return
-}
-
-func (bs *BusService) requestBlock(count uint32) (block *types.BPBlock) {
-	req := &types.FetchBlockByCountReq{Count: count}
-	resp := &types.FetchBlockResp{}
-
-	if err := bs.requestBP(route.MCCFetchBlockByCount.String(), req, resp); err != nil {
-		log.WithError(err).Warning("fetch specific block failed")
-		return
-	}
-
-	block = resp.Block
 	return
 }
 

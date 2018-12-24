@@ -115,8 +115,9 @@ const (
 	MCCFetchBlock
 	// MCCFetchBlockByCount is used by nodes to fetch block from block producer by block count since genesis
 	MCCFetchBlockByCount
-	// MCCFetchLastBlock is used by nodes to fetch last block from block producer
-	MCCFetchLastBlock
+	// MCCFetchLastIrreversibleBlock is used by nodes to fetch last irreversible block from
+	// block producer
+	MCCFetchLastIrreversibleBlock
 	// MCCFetchTxBilling is used by nodes to fetch billing transaction from block producer
 	MCCFetchTxBilling
 	// MCCNextAccountNonce is used by block producer main chain to allocate next nonce for transactions
@@ -200,7 +201,7 @@ func (s RemoteFunc) String() string {
 		return "MCC.FetchBlock"
 	case MCCFetchBlockByCount:
 		return "MCC.FetchBlockByCount"
-	case MCCFetchLastBlock:
+	case MCCFetchLastIrreversibleBlock:
 		return "MCC.FetchLastBlock"
 	case MCCFetchTxBilling:
 		return "MCC.FetchTxBilling"

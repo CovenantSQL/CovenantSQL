@@ -45,8 +45,9 @@ func (s *ChainRPCService) FetchBlock(req *types.FetchBlockReq, resp *types.Fetch
 	return err
 }
 
-func (s *ChainRPCService) FetchLastBlock(req *types.FetchLastBlockReq, resp *types.FetchBlockResp) error {
-	b, c, h, err := s.chain.fetchLastBlock()
+// FetchLastIrreversibleBlock fetches the last block irreversible block from block producer.
+func (s *ChainRPCService) FetchLastIrreversibleBlock(req *types.FetchLastBlockReq, resp *types.FetchBlockResp) error {
+	b, c, h, err := s.chain.fetchLastIrreversibleBlock()
 	if err != nil {
 		return err
 	}
@@ -120,10 +121,9 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 	if ok {
 		resp.Profile = *p
 		return
-	} else {
-		err = errors.Wrap(err, "rpc query sqlchain profile failed")
-		return
 	}
+	err = errors.Wrap(err, "rpc query sqlchain profile failed")
+	return
 }
 
 // Sub is the RPC method to subscribe some event.

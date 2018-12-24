@@ -36,7 +36,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	"github.com/pkg/errors"
@@ -263,6 +262,44 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	return
 }
 
+// Start starts the chain by step:
+// 1. sync the chain
+// 2. goroutine for getting blocks
+// 3. goroutine for getting txes.
+func (c *Chain) Start() {
+	// Start blocks/txs processing goroutines
+	c.goFunc(c.processBlocks)
+	c.goFunc(c.processTxs)
+	// Synchronize heads to current block period
+	c.syncHeads()
+	// TODO(leventeliu): subscribe ChainBus.
+	// ...
+	// Start main cycle and service
+	c.goFunc(c.mainCycle)
+	c.startService(c)
+}
+
+// Stop stops the main process of the sql-chain.
+func (c *Chain) Stop() (err error) {
+	// Stop main process
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("stopping chain")
+	c.stop()
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain service stopped")
+	c.st.Close()
+	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain database closed")
+
+	// FIXME(leventeliu): RPC server should provide an `unregister` method to detach chain service
+	// instance. Add it to Chain.stop(), then working channels can be closed safely.
+	// Otherwise a DATARACE (while closing a channel with a blocking write from RPC service) or
+	// `write on closed channel` panic may occur.
+	// Comment this out for now, IT IS A RESOURCE LEAK.
+	//
+	//close(c.pendingBlocks)
+	//close(c.pendingTxs)
+
+	return
+}
+
 // checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
 func (c *Chain) checkBlock(b *types.BPBlock) (err error) {
 	rootHash := merkle.NewMerkle(b.GetTxHashes()).GetRoot()
@@ -340,79 +377,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	return err
 }
 
-func (c *Chain) fetchBlock(h hash.Hash) (b *types.BPBlock, err error) {
-	var (
-		enc []byte
-		out = &types.BPBlock{}
-	)
-	if err = c.st.Reader().QueryRow(
-		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, h.String(),
-	).Scan(&enc); err != nil {
-		return
-	}
-	if err = utils.DecodeMsgPack(enc, out); err != nil {
-		return
-	}
-	b = out
-	return
-}
-
-func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, err error) {
-	var node = c.head().ancestor(h)
-	if node == nil {
-		err = ErrNoSuchBlock
-		return
-	} else if node.block != nil {
-		b = node.block
-		count = node.count
-		return
-	}
-	// Not cached, read from database
-	if b, err = c.fetchBlock(node.hash); err != nil {
-		return
-	}
-	count = node.count
-	return
-}
-
-func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32, err error) {
-	var node = c.head().ancestorByCount(count)
-	if node == nil {
-		err = ErrNoSuchBlock
-		return
-	} else if node.block != nil {
-		b = node.block
-		height = node.height
-		return
-	}
-	// Not cached, read from database
-	if b, err = c.fetchBlock(node.hash); err != nil {
-		return
-	}
-	height = node.height
-	return
-}
-
-func (c *Chain) fetchLastBlock() (b *types.BPBlock, count uint32, height uint32, err error) {
-	var node = c.head()
-	if node == nil {
-		err = ErrNoSuchBlock
-		return
-	} else if node.block != nil {
-		b = node.block
-		height = node.height
-		count = node.count
-		return
-	}
-	// Not cached, read from database
-	if b, err = c.fetchBlock(node.hash); err != nil {
-		return
-	}
-	height = node.height
-	count = node.count
-	return
-}
-
 // advanceNextHeight does the check and runs block producing if its my turn.
 func (c *Chain) advanceNextHeight(now time.Time) {
 	log.WithFields(log.Fields{
@@ -452,23 +416,6 @@ func (c *Chain) syncHeads() {
 			c.increaseNextHeight()
 		}
 	}
-}
-
-// Start starts the chain by step:
-// 1. sync the chain
-// 2. goroutine for getting blocks
-// 3. goroutine for getting txes.
-func (c *Chain) Start() {
-	// Start blocks/txs processing goroutines
-	c.goFunc(c.processBlocks)
-	c.goFunc(c.processTxs)
-	// Synchronize heads to current block period
-	c.syncHeads()
-	// TODO(leventeliu): subscribe ChainBus.
-	// ...
-	// Start main cycle and service
-	c.goFunc(c.mainCycle)
-	c.startService(c)
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
@@ -651,27 +598,6 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 	}
 }
 
-// Stop stops the main process of the sql-chain.
-func (c *Chain) Stop() (err error) {
-	// Stop main process
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("stopping chain")
-	c.stop()
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain service stopped")
-	c.st.Close()
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain database closed")
-
-	// FIXME(leventeliu): RPC server should provide an `unregister` method to detach chain service
-	// instance. Add it to Chain.stop(), then working channels can be closed safely.
-	// Otherwise a DATARACE (while closing a channel with a blocking write from RPC service) or
-	// `write on closed channel` panic may occur.
-	// Comment this out for now, IT IS A RESOURCE LEAK.
-	//
-	//close(c.pendingBlocks)
-	//close(c.pendingTxs)
-
-	return
-}
-
 func (c *Chain) storeTx(tx pi.Transaction) (err error) {
 	var k = tx.Hash()
 	c.Lock()
@@ -687,35 +613,6 @@ func (c *Chain) storeTx(tx pi.Transaction) (err error) {
 			v.addTx(tx)
 		}
 	})
-}
-
-func (c *Chain) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
-	c.RLock()
-	defer c.RUnlock()
-	return c.headBranch.preview.nextNonce(addr)
-}
-
-func (c *Chain) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
-	c.RLock()
-	defer c.RUnlock()
-	return c.immutable.loadAccountCovenantBalance(addr)
-}
-
-func (c *Chain) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
-	c.RLock()
-	defer c.RUnlock()
-	return c.immutable.loadAccountStableBalance(addr)
-}
-
-func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types.SQLChainProfile, ok bool) {
-	c.RLock()
-	defer c.RUnlock()
-	profileObj, ok := c.immutable.loadSQLChainObject(databaseID)
-	if !ok {
-		return
-	}
-	profile = &profileObj.SQLChainProfile
-	return
 }
 
 func (c *Chain) replaceAndSwitchToBranch(
@@ -941,7 +838,7 @@ func (c *Chain) produceAndStoreBlock(
 func (c *Chain) now() time.Time {
 	c.RLock()
 	defer c.RUnlock()
-	return time.Now().UTC().Add(c.offset)
+	return time.Now().Add(c.offset).UTC()
 }
 
 func (c *Chain) startService(chain *Chain) {
@@ -957,7 +854,7 @@ func (c *Chain) nextTick() (t time.Time, d time.Duration) {
 		c.RLock()
 		defer c.RUnlock()
 		nt = c.nextHeight
-		t = time.Now().UTC().Add(c.offset)
+		t = time.Now().Add(c.offset).UTC()
 		return
 	}()
 	d = c.genesisTime.Add(time.Duration(h) * c.period).Sub(t)
@@ -1005,6 +902,12 @@ func (c *Chain) getPeers() *proto.Peers {
 	defer c.RUnlock()
 	var peers = c.peers.Clone()
 	return &peers
+}
+
+func (c *Chain) lastIrreversibleBlock() *blockNode {
+	c.RLock()
+	defer c.RUnlock()
+	return c.lastIrre
 }
 
 func (c *Chain) head() *blockNode {

@@ -866,6 +866,19 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 	return
 }
 
+func (s *metaState) loadROSQLChains(addr proto.AccountAddress) (dbs []*types.SQLChainProfile) {
+	for _, db := range s.readonly.databases {
+		for _, miner := range db.Miners {
+			if miner.Address == addr {
+				var dst = &types.SQLChainProfile{}
+				deepcopier.Copy(&db.SQLChainProfile).To(dst)
+				dbs = append(dbs, dst)
+			}
+		}
+	}
+	return
+}
+
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *types.Transfer:

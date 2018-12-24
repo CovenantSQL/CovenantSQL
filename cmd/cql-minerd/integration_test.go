@@ -446,6 +446,17 @@ func TestFullProcess(t *testing.T) {
 		for _, miner := range minersAddrs {
 			So(minersMap[miner], ShouldBeTrue)
 		}
+		usersMap := make(map[proto.AccountAddress]types.PermStat)
+		for _, user := range profile.Users {
+			usersMap[user.Address] = types.PermStat{
+				Permission: user.Permission,
+				Status:     user.Status,
+			}
+		}
+		permStat, ok := usersMap[clientAddr]
+		So(ok, ShouldBeTrue)
+		So(permStat.Permission, ShouldEqual, types.Admin)
+		So(permStat.Status, ShouldEqual, types.Normal)
 
 		// create dsn
 		dsncfg := client.NewConfig()
@@ -569,8 +580,7 @@ func TestFullProcess(t *testing.T) {
 		err = db.Close()
 		So(err, ShouldBeNil)
 
-		err = client.Drop(dsn)
-		So(err, ShouldBeNil)
+		// TODO(lambda): Drop database
 	})
 }
 

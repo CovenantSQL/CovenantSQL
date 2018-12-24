@@ -202,7 +202,7 @@ func (s RemoteFunc) String() string {
 	case MCCFetchBlockByCount:
 		return "MCC.FetchBlockByCount"
 	case MCCFetchLastIrreversibleBlock:
-		return "MCC.FetchLastBlock"
+		return "MCC.FetchLastIrreversibleBlock"
 	case MCCFetchTxBilling:
 		return "MCC.FetchTxBilling"
 	case MCCNextAccountNonce:

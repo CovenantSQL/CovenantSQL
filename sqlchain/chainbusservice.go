@@ -125,21 +125,18 @@ func (bs *BusService) requestBP(method string, request interface{}, response int
 
 func (bs *BusService) extractTxs(blocks *types.BPBlock, count uint32) {
 	for _, tx := range blocks.Transactions {
-		eventName := bs.unwrapTx(tx)
-		bs.Publish(eventName, tx, count)
+		t := bs.unwrapTx(tx)
+		eventName := fmt.Sprintf("/%s/", t.GetTransactionType().String())
+		bs.Publish(eventName, t, count)
 	}
 }
 
-func (bs *BusService) unwrapTx(tx interfaces.Transaction) string {
+func (bs *BusService) unwrapTx(tx interfaces.Transaction) interfaces.Transaction {
 	switch t := tx.(type) {
 	case *interfaces.TransactionWrapper:
 		return bs.unwrapTx(t.Unwrap())
 	default:
-		sender := tx.GetAccountAddress()
-		log.Debugf("get tx with transaction type: %s, hash: %s, sender: %s",
-			tx.GetTransactionType().String(), tx.Hash().String(), sender.String())
-		eventName := fmt.Sprintf("/%s/", t.GetTransactionType().String())
-		return eventName
+		return tx
 	}
 }
 

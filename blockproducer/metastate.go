@@ -610,7 +610,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	)
 	if tx.AdvancePayment < minAdvancePayment {
 		err = ErrInsufficientAdvancePayment
-		log.WithError(err).Warning("tx.AdvancePayment: %d, minAdvancePayment: %d", tx.AdvancePayment, minAdvancePayment)
+		log.WithError(err).Warningf("tx.AdvancePayment: %d, minAdvancePayment: %d",
+			tx.AdvancePayment, minAdvancePayment)
 		return
 	}
 
@@ -673,6 +674,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	users[0] = &types.SQLChainUser{
 		Address:        sender,
 		Permission:     types.Admin,
+		Status:         types.Normal,
 		Deposit:        minAdvancePayment,
 		AdvancePayment: tx.AdvancePayment,
 	}

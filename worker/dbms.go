@@ -62,6 +62,7 @@ type DBMS struct {
 	rpc        *DBMSRPCService
 	busService *sqlchain.BusService
 	address    proto.AccountAddress
+	privKey    *asymmetric.PrivateKey
 }
 
 // NewDBMS returns new database management instance.
@@ -101,6 +102,13 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 		return
 	}
 	dbms.address = addr
+
+	// private key cache
+	dbms.privKey, err = kms.GetLocalPrivateKey()
+	if err != nil {
+		log.WithError(err).Warning("get private key failed")
+		return
+	}
 
 	// init service
 	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
@@ -195,12 +203,10 @@ func (dbms *DBMS) Init() (err error) {
 }
 
 func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
-	var ub *types.UpdateBilling
-	switch t := tx.(type) {
-	case *types.UpdateBilling:
-		ub = t
-	default:
-		log.WithError(ErrInvalidTransactionType).Warning("unexpected error")
+	ub, ok := tx.(*types.UpdateBilling)
+	if !ok {
+		log.WithError(ErrInvalidTransactionType).Warningf("invalid tx type in updateBilling: %s",
+			tx.GetTransactionType().String())
 		return
 	}
 
@@ -230,15 +236,14 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 }
 
 func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
-	var cd *types.CreateDatabase
-	switch t := tx.(type) {
-	case *types.CreateDatabase:
-		cd = t
-	default:
-		log.WithError(ErrInvalidTransactionType).Warning("unexpected error")
+	cd, ok := tx.(*types.CreateDatabase)
+	if !ok {
+		log.WithError(ErrInvalidTransactionType).Warningf("invalid tx type in createDatabase: %s",
+			tx.GetTransactionType().String())
 		return
 	}
 
+	log.Debugf("create database with owner: %s, nonce: %d", cd.Owner.String(), cd.Nonce)
 	var (
 		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
 		isTargetMiner = false
@@ -263,13 +268,13 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 
 	state := types.NewUserState()
 	for _, user := range p.Users {
+		log.Debugf("user address: %s, permission: %d, status: %d",
+			user.Address.String(), user.Permission, user.Status)
 		state.State[user.Address] = &types.PermStat{
 			Permission: user.Permission,
 			Status:     user.Status,
 		}
 	}
-
-	dbms.chainMap.Store(dbid, state)
 
 	peers := proto.Peers{
 		PeersHeader: proto.PeersHeader{
@@ -277,6 +282,19 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 			Servers: nodeIDs[:],
 		},
 	}
+	if dbms.privKey == nil {
+		dbms.privKey, err = kms.GetLocalPrivateKey()
+		if err != nil {
+			log.WithError(err).Warning("get private key failed in createDatabase")
+			return
+		}
+	}
+	err = peers.Sign(dbms.privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign peers failed in createDatabase")
+		return
+	}
+
 	si := types.ServiceInstance{
 		DatabaseID:   *dbid,
 		Peers:        &peers,
@@ -287,15 +305,13 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
+	dbms.chainMap.Store(*dbid, *state)
 }
 
 func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
-	var up *types.UpdatePermission
-	switch t := tx.(type) {
-	case *types.UpdatePermission:
-		up = t
-	default:
-		log.WithError(ErrInvalidTransactionType).Warning("unexpected error")
+	up, ok := tx.(*types.UpdatePermission)
+	if !ok {
+		log.WithError(ErrInvalidTransactionType).Warning("unexpected error in updatePermission")
 		return
 	}
 
@@ -309,7 +325,7 @@ func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
 	dbms.chainMap.Store(up.TargetSQLChain.DatabaseID(), newState)
 }
 
-// UpdatePermission export the update permission interface for test.
+// UpdatePermission exports the update permission interface for test.
 func (dbms *DBMS) UpdatePermission(dbid proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
 	s, loaded := dbms.chainMap.Load(dbid)
 	if !loaded {
@@ -527,6 +543,7 @@ func (dbms *DBMS) getMappedInstances() (instances []types.ServiceInstance, err e
 }
 
 func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request) (err error) {
+	log.Debugf("in checkPermission, database id: %s, user addr: %s", req.Header.DatabaseID, addr.String())
 	state, loaded := dbms.chainMap.Load(req.Header.DatabaseID)
 	if !loaded {
 		err = errors.Wrap(ErrNotExists, "check permission failed")
@@ -540,25 +557,30 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request)
 	if permStat, ok := s.State[addr]; ok {
 		if !permStat.Status.EnableQuery() {
 			err = ErrPermissionDeny
+			log.WithError(err).Debugf("cannot query, status: %d", permStat.Status)
 			return
 		}
 		if req.Header.QueryType == types.ReadQuery {
 			if !permStat.Permission.CheckRead() {
 				err = ErrPermissionDeny
+				log.WithError(err).Debugf("cannot read, permission: %d", permStat.Permission)
 				return
 			}
 		} else if req.Header.QueryType == types.WriteQuery {
 			if !permStat.Permission.CheckWrite() {
 				err = ErrPermissionDeny
+				log.WithError(err).Debugf("cannot write, permission: %d", permStat.Permission)
 				return
 			}
 		} else {
 			err = ErrInvalidPermission
+			log.WithError(err).Debugf("invalid permission, permission: %d", permStat.Permission)
 			return
 
 		}
 	} else {
 		err = ErrPermissionDeny
+		log.WithError(err).Debug("cannot find permission")
 		return
 	}
 

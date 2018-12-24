@@ -295,7 +295,7 @@ func (c *Chain) pushBlock(b *types.BPBlock) (err error) {
 	return
 }
 
-func (c *Chain) produceBlock(ctx context.Context, now time.Time) (err error) {
+func (c *Chain) produceBlock(now time.Time) (err error) {
 	var (
 		priv *asymmetric.PrivateKey
 		b    *types.BPBlock
@@ -309,37 +309,29 @@ func (c *Chain) produceBlock(ctx context.Context, now time.Time) (err error) {
 	}
 	log.WithField("block", b).Debug("produced new block")
 
-	var (
-		wg       = &sync.WaitGroup{}
-		cld, ccl = context.WithTimeout(ctx, c.period)
-	)
-	defer func() {
-		wg.Wait()
-		ccl()
-	}()
 	for _, s := range c.getPeers().Servers {
 		if !s.IsEqual(&c.nodeID) {
-			wg.Add(1)
-			go func(id proto.NodeID) {
-				defer wg.Done()
-				var (
-					req = &AdviseNewBlockReq{
-						Envelope: proto.Envelope{
-							// TODO(lambda): Add fields.
-						},
-						Block: b,
-					}
-					resp = &AdviseNewBlockResp{}
-					err  = c.cl.CallNodeWithContext(
-						cld, id, route.MCCAdviseNewBlock.String(), req, resp)
-				)
-				log.WithFields(log.Fields{
-					"local":       c.peerInfo(),
-					"remote":      id,
-					"block_time":  b.Timestamp(),
-					"block_hash":  b.BlockHash().Short(4),
-					"parent_hash": b.ParentHash().Short(4),
-				}).WithError(err).Debug("broadcasting new block to other peers")
+			func(id proto.NodeID) {
+				c.goFuncWithTimeout(func(ctx context.Context) {
+					var (
+						req = &AdviseNewBlockReq{
+							Envelope: proto.Envelope{
+								// TODO(lambda): Add fields.
+							},
+							Block: b,
+						}
+						resp = &AdviseNewBlockResp{}
+						err  = c.cl.CallNodeWithContext(
+							ctx, id, route.MCCAdviseNewBlock.String(), req, resp)
+					)
+					log.WithFields(log.Fields{
+						"local":       c.peerInfo(),
+						"remote":      id,
+						"block_time":  b.Timestamp(),
+						"block_hash":  b.BlockHash().Short(4),
+						"parent_hash": b.ParentHash().Short(4),
+					}).WithError(err).Debug("broadcasting new block to other peers")
+				}, c.period)
 			}(s)
 		}
 	}
@@ -400,7 +392,7 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 }
 
 // advanceNextHeight does the check and runs block producing if its my turn.
-func (c *Chain) advanceNextHeight(ctx context.Context, now time.Time) {
+func (c *Chain) advanceNextHeight(now time.Time) {
 	log.WithFields(log.Fields{
 		"next_height": c.getNextHeight(),
 		"bp_number":   c.serversNum,
@@ -413,7 +405,7 @@ func (c *Chain) advanceNextHeight(ctx context.Context, now time.Time) {
 	}
 
 	log.WithField("height", c.getNextHeight()).Info("producing a new block")
-	if err := c.produceBlock(ctx, now); err != nil {
+	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
 			"failed to produce block")
 	}
@@ -484,7 +476,7 @@ func (c *Chain) addTx(tx pi.Transaction) {
 	}
 }
 
-func (c *Chain) processTx(ctx context.Context, tx pi.Transaction) {
+func (c *Chain) processTx(tx pi.Transaction) {
 	if err := tx.Verify(); err != nil {
 		log.WithError(err).Errorf("failed to verify transaction with hash: %s, address: %s, tx type: %s", tx.Hash(), tx.GetAccountAddress(), tx.GetTransactionType().String())
 		return
@@ -500,36 +492,28 @@ func (c *Chain) processTx(ctx context.Context, tx pi.Transaction) {
 		}).Debugf("tx already exists, abort processing")
 		return
 	}
-	var (
-		wg       = &sync.WaitGroup{}
-		cld, ccl = context.WithTimeout(ctx, c.period)
-	)
-	defer func() {
-		wg.Wait()
-		ccl()
-	}()
 	for _, s := range c.getPeers().Servers {
 		if !s.IsEqual(&c.nodeID) {
-			wg.Add(1)
-			go func(id proto.NodeID) {
-				defer wg.Done()
-				var (
-					req = &AddTxReq{
-						Envelope: proto.Envelope{
-							// TODO(lambda): Add fields.
-						},
-						Tx: tx,
-					}
-					resp = &AddTxResp{}
-					err  = c.cl.CallNodeWithContext(
-						cld, id, route.MCCAddTx.String(), req, resp)
-				)
-				log.WithFields(log.Fields{
-					"local":   c.peerInfo(),
-					"remote":  id,
-					"tx_hash": tx.Hash().Short(4),
-					"tx_type": tx.GetTransactionType(),
-				}).WithError(err).Debug("broadcasting transaction to other peers")
+			func(id proto.NodeID) {
+				c.goFuncWithTimeout(func(ctx context.Context) {
+					var (
+						req = &AddTxReq{
+							Envelope: proto.Envelope{
+								// TODO(lambda): Add fields.
+							},
+							Tx: tx,
+						}
+						resp = &AddTxResp{}
+						err  = c.cl.CallNodeWithContext(
+							ctx, id, route.MCCAddTx.String(), req, resp)
+					)
+					log.WithFields(log.Fields{
+						"local":   c.peerInfo(),
+						"remote":  id,
+						"tx_hash": tx.Hash().Short(4),
+						"tx_type": tx.GetTransactionType(),
+					}).WithError(err).Debug("broadcasting transaction to other peers")
+				}, c.tick)
 			}(s)
 		}
 	}
@@ -542,7 +526,7 @@ func (c *Chain) processTxs(ctx context.Context) {
 	for {
 		select {
 		case tx := <-c.pendingTxs:
-			c.processTx(ctx, tx)
+			c.processTx(tx)
 		case <-ctx.Done():
 			log.WithError(c.ctx.Err()).Info("abort transaction processing")
 			return
@@ -564,7 +548,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			var t, d = c.nextTick()
 			if d <= 0 {
 				// Try to produce block at `nextHeight` if it's my turn, and increase height by 1
-				c.advanceNextHeight(ctx, t)
+				c.advanceNextHeight(t)
 			} else {
 				log.WithFields(log.Fields{
 					"peer":        c.peerInfo(),
@@ -1001,5 +985,17 @@ func (c *Chain) goFunc(f func(ctx context.Context)) {
 	go func() {
 		defer c.wg.Done()
 		f(c.ctx)
+	}()
+}
+
+func (c *Chain) goFuncWithTimeout(f func(ctx context.Context), timeout time.Duration) {
+	c.wg.Add(1)
+	go func() {
+		var ctx, ccl = context.WithTimeout(c.ctx, timeout)
+		defer func() {
+			ccl()
+			c.wg.Done()
+		}()
+		f(ctx)
 	}()
 }

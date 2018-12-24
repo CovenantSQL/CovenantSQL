@@ -22,11 +22,12 @@ import (
 	"sync"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+	mux "github.com/xtaci/smux"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
-	mux "github.com/xtaci/smux"
 )
 
 const (
@@ -44,12 +45,10 @@ var (
 
 var FJ = filepath.Join
 
-func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) error {
+func server(c C, localAddr string, n int) error {
 	// Accept a TCP connection
 	listener, err := net.Listen("tcp", localAddr)
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		conn, err := listener.Accept()
 		c.So(err, ShouldBeNil)
 
@@ -59,21 +58,22 @@ func server(c C, localAddr string, wg *sync.WaitGroup, p *SessionPool, n int) er
 		c.So(err, ShouldBeNil)
 
 		for i := 0; i < concurrency; i++ {
-			wg.Add(1)
 			go func(i int, c2 C) {
 				// Accept a stream
 				//c2.So(err, ShouldBeNil)
 				// Stream implements net.Conn
 				// Listen for a message
 				//c2.So(string(buf1), ShouldEqual, "ping")
-				defer wg.Done()
 				log.Println("accepting stream")
 				stream, err := session.AcceptStream()
 				if err == nil {
 					buf1 := make([]byte, 4)
-					for i := 0; i < n; i++ {
-						stream.Read(buf1)
-						c2.So(string(buf1), ShouldEqual, "ping")
+					for i := 0; i < n; {
+						n, err := stream.Read(buf1)
+						if n == 4 && err == nil {
+							i++
+							c2.So(string(buf1), ShouldEqual, "ping")
+						}
 					}
 					log.Debugf("buf#%d read done", i)
 				}
@@ -93,18 +93,21 @@ func BenchmarkSessionPool_Get(b *testing.B) {
 
 		wg := &sync.WaitGroup{}
 
-		server(c, localAddr, wg, p, b.N)
+		server(c, localAddr, b.N)
 		b.ResetTimer()
+		wg.Add(concurrency)
 		for i := 0; i < concurrency; i++ {
-			wg.Add(1)
 			go func(c2 C, n int) {
 				// Open a new stream
 				// Stream implements net.Conn
 				defer wg.Done()
 				stream, err := p.Get(proto.NodeID(localAddr))
 				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; i++ {
-					_, err = stream.Write([]byte("ping"))
+				for i := 0; i < n; {
+					n, err := stream.Write([]byte("ping"))
+					if n == 4 && err == nil {
+						i++
+					}
 				}
 			}(c, b.N)
 		}
@@ -122,9 +125,11 @@ func TestNewSessionPool(t *testing.T) {
 
 		wg := &sync.WaitGroup{}
 
-		server(c, localAddr, wg, p, packetCount)
+		server(c, localAddr, packetCount)
+		p.Get(proto.NodeID(localAddr))
+
+		wg.Add(concurrency)
 		for i := 0; i < concurrency; i++ {
-			wg.Add(1)
 			go func(c2 C, n int) {
 				// Open a new stream
 				// Stream implements net.Conn
@@ -135,26 +140,29 @@ func TestNewSessionPool(t *testing.T) {
 					return
 				}
 				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; i++ {
-					_, err = stream.Write([]byte("ping"))
+				for i := 0; i < n; {
+					n, err := stream.Write([]byte("ping"))
+					if n == 4 && err == nil {
+						i++
+					}
 				}
 			}(c, packetCount)
 		}
 
 		wg.Wait()
-		c.So(p.Len(), ShouldEqual, 1)
+		So(p.Len(), ShouldEqual, 1)
 
-		wg2 := &sync.WaitGroup{}
-		server(c, localAddr2, wg2, p, packetCount)
+		server(c, localAddr2, packetCount)
 		conn, _ := net.Dial("tcp", localAddr2)
 		exists := p.Set(proto.NodeID(localAddr2), conn)
-		c.So(exists, ShouldBeFalse)
+		So(exists, ShouldBeFalse)
 		exists = p.Set(proto.NodeID(localAddr2), conn)
-		c.So(exists, ShouldBeTrue)
-		c.So(p.Len(), ShouldEqual, 2)
+		So(exists, ShouldBeTrue)
+		So(p.Len(), ShouldEqual, 2)
 
+		wg2 := &sync.WaitGroup{}
+		wg2.Add(concurrency)
 		for i := 0; i < concurrency; i++ {
-			wg2.Add(1)
 			go func(c2 C, n int) {
 				// Open a new stream
 				// Stream implements net.Conn
@@ -165,20 +173,23 @@ func TestNewSessionPool(t *testing.T) {
 					return
 				}
 				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; i++ {
-					_, err = stream.Write([]byte("ping"))
+				for i := 0; i < n; {
+					n, err := stream.Write([]byte("ping"))
+					if n == 4 && err == nil {
+						i++
+					}
 				}
 			}(c, packetCount)
 		}
 
 		wg2.Wait()
-		c.So(p.Len(), ShouldEqual, 2)
+		So(p.Len(), ShouldEqual, 2)
 
 		p.Remove(proto.NodeID(localAddr2))
-		c.So(p.Len(), ShouldEqual, 1)
+		So(p.Len(), ShouldEqual, 1)
 
 		p.Close()
-		c.So(p.Len(), ShouldEqual, 0)
+		So(p.Len(), ShouldEqual, 0)
 
 	})
 

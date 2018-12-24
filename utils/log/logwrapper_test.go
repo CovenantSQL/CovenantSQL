@@ -90,7 +90,7 @@ func call1() {
 }
 
 func call2() {
-	WithField("k", "v").Error("Error")
+	WithField("k", "v").Error("error")
 	Error("call2 error")
 }
 
@@ -103,31 +103,31 @@ func TestWithField(t *testing.T) {
 	call0()
 
 	f := new(Fields)
-	WithError(errors.New("new")).WithFields(*f).WithTime(time.Now()).Debug("Debug")
+	WithError(errors.New("new")).WithFields(*f).WithTime(time.Now()).Debug("debug")
 
-	WithFields(*f).Debug("Debug")
-	WithTime(time.Now()).WithError(errors.New("new")).Debug("Debug")
+	WithFields(*f).Debug("debug")
+	WithTime(time.Now()).WithError(errors.New("new")).Debug("debug")
 	NewEntry(StandardLogger()).WithTime(time.Now()).String()
 
-	WithField("k", "v").Debug("Debug")
+	WithField("k", "v").Debug("debug")
 	WithField("k", "v").Debugln("Debugln")
-	WithField("k", "v").Debugf("Debugf %d", 1)
+	WithField("k", "v").Debugf("debugf %d", 1)
 	WithField("k", "v").Print("Print")
 	WithField("k", "v").Println("Println")
 	WithField("k", "v").Printf("Printf %d", 1)
-	WithField("k", "v").Info("Info")
+	WithField("k", "v").Info("info")
 	WithField("k", "v").Infoln("Infoln")
-	WithField("k", "v").Infof("Infof %d", 1)
-	WithField("k", "v").Warning("Warning")
+	WithField("k", "v").Infof("infof %d", 1)
+	WithField("k", "v").Warning("warning")
 	WithField("k", "v").Warningln("Warningln")
 	WithField("k", "v").Warningf("Warningf %d", 1)
-	WithField("k", "v").Warn("Warn")
+	WithField("k", "v").Warn("warn")
 	WithField("k", "v").Warnln("Warnln")
 	WithField("k", "v").Warnln("Warnln")
-	WithField("k", "v").Warnf("Warnf %d", 1)
-	WithField("k", "v").Error("Error")
+	WithField("k", "v").Warnf("warnf %d", 1)
+	WithField("k", "v").Error("error")
 	WithField("k", "v").Errorln("Errorln")
-	WithField("k", "v").Errorf("Errorf %d", 1)
+	WithField("k", "v").Errorf("errorf %d", 1)
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in f", r)
@@ -146,10 +146,10 @@ func TestWithField(t *testing.T) {
 					t.Fail()
 				}
 			}()
-			WithField("k", "v").Panicf("Panicf %d", 1)
+			WithField("k", "v").Panicf("panicf %d", 1)
 		}()
 		WithField("k", "v").Panicln("Panicln")
 	}()
 
-	WithField("k", "v").Panic("Panic")
+	WithField("k", "v").Panic("panic")
 }

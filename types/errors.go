@@ -28,4 +28,10 @@ var (
 	ErrNodePublicKeyNotMatch = errors.New("node publick key doesn't match")
 	// ErrSignRequest indicates a failed signature compute operation.
 	ErrSignRequest = errors.New("signature compute failed")
+	// ErrSignVerification indicates a failed signature verification.
+	ErrSignVerification = errors.New("signature verification failed")
+	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
+	ErrBillingNotMatch = errors.New("billing request doesn't match")
+	// ErrHashVerification indicates a failed hash verification.
+	ErrHashVerification = errors.New("hash verification failed")
 )

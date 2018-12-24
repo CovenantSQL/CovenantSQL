@@ -38,7 +38,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/jordwest/mock-conn"
+	mock_conn "github.com/jordwest/mock-conn"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )

@@ -22,7 +22,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 const (

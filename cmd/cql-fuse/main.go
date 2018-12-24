@@ -72,12 +72,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	_ "bazil.org/fuse/fs/fstestutil"
+	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var usage = func() {
@@ -96,7 +95,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 
 	err := client.Init(config, []byte(password))
 	if err != nil {
@@ -133,6 +132,8 @@ func main() {
 	defer func() {
 		_ = c.Close()
 	}()
+
+	log.Infof("DB: %s mount on %s succeed", dsn, mountPoint)
 
 	go func() {
 		sig := make(chan os.Signal, 1)

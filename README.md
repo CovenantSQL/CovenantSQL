@@ -26,6 +26,7 @@
             alt="Join the chat at https://gitter.im/CovenantSQL/CovenantSQL"></a>
 </p>
 
+[中文简介](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README-zh.md)
 
 CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain with features:
 
@@ -80,7 +81,7 @@ that inspired us:
 | RPC                |     `net/rpc`    |
 | Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
 | Pooling            |  Session Pool  |
-| Multiplex          |      Yamux     |
+| Multiplex          |      [smux](https://github.com/xtaci/smux)     |
 | Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
 | Network            |       TCP or KCP for optional later      |
 

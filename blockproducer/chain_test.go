@@ -17,305 +17,318 @@
 package blockproducer
 
 import (
-	"io/ioutil"
 	"os"
-	"sync"
+	"path"
 	"testing"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var (
-	testPeersNumber                 = 1
-	testPeriod                      = 1 * time.Second
-	testTick                        = 100 * time.Millisecond
-	testPeriodNumber         uint32 = 10
-	testClientNumberPerChain        = 10
-)
-
-func TestChain(t *testing.T) {
-	Convey("test main chain", t, func() {
-		log.SetLevel(log.InfoLevel)
-		confDir := "../test/mainchain/node_standalone/config.yaml"
-		privDir := "../test/mainchain/node_standalone/private.key"
-		cleanup, _, _, rpcServer, err := initNode(
-			confDir,
-			privDir,
-		)
-		defer cleanup()
-		So(err, ShouldBeNil)
-
-		fl, err := ioutil.TempFile("", "mainchain")
-		So(err, ShouldBeNil)
-
-		fl.Close()
-		os.Remove(fl.Name())
-
-		// create genesis block
-		genesis, err := generateRandomBlock(genesisHash, true)
-		So(err, ShouldBeNil)
-
-		priv, err := kms.GetLocalPrivateKey()
-		So(err, ShouldBeNil)
-		_, peers, err := createTestPeersWithPrivKeys(priv, testPeersNumber)
-
-		cfg := NewConfig(genesis, fl.Name(), rpcServer, peers, peers.Servers[0], testPeriod, testTick)
-		chain, err := NewChain(cfg)
-		So(err, ShouldBeNil)
-		ao, ok := chain.ms.readonly.accounts[testAddress1]
-		So(ok, ShouldBeTrue)
-		So(ao, ShouldNotBeNil)
-		So(chain.ms.pool.entries[testAddress1].transactions, ShouldBeEmpty)
-		So(chain.ms.pool.entries[testAddress1].baseNonce, ShouldEqual, 1)
-		var (
-			bl     uint64
-			loaded bool
-		)
-		bl, loaded = chain.ms.loadAccountStableBalance(testAddress1)
-		So(loaded, ShouldBeTrue)
-		So(bl, ShouldEqual, testInitBalance)
-		bl, loaded = chain.ms.loadAccountStableBalance(testAddress2)
-		So(loaded, ShouldBeTrue)
-		So(bl, ShouldEqual, testInitBalance)
-		bl, loaded = chain.ms.loadAccountCovenantBalance(testAddress1)
-		So(loaded, ShouldBeTrue)
-		So(bl, ShouldEqual, testInitBalance)
-		bl, loaded = chain.ms.loadAccountCovenantBalance(testAddress2)
-		So(loaded, ShouldBeTrue)
-		So(bl, ShouldEqual, testInitBalance)
-
-		// Hack for single instance test
-		chain.rt.bpNum = 5
-
-		for {
-			time.Sleep(testPeriod)
-			t.Logf("Chain state: head = %s, height = %d, turn = %d, nextturnstart = %s, ismyturn = %t",
-				chain.rt.getHead().Head, chain.rt.getHead().Height, chain.rt.nextTurn,
-				chain.rt.chainInitTime.Add(
-					chain.rt.period*time.Duration(chain.rt.nextTurn)).Format(time.RFC3339Nano),
-				chain.rt.isMyTurn())
-
-			// chain will receive blocks and tx
-			// receive block
-			// generate valid txbillings
-			tbs := make([]pi.Transaction, 0, 20)
-
-			// pull previous processed transactions
-			tbs = append(tbs, chain.ms.pullTxs()...)
-
-			for i := 0; i != 10; i++ {
-				tb, err := generateRandomAccountBilling()
-				So(err, ShouldBeNil)
-				tbs = append(tbs, tb)
-			}
-
-			// generate block
-			block, err := generateRandomBlockWithTransactions(chain.rt.getHead().Head, tbs)
-			So(err, ShouldBeNil)
-			err = chain.pushBlock(block)
-			So(err, ShouldBeNil)
-			nextNonce, err := chain.ms.nextNonce(testAddress1)
-			So(err, ShouldBeNil)
-			for _, val := range tbs {
-				// should be packed
-				So(nextNonce >= val.GetAccountNonce(), ShouldBeTrue)
-			}
-			So(chain.bi.hasBlock(block.SignedHeader.BlockHash), ShouldBeTrue)
-			// So(chain.rt.getHead().Height, ShouldEqual, height)
-
-			height := chain.rt.getHead().Height
-			specificHeightBlock1, _, err := chain.fetchBlockByHeight(height)
-			So(err, ShouldBeNil)
-			So(block.SignedHeader.BlockHash, ShouldResemble, specificHeightBlock1.SignedHeader.BlockHash)
-			specificHeightBlock2, _, err := chain.fetchBlockByHeight(height + 1000)
-			So(specificHeightBlock2, ShouldBeNil)
-			So(err, ShouldNotBeNil)
-
-			// receive txs
-			receivedTbs := make([]*pt.Billing, 9)
-			for i := range receivedTbs {
-				tb, err := generateRandomAccountBilling()
-				So(err, ShouldBeNil)
-				receivedTbs[i] = tb
-				err = chain.processTx(tb)
-				So(err, ShouldBeNil)
-			}
-
-			nextNonce, err = chain.ms.nextNonce(testAddress1)
-
-			for _, val := range receivedTbs {
-				// should be packed or unpacked
-				So(chain.ms.pool.hasTx(val), ShouldBeTrue)
-			}
-
-			// So(height, ShouldEqual, chain.rt.getHead().Height)
-			height++
-
-			t.Logf("Pushed new block: height = %d, %s <- %s",
-				chain.rt.getHead().Height,
-				block.ParentHash(),
-				block.BlockHash())
-
-			if chain.rt.getHead().Height >= testPeriodNumber {
-				break
-			}
-		}
-
-		// load chain from db
-		err = chain.Stop()
-		So(err, ShouldBeNil)
-		_, err = LoadChain(cfg)
-		So(err, ShouldBeNil)
+func newTransfer(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	sender, receiver proto.AccountAddress, amount uint64,
+) (
+	t *types.Transfer, err error,
+) {
+	t = types.NewTransfer(&types.TransferHeader{
+		Sender:   sender,
+		Receiver: receiver,
+		Nonce:    nonce,
+		Amount:   amount,
 	})
+	err = t.Sign(signer)
+	return
 }
 
-func TestMultiNode(t *testing.T) {
-	Convey("test multi-nodes", t, func(c C) {
-		// create genesis block
-		genesis, err := generateRandomBlock(genesisHash, true)
+func newCreateDatabase(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	owner proto.AccountAddress,
+) (
+	t *types.CreateDatabase, err error,
+) {
+	t = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner: owner,
+		Nonce: nonce,
+	})
+	err = t.Sign(signer)
+	return
+}
+
+func newProvideService(
+	nonce pi.AccountNonce, signer *asymmetric.PrivateKey,
+	contract proto.AccountAddress,
+) (
+	t *types.ProvideService, err error,
+) {
+	t = types.NewProvideService(&types.ProvideServiceHeader{
+		Contract: contract,
+		Nonce:    nonce,
+	})
+	err = t.Sign(signer)
+	return
+}
+
+func TestChain(t *testing.T) {
+	Convey("Given a new block producer chain", t, func() {
+		var (
+			rawids = [...]proto.RawNodeID{
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x1}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x2}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x3}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x4}},
+				{Hash: hash.Hash{0x0, 0x0, 0x0, 0x5}},
+			}
+
+			err     error
+			config  *Config
+			genesis *types.BPBlock
+			begin   time.Time
+			leader  proto.NodeID
+			servers []proto.NodeID
+			chain   *Chain
+
+			priv1, priv2 *asymmetric.PrivateKey
+			addr1, addr2 proto.AccountAddress
+		)
+
+		priv1, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
-		So(genesis.Transactions, ShouldNotBeEmpty)
+		priv2, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		addr1, err = crypto.PubKeyHash(priv1.PubKey())
+		So(err, ShouldBeNil)
+		addr2, err = crypto.PubKeyHash(priv2.PubKey())
 
-		// Create sql-chain instances
-		chains := make([]*Chain, testPeersNumber)
-		configs := []string{
-			"../test/mainchain/node_multi_0/config.yaml",
-			// "../test/mainchain/node_multi_1/config.yaml",
-			// "../test/mainchain/node_multi_2/config.yaml",
+		genesis = &types.BPBlock{
+			SignedHeader: types.BPSignedHeader{
+				BPHeader: types.BPHeader{
+					Timestamp: time.Now().Add(-10 * time.Second),
+				},
+			},
+			Transactions: []pi.Transaction{
+				types.NewBaseAccount(&types.Account{
+					Address:      addr1,
+					TokenBalance: [5]uint64{1000, 1000, 1000, 1000, 1000},
+				}),
+			},
 		}
-		privateKeys := []string{
-			"../test/mainchain/node_multi_0/private.key",
-			// "../test/mainchain/node_multi_1/private.key",
-			// "../test/mainchain/node_multi_2/private.key",
+		err = genesis.PackAndSignBlock(testingPrivateKey)
+		So(err, ShouldBeNil)
+		begin = genesis.Timestamp()
+
+		for _, v := range rawids {
+			servers = append(servers, v.ToNodeID())
+		}
+		leader = servers[0]
+
+		config = &Config{
+			Genesis:  genesis,
+			DataFile: path.Join(testingDataDir, t.Name()),
+			Server:   nil,
+			Peers: &proto.Peers{
+				PeersHeader: proto.PeersHeader{
+					Leader:  leader,
+					Servers: servers,
+				},
+			},
+			NodeID: leader,
+			Period: time.Duration(1 * time.Second),
+			Tick:   time.Duration(300 * time.Millisecond),
 		}
 
-		var nis []cpuminer.NonceInfo
-		var peers *proto.Peers
-		peerInited := false
-		for i := range chains {
-			// create tmp file
-			fl, err := ioutil.TempFile("", "mainchain")
-			So(err, ShouldBeNil)
-			fl.Close()
-			os.Remove(fl.Name())
+		chain, err = NewChain(config)
+		So(err, ShouldBeNil)
+		So(chain, ShouldNotBeNil)
 
-			// init config
-			cleanup, dht, _, server, err := initNode(configs[i], privateKeys[i])
+		// Close chain on reset
+		Reset(func() {
+			if chain != nil {
+				err = chain.Stop()
+				So(err, ShouldBeNil)
+			}
+			err = os.Remove(config.DataFile)
 			So(err, ShouldBeNil)
-			defer cleanup()
+		})
 
-			// Create peer list
-			if !peerInited {
-				nis, peers, err = createTestPeers(testPeersNumber)
+		Convey("When transfer transactions are added", func() {
+			var (
+				nonce          pi.AccountNonce
+				t1, t2, t3, t4 pi.Transaction
+				f0, f1         *branch
+				bl             *types.BPBlock
+			)
+
+			// Create transactions for testing
+			nonce, err = chain.nextNonce(addr1)
+			So(err, ShouldBeNil)
+			So(nonce, ShouldEqual, 1)
+			t1, err = newTransfer(nonce, priv1, addr1, addr2, 1)
+			So(err, ShouldBeNil)
+			t2, err = newTransfer(nonce+1, priv1, addr1, addr2, 1)
+			So(err, ShouldBeNil)
+			t3, err = newCreateDatabase(nonce+2, priv1, addr1)
+			So(err, ShouldBeNil)
+			t4, err = newProvideService(nonce+3, priv1, addr1)
+			So(err, ShouldBeNil)
+
+			// Fork from #0
+			f0 = chain.headBranch.makeCopy()
+
+			err = chain.storeTx(t1)
+			So(err, ShouldBeNil)
+			Convey("The chain should report error on duplicated transaction", func() {
+				err = chain.storeTx(t1)
+				So(err, ShouldEqual, ErrExistedTx)
+			})
+			err = chain.produceBlock(begin.Add(chain.period))
+			So(err, ShouldBeNil)
+
+			// Create a sibling block from fork#0 and apply
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			// Fork from #1
+			f1 = chain.headBranch.makeCopy()
+
+			err = chain.storeTx(t2)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(2 * chain.period))
+			So(err, ShouldBeNil)
+
+			err = chain.storeTx(t3)
+			So(err, ShouldBeNil)
+			err = chain.storeTx(t4)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(3 * chain.period))
+			So(err, ShouldBeNil)
+			// Create a sibling block from fork#1 and apply
+			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period), addr2, priv2)
+			So(err, ShouldBeNil)
+			So(bl, ShouldNotBeNil)
+			err = chain.pushBlock(bl)
+			So(err, ShouldBeNil)
+
+			// This should trigger a branch pruning on fork #0
+			for i := uint32(4); i <= 6; i++ {
+				err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
+				So(err, ShouldBeNil)
+				// Create a sibling block from fork#1 and apply
+				f1, bl, err = f1.produceBlock(
+					i, begin.Add(time.Duration(i)*chain.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+			}
+
+			Convey("The chain immutable should be updated to irreversible block", func() {
+				// Add more blocks to trigger immutable updating
+				for i := uint32(7); i <= 12; i++ {
+					err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
+					So(err, ShouldBeNil)
+				}
+				Convey("The chain should have same state after reloading", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					chain, err = NewChain(config)
+					So(err, ShouldBeNil)
+					So(chain, ShouldNotBeNil)
+					chain.stat()
+				})
+			})
+
+			Convey("The chain head should switch to fork #1 if it grows to count 7", func() {
+				// Add 2 more blocks to fork #1, this should trigger a branch switch to fork #1
+				chain.stat()
+				f1.addTx(t2)
+				f1.addTx(t3)
+				f1.addTx(t4)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
+				So(err, ShouldBeNil)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period), addr2, priv2)
+				So(err, ShouldBeNil)
+				So(bl, ShouldNotBeNil)
+				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
 
-				for i, p := range peers.Servers {
-					t.Logf("Peer #%d: %s", i, p)
-				}
+				Convey("The chain should have same state after reloading", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					chain, err = NewChain(config)
+					So(err, ShouldBeNil)
+					So(chain, ShouldNotBeNil)
+					chain.stat()
+				})
 
-				peerInited = true
-			}
+				Convey("The chain APIs should return expected results", func() {
+					var (
+						bl            *types.BPBlock
+						count, height uint32
+					)
 
-			cfg := NewConfig(genesis, fl.Name(), server, peers, peers.Servers[i], testPeriod, testTick)
+					_, _, err = chain.fetchBlockByHeight(100)
+					So(err, ShouldEqual, ErrNoSuchBlock)
 
-			// init chain
-			chains[i], err = NewChain(cfg)
-			So(err, ShouldBeNil)
+					_, _, err = chain.fetchBlockByCount(100)
+					So(err, ShouldEqual, ErrNoSuchBlock)
 
-			// Register address
-			pub, err := kms.GetLocalPublicKey()
-			So(err, ShouldBeNil)
-			node := proto.Node{
-				ID: peers.Servers[i],
-				Role: func(peers *proto.Peers, i int) proto.ServerRole {
-					if peers.Leader.IsEqual(&peers.Servers[i]) {
-						return proto.Leader
-					}
-					return proto.Follower
-				}(peers, i),
-				Addr:      server.Listener.Addr().String(),
-				PublicKey: pub,
-				Nonce:     nis[i].Nonce,
-			}
-			req := proto.PingReq{
-				Node:     node,
-				Envelope: proto.Envelope{},
-			}
-			var resp proto.PingResp
-			dht.Ping(&req, &resp)
-			log.WithField("resp", resp).Debug("got ping response")
+					bl, count, err = chain.fetchBlockByHeight(0)
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, 0)
+					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
 
-			err = chains[i].Start()
-			So(err, ShouldBeNil)
-			defer func(c *Chain) {
-				c.Stop()
-			}(chains[i])
-		}
+					bl, height, err = chain.fetchBlockByCount(0)
+					So(err, ShouldBeNil)
+					So(height, ShouldEqual, 0)
+					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
 
-		for i := range chains {
-			wg := &sync.WaitGroup{}
-			sC := make(chan struct{})
+					// Try to use the no-cache version
+					var node = chain.headBranch.head.ancestorByCount(5)
+					node.block = nil // Clear cached block
+					bl, count, err = chain.fetchBlockByHeight(node.height)
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, node.count)
+					So(bl.BlockHash(), ShouldResemble, &node.hash)
+					bl, height, err = chain.fetchBlockByCount(node.count)
+					So(err, ShouldBeNil)
+					So(height, ShouldEqual, node.height)
+					So(bl.BlockHash(), ShouldResemble, &node.hash)
+				})
 
-			for j := 0; j < testClientNumberPerChain; j++ {
-				wg.Add(1)
-				go func(val int) {
-					defer wg.Done()
-				foreverLoop:
-					for {
-						select {
-						case <-sC:
-							break foreverLoop
-						default:
-							// test AdviseBillingRequest RPC
-							br, err := generateRandomBillingRequest()
-							c.So(err, ShouldBeNil)
+				Convey("Test run chain", func() {
+					var sv = rpc.NewServer()
+					err = sv.InitRPCServer("localhost:0", testingPrivateKeyFile, []byte{})
+					So(err, ShouldBeNil)
+					defer sv.Stop()
 
-							bReq := &types.AdviseBillingReq{
-								Envelope: proto.Envelope{
-									// TODO(lambda): Add fields.
-								},
-								Req: br,
-							}
-							bResp := &types.AdviseBillingResp{}
-							log.WithFields(log.Fields{
-								"node":        val,
-								"requestHash": br.RequestHash,
-							}).Debug("advising billing request")
-							err = chains[i].cl.CallNode(chains[i].rt.nodeID, route.MCCAdviseBillingRequest.String(), bReq, bResp)
-							if err != nil {
-								log.WithFields(log.Fields{
-									"peer":         chains[i].rt.getPeerInfoString(),
-									"curr_turn":    chains[i].rt.getNextTurn(),
-									"now_time":     time.Now().UTC().Format(time.RFC3339Nano),
-									"request_hash": br.RequestHash,
-								}).WithError(err).Error("Failed to advise new billing request")
-							}
-							// TODO(leventeliu): this test needs to be improved using some preset
-							// accounts. Or this request will return an "ErrAccountNotFound" error.
-							c.So(err, ShouldNotBeNil)
-							c.So(err.Error(), ShouldEqual, ErrAccountNotFound.Error())
-							//log.Debugf("response %d hash is %s", val, bResp.Resp.RequestHash)
-
-						}
-					}
-				}(j)
-			}
-			defer func() {
-				close(sC)
-				wg.Wait()
-			}()
-		}
-		time.Sleep(time.Duration(testPeriodNumber) * testPeriod)
+					chain.server = sv
+					chain.Start()
+					defer func() {
+						chain.Stop()
+						chain = nil
+					}()
+					chain.addTx(t1)
+					chain.addTx(t2)
+					chain.addTx(t3)
+					chain.addTx(t4)
+					time.Sleep(15 * chain.period)
+				})
+			})
+		})
 	})
-
-	return
 }

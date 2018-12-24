@@ -17,18 +17,17 @@
 package types
 
 import (
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // AdviseBillingReq defines a request of the AdviseBillingRequest RPC method.
 type AdviseBillingReq struct {
 	proto.Envelope
-	Req *pt.BillingRequest
+	Req *BillingRequest
 }
 
 // AdviseBillingResp defines a request of the AdviseBillingRequest RPC method.
 type AdviseBillingResp struct {
 	proto.Envelope
-	Resp *pt.BillingRequest
+	Resp *BillingRequest
 }

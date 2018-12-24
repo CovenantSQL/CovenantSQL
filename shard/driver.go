@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 )

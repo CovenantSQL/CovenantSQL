@@ -25,7 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 func TestGenSecp256k1Keypair(t *testing.T) {

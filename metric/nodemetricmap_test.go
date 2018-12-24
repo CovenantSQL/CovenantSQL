@@ -58,7 +58,7 @@ func TestCollectServer_FilterNode(t *testing.T) {
 		mm := make(MetricMap, 0)
 		for _, mf := range mfs {
 			mm[*mf.Name] = mf
-			log.Debugf("Gathered node: %v", mf)
+			log.Debugf("gathered node: %v", mf)
 		}
 		nmm := NodeMetricMap{}
 		nmm.Store(proto.NodeID("node1"), mm)
@@ -82,7 +82,7 @@ func TestCollectServer_FilterNode(t *testing.T) {
 		mm := make(MetricMap, 0)
 		for _, mf := range mfs {
 			mm[*mf.Name] = mf
-			log.Debugf("Gathered node: %v", mf)
+			log.Debugf("gathered node: %v", mf)
 		}
 		nmm := NodeMetricMap{}
 		nmm.Store(proto.NodeID("node1"), mm)

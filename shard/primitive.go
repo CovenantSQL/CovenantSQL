@@ -22,7 +22,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
 )
 

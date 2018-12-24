@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashAccount(t *testing.T) {
-	v := Account{}
+func TestMarshalHashIssueKeys(t *testing.T) {
+	v := IssueKeys{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashAccount(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashAccount(b *testing.B) {
-	v := Account{}
+func BenchmarkMarshalHashIssueKeys(b *testing.B) {
+	v := IssueKeys{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashAccount(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgAccount(b *testing.B) {
-	v := Account{}
+func BenchmarkAppendMsgIssueKeys(b *testing.B) {
+	v := IssueKeys{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgAccount(b *testing.B) {
 	}
 }
 
-func TestMarshalHashSQLChainProfile(t *testing.T) {
-	v := SQLChainProfile{}
+func TestMarshalHashIssueKeysHeader(t *testing.T) {
+	v := IssueKeysHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashSQLChainProfile(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashSQLChainProfile(b *testing.B) {
-	v := SQLChainProfile{}
+func BenchmarkMarshalHashIssueKeysHeader(b *testing.B) {
+	v := IssueKeysHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,8 +71,8 @@ func BenchmarkMarshalHashSQLChainProfile(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgSQLChainProfile(b *testing.B) {
-	v := SQLChainProfile{}
+func BenchmarkAppendMsgIssueKeysHeader(b *testing.B) {
+	v := IssueKeysHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -83,8 +83,8 @@ func BenchmarkAppendMsgSQLChainProfile(b *testing.B) {
 	}
 }
 
-func TestMarshalHashSQLChainUser(t *testing.T) {
-	v := SQLChainUser{}
+func TestMarshalHashMinerKey(t *testing.T) {
+	v := MinerKey{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -99,8 +99,8 @@ func TestMarshalHashSQLChainUser(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashSQLChainUser(b *testing.B) {
-	v := SQLChainUser{}
+func BenchmarkMarshalHashMinerKey(b *testing.B) {
+	v := MinerKey{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -108,8 +108,8 @@ func BenchmarkMarshalHashSQLChainUser(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgSQLChainUser(b *testing.B) {
-	v := SQLChainUser{}
+func BenchmarkAppendMsgMinerKey(b *testing.B) {
+	v := MinerKey{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

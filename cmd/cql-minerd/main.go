@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+
 	//"runtime/trace"
 	"syscall"
 	"time"
@@ -39,8 +40,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"github.com/cyberdelia/go-metrics-graphite"
-	"github.com/rcrowley/go-metrics"
+	graphite "github.com/cyberdelia/go-metrics-graphite"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 const logo = `
@@ -127,7 +128,7 @@ func main() {
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %s", f.Name, f.Value)
+		log.Infof("args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error

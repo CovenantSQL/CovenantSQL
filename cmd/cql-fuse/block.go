@@ -36,8 +36,6 @@ package main
 import (
 	"fmt"
 	"strings"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // BlockSize is the size of each data block. It must not
@@ -341,7 +339,6 @@ func write(e sqlExecutor, inodeID, originalSize, offset uint64, data []byte) err
 	}
 
 	insStmt := fmt.Sprintf(`INSERT INTO fs_block VALUES %s`, strings.Join(paramStrings, ","))
-	log.Warn(insStmt, params)
 	if _, err := e.Exec(insStmt, params...); err != nil {
 		return err
 	}

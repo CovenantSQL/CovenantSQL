@@ -65,7 +65,7 @@ func (s *SignedHeader) VerifyAsGenesis() (err error) {
 		"parent":   s.ParentHash.String(),
 		"merkle":   s.MerkleRoot.String(),
 		"block":    s.HSV.Hash().String(),
-	}).Debug("Verifying genesis block header")
+	}).Debug("verifying genesis block header")
 	if pk, err = kms.GetPublicKey(s.Producer); err != nil {
 		return
 	}

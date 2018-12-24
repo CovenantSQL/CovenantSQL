@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestMarshalHashBlock(t *testing.T) {
-	v := Block{}
+func TestMarshalHashUpdatePermission(t *testing.T) {
+	v := UpdatePermission{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestMarshalHashBlock(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashBlock(b *testing.B) {
-	v := Block{}
+func BenchmarkMarshalHashUpdatePermission(b *testing.B) {
+	v := UpdatePermission{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,8 +34,8 @@ func BenchmarkMarshalHashBlock(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgBlock(b *testing.B) {
-	v := Block{}
+func BenchmarkAppendMsgUpdatePermission(b *testing.B) {
+	v := UpdatePermission{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))
@@ -46,8 +46,8 @@ func BenchmarkAppendMsgBlock(b *testing.B) {
 	}
 }
 
-func TestMarshalHashHeader(t *testing.T) {
-	v := Header{}
+func TestMarshalHashUpdatePermissionHeader(t *testing.T) {
+	v := UpdatePermissionHeader{}
 	binary.Read(rand.Reader, binary.BigEndian, &v)
 	bts1, err := v.MarshalHash()
 	if err != nil {
@@ -62,8 +62,8 @@ func TestMarshalHashHeader(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalHashHeader(b *testing.B) {
-	v := Header{}
+func BenchmarkMarshalHashUpdatePermissionHeader(b *testing.B) {
+	v := UpdatePermissionHeader{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,45 +71,8 @@ func BenchmarkMarshalHashHeader(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgHeader(b *testing.B) {
-	v := Header{}
-	bts := make([]byte, 0, v.Msgsize())
-	bts, _ = v.MarshalHash()
-	b.SetBytes(int64(len(bts)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bts, _ = v.MarshalHash()
-	}
-}
-
-func TestMarshalHashSignedHeader(t *testing.T) {
-	v := SignedHeader{}
-	binary.Read(rand.Reader, binary.BigEndian, &v)
-	bts1, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bts2, err := v.MarshalHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(bts1, bts2) {
-		t.Fatal("hash not stable")
-	}
-}
-
-func BenchmarkMarshalHashSignedHeader(b *testing.B) {
-	v := SignedHeader{}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		v.MarshalHash()
-	}
-}
-
-func BenchmarkAppendMsgSignedHeader(b *testing.B) {
-	v := SignedHeader{}
+func BenchmarkAppendMsgUpdatePermissionHeader(b *testing.B) {
+	v := UpdatePermissionHeader{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalHash()
 	b.SetBytes(int64(len(bts)))

@@ -26,7 +26,7 @@ import (
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/otypes"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 )
 
 type blockNode struct {
@@ -98,21 +98,21 @@ func process() (err error) {
 			if dbbk = cur.Bucket().Bucket(k); dbbk == nil {
 				log.WithFields(log.Fields{
 					"k": string(k),
-				}).Warn("Failed to get bucket")
+				}).Warn("failed to get bucket")
 				continue
 			}
 
 			// Start processing a new database bucket
 			log.WithFields(log.Fields{
 				"database": string(k),
-			}).Info("Start processing a new database bucket")
+			}).Info("start processing a new database bucket")
 			var (
 				fb bool
 				bi = make(blockIndex)
 			)
 			if err = dbbk.ForEach(func(k, v []byte) (err error) {
 				if k == nil || v == nil {
-					log.Warn("Unexpected nil value of key or value")
+					log.Warn("unexpected nil value of key or value")
 					return
 				}
 				var (
@@ -125,7 +125,7 @@ func process() (err error) {
 					log.WithFields(log.Fields{
 						"height": height,
 						"block":  block,
-					}).WithError(err).Warn("Failed to decode block data")
+					}).WithError(err).Warn("failed to decode block data")
 					// Do not return error and keep `ForEach` running
 					err = nil
 					return
@@ -145,7 +145,7 @@ func process() (err error) {
 						log.WithFields(log.Fields{
 							"height": height,
 							"block":  block,
-						}).Warn("Failed to lookup parent node")
+						}).Warn("failed to lookup parent node")
 						this = &blockNode{
 							// Temporary set to height for unrecoverable chain
 							count:  height,
@@ -166,7 +166,7 @@ func process() (err error) {
 					"height": this.height,
 					"parent": this.block.SignedHeader.ParentHash.String(),
 					"block":  this.block.SignedHeader.BlockHash.String(),
-				}).Info("Add new block to index")
+				}).Info("add new block to index")
 				bi[block.SignedHeader.BlockHash] = this
 				return
 			}); err != nil {
@@ -189,7 +189,7 @@ func process() (err error) {
 			// Start processing a new database bucket
 			log.WithFields(log.Fields{
 				"database": dbid,
-			}).Info("Start adding count2height index for a new database bucket")
+			}).Info("start adding count2height index for a new database bucket")
 			if dbbk, err = bk.CreateBucketIfNotExists([]byte(dbid)); err != nil {
 				return
 			}
@@ -203,7 +203,7 @@ func process() (err error) {
 					"height": v.height,
 					"parent": v.block.SignedHeader.ParentHash.String(),
 					"block":  v.block.SignedHeader.BlockHash.String(),
-				}).Info("Add new block count2height index")
+				}).Info("add new block count2height index")
 			}
 		}
 		return
@@ -216,7 +216,7 @@ func process() (err error) {
 
 func main() {
 	if err := process(); err != nil {
-		log.WithError(err).Error("Failed to process data file")
+		log.WithError(err).Error("failed to process data file")
 		os.Exit(1)
 	}
 }

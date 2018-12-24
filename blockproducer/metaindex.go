@@ -17,13 +17,10 @@
 package blockproducer
 
 import (
-	"bytes"
 	"sync"
 
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/coreos/bbolt"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/ulule/deepcopier"
 )
 
@@ -46,50 +43,30 @@ func safeSub(x, y *uint64) (err error) {
 }
 
 type accountObject struct {
-	sync.RWMutex
-	pt.Account
+	types.Account
 }
 
 type sqlchainObject struct {
-	sync.RWMutex
-	pt.SQLChainProfile
+	types.SQLChainProfile
+}
+
+type providerObject struct {
+	types.ProviderProfile
 }
 
 type metaIndex struct {
 	sync.RWMutex
 	accounts  map[proto.AccountAddress]*accountObject
 	databases map[proto.DatabaseID]*sqlchainObject
+	provider  map[proto.AccountAddress]*providerObject
 }
 
 func newMetaIndex() *metaIndex {
 	return &metaIndex{
 		accounts:  make(map[proto.AccountAddress]*accountObject),
 		databases: make(map[proto.DatabaseID]*sqlchainObject),
+		provider:  make(map[proto.AccountAddress]*providerObject),
 	}
-}
-
-func (i *metaIndex) storeAccountObject(o *accountObject) {
-	i.Lock()
-	defer i.Unlock()
-	i.accounts[o.Address] = o
-}
-
-func (i *metaIndex) deleteAccountObject(k proto.AccountAddress) {
-	i.Lock()
-	defer i.Unlock()
-	delete(i.accounts, k)
-}
-
-func (i *metaIndex) storeSQLChainObject(o *sqlchainObject) {
-	i.Lock()
-	defer i.Unlock()
-	i.databases[o.ID] = o
-}
-
-func (i *metaIndex) deleteSQLChainObject(k proto.DatabaseID) {
-	i.Lock()
-	defer i.Unlock()
-	delete(i.databases, k)
 }
 
 func (i *metaIndex) deepCopy() (cpy *metaIndex) {
@@ -104,185 +81,10 @@ func (i *metaIndex) deepCopy() (cpy *metaIndex) {
 		deepcopier.Copy(v).To(cpyv)
 		cpy.databases[k] = cpyv
 	}
+	for k, v := range i.provider {
+		cpyv := &providerObject{}
+		deepcopier.Copy(v).To(cpyv)
+		cpy.provider[k] = cpyv
+	}
 	return
-}
-
-// IncreaseAccountStableBalance increases account stable coin balance and write persistence within
-// a boltdb transaction.
-func (i *metaIndex) IncreaseAccountStableBalance(
-	addr proto.AccountAddress, amount uint64) (_ func(*bolt.Tx) error,
-) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			ao  *accountObject
-			ok  bool
-			bk  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			enc *bytes.Buffer
-		)
-
-		i.Lock()
-		defer i.Unlock()
-		if ao, ok = i.accounts[addr]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-		if err = safeAdd(&ao.StableCoinBalance, &amount); err != nil {
-			return
-		}
-		ao.NextNonce++
-
-		if enc, err = utils.EncodeMsgPack(&ao.Account); err != nil {
-			return
-		}
-		if err = bk.Put(ao.Address[:], enc.Bytes()); err != nil {
-			return
-		}
-
-		return
-	}
-}
-
-// DecreaseAccountStableBalance decreases account stable coin balance and write persistence within
-// a boltdb transaction.
-func (i *metaIndex) DecreaseAccountStableBalance(
-	addr proto.AccountAddress, amount uint64) (_ func(*bolt.Tx) error,
-) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			ao  *accountObject
-			ok  bool
-			bk  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			enc *bytes.Buffer
-		)
-
-		i.Lock()
-		defer i.Unlock()
-		if ao, ok = i.accounts[addr]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-		if err = safeSub(&ao.StableCoinBalance, &amount); err != nil {
-			return
-		}
-		ao.NextNonce++
-
-		if enc, err = utils.EncodeMsgPack(&ao.Account); err != nil {
-			return
-		}
-		if err = bk.Put(ao.Address[:], enc.Bytes()); err != nil {
-			return
-		}
-
-		return
-	}
-}
-
-// IncreaseAccountCovenantBalance increases account covenant coin balance and write persistence
-// within a boltdb transaction.
-func (i *metaIndex) IncreaseAccountCovenantBalance(
-	addr proto.AccountAddress, amount uint64) (_ func(*bolt.Tx) error,
-) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			ao  *accountObject
-			ok  bool
-			bk  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			enc *bytes.Buffer
-		)
-
-		i.Lock()
-		defer i.Unlock()
-		if ao, ok = i.accounts[addr]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-		if err = safeAdd(&ao.CovenantCoinBalance, &amount); err != nil {
-			return
-		}
-		ao.NextNonce++
-
-		if enc, err = utils.EncodeMsgPack(&ao.Account); err != nil {
-			return
-		}
-		if err = bk.Put(ao.Address[:], enc.Bytes()); err != nil {
-			return
-		}
-
-		return
-	}
-}
-
-// DecreaseAccountCovenantBalance decreases account covenant coin balance and write persistence
-// within a boltdb transaction.
-func (i *metaIndex) DecreaseAccountCovenantBalance(
-	addr proto.AccountAddress, amount uint64) (_ func(*bolt.Tx) error,
-) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			ao  *accountObject
-			ok  bool
-			bk  = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-			enc *bytes.Buffer
-		)
-
-		i.Lock()
-		defer i.Unlock()
-		if ao, ok = i.accounts[addr]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-		if err = safeSub(&ao.CovenantCoinBalance, &amount); err != nil {
-			return
-		}
-		ao.NextNonce++
-
-		if enc, err = utils.EncodeMsgPack(&ao.Account); err != nil {
-			return
-		}
-		if err = bk.Put(ao.Address[:], enc.Bytes()); err != nil {
-			return
-		}
-
-		return
-	}
-}
-
-func (i *metaIndex) CreateSQLChain(
-	addr proto.AccountAddress, id proto.DatabaseID) (_ func(*bolt.Tx) error,
-) {
-	return func(tx *bolt.Tx) (err error) {
-		var (
-			ao  *accountObject
-			co  *sqlchainObject
-			ok  bool
-			bk  = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-			enc *bytes.Buffer
-		)
-
-		i.Lock()
-		defer i.Unlock()
-		// Make sure that the target account exists
-		if ao, ok = i.accounts[addr]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-		// Create new sqlchainProfile
-		co = &sqlchainObject{
-			SQLChainProfile: pt.SQLChainProfile{
-				ID:    id,
-				Owner: addr,
-			},
-		}
-		i.databases[id] = co
-		ao.NextNonce++
-
-		if enc, err = utils.EncodeMsgPack(co); err != nil {
-			return
-		}
-		if err = bk.Put([]byte(id), enc.Bytes()); err != nil {
-			return
-		}
-
-		return
-	}
 }

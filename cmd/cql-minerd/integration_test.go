@@ -41,7 +41,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -497,7 +497,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 					"(?, ?)", index, ii,
 				)
-				//log.Warnf("Insert index = %d %v", index, time.Since(start))
+				//log.Warnf("insert index = %d %v", index, time.Since(start))
 				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
 					log.Warnf("index = %d retried", index)
@@ -525,7 +525,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	log.Warnf("Row Count: %v", count)
+	log.Warnf("row Count: %v", count)
 
 	b.Run("benchmark SELECT", func(b *testing.B) {
 		b.ResetTimer()
@@ -540,7 +540,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				//log.Debugf("index = %d", index)
 				//start := time.Now()
 				row := db.QueryRow("SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
-				//log.Warnf("Select index = %d %v", index, time.Since(start))
+				//log.Warnf("select index = %d %v", index, time.Since(start))
 				var result []byte
 				err = row.Scan(&result)
 				if err != nil || (len(result) == 0) {
@@ -570,7 +570,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 }
 
 func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
-	log.Warnf("Benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	log.Warnf("benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
 	asymmetric.BypassSignature = bypassSign
 	if minerCount > 0 {
 		startNodesProfile(bypassSign)
@@ -647,7 +647,7 @@ func BenchmarkSQLite(b *testing.B) {
 	} else {
 		f.Close()
 		db, err = sql.Open("sqlite3", millionFile+"?_journal_mode=WAL&_synchronous=NORMAL&cache=shared")
-		log.Infof("Testing sqlite3 million data exist file %v", millionFile)
+		log.Infof("testing sqlite3 million data exist file %v", millionFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -661,7 +661,7 @@ func BenchmarkSQLite(b *testing.B) {
 }
 
 func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
-	log.Warnf("Benchmark GNTE for %d Miners, BypassSignature: %v", minerCount, bypassSign)
+	log.Warnf("benchmark GNTE for %d Miners, BypassSignature: %v", minerCount, bypassSign)
 	asymmetric.BypassSignature = bypassSign
 
 	// Create temp directory

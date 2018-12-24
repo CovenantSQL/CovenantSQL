@@ -163,7 +163,7 @@ func TestState(t *testing.T) {
 				}), &types.Response{
 					Header: types.SignedResponseHeader{
 						ResponseHeader: types.ResponseHeader{
-							LogOffset: st1.getID(),
+							LogOffset: st1.getSeq(),
 						},
 					},
 				})
@@ -179,7 +179,7 @@ func TestState(t *testing.T) {
 				}), &types.Response{
 					Header: types.SignedResponseHeader{
 						ResponseHeader: types.ResponseHeader{
-							LogOffset: st1.getID(),
+							LogOffset: st1.getSeq(),
 						},
 					},
 				})
@@ -460,7 +460,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 				Convey(
 					"The state should be reproducible with block replaying in empty instance #2",
 					func() {
-						// Block replaying
+						// BPBlock replaying
 						for i := range blocks {
 							err = st2.ReplayBlock(blocks[i])
 							So(err, ShouldBeNil)
@@ -494,7 +494,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 								So(err, ShouldBeNil)
 							}
 						}
-						// Block replaying
+						// BPBlock replaying
 						for i := range blocks {
 							err = st2.ReplayBlock(blocks[i])
 							So(err, ShouldBeNil)

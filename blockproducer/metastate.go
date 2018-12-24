@@ -610,6 +610,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	)
 	if tx.AdvancePayment < minAdvancePayment {
 		err = ErrInsufficientAdvancePayment
+		log.WithError(err).Warning("tx.AdvancePayment: %d, minAdvancePayment: %d", tx.AdvancePayment, minAdvancePayment)
 		return
 	}
 
@@ -636,6 +637,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 			}
 			if po.GasPrice > tx.GasPrice {
 				err = ErrGasPriceMismatch
+				log.WithError(err).Warningf("miner's gas price: %d, user's gas price: %d",
+					po.GasPrice, tx.GasPrice)
 				break
 			}
 			miners[i] = &types.MinerInfo{
@@ -707,7 +710,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
 	}
-	log.Infof("success create sqlchain with database ID: %s", dbID)
+	log.Infof("success create sqlchain with database ID: %s", string(*dbID))
 	return
 }
 
@@ -862,7 +865,6 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 }
 
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
-	log.Infof("get tx: %s", tx.GetTransactionType().String())
 	switch t := tx.(type) {
 	case *types.Transfer:
 		realSender, err := crypto.PubKeyHash(t.Signee)
@@ -931,6 +933,7 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta typ
 }
 
 func (s *metaState) apply(t pi.Transaction) (err error) {
+	log.Infof("get tx: %s", t.GetTransactionType().String())
 	// NOTE(leventeliu): bypass pool in this method.
 	var (
 		addr  = t.GetAccountAddress()

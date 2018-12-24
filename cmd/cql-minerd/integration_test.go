@@ -56,7 +56,7 @@ var (
 	logDir                     = FJ(testWorkingDir, "./log/")
 	testGasPrice        uint64 = 1
 	testInitTokenAmount uint64 = 1000000000
-	testAdvancePayment  uint64 = 10000000
+	testAdvancePayment  uint64 = 20000000
 )
 
 var nodeCmds []*utils.CMD
@@ -403,6 +403,8 @@ func TestFullProcess(t *testing.T) {
 			So(err, ShouldBeNil)
 		}
 
+		time.Sleep(20 * time.Second)
+
 		// client send create database transaction
 		nonce, err := getNonce(clientAddr)
 		So(err, ShouldBeNil)
@@ -424,6 +426,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
 		So(err, ShouldBeNil)
+		time.Sleep(20 * time.Second)
 
 		// check sqlchain profile exist
 		dbID := proto.FromAccountAndNonce(clientAddr, uint32(nonce))
@@ -433,6 +436,7 @@ func TestFullProcess(t *testing.T) {
 		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 		So(err, ShouldBeNil)
 		profile := profileResp.Profile
+		So(profile.Address.DatabaseID(), ShouldEqual, *dbID)
 		So(profile.Owner.String(), ShouldEqual, clientAddr.String())
 		So(profile.TokenType, ShouldEqual, types.Particle)
 		minersMap := make(map[proto.AccountAddress]bool)
@@ -443,9 +447,10 @@ func TestFullProcess(t *testing.T) {
 			So(minersMap[miner], ShouldBeTrue)
 		}
 
-		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 2})
-		So(err, ShouldBeNil)
+		// create dsn
+		dsncfg := client.NewConfig()
+		dsncfg.DatabaseID = string(*dbID)
+		dsn := dsncfg.FormatDSN()
 
 		log.Infof("the created database dsn is %v", dsn)
 

@@ -72,11 +72,13 @@ func (bs *BusService) subscribeBlock(ctx context.Context) {
 		case <-time.After(bs.checkInterval):
 			// fetch block from remote block producer
 			c := atomic.LoadUint32(&bs.blockCount)
-			log.Info(c)
+			log.Debugf("fetch block in count: %d", c)
 			b := bs.requestBlock(c)
 			if b == nil {
 				continue
 			}
+			log.Debugf("success fetch block in count: %d, block hash: %s, number of block tx: %d",
+				c, b.BlockHash().String(), len(b.GetTxHashes()))
 			bs.extractTxs(b, c)
 			atomic.AddUint32(&bs.blockCount, 1)
 		}
@@ -134,7 +136,7 @@ func (bs *BusService) requestBP(method string, request interface{}, response int
 func (bs *BusService) extractTxs(blocks *types.BPBlock, count uint32) {
 	for _, tx := range blocks.Transactions {
 		eventName := bs.unwrapTx(tx)
-		bs.Publish(eventName, blocks, count)
+		bs.Publish(eventName, tx, count)
 	}
 }
 
@@ -143,6 +145,9 @@ func (bs *BusService) unwrapTx(tx interfaces.Transaction) string {
 	case *interfaces.TransactionWrapper:
 		return bs.unwrapTx(t.Unwrap())
 	default:
+		sender := tx.GetAccountAddress()
+		log.Debugf("get tx with transaction type: %s, hash: %s, sender: %s",
+			tx.GetTransactionType().String(), tx.Hash().String(), sender.String())
 		eventName := fmt.Sprintf("/%s/", t.GetTransactionType().String())
 		return eventName
 	}

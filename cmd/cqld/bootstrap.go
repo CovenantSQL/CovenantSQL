@@ -153,8 +153,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server,
 		peers,
 		nodeID,
-		time.Minute,
-		20*time.Second,
+		3*time.Second,
+		1*time.Second,
 		conf.GConf.QPS,
 	)
 	chain, err := bp.NewChain(chainConfig)

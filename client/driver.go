@@ -336,9 +336,6 @@ func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers
 }
 
 func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *proto.Peers, err error) {
-	req := new(types.GetDatabaseRequest)
-	req.Header.DatabaseID = dbID
-
 	defer func() {
 		log.WithFields(log.Fields{
 			"db":    dbID,
@@ -346,21 +343,25 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 		}).WithError(err).Debug("get peers for database")
 	}()
 
-	if err = req.Sign(privKey); err != nil {
+	profileReq := &types.QuerySQLChainProfileReq{}
+	profileResp := &types.QuerySQLChainProfileResp{}
+	profileReq.DBID = dbID
+	err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+	if err != nil {
+		log.WithError(err).Warning("get sqlchain profile failed in getPeers")
 		return
 	}
 
-	res := new(types.GetDatabaseResponse)
-	if err = requestBP(route.BPDBGetDatabase, req, res); err != nil {
-		return
+	nodeIDs := make([]proto.NodeID, len(profileResp.Profile.Miners))
+	for i, mi := range profileResp.Profile.Miners {
+		nodeIDs[i] = mi.NodeID
 	}
-
-	// verify response
-	if err = res.Verify(); err != nil {
-		return
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Leader:  nodeIDs[0],
+			Servers: nodeIDs[:],
+		},
 	}
-
-	peers = res.Header.InstanceMeta.Peers
 
 	// set peers in the updater cache
 	peerList.Store(dbID, peers)

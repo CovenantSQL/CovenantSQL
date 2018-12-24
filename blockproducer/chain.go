@@ -838,7 +838,7 @@ func (c *Chain) produceAndStoreBlock(
 func (c *Chain) now() time.Time {
 	c.RLock()
 	defer c.RUnlock()
-	return time.Now().UTC().Add(c.offset)
+	return time.Now().Add(c.offset).UTC()
 }
 
 func (c *Chain) startService(chain *Chain) {
@@ -854,7 +854,7 @@ func (c *Chain) nextTick() (t time.Time, d time.Duration) {
 		c.RLock()
 		defer c.RUnlock()
 		nt = c.nextHeight
-		t = time.Now().UTC().Add(c.offset)
+		t = time.Now().Add(c.offset).UTC()
 		return
 	}()
 	d = c.genesisTime.Add(time.Duration(h) * c.period).Sub(t)

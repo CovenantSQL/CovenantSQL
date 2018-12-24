@@ -489,7 +489,7 @@ func (c *Chain) processTx(tx pi.Transaction) {
 	}(); ok {
 		log.WithFields(log.Fields{
 			"tx_hash": tx.Hash().Short(4),
-		}).Debugf("tx already exists, abort processing")
+		}).Debug("tx already exists, abort processing")
 		return
 	}
 	for _, s := range c.getPeers().Servers {
@@ -766,7 +766,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 						}
 						return fmt.Sprintf("[%04d]", i)
 					}(),
-				}).Debugf("pruning branch")
+				}).Debug("pruning branch")
 			}
 		}
 		// Replace current branches

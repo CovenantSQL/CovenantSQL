@@ -88,7 +88,7 @@ func (bs *BusService) requestLastBlock() (block *types.BPBlock, count uint32) {
 	req := &types.FetchLastBlockReq{}
 	resp := &types.FetchBlockResp{}
 
-	if err := bs.requestBP(route.MCCFetchLastBlock.String(), req, resp); err != nil {
+	if err := bs.requestBP(route.MCCFetchLastIrreversibleBlock.String(), req, resp); err != nil {
 		log.WithError(err).Warning("fetch last block failed")
 		return
 	}

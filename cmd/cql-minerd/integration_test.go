@@ -46,7 +46,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

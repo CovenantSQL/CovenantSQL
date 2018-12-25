@@ -26,6 +26,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/twopc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	// Register CovenantSQL/go-sqlite3-encrypt engine.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )

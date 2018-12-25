@@ -129,6 +129,10 @@ func TestMetaState(t *testing.T) {
 			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &sqlchainObject{
 				SQLChainProfile: types.SQLChainProfile{
 					ID: dbid1,
+					Miners: []*types.MinerInfo{
+						&types.MinerInfo{Address: addr1},
+						&types.MinerInfo{Address: addr2},
+					},
 				},
 			})
 			So(co, ShouldBeNil)
@@ -136,6 +140,10 @@ func TestMetaState(t *testing.T) {
 			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &sqlchainObject{
 				SQLChainProfile: types.SQLChainProfile{
 					ID: dbid2,
+					Miners: []*types.MinerInfo{
+						&types.MinerInfo{Address: addr2},
+						&types.MinerInfo{Address: addr3},
+					},
 				},
 			})
 			So(co, ShouldBeNil)
@@ -190,6 +198,13 @@ func TestMetaState(t *testing.T) {
 					})
 					Convey("When metaState change is committed", func() {
 						ms.commit()
+						Convey("The metaState object should return correct db list", func() {
+							var dbs []*types.SQLChainProfile
+							dbs = ms.loadROSQLChains(addr1)
+							So(len(dbs), ShouldEqual, 1)
+							dbs = ms.loadROSQLChains(addr2)
+							So(len(dbs), ShouldEqual, 2)
+						})
 						Convey("The metaState object should be ok to delete user", func() {
 							err = ms.deleteSQLChainUser(dbid3, addr2)
 							So(err, ShouldBeNil)

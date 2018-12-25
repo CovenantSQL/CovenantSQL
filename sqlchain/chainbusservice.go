@@ -110,11 +110,15 @@ func (bs *BusService) subscribeBlock(ctx context.Context) {
 				continue
 			}
 
-			log.Debugf("success fetch block in count: %d, block hash: %s, number of block tx: %d",
-				c, b.BlockHash().String(), len(b.GetTxHashes()))
+			log.WithFields(log.Fields{
+				"last_count": c,
+				"new_count":  newCount,
+				"block_hash": b.BlockHash().Short(4),
+				"tx_num":     len(b.Transactions),
+			}).Debug("success fetch block")
 
 			// Write sqlchain profile state first (bound to the last irreversible block)
-			bs.updateState(c, profiles)
+			bs.updateState(newCount, profiles)
 
 			// Fetch any intermediate irreversible blocks and extract txs
 			for i := c + 1; i < newCount; i++ {

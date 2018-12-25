@@ -98,15 +98,15 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 			case "table":
 				if stmt.ShowCreate {
 					query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
-						stmt.OnTable.Name.String() + "\""
+						stmt.OnTable.Name.String() + "\" AND tbl_name NOT LIKE \"sqlite%\""
 				} else {
 					query = "PRAGMA table_info(" + stmt.OnTable.Name.String() + ")"
 				}
 			case "index":
 				query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
-					stmt.OnTable.Name.String() + "\""
+					stmt.OnTable.Name.String() + "\" AND name NOT LIKE \"sqlite%\""
 			case "tables":
-				query = "SELECT name FROM sqlite_master WHERE type = \"table\""
+				query = "SELECT name FROM sqlite_master WHERE type = \"table\" AND name NOT LIKE \"sqlite%\""
 			}
 
 			log.WithFields(log.Fields{

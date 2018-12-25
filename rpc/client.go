@@ -21,13 +21,20 @@ import (
 	"net"
 	"net/rpc"
 
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	mux "github.com/xtaci/smux"
+)
+
+const (
+	ETLSHeaderSize = 2 + hash.HashBSize + 32
 )
 
 // Client is RPC client
@@ -38,6 +45,8 @@ type Client struct {
 }
 
 var (
+	// ETLSMagicBytes is the ETLS connection magic header
+	ETLSMagicBytes = []byte{0xC0, 0x4E}
 	// YamuxConfig holds the default Yamux config
 	YamuxConfig *mux.Config
 	// DefaultDialer holds the default dialer of SessionPool
@@ -57,9 +66,12 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 		log.WithField("addr", address).WithError(err).Error("connect to node failed")
 		return
 	}
-	var writeBuf []byte
+	writeBuf := make([]byte, ETLSHeaderSize)
+	writeBuf[0] = ETLSMagicBytes[0]
+	writeBuf[1] = ETLSMagicBytes[1]
 	if isAnonymous {
-		writeBuf = append(kms.AnonymousRawNodeID.CloneBytes(), (&cpuminer.Uint256{}).Bytes()...)
+		_ = kms.AnonymousRawNodeID.SetBytes(writeBuf[2 : 2+hash.HashSize])
+		copy(writeBuf[2+hash.HashSize:], (&cpuminer.Uint256{}).Bytes())
 	} else {
 		// send NodeID + Uint256 Nonce
 		var nodeIDBytes []byte
@@ -74,11 +86,17 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 			log.WithError(err).Error("get local nonce failed")
 			return
 		}
-		writeBuf = append(nodeIDBytes, nonce.Bytes()...)
+		copy(writeBuf[2:2+hash.HashSize], nodeIDBytes)
+		copy(writeBuf[2+hash.HashSize:], nonce.Bytes())
 	}
 	wrote, err := conn.Write(writeBuf)
-	if err != nil || wrote != len(writeBuf) {
+	if err != nil {
 		log.WithError(err).Error("write node id and nonce failed")
+		return
+	}
+
+	if wrote != ETLSHeaderSize {
+		err = errors.Errorf("write header size not match %d", wrote)
 		return
 	}
 

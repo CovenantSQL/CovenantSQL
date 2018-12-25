@@ -123,12 +123,11 @@ func (c *Chain) loadAccountStableBalance(addr proto.AccountAddress) (balance uin
 func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types.SQLChainProfile, ok bool) {
 	c.RLock()
 	defer c.RUnlock()
-	profileObj, ok := c.immutable.loadSQLChainObject(databaseID)
+	profile, ok = c.immutable.loadSQLChainObject(databaseID)
 	if !ok {
 		log.Warnf("cannot load sqlchain profile with databaseID: %s", databaseID)
 		return
 	}
-	profile = &profileObj.SQLChainProfile
 	return
 }
 

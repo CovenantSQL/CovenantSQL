@@ -22,6 +22,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/mohae/deepcopy"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -40,5 +41,20 @@ func TestBaseAccount(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ba.Sign(priv), ShouldBeNil)
 		So(ba.Verify(), ShouldBeNil)
+	})
+}
+
+func TestDeepcopier(t *testing.T) {
+	Convey("base account", t, func() {
+		var p1 = &SQLChainProfile{
+			Miners: []*MinerInfo{
+				&MinerInfo{},
+				&MinerInfo{},
+				&MinerInfo{},
+			},
+		}
+		var p2 = deepcopy.Copy(p1).(*SQLChainProfile)
+		t.Logf("%p %p", p1.Miners[0], p2.Miners[0])
+		So(p1.Miners[0], ShouldNotEqual, p2.Miners[0])
 	})
 }

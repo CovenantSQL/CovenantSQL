@@ -137,21 +137,21 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		sps = append(sps, addBlock(0, cfg.Genesis))
 		for k, v := range init.dirty.accounts {
 			if v != nil {
-				sps = append(sps, updateAccount(&v.Account))
+				sps = append(sps, updateAccount(v))
 			} else {
 				sps = append(sps, deleteAccount(k))
 			}
 		}
 		for k, v := range init.dirty.databases {
 			if v != nil {
-				sps = append(sps, updateShardChain(&v.SQLChainProfile))
+				sps = append(sps, updateShardChain(v))
 			} else {
 				sps = append(sps, deleteShardChain(k))
 			}
 		}
 		for k, v := range init.dirty.provider {
 			if v != nil {
-				sps = append(sps, updateProvider(&v.ProviderProfile))
+				sps = append(sps, updateProvider(v))
 			} else {
 				sps = append(sps, deleteProvider(k))
 			}
@@ -642,21 +642,21 @@ func (c *Chain) replaceAndSwitchToBranch(
 	sps = append(sps, addBlock(height, newBlock))
 	for k, v := range c.immutable.dirty.accounts {
 		if v != nil {
-			sps = append(sps, updateAccount(&v.Account))
+			sps = append(sps, updateAccount(v))
 		} else {
 			sps = append(sps, deleteAccount(k))
 		}
 	}
 	for k, v := range c.immutable.dirty.databases {
 		if v != nil {
-			sps = append(sps, updateShardChain(&v.SQLChainProfile))
+			sps = append(sps, updateShardChain(v))
 		} else {
 			sps = append(sps, deleteShardChain(k))
 		}
 	}
 	for k, v := range c.immutable.dirty.provider {
 		if v != nil {
-			sps = append(sps, updateProvider(&v.ProviderProfile))
+			sps = append(sps, updateProvider(v))
 		} else {
 			sps = append(sps, deleteProvider(k))
 		}

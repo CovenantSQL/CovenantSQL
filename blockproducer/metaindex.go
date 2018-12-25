@@ -60,7 +60,12 @@ func (i *metaIndex) deepCopy() (cpy *metaIndex) {
 		cpy.accounts[k] = deepcopy.Copy(v).(*types.Account)
 	}
 	for k, v := range i.databases {
-		cpy.databases[k] = deepcopy.Copy(v).(*types.SQLChainProfile)
+		// HACK(leventeliu): public key / signature cannot be deep-copied correctly due to their
+		// hidden fields. Hack this since genesis block should be implied to be immutable.
+		// Also more similar hacks can be found in metastate.go.
+		var dst = deepcopy.Copy(v).(*types.SQLChainProfile)
+		dst.Genesis = v.Genesis
+		cpy.databases[k] = dst
 	}
 	for k, v := range i.provider {
 		cpy.provider[k] = deepcopy.Copy(v).(*types.ProviderProfile)

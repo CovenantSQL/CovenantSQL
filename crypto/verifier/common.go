@@ -75,7 +75,7 @@ func (i *DefaultHashSignVerifierImpl) Verify(mh MarshalHasher) (err error) {
 		err = errors.WithStack(ErrHashValueNotMatch)
 		return
 	}
-	if !i.Signature.Verify(h[:], i.Signee) {
+	if i.Signature == nil || i.Signee == nil || !i.Signature.Verify(h[:], i.Signee) {
 		err = errors.WithStack(ErrSignatureNotMatch)
 		return
 	}

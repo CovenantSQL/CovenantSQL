@@ -3,7 +3,7 @@ WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
-ListenAddr: "172.254.1.4:4661"
+ListenAddr: "127.0.0.1:4661"
 ThisNodeID: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
@@ -41,7 +41,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 0
-  Addr: 172.254.1.2:4661
+  Addr: 127.0.0.1:11099 #172.254.1.2:4661
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Leader
 - ID: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
@@ -50,7 +50,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 2305843009893772025
-  Addr: 172.254.1.3:4661
+  Addr: 127.0.0.1:11100 #172.254.1.3:4661
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Follower
 - ID: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
@@ -59,7 +59,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 2305843012544226372
-  Addr: 172.254.1.4:4661
+  Addr: 127.0.0.1:11101 #172.254.1.4:4661
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Follower
 - ID: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
@@ -77,7 +77,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 3104982049
-  Addr: 172.254.1.5:4661
+  Addr: 127.0.0.1:11102 #172.254.1.5:4661
   PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
   Role: Miner
 - ID: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
@@ -86,7 +86,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 2305843010430351476
-  Addr: 172.254.1.6:4661
+  Addr: 127.0.0.1:11103 #172.254.1.6:4661
   PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
   Role: Miner
 - ID: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
@@ -95,7 +95,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 13835058056920509601
-  Addr: 172.254.1.7:4661
+  Addr: 127.0.0.1:11104 #172.254.1.7:4661
   PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
   Role: Miner
 Adapter:

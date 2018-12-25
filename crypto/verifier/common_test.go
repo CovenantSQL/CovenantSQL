@@ -79,6 +79,20 @@ func TestDefaultHashSignVerifierImpl(t *testing.T) {
 					So(err, ShouldEqual, ErrHashValueNotMatch)
 				})
 			})
+			Convey("When the signee is not set", func() {
+				obj.HSV.Signee = nil
+				Convey("The verifier should return signature not match error", func() {
+					err = errors.Cause(obj.Verify())
+					So(err, ShouldEqual, ErrSignatureNotMatch)
+				})
+			})
+			Convey("When the signature is not set", func() {
+				obj.HSV.Signature = nil
+				Convey("The verifier should return signature not match error", func() {
+					err = errors.Cause(obj.Verify())
+					So(err, ShouldEqual, ErrSignatureNotMatch)
+				})
+			})
 			Convey("When the signee is modified", func() {
 				var _, pub, err = asymmetric.GenSecp256k1KeyPair()
 				So(err, ShouldBeNil)

@@ -102,21 +102,20 @@ func toSession(id proto.NodeID, conn net.Conn) (sess *Session, err error) {
 func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Session, loaded bool) {
 	// NO Blocking operation in this function
 	p.Lock()
-	defer p.Unlock()
 	sess, exist := p.sessions[id]
 	if exist {
+		p.Unlock()
 		log.WithField("node", id).Debug("load session for target node")
 		loaded = true
 	} else {
-		sess = newSess
 		p.sessions[id] = newSess
+		p.Unlock()
+		sess = newSess
 	}
 	return
 }
 
 func (p *SessionPool) getSessionFromPool(id proto.NodeID) (sess *Session, ok bool) {
-	p.RLock()
-	defer p.RUnlock()
 	sess, ok = p.sessions[id]
 	return
 }
@@ -124,7 +123,9 @@ func (p *SessionPool) getSessionFromPool(id proto.NodeID) (sess *Session, ok boo
 // Get returns existing session to the node, if not exist try best to create one
 func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// first try to get one session from pool
+	p.Lock()
 	cachedConn, ok := p.getSessionFromPool(id)
+	p.Unlock()
 	if ok {
 		conn, err = cachedConn.Sess.OpenStream()
 		if err == nil {
@@ -168,14 +169,15 @@ func (p *SessionPool) Set(id proto.NodeID, conn net.Conn) (exist bool) {
 
 // Remove the node sessions in the pool
 func (p *SessionPool) Remove(id proto.NodeID) {
+	p.Lock()
 	sess, ok := p.getSessionFromPool(id)
 	if ok {
+		delete(p.sessions, id)
+		p.Unlock()
 		sess.Close()
+	} else {
+		p.Unlock()
 	}
-
-	p.Lock()
-	defer p.Unlock()
-	delete(p.sessions, id)
 }
 
 // Close closes all sessions in the pool

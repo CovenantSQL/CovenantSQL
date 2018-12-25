@@ -32,19 +32,22 @@ import (
 
 func TestSessionPool_SessionBroken(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	utils.Build()
 	var err error
+	err = utils.Build()
+	if err != nil {
+		t.Errorf("build failed: %v", err)
+	}
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./leak/client.yaml"))
 	if err != nil {
 		t.Errorf("load config from %s failed: %s", FJ(testWorkingDir, "./leak/client.yaml"), err)
 	}
 	log.Debugf("GConf: %##v", conf.GConf)
-	os.Remove(conf.GConf.PubKeyStoreFile)
-	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db"))
-	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-shm"))
-	os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-wal"))
-	os.Remove(FJ(testWorkingDir, "./leak/kayak.db"))
-	os.RemoveAll(FJ(testWorkingDir, "./leak/kayak.ldb"))
+	_ = os.Remove(conf.GConf.PubKeyStoreFile)
+	_ = os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db"))
+	_ = os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-shm"))
+	_ = os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-wal"))
+	_ = os.Remove(FJ(testWorkingDir, "./leak/kayak.db"))
+	_ = os.RemoveAll(FJ(testWorkingDir, "./leak/kayak.ldb"))
 
 	leader, err := utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld"),
@@ -53,7 +56,8 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	)
 
 	defer func() {
-		leader.Cmd.Process.Signal(syscall.SIGKILL)
+		_ = leader.LogFD.Close()
+		_ = leader.Cmd.Process.Signal(syscall.SIGKILL)
 	}()
 
 	log.Debugf("leader pid %d", leader.Cmd.Process.Pid)

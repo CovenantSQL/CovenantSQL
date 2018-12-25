@@ -154,8 +154,8 @@ func (z *ProviderProfile) Msgsize() (s int) {
 func (z *SQLChainProfile) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 10
-	o = append(o, 0x8a, 0x8a)
+	// map header, size 11
+	o = append(o, 0x8b, 0x8b)
 	if z.Genesis == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -165,13 +165,19 @@ func (z *SQLChainProfile) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
+	if oTemp, err := z.Meta.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x8b)
 	if oTemp, err := z.TokenType.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Miners)))
 	for za0001 := range z.Miners {
 		if z.Miners[za0001] == nil {
@@ -184,7 +190,7 @@ func (z *SQLChainProfile) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Users)))
 	for za0002 := range z.Users {
 		if z.Users[za0002] == nil {
@@ -197,29 +203,29 @@ func (z *SQLChainProfile) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	if oTemp, err := z.Owner.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	if oTemp, err := z.Address.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	if oTemp, err := z.ID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	o = hsp.AppendUint32(o, z.LastUpdatedHeight)
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	o = hsp.AppendUint64(o, z.Period)
-	o = append(o, 0x8a)
+	o = append(o, 0x8b)
 	o = hsp.AppendUint64(o, z.GasPrice)
 	return
 }
@@ -232,7 +238,7 @@ func (z *SQLChainProfile) Msgsize() (s int) {
 	} else {
 		s += z.Genesis.Msgsize()
 	}
-	s += 10 + z.TokenType.Msgsize() + 7 + hsp.ArrayHeaderSize
+	s += 5 + z.Meta.Msgsize() + 10 + z.TokenType.Msgsize() + 7 + hsp.ArrayHeaderSize
 	for za0001 := range z.Miners {
 		if z.Miners[za0001] == nil {
 			s += hsp.NilSize

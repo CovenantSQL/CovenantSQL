@@ -37,25 +37,31 @@ type queryAPI struct{}
 
 // Query defines read query for database.
 func (a *queryAPI) Query(rw http.ResponseWriter, r *http.Request) {
-	query := buildQuery(rw, r)
-	if query == "" {
+	var (
+		qm  *queryMap
+		err error
+	)
+
+	if qm, err = parseForm(r); err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
 		return
 	}
 
-	dbID := getDatabaseID(rw, r)
-	if dbID == "" {
-		return
-	}
-
-	log.WithField("db", dbID).WithField("query", query).Info("got query")
+	log.WithFields(log.Fields{
+		"db":    qm.Database,
+		"query": qm.Query,
+	}).Info("got query")
 
 	assoc := r.FormValue("assoc")
 
-	var columns []string
-	var types []string
-	var rows [][]interface{}
-	var err error
-	if columns, types, rows, err = config.GetConfig().StorageInstance.Query(dbID, query); err != nil {
+	var (
+		columns []string
+		types   []string
+		rows    [][]interface{}
+	)
+
+	if columns, types, rows, err = config.GetConfig().StorageInstance.Query(
+		qm.Database, qm.Query, qm.Args...); err != nil {
 		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
@@ -126,22 +132,28 @@ func (a *queryAPI) Write(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := buildQuery(rw, r)
-	if query == "" {
+	var (
+		qm  *queryMap
+		err error
+	)
+
+	if qm, err = parseForm(r); err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
 		return
 	}
 
-	dbID := getDatabaseID(rw, r)
-	if dbID == "" {
-		return
-	}
+	log.WithFields(log.Fields{
+		"db":    qm.Database,
+		"query": qm.Query,
+	}).Info("got exec")
 
-	log.WithField("db", dbID).WithField("query", query).Info("got exec")
+	var (
+		affectedRows int64
+		lastInsertID int64
+	)
 
-	var err error
-	var affectedRows int64
-	var lastInsertID int64
-	if affectedRows, lastInsertID, err = config.GetConfig().StorageInstance.Exec(dbID, query); err != nil {
+	if affectedRows, lastInsertID, err = config.GetConfig().StorageInstance.Exec(
+		qm.Database, qm.Query, qm.Args...); err != nil {
 		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}

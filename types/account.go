@@ -133,7 +133,7 @@ type SQLChainProfile struct {
 
 	Users []*SQLChainUser
 
-	Genesis *Block
+	EncodedGenesis []byte
 
 	Meta ResourceMeta // dumped from db creation tx
 }

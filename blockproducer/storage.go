@@ -417,8 +417,8 @@ func loadAndCacheAccounts(st xi.Storage, view *metaState) (err error) {
 		if err = hash.Decode(&addr, hex); err != nil {
 			return
 		}
-		var dec = &accountObject{}
-		if err = utils.DecodeMsgPack(enc, &dec.Account); err != nil {
+		var dec = &types.Account{}
+		if err = utils.DecodeMsgPack(enc, dec); err != nil {
 			return
 		}
 		view.readonly.accounts[proto.AccountAddress(addr)] = dec
@@ -443,8 +443,8 @@ func loadAndCacheShardChainProfiles(st xi.Storage, view *metaState) (err error) 
 		if err = rows.Scan(&id, &enc); err != nil {
 			return
 		}
-		var dec = &sqlchainObject{}
-		if err = utils.DecodeMsgPack(enc, &dec.SQLChainProfile); err != nil {
+		var dec = &types.SQLChainProfile{}
+		if err = utils.DecodeMsgPack(enc, dec); err != nil {
 			return
 		}
 		view.readonly.databases[proto.DatabaseID(id)] = dec
@@ -473,8 +473,8 @@ func loadAndCacheProviders(st xi.Storage, view *metaState) (err error) {
 		if err = hash.Decode(&addr, hex); err != nil {
 			return
 		}
-		var dec = &providerObject{}
-		if err = utils.DecodeMsgPack(enc, &dec.ProviderProfile); err != nil {
+		var dec = &types.ProviderProfile{}
+		if err = utils.DecodeMsgPack(enc, dec); err != nil {
 			return
 		}
 		view.readonly.provider[proto.AccountAddress(addr)] = dec

@@ -37,9 +37,9 @@ import (
 func TestMetaState(t *testing.T) {
 	Convey("Given a new metaState object and a persistence db instance", t, func() {
 		var (
-			ao       *accountObject
-			co       *sqlchainObject
-			po       *providerObject
+			ao       *types.Account
+			co       *types.SQLChainProfile
+			po       *types.ProviderProfile
 			bl       uint64
 			loaded   bool
 			err      error
@@ -112,38 +112,26 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
-			ao, loaded = ms.loadOrStoreAccountObject(addr1, &accountObject{
-				Account: types.Account{
-					Address: addr1,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr1, &types.Account{Address: addr1})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: types.Account{
-					Address: addr2,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &sqlchainObject{
-				SQLChainProfile: types.SQLChainProfile{
-					ID: dbid1,
-					Miners: []*types.MinerInfo{
-						&types.MinerInfo{Address: addr1},
-						&types.MinerInfo{Address: addr2},
-					},
+			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &types.SQLChainProfile{
+				ID: dbid1,
+				Miners: []*types.MinerInfo{
+					&types.MinerInfo{Address: addr1},
+					&types.MinerInfo{Address: addr2},
 				},
 			})
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &sqlchainObject{
-				SQLChainProfile: types.SQLChainProfile{
-					ID: dbid2,
-					Miners: []*types.MinerInfo{
-						&types.MinerInfo{Address: addr2},
-						&types.MinerInfo{Address: addr3},
-					},
+			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &types.SQLChainProfile{
+				ID: dbid2,
+				Miners: []*types.MinerInfo{
+					&types.MinerInfo{Address: addr2},
+					&types.MinerInfo{Address: addr3},
 				},
 			})
 			So(co, ShouldBeNil)
@@ -625,32 +613,16 @@ func TestMetaState(t *testing.T) {
 			err = kms.InitLocalKeyPair(privKeyFile, []byte(""))
 			So(err, ShouldBeNil)
 
-			ao, loaded = ms.loadOrStoreAccountObject(addr1,
-				&accountObject{Account: types.Account{
-					Address: addr1,
-				},
-				})
+			ao, loaded = ms.loadOrStoreAccountObject(addr1, &types.Account{Address: addr1})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: types.Account{
-					Address: addr2,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr3, &accountObject{
-				Account: types.Account{
-					Address: addr3,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr3, &types.Account{Address: addr3})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr4, &accountObject{
-				Account: types.Account{
-					Address: addr4,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr4, &types.Account{Address: addr4})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 

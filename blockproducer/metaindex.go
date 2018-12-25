@@ -19,7 +19,7 @@ package blockproducer
 import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/ulule/deepcopier"
+	"github.com/mohae/deepcopy"
 )
 
 // safeAdd provides a safe add method with upper overflow check for uint64.
@@ -40,48 +40,30 @@ func safeSub(x, y *uint64) (err error) {
 	return
 }
 
-type accountObject struct {
-	types.Account
-}
-
-type sqlchainObject struct {
-	types.SQLChainProfile
-}
-
-type providerObject struct {
-	types.ProviderProfile
-}
-
 type metaIndex struct {
-	accounts  map[proto.AccountAddress]*accountObject
-	databases map[proto.DatabaseID]*sqlchainObject
-	provider  map[proto.AccountAddress]*providerObject
+	accounts  map[proto.AccountAddress]*types.Account
+	databases map[proto.DatabaseID]*types.SQLChainProfile
+	provider  map[proto.AccountAddress]*types.ProviderProfile
 }
 
 func newMetaIndex() *metaIndex {
 	return &metaIndex{
-		accounts:  make(map[proto.AccountAddress]*accountObject),
-		databases: make(map[proto.DatabaseID]*sqlchainObject),
-		provider:  make(map[proto.AccountAddress]*providerObject),
+		accounts:  make(map[proto.AccountAddress]*types.Account),
+		databases: make(map[proto.DatabaseID]*types.SQLChainProfile),
+		provider:  make(map[proto.AccountAddress]*types.ProviderProfile),
 	}
 }
 
 func (i *metaIndex) deepCopy() (cpy *metaIndex) {
 	cpy = newMetaIndex()
 	for k, v := range i.accounts {
-		cpyv := &accountObject{}
-		deepcopier.Copy(v).To(cpyv)
-		cpy.accounts[k] = cpyv
+		cpy.accounts[k] = deepcopy.Copy(v).(*types.Account)
 	}
 	for k, v := range i.databases {
-		cpyv := &sqlchainObject{}
-		deepcopier.Copy(v).To(cpyv)
-		cpy.databases[k] = cpyv
+		cpy.databases[k] = deepcopy.Copy(v).(*types.SQLChainProfile)
 	}
 	for k, v := range i.provider {
-		cpyv := &providerObject{}
-		deepcopier.Copy(v).To(cpyv)
-		cpy.provider[k] = cpyv
+		cpy.provider[k] = deepcopy.Copy(v).(*types.ProviderProfile)
 	}
 	return
 }

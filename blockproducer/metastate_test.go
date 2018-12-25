@@ -360,18 +360,66 @@ func TestMetaState(t *testing.T) {
 					Convey(
 						"The metaState should copy object when stable balance transferred",
 						func() {
-							err = ms.transferAccountStableBalance(addr1, addr3, incSta+1)
-							So(err, ShouldEqual, ErrInsufficientBalance)
-							err = ms.transferAccountStableBalance(addr1, addr3, 1)
+							tran1 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr1,
+									Receiver:  addr2,
+									Amount:    incSta + 1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran1.Sign(privKey1)
 							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran1)
+							So(err, ShouldEqual, ErrInsufficientBalance)
+							tran2 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr1,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran2.Sign(privKey1)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran2)
+							So(err, ShouldBeNil)
+							ms.commit()
+
 							err = ms.increaseAccountStableBalance(addr2, math.MaxUint64)
 							So(err, ShouldBeNil)
 
 							ms.commit()
-							err = ms.transferAccountStableBalance(addr2, addr1, math.MaxUint64)
-							So(err, ShouldEqual, ErrBalanceOverflow)
-							err = ms.transferAccountStableBalance(addr2, addr3, 1)
+
+							tran3 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr1,
+									Amount:    math.MaxUint64,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran3.Sign(privKey2)
 							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran3)
+							So(err, ShouldEqual, ErrBalanceOverflow)
+							tran4 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran4.Sign(privKey2)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran4)
+							So(err, ShouldBeNil)
+							ms.commit()
 						},
 					)
 					Convey(
@@ -850,7 +898,7 @@ func TestMetaState(t *testing.T) {
 						continue
 					}
 				}
-				Convey("Update key", func() {
+				Convey("update key", func() {
 					invalidIk1 := &types.IssueKeys{}
 					err = invalidIk1.Sign(privKey1)
 					So(err, ShouldBeNil)
@@ -912,6 +960,113 @@ func TestMetaState(t *testing.T) {
 							So(miner.EncryptionKey, ShouldEqual, encryptKey)
 						}
 					}
+				})
+				Convey("update billing", func() {
+					ub1 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: addr1,
+							Nonce:    up.Nonce,
+						},
+					}
+					err = ub1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub1)
+					So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+					users := [3]*types.UserCost{
+						&types.UserCost{
+							User: addr1,
+							Cost: 100,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 100,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr3,
+							Cost: 10,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 10,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr4,
+							Cost: 15,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 15,
+								},
+							},
+						},
+					}
+					ub2 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: dbAccount,
+							Users:    users[:],
+							Nonce:    2,
+						},
+					}
+					err = ub2.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub2)
+					ms.commit()
+					sqlchain, loaded := ms.loadSQLChainObject(*dbID)
+					So(loaded, ShouldBeTrue)
+					So(len(sqlchain.Miners), ShouldEqual, 1)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 125)
+					users = [3]*types.UserCost{
+						&types.UserCost{
+							User: addr1,
+							Cost: 100,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 100,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr2,
+							Cost: 10,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr3,
+									Income: 10,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr4,
+							Cost: 15,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 15,
+								},
+							},
+						},
+					}
+					ub3 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: dbAccount,
+							Users:    users[:],
+							Nonce:    3,
+						},
+					}
+					err = ub3.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub3)
+					So(err, ShouldBeNil)
+					sqlchain, loaded = ms.loadSQLChainObject(*dbID)
+					So(loaded, ShouldBeTrue)
+					So(len(sqlchain.Miners), ShouldEqual, 1)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
+					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 125)
 				})
 			})
 		})

@@ -33,8 +33,7 @@ import (
 )
 
 var (
-	sqlchainPeriod   uint64 = 60 * 24 * 30
-	sqlchainGasPrice uint64 = 10
+	sqlchainPeriod uint64 = 60 * 24 * 30
 )
 
 // TODO(leventeliu): lock optimization.
@@ -294,6 +293,86 @@ func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount 
 
 func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
 	return s.decreaseAccountToken(k, amount, types.Particle)
+}
+
+func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
+	if transfer.Signee == nil {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("invalid signee in applyTransaction")
+	}
+	realSender, err := crypto.PubKeyHash(transfer.Signee)
+	if err != nil {
+		err = errors.Wrap(err, "applyTx failed")
+		return err
+	}
+	if realSender != transfer.Sender {
+		err = errors.Wrapf(ErrInvalidSender,
+			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
+		log.WithError(err).Warning("public key not match sender in applyTransaction")
+	}
+
+	var (
+		sender    = transfer.Sender
+		receiver  = transfer.Receiver
+		amount    = transfer.Amount
+		tokenType = transfer.TokenType
+	)
+
+	if sender == receiver || amount == 0 {
+		return
+	}
+
+	// Create empty receiver account if not found
+	s.loadOrStoreAccountObject(receiver, &accountObject{Account: types.Account{Address: receiver}})
+
+	var (
+		so, ro     *accountObject
+		sd, rd, ok bool
+	)
+
+	// Load sender and receiver objects
+	if so, sd = s.dirty.accounts[sender]; !sd {
+		if so, ok = s.readonly.accounts[sender]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+	if ro, rd = s.dirty.accounts[receiver]; !rd {
+		if ro, ok = s.readonly.accounts[receiver]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+
+	// Try transfer
+	var (
+		sb = so.TokenBalance[tokenType]
+		rb = ro.TokenBalance[tokenType]
+	)
+	if err = safeSub(&sb, &amount); err != nil {
+		return
+	}
+	if err = safeAdd(&rb, &amount); err != nil {
+		return
+	}
+
+	// Proceed transfer
+	if !sd {
+		var cpy = &accountObject{}
+		deepcopier.Copy(&so.Account).To(&cpy.Account)
+		so = cpy
+		s.dirty.accounts[sender] = cpy
+	}
+	if !rd {
+		var cpy = &accountObject{}
+		deepcopier.Copy(&ro.Account).To(&cpy.Account)
+		ro = cpy
+		s.dirty.accounts[receiver] = cpy
+	}
+	so.TokenBalance[tokenType] = sb
+	ro.TokenBalance[tokenType] = rb
+	return
+
 }
 
 func (s *metaState) transferAccountStableBalance(
@@ -561,8 +640,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 
 	var (
-		minAdvancePayment = uint64(tx.GasPrice) * uint64(conf.GConf.QPS) *
-			uint64(conf.GConf.UpdatePeriod) * uint64(len(tx.ResourceMeta.TargetMiners))
+		minAdvancePayment = minDeposit(tx.GasPrice, uint64(len(tx.ResourceMeta.TargetMiners)))
 	)
 	if tx.AdvancePayment < minAdvancePayment {
 		err = ErrInsufficientAdvancePayment
@@ -649,7 +727,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		ID:        *dbID,
 		Address:   dbAddr,
 		Period:    sqlchainPeriod,
-		GasPrice:  sqlchainGasPrice,
+		GasPrice:  tx.GasPrice,
 		TokenType: types.Particle,
 		Owner:     sender,
 		Users:     users,
@@ -783,15 +861,23 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		return
 	}
 
-	// pending income to income
+	var (
+		costMap   = make(map[proto.AccountAddress]uint64)
+		userMap   = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
+		minerAddr = tx.GetAccountAddress()
+		isMiner   = false
+	)
 	for _, miner := range sqlchainObj.Miners {
+		isMiner = isMiner || (miner.Address == minerAddr)
 		miner.ReceivedIncome += miner.PendingIncome
+		miner.PendingIncome = 0
+	}
+	if !isMiner {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("sender does not include in sqlchain (updateBilling)")
+		return
 	}
 
-	var (
-		costMap = make(map[proto.AccountAddress]uint64)
-		userMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
-	)
 	for _, userCost := range tx.Users {
 		log.Debugf("update billing user cost: %s, cost: %d", userCost.User.String(), userCost.Cost)
 		costMap[userCost.User] = userCost.Cost
@@ -838,21 +924,69 @@ func (s *metaState) loadROSQLChains(addr proto.AccountAddress) (dbs []*types.SQL
 	return
 }
 
+func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err error) {
+	if transfer.Signee == nil {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("invalid signee in applyTransaction")
+	}
+
+	realSender, err := crypto.PubKeyHash(transfer.Signee)
+	if err != nil {
+		err = errors.Wrap(err, "applyTx failed")
+		return err
+	}
+
+	if realSender != transfer.Sender {
+		err = errors.Wrapf(ErrInvalidSender,
+			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
+		log.WithError(err).Warning("public key not match sender in applyTransaction")
+	}
+
+	var (
+		sqlchain *sqlchainObject
+		ok       bool
+	)
+	sqlchain, ok = s.loadSQLChainObject(transfer.Sender.DatabaseID())
+	if !ok {
+		return ErrDatabaseNotFound
+	}
+
+	for _, user := range sqlchain.Users {
+		if user.Address == transfer.Sender {
+			if sqlchain.TokenType != transfer.TokenType {
+				return ErrWrongTokenType
+			}
+			minDep := minDeposit(sqlchain.GasPrice, uint64(len(sqlchain.Miners)))
+			if user.Deposit < minDep {
+				diff := minDep - user.Deposit
+				if diff >= transfer.Amount {
+					user.Deposit += transfer.Amount
+				} else {
+					user.Deposit = minDep
+					diff2 := transfer.Amount - diff
+					user.Deposit += diff2
+				}
+			} else {
+				err = safeAdd(&user.AdvancePayment, &transfer.Amount)
+				if err != nil {
+					return err
+				}
+			}
+			s.loadOrStoreSQLChainObject(transfer.Sender.DatabaseID(), sqlchain)
+			return
+		}
+	}
+	return
+}
+
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *types.Transfer:
-		realSender, err := crypto.PubKeyHash(t.Signee)
-		if err != nil {
-			err = errors.Wrap(err, "applyTx failed")
-			return err
+		err = s.transferSQLChainTokenBalance(t)
+		if err == ErrDatabaseNotFound {
+			err = s.transferAccountToken(t)
 		}
-		if realSender != t.Sender {
-			err = errors.Wrapf(ErrInvalidSender,
-				"applyTx failed: real sender %s, sender %s", realSender.String(), t.Sender.String())
-			// TODO(lambda): update test cases and return err
-			log.Debug(err)
-		}
-		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
+		return
 	case *types.Billing:
 		err = s.applyBilling(t)
 	case *types.BaseAccount:
@@ -946,4 +1080,9 @@ func (s *metaState) makeCopy() *metaState {
 		dirty:    newMetaIndex(),
 		readonly: s.readonly.deepCopy(),
 	}
+}
+
+func minDeposit(gasPrice uint64, minerNumber uint64) uint64 {
+	return gasPrice * uint64(conf.GConf.QPS) *
+		uint64(conf.GConf.UpdatePeriod) * minerNumber
 }

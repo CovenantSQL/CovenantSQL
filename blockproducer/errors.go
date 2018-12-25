@@ -96,4 +96,6 @@ var (
 	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
 	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.
 	ErrNoAvailableBranch = errors.New("no available branch from state storage")
+	// ErrWrongTokenType indicates that token type in transfer is wrong.
+	ErrWrongTokenType = errors.New("wrong token type")
 )

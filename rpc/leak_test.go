@@ -35,7 +35,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	var err error
 	err = utils.Build()
 	if err != nil {
-		log.Errorf("build failed: %v", err)
+		t.Errorf("build failed: %v", err)
 	}
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./leak/client.yaml"))
 	if err != nil {

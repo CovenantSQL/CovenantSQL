@@ -34,6 +34,7 @@ import (
 )
 
 const (
+	// ETLSHeaderSize is the header size with ETLSHeader + NodeID + Nonce
 	ETLSHeaderSize = 2 + hash.HashBSize + 32
 )
 

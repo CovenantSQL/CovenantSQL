@@ -83,11 +83,6 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 		return
 	}
 
-	// init chain bus service
-	ctx := context.Background()
-	bs := sqlchain.NewBusService(ctx, CheckInterval)
-	dbms.busService = bs
-
 	// cache address of node
 	var (
 		pk   *asymmetric.PublicKey
@@ -103,6 +98,11 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 	}
 	dbms.address = addr
 
+	// init chain bus service
+	ctx := context.Background()
+	bs := sqlchain.NewBusService(ctx, addr, CheckInterval)
+	dbms.busService = bs
+
 	// private key cache
 	dbms.privKey, err = kms.GetLocalPrivateKey()
 	if err != nil {
@@ -112,7 +112,6 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 	// init service
 	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
-
 	return
 }
 
@@ -173,11 +172,7 @@ func (dbms *DBMS) Init() (err error) {
 	}
 
 	// load current peers info from block producer
-	var dbMapping []types.ServiceInstance
-	if dbMapping, err = dbms.getMappedInstances(); err != nil {
-		err = errors.Wrap(err, "get mapped instances failed")
-		return
-	}
+	var dbMapping = dbms.busService.GetCurrentDBMapping()
 
 	// init database
 	if err = dbms.initDatabases(localMeta, dbMapping); err != nil {
@@ -220,9 +215,11 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 		state = s.(types.UserState)
 	)
 
-	p, err := dbms.busService.RequestSQLProfile(&dbid)
-	if err != nil {
-		log.WithError(err).Warning("failed to call bp")
+	p, ok := dbms.busService.RequestSQLProfile(&dbid)
+	if !ok {
+		log.WithFields(log.Fields{
+			"databaseid": dbid,
+		}).Warning("database profile not found")
 		return
 	}
 
@@ -248,9 +245,11 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
 		isTargetMiner = false
 	)
-	p, err := dbms.busService.RequestSQLProfile(dbid)
-	if err != nil {
-		log.WithError(err).Warning("failed to call bp")
+	p, ok := dbms.busService.RequestSQLProfile(dbid)
+	if !ok {
+		log.WithFields(log.Fields{
+			"databaseid": &dbid,
+		}).Warning("database profile not found")
 		return
 	}
 
@@ -276,36 +275,49 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		}
 	}
 
-	peers := proto.Peers{
-		PeersHeader: proto.PeersHeader{
-			Leader:  nodeIDs[0],
-			Servers: nodeIDs[:],
-		},
-	}
-	if dbms.privKey == nil {
-		dbms.privKey, err = kms.GetLocalPrivateKey()
-		if err != nil {
-			log.WithError(err).Warning("get private key failed in createDatabase")
-			return
-		}
-	}
-	err = peers.Sign(dbms.privKey)
+	var si, err = dbms.buildSQLChainServiceInstance(p)
 	if err != nil {
-		log.WithError(err).Warning("sign peers failed in createDatabase")
-		return
+		log.WithError(err).Warn("failed to build sqlchain service instance from profile")
 	}
-
-	si := types.ServiceInstance{
-		DatabaseID:   *dbid,
-		Peers:        &peers,
-		ResourceMeta: cd.ResourceMeta,
-		GenesisBlock: p.Genesis,
-	}
-	err = dbms.Create(&si, true)
+	err = dbms.Create(si, true)
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
 	dbms.chainMap.Store(*dbid, *state)
+}
+
+func (dbms *DBMS) buildSQLChainServiceInstance(
+	profile *types.SQLChainProfile) (instance *types.ServiceInstance, err error,
+) {
+	var (
+		nodeids = make([]proto.NodeID, len(profile.Miners))
+		peers   *proto.Peers
+	)
+	for i, v := range profile.Miners {
+		nodeids[i] = v.NodeID
+	}
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Leader:  nodeids[0],
+			Servers: nodeids[:],
+		},
+	}
+	if dbms.privKey == nil {
+		if dbms.privKey, err = kms.GetLocalPrivateKey(); err != nil {
+			log.WithError(err).Warning("get private key failed in createDatabase")
+			return
+		}
+	}
+	if err = peers.Sign(dbms.privKey); err != nil {
+		return
+	}
+	instance = &types.ServiceInstance{
+		DatabaseID:   profile.ID,
+		Peers:        peers,
+		ResourceMeta: profile.Meta,
+		GenesisBlock: profile.Genesis,
+	}
+	return
 }
 
 func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
@@ -337,12 +349,18 @@ func (dbms *DBMS) UpdatePermission(dbid proto.DatabaseID, user proto.AccountAddr
 	return
 }
 
-func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (err error) {
+func (dbms *DBMS) initDatabases(
+	meta *DBMSMeta, profiles map[proto.DatabaseID]*types.SQLChainProfile) (err error,
+) {
 	currentInstance := make(map[proto.DatabaseID]bool)
 
-	for _, instanceConf := range conf {
-		currentInstance[instanceConf.DatabaseID] = true
-		if err = dbms.Create(&instanceConf, false); err != nil {
+	for id, profile := range profiles {
+		currentInstance[id] = true
+		var instance *types.ServiceInstance
+		if instance, err = dbms.buildSQLChainServiceInstance(profile); err != nil {
+			return
+		}
+		if err = dbms.Create(instance, false); err != nil {
 			return
 		}
 	}

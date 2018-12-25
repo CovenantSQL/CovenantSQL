@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -420,7 +421,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
 		SpaceLimit:      instance.ResourceMeta.Space,
 		// TODO(lambda): make UpdatePeriod Configurable
-		UpdatePeriod:           2,
+		UpdatePeriod:           uint64(conf.GConf.UpdatePeriod),
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,
 	}

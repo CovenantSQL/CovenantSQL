@@ -562,7 +562,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 
 	var (
 		minAdvancePayment = uint64(tx.GasPrice) * uint64(conf.GConf.QPS) *
-			uint64(conf.GConf.Period) * uint64(len(tx.ResourceMeta.TargetMiners))
+			uint64(conf.GConf.UpdatePeriod) * uint64(len(tx.ResourceMeta.TargetMiners))
 	)
 	if tx.AdvancePayment < minAdvancePayment {
 		err = ErrInsufficientAdvancePayment

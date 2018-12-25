@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"bytes"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -27,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/mohae/deepcopy"
 	"github.com/pkg/errors"
@@ -632,17 +634,26 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		return err
 	}
 
+	// Encode genesis block
+	var enc *bytes.Buffer
+	if enc, err = utils.EncodeMsgPack(gb); err != nil {
+		log.WithFields(log.Fields{
+			"dbID": dbID,
+		}).WithError(err).Error("failed to encode genesis block")
+		return
+	}
+
 	// create sqlchain
 	sp := &types.SQLChainProfile{
-		ID:        *dbID,
-		Address:   dbAddr,
-		Period:    sqlchainPeriod,
-		GasPrice:  sqlchainGasPrice,
-		TokenType: types.Particle,
-		Owner:     sender,
-		Users:     users,
-		Genesis:   gb,
-		Miners:    miners[:],
+		ID:             *dbID,
+		Address:        dbAddr,
+		Period:         sqlchainPeriod,
+		GasPrice:       sqlchainGasPrice,
+		TokenType:      types.Particle,
+		Owner:          sender,
+		Users:          users,
+		EncodedGenesis: enc.Bytes(),
+		Miners:         miners[:],
 	}
 
 	if _, loaded := s.loadSQLChainObject(*dbID); loaded {

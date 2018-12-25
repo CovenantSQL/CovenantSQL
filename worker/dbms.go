@@ -289,6 +289,7 @@ func (dbms *DBMS) buildSQLChainServiceInstance(
 	var (
 		nodeids = make([]proto.NodeID, len(profile.Miners))
 		peers   *proto.Peers
+		genesis = &types.Block{}
 	)
 	for i, v := range profile.Miners {
 		nodeids[i] = v.NodeID
@@ -308,11 +309,14 @@ func (dbms *DBMS) buildSQLChainServiceInstance(
 	if err = peers.Sign(dbms.privKey); err != nil {
 		return
 	}
+	if err = utils.DecodeMsgPack(profile.EncodedGenesis, genesis); err != nil {
+		return
+	}
 	instance = &types.ServiceInstance{
 		DatabaseID:   profile.ID,
 		Peers:        peers,
 		ResourceMeta: profile.Meta,
-		GenesisBlock: profile.Genesis,
+		GenesisBlock: genesis,
 	}
 	return
 }

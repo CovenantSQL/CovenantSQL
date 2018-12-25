@@ -33,6 +33,7 @@ var FJ = filepath.Join
 type CMD struct {
 	Cmd     *exec.Cmd
 	LogPath string
+	LogFD   *os.File
 }
 
 // GetProjectSrcDir gets the src code root
@@ -70,6 +71,9 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 		}).WithError(err).Error("start command failed")
 		return
 	}
+	defer func() {
+		_ = cmd.LogFD.Close()
+	}()
 	err = cmd.Cmd.Wait()
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -84,31 +88,34 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 // RunCommandNB starts a non-blocking command
 func RunCommandNB(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (cmd *CMD, err error) {
 	cmd = new(CMD)
-	cmd.LogPath = FJ(logDir, processName+".log")
-	logFD, err := os.Create(cmd.LogPath)
-	if err != nil {
-		log.WithField("path", cmd.LogPath).WithError(err).Error("create log file failed")
-		return
-	}
-
 	err = os.Chdir(workingDir)
 	if err != nil {
 		log.WithField("wd", workingDir).Error("change working dir failed")
 		return
 	}
+
+	cmd.LogPath = FJ(logDir, processName+".log")
+	cmd.LogFD, err = os.Create(cmd.LogPath)
+	if err != nil {
+		log.WithField("path", cmd.LogPath).WithError(err).Error("create log file failed")
+		return
+	}
+
 	cmd.Cmd = exec.Command(bin, args...)
 
 	if toStd {
-		cmd.Cmd.Stdout = io.MultiWriter(os.Stdout, logFD)
-		cmd.Cmd.Stderr = io.MultiWriter(os.Stderr, logFD)
+		cmd.Cmd.Stdout = io.MultiWriter(os.Stdout, cmd.LogFD)
+		cmd.Cmd.Stderr = io.MultiWriter(os.Stderr, cmd.LogFD)
 	} else {
-		cmd.Cmd.Stdout = logFD
-		cmd.Cmd.Stderr = logFD
+		cmd.Cmd.Stdout = cmd.LogFD
+		cmd.Cmd.Stderr = cmd.LogFD
 	}
 
 	err = cmd.Cmd.Start()
 	if err != nil {
 		log.WithError(err).Error("cmd.Start() failed")
+		_ = cmd.LogFD.Close()
+		cmd = nil
 		return
 	}
 

@@ -23,7 +23,6 @@ import (
 	"io"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ec "github.com/btcsuite/btcd/btcec"
 )
 
 // KeyDerivation .according to ANSI X9.63 we should do a key derivation before using
@@ -83,13 +82,11 @@ type cipherInfo struct {
 
 // Cipher struct keeps cipher mode, key, iv
 type Cipher struct {
-	encStream  cipher.Stream
-	decStream  cipher.Stream
-	publicKey  ec.PublicKey
-	privateKey ec.PrivateKey
-	key        []byte
-	info       *cipherInfo
-	iv         []byte
+	encStream cipher.Stream
+	decStream cipher.Stream
+	key       []byte
+	info      *cipherInfo
+	iv        []byte
 }
 
 // NewCipher creates a cipher that can be used in Dial(), Listen() etc.

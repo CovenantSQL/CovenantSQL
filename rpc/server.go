@@ -29,6 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 )
 
@@ -176,18 +177,22 @@ func (s *Server) Stop() {
 
 func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	// NodeID + Uint256 Nonce
-	headerBuf := make([]byte, hash.HashBSize+32)
+	headerBuf := make([]byte, ETLSHeaderSize)
 	rCount, err := conn.Read(headerBuf)
-	if err != nil || rCount != hash.HashBSize+32 {
+	if err != nil || rCount != ETLSHeaderSize {
 		log.WithError(err).Error("read node header error")
+		return
+	}
+	if headerBuf[0] != etls.ETLSMagicBytes[0] || headerBuf[1] != etls.ETLSMagicBytes[1] {
+		err = errors.New("bad ETLS header")
 		return
 	}
 
 	// headerBuf len is hash.HashBSize, so there won't be any error
-	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
+	idHash, _ := hash.NewHash(headerBuf[2 : 2+hash.HashBSize])
 	rawNodeID := &proto.RawNodeID{Hash: *idHash}
 	// TODO(auxten): compute the nonce and check difficulty
-	cpuminer.Uint256FromBytes(headerBuf[hash.HashBSize:])
+	cpuminer.Uint256FromBytes(headerBuf[2+hash.HashBSize:])
 
 	symmetricKey, err := GetSharedSecretWith(
 		rawNodeID,

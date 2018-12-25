@@ -39,25 +39,25 @@ func TestDial(t *testing.T) {
 		var l net.Listener
 		l, _ = net.Listen("tcp", "127.0.0.1:0")
 		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
+		So(c, ShouldBeNil)
 
 		kms.SetLocalNodeIDNonce([]byte(nodeID), nil)
 		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(c, ShouldBeNil)
 		So(err, ShouldNotBeNil)
+		So(c, ShouldBeNil)
 
 		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{A: 1, B: 1, C: 1, D: 1})
 		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
+		So(c, ShouldNotBeNil)
 
 		go func() {
 			l.Accept()
 		}()
 		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(c, ShouldNotBeNil)
 		So(err, ShouldBeNil)
+		So(c, ShouldNotBeNil)
 	})
 }
 

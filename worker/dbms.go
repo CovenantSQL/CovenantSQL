@@ -31,7 +31,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -533,29 +532,6 @@ func (dbms *DBMS) addMeta(dbID proto.DatabaseID, db *Database) (err error) {
 func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 	dbms.dbMap.Delete(dbID)
 	return dbms.writeMeta()
-}
-
-func (dbms *DBMS) getMappedInstances() (instances []types.ServiceInstance, err error) {
-	var bpNodeID proto.NodeID
-	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
-		return
-	}
-
-	req := &types.InitService{}
-	res := new(types.InitServiceResponse)
-
-	if err = rpc.NewCaller().CallNode(bpNodeID, route.BPDBGetNodeDatabases.String(), req, res); err != nil {
-		return
-	}
-
-	// verify response
-	if err = res.Verify(); err != nil {
-		return
-	}
-
-	instances = res.Header.Instances
-
-	return
 }
 
 func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request) (err error) {

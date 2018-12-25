@@ -769,19 +769,19 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 }
 
 func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
-	sqlchainObj, loaded := s.loadSQLChainObject(tx.Receiver.DatabaseID())
+	newProfile, loaded := s.loadSQLChainObject(tx.Receiver.DatabaseID())
 	if !loaded {
 		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
 		return
 	}
 	log.Debugf("update billing addr: %s, tx: %v", tx.GetAccountAddress(), tx)
 
-	if sqlchainObj.GasPrice == 0 {
+	if newProfile.GasPrice == 0 {
 		return
 	}
 
 	// pending income to income
-	for _, miner := range sqlchainObj.Miners {
+	for _, miner := range newProfile.Miners {
 		miner.ReceivedIncome += miner.PendingIncome
 	}
 
@@ -799,18 +799,18 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 			userMap[userCost.User][minerIncome.Miner] += minerIncome.Income
 		}
 	}
-	for _, user := range sqlchainObj.Users {
-		if user.AdvancePayment >= costMap[user.Address]*sqlchainObj.GasPrice {
-			user.AdvancePayment -= costMap[user.Address] * sqlchainObj.GasPrice
-			for _, miner := range sqlchainObj.Miners {
-				miner.PendingIncome += userMap[user.Address][miner.Address] * sqlchainObj.GasPrice
+	for _, user := range newProfile.Users {
+		if user.AdvancePayment >= costMap[user.Address]*newProfile.GasPrice {
+			user.AdvancePayment -= costMap[user.Address] * newProfile.GasPrice
+			for _, miner := range newProfile.Miners {
+				miner.PendingIncome += userMap[user.Address][miner.Address] * newProfile.GasPrice
 			}
 		} else {
-			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*sqlchainObj.GasPrice)
+			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*newProfile.GasPrice)
 			user.AdvancePayment = 0
 			user.Status = types.Arrears
-			for _, miner := range sqlchainObj.Miners {
-				income := userMap[user.Address][miner.Address] * sqlchainObj.GasPrice
+			for _, miner := range newProfile.Miners {
+				income := userMap[user.Address][miner.Address] * newProfile.GasPrice
 				minerIncome := uint64(float64(income) * rate)
 				miner.PendingIncome += minerIncome
 				for i := range miner.UserArrears {
@@ -819,6 +819,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 			}
 		}
 	}
+	s.dirty.databases[tx.Receiver.DatabaseID()] = newProfile
 	return
 }
 

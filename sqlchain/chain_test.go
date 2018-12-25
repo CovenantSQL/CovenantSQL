@@ -28,6 +28,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -37,14 +38,14 @@ import (
 )
 
 var (
-	testPeersNumber                           = 5
-	testPeriod                                = 1 * time.Second
-	testTick                                  = 100 * time.Millisecond
-	testQueryTTL             int32            = 10
-	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testPeriodNumber         int32            = 10
-	testClientNumberPerChain                  = 3
-	testUpdatePeriod         uint64           = 2
+	testPeersNumber                 = 5
+	testPeriod                      = 1 * time.Second
+	testTick                        = 100 * time.Millisecond
+	testQueryTTL             int32  = 10
+	testDatabaseID                  = proto.DatabaseID(hash.THashH([]byte{'d', 'b'}).String())
+	testPeriodNumber         int32  = 10
+	testClientNumberPerChain        = 3
+	testUpdatePeriod         uint64 = 2
 )
 
 type chainParams struct {

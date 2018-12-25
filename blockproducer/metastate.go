@@ -148,16 +148,19 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 
 func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, loaded bool) {
 	var old *sqlchainObject
-	o = new(sqlchainObject)
 	if old, loaded = s.dirty.databases[k]; loaded {
-		if o == nil {
+		if old == nil {
 			loaded = false
+			return
 		}
-		deepcopier.Copy(old).To(o)
+		o = new(sqlchainObject)
+		deepcopier.Copy(&old.SQLChainProfile).To(&o.SQLChainProfile)
 		return
 	}
 	if old, loaded = s.readonly.databases[k]; loaded {
-		deepcopier.Copy(old).To(o)
+		o = new(sqlchainObject)
+		deepcopier.Copy(&old.SQLChainProfile).To(&o.SQLChainProfile)
+		return
 	}
 	return
 }
@@ -725,6 +728,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	} else {
 		so.Users[targetUserIndex].Permission = tx.Permission
 	}
+	s.dirty.databases[tx.TargetSQLChain.DatabaseID()] = so
 	return
 }
 
@@ -830,15 +834,6 @@ func (s *metaState) loadROSQLChains(addr proto.AccountAddress) (dbs []*types.SQL
 				dbs = append(dbs, dst)
 			}
 		}
-	}
-	return
-}
-
-func (s *metaState) loadROSQLChainsByDatabaseID(dbid proto.DatabaseID) (db *types.SQLChainProfile, ok bool) {
-	var databaseObj *sqlchainObject
-	db = &types.SQLChainProfile{}
-	if databaseObj, ok = s.readonly.databases[dbid]; ok {
-		deepcopier.Copy(databaseObj).To(db)
 	}
 	return
 }

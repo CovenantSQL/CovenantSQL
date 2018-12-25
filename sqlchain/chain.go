@@ -915,12 +915,10 @@ func (c *Chain) processBlocks(ctx context.Context) {
 							if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
 								// allocate nonce failed
 								log.WithError(err).Warning("allocate nonce for transaction failed")
-								return
 							}
 							ub.Nonce = nonceResp.Nonce
 							if err = ub.Sign(c.pk); err != nil {
 								log.WithError(err).Warning("sign tx failed")
-								return
 							}
 
 							addTxReq := &types.AddTxReq{}
@@ -930,7 +928,6 @@ func (c *Chain) processBlocks(ctx context.Context) {
 								addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
 							if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
 								log.WithError(err).Warning("send tx failed")
-								return
 							}
 						}
 					}

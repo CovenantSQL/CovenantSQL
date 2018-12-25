@@ -288,7 +288,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 		} else if !tmRollback.Before(tmStart) {
 			fields["t"] = tmRollback.Sub(tmStart).Nanoseconds()
 		}
-		log.WithFields(fields).WithError(err).Info("kayak leader apply")
+		log.WithFields(fields).WithError(err).Debug("kayak leader apply")
 	}()
 
 	r.peersLock.RLock()
@@ -419,7 +419,7 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 			"t": l.Type.String(),
 			"i": l.Index,
 			"c": tmEnd.Sub(tmStart).Nanoseconds(),
-		}).WithError(err).Info("kayak follower apply")
+		}).WithError(err).Debug("kayak follower apply")
 	}()
 
 	r.peersLock.RLock()

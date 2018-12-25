@@ -24,8 +24,15 @@ import (
 	"net"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+)
+
+var (
+	// ETLSMagicBytes is the ETLS connection magic header
+	ETLSMagicBytes = []byte{0xC0, 0x4E}
 )
 
 // CryptoConn implements net.Conn and Cipher interface
@@ -65,16 +72,23 @@ func (c *CryptoConn) RawRead(b []byte) (n int, err error) {
 // Read iv and Encrypted data
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
-		iv := make([]byte, c.info.ivLen)
-		if _, err = io.ReadFull(c.Conn, iv); err != nil {
+		buf := make([]byte, c.info.ivLen+len(ETLSMagicBytes))
+		if _, err = io.ReadFull(c.Conn, buf); err != nil {
 			log.WithError(err).Info("read full failed")
 			return
 		}
+		iv := buf[:c.info.ivLen]
+		header := buf[c.info.ivLen:]
 		if err = c.initDecrypt(iv); err != nil {
 			return
 		}
 		if len(c.iv) == 0 {
 			c.iv = iv
+		}
+		c.decrypt(header, header)
+		if header[0] != ETLSMagicBytes[0] || header[1] != ETLSMagicBytes[1] {
+			err = errors.New("bad stream ETLS header")
+			return
 		}
 	}
 
@@ -105,16 +119,20 @@ func (c *CryptoConn) Write(b []byte) (n int, err error) {
 		}
 	}
 
-	dataSize := len(b) + len(iv)
-	cipherData := make([]byte, dataSize)
-
 	if iv != nil {
+		ivHeader := make([]byte, len(iv)+len(ETLSMagicBytes))
 		// Put initialization vector in buffer, do a single write to send both
 		// iv and data.
-		copy(cipherData, iv)
+		copy(ivHeader, iv)
+		c.encrypt(ivHeader[len(iv):], ETLSMagicBytes)
+		_, err = c.Conn.Write(ivHeader)
+		if err != nil {
+			return
+		}
 	}
 
-	c.encrypt(cipherData[len(iv):], b)
+	cipherData := make([]byte, len(b))
+	c.encrypt(cipherData, b)
 	n, err = c.Conn.Write(cipherData)
 	return
 }

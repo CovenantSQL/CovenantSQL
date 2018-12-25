@@ -45,8 +45,6 @@ type Client struct {
 }
 
 var (
-	// ETLSMagicBytes is the ETLS connection magic header
-	ETLSMagicBytes = []byte{0xC0, 0x4E}
 	// YamuxConfig holds the default Yamux config
 	YamuxConfig *mux.Config
 	// DefaultDialer holds the default dialer of SessionPool
@@ -67,10 +65,10 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 		return
 	}
 	writeBuf := make([]byte, ETLSHeaderSize)
-	writeBuf[0] = ETLSMagicBytes[0]
-	writeBuf[1] = ETLSMagicBytes[1]
+	writeBuf[0] = etls.ETLSMagicBytes[0]
+	writeBuf[1] = etls.ETLSMagicBytes[1]
 	if isAnonymous {
-		_ = kms.AnonymousRawNodeID.SetBytes(writeBuf[2 : 2+hash.HashSize])
+		copy(writeBuf[2:], kms.AnonymousRawNodeID.AsBytes())
 		copy(writeBuf[2+hash.HashSize:], (&cpuminer.Uint256{}).Bytes())
 	} else {
 		// send NodeID + Uint256 Nonce

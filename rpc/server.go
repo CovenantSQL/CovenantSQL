@@ -183,7 +183,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		log.WithError(err).Error("read node header error")
 		return
 	}
-	if headerBuf[0] != ETLSMagicBytes[0] || headerBuf[1] != ETLSMagicBytes[1] {
+	if headerBuf[0] != etls.ETLSMagicBytes[0] || headerBuf[1] != etls.ETLSMagicBytes[1] {
 		err = errors.New("bad ETLS header")
 		return
 	}

@@ -94,6 +94,36 @@ func ParseNext(tokenizer *Tokenizer) (Statement, error) {
 	return tokenizer.ParseTree, nil
 }
 
+// ParseMultiple returns multiple parsed original query and parsed statement.
+func ParseMultiple(tokenizer *Tokenizer) (queries []string, statements []Statement, err error) {
+	var lastPos int
+
+	for {
+		if tokenizer.lastChar == ';' {
+			tokenizer.next()
+			tokenizer.skipBlank()
+			lastPos = tokenizer.Position - 1
+		}
+		if tokenizer.lastChar == eofChar {
+			break
+		}
+
+		tokenizer.reset()
+		tokenizer.multi = true
+		if yyParse(tokenizer) != 0 && tokenizer.partialDDL == nil {
+			err = tokenizer.LastError
+			return
+		}
+		if tokenizer.partialDDL != nil {
+			statements = append(statements, tokenizer.partialDDL)
+		} else {
+			statements = append(statements, tokenizer.ParseTree)
+		}
+		queries = append(queries, string(tokenizer.buf[lastPos:tokenizer.Position-1]))
+	}
+	return
+}
+
 // SplitStatement returns the first sql statement up to either a ; or EOF
 // and the remainder from the given buffer
 func SplitStatement(blob string) (string, string, error) {
@@ -207,16 +237,17 @@ type Statement interface {
 	SQLNode
 }
 
-func (*Union) iStatement()  {}
-func (*Select) iStatement() {}
-func (*Stream) iStatement() {}
-func (*Insert) iStatement() {}
-func (*Update) iStatement() {}
-func (*Delete) iStatement() {}
-func (*Set) iStatement()    {}
-func (*DBDDL) iStatement()  {}
-func (*DDL) iStatement()    {}
-func (*Show) iStatement()   {}
+func (*Union) iStatement()   {}
+func (*Select) iStatement()  {}
+func (*Stream) iStatement()  {}
+func (*Insert) iStatement()  {}
+func (*Update) iStatement()  {}
+func (*Delete) iStatement()  {}
+func (*Set) iStatement()     {}
+func (*DBDDL) iStatement()   {}
+func (*DDL) iStatement()     {}
+func (*Show) iStatement()    {}
+func (*Explain) iStatement() {}
 
 // ParenSelect can actually not be a top level statement,
 // but we have to allow it because it's a requirement
@@ -1273,6 +1304,19 @@ func (node *Show) walkSubtree(visit Visit) error {
 	return nil
 }
 
+// Explain represents a explain statement.
+type Explain struct {
+}
+
+// Format formats the node.
+func (node *Explain) Format(buf *TrackedBuffer) {
+	buf.WriteString("explain")
+}
+
+func (node *Explain) walkSubtree(visit Visit) error {
+	return nil
+}
+
 // Comments represents a list of comments.
 type Comments [][]byte
 
@@ -1753,35 +1797,33 @@ type Expr interface {
 	SQLNode
 }
 
-func (*AndExpr) iExpr()          {}
-func (*OrExpr) iExpr()           {}
-func (*NotExpr) iExpr()          {}
-func (*ParenExpr) iExpr()        {}
-func (*ComparisonExpr) iExpr()   {}
-func (*RangeCond) iExpr()        {}
-func (*IsExpr) iExpr()           {}
-func (*ExistsExpr) iExpr()       {}
-func (*SQLVal) iExpr()           {}
-func (*NullVal) iExpr()          {}
-func (BoolVal) iExpr()           {}
-func (*ColName) iExpr()          {}
-func (ValTuple) iExpr()          {}
-func (*Subquery) iExpr()         {}
-func (ListArg) iExpr()           {}
-func (*BinaryExpr) iExpr()       {}
-func (*UnaryExpr) iExpr()        {}
-func (*IntervalExpr) iExpr()     {}
-func (*CollateExpr) iExpr()      {}
-func (*FuncExpr) iExpr()         {}
-func (*CaseExpr) iExpr()         {}
-func (*ValuesFuncExpr) iExpr()   {}
-func (*ConvertExpr) iExpr()      {}
-func (*SubstrExpr) iExpr()       {}
-func (*ConvertUsingExpr) iExpr() {}
-func (*MatchExpr) iExpr()        {}
-func (*GroupConcatExpr) iExpr()  {}
-func (*Default) iExpr()          {}
-func (*TimeExpr) iExpr()         {}
+func (*AndExpr) iExpr()         {}
+func (*OrExpr) iExpr()          {}
+func (*NotExpr) iExpr()         {}
+func (*ParenExpr) iExpr()       {}
+func (*ComparisonExpr) iExpr()  {}
+func (*RangeCond) iExpr()       {}
+func (*IsExpr) iExpr()          {}
+func (*ExistsExpr) iExpr()      {}
+func (*SQLVal) iExpr()          {}
+func (*NullVal) iExpr()         {}
+func (BoolVal) iExpr()          {}
+func (*ColName) iExpr()         {}
+func (ValTuple) iExpr()         {}
+func (*Subquery) iExpr()        {}
+func (ListArg) iExpr()          {}
+func (*BinaryExpr) iExpr()      {}
+func (*UnaryExpr) iExpr()       {}
+func (*IntervalExpr) iExpr()    {}
+func (*CollateExpr) iExpr()     {}
+func (*FuncExpr) iExpr()        {}
+func (*CaseExpr) iExpr()        {}
+func (*ValuesFuncExpr) iExpr()  {}
+func (*ConvertExpr) iExpr()     {}
+func (*MatchExpr) iExpr()       {}
+func (*GroupConcatExpr) iExpr() {}
+func (*Default) iExpr()         {}
+func (*TimeExpr) iExpr()        {}
 
 // ReplaceExpr finds the from expression from root
 // and replaces it with to. If from matches root,
@@ -2108,6 +2150,7 @@ const (
 	HexVal
 	ValArg
 	BitVal
+	PosArg
 )
 
 // SQLVal represents a single value.
@@ -2151,6 +2194,11 @@ func NewValArg(in []byte) *SQLVal {
 	return &SQLVal{Type: ValArg, Val: in}
 }
 
+// NewPosArg build a new PosArg.
+func NewPosArg(in []byte) *SQLVal {
+	return &SQLVal{Type: PosArg, Val: in}
+}
+
 // Format formats the node.
 func (node *SQLVal) Format(buf *TrackedBuffer) {
 	switch node.Type {
@@ -2164,6 +2212,8 @@ func (node *SQLVal) Format(buf *TrackedBuffer) {
 		buf.Myprintf("B'%s'", []byte(node.Val))
 	case ValArg:
 		buf.WriteArg(string(node.Val))
+	case PosArg:
+		buf.WriteArg("?")
 	default:
 		panic("unexpected")
 	}
@@ -2625,40 +2675,6 @@ func (node *ValuesFuncExpr) replace(from, to Expr) bool {
 	return false
 }
 
-// SubstrExpr represents a call to SubstrExpr(column, value_expression) or SubstrExpr(column, value_expression,value_expression)
-// also supported syntax SubstrExpr(column from value_expression for value_expression)
-type SubstrExpr struct {
-	Name *ColName
-	From Expr
-	To   Expr
-}
-
-// Format formats the node.
-func (node *SubstrExpr) Format(buf *TrackedBuffer) {
-
-	if node.To == nil {
-		buf.Myprintf("substr(%v, %v)", node.Name, node.From)
-	} else {
-		buf.Myprintf("substr(%v, %v, %v)", node.Name, node.From, node.To)
-	}
-}
-
-func (node *SubstrExpr) replace(from, to Expr) bool {
-	return replaceExprs(from, to, &node.From, &node.To)
-}
-
-func (node *SubstrExpr) walkSubtree(visit Visit) error {
-	if node == nil {
-		return nil
-	}
-	return Walk(
-		visit,
-		node.Name,
-		node.From,
-		node.To,
-	)
-}
-
 // ConvertExpr represents a call to CONVERT(expr, type)
 // or it's equivalent CAST(expr AS type). Both are rewritten to the former.
 type ConvertExpr struct {
@@ -2683,31 +2699,6 @@ func (node *ConvertExpr) walkSubtree(visit Visit) error {
 }
 
 func (node *ConvertExpr) replace(from, to Expr) bool {
-	return replaceExprs(from, to, &node.Expr)
-}
-
-// ConvertUsingExpr represents a call to CONVERT(expr USING charset).
-type ConvertUsingExpr struct {
-	Expr Expr
-	Type string
-}
-
-// Format formats the node.
-func (node *ConvertUsingExpr) Format(buf *TrackedBuffer) {
-	buf.Myprintf("convert(%v using %s)", node.Expr, node.Type)
-}
-
-func (node *ConvertUsingExpr) walkSubtree(visit Visit) error {
-	if node == nil {
-		return nil
-	}
-	return Walk(
-		visit,
-		node.Expr,
-	)
-}
-
-func (node *ConvertUsingExpr) replace(from, to Expr) bool {
 	return replaceExprs(from, to, &node.Expr)
 }
 

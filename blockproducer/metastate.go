@@ -147,14 +147,17 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 }
 
 func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, loaded bool) {
-	if o, loaded = s.dirty.databases[k]; loaded {
+	var old *sqlchainObject
+	o = new(sqlchainObject)
+	if old, loaded = s.dirty.databases[k]; loaded {
 		if o == nil {
 			loaded = false
 		}
+		deepcopier.Copy(old).To(o)
 		return
 	}
-	if o, loaded = s.readonly.databases[k]; loaded {
-		return
+	if old, loaded = s.readonly.databases[k]; loaded {
+		deepcopier.Copy(old).To(o)
 	}
 	return
 }
@@ -827,6 +830,15 @@ func (s *metaState) loadROSQLChains(addr proto.AccountAddress) (dbs []*types.SQL
 				dbs = append(dbs, dst)
 			}
 		}
+	}
+	return
+}
+
+func (s *metaState) loadROSQLChainsByDatabaseID(dbid proto.DatabaseID) (db *types.SQLChainProfile, ok bool) {
+	var databaseObj *sqlchainObject
+	db = &types.SQLChainProfile{}
+	if databaseObj, ok = s.readonly.databases[dbid]; ok {
+		deepcopier.Copy(databaseObj).To(db)
 	}
 	return
 }

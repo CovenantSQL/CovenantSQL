@@ -348,7 +348,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 
 	for _, s := range c.getPeers().Servers {
 		if !s.IsEqual(&c.nodeID) {
-			// Bind NodeID to subroutine
 			func(id proto.NodeID) {
 				c.goFuncWithTimeout(func(ctx context.Context) {
 					var (
@@ -373,7 +372,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 			}(s)
 		}
 	}
-
 	return err
 }
 
@@ -458,13 +456,11 @@ func (c *Chain) processTx(tx pi.Transaction) {
 	}(); ok {
 		log.WithFields(log.Fields{
 			"tx_hash": tx.Hash().Short(4),
-		}).Debugf("tx already exists, abort processing")
+		}).Debug("tx already exists, abort processing")
 		return
 	}
-	// Simple non-blocking broadcasting
-	for _, v := range c.getPeers().Servers {
-		if !v.IsEqual(&c.nodeID) {
-			// Bind NodeID to subroutine
+	for _, s := range c.getPeers().Servers {
+		if !s.IsEqual(&c.nodeID) {
 			func(id proto.NodeID) {
 				c.goFuncWithTimeout(func(ctx context.Context) {
 					var (
@@ -484,8 +480,8 @@ func (c *Chain) processTx(tx pi.Transaction) {
 						"tx_hash": tx.Hash().Short(4),
 						"tx_type": tx.GetTransactionType(),
 					}).WithError(err).Debug("broadcasting transaction to other peers")
-				}, c.period)
-			}(v)
+				}, c.tick)
+			}(s)
 		}
 	}
 	if err := c.storeTx(tx); err != nil {
@@ -539,25 +535,22 @@ func (c *Chain) mainCycle(ctx context.Context) {
 }
 
 func (c *Chain) syncCurrentHead(ctx context.Context) {
+	var h = c.getNextHeight() - 1
+	if c.head().height >= h {
+		return
+	}
+	// Initiate blocking gossip calls to fetch block of the current height,
+	// with timeout of one tick.
 	var (
-		h        = c.getNextHeight() - 1
-		cld, ccl = context.WithTimeout(ctx, c.tick)
 		wg       = &sync.WaitGroup{}
+		cld, ccl = context.WithTimeout(ctx, c.tick)
 	)
-
 	defer func() {
 		wg.Wait()
 		ccl()
 	}()
-
-	if c.head().height >= h {
-		return
-	}
-
-	// Initiate blocking gossip calls to fetch block of the current height,
-	// with timeout of one tick.
-	for _, v := range c.getPeers().Servers {
-		if !v.IsEqual(&c.nodeID) {
+	for _, s := range c.getPeers().Servers {
+		if !s.IsEqual(&c.nodeID) {
 			wg.Add(1)
 			go func(id proto.NodeID) {
 				defer wg.Done()
@@ -593,7 +586,7 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 				case <-cld.Done():
 					log.WithError(cld.Err()).Warn("add pending block aborted")
 				}
-			}(v)
+			}(s)
 		}
 	}
 }
@@ -701,7 +694,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 						}
 						return fmt.Sprintf("[%04d]", i)
 					}(),
-				}).Debugf("pruning branch")
+				}).Debug("pruning branch")
 			}
 		}
 		// Replace current branches
@@ -934,8 +927,8 @@ func (c *Chain) goFuncWithTimeout(f func(ctx context.Context), timeout time.Dura
 	go func() {
 		var ctx, ccl = context.WithTimeout(c.ctx, timeout)
 		defer func() {
-			ccl()
 			c.wg.Done()
+			ccl()
 		}()
 		f(ctx)
 	}()

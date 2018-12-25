@@ -1,4 +1,4 @@
-default: docker
+default: all
 
 IMAGE := covenantsql/covenantsql
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)

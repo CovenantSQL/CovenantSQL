@@ -103,7 +103,9 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 func (c *Chain) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
 	c.RLock()
 	defer c.RUnlock()
-	return c.headBranch.preview.nextNonce(addr)
+	n, err = c.headBranch.preview.nextNonce(addr)
+	log.Debugf("nextNonce addr: %s, nonce %d", addr.String(), n)
+	return
 }
 
 func (c *Chain) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {

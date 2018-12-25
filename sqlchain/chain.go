@@ -138,6 +138,8 @@ type Chain struct {
 	//
 	// pk is the private key of the local miner.
 	pk *asymmetric.PrivateKey
+	// addr is the AccountAddress generate from public key.
+	addr *proto.AccountAddress
 }
 
 // NewChain creates a new sql-chain struct.
@@ -192,9 +194,17 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 
 	// Cache local private key
-	var pk *asymmetric.PrivateKey
+	var (
+		pk   *asymmetric.PrivateKey
+		addr proto.AccountAddress
+	)
 	if pk, err = kms.GetLocalPrivateKey(); err != nil {
 		err = errors.Wrap(err, "failed to cache private key")
+		return
+	}
+	addr, err = crypto.PubKeyHash(pk.PubKey())
+	if err != nil {
+		log.WithError(err).Warning("failed to generate addr in NewChain")
 		return
 	}
 
@@ -222,7 +232,8 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		observerReplicators: make(map[proto.NodeID]*observerReplicator),
 		replCh:              make(chan struct{}),
 
-		pk: pk,
+		pk:   pk,
+		addr: &addr,
 	}
 
 	if err = chain.pushBlock(c.Genesis); err != nil {
@@ -269,9 +280,17 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	}
 
 	// Cache local private key
-	var pk *asymmetric.PrivateKey
+	var (
+		pk   *asymmetric.PrivateKey
+		addr proto.AccountAddress
+	)
 	if pk, err = kms.GetLocalPrivateKey(); err != nil {
 		err = errors.Wrap(err, "failed to cache private key")
+		return
+	}
+	addr, err = crypto.PubKeyHash(pk.PubKey())
+	if err != nil {
+		log.WithError(err).Warning("failed to generate addr in LoadChain")
 		return
 	}
 
@@ -299,7 +318,8 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		observerReplicators: make(map[proto.NodeID]*observerReplicator),
 		replCh:              make(chan struct{}),
 
-		pk: pk,
+		pk:   pk,
+		addr: &addr,
 	}
 
 	// Read state struct
@@ -888,29 +908,30 @@ func (c *Chain) processBlocks(ctx context.Context) {
 							if err != nil {
 								log.WithError(err).Error("billing failed")
 							}
-							go func(ub *types.UpdateBilling) {
-								// allocate nonce
-								nonceReq := &types.NextAccountNonceReq{}
-								nonceResp := &types.NextAccountNonceResp{}
-								nonceReq.Addr = ub.Receiver
-								if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
-									// allocate nonce failed
-									log.WithError(err).Warning("allocate nonce for transaction failed")
-									return
-								}
-								ub.Nonce = nonceResp.Nonce
-								if err = ub.Sign(c.pk); err != nil {
-									log.WithError(err).Warning("sign tx failed")
-									return
-								}
-								addTxReq := types.AddTxReq{}
-								addTxResp := types.AddTxResp{}
-								addTxReq.Tx = ub
-								if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
-									log.WithError(err).Warning("send tx failed")
-									return
-								}
-							}(ub)
+							// allocate nonce
+							nonceReq := &types.NextAccountNonceReq{}
+							nonceResp := &types.NextAccountNonceResp{}
+							nonceReq.Addr = *c.addr
+							if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+								// allocate nonce failed
+								log.WithError(err).Warning("allocate nonce for transaction failed")
+								return
+							}
+							ub.Nonce = nonceResp.Nonce
+							if err = ub.Sign(c.pk); err != nil {
+								log.WithError(err).Warning("sign tx failed")
+								return
+							}
+
+							addTxReq := &types.AddTxReq{}
+							addTxResp := &types.AddTxResp{}
+							addTxReq.Tx = ub
+							log.Debugf("nonce in processBlocks: %d, addr: %s",
+								addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
+							if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
+								log.WithError(err).Warning("send tx failed")
+								return
+							}
 						}
 					}
 				}
@@ -1468,6 +1489,7 @@ func (c *Chain) stat() {
 }
 
 func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
+	log.Debugf("begin to billing from count %d", node.count)
 	var (
 		i, j      uint64
 		minerAddr proto.AccountAddress
@@ -1477,29 +1499,43 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	)
 
 	for i = 0; i < c.updatePeriod && node != nil; i++ {
-		for _, ack := range node.block.Acks {
-			if minerAddr, err = crypto.PubKeyHash(ack.Signee); err != nil {
-				err = errors.Wrap(err, "billing fail: miner addr")
+		for _, tx := range node.block.QueryTxs {
+			if minerAddr, err = crypto.PubKeyHash(tx.Response.Signee); err != nil {
+				log.WithError(err).Warning("billing fail: miner addr")
 				return
 			}
-			if userAddr, err = crypto.PubKeyHash(ack.Signee); err != nil {
-				err = errors.Wrap(err, "billing fail: user addr")
+			if userAddr, err = crypto.PubKeyHash(tx.Request.Header.Signee); err != nil {
+				log.WithError(err).Warning("billing fail: miner addr")
 				return
 			}
 
-			if ack.SignedRequestHeader().QueryType == types.ReadQuery {
+			if tx.Request.Header.QueryType == types.ReadQuery {
 				if _, ok := minersMap[userAddr]; !ok {
 					minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
 				}
-				minersMap[userAddr][minerAddr] += 1
-				usersMap[userAddr] += 1
+				minersMap[userAddr][minerAddr] += tx.Response.RowCount
+				usersMap[userAddr] += tx.Response.RowCount
 			} else {
 				if _, ok := minersMap[userAddr]; !ok {
 					minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
 				}
-				minersMap[userAddr][minerAddr] += uint64(ack.SignedResponseHeader().AffectedRows)
-				usersMap[userAddr] += uint64(ack.SignedResponseHeader().AffectedRows)
+				minersMap[userAddr][minerAddr] += uint64(tx.Response.AffectedRows)
+				usersMap[userAddr] += uint64(tx.Response.AffectedRows)
 			}
+		}
+
+		for _, req := range node.block.FailedReqs {
+			if minerAddr, err = crypto.PubKeyHash(node.block.Signee()); err != nil {
+				log.WithError(err).Warning("billing fail: miner addr")
+				return
+			}
+			if userAddr, err = crypto.PubKeyHash(req.Header.Signee); err != nil {
+				log.WithError(err).Warning("billing fail: user addr")
+				return
+			}
+
+			minersMap[userAddr][minerAddr] += uint64(len(req.Payload.Queries))
+			usersMap[userAddr] += uint64(len(req.Payload.Queries))
 		}
 		node = node.parent
 	}
@@ -1511,6 +1547,7 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	i = 0
 	j = 0
 	for userAddr, cost := range usersMap {
+		log.Debugf("user %s, cost %d", userAddr.String(), cost)
 		ub.Users[i] = &types.UserCost{
 			User: userAddr,
 			Cost: cost,

@@ -283,36 +283,11 @@ func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, 
 }
 
 func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
-	var (
-		src, dst *accountObject
-		ok       bool
-	)
-	if dst, ok = s.dirty.accounts[k]; !ok {
-		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
-			return err
-		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
-		s.dirty.accounts[k] = dst
-	}
-	return safeAdd(&dst.Account.TokenBalance[types.Particle], &amount)
+	return s.increaseAccountToken(k, amount, types.Particle)
 }
 
 func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
-	var (
-		src, dst *accountObject
-		ok       bool
-	)
-	if dst, ok = s.dirty.accounts[k]; !ok {
-		if src, ok = s.readonly.accounts[k]; !ok {
-			return ErrAccountNotFound
-		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
-		s.dirty.accounts[k] = dst
-	}
-	return safeSub(&dst.Account.TokenBalance[types.Particle], &amount)
+	return s.decreaseAccountToken(k, amount, types.Particle)
 }
 
 func (s *metaState) transferAccountStableBalance(
@@ -375,36 +350,11 @@ func (s *metaState) transferAccountStableBalance(
 }
 
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
-	var (
-		src, dst *accountObject
-		ok       bool
-	)
-	if dst, ok = s.dirty.accounts[k]; !ok {
-		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase covenant balance fail")
-			return err
-		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
-		s.dirty.accounts[k] = dst
-	}
-	return safeAdd(&dst.Account.TokenBalance[types.Wave], &amount)
+	return s.increaseAccountToken(k, amount, types.Wave)
 }
 
 func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
-	var (
-		src, dst *accountObject
-		ok       bool
-	)
-	if dst, ok = s.dirty.accounts[k]; !ok {
-		if src, ok = s.readonly.accounts[k]; !ok {
-			return ErrAccountNotFound
-		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
-		s.dirty.accounts[k] = dst
-	}
-	return safeSub(&dst.Account.TokenBalance[types.Wave], &amount)
+	return s.decreaseAccountToken(k, amount, types.Wave)
 }
 
 func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseID) error {
@@ -820,6 +770,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
 		return
 	}
+	log.Debugf("update billing addr: %s, tx: %v", tx.GetAccountAddress(), tx)
 
 	if sqlchainObj.GasPrice == 0 {
 		return
@@ -835,6 +786,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		userMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
 	)
 	for _, userCost := range tx.Users {
+		log.Debugf("update billing user cost: %s, cost: %d", userCost.User.String(), userCost.Cost)
 		costMap[userCost.User] = userCost.Cost
 		if _, ok := userMap[userCost.User]; !ok {
 			userMap[userCost.User] = make(map[proto.AccountAddress]uint64)

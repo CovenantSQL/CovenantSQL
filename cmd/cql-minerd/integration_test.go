@@ -577,6 +577,21 @@ func TestFullProcess(t *testing.T) {
 			c.So(err, ShouldBeNil)
 		})
 
+		time.Sleep(20 * time.Second)
+
+		profileReq = &types.QuerySQLChainProfileReq{}
+		profileResp = &types.QuerySQLChainProfileResp{}
+		profileReq.DBID = *dbID
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		for _, user := range profileResp.Profile.Users {
+			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
+			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
+		}
+		for _, miner := range profileResp.Profile.Miners {
+			So(miner.PendingIncome != 0 || miner.ReceivedIncome != 0, ShouldBeTrue)
+		}
+
 		err = db.Close()
 		So(err, ShouldBeNil)
 

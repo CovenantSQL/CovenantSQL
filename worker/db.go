@@ -136,8 +136,8 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		Server:     db.nodeID,
 
 		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
-		Period:   60 * time.Second,
-		Tick:     10 * time.Second,
+		Period:   3 * time.Second,
+		Tick:     1 * time.Second,
 		QueryTTL: 10,
 
 		UpdatePeriod: cfg.UpdatePeriod,

@@ -57,7 +57,7 @@ type UpdateBilling struct {
 func NewUpdateBilling(header *UpdateBillingHeader) *UpdateBilling {
 	return &UpdateBilling{
 		UpdateBillingHeader:  *header,
-		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeTransfer),
+		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeUpdateBilling),
 	}
 }
 
@@ -83,5 +83,5 @@ func (ub *UpdateBilling) Verify() (err error) {
 }
 
 func init() {
-	pi.RegisterTransaction(pi.TransactionTypeUpdateBilling, (*Transfer)(nil))
+	pi.RegisterTransaction(pi.TransactionTypeUpdateBilling, (*UpdateBilling)(nil))
 }

@@ -210,14 +210,11 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 		return
 	}
 
-	s, ok := dbms.chainMap.Load(ub.Receiver.DatabaseID())
-	if !ok {
-		return
-	}
-
 	var (
-		dbid  = ub.Receiver.DatabaseID()
-		state = s.(types.UserState)
+		dbid     = ub.Receiver.DatabaseID()
+		newState = types.UserState{
+			State: make(map[proto.AccountAddress]*types.PermStat),
+		}
 	)
 
 	p, err := dbms.busService.RequestSQLProfile(&dbid)
@@ -227,12 +224,12 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 	}
 
 	for _, user := range p.Users {
-		state.State[user.Address] = &types.PermStat{
+		newState.State[user.Address] = &types.PermStat{
 			Permission: user.Permission,
 			Status:     user.Status,
 		}
 	}
-	dbms.chainMap.Store(ub.Receiver.DatabaseID(), state)
+	dbms.chainMap.Store(ub.Receiver.DatabaseID(), newState)
 }
 
 func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
@@ -397,13 +394,14 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// new db
 	dbCfg := &DBConfig{
-		DatabaseID:             instance.DatabaseID,
-		DataDir:                rootDir,
-		KayakMux:               dbms.kayakMux,
-		ChainMux:               dbms.chainMux,
-		MaxWriteTimeGap:        dbms.cfg.MaxReqTimeGap,
-		EncryptionKey:          instance.ResourceMeta.EncryptionKey,
-		SpaceLimit:             instance.ResourceMeta.Space,
+		DatabaseID:      instance.DatabaseID,
+		DataDir:         rootDir,
+		KayakMux:        dbms.kayakMux,
+		ChainMux:        dbms.chainMux,
+		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
+		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
+		SpaceLimit:      instance.ResourceMeta.Space,
+		// TODO(lambda): make UpdatePeriod Configurable
 		UpdatePeriod:           2,
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,

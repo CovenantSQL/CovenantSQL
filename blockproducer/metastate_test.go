@@ -317,7 +317,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance decreased",
 						func() {
 							err = ms.decreaseAccountStableBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.decreaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -335,7 +335,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance decreased",
 						func() {
 							err = ms.decreaseAccountCovenantBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.decreaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},

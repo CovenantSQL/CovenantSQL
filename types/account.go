@@ -134,6 +134,8 @@ type SQLChainProfile struct {
 	Users []*SQLChainUser
 
 	Genesis *Block
+
+	Meta ResourceMeta // dumped from db creation tx
 }
 
 // ProviderProfile defines a provider list.

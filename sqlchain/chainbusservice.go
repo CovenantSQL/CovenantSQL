@@ -37,27 +37,56 @@ type BusService struct {
 
 	caller *rpc.Caller
 
-	lock   sync.Mutex // a lock for the map
 	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	checkInterval time.Duration
-	blockCount    uint32
+	localAddress  proto.AccountAddress
+
+	lock             sync.Mutex // a lock for the map
+	blockCount       uint32
+	sqlChainProfiles map[proto.DatabaseID]*types.SQLChainProfile
 }
 
-func NewBusService(ctx context.Context, checkInterval time.Duration) *BusService {
+func NewBusService(
+	ctx context.Context, addr proto.AccountAddress, checkInterval time.Duration) (_ *BusService,
+) {
 	ctd, ccl := context.WithCancel(ctx)
 	bs := &BusService{
 		Bus:           chainbus.New(),
-		lock:          sync.Mutex{},
 		wg:            sync.WaitGroup{},
 		caller:        rpc.NewCaller(),
 		ctx:           ctd,
 		cancel:        ccl,
 		checkInterval: checkInterval,
+		localAddress:  addr,
 	}
+	// State initialization: fetch last block and update fields `blockCount` and `sqlChainProfiles`
+	var _, profiles, count = bs.requestLastBlock()
+	bs.updateState(count, profiles)
 	return bs
+}
+
+func (bs *BusService) GetCurrentDBMapping() (dbMap map[proto.DatabaseID]*types.SQLChainProfile) {
+	dbMap = make(map[proto.DatabaseID]*types.SQLChainProfile)
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
+	for k, v := range bs.sqlChainProfiles {
+		dbMap[k] = v
+	}
+	return
+}
+
+func (bs *BusService) updateState(count uint32, profiles []*types.SQLChainProfile) {
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
+	var rebuilt = make(map[proto.DatabaseID]*types.SQLChainProfile)
+	for _, v := range profiles {
+		rebuilt[v.ID] = v
+	}
+	atomic.StoreUint32(&bs.blockCount, count)
+	bs.sqlChainProfiles = rebuilt
 }
 
 func (bs *BusService) subscribeBlock(ctx context.Context) {
@@ -73,25 +102,62 @@ func (bs *BusService) subscribeBlock(ctx context.Context) {
 			// fetch block from remote block producer
 			c := atomic.LoadUint32(&bs.blockCount)
 			log.Debugf("fetch block in count: %d", c)
-			b, newCount := bs.requestLastBlock()
+			b, profiles, newCount := bs.requestLastBlock()
 			if b == nil {
 				continue
 			}
-			if newCount == c {
+			if newCount <= c {
 				continue
 			}
+
 			log.Debugf("success fetch block in count: %d, block hash: %s, number of block tx: %d",
 				c, b.BlockHash().String(), len(b.GetTxHashes()))
+
+			// Write sqlchain profile state first (bound to the last irreversible block)
+			bs.updateState(c, profiles)
+
+			// Fetch any intermediate irreversible blocks and extract txs
+			for i := c + 1; i < newCount; i++ {
+				var (
+					block *types.BPBlock
+					err   error
+				)
+				if block, err = bs.fetchBlockByCount(i); err != nil {
+					log.WithError(err).WithFields(log.Fields{
+						"count": i,
+					}).Warn("failed to fetch block")
+					continue
+				}
+				bs.extractTxs(block, i)
+			}
+
+			// Extract txs in last irreversible block
 			bs.extractTxs(b, c)
-			atomic.StoreUint32(&bs.blockCount, newCount)
 		}
 	}
-
 }
 
-func (bs *BusService) requestLastBlock() (block *types.BPBlock, count uint32) {
-	req := &types.FetchLastBlockReq{}
-	resp := &types.FetchBlockResp{}
+func (bs *BusService) fetchBlockByCount(count uint32) (block *types.BPBlock, err error) {
+	var (
+		req = &types.FetchBlockByCountReq{
+			Count: count,
+		}
+		resp = &types.FetchBlockResp{}
+	)
+	if err = bs.requestBP(route.MCCFetchBlockByCount.String(), req, resp); err != nil {
+		return
+	}
+	block = resp.Block
+	return
+}
+
+func (bs *BusService) requestLastBlock() (
+	block *types.BPBlock, profiles []*types.SQLChainProfile, count uint32,
+) {
+	req := &types.FetchLastIrreversibleBlockReq{
+		Address: bs.localAddress,
+	}
+	resp := &types.FetchLastIrreversibleBlockResp{}
 
 	if err := bs.requestBP(route.MCCFetchLastIrreversibleBlock.String(), req, resp); err != nil {
 		log.WithError(err).Warning("fetch last block failed")
@@ -99,19 +165,15 @@ func (bs *BusService) requestLastBlock() (block *types.BPBlock, count uint32) {
 	}
 
 	block = resp.Block
+	profiles = resp.SQLChains
 	count = resp.Count
 	return
 }
 
-func (bs *BusService) RequestSQLProfile(dbid *proto.DatabaseID) (p *types.SQLChainProfile, err error) {
-	req := &types.QuerySQLChainProfileReq{DBID: *dbid}
-	resp := &types.QuerySQLChainProfileResp{}
-	if err = bs.requestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-		log.WithError(err).Warning("fetch sqlchain profile failed")
-		return
-	}
-
-	p = &resp.Profile
+func (bs *BusService) RequestSQLProfile(dbid *proto.DatabaseID) (p *types.SQLChainProfile, ok bool) {
+	bs.lock.Lock()
+	defer bs.lock.Unlock()
+	p, ok = bs.sqlChainProfiles[*dbid]
 	return
 }
 

@@ -202,8 +202,13 @@ func TestMetaState(t *testing.T) {
 							var dbs []*types.SQLChainProfile
 							dbs = ms.loadROSQLChains(addr1)
 							So(len(dbs), ShouldEqual, 1)
+							So(dbs[0].ID, ShouldEqual, dbid1)
 							dbs = ms.loadROSQLChains(addr2)
 							So(len(dbs), ShouldEqual, 2)
+							So(dbs[0].ID, ShouldEqual, dbid1)
+							So(dbs[1].ID, ShouldEqual, dbid2)
+							dbs = ms.loadROSQLChains(addr4)
+							So(dbs, ShouldBeEmpty)
 						})
 						Convey("The metaState object should be ok to delete user", func() {
 							err = ms.deleteSQLChainUser(dbid3, addr2)

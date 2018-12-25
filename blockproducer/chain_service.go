@@ -131,3 +131,9 @@ func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types
 	profile = &profileObj.SQLChainProfile
 	return
 }
+
+func (c *Chain) loadSQLChainProfiles(addr proto.AccountAddress) []*types.SQLChainProfile {
+	c.RLock()
+	defer c.RUnlock()
+	return c.immutable.loadROSQLChains(addr)
+}

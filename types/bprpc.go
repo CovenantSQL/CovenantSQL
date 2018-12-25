@@ -57,8 +57,19 @@ type FetchBlockResp struct {
 	Block  *BPBlock
 }
 
-type FetchLastBlockReq struct {
+// FetchLastIrreversibleBlockReq defines a request of the FetchLastIrreversibleBlock RPC method.
+type FetchLastIrreversibleBlockReq struct {
 	proto.Envelope
+	Address proto.AccountAddress
+}
+
+// FetchLastIrreversibleBlockResp defines a response of the FetchLastIrreversibleBlock RPC method.
+type FetchLastIrreversibleBlockResp struct {
+	proto.Envelope
+	Count     uint32
+	Height    uint32
+	Block     *BPBlock
+	SQLChains []*SQLChainProfile
 }
 
 // FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.

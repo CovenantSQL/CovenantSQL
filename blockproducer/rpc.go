@@ -46,7 +46,8 @@ func (s *ChainRPCService) FetchBlock(req *types.FetchBlockReq, resp *types.Fetch
 }
 
 // FetchLastIrreversibleBlock fetches the last block irreversible block from block producer.
-func (s *ChainRPCService) FetchLastIrreversibleBlock(req *types.FetchLastBlockReq, resp *types.FetchBlockResp) error {
+func (s *ChainRPCService) FetchLastIrreversibleBlock(
+	req *types.FetchLastIrreversibleBlockReq, resp *types.FetchLastIrreversibleBlockResp) error {
 	b, c, h, err := s.chain.fetchLastIrreversibleBlock()
 	if err != nil {
 		return err
@@ -54,6 +55,7 @@ func (s *ChainRPCService) FetchLastIrreversibleBlock(req *types.FetchLastBlockRe
 	resp.Block = b
 	resp.Count = c
 	resp.Height = h
+	resp.SQLChains = s.chain.loadSQLChainProfiles(req.Address)
 	return nil
 }
 

@@ -31,19 +31,8 @@ func (z *InitServiceResponse) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 1
-	// map header, size 2
-	// map header, size 1
-	o = append(o, 0x81, 0x81, 0x82, 0x82, 0x81, 0x81)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.Header.InitServiceResponseHeader.Instances)))
-	for za0001 := range z.Header.InitServiceResponseHeader.Instances {
-		if oTemp, err := z.Header.InitServiceResponseHeader.Instances[za0001].MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	o = append(o, 0x82)
-	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+	o = append(o, 0x81, 0x81)
+	if oTemp, err := z.Header.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -53,11 +42,7 @@ func (z *InitServiceResponse) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *InitServiceResponse) Msgsize() (s int) {
-	s = 1 + 7 + 1 + 26 + 1 + 10 + hsp.ArrayHeaderSize
-	for za0001 := range z.Header.InitServiceResponseHeader.Instances {
-		s += z.Header.InitServiceResponseHeader.Instances[za0001].Msgsize()
-	}
-	s += 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize()
+	s = 1 + 7 + z.Header.Msgsize()
 	return
 }
 
@@ -91,8 +76,8 @@ func (z *InitServiceResponseHeader) Msgsize() (s int) {
 func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	// map header, size 8
+	o = append(o, 0x88, 0x88)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.TargetMiners)))
 	for za0001 := range z.TargetMiners {
 		if oTemp, err := z.TargetMiners[za0001].MarshalHash(); err != nil {
@@ -101,14 +86,20 @@ func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x88)
+	o = hsp.AppendBool(o, z.UseEventualConsistency)
+	o = append(o, 0x88)
+	o = hsp.AppendFloat64(o, z.ConsistencyLevel)
+	o = append(o, 0x88)
+	o = hsp.AppendFloat64(o, z.LoadAvgPerCPU)
+	o = append(o, 0x88)
+	o = hsp.AppendString(o, z.EncryptionKey)
+	o = append(o, 0x88)
 	o = hsp.AppendUint16(o, z.Node)
-	o = append(o, 0x85)
+	o = append(o, 0x88)
 	o = hsp.AppendUint64(o, z.Space)
-	o = append(o, 0x85)
+	o = append(o, 0x88)
 	o = hsp.AppendUint64(o, z.Memory)
-	o = append(o, 0x85)
-	o = hsp.AppendUint64(o, z.LoadAvgPerCPU)
 	return
 }
 
@@ -118,7 +109,7 @@ func (z *ResourceMeta) Msgsize() (s int) {
 	for za0001 := range z.TargetMiners {
 		s += z.TargetMiners[za0001].Msgsize()
 	}
-	s += 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
+	s += 23 + hsp.BoolSize + 17 + hsp.Float64Size + 14 + hsp.Float64Size + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size
 	return
 }
 

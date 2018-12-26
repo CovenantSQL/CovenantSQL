@@ -199,17 +199,9 @@ func Drop(dsn string) (err error) {
 		return
 	}
 
-	req := new(types.DropDatabaseRequest)
-	req.Header.DatabaseID = proto.DatabaseID(cfg.DatabaseID)
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	if err = req.Sign(privateKey); err != nil {
-		return
-	}
-	res := new(types.DropDatabaseResponse)
-	err = requestBP(route.BPDBDropDatabase, req, res)
+	_ = cfg
+
+	// currently not supported
 
 	return
 }

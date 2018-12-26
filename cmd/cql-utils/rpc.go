@@ -43,7 +43,6 @@ var (
 	rpcServiceMap = map[string]interface{}{
 		route.DHTRPCName:           &route.DHTService{},
 		route.DBRPCName:            &worker.DBMSRPCService{},
-		route.BPDBRPCName:          &bp.DBService{},
 		route.SQLChainRPCName:      &sqlchain.MuxService{},
 		route.BlockProducerRPCName: &bp.ChainRPCService{},
 	}

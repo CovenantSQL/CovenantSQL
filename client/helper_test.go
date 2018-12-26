@@ -54,99 +54,19 @@ var (
 )
 
 // fake BPDB service
-type stubBPDBService struct{}
+type stubBPService struct{}
 
-func (s *stubBPDBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db")); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	err = resp.Sign(privateKey)
-
-	return
-}
-
-func (s *stubBPDBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseRequest) (err error) {
-	return
-}
-
-func (s *stubBPDBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	err = resp.Sign(privateKey)
-
-	return
-}
-
-func (s *stubBPDBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
-	resp.Header.Instances = make([]types.ServiceInstance, 0)
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	if resp.Sign(privateKey); err != nil {
-		return
-	}
-	return
-}
-
-func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
-	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &proto.Peers{
-		PeersHeader: proto.PeersHeader{
-			Term:    1,
-			Leader:  nodeID,
-			Servers: []proto.NodeID{nodeID},
-		},
-	}
-	if err = instance.Peers.Sign(privKey); err != nil {
-		return
-	}
-	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
-
-	return
-}
-
-func (s *stubBPDBService) QueryAccountStableBalance(req *types.QueryAccountStableBalanceReq,
+func (s *stubBPService) QueryAccountStableBalance(req *types.QueryAccountStableBalanceReq,
 	resp *types.QueryAccountStableBalanceResp) (err error) {
 	return
 }
 
-func (s *stubBPDBService) QueryAccountCovenantBalance(req *types.QueryAccountCovenantBalanceReq,
+func (s *stubBPService) QueryAccountCovenantBalance(req *types.QueryAccountCovenantBalanceReq,
 	resp *types.QueryAccountCovenantBalanceResp) (err error) {
 	return
 }
 
-func (s *stubBPDBService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
+func (s *stubBPService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
 	resp *types.QuerySQLChainProfileResp) (err error) {
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -154,7 +74,7 @@ func (s *stubBPDBService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 	}
 	resp.Profile = types.SQLChainProfile{
 		Miners: []*types.MinerInfo{
-			&types.MinerInfo{
+			{
 				NodeID: nodeID,
 			},
 		},
@@ -303,13 +223,8 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		return
 	}
 
-	// register bpdb service
-	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
-		return
-	}
-
 	// register fake chain service
-	if err = server.RegisterService(route.BlockProducerRPCName, &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(route.BlockProducerRPCName, &stubBPService{}); err != nil {
 		return
 	}
 

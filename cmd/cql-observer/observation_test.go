@@ -34,7 +34,12 @@ import (
 	"testing"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -51,6 +56,17 @@ var (
 var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
+
+func privKeyStoreToAccountAddr(path string, master []byte) (addr proto.AccountAddress, err error) {
+	var (
+		priv *asymmetric.PrivateKey
+	)
+	if priv, err = kms.LoadPrivateKey(path, master); err != nil {
+		return
+	}
+	addr, err = crypto.PubKeyHash(priv.PubKey())
+	return
+}
 
 func startNodes() {
 	// wait for ports to be available
@@ -235,7 +251,15 @@ func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	Convey("test full process", t, func() {
-		var err error
+		var (
+			err         error
+			addr, addr2 proto.AccountAddress
+			dsn, dsn2   string
+			cfg, cfg2   *client.Config
+			dbid, dbid2 string
+			ctx, ctx2   context.Context
+			ccl, ccl2   context.CancelFunc
+		)
 		startNodes()
 		defer stopNodes()
 
@@ -244,13 +268,35 @@ func TestFullProcess(t *testing.T) {
 		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
-		// create
-		meta := client.ResourceMeta{}
-		meta.Node = 1
-		dsn, err := client.Create(meta)
+		// get miner addresses
+		addr, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_miner_0/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		addr2, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
 		So(err, ShouldBeNil)
 
+		// create
+		meta := client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: []proto.AccountAddress{addr},
+				Node:         1,
+			},
+			GasPrice:       0,
+			AdvancePayment: 10000000,
+		}
+		dsn, err = client.Create(meta)
+		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
+
+		// wait
+		cfg, err = client.ParseDSN(dsn)
+		So(err, ShouldBeNil)
+		dbid = cfg.DatabaseID
+		ctx, ccl = context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccl()
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbid), 3*time.Second)
+		So(err, ShouldBeNil)
 
 		db, err := sql.Open("covenantsql", dsn)
 		So(err, ShouldBeNil)
@@ -306,19 +352,32 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		meta = client.ResourceMeta{}
+		meta = client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: []proto.AccountAddress{addr2},
+				Node:         1,
+			},
+			GasPrice:       0,
+			AdvancePayment: 10000000,
+		}
 		meta.Node = 1
-		dsn2, err := client.Create(meta)
+		dsn2, err = client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn2)
 
-		db2, err := sql.Open("covenantsql", dsn2)
+		// wait
+		cfg2, err = client.ParseDSN(dsn2)
+		So(err, ShouldBeNil)
+		dbid2 = cfg2.DatabaseID
+		So(dbID, ShouldNotResemble, dbid2)
+		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccl2()
+		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbid2), 3*time.Second)
 		So(err, ShouldBeNil)
 
-		cfg2, err := client.ParseDSN(dsn2)
-		dbID2 := cfg2.DatabaseID
-		So(dbID, ShouldNotResemble, dbID2)
+		db2, err := sql.Open("covenantsql", dsn2)
+		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")
 		So(err, ShouldBeNil)
@@ -339,9 +398,6 @@ func TestFullProcess(t *testing.T) {
 		// start the observer and listen for produced blocks
 		err = utils.WaitForPorts(context.Background(), "127.0.0.1", []int{4663}, time.Millisecond*200)
 		So(err, ShouldBeNil)
-
-		cfg, err := client.ParseDSN(dsn)
-		dbID := cfg.DatabaseID
 
 		// remove previous observation result
 		os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
@@ -432,12 +488,12 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldNotBeEmpty)
 
 		// test get genesis block by height
-		res, err = getJSON("v3/height/%v/0", dbID2)
+		res, err = getJSON("v3/height/%v/0", dbid2)
 		So(err, ShouldNotBeNil)
 		log.Info(err, res)
 
 		// test get genesis block by height
-		res, err = getJSON("v3/head/%v", dbID2)
+		res, err = getJSON("v3/head/%v", dbid2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)

@@ -719,11 +719,6 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		return
 	}
 
-	// register bpdb service
-	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
-		return
-	}
-
 	// init private key
 	masterKey := []byte("")
 	if err = server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey); err != nil {
@@ -792,86 +787,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 	}
 
 	err = b.PackAndSignBlock(priv)
-	return
-}
-
-// fake BPDB service
-type stubBPDBService struct{}
-
-func (s *stubBPDBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta("db2"); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	err = resp.Sign(privateKey)
-	return
-}
-
-func (s *stubBPDBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseRequest) (err error) {
-	return
-}
-
-func (s *stubBPDBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	err = resp.Sign(privateKey)
-	return
-}
-
-func (s *stubBPDBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
-	resp.Header.Instances = make([]types.ServiceInstance, 1)
-	resp.Header.Instances[0], err = s.getInstanceMeta("db2")
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	err = resp.Sign(privateKey)
-
-	return
-}
-
-func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
-	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &proto.Peers{
-		PeersHeader: proto.PeersHeader{
-			Term:    1,
-			Leader:  nodeID,
-			Servers: []proto.NodeID{nodeID},
-		},
-	}
-	if err = instance.Peers.Sign(privKey); err != nil {
-		return
-	}
-	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
-
 	return
 }
 

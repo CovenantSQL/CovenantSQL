@@ -237,15 +237,19 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		return
 	}
 
-	log.Debugf("create database with owner: %s, nonce: %d", cd.Owner.String(), cd.Nonce)
 	var (
 		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
 		isTargetMiner = false
 	)
+	log.WithFields(log.Fields{
+		"databaseid": *dbid,
+		"owner":      cd.Owner.String(),
+		"nonce":      cd.Nonce,
+	}).Debug("create database with owner")
 	p, ok := dbms.busService.RequestSQLProfile(dbid)
 	if !ok {
 		log.WithFields(log.Fields{
-			"databaseid": &dbid,
+			"databaseid": *dbid,
 		}).Warning("database profile not found")
 		return
 	}

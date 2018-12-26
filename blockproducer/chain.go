@@ -176,7 +176,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			"head_count": v.count,
 		}).Debug("checking head")
 		if v.hasAncestor(irre) {
-			if br, ierr = fork(irre, v, immutable, txPool); ierr != nil {
+			if br, ierr = newBranch(irre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
 				return
 			}
@@ -680,6 +680,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		for i, b := range c.branches {
 			if i == originBrIdx {
 				// Replace origin branch with new branch
+				newBranch.preview.commit()
 				brs = append(brs, newBranch)
 				idx = len(brs) - 1
 			} else if b.head.hasAncestor(lastIrre) {
@@ -764,7 +765,10 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			if br.head.count <= c.headBranch.head.count {
 				return store(c.st,
 					[]storageProcedure{addBlock(height, bl)},
-					func() { c.branches[i] = br },
+					func() {
+						br.preview.commit()
+						c.branches[i] = br
+					},
 				)
 			}
 			// Switch branch or grow current branch
@@ -782,7 +786,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			bl.SignedHeader.ParentHash, c.lastIrre.count,
 		); ok {
 			head = newBlockNode(height, bl, parent)
-			if br, ierr = fork(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
+			if br, ierr = newBranch(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
 				return
 			}

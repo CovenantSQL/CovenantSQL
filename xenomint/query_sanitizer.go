@@ -127,6 +127,18 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 					walkNodes = append(walkNodes, c.Type.Default)
 				}
 			}
+			// for new table
+			if strings.HasPrefix(strings.ToLower(stmt.NewName.Name.String()), "sqlite") {
+				// invalid table name
+				err = errors.Wrapf(ErrInvalidTableName, "%s", stmt.NewName.Name.String())
+				return
+			}
+			// for alter table/alter index
+			if strings.HasPrefix(strings.ToLower(stmt.Table.Name.String()), "sqlite") {
+				// invalid table name
+				err = errors.Wrapf(ErrInvalidTableName, "%s", stmt.NewName.Name.String())
+				return
+			}
 		}
 
 		// scan query and test if there is any stateful query logic like time expression or random function

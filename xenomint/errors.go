@@ -37,4 +37,6 @@ var (
 	ErrMuxServiceNotFound = errors.New("mux service not found")
 	// ErrStatefulQueryParts indicates query contains stateful query parts.
 	ErrStatefulQueryParts = errors.New("query contains stateful query parts")
+	// ErrInvalidTableName indicates query contains invalid table name in ddl statement.
+	ErrInvalidTableName = errors.New("invalid table name in ddl")
 )

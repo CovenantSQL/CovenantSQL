@@ -623,5 +623,40 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(sanitizedQuery, ShouldEqual, ddlQuery)
 		So(sanitizedArgs, ShouldHaveLength, 0)
+
+		// invalid table name to create
+		ddlQuery = "CREATE TABLE sqlite_test (test int)"
+		_, _, _, err = convertQueryAndBuildArgs(
+			ddlQuery, nil)
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+
+		// invalid table name to drop
+		ddlQuery = "DROP TABLE sqlite_test"
+		_, _, _, err = convertQueryAndBuildArgs(
+			ddlQuery, nil)
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+
+		// invalid table name to alter
+		ddlQuery = "ALTER TABLE sqlite_test RENAME TO normal"
+		_, _, _, err = convertQueryAndBuildArgs(
+			ddlQuery, nil)
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+
+		ddlQuery = "ALTER TABLE test RENAME TO sqlite_test"
+		_, _, _, err = convertQueryAndBuildArgs(
+			ddlQuery, nil)
+		So(err, ShouldNotBeNil)
+		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+
+		// valid counterpart of alter statement
+		ddlQuery = "ALTER TABLE test RENAME to test2"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, nil)
+		So(err, ShouldBeNil)
+		So(containsDDL, ShouldBeTrue)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
 	})
 }

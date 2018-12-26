@@ -127,7 +127,7 @@ func runRPC() {
 
 	log.Info("sending request")
 	spewCfg := spew.NewDefaultConfig()
-	spewCfg.MaxDepth = 4
+	spewCfg.MaxDepth = 6
 	spewCfg.Dump(req)
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed

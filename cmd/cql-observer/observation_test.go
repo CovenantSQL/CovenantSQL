@@ -36,6 +36,9 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -53,6 +56,17 @@ var (
 var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
+
+func privKeyStoreToAccountAddr(path string, master []byte) (addr proto.AccountAddress, err error) {
+	var (
+		priv *asymmetric.PrivateKey
+	)
+	if priv, err = kms.LoadPrivateKey(path, master); err != nil {
+		return
+	}
+	addr, err = crypto.PubKeyHash(priv.PubKey())
+	return
+}
 
 func startNodes() {
 	// wait for ports to be available
@@ -239,6 +253,7 @@ func TestFullProcess(t *testing.T) {
 	Convey("test full process", t, func() {
 		var (
 			err         error
+			addr, addr2 proto.AccountAddress
 			dsn, dsn2   string
 			cfg, cfg2   *client.Config
 			dbid, dbid2 string
@@ -253,9 +268,23 @@ func TestFullProcess(t *testing.T) {
 		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
+		// get miner addresses
+		addr, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_miner_0/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		addr2, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
+		So(err, ShouldBeNil)
+
 		// create
-		meta := client.ResourceMeta{}
-		meta.Node = 1
+		meta := client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: []proto.AccountAddress{addr},
+				Node:         1,
+			},
+			GasPrice:       0,
+			AdvancePayment: 10000000,
+		}
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
@@ -323,7 +352,14 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		meta = client.ResourceMeta{}
+		meta = client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: []proto.AccountAddress{addr2},
+				Node:         1,
+			},
+			GasPrice:       0,
+			AdvancePayment: 10000000,
+		}
 		meta.Node = 1
 		dsn2, err = client.Create(meta)
 		So(err, ShouldBeNil)

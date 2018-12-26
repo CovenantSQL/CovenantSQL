@@ -177,7 +177,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			"head_count": v.count,
 		}).Debug("checking head")
 		if v.hasAncestor(irre) {
-			if br, ierr = fork(irre, v, immutable, txPool); ierr != nil {
+			if br, ierr = newBranch(irre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
 				return
 			}
@@ -854,7 +854,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			bl.SignedHeader.ParentHash, c.lastIrre.count,
 		); ok {
 			head = newBlockNode(height, bl, parent)
-			if br, ierr = fork(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
+			if br, ierr = newBranch(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
 				return
 			}

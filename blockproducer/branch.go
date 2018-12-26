@@ -36,22 +36,22 @@ type branch struct {
 	unpacked map[hash.Hash]pi.Transaction
 }
 
-func fork(
-	from, to *blockNode, initState *metaState, initPool map[hash.Hash]pi.Transaction,
+func newBranch(
+	baseNode, headNode *blockNode, baseState *metaState, basePool map[hash.Hash]pi.Transaction,
 ) (
 	br *branch, err error,
 ) {
 	var (
-		list = to.fetchNodeList(from.count)
+		list = headNode.fetchNodeList(baseNode.count)
 		inst = &branch{
-			head:     to,
-			preview:  initState.makeCopy(),
+			head:     headNode,
+			preview:  baseState.makeCopy(),
 			packed:   make(map[hash.Hash]pi.Transaction),
 			unpacked: make(map[hash.Hash]pi.Transaction),
 		}
 	)
 	// Copy pool
-	for k, v := range initPool {
+	for k, v := range basePool {
 		inst.unpacked[k] = v
 	}
 	// Apply new blocks to view and pool

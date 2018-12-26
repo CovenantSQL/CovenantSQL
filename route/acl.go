@@ -38,9 +38,6 @@ ACLs:
    	BP -> Miner, Request for Creating DB:
   		ACL: Open to BP
 
-   	Miner -> BP, Metric.UploadMetrics():
-   		ACL: Open to Registered Miner
-
 	Miner -> Miner, Kayak.Call():
 		ACL: Open to Miner Leader.
 
@@ -67,8 +64,6 @@ const (
 	DHTFindNeighbor
 	// DHTFindNode gets node info
 	DHTFindNode
-	// MetricUploadMetrics uploads node metrics
-	MetricUploadMetrics
 	// KayakCall is used by BP for data consistency
 	KayakCall
 	// DBSQuery is used by client to read/write database
@@ -77,16 +72,12 @@ const (
 	DBSAck
 	// DBSDeploy is used by BP to create/drop/update database
 	DBSDeploy
+	// DBSSubscribeTransactions is used by dbms to handle observer subscription request
+	DBSSubscribeTransactions
+	// DBSCancelSubscription is used by dbms to handle observer subscription cancellation request
+	DBSCancelSubscription
 	// DBCCall is used by Miner for data consistency
 	DBCCall
-	// BPDBCreateDatabase is used by client to create database
-	BPDBCreateDatabase
-	// BPDBDropDatabase is used by client to drop database
-	BPDBDropDatabase
-	// BPDBGetDatabase is used by client to get database meta
-	BPDBGetDatabase
-	// BPDBGetNodeDatabases is used by miner to node residential databases
-	BPDBGetNodeDatabases
 	// SQLCAdviseNewBlock is used by sqlchain to advise new block between adjacent node
 	SQLCAdviseNewBlock
 	// SQLCAdviseBinLog is usd by sqlchain to advise binlog between adjacent node
@@ -138,8 +129,6 @@ const (
 	SQLChainRPCName = "SQLC"
 	// DBRPCName defines the sql chain db service rpc name
 	DBRPCName = "DBS"
-	// BPDBRPCName defines the block producer db service rpc name
-	BPDBRPCName = "BPDB"
 	// ObserverRPCName defines the observer node service rpc name
 	ObserverRPCName = "OBS"
 )
@@ -153,8 +142,6 @@ func (s RemoteFunc) String() string {
 		return "DHT.FindNeighbor"
 	case DHTFindNode:
 		return "DHT.FindNode"
-	case MetricUploadMetrics:
-		return "Metric.UploadMetrics"
 	case KayakCall:
 		return "Kayak.Call"
 	case DBSQuery:
@@ -163,16 +150,12 @@ func (s RemoteFunc) String() string {
 		return "DBS.Ack"
 	case DBSDeploy:
 		return "DBS.Deploy"
+	case DBSSubscribeTransactions:
+		return "DBS.SubscribeTransactions"
+	case DBSCancelSubscription:
+		return "DBS.CancelSubscription"
 	case DBCCall:
 		return "DBC.Call"
-	case BPDBCreateDatabase:
-		return "BPDB.CreateDatabase"
-	case BPDBDropDatabase:
-		return "BPDB.DropDatabase"
-	case BPDBGetDatabase:
-		return "BPDB.GetDatabase"
-	case BPDBGetNodeDatabases:
-		return "BPDB.GetNodeDatabases"
 	case SQLCAdviseNewBlock:
 		return "SQLC.AdviseNewBlock"
 	case SQLCAdviseBinLog:
@@ -238,7 +221,7 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 		// non BP
 		switch funcName {
 		// DHT related
-		case DHTPing, DHTFindNode, DHTFindNeighbor, MetricUploadMetrics:
+		case DHTPing, DHTFindNode, DHTFindNeighbor:
 			return true
 			// Kayak related
 		case KayakCall:

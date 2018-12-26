@@ -27,6 +27,8 @@ import (
 	"os/signal"
 	"runtime"
 
+	"github.com/CovenantSQL/CovenantSQL/metric"
+
 	//"runtime/trace"
 	"syscall"
 	"time"
@@ -34,8 +36,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/metric"
-	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -184,28 +184,16 @@ func main() {
 		}()
 	}
 
-	// start metric collector
+	// start period provide service transaction generator
 	go func() {
-		mc := metric.NewCollectClient()
+		// start prometheus collector
+		reg := metric.StartMetricCollector()
+
 		tick := time.NewTicker(conf.GConf.Miner.MetricCollectInterval)
 		defer tick.Stop()
 
 		for {
-			// if in test mode, upload metrics to all block producer
-			if conf.GConf.Miner.IsTestMode {
-				// upload to all block producer
-				for _, bpNodeID := range route.GetBPs() {
-					mc.UploadMetrics(bpNodeID)
-				}
-			} else {
-				// choose block producer
-				if bpID, err := rpc.GetCurrentBP(); err != nil {
-					log.Error(err)
-					continue
-				} else {
-					mc.UploadMetrics(bpID)
-				}
-			}
+			sendProvideService(reg)
 
 			select {
 			case <-stopCh:

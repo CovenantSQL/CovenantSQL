@@ -43,7 +43,6 @@ var (
 	rpcServiceMap = map[string]interface{}{
 		route.DHTRPCName:           &route.DHTService{},
 		route.DBRPCName:            &worker.DBMSRPCService{},
-		route.BPDBRPCName:          &bp.DBService{},
 		route.SQLChainRPCName:      &sqlchain.MuxService{},
 		route.BlockProducerRPCName: &bp.ChainRPCService{},
 	}
@@ -127,7 +126,7 @@ func runRPC() {
 
 	log.Info("sending request")
 	spewCfg := spew.NewDefaultConfig()
-	spewCfg.MaxDepth = 4
+	spewCfg.MaxDepth = 6
 	spewCfg.Dump(req)
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
@@ -211,10 +210,8 @@ func nestedWalkFillTxNonce(rv reflect.Value, fieldPath string, signCallback func
 					return
 				}
 				return true, nil
-			} else {
-				if signed, err = nestedWalkFillTxNonce(rv.Field(i), fieldName, signCallback); err != nil || signed {
-					return
-				}
+			} else if signed, err = nestedWalkFillTxNonce(rv.Field(i), fieldName, signCallback); err != nil || signed {
+				return
 			}
 		}
 	}

@@ -45,7 +45,8 @@ func TestEnvelope_GetSet(t *testing.T) {
 
 		ctx := env.GetContext()
 		So(ctx, ShouldEqual, context.Background())
-		cldCtx, _ := context.WithCancel(ctx)
+		cldCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		env.SetContext(cldCtx)
 		So(env.GetContext(), ShouldEqual, cldCtx)
 	})

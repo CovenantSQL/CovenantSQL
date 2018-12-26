@@ -1344,7 +1344,8 @@ func (c *Chain) SignBilling(req *types.BillingRequest) (
 	return
 }
 
-func (c *Chain) addSubscription(nodeID proto.NodeID, startHeight int32) (err error) {
+// AddSubscription is used by dbms to add an observer.
+func (c *Chain) AddSubscription(nodeID proto.NodeID, startHeight int32) (err error) {
 	// send previous height and transactions using AdviseAckedQuery/AdviseNewBlock RPC method
 	// add node to subscriber list
 	c.observerLock.Lock()
@@ -1354,7 +1355,8 @@ func (c *Chain) addSubscription(nodeID proto.NodeID, startHeight int32) (err err
 	return
 }
 
-func (c *Chain) cancelSubscription(nodeID proto.NodeID) (err error) {
+// CancelSubscription is used by dbms to cancel an observer.
+func (c *Chain) CancelSubscription(nodeID proto.NodeID) (err error) {
 	// remove node from subscription list
 	c.observerLock.Lock()
 	defer c.observerLock.Unlock()
@@ -1557,10 +1559,10 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 				Miner:  k1,
 				Income: v1,
 			}
-			j += 1
+			j++
 		}
 		j = 0
-		i += 1
+		i++
 	}
 	ub.Receiver, err = c.databaseID.AccountAddress()
 	return

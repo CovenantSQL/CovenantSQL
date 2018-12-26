@@ -39,7 +39,7 @@ const (
 type UserPermission int32
 
 const (
-	// Unknown defines the initial permission.
+	// UnknownPerm defines the initial permission.
 	UnknownPerm UserPermission = iota
 	// Admin defines the admin user permission.
 	Admin
@@ -70,7 +70,7 @@ func (up *UserPermission) CheckAdmin() bool {
 type Status int32
 
 const (
-	// Unknown defines initial status.
+	// UnknownStatus defines initial status.
 	UnknownStatus Status = iota
 	// Normal defines no bad thing happens.
 	Normal
@@ -84,6 +84,7 @@ const (
 	NumberOfStatus
 )
 
+// EnableQuery indicates whether the account is permitted to query.
 func (s *Status) EnableQuery() bool {
 	return *s >= Normal && *s <= Reminder
 }
@@ -141,9 +142,9 @@ type SQLChainProfile struct {
 // ProviderProfile defines a provider list.
 type ProviderProfile struct {
 	Provider      proto.AccountAddress
-	Space         uint64 // reserved storage space in bytes
-	Memory        uint64 // reserved memory in bytes
-	LoadAvgPerCPU uint64 // max loadAvg15 per CPU
+	Space         uint64  // reserved storage space in bytes
+	Memory        uint64  // reserved memory in bytes
+	LoadAvgPerCPU float64 // max loadAvg15 per CPU
 	TargetUser    []proto.AccountAddress
 	Deposit       uint64 // default 10 Particle
 	GasPrice      uint64

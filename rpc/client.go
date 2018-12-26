@@ -21,9 +21,6 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -31,6 +28,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
 )
 
 const (

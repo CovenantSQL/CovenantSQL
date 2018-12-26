@@ -347,7 +347,6 @@ func TestFullProcess(t *testing.T) {
 
 			minersPrivKeys = make([]*asymmetric.PrivateKey, 3)
 			minersAddrs    = make([]proto.AccountAddress, 3)
-			minersNodeID   = make([]proto.NodeID, 3)
 		)
 
 		// get miners' private keys
@@ -370,79 +369,33 @@ func TestFullProcess(t *testing.T) {
 		clientAddr, err = crypto.PubKeyHash(clientPrivKey.PubKey())
 		So(err, ShouldBeNil)
 
-		// get miners' node id
-		cfg, err := conf.LoadConfig(FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"))
-		So(err, ShouldBeNil)
-		minersNodeID[0] = cfg.ThisNodeID
-		cfg, err = conf.LoadConfig(FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"))
-		So(err, ShouldBeNil)
-		minersNodeID[1] = cfg.ThisNodeID
-		cfg, err = conf.LoadConfig(FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"))
-		So(err, ShouldBeNil)
-		minersNodeID[2] = cfg.ThisNodeID
-
-		// miners provide service
-		for i := range minersAddrs {
-			nonce, err := getNonce(minersAddrs[i])
-			So(err, ShouldBeNil)
-
-			req := &types.AddTxReq{}
-			resp := &types.AddTxResp{}
-
-			req.Tx = types.NewProvideService(
-				&types.ProvideServiceHeader{
-					GasPrice:   testGasPrice,
-					TokenType:  types.Particle,
-					TargetUser: []proto.AccountAddress{clientAddr},
-					NodeID:     minersNodeID[i],
-					Nonce:      nonce,
-				},
-			)
-			err = req.Tx.Sign(minersPrivKeys[i])
-			So(err, ShouldBeNil)
-			err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
-			So(err, ShouldBeNil)
-		}
-
 		time.Sleep(20 * time.Second)
 		time.Sleep(time.Hour)
 
 		// client send create database transaction
-		nonce, err := getNonce(clientAddr)
-		So(err, ShouldBeNil)
-		req := &types.AddTxReq{}
-		resp := &types.AddTxResp{}
-		req.Tx = types.NewCreateDatabase(
-			&types.CreateDatabaseHeader{
-				Owner: clientAddr,
-				ResourceMeta: types.ResourceMeta{
-					TargetMiners: minersAddrs,
-				},
-				GasPrice:       testGasPrice,
-				AdvancePayment: testAdvancePayment,
-				TokenType:      types.Particle,
-				Nonce:          nonce,
+		meta := client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: minersAddrs,
 			},
-		)
-		err = req.Tx.Sign(clientPrivKey)
-		So(err, ShouldBeNil)
-		err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
-		So(err, ShouldBeNil)
+			GasPrice:       testGasPrice,
+			AdvancePayment: testAdvancePayment,
+		}
+
+		dsn, err := client.Create(meta)
+		dsnCfg, err := client.ParseDSN(dsn)
+
 		time.Sleep(20 * time.Second)
 
 		// check sqlchain profile exist
-		dbID := proto.FromAccountAndNonce(clientAddr, uint32(nonce))
+		dbID := proto.DatabaseID(dsnCfg.DatabaseID)
 		profileReq := &types.QuerySQLChainProfileReq{}
 		profileResp := &types.QuerySQLChainProfileResp{}
-		profileReq.DBID = *dbID
 
-		//b, _ := json.Marshal(profileReq)
-		//log.Fatalf("MCCQuerySQLChainProfile %s", string(b))
-
+		profileReq.DBID = dbID
 		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 		So(err, ShouldBeNil)
 		profile := profileResp.Profile
-		So(profile.Address.DatabaseID(), ShouldEqual, *dbID)
+		So(profile.Address.DatabaseID(), ShouldEqual, dbID)
 		So(profile.Owner.String(), ShouldEqual, clientAddr.String())
 		So(profile.TokenType, ShouldEqual, types.Particle)
 		minersMap := make(map[proto.AccountAddress]bool)
@@ -465,10 +418,6 @@ func TestFullProcess(t *testing.T) {
 		So(permStat.Status, ShouldEqual, types.Normal)
 
 		// create dsn
-		dsncfg := client.NewConfig()
-		dsncfg.DatabaseID = string(*dbID)
-		dsn := dsncfg.FormatDSN()
-
 		log.Infof("the created database dsn is %v", dsn)
 
 		db, err := sql.Open("covenantsql", dsn)
@@ -587,7 +536,7 @@ func TestFullProcess(t *testing.T) {
 
 		profileReq = &types.QuerySQLChainProfileReq{}
 		profileResp = &types.QuerySQLChainProfileResp{}
-		profileReq.DBID = *dbID
+		profileReq.DBID = dbID
 		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 		So(err, ShouldBeNil)
 		for _, user := range profileResp.Profile.Users {
@@ -753,7 +702,9 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)
@@ -832,7 +783,9 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)

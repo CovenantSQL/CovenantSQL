@@ -181,7 +181,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// Fork from #0
-			f0 = chain.headBranch.makeCopy()
+			f0 = chain.headBranch.makeArena()
 
 			err = chain.storeTx(t1)
 			So(err, ShouldBeNil)
@@ -200,7 +200,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// Fork from #1
-			f1 = chain.headBranch.makeCopy()
+			f1 = chain.headBranch.makeArena()
 
 			err = chain.storeTx(t2)
 			So(err, ShouldBeNil)
@@ -217,6 +217,7 @@ func TestChain(t *testing.T) {
 			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
+			f1.preview.commit()
 			err = chain.pushBlock(bl)
 			So(err, ShouldBeNil)
 
@@ -229,6 +230,7 @@ func TestChain(t *testing.T) {
 					i, begin.Add(time.Duration(i)*chain.period), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
+				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
 			}
@@ -258,11 +260,13 @@ func TestChain(t *testing.T) {
 				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
+				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
 				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
+				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
 

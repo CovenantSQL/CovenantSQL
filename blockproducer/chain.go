@@ -752,6 +752,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		for i, b := range c.branches {
 			if i == originBrIdx {
 				// Replace origin branch with new branch
+				newBranch.preview.commit()
 				brs = append(brs, newBranch)
 				idx = len(brs) - 1
 			} else if b.head.hasAncestor(lastIrre) {
@@ -836,7 +837,10 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			if br.head.count <= c.headBranch.head.count {
 				return store(c.st,
 					[]storageProcedure{addBlock(height, bl)},
-					func() { c.branches[i] = br },
+					func() {
+						br.preview.commit()
+						c.branches[i] = br
+					},
 				)
 			}
 			// Switch branch or grow current branch

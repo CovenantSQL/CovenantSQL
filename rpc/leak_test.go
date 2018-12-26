@@ -33,10 +33,7 @@ import (
 func TestSessionPool_SessionBroken(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	var err error
-	err = utils.Build()
-	if err != nil {
-		t.Errorf("build failed: %v", err)
-	}
+
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./leak/client.yaml"))
 	if err != nil {
 		t.Errorf("load config from %s failed: %s", FJ(testWorkingDir, "./leak/client.yaml"), err)

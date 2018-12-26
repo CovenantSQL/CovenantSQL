@@ -30,6 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -72,9 +73,14 @@ func TestDBMS(t *testing.T) {
 		var res types.UpdateServiceResponse
 		var peers *proto.Peers
 		var block *types.Block
+		var nodeID proto.NodeID
+
+		nodeID, err = kms.GetLocalNodeID()
 
 		dbAddr := proto.AccountAddress(hash.HashH([]byte{'d', 'b'}))
 		dbID := dbAddr.DatabaseID()
+		dbAddr2 := proto.AccountAddress(hash.HashH([]byte{'a', 'b'}))
+		dbID2 := dbAddr2.DatabaseID()
 		userAddr, err := crypto.PubKeyHash(publicKey)
 		So(err, ShouldBeNil)
 
@@ -102,12 +108,36 @@ func TestDBMS(t *testing.T) {
 			err = testRequest(route.DBSDeploy, req, &res)
 			So(err, ShouldBeNil)
 
-			// grant permission
+			Convey("query should fail", func() {
+				// sending write query
+				var writeQuery *types.Request
+				var queryRes *types.Response
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 1, dbID, []string{
+					"create table test (test int)",
+					"insert into test values(1)",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+
+				// sending read query
+				var readQuery *types.Request
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 2, dbID, []string{
+					"select * from test",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+			})
+
+			// grant read permission
 			up := &types.UpdatePermission{
 				UpdatePermissionHeader: types.UpdatePermissionHeader{
 					TargetSQLChain: dbAddr,
 					TargetUser:     userAddr,
-					Permission:     types.Admin,
+					Permission:     types.Write,
 				},
 			}
 			err = up.Sign(privateKey)
@@ -118,14 +148,14 @@ func TestDBMS(t *testing.T) {
 			userState := us.(types.UserState)
 			perm, ok := userState.GetPermission(userAddr)
 			So(ok, ShouldBeTrue)
-			So(perm, ShouldEqual, types.Admin)
+			So(perm, ShouldEqual, types.Write)
 			stat, ok := userState.GetStatus(userAddr)
 			So(ok, ShouldBeTrue)
 			So(stat, ShouldEqual, types.UnknownStatus)
 			userState.UpdateStatus(userAddr, types.Normal)
 			dbms.chainMap.Store(dbID, userState)
 
-			Convey("queries", func() {
+			Convey("success write and read", func() {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
@@ -144,6 +174,174 @@ func TestDBMS(t *testing.T) {
 				// sending read query
 				var readQuery *types.Request
 				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 2, dbID, []string{
+					"select * from test",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err, ShouldBeNil)
+				err = queryRes.Verify()
+				So(err, ShouldBeNil)
+				So(queryRes.Header.RowCount, ShouldEqual, uint64(1))
+				So(queryRes.Payload.Columns, ShouldResemble, []string{"test"})
+				So(queryRes.Payload.DeclTypes, ShouldResemble, []string{"int"})
+				So(queryRes.Payload.Rows, ShouldNotBeEmpty)
+				So(queryRes.Payload.Rows[0].Values, ShouldNotBeEmpty)
+				So(queryRes.Payload.Rows[0].Values[0], ShouldEqual, 1)
+
+				// sending read ack
+				var ack *types.Ack
+				ack, err = buildAck(queryRes)
+				So(err, ShouldBeNil)
+
+				var ackRes types.AckResponse
+				err = testRequest(route.DBSAck, ack, &ackRes)
+				So(err, ShouldBeNil)
+
+				err = dbms.addTxSubscription(dbID2, nodeID, 1)
+				So(errors.Cause(err), ShouldEqual, ErrNotExists)
+				err = dbms.addTxSubscription(dbID, nodeID, 1)
+				So(err, ShouldBeNil)
+				err = dbms.cancelTxSubscription(dbID, nodeID)
+				So(err, ShouldBeNil)
+
+				// grant read permission
+				up = &types.UpdatePermission{
+					UpdatePermissionHeader: types.UpdatePermissionHeader{
+						TargetSQLChain: dbAddr,
+						TargetUser:     userAddr,
+						Permission:     types.Read,
+					},
+				}
+				err = up.Sign(privateKey)
+				So(err, ShouldBeNil)
+				dbms.updatePermission(up, 0)
+
+				Convey("success reading and fail to write", func() {
+					// sending write query
+					var writeQuery *types.Request
+					var queryRes *types.Response
+					writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 3, dbID, []string{
+						"create table test (test int)",
+						"insert into test values(1)",
+					})
+					So(err, ShouldBeNil)
+
+					err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+					So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+
+					// sending read query
+					var readQuery *types.Request
+					readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 4, dbID, []string{
+						"select * from test",
+					})
+					So(err, ShouldBeNil)
+
+					err = testRequest(route.DBSQuery, readQuery, &queryRes)
+					So(err, ShouldBeNil)
+
+					err = dbms.addTxSubscription(dbID, nodeID, 1)
+					So(err, ShouldBeNil)
+				})
+			})
+
+			// grant invalid permission
+			up = &types.UpdatePermission{
+				UpdatePermissionHeader: types.UpdatePermissionHeader{
+					TargetSQLChain: dbAddr,
+					TargetUser:     userAddr,
+					Permission:     types.NumberOfUserPermission,
+				},
+			}
+			err = up.Sign(privateKey)
+			So(err, ShouldBeNil)
+			dbms.updatePermission(up, 0)
+
+			Convey("invalid permission query should fail", func() {
+				// sending write query
+				var writeQuery *types.Request
+				var queryRes *types.Response
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 5, dbID, []string{
+					"create table test (test int)",
+					"insert into test values(1)",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+
+				// sending read query
+				var readQuery *types.Request
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 6, dbID, []string{
+					"select * from test",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+
+				err = dbms.addTxSubscription(dbID, nodeID, 1)
+				So(err, ShouldEqual, ErrPermissionDeny)
+			})
+
+			// switch user to arrears
+			us, ok = dbms.chainMap.Load(dbID)
+			So(ok, ShouldBeTrue)
+			userState = us.(types.UserState)
+			userState.UpdatePermission(userAddr, types.Admin)
+			userState.UpdateStatus(userAddr, types.Arrears)
+			dbms.chainMap.Store(dbID, userState)
+
+			Convey("arrears query should fail", func() {
+				// sending write query
+				var writeQuery *types.Request
+				var queryRes *types.Response
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 7, dbID, []string{
+					"create table test (test int)",
+					"insert into test values(1)",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+
+				// sending read query
+				var readQuery *types.Request
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 8, dbID, []string{
+					"select * from test",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+			})
+
+			// switch user to normal
+			us, ok = dbms.chainMap.Load(dbID)
+			So(ok, ShouldBeTrue)
+			userState = us.(types.UserState)
+			userState.UpdateStatus(userAddr, types.Normal)
+			dbms.chainMap.Store(dbID, userState)
+
+			Convey("queries", func() {
+				// sending write query
+				var writeQuery *types.Request
+				var queryRes *types.Response
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 9, dbID, []string{
+					"create table test (test int)",
+					"insert into test values(1)",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err, ShouldBeNil)
+				err = queryRes.Verify()
+				So(err, ShouldBeNil)
+				So(queryRes.Header.RowCount, ShouldEqual, 0)
+
+				// sending read query
+				var readQuery *types.Request
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 10, dbID, []string{
 					"select * from test",
 				})
 				So(err, ShouldBeNil)

@@ -621,14 +621,6 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 	}
 	db := rawDB.(*Database)
 	err = db.chain.AddSubscription(nodeID, startHeight)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"databaseID":  dbID,
-			"nodeID":      nodeID,
-			"startHeight": startHeight,
-		}).WithError(err).Warning("unexpected error in addTxSubscription")
-		return
-	}
 	return
 }
 

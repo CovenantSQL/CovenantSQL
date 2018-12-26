@@ -36,22 +36,22 @@ type branch struct {
 	unpacked map[hash.Hash]pi.Transaction
 }
 
-func fork(
-	from, to *blockNode, initState *metaState, initPool map[hash.Hash]pi.Transaction,
+func newBranch(
+	baseNode, headNode *blockNode, baseState *metaState, basePool map[hash.Hash]pi.Transaction,
 ) (
 	br *branch, err error,
 ) {
 	var (
-		list = to.fetchNodeList(from.count)
+		list = headNode.fetchNodeList(baseNode.count)
 		inst = &branch{
-			head:     to,
-			preview:  initState.makeCopy(),
+			head:     headNode,
+			preview:  baseState.makeCopy(),
 			packed:   make(map[hash.Hash]pi.Transaction),
 			unpacked: make(map[hash.Hash]pi.Transaction),
 		}
 	)
 	// Copy pool
-	for k, v := range initPool {
+	for k, v := range basePool {
 		inst.unpacked[k] = v
 	}
 	// Apply new blocks to view and pool
@@ -80,7 +80,16 @@ func fork(
 	return
 }
 
-func (b *branch) makeCopy() *branch {
+// makeArena creates an arena branch from the receiver (origin) branch for tx/block applying test.
+// It copies head node and transaction pools, but references the read-only preview index
+// of the origin branch.
+//
+// This branch is typically used to attempt a block producing or applying base on the origin
+// branch.
+// Since it's sharing read-only index with the origin branch, result changes of the transactions
+// in the new block should be written to its dirty index first, and committed to the read-only
+// index later when the origin branch is being replaced by this new branch.
+func (b *branch) makeArena() *branch {
 	var (
 		p = make(map[hash.Hash]pi.Transaction)
 		u = make(map[hash.Hash]pi.Transaction)
@@ -92,8 +101,11 @@ func (b *branch) makeCopy() *branch {
 		u[k] = v
 	}
 	return &branch{
-		head:     b.head,
-		preview:  b.preview.makeCopy(),
+		head: b.head,
+		preview: &metaState{
+			dirty:    newMetaIndex(),
+			readonly: b.preview.readonly,
+		},
 		packed:   p,
 		unpacked: u,
 	}
@@ -113,7 +125,7 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 		err = ErrParentNotMatch
 		return
 	}
-	var cpy = b.makeCopy()
+	var cpy = b.makeArena()
 	for _, v := range n.block.Transactions {
 		var k = v.Hash()
 		// Check in tx pool
@@ -132,7 +144,6 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 			return
 		}
 	}
-	cpy.preview.commit()
 	cpy.head = n
 	br = cpy
 	return
@@ -161,7 +172,7 @@ func (b *branch) produceBlock(
 	br *branch, bl *types.BPBlock, err error,
 ) {
 	var (
-		cpy  = b.makeCopy()
+		cpy  = b.makeArena()
 		txs  = cpy.sortUnpackedTxs()
 		out  = make([]pi.Transaction, 0, len(txs))
 		ierr error
@@ -175,7 +186,6 @@ func (b *branch) produceBlock(
 		cpy.packed[k] = v
 		out = append(out, v)
 	}
-	cpy.preview.commit()
 	// Create new block and update head
 	var block = &types.BPBlock{
 		SignedHeader: types.BPSignedHeader{

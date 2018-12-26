@@ -1,24 +1,24 @@
-This doc introduce the usage of CovenantSQL client. Client is used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
+本文档介绍CovenantSQL客户端的使用方式. 客户端用来创建、查询、更新和删除SQLChain以及绑定的数据库。
 
-## Prerequisites
+## 开始之前
 
-Make sure that `$GOPATH/bin` is in your `$PATH`
+确保`$GOPATH/bin`目录在环境变量`$PATH`中，执行以下命令
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
 $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 ```
 
-and import `client` package if you want to use it in your code.
+然后在你的go代码中import 第一个`client`包。
 
 
-## Initialize a CovenantSQL Client
+## 初始化一个CovenantSQL客户端
 
-You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. Here is how to generate a default config with master key
+首先需要一个config文件和master key来初始化。master key用来加密解密本地密钥对。以下是如何用一个自定义master key来生成默认的config文件：
 
-### Generating Default Config File
+### 生成默认的配置文件
 
-Run `cql-utils` like below. Enter a master key (like a password) for generating local key pair. After that, it may take a few seconds with a private key file and config.yaml file generated in `conf` folder.
+运行以下`cql-utils`命令，输入master key (类似密码)来生成本地密钥对。等待几十秒，会在`conf`文件夹中，生成一个私钥文件和一个名为`config.yaml`的配置文件。
 
 ```bash
 $ cql-utils -tool confgen -root conf
@@ -38,17 +38,17 @@ Generating config file...
 Generated nonce.
 ```
 
-After you prepare your master key and config file, CovenantSQL client can be initialized by:
+有了配置文件之后，可以通过以下go代码来初始化CovenantSQL客户端：
 
 ```go
 client.Init(configFile, masterKey)
 ```
 
-## Client Usage
+## 客户端使用方式
 
-### Create a SQLChain Database
+### 创建一个SQLChain数据库
 
-To create a new SQL Chain, the number of node should be provided:
+创建SQLChain数据库需要指明需要几个节点(nodeCount变量):
 
 ```go
 var (
@@ -59,11 +59,11 @@ meta.Node = uint16(nodeCount)
 dsn, err = client.Create(meta)
 // process err
 ```
-And you will get a dsn string. It represents a database instance, use it for queries.
+创建完毕会返回一个dsn字符串，用来访问这个数据库。
 
-### Query and Exec
+### 查询和执行
 
-When you get the dsn, you can query or execute some sql on SQL Chain as follows:
+拿到dsn字符串后，可以通过以下代码在SQLChain中执行SQL语句：
 
 ```go
 
@@ -87,17 +87,17 @@ When you get the dsn, you can query or execute some sql on SQL Chain as follows:
 	// process err
 
 ```
-It just like other standard go sql database.
+用法和其他go sql driver一致。
 
-### Drop the Database
+### 删除数据库
 
-Drop your database on SQL Chain is very easy with your dsn string:
+使用dsn来删除数据库：
 
 ```go
 	err = client.Drop(dsn)
 	// process err
 ```
 
-### Full Example
+### 完整示例
 
-simple and complex client examples can be found in [client/_example](_example/)
+在以下目录中有一个简单示例和复杂示例可以参考 [client/_example](_example/)

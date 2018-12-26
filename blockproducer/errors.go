@@ -84,14 +84,14 @@ var (
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
-	// ErrGasPriceMismatch indicates that the gas price of miner and user do not match.
-	ErrGasPriceMismatch = errors.New("gas price mismatches")
 	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
 	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
 	// ErrInvalidGasPrice indicates that the gas price is invalid.
 	ErrInvalidGasPrice = errors.New("gas price is invalid")
+	// ErrInvalidMinerCount indicates that the miner node count is invalid.
+	ErrInvalidMinerCount = errors.New("miner node count is invalid")
 	// ErrLocalNodeNotFound indicates that the local node id is not found in the given peer list.
 	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
 	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.

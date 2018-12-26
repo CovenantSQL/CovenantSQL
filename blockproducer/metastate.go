@@ -20,6 +20,9 @@ import (
 	"bytes"
 	"time"
 
+	"github.com/mohae/deepcopy"
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -30,8 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/mohae/deepcopy"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -549,11 +550,14 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		err = ErrInvalidGasPrice
 		return
 	}
+	if tx.ResourceMeta.Node <= 0 {
+		err = ErrInvalidMinerCount
+		return
+	}
+	minerCount := uint64(tx.ResourceMeta.Node)
+	minAdvancePayment := uint64(tx.GasPrice) * uint64(conf.GConf.QPS) *
+		uint64(conf.GConf.UpdatePeriod) * minerCount
 
-	var (
-		minAdvancePayment = uint64(tx.GasPrice) * uint64(conf.GConf.QPS) *
-			uint64(conf.GConf.UpdatePeriod) * uint64(len(tx.ResourceMeta.TargetMiners))
-	)
 	if tx.AdvancePayment < minAdvancePayment {
 		err = ErrInsufficientAdvancePayment
 		log.WithError(err).Warningf("tx.AdvancePayment: %d, minAdvancePayment: %d",
@@ -561,42 +565,49 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		return
 	}
 
-	var (
-		miners = make([]*types.MinerInfo, len(tx.ResourceMeta.TargetMiners))
-	)
+	miners := make([]*types.MinerInfo, 0, minerCount)
 
-	for i := range tx.ResourceMeta.TargetMiners {
-		if po, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
+	for _, m := range tx.ResourceMeta.TargetMiners {
+		if po, loaded := s.loadProviderObject(m); !loaded {
 			log.WithFields(log.Fields{
-				"miner_addr": tx.ResourceMeta.TargetMiners[i].String(),
+				"miner_addr": m.String(),
 				"user_addr":  sender.String(),
 			}).Error(err)
 			err = ErrNoSuchMiner
-			break
+			continue
 		} else {
-			if po.TargetUser != sender {
-				log.WithFields(log.Fields{
-					"miner_addr": tx.ResourceMeta.TargetMiners[i].String(),
-					"user_addr":  sender.String(),
-				}).Error(ErrMinerUserNotMatch)
-				err = ErrMinerUserNotMatch
-				break
-			}
-			if po.GasPrice > tx.GasPrice {
-				err = ErrGasPriceMismatch
-				log.WithError(err).Warningf("miner's gas price: %d, user's gas price: %d",
-					po.GasPrice, tx.GasPrice)
-				break
-			}
-			miners[i] = &types.MinerInfo{
-				Address: po.Provider,
-				NodeID:  po.NodeID,
-				Deposit: po.Deposit,
+			miners, _ := filterAndAppendMiner(miners, po, tx, sender)
+			// if got enough, break
+			if uint64(len(miners)) == minerCount {
+				continue
 			}
 		}
 	}
-	if err != nil {
-		return
+
+	// not enough, find more miner(s)
+	if uint64(len(miners)) < minerCount {
+		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
+			err = errors.New("miners match target are not enough")
+			return
+		}
+		// try old miners first
+		for _, po := range s.readonly.provider {
+			miners, _ := filterAndAppendMiner(miners, po, tx, sender)
+			// if got enough, break
+			if uint64(len(miners)) == minerCount {
+				break
+			}
+		}
+		// try fresh miners
+		if uint64(len(miners)) < minerCount {
+			for _, po := range s.dirty.provider {
+				miners, _ := filterAndAppendMiner(miners, po, tx, sender)
+				// if got enough, break
+				if uint64(len(miners)) == minerCount {
+					break
+				}
+			}
+		}
 	}
 
 	// generate new sqlchain id and address
@@ -667,6 +678,78 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 	log.Infof("success create sqlchain with database ID: %s", string(*dbID))
 	return
+}
+
+func filterAndAppendMiner(
+	miners []*types.MinerInfo,
+	po *types.ProviderProfile,
+	req *types.CreateDatabase,
+	user proto.AccountAddress,
+) (newMiners []*types.MinerInfo, err error) {
+	newMiners = miners
+	if !isProviderUserMatch(po.TargetUser, user) {
+		err = errors.New("user not in target user")
+		return
+	}
+	var match bool
+	if match, err = isProviderReqMatch(po, req); !match {
+		return
+	}
+	newMiners = append(miners, &types.MinerInfo{
+		Address: po.Provider,
+		NodeID:  po.NodeID,
+		Deposit: po.Deposit,
+	})
+	return
+}
+
+func isProviderUserMatch(targetUsers []proto.AccountAddress, user proto.AccountAddress) (match bool) {
+	if len(targetUsers) > 0 {
+		for _, u := range targetUsers {
+			if u == user {
+				match = true
+			}
+		}
+	} else {
+		match = true
+	}
+	return
+}
+
+func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (match bool, err error) {
+
+	if po.GasPrice > req.GasPrice {
+		err = errors.New("gas price mismatch")
+		log.WithError(err).Debugf("miner's gas price: %d, user's gas price: %d",
+			po.GasPrice, req.GasPrice)
+		return
+	}
+	if po.LoadAvgPerCPU > req.ResourceMeta.LoadAvgPerCPU {
+		err = errors.New("load average mismatch")
+		log.WithError(err).Debugf("miner's LoadAvgPerCPU: %d, user's LoadAvgPerCPU: %d",
+			po.LoadAvgPerCPU, req.ResourceMeta.LoadAvgPerCPU)
+		return
+	}
+	if po.Memory < req.ResourceMeta.Memory {
+		err = errors.New("memory mismatch")
+		log.WithError(err).Debugf("miner's memory: %d, user's memory: %d",
+			po.Memory, req.ResourceMeta.Memory)
+		return
+	}
+	if po.Space < req.ResourceMeta.Space {
+		err = errors.New("disk space mismatch")
+		log.WithError(err).Debugf("miner's disk space: %d, user's disk space: %d",
+			po.Space, req.ResourceMeta.Space)
+		return
+	}
+	if po.TokenType != req.TokenType {
+		err = errors.New("token type mismatch")
+		log.WithError(err).Debugf("miner's token type: %s, user's token type: %s",
+			po.TokenType.String(), req.TokenType.String())
+		return
+	}
+
+	return true, nil
 }
 
 func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {

@@ -34,6 +34,9 @@ import (
 	"testing"
 	"time"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -46,8 +49,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -392,7 +393,7 @@ func TestFullProcess(t *testing.T) {
 				&types.ProvideServiceHeader{
 					GasPrice:   testGasPrice,
 					TokenType:  types.Particle,
-					TargetUser: clientAddr,
+					TargetUser: []proto.AccountAddress{clientAddr},
 					NodeID:     minersNodeID[i],
 					Nonce:      nonce,
 				},
@@ -404,6 +405,7 @@ func TestFullProcess(t *testing.T) {
 		}
 
 		time.Sleep(20 * time.Second)
+		time.Sleep(time.Hour)
 
 		// client send create database transaction
 		nonce, err := getNonce(clientAddr)
@@ -433,6 +435,10 @@ func TestFullProcess(t *testing.T) {
 		profileReq := &types.QuerySQLChainProfileReq{}
 		profileResp := &types.QuerySQLChainProfileResp{}
 		profileReq.DBID = *dbID
+
+		//b, _ := json.Marshal(profileReq)
+		//log.Fatalf("MCCQuerySQLChainProfile %s", string(b))
+
 		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 		So(err, ShouldBeNil)
 		profile := profileResp.Profile

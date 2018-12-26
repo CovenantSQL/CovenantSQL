@@ -370,12 +370,12 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		time.Sleep(20 * time.Second)
-		time.Sleep(time.Hour)
 
 		// client send create database transaction
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
 				TargetMiners: minersAddrs,
+				Node:         uint16(len(minersAddrs)),
 			},
 			GasPrice:       testGasPrice,
 			AdvancePayment: testAdvancePayment,

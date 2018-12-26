@@ -57,10 +57,9 @@ var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
 
-func privKeyStoreToAccountAddr(path string, master []byte) (addr proto.AccountAddress, err error) {
-	var (
-		priv *asymmetric.PrivateKey
-	)
+func privKeyStoreToAccountAddr(
+	path string, master []byte) (priv *asymmetric.PrivateKey, addr proto.AccountAddress, err error,
+) {
 	if priv, err = kms.LoadPrivateKey(path, master); err != nil {
 		return
 	}
@@ -253,6 +252,7 @@ func TestFullProcess(t *testing.T) {
 	Convey("test full process", t, func() {
 		var (
 			err         error
+			priv, priv2 *asymmetric.PrivateKey
 			addr, addr2 proto.AccountAddress
 			dsn, dsn2   string
 			cfg, cfg2   *client.Config
@@ -269,23 +269,18 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// get miner addresses
-		addr, err = privKeyStoreToAccountAddr(
+		priv, addr, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_miner_0/private.key"), []byte{})
 		So(err, ShouldBeNil)
-		addr2, err = privKeyStoreToAccountAddr(
+		priv2, addr2, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
 		So(err, ShouldBeNil)
 
 		// create
-		meta := client.ResourceMeta{
-			ResourceMeta: types.ResourceMeta{
-				TargetMiners: []proto.AccountAddress{addr},
-				Node:         1,
-			},
-			GasPrice:       0,
-			AdvancePayment: 10000000,
-		}
-		dsn, err = client.Create(meta)
+		_, dsn, err = bp.Create(types.ResourceMeta{
+			TargetMiners: []proto.AccountAddress{addr},
+			Node:         1,
+		}, 1, 10000000, priv)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
 
@@ -352,16 +347,10 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		meta = client.ResourceMeta{
-			ResourceMeta: types.ResourceMeta{
-				TargetMiners: []proto.AccountAddress{addr2},
-				Node:         1,
-			},
-			GasPrice:       0,
-			AdvancePayment: 10000000,
-		}
-		meta.Node = 1
-		dsn2, err = client.Create(meta)
+		_, dsn2, err = bp.Create(types.ResourceMeta{
+			TargetMiners: []proto.AccountAddress{addr2},
+			Node:         1,
+		}, 1, 10000000, priv2)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn2)

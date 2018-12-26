@@ -36,9 +36,9 @@ type ResourceMeta struct {
 	Space                  uint64                 // reserved storage space in bytes
 	Memory                 uint64                 // reserved memory in bytes
 	LoadAvgPerCPU          uint64                 // max loadAvg15 per CPU
-	EncryptionKey          string                 `hspack:"-"` // encryption key for database instance
-	UseEventualConsistency bool                   `hspack:"-"` // use eventual consistency replication if enabled
-	ConsistencyLevel       float64                `hspack:"-"` // customized strong consistency level
+	EncryptionKey          string                 // encryption key for database instance
+	UseEventualConsistency bool                   // use eventual consistency replication if enabled
+	ConsistencyLevel       float64                // customized strong consistency level
 }
 
 // ServiceInstance defines single instance to be initialized.

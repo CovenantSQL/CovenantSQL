@@ -106,6 +106,12 @@ func (a *queryAPI) Query(rw http.ResponseWriter, r *http.Request) {
 func (a *queryAPI) Write(rw http.ResponseWriter, r *http.Request) {
 	// check privilege
 	hasPrivilege := false
+
+	if config.GetConfig().TLSConfig == nil || !config.GetConfig().VerifyCertificate {
+		// http mode or no certificate verification required
+		hasPrivilege = true
+	}
+
 	if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
 		cert := r.TLS.PeerCertificates[0]
 

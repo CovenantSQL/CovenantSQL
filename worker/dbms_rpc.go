@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	//"context"
 	//"runtime/trace"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -30,6 +31,26 @@ var (
 	dbQuerySuccCounter metrics.Meter
 	dbQueryFailCounter metrics.Meter
 )
+
+// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
+type SubscribeTransactionsReq struct {
+	DatabaseID   proto.DatabaseID
+	SubscriberID proto.NodeID
+	Height       int32
+}
+
+// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
+type SubscribeTransactionsResp struct {
+}
+
+// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
+type CancelSubscriptionReq struct {
+	DatabaseID   proto.DatabaseID
+	SubscriberID proto.NodeID
+}
+
+// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
+type CancelSubscriptionResp struct{}
 
 // DBMSRPCService is the rpc endpoint of database management.
 type DBMSRPCService struct {
@@ -128,5 +149,17 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}
 
+	return
+}
+
+// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
+func (rpc *DBMSRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, resp *SubscribeTransactionsResp) (err error) {
+	err = rpc.dbms.addTxSubscription(req.DatabaseID, req.SubscriberID, req.Height)
+	return
+}
+
+// CancelSubscription is the RPC method to cancel subscription in the target server.
+func (rpc *DBMSRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) (err error) {
+	err = rpc.dbms.cancelTxSubscription(req.DatabaseID, req.SubscriberID)
 	return
 }

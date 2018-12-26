@@ -77,6 +77,10 @@ const (
 	DBSAck
 	// DBSDeploy is used by BP to create/drop/update database
 	DBSDeploy
+	// DBSSubscribeTransactions is used by dbms to handle observer subscription request
+	DBSSubscribeTransactions
+	// DBSCancelSubscription is used by dbms to handle observer subscription cancellation request
+	DBSCancelSubscription
 	// DBCCall is used by Miner for data consistency
 	DBCCall
 	// BPDBCreateDatabase is used by client to create database
@@ -163,6 +167,10 @@ func (s RemoteFunc) String() string {
 		return "DBS.Ack"
 	case DBSDeploy:
 		return "DBS.Deploy"
+	case DBSSubscribeTransactions:
+		return "DBS.SubscribeTransactions"
+	case DBSCancelSubscription:
+		return "DBS.CancelSubscription"
 	case DBCCall:
 		return "DBC.Call"
 	case BPDBCreateDatabase:

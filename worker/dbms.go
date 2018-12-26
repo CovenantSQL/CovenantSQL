@@ -180,7 +180,6 @@ func (dbms *DBMS) Init() (err error) {
 		return
 	}
 
-	dbms.busService.Start()
 	if err = dbms.busService.Subscribe("/CreateDatabase/", dbms.createDatabase); err != nil {
 		err = errors.Wrap(err, "init chain bus failed")
 		return
@@ -193,6 +192,7 @@ func (dbms *DBMS) Init() (err error) {
 		err = errors.Wrap(err, "init chain bus failed")
 		return
 	}
+	dbms.busService.Start()
 
 	return
 }
@@ -485,7 +485,7 @@ func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 	if err != nil {
 		return
 	}
-	err = dbms.checkPermission(addr, req)
+	err = dbms.checkPermission(addr, req.Header.DatabaseID, req.Header.QueryType)
 	if err != nil {
 		return
 	}
@@ -539,9 +539,10 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 	return dbms.writeMeta()
 }
 
-func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request) (err error) {
-	log.Debugf("in checkPermission, database id: %s, user addr: %s", req.Header.DatabaseID, addr.String())
-	state, loaded := dbms.chainMap.Load(req.Header.DatabaseID)
+func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
+	dbID proto.DatabaseID, queryType types.QueryType) (err error) {
+	log.Debugf("in checkPermission, database id: %s, user addr: %s", dbID, addr.String())
+	state, loaded := dbms.chainMap.Load(dbID)
 	if !loaded {
 		err = errors.Wrap(ErrNotExists, "check permission failed")
 		return
@@ -557,13 +558,13 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request)
 			log.WithError(err).Debugf("cannot query, status: %d", permStat.Status)
 			return
 		}
-		if req.Header.QueryType == types.ReadQuery {
+		if queryType == types.ReadQuery {
 			if !permStat.Permission.CheckRead() {
 				err = ErrPermissionDeny
 				log.WithError(err).Debugf("cannot read, permission: %d", permStat.Permission)
 				return
 			}
-		} else if req.Header.QueryType == types.WriteQuery {
+		} else if queryType == types.WriteQuery {
 			if !permStat.Permission.CheckWrite() {
 				err = ErrPermissionDeny
 				log.WithError(err).Debugf("cannot write, permission: %d", permStat.Permission)
@@ -581,6 +582,75 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request)
 		return
 	}
 
+	return
+}
+
+func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, startHeight int32) (err error) {
+	// check permission
+	pubkey, err := kms.GetPublicKey(nodeID)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("get pubkey failed in addTxSubscription")
+		return
+	}
+	addr, err := crypto.PubKeyHash(pubkey)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("generate addr failed in addTxSubscription")
+		return
+	}
+	err = dbms.checkPermission(addr, dbID, types.ReadQuery)
+	if err != nil {
+		log.WithFields(log.Fields{"dbid": dbID, "addr": addr}).WithError(err).Warning("permission deny")
+		return
+	}
+
+	rawDB, ok := dbms.dbMap.Load(dbID)
+	if !ok {
+		err = ErrNotExists
+		log.WithFields(log.Fields{
+			"databaseID":  dbID,
+			"nodeID":      nodeID,
+			"startHeight": startHeight,
+		}).WithError(err).Warning("unexpected error in addTxSubscription")
+		return
+	}
+	db := rawDB.(*Database)
+	err = db.chain.AddSubscription(nodeID, startHeight)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID":  dbID,
+			"nodeID":      nodeID,
+			"startHeight": startHeight,
+		}).WithError(err).Warning("unexpected error in addTxSubscription")
+		return
+	}
+	return
+}
+
+func (dbms *DBMS) cancelTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID) (err error) {
+	rawDB, ok := dbms.dbMap.Load(dbID)
+	if !ok {
+		err = ErrNotExists
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("unexpected error in cancelTxSubscription")
+		return
+	}
+	db := rawDB.(*Database)
+	err = db.chain.CancelSubscription(nodeID)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("unexpected error in cancelTxSubscription")
+		return
+	}
 	return
 }
 

@@ -145,10 +145,10 @@ func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingR
 
 // SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
 func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, _ *SubscribeTransactionsResp) error {
-	return s.chain.addSubscription(req.SubscriberID, req.Height)
+	return s.chain.AddSubscription(req.SubscriberID, req.Height)
 }
 
 // CancelSubscription is the RPC method to cancel subscription in the target server.
 func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) error {
-	return s.chain.cancelSubscription(req.SubscriberID)
+	return s.chain.CancelSubscription(req.SubscriberID)
 }

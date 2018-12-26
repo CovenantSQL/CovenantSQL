@@ -124,7 +124,7 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 		resp.Profile = *p
 		return
 	}
-	err = errors.Wrap(err, "rpc query sqlchain profile failed")
+	err = errors.Wrap(ErrDatabaseNotFound, "rpc query sqlchain profile failed")
 	return
 }
 

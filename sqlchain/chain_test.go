@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -243,10 +242,6 @@ func TestMultiChain(t *testing.T) {
 	if dht, err := route.NewDHTService(testDHTStoreFile, new(consistent.KMSStorage), true); err != nil {
 		t.Fatalf("error occurred: %v", err)
 	} else if err = bpsvr.RegisterService(route.DHTRPCName, dht); err != nil {
-		t.Fatalf("error occurred: %v", err)
-	}
-
-	if err = bpsvr.RegisterService(metric.MetricServiceName, metric.NewCollectServer()); err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
 

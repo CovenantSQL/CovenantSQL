@@ -33,8 +33,11 @@ func NewCovenantSQLStorage() (s *CovenantSQLStorage) {
 
 // Create implements the Storage abstraction interface.
 func (s *CovenantSQLStorage) Create(nodeCnt int) (dbID string, err error) {
+	var meta = client.ResourceMeta{}
+	meta.Node = uint16(nodeCnt)
+
 	var dsn string
-	if dsn, err = client.Create(client.ResourceMeta{Node: uint16(nodeCnt)}); err != nil {
+	if dsn, err = client.Create(meta); err != nil {
 		return
 	}
 

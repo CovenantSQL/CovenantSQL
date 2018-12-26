@@ -43,6 +43,10 @@ const (
 	DBScheme = "covenantsql"
 	// DBSchemeAlias defines the alias dsn scheme.
 	DBSchemeAlias = "cql"
+	// DefaultGasPrice defines the default gas price for new created database.
+	DefaultGasPrice = 1
+	// DefaultAdvancePayment defines the default advance payment for new created database.
+	DefaultAdvancePayment = 20000000
 )
 
 var (
@@ -84,7 +88,11 @@ func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 }
 
 // ResourceMeta defines new database resources requirement descriptions.
-type ResourceMeta types.ResourceMeta
+type ResourceMeta struct {
+	types.ResourceMeta
+	GasPrice       uint64
+	AdvancePayment uint64
+}
 
 // Init defines init process for client.
 func Init(configFile string, masterKey []byte) (err error) {
@@ -122,30 +130,58 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		return
 	}
 
-	req := new(types.CreateDatabaseRequest)
-	req.Header.ResourceMeta = types.ResourceMeta(meta)
-	var privateKey *asymmetric.PrivateKey
+	var (
+		nonceReq   = new(types.NextAccountNonceReq)
+		nonceResp  = new(types.NextAccountNonceResp)
+		req        = new(types.AddTxReq)
+		resp       = new(types.AddTxResp)
+		privateKey *asymmetric.PrivateKey
+		clientAddr proto.AccountAddress
+	)
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		err = errors.Wrap(err, "get local private key failed")
 		return
 	}
-	if err = req.Sign(privateKey); err != nil {
+	if clientAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
+		err = errors.Wrap(err, "get local account address failed")
+		return
+	}
+	// allocate nonce
+	nonceReq.Addr = clientAddr
+
+	if err = requestBP(route.MCCNextAccountNonce, nonceReq, nonceResp); err != nil {
+		err = errors.Wrap(err, "allocate create database transaction nonce failed")
+		return
+	}
+
+	if meta.GasPrice == 0 {
+		meta.GasPrice = DefaultGasPrice
+	}
+	if meta.AdvancePayment == 0 {
+		meta.AdvancePayment = DefaultAdvancePayment
+	}
+
+	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner:          clientAddr,
+		ResourceMeta:   meta.ResourceMeta,
+		GasPrice:       meta.GasPrice,
+		AdvancePayment: meta.AdvancePayment,
+		TokenType:      types.Particle,
+		Nonce:          nonceResp.Nonce,
+	})
+
+	if err = req.Tx.Sign(privateKey); err != nil {
 		err = errors.Wrap(err, "sign request failed")
 		return
 	}
-	res := new(types.CreateDatabaseResponse)
 
-	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
-		err = errors.Wrap(err, "call BPDB.CreateDatabase failed")
-		return
-	}
-	if err = res.Verify(); err != nil {
-		err = errors.Wrap(err, "response verify failed")
+	if err = requestBP(route.MCCAddTx, req, resp); err != nil {
+		err = errors.Wrap(err, "call create database transaction failed")
 		return
 	}
 
 	cfg := NewConfig()
-	cfg.DatabaseID = string(res.Header.InstanceMeta.DatabaseID)
+	cfg.DatabaseID = string(*proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
 	dsn = cfg.FormatDSN()
 
 	return

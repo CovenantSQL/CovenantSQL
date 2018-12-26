@@ -261,7 +261,8 @@ func main() {
 				return
 			}
 
-			meta = client.ResourceMeta{Node: uint16(nodeCnt)}
+			meta = client.ResourceMeta{}
+			meta.Node = uint16(nodeCnt)
 		}
 
 		dsn, err := client.Create(meta)

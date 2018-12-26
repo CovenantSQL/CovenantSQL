@@ -60,7 +60,7 @@ type DBMS struct {
 	kayakMux   *DBKayakMuxService
 	chainMux   *sqlchain.MuxService
 	rpc        *DBMSRPCService
-	busService *sqlchain.BusService
+	busService *BusService
 	address    proto.AccountAddress
 	privKey    *asymmetric.PrivateKey
 }
@@ -100,7 +100,7 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 	// init chain bus service
 	ctx := context.Background()
-	bs := sqlchain.NewBusService(ctx, addr, CheckInterval)
+	bs := NewBusService(ctx, addr, CheckInterval)
 	dbms.busService = bs
 
 	// private key cache

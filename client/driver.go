@@ -353,6 +353,11 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 	}
 
 	nodeIDs := make([]proto.NodeID, len(profileResp.Profile.Miners))
+	if len(profileResp.Profile.Miners) <= 0 {
+		err = ErrInvalidProfile
+		log.WithError(err).Warning("unexpected error in getPeers")
+		return
+	}
 	for i, mi := range profileResp.Profile.Miners {
 		nodeIDs[i] = mi.NodeID
 	}
@@ -361,6 +366,11 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 			Leader:  nodeIDs[0],
 			Servers: nodeIDs[:],
 		},
+	}
+	err = peers.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign peers failed in getPeers")
+		return
 	}
 
 	// set peers in the updater cache

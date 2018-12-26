@@ -77,3 +77,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/btcsuite/btcutil"
+
+[[constraint]]
+  name = "github.com/davecgh/go-spew"
+  version = "1.1.1"

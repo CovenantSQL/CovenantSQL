@@ -36,7 +36,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	yaml "gopkg.in/yaml.v2"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var (
@@ -103,6 +103,8 @@ func runRPC() {
 		return
 	}
 
+	fmt.Println("sending request")
+	spew.Dump(req)
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
 		fmt.Printf("call rpc failed: %v\n", err)
@@ -111,12 +113,8 @@ func runRPC() {
 	}
 
 	// print the response
-	if resBytes, err := yaml.Marshal(resp); err != nil {
-		fmt.Printf("marshal response failed: %v\n", err)
-		os.Exit(1)
-	} else {
-		fmt.Println(string(resBytes))
-	}
+	fmt.Println("got response")
+	spew.Dump(resp)
 }
 
 func checkAndSign(req interface{}) (err error) {

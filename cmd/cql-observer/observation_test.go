@@ -245,7 +245,9 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 1})
+		meta := client.ResourceMeta{}
+		meta.Node = 1
+		dsn, err := client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)
@@ -304,7 +306,9 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		dsn2, err := client.Create(client.ResourceMeta{Node: 1})
+		meta = client.ResourceMeta{}
+		meta.Node = 1
+		dsn2, err := client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn2)

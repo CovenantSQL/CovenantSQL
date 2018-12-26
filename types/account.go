@@ -39,7 +39,7 @@ const (
 type UserPermission int32
 
 const (
-	// Unknown defines the initial permission.
+	// UnknownPerm defines the initial permission.
 	UnknownPerm UserPermission = iota
 	// Admin defines the admin user permission.
 	Admin
@@ -70,7 +70,7 @@ func (up *UserPermission) CheckAdmin() bool {
 type Status int32
 
 const (
-	// Unknown defines initial status.
+	// UnknownStatus defines initial status.
 	UnknownStatus Status = iota
 	// Normal defines no bad thing happens.
 	Normal
@@ -84,6 +84,7 @@ const (
 	NumberOfStatus
 )
 
+// EnableQuery indicates whether the account is permitted to query.
 func (s *Status) EnableQuery() bool {
 	return *s >= Normal && *s <= Reminder
 }

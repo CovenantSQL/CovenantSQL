@@ -747,7 +747,9 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)
@@ -826,7 +828,9 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn)

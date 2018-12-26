@@ -1,7 +1,7 @@
 cql-utils 是 CovenantSQL 的一个命令行工具，具体用法如下。
 
 ## 安装
-下载最新发布版本 [Latest Release](https://github.com/CovenantSQL/CovenantSQL/releases) 或从源码直接编译：
+下载 [最新发布版本](https://github.com/CovenantSQL/CovenantSQL/releases) 或直接从源码编译：
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 ```
@@ -18,7 +18,7 @@ Private key file: private.key
 Public key's hex: 03bc9e90e3301a2f5ae52bfa1f9e033cde81b6b6e7188b11831562bf5847bff4c0
 ```
 
-生成的 private.key 文件即是使用主密码加密过的私钥文件，而输出到屏幕上的字符串就是你的公钥十六进制编码。
+生成的 private.key 文件即是使用主密码加密过的私钥文件，而输出到屏幕上的字符串就是使用十六进制进行编码的公钥。
 
 ### 使用私钥文件或公钥生成钱包地址
 

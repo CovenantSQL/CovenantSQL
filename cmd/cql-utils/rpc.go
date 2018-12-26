@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -79,6 +80,13 @@ func runRPC() {
 	}
 
 	req, resp := resolveRPCEntities()
+
+	if rpcName == route.MCCAddTx.String() {
+		// special type of query
+		if addTxReqType, ok := req.(*bp.AddTxReq); ok {
+			addTxReqType.Tx = &pi.TransactionWrapper{}
+		}
+	}
 
 	// fill the req with request body
 	if err := json.Unmarshal([]byte(rpcReq), req); err != nil {

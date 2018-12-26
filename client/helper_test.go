@@ -146,6 +146,22 @@ func (s *stubBPDBService) QueryAccountCovenantBalance(req *types.QueryAccountCov
 	return
 }
 
+func (s *stubBPDBService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
+	resp *types.QuerySQLChainProfileResp) (err error) {
+	var nodeID proto.NodeID
+	if nodeID, err = kms.GetLocalNodeID(); err != nil {
+		return
+	}
+	resp.Profile = types.SQLChainProfile{
+		Miners: []*types.MinerInfo{
+			&types.MinerInfo{
+				NodeID: nodeID,
+			},
+		},
+	}
+	return
+}
+
 func startTestService() (stopTestService func(), tempDir string, err error) {
 	var server *rpc.Server
 	var cleanup func()

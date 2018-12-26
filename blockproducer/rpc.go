@@ -18,8 +18,11 @@ package blockproducer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -172,4 +175,55 @@ func WaitDatabaseCreation(
 			return
 		}
 	}
+}
+
+func Create(
+	meta types.ResourceMeta,
+	gasPrice uint64,
+	advancePayment uint64,
+	privateKey *asymmetric.PrivateKey,
+) (
+	databaseid proto.DatabaseID, dsn string, err error,
+) {
+	var (
+		nonceReq   = new(types.NextAccountNonceReq)
+		nonceResp  = new(types.NextAccountNonceResp)
+		req        = new(types.AddTxReq)
+		resp       = new(types.AddTxResp)
+		clientAddr proto.AccountAddress
+	)
+	if clientAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
+		err = errors.Wrap(err, "get local account address failed")
+		return
+	}
+	// allocate nonce
+	nonceReq.Addr = clientAddr
+
+	if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+		err = errors.Wrap(err, "allocate create database transaction nonce failed")
+		return
+	}
+
+	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner:          clientAddr,
+		ResourceMeta:   meta,
+		GasPrice:       gasPrice,
+		AdvancePayment: advancePayment,
+		TokenType:      types.Particle,
+		Nonce:          nonceResp.Nonce,
+	})
+
+	if err = req.Tx.Sign(privateKey); err != nil {
+		err = errors.Wrap(err, "sign request failed")
+		return
+	}
+
+	if err = rpc.RequestBP(route.MCCAddTx.String(), req, resp); err != nil {
+		err = errors.Wrap(err, "call create database transaction failed")
+		return
+	}
+
+	databaseid = *proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce))
+	dsn = fmt.Sprintf("cql://%s?use_leader=1&use_follower=0", string(databaseid))
+	return
 }

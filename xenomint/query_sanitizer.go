@@ -19,6 +19,7 @@ package xenomint
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -97,16 +98,21 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 			switch stmt.Type {
 			case "table":
 				if stmt.ShowCreate {
-					query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
-						stmt.OnTable.Name.String() + "\" AND tbl_name NOT LIKE \"sqlite%\""
+					query = fmt.Sprintf(`SELECT sql
+FROM sqlite_master
+WHERE type = "table" AND tbl_name = "%s"
+	AND tbl_name NOT LIKE "sqlite%%"`,
+						stmt.OnTable.Name.String())
 				} else {
-					query = "PRAGMA table_info(" + stmt.OnTable.Name.String() + ")"
+					query = fmt.Sprintf(`PRAGMA table_info(%s)`, stmt.OnTable.Name.String())
 				}
 			case "index":
-				query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
-					stmt.OnTable.Name.String() + "\" AND name NOT LIKE \"sqlite%\""
+				query = fmt.Sprintf(`SELECT name
+FROM sqlite_master
+WHERE type = "index" AND tbl_name = "%s"
+	AND name NOT LIKE "sqlite%%"`, stmt.OnTable.Name.String())
 			case "tables":
-				query = "SELECT name FROM sqlite_master WHERE type = \"table\" AND name NOT LIKE \"sqlite%\""
+				query = `SELECT name FROM sqlite_master WHERE type = "table" AND name NOT LIKE "sqlite%"`
 			}
 
 			log.WithFields(log.Fields{

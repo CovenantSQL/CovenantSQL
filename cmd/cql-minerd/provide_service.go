@@ -25,13 +25,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
 
 const (
 	defaultGasPrice = 1
+	maxUint64       = 1<<64 - 1
 )
 
 var (
@@ -100,17 +100,17 @@ func sendProvideService(reg *prometheus.Registry) {
 
 		switch m.GetName() {
 		case metricKeyMemory:
-			if metricVal > 0 && metricVal < math.MaxUint64 {
+			if metricVal > 0 && metricVal < maxUint64 {
 				memoryBytes = uint64(metricVal)
+			}
+		case metricKeySpace:
+			if metricVal > 0 && metricVal < maxUint64 {
+				keySpace = uint64(metricVal)
 			}
 		case metricKeyCpuCount:
 			cpuCount = metricVal
 		case metricKeyLoadAvg:
 			loadAvg = metricVal
-		case metricKeySpace:
-			if metricVal > 0 && metricVal < math.MaxUint64 {
-				keySpace = uint64(metricVal)
-			}
 		default:
 		}
 	}

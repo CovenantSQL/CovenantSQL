@@ -34,6 +34,9 @@ import (
 	"testing"
 	"time"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -46,8 +49,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -374,6 +375,7 @@ func TestFullProcess(t *testing.T) {
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
 				TargetMiners: minersAddrs,
+				Node:         uint16(len(minersAddrs)),
 			},
 			GasPrice:       testGasPrice,
 			AdvancePayment: testAdvancePayment,
@@ -388,6 +390,7 @@ func TestFullProcess(t *testing.T) {
 		dbID := proto.DatabaseID(dsnCfg.DatabaseID)
 		profileReq := &types.QuerySQLChainProfileReq{}
 		profileResp := &types.QuerySQLChainProfileResp{}
+
 		profileReq.DBID = dbID
 		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 		So(err, ShouldBeNil)

@@ -17,6 +17,8 @@
 package interfaces_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -182,6 +184,48 @@ func TestTransactionWrapper(t *testing.T) {
 		So(err, ShouldBeNil)
 		var v15 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v15)
+		So(err, ShouldNotBeNil)
+
+		// test json marshal and unmarshal
+		v16 := &TestTransactionEncode{TestField: 10}
+		v16.SetTransactionType(pi.TransactionTypeBilling)
+		var v17 pi.Transaction = v16
+		var jsonData []byte
+		jsonData, err = json.Marshal(v17)
+		So(string(jsonData), ShouldContainSubstring, "TestField")
+		So(err, ShouldBeNil)
+
+		var v18 pi.Transaction = &pi.TransactionWrapper{}
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldBeNil)
+		So(v18.(*pi.TransactionWrapper).Unwrap(), ShouldNotBeNil)
+		So(v18.GetTransactionType(), ShouldEqual, pi.TransactionTypeBilling)
+		So(v18.(*pi.TransactionWrapper).Unwrap().(*TestTransactionEncode).TestField, ShouldEqual, 10)
+
+		jsonData, err = json.Marshal(v18)
+		So(string(jsonData), ShouldContainSubstring, "TestField")
+
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(`{"TxType": 0, "TestField": 11}`)
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldBeNil)
+		So(v18.GetTransactionType(), ShouldEqual, pi.TransactionTypeBilling)
+		So(v18.(*pi.TransactionWrapper).Unwrap().(*TestTransactionEncode).TestField, ShouldEqual, 11)
+
+		// unmarshal fail cases
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(`{"TxType": {}, "TestField": 11}`)
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldNotBeNil)
+
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(fmt.Sprintf(`{"TxType": %d, "TestField": 11}`, pi.TransactionTypeNumber))
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldNotBeNil)
+
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(fmt.Sprintf(`{"TxType": %d, "TestField": 11}`, pi.TransactionTypeTransfer))
+		err = json.Unmarshal(jsonData, &v18)
 		So(err, ShouldNotBeNil)
 	})
 }

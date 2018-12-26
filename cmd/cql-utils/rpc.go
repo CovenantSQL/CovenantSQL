@@ -33,6 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 	yaml "gopkg.in/yaml.v2"
@@ -83,7 +84,7 @@ func runRPC() {
 
 	if rpcName == route.MCCAddTx.String() {
 		// special type of query
-		if addTxReqType, ok := req.(*bp.AddTxReq); ok {
+		if addTxReqType, ok := req.(*types.AddTxReq); ok {
 			addTxReqType.Tx = &pi.TransactionWrapper{}
 		}
 	}

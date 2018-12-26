@@ -51,8 +51,12 @@ client.Init(configFile, masterKey)
 To create a new SQL Chain, the number of node should be provided:
 
 ```go
-var dsn string
-dsn, err = client.Create(client.ResourceMeta{Node: uint16(nodeCount)})
+var (
+	dsn string
+	meta client.ResourceMeta
+)
+meta.Node = uint16(nodeCount)
+dsn, err = client.Create(meta)
 // process err
 ```
 And you will get a dsn string. It represents a database instance, use it for queries.

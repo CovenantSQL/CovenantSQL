@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -125,7 +126,9 @@ func runRPC() {
 	}
 
 	log.Info("sending request")
-	spew.Dump(req)
+	spewCfg := spew.NewDefaultConfig()
+	spewCfg.MaxDepth = 4
+	spewCfg.Dump(req)
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
 		log.Infof("call rpc failed: %v\n", err)
@@ -134,7 +137,7 @@ func runRPC() {
 
 	// print the response
 	log.Info("got response")
-	spew.Dump(resp)
+	spewCfg.Dump(resp)
 }
 
 func checkAndSign(req interface{}) (err error) {
@@ -157,37 +160,95 @@ func checkAndSign(req interface{}) (err error) {
 	return
 }
 
-func fillTxNonce(tx pi.Transaction) (err error) {
-	rv := reflect.ValueOf(tx)
-	for i := 0; i != rv.NumField(); i++ {
-		if _, ok := rv.Field(i).Interface().(pi.AccountNonce); ok {
-			// nonce type
-			// generate nonce for account
-			var (
-				pubKey      *asymmetric.PublicKey
-				accountAddr proto.AccountAddress
-			)
-			if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-				return
-			}
-			if accountAddr, err = crypto.PubKeyHash(pubKey); err != nil {
-				return
-			}
-			nonceReq := &types.NextAccountNonceReq{
-				Addr: accountAddr,
-			}
-			nonceResp := &types.NextAccountNonceResp{}
-			if err = rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint),
-				route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
-				return
-			}
+func nestedWalkFillTxNonce(rv reflect.Value, fieldPath string, signCallback func(fieldPath string, rv reflect.Value) (err error)) (signed bool, err error) {
+	rv = reflect.Indirect(rv)
 
-			rv.Field(i).SetUint(uint64(nonceResp.Nonce))
-			log.Infof("filled tx type %s nonce field %s with nonce %d",
-				tx.GetTransactionType().String(), rv.Type().Field(i).Name, nonceResp.Nonce)
-			break
+	switch rv.Kind() {
+	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Float32,
+		reflect.Float64, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Interface, reflect.Ptr,
+		reflect.String, reflect.UnsafePointer, reflect.Func:
+		return
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		if _, ok := rv.Interface().(pi.AccountNonce); ok {
+			if err = signCallback(fieldPath, rv); err != nil {
+				return
+			}
+			return true, nil
+		}
+	case reflect.Array, reflect.Slice:
+		for i := 0; i != rv.Len(); i++ {
+			fieldName := fieldPath
+			if fieldPath != "" {
+				fieldName += "."
+			}
+			fieldName += fmt.Sprintf("[%d]", i)
+			if signed, err = nestedWalkFillTxNonce(rv.Index(i), fieldName, signCallback); err != nil || signed {
+				return
+			}
+		}
+	case reflect.Map:
+		for _, k := range rv.MapKeys() {
+			fieldName := fieldPath
+			if fieldPath != "" {
+				fieldName += "."
+			}
+			fieldName += fmt.Sprintf("[%v]", k)
+			if signed, err = nestedWalkFillTxNonce(rv.MapIndex(k), fieldName, signCallback); err != nil || signed {
+				return
+			}
+		}
+	case reflect.Struct:
+		for i := 0; i != rv.NumField(); i++ {
+			// walk inside
+			fieldName := fieldPath
+			if fieldPath != "" {
+				fieldName += "."
+			}
+			fieldName += rv.Type().Field(i).Name
+
+			if _, ok := rv.Field(i).Interface().(pi.AccountNonce); ok {
+				if err = signCallback(fieldName, rv.Field(i)); err != nil {
+					return
+				}
+				return true, nil
+			} else {
+				if signed, err = nestedWalkFillTxNonce(rv.Field(i), fieldName, signCallback); err != nil || signed {
+					return
+				}
+			}
 		}
 	}
+
+	return
+}
+
+func fillTxNonce(tx pi.Transaction) (err error) {
+	_, err = nestedWalkFillTxNonce(reflect.ValueOf(tx), "", func(fieldPath string, rv reflect.Value) (err error) {
+		var (
+			pubKey      *asymmetric.PublicKey
+			accountAddr proto.AccountAddress
+		)
+		if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+			return
+		}
+		if accountAddr, err = crypto.PubKeyHash(pubKey); err != nil {
+			return
+		}
+		nonceReq := &types.NextAccountNonceReq{
+			Addr: accountAddr,
+		}
+		nonceResp := &types.NextAccountNonceResp{}
+		if err = rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint),
+			route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+			return
+		}
+
+		rv.SetUint(uint64(nonceResp.Nonce))
+		log.Infof("filled tx type %s nonce field %s with nonce %d",
+			tx.GetTransactionType().String(), fieldPath, nonceResp.Nonce)
+
+		return
+	})
 
 	return
 }

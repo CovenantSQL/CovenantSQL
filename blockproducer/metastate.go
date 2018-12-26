@@ -605,7 +605,7 @@ func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 		GasPrice:      tx.GasPrice,
 		NodeID:        tx.NodeID,
 	}
-	s.loadOrStoreProviderObject(sender, &pp)
+	s.dirty.provider[sender] = &pp
 	return
 }
 
@@ -736,8 +736,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", string(*dbID))
 		return
 	}
-	s.loadOrStoreAccountObject(dbAddr, &types.Account{Address: dbAddr})
-	s.loadOrStoreSQLChainObject(*dbID, sp)
+	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
+	s.dirty.databases[*dbID] = sp
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
 	}
@@ -967,7 +967,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 					return err
 				}
 			}
-			s.loadOrStoreSQLChainObject(transfer.Sender.DatabaseID(), sqlchain)
+			s.dirty.databases[transfer.Sender.DatabaseID()] = sqlchain
 			return
 		}
 	}

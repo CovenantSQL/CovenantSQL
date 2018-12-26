@@ -193,7 +193,7 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 			return true, nil
 		}, walkNodes...)
 		if err != nil {
-			err = errors.Wrapf(err, "parse sql failed")
+			err = errors.Wrap(err, "parse sql failed")
 			return
 		}
 	}

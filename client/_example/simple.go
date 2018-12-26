@@ -39,10 +39,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if dsn == "" {
+		dsn, err = client.Create(client.ResourceMeta{Node: uint16(2)})
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer client.Drop(dsn)
+	}
+
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	_, err = db.Exec("DROP TABLE IF EXISTS testSimple;")
 	if err != nil {
@@ -73,5 +82,4 @@ func main() {
 	}
 	fmt.Printf("SELECT nonIndexedColumn FROM testSimple LIMIT 1; result %d\n", result)
 
-	err = db.Close()
 }

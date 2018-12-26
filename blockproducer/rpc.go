@@ -17,6 +17,12 @@
 package blockproducer
 
 import (
+	"context"
+	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
@@ -124,7 +130,7 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 		resp.Profile = *p
 		return
 	}
-	err = errors.Wrap(err, "rpc query sqlchain profile failed")
+	err = errors.Wrap(ErrDatabaseNotFound, "rpc query sqlchain profile failed")
 	return
 }
 
@@ -133,4 +139,37 @@ func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error
 	return s.chain.bs.Subscribe(req.Topic, func(request interface{}, response interface{}) {
 		s.chain.cl.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
 	})
+}
+
+func WaitDatabaseCreation(
+	ctx context.Context, dbid proto.DatabaseID, period time.Duration) (err error,
+) {
+	var (
+		timer = time.NewTimer(0)
+		req   = &types.QuerySQLChainProfileReq{
+			DBID: dbid,
+		}
+		resp = &types.QuerySQLChainProfileResp{}
+	)
+	defer func() {
+		if !timer.Stop() {
+			<-timer.C
+		}
+	}()
+	for {
+		select {
+		case <-timer.C:
+			if err = rpc.RequestBP(
+				route.MCCQuerySQLChainProfile.String(), req, resp,
+			); err != ErrDatabaseNotFound {
+				// err == nil (creation done), or
+				// err != nil && err != ErrDatabaseNotFound (unexpected error)
+				return
+			}
+			timer.Reset(period)
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
 }

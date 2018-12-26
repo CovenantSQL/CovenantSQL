@@ -64,9 +64,14 @@ func runAddrgen() {
 		os.Exit(1)
 	}
 
+	keyHash, err := crypto.PubKeyHash(publicKey)
+	if err != nil {
+		log.WithError(err).Fatal("unexpected error")
+	}
 	addr, err := crypto.PubKey2Addr(publicKey, crypto.TestNet)
 	if err != nil {
 		log.WithError(err).Fatal("unexpected error")
 	}
+	fmt.Printf("wallet address hash: %s\n", keyHash.String())
 	fmt.Printf("wallet address: %s\n", addr)
 }

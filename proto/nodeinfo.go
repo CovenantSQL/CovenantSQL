@@ -53,6 +53,16 @@ type NodeID string
 // AccountAddress is wallet address, will be generated from Hash(nodePublicKey).
 type AccountAddress hash.Hash
 
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (z *AccountAddress) UnmarshalJSON(data []byte) error {
+	return ((*hash.Hash)(z)).UnmarshalJSON(data)
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (z AccountAddress) MarshalJSON() ([]byte, error) {
+	return ((hash.Hash)(z)).MarshalJSON()
+}
+
 // NodeKey is node key on consistent hash ring, generate from Hash(NodeID).
 type NodeKey RawNodeID
 

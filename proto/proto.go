@@ -46,11 +46,11 @@ type EnvelopeAPI interface {
 
 // Envelope is the protocol header
 type Envelope struct {
-	Version string          `json:"v"`
-	TTL     time.Duration   `json:"t"`
-	Expire  time.Duration   `json:"e"`
-	NodeID  *RawNodeID      `json:"id"`
-	_ctx    context.Context `json:"-"`
+	Version string        `json:"v"`
+	TTL     time.Duration `json:"t"`
+	Expire  time.Duration `json:"e"`
+	NodeID  *RawNodeID    `json:"id"`
+	_ctx    context.Context
 }
 
 // PingReq is Ping RPC request

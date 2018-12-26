@@ -211,10 +211,8 @@ func nestedWalkFillTxNonce(rv reflect.Value, fieldPath string, signCallback func
 					return
 				}
 				return true, nil
-			} else {
-				if signed, err = nestedWalkFillTxNonce(rv.Field(i), fieldName, signCallback); err != nil || signed {
-					return
-				}
+			} else if signed, err = nestedWalkFillTxNonce(rv.Field(i), fieldName, signCallback); err != nil || signed {
+				return
 			}
 		}
 	}

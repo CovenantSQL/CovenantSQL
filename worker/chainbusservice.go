@@ -32,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// BusService defines the man chain bus service type.
 type BusService struct {
 	chainbus.Bus
 
@@ -49,6 +50,7 @@ type BusService struct {
 	sqlChainProfiles map[proto.DatabaseID]*types.SQLChainProfile
 }
 
+// NewBusService creates a new chain bus instance.
 func NewBusService(
 	ctx context.Context, addr proto.AccountAddress, checkInterval time.Duration) (_ *BusService,
 ) {
@@ -68,6 +70,7 @@ func NewBusService(
 	return bs
 }
 
+// GetCurrentDBMapping returns current cached db mapping.
 func (bs *BusService) GetCurrentDBMapping() (dbMap map[proto.DatabaseID]*types.SQLChainProfile) {
 	dbMap = make(map[proto.DatabaseID]*types.SQLChainProfile)
 	bs.lock.Lock()
@@ -174,6 +177,7 @@ func (bs *BusService) requestLastBlock() (
 	return
 }
 
+// RequestSQLProfile get specified database profile.
 func (bs *BusService) RequestSQLProfile(dbid *proto.DatabaseID) (p *types.SQLChainProfile, ok bool) {
 	bs.lock.Lock()
 	defer bs.lock.Unlock()

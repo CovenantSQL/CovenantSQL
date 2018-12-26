@@ -1559,10 +1559,10 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 				Miner:  k1,
 				Income: v1,
 			}
-			j += 1
+			j++
 		}
 		j = 0
-		i += 1
+		i++
 	}
 	ub.Receiver, err = c.databaseID.AccountAddress()
 	return

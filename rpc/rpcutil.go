@@ -354,7 +354,7 @@ func SetCurrentBP(bpNodeID proto.NodeID) {
 	currentBP = bpNodeID
 }
 
-// RequstBP sends request to main chain.
+// RequestBP sends request to main chain.
 func RequestBP(method string, req interface{}, resp interface{}) (err error) {
 	var bp proto.NodeID
 	if bp, err = GetCurrentBP(); err != nil {

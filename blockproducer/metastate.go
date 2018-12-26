@@ -793,7 +793,6 @@ func isProviderUserMatch(targetUsers []proto.AccountAddress, user proto.AccountA
 }
 
 func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (match bool, err error) {
-
 	if po.GasPrice > req.GasPrice {
 		err = errors.New("gas price mismatch")
 		log.WithError(err).Debugf("miner's gas price: %d, user's gas price: %d",
@@ -802,7 +801,7 @@ func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (m
 	}
 	if po.LoadAvgPerCPU > req.ResourceMeta.LoadAvgPerCPU {
 		err = errors.New("load average mismatch")
-		log.WithError(err).Debugf("miner's LoadAvgPerCPU: %d, user's LoadAvgPerCPU: %d",
+		log.WithError(err).Debugf("miner's LoadAvgPerCPU: %f, user's LoadAvgPerCPU: %f",
 			po.LoadAvgPerCPU, req.ResourceMeta.LoadAvgPerCPU)
 		return
 	}

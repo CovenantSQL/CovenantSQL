@@ -50,15 +50,18 @@ func (z *ProvideServiceHeader) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x88)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.TargetUser)))
+	for za0001 := range z.TargetUser {
+		if oTemp, err := z.TargetUser[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x88)
 	o = hsp.AppendFloat64(o, z.LoadAvgPerCPU)
 	o = append(o, 0x88)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x88)
-	if oTemp, err := z.TargetUser.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -80,6 +83,10 @@ func (z *ProvideServiceHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ProvideServiceHeader) Msgsize() (s int) {
-	s = 1 + 10 + z.TokenType.Msgsize() + 14 + hsp.Float64Size + 6 + z.Nonce.Msgsize() + 11 + z.TargetUser.Msgsize() + 7 + z.NodeID.Msgsize() + 9 + hsp.Uint64Size + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size
+	s = 1 + 10 + z.TokenType.Msgsize() + 11 + hsp.ArrayHeaderSize
+	for za0001 := range z.TargetUser {
+		s += z.TargetUser[za0001].Msgsize()
+	}
+	s += 14 + hsp.Float64Size + 6 + z.Nonce.Msgsize() + 7 + z.NodeID.Msgsize() + 9 + hsp.Uint64Size + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size
 	return
 }

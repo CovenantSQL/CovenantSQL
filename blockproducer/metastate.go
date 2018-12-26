@@ -652,10 +652,13 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 			err = ErrNoSuchMiner
 			continue
 		} else {
-			miners, _ := filterAndAppendMiner(miners, po, tx, sender)
+			miners, err = filterAndAppendMiner(miners, po, tx, sender)
+			if err != nil {
+				log.Warnf("miner filtered %v", err)
+			}
 			// if got enough, break
 			if uint64(len(miners)) == minerCount {
-				continue
+				break
 			}
 		}
 	}
@@ -663,12 +666,12 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	// not enough, find more miner(s)
 	if uint64(len(miners)) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			err = errors.New("miners match target are not enough")
+			err = errors.Errorf("miners match target are not enough %d:%d", len(miners), minerCount)
 			return
 		}
 		// try old miners first
 		for _, po := range s.readonly.provider {
-			miners, _ := filterAndAppendMiner(miners, po, tx, sender)
+			miners, _ = filterAndAppendMiner(miners, po, tx, sender)
 			// if got enough, break
 			if uint64(len(miners)) == minerCount {
 				break
@@ -677,7 +680,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		// try fresh miners
 		if uint64(len(miners)) < minerCount {
 			for _, po := range s.dirty.provider {
-				miners, _ := filterAndAppendMiner(miners, po, tx, sender)
+				miners, _ = filterAndAppendMiner(miners, po, tx, sender)
 				// if got enough, break
 				if uint64(len(miners)) == minerCount {
 					break
@@ -799,7 +802,7 @@ func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (m
 			po.GasPrice, req.GasPrice)
 		return
 	}
-	if po.LoadAvgPerCPU > req.ResourceMeta.LoadAvgPerCPU {
+	if req.ResourceMeta.LoadAvgPerCPU > 0.0 && po.LoadAvgPerCPU > req.ResourceMeta.LoadAvgPerCPU {
 		err = errors.New("load average mismatch")
 		log.WithError(err).Debugf("miner's LoadAvgPerCPU: %f, user's LoadAvgPerCPU: %f",
 			po.LoadAvgPerCPU, req.ResourceMeta.LoadAvgPerCPU)

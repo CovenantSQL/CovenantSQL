@@ -181,11 +181,8 @@ func WaitDatabaseCreation(
 				if db == nil {
 					return
 				}
-				if _, err = db.ExecContext(ctx, "SHOW TABLES"); err == nil || !strings.Contains(
-					err.Error(), "database instance not exists",
-				) {
+				if _, err = db.ExecContext(ctx, "SHOW TABLES"); err == nil {
 					// err == nil (connect to Miner OK)
-					// err != nil && err != worker.ErrNotExists (unexpected error)
 					return
 				}
 			}

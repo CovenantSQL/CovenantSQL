@@ -19,15 +19,25 @@ package worker
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -37,7 +47,7 @@ func TestNewBusService(t *testing.T) {
 			err     error
 			cleanup func()
 		)
-		cleanup, _, err = initNode()
+		cleanup, _, err = initNodeChainBusService()
 		So(err, ShouldBeNil)
 
 		var (
@@ -68,7 +78,7 @@ func TestNewBusService(t *testing.T) {
 
 		c := atomic.LoadUint32(&bs.blockCount)
 		if c%2 == 0 {
-			p, ok := bs.RequestSQLProfile(&testEventID)
+			p, ok := bs.RequestSQLProfile(testEventID)
 			So(ok, ShouldBeTrue)
 			exist := false
 			for _, profile := range testEventProfiles {
@@ -84,11 +94,11 @@ func TestNewBusService(t *testing.T) {
 				So(ok, ShouldBeTrue)
 				So(profile, ShouldResemble, p)
 			}
-			p, ok = bs.RequestSQLProfile(&testOddID)
+			p, ok = bs.RequestSQLProfile(testOddID)
 			So(ok, ShouldBeFalse)
 			So(p, ShouldBeNil)
 		} else {
-			p, ok := bs.RequestSQLProfile(&testOddID)
+			p, ok := bs.RequestSQLProfile(testOddID)
 			So(ok, ShouldBeTrue)
 			exist := false
 			for _, profile := range testOddProfiles {
@@ -104,7 +114,7 @@ func TestNewBusService(t *testing.T) {
 				So(ok, ShouldBeTrue)
 				So(profile, ShouldResemble, p)
 			}
-			p, ok = bs.RequestSQLProfile(&testEventID)
+			p, ok = bs.RequestSQLProfile(testEventID)
 			So(ok, ShouldBeFalse)
 			So(p, ShouldBeNil)
 		}
@@ -123,4 +133,68 @@ func TestNewBusService(t *testing.T) {
 
 		cleanup()
 	})
+}
+
+func initNodeChainBusService() (cleanupFunc func(), server *rpc.Server, err error) {
+	var d string
+	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
+		return
+	}
+
+	// init conf
+	_, testFile, _, _ := runtime.Caller(0)
+	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
+	os.Remove(pubKeyStoreFile)
+	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")
+	os.Remove(clientPubKeyStoreFile)
+	dupConfFile := filepath.Join(d, "config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	if err = dupConf(confFile, dupConfFile); err != nil {
+		return
+	}
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(dupConfFile)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(clientPubKeyStoreFile)
+
+	var dht *route.DHTService
+
+	// init dht
+	dht, err = route.NewDHTService(pubKeyStoreFile, new(consistent.KMSStorage), true)
+	if err != nil {
+		return
+	}
+
+	// init rpc
+	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
+		return
+	}
+
+	// register fake chain service
+	s := &stubBPService{}
+	s.Init()
+	if err = server.RegisterService(route.BlockProducerRPCName, s); err != nil {
+		return
+	}
+
+	// init private key
+	masterKey := []byte("")
+	if err = server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey); err != nil {
+		return
+	}
+
+	// start server
+	go server.Serve()
+
+	cleanupFunc = func() {
+		os.RemoveAll(d)
+		server.Listener.Close()
+		server.Stop()
+		// clear the connection pool
+		rpc.GetSessionPoolInstance().Close()
+	}
+
+	return
 }

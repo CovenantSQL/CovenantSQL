@@ -719,13 +719,6 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		return
 	}
 
-	// register fake chain service
-	s := &stubBPService{}
-	s.Init()
-	if err = server.RegisterService(route.BlockProducerRPCName, s); err != nil {
-		return
-	}
-
 	// init private key
 	masterKey := []byte("")
 	if err = server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey); err != nil {

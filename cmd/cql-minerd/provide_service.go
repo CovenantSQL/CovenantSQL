@@ -25,19 +25,19 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
 
 const (
 	defaultGasPrice = 1
+	maxUint64       = 1<<64 - 1
 )
 
 var (
 	metricKeyMemory   = "node_memory_MemAvailable_bytes"
 	metricKeyLoadAvg  = "node_load15"
-	metricKeyCpuCount = "node_cpu_count"
+	metricKeyCPUCount = "node_cpu_count"
 	metricKeySpace    = "node_filesystem_free_bytes"
 )
 
@@ -76,7 +76,7 @@ func sendProvideService(reg *prometheus.Registry) {
 
 	for _, m := range mf {
 		switch m.GetName() {
-		case metricKeyMemory, metricKeyCpuCount, metricKeyLoadAvg, metricKeySpace:
+		case metricKeyMemory, metricKeyCPUCount, metricKeyLoadAvg, metricKeySpace:
 		default:
 			continue
 		}
@@ -100,17 +100,17 @@ func sendProvideService(reg *prometheus.Registry) {
 
 		switch m.GetName() {
 		case metricKeyMemory:
-			if metricVal > 0 && metricVal < math.MaxUint64 {
+			if metricVal > 0 && metricVal < maxUint64 {
 				memoryBytes = uint64(metricVal)
 			}
-		case metricKeyCpuCount:
+		case metricKeySpace:
+			if metricVal > 0 && metricVal < maxUint64 {
+				keySpace = uint64(metricVal)
+			}
+		case metricKeyCPUCount:
 			cpuCount = metricVal
 		case metricKeyLoadAvg:
 			loadAvg = metricVal
-		case metricKeySpace:
-			if metricVal > 0 && metricVal < math.MaxUint64 {
-				keySpace = uint64(metricVal)
-			}
 		default:
 		}
 	}

@@ -20,9 +20,6 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/mohae/deepcopy"
-	"github.com/pkg/errors"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -33,6 +30,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/mohae/deepcopy"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -801,7 +800,6 @@ func isProviderUserMatch(targetUsers []proto.AccountAddress, user proto.AccountA
 }
 
 func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (match bool, err error) {
-
 	if po.GasPrice > req.GasPrice {
 		err = errors.New("gas price mismatch")
 		log.WithError(err).Debugf("miner's gas price: %d, user's gas price: %d",

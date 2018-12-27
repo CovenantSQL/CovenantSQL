@@ -21,6 +21,10 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
@@ -62,10 +66,19 @@ func TestCreate(t *testing.T) {
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 
+		// Calculate database ID
+		var priv *asymmetric.PrivateKey
+		priv, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+		var addr proto.AccountAddress
+		addr, err = crypto.PubKeyHash(priv.PubKey())
+		So(err, ShouldBeNil)
+		var dbid = string(*proto.FromAccountAndNonce(addr, uint32(stubNextNonce)))
+
 		recoveredCfg, err := ParseDSN(dsn)
 		So(err, ShouldBeNil)
 		So(recoveredCfg, ShouldResemble, &Config{
-			DatabaseID: "db",
+			DatabaseID: dbid,
 			UseLeader:  true,
 		})
 	})

@@ -42,14 +42,12 @@ type Config struct {
 
 	Period time.Duration
 	Tick   time.Duration
-
-	QPS uint32
 }
 
 // NewConfig creates new config.
 func NewConfig(genesis *types.BPBlock, dataFile string,
 	server *rpc.Server, peers *proto.Peers,
-	nodeID proto.NodeID, period time.Duration, tick time.Duration, qps uint32) *Config {
+	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
 	config := Config{
 		Genesis:  genesis,
 		DataFile: dataFile,
@@ -58,7 +56,6 @@ func NewConfig(genesis *types.BPBlock, dataFile string,
 		NodeID:   nodeID,
 		Period:   period,
 		Tick:     tick,
-		QPS:      qps,
 	}
 	return &config
 }

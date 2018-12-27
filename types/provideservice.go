@@ -26,7 +26,8 @@ import (
 
 //go:generate hsp
 
-//TODO(guozeqing): merge similar part of types.ProviderProfile
+//TODO(lambda): merge similar part of types.ProviderProfile
+
 // ProvideServiceHeader define the miner providing service transaction header.
 type ProvideServiceHeader struct {
 	Space         uint64  // reserved storage space in bytes

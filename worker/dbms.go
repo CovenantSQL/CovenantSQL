@@ -48,8 +48,6 @@ const (
 
 	// CheckInterval defines the bus service period.
 	CheckInterval = time.Second
-
-	// UpdatePeriod defines the
 )
 
 // DBMS defines a database management instance.
@@ -245,7 +243,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		"databaseid": *dbid,
 		"owner":      cd.Owner.String(),
 		"nonce":      cd.Nonce,
-	}).Debug("create database with owner")
+	}).Debug("in createDatabase")
 	p, ok := dbms.busService.RequestSQLProfile(dbid)
 	if !ok {
 		log.WithFields(log.Fields{
@@ -625,14 +623,6 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 	}
 	db := rawDB.(*Database)
 	err = db.chain.AddSubscription(nodeID, startHeight)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"databaseID":  dbID,
-			"nodeID":      nodeID,
-			"startHeight": startHeight,
-		}).WithError(err).Warning("unexpected error in addTxSubscription")
-		return
-	}
 	return
 }
 

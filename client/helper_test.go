@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -50,7 +51,8 @@ const (
 )
 
 var (
-	rootHash = hash.Hash{}
+	rootHash                      = hash.Hash{}
+	stubNextNonce pi.AccountNonce = 1
 )
 
 // fake BPDB service
@@ -79,6 +81,16 @@ func (s *stubBPService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
 			},
 		},
 	}
+	return
+}
+
+func (s *stubBPService) NextAccountNonce(_ *types.NextAccountNonceReq,
+	resp *types.NextAccountNonceResp) (err error) {
+	resp.Nonce = stubNextNonce
+	return
+}
+
+func (s *stubBPService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err error) {
 	return
 }
 

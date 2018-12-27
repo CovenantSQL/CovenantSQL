@@ -189,6 +189,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	return
 }
 
+// WaitDBCreation waits for database creation complete
 func WaitDBCreation(ctx context.Context, dsn string, timeout time.Duration) (err error) {
 	dsnCfg, err := ParseDSN(dsn)
 	// wait for creation

@@ -47,10 +47,14 @@ func (z *UpdatePermissionHeader) MarshalHash() (o []byte, err error) {
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	if oTemp, err := z.Permission.MarshalHash(); err != nil {
-		return nil, err
+	if z.Permission == nil {
+		o = hsp.AppendNil(o)
 	} else {
-		o = hsp.AppendBytes(o, oTemp)
+		if oTemp, err := z.Permission.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
 	}
 	if oTemp, err := z.TargetSQLChain.MarshalHash(); err != nil {
 		return nil, err
@@ -67,6 +71,12 @@ func (z *UpdatePermissionHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *UpdatePermissionHeader) Msgsize() (s int) {
-	s = 1 + 6 + z.Nonce.Msgsize() + 11 + z.Permission.Msgsize() + 15 + z.TargetSQLChain.Msgsize() + 11 + z.TargetUser.Msgsize()
+	s = 1 + 6 + z.Nonce.Msgsize() + 11
+	if z.Permission == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.Permission.Msgsize()
+	}
+	s += 15 + z.TargetSQLChain.Msgsize() + 11 + z.TargetUser.Msgsize()
 	return
 }

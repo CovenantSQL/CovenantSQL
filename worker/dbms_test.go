@@ -134,11 +134,12 @@ func TestDBMS(t *testing.T) {
 
 			// grant write and read permission
 			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-				&types.PermStat{Permission: types.Write, Status: types.Normal})
+				&types.PermStat{Permission: types.UserPermissionFromRole(types.Write), Status: types.Normal})
 			So(err, ShouldBeNil)
 			userState, ok := dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			So(userState.Permission, ShouldEqual, types.Write)
+			So(userState.Permission, ShouldNotBeNil)
+			So(userState.Permission.Role, ShouldEqual, types.Write)
 			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("success write and read", func() {
@@ -193,10 +194,11 @@ func TestDBMS(t *testing.T) {
 
 				// revoke write permission
 				err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-					&types.PermStat{Permission: types.Read, Status: types.Normal})
+					&types.PermStat{Permission: types.UserPermissionFromRole(types.Read), Status: types.Normal})
 				userState, ok := dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 				So(ok, ShouldBeTrue)
-				So(userState.Permission, ShouldEqual, types.Read)
+				So(userState.Permission, ShouldNotBeNil)
+				So(userState.Permission.Role, ShouldEqual, types.Read)
 				So(userState.Status, ShouldEqual, types.Normal)
 
 				Convey("success reading and fail to write", func() {
@@ -229,10 +231,12 @@ func TestDBMS(t *testing.T) {
 
 			// grant invalid permission
 			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-				&types.PermStat{Permission: types.Void, Status: types.Normal})
+				&types.PermStat{Permission: types.UserPermissionFromRole(types.Void), Status: types.Normal})
+			So(err, ShouldBeNil)
 			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			So(userState.Permission, ShouldEqual, types.Void)
+			So(userState.Permission, ShouldNotBeNil)
+			So(userState.Permission.Role, ShouldEqual, types.Void)
 			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("invalid permission query should fail", func() {
@@ -264,10 +268,12 @@ func TestDBMS(t *testing.T) {
 
 			// grant admin permission but in arrears
 			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-				&types.PermStat{Permission: types.Admin, Status: types.Arrears})
+				&types.PermStat{Permission: types.UserPermissionFromRole(types.Admin), Status: types.Arrears})
+			So(err, ShouldBeNil)
 			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			So(userState.Permission, ShouldEqual, types.Admin)
+			So(userState.Permission, ShouldNotBeNil)
+			So(userState.Permission.Role, ShouldEqual, types.Admin)
 			So(userState.Status, ShouldEqual, types.Arrears)
 
 			Convey("arrears query should fail", func() {
@@ -296,10 +302,12 @@ func TestDBMS(t *testing.T) {
 
 			// switch user to normal
 			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-				&types.PermStat{Permission: types.Admin, Status: types.Normal})
+				&types.PermStat{Permission: types.UserPermissionFromRole(types.Admin), Status: types.Normal})
+			So(err, ShouldBeNil)
 			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			So(userState.Permission, ShouldEqual, types.Admin)
+			So(userState.Permission, ShouldNotBeNil)
+			So(userState.Permission.Role, ShouldEqual, types.Admin)
 			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("can send read and write queries", func() {
@@ -345,6 +353,101 @@ func TestDBMS(t *testing.T) {
 				err = testRequest(route.DBSAck, ack, &ackRes)
 				So(err, ShouldBeNil)
 			})
+
+			// enforce query pattern regulations
+			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+				&types.PermStat{Permission: &types.UserPermission{
+					Role: types.Admin,
+					Patterns: []string{
+						"create table test (test int)",
+						"SELECT 1",
+						"INSERT INTO TEST VALUES(1)",
+					},
+				}, Status: types.Normal})
+			So(err, ShouldBeNil)
+			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
+			So(ok, ShouldBeTrue)
+			So(userState.Permission, ShouldNotBeNil)
+			So(userState.Permission.Role, ShouldEqual, types.Admin)
+			So(userState.Permission.Patterns, ShouldHaveLength, 3)
+
+			Convey("query patterns restrictions", func() {
+				var writeQuery *types.Request
+				var queryRes *types.Response
+
+				// sending allowed write query
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 11, dbID, []string{
+					"create table test (test int)",
+					"INSERT INTO TEST VALUES(1)",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err, ShouldBeNil)
+				err = queryRes.Verify()
+				So(err, ShouldBeNil)
+				So(queryRes.Header.RowCount, ShouldEqual, 0)
+
+				// sending allowed read query
+				var readQuery *types.Request
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 12, dbID, []string{
+					"SELECT 1",
+				})
+				So(err, ShouldBeNil)
+
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err, ShouldBeNil)
+				err = queryRes.Verify()
+				So(err, ShouldBeNil)
+				So(queryRes.Header.RowCount, ShouldEqual, uint64(1))
+				So(queryRes.Payload.Rows, ShouldHaveLength, 1)
+				So(queryRes.Payload.Rows[0].Values, ShouldHaveLength, 1)
+				So(queryRes.Payload.Rows[0].Values[0], ShouldEqual, 1)
+
+				// sending disallowed write query
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 13, dbID, []string{
+					"insert into test values(1)",
+				})
+				So(err, ShouldBeNil)
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err, ShouldNotBeNil)
+
+				// sending disallowed write query mixed with valid write query
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 14, dbID, []string{
+					"INSERT INTO TEST VALUES(1)",
+					"insert into test values(1)",
+				})
+				So(err, ShouldBeNil)
+				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+				So(err, ShouldNotBeNil)
+
+				// sending disallowed read query
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 15, dbID, []string{
+					"select * from test",
+				})
+				So(err, ShouldBeNil)
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err, ShouldNotBeNil)
+
+				// sending disallowed read query
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 16, dbID, []string{
+					"SELECT 1",
+					"select * from test",
+				})
+				So(err, ShouldBeNil)
+				err = testRequest(route.DBSQuery, readQuery, &queryRes)
+				So(err, ShouldNotBeNil)
+			})
+
+			// set back permission object
+			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+				&types.PermStat{Permission: types.UserPermissionFromRole(types.Admin), Status: types.Normal})
+			So(err, ShouldBeNil)
+			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
+			So(ok, ShouldBeTrue)
+			So(userState.Permission, ShouldNotBeNil)
+			So(userState.Permission.Role, ShouldEqual, types.Admin)
+			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("query non-existent database", func() {
 				// sending write query

@@ -67,6 +67,10 @@ func TestMain(m *testing.M) {
 	os.Exit(func() int {
 		var stop func()
 		db, stop = initTestDB()
+		if db == nil {
+			stop()
+			log.Fatalf("init test DB failed")
+		}
 		defer stop()
 		defer db.Close()
 		return m.Run()

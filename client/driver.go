@@ -17,6 +17,7 @@
 package client
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"math/rand"
@@ -24,6 +25,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -35,7 +38,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -184,6 +186,15 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	cfg.DatabaseID = string(proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
 	dsn = cfg.FormatDSN()
 
+	return
+}
+
+func WaitDBCreation(ctx context.Context, dsn string, timeout time.Duration) (err error) {
+	dsnCfg, err := ParseDSN(dsn)
+	// wait for creation
+	var newCtx, cancel = context.WithTimeout(ctx, timeout)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(newCtx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
 	return
 }
 

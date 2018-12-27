@@ -17,9 +17,13 @@
 package client
 
 import (
+	"context"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -27,7 +31,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestInit(t *testing.T) {
@@ -66,6 +69,9 @@ func TestCreate(t *testing.T) {
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 
+		err = WaitDBCreation(context.Background(), dsn, time.Nanosecond)
+		So(err, ShouldResemble, context.DeadlineExceeded)
+
 		// Calculate database ID
 		var priv *asymmetric.PrivateKey
 		priv, err = kms.GetLocalPrivateKey()
@@ -81,6 +87,9 @@ func TestCreate(t *testing.T) {
 			DatabaseID: dbID,
 			UseLeader:  true,
 		})
+
+		err = WaitDBCreation(context.Background(), dsn, time.Minute)
+		So(err, ShouldBeNil)
 	})
 }
 

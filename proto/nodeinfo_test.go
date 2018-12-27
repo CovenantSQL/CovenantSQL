@@ -35,11 +35,11 @@ func TestAccountAddress_DatabaseID(t *testing.T) {
 
 	Convey("DatabaseID Convert", t, func() {
 		for i := range target {
-			dbid := DatabaseID(target[i])
-			a, err := dbid.AccountAddress()
+			dbID := DatabaseID(target[i])
+			a, err := dbID.AccountAddress()
 			So(err, ShouldBeNil)
 			d := a.DatabaseID()
-			So(d, ShouldEqual, dbid)
+			So(d, ShouldEqual, dbID)
 			So(string(d), ShouldEqual, target[i])
 		}
 	})

@@ -176,9 +176,8 @@ func (d *DatabaseID) AccountAddress() (a AccountAddress, err error) {
 }
 
 // FromAccountAndNonce generates databaseID from Account and its nonce.
-func FromAccountAndNonce(accountAddress AccountAddress, nonce uint32) *DatabaseID {
+func FromAccountAndNonce(accountAddress AccountAddress, nonce uint32) DatabaseID {
 	addrAndNonce := fmt.Sprintf("%s%d", accountAddress.String(), nonce)
 	rawID := hash.THashH([]byte(addrAndNonce))
-	d := DatabaseID(rawID.String())
-	return &d
+	return DatabaseID(rawID.String())
 }

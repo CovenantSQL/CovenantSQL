@@ -17,9 +17,13 @@
 package client
 
 import (
+	"context"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -27,7 +31,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestInit(t *testing.T) {
@@ -66,6 +69,9 @@ func TestCreate(t *testing.T) {
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 
+		err = WaitDBCreation(context.Background(), dsn, time.Nanosecond)
+		So(err, ShouldResemble, context.DeadlineExceeded)
+
 		// Calculate database ID
 		var priv *asymmetric.PrivateKey
 		priv, err = kms.GetLocalPrivateKey()
@@ -73,14 +79,17 @@ func TestCreate(t *testing.T) {
 		var addr proto.AccountAddress
 		addr, err = crypto.PubKeyHash(priv.PubKey())
 		So(err, ShouldBeNil)
-		var dbid = string(*proto.FromAccountAndNonce(addr, uint32(stubNextNonce)))
+		var dbID = string(proto.FromAccountAndNonce(addr, uint32(stubNextNonce)))
 
 		recoveredCfg, err := ParseDSN(dsn)
 		So(err, ShouldBeNil)
 		So(recoveredCfg, ShouldResemble, &Config{
-			DatabaseID: dbid,
+			DatabaseID: dbID,
 			UseLeader:  true,
 		})
+
+		err = WaitDBCreation(context.Background(), dsn, time.Minute)
+		So(err, ShouldBeNil)
 	})
 }
 

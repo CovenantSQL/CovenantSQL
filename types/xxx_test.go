@@ -73,7 +73,7 @@ func generateRandomAccountAddresses(n int) (s []proto.AccountAddress) {
 
 func generateRandomProfile() *SQLChainProfile {
 	return &SQLChainProfile{
-		ID:    *generateRandomDatabaseID(),
+		ID:    generateRandomDatabaseID(),
 		Owner: proto.AccountAddress(generateRandomHash()),
 		Users: generateRandomSQLChainUsers(rand.Intn(10) + 1),
 	}
@@ -106,9 +106,8 @@ func generateRandomHash() hash.Hash {
 
 }
 
-func generateRandomDatabaseID() *proto.DatabaseID {
-	id := proto.DatabaseID(randStringBytes(uuidLen))
-	return &id
+func generateRandomDatabaseID() proto.DatabaseID {
+	return proto.DatabaseID(randStringBytes(uuidLen))
 
 }
 
@@ -172,7 +171,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err erro
 
 func generateRandomBillingRequestHeader() *BillingRequestHeader {
 	return &BillingRequestHeader{
-		DatabaseID: *generateRandomDatabaseID(),
+		DatabaseID: generateRandomDatabaseID(),
 		LowBlock:   generateRandomHash(),
 		LowHeight:  rand.Int31(),
 		HighBlock:  generateRandomHash(),

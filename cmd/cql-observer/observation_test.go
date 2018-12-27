@@ -257,7 +257,7 @@ func TestFullProcess(t *testing.T) {
 			addr, addr2 proto.AccountAddress
 			dsn, dsn2   string
 			cfg, cfg2   *client.Config
-			dbid, dbid2 string
+			dbID, dbID2 string
 			ctx, ctx2   context.Context
 			ccl, ccl2   context.CancelFunc
 		)
@@ -288,16 +288,16 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
 
+		db, err := sql.Open("covenantsql", dsn)
+		So(err, ShouldBeNil)
+
 		// wait
 		cfg, err = client.ParseDSN(dsn)
 		So(err, ShouldBeNil)
-		dbid = cfg.DatabaseID
-		ctx, ccl = context.WithTimeout(context.Background(), 30*time.Second)
+		dbID = cfg.DatabaseID
+		ctx, ccl = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbid), 3*time.Second)
-		So(err, ShouldBeNil)
-
-		db, err := sql.Open("covenantsql", dsn)
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbID), db, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
@@ -359,17 +359,17 @@ func TestFullProcess(t *testing.T) {
 
 		log.Infof("the created database dsn is %v", dsn2)
 
+		db2, err := sql.Open("covenantsql", dsn2)
+		So(err, ShouldBeNil)
+
 		// wait
 		cfg2, err = client.ParseDSN(dsn2)
 		So(err, ShouldBeNil)
-		dbid2 = cfg2.DatabaseID
-		So(dbid, ShouldNotResemble, dbid2)
-		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
+		dbID2 = cfg2.DatabaseID
+		So(dbID, ShouldNotResemble, dbID2)
+		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl2()
-		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbid2), 3*time.Second)
-		So(err, ShouldBeNil)
-
-		db2, err := sql.Open("covenantsql", dsn2)
+		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID2), db2, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")
@@ -399,7 +399,7 @@ func TestFullProcess(t *testing.T) {
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql-observer.test"),
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
-				"-database", dbid, "-reset", "oldest",
+				"-database", dbID, "-reset", "oldest",
 				"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/observer.cover.out"),
 			},
 			"observer", testWorkingDir, logDir, false,
@@ -415,14 +415,14 @@ func TestFullProcess(t *testing.T) {
 		time.Sleep(conf.SQLChainPeriod * 2)
 
 		// test get genesis block by height
-		res, err := getJSON("v1/height/%v/0", dbid)
+		res, err := getJSON("v1/height/%v/0", dbID)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
 		// test get first containable block
-		res, err = getJSON("v3/height/%v/1", dbid)
+		res, err = getJSON("v3/height/%v/1", dbID)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 1)
@@ -433,12 +433,12 @@ func TestFullProcess(t *testing.T) {
 		byHeightBlockResult := ensureSuccess(res.Interface())
 
 		// test get block by hash
-		res, err = getJSON("v3/block/%v/%v", dbid, blockHash)
+		res, err = getJSON("v3/block/%v/%v", dbID, blockHash)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface()), ShouldResemble, byHeightBlockResult)
 
 		// test get block by hash using v1 version, returns ack hashes as queries
-		res, err = getJSON("v1/block/%v/%v", dbid, blockHash)
+		res, err = getJSON("v1/block/%v/%v", dbID, blockHash)
 		So(err, ShouldBeNil)
 
 		ackHashes, err := res.ArrayOfStrings("block", "queries")
@@ -449,7 +449,7 @@ func TestFullProcess(t *testing.T) {
 		var reqHash string
 
 		for _, ackHash := range ackHashes {
-			res, err = getJSON("v1/ack/%v/%v", dbid, ackHash)
+			res, err = getJSON("v1/ack/%v/%v", dbID, ackHash)
 			So(err, ShouldBeNil)
 			So(ensureSuccess(res.Interface("ack")), ShouldNotBeNil)
 			So(ensureSuccess(res.String("ack", "hash")), ShouldNotBeEmpty)
@@ -471,7 +471,7 @@ func TestFullProcess(t *testing.T) {
 		So(reqHash, ShouldNotBeEmpty)
 
 		// test get request entity by request hash
-		res, err = getJSON("v1/request/%v/%v", dbid, reqHash)
+		res, err = getJSON("v1/request/%v/%v", dbID, reqHash)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("request")), ShouldNotBeNil)
 		So(ensureSuccess(res.String("request", "hash")), ShouldNotBeEmpty)
@@ -481,12 +481,12 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.String("request", "queries", "0", "pattern")), ShouldNotBeEmpty)
 
 		// test get genesis block by height
-		res, err = getJSON("v3/height/%v/0", dbid2)
+		res, err = getJSON("v3/height/%v/0", dbID2)
 		So(err, ShouldNotBeNil)
 		log.Info(err, res)
 
 		// test get genesis block by height
-		res, err = getJSON("v3/head/%v", dbid2)
+		res, err = getJSON("v3/head/%v", dbID2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)

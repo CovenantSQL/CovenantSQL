@@ -89,8 +89,8 @@ func (tb *Billing) GetAccountNonce() pi.AccountNonce {
 }
 
 // GetDatabaseID gets the database ID.
-func (tb *Billing) GetDatabaseID() *proto.DatabaseID {
-	return &tb.BillingRequest.Header.DatabaseID
+func (tb *Billing) GetDatabaseID() proto.DatabaseID {
+	return tb.BillingRequest.Header.DatabaseID
 }
 
 func init() {

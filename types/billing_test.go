@@ -129,8 +129,8 @@ func TestBilling_PackAndSignTx(t *testing.T) {
 
 	tb.GetAccountNonce()
 
-	if tb.GetDatabaseID() == nil {
-		t.Fatal("get nil DatabaseID")
+	if len(tb.GetDatabaseID()) == 0 {
+		t.Fatal("get empty DatabaseID")
 	}
 
 	tb.Signature = nil

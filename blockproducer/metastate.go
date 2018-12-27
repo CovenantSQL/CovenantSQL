@@ -697,7 +697,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	dbID := proto.FromAccountAndNonce(tx.Owner, uint32(tx.Nonce))
 	dbAddr, err := dbID.AccountAddress()
 	if err != nil {
-		err = errors.Wrapf(err, "unexpected error when convert dbid: %v", dbID)
+		err = errors.Wrapf(err, "unexpected error when convert database id: %v", dbID)
 		return
 	}
 	// generate userinfo
@@ -719,7 +719,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		AdvancePayment: tx.AdvancePayment,
 	}
 	// generate genesis block
-	gb, err := s.generateGenesisBlock(*dbID, tx.ResourceMeta)
+	gb, err := s.generateGenesisBlock(dbID, tx.ResourceMeta)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"dbID":         dbID,
@@ -739,7 +739,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 
 	// create sqlchain
 	sp := &types.SQLChainProfile{
-		ID:             *dbID,
+		ID:             dbID,
 		Address:        dbAddr,
 		Period:         sqlchainPeriod,
 		GasPrice:       tx.GasPrice,
@@ -750,16 +750,16 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		Miners:         miners[:],
 	}
 
-	if _, loaded := s.loadSQLChainObject(*dbID); loaded {
-		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", string(*dbID))
+	if _, loaded := s.loadSQLChainObject(dbID); loaded {
+		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", dbID)
 		return
 	}
 	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
-	s.dirty.databases[*dbID] = sp
+	s.dirty.databases[dbID] = sp
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
 	}
-	log.Infof("success create sqlchain with database ID: %s", string(*dbID))
+	log.Infof("success create sqlchain with database ID: %s", dbID)
 	return
 }
 

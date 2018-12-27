@@ -178,10 +178,10 @@ func (bs *BusService) requestLastBlock() (
 }
 
 // RequestSQLProfile get specified database profile.
-func (bs *BusService) RequestSQLProfile(dbid *proto.DatabaseID) (p *types.SQLChainProfile, ok bool) {
+func (bs *BusService) RequestSQLProfile(dbID proto.DatabaseID) (p *types.SQLChainProfile, ok bool) {
 	bs.lock.Lock()
 	defer bs.lock.Unlock()
-	p, ok = bs.sqlChainProfiles[*dbid]
+	p, ok = bs.sqlChainProfiles[dbID]
 	return
 }
 

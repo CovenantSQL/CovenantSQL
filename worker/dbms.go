@@ -48,8 +48,6 @@ const (
 
 	// CheckInterval defines the bus service period.
 	CheckInterval = time.Second
-
-	// UpdatePeriod defines the
 )
 
 // DBMS defines a database management instance.

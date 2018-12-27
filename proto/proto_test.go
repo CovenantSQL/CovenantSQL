@@ -61,10 +61,10 @@ func TestDatabaseID_AccountAddress(t *testing.T) {
 
 	Convey("AccountAddress convert", t, func() {
 		for i := range target {
-			dbid := DatabaseID(target[i])
+			dbID := DatabaseID(target[i])
 			h, err := hash.NewHashFromStr(target[i])
 			So(err, ShouldBeNil)
-			a, err := dbid.AccountAddress()
+			a, err := dbID.AccountAddress()
 			So(err, ShouldBeNil)
 			So(h[:], ShouldResemble, a[:])
 		}

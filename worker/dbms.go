@@ -207,16 +207,16 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 	}
 
 	var (
-		dbid     = ub.Receiver.DatabaseID()
+		dbID     = ub.Receiver.DatabaseID()
 		newState = types.UserState{
 			State: make(map[proto.AccountAddress]*types.PermStat),
 		}
 	)
 
-	p, ok := dbms.busService.RequestSQLProfile(dbid)
+	p, ok := dbms.busService.RequestSQLProfile(dbID)
 	if !ok {
 		log.WithFields(log.Fields{
-			"databaseid": dbid,
+			"databaseid": dbID,
 		}).Warning("database profile not found")
 		return
 	}
@@ -239,18 +239,18 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	}
 
 	var (
-		dbid          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
+		dbID          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
 		isTargetMiner = false
 	)
 	log.WithFields(log.Fields{
-		"databaseid": dbid,
+		"databaseid": dbID,
 		"owner":      cd.Owner.String(),
 		"nonce":      cd.Nonce,
 	}).Debug("in createDatabase")
-	p, ok := dbms.busService.RequestSQLProfile(dbid)
+	p, ok := dbms.busService.RequestSQLProfile(dbID)
 	if !ok {
 		log.WithFields(log.Fields{
-			"databaseid": dbid,
+			"databaseid": dbID,
 		}).Warning("database profile not found")
 		return
 	}
@@ -285,7 +285,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
-	dbms.chainMap.Store(dbid, *state)
+	dbms.chainMap.Store(dbID, *state)
 }
 
 func (dbms *DBMS) buildSQLChainServiceInstance(
@@ -344,8 +344,8 @@ func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
 }
 
 // UpdatePermission exports the update permission interface for test.
-func (dbms *DBMS) UpdatePermission(dbid proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
-	s, loaded := dbms.chainMap.Load(dbid)
+func (dbms *DBMS) UpdatePermission(dbID proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
+	s, loaded := dbms.chainMap.Load(dbID)
 	if !loaded {
 		err = errors.Wrap(ErrNotExists, "update permission failed")
 		return
@@ -611,7 +611,7 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 	}
 	err = dbms.checkPermission(addr, dbID, types.ReadQuery)
 	if err != nil {
-		log.WithFields(log.Fields{"dbid": dbID, "addr": addr}).WithError(err).Warning("permission deny")
+		log.WithFields(log.Fields{"databaseID": dbID, "addr": addr}).WithError(err).Warning("permission deny")
 		return
 	}
 

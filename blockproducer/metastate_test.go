@@ -52,9 +52,9 @@ func TestMetaState(t *testing.T) {
 			addr2    proto.AccountAddress
 			addr3    proto.AccountAddress
 			addr4    proto.AccountAddress
-			dbid1    = proto.DatabaseID("db#1")
-			dbid2    = proto.DatabaseID("db#2")
-			dbid3    = proto.DatabaseID("db#3")
+			dbID1    = proto.DatabaseID("db#1")
+			dbID2    = proto.DatabaseID("db#2")
+			dbID3    = proto.DatabaseID("db#3")
 			ms       = newMetaState()
 		)
 		So(err, ShouldBeNil)
@@ -87,7 +87,7 @@ func TestMetaState(t *testing.T) {
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The database state should be empty", func() {
-			co, loaded = ms.loadSQLChainObject(dbid1)
+			co, loaded = ms.loadSQLChainObject(dbID1)
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 		})
@@ -103,13 +103,13 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldEqual, ErrAccountNotFound)
 		})
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
-			err = ms.createSQLChain(addr1, dbid1)
+			err = ms.createSQLChain(addr1, dbID1)
 			So(err, ShouldEqual, ErrAccountNotFound)
-			err = ms.addSQLChainUser(dbid1, addr1, types.Admin)
+			err = ms.addSQLChainUser(dbID1, addr1, types.Admin)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.deleteSQLChainUser(dbid1, addr1)
+			err = ms.deleteSQLChainUser(dbID1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbid1, addr1, types.Write)
+			err = ms.alterSQLChainUser(dbID1, addr1, types.Write)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
@@ -119,8 +119,8 @@ func TestMetaState(t *testing.T) {
 			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &types.SQLChainProfile{
-				ID: dbid1,
+			co, loaded = ms.loadOrStoreSQLChainObject(dbID1, &types.SQLChainProfile{
+				ID: dbID1,
 				Miners: []*types.MinerInfo{
 					&types.MinerInfo{Address: addr1},
 					&types.MinerInfo{Address: addr2},
@@ -128,8 +128,8 @@ func TestMetaState(t *testing.T) {
 			})
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &types.SQLChainProfile{
-				ID: dbid2,
+			co, loaded = ms.loadOrStoreSQLChainObject(dbID2, &types.SQLChainProfile{
+				ID: dbID2,
 				Miners: []*types.MinerInfo{
 					&types.MinerInfo{Address: addr2},
 					&types.MinerInfo{Address: addr3},
@@ -146,14 +146,14 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(ao, ShouldNotBeNil)
 				So(ao.Address, ShouldEqual, addr1)
-				co, loaded = ms.loadSQLChainObject(dbid1)
+				co, loaded = ms.loadSQLChainObject(dbID1)
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
-				So(co.ID, ShouldEqual, dbid1)
-				co, loaded = ms.loadOrStoreSQLChainObject(dbid1, nil)
+				So(co.ID, ShouldEqual, dbID1)
+				co, loaded = ms.loadOrStoreSQLChainObject(dbID1, nil)
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
-				So(co.ID, ShouldEqual, dbid1)
+				So(co.ID, ShouldEqual, dbID1)
 				bl, loaded = ms.loadAccountStableBalance(addr1)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 0)
@@ -162,27 +162,27 @@ func TestMetaState(t *testing.T) {
 				So(bl, ShouldEqual, 0)
 			})
 			Convey("When new SQLChain is created", func() {
-				err = ms.createSQLChain(addr1, dbid3)
+				err = ms.createSQLChain(addr1, dbID3)
 				So(err, ShouldBeNil)
 				Convey("The metaState object should report database exists", func() {
-					err = ms.createSQLChain(addr1, dbid3)
+					err = ms.createSQLChain(addr1, dbID3)
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
-						err = ms.deleteSQLChainUser(dbid3, addr2)
+						err = ms.deleteSQLChainUser(dbID3, addr2)
 						So(err, ShouldBeNil)
-						err = ms.deleteSQLChainUser(dbid3, addr2)
+						err = ms.deleteSQLChainUser(dbID3, addr2)
 						So(err, ShouldBeNil)
 					})
 					Convey("The metaState object should be ok to alter user", func() {
-						err = ms.alterSQLChainUser(dbid3, addr2, types.Read)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbid3, addr2, types.Write)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
@@ -197,15 +197,15 @@ func TestMetaState(t *testing.T) {
 							So(dbs, ShouldBeEmpty)
 						})
 						Convey("The metaState object should be ok to delete user", func() {
-							err = ms.deleteSQLChainUser(dbid3, addr2)
+							err = ms.deleteSQLChainUser(dbID3, addr2)
 							So(err, ShouldBeNil)
-							err = ms.deleteSQLChainUser(dbid3, addr2)
+							err = ms.deleteSQLChainUser(dbID3, addr2)
 							So(err, ShouldBeNil)
 						})
 						Convey("The metaState object should be ok to alter user", func() {
-							err = ms.alterSQLChainUser(dbid3, addr2, types.Read)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbid3, addr2, types.Write)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
 							So(err, ShouldBeNil)
 						})
 					})
@@ -213,13 +213,13 @@ func TestMetaState(t *testing.T) {
 				Convey("When metaState change is committed", func() {
 					ms.commit()
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {
-						err = ms.createSQLChain(addr1, dbid3)
+						err = ms.createSQLChain(addr1, dbID3)
 						So(err, ShouldEqual, ErrDatabaseExists)
 					})
 				})
@@ -232,7 +232,7 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeFalse)
 				})
 				Convey("The database state should be empty", func() {
-					co, loaded = ms.loadSQLChainObject(dbid1)
+					co, loaded = ms.loadSQLChainObject(dbID1)
 					So(co, ShouldBeNil)
 					So(loaded, ShouldBeFalse)
 				})
@@ -428,18 +428,18 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					_, loaded = ms.loadOrStoreAccountObject(addr1, nil)
 					So(loaded, ShouldBeTrue)
-					_, loaded = ms.loadSQLChainObject(dbid1)
+					_, loaded = ms.loadSQLChainObject(dbID1)
 					So(loaded, ShouldBeTrue)
-					_, loaded = ms.loadOrStoreSQLChainObject(dbid2, nil)
+					_, loaded = ms.loadOrStoreSQLChainObject(dbID2, nil)
 					So(loaded, ShouldBeTrue)
 				})
 				Convey("When some objects are deleted", func() {
 					ms.deleteAccountObject(addr1)
-					ms.deleteSQLChainObject(dbid1)
+					ms.deleteSQLChainObject(dbID1)
 					Convey("The dirty map should return deleted states of these objects", func() {
 						_, loaded = ms.loadAccountObject(addr1)
 						So(loaded, ShouldBeFalse)
-						_, loaded = ms.loadSQLChainObject(dbid1)
+						_, loaded = ms.loadSQLChainObject(dbID1)
 						So(loaded, ShouldBeFalse)
 					})
 				})

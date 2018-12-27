@@ -205,8 +205,8 @@ func (r *runtime) getQueryGas(t types.QueryType) uint64 {
 }
 
 // stop sends a signal to the Runtime stop channel by closing it.
-func (r *runtime) stop(dbid proto.DatabaseID) {
-	r.stopService(dbid)
+func (r *runtime) stop(dbID proto.DatabaseID) {
+	r.stopService(dbID)
 	r.cancel()
 	r.wg.Wait()
 }
@@ -291,8 +291,8 @@ func (r *runtime) startService(chain *Chain) {
 	r.muxService.register(chain.databaseID, &ChainRPCService{chain: chain})
 }
 
-func (r *runtime) stopService(dbid proto.DatabaseID) {
-	r.muxService.unregister(dbid)
+func (r *runtime) stopService(dbID proto.DatabaseID) {
+	r.muxService.unregister(dbID)
 }
 
 func (r *runtime) isMyTurn() (ret bool) {

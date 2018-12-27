@@ -697,7 +697,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	dbID := proto.FromAccountAndNonce(tx.Owner, uint32(tx.Nonce))
 	dbAddr, err := dbID.AccountAddress()
 	if err != nil {
-		err = errors.Wrapf(err, "unexpected error when convert dbid: %v", dbID)
+		err = errors.Wrapf(err, "unexpected error when convert database id: %v", dbID)
 		return
 	}
 	// generate userinfo

@@ -74,7 +74,7 @@ func (s *SQLite3Storage) Drop(dbID string) (err error) {
 }
 
 // Query implements the Storage abstraction interface.
-func (s *SQLite3Storage) Query(dbID string, query string) (columns []string, types []string, result [][]interface{}, err error) {
+func (s *SQLite3Storage) Query(dbID string, query string, args ...interface{}) (columns []string, types []string, result [][]interface{}, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID, true); err != nil {
 		return
@@ -88,7 +88,7 @@ func (s *SQLite3Storage) Query(dbID string, query string) (columns []string, typ
 	defer tx.Rollback()
 
 	var rows *sql.Rows
-	if rows, err = tx.Query(query); err != nil {
+	if rows, err = tx.Query(query, args...); err != nil {
 		return
 	}
 	defer rows.Close()
@@ -116,7 +116,7 @@ func (s *SQLite3Storage) Query(dbID string, query string) (columns []string, typ
 }
 
 // Exec implements the Storage abstraction interface.
-func (s *SQLite3Storage) Exec(dbID string, query string) (affectedRows int64, lastInsertID int64, err error) {
+func (s *SQLite3Storage) Exec(dbID string, query string, args ...interface{}) (affectedRows int64, lastInsertID int64, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID, false); err != nil {
 		return
@@ -124,7 +124,7 @@ func (s *SQLite3Storage) Exec(dbID string, query string) (affectedRows int64, la
 	defer conn.Close()
 
 	var result sql.Result
-	result, err = conn.Exec(query)
+	result, err = conn.Exec(query, args...)
 
 	affectedRows, _ = result.RowsAffected()
 	lastInsertID, _ = result.LastInsertId()

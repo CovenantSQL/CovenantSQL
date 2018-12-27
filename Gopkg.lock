@@ -53,7 +53,7 @@
   revision = "b72b1571892216ba2a42fb8abeb726d082b4c4d1"
 
 [[projects]]
-  digest = "1:69fec5960ceb89bcb8d6a1ef8126d6e7cdfa9d7be70e41e56188c8c90015b2fe"
+  digest = "1:aa94227e54ee105fcd03f25c85d3e5bbe13d2f2d5eb02379b5b4db5320dfb371"
   name = "github.com/alecthomas/chroma"
   packages = [
     ".",
@@ -89,8 +89,8 @@
     "styles",
   ]
   pruneopts = "UT"
-  revision = "3b3f74c6a5979f78da47b884b3e3895c1df1465b"
-  version = "v0.6.1"
+  revision = "881a441774f9d707d3b7852025b7f2149a556182"
+  version = "v0.6.2"
 
 [[projects]]
   digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
@@ -660,7 +660,6 @@
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_model/go",
-    "github.com/prometheus/common/expfmt",
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
     "github.com/rcrowley/go-metrics",

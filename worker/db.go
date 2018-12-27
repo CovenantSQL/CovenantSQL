@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
-
 	//"runtime/trace"
 	"sync"
 	"time"

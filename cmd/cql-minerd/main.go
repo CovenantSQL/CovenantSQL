@@ -28,7 +28,6 @@ import (
 	"runtime"
 
 	"github.com/CovenantSQL/CovenantSQL/metric"
-
 	//"runtime/trace"
 	"syscall"
 	"time"

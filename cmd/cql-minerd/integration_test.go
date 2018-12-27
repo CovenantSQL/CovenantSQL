@@ -34,9 +34,6 @@ import (
 	"testing"
 	"time"
 
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -49,6 +46,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (

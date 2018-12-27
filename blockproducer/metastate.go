@@ -632,6 +632,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		return
 	}
 	minerCount := uint64(tx.ResourceMeta.Node)
+
 	minAdvancePayment := minDeposit(tx.GasPrice, minerCount)
 
 	if tx.AdvancePayment < minAdvancePayment {
@@ -666,7 +667,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	// not enough, find more miner(s)
 	if uint64(len(miners)) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			err = errors.Errorf("miners match target are not enough %d:%d", len(miners), minerCount)
+			err = errors.Wrapf(err, "miners match target are not enough %d:%d", len(miners), minerCount)
 			return
 		}
 		// try old miners first
@@ -686,6 +687,10 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 					break
 				}
 			}
+		}
+		if uint64(len(miners)) < minerCount {
+			err = ErrNoEnoughMiner
+			return
 		}
 	}
 
@@ -767,7 +772,7 @@ func filterAndAppendMiner(
 ) (newMiners []*types.MinerInfo, err error) {
 	newMiners = miners
 	if !isProviderUserMatch(po.TargetUser, user) {
-		err = errors.New("user not in target user")
+		err = ErrMinerUserNotMatch
 		return
 	}
 	var match bool

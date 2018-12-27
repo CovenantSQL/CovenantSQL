@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -664,7 +665,7 @@ func TestMetaState(t *testing.T) {
 			Convey("When provider transaction is invalid", func() {
 				invalidPs := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
-						TargetUser: addr1,
+						TargetUser: []proto.AccountAddress{addr1},
 						Nonce:      1,
 					},
 				}
@@ -685,6 +686,7 @@ func TestMetaState(t *testing.T) {
 						Owner: addr1,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
 						GasPrice:       1,
 						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.UpdatePeriod) * 1,
@@ -699,6 +701,7 @@ func TestMetaState(t *testing.T) {
 						Owner: addr3,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
 						GasPrice:  1,
 						TokenType: types.Particle,
@@ -712,11 +715,59 @@ func TestMetaState(t *testing.T) {
 						Owner: addr3,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
 						Nonce: 1,
 					},
 				}
 				err = invalidCd4.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd5 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         2,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.UpdatePeriod) * 2,
+					},
+				}
+				err = invalidCd5.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd6 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.UpdatePeriod) * 1,
+					},
+				}
+				err = invalidCd6.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd7 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners:           []proto.AccountAddress{addr2},
+							Node:                   10,
+							Space:                  9,
+							Memory:                 9,
+							LoadAvgPerCPU:          0.1,
+							UseEventualConsistency: false,
+							ConsistencyLevel:       0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.UpdatePeriod) * 10,
+					},
+				}
+				err = invalidCd7.Sign(privKey3)
 				So(err, ShouldBeNil)
 
 				err = ms.apply(&invalidPs)
@@ -729,11 +780,64 @@ func TestMetaState(t *testing.T) {
 				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
 				err = ms.apply(&invalidCd4)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
+				err = ms.apply(&invalidCd5)
+				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+				err = ms.apply(&invalidCd6)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidMinerCount)
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("1")))] = &types.ProviderProfile{
+					TargetUser: nil,
+				}
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("2")))] = &types.ProviderProfile{
+					TargetUser: nil,
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("3")))] = &types.ProviderProfile{
+					TargetUser: []proto.AccountAddress{addr3},
+					GasPrice:   9999999999, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("4")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 1.0, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("5")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        1, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("6")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         1, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("7")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     1, // not pass
+				}
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("8")))] = &types.ProviderProfile{
+					Provider:      proto.AccountAddress{},
+					Space:         0,
+					Memory:        0,
+					LoadAvgPerCPU: 0,
+					TargetUser:    []proto.AccountAddress{addr3},
+					Deposit:       0,
+					GasPrice:      0,
+					TokenType:     0,
+					NodeID:        "",
+				}
+				err = ms.apply(&invalidCd7)
+				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
 			})
 			Convey("When SQLChain create", func() {
 				ps := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
-						TargetUser: addr1,
+						TargetUser: []proto.AccountAddress{addr1},
 						GasPrice:   1,
 						TokenType:  types.Particle,
 						Nonce:      1,
@@ -746,6 +850,7 @@ func TestMetaState(t *testing.T) {
 						Owner: addr1,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
 						GasPrice:       1,
 						AdvancePayment: 3600000,
@@ -760,6 +865,7 @@ func TestMetaState(t *testing.T) {
 						Owner: addr3,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
 						GasPrice:       1,
 						AdvancePayment: 3600000,

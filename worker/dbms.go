@@ -243,7 +243,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		"databaseid": *dbid,
 		"owner":      cd.Owner.String(),
 		"nonce":      cd.Nonce,
-	}).Debug("create database with owner")
+	}).Debug("in createDatabase")
 	p, ok := dbms.busService.RequestSQLProfile(dbid)
 	if !ok {
 		log.WithFields(log.Fields{

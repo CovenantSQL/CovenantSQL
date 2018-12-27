@@ -100,7 +100,7 @@ func TestFromAccountAndNonce(t *testing.T) {
 			So(err, ShouldBeNil)
 			a := AccountAddress(*h)
 			dbID := FromAccountAndNonce(a, target[i].nonce)
-			So(string(*dbID), ShouldResemble, target[i].result)
+			So(string(dbID), ShouldResemble, target[i].result)
 		}
 	})
 }

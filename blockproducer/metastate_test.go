@@ -897,7 +897,7 @@ func TestMetaState(t *testing.T) {
 					uint64(conf.GConf.UpdatePeriod) * uint64(len(cd2.ResourceMeta.TargetMiners))
 				So(b1-b2, ShouldEqual, cd1.AdvancePayment+minAdvancePayment)
 				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
-				co, loaded = ms.loadSQLChainObject(*dbID)
+				co, loaded = ms.loadSQLChainObject(dbID)
 				So(loaded, ShouldBeTrue)
 				dbAccount, err := dbID.AccountAddress()
 				So(err, ShouldBeNil)
@@ -961,7 +961,7 @@ func TestMetaState(t *testing.T) {
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
 
-				co, loaded = ms.loadSQLChainObject(*dbID)
+				co, loaded = ms.loadSQLChainObject(dbID)
 				for _, user := range co.Users {
 					if user.Address == addr1 {
 						So(user.Permission, ShouldEqual, types.Read)
@@ -1032,7 +1032,7 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					ms.commit()
 
-					co, loaded = ms.loadSQLChainObject(*dbID)
+					co, loaded = ms.loadSQLChainObject(dbID)
 					for _, miner := range co.Miners {
 						if miner.Address == addr1 {
 							So(miner.EncryptionKey, ShouldEqual, encryptKey)
@@ -1093,7 +1093,7 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					err = ms.apply(ub2)
 					ms.commit()
-					sqlchain, loaded := ms.loadSQLChainObject(*dbID)
+					sqlchain, loaded := ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
 					So(len(sqlchain.Miners), ShouldEqual, 1)
 					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 125)
@@ -1140,7 +1140,7 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					err = ms.apply(ub3)
 					So(err, ShouldBeNil)
-					sqlchain, loaded = ms.loadSQLChainObject(*dbID)
+					sqlchain, loaded = ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
 					So(len(sqlchain.Miners), ShouldEqual, 1)
 					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)

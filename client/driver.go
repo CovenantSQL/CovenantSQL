@@ -181,7 +181,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	}
 
 	cfg := NewConfig()
-	cfg.DatabaseID = string(*proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
+	cfg.DatabaseID = string(proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
 	dsn = cfg.FormatDSN()
 
 	return

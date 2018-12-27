@@ -213,7 +213,7 @@ func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
 		}
 	)
 
-	p, ok := dbms.busService.RequestSQLProfile(&dbid)
+	p, ok := dbms.busService.RequestSQLProfile(dbid)
 	if !ok {
 		log.WithFields(log.Fields{
 			"databaseid": dbid,
@@ -243,14 +243,14 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		isTargetMiner = false
 	)
 	log.WithFields(log.Fields{
-		"databaseid": *dbid,
+		"databaseid": dbid,
 		"owner":      cd.Owner.String(),
 		"nonce":      cd.Nonce,
 	}).Debug("in createDatabase")
 	p, ok := dbms.busService.RequestSQLProfile(dbid)
 	if !ok {
 		log.WithFields(log.Fields{
-			"databaseid": *dbid,
+			"databaseid": dbid,
 		}).Warning("database profile not found")
 		return
 	}
@@ -285,7 +285,7 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
-	dbms.chainMap.Store(*dbid, *state)
+	dbms.chainMap.Store(dbid, *state)
 }
 
 func (dbms *DBMS) buildSQLChainServiceInstance(

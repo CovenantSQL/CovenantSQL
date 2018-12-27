@@ -73,7 +73,7 @@ func TestCreate(t *testing.T) {
 		var addr proto.AccountAddress
 		addr, err = crypto.PubKeyHash(priv.PubKey())
 		So(err, ShouldBeNil)
-		var dbid = string(*proto.FromAccountAndNonce(addr, uint32(stubNextNonce)))
+		var dbid = string(proto.FromAccountAndNonce(addr, uint32(stubNextNonce)))
 
 		recoveredCfg, err := ParseDSN(dsn)
 		So(err, ShouldBeNil)

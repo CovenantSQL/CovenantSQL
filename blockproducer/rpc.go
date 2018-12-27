@@ -225,7 +225,7 @@ func Create(
 		return
 	}
 
-	dbID = *proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce))
+	dbID = proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce))
 	dsn = fmt.Sprintf("cql://%s", string(dbID))
 	return
 }

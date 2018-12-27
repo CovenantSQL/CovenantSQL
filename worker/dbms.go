@@ -48,6 +48,9 @@ const (
 
 	// CheckInterval defines the bus service period.
 	CheckInterval = time.Second
+
+	// DefaultSlowQueryTime defines the default slow query log time
+	DefaultSlowQueryTime = time.Second * 5
 )
 
 // DBMS defines a database management instance.
@@ -429,6 +432,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		UpdatePeriod:           uint64(conf.GConf.UpdatePeriod),
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,
+		SlowQueryTime:          DefaultSlowQueryTime,
 	}
 
 	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {

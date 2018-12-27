@@ -35,4 +35,5 @@ type DBConfig struct {
 	UpdatePeriod           uint64
 	UseEventualConsistency bool
 	ConsistencyLevel       float64
+	SlowQueryTime          time.Duration
 }

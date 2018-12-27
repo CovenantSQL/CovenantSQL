@@ -59,7 +59,7 @@ func (s *CovenantSQLStorage) Drop(dbID string) (err error) {
 }
 
 // Query implements the Storage abstraction interface.
-func (s *CovenantSQLStorage) Query(dbID string, query string) (columns []string, types []string, result [][]interface{}, err error) {
+func (s *CovenantSQLStorage) Query(dbID string, query string, args ...interface{}) (columns []string, types []string, result [][]interface{}, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID); err != nil {
 		return
@@ -67,7 +67,7 @@ func (s *CovenantSQLStorage) Query(dbID string, query string) (columns []string,
 	defer conn.Close()
 
 	var rows *sql.Rows
-	if rows, err = conn.Query(query); err != nil {
+	if rows, err = conn.Query(query, args...); err != nil {
 		return
 	}
 	defer rows.Close()
@@ -95,7 +95,7 @@ func (s *CovenantSQLStorage) Query(dbID string, query string) (columns []string,
 }
 
 // Exec implements the Storage abstraction interface.
-func (s *CovenantSQLStorage) Exec(dbID string, query string) (affectedRows int64, lastInsertID int64, err error) {
+func (s *CovenantSQLStorage) Exec(dbID string, query string, args ...interface{}) (affectedRows int64, lastInsertID int64, err error) {
 	var conn *sql.DB
 	if conn, err = s.getConn(dbID); err != nil {
 		return
@@ -103,7 +103,7 @@ func (s *CovenantSQLStorage) Exec(dbID string, query string) (affectedRows int64
 	defer conn.Close()
 
 	var result sql.Result
-	result, err = conn.Exec(query)
+	result, err = conn.Exec(query, args...)
 
 	if err == nil {
 		affectedRows, _ = result.RowsAffected()

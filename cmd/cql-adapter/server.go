@@ -66,11 +66,12 @@ func (adapter *HTTPAdapter) Serve() (err error) {
 		return
 	}
 
-	// start tls
-	tlsListener := tls.NewListener(listener, cfg.TLSConfig)
+	if cfg.TLSConfig != nil {
+		listener = tls.NewListener(listener, cfg.TLSConfig)
+	}
 
 	// serve the connection
-	go adapter.server.Serve(tlsListener)
+	go adapter.server.Serve(listener)
 
 	return
 }

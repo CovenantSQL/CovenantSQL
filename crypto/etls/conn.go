@@ -63,11 +63,6 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	return
 }
 
-// RawRead is the raw net.Conn.Read
-func (c *CryptoConn) RawRead(b []byte) (n int, err error) {
-	return c.Conn.Read(b)
-}
-
 // Read iv and Encrypted data
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
@@ -101,11 +96,6 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 		c.decrypt(b[0:n], cipherData[0:n])
 	}
 	return
-}
-
-// RawWrite is the raw net.Conn.Write
-func (c *CryptoConn) RawWrite(b []byte) (n int, err error) {
-	return c.Conn.Read(b)
 }
 
 // Write iv and Encrypted data

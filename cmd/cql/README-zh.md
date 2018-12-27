@@ -13,7 +13,7 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 首先需要一个 config 文件和由你输入的主密码（master key）来初始化，其中主密码用来加密解密本地密钥对。使用 `cql-utils` 工具进行配置文件生成后，你可以在生成的配置文件目录下找到密钥文件。
 
-具体请参考: [cql-utils 使用文档](https://github.com/CovenantSQL/docs/tree/master/development-cmd-utils-zh.md#使用) 中配置文件及钱包地址生成相关章节。
+具体请参考: [cql-utils 使用文档](https://github.com/CovenantSQL/docs/blob/master/docs/development-cmd-cql-utils-zh.md#使用) 中配置文件及钱包地址生成相关章节。
 
 ## 检查钱包余额
 

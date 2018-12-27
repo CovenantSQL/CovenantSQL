@@ -34,9 +34,7 @@ import (
 	"testing"
 	"time"
 
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	. "github.com/smartystreets/goconvey/convey"
-
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -49,6 +47,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -369,8 +369,6 @@ func TestFullProcess(t *testing.T) {
 		clientAddr, err = crypto.PubKeyHash(clientPrivKey.PubKey())
 		So(err, ShouldBeNil)
 
-		time.Sleep(20 * time.Second)
-
 		// client send create database transaction
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
@@ -384,7 +382,11 @@ func TestFullProcess(t *testing.T) {
 		dsn, err := client.Create(meta)
 		dsnCfg, err := client.ParseDSN(dsn)
 
-		time.Sleep(20 * time.Second)
+		// wait for creation
+		var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel()
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
+		So(err, ShouldBeNil)
 
 		// check sqlchain profile exist
 		dbID := proto.DatabaseID(dsnCfg.DatabaseID)

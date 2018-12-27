@@ -253,7 +253,7 @@ func TestFullProcess(t *testing.T) {
 	Convey("test full process", t, func() {
 		var (
 			err         error
-			priv, priv2 *asymmetric.PrivateKey
+			cliPriv     *asymmetric.PrivateKey
 			addr, addr2 proto.AccountAddress
 			dsn, dsn2   string
 			cfg, cfg2   *client.Config
@@ -270,10 +270,13 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// get miner addresses
-		priv, addr, err = privKeyStoreToAccountAddr(
+		cliPriv, _, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_c/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		_, addr, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_miner_0/private.key"), []byte{})
 		So(err, ShouldBeNil)
-		priv2, addr2, err = privKeyStoreToAccountAddr(
+		_, addr2, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
 		So(err, ShouldBeNil)
 
@@ -281,7 +284,7 @@ func TestFullProcess(t *testing.T) {
 		_, dsn, err = bp.Create(types.ResourceMeta{
 			TargetMiners: []proto.AccountAddress{addr},
 			Node:         1,
-		}, 1, 10000000, priv)
+		}, 1, 10000000, cliPriv)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
 
@@ -351,7 +354,7 @@ func TestFullProcess(t *testing.T) {
 		_, dsn2, err = bp.Create(types.ResourceMeta{
 			TargetMiners: []proto.AccountAddress{addr2},
 			Node:         1,
-		}, 1, 10000000, priv2)
+		}, 1, 10000000, cliPriv)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn2)

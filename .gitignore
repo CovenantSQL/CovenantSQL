@@ -1,5 +1,4 @@
 *.trace
-conf*
 ..bfg-report
 pprof.txt
 .dsn

@@ -40,7 +40,9 @@ func main() {
 	}
 
 	if dsn == "" {
-		dsn, err = client.Create(client.ResourceMeta{Node: uint16(2)})
+		meta := client.ResourceMeta{}
+		meta.Node = 2
+		dsn, err = client.Create(meta)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -384,10 +384,16 @@ func TestFullProcess(t *testing.T) {
 		dsnCfg, err := client.ParseDSN(dsn)
 		So(err, ShouldBeNil)
 
+		// create dsn
+		log.Infof("the created database dsn is %v", dsn)
+
+		db, err := sql.Open("covenantsql", dsn)
+		So(err, ShouldBeNil)
+
 		// wait for creation
 		var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// check sqlchain profile exist
@@ -420,12 +426,6 @@ func TestFullProcess(t *testing.T) {
 		So(ok, ShouldBeTrue)
 		So(permStat.Permission, ShouldEqual, types.Admin)
 		So(permStat.Status, ShouldEqual, types.Normal)
-
-		// create dsn
-		log.Infof("the created database dsn is %v", dsn)
-
-		db, err := sql.Open("covenantsql", dsn)
-		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
 		So(err, ShouldBeNil)
@@ -710,15 +710,6 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		meta.Node = minerCount
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
-		dsnCfg, err := client.ParseDSN(dsn)
-		So(err, ShouldBeNil)
-
-		// wait for creation
-		var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
-		defer cancel()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
-		So(err, ShouldBeNil)
-
 		log.Infof("the created database dsn is %v", dsn)
 		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
@@ -730,6 +721,14 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	}
 
 	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	// wait for creation
+	dsnCfg, err := client.ParseDSN(dsn)
+	So(err, ShouldBeNil)
+	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)
@@ -799,15 +798,6 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		meta.Node = minerCount
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
-		dsnCfg, err := client.ParseDSN(dsn)
-		So(err, ShouldBeNil)
-
-		// wait for creation
-		var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
-		defer cancel()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
-		So(err, ShouldBeNil)
-
 		log.Infof("the created database dsn is %v", dsn)
 		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
@@ -819,6 +809,15 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	}
 
 	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	dsnCfg, err := client.ParseDSN(dsn)
+	So(err, ShouldBeNil)
+
+	// wait for creation
+	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)

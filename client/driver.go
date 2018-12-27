@@ -195,7 +195,7 @@ func WaitDBCreation(ctx context.Context, dsn string, timeout time.Duration) (err
 	// wait for creation
 	var newCtx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
-	err = bp.WaitDatabaseCreation(newCtx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
+	err = bp.WaitDatabaseCreation(newCtx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
 	return
 }
 

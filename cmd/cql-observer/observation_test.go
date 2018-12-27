@@ -288,16 +288,16 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
 
+		db, err := sql.Open("covenantsql", dsn)
+		So(err, ShouldBeNil)
+
 		// wait
 		cfg, err = client.ParseDSN(dsn)
 		So(err, ShouldBeNil)
 		dbID = cfg.DatabaseID
 		ctx, ccl = context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccl()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbID), 3*time.Second)
-		So(err, ShouldBeNil)
-
-		db, err := sql.Open("covenantsql", dsn)
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbID), db, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
@@ -359,6 +359,9 @@ func TestFullProcess(t *testing.T) {
 
 		log.Infof("the created database dsn is %v", dsn2)
 
+		db2, err := sql.Open("covenantsql", dsn2)
+		So(err, ShouldBeNil)
+
 		// wait
 		cfg2, err = client.ParseDSN(dsn2)
 		So(err, ShouldBeNil)
@@ -366,10 +369,7 @@ func TestFullProcess(t *testing.T) {
 		So(dbID, ShouldNotResemble, dbID2)
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccl2()
-		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID2), 3*time.Second)
-		So(err, ShouldBeNil)
-
-		db2, err := sql.Open("covenantsql", dsn2)
+		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID2), db2, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")

@@ -18,7 +18,9 @@ package blockproducer
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -147,8 +149,11 @@ func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error
 
 // WaitDatabaseCreation waits for database creation complete.
 func WaitDatabaseCreation(
-	ctx context.Context, dbID proto.DatabaseID, period time.Duration) (err error,
-) {
+	ctx context.Context,
+	dbID proto.DatabaseID,
+	db *sql.DB,
+	period time.Duration,
+) (err error) {
 	var (
 		timer = time.NewTimer(0)
 		req   = &types.QuerySQLChainProfileReq{
@@ -167,10 +172,23 @@ func WaitDatabaseCreation(
 			timer.Reset(period)
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, resp,
-			); err == nil || err.Error() != "rpc query sqlchain profile failed: database not found" {
-				// err == nil (creation done), or
-				// err != nil && err != ErrDatabaseNotFound (unexpected error)
-				return
+			); err != nil {
+				if !strings.Contains(err.Error(), ErrDatabaseNotFound.Error()) {
+					// err != nil && err != ErrDatabaseNotFound (unexpected error)
+					return
+				}
+			} else {
+				// err == nil (creation done on BP): try to use database connection
+				if db == nil {
+					return
+				}
+				if _, err = db.ExecContext(ctx, "SHOW TABLES"); err == nil || !strings.Contains(
+					err.Error(), "database instance not exists",
+				) {
+					// err == nil (connect to Miner OK)
+					// err != nil && err != worker.ErrNotExists (unexpected error)
+					return
+				}
 			}
 		case <-ctx.Done():
 			err = ctx.Err()

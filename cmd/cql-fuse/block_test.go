@@ -259,22 +259,22 @@ func initTestDB() (*sql.DB, func()) {
 		return nil, stopNodes
 	}
 
+	db, err := sql.Open("covenantsql", dsn)
+	if err != nil {
+		log.Errorf("open db failed: %v", err)
+		return nil, stopNodes
+	}
+
 	// wait for creation
 	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	if err != nil {
 		log.Errorf("wait for creation failed: %v", err)
 		return nil, stopNodes
 	}
 
 	log.Infof("the created database dsn is %v", dsn)
-
-	db, err := sql.Open("covenantsql", dsn)
-	if err != nil {
-		log.Errorf("open db failed: %v", err)
-		return nil, stopNodes
-	}
 
 	if err := initSchema(db); err != nil {
 		stopNodes()

@@ -162,14 +162,14 @@ func WaitDatabaseCreation(
 	for {
 		select {
 		case <-timer.C:
+			timer.Reset(period)
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, resp,
-			); err != ErrDatabaseNotFound {
+			); err == nil || err.Error() != "rpc query sqlchain profile failed: database not found" {
 				// err == nil (creation done), or
 				// err != nil && err != ErrDatabaseNotFound (unexpected error)
 				return
 			}
-			timer.Reset(period)
 		case <-ctx.Done():
 			err = ctx.Err()
 			return

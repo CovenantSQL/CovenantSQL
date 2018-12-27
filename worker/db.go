@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
+
 	//"runtime/trace"
 	"sync"
 	"time"
@@ -123,7 +125,6 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		return
 	}
 
-	// TODO(xq262144): make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
 		DatabaseID:      cfg.DatabaseID,
 		ChainFilePrefix: chainFile,
@@ -131,15 +132,13 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		Genesis:         genesis,
 		Peers:           peers,
 
-		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
 		MuxService: cfg.ChainMux,
 		Server:     db.nodeID,
 
-		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
-		Period:   3 * time.Second,
-		Tick:     1 * time.Second,
-		QueryTTL: 10,
+		Period:   conf.SQLChainPeriod,
+		Tick:     conf.SQLChainTick,
+		QueryTTL: conf.SQLChainTTL,
 
 		UpdatePeriod: cfg.UpdatePeriod,
 	}

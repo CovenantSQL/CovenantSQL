@@ -664,7 +664,7 @@ func TestMetaState(t *testing.T) {
 			Convey("When provider transaction is invalid", func() {
 				invalidPs := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
-						TargetUser: addr1,
+						TargetUser: []proto.AccountAddress{addr1},
 						Nonce:      1,
 					},
 				}
@@ -733,7 +733,7 @@ func TestMetaState(t *testing.T) {
 			Convey("When SQLChain create", func() {
 				ps := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
-						TargetUser: addr1,
+						TargetUser: []proto.AccountAddress{addr1},
 						GasPrice:   1,
 						TokenType:  types.Particle,
 						Nonce:      1,

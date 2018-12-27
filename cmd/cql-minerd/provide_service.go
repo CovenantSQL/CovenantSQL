@@ -37,7 +37,7 @@ const (
 var (
 	metricKeyMemory   = "node_memory_MemAvailable_bytes"
 	metricKeyLoadAvg  = "node_load15"
-	metricKeyCpuCount = "node_cpu_count"
+	metricKeyCPUCount = "node_cpu_count"
 	metricKeySpace    = "node_filesystem_free_bytes"
 )
 
@@ -76,7 +76,7 @@ func sendProvideService(reg *prometheus.Registry) {
 
 	for _, m := range mf {
 		switch m.GetName() {
-		case metricKeyMemory, metricKeyCpuCount, metricKeyLoadAvg, metricKeySpace:
+		case metricKeyMemory, metricKeyCPUCount, metricKeyLoadAvg, metricKeySpace:
 		default:
 			continue
 		}
@@ -107,7 +107,7 @@ func sendProvideService(reg *prometheus.Registry) {
 			if metricVal > 0 && metricVal < maxUint64 {
 				keySpace = uint64(metricVal)
 			}
-		case metricKeyCpuCount:
+		case metricKeyCPUCount:
 			cpuCount = metricVal
 		case metricKeyLoadAvg:
 			loadAvg = metricVal

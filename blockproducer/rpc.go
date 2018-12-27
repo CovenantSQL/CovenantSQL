@@ -144,13 +144,14 @@ func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error
 	})
 }
 
+// WaitDatabaseCreation waits for database creation complete.
 func WaitDatabaseCreation(
-	ctx context.Context, dbid proto.DatabaseID, period time.Duration) (err error,
+	ctx context.Context, dbID proto.DatabaseID, period time.Duration) (err error,
 ) {
 	var (
 		timer = time.NewTimer(0)
 		req   = &types.QuerySQLChainProfileReq{
-			DBID: dbid,
+			DBID: dbID,
 		}
 		resp = &types.QuerySQLChainProfileResp{}
 	)
@@ -177,13 +178,14 @@ func WaitDatabaseCreation(
 	}
 }
 
+// Create allocates new database.
 func Create(
 	meta types.ResourceMeta,
 	gasPrice uint64,
 	advancePayment uint64,
 	privateKey *asymmetric.PrivateKey,
 ) (
-	databaseid proto.DatabaseID, dsn string, err error,
+	dbID proto.DatabaseID, dsn string, err error,
 ) {
 	var (
 		nonceReq   = new(types.NextAccountNonceReq)
@@ -223,7 +225,7 @@ func Create(
 		return
 	}
 
-	databaseid = *proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce))
-	dsn = fmt.Sprintf("cql://%s?use_leader=1&use_follower=0", string(databaseid))
+	dbID = *proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce))
+	dsn = fmt.Sprintf("cql://%s", string(dbID))
 	return
 }

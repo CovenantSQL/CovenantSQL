@@ -32,10 +32,6 @@ test_flags="-coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c"
 
 export CGO_ENABLED=1
 
-cql_utils_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-utils"
-go build -ldflags "-X main.version=${version} ${GOLDFLAGS}"  -o bin/cql-utils ${cql_utils_pkgpath}
-
-
 build_bp() {
     cqld_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cqld"
     go build -ldflags "${ldflags_role_bp}" --tags "${tags}" -o bin/cqld ${cqld_pkgpath}
@@ -50,27 +46,33 @@ build_miner() {
 
 
 build_client() {
+    cql_utils_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-utils"
+    go build -ldflags "-X main.version=${version} ${GOLDFLAGS}"  -o bin/cql-utils ${cql_utils_pkgpath}
+
+    cli_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql"
+    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql ${cli_pkgpath}
+
+    fuse_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse"
+    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-fuse ${fuse_pkgpath}
+
+    cql_adapter_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter"
+    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-adapter ${cql_adapter_pkgpath}
+
+    cql_faucet_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet"
+    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-faucet ${cql_faucet_pkgpath}
+
+    cql_mysql_adapter_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter"
+    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-mysql-adapter ${cql_mysql_adapter_pkgpath}
+
+    # Current no use
+    cql_explorer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer"
+    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-explorer ${cql_explorer_pkgpath}
+}
+
+build_observer() {
     cql_observer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-observer"
     go build -ldflags "${ldflags_role_client}" -o bin/cql-observer ${cql_observer_pkgpath}
     go test ${test_flags} -tags 'testbinary' -ldflags "${ldflags_role_client}" -o bin/cql-observer.test ${cql_observer_pkgpath}
-    
-    cli_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql"
-    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql ${cli_pkgpath}
-    
-    fuse_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse"
-    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-fuse ${fuse_pkgpath}
-    
-    cql_adapter_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter"
-    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-adapter ${cql_adapter_pkgpath}
-    
-    cql_faucet_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet"
-    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-faucet ${cql_faucet_pkgpath}
-    
-    cql_mysql_adapter_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter"
-    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-mysql-adapter ${cql_mysql_adapter_pkgpath}
-    
-    cql_explorer_pkgpath="github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer"
-    go build -ldflags "${ldflags_role_client}" --tags "${tags}" -o bin/cql-explorer ${cql_explorer_pkgpath}
 }
 
 case $param in
@@ -83,10 +85,14 @@ case $param in
     'client')
         build_client
         ;;
+    'observer')
+        build_observer
+        ;;
     *)
         build_bp
         build_miner
         build_client
+        build_observer
         ;;
 esac
 

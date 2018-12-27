@@ -132,7 +132,7 @@ services:
       default:
         ipv4_address: 172.254.1.8
   covenantsql_observer:
-    image: covenantsql/covenantsql:latest
+    image: covenantsql/covenantsql-observer:latest
     container_name: covenantsql_observer
     restart: always
     ports:

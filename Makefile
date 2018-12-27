@@ -1,6 +1,9 @@
 default: all
 
+BUILDER := covenantsql/covenantsql-builder
 IMAGE := covenantsql/covenantsql
+OB_IMAGE := covenantsql/covenantsql-observer
+
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 GIT_DIRTY ?= $(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 GIT_DESCRIBE ?= $(shell git describe --tags --always)
@@ -15,13 +18,33 @@ IMAGE_TAR_GZ := $(IMAGE_TAR).gz
 status:
 	@echo "Commit: $(COMMIT) Version: $(VERSION) Ship Version: $(SHIP_VERSION)"
 
-docker: status
+builder: status
+	docker build \
+		--tag $(BUILDER):$(VERSION) \
+		--tag $(BUILDER):latest \
+		--build-arg BUILD_ARG=all \
+		-f docker/builder.Dockerfile \
+		.
+
+runner: builder
 	docker build \
 		--tag $(IMAGE):$(VERSION) \
 		--tag $(IMAGE):latest \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg VERSION=$(VERSION) \
+		-f docker/Dockerfile \
 		.
+
+observer: builder
+	docker build \
+		--tag $(OB_IMAGE):$(VERSION) \
+		--tag $(OB_IMAGE):latest \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg VERSION=$(VERSION) \
+		-f docker/observer.Dockerfile \
+		.
+
+docker: runner observer
 
 save: status
 ifeq ($(SHIP_VERSION),)
@@ -55,6 +78,6 @@ client:
 	./build.sh client
 
 all:
-	./build.sh
+	./build.sh all
 
 .PHONY: status docker save start stop logs push bp miner client all

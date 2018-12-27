@@ -47,7 +47,9 @@ import (
 	"testing"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -249,6 +251,20 @@ func initTestDB() (*sql.DB, func()) {
 	dsn, err := client.Create(meta)
 	if err != nil {
 		log.Errorf("create db failed: %v", err)
+		return nil, stopNodes
+	}
+	dsnCfg, err := client.ParseDSN(dsn)
+	if err != nil {
+		log.Errorf("parse dsn failed: %v", err)
+		return nil, stopNodes
+	}
+
+	// wait for creation
+	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), 3*time.Second)
+	if err != nil {
+		log.Errorf("wait for creation failed: %v", err)
 		return nil, stopNodes
 	}
 

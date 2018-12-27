@@ -80,4 +80,4 @@ client:
 all:
 	./build.sh all
 
-.PHONY: status docker save start stop logs push bp miner client all
+.PHONY: status start stop logs push bp miner client all

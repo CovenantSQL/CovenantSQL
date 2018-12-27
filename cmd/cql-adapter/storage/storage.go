@@ -28,9 +28,9 @@ type Storage interface {
 	// Drop operation.
 	Drop(dbID string) (err error)
 	// Query for result.
-	Query(dbID string, query string) (columns []string, types []string, rows [][]interface{}, err error)
+	Query(dbID string, query string, args ...interface{}) (columns []string, types []string, rows [][]interface{}, err error)
 	// Exec for update.
-	Exec(dbID string, query string) (affectedRows int64, lastInsertID int64, err error)
+	Exec(dbID string, query string, args ...interface{}) (affectedRows int64, lastInsertID int64, err error)
 }
 
 // golang does trick convert, use rowScanner to return the original result type in sqlite3 driver

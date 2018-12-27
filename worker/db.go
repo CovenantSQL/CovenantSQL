@@ -20,9 +20,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-
-	//"runtime/trace"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -33,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 )
 
@@ -54,6 +54,9 @@ const (
 
 	// CommitThreshold defines the commit complete threshold.
 	CommitThreshold = 1.0
+
+	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
+	SlowQuerySampleSize = 1 << 10
 )
 
 // Database defines a single database instance in worker runtime.
@@ -200,6 +203,25 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 	//	return
 	//}
 
+	var (
+		isSlowQuery uint32
+		tmStart     = time.Now()
+	)
+
+	// log the query if the underlying storage layer take too long to response
+	slowQueryTimer := time.AfterFunc(db.cfg.SlowQueryTime, func() {
+		// mark as slow query
+		atomic.StoreUint32(&isSlowQuery, 1)
+		db.logSlow(request, false, tmStart)
+	})
+	defer slowQueryTimer.Stop()
+	defer func() {
+		if atomic.LoadUint32(&isSlowQuery) == 1 {
+			// slow query
+			db.logSlow(request, true, tmStart)
+		}
+	}()
+
 	switch request.Header.QueryType {
 	case types.ReadQuery:
 		return db.chain.Query(request)
@@ -214,6 +236,41 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		// TODO(xq262144): verbose errors with custom error structure
 		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
+}
+
+func (db *Database) logSlow(request *types.Request, isFinished bool, tmStart time.Time) {
+	if request == nil {
+		return
+	}
+
+	// sample the queries
+	querySample := ""
+
+	for _, q := range request.Payload.Queries {
+		if len(querySample) < SlowQuerySampleSize {
+			querySample += "; "
+			querySample += q.Pattern
+		} else {
+			break
+		}
+	}
+
+	if len(querySample) >= SlowQuerySampleSize {
+		querySample = querySample[:SlowQuerySampleSize-3]
+		querySample += "..."
+	}
+
+	log.WithFields(log.Fields{
+		"finished": isFinished,
+		"db":       request.Header.DatabaseID,
+		"req_time": request.Header.Timestamp.String(),
+		"req_node": request.Header.NodeID,
+		"count":    request.Header.BatchCount,
+		"type":     request.Header.QueryType.String(),
+		"sample":   querySample,
+		"start":    tmStart.String(),
+		"elapsed":  time.Now().Sub(tmStart).String(),
+	}).Error("slow query detected")
 }
 
 // Ack defines client response ack interface.

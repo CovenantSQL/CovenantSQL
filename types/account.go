@@ -17,6 +17,8 @@
 package types
 
 import (
+	"sync"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -45,6 +47,10 @@ type UserPermission struct {
 	// SQL pattern regulations for user queries
 	// only a fully matched (case-sensitive) sql query is permitted to execute.
 	Patterns []string
+
+	// patterns map cache for matching
+	cachedPatternMapOnce sync.Once
+	cachedPatternMap     map[string]bool
 }
 
 const (
@@ -107,13 +113,15 @@ func (up *UserPermission) HasDisallowedQueryPatterns(queries []Query) (query str
 		return
 	}
 
-	// more queries than patterns
-	queryMap := make(map[string]bool, len(up.Patterns))
-	for _, p := range up.Patterns {
-		queryMap[p] = true
-	}
+	up.cachedPatternMapOnce.Do(func() {
+		up.cachedPatternMap = make(map[string]bool, len(up.Patterns))
+		for _, p := range up.Patterns {
+			up.cachedPatternMap[p] = true
+		}
+	})
+
 	for _, q := range queries {
-		if !queryMap[q.Pattern] {
+		if !up.cachedPatternMap[q.Pattern] {
 			// not permitted
 			query = q.Pattern
 			status = true

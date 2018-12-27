@@ -391,7 +391,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// wait for creation
-		var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 		So(err, ShouldBeNil)
@@ -726,7 +726,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	// wait for creation
 	dsnCfg, err := client.ParseDSN(dsn)
 	So(err, ShouldBeNil)
-	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	So(err, ShouldBeNil)
@@ -815,7 +815,7 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	So(err, ShouldBeNil)
 
 	// wait for creation
-	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	So(err, ShouldBeNil)

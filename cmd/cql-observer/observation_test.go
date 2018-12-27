@@ -295,7 +295,7 @@ func TestFullProcess(t *testing.T) {
 		cfg, err = client.ParseDSN(dsn)
 		So(err, ShouldBeNil)
 		dbID = cfg.DatabaseID
-		ctx, ccl = context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, ccl = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl()
 		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbID), db, 3*time.Second)
 		So(err, ShouldBeNil)
@@ -367,7 +367,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		dbID2 = cfg2.DatabaseID
 		So(dbID, ShouldNotResemble, dbID2)
-		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
+		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl2()
 		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID2), db2, 3*time.Second)
 		So(err, ShouldBeNil)

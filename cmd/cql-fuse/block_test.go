@@ -266,7 +266,7 @@ func initTestDB() (*sql.DB, func()) {
 	}
 
 	// wait for creation
-	var ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	if err != nil {

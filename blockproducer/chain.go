@@ -404,7 +404,7 @@ func (c *Chain) syncHeads() {
 		for c.getNextHeight() <= h {
 			// TODO(leventeliu): use the test mode flag to bypass the long-running synchronizing
 			// on startup by now, need better solution here.
-			if !conf.GConf.IsTestMode {
+			if conf.GConf.StartupSyncHoles {
 				log.WithFields(log.Fields{
 					"next_height": c.getNextHeight(),
 					"height":      h,

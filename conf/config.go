@@ -114,8 +114,11 @@ type DNSSeed struct {
 
 // Config holds all the config read from yaml config file.
 type Config struct {
-	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
-	GenerateKeyPair bool `yaml:"-"`
+	IsTestMode bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
+	// StartupSyncHoles indicates synchronizing hole blocks from other peers on BP
+	// startup/reloading.
+	StartupSyncHoles bool `yaml:"StartupSyncHoles,omitempty"`
+	GenerateKeyPair  bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
 	WorkingRoot     string            `yaml:"WorkingRoot"`
 	PubKeyStoreFile string            `yaml:"PubKeyStoreFile"`

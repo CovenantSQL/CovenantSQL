@@ -34,20 +34,21 @@ const (
 // Tokenizer is the struct used to generate SQL
 // tokens for the parser.
 type Tokenizer struct {
-	InStream             io.Reader
-	AllowComments        bool
-	AllowBackSlashEscape bool
-	ForceEOF             bool
-	lastChar             uint16
-	Position             int
-	lastToken            []byte
-	LastError            error
-	posVarIndex          int
-	ParseTree            Statement
-	partialDDL           *DDL
-	nesting              int
-	multi                bool
-	specialComment       *Tokenizer
+	InStream               io.Reader
+	AllowComments          bool
+	AllowBackSlashEscape   bool
+	SeparatePositionalArgs bool
+	ForceEOF               bool
+	lastChar               uint16
+	Position               int
+	lastToken              []byte
+	LastError              error
+	posVarIndex            int
+	ParseTree              Statement
+	partialDDL             *DDL
+	nesting                int
+	multi                  bool
+	specialComment         *Tokenizer
 
 	buf     []byte
 	bufPos  int
@@ -112,7 +113,6 @@ var keywords = map[string]int{
 	"condition":           UNUSED,
 	"constraint":          CONSTRAINT,
 	"continue":            UNUSED,
-	"substr":              SUBSTR,
 	"create":              CREATE,
 	"cross":               CROSS,
 	"current_date":        CURRENT_DATE,
@@ -304,6 +304,7 @@ var keywords = map[string]int{
 	"year":                YEAR,
 	"year_month":          UNUSED,
 	"zerofill":            ZEROFILL,
+	"explain":             EXPLAIN,
 }
 
 // keywordStrings contains the reverse mapping of token to keyword strings
@@ -426,6 +427,9 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 			tkn.posVarIndex++
 			buf := new(bytes2.Buffer)
 			fmt.Fprintf(buf, ":v%d", tkn.posVarIndex)
+			if tkn.SeparatePositionalArgs {
+				return POS_ARG, buf.Bytes()
+			}
 			return VALUE_ARG, buf.Bytes()
 		case '.':
 			if isDigit(tkn.lastChar) {

@@ -102,65 +102,65 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 	}
 
 	if config.CertificatePath == "" || config.PrivateKeyPath == "" {
-		err = ErrRequireServerCertificate
-		log.WithError(err).Error("invalid adapter config")
-		return
-	}
+		// http mode
+		log.Warningf("running in http mode")
+	} else {
+		// tls mode
+		// init tls config
+		config.TLSConfig = &tls.Config{}
+		certPath := filepath.Join(workingRoot, config.CertificatePath)
+		privateKeyPath := filepath.Join(workingRoot, config.PrivateKeyPath)
 
-	// init tls config
-	config.TLSConfig = &tls.Config{}
-	certPath := filepath.Join(workingRoot, config.CertificatePath)
-	privateKeyPath := filepath.Join(workingRoot, config.PrivateKeyPath)
-
-	if config.ServerCertificate, err = tls.LoadX509KeyPair(certPath, privateKeyPath); err != nil {
-		return
-	}
-
-	config.TLSConfig.Certificates = []tls.Certificate{config.ServerCertificate}
-
-	if config.VerifyCertificate && config.ClientCAPath != "" {
-		clientCAPath := filepath.Join(workingRoot, config.ClientCAPath)
-
-		// load client CA
-		caCertPool := x509.NewCertPool()
-		var caCert []byte
-		if caCert, err = ioutil.ReadFile(clientCAPath); err != nil {
+		if config.ServerCertificate, err = tls.LoadX509KeyPair(certPath, privateKeyPath); err != nil {
 			return
 		}
-		caCertPool.AppendCertsFromPEM(caCert)
 
-		config.ClientCertPool = caCertPool
-		config.TLSConfig.ClientCAs = caCertPool
-		config.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		config.TLSConfig.Certificates = []tls.Certificate{config.ServerCertificate}
 
-		// load admin certs
-		config.AdminCertificates = make([]*x509.Certificate, 0)
-		for _, certFile := range config.AdminCertFiles {
-			certFile = filepath.Join(workingRoot, certFile)
+		if config.VerifyCertificate && config.ClientCAPath != "" {
+			clientCAPath := filepath.Join(workingRoot, config.ClientCAPath)
 
-			var cert *x509.Certificate
-			if cert, err = loadCert(certFile); err != nil {
+			// load client CA
+			caCertPool := x509.NewCertPool()
+			var caCert []byte
+			if caCert, err = ioutil.ReadFile(clientCAPath); err != nil {
 				return
 			}
+			caCertPool.AppendCertsFromPEM(caCert)
 
-			config.AdminCertificates = append(config.AdminCertificates, cert)
-		}
+			config.ClientCertPool = caCertPool
+			config.TLSConfig.ClientCAs = caCertPool
+			config.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 
-		// load write certs
-		config.WriteCertificates = make([]*x509.Certificate, 0)
-		for _, certFile := range config.WriteCertFiles {
-			certFile = filepath.Join(workingRoot, certFile)
+			// load admin certs
+			config.AdminCertificates = make([]*x509.Certificate, 0)
+			for _, certFile := range config.AdminCertFiles {
+				certFile = filepath.Join(workingRoot, certFile)
 
-			var cert *x509.Certificate
-			if cert, err = loadCert(certFile); err != nil {
-				return
+				var cert *x509.Certificate
+				if cert, err = loadCert(certFile); err != nil {
+					return
+				}
+
+				config.AdminCertificates = append(config.AdminCertificates, cert)
 			}
 
-			config.WriteCertificates = append(config.WriteCertificates, cert)
-		}
+			// load write certs
+			config.WriteCertificates = make([]*x509.Certificate, 0)
+			for _, certFile := range config.WriteCertFiles {
+				certFile = filepath.Join(workingRoot, certFile)
 
-	} else {
-		config.TLSConfig.ClientAuth = tls.NoClientCert
+				var cert *x509.Certificate
+				if cert, err = loadCert(certFile); err != nil {
+					return
+				}
+
+				config.WriteCertificates = append(config.WriteCertificates, cert)
+			}
+
+		} else {
+			config.TLSConfig.ClientAuth = tls.NoClientCert
+		}
 	}
 
 	// load storage

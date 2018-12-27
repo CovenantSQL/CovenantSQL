@@ -38,6 +38,12 @@ func init() {
 
 func adminPrivilegeChecker(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if config.GetConfig().TLSConfig == nil || !config.GetConfig().VerifyCertificate {
+			// http mode or no certificate verification required
+			next.ServeHTTP(rw, r)
+			return
+		}
+
 		if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
 			cert := r.TLS.PeerCertificates[0]
 

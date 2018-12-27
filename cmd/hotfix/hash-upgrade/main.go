@@ -33,6 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	ct "github.com/CovenantSQL/CovenantSQL/sqlchain/otypes"
 	"github.com/CovenantSQL/CovenantSQL/storage"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	wt "github.com/CovenantSQL/CovenantSQL/worker/otypes"
@@ -98,21 +99,24 @@ type OldPeers struct {
 	Signature *asymmetric.Signature
 }
 
-// PlainOldServiceInstance defines the plain old service instance type before marshaller updates.
-type PlainOldServiceInstance struct {
+// ServiceInstanceV0 defines the version 0 service instance type before marshaller updates.
+type ServiceInstanceV0 struct {
 	DatabaseID   proto.DatabaseID
 	Peers        *OldPeers
 	ResourceMeta wt.ResourceMeta
 	GenesisBlock *OldBlock
 }
 
-// OldServiceInstance defines the old service instance type before marshaller updates.
-type OldServiceInstance struct {
+// ServiceInstanceV1 defines the version 1 service instance type before marshaller updates.
+type ServiceInstanceV1 struct {
 	DatabaseID   proto.DatabaseID
 	Peers        *OldPeers
 	ResourceMeta wt.ResourceMeta
 	GenesisBlock *ct.Block
 }
+
+// ServiceInstanceV2 defines the version 2 service instance type before marshaller updates.
+type ServiceInstanceV2 wt.ServiceInstance
 
 func convertPeers(oldPeers *OldPeers) (newPeers *proto.Peers) {
 	if oldPeers == nil {
@@ -126,6 +130,25 @@ func convertPeers(oldPeers *OldPeers) (newPeers *proto.Peers) {
 	newPeers.Leader = oldPeers.Leader.ID
 	newPeers.Term = oldPeers.Term
 
+	return
+}
+
+func convertResourceMeta(oldMeta wt.ResourceMeta) (newMeta types.ResourceMeta) {
+	newMeta.Node = oldMeta.Node
+	newMeta.Space = oldMeta.Space
+	newMeta.Memory = oldMeta.Memory
+	newMeta.LoadAvgPerCPU = oldMeta.LoadAvgPerCPU
+	newMeta.EncryptionKey = oldMeta.EncryptionKey
+	return
+}
+
+func convertBlockHeader(oldHeader ct.Header) (newHeader types.Header) {
+	newHeader.Version = oldHeader.Version
+	newHeader.Producer = oldHeader.Producer
+	newHeader.GenesisHash = oldHeader.GenesisHash
+	newHeader.ParentHash = oldHeader.ParentHash
+	newHeader.MerkleRoot = oldHeader.MerkleRoot
+	newHeader.Timestamp = oldHeader.Timestamp
 	return
 }
 
@@ -174,15 +197,15 @@ func main() {
 		var testDecode interface{}
 
 		// copy instance to new type
-		var newInstance wt.ServiceInstance
+		var newInstance types.ServiceInstance
 
 		if err := utils.DecodeMsgPackPlain(rawInstance, &testDecode); err != nil {
 			log.WithError(err).Fatal("test decode failed")
 		} else {
 			// detect if the genesis block is in old version
 			if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"GenesisBlock\":[]uint8") {
-				log.Info("detected plain old version (without msgpack tag and use custom serializer)")
-				var instance PlainOldServiceInstance
+				log.Info("detected version 0 (without msgpack tag and use custom serializer)")
+				var instance ServiceInstanceV0
 
 				if err := utils.DecodeMsgPackPlain(rawInstance, &instance); err != nil {
 					log.WithError(err).Fatal("decode msgpack failed")
@@ -191,14 +214,12 @@ func main() {
 
 				newInstance.DatabaseID = instance.DatabaseID
 				newInstance.Peers = convertPeers(instance.Peers)
-				newInstance.ResourceMeta = instance.ResourceMeta
-				newInstance.GenesisBlock = &ct.Block{
-					SignedHeader: instance.GenesisBlock.SignedHeader,
-					Queries:      instance.GenesisBlock.Queries,
-				}
+				newInstance.ResourceMeta = convertResourceMeta(instance.ResourceMeta)
+				newInstance.GenesisBlock = &types.Block{}
+				newInstance.GenesisBlock.SignedHeader.Header = convertBlockHeader(instance.GenesisBlock.SignedHeader.Header)
 			} else if strings.Contains(fmt.Sprintf("%#v", testDecode), "\"PubKey\"") {
-				log.Info("detected old version (old kayak implementation [called as kaar])")
-				var instance OldServiceInstance
+				log.Info("detected version 1 (old kayak implementation [called as kaar])")
+				var instance ServiceInstanceV1
 
 				if err := utils.DecodeMsgPack(rawInstance, &instance); err != nil {
 					log.WithError(err).Fatal("decode msgpack failed")
@@ -207,10 +228,25 @@ func main() {
 
 				newInstance.DatabaseID = instance.DatabaseID
 				newInstance.Peers = convertPeers(instance.Peers)
-				newInstance.ResourceMeta = instance.ResourceMeta
-				newInstance.GenesisBlock = instance.GenesisBlock
+				newInstance.ResourceMeta = convertResourceMeta(instance.ResourceMeta)
+				newInstance.GenesisBlock = &types.Block{}
+				newInstance.GenesisBlock.SignedHeader.Header = convertBlockHeader(instance.GenesisBlock.SignedHeader.Header)
+			} else if !strings.Contains(fmt.Sprintf("%#v", testDecode), "\"HSV\"") {
+				log.Info("detected version 2 (old block format without HSV)")
+				var instance ServiceInstanceV2
+
+				if err := utils.DecodeMsgPack(rawInstance, &instance); err != nil {
+					log.WithError(err).Fatal("decode msgpack failed")
+					return
+				}
+
+				newInstance.DatabaseID = instance.DatabaseID
+				newInstance.Peers = instance.Peers
+				newInstance.ResourceMeta = convertResourceMeta(instance.ResourceMeta)
+				newInstance.GenesisBlock = &types.Block{}
+				newInstance.GenesisBlock.SignedHeader.Header = convertBlockHeader(instance.GenesisBlock.SignedHeader.Header)
 			} else {
-				log.Info("detected new version, need re-signature")
+				log.Info("detected latest version, need re-signature")
 
 				if err := utils.DecodeMsgPack(rawInstance, &newInstance); err != nil {
 					log.WithError(err).Fatal("decode msgpack failed")

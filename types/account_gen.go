@@ -271,9 +271,20 @@ func (z *SQLChainUser) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 6
 	o = append(o, 0x86, 0x86)
-	o = hsp.AppendInt32(o, int32(z.Status))
+	if z.Permission == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		// map header, size 2
+		o = append(o, 0x82, 0x82)
+		o = hsp.AppendInt32(o, int32(z.Permission.Role))
+		o = append(o, 0x82)
+		o = hsp.AppendArrayHeader(o, uint32(len(z.Permission.Patterns)))
+		for za0001 := range z.Permission.Patterns {
+			o = hsp.AppendString(o, z.Permission.Patterns[za0001])
+		}
+	}
 	o = append(o, 0x86)
-	o = hsp.AppendInt32(o, int32(z.Permission))
+	o = hsp.AppendInt32(o, int32(z.Status))
 	o = append(o, 0x86)
 	if oTemp, err := z.Address.MarshalHash(); err != nil {
 		return nil, err
@@ -291,7 +302,16 @@ func (z *SQLChainUser) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SQLChainUser) Msgsize() (s int) {
-	s = 1 + 7 + hsp.Int32Size + 11 + hsp.Int32Size + 8 + z.Address.Msgsize() + 15 + hsp.Uint64Size + 8 + hsp.Uint64Size + 8 + hsp.Uint64Size
+	s = 1 + 11
+	if z.Permission == nil {
+		s += hsp.NilSize
+	} else {
+		s += 1 + 5 + hsp.Int32Size + 9 + hsp.ArrayHeaderSize
+		for za0001 := range z.Permission.Patterns {
+			s += hsp.StringPrefixSize + len(z.Permission.Patterns[za0001])
+		}
+	}
+	s += 7 + hsp.Int32Size + 8 + z.Address.Msgsize() + 15 + hsp.Uint64Size + 8 + hsp.Uint64Size + 8 + hsp.Uint64Size
 	return
 }
 
@@ -332,7 +352,31 @@ func (z *UserArrears) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
-func (z UserPermission) MarshalHash() (o []byte, err error) {
+func (z *UserPermission) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = hsp.Require(b, z.Msgsize())
+	// map header, size 2
+	o = append(o, 0x82, 0x82)
+	o = hsp.AppendInt32(o, int32(z.Role))
+	o = append(o, 0x82)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Patterns)))
+	for za0001 := range z.Patterns {
+		o = hsp.AppendString(o, z.Patterns[za0001])
+	}
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *UserPermission) Msgsize() (s int) {
+	s = 1 + 5 + hsp.Int32Size + 9 + hsp.ArrayHeaderSize
+	for za0001 := range z.Patterns {
+		s += hsp.StringPrefixSize + len(z.Patterns[za0001])
+	}
+	return
+}
+
+// MarshalHash marshals for hash
+func (z UserPermissionRole) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	o = hsp.AppendInt32(o, int32(z))
@@ -340,7 +384,7 @@ func (z UserPermission) MarshalHash() (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z UserPermission) Msgsize() (s int) {
+func (z UserPermissionRole) Msgsize() (s int) {
 	s = hsp.Int32Size
 	return
 }

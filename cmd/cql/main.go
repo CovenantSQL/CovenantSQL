@@ -336,13 +336,13 @@ func main() {
 
 		var p types.UserPermission
 		p.FromString(perm.Perm)
-		if p > types.NumberOfUserPermission {
+		if p.Role > types.NumberOfUserPermission {
 			log.WithError(err).Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return
 		}
 
-		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
+		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, &p)
 
 		if err != nil {
 			log.WithError(err).Error("update permission failed")

@@ -175,7 +175,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 		return
 	}
 	permStat := &types.PermStat{
-		Permission: types.Admin,
+		Permission: types.UserPermissionFromRole(types.Admin),
 		Status:     types.Normal,
 	}
 	err = dbms.UpdatePermission(dbID, proto.AccountAddress(addr), permStat)

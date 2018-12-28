@@ -366,7 +366,7 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 
 func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (err error) {
 	instance, err := s.getUpstream(dbID)
-	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / conf.SQLChainPeriod)
+	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / conf.GConf.SQLChainPeriod)
 	key := utils.ConcatAll(int32ToBytes(h), b.BlockHash().AsBytes(), int32ToBytes(count))
 	// It's actually `countToBytes`
 	ckey := int32ToBytes(count)

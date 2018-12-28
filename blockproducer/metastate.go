@@ -1168,5 +1168,5 @@ func (s *metaState) makeCopy() *metaState {
 
 func minDeposit(gasPrice uint64, minerNumber uint64) uint64 {
 	return gasPrice * uint64(conf.GConf.QPS) *
-		uint64(conf.GConf.UpdatePeriod) * minerNumber
+		uint64(conf.GConf.BillingPeriod) * minerNumber
 }

@@ -132,8 +132,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server,
 		peers,
 		nodeID,
-		conf.BPPeriod,
-		conf.BPTick,
+		conf.GConf.BPPeriod,
+		conf.GConf.BPTick,
 	)
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {

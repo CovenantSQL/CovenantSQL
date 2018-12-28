@@ -85,109 +85,86 @@ tags := $(platform) sqlite_omit_load_extension
 testtags := $(platform) sqlite_omit_load_extension testbinary
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 
+GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(testtags)"
+GOBUILD := CGO_ENABLED=1 go build -tags "$(tags)"
+
 bp_test:
-	CGO_ENABLED=1 \
-	go test $(test_flags) \
-	-tags "$(testtags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS" \
-	-o bin/cqld.test \
-	github.com/CovenantSQL/CovenantSQL/cmd/cqld
+	$(GOTEST) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS" \
+		-o bin/cqld.test \
+		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
 bp_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS" \
-	-o bin/cqld \
-	github.com/CovenantSQL/CovenantSQL/cmd/cqld
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS" \
+		-o bin/cqld \
+		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
 miner_test:
-	CGO_ENABLED=1 \
-	go test $(test_flags) \
-	-tags "$(testtags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS" \
-	-o bin/cql-minerd.test \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
+	$(GOTEST) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS" \
+		-o bin/cql-minerd.test \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
 miner_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS" \
-	-o bin/cql-minerd \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS" \
+		-o bin/cql-minerd \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
 observer_test:
-	CGO_ENABLED=1 \
-	go test $(test_flags) \
-	-tags "$(testtags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-observer.test \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
+	$(GOTEST) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-observer.test \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
 
 observer_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-observer \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-observer \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
 
 utils_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-utils \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-utils \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 
 cli_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 fuse_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-fuse \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-fuse \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
 adapter_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-adapter \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-adapter \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
 
 mysql_adapter_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-mysql-adapter \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-mysql-adapter \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
 
 faucet_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-faucet \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-faucet \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 
 explorer_bin:
-	CGO_ENABLED=1 \
-	go build \
-	-tags "$(tags)" \
-	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
-	-o bin/cql-explorer \
-	github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer
+	$(GOBUILD) \
+		-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+		-o bin/cql-explorer \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer
 
 bp: bp_bin bp_test
 

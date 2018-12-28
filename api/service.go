@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/api/models"
+
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -38,6 +40,12 @@ func (s *Service) StopServers() {
 
 // RunServers start API servers in a blocking way, fatal on errors.
 func (s *Service) RunServers() {
+	// setup database
+	if err := models.InitModels(); err != nil {
+		log.WithError(err).Fatal("api: init models failed")
+		return
+	}
+
 	s.stopChan = make(chan struct{})
 	wg := sync.WaitGroup{}
 

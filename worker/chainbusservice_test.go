@@ -37,7 +37,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -64,7 +63,7 @@ func TestNewBusService(t *testing.T) {
 		ctx, _ := context.WithCancel(context.Background())
 		bs := NewBusService(ctx, addr, testCheckInterval)
 		topic := fmt.Sprintf("/%s/", testOddBlocks.Transactions[0].GetTransactionType().String())
-		var count uint32 = 0
+		var count uint32
 		err = bs.Subscribe(topic, func(tx interfaces.Transaction, c uint32) {
 			atomic.AddUint32(&count, 1)
 		})

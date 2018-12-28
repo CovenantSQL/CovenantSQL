@@ -59,6 +59,8 @@ var (
 
 	clientMode      bool
 	clientOperation string
+
+	wsapiAddr string
 )
 
 const name = `cqld`
@@ -76,6 +78,8 @@ func init() {
 
 	flag.BoolVar(&clientMode, "client", false, "run as client")
 	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
+
+	flag.StringVar(&wsapiAddr, "wsapi", ":8546", "Address of the websocket JSON-RPC API")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)

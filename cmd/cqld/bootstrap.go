@@ -24,6 +24,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/api"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -175,6 +177,14 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server.Listener.Close()
 		server.Stop()
 	}()
+
+	// start json-rpc server
+	jsonrpcServer := &api.Service{
+		WebsocketAddr: wsapiAddr,
+		ReadTimeout:   60 * time.Second,
+		WriteTimeout:  60 * time.Second,
+	}
+	jsonrpcServer.StartServers()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

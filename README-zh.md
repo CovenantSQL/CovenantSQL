@@ -26,15 +26,33 @@
             alt="Join the chat at https://gitter.im/CovenantSQL/CovenantSQL"></a>
 </p>
 
+CovenantSQL 是应用区块链技术构建的去中心化 SQL 云数据库。
 
-CovenantSQL 是一个基于区块链技术的去中心化众筹式 SQL 数据库，并具备以下特点：
+结合了区块链、共享经济、分布式数据库的优势，保障了用户隐私及对数据的所有权。
 
-- **SQL**: 支持 SQL-92 标准
-- **去中心化**: 基于独有的高效共识算法 DH-RPC 和 Kayak 实现的中心化
-- **隐私**: 通过加密和授权许可进行访问
-- **不可篡改**: CovenantSQL 中的查询历史记录是不可变且可跟踪的
+CovenantSQL 具备以下特点：
 
-我们相信[在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
+- **SQL接口**: 支持 SQL-92 标准，传统 App 几乎0修改即可变成 ĐApp
+- **去中心化**: 基于独有的高效拜占庭容错共识算法 Kayak 实现的去中心化结构
+- **不可篡改**: CovenantSQL 中的 Query 历史记录是可追溯的
+- **隐私**:  如果 Bitcoin 是用户的钱包，那么 CovenantSQL 就是是用户的去中心化数据库
+
+我们相信 [在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
+
+## 原理
+
+CovenantSQL 是一个运行在 Internet 上的开放网络，主要有以下三种角色组成：
+
+- 主链节点：
+  - 通过去中心化的架构，DPoS 模式的共识机制对矿工和用户进行撮合、协调、仲裁
+- 侧链矿工：
+  - 所有人都可以通过运行 Covenant Miner 来提供数据库服务来赚取奖励
+  - 通过 ETLS 传输层加密、应用层签名、落盘加密、端到端加密 保证用户数据隐私
+- 数据库用户：
+  - 用户通过一个私钥就可以创建指定数量节点的分布式数据库，存储自己的结构化数据
+  - 数据矿工的分布和地址仅对数据库用户可见，防止用户数据被嗅探
+  - 通过 **去中心化的高可用的架构** 和 **Miner 押金机制**，用户的数据可以在成本和可靠性、可用性上达到平衡可控
+
 
 #### 一行代码接入区块链数据
 ```go

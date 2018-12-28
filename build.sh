@@ -3,8 +3,7 @@ set -e
 
 param=$1
 
-# TODO if not make
-# TODO detect cpu
+# TODO(laodouya) remove all build.sh refer
 
 cd `dirname $0`
 

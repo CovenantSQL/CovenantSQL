@@ -40,7 +40,6 @@ builder: status
 	docker build \
 		--tag $(BUILDER):$(VERSION) \
 		--tag $(BUILDER):latest \
-		--build-arg BUILD_ARG=all \
 		-f docker/builder.Dockerfile \
 		.
 

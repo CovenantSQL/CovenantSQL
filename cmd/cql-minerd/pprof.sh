@@ -1,7 +1,7 @@
 #!/bin/sh -x
 
 ../../cleanupDB.sh
-../../build.sh
+make -C ../../
 
 go test -bench=^BenchmarkMinerTwo$ -benchtime=15s -run ^$
 go tool pprof -text miner1.profile > pprof.txt

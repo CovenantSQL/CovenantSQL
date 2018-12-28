@@ -42,7 +42,7 @@ func GetProjectSrcDir() string {
 	return FJ(filepath.Dir(testFile), "../")
 }
 
-// Build runs build.sh
+// Build runs make
 func Build() (err error) {
 	wd := GetProjectSrcDir()
 	err = os.Chdir(wd)
@@ -50,7 +50,7 @@ func Build() (err error) {
 		log.WithError(err).Error("change working dir failed")
 		return
 	}
-	cmd := exec.Command("./build.sh")
+	cmd := exec.Command("make")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.WithError(err).Error("build failed")

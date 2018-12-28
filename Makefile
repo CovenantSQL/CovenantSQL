@@ -14,9 +14,9 @@ SHIP_VERSION := $(shell docker image inspect -f "{{ .Config.Labels.version }}" $
 IMAGE_TAR := $(subst /,_,$(IMAGE)).$(SHIP_VERSION).tar
 IMAGE_TAR_GZ := $(IMAGE_TAR).gz
 
-
 status:
 	@echo "Commit: $(COMMIT) Version: $(VERSION) Ship Version: $(SHIP_VERSION)"
+
 
 builder: status
 	docker build \
@@ -35,7 +35,7 @@ runner: builder
 		-f docker/Dockerfile \
 		.
 
-observer: builder
+observer_docker: builder
 	docker build \
 		--tag $(OB_IMAGE):$(VERSION) \
 		--tag $(OB_IMAGE):latest \
@@ -44,7 +44,7 @@ observer: builder
 		-f docker/observer.Dockerfile \
 		.
 
-docker: runner observer
+docker: runner observer_docker
 
 save: status
 ifeq ($(SHIP_VERSION),)
@@ -68,16 +68,135 @@ push:
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
-bp:
-	./build.sh bp
 
-miner:
-	./build.sh miner
 
-client:
-	./build.sh client
+branch := $(shell git rev-parse --abbrev-ref HEAD)
+builddate := $(shell date +%Y%m%d%H%M%S)
 
-all:
-	./build.sh all
+unamestr := $(shell uname)
 
-.PHONY: status start stop logs push bp miner client all
+ifeq ($(unamestr),"Linux")
+platform := "linux"
+endif
+
+version := $(branch)-$(GIT_COMMIT)-$(builddate)
+
+tags := $(platform) sqlite_omit_load_extension
+testtags := $(platform) sqlite_omit_load_extension testbinary
+test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
+
+bp_test:
+	CGO_ENABLED=1 \
+	go test $(test_flags) \
+	-tags "$(testtags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS" \
+	-o bin/cqld.test \
+	github.com/CovenantSQL/CovenantSQL/cmd/cqld
+
+bp_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS" \
+	-o bin/cqld \
+	github.com/CovenantSQL/CovenantSQL/cmd/cqld
+
+miner_test:
+	CGO_ENABLED=1 \
+	go test $(test_flags) \
+	-tags "$(testtags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS" \
+	-o bin/cql-minerd.test \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
+
+miner_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS" \
+	-o bin/cql-minerd \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
+
+observer_test:
+	CGO_ENABLED=1 \
+	go test $(test_flags) \
+	-tags "$(testtags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-observer.test \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
+
+observer_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-observer \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
+
+utils_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-utils \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
+
+cli_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql
+
+fuse_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-fuse \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
+
+adapter_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-adapter \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
+
+mysql_adapter_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-mysql-adapter \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
+
+faucet_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-faucet \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
+
+explorer_bin:
+	CGO_ENABLED=1 \
+	go build \
+	-tags "$(tags)" \
+	-ldflags "-X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS" \
+	-o bin/cql-explorer \
+	github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer
+
+bp: bp_bin bp_test
+
+miner: miner_bin miner_test
+
+observer: observer_bin observer_test
+
+client: utils_bin cli_bin fuse_bin adapter_bin mysql_adapter_bin faucet_bin explorer_bin
+
+all: bp miner observer client
+
+.PHONY: status start stop logs push bp_bin bp_test miner_bin miner_test utils_bin cli_bin fuse_bin adapter_bin mysql_adapter_bin faucet_bin explorer_bin

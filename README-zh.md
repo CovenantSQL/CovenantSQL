@@ -32,7 +32,7 @@ CovenantSQL 是应用区块链技术构建的去中心化 SQL 云数据库。
 
 CovenantSQL 具备以下特点：
 
-- **SQL接口**: 支持 SQL-92 标准，传统 App 几乎0修改即可变成 ĐApp
+- **SQL接口**: 支持 SQL-92 标准，传统 App 几乎0修改即可数据上链
 - **去中心化**: 基于独有的高效拜占庭容错共识算法 Kayak 实现的去中心化结构
 - **不可篡改**: CovenantSQL 中的 Query 历史记录是可追溯的
 - **隐私**:  如果 Bitcoin 是用户的钱包，那么 CovenantSQL 就是是用户的去中心化数据库

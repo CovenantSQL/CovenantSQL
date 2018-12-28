@@ -12,6 +12,7 @@ blockproducer)
     ;;
 observer)
     rm -f /app/node_observer/observer.db
+    nohup nginx -g 'daemon off;' &
     exec /app/cql-observer -config "${COVENANT_CONF}" "${@}"
     ;;
 adapter)

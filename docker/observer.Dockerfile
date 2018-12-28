@@ -23,3 +23,4 @@ COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/Coven
 COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/CovenantSQL/bin/docker-entry.sh /app/
 ENTRYPOINT [ "./docker-entry.sh" ]
 EXPOSE 4661
+EXPOSE 80

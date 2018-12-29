@@ -15,3 +15,43 @@
  */
 
 package sqlchain
+
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestBlockCacheTTL(t *testing.T) {
+	Convey("Test block cache TTL setting", t, func() {
+		var cases = []struct {
+			config *Config
+			expect int32
+		}{
+			{
+				config: &Config{
+					BlockCacheTTL:  0,
+					BillingPeriods: 0,
+				},
+				expect: minBlockCacheTTL,
+			},
+			{
+				config: &Config{
+					BlockCacheTTL:  minBlockCacheTTL + 1,
+					BillingPeriods: 0,
+				},
+				expect: minBlockCacheTTL + 1,
+			},
+			{
+				config: &Config{
+					BlockCacheTTL:  0,
+					BillingPeriods: minBlockCacheTTL + 1,
+				},
+				expect: 2 * (minBlockCacheTTL + 1),
+			},
+		}
+		for _, v := range cases {
+			So(blockCacheTTLRequired(v.config), ShouldEqual, v.expect)
+		}
+	})
+}

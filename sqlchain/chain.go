@@ -1497,7 +1497,14 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	)
 
 	for i = 0; i < c.updatePeriod && node != nil; i++ {
-		for _, tx := range node.block.QueryTxs {
+		var block = node.block
+		// Not cached, recover from storage
+		if block == nil {
+			if block, err = c.FetchBlock(node.height); err != nil {
+				return
+			}
+		}
+		for _, tx := range block.QueryTxs {
 			if minerAddr, err = crypto.PubKeyHash(tx.Response.Signee); err != nil {
 				log.WithError(err).Warning("billing fail: miner addr")
 				return
@@ -1522,8 +1529,8 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 			}
 		}
 
-		for _, req := range node.block.FailedReqs {
-			if minerAddr, err = crypto.PubKeyHash(node.block.Signee()); err != nil {
+		for _, req := range block.FailedReqs {
+			if minerAddr, err = crypto.PubKeyHash(block.Signee()); err != nil {
 				log.WithError(err).Warning("billing fail: miner addr")
 				return
 			}

@@ -412,7 +412,7 @@ func TestFullProcess(t *testing.T) {
 		}()
 
 		// wait for the observer to collect blocks, two periods is enough
-		time.Sleep(conf.SQLChainPeriod * 2)
+		time.Sleep(conf.GConf.SQLChainPeriod * 2)
 
 		// test get genesis block by height
 		res, err := getJSON("v1/height/%v/0", dbID)

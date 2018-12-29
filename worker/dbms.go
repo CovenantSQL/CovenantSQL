@@ -388,8 +388,8 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
 		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
 		SpaceLimit:      instance.ResourceMeta.Space,
-		// TODO(lambda): make UpdatePeriod Configurable
-		UpdatePeriod:           uint64(conf.GConf.UpdatePeriod),
+		// TODO(lambda): make BillingPeriod Configurable
+		UpdatePeriod:           uint64(conf.GConf.BillingPeriod),
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,
 		SlowQueryTime:          DefaultSlowQueryTime,

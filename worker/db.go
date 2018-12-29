@@ -138,9 +138,9 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		MuxService: cfg.ChainMux,
 		Server:     db.nodeID,
 
-		Period:   conf.SQLChainPeriod,
-		Tick:     conf.SQLChainTick,
-		QueryTTL: conf.SQLChainTTL,
+		Period:   conf.GConf.SQLChainPeriod,
+		Tick:     conf.GConf.SQLChainTick,
+		QueryTTL: conf.GConf.SQLChainTTL,
 
 		UpdatePeriod: cfg.UpdatePeriod,
 	}

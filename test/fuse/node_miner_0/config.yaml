@@ -6,7 +6,12 @@ DHTFileName: "dht.db"
 ListenAddr: "127.0.0.1:3144"
 ThisNodeID: "000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade"
 QPS: 1000
-Period: 3600
+BillingPeriod: 3600
+BPPeriod: 3s
+BPTick: 1s
+SQLChainPeriod: 3s
+SQLChainTick: 1s
+SQLChainTTL: 10
 MinProviderDeposit: 1000000
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com

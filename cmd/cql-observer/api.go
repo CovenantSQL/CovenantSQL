@@ -74,20 +74,12 @@ func newPaginationFromReq(r *http.Request) (op *paginationOps) {
 	} else {
 		op.queryType = types.NumberOfQueryType
 	}
-	return
-}
-
-func (op *paginationOps) normalize() {
-	if op == nil {
-		return
-	}
 	if op.page <= 0 {
 		op.page = 1
 	}
 	if op.size <= 0 {
 		op.size = 10
 	}
-
 	return
 }
 
@@ -471,22 +463,8 @@ func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block,
 	pagination *paginationOps) (res map[string]interface{}) {
 	res = a.formatBlockV2(count, height, b)
 	blockRes := res["block"].(map[string]interface{})
-	blockRes["acks"] = func() (acks []interface{}) {
-		acks = make([]interface{}, 0, len(b.Acks))
-
-		for _, ack := range b.Acks {
-			acks = append(acks, a.formatAck(ack)["ack"])
-		}
-
-		return
-	}()
-
-	if pagination != nil {
-		pagination.normalize()
-	}
-
 	blockRes["queries"] = func() (tracks []interface{}) {
-		tracks = make([]interface{}, 0, len(b.QueryTxs))
+		tracks = make([]interface{}, 0, len(b.QueryTxs)+len(b.FailedReqs))
 
 		var (
 			offset = (pagination.page - 1) * pagination.size
@@ -501,11 +479,6 @@ func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block,
 				continue
 			}
 
-			if pos < offset {
-				// skip
-				continue
-			}
-
 			if pos >= end {
 				return
 			}
@@ -513,7 +486,10 @@ func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block,
 			t := a.formatRequest(tx.Request)
 			t["response"] = a.formatResponseHeader(tx.Response)["response"]
 			t["failed"] = false
-			tracks = append(tracks, t)
+
+			if pos >= offset {
+				tracks = append(tracks, t)
+			}
 
 			pos++
 		}
@@ -525,18 +501,16 @@ func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block,
 				continue
 			}
 
-			if pos < offset {
-				// skip
-				continue
-			}
-
 			if pos >= end {
-				break
+				return
 			}
 
 			t := a.formatRequest(req)
 			t["failed"] = true
-			tracks = append(tracks, t)
+
+			if pos >= offset {
+				tracks = append(tracks, t)
+			}
 
 			pos++
 		}

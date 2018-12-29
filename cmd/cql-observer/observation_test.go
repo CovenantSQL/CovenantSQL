@@ -422,20 +422,54 @@ func TestFullProcess(t *testing.T) {
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
 		// test get first containable block
-		res, err = getJSON("v3/height/%v/1", dbID)
-		So(err, ShouldBeNil)
-		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
-		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 1)
-		So(ensureSuccess(res.String("block", "hash")), ShouldNotBeEmpty)
-		So(ensureSuccess(res.String("block", "genesis_hash")), ShouldEqual, genesisHash)
-		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldNotBeEmpty)
-		blockHash := ensureSuccess(res.String("block", "hash")).(string)
-		byHeightBlockResult := ensureSuccess(res.Interface())
+		var (
+			blockHash           string
+			byHeightBlockResult interface{}
+		)
+
+		// access 5 blocks
+		for i := 1; i <= 5; i++ {
+			res, err = getJSON("v3/height/%v/%d", dbID, i)
+			So(err, ShouldBeNil)
+			So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
+			So(ensureSuccess(res.Int("block", "height")), ShouldEqual, i)
+			So(ensureSuccess(res.String("block", "hash")), ShouldNotBeEmpty)
+			So(ensureSuccess(res.String("block", "genesis_hash")), ShouldEqual, genesisHash)
+			if len(ensureSuccess(res.ArrayOfObjects("block", "queries")).([]map[string]interface{})) == 0 {
+				// got empty block
+				log.WithField("block", res).Debugf("got empty block, try next index")
+				continue
+			}
+			So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldNotBeEmpty)
+			blockHash = ensureSuccess(res.String("block", "hash")).(string)
+			byHeightBlockResult = ensureSuccess(res.Interface())
+		}
 
 		// test get block by hash
-		res, err = getJSON("v3/block/%v/%v", dbID, blockHash)
+		res, err = getJSON("v3/block/%v/%v?size=1000", dbID, blockHash)
 		So(err, ShouldBeNil)
-		So(ensureSuccess(res.Interface()), ShouldResemble, byHeightBlockResult)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldResemble,
+			ensureSuccess(jsonq.NewQuery(byHeightBlockResult).ArrayOfObjects("block", "queries")))
+
+		// test get block by hash v3 with pagination
+		res, err = getJSON("v3/block/%v/%v?page=10000&size=10", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldBeEmpty)
+
+		// test get block with page size = 1
+		res, err = getJSON("v3/block/%v/%v?page=1&size=1", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldHaveLength, 1)
+
+		// test get block with page size = 2
+		res, err = getJSON("v3/block/%v/%v?page=1&size=2", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldHaveLength, 2)
+
+		// test get block with page size = 1, page = 2
+		res, err = getJSON("v3/block/%v/%v?page=2&size=1", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldHaveLength, 1)
 
 		// test get block by hash using v1 version, returns ack hashes as queries
 		res, err = getJSON("v1/block/%v/%v", dbID, blockHash)

@@ -926,3 +926,72 @@ func BenchmarkMinerGNTE8(b *testing.B) {
 		benchGNTEMiner(b, 8, false)
 	})
 }
+
+func benchTestnetMiner(b *testing.B, minerCount uint16, testnetConfDir string) {
+	log.Warnf("benchmark for %d Miners", minerCount)
+
+	// Create temp directory
+	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(testDataDir)
+	clientConf := FJ(testnetConfDir, "config.yaml")
+	tempConf := FJ(testDataDir, "config.yaml")
+	clientKey := FJ(testnetConfDir, "private.key")
+	tempKey := FJ(testDataDir, "private.key")
+	utils.CopyFile(clientConf, tempConf)
+	utils.CopyFile(clientKey, tempKey)
+
+	err = client.Init(tempConf, []byte(""))
+	So(err, ShouldBeNil)
+
+	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
+	var dsn string
+	if minerCount > 0 {
+		// create
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
+		So(err, ShouldBeNil)
+		log.Infof("the created database dsn is %v", dsn)
+		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
+		if err != nil {
+			log.Errorf("write .dsn failed: %v", err)
+		}
+		defer os.Remove(dsnFile)
+	} else {
+		dsn = os.Getenv("DSN")
+	}
+
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// wait for creation
+	log.Infof("Wait dsn %v to create", dsn)
+	timeout := 10 * time.Minute
+	err = client.WaitDBCreation(ctx, dsn, timeout)
+	So(err, ShouldBeNil)
+
+	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	benchDB(b, db, minerCount > 0)
+
+}
+
+func BenchmarkTestnetMiner1(b *testing.B) {
+	Convey("bench GNTE one node", b, func() {
+		benchTestnetMiner(b, 1, "")
+	})
+}
+func BenchmarkTestnetMiner2(b *testing.B) {
+	Convey("bench GNTE one node", b, func() {
+		benchTestnetMiner(b, 2, "")
+	})
+}
+func BenchmarkTestnetMiner3(b *testing.B) {
+	Convey("bench GNTE one node", b, func() {
+		benchTestnetMiner(b, 3, "")
+	})
+}

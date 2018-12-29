@@ -11,7 +11,7 @@ echo ${PROJECT_DIR}
 
 # Build
 #Notice!!!!: uncomment this when you run this manually.
-#cd ${PROJECT_DIR} && make
+#cd ${PROJECT_DIR} && make use_all_cores
 
 BENCHRESULT_FILE=${PROJECT_DIR}/bench.txt
 if [ -f ${BENCHRESULT_FILE} ];then

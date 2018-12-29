@@ -1,10 +1,7 @@
-default: premake
+default: all
 
 # Do a parallel build with multiple jobs, based on the number of CPUs online
 # in this system: 'make -j8' on a 8-CPU system, etc.
-#
-# (To override it, run 'make JOBS=1' and similar.)
-#
 ifeq ($(JOBS),)
   JOBS := $(shell grep -c ^processor /proc/cpuinfo 2>/dev/null)
   ifeq ($(JOBS),)
@@ -15,7 +12,7 @@ ifeq ($(JOBS),)
   endif
 endif
 
-premake:
+use_all_cores:
 	make -j$(JOBS) all
 
 BUILDER := covenantsql/covenantsql-builder
@@ -40,6 +37,7 @@ builder: status
 	docker build \
 		--tag $(BUILDER):$(VERSION) \
 		--tag $(BUILDER):latest \
+		--build-arg BUILD_ARG=use_all_cores \
 		-f docker/builder.Dockerfile \
 		.
 

@@ -50,7 +50,7 @@ func Build() (err error) {
 		log.WithError(err).Error("change working dir failed")
 		return
 	}
-	cmd := exec.Command("make")
+	cmd := exec.Command("make", "use_all_cores")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.WithError(err).Error("build failed")

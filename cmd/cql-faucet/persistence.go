@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	uuid "github.com/satori/go.uuid"
+
 	// Load sqlite3 database driver.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )

@@ -176,6 +176,14 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:670d1f29fa2aa15ea777cc5bcf95881f379bf8a71dbbe145be0774da97fede72"
+  name = "github.com/go-gorp/gorp"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4df78490a9aa9a78b9b02b0c913df8dc1954faee"
+  version = "2.1"
+
+[[projects]]
   branch = "master"
   digest = "1:48c0fa64e80c089a88d30ab5b826c106af79eb3c65d48e2280f22aa4d61d7a84"
   name = "github.com/gohxs/readline"
@@ -659,6 +667,7 @@
     "github.com/cyberdelia/go-metrics-graphite",
     "github.com/dyatlov/go-opengraph/opengraph",
     "github.com/fortytw2/leaktest",
+    "github.com/go-gorp/gorp",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",

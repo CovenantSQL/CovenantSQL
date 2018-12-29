@@ -526,7 +526,7 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 
 		}
 	} else {
-		err = errors.Wrap(ErrNotExists, "database not exists")
+		err = errors.Wrap(ErrPermissionDeny, "database not exists")
 		return
 	}
 

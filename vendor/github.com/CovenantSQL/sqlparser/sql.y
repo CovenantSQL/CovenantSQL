@@ -110,7 +110,7 @@ func forceEOF(yylex interface{}) {
 %left <bytes> JOIN LEFT RIGHT INNER OUTER CROSS NATURAL
 %left <bytes> ON USING
 %token <empty> '(' ',' ')'
-%token <bytes> ID HEX STRING INTEGRAL FLOAT HEXNUM VALUE_ARG LIST_ARG COMMENT
+%token <bytes> ID HEX STRING INTEGRAL FLOAT HEXNUM VALUE_ARG POS_ARG LIST_ARG COMMENT
 %token <bytes> NULL TRUE FALSE
 %token <bytes> FULL COLUMNS
 
@@ -136,7 +136,7 @@ func forceEOF(yylex interface{}) {
 // DDL Tokens
 %token <bytes> CREATE ALTER DROP RENAME ADD
 %token <bytes> TABLE INDEX TO IGNORE IF UNIQUE PRIMARY COLUMN CONSTRAINT FOREIGN
-%token <bytes> SHOW DESCRIBE DATE ESCAPE
+%token <bytes> SHOW DESCRIBE DATE ESCAPE EXPLAIN
 
 // Type Tokens
 %token <bytes> TINYINT SMALLINT MEDIUMINT INT INTEGER BIGINT INTNUM
@@ -156,7 +156,6 @@ func forceEOF(yylex interface{}) {
 %token <bytes> CURRENT_TIMESTAMP CURRENT_DATE CURRENT_TIME
 %token <bytes> REPLACE
 %token <bytes> CAST
-%token <bytes> SUBSTR
 %token <bytes> GROUP_CONCAT SEPARATOR
 
 // MySQL reserved words that are unused by this grammar will map to this token.
@@ -208,7 +207,7 @@ func forceEOF(yylex interface{}) {
 %type <columns> ins_column_list column_list
 %type <updateExprs> update_list
 %type <updateExpr> update_expression
-%type <str> ignore_opt default_opt
+%type <str> ignore_opt
 %type <byt> exists_opt
 %type <empty> not_exists_opt constraint_opt
 %type <bytes> reserved_keyword non_reserved_keyword
@@ -845,6 +844,10 @@ other_statement:
   {
     $$ = &Show{Type: "table", OnTable: $2}
   }
+| EXPLAIN force_eof
+  {
+    $$ = &Explain{}
+  }
 
 comment_opt:
   {
@@ -1134,20 +1137,6 @@ expression:
   {
     $$ = $1
   }
-| DEFAULT default_opt
-  {
-    $$ = &Default{ColName: $2}
-  }
-
-default_opt:
-  /* empty */
-  {
-    $$ = ""
-  }
-| openb ID closeb
-  {
-    $$ = string($2)
-  }
 
 boolean_value:
   TRUE
@@ -1435,14 +1424,6 @@ function_call_keyword:
   {
     $$ = &ConvertExpr{Expr: $3, Type: $5}
   }
-| SUBSTR openb column_name ',' value_expression closeb
-  {
-    $$ = &SubstrExpr{Name: $3, From: $5, To: nil}
-  }
-| SUBSTR openb column_name ',' value_expression ',' value_expression closeb
-  {
-    $$ = &SubstrExpr{Name: $3, From: $5, To: $7}
-  }
 | GROUP_CONCAT openb distinct_opt select_expression_list order_by_opt separator_opt closeb
   {
     $$ = &GroupConcatExpr{Distinct: $3, Exprs: $4, OrderBy: $5, Separator: $6}
@@ -1647,6 +1628,10 @@ value:
 | VALUE_ARG
   {
     $$ = NewValArg($1)
+  }
+| POS_ARG
+  {
+    $$ = NewPosArg($1)
   }
 | NULL
   {
@@ -1910,7 +1895,6 @@ reserved_keyword:
 | CURRENT_DATE
 | CURRENT_TIME
 | CURRENT_TIMESTAMP
-| SUBSTR
 | DEFAULT
 | DELETE
 | DESC
@@ -1968,6 +1952,7 @@ reserved_keyword:
 | VALUES
 | WHEN
 | WHERE
+| EXPLAIN
 
 /*
   These are non-reserved Vitess, because they don't cause conflicts in the grammar.
@@ -2027,6 +2012,11 @@ closeb:
   ')'
   {
     decNesting(yylex)
+  }
+
+force_eof:
+  {
+    forceEOF(yylex)
   }
 
 ddl_force_eof:

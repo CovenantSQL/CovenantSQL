@@ -19,8 +19,6 @@ package xenomint
 import (
 	"context"
 	"database/sql"
-	"io"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
-	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
 )
 
@@ -107,72 +104,6 @@ func (s *State) Close(commit bool) (err error) {
 		return
 	}
 	s.closed = true
-	return
-}
-
-func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
-	var (
-		tokenizer  = sqlparser.NewStringTokenizer(pattern)
-		stmt       sqlparser.Statement
-		lastPos    int
-		query      string
-		queryParts []string
-	)
-
-	for {
-		stmt, err = sqlparser.ParseNext(tokenizer)
-
-		if err != nil && err != io.EOF {
-			return
-		}
-
-		if err == io.EOF {
-			err = nil
-			break
-		}
-
-		query = pattern[lastPos : tokenizer.Position-1]
-		lastPos = tokenizer.Position + 1
-
-		// translate show statement
-		if showStmt, ok := stmt.(*sqlparser.Show); ok {
-			origQuery := query
-
-			switch showStmt.Type {
-			case "table":
-				if showStmt.ShowCreate {
-					query = "SELECT sql FROM sqlite_master WHERE type = \"table\" AND tbl_name = \"" +
-						showStmt.OnTable.Name.String() + "\""
-				} else {
-					query = "PRAGMA table_info(" + showStmt.OnTable.Name.String() + ")"
-				}
-			case "index":
-				query = "SELECT name FROM sqlite_master WHERE type = \"index\" AND tbl_name = \"" +
-					showStmt.OnTable.Name.String() + "\""
-			case "tables":
-				query = "SELECT name FROM sqlite_master WHERE type = \"table\""
-			}
-
-			log.WithFields(log.Fields{
-				"from": origQuery,
-				"to":   query,
-			}).Debug("query translated")
-		} else if _, ok := stmt.(*sqlparser.DDL); ok {
-			containsDDL = true
-		}
-
-		queryParts = append(queryParts, query)
-	}
-
-	p = strings.Join(queryParts, "; ")
-
-	ifs = make([]interface{}, len(args))
-	for i, v := range args {
-		ifs[i] = sql.NamedArg{
-			Name:  v.Name,
-			Value: v.Value,
-		}
-	}
 	return
 }
 

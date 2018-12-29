@@ -89,6 +89,12 @@ func (s *Status) EnableQuery() bool {
 	return *s >= Normal && *s <= Reminder
 }
 
+// PermStat defines the permissions status structure.
+type PermStat struct {
+	Permission UserPermission
+	Status     Status
+}
+
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
 	Address        proto.AccountAddress

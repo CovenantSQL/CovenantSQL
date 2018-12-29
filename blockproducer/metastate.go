@@ -307,6 +307,7 @@ func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
 		err = errors.Wrapf(ErrInvalidSender,
 			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
+		return
 	}
 
 	var (
@@ -987,7 +988,9 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 				minerIncome := uint64(float64(income) * rate)
 				miner.PendingIncome += minerIncome
 				for i := range miner.UserArrears {
-					miner.UserArrears[i].Arrears += (income - minerIncome)
+					diff := income - minerIncome
+					miner.UserArrears[i].Arrears += diff
+					user.Arrears += diff
 				}
 			}
 		}
@@ -1017,29 +1020,40 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 	realSender, err := crypto.PubKeyHash(transfer.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "applyTx failed")
-		return err
+		return
 	}
 
 	if realSender != transfer.Sender {
 		err = errors.Wrapf(ErrInvalidSender,
 			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
+		return
 	}
 
 	var (
 		sqlchain *types.SQLChainProfile
 		ok       bool
 	)
-	sqlchain, ok = s.loadSQLChainObject(transfer.Sender.DatabaseID())
+	sqlchain, ok = s.loadSQLChainObject(transfer.Receiver.DatabaseID())
 	if !ok {
-		return ErrDatabaseNotFound
+		err = ErrDatabaseNotFound
+		log.WithFields(log.Fields{
+			"dbid":   transfer.Receiver.DatabaseID(),
+			"sender": transfer.Sender.String(),
+		}).WithError(err).Warning("database not exist in transferSQLChainTokenBalance")
+		return
+	}
+	if sqlchain.TokenType != transfer.TokenType {
+		err = ErrWrongTokenType
+		log.WithFields(log.Fields{
+			"dbid":   transfer.Receiver.DatabaseID(),
+			"sender": transfer.Sender.String(),
+		})
+		return
 	}
 
 	for _, user := range sqlchain.Users {
 		if user.Address == transfer.Sender {
-			if sqlchain.TokenType != transfer.TokenType {
-				return ErrWrongTokenType
-			}
 			minDep := minDeposit(sqlchain.GasPrice, uint64(len(sqlchain.Miners)))
 			if user.Deposit < minDep {
 				diff := minDep - user.Deposit

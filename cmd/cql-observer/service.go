@@ -34,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/worker"
 	bolt "github.com/coreos/bbolt"
 )
 
@@ -283,12 +284,12 @@ func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
 		return
 	}
 
-	req := &sqlchain.MuxSubscribeTransactionsReq{}
-	resp := &sqlchain.MuxSubscribeTransactionsResp{}
+	req := &worker.SubscribeTransactionsReq{}
+	resp := &worker.SubscribeTransactionsResp{}
 	req.Height = s.subscription[dbID]
 	req.DatabaseID = dbID
 
-	err = s.minerRequest(dbID, route.SQLCSubscribeTransactions.String(), req, resp)
+	err = s.minerRequest(dbID, route.DBSSubscribeTransactions.String(), req, resp)
 
 	return
 }
@@ -440,11 +441,11 @@ func (s *Service) stop() (err error) {
 
 	for dbID := range s.subscription {
 		// send cancel subscription rpc
-		req := &sqlchain.MuxCancelSubscriptionReq{}
-		resp := &sqlchain.MuxCancelSubscriptionResp{}
+		req := &worker.CancelSubscriptionReq{}
+		resp := &worker.CancelSubscriptionResp{}
 		req.DatabaseID = dbID
 
-		if err = s.minerRequest(dbID, route.SQLCCancelSubscription.String(), req, resp); err != nil {
+		if err = s.minerRequest(dbID, route.DBSCancelSubscription.String(), req, resp); err != nil {
 			// cancel subscription failed
 			log.WithField("db", dbID).WithError(err).Warning("cancel subscription")
 		}

@@ -45,9 +45,10 @@ type BusService struct {
 	checkInterval time.Duration
 	localAddress  proto.AccountAddress
 
-	lock             sync.Mutex // a lock for the map
+	lock             sync.RWMutex // a lock for the map
 	blockCount       uint32
 	sqlChainProfiles map[proto.DatabaseID]*types.SQLChainProfile
+	sqlChainState    map[proto.DatabaseID](map[proto.AccountAddress]*types.PermStat)
 }
 
 // NewBusService creates a new chain bus instance.
@@ -73,8 +74,8 @@ func NewBusService(
 // GetCurrentDBMapping returns current cached db mapping.
 func (bs *BusService) GetCurrentDBMapping() (dbMap map[proto.DatabaseID]*types.SQLChainProfile) {
 	dbMap = make(map[proto.DatabaseID]*types.SQLChainProfile)
-	bs.lock.Lock()
-	defer bs.lock.Unlock()
+	bs.lock.RLock()
+	defer bs.lock.RUnlock()
 	for k, v := range bs.sqlChainProfiles {
 		dbMap[k] = v
 	}
@@ -84,12 +85,23 @@ func (bs *BusService) GetCurrentDBMapping() (dbMap map[proto.DatabaseID]*types.S
 func (bs *BusService) updateState(count uint32, profiles []*types.SQLChainProfile) {
 	bs.lock.Lock()
 	defer bs.lock.Unlock()
-	var rebuilt = make(map[proto.DatabaseID]*types.SQLChainProfile)
+	var (
+		rebuilt       = make(map[proto.DatabaseID]*types.SQLChainProfile)
+		sqlchainState = make(map[proto.DatabaseID](map[proto.AccountAddress]*types.PermStat))
+	)
 	for _, v := range profiles {
 		rebuilt[v.ID] = v
+		sqlchainState[v.ID] = make(map[proto.AccountAddress]*types.PermStat)
+		for _, user := range v.Users {
+			sqlchainState[v.ID][user.Address] = &types.PermStat{
+				Permission: user.Permission,
+				Status:     user.Status,
+			}
+		}
 	}
 	atomic.StoreUint32(&bs.blockCount, count)
 	bs.sqlChainProfiles = rebuilt
+	bs.sqlChainState = sqlchainState
 }
 
 func (bs *BusService) subscribeBlock(ctx context.Context) {
@@ -179,9 +191,19 @@ func (bs *BusService) requestLastBlock() (
 
 // RequestSQLProfile get specified database profile.
 func (bs *BusService) RequestSQLProfile(dbID proto.DatabaseID) (p *types.SQLChainProfile, ok bool) {
-	bs.lock.Lock()
-	defer bs.lock.Unlock()
+	bs.lock.RLock()
+	defer bs.lock.RUnlock()
 	p, ok = bs.sqlChainProfiles[dbID]
+	return
+}
+
+func (bs *BusService) RequestPermStat(dbID proto.DatabaseID, user proto.AccountAddress) (permStat *types.PermStat, ok bool) {
+	bs.lock.RLock()
+	defer bs.lock.RLock()
+	userState, ok := bs.sqlChainState[dbID]
+	if ok {
+		permStat, ok = userState[user]
+	}
 	return
 }
 

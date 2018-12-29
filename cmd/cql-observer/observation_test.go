@@ -266,6 +266,7 @@ func TestFullProcess(t *testing.T) {
 
 		time.Sleep(10 * time.Second)
 
+		// the node_c private.key is the same as node_observer
 		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
@@ -421,14 +422,20 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
+		res, err = getJSON("v1/head/%v", dbID)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
+		maxHeight := ensureSuccess(res.Int("block", "height")).(int)
+		So(maxHeight, ShouldBeGreaterThan, 0)
+
 		// test get first containable block
 		var (
 			blockHash           string
 			byHeightBlockResult interface{}
 		)
 
-		// access 5 blocks
-		for i := 1; i <= 5; i++ {
+		// access from max height to found a non-empty block
+		for i := maxHeight; i > 0; i-- {
 			res, err = getJSON("v3/height/%v/%d", dbID, i)
 			So(err, ShouldBeNil)
 			So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)

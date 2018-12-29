@@ -30,7 +30,6 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
   - ulimit -n 8192
 script:
-  - bash build.sh
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 

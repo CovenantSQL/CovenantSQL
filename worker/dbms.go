@@ -506,31 +506,28 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 
 	if permStat, ok := dbms.busService.RequestPermStat(dbID, addr); ok {
 		if !permStat.Status.EnableQuery() {
-			err = ErrPermissionDeny
-			log.WithError(err).Debugf("cannot query, status: %d", permStat.Status)
+			err = errors.Wrapf(ErrPermissionDeny, "cannot query, status: %d", permStat.Status)
 			return
 		}
 		if queryType == types.ReadQuery {
 			if !permStat.Permission.CheckRead() {
-				err = ErrPermissionDeny
-				log.WithError(err).Debugf("cannot read, permission: %d", permStat.Permission)
+				err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %d", permStat.Permission)
 				return
 			}
 		} else if queryType == types.WriteQuery {
 			if !permStat.Permission.CheckWrite() {
-				err = ErrPermissionDeny
-				log.WithError(err).Debugf("cannot write, permission: %d", permStat.Permission)
+				err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %d", permStat.Permission)
 				return
 			}
 		} else {
-			err = ErrInvalidPermission
-			log.WithError(err).Debugf("invalid permission, permission: %d", permStat.Permission)
+			err = errors.Wrapf(ErrInvalidPermission,
+				"invalid permission, permission: %d", permStat.Permission)
 			return
 
 		}
 	} else {
-		err = ErrPermissionDeny
-		log.WithError(err).Debug("cannot find permission")
+		err = errors.Wrap(ErrPermissionDeny,
+			"cannot find permission")
 		return
 	}
 

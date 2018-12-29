@@ -84,6 +84,18 @@ type runtime struct {
 	offset time.Duration
 }
 
+func blockCacheTTLRequired(c *Config) (ttl int32) {
+	var billingRequiredTTL = 2 * c.BillingPeriods
+	ttl = c.BlockCacheTTL
+	if ttl < minBlockCacheTTL {
+		ttl = minBlockCacheTTL
+	}
+	if ttl < billingRequiredTTL {
+		ttl = billingRequiredTTL
+	}
+	return
+}
+
 // newRunTime returns a new sql-chain runtime instance with the specified config.
 func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 	var cld, ccl = context.WithCancel(ctx)
@@ -92,15 +104,10 @@ func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 		ctx:    cld,
 		cancel: ccl,
 
-		period:   c.Period,
-		tick:     c.Tick,
-		queryTTL: c.QueryTTL,
-		blockCacheTTL: func() int32 {
-			if c.BlockCacheTTL < minBlockCacheTTL {
-				return minBlockCacheTTL
-			}
-			return c.BlockCacheTTL
-		}(),
+		period:          c.Period,
+		tick:            c.Tick,
+		queryTTL:        c.QueryTTL,
+		blockCacheTTL:   blockCacheTTLRequired(c),
 		muxService:      c.MuxService,
 		price:           c.Price,
 		producingReward: c.ProducingReward,

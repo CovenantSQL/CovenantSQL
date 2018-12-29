@@ -57,6 +57,40 @@ type explorerAPI struct {
 	service *Service
 }
 
+type paginationOps struct {
+	page      int
+	size      int
+	queryType types.QueryType
+}
+
+func newPaginationFromReq(r *http.Request) (op *paginationOps) {
+	op = &paginationOps{}
+	op.page, _ = strconv.Atoi(r.URL.Query().Get("page"))
+	op.size, _ = strconv.Atoi(r.URL.Query().Get("size"))
+	if r.URL.Query().Get("type") == types.ReadQuery.String() {
+		op.queryType = types.ReadQuery
+	} else if r.URL.Query().Get("type") == types.WriteQuery.String() {
+		op.queryType = types.WriteQuery
+	} else {
+		op.queryType = types.NumberOfQueryType
+	}
+	return
+}
+
+func (op *paginationOps) normalize() {
+	if op == nil {
+		return
+	}
+	if op.page <= 0 {
+		op.page = 1
+	}
+	if op.size <= 0 {
+		op.size = 10
+	}
+
+	return
+}
+
 func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -175,7 +209,9 @@ func (a *explorerAPI) GetBlockV3(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(200, true, "", a.formatBlockV3(count, height, block), rw)
+	op := newPaginationFromReq(r)
+
+	sendResponse(200, true, "", a.formatBlockV3(count, height, block, op), rw)
 }
 
 func (a *explorerAPI) GetBlockByCount(rw http.ResponseWriter, r *http.Request) {
@@ -239,7 +275,9 @@ func (a *explorerAPI) GetBlockByCountV3(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	sendResponse(200, true, "", a.formatBlockV3(count, height, block), rw)
+	op := newPaginationFromReq(r)
+
+	sendResponse(200, true, "", a.formatBlockV3(count, height, block, op), rw)
 }
 
 func (a *explorerAPI) GetBlockByHeight(rw http.ResponseWriter, r *http.Request) {
@@ -303,7 +341,9 @@ func (a *explorerAPI) GetBlockByHeightV3(rw http.ResponseWriter, r *http.Request
 		return
 	}
 
-	sendResponse(200, true, "", a.formatBlockV3(count, height, block), rw)
+	op := newPaginationFromReq(r)
+
+	sendResponse(200, true, "", a.formatBlockV3(count, height, block, op), rw)
 }
 
 func (a *explorerAPI) GetHighestBlock(rw http.ResponseWriter, r *http.Request) {
@@ -396,7 +436,9 @@ func (a *explorerAPI) GetHighestBlockV3(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	sendResponse(200, true, "", a.formatBlockV3(count, height, block), rw)
+	op := newPaginationFromReq(r)
+
+	sendResponse(200, true, "", a.formatBlockV3(count, height, block, op), rw)
 }
 
 func (a *explorerAPI) formatBlock(height int32, b *types.Block) (res map[string]interface{}) {
@@ -425,7 +467,8 @@ func (a *explorerAPI) formatBlockV2(count, height int32, b *types.Block) (res ma
 	return
 }
 
-func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block) (res map[string]interface{}) {
+func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block,
+	pagination *paginationOps) (res map[string]interface{}) {
 	res = a.formatBlockV2(count, height, b)
 	blockRes := res["block"].(map[string]interface{})
 	blockRes["acks"] = func() (acks []interface{}) {
@@ -437,17 +480,100 @@ func (a *explorerAPI) formatBlockV3(count, height int32, b *types.Block) (res ma
 
 		return
 	}()
+
+	if pagination != nil {
+		pagination.normalize()
+	}
+
 	blockRes["queries"] = func() (tracks []interface{}) {
 		tracks = make([]interface{}, 0, len(b.QueryTxs))
 
+		var (
+			offset = (pagination.page - 1) * pagination.size
+			end    = pagination.page * pagination.size
+			pos    = 0
+		)
+
 		for _, tx := range b.QueryTxs {
+			if (pagination.queryType == types.ReadQuery || pagination.queryType == types.WriteQuery) &&
+				tx.Request.Header.QueryType != pagination.queryType {
+				// count all
+				continue
+			}
+
+			if pos < offset {
+				// skip
+				continue
+			}
+
+			if pos >= end {
+				return
+			}
+
 			t := a.formatRequest(tx.Request)
 			t["response"] = a.formatResponseHeader(tx.Response)["response"]
+			t["failed"] = false
 			tracks = append(tracks, t)
+
+			pos++
+		}
+
+		for _, req := range b.FailedReqs {
+			if (pagination.queryType == types.ReadQuery || pagination.queryType == types.WriteQuery) &&
+				req.Header.QueryType != pagination.queryType {
+				// count all
+				continue
+			}
+
+			if pos < offset {
+				// skip
+				continue
+			}
+
+			if pos >= end {
+				break
+			}
+
+			t := a.formatRequest(req)
+			t["failed"] = true
+			tracks = append(tracks, t)
+
+			pos++
 		}
 
 		return
 	}()
+
+	if pagination != nil {
+		blockRes["pagination"] = func() (res map[string]interface{}) {
+			// pagination features
+			res = map[string]interface{}{}
+			res["page"] = pagination.page
+			res["size"] = pagination.size
+
+			if pagination.queryType != types.ReadQuery && pagination.queryType != types.WriteQuery {
+				res["total"] = len(b.QueryTxs) + len(b.FailedReqs)
+			} else {
+				var total int
+
+				for _, tx := range b.QueryTxs {
+					if tx.Request.Header.QueryType == pagination.queryType {
+						total++
+					}
+				}
+
+				for _, req := range b.FailedReqs {
+					if req.Header.QueryType == pagination.queryType {
+						total++
+					}
+				}
+
+				res["total"] = total
+			}
+
+			return
+		}()
+	}
 
 	return
 }

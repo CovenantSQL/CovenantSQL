@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -120,7 +119,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				// sending read query
 				var readQuery *types.Request
@@ -130,7 +129,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 
 			// grant write and read permission
@@ -186,7 +185,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = dbms.addTxSubscription(dbID2, nodeID, 1)
-				So(errors.Cause(err), ShouldEqual, ErrPermissionDeny)
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 				err = dbms.addTxSubscription(dbID, nodeID, 1)
 				So(err, ShouldBeNil)
 				err = dbms.cancelTxSubscription(dbID, nodeID)
@@ -211,7 +210,7 @@ func TestDBMS(t *testing.T) {
 					So(err, ShouldBeNil)
 
 					err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-					So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+					So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 					// sending read query
 					var readQuery *types.Request
@@ -247,7 +246,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				// sending read query
 				var readQuery *types.Request
@@ -257,10 +256,10 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				err = dbms.addTxSubscription(dbID, nodeID, 1)
-				So(err, ShouldEqual, ErrPermissionDeny)
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 
 			// grant admin permission but in arrears
@@ -282,7 +281,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				// sending read query
 				var readQuery *types.Request
@@ -292,7 +291,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 
 			// switch user to normal

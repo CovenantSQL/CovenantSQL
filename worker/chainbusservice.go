@@ -199,7 +199,7 @@ func (bs *BusService) RequestSQLProfile(dbID proto.DatabaseID) (p *types.SQLChai
 
 func (bs *BusService) RequestPermStat(dbID proto.DatabaseID, user proto.AccountAddress) (permStat *types.PermStat, ok bool) {
 	bs.lock.RLock()
-	defer bs.lock.RLock()
+	defer bs.lock.RUnlock()
 	userState, ok := bs.sqlChainState[dbID]
 	if ok {
 		permStat, ok = userState[user]

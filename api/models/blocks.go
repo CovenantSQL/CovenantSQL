@@ -3,6 +3,8 @@ package models
 import (
 	"database/sql"
 	"time"
+
+	"github.com/go-gorp/gorp"
 )
 
 // BlocksModel groups operations on Blocks.
@@ -19,6 +21,12 @@ type Block struct {
 	MerkleRoot     string    `db:"merkle_root" json:"merkle_root"`
 	Parent         string    `db:"parent" json:"parent"`
 	TxCount        int       `db:"tx_count" json:"tx_count"`
+}
+
+// PostGet is the hook after SELECT query.
+func (b *Block) PostGet(s gorp.SqlExecutor) error {
+	b.TimestampHuman = time.Unix(0, b.Timestamp)
+	return nil
 }
 
 // GetBlockList get a list of blocks with height in [from, to).

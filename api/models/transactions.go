@@ -2,8 +2,11 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/go-gorp/gorp"
 )
 
 // TransactionsModel groups operations on Transactions.
@@ -23,6 +26,12 @@ type Transaction struct {
 	Signature      string      `db:"signature" json:"signature"`
 	Raw            string      `db:"raw" json:"raw"`
 	Tx             interface{} `db:"-" json:"tx"`
+}
+
+// PostGet is the hook after SELECT query.
+func (tx *Transaction) PostGet(s gorp.SqlExecutor) error {
+	tx.TimestampHuman = time.Unix(0, tx.Timestamp)
+	return json.Unmarshal([]byte(tx.Raw), &tx.Tx)
 }
 
 // GetTransactionByHash get a transaction by its hash.

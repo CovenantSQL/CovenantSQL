@@ -45,7 +45,8 @@ func TestEnvelope_GetSet(t *testing.T) {
 
 		ctx := env.GetContext()
 		So(ctx, ShouldEqual, context.Background())
-		cldCtx, _ := context.WithCancel(ctx)
+		cldCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		env.SetContext(cldCtx)
 		So(env.GetContext(), ShouldEqual, cldCtx)
 	})
@@ -60,10 +61,10 @@ func TestDatabaseID_AccountAddress(t *testing.T) {
 
 	Convey("AccountAddress convert", t, func() {
 		for i := range target {
-			dbid := DatabaseID(target[i])
+			dbID := DatabaseID(target[i])
 			h, err := hash.NewHashFromStr(target[i])
 			So(err, ShouldBeNil)
-			a, err := dbid.AccountAddress()
+			a, err := dbID.AccountAddress()
 			So(err, ShouldBeNil)
 			So(h[:], ShouldResemble, a[:])
 		}
@@ -99,7 +100,7 @@ func TestFromAccountAndNonce(t *testing.T) {
 			So(err, ShouldBeNil)
 			a := AccountAddress(*h)
 			dbID := FromAccountAndNonce(a, target[i].nonce)
-			So(string(*dbID), ShouldResemble, target[i].result)
+			So(string(dbID), ShouldResemble, target[i].result)
 		}
 	})
 }

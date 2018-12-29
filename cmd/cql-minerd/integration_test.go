@@ -34,11 +34,17 @@ import (
 	"testing"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -46,9 +52,12 @@ import (
 )
 
 var (
-	baseDir        = utils.GetProjectSrcDir()
-	testWorkingDir = FJ(baseDir, "./test/")
-	logDir         = FJ(testWorkingDir, "./log/")
+	baseDir                    = utils.GetProjectSrcDir()
+	testWorkingDir             = FJ(baseDir, "./test/")
+	logDir                     = FJ(testWorkingDir, "./log/")
+	testGasPrice        uint64 = 1
+	testInitTokenAmount uint64 = 1000000000
+	testAdvancePayment  uint64 = 20000000
 )
 
 var nodeCmds []*utils.CMD
@@ -153,7 +162,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, false,
+		"miner1", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -166,13 +175,14 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, false,
+		"miner2", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
 }
+
 func startNodesProfile(bypassSign bool) {
 	ctx := context.Background()
 	bypassArg := ""
@@ -331,14 +341,91 @@ func TestFullProcess(t *testing.T) {
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
-		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 2})
+		var (
+			clientPrivKey *asymmetric.PrivateKey
+			clientAddr    proto.AccountAddress
+
+			minersPrivKeys = make([]*asymmetric.PrivateKey, 3)
+			minersAddrs    = make([]proto.AccountAddress, 3)
+		)
+
+		// get miners' private keys
+		minersPrivKeys[0], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_0/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		minersPrivKeys[1], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_1/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		minersPrivKeys[2], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_2/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		clientPrivKey, err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_c/private.key"), []byte{})
 		So(err, ShouldBeNil)
 
+		// get miners' addr
+		minersAddrs[0], err = crypto.PubKeyHash(minersPrivKeys[0].PubKey())
+		So(err, ShouldBeNil)
+		minersAddrs[1], err = crypto.PubKeyHash(minersPrivKeys[1].PubKey())
+		So(err, ShouldBeNil)
+		minersAddrs[2], err = crypto.PubKeyHash(minersPrivKeys[2].PubKey())
+		So(err, ShouldBeNil)
+		clientAddr, err = crypto.PubKeyHash(clientPrivKey.PubKey())
+		So(err, ShouldBeNil)
+
+		// client send create database transaction
+		meta := client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: minersAddrs,
+				Node:         uint16(len(minersAddrs)),
+			},
+			GasPrice:       testGasPrice,
+			AdvancePayment: testAdvancePayment,
+		}
+
+		dsn, err := client.Create(meta)
+		So(err, ShouldBeNil)
+		dsnCfg, err := client.ParseDSN(dsn)
+		So(err, ShouldBeNil)
+
+		// create dsn
 		log.Infof("the created database dsn is %v", dsn)
 
 		db, err := sql.Open("covenantsql", dsn)
 		So(err, ShouldBeNil)
+
+		// wait for creation
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+		So(err, ShouldBeNil)
+
+		// check sqlchain profile exist
+		dbID := proto.DatabaseID(dsnCfg.DatabaseID)
+		profileReq := &types.QuerySQLChainProfileReq{}
+		profileResp := &types.QuerySQLChainProfileResp{}
+
+		profileReq.DBID = dbID
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		profile := profileResp.Profile
+		So(profile.Address.DatabaseID(), ShouldEqual, dbID)
+		So(profile.Owner.String(), ShouldEqual, clientAddr.String())
+		So(profile.TokenType, ShouldEqual, types.Particle)
+		minersMap := make(map[proto.AccountAddress]bool)
+		for _, miner := range profile.Miners {
+			minersMap[miner.Address] = true
+		}
+		for _, miner := range minersAddrs {
+			So(minersMap[miner], ShouldBeTrue)
+		}
+		usersMap := make(map[proto.AccountAddress]types.PermStat)
+		for _, user := range profile.Users {
+			usersMap[user.Address] = types.PermStat{
+				Permission: user.Permission,
+				Status:     user.Status,
+			}
+		}
+		permStat, ok := usersMap[clientAddr]
+		So(ok, ShouldBeTrue)
+		So(permStat.Permission, ShouldEqual, types.Admin)
+		So(permStat.Status, ShouldEqual, types.Normal)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
 		So(err, ShouldBeNil)
@@ -449,11 +536,25 @@ func TestFullProcess(t *testing.T) {
 			c.So(err, ShouldBeNil)
 		})
 
+		time.Sleep(20 * time.Second)
+
+		profileReq = &types.QuerySQLChainProfileReq{}
+		profileResp = &types.QuerySQLChainProfileResp{}
+		profileReq.DBID = dbID
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		for _, user := range profileResp.Profile.Users {
+			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
+			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
+		}
+		for _, miner := range profileResp.Profile.Miners {
+			So(miner.PendingIncome != 0 || miner.ReceivedIncome != 0, ShouldBeTrue)
+		}
+
 		err = db.Close()
 		So(err, ShouldBeNil)
 
-		err = client.Drop(dsn)
-		So(err, ShouldBeNil)
+		// TODO(lambda): Drop database
 	})
 }
 
@@ -605,9 +706,10 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
-
 		log.Infof("the created database dsn is %v", dsn)
 		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
@@ -619,6 +721,14 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	}
 
 	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	// wait for creation
+	dsnCfg, err := client.ParseDSN(dsn)
+	So(err, ShouldBeNil)
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)
@@ -684,9 +794,10 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		dsn, err = client.Create(client.ResourceMeta{Node: minerCount})
+		meta := client.ResourceMeta{}
+		meta.Node = minerCount
+		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
-
 		log.Infof("the created database dsn is %v", dsn)
 		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
@@ -698,6 +809,15 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	}
 
 	db, err := sql.Open("covenantsql", dsn)
+	So(err, ShouldBeNil)
+
+	dsnCfg, err := client.ParseDSN(dsn)
+	So(err, ShouldBeNil)
+
+	// wait for creation
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)
@@ -777,4 +897,20 @@ func BenchmarkMinerGNTE8(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
 		benchGNTEMiner(b, 8, false)
 	})
+}
+
+func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {
+	// allocate nonce
+	nonceReq := &types.NextAccountNonceReq{}
+	nonceResp := &types.NextAccountNonceResp{}
+	nonceReq.Addr = addr
+
+	if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+		// allocate nonce failed
+		log.WithError(err).Warning("allocate nonce for transaction failed")
+		return
+	}
+
+	nonce = nonceResp.Nonce
+	return
 }

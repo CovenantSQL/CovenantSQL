@@ -28,4 +28,6 @@ var (
 	ErrAlreadyInitialized = errors.New("driver already initialized")
 	// ErrInvalidRequestSeq defines invalid sequence no of request.
 	ErrInvalidRequestSeq = errors.New("invalid request sequence applied")
+	// ErrInvalidProfile indicates the SQLChain profile is invalid.
+	ErrInvalidProfile = errors.New("invalid sqlchain profile")
 )

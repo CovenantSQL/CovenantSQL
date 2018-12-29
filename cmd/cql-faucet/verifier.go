@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -211,8 +210,8 @@ func (v *Verifier) dispense() (err error) {
 }
 
 func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
-	balanceReq := &bp.QueryAccountStableBalanceReq{}
-	balanceRes := &bp.QueryAccountStableBalanceResp{}
+	balanceReq := &pt.QueryAccountStableBalanceReq{}
+	balanceRes := &pt.QueryAccountStableBalanceResp{}
 	balanceReq.Addr = v.vaultAddress
 
 	// get current balance
@@ -223,8 +222,8 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	}
 
 	// allocate nonce
-	nonceReq := &bp.NextAccountNonceReq{}
-	nonceResp := &bp.NextAccountNonceResp{}
+	nonceReq := &pt.NextAccountNonceReq{}
+	nonceResp := &pt.NextAccountNonceResp{}
 	nonceReq.Addr = v.vaultAddress
 
 	if err = requestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
@@ -258,8 +257,8 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 		return
 	}
 
-	req := &bp.AddTxReq{}
-	resp := &bp.AddTxResp{}
+	req := &pt.AddTxReq{}
+	resp := &pt.AddTxResp{}
 	req.Tx = pt.NewTransfer(
 		&pt.TransferHeader{
 			Sender:   v.vaultAddress,

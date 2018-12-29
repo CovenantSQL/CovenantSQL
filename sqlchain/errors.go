@@ -99,4 +99,7 @@ var (
 	// ErrResponseSeqNotMatch indicates that a response sequence id doesn't match the original one
 	// in the index.
 	ErrResponseSeqNotMatch = errors.New("response sequence id doesn't match")
+
+	// ErrInvalidTransactionType indicates that the transaction type is invalid.
+	ErrInvalidTransactionType = errors.New("invalid transaction type")
 )

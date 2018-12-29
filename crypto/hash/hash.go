@@ -18,6 +18,7 @@ package hash
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/bits"
 
@@ -127,6 +128,23 @@ func (h *Hash) Difficulty() (difficulty int) {
 		}
 	}
 	return HashSize * 8
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (h Hash) MarshalJSON() ([]byte, error) {
+	return json.Marshal(h.String())
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (h *Hash) UnmarshalJSON(data []byte) (err error) {
+	var s string
+	if err = json.Unmarshal(data, &s); err != nil {
+		return
+	}
+	if err = Decode(h, s); err != nil {
+		return
+	}
+	return nil
 }
 
 // MarshalYAML implements the yaml.Marshaler interface.

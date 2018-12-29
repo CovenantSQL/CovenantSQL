@@ -324,7 +324,11 @@ func encodeBytesSQL(val []byte, b BinWriter) {
 		if encodedChar := SQLEncodeMap[ch]; encodedChar == DontEscape {
 			buf.WriteByte(ch)
 		} else {
-			buf.WriteByte('\\')
+			if ch == '\'' {
+				buf.WriteByte('\'')
+			} else {
+				buf.WriteByte('\\')
+			}
 			buf.WriteByte(encodedChar)
 		}
 	}
@@ -358,7 +362,6 @@ var encodeRef = map[byte]byte{
 	'\r':   'r',
 	'\t':   't',
 	26:     'Z', // ctl-Z
-	'\\':   '\\',
 }
 
 func init() {

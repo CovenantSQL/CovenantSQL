@@ -11,21 +11,8 @@ func (z *CreateDatabase) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
-	// map header, size 3
-	o = append(o, 0x83, 0x83, 0x83, 0x83)
-	if oTemp, err := z.CreateDatabaseHeader.Owner.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x83)
-	if oTemp, err := z.CreateDatabaseHeader.ResourceMeta.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x83)
-	if oTemp, err := z.CreateDatabaseHeader.Nonce.MarshalHash(); err != nil {
+	o = append(o, 0x83, 0x83)
+	if oTemp, err := z.CreateDatabaseHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -47,7 +34,7 @@ func (z *CreateDatabase) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CreateDatabase) Msgsize() (s int) {
-	s = 1 + 21 + 1 + 6 + z.CreateDatabaseHeader.Owner.Msgsize() + 13 + z.CreateDatabaseHeader.ResourceMeta.Msgsize() + 6 + z.CreateDatabaseHeader.Nonce.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
+	s = 1 + 21 + z.CreateDatabaseHeader.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 
@@ -55,30 +42,40 @@ func (z *CreateDatabase) Msgsize() (s int) {
 func (z *CreateDatabaseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 3
-	o = append(o, 0x83, 0x83)
+	// map header, size 6
+	o = append(o, 0x86, 0x86)
 	if oTemp, err := z.ResourceMeta.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x83)
+	o = append(o, 0x86)
+	if oTemp, err := z.TokenType.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x86)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x83)
+	o = append(o, 0x86)
 	if oTemp, err := z.Owner.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
+	o = append(o, 0x86)
+	o = hsp.AppendUint64(o, z.GasPrice)
+	o = append(o, 0x86)
+	o = hsp.AppendUint64(o, z.AdvancePayment)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CreateDatabaseHeader) Msgsize() (s int) {
-	s = 1 + 13 + z.ResourceMeta.Msgsize() + 6 + z.Nonce.Msgsize() + 6 + z.Owner.Msgsize()
+	s = 1 + 13 + z.ResourceMeta.Msgsize() + 10 + z.TokenType.Msgsize() + 6 + z.Nonce.Msgsize() + 6 + z.Owner.Msgsize() + 9 + hsp.Uint64Size + 15 + hsp.Uint64Size
 	return
 }

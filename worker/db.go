@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -74,13 +75,14 @@ type Database struct {
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *proto.Peers,
+	genesis *types.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
 	}
 
-	if peers == nil || genesisBlock == nil {
+	if peers == nil || genesis == nil {
 		err = ErrInvalidDBConfig
 		return
 	}
@@ -125,23 +127,22 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 		return
 	}
 
-	// TODO(xq262144): make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
 		DatabaseID:      cfg.DatabaseID,
 		ChainFilePrefix: chainFile,
 		DataFile:        storageDSN.Format(),
-		Genesis:         genesisBlock,
+		Genesis:         genesis,
 		Peers:           peers,
 
-		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
 		MuxService: cfg.ChainMux,
 		Server:     db.nodeID,
 
-		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
-		Period:   60 * time.Second,
-		Tick:     10 * time.Second,
-		QueryTTL: 10,
+		Period:   conf.GConf.SQLChainPeriod,
+		Tick:     conf.GConf.SQLChainTick,
+		QueryTTL: conf.GConf.SQLChainTTL,
+
+		UpdatePeriod: cfg.UpdatePeriod,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return

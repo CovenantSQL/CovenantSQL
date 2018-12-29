@@ -21,7 +21,10 @@ package main
 import (
 	"context"
 	"net"
+	"os/exec"
 	"path/filepath"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -40,6 +43,7 @@ var (
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
+var nodeCmds []*utils.CMD
 var FJ = filepath.Join
 
 func start3BPs() {
@@ -54,27 +58,61 @@ func start3BPs() {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
-	go utils.RunCommand(
+	// start 3bps
+	var cmd *utils.CMD
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, false,
-	)
-	go utils.RunCommand(
+		"leader", testWorkingDir, logDir, true,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/follower1.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
-	)
-	go utils.RunCommand(
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/follower2.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
-	)
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
+}
+
+func stopNodes() {
+	var wg sync.WaitGroup
+
+	for _, nodeCmd := range nodeCmds {
+		wg.Add(1)
+		go func(thisCmd *utils.CMD) {
+			defer wg.Done()
+			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
+			thisCmd.Cmd.Wait()
+			grepRace := exec.Command("/bin/sh", "-c", "grep -a -A 50 'DATA RACE' "+thisCmd.LogPath)
+			out, _ := grepRace.Output()
+			if len(out) > 2 {
+				log.Fatalf("DATA RACE in %s :\n%s", thisCmd.Cmd.Path, string(out))
+			}
+		}(nodeCmd)
+	}
+
+	wg.Wait()
 }
 
 func TestStartBP_CallRPC(t *testing.T) {
@@ -82,6 +120,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 
 	var err error
 	start3BPs()
+	defer stopNodes()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -94,7 +133,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 		log.Fatalf("wait for port ready timeout: %v", err)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(20 * time.Second)
 
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./node_c/config.yaml"))
 	if err != nil {

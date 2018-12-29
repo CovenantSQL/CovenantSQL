@@ -78,16 +78,26 @@ var (
 	ErrInvalidSender = errors.New("invalid sender")
 	// ErrNoSuchMiner indicates that this miner does not exist or register.
 	ErrNoSuchMiner = errors.New("no such miner")
+	// ErrNoEnoughMiner indicates that there is not enough miners
+	ErrNoEnoughMiner = errors.New("can not get enough miners")
 	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
 	ErrAccountPermissionDeny = errors.New("account permission deny")
 	// ErrInvalidPermission indicates that the permission is invalid.
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
+	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
+	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrInvalidGasPrice indicates that the gas price is invalid.
+	ErrInvalidGasPrice = errors.New("gas price is invalid")
+	// ErrInvalidMinerCount indicates that the miner node count is invalid.
+	ErrInvalidMinerCount = errors.New("miner node count is invalid")
 	// ErrLocalNodeNotFound indicates that the local node id is not found in the given peer list.
 	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
 	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.
 	ErrNoAvailableBranch = errors.New("no available branch from state storage")
+	// ErrWrongTokenType indicates that token type in transfer is wrong.
+	ErrWrongTokenType = errors.New("wrong token type")
 )

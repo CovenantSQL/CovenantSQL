@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
-	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -125,26 +124,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
-	// init metrics
-	log.Info("register metric service rpc")
-	metricService := metric.NewCollectServer()
-	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
-		log.WithError(err).Error("init metric service failed")
-		return
-	}
-
-	// init block producer database service
-	log.Info("register block producer database service rpc")
-	var dbService *bp.DBService
-	if dbService, err = initDBService(kvServer, metricService); err != nil {
-		log.WithError(err).Error("init block producer db service failed")
-		return
-	}
-	if err = server.RegisterService(route.BPDBRPCName, dbService); err != nil {
-		log.WithError(err).Error("init block producer db service failed")
-		return
-	}
-
 	// init main chain service
 	log.Info("register main chain service rpc")
 	chainConfig := bp.NewConfig(
@@ -153,8 +132,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server,
 		peers,
 		nodeID,
-		time.Minute,
-		20*time.Second,
+		conf.GConf.BPPeriod,
+		conf.GConf.BPTick,
 	)
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
@@ -240,23 +219,6 @@ func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.H
 	// init runtime
 	log.Info("start kayak runtime")
 	runtime.Start()
-
-	return
-}
-
-func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer) (dbService *bp.DBService, err error) {
-	var serviceMap *bp.DBServiceMap
-	if serviceMap, err = bp.InitServiceMap(kvServer); err != nil {
-		log.WithError(err).Error("init bp database service map failed")
-		return
-	}
-
-	dbService = &bp.DBService{
-		AllocationRounds: bp.DefaultAllocationRounds, //
-		ServiceMap:       serviceMap,
-		Consistent:       kvServer.KVStorage.consistent,
-		NodeMetrics:      &metricService.NodeMetric,
-	}
 
 	return
 }

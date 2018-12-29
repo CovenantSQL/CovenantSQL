@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -302,8 +301,8 @@ func (s *Service) requestBlock() {
 	blockCount := atomic.LoadUint32(&s.nextBlockToFetch)
 	log.WithFields(log.Fields{"count": blockCount}).Info("try fetch next block")
 
-	req := &bp.FetchBlockByCountReq{Count: blockCount}
-	resp := &bp.FetchBlockResp{}
+	req := &pt.FetchBlockByCountReq{Count: blockCount}
+	resp := &pt.FetchBlockResp{}
 
 	if err := s.requestBP(route.MCCFetchBlockByCount.String(), req, resp); err != nil {
 		// fetch block failed

@@ -56,7 +56,7 @@ func initNode() (server *rpc.Server, err error) {
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
-	err = registerNodeToBP(15 * time.Second)
+	err = registerNodeToBP(30 * time.Second)
 	if err != nil {
 		log.Fatalf("register node to BP failed: %v", err)
 	}

@@ -36,6 +36,8 @@ const (
 	ReadQuery QueryType = iota
 	// WriteQuery defines a write query type.
 	WriteQuery
+	// NumberOfPerm defines the number of query type.
+	NumberOfPerm
 )
 
 // NamedArg defines the named argument structure for database.

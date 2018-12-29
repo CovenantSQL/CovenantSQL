@@ -14,7 +14,7 @@ ValidDNSKeys:
   oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
 MinNodeIDDifficulty: 2
 DNSSeed:
-  EnforcedDNSSEC: true
+  EnforcedDNSSEC: false
   DNSServers:
   - 1.1.1.1
   - 202.46.34.74

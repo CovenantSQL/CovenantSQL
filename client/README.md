@@ -1,4 +1,4 @@
-This doc introduce the usage of covenantSQL client. Client is used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
+This doc introduce the usage of CovenantSQL client. Client is used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
 
 ## Prerequisites
 

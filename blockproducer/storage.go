@@ -81,7 +81,7 @@ func store(st xi.Storage, sps []storageProcedure, cb storageCallback) (err error
 	if tx, err = st.Writer().Begin(); err != nil {
 		return
 	}
-	log.Debugf("startted database tx %p", tx)
+	log.Debugf("started database tx %p", tx)
 	// ROLLBACK on failure
 	defer tx.Rollback()
 	// WRITE

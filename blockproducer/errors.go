@@ -53,6 +53,8 @@ var (
 	ErrBalanceOverflow = errors.New("balance overflow")
 	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.
 	ErrInsufficientBalance = errors.New("insufficient balance")
+	// ErrInsufficientTransfer indicates that the transfer amount is insufficient for paying arrears.
+	ErrInsufficientTransfer = errors.New("insufficient transfer")
 	// ErrAccountNotFound indicates that an account is not found.
 	ErrAccountNotFound = errors.New("account not found")
 	// ErrAccountExists indicates that the an account already exists.

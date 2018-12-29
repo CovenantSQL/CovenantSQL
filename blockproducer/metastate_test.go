@@ -633,13 +633,13 @@ func TestMetaState(t *testing.T) {
 					types.NewBaseAccount(
 						&types.Account{
 							Address:      addr1,
-							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 100},
 						},
 					),
 					types.NewBaseAccount(
 						&types.Account{
 							Address:      addr2,
-							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 100},
 						},
 					),
 					types.NewBaseAccount(
@@ -976,6 +976,145 @@ func TestMetaState(t *testing.T) {
 						continue
 					}
 				}
+				Convey("transfer token", func() {
+					addr1B1, ok := ms.loadAccountStableBalance(addr1)
+					So(ok, ShouldBeTrue)
+					addr3B1, ok := ms.loadAccountStableBalance(addr3)
+					So(ok, ShouldBeTrue)
+					trans1 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr1,
+						Receiver:  addr3,
+						Amount:    20000000,
+						TokenType: types.Particle,
+					})
+					nonce, err := ms.nextNonce(addr1)
+					So(err, ShouldBeNil)
+					trans1.Nonce = nonce
+					err = trans1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans1)
+					So(err, ShouldBeNil)
+					ms.commit()
+					addr1B2, ok := ms.loadAccountStableBalance(addr1)
+					So(ok, ShouldBeTrue)
+					addr3B2, ok := ms.loadAccountStableBalance(addr3)
+					So(ok, ShouldBeTrue)
+					So(addr1B1-addr1B2, ShouldEqual, 20000000)
+					So(addr3B2-addr3B1, ShouldEqual, 20000000)
+					profile, ok := ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+
+					// transfer to sqlchain
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.UnknownStatus)
+							break
+						}
+					}
+					trans2 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					So(dbID, ShouldEqual, dbAccount.DatabaseID())
+					trans2.Nonce = nonce
+					err = trans2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2)
+					So(err, ShouldBeNil)
+					// ms.commit()
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Normal)
+							break
+						}
+					}
+
+					// make addr3 arrears
+					ub := types.NewUpdateBilling(&types.UpdateBillingHeader{
+						Receiver: dbAccount,
+						Users: []*types.UserCost{
+							&types.UserCost{
+								User: addr3,
+								Cost: 4500000,
+								Miners: []*types.MinerIncome{
+									&types.MinerIncome{
+										Miner:  addr2,
+										Income: 4500000,
+									},
+								},
+							},
+						},
+					})
+					nonce, err = ms.nextNonce(addr2)
+					So(err, ShouldBeNil)
+					ub.Nonce = nonce
+					err = ub.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub)
+					So(err, ShouldBeNil)
+					ms.commit()
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer failed
+					trans3 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    40000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans3.Nonce = nonce
+					err = trans3.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans3)
+					So(err, ShouldEqual, ErrInsufficientTransfer)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer enough token
+					trans4 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    4000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans4.Nonce = nonce
+					err = trans4.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans4)
+					ms.commit()
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Normal)
+							break
+						}
+					}
+
+				})
 				Convey("update key", func() {
 					invalidIk1 := &types.IssueKeys{}
 					err = invalidIk1.Sign(privKey1)
@@ -1050,6 +1189,49 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					err = ms.apply(ub1)
 					So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+					trans1 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr1,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err := ms.nextNonce(addr1)
+					So(err, ShouldBeNil)
+					trans1.Nonce = nonce
+					err = trans1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans1)
+					So(err, ShouldBeNil)
+					ms.commit()
+					trans2 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans2.Nonce = nonce
+					err = trans2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2)
+					So(err, ShouldBeNil)
+					ms.commit()
+					trans3 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr4,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr4)
+					So(err, ShouldBeNil)
+					trans3.Nonce = nonce
+					err = trans3.Sign(privKey4)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans3)
+					So(err, ShouldBeNil)
+					ms.commit()
+
 					users := [3]*types.UserCost{
 						&types.UserCost{
 							User: addr1,

@@ -885,7 +885,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		u := types.SQLChainUser{
 			Address:    tx.TargetUser,
 			Permission: tx.Permission,
-			Status:     types.Normal,
+			Status:     types.UnknownStatus,
 		}
 		so.Users = append(so.Users, &u)
 	} else {
@@ -980,16 +980,31 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 				miner.PendingIncome += userMap[user.Address][miner.Address] * newProfile.GasPrice
 			}
 		} else {
-			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*newProfile.GasPrice)
+			rate := float64(user.AdvancePayment) / float64(costMap[user.Address]*newProfile.GasPrice)
 			user.AdvancePayment = 0
 			user.Status = types.Arrears
 			for _, miner := range newProfile.Miners {
 				income := userMap[user.Address][miner.Address] * newProfile.GasPrice
 				minerIncome := uint64(float64(income) * rate)
 				miner.PendingIncome += minerIncome
+				if miner.UserArrears == nil {
+					miner.UserArrears = make([]*types.UserArrears, 0)
+				}
+				exist := false
 				for i := range miner.UserArrears {
+					if miner.UserArrears[i].User == user.Address {
+						exist = true
+						diff := income - minerIncome
+						miner.UserArrears[i].Arrears += diff
+						user.Arrears += diff
+					}
+				}
+				if !exist {
 					diff := income - minerIncome
-					miner.UserArrears[i].Arrears += diff
+					miner.UserArrears = append(miner.UserArrears, &types.UserArrears{
+						User:    user.Address,
+						Arrears: diff,
+					})
 					user.Arrears += diff
 				}
 			}
@@ -1054,6 +1069,34 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 
 	for _, user := range sqlchain.Users {
 		if user.Address == transfer.Sender {
+			// process arrears
+			if user.Arrears > 0 {
+				if user.Arrears <= transfer.Amount {
+					for _, miner := range sqlchain.Miners {
+						newUserArrears := make([]*types.UserArrears, len(miner.UserArrears))
+						i := 0
+						for _, ua := range miner.UserArrears {
+							if ua.User == user.Address {
+								miner.PendingIncome += miner.UserArrears[i].Arrears
+							} else {
+								newUserArrears[i] = ua
+								i += 1
+							}
+						}
+					}
+					user.Arrears = 0
+					user.Status = types.Normal
+					transfer.Amount -= user.Arrears
+				} else {
+					err = ErrInsufficientTransfer
+					log.WithFields(log.Fields{
+						"arrears":         user.Arrears,
+						"transfer_amount": transfer.Amount,
+					})
+					return
+				}
+			}
+
 			minDep := minDeposit(sqlchain.GasPrice, uint64(len(sqlchain.Miners)))
 			if user.Deposit < minDep {
 				diff := minDep - user.Deposit
@@ -1062,7 +1105,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 				} else {
 					user.Deposit = minDep
 					diff2 := transfer.Amount - diff
-					user.Deposit += diff2
+					user.AdvancePayment += diff2
 				}
 			} else {
 				err = safeAdd(&user.AdvancePayment, &transfer.Amount)
@@ -1070,7 +1113,12 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 					return err
 				}
 			}
-			s.dirty.databases[transfer.Sender.DatabaseID()] = sqlchain
+			if !user.Status.EnableQuery() {
+				if user.AdvancePayment > minDep {
+					user.Status = types.Normal
+				}
+			}
+			s.dirty.databases[transfer.Receiver.DatabaseID()] = sqlchain
 			return
 		}
 	}

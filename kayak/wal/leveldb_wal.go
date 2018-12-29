@@ -190,17 +190,6 @@ func (p *LevelDBWal) Close() {
 	}
 }
 
-// GetDB returns the leveldb for storage extensions.
-func (p *LevelDBWal) GetDB() (d *leveldb.DB, err error) {
-	if atomic.LoadUint32(&p.closed) == 1 {
-		err = ErrWalClosed
-		return
-	}
-
-	d = p.db
-	return
-}
-
 func (p *LevelDBWal) load(logHeader []byte) (l *kt.Log, err error) {
 	l = new(kt.Log)
 

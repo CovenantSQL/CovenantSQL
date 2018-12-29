@@ -55,7 +55,6 @@ var (
 	noLogo      bool
 	showVersion bool
 	configFile  string
-	genKeyPair  bool
 
 	clientMode      bool
 	clientOperation string

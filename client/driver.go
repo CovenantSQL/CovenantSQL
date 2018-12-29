@@ -17,6 +17,7 @@
 package client
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"math/rand"
@@ -43,6 +44,10 @@ const (
 	DBScheme = "covenantsql"
 	// DBSchemeAlias defines the alias dsn scheme.
 	DBSchemeAlias = "cql"
+	// DefaultGasPrice defines the default gas price for new created database.
+	DefaultGasPrice = 1
+	// DefaultAdvancePayment defines the default advance payment for new created database.
+	DefaultAdvancePayment = 20000000
 )
 
 var (
@@ -84,7 +89,11 @@ func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 }
 
 // ResourceMeta defines new database resources requirement descriptions.
-type ResourceMeta types.ResourceMeta
+type ResourceMeta struct {
+	types.ResourceMeta
+	GasPrice       uint64
+	AdvancePayment uint64
+}
 
 // Init defines init process for client.
 func Init(configFile string, masterKey []byte) (err error) {
@@ -122,32 +131,70 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		return
 	}
 
-	req := new(types.CreateDatabaseRequest)
-	req.Header.ResourceMeta = types.ResourceMeta(meta)
-	var privateKey *asymmetric.PrivateKey
+	var (
+		nonceReq   = new(types.NextAccountNonceReq)
+		nonceResp  = new(types.NextAccountNonceResp)
+		req        = new(types.AddTxReq)
+		resp       = new(types.AddTxResp)
+		privateKey *asymmetric.PrivateKey
+		clientAddr proto.AccountAddress
+	)
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
 		err = errors.Wrap(err, "get local private key failed")
 		return
 	}
-	if err = req.Sign(privateKey); err != nil {
+	if clientAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
+		err = errors.Wrap(err, "get local account address failed")
+		return
+	}
+	// allocate nonce
+	nonceReq.Addr = clientAddr
+
+	if err = requestBP(route.MCCNextAccountNonce, nonceReq, nonceResp); err != nil {
+		err = errors.Wrap(err, "allocate create database transaction nonce failed")
+		return
+	}
+
+	if meta.GasPrice == 0 {
+		meta.GasPrice = DefaultGasPrice
+	}
+	if meta.AdvancePayment == 0 {
+		meta.AdvancePayment = DefaultAdvancePayment
+	}
+
+	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner:          clientAddr,
+		ResourceMeta:   meta.ResourceMeta,
+		GasPrice:       meta.GasPrice,
+		AdvancePayment: meta.AdvancePayment,
+		TokenType:      types.Particle,
+		Nonce:          nonceResp.Nonce,
+	})
+
+	if err = req.Tx.Sign(privateKey); err != nil {
 		err = errors.Wrap(err, "sign request failed")
 		return
 	}
-	res := new(types.CreateDatabaseResponse)
 
-	if err = requestBP(route.BPDBCreateDatabase, req, res); err != nil {
-		err = errors.Wrap(err, "call BPDB.CreateDatabase failed")
-		return
-	}
-	if err = res.Verify(); err != nil {
-		err = errors.Wrap(err, "response verify failed")
+	if err = requestBP(route.MCCAddTx, req, resp); err != nil {
+		err = errors.Wrap(err, "call create database transaction failed")
 		return
 	}
 
 	cfg := NewConfig()
-	cfg.DatabaseID = string(res.Header.InstanceMeta.DatabaseID)
+	cfg.DatabaseID = string(proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
 	dsn = cfg.FormatDSN()
 
+	return
+}
+
+// WaitDBCreation waits for database creation complete
+func WaitDBCreation(ctx context.Context, dsn string, timeout time.Duration) (err error) {
+	dsnCfg, err := ParseDSN(dsn)
+	// wait for creation
+	var newCtx, cancel = context.WithTimeout(ctx, timeout)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(newCtx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
 	return
 }
 
@@ -163,17 +210,9 @@ func Drop(dsn string) (err error) {
 		return
 	}
 
-	req := new(types.DropDatabaseRequest)
-	req.Header.DatabaseID = proto.DatabaseID(cfg.DatabaseID)
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	if err = req.Sign(privateKey); err != nil {
-		return
-	}
-	res := new(types.DropDatabaseResponse)
-	err = requestBP(route.BPDBDropDatabase, req, res)
+	_ = cfg
+
+	// currently not supported
 
 	return
 }
@@ -185,8 +224,8 @@ func GetStableCoinBalance() (balance uint64, err error) {
 		return
 	}
 
-	req := new(bp.QueryAccountStableBalanceReq)
-	resp := new(bp.QueryAccountStableBalanceResp)
+	req := new(types.QueryAccountStableBalanceReq)
+	resp := new(types.QueryAccountStableBalanceResp)
 
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -211,8 +250,8 @@ func GetCovenantCoinBalance() (balance uint64, err error) {
 		return
 	}
 
-	req := new(bp.QueryAccountCovenantBalanceReq)
-	resp := new(bp.QueryAccountCovenantBalanceResp)
+	req := new(types.QueryAccountCovenantBalanceReq)
+	resp := new(types.QueryAccountCovenantBalanceResp)
 
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -336,9 +375,6 @@ func cacheGetPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers
 }
 
 func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *proto.Peers, err error) {
-	req := new(types.GetDatabaseRequest)
-	req.Header.DatabaseID = dbID
-
 	defer func() {
 		log.WithFields(log.Fields{
 			"db":    dbID,
@@ -346,21 +382,35 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 		}).WithError(err).Debug("get peers for database")
 	}()
 
-	if err = req.Sign(privKey); err != nil {
+	profileReq := &types.QuerySQLChainProfileReq{}
+	profileResp := &types.QuerySQLChainProfileResp{}
+	profileReq.DBID = dbID
+	err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+	if err != nil {
+		log.WithError(err).Warning("get sqlchain profile failed in getPeers")
 		return
 	}
 
-	res := new(types.GetDatabaseResponse)
-	if err = requestBP(route.BPDBGetDatabase, req, res); err != nil {
+	nodeIDs := make([]proto.NodeID, len(profileResp.Profile.Miners))
+	if len(profileResp.Profile.Miners) <= 0 {
+		err = ErrInvalidProfile
+		log.WithError(err).Warning("unexpected error in getPeers")
 		return
 	}
-
-	// verify response
-	if err = res.Verify(); err != nil {
+	for i, mi := range profileResp.Profile.Miners {
+		nodeIDs[i] = mi.NodeID
+	}
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Leader:  nodeIDs[0],
+			Servers: nodeIDs[:],
+		},
+	}
+	err = peers.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign peers failed in getPeers")
 		return
 	}
-
-	peers = res.Header.InstanceMeta.Peers
 
 	// set peers in the updater cache
 	peerList.Store(dbID, peers)

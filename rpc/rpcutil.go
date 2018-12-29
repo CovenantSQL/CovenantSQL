@@ -353,3 +353,12 @@ func SetCurrentBP(bpNodeID proto.NodeID) {
 	defer currentBPLock.Unlock()
 	currentBP = bpNodeID
 }
+
+// RequestBP sends request to main chain.
+func RequestBP(method string, req interface{}, resp interface{}) (err error) {
+	var bp proto.NodeID
+	if bp, err = GetCurrentBP(); err != nil {
+		return err
+	}
+	return NewCaller().CallNode(bp, method, req, resp)
+}

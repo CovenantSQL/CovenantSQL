@@ -174,7 +174,7 @@ standard library's `net/url.Parse`.
 A full example for reference:
 
 ```go
-// example/example.go
+// _example/example.go
 package main
 
 import (

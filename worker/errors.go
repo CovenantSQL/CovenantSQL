@@ -48,4 +48,7 @@ var (
 
 	// ErrInvalidPermission indicates that the requester sends a unrecognized permission.
 	ErrInvalidPermission = errors.New("invalid permission")
+
+	// ErrInvalidTransactionType indicates that the transaction type is invalid.
+	ErrInvalidTransactionType = errors.New("invalid transaction type")
 )

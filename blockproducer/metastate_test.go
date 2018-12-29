@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -37,9 +38,9 @@ import (
 func TestMetaState(t *testing.T) {
 	Convey("Given a new metaState object and a persistence db instance", t, func() {
 		var (
-			ao       *accountObject
-			co       *sqlchainObject
-			po       *providerObject
+			ao       *types.Account
+			co       *types.SQLChainProfile
+			po       *types.ProviderProfile
 			bl       uint64
 			loaded   bool
 			err      error
@@ -51,9 +52,9 @@ func TestMetaState(t *testing.T) {
 			addr2    proto.AccountAddress
 			addr3    proto.AccountAddress
 			addr4    proto.AccountAddress
-			dbid1    = proto.DatabaseID("db#1")
-			dbid2    = proto.DatabaseID("db#2")
-			dbid3    = proto.DatabaseID("db#3")
+			dbID1    = proto.DatabaseID("db#1")
+			dbID2    = proto.DatabaseID("db#2")
+			dbID3    = proto.DatabaseID("db#3")
 			ms       = newMetaState()
 		)
 		So(err, ShouldBeNil)
@@ -86,7 +87,7 @@ func TestMetaState(t *testing.T) {
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The database state should be empty", func() {
-			co, loaded = ms.loadSQLChainObject(dbid1)
+			co, loaded = ms.loadSQLChainObject(dbID1)
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 		})
@@ -102,40 +103,36 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldEqual, ErrAccountNotFound)
 		})
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
-			err = ms.createSQLChain(addr1, dbid1)
+			err = ms.createSQLChain(addr1, dbID1)
 			So(err, ShouldEqual, ErrAccountNotFound)
-			err = ms.addSQLChainUser(dbid1, addr1, types.Admin)
+			err = ms.addSQLChainUser(dbID1, addr1, types.Admin)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.deleteSQLChainUser(dbid1, addr1)
+			err = ms.deleteSQLChainUser(dbID1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbid1, addr1, types.Write)
+			err = ms.alterSQLChainUser(dbID1, addr1, types.Write)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
-			ao, loaded = ms.loadOrStoreAccountObject(addr1, &accountObject{
-				Account: types.Account{
-					Address: addr1,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr1, &types.Account{Address: addr1})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: types.Account{
-					Address: addr2,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &sqlchainObject{
-				SQLChainProfile: types.SQLChainProfile{
-					ID: dbid1,
+			co, loaded = ms.loadOrStoreSQLChainObject(dbID1, &types.SQLChainProfile{
+				ID: dbID1,
+				Miners: []*types.MinerInfo{
+					&types.MinerInfo{Address: addr1},
+					&types.MinerInfo{Address: addr2},
 				},
 			})
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &sqlchainObject{
-				SQLChainProfile: types.SQLChainProfile{
-					ID: dbid2,
+			co, loaded = ms.loadOrStoreSQLChainObject(dbID2, &types.SQLChainProfile{
+				ID: dbID2,
+				Miners: []*types.MinerInfo{
+					&types.MinerInfo{Address: addr2},
+					&types.MinerInfo{Address: addr3},
 				},
 			})
 			So(co, ShouldBeNil)
@@ -149,14 +146,14 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(ao, ShouldNotBeNil)
 				So(ao.Address, ShouldEqual, addr1)
-				co, loaded = ms.loadSQLChainObject(dbid1)
+				co, loaded = ms.loadSQLChainObject(dbID1)
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
-				So(co.ID, ShouldEqual, dbid1)
-				co, loaded = ms.loadOrStoreSQLChainObject(dbid1, nil)
+				So(co.ID, ShouldEqual, dbID1)
+				co, loaded = ms.loadOrStoreSQLChainObject(dbID1, nil)
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
-				So(co.ID, ShouldEqual, dbid1)
+				So(co.ID, ShouldEqual, dbID1)
 				bl, loaded = ms.loadAccountStableBalance(addr1)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 0)
@@ -165,41 +162,50 @@ func TestMetaState(t *testing.T) {
 				So(bl, ShouldEqual, 0)
 			})
 			Convey("When new SQLChain is created", func() {
-				err = ms.createSQLChain(addr1, dbid3)
+				err = ms.createSQLChain(addr1, dbID3)
 				So(err, ShouldBeNil)
 				Convey("The metaState object should report database exists", func() {
-					err = ms.createSQLChain(addr1, dbid3)
+					err = ms.createSQLChain(addr1, dbID3)
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
-						err = ms.deleteSQLChainUser(dbid3, addr2)
+						err = ms.deleteSQLChainUser(dbID3, addr2)
 						So(err, ShouldBeNil)
-						err = ms.deleteSQLChainUser(dbid3, addr2)
+						err = ms.deleteSQLChainUser(dbID3, addr2)
 						So(err, ShouldBeNil)
 					})
 					Convey("The metaState object should be ok to alter user", func() {
-						err = ms.alterSQLChainUser(dbid3, addr2, types.Read)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbid3, addr2, types.Write)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
 						ms.commit()
+						Convey("The metaState object should return correct db list", func() {
+							var dbs []*types.SQLChainProfile
+							dbs = ms.loadROSQLChains(addr1)
+							So(len(dbs), ShouldEqual, 1)
+							dbs = ms.loadROSQLChains(addr2)
+							So(len(dbs), ShouldEqual, 2)
+							dbs = ms.loadROSQLChains(addr4)
+							So(dbs, ShouldBeEmpty)
+						})
 						Convey("The metaState object should be ok to delete user", func() {
-							err = ms.deleteSQLChainUser(dbid3, addr2)
+							err = ms.deleteSQLChainUser(dbID3, addr2)
 							So(err, ShouldBeNil)
-							err = ms.deleteSQLChainUser(dbid3, addr2)
+							err = ms.deleteSQLChainUser(dbID3, addr2)
 							So(err, ShouldBeNil)
 						})
 						Convey("The metaState object should be ok to alter user", func() {
-							err = ms.alterSQLChainUser(dbid3, addr2, types.Read)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbid3, addr2, types.Write)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
 							So(err, ShouldBeNil)
 						})
 					})
@@ -207,13 +213,13 @@ func TestMetaState(t *testing.T) {
 				Convey("When metaState change is committed", func() {
 					ms.commit()
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbid3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {
-						err = ms.createSQLChain(addr1, dbid3)
+						err = ms.createSQLChain(addr1, dbID3)
 						So(err, ShouldEqual, ErrDatabaseExists)
 					})
 				})
@@ -226,7 +232,7 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeFalse)
 				})
 				Convey("The database state should be empty", func() {
-					co, loaded = ms.loadSQLChainObject(dbid1)
+					co, loaded = ms.loadSQLChainObject(dbID1)
 					So(co, ShouldBeNil)
 					So(loaded, ShouldBeFalse)
 				})
@@ -317,7 +323,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance decreased",
 						func() {
 							err = ms.decreaseAccountStableBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.decreaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -335,7 +341,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance decreased",
 						func() {
 							err = ms.decreaseAccountCovenantBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.decreaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -343,18 +349,66 @@ func TestMetaState(t *testing.T) {
 					Convey(
 						"The metaState should copy object when stable balance transferred",
 						func() {
-							err = ms.transferAccountStableBalance(addr1, addr3, incSta+1)
-							So(err, ShouldEqual, ErrInsufficientBalance)
-							err = ms.transferAccountStableBalance(addr1, addr3, 1)
+							tran1 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr1,
+									Receiver:  addr2,
+									Amount:    incSta + 1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran1.Sign(privKey1)
 							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran1)
+							So(err, ShouldEqual, ErrInsufficientBalance)
+							tran2 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr1,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran2.Sign(privKey1)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran2)
+							So(err, ShouldBeNil)
+							ms.commit()
+
 							err = ms.increaseAccountStableBalance(addr2, math.MaxUint64)
 							So(err, ShouldBeNil)
 
 							ms.commit()
-							err = ms.transferAccountStableBalance(addr2, addr1, math.MaxUint64)
-							So(err, ShouldEqual, ErrBalanceOverflow)
-							err = ms.transferAccountStableBalance(addr2, addr3, 1)
+
+							tran3 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr1,
+									Amount:    math.MaxUint64,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran3.Sign(privKey2)
 							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran3)
+							So(err, ShouldEqual, ErrBalanceOverflow)
+							tran4 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran4.Sign(privKey2)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran4)
+							So(err, ShouldBeNil)
+							ms.commit()
 						},
 					)
 					Convey(
@@ -374,18 +428,18 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					_, loaded = ms.loadOrStoreAccountObject(addr1, nil)
 					So(loaded, ShouldBeTrue)
-					_, loaded = ms.loadSQLChainObject(dbid1)
+					_, loaded = ms.loadSQLChainObject(dbID1)
 					So(loaded, ShouldBeTrue)
-					_, loaded = ms.loadOrStoreSQLChainObject(dbid2, nil)
+					_, loaded = ms.loadOrStoreSQLChainObject(dbID2, nil)
 					So(loaded, ShouldBeTrue)
 				})
 				Convey("When some objects are deleted", func() {
 					ms.deleteAccountObject(addr1)
-					ms.deleteSQLChainObject(dbid1)
+					ms.deleteSQLChainObject(dbID1)
 					Convey("The dirty map should return deleted states of these objects", func() {
 						_, loaded = ms.loadAccountObject(addr1)
 						So(loaded, ShouldBeFalse)
-						_, loaded = ms.loadSQLChainObject(dbid1)
+						_, loaded = ms.loadSQLChainObject(dbID1)
 						So(loaded, ShouldBeFalse)
 					})
 				})
@@ -560,45 +614,69 @@ func TestMetaState(t *testing.T) {
 			err = kms.InitLocalKeyPair(privKeyFile, []byte(""))
 			So(err, ShouldBeNil)
 
-			ao, loaded = ms.loadOrStoreAccountObject(addr1,
-				&accountObject{Account: types.Account{
-					Address: addr1,
-				},
-				})
+			ao, loaded = ms.loadOrStoreAccountObject(addr1, &types.Account{Address: addr1})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: types.Account{
-					Address: addr2,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr3, &accountObject{
-				Account: types.Account{
-					Address: addr3,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr3, &types.Account{Address: addr3})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr4, &accountObject{
-				Account: types.Account{
-					Address: addr4,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr4, &types.Account{Address: addr4})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
+
+			// increase account balance
+			var (
+				txs = []pi.Transaction{
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr1,
+							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr2,
+							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr3,
+							TokenBalance: [types.SupportTokenNumber]uint64{100000, 100},
+						},
+					),
+				}
+			)
+
+			err = txs[0].Sign(privKey1)
+			So(err, ShouldBeNil)
+			err = txs[1].Sign(privKey2)
+			So(err, ShouldBeNil)
+			err = txs[2].Sign(privKey3)
+			for i := range txs {
+				err = ms.apply(txs[i])
+				So(err, ShouldBeNil)
+				ms.commit()
+			}
+
 			Convey("When provider transaction is invalid", func() {
 				invalidPs := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
-						Contract: addr2,
+						TargetUser: []proto.AccountAddress{addr1},
+						Nonce:      1,
 					},
 				}
-				err = invalidPs.Sign(privKey1)
+				err = invalidPs.Sign(privKey3)
 				So(err, ShouldBeNil)
 				invalidCd1 := types.CreateDatabase{
 					CreateDatabaseHeader: types.CreateDatabaseHeader{
-						Owner: addr2,
+						Owner:     addr2,
+						GasPrice:  1,
+						TokenType: types.Particle,
+						Nonce:     1,
 					},
 				}
 				err = invalidCd1.Sign(privKey1)
@@ -608,24 +686,161 @@ func TestMetaState(t *testing.T) {
 						Owner: addr1,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 1,
+						TokenType:      types.Particle,
+						Nonce:          1,
 					},
 				}
 				err = invalidCd2.Sign(privKey1)
 				So(err, ShouldBeNil)
+				invalidCd3 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						GasPrice:  1,
+						TokenType: types.Particle,
+						Nonce:     1,
+					},
+				}
+				err = invalidCd3.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd4 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						Nonce: 1,
+					},
+				}
+				err = invalidCd4.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd5 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         2,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 2,
+					},
+				}
+				err = invalidCd5.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd6 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 1,
+					},
+				}
+				err = invalidCd6.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd7 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners:           []proto.AccountAddress{addr2},
+							Node:                   10,
+							Space:                  9,
+							Memory:                 9,
+							LoadAvgPerCPU:          0.1,
+							UseEventualConsistency: false,
+							ConsistencyLevel:       0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 10,
+					},
+				}
+				err = invalidCd7.Sign(privKey3)
+				So(err, ShouldBeNil)
 
 				err = ms.apply(&invalidPs)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
 				err = ms.apply(&invalidCd1)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
 				err = ms.apply(&invalidCd2)
 				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
+				err = ms.apply(&invalidCd3)
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
+				err = ms.apply(&invalidCd4)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
+				err = ms.apply(&invalidCd5)
+				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+				err = ms.apply(&invalidCd6)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidMinerCount)
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("1")))] = &types.ProviderProfile{
+					TargetUser: nil,
+				}
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("2")))] = &types.ProviderProfile{
+					TargetUser: nil,
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("3")))] = &types.ProviderProfile{
+					TargetUser: []proto.AccountAddress{addr3},
+					GasPrice:   9999999999, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("4")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 1.0, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("5")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        1, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("6")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         1, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("7")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     1, // not pass
+				}
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("8")))] = &types.ProviderProfile{
+					Provider:      proto.AccountAddress{},
+					Space:         0,
+					Memory:        0,
+					LoadAvgPerCPU: 0,
+					TargetUser:    []proto.AccountAddress{addr3},
+					Deposit:       0,
+					GasPrice:      0,
+					TokenType:     0,
+					NodeID:        "",
+				}
+				err = ms.apply(&invalidCd7)
+				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
 			})
 			Convey("When SQLChain create", func() {
 				ps := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{
-						Contract:   addr2,
-						TargetUser: addr1,
+						TargetUser: []proto.AccountAddress{addr1},
+						GasPrice:   1,
+						TokenType:  types.Particle,
+						Nonce:      1,
 					},
 				}
 				err = ps.Sign(privKey2)
@@ -635,7 +850,12 @@ func TestMetaState(t *testing.T) {
 						Owner: addr1,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
+						GasPrice:       1,
+						AdvancePayment: 3600000,
+						TokenType:      types.Particle,
+						Nonce:          1,
 					},
 				}
 				err = cd1.Sign(privKey1)
@@ -645,22 +865,39 @@ func TestMetaState(t *testing.T) {
 						Owner: addr3,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
 						},
+						GasPrice:       1,
+						AdvancePayment: 3600000,
+						TokenType:      types.Particle,
+						Nonce:          1,
 					},
 				}
 				err = cd2.Sign(privKey3)
 				So(err, ShouldBeNil)
 
+				var b1, b2 uint64
+				b1, loaded = ms.loadAccountStableBalance(addr2)
 				err = ms.apply(&ps)
 				So(err, ShouldBeNil)
 				ms.commit()
+				b2, loaded = ms.loadAccountStableBalance(addr2)
+				So(loaded, ShouldBeTrue)
+				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
 				err = ms.apply(&cd2)
 				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
+				b1, loaded = ms.loadAccountStableBalance(addr1)
+				So(loaded, ShouldBeTrue)
 				err = ms.apply(&cd1)
 				So(err, ShouldBeNil)
 				ms.commit()
+				b2, loaded = ms.loadAccountStableBalance(addr1)
+				So(loaded, ShouldBeTrue)
+				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
+					uint64(conf.GConf.BillingPeriod) * uint64(len(cd2.ResourceMeta.TargetMiners))
+				So(b1-b2, ShouldEqual, cd1.AdvancePayment+minAdvancePayment)
 				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
-				co, loaded = ms.loadSQLChainObject(*dbID)
+				co, loaded = ms.loadSQLChainObject(dbID)
 				So(loaded, ShouldBeTrue)
 				dbAccount, err := dbID.AccountAddress()
 				So(err, ShouldBeNil)
@@ -694,7 +931,7 @@ func TestMetaState(t *testing.T) {
 				ms.commit()
 				// addr3(admin) update addr4 as read
 				up.TargetUser = addr4
-				up.Nonce = 0
+				up.Nonce = cd2.Nonce
 				up.Permission = types.Read
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
@@ -724,7 +961,7 @@ func TestMetaState(t *testing.T) {
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
 
-				co, loaded = ms.loadSQLChainObject(*dbID)
+				co, loaded = ms.loadSQLChainObject(dbID)
 				for _, user := range co.Users {
 					if user.Address == addr1 {
 						So(user.Permission, ShouldEqual, types.Read)
@@ -739,7 +976,7 @@ func TestMetaState(t *testing.T) {
 						continue
 					}
 				}
-				Convey("Update key", func() {
+				Convey("update key", func() {
 					invalidIk1 := &types.IssueKeys{}
 					err = invalidIk1.Sign(privKey1)
 					So(err, ShouldBeNil)
@@ -748,7 +985,7 @@ func TestMetaState(t *testing.T) {
 					invalidIk2 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
 							TargetSQLChain: addr1,
-							Nonce:          2,
+							Nonce:          3,
 						},
 					}
 					err = invalidIk2.Sign(privKey3)
@@ -758,7 +995,7 @@ func TestMetaState(t *testing.T) {
 					invalidIk3 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
 							TargetSQLChain: dbAccount,
-							Nonce:          2,
+							Nonce:          3,
 						},
 					}
 					err = invalidIk3.Sign(privKey1)
@@ -768,7 +1005,7 @@ func TestMetaState(t *testing.T) {
 					ik1 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
 							TargetSQLChain: dbAccount,
-							Nonce:          2,
+							Nonce:          3,
 						},
 					}
 					err = ik1.Sign(privKey3)
@@ -786,7 +1023,7 @@ func TestMetaState(t *testing.T) {
 								},
 							},
 							TargetSQLChain: dbAccount,
-							Nonce:          3,
+							Nonce:          4,
 						},
 					}
 					err = ik2.Sign(privKey3)
@@ -795,12 +1032,119 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					ms.commit()
 
-					co, loaded = ms.loadSQLChainObject(*dbID)
+					co, loaded = ms.loadSQLChainObject(dbID)
 					for _, miner := range co.Miners {
 						if miner.Address == addr1 {
 							So(miner.EncryptionKey, ShouldEqual, encryptKey)
 						}
 					}
+				})
+				Convey("update billing", func() {
+					ub1 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: addr1,
+							Nonce:    up.Nonce,
+						},
+					}
+					err = ub1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub1)
+					So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+					users := [3]*types.UserCost{
+						&types.UserCost{
+							User: addr1,
+							Cost: 100,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 100,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr3,
+							Cost: 10,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 10,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr4,
+							Cost: 15,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 15,
+								},
+							},
+						},
+					}
+					ub2 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: dbAccount,
+							Users:    users[:],
+							Nonce:    2,
+						},
+					}
+					err = ub2.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub2)
+					ms.commit()
+					sqlchain, loaded := ms.loadSQLChainObject(dbID)
+					So(loaded, ShouldBeTrue)
+					So(len(sqlchain.Miners), ShouldEqual, 1)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 125)
+					users = [3]*types.UserCost{
+						&types.UserCost{
+							User: addr1,
+							Cost: 100,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 100,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr2,
+							Cost: 10,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr3,
+									Income: 10,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr4,
+							Cost: 15,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 15,
+								},
+							},
+						},
+					}
+					ub3 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: dbAccount,
+							Users:    users[:],
+							Nonce:    3,
+						},
+					}
+					err = ub3.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub3)
+					So(err, ShouldBeNil)
+					sqlchain, loaded = ms.loadSQLChainObject(dbID)
+					So(loaded, ShouldBeTrue)
+					So(len(sqlchain.Miners), ShouldEqual, 1)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
+					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 125)
 				})
 			})
 		})

@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -91,9 +90,6 @@ var (
 	subscriptionBucket      = []byte("subscription")
 
 	blockHeightBucket = []byte("height")
-
-	// blockProducePeriod defines the block producing interval
-	blockProducePeriod = 60 * time.Second
 )
 
 // Service defines the observer service structure.
@@ -370,7 +366,7 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 
 func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (err error) {
 	instance, err := s.getUpstream(dbID)
-	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / blockProducePeriod)
+	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / conf.GConf.SQLChainPeriod)
 	key := utils.ConcatAll(int32ToBytes(h), b.BlockHash().AsBytes(), int32ToBytes(count))
 	// It's actually `countToBytes`
 	ckey := int32ToBytes(count)
@@ -487,21 +483,47 @@ func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *types.ServiceIns
 		return
 	}
 
-	req := &types.GetDatabaseRequest{}
-	req.Header.DatabaseID = dbID
-	if err = req.Sign(privateKey); err != nil {
-		return
-	}
-	resp := &types.GetDatabaseResponse{}
+	var (
+		req = &types.QuerySQLChainProfileReq{
+			DBID: dbID,
+		}
+		resp = &types.QuerySQLChainProfileResp{}
+	)
 	// get peers list from block producer
-	if err = s.caller.CallNode(curBP, route.BPDBGetDatabase.String(), req, resp); err != nil {
-		return
-	}
-	if err = resp.Verify(); err != nil {
+	if err = s.caller.CallNode(
+		curBP, route.MCCQuerySQLChainProfile.String(), req, resp,
+	); err != nil {
 		return
 	}
 
-	instance = &resp.Header.InstanceMeta
+	// Build server instance from sqlchain profile
+	var (
+		profile = resp.Profile
+		nodeids = make([]proto.NodeID, len(profile.Miners))
+		peers   *proto.Peers
+		genesis = &types.Block{}
+	)
+	for i, v := range profile.Miners {
+		nodeids[i] = v.NodeID
+	}
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Leader:  nodeids[0],
+			Servers: nodeids[:],
+		},
+	}
+	if err = peers.Sign(privateKey); err != nil {
+		return
+	}
+	if err = utils.DecodeMsgPack(profile.EncodedGenesis, genesis); err != nil {
+		return
+	}
+	instance = &types.ServiceInstance{
+		DatabaseID:   profile.ID,
+		Peers:        peers,
+		ResourceMeta: profile.Meta,
+		GenesisBlock: genesis,
+	}
 	s.upstreamServers.Store(dbID, instance)
 
 	return

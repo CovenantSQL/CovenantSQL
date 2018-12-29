@@ -22,6 +22,11 @@ import (
 	"strings"
 )
 
+const (
+	paramUseLeader   = "use_leader"
+	paramUseFollower = "use_follower"
+)
+
 // Config is a configuration parsed from a DSN string.
 type Config struct {
 	DatabaseID string
@@ -52,8 +57,13 @@ func (cfg *Config) FormatDSN() string {
 	}
 
 	newQuery := u.Query()
-	newQuery.Add("use_leader", strconv.FormatBool(cfg.UseLeader))
-	newQuery.Add("use_follower", strconv.FormatBool(cfg.UseFollower))
+	if cfg.UseFollower {
+		newQuery.Add(paramUseFollower, strconv.FormatBool(cfg.UseFollower))
+
+		if cfg.UseLeader {
+			newQuery.Add(paramUseLeader, strconv.FormatBool(cfg.UseLeader))
+		}
+	}
 	u.RawQuery = newQuery.Encode()
 
 	return u.String()
@@ -75,8 +85,8 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 
 	q := u.Query()
 	// option: use_leader, use_follower
-	cfg.UseLeader, _ = strconv.ParseBool(q.Get("use_leader"))
-	cfg.UseFollower, _ = strconv.ParseBool(q.Get("use_follower"))
+	cfg.UseLeader, _ = strconv.ParseBool(q.Get(paramUseLeader))
+	cfg.UseFollower, _ = strconv.ParseBool(q.Get(paramUseFollower))
 	if !cfg.UseLeader && !cfg.UseFollower {
 		cfg.UseLeader = true
 	}

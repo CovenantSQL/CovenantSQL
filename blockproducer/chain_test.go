@@ -70,8 +70,7 @@ func newProvideService(
 	t *types.ProvideService, err error,
 ) {
 	t = types.NewProvideService(&types.ProvideServiceHeader{
-		Contract: contract,
-		Nonce:    nonce,
+		Nonce: nonce,
 	})
 	err = t.Sign(signer)
 	return
@@ -189,11 +188,11 @@ func TestChain(t *testing.T) {
 				err = chain.storeTx(t1)
 				So(err, ShouldEqual, ErrExistedTx)
 			})
-			err = chain.produceBlock(begin.Add(chain.period))
+			err = chain.produceBlock(begin.Add(chain.period).UTC())
 			So(err, ShouldBeNil)
 
 			// Create a sibling block from fork#0 and apply
-			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period), addr2, priv2)
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			err = chain.pushBlock(bl)
@@ -204,17 +203,17 @@ func TestChain(t *testing.T) {
 
 			err = chain.storeTx(t2)
 			So(err, ShouldBeNil)
-			err = chain.produceBlock(begin.Add(2 * chain.period))
+			err = chain.produceBlock(begin.Add(2 * chain.period).UTC())
 			So(err, ShouldBeNil)
 
 			err = chain.storeTx(t3)
 			So(err, ShouldBeNil)
 			err = chain.storeTx(t4)
 			So(err, ShouldBeNil)
-			err = chain.produceBlock(begin.Add(3 * chain.period))
+			err = chain.produceBlock(begin.Add(3 * chain.period).UTC())
 			So(err, ShouldBeNil)
 			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period), addr2, priv2)
+			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			f1.preview.commit()
@@ -223,11 +222,11 @@ func TestChain(t *testing.T) {
 
 			// This should trigger a branch pruning on fork #0
 			for i := uint32(4); i <= 6; i++ {
-				err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
+				err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period).UTC())
 				So(err, ShouldBeNil)
 				// Create a sibling block from fork#1 and apply
 				f1, bl, err = f1.produceBlock(
-					i, begin.Add(time.Duration(i)*chain.period), addr2, priv2)
+					i, begin.Add(time.Duration(i)*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
@@ -238,7 +237,7 @@ func TestChain(t *testing.T) {
 			Convey("The chain immutable should be updated to irreversible block", func() {
 				// Add more blocks to trigger immutable updating
 				for i := uint32(7); i <= 12; i++ {
-					err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period))
+					err = chain.produceBlock(begin.Add(time.Duration(i) * chain.period).UTC())
 					So(err, ShouldBeNil)
 				}
 				Convey("The chain should have same state after reloading", func() {
@@ -257,13 +256,13 @@ func TestChain(t *testing.T) {
 				f1.addTx(t2)
 				f1.addTx(t3)
 				f1.addTx(t4)
-				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period), addr2, priv2)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
-				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period), addr2, priv2)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
@@ -301,6 +300,12 @@ func TestChain(t *testing.T) {
 					So(height, ShouldEqual, 0)
 					So(bl.BlockHash(), ShouldResemble, genesis.BlockHash())
 
+					bl, count, height, err = chain.fetchLastIrreversibleBlock()
+					So(err, ShouldBeNil)
+					So(count, ShouldEqual, chain.lastIrre.count)
+					So(height, ShouldEqual, chain.lastIrre.height)
+					So(bl, ShouldResemble, chain.lastIrre.block)
+
 					// Try to use the no-cache version
 					var node = chain.headBranch.head.ancestorByCount(5)
 					node.block = nil // Clear cached block
@@ -312,6 +317,12 @@ func TestChain(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(height, ShouldEqual, node.height)
 					So(bl.BlockHash(), ShouldResemble, &node.hash)
+
+					var irreBlock = chain.lastIrre.block
+					chain.lastIrre.block = nil // Clear cached block
+					bl, count, height, err = chain.fetchLastIrreversibleBlock()
+					So(err, ShouldBeNil)
+					So(bl, ShouldResemble, irreBlock)
 				})
 
 				Convey("Test run chain", func() {

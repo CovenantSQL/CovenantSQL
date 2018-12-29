@@ -71,4 +71,24 @@ func TestConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(cfg, ShouldResemble, recoveredCfg)
 	})
+
+	Convey("test dsn with use all kinds of options", t, func(c C) {
+		testFormatAndParse := func(cfg *Config) {
+			newCfg, err := ParseDSN(cfg.FormatDSN())
+			c.So(err, ShouldBeNil)
+			c.So(newCfg, ShouldResemble, cfg)
+		}
+		testFormatAndParse(&Config{
+			UseLeader:   true,
+			UseFollower: false,
+		})
+		testFormatAndParse(&Config{
+			UseLeader:   false,
+			UseFollower: true,
+		})
+		testFormatAndParse(&Config{
+			UseLeader:   true,
+			UseFollower: true,
+		})
+	})
 }

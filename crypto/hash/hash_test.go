@@ -19,6 +19,7 @@ package hash
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -280,7 +281,7 @@ func TestHash_Difficulty(t *testing.T) {
 	}
 }
 
-func unmarshalAndMarshal(str string) string {
+func unmarshalAndMarshalYAML(str string) string {
 	var hash Hash
 	yaml.Unmarshal([]byte(str), &hash)
 	ret, _ := yaml.Marshal(hash)
@@ -288,9 +289,24 @@ func unmarshalAndMarshal(str string) string {
 	return strings.TrimSpace(string(ret))
 }
 
+func unmarshalAndMarshalJSON(str string) string {
+	var hash Hash
+	json.Unmarshal([]byte(str), &hash)
+	ret, _ := json.Marshal(hash)
+
+	return strings.TrimSpace(string(ret))
+}
+
 func TestHash_MarshalYAML(t *testing.T) {
 	Convey("marshal unmarshal yaml", t, func() {
-		So(unmarshalAndMarshal("029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"), ShouldEqual, "029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb")
-		So(unmarshalAndMarshal("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd")
+		So(unmarshalAndMarshalYAML("029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"), ShouldEqual, "029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb")
+		So(unmarshalAndMarshalYAML("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd")
+	})
+}
+
+func TestHash_MarshalJSON(t *testing.T) {
+	Convey("marshal unmarshal yaml", t, func() {
+		So(unmarshalAndMarshalJSON(`"029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"`), ShouldEqual, `"029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"`)
+		So(unmarshalAndMarshalJSON(`"02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"`), ShouldEqual, `"02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"`)
 	})
 }

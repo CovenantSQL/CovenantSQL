@@ -261,7 +261,8 @@ func main() {
 				return
 			}
 
-			meta = client.ResourceMeta{Node: uint16(nodeCnt)}
+			meta = client.ResourceMeta{}
+			meta.Node = uint16(nodeCnt)
 		}
 
 		dsn, err := client.Create(meta)
@@ -275,16 +276,35 @@ func main() {
 		return
 	}
 
-	available := drivers.Available()
-	cur, err := user.Current()
-	if err != nil {
-		log.WithError(err).Error("get current user failed")
-		os.Exit(-1)
-		return
+	var (
+		curUser   *user.User
+		available = drivers.Available()
+	)
+	if st, err := os.Stat("/.dockerenv"); err == nil && !st.IsDir() {
+		// in docker, fake user
+		var wd string
+		if wd, err = os.Getwd(); err != nil {
+			log.WithError(err).Error("get working directory failed")
+			os.Exit(-1)
+			return
+		}
+		curUser = &user.User{
+			Uid:      "0",
+			Gid:      "0",
+			Username: "docker",
+			Name:     "docker",
+			HomeDir:  wd,
+		}
+	} else {
+		if curUser, err = user.Current(); err != nil {
+			log.WithError(err).Error("get current user failed")
+			os.Exit(-1)
+			return
+		}
 	}
 
 	// run
-	err = run(cur)
+	err = run(curUser)
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
 		log.WithError(err).Error("run cli error")
 

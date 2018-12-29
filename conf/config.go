@@ -114,8 +114,11 @@ type DNSSeed struct {
 
 // Config holds all the config read from yaml config file.
 type Config struct {
-	IsTestMode      bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
-	GenerateKeyPair bool `yaml:"-"`
+	IsTestMode bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
+	// StartupSyncHoles indicates synchronizing hole blocks from other peers on BP
+	// startup/reloading.
+	StartupSyncHoles bool `yaml:"StartupSyncHoles,omitempty"`
+	GenerateKeyPair  bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
 	WorkingRoot     string            `yaml:"WorkingRoot"`
 	PubKeyStoreFile string            `yaml:"PubKeyStoreFile"`
@@ -134,6 +137,15 @@ type Config struct {
 
 	KnownNodes  []proto.Node `yaml:"KnownNodes"`
 	SeedBPNodes []proto.Node `yaml:"-"`
+
+	QPS                uint32        `yaml:"QPS"`
+	BillingPeriod      uint32        `yaml:"BillingPeriod"` // BillingPeriod is for sql chain miners syncing billing with main chain
+	BPPeriod           time.Duration `yaml:"BPPeriod"`
+	BPTick             time.Duration `yaml:"BPTick"`
+	SQLChainPeriod     time.Duration `yaml:"SQLChainPeriod"`
+	SQLChainTick       time.Duration `yaml:"SQLChainTick"`
+	SQLChainTTL        int32         `yaml:"SQLChainTTL"`
+	MinProviderDeposit uint64        `yaml:"MinProviderDeposit"`
 }
 
 // GConf is the global config pointer.

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+make -C ../../ clean && \
 make -C ../../ use_all_cores && \
 go test -bench=^BenchmarkSQLite$ -benchtime=10s -run ^$ && \
 go test -bench=^BenchmarkMinerOne$ -benchtime=10s -run ^$ && \

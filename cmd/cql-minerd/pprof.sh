@@ -1,6 +1,7 @@
 #!/bin/sh -x
 
 ../../cleanupDB.sh
+make -C ../../ clean
 make -C ../../ use_all_cores
 
 go test -bench=^BenchmarkMinerTwo$ -benchtime=15s -run ^$

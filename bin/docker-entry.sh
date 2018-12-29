@@ -12,8 +12,8 @@ blockproducer)
     ;;
 observer)
     rm -f /app/node_observer/observer.db
-    nohup nginx -g 'daemon off;' &
-    exec /app/cql-observer -config "${COVENANT_CONF}" "${@}"
+    nohup nginx -g 'daemon off;' 1>access.log 2>error.log &
+    exec /app/cql-observer -config "${COVENANT_CONF}" -listen "${COVENANTSQL_OBSERVER_ADDR}"
     ;;
 adapter)
     exec /app/cql-adapter -config "${COVENANT_CONF}" "${@}"

@@ -61,6 +61,15 @@ observer_docker: builder
 
 docker: runner observer_docker
 
+docker_clean: status
+	docker rmi -f $(BUILDER):latest
+	docker rmi -f $(IMAGE):latest
+	docker rmi -f $(OB_IMAGE):latest
+	docker rmi -f $(BUILDER):$(VERSION)
+	docker rmi -f $(IMAGE):$(VERSION)
+	docker rmi -f $(OB_IMAGE):$(VERSION)
+
+
 save: status
 ifeq ($(SHIP_VERSION),)
 	$(error No version to ship, please build first)
@@ -107,92 +116,95 @@ ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/Cove
 GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(testtags)"
 GOBUILD := CGO_ENABLED=1 go build -tags "$(tags)"
 
-bp_test:
+bin/cqld.test:
 	$(GOTEST) \
 		-ldflags "$(ldflags_role_bp)" \
 		-o bin/cqld.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
-bp_bin:
+bin/cqld:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_bp)" \
 		-o bin/cqld \
 		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
-miner_test:
+bin/cql-minerd.test:
 	$(GOTEST) \
 		-ldflags "$(ldflags_role_miner)" \
 		-o bin/cql-minerd.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
-miner_bin:
+bin/cql-minerd:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_miner)" \
 		-o bin/cql-minerd \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
-observer_test:
+bin/cql-observer.test:
 	$(GOTEST) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-observer.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
 
-observer_bin:
+bin/cql-observer:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-observer \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
 
-utils_bin:
+bin/cql-utils:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-utils \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 
-cli_bin:
+bin/cql:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
-fuse_bin:
+bin/cql-fuse:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
-adapter_bin:
+bin/cql-adapter:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-adapter \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
 
-mysql_adapter_bin:
+bin/cql-mysql-adapter:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-mysql-adapter \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
 
-faucet_bin:
+bin/cql-faucet:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-faucet \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 
-explorer_bin:
+bin/cql-explorer:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/cql-explorer \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer
 
-bp: bp_bin bp_test
+bp: bin/cqld.test bin/cqld
 
-miner: miner_bin miner_test
+miner: bin/cql-minerd.test bin/cql-minerd
 
-observer: observer_bin observer_test
+observer: bin/cql-observer.test bin/cql-observer
 
-client: utils_bin cli_bin fuse_bin adapter_bin mysql_adapter_bin faucet_bin explorer_bin
+client: bin/cql-utils bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer
 
 all: bp miner observer client
 
-.PHONY: status start stop logs push bp_bin bp_test miner_bin miner_test utils_bin cli_bin fuse_bin adapter_bin mysql_adapter_bin faucet_bin explorer_bin
+clean:
+	rm -rf bin/cql*
+
+.PHONY: status start stop logs push clean

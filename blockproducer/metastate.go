@@ -19,6 +19,9 @@ package blockproducer
 import (
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/ulule/deepcopier"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -27,8 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	"github.com/ulule/deepcopier"
 )
 
 var (

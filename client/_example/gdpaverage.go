@@ -100,6 +100,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rows.Close()
 	log.Printf("\nExec:\n %s\n", Q)
 	log.Println("ID	Name	CountryCode	District	Population")
 	var ID, GDP, Population int

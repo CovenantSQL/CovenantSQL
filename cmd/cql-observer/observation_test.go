@@ -443,6 +443,7 @@ func TestFullProcess(t *testing.T) {
 			So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldNotBeEmpty)
 			blockHash = ensureSuccess(res.String("block", "hash")).(string)
 			byHeightBlockResult = ensureSuccess(res.Interface())
+			break
 		}
 
 		// test get block by hash

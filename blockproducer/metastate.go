@@ -1080,7 +1080,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 								miner.PendingIncome += miner.UserArrears[i].Arrears
 							} else {
 								newUserArrears[i] = ua
-								i += 1
+								i++
 							}
 						}
 					}

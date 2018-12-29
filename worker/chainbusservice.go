@@ -197,7 +197,10 @@ func (bs *BusService) RequestSQLProfile(dbID proto.DatabaseID) (p *types.SQLChai
 	return
 }
 
-func (bs *BusService) RequestPermStat(dbID proto.DatabaseID, user proto.AccountAddress) (permStat *types.PermStat, ok bool) {
+// RequestPermStat fetches permission state from bus service.
+func (bs *BusService) RequestPermStat(
+	dbID proto.DatabaseID, user proto.AccountAddress) (permStat *types.PermStat, ok bool,
+) {
 	bs.lock.RLock()
 	defer bs.lock.RUnlock()
 	userState, ok := bs.sqlChainState[dbID]

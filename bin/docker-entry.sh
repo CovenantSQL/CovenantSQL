@@ -7,11 +7,9 @@ miner)
     exec /app/cql-minerd -config "${COVENANT_CONF}" "${@}"
     ;;
 blockproducer)
-    rm -f /app/node_*/chain.db
     exec /app/cqld -config "${COVENANT_CONF}" "${@}"
     ;;
 observer)
-    rm -f /app/node_observer/observer.db
     MAGIC_DOLLAR='$' envsubst < /etc/nginx/conf.d/servers/explorer.conf.template > /etc/nginx/conf.d/default.conf
     nginx -g 'daemon off;' </dev/null &
     exec /app/cql-observer -config "${COVENANT_CONF}" -listen "${COVENANTSQL_OBSERVER_ADDR}"

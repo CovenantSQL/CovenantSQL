@@ -1,5 +1,37 @@
 # Changelog
 
+## [v0.1.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.1.0) (2018-12-29)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.6...v0.1.0)
+
+**Closed issues:**
+
+- Private Key Format should be human readable [\#144](https://github.com/CovenantSQL/CovenantSQL/issues/144)
+
+**Merged pull requests:**
+
+- Change test config IsTestMode to true. [\#171](https://github.com/CovenantSQL/CovenantSQL/pull/171) ([laodouya](https://github.com/laodouya))
+- Update node\_c config for testnet [\#170](https://github.com/CovenantSQL/CovenantSQL/pull/170) ([leventeliu](https://github.com/leventeliu))
+- Fix miner crash on billing [\#169](https://github.com/CovenantSQL/CovenantSQL/pull/169) ([leventeliu](https://github.com/leventeliu))
+- Update ci config [\#168](https://github.com/CovenantSQL/CovenantSQL/pull/168) ([xq262144](https://github.com/xq262144))
+- Update observer api to support queries pagination [\#167](https://github.com/CovenantSQL/CovenantSQL/pull/167) ([xq262144](https://github.com/xq262144))
+-  Add testnet parameters package and fix cql-utils congen tool [\#166](https://github.com/CovenantSQL/CovenantSQL/pull/166) ([leventeliu](https://github.com/leventeliu))
+- Update ci config, run reviewdog on travis, other in gitlab [\#165](https://github.com/CovenantSQL/CovenantSQL/pull/165) ([xq262144](https://github.com/xq262144))
+-  Add README-zh for cql-utils  [\#161](https://github.com/CovenantSQL/CovenantSQL/pull/161) ([leventeliu](https://github.com/leventeliu))
+- Update client readme and example [\#160](https://github.com/CovenantSQL/CovenantSQL/pull/160) ([laodouya](https://github.com/laodouya))
+- Add more test cases for ETLS [\#159](https://github.com/CovenantSQL/CovenantSQL/pull/159) ([auxten](https://github.com/auxten))
+- Reduce unnecessary object copy while producing/applying new block [\#158](https://github.com/CovenantSQL/CovenantSQL/pull/158) ([leventeliu](https://github.com/leventeliu))
+- HTTP\(S\) Adapter Improvements and various query sanitizations [\#157](https://github.com/CovenantSQL/CovenantSQL/pull/157) ([xq262144](https://github.com/xq262144))
+- Add raw socket magic header and encrypted magic header for ETLS [\#156](https://github.com/CovenantSQL/CovenantSQL/pull/156) ([auxten](https://github.com/auxten))
+- Fix RunCommandNB pipe issue [\#155](https://github.com/CovenantSQL/CovenantSQL/pull/155) ([auxten](https://github.com/auxten))
+- Fix some issues in block producer [\#154](https://github.com/CovenantSQL/CovenantSQL/pull/154) ([leventeliu](https://github.com/leventeliu))
+- Use docker mapping port for node\_c [\#150](https://github.com/CovenantSQL/CovenantSQL/pull/150) ([auxten](https://github.com/auxten))
+- Update default makefile task to all [\#147](https://github.com/CovenantSQL/CovenantSQL/pull/147) ([draveness](https://github.com/draveness))
+- Save & load private key in base58 format [\#146](https://github.com/CovenantSQL/CovenantSQL/pull/146) ([draveness](https://github.com/draveness))
+- Add billing process and chain bus support [\#145](https://github.com/CovenantSQL/CovenantSQL/pull/145) ([zeqing-guo](https://github.com/zeqing-guo))
+- Refactor build.sh and Makefile [\#142](https://github.com/CovenantSQL/CovenantSQL/pull/142) ([laodouya](https://github.com/laodouya))
+- Block producer refactor and chain bus integration [\#135](https://github.com/CovenantSQL/CovenantSQL/pull/135) ([leventeliu](https://github.com/leventeliu))
+
 ## [v0.0.6](https://github.com/CovenantSQL/CovenantSQL/tree/v0.0.6) (2018-12-18)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.5...v0.0.6)

@@ -34,7 +34,13 @@ import (
 	"testing"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -51,6 +57,16 @@ var (
 var nodeCmds []*utils.CMD
 
 var FJ = filepath.Join
+
+func privKeyStoreToAccountAddr(
+	path string, master []byte) (priv *asymmetric.PrivateKey, addr proto.AccountAddress, err error,
+) {
+	if priv, err = kms.LoadPrivateKey(path, master); err != nil {
+		return
+	}
+	addr, err = crypto.PubKeyHash(priv.PubKey())
+	return
+}
 
 func startNodes() {
 	// wait for ports to be available
@@ -73,7 +89,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/leader.cover.out"),
 		},
-		"leader", testWorkingDir, logDir, true,
+		"leader", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -132,7 +148,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner0.cover.out"),
 		},
-		"miner0", testWorkingDir, logDir, true,
+		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -145,7 +161,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner1.cover.out"),
 		},
-		"miner1", testWorkingDir, logDir, true,
+		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -158,7 +174,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/miner2.cover.out"),
 		},
-		"miner2", testWorkingDir, logDir, true,
+		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -235,7 +251,16 @@ func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	Convey("test full process", t, func() {
-		var err error
+		var (
+			err         error
+			cliPriv     *asymmetric.PrivateKey
+			addr, addr2 proto.AccountAddress
+			dsn, dsn2   string
+			cfg, cfg2   *client.Config
+			dbID, dbID2 string
+			ctx, ctx2   context.Context
+			ccl, ccl2   context.CancelFunc
+		)
 		startNodes()
 		defer stopNodes()
 
@@ -244,13 +269,35 @@ func TestFullProcess(t *testing.T) {
 		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
-		// create
-		dsn, err := client.Create(client.ResourceMeta{Node: 1})
+		// get miner addresses
+		cliPriv, _, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_c/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		_, addr, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_miner_0/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		_, addr2, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
 		So(err, ShouldBeNil)
 
+		// create
+		_, dsn, err = bp.Create(types.ResourceMeta{
+			TargetMiners: []proto.AccountAddress{addr},
+			Node:         1,
+		}, 1, 10000000, cliPriv)
+		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
 
 		db, err := sql.Open("covenantsql", dsn)
+		So(err, ShouldBeNil)
+
+		// wait
+		cfg, err = client.ParseDSN(dsn)
+		So(err, ShouldBeNil)
+		dbID = cfg.DatabaseID
+		ctx, ccl = context.WithTimeout(context.Background(), 5*time.Minute)
+		defer ccl()
+		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbID), db, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
@@ -304,7 +351,10 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		dsn2, err := client.Create(client.ResourceMeta{Node: 1})
+		_, dsn2, err = bp.Create(types.ResourceMeta{
+			TargetMiners: []proto.AccountAddress{addr2},
+			Node:         1,
+		}, 1, 10000000, cliPriv)
 		So(err, ShouldBeNil)
 
 		log.Infof("the created database dsn is %v", dsn2)
@@ -312,9 +362,15 @@ func TestFullProcess(t *testing.T) {
 		db2, err := sql.Open("covenantsql", dsn2)
 		So(err, ShouldBeNil)
 
-		cfg2, err := client.ParseDSN(dsn2)
-		dbID2 := cfg2.DatabaseID
+		// wait
+		cfg2, err = client.ParseDSN(dsn2)
+		So(err, ShouldBeNil)
+		dbID2 = cfg2.DatabaseID
 		So(dbID, ShouldNotResemble, dbID2)
+		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
+		defer ccl2()
+		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID2), db2, 3*time.Second)
+		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")
 		So(err, ShouldBeNil)
@@ -336,9 +392,6 @@ func TestFullProcess(t *testing.T) {
 		err = utils.WaitForPorts(context.Background(), "127.0.0.1", []int{4663}, time.Millisecond*200)
 		So(err, ShouldBeNil)
 
-		cfg, err := client.ParseDSN(dsn)
-		dbID := cfg.DatabaseID
-
 		// remove previous observation result
 		os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
 
@@ -349,7 +402,7 @@ func TestFullProcess(t *testing.T) {
 				"-database", dbID, "-reset", "oldest",
 				"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/observer.cover.out"),
 			},
-			"observer", testWorkingDir, logDir, true,
+			"observer", testWorkingDir, logDir, false,
 		)
 		So(err, ShouldBeNil)
 
@@ -359,7 +412,7 @@ func TestFullProcess(t *testing.T) {
 		}()
 
 		// wait for the observer to collect blocks, two periods is enough
-		time.Sleep(blockProducePeriod * 2)
+		time.Sleep(conf.GConf.SQLChainPeriod * 2)
 
 		// test get genesis block by height
 		res, err := getJSON("v1/height/%v/0", dbID)
@@ -369,20 +422,55 @@ func TestFullProcess(t *testing.T) {
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
 		// test get first containable block
-		res, err = getJSON("v3/height/%v/1", dbID)
-		So(err, ShouldBeNil)
-		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
-		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 1)
-		So(ensureSuccess(res.String("block", "hash")), ShouldNotBeEmpty)
-		So(ensureSuccess(res.String("block", "genesis_hash")), ShouldEqual, genesisHash)
-		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldNotBeEmpty)
-		blockHash := ensureSuccess(res.String("block", "hash")).(string)
-		byHeightBlockResult := ensureSuccess(res.Interface())
+		var (
+			blockHash           string
+			byHeightBlockResult interface{}
+		)
+
+		// access 5 blocks
+		for i := 1; i <= 5; i++ {
+			res, err = getJSON("v3/height/%v/%d", dbID, i)
+			So(err, ShouldBeNil)
+			So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
+			So(ensureSuccess(res.Int("block", "height")), ShouldEqual, i)
+			So(ensureSuccess(res.String("block", "hash")), ShouldNotBeEmpty)
+			So(ensureSuccess(res.String("block", "genesis_hash")), ShouldEqual, genesisHash)
+			if len(ensureSuccess(res.ArrayOfObjects("block", "queries")).([]map[string]interface{})) == 0 {
+				// got empty block
+				log.WithField("block", res).Debugf("got empty block, try next index")
+				continue
+			}
+			So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldNotBeEmpty)
+			blockHash = ensureSuccess(res.String("block", "hash")).(string)
+			byHeightBlockResult = ensureSuccess(res.Interface())
+			break
+		}
 
 		// test get block by hash
-		res, err = getJSON("v3/block/%v/%v", dbID, blockHash)
+		res, err = getJSON("v3/block/%v/%v?size=1000", dbID, blockHash)
 		So(err, ShouldBeNil)
-		So(ensureSuccess(res.Interface()), ShouldResemble, byHeightBlockResult)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldResemble,
+			ensureSuccess(jsonq.NewQuery(byHeightBlockResult).ArrayOfObjects("block", "queries")))
+
+		// test get block by hash v3 with pagination
+		res, err = getJSON("v3/block/%v/%v?page=10000&size=10", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldBeEmpty)
+
+		// test get block with page size = 1
+		res, err = getJSON("v3/block/%v/%v?page=1&size=1", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldHaveLength, 1)
+
+		// test get block with page size = 2
+		res, err = getJSON("v3/block/%v/%v?page=1&size=2", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldHaveLength, 2)
+
+		// test get block with page size = 1, page = 2
+		res, err = getJSON("v3/block/%v/%v?page=2&size=1", dbID, blockHash)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.ArrayOfObjects("block", "queries")), ShouldHaveLength, 1)
 
 		// test get block by hash using v1 version, returns ack hashes as queries
 		res, err = getJSON("v1/block/%v/%v", dbID, blockHash)

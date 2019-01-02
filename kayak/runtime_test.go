@@ -162,6 +162,8 @@ func newFakeService(rt *kayak.Runtime) (fs *fakeService) {
 }
 
 func (s *fakeService) Call(req *kt.RPCRequest, resp *interface{}) (err error) {
+	// add some delay for timeout test
+	time.Sleep(time.Millisecond * 10)
 	return s.rt.FollowerApply(req.Log)
 }
 
@@ -312,7 +314,7 @@ func TestRuntime(t *testing.T) {
 		var count uint64
 		atomic.StoreUint64(&count, 1)
 
-		for i := 0; i != 1000; i++ {
+		for i := 0; i != 100; i++ {
 			atomic.AddUint64(&count, 1)
 			q := &queryStructure{
 				Queries: []storage.Query{

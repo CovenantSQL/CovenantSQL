@@ -21,6 +21,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -44,6 +45,10 @@ func PubKey2Addr(pubKey *asymmetric.PublicKey, version byte) (addr string, err e
 
 // PubKeyHash generates the account hash address for specified public key.
 func PubKeyHash(pubKey *asymmetric.PublicKey) (addr proto.AccountAddress, err error) {
+	if pubKey == nil {
+		err = errors.New("nil public key")
+		return
+	}
 	var enc []byte
 
 	if enc, err = pubKey.MarshalHash(); err != nil {

@@ -22,7 +22,7 @@ import (
 	"sync"
 )
 
-// ChainSuber defines subscribing-related bus behavior
+// ChainSuber defines subscribing-related bus behavior.
 type ChainSuber interface {
 	Subscribe(topic string, handler interface{}) error
 	SubscribeAsync(topic string, handler interface{}, transactional bool) error
@@ -31,18 +31,18 @@ type ChainSuber interface {
 	Unsubscribe(topic string, handler interface{}) error
 }
 
-// ChainPuber defines publishing-related bus behavior
+// ChainPuber defines publishing-related bus behavior.
 type ChainPuber interface {
 	Publish(topic string, args ...interface{})
 }
 
-// BusController defines bus control behavior (checking handler's presence, synchronization)
+// BusController defines bus control behavior (checking handler's presence, synchronization).
 type BusController interface {
 	HasCallback(topic string) bool
 	WaitAsync()
 }
 
-// Bus englobes global (subscribe, publish, control) bus behavior
+// Bus englobes global (subscribe, publish, control) bus behavior.
 type Bus interface {
 	BusController
 	ChainSuber
@@ -67,14 +67,14 @@ type eventHandler struct {
 // New returns new ChainBus with empty handlers.
 func New() Bus {
 	b := &ChainBus{
-		make(map[string][]*eventHandler),
-		sync.Mutex{},
-		sync.WaitGroup{},
+		handlers: make(map[string][]*eventHandler),
+		lock:     sync.Mutex{},
+		wg:       sync.WaitGroup{},
 	}
 	return b
 }
 
-// doSubscribe handles the subscription logic and is utilized by the public Subscribe functions
+// doSubscribe handles the subscription logic and is utilized by the public Subscribe functions.
 func (bus *ChainBus) doSubscribe(topic string, fn interface{}, handler *eventHandler) error {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
@@ -219,7 +219,7 @@ func (bus *ChainBus) setUpPublish(topic string, args ...interface{}) []reflect.V
 	return passedArguments
 }
 
-// WaitAsync waits for all async callbacks to complete
+// WaitAsync waits for all async callbacks to complete.
 func (bus *ChainBus) WaitAsync() {
 	bus.wg.Wait()
 }

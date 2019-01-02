@@ -17,6 +17,7 @@
 package interfaces
 
 import (
+	"encoding/json"
 	"reflect"
 	"sync"
 
@@ -102,6 +103,37 @@ func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
 	default:
 		panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
 	}
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (w TransactionWrapper) MarshalJSON() ([]byte, error) {
+	return json.Marshal(w.Transaction)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (w *TransactionWrapper) UnmarshalJSON(data []byte) (err error) {
+	// detect type from current bytes
+	var typeDetector TransactionTypeMixin
+	typeDetector.SetTransactionType(TransactionTypeNumber)
+
+	if err = json.Unmarshal(data, &typeDetector); err != nil {
+		err = errors.Wrap(err, "try decode transaction failed")
+		return
+	}
+
+	txType := typeDetector.GetTransactionType()
+
+	if txType == TransactionTypeNumber {
+		err = errors.Wrapf(ErrInvalidTransactionType, "invalid tx type: %d", txType)
+		return
+	}
+
+	if w.Transaction, err = NewTransaction(txType); err != nil {
+		err = errors.Wrapf(err, "instantiate transaction type %s failed", txType.String())
+		return
+	}
+
+	return json.Unmarshal(data, &w.Transaction)
 }
 
 func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {

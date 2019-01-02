@@ -193,3 +193,40 @@ func BenchmarkAppendMsgSQLChainUser(b *testing.B) {
 		bts, _ = v.MarshalHash()
 	}
 }
+
+func TestMarshalHashUserArrears(t *testing.T) {
+	v := UserArrears{}
+	binary.Read(rand.Reader, binary.BigEndian, &v)
+	bts1, err := v.MarshalHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bts2, err := v.MarshalHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
+	}
+}
+
+func BenchmarkMarshalHashUserArrears(b *testing.B) {
+	v := UserArrears{}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		v.MarshalHash()
+	}
+}
+
+func BenchmarkAppendMsgUserArrears(b *testing.B) {
+	v := UserArrears{}
+	bts := make([]byte, 0, v.Msgsize())
+	bts, _ = v.MarshalHash()
+	b.SetBytes(int64(len(bts)))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bts, _ = v.MarshalHash()
+	}
+}

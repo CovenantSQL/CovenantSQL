@@ -28,9 +28,12 @@ import (
 
 // CreateDatabaseHeader defines the database creation transaction header.
 type CreateDatabaseHeader struct {
-	Owner        proto.AccountAddress
-	ResourceMeta ResourceMeta
-	Nonce        pi.AccountNonce
+	Owner          proto.AccountAddress
+	ResourceMeta   ResourceMeta
+	GasPrice       uint64
+	AdvancePayment uint64
+	TokenType      TokenType
+	Nonce          pi.AccountNonce
 }
 
 // GetAccountNonce implements interfaces/Transaction.GetAccountNonce.

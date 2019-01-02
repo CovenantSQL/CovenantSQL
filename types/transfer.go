@@ -30,6 +30,7 @@ type TransferHeader struct {
 	Sender, Receiver proto.AccountAddress
 	Nonce            pi.AccountNonce
 	Amount           uint64
+	TokenType        TokenType
 }
 
 // Transfer defines the transfer transaction.

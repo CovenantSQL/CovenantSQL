@@ -28,10 +28,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
-const (
-	keySalt = "auxten-key-salt-auxten"
-)
-
 var (
 	// ErrInputSize indicates cipher data size is not expected,
 	// maybe data is not encrypted by EncryptWithPassword in this package
@@ -39,16 +35,16 @@ var (
 )
 
 // keyDerivation does sha256 twice to password
-func keyDerivation(password []byte) (out []byte) {
-	return hash.DoubleHashB(append(password, keySalt...))
+func keyDerivation(password []byte, salt []byte) (out []byte) {
+	return hash.DoubleHashB(append(password, salt...))
 }
 
 // EncryptWithPassword encrypts data with given password, iv will be placed
 // at head of cipher data
-func EncryptWithPassword(in, password []byte) (out []byte, err error) {
+func EncryptWithPassword(in, password []byte, salt []byte) (out []byte, err error) {
 	// keyE will be 256 bits, so aes.NewCipher(keyE) will return
 	// AES-256 Cipher.
-	keyE := keyDerivation(password)
+	keyE := keyDerivation(password, salt)
 	paddedIn := crypto.AddPKCSPadding(in)
 	// IV + padded cipher data
 	out = make([]byte, aes.BlockSize+len(paddedIn))
@@ -70,8 +66,8 @@ func EncryptWithPassword(in, password []byte) (out []byte, err error) {
 }
 
 // DecryptWithPassword decrypts data with given password
-func DecryptWithPassword(in, password []byte) (out []byte, err error) {
-	keyE := keyDerivation(password)
+func DecryptWithPassword(in, password []byte, salt []byte) (out []byte, err error) {
+	keyE := keyDerivation(password, salt)
 	// IV + padded cipher data == (n + 1 + 1) * aes.BlockSize
 	if len(in)%aes.BlockSize != 0 || len(in)/aes.BlockSize < 2 {
 		return nil, ErrInputSize

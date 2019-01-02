@@ -330,8 +330,7 @@ func GenFirebird(u *URL) (string, error) {
 		RawQuery: u.RawQuery,
 		Fragment: u.Fragment,
 	}
-
-	return z.String(), nil
+	return strings.TrimPrefix(z.String(), "//"), nil
 }
 
 // GenADODB generates a adodb DSN from the passed URL.

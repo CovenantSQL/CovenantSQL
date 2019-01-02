@@ -47,7 +47,9 @@ import (
 	"testing"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -67,6 +69,10 @@ func TestMain(m *testing.M) {
 	os.Exit(func() int {
 		var stop func()
 		db, stop = initTestDB()
+		if db == nil {
+			stop()
+			log.Fatalf("init test DB failed")
+		}
 		defer stop()
 		defer db.Close()
 		return m.Run()
@@ -240,19 +246,35 @@ func initTestDB() (*sql.DB, func()) {
 	}
 
 	// create
-	dsn, err := client.Create(client.ResourceMeta{Node: 1})
+	meta := client.ResourceMeta{}
+	meta.Node = 1
+	dsn, err := client.Create(meta)
 	if err != nil {
 		log.Errorf("create db failed: %v", err)
 		return nil, stopNodes
 	}
-
-	log.Infof("the created database dsn is %v", dsn)
+	dsnCfg, err := client.ParseDSN(dsn)
+	if err != nil {
+		log.Errorf("parse dsn failed: %v", err)
+		return nil, stopNodes
+	}
 
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {
 		log.Errorf("open db failed: %v", err)
 		return nil, stopNodes
 	}
+
+	// wait for creation
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+	if err != nil {
+		log.Errorf("wait for creation failed: %v", err)
+		return nil, stopNodes
+	}
+
+	log.Infof("the created database dsn is %v", dsn)
 
 	if err := initSchema(db); err != nil {
 		stopNodes()

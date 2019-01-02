@@ -30,7 +30,6 @@ import (
 var (
 	baseDir        = utils.GetProjectSrcDir()
 	testWorkingDir = FJ(baseDir, "./test/GNTE/conf")
-	logDir         = FJ(testWorkingDir, "./log/")
 	once           sync.Once
 )
 
@@ -54,7 +53,9 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 	})
 
 	// create
-	dsn, err := Create(ResourceMeta{Node: 3})
+	meta := ResourceMeta{}
+	meta.Node = 3
+	dsn, err := Create(meta)
 	if err != nil {
 		b.Fatal(err)
 	}

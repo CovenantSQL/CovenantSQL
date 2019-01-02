@@ -17,23 +17,25 @@
 package blockproducer
 
 import (
+	"bytes"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/mohae/deepcopy"
 	"github.com/pkg/errors"
-	"github.com/ulule/deepcopier"
 )
 
 var (
-	sqlchainPeriod   uint64 = 60 * 24 * 30
-	sqlchainGasPrice uint64 = 10
+	sqlchainPeriod uint64 = 60 * 24 * 30
 )
 
 // TODO(leventeliu): lock optimization.
@@ -49,7 +51,7 @@ func newMetaState() *metaState {
 	}
 }
 
-func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *accountObject, loaded bool) {
+func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *types.Account, loaded bool) {
 	if o, loaded = s.dirty.accounts[k]; loaded {
 		if o == nil {
 			loaded = false
@@ -63,7 +65,7 @@ func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *accountObject,
 }
 
 func (s *metaState) loadOrStoreAccountObject(
-	k proto.AccountAddress, v *accountObject) (o *accountObject, loaded bool,
+	k proto.AccountAddress, v *types.Account) (o *types.Account, loaded bool,
 ) {
 	if o, loaded = s.dirty.accounts[k]; loaded && o != nil {
 		return
@@ -76,7 +78,7 @@ func (s *metaState) loadOrStoreAccountObject(
 }
 
 func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
-	var o *accountObject
+	var o *types.Account
 	defer func() {
 		log.WithFields(log.Fields{
 			"account": addr.String(),
@@ -97,7 +99,7 @@ func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint6
 }
 
 func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
-	var o *accountObject
+	var o *types.Account
 	defer func() {
 		log.WithFields(log.Fields{
 			"account": addr.String(),
@@ -117,7 +119,7 @@ func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uin
 	return
 }
 
-func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (err error) {
+func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *types.Account) (err error) {
 	log.WithFields(log.Fields{
 		"addr":    k.String(),
 		"account": v,
@@ -125,7 +127,7 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 	// Since a transfer tx may create an empty receiver account, this method should try to cover
 	// the side effect.
 	if ao, ok := s.loadOrStoreAccountObject(k, v); ok {
-		if ao.Account.NextNonce != 0 {
+		if ao.NextNonce != 0 {
 			err = ErrAccountExists
 			return
 		}
@@ -133,10 +135,10 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 			cb = ao.TokenBalance[types.Wave]
 			sb = ao.TokenBalance[types.Particle]
 		)
-		if err = safeAdd(&cb, &v.Account.TokenBalance[types.Wave]); err != nil {
+		if err = safeAdd(&cb, &v.TokenBalance[types.Wave]); err != nil {
 			return
 		}
-		if err = safeAdd(&sb, &v.Account.TokenBalance[types.Particle]); err != nil {
+		if err = safeAdd(&sb, &v.TokenBalance[types.Particle]); err != nil {
 			return
 		}
 		ao.TokenBalance[types.Wave] = cb
@@ -145,21 +147,25 @@ func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *accountObject) (
 	return
 }
 
-func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *sqlchainObject, loaded bool) {
-	if o, loaded = s.dirty.databases[k]; loaded {
-		if o == nil {
+func (s *metaState) loadSQLChainObject(k proto.DatabaseID) (o *types.SQLChainProfile, loaded bool) {
+	var old *types.SQLChainProfile
+	if old, loaded = s.dirty.databases[k]; loaded {
+		if old == nil {
 			loaded = false
+			return
 		}
+		o = deepcopy.Copy(old).(*types.SQLChainProfile)
 		return
 	}
-	if o, loaded = s.readonly.databases[k]; loaded {
+	if old, loaded = s.readonly.databases[k]; loaded {
+		o = deepcopy.Copy(old).(*types.SQLChainProfile)
 		return
 	}
 	return
 }
 
 func (s *metaState) loadOrStoreSQLChainObject(
-	k proto.DatabaseID, v *sqlchainObject) (o *sqlchainObject, loaded bool,
+	k proto.DatabaseID, v *types.SQLChainProfile) (o *types.SQLChainProfile, loaded bool,
 ) {
 	if o, loaded = s.dirty.databases[k]; loaded && o != nil {
 		return
@@ -171,7 +177,7 @@ func (s *metaState) loadOrStoreSQLChainObject(
 	return
 }
 
-func (s *metaState) loadProviderObject(k proto.AccountAddress) (o *providerObject, loaded bool) {
+func (s *metaState) loadProviderObject(k proto.AccountAddress) (o *types.ProviderProfile, loaded bool) {
 	if o, loaded = s.dirty.provider[k]; loaded {
 		if o == nil {
 			loaded = false
@@ -184,7 +190,7 @@ func (s *metaState) loadProviderObject(k proto.AccountAddress) (o *providerObjec
 	return
 }
 
-func (s *metaState) loadOrStoreProviderObject(k proto.AccountAddress, v *providerObject) (o *providerObject, loaded bool) {
+func (s *metaState) loadOrStoreProviderObject(k proto.AccountAddress, v *types.ProviderProfile) (o *types.ProviderProfile, loaded bool) {
 	if o, loaded = s.dirty.provider[k]; loaded && o != nil {
 		return
 	}
@@ -247,9 +253,9 @@ func (s *metaState) clean() {
 	s.dirty = newMetaIndex()
 }
 
-func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
+func (s *metaState) increaseAccountToken(k proto.AccountAddress, amount uint64, tokenType types.TokenType) error {
 	var (
-		src, dst *accountObject
+		src, dst *types.Account
 		ok       bool
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
@@ -257,27 +263,112 @@ func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount 
 			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
 			return err
 		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
+		dst = deepcopy.Copy(src).(*types.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeAdd(&dst.Account.TokenBalance[types.Particle], &amount)
+	return safeAdd(&dst.TokenBalance[tokenType], &amount)
 }
 
-func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
+func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, tokenType types.TokenType) error {
 	var (
-		src, dst *accountObject
+		src, dst *types.Account
 		ok       bool
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			return ErrAccountNotFound
+			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			return err
 		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
+		dst = deepcopy.Copy(src).(*types.Account)
 		s.dirty.accounts[k] = dst
 	}
-	return safeSub(&dst.Account.TokenBalance[types.Particle], &amount)
+	return safeSub(&dst.TokenBalance[tokenType], &amount)
+}
+
+func (s *metaState) increaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
+	return s.increaseAccountToken(k, amount, types.Particle)
+}
+
+func (s *metaState) decreaseAccountStableBalance(k proto.AccountAddress, amount uint64) error {
+	return s.decreaseAccountToken(k, amount, types.Particle)
+}
+
+func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
+	if transfer.Signee == nil {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("invalid signee in applyTransaction")
+	}
+	realSender, err := crypto.PubKeyHash(transfer.Signee)
+	if err != nil {
+		err = errors.Wrap(err, "applyTx failed")
+		return err
+	}
+	if realSender != transfer.Sender {
+		err = errors.Wrapf(ErrInvalidSender,
+			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
+		log.WithError(err).Warning("public key not match sender in applyTransaction")
+	}
+
+	var (
+		sender    = transfer.Sender
+		receiver  = transfer.Receiver
+		amount    = transfer.Amount
+		tokenType = transfer.TokenType
+	)
+
+	if sender == receiver || amount == 0 {
+		return
+	}
+
+	// Create empty receiver account if not found
+	s.loadOrStoreAccountObject(receiver, &types.Account{Address: receiver})
+
+	var (
+		so, ro     *types.Account
+		sd, rd, ok bool
+	)
+
+	// Load sender and receiver objects
+	if so, sd = s.dirty.accounts[sender]; !sd {
+		if so, ok = s.readonly.accounts[sender]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+	if ro, rd = s.dirty.accounts[receiver]; !rd {
+		if ro, ok = s.readonly.accounts[receiver]; !ok {
+			err = ErrAccountNotFound
+			return
+		}
+	}
+
+	// Try transfer
+	var (
+		sb = so.TokenBalance[tokenType]
+		rb = ro.TokenBalance[tokenType]
+	)
+	if err = safeSub(&sb, &amount); err != nil {
+		return
+	}
+	if err = safeAdd(&rb, &amount); err != nil {
+		return
+	}
+
+	// Proceed transfer
+	if !sd {
+		var cpy = deepcopy.Copy(so).(*types.Account)
+		so = cpy
+		s.dirty.accounts[sender] = cpy
+	}
+	if !rd {
+		var cpy = deepcopy.Copy(ro).(*types.Account)
+		ro = cpy
+		s.dirty.accounts[receiver] = cpy
+	}
+	so.TokenBalance[tokenType] = sb
+	ro.TokenBalance[tokenType] = rb
+	return
+
 }
 
 func (s *metaState) transferAccountStableBalance(
@@ -288,10 +379,10 @@ func (s *metaState) transferAccountStableBalance(
 	}
 
 	// Create empty receiver account if not found
-	s.loadOrStoreAccountObject(receiver, &accountObject{Account: types.Account{Address: receiver}})
+	s.loadOrStoreAccountObject(receiver, &types.Account{Address: receiver})
 
 	var (
-		so, ro     *accountObject
+		so, ro     *types.Account
 		sd, rd, ok bool
 	)
 
@@ -323,14 +414,12 @@ func (s *metaState) transferAccountStableBalance(
 
 	// Proceed transfer
 	if !sd {
-		var cpy = &accountObject{}
-		deepcopier.Copy(&so.Account).To(&cpy.Account)
+		var cpy = deepcopy.Copy(so).(*types.Account)
 		so = cpy
 		s.dirty.accounts[sender] = cpy
 	}
 	if !rd {
-		var cpy = &accountObject{}
-		deepcopier.Copy(&ro.Account).To(&cpy.Account)
+		var cpy = deepcopy.Copy(ro).(*types.Account)
 		ro = cpy
 		s.dirty.accounts[receiver] = cpy
 	}
@@ -340,36 +429,11 @@ func (s *metaState) transferAccountStableBalance(
 }
 
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
-	var (
-		src, dst *accountObject
-		ok       bool
-	)
-	if dst, ok = s.dirty.accounts[k]; !ok {
-		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase covenant balance fail")
-			return err
-		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
-		s.dirty.accounts[k] = dst
-	}
-	return safeAdd(&dst.Account.TokenBalance[types.Wave], &amount)
+	return s.increaseAccountToken(k, amount, types.Wave)
 }
 
 func (s *metaState) decreaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
-	var (
-		src, dst *accountObject
-		ok       bool
-	)
-	if dst, ok = s.dirty.accounts[k]; !ok {
-		if src, ok = s.readonly.accounts[k]; !ok {
-			return ErrAccountNotFound
-		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
-		s.dirty.accounts[k] = dst
-	}
-	return safeSub(&dst.Account.TokenBalance[types.Wave], &amount)
+	return s.decreaseAccountToken(k, amount, types.Wave)
 }
 
 func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseID) error {
@@ -383,16 +447,14 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 	} else if _, ok := s.readonly.databases[id]; ok {
 		return ErrDatabaseExists
 	}
-	s.dirty.databases[id] = &sqlchainObject{
-		SQLChainProfile: types.SQLChainProfile{
-			ID:     id,
-			Owner:  addr,
-			Miners: make([]*types.MinerInfo, 0),
-			Users: []*types.SQLChainUser{
-				{
-					Address:    addr,
-					Permission: types.Admin,
-				},
+	s.dirty.databases[id] = &types.SQLChainProfile{
+		ID:     id,
+		Owner:  addr,
+		Miners: make([]*types.MinerInfo, 0),
+		Users: []*types.SQLChainUser{
+			{
+				Address:    addr,
+				Permission: types.Admin,
 			},
 		},
 	}
@@ -403,15 +465,14 @@ func (s *metaState) addSQLChainUser(
 	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
 ) {
 	var (
-		src, dst *sqlchainObject
+		src, dst *types.SQLChainProfile
 		ok       bool
 	)
 	if dst, ok = s.dirty.databases[k]; !ok {
 		if src, ok = s.readonly.databases[k]; !ok {
 			return ErrDatabaseNotFound
 		}
-		dst = &sqlchainObject{}
-		deepcopier.Copy(&src.SQLChainProfile).To(&dst.SQLChainProfile)
+		dst = deepcopy.Copy(src).(*types.SQLChainProfile)
 		s.dirty.databases[k] = dst
 	}
 	for _, v := range dst.Users {
@@ -419,7 +480,7 @@ func (s *metaState) addSQLChainUser(
 			return ErrDatabaseUserExists
 		}
 	}
-	dst.SQLChainProfile.Users = append(dst.SQLChainProfile.Users, &types.SQLChainUser{
+	dst.Users = append(dst.Users, &types.SQLChainUser{
 		Address:    addr,
 		Permission: perm,
 	})
@@ -428,15 +489,14 @@ func (s *metaState) addSQLChainUser(
 
 func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAddress) error {
 	var (
-		src, dst *sqlchainObject
+		src, dst *types.SQLChainProfile
 		ok       bool
 	)
 	if dst, ok = s.dirty.databases[k]; !ok {
 		if src, ok = s.readonly.databases[k]; !ok {
 			return ErrDatabaseNotFound
 		}
-		dst = &sqlchainObject{}
-		deepcopier.Copy(&src.SQLChainProfile).To(&dst.SQLChainProfile)
+		dst = deepcopy.Copy(src).(*types.SQLChainProfile)
 		s.dirty.databases[k] = dst
 	}
 	for i, v := range dst.Users {
@@ -454,15 +514,14 @@ func (s *metaState) alterSQLChainUser(
 	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
 ) {
 	var (
-		src, dst *sqlchainObject
+		src, dst *types.SQLChainProfile
 		ok       bool
 	)
 	if dst, ok = s.dirty.databases[k]; !ok {
 		if src, ok = s.readonly.databases[k]; !ok {
 			return ErrDatabaseNotFound
 		}
-		dst = &sqlchainObject{}
-		deepcopier.Copy(&src.SQLChainProfile).To(&dst.SQLChainProfile)
+		dst = deepcopy.Copy(src).(*types.SQLChainProfile)
 		s.dirty.databases[k] = dst
 	}
 	for _, v := range dst.Users {
@@ -475,7 +534,7 @@ func (s *metaState) alterSQLChainUser(
 
 func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce, err error) {
 	var (
-		o      *accountObject
+		o      *types.Account
 		loaded bool
 	)
 	if o, loaded = s.dirty.accounts[addr]; !loaded {
@@ -487,21 +546,20 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 			return
 		}
 	}
-	nonce = o.Account.NextNonce
+	nonce = o.NextNonce
 	return
 }
 
 func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	var (
-		src, dst *accountObject
+		src, dst *types.Account
 		ok       bool
 	)
 	if dst, ok = s.dirty.accounts[addr]; !ok {
 		if src, ok = s.readonly.accounts[addr]; !ok {
 			return ErrAccountNotFound
 		}
-		dst = &accountObject{}
-		deepcopier.Copy(&src.Account).To(&dst.Account)
+		dst = deepcopy.Copy(src).(*types.Account)
 		s.dirty.accounts[addr] = dst
 	}
 	dst.NextNonce++
@@ -511,7 +569,7 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 func (s *metaState) applyBilling(tx *types.Billing) (err error) {
 	for i, v := range tx.Receivers {
 		// Create empty receiver account if not found
-		s.loadOrStoreAccountObject(*v, &accountObject{Account: types.Account{Address: *v}})
+		s.loadOrStoreAccountObject(*v, &types.Account{Address: *v})
 
 		if err = s.increaseAccountCovenantBalance(*v, tx.Fees[i]); err != nil {
 			return
@@ -529,8 +587,12 @@ func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 		err = errors.Wrap(err, "updateProviderList failed")
 		return
 	}
-	if sender != tx.Contract {
-		err = errors.Wrap(ErrInvalidSender, "updateProviderList failed")
+
+	// deposit
+	var (
+		minDeposit = conf.GConf.MinProviderDeposit
+	)
+	if err = s.decreaseAccountStableBalance(sender, minDeposit); err != nil {
 		return
 	}
 	pp := types.ProviderProfile{
@@ -539,12 +601,16 @@ func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 		Memory:        tx.Memory,
 		LoadAvgPerCPU: tx.LoadAvgPerCPU,
 		TargetUser:    tx.TargetUser,
+		Deposit:       minDeposit,
+		GasPrice:      tx.GasPrice,
+		NodeID:        tx.NodeID,
 	}
-	s.loadOrStoreProviderObject(sender, &providerObject{ProviderProfile: pp})
+	s.dirty.provider[sender] = &pp
 	return
 }
 
 func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error) {
+	log.Infof("create database: %s", tx.Hash())
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "matchProviders failed")
@@ -555,44 +621,105 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 			sender.String(), tx.Owner.String())
 		return
 	}
-	for i := range tx.ResourceMeta.TargetMiners {
-		if po, loaded := s.loadProviderObject(tx.ResourceMeta.TargetMiners[i]); !loaded {
+
+	if tx.GasPrice <= 0 {
+		err = ErrInvalidGasPrice
+		return
+	}
+	if tx.ResourceMeta.Node <= 0 {
+		err = ErrInvalidMinerCount
+		return
+	}
+	minerCount := uint64(tx.ResourceMeta.Node)
+
+	minAdvancePayment := minDeposit(tx.GasPrice, minerCount)
+
+	if tx.AdvancePayment < minAdvancePayment {
+		err = ErrInsufficientAdvancePayment
+		log.WithError(err).Warningf("tx.AdvancePayment: %d, minAdvancePayment: %d",
+			tx.AdvancePayment, minAdvancePayment)
+		return
+	}
+
+	miners := make([]*types.MinerInfo, 0, minerCount)
+
+	for _, m := range tx.ResourceMeta.TargetMiners {
+		if po, loaded := s.loadProviderObject(m); !loaded {
 			log.WithFields(log.Fields{
-				"miner_addr": tx.ResourceMeta.TargetMiners[i].String(),
+				"miner_addr": m.String(),
 				"user_addr":  sender.String(),
 			}).Error(err)
 			err = ErrNoSuchMiner
-			break
+			continue
 		} else {
-			if po.TargetUser != sender {
-				log.WithFields(log.Fields{
-					"miner_addr": tx.ResourceMeta.TargetMiners[i].String(),
-					"user_addr":  sender.String(),
-				}).Error(ErrMinerUserNotMatch)
-				err = ErrMinerUserNotMatch
+			miners, err = filterAndAppendMiner(miners, po, tx, sender)
+			if err != nil {
+				log.Warnf("miner filtered %v", err)
+			}
+			// if got enough, break
+			if uint64(len(miners)) == minerCount {
 				break
 			}
 		}
 	}
-	if err != nil {
-		return
+
+	// not enough, find more miner(s)
+	if uint64(len(miners)) < minerCount {
+		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
+			err = errors.Wrapf(err, "miners match target are not enough %d:%d", len(miners), minerCount)
+			return
+		}
+		// try old miners first
+		for _, po := range s.readonly.provider {
+			miners, _ = filterAndAppendMiner(miners, po, tx, sender)
+			// if got enough, break
+			if uint64(len(miners)) == minerCount {
+				break
+			}
+		}
+		// try fresh miners
+		if uint64(len(miners)) < minerCount {
+			for _, po := range s.dirty.provider {
+				miners, _ = filterAndAppendMiner(miners, po, tx, sender)
+				// if got enough, break
+				if uint64(len(miners)) == minerCount {
+					break
+				}
+			}
+		}
+		if uint64(len(miners)) < minerCount {
+			err = ErrNoEnoughMiner
+			return
+		}
 	}
 
 	// generate new sqlchain id and address
 	dbID := proto.FromAccountAndNonce(tx.Owner, uint32(tx.Nonce))
 	dbAddr, err := dbID.AccountAddress()
 	if err != nil {
-		err = errors.Wrapf(err, "unexpected error when convert dbid: %v", dbID)
+		err = errors.Wrapf(err, "unexpected error when convert database id: %v", dbID)
 		return
 	}
 	// generate userinfo
+	var all = minAdvancePayment
+	err = safeAdd(&all, &tx.AdvancePayment)
+	if err != nil {
+		return
+	}
+	err = s.decreaseAccountToken(sender, all, tx.TokenType)
+	if err != nil {
+		return
+	}
 	users := make([]*types.SQLChainUser, 1)
 	users[0] = &types.SQLChainUser{
-		Address:    sender,
-		Permission: types.Admin,
+		Address:        sender,
+		Permission:     types.Admin,
+		Status:         types.Normal,
+		Deposit:        minAdvancePayment,
+		AdvancePayment: tx.AdvancePayment,
 	}
 	// generate genesis block
-	gb, err := s.generateGenesisBlock(*dbID, tx.ResourceMeta)
+	gb, err := s.generateGenesisBlock(dbID, tx.ResourceMeta)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"dbID":         dbID,
@@ -600,29 +727,111 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		}).WithError(err).Error("unexpected error")
 		return err
 	}
-	// create sqlchain
-	sp := &types.SQLChainProfile{
-		ID:        *dbID,
-		Address:   dbAddr,
-		Period:    sqlchainPeriod,
-		GasPrice:  sqlchainGasPrice,
-		TokenType: types.Particle,
-		Owner:     sender,
-		Users:     users,
-		Genesis:   gb,
-	}
-	if _, loaded := s.loadSQLChainObject(*dbID); loaded {
-		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", string(*dbID))
+
+	// Encode genesis block
+	var enc *bytes.Buffer
+	if enc, err = utils.EncodeMsgPack(gb); err != nil {
+		log.WithFields(log.Fields{
+			"dbID": dbID,
+		}).WithError(err).Error("failed to encode genesis block")
 		return
 	}
-	s.loadOrStoreAccountObject(dbAddr, &accountObject{
-		Account: types.Account{Address: dbAddr},
-	})
-	s.loadOrStoreSQLChainObject(*dbID, &sqlchainObject{SQLChainProfile: *sp})
+
+	// create sqlchain
+	sp := &types.SQLChainProfile{
+		ID:             dbID,
+		Address:        dbAddr,
+		Period:         sqlchainPeriod,
+		GasPrice:       tx.GasPrice,
+		TokenType:      types.Particle,
+		Owner:          sender,
+		Users:          users,
+		EncodedGenesis: enc.Bytes(),
+		Miners:         miners[:],
+	}
+
+	if _, loaded := s.loadSQLChainObject(dbID); loaded {
+		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", dbID)
+		return
+	}
+	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
+	s.dirty.databases[dbID] = sp
 	for _, miner := range tx.ResourceMeta.TargetMiners {
 		s.deleteProviderObject(miner)
 	}
+	log.Infof("success create sqlchain with database ID: %s", dbID)
 	return
+}
+
+func filterAndAppendMiner(
+	miners []*types.MinerInfo,
+	po *types.ProviderProfile,
+	req *types.CreateDatabase,
+	user proto.AccountAddress,
+) (newMiners []*types.MinerInfo, err error) {
+	newMiners = miners
+	if !isProviderUserMatch(po.TargetUser, user) {
+		err = ErrMinerUserNotMatch
+		return
+	}
+	var match bool
+	if match, err = isProviderReqMatch(po, req); !match {
+		return
+	}
+	newMiners = append(miners, &types.MinerInfo{
+		Address: po.Provider,
+		NodeID:  po.NodeID,
+		Deposit: po.Deposit,
+	})
+	return
+}
+
+func isProviderUserMatch(targetUsers []proto.AccountAddress, user proto.AccountAddress) (match bool) {
+	if len(targetUsers) > 0 {
+		for _, u := range targetUsers {
+			if u == user {
+				match = true
+			}
+		}
+	} else {
+		match = true
+	}
+	return
+}
+
+func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (match bool, err error) {
+	if po.GasPrice > req.GasPrice {
+		err = errors.New("gas price mismatch")
+		log.WithError(err).Debugf("miner's gas price: %d, user's gas price: %d",
+			po.GasPrice, req.GasPrice)
+		return
+	}
+	if req.ResourceMeta.LoadAvgPerCPU > 0.0 && po.LoadAvgPerCPU > req.ResourceMeta.LoadAvgPerCPU {
+		err = errors.New("load average mismatch")
+		log.WithError(err).Debugf("miner's LoadAvgPerCPU: %f, user's LoadAvgPerCPU: %f",
+			po.LoadAvgPerCPU, req.ResourceMeta.LoadAvgPerCPU)
+		return
+	}
+	if po.Memory < req.ResourceMeta.Memory {
+		err = errors.New("memory mismatch")
+		log.WithError(err).Debugf("miner's memory: %d, user's memory: %d",
+			po.Memory, req.ResourceMeta.Memory)
+		return
+	}
+	if po.Space < req.ResourceMeta.Space {
+		err = errors.New("disk space mismatch")
+		log.WithError(err).Debugf("miner's disk space: %d, user's disk space: %d",
+			po.Space, req.ResourceMeta.Space)
+		return
+	}
+	if po.TokenType != req.TokenType {
+		err = errors.New("token type mismatch")
+		log.WithError(err).Debugf("miner's token type: %s, user's token type: %s",
+			po.TokenType.String(), req.TokenType.String())
+		return
+	}
+
+	return true, nil
 }
 
 func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
@@ -681,6 +890,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	} else {
 		so.Users[targetUserIndex].Permission = tx.Permission
 	}
+	s.dirty.databases[tx.TargetSQLChain.DatabaseID()] = so
 	return
 }
 
@@ -723,25 +933,148 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	return
 }
 
+func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
+	newProfile, loaded := s.loadSQLChainObject(tx.Receiver.DatabaseID())
+	if !loaded {
+		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
+		return
+	}
+	log.Debugf("update billing addr: %s, tx: %v", tx.GetAccountAddress(), tx)
+
+	if newProfile.GasPrice == 0 {
+		return
+	}
+
+	var (
+		costMap   = make(map[proto.AccountAddress]uint64)
+		userMap   = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
+		minerAddr = tx.GetAccountAddress()
+		isMiner   = false
+	)
+	for _, miner := range newProfile.Miners {
+		isMiner = isMiner || (miner.Address == minerAddr)
+		miner.ReceivedIncome += miner.PendingIncome
+		miner.PendingIncome = 0
+	}
+	if !isMiner {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("sender does not include in sqlchain (updateBilling)")
+		return
+	}
+
+	for _, userCost := range tx.Users {
+		log.Debugf("update billing user cost: %s, cost: %d", userCost.User.String(), userCost.Cost)
+		costMap[userCost.User] = userCost.Cost
+		if _, ok := userMap[userCost.User]; !ok {
+			userMap[userCost.User] = make(map[proto.AccountAddress]uint64)
+		}
+		for _, minerIncome := range userCost.Miners {
+			userMap[userCost.User][minerIncome.Miner] += minerIncome.Income
+		}
+	}
+	for _, user := range newProfile.Users {
+		if user.AdvancePayment >= costMap[user.Address]*newProfile.GasPrice {
+			user.AdvancePayment -= costMap[user.Address] * newProfile.GasPrice
+			for _, miner := range newProfile.Miners {
+				miner.PendingIncome += userMap[user.Address][miner.Address] * newProfile.GasPrice
+			}
+		} else {
+			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*newProfile.GasPrice)
+			user.AdvancePayment = 0
+			user.Status = types.Arrears
+			for _, miner := range newProfile.Miners {
+				income := userMap[user.Address][miner.Address] * newProfile.GasPrice
+				minerIncome := uint64(float64(income) * rate)
+				miner.PendingIncome += minerIncome
+				for i := range miner.UserArrears {
+					miner.UserArrears[i].Arrears += (income - minerIncome)
+				}
+			}
+		}
+	}
+	s.dirty.databases[tx.Receiver.DatabaseID()] = newProfile
+	return
+}
+
+func (s *metaState) loadROSQLChains(addr proto.AccountAddress) (dbs []*types.SQLChainProfile) {
+	for _, db := range s.readonly.databases {
+		for _, miner := range db.Miners {
+			if miner.Address == addr {
+				var dst = deepcopy.Copy(db).(*types.SQLChainProfile)
+				dbs = append(dbs, dst)
+			}
+		}
+	}
+	return
+}
+
+func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err error) {
+	if transfer.Signee == nil {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("invalid signee in applyTransaction")
+	}
+
+	realSender, err := crypto.PubKeyHash(transfer.Signee)
+	if err != nil {
+		err = errors.Wrap(err, "applyTx failed")
+		return err
+	}
+
+	if realSender != transfer.Sender {
+		err = errors.Wrapf(ErrInvalidSender,
+			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
+		log.WithError(err).Warning("public key not match sender in applyTransaction")
+	}
+
+	var (
+		sqlchain *types.SQLChainProfile
+		ok       bool
+	)
+	sqlchain, ok = s.loadSQLChainObject(transfer.Sender.DatabaseID())
+	if !ok {
+		return ErrDatabaseNotFound
+	}
+
+	for _, user := range sqlchain.Users {
+		if user.Address == transfer.Sender {
+			if sqlchain.TokenType != transfer.TokenType {
+				return ErrWrongTokenType
+			}
+			minDep := minDeposit(sqlchain.GasPrice, uint64(len(sqlchain.Miners)))
+			if user.Deposit < minDep {
+				diff := minDep - user.Deposit
+				if diff >= transfer.Amount {
+					user.Deposit += transfer.Amount
+				} else {
+					user.Deposit = minDep
+					diff2 := transfer.Amount - diff
+					user.Deposit += diff2
+				}
+			} else {
+				err = safeAdd(&user.AdvancePayment, &transfer.Amount)
+				if err != nil {
+					return err
+				}
+			}
+			s.dirty.databases[transfer.Sender.DatabaseID()] = sqlchain
+			return
+		}
+	}
+	return
+}
+
 func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	switch t := tx.(type) {
 	case *types.Transfer:
-		realSender, err := crypto.PubKeyHash(t.Signee)
-		if err != nil {
-			err = errors.Wrap(err, "applyTx failed")
-			return err
+		err = s.transferSQLChainTokenBalance(t)
+		if err == ErrDatabaseNotFound {
+			err = s.transferAccountToken(t)
 		}
-		if realSender != t.Sender {
-			err = errors.Wrapf(ErrInvalidSender,
-				"applyTx failed: real sender %s, sender %s", realSender.String(), t.Sender.String())
-			// TODO(lambda): update test cases and return err
-			log.Debug(err)
-		}
-		err = s.transferAccountStableBalance(t.Sender, t.Receiver, t.Amount)
+		return
 	case *types.Billing:
 		err = s.applyBilling(t)
 	case *types.BaseAccount:
-		err = s.storeBaseAccount(t.Address, &accountObject{Account: t.Account})
+		err = s.storeBaseAccount(t.Address, &t.Account)
 	case *types.ProvideService:
 		err = s.updateProviderList(t)
 	case *types.CreateDatabase:
@@ -750,6 +1083,8 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.updatePermission(t)
 	case *types.IssueKeys:
 		err = s.updateKeys(t)
+	case *types.UpdateBilling:
+		err = s.updateBilling(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
 		err = s.applyTransaction(t.Unwrap())
@@ -790,6 +1125,7 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta typ
 }
 
 func (s *metaState) apply(t pi.Transaction) (err error) {
+	log.Infof("get tx: %s", t.GetTransactionType().String())
 	// NOTE(leventeliu): bypass pool in this method.
 	var (
 		addr  = t.GetAccountAddress()
@@ -828,4 +1164,9 @@ func (s *metaState) makeCopy() *metaState {
 		dirty:    newMetaIndex(),
 		readonly: s.readonly.deepCopy(),
 	}
+}
+
+func minDeposit(gasPrice uint64, minerNumber uint64) uint64 {
+	return gasPrice * uint64(conf.GConf.QPS) *
+		uint64(conf.GConf.BillingPeriod) * minerNumber
 }

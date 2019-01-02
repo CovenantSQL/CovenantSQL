@@ -41,8 +41,6 @@ type runtime struct {
 
 	// The following fields are copied from config, and should be constant during whole runtime.
 
-	// databaseID is the current runtime database ID.
-	databaseID proto.DatabaseID
 	// period is the block producing cycle.
 	period time.Duration
 	// tick defines the maximum duration between each cycle.
@@ -53,10 +51,6 @@ type runtime struct {
 	blockCacheTTL int32
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
-	// price sets query price in gases.
-	price           map[types.QueryType]uint64
-	producingReward uint64
-	billingPeriods  int32
 
 	// peersMutex protects following peers-relative fields.
 	peersMutex sync.Mutex
@@ -86,6 +80,18 @@ type runtime struct {
 	offset time.Duration
 }
 
+func blockCacheTTLRequired(c *Config) (ttl int32) {
+	var billingRequiredTTL = 2 * c.BillingPeriods
+	ttl = c.BlockCacheTTL
+	if ttl < minBlockCacheTTL {
+		ttl = minBlockCacheTTL
+	}
+	if ttl < billingRequiredTTL {
+		ttl = billingRequiredTTL
+	}
+	return
+}
+
 // newRunTime returns a new sql-chain runtime instance with the specified config.
 func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 	var cld, ccl = context.WithCancel(ctx)
@@ -94,22 +100,13 @@ func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 		ctx:    cld,
 		cancel: ccl,
 
-		databaseID: c.DatabaseID,
-		period:     c.Period,
-		tick:       c.Tick,
-		queryTTL:   c.QueryTTL,
-		blockCacheTTL: func() int32 {
-			if c.BlockCacheTTL < minBlockCacheTTL {
-				return minBlockCacheTTL
-			}
-			return c.BlockCacheTTL
-		}(),
-		muxService:      c.MuxService,
-		price:           c.Price,
-		producingReward: c.ProducingReward,
-		billingPeriods:  c.BillingPeriods,
-		peers:           c.Peers,
-		server:          c.Server,
+		period:        c.Period,
+		tick:          c.Tick,
+		queryTTL:      c.QueryTTL,
+		blockCacheTTL: blockCacheTTLRequired(c),
+		muxService:    c.MuxService,
+		peers:         c.Peers,
+		server:        c.Server,
 		index: func() int32 {
 			if index, found := c.Peers.Find(c.Server); found {
 				return index
@@ -202,14 +199,9 @@ func (r *runtime) setNextTurn() {
 	r.nextTurn++
 }
 
-// getQueryGas gets the consumption of gas for a specified query type.
-func (r *runtime) getQueryGas(t types.QueryType) uint64 {
-	return r.price[t]
-}
-
 // stop sends a signal to the Runtime stop channel by closing it.
-func (r *runtime) stop() {
-	r.stopService()
+func (r *runtime) stop(dbID proto.DatabaseID) {
+	r.stopService(dbID)
 	r.cancel()
 	r.wg.Wait()
 }
@@ -291,11 +283,11 @@ func (r *runtime) getServer() proto.NodeID {
 }
 
 func (r *runtime) startService(chain *Chain) {
-	r.muxService.register(r.databaseID, &ChainRPCService{chain: chain})
+	r.muxService.register(chain.databaseID, &ChainRPCService{chain: chain})
 }
 
-func (r *runtime) stopService() {
-	r.muxService.unregister(r.databaseID)
+func (r *runtime) stopService(dbID proto.DatabaseID) {
+	r.muxService.unregister(dbID)
 }
 
 func (r *runtime) isMyTurn() (ret bool) {

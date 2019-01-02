@@ -18,16 +18,20 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -42,19 +46,24 @@ const (
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
 
+	// CheckInterval defines the bus service period.
+	CheckInterval = time.Second
+
 	// DefaultSlowQueryTime defines the default slow query log time
 	DefaultSlowQueryTime = time.Second * 5
 )
 
 // DBMS defines a database management instance.
 type DBMS struct {
-	cfg      *DBMSConfig
-	dbMap    sync.Map
-	kayakMux *DBKayakMuxService
-	chainMux *sqlchain.MuxService
-	rpc      *DBMSRPCService
-	// TODO(lambda): change it to chain bus after chain bus finished.
-	profileMap map[proto.DatabaseID]*types.SQLChainProfile
+	cfg        *DBMSConfig
+	dbMap      sync.Map
+	chainMap   sync.Map
+	kayakMux   *DBKayakMuxService
+	chainMux   *sqlchain.MuxService
+	rpc        *DBMSRPCService
+	busService *BusService
+	address    proto.AccountAddress
+	privKey    *asymmetric.PrivateKey
 }
 
 // NewDBMS returns new database management instance.
@@ -75,9 +84,35 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 		return
 	}
 
+	// cache address of node
+	var (
+		pk   *asymmetric.PublicKey
+		addr proto.AccountAddress
+	)
+	if pk, err = kms.GetLocalPublicKey(); err != nil {
+		err = errors.Wrap(err, "failed to cache public key")
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pk); err != nil {
+		err = errors.Wrap(err, "generate address failed")
+		return
+	}
+	dbms.address = addr
+
+	// init chain bus service
+	ctx := context.Background()
+	bs := NewBusService(ctx, addr, CheckInterval)
+	dbms.busService = bs
+
+	// private key cache
+	dbms.privKey, err = kms.GetLocalPrivateKey()
+	if err != nil {
+		log.WithError(err).Warning("get private key failed")
+		return
+	}
+
 	// init service
 	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
-
 	return
 }
 
@@ -138,11 +173,7 @@ func (dbms *DBMS) Init() (err error) {
 	}
 
 	// load current peers info from block producer
-	var dbMapping []types.ServiceInstance
-	if dbMapping, err = dbms.getMappedInstances(); err != nil {
-		err = errors.Wrap(err, "get mapped instances failed")
-		return
-	}
+	var dbMapping = dbms.busService.GetCurrentDBMapping()
 
 	// init database
 	if err = dbms.initDatabases(localMeta, dbMapping); err != nil {
@@ -150,15 +181,192 @@ func (dbms *DBMS) Init() (err error) {
 		return
 	}
 
+	if err = dbms.busService.Subscribe("/CreateDatabase/", dbms.createDatabase); err != nil {
+		err = errors.Wrap(err, "init chain bus failed")
+		return
+	}
+	if err = dbms.busService.Subscribe("/UpdatePermission/", dbms.updatePermission); err != nil {
+		err = errors.Wrap(err, "init chain bus failed")
+		return
+	}
+	if err = dbms.busService.Subscribe("/UpdateBilling/", dbms.updateBilling); err != nil {
+		err = errors.Wrap(err, "init chain bus failed")
+		return
+	}
+	dbms.busService.Start()
+
 	return
 }
 
-func (dbms *DBMS) initDatabases(meta *DBMSMeta, conf []types.ServiceInstance) (err error) {
+func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
+	ub, ok := tx.(*types.UpdateBilling)
+	if !ok {
+		log.WithError(ErrInvalidTransactionType).Warningf("invalid tx type in updateBilling: %s",
+			tx.GetTransactionType().String())
+		return
+	}
+
+	var (
+		dbID     = ub.Receiver.DatabaseID()
+		newState = types.UserState{
+			State: make(map[proto.AccountAddress]*types.PermStat),
+		}
+	)
+
+	p, ok := dbms.busService.RequestSQLProfile(dbID)
+	if !ok {
+		log.WithFields(log.Fields{
+			"databaseid": dbID,
+		}).Warning("database profile not found")
+		return
+	}
+
+	for _, user := range p.Users {
+		newState.State[user.Address] = &types.PermStat{
+			Permission: user.Permission,
+			Status:     user.Status,
+		}
+	}
+	dbms.chainMap.Store(ub.Receiver.DatabaseID(), newState)
+}
+
+func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
+	cd, ok := tx.(*types.CreateDatabase)
+	if !ok {
+		log.WithError(ErrInvalidTransactionType).Warningf("invalid tx type in createDatabase: %s",
+			tx.GetTransactionType().String())
+		return
+	}
+
+	var (
+		dbID          = proto.FromAccountAndNonce(cd.Owner, uint32(cd.Nonce))
+		isTargetMiner = false
+	)
+	log.WithFields(log.Fields{
+		"databaseid": dbID,
+		"owner":      cd.Owner.String(),
+		"nonce":      cd.Nonce,
+	}).Debug("in createDatabase")
+	p, ok := dbms.busService.RequestSQLProfile(dbID)
+	if !ok {
+		log.WithFields(log.Fields{
+			"databaseid": dbID,
+		}).Warning("database profile not found")
+		return
+	}
+
+	nodeIDs := make([]proto.NodeID, len(p.Miners))
+
+	for i, mi := range p.Miners {
+		if mi.Address == dbms.address {
+			isTargetMiner = true
+		}
+		nodeIDs[i] = mi.NodeID
+	}
+	if !isTargetMiner {
+		return
+	}
+
+	state := types.NewUserState()
+	for _, user := range p.Users {
+		log.Debugf("user address: %s, permission: %d, status: %d",
+			user.Address.String(), user.Permission, user.Status)
+		state.State[user.Address] = &types.PermStat{
+			Permission: user.Permission,
+			Status:     user.Status,
+		}
+	}
+
+	var si, err = dbms.buildSQLChainServiceInstance(p)
+	if err != nil {
+		log.WithError(err).Warn("failed to build sqlchain service instance from profile")
+	}
+	err = dbms.Create(si, true)
+	if err != nil {
+		log.WithError(err).Error("create database error")
+	}
+	dbms.chainMap.Store(dbID, *state)
+}
+
+func (dbms *DBMS) buildSQLChainServiceInstance(
+	profile *types.SQLChainProfile) (instance *types.ServiceInstance, err error,
+) {
+	var (
+		nodeids = make([]proto.NodeID, len(profile.Miners))
+		peers   *proto.Peers
+		genesis = &types.Block{}
+	)
+	for i, v := range profile.Miners {
+		nodeids[i] = v.NodeID
+	}
+	peers = &proto.Peers{
+		PeersHeader: proto.PeersHeader{
+			Leader:  nodeids[0],
+			Servers: nodeids[:],
+		},
+	}
+	if dbms.privKey == nil {
+		if dbms.privKey, err = kms.GetLocalPrivateKey(); err != nil {
+			log.WithError(err).Warning("get private key failed in createDatabase")
+			return
+		}
+	}
+	if err = peers.Sign(dbms.privKey); err != nil {
+		return
+	}
+	if err = utils.DecodeMsgPack(profile.EncodedGenesis, genesis); err != nil {
+		return
+	}
+	instance = &types.ServiceInstance{
+		DatabaseID:   profile.ID,
+		Peers:        peers,
+		ResourceMeta: profile.Meta,
+		GenesisBlock: genesis,
+	}
+	return
+}
+
+func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
+	up, ok := tx.(*types.UpdatePermission)
+	if !ok {
+		log.WithError(ErrInvalidTransactionType).Warning("unexpected error in updatePermission")
+		return
+	}
+
+	state, loaded := dbms.chainMap.Load(up.TargetSQLChain.DatabaseID())
+	if !loaded {
+		return
+	}
+
+	newState := state.(types.UserState)
+	newState.AddPermission(up.TargetUser, up.Permission)
+	dbms.chainMap.Store(up.TargetSQLChain.DatabaseID(), newState)
+}
+
+// UpdatePermission exports the update permission interface for test.
+func (dbms *DBMS) UpdatePermission(dbID proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
+	s, loaded := dbms.chainMap.Load(dbID)
+	if !loaded {
+		err = errors.Wrap(ErrNotExists, "update permission failed")
+		return
+	}
+	state := s.(types.UserState)
+	state.State[user] = permStat
+	return
+}
+
+func (dbms *DBMS) initDatabases(
+	meta *DBMSMeta, profiles map[proto.DatabaseID]*types.SQLChainProfile) (err error,
+) {
 	currentInstance := make(map[proto.DatabaseID]bool)
 
-	for _, instanceConf := range conf {
-		currentInstance[instanceConf.DatabaseID] = true
-		if err = dbms.Create(&instanceConf, false); err != nil {
+	for id, profile := range profiles {
+		currentInstance[id] = true
+		var instance *types.ServiceInstance
+		if instance, err = dbms.buildSQLChainServiceInstance(profile); err != nil {
+			return
+		}
+		if err = dbms.Create(instance, false); err != nil {
 			return
 		}
 	}
@@ -213,13 +421,15 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// new db
 	dbCfg := &DBConfig{
-		DatabaseID:             instance.DatabaseID,
-		DataDir:                rootDir,
-		KayakMux:               dbms.kayakMux,
-		ChainMux:               dbms.chainMux,
-		MaxWriteTimeGap:        dbms.cfg.MaxReqTimeGap,
-		EncryptionKey:          instance.ResourceMeta.EncryptionKey,
-		SpaceLimit:             instance.ResourceMeta.Space,
+		DatabaseID:      instance.DatabaseID,
+		DataDir:         rootDir,
+		KayakMux:        dbms.kayakMux,
+		ChainMux:        dbms.chainMux,
+		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
+		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
+		SpaceLimit:      instance.ResourceMeta.Space,
+		// TODO(lambda): make BillingPeriod Configurable
+		UpdatePeriod:           uint64(conf.GConf.BillingPeriod),
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,
 		SlowQueryTime:          DefaultSlowQueryTime,
@@ -231,6 +441,11 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// add to meta
 	err = dbms.addMeta(instance.DatabaseID, db)
+
+	// init chainMap
+	dbms.chainMap.Store(instance.DatabaseID, types.UserState{
+		State: make(map[proto.AccountAddress]*types.PermStat),
+	})
 
 	return
 }
@@ -276,7 +491,7 @@ func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 	if err != nil {
 		return
 	}
-	err = dbms.checkPermission(addr, req)
+	err = dbms.checkPermission(addr, req.Header.DatabaseID, req.Header.QueryType)
 	if err != nil {
 		return
 	}
@@ -287,7 +502,6 @@ func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 		return
 	}
 
-	// send query
 	return db.Query(req)
 }
 
@@ -331,60 +545,109 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 	return dbms.writeMeta()
 }
 
-func (dbms *DBMS) getMappedInstances() (instances []types.ServiceInstance, err error) {
-	var bpNodeID proto.NodeID
-	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {
+func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
+	dbID proto.DatabaseID, queryType types.QueryType) (err error) {
+	log.Debugf("in checkPermission, database id: %s, user addr: %s", dbID, addr.String())
+	state, loaded := dbms.chainMap.Load(dbID)
+	if !loaded {
+		err = errors.Wrap(ErrNotExists, "check permission failed")
 		return
 	}
 
-	req := &types.InitService{}
-	res := new(types.InitServiceResponse)
+	var (
+		s = state.(types.UserState)
+	)
 
-	if err = rpc.NewCaller().CallNode(bpNodeID, route.BPDBGetNodeDatabases.String(), req, res); err != nil {
+	if permStat, ok := s.State[addr]; ok {
+		if !permStat.Status.EnableQuery() {
+			err = ErrPermissionDeny
+			log.WithError(err).Debugf("cannot query, status: %d", permStat.Status)
+			return
+		}
+		if queryType == types.ReadQuery {
+			if !permStat.Permission.CheckRead() {
+				err = ErrPermissionDeny
+				log.WithError(err).Debugf("cannot read, permission: %d", permStat.Permission)
+				return
+			}
+		} else if queryType == types.WriteQuery {
+			if !permStat.Permission.CheckWrite() {
+				err = ErrPermissionDeny
+				log.WithError(err).Debugf("cannot write, permission: %d", permStat.Permission)
+				return
+			}
+		} else {
+			err = ErrInvalidPermission
+			log.WithError(err).Debugf("invalid permission, permission: %d", permStat.Permission)
+			return
+
+		}
+	} else {
+		err = ErrPermissionDeny
+		log.WithError(err).Debug("cannot find permission")
 		return
 	}
-
-	// verify response
-	if err = res.Verify(); err != nil {
-		return
-	}
-
-	instances = res.Header.Instances
 
 	return
 }
 
-func (dbms *DBMS) checkPermission(addr proto.AccountAddress, req *types.Request) (err error) {
-	// TODO(lambda): change it to chain bus after chain bus finished.
-	profile := dbms.profileMap[req.Header.DatabaseID]
-	if profile != nil {
-		var i int
-		var user *types.SQLChainUser
-		for i, user = range profile.Users {
-			if user.Address == addr {
-				break
-			}
-		}
-		profileLen := len(profile.Users)
-		if i < profileLen && profileLen > 0 {
-			if req.Header.QueryType == types.ReadQuery {
-				if profile.Users[i].Permission > types.Read {
-					err = ErrPermissionDeny
-					return
-				}
-			} else if req.Header.QueryType == types.WriteQuery {
-				if profile.Users[i].Permission > types.Write {
-					err = ErrPermissionDeny
-					return
-				}
-			} else {
-				err = ErrInvalidPermission
-				return
-			}
-		} else {
-			err = ErrPermissionDeny
-			return
-		}
+func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, startHeight int32) (err error) {
+	// check permission
+	pubkey, err := kms.GetPublicKey(nodeID)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("get pubkey failed in addTxSubscription")
+		return
+	}
+	addr, err := crypto.PubKeyHash(pubkey)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("generate addr failed in addTxSubscription")
+		return
+	}
+	err = dbms.checkPermission(addr, dbID, types.ReadQuery)
+	if err != nil {
+		log.WithFields(log.Fields{"databaseID": dbID, "addr": addr}).WithError(err).Warning("permission deny")
+		return
+	}
+
+	rawDB, ok := dbms.dbMap.Load(dbID)
+	if !ok {
+		err = ErrNotExists
+		log.WithFields(log.Fields{
+			"databaseID":  dbID,
+			"nodeID":      nodeID,
+			"startHeight": startHeight,
+		}).WithError(err).Warning("unexpected error in addTxSubscription")
+		return
+	}
+	db := rawDB.(*Database)
+	err = db.chain.AddSubscription(nodeID, startHeight)
+	return
+}
+
+func (dbms *DBMS) cancelTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID) (err error) {
+	rawDB, ok := dbms.dbMap.Load(dbID)
+	if !ok {
+		err = ErrNotExists
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("unexpected error in cancelTxSubscription")
+		return
+	}
+	db := rawDB.(*Database)
+	err = db.chain.CancelSubscription(nodeID)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"databaseID": dbID,
+			"nodeID":     nodeID,
+		}).WithError(err).Warning("unexpected error in cancelTxSubscription")
+		return
 	}
 	return
 }
@@ -403,6 +666,8 @@ func (dbms *DBMS) Shutdown() (err error) {
 
 	// persist meta
 	err = dbms.writeMeta()
+
+	dbms.busService.Stop()
 
 	return
 }

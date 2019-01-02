@@ -17,9 +17,20 @@
 package blockproducer
 
 import (
-	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 // ChainRPCService defines a main chain RPC server.
@@ -27,127 +38,14 @@ type ChainRPCService struct {
 	chain *Chain
 }
 
-// AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
-type AdviseNewBlockReq struct {
-	proto.Envelope
-	Block *types.BPBlock
-}
-
-// AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
-type AdviseNewBlockResp struct {
-	proto.Envelope
-}
-
-// FetchBlockReq defines a request of the FetchBlock RPC method.
-type FetchBlockReq struct {
-	proto.Envelope
-	Height uint32
-}
-
-// FetchBlockResp defines a response of the FetchBlock RPC method.
-type FetchBlockResp struct {
-	proto.Envelope
-	Height uint32
-	Count  uint32
-	Block  *types.BPBlock
-}
-
-// FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.
-type FetchBlockByCountReq struct {
-	proto.Envelope
-	Count uint32
-}
-
-// NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
-type NextAccountNonceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// NextAccountNonceResp defines a response of the NextAccountNonce RPC method.
-type NextAccountNonceResp struct {
-	proto.Envelope
-	Addr  proto.AccountAddress
-	Nonce pi.AccountNonce
-}
-
-// AddTxReq defines a request of the AddTx RPC method.
-type AddTxReq struct {
-	proto.Envelope
-	Tx pi.Transaction
-}
-
-// AddTxResp defines a response of the AddTx RPC method.
-type AddTxResp struct {
-	proto.Envelope
-}
-
-// SubReq defines a request of the Sub RPC method.
-type SubReq struct {
-	proto.Envelope
-	Topic    string
-	Callback string
-}
-
-// SubResp defines a response of the Sub RPC method.
-type SubResp struct {
-	proto.Envelope
-	Result string
-}
-
-// OrderMakerReq defines a request of the order maker in database market.
-type OrderMakerReq struct {
-	proto.Envelope
-}
-
-// OrderTakerReq defines a request of the order taker in database market.
-type OrderTakerReq struct {
-	proto.Envelope
-	DBMeta types.ResourceMeta
-}
-
-// OrderTakerResp defines a response of the order taker in database market.
-type OrderTakerResp struct {
-	proto.Envelope
-	databaseID proto.DatabaseID
-}
-
-// QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountStableBalanceResp defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
-// QueryAccountCovenantBalanceReq defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountCovenantBalanceResp defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
 // AdviseNewBlock is the RPC method to advise a new block to target server.
-func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
+func (s *ChainRPCService) AdviseNewBlock(req *types.AdviseNewBlockReq, resp *types.AdviseNewBlockResp) error {
 	s.chain.pendingBlocks <- req.Block
 	return nil
 }
 
 // FetchBlock is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
+func (s *ChainRPCService) FetchBlock(req *types.FetchBlockReq, resp *types.FetchBlockResp) error {
 	resp.Height = req.Height
 	block, count, err := s.chain.fetchBlockByHeight(req.Height)
 	if err != nil {
@@ -158,8 +56,22 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 	return err
 }
 
+// FetchLastIrreversibleBlock fetches the last block irreversible block from block producer.
+func (s *ChainRPCService) FetchLastIrreversibleBlock(
+	req *types.FetchLastIrreversibleBlockReq, resp *types.FetchLastIrreversibleBlockResp) error {
+	b, c, h, err := s.chain.fetchLastIrreversibleBlock()
+	if err != nil {
+		return err
+	}
+	resp.Block = b
+	resp.Count = c
+	resp.Height = h
+	resp.SQLChains = s.chain.loadSQLChainProfiles(req.Address)
+	return nil
+}
+
 // FetchBlockByCount is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *FetchBlockResp) error {
+func (s *ChainRPCService) FetchBlockByCount(req *types.FetchBlockByCountReq, resp *types.FetchBlockResp) error {
 	resp.Count = req.Count
 	block, height, err := s.chain.fetchBlockByCount(req.Count)
 	if err != nil {
@@ -170,9 +82,14 @@ func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *Fet
 	return err
 }
 
+// FetchTxBilling is the RPC method to fetch a known billing tx from the target server.
+func (s *ChainRPCService) FetchTxBilling(req *types.FetchTxBillingReq, resp *types.FetchTxBillingResp) error {
+	return nil
+}
+
 // NextAccountNonce is the RPC method to query the next nonce of an account.
 func (s *ChainRPCService) NextAccountNonce(
-	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
+	req *types.NextAccountNonceReq, resp *types.NextAccountNonceResp) (err error,
 ) {
 	if resp.Nonce, err = s.chain.nextNonce(req.Addr); err != nil {
 		return
@@ -182,35 +99,148 @@ func (s *ChainRPCService) NextAccountNonce(
 }
 
 // AddTx is the RPC method to add a transaction.
-func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
+func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err error) {
 	if req.Tx == nil {
 		return ErrUnknownTransactionType
 	}
+	log.Infof("transaction type: %s, hash: %s, address: %s",
+		req.Tx.GetTransactionType().String(), req.Tx.Hash(), req.Tx.GetAccountAddress())
 	s.chain.addTx(req.Tx)
 	return
 }
 
-// QueryAccountStableBalance is the RPC method to query acccount stable coin balance.
+// QueryAccountStableBalance is the RPC method to query account stable coin balance.
 func (s *ChainRPCService) QueryAccountStableBalance(
-	req *QueryAccountStableBalanceReq, resp *QueryAccountStableBalanceResp) (err error,
+	req *types.QueryAccountStableBalanceReq, resp *types.QueryAccountStableBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.loadAccountStableBalance(req.Addr)
 	return
 }
 
-// QueryAccountCovenantBalance is the RPC method to query acccount covenant coin balance.
+// QueryAccountCovenantBalance is the RPC method to query account covenant coin balance.
 func (s *ChainRPCService) QueryAccountCovenantBalance(
-	req *QueryAccountCovenantBalanceReq, resp *QueryAccountCovenantBalanceResp) (err error,
+	req *types.QueryAccountCovenantBalanceReq, resp *types.QueryAccountCovenantBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
 	resp.Balance, resp.OK = s.chain.loadAccountCovenantBalance(req.Addr)
 	return
 }
 
+// QuerySQLChainProfile is the RPC method to query SQLChainProfile.
+func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
+	resp *types.QuerySQLChainProfileResp) (err error) {
+	p, ok := s.chain.loadSQLChainProfile(req.DBID)
+	if ok {
+		resp.Profile = *p
+		return
+	}
+	err = errors.Wrap(ErrDatabaseNotFound, "rpc query sqlchain profile failed")
+	return
+}
+
 // Sub is the RPC method to subscribe some event.
-func (s *ChainRPCService) Sub(req *SubReq, resp *SubResp) (err error) {
+func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error) {
 	return s.chain.bs.Subscribe(req.Topic, func(request interface{}, response interface{}) {
 		s.chain.cl.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
 	})
+}
+
+// WaitDatabaseCreation waits for database creation complete.
+func WaitDatabaseCreation(
+	ctx context.Context,
+	dbID proto.DatabaseID,
+	db *sql.DB,
+	period time.Duration,
+) (err error) {
+	var (
+		timer = time.NewTimer(0)
+		req   = &types.QuerySQLChainProfileReq{
+			DBID: dbID,
+		}
+		resp = &types.QuerySQLChainProfileResp{}
+	)
+	defer func() {
+		if !timer.Stop() {
+			<-timer.C
+		}
+	}()
+	for {
+		select {
+		case <-timer.C:
+			timer.Reset(period)
+			if err = rpc.RequestBP(
+				route.MCCQuerySQLChainProfile.String(), req, resp,
+			); err != nil {
+				if !strings.Contains(err.Error(), ErrDatabaseNotFound.Error()) {
+					// err != nil && err != ErrDatabaseNotFound (unexpected error)
+					return
+				}
+			} else {
+				// err == nil (creation done on BP): try to use database connection
+				if db == nil {
+					return
+				}
+				if _, err = db.ExecContext(ctx, "SHOW TABLES"); err == nil {
+					// err == nil (connect to Miner OK)
+					return
+				}
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
+}
+
+// Create allocates new database.
+func Create(
+	meta types.ResourceMeta,
+	gasPrice uint64,
+	advancePayment uint64,
+	privateKey *asymmetric.PrivateKey,
+) (
+	dbID proto.DatabaseID, dsn string, err error,
+) {
+	var (
+		nonceReq   = new(types.NextAccountNonceReq)
+		nonceResp  = new(types.NextAccountNonceResp)
+		req        = new(types.AddTxReq)
+		resp       = new(types.AddTxResp)
+		clientAddr proto.AccountAddress
+	)
+	if clientAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
+		err = errors.Wrap(err, "get local account address failed")
+		return
+	}
+	// allocate nonce
+	nonceReq.Addr = clientAddr
+
+	if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+		err = errors.Wrap(err, "allocate create database transaction nonce failed")
+		return
+	}
+
+	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner:          clientAddr,
+		ResourceMeta:   meta,
+		GasPrice:       gasPrice,
+		AdvancePayment: advancePayment,
+		TokenType:      types.Particle,
+		Nonce:          nonceResp.Nonce,
+	})
+
+	if err = req.Tx.Sign(privateKey); err != nil {
+		err = errors.Wrap(err, "sign request failed")
+		return
+	}
+
+	if err = rpc.RequestBP(route.MCCAddTx.String(), req, resp); err != nil {
+		err = errors.Wrap(err, "call create database transaction failed")
+		return
+	}
+
+	dbID = proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce))
+	dsn = fmt.Sprintf("cql://%s", string(dbID))
+	return
 }

@@ -22,6 +22,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -376,18 +377,32 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 }
 
 // advanceNextHeight does the check and runs block producing if its my turn.
-func (c *Chain) advanceNextHeight(now time.Time) {
-	log.WithFields(log.Fields{
-		"next_height": c.getNextHeight(),
-		"bp_number":   c.serversNum,
-		"node_index":  c.locSvIndex,
-	}).Info("check turns")
-	defer c.increaseNextHeight()
+func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
+	var elapsed = -d
 
+	log.WithFields(log.Fields{
+		"bp_number":        c.serversNum,
+		"node_index":       c.locSvIndex,
+		"enclosing_height": c.getNextHeight() - 1,
+		"using_timestamp":  now.Format(time.RFC3339Nano),
+		"elapsed_seconds":  elapsed.Seconds(),
+	}).Info("enclosing current height and advancing to next height")
+
+	defer c.increaseNextHeight()
+	// Skip if it's not my turn
 	if !c.isMyTurn() {
 		return
 	}
-
+	// Normally, a block producing should start right after the new period, but more time may also
+	// elapse since the last block synchronizing.
+	if elapsed > c.tick { // TODO(leventeliu): add threshold config for `elapsed`.
+		log.WithFields(log.Fields{
+			"advanced_height": c.getNextHeight(),
+			"using_timestamp": now.Format(time.RFC3339Nano),
+			"elapsed_seconds": elapsed.Seconds(),
+		}).Warn("too much time elapsed in the new period, skip this block")
+		return
+	}
 	log.WithField("height", c.getNextHeight()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
@@ -512,11 +527,20 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-timer.C:
-			c.syncCurrentHead(ctx) // Try to fetch block at height `nextHeight-1`
+			// Try to fetch block at height `nextHeight-1` until enough peers are reachable
+			for !c.syncCurrentHead(ctx) {
+				if ctx.Err() != nil {
+					// Context is closed, break forever loop
+					log.WithError(ctx.Err()).Info("abort main cycle")
+					timer.Reset(0)
+					return
+				}
+			}
+
 			var t, d = c.nextTick()
 			if d <= 0 {
 				// Try to produce block at `nextHeight` if it's my turn, and increase height by 1
-				c.advanceNextHeight(t)
+				c.advanceNextHeight(t, d)
 			} else {
 				log.WithFields(log.Fields{
 					"peer":        c.peerInfo(),
@@ -535,7 +559,10 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	}
 }
 
-func (c *Chain) syncCurrentHead(ctx context.Context) {
+// syncCurrentHead synchronizes a block at the current height of the local peer from the known
+// remote peers. The return value `ok` indicates that there're at less `c.confirms-1` replies
+// from these gossip calls.
+func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 	var h = c.getNextHeight() - 1
 	if c.head().height >= h {
 		return
@@ -543,12 +570,29 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 	// Initiate blocking gossip calls to fetch block of the current height,
 	// with timeout of one tick.
 	var (
-		wg       = &sync.WaitGroup{}
-		cld, ccl = context.WithTimeout(ctx, c.tick)
+		wg          = &sync.WaitGroup{}
+		cld, ccl    = context.WithTimeout(ctx, c.tick)
+		unreachable uint32
 	)
 	defer func() {
 		wg.Wait()
 		ccl()
+		var needConfirms, serversNum = func() (cf, sn uint32) {
+			c.RLock()
+			defer c.RUnlock()
+			cf, sn = c.confirms, c.serversNum
+			return
+		}()
+		if unreachable+needConfirms > serversNum {
+			log.WithFields(log.Fields{
+				"peer":              c.peerInfo(),
+				"sync_head_height":  h,
+				"unreachable_count": unreachable,
+			}).Warn("one or more block producers are currently unreachable")
+			ok = false
+		} else {
+			ok = true
+		}
 	}()
 	for _, s := range c.getPeers().Servers {
 		if !s.IsEqual(&c.nodeID) {
@@ -573,6 +617,7 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 						"remote": id,
 						"height": h,
 					}).WithError(err).Warn("failed to fetch block")
+					atomic.AddUint32(&unreachable, 1)
 					return
 				}
 				log.WithFields(log.Fields{
@@ -590,6 +635,7 @@ func (c *Chain) syncCurrentHead(ctx context.Context) {
 			}(s)
 		}
 	}
+	return
 }
 
 func (c *Chain) storeTx(tx pi.Transaction) (err error) {

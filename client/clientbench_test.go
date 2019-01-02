@@ -30,7 +30,6 @@ import (
 var (
 	baseDir        = utils.GetProjectSrcDir()
 	testWorkingDir = FJ(baseDir, "./test/GNTE/conf")
-	logDir         = FJ(testWorkingDir, "./log/")
 	once           sync.Once
 )
 

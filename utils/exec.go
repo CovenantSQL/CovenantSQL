@@ -42,24 +42,6 @@ func GetProjectSrcDir() string {
 	return FJ(filepath.Dir(testFile), "../")
 }
 
-// Build runs make
-func Build() (err error) {
-	wd := GetProjectSrcDir()
-	err = os.Chdir(wd)
-	if err != nil {
-		log.WithError(err).Error("change working dir failed")
-		return
-	}
-	exec.Command("make", "clean").Run()
-	cmd := exec.Command("make", "use_all_cores")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.WithError(err).Error("build failed")
-	}
-	log.Debugf("build output info: %#v", string(output))
-	return
-}
-
 // RunCommand runs a command and capture its output to a log file,
 //  if toStd is true also output to stdout and stderr
 func RunCommand(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (err error) {

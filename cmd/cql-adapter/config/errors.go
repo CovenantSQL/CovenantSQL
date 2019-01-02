@@ -21,8 +21,6 @@ import "github.com/pkg/errors"
 var (
 	// ErrEmptyAdapterConfig defines empty adapter config.
 	ErrEmptyAdapterConfig = errors.New("empty adapter config")
-	// ErrRequireServerCertificate defines error of empty server certificate.
-	ErrRequireServerCertificate = errors.New("require server certificate")
 	// ErrInvalidStorageConfig defines error on incomplete storage config.
 	ErrInvalidStorageConfig = errors.New("invalid storage config")
 	// ErrInvalidCertificateFile defines invalid certificate file error.

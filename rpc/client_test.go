@@ -26,9 +26,7 @@ import (
 )
 
 const nodeID = "0000"
-const privateKey = "test.private"
 const publicKeyStore = "./test.keystore"
-const pass = "abc"
 
 func TestDial(t *testing.T) {
 	Convey("dial error case", t, func() {

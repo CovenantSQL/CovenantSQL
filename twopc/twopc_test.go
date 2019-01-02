@@ -67,9 +67,6 @@ type RaftNodeRPCServer struct {
 
 type RaftNode struct {
 	RaftNodeRPCServer
-
-	conn   *etls.CryptoConn
-	client *rpc.Client
 }
 
 type RaftWriteBatchReq struct {

@@ -120,6 +120,12 @@ func (c *Chain) loadAccountStableBalance(addr proto.AccountAddress) (balance uin
 	return c.immutable.loadAccountStableBalance(addr)
 }
 
+func (c *Chain) loadAccountTokenBalance(addr proto.AccountAddress, tt types.TokenType) (balance uint64, ok bool) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.immutable.loadAccountTokenBalance(addr, tt)
+}
+
 func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types.SQLChainProfile, ok bool) {
 	c.RLock()
 	defer c.RUnlock()

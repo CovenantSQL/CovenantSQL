@@ -121,6 +121,8 @@ const (
 	MCCQueryAccountCovenantBalance
 	// MCCQuerySQLChainProfile is used by nodes to to query SQLChainProfile.
 	MCCQuerySQLChainProfile
+	// MCCQueryAccountTokenBalance is used by block producer to provide account token balance
+	MCCQueryAccountTokenBalance
 	// DHTRPCName defines the block producer dh-rpc service name
 	DHTRPCName = "DHT"
 	// BlockProducerRPCName defines main chain rpc name
@@ -198,6 +200,8 @@ func (s RemoteFunc) String() string {
 		return "MCC.QueryAccountCovenantBalance"
 	case MCCQuerySQLChainProfile:
 		return "MCC.QuerySQLChainProfile"
+	case MCCQueryAccountTokenBalance:
+		return "MCC.QueryAccountTokenBalance"
 	}
 	return "Unknown"
 }

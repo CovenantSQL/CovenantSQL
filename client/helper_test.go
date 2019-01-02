@@ -68,6 +68,12 @@ func (s *stubBPService) QueryAccountCovenantBalance(req *types.QueryAccountCoven
 	return
 }
 
+func (s *stubBPService) QueryAccountTokenBalance(req *types.QueryAccountTokenBalanceReq,
+	resp *types.QueryAccountTokenBalanceResp) (err error) {
+	resp.OK = req.TokenType.Listed()
+	return
+}
+
 func (s *stubBPService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
 	resp *types.QuerySQLChainProfileResp) (err error) {
 	var nodeID proto.NodeID

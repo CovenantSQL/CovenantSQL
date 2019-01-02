@@ -28,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -133,5 +134,25 @@ func TestGetStableCoinBalance(t *testing.T) {
 
 		So(err, ShouldBeNil)
 		So(balance, ShouldEqual, 0)
+	})
+}
+
+func TestGetTokenBalance(t *testing.T) {
+	Convey("test get token balance", t, func() {
+		var stopTestService func()
+		var err error
+		stopTestService, _, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+
+		var balance uint64
+		balance, err = GetTokenBalance(types.Particle)
+
+		So(err, ShouldBeNil)
+		So(balance, ShouldEqual, 0)
+
+		balance, err = GetTokenBalance(-1)
+
+		So(err, ShouldEqual, ErrNoSuchTokenBalance)
 	})
 }

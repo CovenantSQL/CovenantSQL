@@ -142,6 +142,21 @@ type OrderTakerResp struct {
 	databaseID proto.DatabaseID
 }
 
+// QueryAccountTokenBalanceReq defines a request of the QueryAccountTokenBalance RPC method.
+type QueryAccountTokenBalanceReq struct {
+	proto.Envelope
+	Addr      proto.AccountAddress
+	TokenType TokenType
+}
+
+// QueryAccountTokenBalanceResp defines a request of the QueryAccountTokenBalance RPC method.
+type QueryAccountTokenBalanceResp struct {
+	proto.Envelope
+	Addr    proto.AccountAddress
+	OK      bool
+	Balance uint64
+}
+
 // QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
 type QueryAccountStableBalanceReq struct {
 	proto.Envelope

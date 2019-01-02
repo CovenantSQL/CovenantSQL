@@ -77,45 +77,39 @@ func (s *metaState) loadOrStoreAccountObject(
 	return
 }
 
-func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
+func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
+	tokenType types.TokenType) (b uint64, loaded bool) {
+	if !tokenType.Listed() {
+		return
+	}
 	var o *types.Account
 	defer func() {
 		log.WithFields(log.Fields{
-			"account": addr.String(),
-			"balance": b,
-			"loaded":  loaded,
-		}).Debug("queried stable account")
+			"account":   addr.String(),
+			"balance":   b,
+			"tokenType": tokenType.String(),
+			"loaded":    loaded,
+		}).Debug("queried token account")
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.TokenBalance[types.Particle]
+		b = o.TokenBalance[tokenType]
 		return
 	}
 	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.TokenBalance[types.Particle]
+		b = o.TokenBalance[tokenType]
 		return
 	}
 	return
 }
 
-func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
-	var o *types.Account
-	defer func() {
-		log.WithFields(log.Fields{
-			"account": addr.String(),
-			"balance": b,
-			"loaded":  loaded,
-		}).Debug("queried covenant account")
-	}()
+func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
+	b, loaded = s.loadAccountTokenBalance(addr, types.Particle)
+	return
+}
 
-	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.TokenBalance[types.Wave]
-		return
-	}
-	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.TokenBalance[types.Wave]
-		return
-	}
+func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
+	b, loaded = s.loadAccountTokenBalance(addr, types.Wave)
 	return
 }
 

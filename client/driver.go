@@ -269,6 +269,37 @@ func GetCovenantCoinBalance() (balance uint64, err error) {
 	return
 }
 
+// GetTokenBalance get the token balance of current account.
+func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
+	req := new(types.QueryAccountTokenBalanceReq)
+	resp := new(types.QueryAccountTokenBalanceResp)
+
+	var pubKey *asymmetric.PublicKey
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+
+	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
+		return
+	}
+	req.TokenType = tt
+
+	if err = requestBP(route.MCCQueryAccountTokenBalance, req, resp); err == nil {
+		if !resp.OK {
+			err = ErrNoSuchTokenBalance
+			return
+		}
+		balance = resp.Balance
+	}
+
+	return
+}
+
 func requestBP(method route.RemoteFunc, request interface{}, response interface{}) (err error) {
 	var bpNodeID proto.NodeID
 	if bpNodeID, err = rpc.GetCurrentBP(); err != nil {

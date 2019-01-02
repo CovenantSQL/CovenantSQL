@@ -19,6 +19,7 @@ package hash
 import (
 	"encoding/binary"
 	"hash/fnv"
+
 	// "crypto/sha256" benchmark is at least 10% faster on
 	// i7-4870HQ CPU @ 2.50GHz than "github.com/minio/sha256-simd"
 	"crypto/sha256"

@@ -35,7 +35,6 @@ import (
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -52,12 +51,11 @@ import (
 )
 
 var (
-	baseDir                    = utils.GetProjectSrcDir()
-	testWorkingDir             = FJ(baseDir, "./test/")
-	logDir                     = FJ(testWorkingDir, "./log/")
-	testGasPrice        uint64 = 1
-	testInitTokenAmount uint64 = 1000000000
-	testAdvancePayment  uint64 = 20000000
+	baseDir                   = utils.GetProjectSrcDir()
+	testWorkingDir            = FJ(baseDir, "./test/")
+	logDir                    = FJ(testWorkingDir, "./log/")
+	testGasPrice       uint64 = 1
+	testAdvancePayment uint64 = 20000000
 )
 
 var nodeCmds []*utils.CMD
@@ -897,20 +895,4 @@ func BenchmarkMinerGNTE8(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
 		benchGNTEMiner(b, 8, false)
 	})
-}
-
-func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {
-	// allocate nonce
-	nonceReq := &types.NextAccountNonceReq{}
-	nonceResp := &types.NextAccountNonceResp{}
-	nonceReq.Addr = addr
-
-	if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
-		// allocate nonce failed
-		log.WithError(err).Warning("allocate nonce for transaction failed")
-		return
-	}
-
-	nonce = nonceResp.Nonce
-	return
 }

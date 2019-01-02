@@ -111,10 +111,11 @@ func (t TransactionType) String() string {
 // Transaction is the interface implemented by an object that can be verified and processed by
 // block producers.
 type Transaction interface {
+	GetTransactionType() TransactionType
 	GetAccountAddress() proto.AccountAddress
 	GetAccountNonce() AccountNonce
+	GetTimestamp() int64
 	Hash() hash.Hash
-	GetTransactionType() TransactionType
 	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error
 	MarshalHash() ([]byte, error)

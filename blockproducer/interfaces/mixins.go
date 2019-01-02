@@ -20,7 +20,16 @@ package interfaces
 
 // TransactionTypeMixin provide type heuristic features to transaction wrapper.
 type TransactionTypeMixin struct {
-	TxType TransactionType
+	TxType    TransactionType
+	Timestamp int64
+}
+
+// NewTransactionTypeMixin returns new instance.
+func NewTransactionTypeMixin(txType TransactionType) *TransactionTypeMixin {
+	return &TransactionTypeMixin{
+		TxType:    txType,
+		Timestamp: 0,
+	}
 }
 
 // ContainsTransactionTypeMixin interface defines interface to detect transaction type mixin.
@@ -38,9 +47,7 @@ func (m *TransactionTypeMixin) SetTransactionType(t TransactionType) {
 	m.TxType = t
 }
 
-// NewTransactionTypeMixin returns new instance.
-func NewTransactionTypeMixin(txType TransactionType) *TransactionTypeMixin {
-	return &TransactionTypeMixin{
-		TxType: txType,
-	}
+// GetTimestamp implements Transaciton.GetTimestamp()
+func (m *TransactionTypeMixin) GetTimestamp() int64 {
+	return m.Timestamp
 }

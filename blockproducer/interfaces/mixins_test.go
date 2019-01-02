@@ -28,5 +28,6 @@ func TestTransactionTypeMixin(t *testing.T) {
 		So(m.GetTransactionType(), ShouldEqual, TransactionTypeBaseAccount)
 		m.SetTransactionType(TransactionTypeTransfer)
 		So(m.GetTransactionType(), ShouldEqual, TransactionTypeTransfer)
+		So(m.GetTimestamp(), ShouldEqual, 0)
 	})
 }

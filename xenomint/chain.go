@@ -20,35 +20,13 @@ import (
 	"time"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
-	xt "github.com/CovenantSQL/CovenantSQL/xenomint/types"
 )
-
-const (
-	inCommandBufferLength  = 100000
-	outCommandBufferLength = 100000
-)
-
-type applyRequest struct {
-	request  *types.Request
-	response *types.Response
-}
-
-type blockNode struct {
-	parent *blockNode
-	// Cached block fields
-	hash   hash.Hash
-	count  int32
-	height int32
-	// Cached block object, may be nil
-	block *xt.Block
-}
 
 // Chain defines the xenomint chain structure.
 type Chain struct {

@@ -21,15 +21,6 @@ import "errors"
 var (
 	// ErrNoSuchDatabase defines database meta not exists error.
 	ErrNoSuchDatabase = errors.New("no such database")
-	// ErrDatabaseAllocation defines database allocation failure error.
-	ErrDatabaseAllocation = errors.New("allocate database failed")
-	// ErrMetricNotCollected defines errors collected.
-	ErrMetricNotCollected = errors.New("metric not collected")
-
-	// Errors on main chain
-
-	// ErrCorruptedIndex defines index corrupted error.
-	ErrCorruptedIndex = errors.New("corrupted index item")
 	// ErrParentNotFound defines that the parent block cannot be found.
 	ErrParentNotFound = errors.New("previous block cannot be found")
 	// ErrInvalidHash defines invalid hash error.
@@ -40,12 +31,6 @@ var (
 	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
-	// ErrNoSuchTxBilling defines no such txbilling error.
-	ErrNoSuchTxBilling = errors.New("Cannot find such txbilling")
-	// ErrSmallerSequenceID defines that new sequence id is smaller the old one.
-	ErrSmallerSequenceID = errors.New("SequanceID should be bigger than the old one")
-	// ErrInvalidBillingRequest defines BillingRequest is invalid
-	ErrInvalidBillingRequest = errors.New("The BillingRequest is invalid")
 
 	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
 	ErrBalanceOverflow = errors.New("balance overflow")
@@ -61,17 +46,11 @@ var (
 	ErrDatabaseExists = errors.New("database already exists")
 	// ErrDatabaseUserExists indicates that the database user already exists.
 	ErrDatabaseUserExists = errors.New("database user already exists")
-	// ErrDatabaseCannotCreate indicates that database cannot be created.
-	ErrDatabaseCannotCreate = errors.New("database cannot be created")
 	// ErrInvalidAccountNonce indicates that a transaction has a invalid account nonce.
 	ErrInvalidAccountNonce = errors.New("invalid account nonce")
 	// ErrUnknownTransactionType indicates that a transaction has a unknown type and cannot be
 	// further processed.
 	ErrUnknownTransactionType = errors.New("unknown transaction type")
-	// ErrTransactionMismatch indicates that transactions to be committed mismatch the pool.
-	ErrTransactionMismatch = errors.New("transaction mismatch")
-	// ErrMetaStateNotFound indicates that meta state not found in db.
-	ErrMetaStateNotFound = errors.New("meta state not found in db")
 	// ErrInvalidSender indicates that tx.Signee != tx.Sender.
 	ErrInvalidSender = errors.New("invalid sender")
 	// ErrNoSuchMiner indicates that this miner does not exist or register.

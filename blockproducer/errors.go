@@ -40,8 +40,6 @@ var (
 	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
-	// ErrNoSuchBlock defines no such block error.
-	ErrNoSuchBlock = errors.New("Cannot find such block")
 	// ErrNoSuchTxBilling defines no such txbilling error.
 	ErrNoSuchTxBilling = errors.New("Cannot find such txbilling")
 	// ErrSmallerSequenceID defines that new sequence id is smaller the old one.

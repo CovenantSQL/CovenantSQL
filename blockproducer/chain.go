@@ -565,6 +565,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 	var h = c.getNextHeight() - 1
 	if c.head().height >= h {
+		ok = true
 		return
 	}
 	// Initiate blocking gossip calls to fetch block of the current height,
@@ -620,13 +621,18 @@ func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 					atomic.AddUint32(&unreachable, 1)
 					return
 				}
-				log.WithFields(log.Fields{
+				var fields = log.Fields{
 					"local":  c.peerInfo(),
 					"remote": id,
 					"height": h,
-					"parent": resp.Block.ParentHash().Short(4),
-					"hash":   resp.Block.BlockHash().Short(4),
-				}).Debug("fetched new block from remote peer")
+				}
+				defer log.WithFields(fields).Debug("fetch block request reply")
+				if resp.Block == nil {
+					return
+				}
+				// Push new block from other peers
+				fields["parent"] = resp.Block.ParentHash().Short(4)
+				fields["hash"] = resp.Block.BlockHash().Short(4)
 				select {
 				case c.pendingBlocks <- resp.Block:
 				case <-cld.Done():

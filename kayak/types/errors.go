@@ -31,8 +31,6 @@ var (
 	ErrInvalidLog = errors.New("invalid log")
 	// ErrNotInPeer represents current node does not exists in peer list.
 	ErrNotInPeer = errors.New("node not in peer")
-	// ErrNeedRecovery represents current follower node needs recovery, back-off is required by leader.
-	ErrNeedRecovery = errors.New("need recovery")
 	// ErrInvalidConfig represents invalid kayak runtime config.
 	ErrInvalidConfig = errors.New("invalid runtime config")
 )

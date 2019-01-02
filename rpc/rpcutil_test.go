@@ -37,7 +37,6 @@ import (
 )
 
 const (
-	DHTStorePath  = "./DHTStore"
 	RPCConcurrent = 10
 	RPCCount      = 100
 )

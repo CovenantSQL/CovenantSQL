@@ -276,6 +276,8 @@ func (dbms *DBMS) buildSQLChainServiceInstance(
 
 // UpdatePermission exports the update permission interface for test.
 func (dbms *DBMS) UpdatePermission(dbID proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
+	dbms.busService.lock.Lock()
+	defer dbms.busService.lock.Unlock()
 	profile, ok := dbms.busService.sqlChainProfiles[dbID]
 	if !ok {
 		dbms.busService.sqlChainProfiles[dbID] = &types.SQLChainProfile{

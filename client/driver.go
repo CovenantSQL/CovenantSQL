@@ -27,6 +27,7 @@ import (
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -297,6 +298,122 @@ func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 		balance = resp.Balance
 	}
 
+	return
+}
+
+// UpdatePermission sends UpdatePermission transaction to chain.
+func UpdatePermission(targetUser proto.AccountAddress,
+	targetChain proto.AccountAddress, perm types.UserPermission) (err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
+	var (
+		pubKey  *asymmetric.PublicKey
+		privKey *asymmetric.PrivateKey
+		addr    proto.AccountAddress
+		nonce   interfaces.AccountNonce
+	)
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	nonce, err = getNonce(addr)
+	if err != nil {
+		return
+	}
+
+	up := types.NewUpdatePermission(&types.UpdatePermissionHeader{
+		TargetSQLChain: targetChain,
+		TargetUser:     targetUser,
+		Permission:     perm,
+		Nonce:          nonce,
+	})
+	err = up.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign failed")
+		return
+	}
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = up
+	err = requestBP(route.MCCAddTx, addTxReq, addTxResp)
+	if err != nil {
+		log.WithError(err).Warning("send tx failed")
+		return
+	}
+
+	return
+}
+
+// TransferToken send Transfer transaction to chain.
+func TransferToken(targetUser proto.AccountAddress, amount uint64, tokenType types.TokenType) (err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
+	var (
+		pubKey  *asymmetric.PublicKey
+		privKey *asymmetric.PrivateKey
+		addr    proto.AccountAddress
+		nonce   interfaces.AccountNonce
+	)
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	nonce, err = getNonce(addr)
+	if err != nil {
+		return
+	}
+
+	tran := types.NewTransfer(&types.TransferHeader{
+		Sender:    addr,
+		Amount:    amount,
+		TokenType: tokenType,
+		Nonce:     nonce,
+	})
+	err = tran.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign failed")
+		return
+	}
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = tran
+	err = requestBP(route.MCCAddTx, addTxReq, addTxResp)
+	if err != nil {
+		log.WithError(err).Warning("send tx failed")
+		return
+	}
+
+	return
+}
+
+func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = addr
+	err = requestBP(route.MCCNextAccountNonce, nonceReq, nonceResp)
+	if err != nil {
+		log.WithError(err).Warning("get nonce failed")
+		return
+	}
+	nonce = nonceResp.Nonce
 	return
 }
 

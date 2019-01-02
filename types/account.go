@@ -66,6 +66,11 @@ func (up *UserPermission) CheckAdmin() bool {
 	return *up == Admin
 }
 
+// Valid returns true if the value is a meaning permission value.
+func (up *UserPermission) Valid() bool {
+	return *up >= Admin && *up < NumberOfUserPermission
+}
+
 // Status defines status of a SQLChain user/miner.
 type Status int32
 

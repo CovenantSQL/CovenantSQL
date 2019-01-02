@@ -553,6 +553,14 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 		}).WithError(err).Warning("generate addr failed in addTxSubscription")
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"dbID":        dbID,
+		"nodeID":      nodeID,
+		"addr":        addr.String(),
+		"startHeight": startHeight,
+	}).Debugf("addTxSubscription")
+
 	err = dbms.checkPermission(addr, dbID, types.ReadQuery)
 	if err != nil {
 		log.WithFields(log.Fields{"databaseID": dbID, "addr": addr}).WithError(err).Warning("permission deny")

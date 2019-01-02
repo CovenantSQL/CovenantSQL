@@ -31,8 +31,10 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/env"
@@ -57,10 +59,25 @@ var (
 	variables         varsFlag
 
 	// DML variables
-	createDB   string // as a instance meta json string or simply a node count
-	dropDB     string // database id to drop
-	getBalance bool   // get balance of current account
+	createDB                string // as a instance meta json string or simply a node count
+	dropDB                  string // database id to drop
+	updatePermission        string // update user's permission on specific sqlchain
+	transferToken           string // transfer token to target account
+	getBalance              bool   // get balance of current account
+	getBalanceWithTokenName string // get specific token's balance of current account
 )
+
+type userPermission struct {
+	targetChain proto.AccountAddress
+	targetUser  proto.AccountAddress
+	perm        types.UserPermission
+}
+
+type tranToken struct {
+	targetUser proto.AccountAddress
+	amount     uint64
+	tokenType  types.TokenType
+}
 
 type varsFlag struct {
 	flag.Value
@@ -188,7 +205,10 @@ func init() {
 	// DML flags
 	flag.StringVar(&createDB, "create", "", "create database, argument can be instance requirement json or simply a node count requirement")
 	flag.StringVar(&dropDB, "drop", "", "drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
+	flag.StringVar(&updatePermission, "update-perm", "", "update user's permission on specific sqlchain")
+	flag.StringVar(&transferToken, "transfer", "", "transfer token to target account")
 	flag.BoolVar(&getBalance, "get-balance", false, "get balance of current account")
+	flag.StringVar(&getBalanceWithTokenName, "token-balance", "Particle", "get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 }
 
 func main() {
@@ -223,6 +243,28 @@ func main() {
 		log.Infof("stable coin balance is: %d", stableCoinBalance)
 		log.Infof("covenant coin balance is: %d", covenantCoinBalance)
 
+		return
+	}
+
+	if getBalanceWithTokenName != "" {
+		var tokenBalance uint64
+		tokenType := types.FromString(getBalanceWithTokenName)
+		if !tokenType.Listed() {
+			values := make([]string, len(types.TokenList))
+			for i := types.Particle; i < types.SupportTokenNumber; i++ {
+				values[i] = types.TokenList[i]
+			}
+			log.Errorf("no such token supporting in CovenantSQL (what we support: %s)",
+				strings.Join(values, ", "))
+			os.Exit(-1)
+			return
+		}
+		if tokenBalance, err = client.GetTokenBalance(tokenType); err != nil {
+			log.WithError(err).Error("get token balance failed")
+			os.Exit(-1)
+			return
+		}
+		log.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
 		return
 	}
 
@@ -274,6 +316,46 @@ func main() {
 
 		log.Infof("the newly created database is: %#v", dsn)
 		return
+	}
+
+	if updatePermission != "" {
+		// update user's permission on sqlchain
+		var perm userPermission
+		if err := json.Unmarshal([]byte(updatePermission), &perm); err != nil {
+			log.WithError(err).Errorf("update permission failed: invalid permission description")
+			os.Exit(-1)
+			return
+		}
+
+		err := client.UpdatePermission(perm.targetUser, perm.targetChain, perm.perm)
+
+		if err != nil {
+			log.WithError(err).Error("update permission failed")
+			os.Exit(-1)
+			return
+		}
+
+		log.Info("success in sending transaction to CovenantSQL")
+	}
+
+	if transferToken != "" {
+		// transfer token
+		var tran tranToken
+		if err := json.Unmarshal([]byte(transferToken), &tran); err != nil {
+			log.WithError(err).Errorf("transfer token failed: invalid transfer description")
+			os.Exit(-1)
+			return
+		}
+
+		err := client.TransferToken(tran.targetUser, tran.amount, tran.tokenType)
+
+		if err != nil {
+			log.WithError(err).Error("transfer token failed")
+			os.Exit(-1)
+			return
+		}
+
+		log.Info("success in sending transaction to CovenantSQL")
 	}
 
 	var (

@@ -10,7 +10,9 @@ blockproducer)
     exec /app/cqld -config "${COVENANT_CONF}" "${@}"
     ;;
 observer)
-    exec /app/cql-observer -config "${COVENANT_CONF}" "${@}"
+    MAGIC_DOLLAR='$' envsubst < /etc/nginx/conf.d/servers/explorer.conf.template > /etc/nginx/conf.d/default.conf
+    nginx -g 'daemon off;' </dev/null &
+    exec /app/cql-observer -config "${COVENANT_CONF}" -listen "${COVENANTSQL_OBSERVER_ADDR}"
     ;;
 adapter)
     exec /app/cql-adapter -config "${COVENANT_CONF}" "${@}"

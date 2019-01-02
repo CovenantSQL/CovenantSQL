@@ -31,13 +31,6 @@ var (
 	logDir         = FJ(testWorkingDir, "./log/")
 )
 
-func TestBuild(t *testing.T) {
-	Convey("build", t, func() {
-		log.SetLevel(log.DebugLevel)
-		So(Build(), ShouldBeNil)
-	})
-}
-
 func TestRunServer(t *testing.T) {
 	Convey("build", t, func() {
 		log.SetLevel(log.DebugLevel)

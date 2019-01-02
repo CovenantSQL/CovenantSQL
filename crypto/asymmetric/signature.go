@@ -20,7 +20,6 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"math/big"
-	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -32,7 +31,6 @@ var (
 	// BypassSignature is the flag indicate if bypassing signature sign & verify
 	BypassSignature = false
 	bypassS         *Signature
-	mu              sync.Mutex
 )
 
 // For test Signature.Sign mock

@@ -101,8 +101,6 @@ var (
 	ErrNilNode = errors.New("nil node")
 	// ErrKeyNotFound indicates key not found
 	ErrKeyNotFound = errors.New("key not found")
-	// ErrNotValidNodeID indicates that is not valid node id
-	ErrNotValidNodeID = errors.New("not valid node id")
 	// ErrNodeIDKeyNonceNotMatch indicates node id, key, nonce not match
 	ErrNodeIDKeyNonceNotMatch = errors.New("nodeID, key, nonce not match")
 )

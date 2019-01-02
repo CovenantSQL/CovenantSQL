@@ -38,8 +38,6 @@ var (
 	ErrHashNotMatch = errors.New("private key hash not match")
 	// ErrInvalidBase58Version indicates specified key is not base58 version
 	ErrInvalidBase58Version = errors.New("invalid base58 version")
-	// ErrInvalidBase58Checksum indicates specified key checksum is not base58 checksum
-	ErrInvalidBase58Checksum = errors.New("invalid base58 checksum")
 	// PrivateKeyStoreVersion defines the private key version byte.
 	PrivateKeyStoreVersion byte = 0x23
 	// oldPrivateKDFSalt is the old KDF salt for private key encryption

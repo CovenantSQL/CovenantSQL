@@ -157,21 +157,6 @@ type keygen interface {
 	reset()
 }
 
-type randKeygen struct {
-	offset int
-	length int
-}
-
-func newRandKeygen(offset, length int) *randKeygen {
-	return &randKeygen{
-		offset: offset,
-		length: length,
-	}
-}
-
-func (k *randKeygen) next() int { return rand.Intn(k.length) + k.offset }
-func (k *randKeygen) reset()    {}
-
 type permKeygen struct {
 	offset int
 	length int

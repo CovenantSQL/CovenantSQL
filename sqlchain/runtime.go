@@ -51,10 +51,6 @@ type runtime struct {
 	blockCacheTTL int32
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
-	// price sets query price in gases.
-	price           map[types.QueryType]uint64
-	producingReward uint64
-	billingPeriods  int32
 
 	// peersMutex protects following peers-relative fields.
 	peersMutex sync.Mutex
@@ -104,16 +100,13 @@ func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 		ctx:    cld,
 		cancel: ccl,
 
-		period:          c.Period,
-		tick:            c.Tick,
-		queryTTL:        c.QueryTTL,
-		blockCacheTTL:   blockCacheTTLRequired(c),
-		muxService:      c.MuxService,
-		price:           c.Price,
-		producingReward: c.ProducingReward,
-		billingPeriods:  c.BillingPeriods,
-		peers:           c.Peers,
-		server:          c.Server,
+		period:        c.Period,
+		tick:          c.Tick,
+		queryTTL:      c.QueryTTL,
+		blockCacheTTL: blockCacheTTLRequired(c),
+		muxService:    c.MuxService,
+		peers:         c.Peers,
+		server:        c.Server,
 		index: func() int32 {
 			if index, found := c.Peers.Find(c.Server); found {
 				return index
@@ -204,11 +197,6 @@ func (r *runtime) setNextTurn() {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 	r.nextTurn++
-}
-
-// getQueryGas gets the consumption of gas for a specified query type.
-func (r *runtime) getQueryGas(t types.QueryType) uint64 {
-	return r.price[t]
 }
 
 // stop sends a signal to the Runtime stop channel by closing it.

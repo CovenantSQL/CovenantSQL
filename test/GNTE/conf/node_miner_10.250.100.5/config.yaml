@@ -46,6 +46,21 @@ BlockProducer:
       - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
         StableCoinBalance: 10000000000000000000
         CovenantCoinBalance: 10000000000000000000
+      - Address: ae93d3414f68943ea4daf76155eaee438f2b9600db588202c85853b03a01515c
+        StableCoinBalance: 10000000000000000000
+        CovenantCoinBalance: 10000000000000000000
+      - Address: d1797377721629ca5426cd014bdbf245342efb2d612243561c6f11957dda4600
+        StableCoinBalance: 10000000000000000000
+        CovenantCoinBalance: 10000000000000000000
+      - Address: 2544d68886b2d0c3276d1ea6f8735ba7e25952163a13c1b9a485bebf7ad8e635
+        StableCoinBalance: 10000000000000000000
+        CovenantCoinBalance: 10000000000000000000
+      - Address: e9908011ffbcd4afbad8d503174056d2dbe8536f58b41dd300835bdd52ec35b8
+        StableCoinBalance: 10000000000000000000
+        CovenantCoinBalance: 10000000000000000000
+      - Address: f09a1dba38c187a3cf433ec86c74878cb6dc97af5c91de0bbcadc3ccd47f0df7
+        StableCoinBalance: 10000000000000000000
+        CovenantCoinBalance: 10000000000000000000
 Miner:
   IsTestMode: true
   RootDir: "./data"

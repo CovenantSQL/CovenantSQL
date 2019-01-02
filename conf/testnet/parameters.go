@@ -55,13 +55,13 @@ DNSSeed:
   - 202.46.34.76
 
 BlockProducer:
-  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
-  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+  NodeID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
   Nonce:
-    a: 313283
+    a: 14396347928
     b: 0
     c: 0
-    d: 0
+    d: 6148914694092305796
   ChainFileName: "chain.db"
   BPGenesisInfo:
     Version: 1
@@ -69,7 +69,7 @@ BlockProducer:
     Producer: 0000000000000000000000000000000000000000000000000000000000000001
     MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
-    Timestamp: 2018-12-28T12:20:59.12Z
+    Timestamp: 2019-01-02T13:33:00.00Z
     BaseAccounts:
       - Address: ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37
         StableCoinBalance: 10000000000000000000
@@ -83,33 +83,63 @@ BlockProducer:
       - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
         StableCoinBalance: 10000000000000000000
         CovenantCoinBalance: 10000000000000000000
+      - Address: 58aceaf4b730b54bf00c0fb3f7b14886de470767f313c2d108968cd8bf0794b7
+        StableCoinBalance: 10000000000000000000
+        CovenantCoinBalance: 10000000000000000000
 KnownNodes:
-- ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+- ID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
   Nonce:
-    a: 313283
+    a: 14396347928
     b: 0
     c: 0
-    d: 0
+    d: 6148914694092305796
   Addr: bp00.cn.gridb.io:7777
-  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
   Role: Leader
-- ID: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
+- ID: 000000000013fd4b3180dd424d5a895bc57b798e5315087b7198c926d8893f98
   Nonce:
-    a: 478373
+    a: 789554103
     b: 0
     c: 0
-    d: 2305843009893772025
+    d: 8070450536379825883
   Addr: bp01.cn.gridb.io:7777
-  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
   Role: Follower
-- ID: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
+- ID: 00000000001771e2b2e12b6f9f85d58ef5261a4b98a2e80bba0c5ef7bd72c499
   Nonce:
-    a: 259939
+    a: 1822880492
     b: 0
     c: 0
-    d: 2305843012544226372
+    d: 8646911286604382906
   Addr: bp02.cn.gridb.io:7777
-  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+  Role: Follower
+- ID: 000000000014a2f14e79aec0a27a2a669aab416c392d5577760d43ed8503020d
+  Nonce:
+    a: 2552803966
+    b: 0
+    c: 0
+    d: 9079256850862786277
+  Addr: bp03.cn.gridb.io:7777
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+  Role: Follower
+- ID: 00000000003b2bd120a7d07f248b181fc794ba8b278f07f9a780e61eb77f6abb
+  Nonce:
+    a: 2449538793
+    b: 0
+    c: 0
+    d: 8791026473473316840
+  Addr: bp04.hk.gridb.io:7777
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+  Role: Follower
+- ID: 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c
+  Nonce:
+    a: 746598970
+    b: 0
+    c: 0
+    d: 10808639108098016056
+  Addr: bp05.cn.gridb.io:7777
+  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
   Role: Follower
 - ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
   Nonce:
@@ -128,7 +158,17 @@ KnownNodes:
     d: 2305843010430351476
   Addr: miner01.cn.gridb.io:7778
   PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
-  Role: Miner`
+  Role: Miner
+- ID: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
+  Nonce:
+    a: 22403
+    b: 0
+    c: 0
+    d: 0
+  Addr: ""
+  PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+  Role: Client
+`
 )
 
 // GetTestNetConfig parses and returns the CovenantSQL TestNet config.

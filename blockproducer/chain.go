@@ -528,13 +528,10 @@ func (c *Chain) mainCycle(ctx context.Context) {
 		select {
 		case <-timer.C:
 			// Try to fetch block at height `nextHeight-1` until enough peers are reachable
-			for !c.syncCurrentHead(ctx) {
-				if ctx.Err() != nil {
-					// Context is closed, break forever loop
-					log.WithError(ctx.Err()).Info("abort main cycle")
-					timer.Reset(0)
-					return
-				}
+			if err := c.blockingSyncCurrentHead(ctx); err != nil {
+				log.WithError(err).Info("abort main cycle")
+				timer.Reset(0)
+				return
 			}
 
 			var t, d = c.nextTick()
@@ -554,6 +551,29 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			timer.Reset(d)
 		case <-ctx.Done():
 			log.WithError(ctx.Err()).Info("abort main cycle")
+			return
+		}
+	}
+}
+
+func (c *Chain) blockingSyncCurrentHead(ctx context.Context) (err error) {
+	var (
+		ticker   *time.Ticker
+		interval = 1 * time.Second
+	)
+	if c.tick < interval {
+		interval = c.tick
+	}
+	ticker = time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if c.syncCurrentHead(ctx) {
+				return
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
 			return
 		}
 	}

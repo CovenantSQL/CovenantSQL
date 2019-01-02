@@ -1,7 +1,8 @@
 #!/bin/sh -x
 
 ../../cleanupDB.sh
-../../build.sh
+make -C ../../ clean
+make -C ../../ use_all_cores
 
 go test -bench=^BenchmarkMinerTwo$ -benchtime=15s -run ^$
 go tool pprof -text miner1.profile > pprof.txt

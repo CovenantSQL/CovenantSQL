@@ -34,6 +34,7 @@ import (
 const (
 	privateKeyPath = "./.testprivatekey"
 	password       = "auxten"
+	salt           = "auxten-key-salt-auxten"
 )
 
 func TestSaveLoadPrivateKey(t *testing.T) {
@@ -83,7 +84,7 @@ func TestLoadPrivateKey(t *testing.T) {
 	})
 	Convey("not key file2", t, func() {
 		defer os.Remove("./.notkey")
-		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.notkey", enc, 0600)
 		lk, err := LoadPrivateKey("./.notkey", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)
@@ -91,7 +92,7 @@ func TestLoadPrivateKey(t *testing.T) {
 	})
 	Convey("hash not match", t, func() {
 		defer os.Remove("./.HashNotMatch")
-		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
 		lk, err := LoadPrivateKey("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
@@ -105,7 +106,7 @@ func TestLoadPrivateKey(t *testing.T) {
 		serializedKey := privateKey.Serialize()
 		keyHash := hash.DoubleHashB(serializedKey)
 		rawData := append(keyHash, serializedKey...)
-		encKey, _ := symmetric.EncryptWithPassword(rawData, []byte(password))
+		encKey, _ := symmetric.EncryptWithPassword(rawData, []byte(password), []byte(salt))
 		invalidBase58EncKey := base58.CheckEncode(encKey, invalidPrivateKeyStoreVersion)
 		ioutil.WriteFile("./.Base58VersionNotMatch", []byte(invalidBase58EncKey), 0600)
 		lk, err := LoadPrivateKey("./.Base58VersionNotMatch", []byte(password))
@@ -154,14 +155,14 @@ func TestInitLocalKeyPair(t *testing.T) {
 func TestInitLocalKeyPair_error(t *testing.T) {
 	Convey("hash not match", t, func() {
 		defer os.Remove("./.HashNotMatch")
-		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
 		err := InitLocalKeyPair("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
 	})
 	Convey("ErrNotKeyFile", t, func() {
 		defer os.Remove("./.ErrNotKeyFile")
-		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.ErrNotKeyFile", enc, 0600)
 		err := InitLocalKeyPair("./.ErrNotKeyFile", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)

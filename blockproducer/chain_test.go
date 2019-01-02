@@ -284,11 +284,13 @@ func TestChain(t *testing.T) {
 						count, height uint32
 					)
 
-					_, _, err = chain.fetchBlockByHeight(100)
-					So(err, ShouldEqual, ErrNoSuchBlock)
+					bl, _, err = chain.fetchBlockByHeight(100)
+					So(bl, ShouldBeNil)
+					So(err, ShouldBeNil)
 
-					_, _, err = chain.fetchBlockByCount(100)
-					So(err, ShouldEqual, ErrNoSuchBlock)
+					bl, _, err = chain.fetchBlockByCount(100)
+					So(bl, ShouldBeNil)
+					So(err, ShouldBeNil)
 
 					bl, count, err = chain.fetchBlockByHeight(0)
 					So(err, ShouldBeNil)
@@ -332,6 +334,7 @@ func TestChain(t *testing.T) {
 					defer sv.Stop()
 
 					chain.server = sv
+					chain.confirms = 1
 					chain.Start()
 					defer func() {
 						chain.Stop()

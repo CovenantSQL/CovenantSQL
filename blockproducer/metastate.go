@@ -778,8 +778,9 @@ func (s *metaState) filterNMiners(
 	for k, v := range s.dirty.provider {
 		if v == nil {
 			delete(allProviderMap, k)
+		} else {
+			allProviderMap[k] = v
 		}
-		allProviderMap[k] = v
 	}
 
 	// delete selected target miners

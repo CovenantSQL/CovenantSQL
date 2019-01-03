@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -60,6 +61,9 @@ func start3BPs() {
 
 	// start 3bps
 	var cmd *utils.CMD
+	os.Remove(FJ(testWorkingDir, "./node_0/chain.db"))
+	os.Remove(FJ(testWorkingDir, "./node_0/dht.db"))
+	os.Remove(FJ(testWorkingDir, "./node_0/public.keystore"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_0/config.yaml"),
@@ -71,6 +75,9 @@ func start3BPs() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+	os.Remove(FJ(testWorkingDir, "./node_1/chain.db"))
+	os.Remove(FJ(testWorkingDir, "./node_1/dht.db"))
+	os.Remove(FJ(testWorkingDir, "./node_1/public.keystore"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml"),
@@ -82,6 +89,9 @@ func start3BPs() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+	os.Remove(FJ(testWorkingDir, "./node_2/chain.db"))
+	os.Remove(FJ(testWorkingDir, "./node_2/dht.db"))
+	os.Remove(FJ(testWorkingDir, "./node_2/public.keystore"))
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml"),
@@ -93,6 +103,8 @@ func start3BPs() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+	os.Remove(FJ(testWorkingDir, "./node_c/dht.db"))
+	os.Remove(FJ(testWorkingDir, "./node_c/public.keystore"))
 }
 
 func stopNodes() {
@@ -111,8 +123,8 @@ func stopNodes() {
 			}
 		}(nodeCmd)
 	}
-
 	wg.Wait()
+	nodeCmds = nil
 }
 
 func TestStartBP_CallRPC(t *testing.T) {

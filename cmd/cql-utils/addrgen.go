@@ -18,7 +18,6 @@ package main
 
 import (
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"os"
 
@@ -27,14 +26,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
-
-var (
-	isTestNetAddr bool
-)
-
-func init() {
-	flag.BoolVar(&isTestNetAddr, "addrgen", false, "addrgen generates a testnet address from your key pair")
-}
 
 func runAddrgen() {
 	var publicKey *asymmetric.PublicKey
@@ -68,10 +59,6 @@ func runAddrgen() {
 	if err != nil {
 		log.WithError(err).Fatal("unexpected error")
 	}
-	addr, err := crypto.PubKey2Addr(publicKey, crypto.TestNet)
-	if err != nil {
-		log.WithError(err).Fatal("unexpected error")
-	}
-	fmt.Printf("wallet address hash: %s\n", keyHash.String())
-	fmt.Printf("wallet address: %s\n", addr)
+
+	fmt.Printf("wallet address: %s\n", keyHash.String())
 }

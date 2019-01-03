@@ -142,7 +142,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		Tick:     conf.GConf.SQLChainTick,
 		QueryTTL: conf.GConf.SQLChainTTL,
 
-		UpdatePeriod: cfg.UpdatePeriod,
+		UpdatePeriod: cfg.UpdateBlockCount,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return

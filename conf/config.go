@@ -139,7 +139,7 @@ type Config struct {
 	SeedBPNodes []proto.Node `yaml:"-"`
 
 	QPS                uint32        `yaml:"QPS"`
-	BillingPeriod      uint32        `yaml:"BillingPeriod"` // BillingPeriod is for sql chain miners syncing billing with main chain
+	BillingBlockCount  uint64        `yaml:"BillingBlockCount"` // BillingBlockCount is for sql chain miners syncing billing with main chain
 	BPPeriod           time.Duration `yaml:"BPPeriod"`
 	BPTick             time.Duration `yaml:"BPTick"`
 	SQLChainPeriod     time.Duration `yaml:"SQLChainPeriod"`

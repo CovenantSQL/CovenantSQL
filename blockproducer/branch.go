@@ -29,7 +29,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const transactionsLimit = 1000
+const transactionsLimit = 10000
 
 type branch struct {
 	head     *blockNode
@@ -184,7 +184,7 @@ func (b *branch) produceBlock(
 		packCount = len(txs)
 	}
 
-	out := make([]pi.Transaction, len(txs))
+	out := make([]pi.Transaction, packCount)
 	for i := 0; i < packCount; i++ {
 		v := txs[i]
 		var k = v.Hash()

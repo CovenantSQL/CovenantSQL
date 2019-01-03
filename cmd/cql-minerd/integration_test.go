@@ -799,6 +799,7 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		// create
 		meta := client.ResourceMeta{}
 		meta.Node = minerCount
+		meta.AdvancePayment = 1000000000
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)

@@ -39,7 +39,7 @@ do
     cd ${TEST_WD}/GNTE && bash -x ./build.sh
 
     # Clean
-    cd ${TEST_WD} && bash ./GNTE/scripts/cleanupDB.sh
+    cd ${TEST_WD} && sudo ./GNTE/scripts/cleanupDB.sh
     cd ${TEST_WD}/GNTE && bash -x ./generate.sh ${gnte_yaml}
 
     # Bench GNTE
@@ -51,7 +51,7 @@ do
 done
 
 # clean GNTE docker
-cd ${TEST_WD} && bash ./GNTE/scripts/cleanupDB.sh
+cd ${TEST_WD} && sudo ./GNTE/scripts/cleanupDB.sh
 cd ${TEST_WD} && bash ./GNTE/scripts/clean.sh
 
 perl -lane 'print $F[0], "\t", $F[1], "\t", $F[2], "\t", 1000000000.0/$F[2] if $F[2]; print if /script/' ${tmp_file} > ${BENCHRESULT_FILE}

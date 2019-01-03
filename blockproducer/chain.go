@@ -77,6 +77,7 @@ type Chain struct {
 	headBranch   *branch
 	branches     []*branch
 	txPool       map[hash.Hash]pi.Transaction
+	mode         string
 }
 
 // NewChain creates a new blockchain.
@@ -252,6 +253,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		headBranch: head,
 		branches:   branches,
 		txPool:     txPool,
+		mode:       cfg.Mode,
 	}
 	log.WithFields(log.Fields{
 		"index":     c.locSvIndex,
@@ -713,6 +715,12 @@ func (c *Chain) replaceAndSwitchToBranch(
 
 	// Prepare storage procedures to update immutable database
 	sps = append(sps, addBlock(height, newBlock))
+
+	// Index blocks and transactions if running as API node
+	if c.mode == "api" {
+		sps = append(sps, buildBlockIndex(height, newBlock))
+	}
+
 	for k, v := range c.immutable.dirty.accounts {
 		if v != nil {
 			sps = append(sps, updateAccount(v))

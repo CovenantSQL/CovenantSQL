@@ -71,17 +71,10 @@ func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *types.Account,
 func (s *metaState) loadOrStoreAccountObject(
 	k proto.AccountAddress, v *types.Account) (o *types.Account, loaded bool,
 ) {
-	var old *types.Account
-	if old, loaded = s.dirty.accounts[k]; loaded {
-		if old == nil {
-			loaded = false
-			return
-		}
-		o = deepcopy.Copy(old).(*types.Account)
+	if o, loaded = s.dirty.accounts[k]; loaded && o != nil {
 		return
 	}
-	if old, loaded = s.readonly.accounts[k]; loaded {
-		o = deepcopy.Copy(old).(*types.Account)
+	if o, loaded = s.readonly.accounts[k]; loaded {
 		return
 	}
 	s.dirty.accounts[k] = v

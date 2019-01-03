@@ -633,19 +633,25 @@ func TestMetaState(t *testing.T) {
 					types.NewBaseAccount(
 						&types.Account{
 							Address:      addr1,
-							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 1000000000},
 						},
 					),
 					types.NewBaseAccount(
 						&types.Account{
 							Address:      addr2,
-							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 1000000000},
 						},
 					),
 					types.NewBaseAccount(
 						&types.Account{
 							Address:      addr3,
-							TokenBalance: [types.SupportTokenNumber]uint64{100000, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{10000, 10000},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr4,
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 1000000000},
 						},
 					),
 				}
@@ -656,6 +662,9 @@ func TestMetaState(t *testing.T) {
 			err = txs[1].Sign(privKey2)
 			So(err, ShouldBeNil)
 			err = txs[2].Sign(privKey3)
+			So(err, ShouldBeNil)
+			err = txs[3].Sign(privKey4)
+			So(err, ShouldBeNil)
 			for i := range txs {
 				err = ms.apply(txs[i])
 				So(err, ShouldBeNil)
@@ -1206,7 +1215,7 @@ func TestMetaState(t *testing.T) {
 					trans2 := types.NewTransfer(&types.TransferHeader{
 						Sender:    addr3,
 						Receiver:  dbAccount,
-						Amount:    8000000,
+						Amount:    800,
 						TokenType: types.Particle,
 					})
 					nonce, err = ms.nextNonce(addr3)
@@ -1278,7 +1287,7 @@ func TestMetaState(t *testing.T) {
 					sqlchain, loaded := ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
 					So(len(sqlchain.Miners), ShouldEqual, 1)
-					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 125)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
 					users = [3]*types.UserCost{
 						&types.UserCost{
 							User: addr1,
@@ -1326,7 +1335,7 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					So(len(sqlchain.Miners), ShouldEqual, 1)
 					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
-					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 125)
+					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 115)
 				})
 			})
 		})

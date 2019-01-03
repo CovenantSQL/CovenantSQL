@@ -383,15 +383,14 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// new db
 	dbCfg := &DBConfig{
-		DatabaseID:      instance.DatabaseID,
-		DataDir:         rootDir,
-		KayakMux:        dbms.kayakMux,
-		ChainMux:        dbms.chainMux,
-		MaxWriteTimeGap: dbms.cfg.MaxReqTimeGap,
-		EncryptionKey:   instance.ResourceMeta.EncryptionKey,
-		SpaceLimit:      instance.ResourceMeta.Space,
-		// TODO(lambda): make BillingPeriod Configurable
-		UpdatePeriod:           uint64(conf.GConf.BillingPeriod),
+		DatabaseID:             instance.DatabaseID,
+		DataDir:                rootDir,
+		KayakMux:               dbms.kayakMux,
+		ChainMux:               dbms.chainMux,
+		MaxWriteTimeGap:        dbms.cfg.MaxReqTimeGap,
+		EncryptionKey:          instance.ResourceMeta.EncryptionKey,
+		SpaceLimit:             instance.ResourceMeta.Space,
+		UpdateBlockCount:       conf.GConf.BillingBlockCount,
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,
 		SlowQueryTime:          DefaultSlowQueryTime,

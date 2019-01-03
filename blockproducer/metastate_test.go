@@ -698,7 +698,7 @@ func TestMetaState(t *testing.T) {
 							Node:         1,
 						},
 						GasPrice:       1,
-						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 1,
 						TokenType:      types.Particle,
 						Nonce:          1,
 					},
@@ -740,7 +740,7 @@ func TestMetaState(t *testing.T) {
 						},
 						Nonce:          1,
 						GasPrice:       1,
-						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 2,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 2,
 					},
 				}
 				err = invalidCd5.Sign(privKey3)
@@ -754,7 +754,7 @@ func TestMetaState(t *testing.T) {
 						},
 						Nonce:          1,
 						GasPrice:       1,
-						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 1,
 					},
 				}
 				err = invalidCd6.Sign(privKey3)
@@ -773,7 +773,7 @@ func TestMetaState(t *testing.T) {
 						},
 						Nonce:          1,
 						GasPrice:       1,
-						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 10,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 10,
 					},
 				}
 				err = invalidCd7.Sign(privKey3)
@@ -903,7 +903,7 @@ func TestMetaState(t *testing.T) {
 				b2, loaded = ms.loadAccountStableBalance(addr1)
 				So(loaded, ShouldBeTrue)
 				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
-					uint64(conf.GConf.BillingPeriod) * uint64(len(cd2.ResourceMeta.TargetMiners))
+					conf.GConf.BillingBlockCount * uint64(len(cd2.ResourceMeta.TargetMiners))
 				So(b1-b2, ShouldEqual, cd1.AdvancePayment+minAdvancePayment)
 				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
 				co, loaded = ms.loadSQLChainObject(dbID)

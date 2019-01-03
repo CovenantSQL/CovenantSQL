@@ -979,7 +979,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
 		return
 	}
-	log.Debugf("update billing addr: %s, tx: %v", tx.GetAccountAddress(), tx)
+	log.Debugf("update billing addr: %s, user: %d, tx: %v", tx.GetAccountAddress(), len(tx.Users), tx)
 
 	if newProfile.GasPrice == 0 {
 		return

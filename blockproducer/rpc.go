@@ -203,7 +203,7 @@ func WaitBPChainService(ctx context.Context, period time.Duration) (err error) {
 		case <-ticker.C:
 			if err = rpc.RequestBP(
 				route.MCCFetchBlock.String(), req, resp,
-			); err == nil || strings.Contains(err.Error(), "can't find service") {
+			); err == nil || !strings.Contains(err.Error(), "can't find service") {
 				return
 			}
 		case <-ctx.Done():

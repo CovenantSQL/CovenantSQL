@@ -29,8 +29,7 @@ import (
 
 // HTTPAdapter is a adapter for covenantsql/alternative sqlite3 service.
 type HTTPAdapter struct {
-	tlsConfig *tls.Config
-	server    *http.Server
+	server *http.Server
 }
 
 // NewHTTPAdapter creates adapter to service.

@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/user"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -68,15 +69,14 @@ var (
 )
 
 type userPermission struct {
-	targetChain proto.AccountAddress
-	targetUser  proto.AccountAddress
-	perm        types.UserPermission
+	TargetChain proto.AccountAddress `json:"chain"`
+	TargetUser  proto.AccountAddress `json:"user"`
+	Perm        types.UserPermission `json:"perm"`
 }
 
 type tranToken struct {
-	targetUser proto.AccountAddress
-	amount     uint64
-	tokenType  types.TokenType
+	TargetUser proto.AccountAddress `json:"addr"`
+	Amount     string               `json:"amount"`
 }
 
 type varsFlag struct {
@@ -208,7 +208,7 @@ func init() {
 	flag.StringVar(&updatePermission, "update-perm", "", "update user's permission on specific sqlchain")
 	flag.StringVar(&transferToken, "transfer", "", "transfer token to target account")
 	flag.BoolVar(&getBalance, "get-balance", false, "get balance of current account")
-	flag.StringVar(&getBalanceWithTokenName, "token-balance", "Particle", "get specific token's balance of current account, e.g. Particle, Wave, and etc.")
+	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 }
 
 func main() {
@@ -327,7 +327,7 @@ func main() {
 			return
 		}
 
-		err := client.UpdatePermission(perm.targetUser, perm.targetChain, perm.perm)
+		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, perm.Perm)
 
 		if err != nil {
 			log.WithError(err).Error("update permission failed")
@@ -347,7 +347,14 @@ func main() {
 			return
 		}
 
-		err := client.TransferToken(tran.targetUser, tran.amount, tran.tokenType)
+		var validAmount = regexp.MustCompile(`^[0-9]+ *[a-zA-Z]+$`)
+		if !validAmount.MatchString(tran.Amount) {
+			log.Error("transfer token failed: invalid transfer description")
+			os.Exit(-1)
+			return
+		}
+
+		// err := client.TransferToken(tran.TargetUser, tran.Amount, tran.TokenType)
 
 		if err != nil {
 			log.WithError(err).Error("transfer token failed")

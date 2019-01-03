@@ -383,6 +383,7 @@ func TransferToken(targetUser proto.AccountAddress, amount uint64, tokenType typ
 
 	tran := types.NewTransfer(&types.TransferHeader{
 		Sender:    addr,
+		Receiver:  targetUser,
 		Amount:    amount,
 		TokenType: tokenType,
 		Nonce:     nonce,

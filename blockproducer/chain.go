@@ -392,7 +392,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 
 	defer c.increaseNextHeight()
 	// Skip if it's not my turn
-	if !c.isMyTurn() {
+	if c.mode == "api" || !c.isMyTurn() {
 		return
 	}
 	// Normally, a block producing should start right after the new period, but more time may also

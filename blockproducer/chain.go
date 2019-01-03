@@ -630,29 +630,27 @@ func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 					}
 					resp = &types.FetchBlockResp{}
 				)
-				if err = c.cl.CallNodeWithContext(
-					cld, id, route.MCCFetchBlock.String(), req, resp,
-				); err != nil {
-					log.WithFields(log.Fields{
-						"local":  c.peerInfo(),
-						"remote": id,
-						"height": h,
-					}).WithError(err).Warn("failed to fetch block")
-					atomic.AddUint32(&unreachable, 1)
-					return
-				}
-				var fields = log.Fields{
+				var le = log.WithFields(log.Fields{
 					"local":  c.peerInfo(),
 					"remote": id,
 					"height": h,
+				})
+				if err = c.cl.CallNodeWithContext(
+					cld, id, route.MCCFetchBlock.String(), req, resp,
+				); err != nil {
+					le.WithError(err).Warn("failed to fetch block")
+					atomic.AddUint32(&unreachable, 1)
+					return
 				}
-				defer log.WithFields(fields).Debug("fetch block request reply")
 				if resp.Block == nil {
+					le.Debug("fetch block request reply: no such block")
 					return
 				}
 				// Push new block from other peers
-				fields["parent"] = resp.Block.ParentHash().Short(4)
-				fields["hash"] = resp.Block.BlockHash().Short(4)
+				le.WithFields(log.Fields{
+					"parent": resp.Block.ParentHash().Short(4),
+					"hash":   resp.Block.BlockHash().Short(4),
+				}).Debug("fetch block request reply: found block")
 				select {
 				case c.pendingBlocks <- resp.Block:
 				case <-cld.Done():

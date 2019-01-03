@@ -24,7 +24,7 @@ if [ -f ${tmp_file} ];then
 fi
 
 # Clean submodule
-cd ${TEST_WD}/GNTE/ && git clean -dfx
+cd ${TEST_WD}/GNTE/ && sudo git clean -dfx
 
 for gnte_yaml in ${yaml[@]};
 do

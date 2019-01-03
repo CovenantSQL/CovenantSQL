@@ -71,7 +71,7 @@ var (
 type userPermission struct {
 	TargetChain proto.AccountAddress `json:"chain"`
 	TargetUser  proto.AccountAddress `json:"user"`
-	Perm        types.UserPermission `json:"perm"`
+	Perm        string               `json:"perm"`
 }
 
 type tranToken struct {
@@ -327,7 +327,15 @@ func main() {
 			return
 		}
 
-		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, perm.Perm)
+		var p types.UserPermission
+		p.FromString(perm.Perm)
+		if !p.Valid() {
+			log.WithError(err).Errorf("update permission failed: invalid permission description")
+			os.Exit(-1)
+			return
+		}
+
+		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
 
 		if err != nil {
 			log.WithError(err).Error("update permission failed")
@@ -336,6 +344,7 @@ func main() {
 		}
 
 		log.Info("success in sending transaction to CovenantSQL")
+		return
 	}
 
 	if transferToken != "" {
@@ -347,15 +356,35 @@ func main() {
 			return
 		}
 
-		var validAmount = regexp.MustCompile(`^[0-9]+ *[a-zA-Z]+$`)
+		var validAmount = regexp.MustCompile(`^([0-9]+) *([a-zA-Z]+)$`)
 		if !validAmount.MatchString(tran.Amount) {
 			log.Error("transfer token failed: invalid transfer description")
 			os.Exit(-1)
 			return
 		}
+		amountUnit := validAmount.FindStringSubmatch(tran.Amount)
+		if len(amountUnit) != 3 {
+			log.Error("transfer token failed: invalid transfer description")
+			for _, v := range amountUnit {
+				log.Error(v)
+			}
+			os.Exit(-1)
+			return
+		}
+		amount, err := strconv.ParseUint(amountUnit[1], 10, 64)
+		if err != nil {
+			log.Error("transfer token failed: invalid token amount")
+			os.Exit(-1)
+			return
+		}
+		unit := types.FromString(amountUnit[2])
+		if !unit.Listed() {
+			log.Error("transfer token failed: invalid token type")
+			os.Exit(-1)
+			return
+		}
 
-		// err := client.TransferToken(tran.TargetUser, tran.Amount, tran.TokenType)
-
+		err = client.TransferToken(tran.TargetUser, amount, unit)
 		if err != nil {
 			log.WithError(err).Error("transfer token failed")
 			os.Exit(-1)
@@ -363,6 +392,7 @@ func main() {
 		}
 
 		log.Info("success in sending transaction to CovenantSQL")
+		return
 	}
 
 	var (

@@ -71,6 +71,20 @@ func (up *UserPermission) Valid() bool {
 	return *up >= Admin && *up < NumberOfUserPermission
 }
 
+// FromString converts string to UserPermission.
+func (up *UserPermission) FromString(perm string) {
+	switch perm {
+	case "Admin":
+		*up = Admin
+	case "Write":
+		*up = Write
+	case "Read":
+		*up = Read
+	default:
+		*up = UnknownPerm
+	}
+}
+
 // Status defines status of a SQLChain user/miner.
 type Status int32
 

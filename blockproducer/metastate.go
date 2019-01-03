@@ -52,13 +52,17 @@ func newMetaState() *metaState {
 }
 
 func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *types.Account, loaded bool) {
-	if o, loaded = s.dirty.accounts[k]; loaded {
-		if o == nil {
+	var old *types.Account
+	if old, loaded = s.dirty.accounts[k]; loaded {
+		if old == nil {
 			loaded = false
+			return
 		}
+		o = deepcopy.Copy(old).(*types.Account)
 		return
 	}
-	if o, loaded = s.readonly.accounts[k]; loaded {
+	if old, loaded = s.readonly.accounts[k]; loaded {
+		o = deepcopy.Copy(old).(*types.Account)
 		return
 	}
 	return
@@ -67,10 +71,17 @@ func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *types.Account,
 func (s *metaState) loadOrStoreAccountObject(
 	k proto.AccountAddress, v *types.Account) (o *types.Account, loaded bool,
 ) {
-	if o, loaded = s.dirty.accounts[k]; loaded && o != nil {
+	var old *types.Account
+	if old, loaded = s.dirty.accounts[k]; loaded {
+		if old == nil {
+			loaded = false
+			return
+		}
+		o = deepcopy.Copy(old).(*types.Account)
 		return
 	}
-	if o, loaded = s.readonly.accounts[k]; loaded {
+	if old, loaded = s.readonly.accounts[k]; loaded {
+		o = deepcopy.Copy(old).(*types.Account)
 		return
 	}
 	s.dirty.accounts[k] = v
@@ -1044,6 +1055,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 
 	var (
 		sqlchain *types.SQLChainProfile
+		account  *types.Account
 		ok       bool
 	)
 	sqlchain, ok = s.loadSQLChainObject(transfer.Receiver.DatabaseID())
@@ -1061,6 +1073,17 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 			"dbid":   transfer.Receiver.DatabaseID(),
 			"sender": transfer.Sender.String(),
 		})
+		return
+	}
+	account, ok = s.loadAccountObject(realSender)
+	if account.TokenBalance[transfer.TokenType] < transfer.Amount {
+		err = ErrInsufficientBalance
+		log.WithFields(log.Fields{
+			"addr":            account.Address.String(),
+			"amount":          account.TokenBalance[transfer.TokenType],
+			"transfer_amount": transfer.Amount,
+			"token_type":      transfer.TokenType.String(),
+		}).WithError(err).Warning("in transferSQLChainTokenBalance")
 		return
 	}
 
@@ -1083,13 +1106,15 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 					}
 					user.Arrears = 0
 					user.Status = types.Normal
+
 					transfer.Amount -= user.Arrears
+					account.TokenBalance[transfer.TokenType] -= user.Arrears
 				} else {
 					err = ErrInsufficientTransfer
 					log.WithFields(log.Fields{
 						"arrears":         user.Arrears,
 						"transfer_amount": transfer.Amount,
-					})
+					}).WithError(err).Warning("in transferSQLChainTokenBalance")
 					return
 				}
 			}
@@ -1107,15 +1132,17 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 			} else {
 				err = safeAdd(&user.AdvancePayment, &transfer.Amount)
 				if err != nil {
-					return err
+					return
 				}
 			}
+			account.TokenBalance[transfer.TokenType] -= transfer.Amount
 			if !user.Status.EnableQuery() {
 				if user.AdvancePayment > minDep {
 					user.Status = types.Normal
 				}
 			}
 			s.dirty.databases[transfer.Receiver.DatabaseID()] = sqlchain
+			s.dirty.accounts[realSender] = account
 			return
 		}
 	}

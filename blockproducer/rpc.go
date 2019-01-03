@@ -188,6 +188,31 @@ func WaitDatabaseCreation(
 	}
 }
 
+// WaitBPChainService waits until BP chain service is ready.
+func WaitBPChainService(ctx context.Context, period time.Duration) (err error) {
+	var (
+		ticker = time.NewTicker(period)
+		req    = &types.FetchBlockReq{
+			Height: 0, // Genesis block
+		}
+		resp = &types.FetchTxBillingResp{}
+	)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err = rpc.RequestBP(
+				route.MCCFetchBlock.String(), req, resp,
+			); err == nil || strings.Contains(err.Error(), "can't find service") {
+				return
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
+}
+
 // Create allocates new database.
 func Create(
 	meta types.ResourceMeta,

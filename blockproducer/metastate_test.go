@@ -31,6 +31,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -639,7 +641,7 @@ func TestMetaState(t *testing.T) {
 					types.NewBaseAccount(
 						&types.Account{
 							Address:      addr2,
-							TokenBalance: [types.SupportTokenNumber]uint64{10000000, 100},
+							TokenBalance: [types.SupportTokenNumber]uint64{10000000000, 100},
 						},
 					),
 					types.NewBaseAccount(
@@ -755,7 +757,7 @@ func TestMetaState(t *testing.T) {
 						Owner: addr3,
 						ResourceMeta: types.ResourceMeta{
 							TargetMiners:           []proto.AccountAddress{addr2},
-							Node:                   10,
+							Node:                   2,
 							Space:                  9,
 							Memory:                 9,
 							LoadAvgPerCPU:          0.1,
@@ -764,10 +766,29 @@ func TestMetaState(t *testing.T) {
 						},
 						Nonce:          1,
 						GasPrice:       1,
-						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 10,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 2,
 					},
 				}
 				err = invalidCd7.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd8 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr2,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners:           []proto.AccountAddress{addr2},
+							Node:                   2,
+							Space:                  9,
+							Memory:                 9,
+							LoadAvgPerCPU:          0.1,
+							UseEventualConsistency: false,
+							ConsistencyLevel:       0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 2,
+					},
+				}
+				err = invalidCd8.Sign(privKey2)
 				So(err, ShouldBeNil)
 
 				err = ms.apply(&invalidPs)
@@ -833,6 +854,63 @@ func TestMetaState(t *testing.T) {
 				}
 				err = ms.apply(&invalidCd7)
 				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("9")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0001111",
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("9")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0002111",
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("10")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0003111",
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("11")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0000003",
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("12")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0000001",
+				}
+				err = ms.apply(&invalidCd8)
+				So(err, ShouldBeNil)
+				dbID := proto.FromAccountAndNonce(addr2, uint32(invalidCd8.Nonce))
+
+				mIDs := make([]string, 0)
+				for _, m := range ms.dirty.databases[dbID].Miners {
+					mIDs = append(mIDs, string(m.NodeID))
+				}
+				log.Debugf("mIDs: %v", mIDs)
+				So(mIDs, ShouldContain, "0000003")
+				So(mIDs, ShouldContain, "0000001")
 			})
 			Convey("When SQLChain create", func() {
 				ps := types.ProvideService{

@@ -154,21 +154,16 @@ func WaitDatabaseCreation(
 	period time.Duration,
 ) (err error) {
 	var (
-		timer = time.NewTimer(0)
-		req   = &types.QuerySQLChainProfileReq{
+		ticker = time.NewTicker(period)
+		req    = &types.QuerySQLChainProfileReq{
 			DBID: dbID,
 		}
 		resp = &types.QuerySQLChainProfileResp{}
 	)
-	defer func() {
-		if !timer.Stop() {
-			<-timer.C
-		}
-	}()
+	defer ticker.Stop()
 	for {
 		select {
-		case <-timer.C:
-			timer.Reset(period)
+		case <-ticker.C:
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, resp,
 			); err != nil {

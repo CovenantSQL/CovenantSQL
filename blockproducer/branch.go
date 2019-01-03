@@ -29,6 +29,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const transactionsLimit = 1000
+
 type branch struct {
 	head     *blockNode
 	preview  *metaState
@@ -172,20 +174,28 @@ func (b *branch) produceBlock(
 	br *branch, bl *types.BPBlock, err error,
 ) {
 	var (
-		cpy  = b.makeArena()
-		txs  = cpy.sortUnpackedTxs()
-		out  = make([]pi.Transaction, 0, len(txs))
-		ierr error
+		cpy       = b.makeArena()
+		txs       = cpy.sortUnpackedTxs()
+		ierr      error
+		packCount = transactionsLimit
 	)
-	for _, v := range txs {
+
+	if len(txs) < packCount {
+		packCount = len(txs)
+	}
+
+	out := make([]pi.Transaction, len(txs))
+	for i := 0; i < packCount; i++ {
+		v := txs[i]
 		var k = v.Hash()
 		if ierr = cpy.preview.apply(v); ierr != nil {
 			continue
 		}
 		delete(cpy.unpacked, k)
 		cpy.packed[k] = v
-		out = append(out, v)
+		out[i] = v
 	}
+
 	// Create new block and update head
 	var block = &types.BPBlock{
 		SignedHeader: types.BPSignedHeader{

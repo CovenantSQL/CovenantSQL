@@ -46,12 +46,17 @@ const (
 	DebugLevel
 )
 
-// PkgDebugLogFilter is the log filter
-// if package name exists and log level is more verbose, the log will be dropped
-var PkgDebugLogFilter = map[string]logrus.Level{
-	"metric": InfoLevel,
-	"rpc":    InfoLevel,
-}
+var (
+	// PkgDebugLogFilter is the log filter
+	// if package name exists and log level is more verbose, the log will be dropped
+	PkgDebugLogFilter = map[string]logrus.Level{
+		"metric": InfoLevel,
+		"rpc":    InfoLevel,
+	}
+	// SimpleLog is the flag of simple log format
+	// "Y" for true, "N" for false. defined in `go build`
+	SimpleLog = "N"
+)
 
 // Logger wraps logrus logger type.
 type Logger logrus.Logger
@@ -98,6 +103,10 @@ func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 
 // Levels define hook applicable level.
 func (hook *CallerHook) Levels() []logrus.Level {
+	// defined in `go build`
+	if SimpleLog == "Y" {
+		return []logrus.Level{}
+	}
 	return []logrus.Level{
 		logrus.PanicLevel,
 		logrus.FatalLevel,

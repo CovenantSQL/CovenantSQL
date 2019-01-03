@@ -79,6 +79,11 @@ func NewCallerHook(stackLevels []logrus.Level) *CallerHook {
 // StandardCallerHook is a convenience initializer for LogrusStackHook{} with
 // default args.
 func StandardCallerHook() *CallerHook {
+	// defined in `go build`
+	if SimpleLog == "Y" {
+		return NewCallerHook([]logrus.Level{})
+	}
+
 	return NewCallerHook(
 		[]logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel},
 	)

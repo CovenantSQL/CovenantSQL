@@ -395,7 +395,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 	}
 	// Normally, a block producing should start right after the new period, but more time may also
 	// elapse since the last block synchronizing.
-	if elapsed > c.tick { // TODO(leventeliu): add threshold config for `elapsed`.
+	if elapsed+c.tick > c.period { // TODO(leventeliu): add threshold config for `elapsed`.
 		log.WithFields(log.Fields{
 			"advanced_height": c.getNextHeight(),
 			"using_timestamp": now.Format(time.RFC3339Nano),

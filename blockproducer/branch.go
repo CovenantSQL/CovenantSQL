@@ -58,6 +58,10 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
+		if len(bn.block.Transactions) > transactionsLimit {
+			return nil, ErrTooManyTransactionsInBlock
+		}
+
 		for _, v := range bn.block.Transactions {
 			var k = v.Hash()
 			// Check in tx pool
@@ -128,6 +132,11 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 		return
 	}
 	var cpy = b.makeArena()
+
+	if len(n.block.Transactions) > transactionsLimit {
+		return nil, ErrTooManyTransactionsInBlock
+	}
+
 	for _, v := range n.block.Transactions {
 		var k = v.Hash()
 		// Check in tx pool
@@ -184,7 +193,7 @@ func (b *branch) produceBlock(
 		packCount = len(txs)
 	}
 
-	out := make([]pi.Transaction, packCount)
+	out := make([]pi.Transaction, 0, packCount)
 	for i := 0; i < packCount; i++ {
 		v := txs[i]
 		var k = v.Hash()
@@ -193,7 +202,7 @@ func (b *branch) produceBlock(
 		}
 		delete(cpy.unpacked, k)
 		cpy.packed[k] = v
-		out[i] = v
+		out = append(out, v)
 	}
 
 	// Create new block and update head

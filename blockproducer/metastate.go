@@ -1019,15 +1019,32 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 				miner.PendingIncome += userMap[user.Address][miner.Address] * newProfile.GasPrice
 			}
 		} else {
-			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*newProfile.GasPrice)
+			rate := float64(user.AdvancePayment) / float64(costMap[user.Address]*newProfile.GasPrice)
 			user.AdvancePayment = 0
 			user.Status = types.Arrears
 			for _, miner := range newProfile.Miners {
 				income := userMap[user.Address][miner.Address] * newProfile.GasPrice
 				minerIncome := uint64(float64(income) * rate)
 				miner.PendingIncome += minerIncome
+				if miner.UserArrears == nil {
+					miner.UserArrears = make([]*types.UserArrears, 0)
+				}
+				exist := false
 				for i := range miner.UserArrears {
-					miner.UserArrears[i].Arrears += (income - minerIncome)
+					if miner.UserArrears[i].User == user.Address {
+						exist = true
+						diff := income - minerIncome
+						miner.UserArrears[i].Arrears += diff
+						user.Arrears += diff
+					}
+				}
+				if !exist {
+					diff := income - minerIncome
+					miner.UserArrears = append(miner.UserArrears, &types.UserArrears{
+						User:    user.Address,
+						Arrears: diff,
+					})
+					user.Arrears += diff
 				}
 			}
 		}

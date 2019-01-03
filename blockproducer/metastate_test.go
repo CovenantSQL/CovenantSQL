@@ -785,7 +785,7 @@ func TestMetaState(t *testing.T) {
 						},
 						Nonce:          1,
 						GasPrice:       1,
-						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingPeriod) * 2,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingBlockCount) * 2,
 					},
 				}
 				err = invalidCd8.Sign(privKey2)
@@ -1174,7 +1174,7 @@ func TestMetaState(t *testing.T) {
 					sqlchain, loaded := ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
 					So(len(sqlchain.Miners), ShouldEqual, 1)
-					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 125)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 100)
 					users = [3]*types.UserCost{
 						&types.UserCost{
 							User: addr1,
@@ -1221,8 +1221,8 @@ func TestMetaState(t *testing.T) {
 					sqlchain, loaded = ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
 					So(len(sqlchain.Miners), ShouldEqual, 1)
-					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
-					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 125)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 100)
+					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 100)
 				})
 			})
 		})

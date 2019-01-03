@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -232,6 +233,13 @@ func TestChain(t *testing.T) {
 				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Bug regression: duplicate branch #%d", i), func() {
+					var branchCount = len(chain.branches)
+					err = chain.pushBlock(bl)
+					So(err, ShouldBeNil)
+					So(branchCount, ShouldEqual, len(chain.branches))
+				})
 			}
 
 			Convey("The chain immutable should be updated to irreversible block", func() {

@@ -344,7 +344,7 @@ func main() {
 			return
 		}
 
-		log.Info("success in sending transaction to CovenantSQL")
+		log.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
 
@@ -392,7 +392,7 @@ func main() {
 			return
 		}
 
-		log.Info("success in sending transaction to CovenantSQL")
+		log.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
 

@@ -194,8 +194,7 @@ func (b *branch) produceBlock(
 	}
 
 	out := make([]pi.Transaction, 0, packCount)
-	for i := 0; i < packCount; i++ {
-		v := txs[i]
+	for _, v := range txs {
 		var k = v.Hash()
 		if ierr = cpy.preview.apply(v); ierr != nil {
 			continue
@@ -203,6 +202,9 @@ func (b *branch) produceBlock(
 		delete(cpy.unpacked, k)
 		cpy.packed[k] = v
 		out = append(out, v)
+		if len(out) == packCount {
+			break
+		}
 	}
 
 	// Create new block and update head

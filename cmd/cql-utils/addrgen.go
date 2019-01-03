@@ -60,5 +60,5 @@ func runAddrgen() {
 		log.WithError(err).Fatal("unexpected error")
 	}
 
-	fmt.Printf("wallet address hash: %s\n", keyHash.String())
+	fmt.Printf("wallet address: %s\n", keyHash.String())
 }

@@ -854,6 +854,9 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			// Return silently if block exists in the current branch
 			return
 		}
+	}
+
+	for _, v := range c.branches {
 		// Fork and create new branch
 		if parent, ok = v.head.hasAncestorWithMinCount(
 			bl.SignedHeader.ParentHash, c.lastIrre.count,

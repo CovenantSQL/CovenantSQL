@@ -88,7 +88,15 @@ stop:
 logs:
 	docker-compose logs -f --tail=10
 
+push_testnet:
+	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):testnet
+	docker push $(OB_IMAGE):testnet
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):testnet
+	docker push $(IMAGE):testnet
+
 push:
+	docker push $(OB_IMAGE):$(VERSION)
+	docker push $(OB_IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
@@ -207,4 +215,4 @@ all: bp miner observer client
 clean:
 	rm -rf bin/cql*
 
-.PHONY: status start stop logs push clean
+.PHONY: status start stop logs push push_testnet clean bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer 

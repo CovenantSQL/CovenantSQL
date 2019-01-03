@@ -79,12 +79,12 @@ func TestSingleDatabase(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:      "TEST",
-			DataDir:         rootDir,
-			KayakMux:        kayakMuxService,
-			ChainMux:        chainMuxService,
-			MaxWriteTimeGap: time.Second * 5,
-			UpdatePeriod:    2,
+			DatabaseID:       "TEST",
+			DataDir:          rootDir,
+			KayakMux:         kayakMuxService,
+			ChainMux:         chainMuxService,
+			MaxWriteTimeGap:  time.Second * 5,
+			UpdateBlockCount: 2,
 		}
 
 		// create genesis block
@@ -441,12 +441,12 @@ func TestInitFailed(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:      "TEST",
-			DataDir:         rootDir,
-			KayakMux:        kayakMuxService,
-			ChainMux:        chainMuxService,
-			MaxWriteTimeGap: time.Duration(5 * time.Second),
-			UpdatePeriod:    2,
+			DatabaseID:       "TEST",
+			DataDir:          rootDir,
+			KayakMux:         kayakMuxService,
+			ChainMux:         chainMuxService,
+			MaxWriteTimeGap:  time.Duration(5 * time.Second),
+			UpdateBlockCount: 2,
 		}
 
 		// create genesis block
@@ -495,12 +495,12 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:      "TEST",
-			DataDir:         rootDir,
-			KayakMux:        kayakMuxService,
-			ChainMux:        chainMuxService,
-			MaxWriteTimeGap: time.Duration(5 * time.Second),
-			UpdatePeriod:    2,
+			DatabaseID:       "TEST",
+			DataDir:          rootDir,
+			KayakMux:         kayakMuxService,
+			ChainMux:         chainMuxService,
+			MaxWriteTimeGap:  time.Duration(5 * time.Second),
+			UpdateBlockCount: 2,
 		}
 
 		// create genesis block

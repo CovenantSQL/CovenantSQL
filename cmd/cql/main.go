@@ -29,9 +29,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
@@ -39,6 +36,10 @@ import (
 	"github.com/xo/usql/handler"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const name = "cql"

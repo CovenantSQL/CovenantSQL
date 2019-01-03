@@ -215,4 +215,4 @@ all: bp miner observer client
 clean:
 	rm -rf bin/cql*
 
-.PHONY: status start stop logs push clean bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer 
+.PHONY: status start stop logs push push_testnet clean bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer 

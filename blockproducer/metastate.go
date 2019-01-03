@@ -748,7 +748,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		Owner:          sender,
 		Users:          users,
 		EncodedGenesis: enc.Bytes(),
-		Miners:         miners[:],
+		Miners:         miners,
 	}
 
 	if _, loaded := s.loadSQLChainObject(dbID); loaded {
@@ -757,8 +757,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
 	s.dirty.databases[dbID] = sp
-	for _, miner := range tx.ResourceMeta.TargetMiners {
-		s.deleteProviderObject(miner)
+	for _, miner := range miners {
+		s.deleteProviderObject(miner.Address)
 	}
 	log.Infof("success create sqlchain with database ID: %s", dbID)
 	return
@@ -776,6 +776,9 @@ func (s *metaState) filterNMiners(
 		allProviderMap[k] = v
 	}
 	for k, v := range s.dirty.provider {
+		if v == nil {
+			delete(allProviderMap, k)
+		}
 		allProviderMap[k] = v
 	}
 

@@ -51,7 +51,7 @@ func runConfgen() {
 
 	if _, err := os.Stat(workingRoot); err == nil {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Println("The directory has already existed. \nDo you want to delete it? (y or n, press Enter for default n):")
+		fmt.Println("The directory already exists. \nDo you want to delete it? (y or n, press Enter for default n):")
 		t, err := reader.ReadString('\n')
 		t = strings.Trim(t, "\n")
 		if err != nil {

@@ -31,7 +31,7 @@ import (
 func runKeygen() *asymmetric.PublicKey {
 	if _, err := os.Stat(privateKeyFile); err == nil {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Println("Private key file has already existed. \nDo you want to delete it? (y or n, press Enter for default n):")
+		fmt.Println("Private key file already exists. \nDo you want to delete it? (y or n, press Enter for default n):")
 		t, err := reader.ReadString('\n')
 		t = strings.Trim(t, "\n")
 		if err != nil {

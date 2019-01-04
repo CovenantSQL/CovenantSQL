@@ -543,11 +543,21 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		for _, user := range profileResp.Profile.Users {
 			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
+			if user.AdvancePayment == testAdvancePayment {
+				time.Sleep(20 * time.Second)
+				break
+			}
+		}
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		for _, user := range profileResp.Profile.Users {
 			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
 		}
+		getIncome := false
 		for _, miner := range profileResp.Profile.Miners {
-			So(miner.PendingIncome != 0 || miner.ReceivedIncome != 0, ShouldBeTrue)
+			getIncome = getIncome || (miner.PendingIncome != 0 || miner.ReceivedIncome != 0)
 		}
+		So(getIncome, ShouldBeTrue)
 
 		err = db.Close()
 		So(err, ShouldBeNil)

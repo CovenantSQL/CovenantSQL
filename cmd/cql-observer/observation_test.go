@@ -304,6 +304,9 @@ func TestFullProcess(t *testing.T) {
 		err = client.WaitDBCreation(ctx2, dsn)
 		So(err, ShouldBeNil)
 
+		_, err = db.ExecContext(ctx2, "SHOW TABLES")
+		So(err, ShouldBeNil)
+
 		_, err = db.Exec("CREATE TABLE test (test int)")
 		So(err, ShouldBeNil)
 

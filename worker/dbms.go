@@ -46,9 +46,6 @@ const (
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
 
-	// CheckInterval defines the bus service period.
-	CheckInterval = 30 * time.Second
-
 	// DefaultSlowQueryTime defines the default slow query log time
 	DefaultSlowQueryTime = time.Second * 5
 )
@@ -100,7 +97,7 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 	// init chain bus service
 	ctx := context.Background()
-	bs := NewBusService(ctx, addr, CheckInterval)
+	bs := NewBusService(ctx, addr, conf.GConf.ChainBusPeriod)
 	dbms.busService = bs
 
 	// private key cache

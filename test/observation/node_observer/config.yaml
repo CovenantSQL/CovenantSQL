@@ -7,6 +7,7 @@ ListenAddr: "127.0.0.1:4123"
 ThisNodeID: "0000002100a44923021af2c91822e47998b0842cd450774c020257304acdce0b"
 QPS: 1000
 BillingBlockCount: 3600
+ChainBusPeriod: 1s
 BPPeriod: 3s
 BPTick: 1s
 SQLChainPeriod: 3s

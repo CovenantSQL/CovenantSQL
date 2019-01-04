@@ -376,6 +376,13 @@ func TestFullProcess(t *testing.T) {
 			GasPrice:       testGasPrice,
 			AdvancePayment: testAdvancePayment,
 		}
+		// wait for chain service
+		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		if err != nil {
+			t.Fatalf("wait for chain service failed: %v", err)
+		}
 
 		dsn, err := client.Create(meta)
 		So(err, ShouldBeNil)
@@ -716,6 +723,14 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		// create
 		meta := client.ResourceMeta{}
 		meta.Node = minerCount
+		// wait for chain service
+		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		if err != nil {
+			b.Fatalf("wait for chain service failed: %v", err)
+		}
+
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
@@ -805,6 +820,14 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		meta := client.ResourceMeta{}
 		meta.Node = minerCount
 		meta.AdvancePayment = 1000000000
+		// wait for chain service
+		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		if err != nil {
+			b.Fatalf("wait for chain service failed: %v", err)
+		}
+
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)

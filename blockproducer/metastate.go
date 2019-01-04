@@ -263,7 +263,7 @@ func (s *metaState) increaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			err := errors.Wrap(ErrAccountNotFound, "increase account balance fail")
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -279,7 +279,7 @@ func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			err := errors.Wrap(ErrAccountNotFound, "decrease account balance fail")
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)

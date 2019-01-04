@@ -330,7 +330,7 @@ func main() {
 
 		var p types.UserPermission
 		p.FromString(perm.Perm)
-		if !p.Valid() {
+		if p > types.NumberOfUserPermission {
 			log.WithError(err).Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return

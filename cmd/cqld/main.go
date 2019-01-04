@@ -56,9 +56,6 @@ var (
 	showVersion bool
 	configFile  string
 
-	clientMode      bool
-	clientOperation string
-
 	wsapiAddr string
 )
 
@@ -74,9 +71,6 @@ func init() {
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
-
-	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
 
 	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API")
 
@@ -130,15 +124,6 @@ func main() {
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
-
-	if clientMode {
-		if err := runClient(conf.GConf.ThisNodeID); err != nil {
-			log.WithError(err).Fatal("run client failed")
-		} else {
-			log.Info("run client success")
-		}
-		return
-	}
 
 	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {
 		log.WithError(err).Fatal("run kayak failed")

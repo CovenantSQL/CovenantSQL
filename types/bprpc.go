@@ -18,6 +18,8 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -182,4 +184,15 @@ type QuerySQLChainProfileReq struct {
 type QuerySQLChainProfileResp struct {
 	proto.Envelope
 	Profile SQLChainProfile
+}
+
+type QueryTxStateReq struct {
+	proto.Envelope
+	Hash hash.Hash
+}
+
+type QueryTxStateResp struct {
+	proto.Envelope
+	Hash  hash.Hash
+	State pi.TransactionState
 }

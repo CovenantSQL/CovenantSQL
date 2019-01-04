@@ -31,7 +31,7 @@ type blockProducerInfo struct {
 
 // String implements fmt.Stringer.
 func (i *blockProducerInfo) String() string {
-	return fmt.Sprintf("[%d/%d] (%s) %s", i.rank+1, i.total, i.role, i.nodeID)
+	return fmt.Sprintf("[%d/%d|%s] %s", i.rank+1, i.total, i.role, i.nodeID)
 }
 
 func newBlockProduerInfos(
@@ -52,9 +52,9 @@ func newBlockProduerInfos(
 
 	bpInfos = make([]*blockProducerInfo, total)
 	for i, v := range peers.PeersHeader.Servers {
-		var role = "F"
+		var role = "Follower"
 		if v == peers.Leader {
-			role = "L"
+			role = "Leader"
 		}
 		bpInfos[i] = &blockProducerInfo{
 			rank:   uint32(i),

@@ -214,6 +214,18 @@ func (b *branch) clearPackedTxs(txs []pi.Transaction) {
 	}
 }
 
+func (b *branch) queryTx(hash hash.Hash) (state pi.TransactionState, ok bool) {
+	if _, ok = b.unpacked[hash]; ok {
+		state = pi.TransactionStatePending
+		return
+	}
+	if _, ok = b.packed[hash]; ok {
+		state = pi.TransactionStatePacked
+		return
+	}
+	return
+}
+
 func (b *branch) sprint(from uint32) (buff string) {
 	var nodes = b.head.fetchNodeList(from)
 	for i, v := range nodes {

@@ -140,3 +140,15 @@ func (c *Chain) loadSQLChainProfiles(addr proto.AccountAddress) []*types.SQLChai
 	defer c.RUnlock()
 	return c.immutable.loadROSQLChains(addr)
 }
+
+func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err error) {
+	c.RLock()
+	defer c.RUnlock()
+	var ok bool
+	state = pi.TransactionStateNotFound
+	if state, ok = c.headBranch.queryTx(hash); ok {
+		return
+	}
+	// TODO(leventeliu): get confirmed state from tx history.
+	return
+}

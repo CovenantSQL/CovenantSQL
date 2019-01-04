@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -130,6 +131,18 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 		return
 	}
 	err = errors.Wrap(ErrDatabaseNotFound, "rpc query sqlchain profile failed")
+	return
+}
+
+func (s *ChainRPCService) QueryTxState(
+	req *types.QueryTxStateReq, resp *types.QueryTxStateResp) (err error,
+) {
+	var state pi.TransactionState
+	if state, err = s.chain.queryTxState(req.Hash); err != nil {
+		return
+	}
+	resp.Hash = req.Hash
+	resp.State = state
 	return
 }
 

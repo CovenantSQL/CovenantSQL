@@ -483,8 +483,8 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 		le.WithError(err).Warn("failed to load base nonce of transaction account")
 		return
 	}
-	if nonce < base || nonce >= nonce+pl.MaxPendingTxsPerAccount {
-		// TODO(leventeliu): should persist to some where for tx query?
+	if nonce < base || nonce >= base+pl.MaxPendingTxsPerAccount {
+		// TODO(leventeliu): should persist to somewhere for tx query?
 		le.WithFields(log.Fields{
 			"base_nonce":    base,
 			"pending_limit": pl.MaxPendingTxsPerAccount,

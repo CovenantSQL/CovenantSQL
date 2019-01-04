@@ -21,9 +21,7 @@ type Transaction struct {
 	Timestamp      int64       `db:"timestamp" json:"-"`
 	TimestampHuman time.Time   `db:"-" json:"timestamp"`
 	TxType         int         `db:"tx_type" json:"type"`
-	Signee         string      `db:"signee" json:"signee"`
 	Address        string      `db:"address" json:"address"`
-	Signature      string      `db:"signature" json:"signature"`
 	Raw            string      `db:"raw" json:"raw"`
 	Tx             interface{} `db:"-" json:"tx"`
 }
@@ -38,7 +36,7 @@ func (tx *Transaction) PostGet(s gorp.SqlExecutor) error {
 func (m *TransactionsModel) GetTransactionByHash(hash string) (tx *Transaction, err error) {
 	tx = &Transaction{}
 	query := `SELECT block_height, tx_index, hash, block_hash, timestamp, tx_type,
-	signee, address, signature, raw
+	address, raw
 	FROM indexed_transactions WHERE hash = ?`
 	err = chaindb.SelectOne(tx, query, hash)
 	if err == sql.ErrNoRows {
@@ -64,7 +62,7 @@ func (m *TransactionsModel) GetTransactionList(since, direction string, limit in
 	}
 
 	query := fmt.Sprintf(`SELECT block_height, tx_index, hash, block_hash,
-	timestamp, tx_type, signee, address, signature, raw
+	timestamp, tx_type, address, raw
 	FROM indexed_transactions
 	WHERE block_height %s ? and tx_index %s ?
 	ORDER BY block_height %s, tx_index %s

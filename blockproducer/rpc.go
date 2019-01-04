@@ -165,14 +165,13 @@ func WaitDatabaseCreation(
 		req    = &types.QuerySQLChainProfileReq{
 			DBID: dbID,
 		}
-		resp = &types.QuerySQLChainProfileResp{}
 	)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			if err = rpc.RequestBP(
-				route.MCCQuerySQLChainProfile.String(), req, resp,
+				route.MCCQuerySQLChainProfile.String(), req, nil,
 			); err != nil {
 				if !strings.Contains(err.Error(), ErrDatabaseNotFound.Error()) {
 					// err != nil && err != ErrDatabaseNotFound (unexpected error)

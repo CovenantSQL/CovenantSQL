@@ -97,9 +97,9 @@ type MinerDatabaseFixture struct {
 // MinerInfo for miner config.
 type MinerInfo struct {
 	// node basic config.
-	RootDir               string        `yaml:"RootDir"`
-	MaxReqTimeGap         time.Duration `yaml:"MaxReqTimeGap,omitempty"`
-	MetricCollectInterval time.Duration `yaml:"MetricCollectInterval,omitempty"`
+	RootDir                string        `yaml:"RootDir"`
+	MaxReqTimeGap          time.Duration `yaml:"MaxReqTimeGap,omitempty"`
+	ProvideServiceInterval time.Duration `yaml:"ProvideServiceInterval,omitempty"`
 
 	// when test mode, fixture database config is used.
 	IsTestMode   bool                    `yaml:"IsTestMode,omitempty"`

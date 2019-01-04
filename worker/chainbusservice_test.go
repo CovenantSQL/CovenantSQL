@@ -61,7 +61,8 @@ func TestNewBusService(t *testing.T) {
 		pubKey = privKey.PubKey()
 		addr, err = crypto.PubKeyHash(pubKey)
 		So(err, ShouldBeNil)
-		ctx, _ := context.WithCancel(context.Background())
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
 		bs := NewBusService(ctx, addr, testCheckInterval)
 		topic := fmt.Sprintf("/%s/", testOddBlocks.Transactions[0].GetTransactionType().String())
 		err = bs.Subscribe(topic, func(tx interfaces.Transaction, c uint32) {

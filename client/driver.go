@@ -190,12 +190,13 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 }
 
 // WaitDBCreation waits for database creation complete
-func WaitDBCreation(ctx context.Context, dsn string, timeout time.Duration) (err error) {
+func WaitDBCreation(ctx context.Context, dsn string) (err error) {
 	dsnCfg, err := ParseDSN(dsn)
+	if err != nil {
+		return
+	}
 	// wait for creation
-	var newCtx, cancel = context.WithTimeout(ctx, timeout)
-	defer cancel()
-	err = bp.WaitDatabaseCreation(newCtx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
 	return
 }
 

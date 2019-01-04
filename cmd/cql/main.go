@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -166,8 +167,14 @@ func init() {
 		RowsAffected: func(sql.Result) (int64, error) {
 			return 0, nil
 		},
-		Open: func(url *dburl.URL) (func(string, string) (*sql.DB, error), error) {
+		Open: func(url *dburl.URL) (handler func(driver string, dsn string) (*sql.DB, error), err error) {
 			log.Infof("connecting to %#v", url.DSN)
+
+			// wait for database to become ready
+			if err = client.WaitDBCreation(context.Background(), dsn); err != nil {
+				return
+			}
+
 			return sql.Open, nil
 		},
 	})

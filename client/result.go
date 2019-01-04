@@ -21,7 +21,7 @@ type execResult struct {
 	lastInsertID int64
 }
 
-// LastInsertId teturn last inserted ID.
+// LastInsertId return last inserted ID.
 func (r *execResult) LastInsertId() (int64, error) {
 	return r.lastInsertID, nil
 }

@@ -83,8 +83,8 @@ func (z *AccountAddress) Msgsize() (s int) {
 }
 
 // String is a string variable.
-func (z *AccountAddress) String() string {
-	return (*hash.Hash)(z).String()
+func (z AccountAddress) String() string {
+	return (hash.Hash)(z).String()
 }
 
 // Less return true if k is less than y.

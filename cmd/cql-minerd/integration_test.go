@@ -376,6 +376,13 @@ func TestFullProcess(t *testing.T) {
 			GasPrice:       testGasPrice,
 			AdvancePayment: testAdvancePayment,
 		}
+		// wait for chain service
+		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		if err != nil {
+			t.Fatalf("wait for chain service failed: %v", err)
+		}
 
 		dsn, err := client.Create(meta)
 		So(err, ShouldBeNil)
@@ -543,11 +550,21 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		for _, user := range profileResp.Profile.Users {
 			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
+			if user.AdvancePayment == testAdvancePayment {
+				time.Sleep(20 * time.Second)
+				break
+			}
+		}
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		for _, user := range profileResp.Profile.Users {
 			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
 		}
+		getIncome := false
 		for _, miner := range profileResp.Profile.Miners {
-			So(miner.PendingIncome != 0 || miner.ReceivedIncome != 0, ShouldBeTrue)
+			getIncome = getIncome || (miner.PendingIncome != 0 || miner.ReceivedIncome != 0)
 		}
+		So(getIncome, ShouldBeTrue)
 
 		err = db.Close()
 		So(err, ShouldBeNil)
@@ -706,6 +723,14 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		// create
 		meta := client.ResourceMeta{}
 		meta.Node = minerCount
+		// wait for chain service
+		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		if err != nil {
+			b.Fatalf("wait for chain service failed: %v", err)
+		}
+
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
@@ -794,6 +819,15 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		// create
 		meta := client.ResourceMeta{}
 		meta.Node = minerCount
+		meta.AdvancePayment = 1000000000
+		// wait for chain service
+		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		if err != nil {
+			b.Fatalf("wait for chain service failed: %v", err)
+		}
+
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)

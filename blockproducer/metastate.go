@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"bytes"
+	"sort"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -43,6 +44,20 @@ var (
 type metaState struct {
 	dirty, readonly *metaIndex
 }
+
+// MinerInfos is MinerInfo array
+type MinerInfos []*types.MinerInfo
+
+// Len returns the length of the uints array.
+func (x MinerInfos) Len() int { return len(x) }
+
+// Less returns true if MinerInfo i is less than node j.
+func (x MinerInfos) Less(i, j int) bool {
+	return x[i].NodeID < x[j].NodeID
+}
+
+// Swap exchanges MinerInfo i and j.
+func (x MinerInfos) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 
 func newMetaState() *metaState {
 	return &metaState{
@@ -641,7 +656,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		return
 	}
 
-	miners := make([]*types.MinerInfo, 0, minerCount)
+	miners := make(MinerInfos, 0, minerCount)
 
 	for _, m := range tx.ResourceMeta.TargetMiners {
 		if po, loaded := s.loadProviderObject(m); !loaded {
@@ -669,28 +684,14 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 			err = errors.Wrapf(err, "miners match target are not enough %d:%d", len(miners), minerCount)
 			return
 		}
-		// try old miners first
-		for _, po := range s.readonly.provider {
-			miners, _ = filterAndAppendMiner(miners, po, tx, sender)
-			// if got enough, break
-			if uint64(len(miners)) == minerCount {
-				break
-			}
-		}
-		// try fresh miners
-		if uint64(len(miners)) < minerCount {
-			for _, po := range s.dirty.provider {
-				miners, _ = filterAndAppendMiner(miners, po, tx, sender)
-				// if got enough, break
-				if uint64(len(miners)) == minerCount {
-					break
-				}
-			}
-		}
-		if uint64(len(miners)) < minerCount {
-			err = ErrNoEnoughMiner
+		var newMiners MinerInfos
+		// create new merged map
+		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-len(miners))
+		if err != nil {
 			return
 		}
+
+		miners = append(miners, newMiners...)
 	}
 
 	// generate new sqlchain id and address
@@ -747,7 +748,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		Owner:          sender,
 		Users:          users,
 		EncodedGenesis: enc.Bytes(),
-		Miners:         miners[:],
+		Miners:         miners,
 	}
 
 	if _, loaded := s.loadSQLChainObject(dbID); loaded {
@@ -756,11 +757,50 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
 	s.dirty.databases[dbID] = sp
-	for _, miner := range tx.ResourceMeta.TargetMiners {
-		s.deleteProviderObject(miner)
+	for _, miner := range miners {
+		s.deleteProviderObject(miner.Address)
 	}
 	log.Infof("success create sqlchain with database ID: %s", dbID)
 	return
+}
+
+func (s *metaState) filterNMiners(
+	tx *types.CreateDatabase,
+	user proto.AccountAddress,
+	minerCount int) (
+	m MinerInfos, err error,
+) {
+	// create new merged map
+	allProviderMap := make(map[proto.AccountAddress]*types.ProviderProfile)
+	for k, v := range s.readonly.provider {
+		allProviderMap[k] = v
+	}
+	for k, v := range s.dirty.provider {
+		if v == nil {
+			delete(allProviderMap, k)
+		} else {
+			allProviderMap[k] = v
+		}
+	}
+
+	// delete selected target miners
+	for _, m := range tx.ResourceMeta.TargetMiners {
+		delete(allProviderMap, m)
+	}
+
+	// suppose 1/4 miners match
+	newMiners := make(MinerInfos, 0, len(allProviderMap)/4)
+	// filter all miners to slice and sort
+	for _, po := range allProviderMap {
+		newMiners, _ = filterAndAppendMiner(newMiners, po, tx, user)
+	}
+	if len(newMiners) < minerCount {
+		err = ErrNoEnoughMiner
+		return
+	}
+
+	sort.Slice(newMiners, newMiners.Less)
+	return newMiners[:minerCount], nil
 }
 
 func filterAndAppendMiner(
@@ -939,7 +979,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
 		return
 	}
-	log.Debugf("update billing addr: %s, tx: %v", tx.GetAccountAddress(), tx)
+	log.Debugf("update billing addr: %s, user: %d, tx: %v", tx.GetAccountAddress(), len(tx.Users), tx)
 
 	if newProfile.GasPrice == 0 {
 		return
@@ -979,15 +1019,32 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 				miner.PendingIncome += userMap[user.Address][miner.Address] * newProfile.GasPrice
 			}
 		} else {
-			rate := 1 - float64(user.AdvancePayment)/float64(costMap[user.Address]*newProfile.GasPrice)
+			rate := float64(user.AdvancePayment) / float64(costMap[user.Address]*newProfile.GasPrice)
 			user.AdvancePayment = 0
 			user.Status = types.Arrears
 			for _, miner := range newProfile.Miners {
 				income := userMap[user.Address][miner.Address] * newProfile.GasPrice
 				minerIncome := uint64(float64(income) * rate)
 				miner.PendingIncome += minerIncome
+				if miner.UserArrears == nil {
+					miner.UserArrears = make([]*types.UserArrears, 0)
+				}
+				exist := false
 				for i := range miner.UserArrears {
-					miner.UserArrears[i].Arrears += (income - minerIncome)
+					if miner.UserArrears[i].User == user.Address {
+						exist = true
+						diff := income - minerIncome
+						miner.UserArrears[i].Arrears += diff
+						user.Arrears += diff
+					}
+				}
+				if !exist {
+					diff := income - minerIncome
+					miner.UserArrears = append(miner.UserArrears, &types.UserArrears{
+						User:    user.Address,
+						Arrears: diff,
+					})
+					user.Arrears += diff
 				}
 			}
 		}
@@ -1168,5 +1225,5 @@ func (s *metaState) makeCopy() *metaState {
 
 func minDeposit(gasPrice uint64, minerNumber uint64) uint64 {
 	return gasPrice * uint64(conf.GConf.QPS) *
-		uint64(conf.GConf.BillingPeriod) * minerNumber
+		conf.GConf.BillingBlockCount * minerNumber
 }

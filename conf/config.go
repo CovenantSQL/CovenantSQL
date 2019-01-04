@@ -97,9 +97,9 @@ type MinerDatabaseFixture struct {
 // MinerInfo for miner config.
 type MinerInfo struct {
 	// node basic config.
-	RootDir               string        `yaml:"RootDir"`
-	MaxReqTimeGap         time.Duration `yaml:"MaxReqTimeGap,omitempty"`
-	MetricCollectInterval time.Duration `yaml:"MetricCollectInterval,omitempty"`
+	RootDir                string        `yaml:"RootDir"`
+	MaxReqTimeGap          time.Duration `yaml:"MaxReqTimeGap,omitempty"`
+	ProvideServiceInterval time.Duration `yaml:"ProvideServiceInterval,omitempty"`
 
 	// when test mode, fixture database config is used.
 	IsTestMode   bool                    `yaml:"IsTestMode,omitempty"`
@@ -139,7 +139,7 @@ type Config struct {
 	SeedBPNodes []proto.Node `yaml:"-"`
 
 	QPS                uint32        `yaml:"QPS"`
-	BillingPeriod      uint32        `yaml:"BillingPeriod"` // BillingPeriod is for sql chain miners syncing billing with main chain
+	BillingBlockCount  uint64        `yaml:"BillingBlockCount"` // BillingBlockCount is for sql chain miners syncing billing with main chain
 	BPPeriod           time.Duration `yaml:"BPPeriod"`
 	BPTick             time.Duration `yaml:"BPTick"`
 	SQLChainPeriod     time.Duration `yaml:"SQLChainPeriod"`

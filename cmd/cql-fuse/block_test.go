@@ -245,6 +245,15 @@ func initTestDB() (*sql.DB, func()) {
 		return nil, stopNodes
 	}
 
+	// wait for chain service
+	var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel1()
+	err = bp.WaitBPChainService(ctx1, 3*time.Second)
+	if err != nil {
+		log.Errorf("wait for chain service failed: %v", err)
+		return nil, stopNodes
+	}
+
 	// create
 	meta := client.ResourceMeta{}
 	meta.Node = 1
@@ -266,9 +275,9 @@ func initTestDB() (*sql.DB, func()) {
 	}
 
 	// wait for creation
-	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+	var ctx2, cancel2 = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel2()
+	err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	if err != nil {
 		log.Errorf("wait for creation failed: %v", err)
 		return nil, stopNodes

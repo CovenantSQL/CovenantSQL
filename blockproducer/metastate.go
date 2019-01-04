@@ -893,7 +893,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	for i, u := range so.Users {
 		isAdmin = isAdmin || (sender == u.Address && u.Permission == types.Admin)
 		if u.Permission == types.Admin {
-			numOfAdmin += 1
+			numOfAdmin++
 		}
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i

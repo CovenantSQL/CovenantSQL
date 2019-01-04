@@ -158,6 +158,7 @@ func sendProvideService(reg *prometheus.Registry) {
 		return
 	}
 
+	req.TTL = 1
 	req.Tx = tx
 
 	if err = rpc.RequestBP(route.MCCAddTx.String(), req, resp); err != nil {

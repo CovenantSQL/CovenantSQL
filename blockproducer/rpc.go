@@ -29,7 +29,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 )
 
@@ -99,13 +98,8 @@ func (s *ChainRPCService) NextAccountNonce(
 }
 
 // AddTx is the RPC method to add a transaction.
-func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err error) {
-	if req.Tx == nil {
-		return ErrUnknownTransactionType
-	}
-	log.Infof("transaction type: %s, hash: %s, address: %s",
-		req.Tx.GetTransactionType().String(), req.Tx.Hash(), req.Tx.GetAccountAddress())
-	s.chain.addTx(req.Tx)
+func (s *ChainRPCService) AddTx(req *types.AddTxReq, _ *types.AddTxResp) (err error) {
+	s.chain.addTx(req)
 	return
 }
 
@@ -195,14 +189,13 @@ func WaitBPChainService(ctx context.Context, period time.Duration) (err error) {
 		req    = &types.FetchBlockReq{
 			Height: 0, // Genesis block
 		}
-		resp = &types.FetchTxBillingResp{}
 	)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			if err = rpc.RequestBP(
-				route.MCCFetchBlock.String(), req, resp,
+				route.MCCFetchBlock.String(), req, nil,
 			); err == nil || !strings.Contains(err.Error(), "can't find service") {
 				return
 			}

@@ -104,7 +104,9 @@ type NextAccountNonceResp struct {
 // AddTxReq defines a request of the AddTx RPC method.
 type AddTxReq struct {
 	proto.Envelope
-	Tx interfaces.Transaction
+
+	TTL uint32 // defines the broadcast TTL on BP network.
+	Tx  interfaces.Transaction
 }
 
 // AddTxResp defines a response of the AddTx RPC method.

@@ -108,6 +108,7 @@ serverLoop:
 			break serverLoop
 		default:
 			conn, err := s.Listener.Accept()
+			log.WithField("remote", conn.RemoteAddr().String()).Infof("accept")
 			if err != nil {
 				continue
 			}

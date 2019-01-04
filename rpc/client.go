@@ -123,7 +123,7 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 		}
 		return
 	}
-	log.WithField("poolSize", pool.Len()).Debug("session pool size")
+	//log.WithField("poolSize", pool.Len()).Debug("session pool size")
 	conn, err = pool.Get(nodeID)
 	return
 }
@@ -218,6 +218,6 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 
 // Close the client RPC connection
 func (c *Client) Close() {
-	log.WithField("addr", c.RemoteAddr).Debug("closing client")
-	c.Client.Close()
+	//log.WithField("addr", c.RemoteAddr).Debug("closing client")
+	_ = c.Client.Close()
 }

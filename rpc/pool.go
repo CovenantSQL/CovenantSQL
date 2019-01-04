@@ -129,14 +129,14 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	if ok {
 		conn, err = cachedConn.Sess.OpenStream()
 		if err == nil {
-			log.WithField("node", id).Debug("reusing session")
+			//log.WithField("node", id).Debug("reusing session")
 			return
 		}
 		log.WithField("target", id).WithError(err).Error("open session failed")
 		p.Remove(id)
 	}
 
-	log.WithField("target", id).Debug("dialing new session")
+	//log.WithField("target", id).Debug("dialing new session")
 	// Can't find existing Session, try to dial one
 	newConn, err := p.nodeDialer(id)
 	if err != nil {

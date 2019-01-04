@@ -198,7 +198,7 @@ func (c *Caller) CallNodeWithContext(
 func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	addr, err = route.GetNodeAddrCache(id)
 	if err != nil {
-		log.WithField("target", id.String()).WithError(err).Info("get node addr from cache failed")
+		//log.WithField("target", id.String()).WithError(err).Debug("get node addr from cache failed")
 		if err == route.ErrUnknownNodeID {
 			BPs := route.GetBPs()
 			if len(BPs) == 0 {

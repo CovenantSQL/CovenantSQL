@@ -229,10 +229,10 @@ func TestDBMS(t *testing.T) {
 
 			// grant invalid permission
 			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-				&types.PermStat{Permission: types.UnknownPerm, Status: types.Normal})
+				&types.PermStat{Permission: types.Void, Status: types.Normal})
 			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			So(userState.Permission, ShouldEqual, types.UnknownPerm)
+			So(userState.Permission, ShouldEqual, types.Void)
 			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("invalid permission query should fail", func() {

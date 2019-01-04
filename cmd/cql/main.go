@@ -233,16 +233,16 @@ func main() {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetStableCoinBalance(); err != nil {
-			log.WithError(err).Error("get stable coin balance failed")
+			log.WithError(err).Error("get Particle balance failed")
 			return
 		}
 		if covenantCoinBalance, err = client.GetCovenantCoinBalance(); err != nil {
-			log.WithError(err).Error("get covenant coin balance failed")
+			log.WithError(err).Error("get Wave balance failed")
 			return
 		}
 
-		log.Infof("stable coin balance is: %d", stableCoinBalance)
-		log.Infof("covenant coin balance is: %d", covenantCoinBalance)
+		log.Infof("Particle balance is: %d", stableCoinBalance)
+		log.Infof("Wave balance is: %d", covenantCoinBalance)
 
 		return
 	}

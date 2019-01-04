@@ -39,8 +39,8 @@ const (
 type UserPermission int32
 
 const (
-	// UnknownPerm defines the initial permission.
-	UnknownPerm UserPermission = iota
+	// Void defines the initial permission.
+	Void UserPermission = iota
 	// Admin defines the admin user permission.
 	Admin
 	// Write defines the writer user permission.
@@ -80,8 +80,10 @@ func (up *UserPermission) FromString(perm string) {
 		*up = Write
 	case "Read":
 		*up = Read
+	case "Void":
+		*up = Void
 	default:
-		*up = UnknownPerm
+		*up = NumberOfUserPermission
 	}
 }
 

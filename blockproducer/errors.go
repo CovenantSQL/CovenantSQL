@@ -61,6 +61,8 @@ var (
 	ErrNoEnoughMiner = errors.New("can not get enough miners")
 	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
 	ErrAccountPermissionDeny = errors.New("account permission deny")
+	// ErrNoAdminLeft indicates there is no admin user in sqlchain.
+	ErrNoAdminLeft = errors.New("no admin user left")
 	// ErrInvalidPermission indicates that the permission is invalid.
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.

@@ -1040,7 +1040,7 @@ func TestMetaState(t *testing.T) {
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				So(errors.Cause(err), ShouldEqual, ErrNoAdminLeft)
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 2
 				err = up.Sign(privKey1)

@@ -871,10 +871,6 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		}).WithError(err).Error("unexpected err")
 		return
 	}
-	if sender == tx.TargetUser {
-		err = errors.Wrap(ErrInvalidSender, "user cannot update its permission by itself")
-		return
-	}
 	so, loaded := s.loadSQLChainObject(tx.TargetSQLChain.DatabaseID())
 	if !loaded {
 		log.WithFields(log.Fields{
@@ -892,9 +888,13 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 
 	// check whether sender is admin and find targetUser
 	isAdmin := false
+	numOfAdmin := 0
 	targetUserIndex := -1
 	for i, u := range so.Users {
 		isAdmin = isAdmin || (sender == u.Address && u.Permission == types.Admin)
+		if u.Permission == types.Admin {
+			numOfAdmin += 1
+		}
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i
 		}
@@ -906,6 +906,17 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 			"dbID":   tx.TargetSQLChain,
 		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updatePermission")
 		return ErrAccountPermissionDeny
+	}
+
+	// return error if number of Admin <= 1 and Admin want to revoke permission of itself
+	if numOfAdmin <= 1 && tx.TargetUser == sender && tx.Permission != types.Admin {
+		err = ErrNoAdminLeft
+		log.WithFields(log.Fields{
+			"sender":     sender.String(),
+			"dbID":       tx.TargetSQLChain.String(),
+			"targetUser": tx.TargetUser.String(),
+		}).WithError(err).Warning("in updatePermission")
+		return
 	}
 
 	// update targetUser's permission

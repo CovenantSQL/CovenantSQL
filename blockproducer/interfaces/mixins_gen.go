@@ -18,12 +18,12 @@ func (z *TransactionTypeMixin) MarshalHash() (o []byte, err error) {
 		o = hsp.AppendBytes(o, oTemp)
 	}
 	o = append(o, 0x82)
-	o = hsp.AppendInt64(o, z.Timestamp)
+	o = hsp.AppendTime(o, z.Timestamp)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *TransactionTypeMixin) Msgsize() (s int) {
-	s = 1 + 7 + z.TxType.Msgsize() + 10 + hsp.Int64Size
+	s = 1 + 7 + z.TxType.Msgsize() + 10 + hsp.TimeSize
 	return
 }

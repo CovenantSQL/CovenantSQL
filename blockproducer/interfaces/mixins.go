@@ -23,14 +23,14 @@ import "time"
 // TransactionTypeMixin provide type heuristic features to transaction wrapper.
 type TransactionTypeMixin struct {
 	TxType    TransactionType
-	Timestamp int64
+	Timestamp time.Time
 }
 
 // NewTransactionTypeMixin returns new instance.
 func NewTransactionTypeMixin(txType TransactionType) *TransactionTypeMixin {
 	return &TransactionTypeMixin{
 		TxType:    txType,
-		Timestamp: time.Now().UnixNano(),
+		Timestamp: time.Now(),
 	}
 }
 
@@ -51,10 +51,10 @@ func (m *TransactionTypeMixin) SetTransactionType(t TransactionType) {
 
 // GetTimestamp implements Transaciton.GetTimestamp()
 func (m *TransactionTypeMixin) GetTimestamp() time.Time {
-	return time.Unix(0, m.Timestamp)
+	return m.Timestamp
 }
 
 // SetTimestamp is a helper function for derived types.
 func (m *TransactionTypeMixin) SetTimestamp(t time.Time) {
-	m.Timestamp = t.UnixNano()
+	m.Timestamp = t
 }

@@ -29,8 +29,9 @@ func TestTransactionTypeMixin(t *testing.T) {
 		So(m.GetTransactionType(), ShouldEqual, TransactionTypeBaseAccount)
 		m.SetTransactionType(TransactionTypeTransfer)
 		So(m.GetTransactionType(), ShouldEqual, TransactionTypeTransfer)
-		t, _ := time.Parse(time.RFC3339Nano, "2002-06-23T06:06:52.112154144Z")
-		m.SetTimestamp(t)
-		So(m.GetTimestamp(), ShouldEqual, t)
+		now := time.Now()
+		So(now.Sub(m.GetTimestamp()).Seconds(), ShouldBeLessThan, 0.1)
+		m.SetTimestamp(now)
+		So(m.GetTimestamp(), ShouldEqual, now)
 	})
 }

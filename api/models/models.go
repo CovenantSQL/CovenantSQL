@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/CovenantSQL/CovenantSQL/conf"
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt" // sqlite3 driver
 	"github.com/go-gorp/gorp"
 	"github.com/pkg/errors"
@@ -15,12 +14,12 @@ var (
 )
 
 // InitModels setup the models package.
-func InitModels() error {
-	return initChainDBConnection()
+func InitModels(dbFile string) error {
+	return initChainDBConnection(dbFile)
 }
 
-func initChainDBConnection() error {
-	dsn := fmt.Sprintf("%s?_journal=WAL&mode=ro", conf.GConf.BP.ChainFileName)
+func initChainDBConnection(dbFile string) error {
+	dsn := fmt.Sprintf("%s?_journal=WAL&mode=ro", dbFile)
 	underdb, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return errors.WithMessage(err, "unable to open chain.db")

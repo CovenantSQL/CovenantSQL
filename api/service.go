@@ -21,6 +21,7 @@ import (
 
 // Service configs the API service.
 type Service struct {
+	DBFile        string // the path to the database in which stored indexed data
 	WebsocketAddr string // start a websocket server
 	ReadTimeout   time.Duration
 	WriteTimeout  time.Duration
@@ -41,7 +42,7 @@ func (s *Service) StopServers() {
 // RunServers start API servers in a blocking way, fatal on errors.
 func (s *Service) RunServers() {
 	// setup database
-	if err := models.InitModels(); err != nil {
+	if err := models.InitModels(s.DBFile); err != nil {
 		log.WithError(err).Fatal("api: init models failed")
 		return
 	}

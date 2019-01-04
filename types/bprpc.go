@@ -186,11 +186,13 @@ type QuerySQLChainProfileResp struct {
 	Profile SQLChainProfile
 }
 
+// QueryTxStateReq defines a request of the QueryTxState RPC method.
 type QueryTxStateReq struct {
 	proto.Envelope
 	Hash hash.Hash
 }
 
+// QueryTxStateResp defines a response of the QueryTxState RPC method.
 type QueryTxStateResp struct {
 	proto.Envelope
 	Hash  hash.Hash

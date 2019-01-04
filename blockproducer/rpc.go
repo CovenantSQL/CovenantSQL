@@ -134,6 +134,7 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 	return
 }
 
+// QueryTxState is the RPC method to query a transaction state.
 func (s *ChainRPCService) QueryTxState(
 	req *types.QueryTxStateReq, resp *types.QueryTxStateResp) (err error,
 ) {

@@ -990,7 +990,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		log.WithFields(log.Fields{
 			"miner_addr": minerAddr,
 			"miners":     newProfile.Miners,
-		}).WithError(err).Warning("sender does not include in sqlchain (updateBilling)")
+		}).WithError(err).Warning("sender does not exists in sqlchain (updateBilling)")
 		return
 	}
 

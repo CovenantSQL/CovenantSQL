@@ -261,11 +261,6 @@ func initTestDB() (*sql.DB, func()) {
 		log.Errorf("create db failed: %v", err)
 		return nil, stopNodes
 	}
-	_, err = client.ParseDSN(dsn)
-	if err != nil {
-		log.Errorf("parse dsn failed: %v", err)
-		return nil, stopNodes
-	}
 
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {

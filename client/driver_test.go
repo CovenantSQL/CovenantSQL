@@ -90,7 +90,7 @@ func TestCreate(t *testing.T) {
 			UseLeader:  true,
 		})
 
-		waitCtx2, cancelWait2 := context.WithTimeout(context.Background(), time.Minute)
+		waitCtx2, cancelWait2 := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancelWait2()
 		err = WaitDBCreation(waitCtx2, dsn)
 		So(err, ShouldBeNil)

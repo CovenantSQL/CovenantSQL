@@ -747,8 +747,6 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	So(err, ShouldBeNil)
 
 	// wait for creation
-	_, err = client.ParseDSN(dsn)
-	So(err, ShouldBeNil)
 	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	err = client.WaitDBCreation(ctx, dsn)
@@ -841,9 +839,6 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	}
 
 	db, err := sql.Open("covenantsql", dsn)
-	So(err, ShouldBeNil)
-
-	_, err = client.ParseDSN(dsn)
 	So(err, ShouldBeNil)
 
 	// wait for creation

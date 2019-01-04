@@ -157,34 +157,6 @@ type QueryAccountTokenBalanceResp struct {
 	Balance uint64
 }
 
-// QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountStableBalanceResp defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
-// QueryAccountCovenantBalanceReq defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountCovenantBalanceResp defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
 // QuerySQLChainProfileReq defines a request of the QuerySQLChainProfile RPC method.
 type QuerySQLChainProfileReq struct {
 	proto.Envelope

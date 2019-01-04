@@ -58,16 +58,6 @@ var (
 // fake BPDB service
 type stubBPService struct{}
 
-func (s *stubBPService) QueryAccountStableBalance(req *types.QueryAccountStableBalanceReq,
-	resp *types.QueryAccountStableBalanceResp) (err error) {
-	return
-}
-
-func (s *stubBPService) QueryAccountCovenantBalance(req *types.QueryAccountCovenantBalanceReq,
-	resp *types.QueryAccountCovenantBalanceResp) (err error) {
-	return
-}
-
 func (s *stubBPService) QueryAccountTokenBalance(req *types.QueryAccountTokenBalanceReq,
 	resp *types.QueryAccountTokenBalanceResp) (err error) {
 	resp.OK = req.TokenType.Listed()

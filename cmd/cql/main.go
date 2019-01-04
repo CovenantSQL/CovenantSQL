@@ -232,11 +232,11 @@ func main() {
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
 
-		if stableCoinBalance, err = client.GetStableCoinBalance(); err != nil {
+		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
 			log.WithError(err).Error("get Particle balance failed")
 			return
 		}
-		if covenantCoinBalance, err = client.GetCovenantCoinBalance(); err != nil {
+		if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
 			log.WithError(err).Error("get Wave balance failed")
 			return
 		}

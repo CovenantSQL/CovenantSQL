@@ -83,9 +83,9 @@ func TestMetaState(t *testing.T) {
 			ao, loaded = ms.loadAccountObject(addr1)
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			bl, loaded = ms.loadAccountStableBalance(addr1)
+			bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 			So(loaded, ShouldBeFalse)
-			bl, loaded = ms.loadAccountCovenantBalance(addr1)
+			bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The database state should be empty", func() {
@@ -156,10 +156,10 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
 				So(co.ID, ShouldEqual, dbID1)
-				bl, loaded = ms.loadAccountStableBalance(addr1)
+				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 0)
-				bl, loaded = ms.loadAccountCovenantBalance(addr1)
+				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 0)
 			})
@@ -275,10 +275,10 @@ func TestMetaState(t *testing.T) {
 					So(ao.Address, ShouldEqual, addr1)
 					So(ao.TokenBalance[types.Particle], ShouldEqual, incSta)
 					So(ao.TokenBalance[types.Wave], ShouldEqual, incCov)
-					bl, loaded = ms.loadAccountStableBalance(addr1)
+					bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, incSta)
-					bl, loaded = ms.loadAccountCovenantBalance(addr1)
+					bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, incCov)
 				})
@@ -304,10 +304,10 @@ func TestMetaState(t *testing.T) {
 					Convey(
 						"The account balance should be kept correctly in account object",
 						func() {
-							bl, loaded = ms.loadAccountStableBalance(addr1)
+							bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 							So(loaded, ShouldBeTrue)
 							So(bl, ShouldEqual, incSta)
-							bl, loaded = ms.loadAccountCovenantBalance(addr1)
+							bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 							So(loaded, ShouldBeTrue)
 							So(bl, ShouldEqual, incCov)
 						},
@@ -595,10 +595,10 @@ func TestMetaState(t *testing.T) {
 			}
 			ms.commit()
 			Convey("The state should match the update result", func() {
-				bl, loaded = ms.loadAccountStableBalance(addr1)
+				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 84)
-				bl, loaded = ms.loadAccountStableBalance(addr2)
+				bl, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 118)
 			})
@@ -964,21 +964,21 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				var b1, b2 uint64
-				b1, loaded = ms.loadAccountStableBalance(addr2)
+				b1, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
 				err = ms.apply(&ps)
 				So(err, ShouldBeNil)
 				ms.commit()
-				b2, loaded = ms.loadAccountStableBalance(addr2)
+				b2, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
 				So(loaded, ShouldBeTrue)
 				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
 				err = ms.apply(&cd2)
 				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
-				b1, loaded = ms.loadAccountStableBalance(addr1)
+				b1, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
 				err = ms.apply(&cd1)
 				So(err, ShouldBeNil)
 				ms.commit()
-				b2, loaded = ms.loadAccountStableBalance(addr1)
+				b2, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
 				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
 					conf.GConf.BillingBlockCount * uint64(len(cd2.ResourceMeta.TargetMiners))
@@ -1064,9 +1064,9 @@ func TestMetaState(t *testing.T) {
 					}
 				}
 				Convey("transfer token", func() {
-					addr1B1, ok := ms.loadAccountStableBalance(addr1)
+					addr1B1, ok := ms.loadAccountTokenBalance(addr1, types.Particle)
 					So(ok, ShouldBeTrue)
-					addr3B1, ok := ms.loadAccountStableBalance(addr3)
+					addr3B1, ok := ms.loadAccountTokenBalance(addr3, types.Particle)
 					So(ok, ShouldBeTrue)
 					trans1 := types.NewTransfer(&types.TransferHeader{
 						Sender:    addr1,
@@ -1082,9 +1082,9 @@ func TestMetaState(t *testing.T) {
 					err = ms.apply(trans1)
 					So(err, ShouldBeNil)
 					ms.commit()
-					addr1B2, ok := ms.loadAccountStableBalance(addr1)
+					addr1B2, ok := ms.loadAccountTokenBalance(addr1, types.Particle)
 					So(ok, ShouldBeTrue)
-					addr3B2, ok := ms.loadAccountStableBalance(addr3)
+					addr3B2, ok := ms.loadAccountTokenBalance(addr3, types.Particle)
 					So(ok, ShouldBeTrue)
 					So(addr1B1-addr1B2, ShouldEqual, 20000000)
 					So(addr3B2-addr3B1, ShouldEqual, 20000000)

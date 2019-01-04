@@ -218,58 +218,6 @@ func Drop(dsn string) (err error) {
 	return
 }
 
-// GetStableCoinBalance get the stable coin balance of current account.
-func GetStableCoinBalance() (balance uint64, err error) {
-	if atomic.LoadUint32(&driverInitialized) == 0 {
-		err = ErrNotInitialized
-		return
-	}
-
-	req := new(types.QueryAccountStableBalanceReq)
-	resp := new(types.QueryAccountStableBalanceResp)
-
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
-	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
-		return
-	}
-
-	if err = requestBP(route.MCCQueryAccountStableBalance, req, resp); err == nil {
-		balance = resp.Balance
-	}
-
-	return
-}
-
-// GetCovenantCoinBalance get the covenant coin balance of current account.
-func GetCovenantCoinBalance() (balance uint64, err error) {
-	if atomic.LoadUint32(&driverInitialized) == 0 {
-		err = ErrNotInitialized
-		return
-	}
-
-	req := new(types.QueryAccountCovenantBalanceReq)
-	resp := new(types.QueryAccountCovenantBalanceResp)
-
-	var pubKey *asymmetric.PublicKey
-	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
-	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
-		return
-	}
-
-	if err = requestBP(route.MCCQueryAccountCovenantBalance, req, resp); err == nil {
-		balance = resp.Balance
-	}
-
-	return
-}
-
 // GetTokenBalance get the token balance of current account.
 func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {

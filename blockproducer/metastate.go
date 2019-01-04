@@ -122,16 +122,6 @@ func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
 	return
 }
 
-func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
-	b, loaded = s.loadAccountTokenBalance(addr, types.Particle)
-	return
-}
-
-func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
-	b, loaded = s.loadAccountTokenBalance(addr, types.Wave)
-	return
-}
-
 func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *types.Account) (err error) {
 	log.WithFields(log.Fields{
 		"addr":    k.String(),

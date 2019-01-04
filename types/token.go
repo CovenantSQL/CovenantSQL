@@ -16,8 +16,6 @@
 
 package types
 
-import "encoding/binary"
-
 //go:generate hsp
 
 // TokenType defines token's type
@@ -45,19 +43,6 @@ var TokenList = map[TokenType]string{
 	Ether:    "Ether",
 	EOS:      "EOS",
 	Bitcoin:  "Bitcoin",
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (t TokenType) MarshalJSON() ([]byte, error) {
-	res := make([]byte, 8)
-	binary.BigEndian.PutUint64(res, uint64(t))
-	return res, nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (t *TokenType) UnmarshalJSON(data []byte) (err error) {
-	*t = TokenType(binary.BigEndian.Uint64(data))
-	return
 }
 
 // String returns token's symbol.

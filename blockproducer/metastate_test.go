@@ -32,7 +32,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )

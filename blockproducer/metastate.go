@@ -1106,7 +1106,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 		log.WithFields(log.Fields{
 			"dbid":   transfer.Receiver.DatabaseID(),
 			"sender": transfer.Sender.String(),
-		})
+		}).WithError(err).Warning("error token type in transferSQLChainTokenBalance")
 		return
 	}
 	account, ok = s.loadAccountObject(realSender)

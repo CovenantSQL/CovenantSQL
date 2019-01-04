@@ -83,7 +83,7 @@ func start3BPs() {
 		[]string{"-config", FJ(testWorkingDir, "./node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/follower1.cover.out"),
 		},
-		"follower1", testWorkingDir, logDir, true,
+		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {
@@ -97,7 +97,7 @@ func start3BPs() {
 		[]string{"-config", FJ(testWorkingDir, "./node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cqld/follower2.cover.out"),
 		},
-		"follower2", testWorkingDir, logDir, true,
+		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {

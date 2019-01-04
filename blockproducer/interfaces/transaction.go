@@ -18,6 +18,7 @@ package interfaces
 
 import (
 	"encoding/binary"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -111,10 +112,11 @@ func (t TransactionType) String() string {
 // Transaction is the interface implemented by an object that can be verified and processed by
 // block producers.
 type Transaction interface {
+	GetTransactionType() TransactionType
 	GetAccountAddress() proto.AccountAddress
 	GetAccountNonce() AccountNonce
+	GetTimestamp() time.Time
 	Hash() hash.Hash
-	GetTransactionType() TransactionType
 	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error
 	MarshalHash() ([]byte, error)

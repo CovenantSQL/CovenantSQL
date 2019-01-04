@@ -167,14 +167,13 @@ func WaitDatabaseCreation(
 		req    = &types.QuerySQLChainProfileReq{
 			DBID: dbID,
 		}
-		resp = &types.QuerySQLChainProfileResp{}
 	)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			if err = rpc.RequestBP(
-				route.MCCQuerySQLChainProfile.String(), req, resp,
+				route.MCCQuerySQLChainProfile.String(), req, nil,
 			); err != nil {
 				if !strings.Contains(err.Error(), ErrDatabaseNotFound.Error()) {
 					// err != nil && err != ErrDatabaseNotFound (unexpected error)
@@ -204,14 +203,13 @@ func WaitBPChainService(ctx context.Context, period time.Duration) (err error) {
 		req    = &types.FetchBlockReq{
 			Height: 0, // Genesis block
 		}
-		resp = &types.FetchTxBillingResp{}
 	)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			if err = rpc.RequestBP(
-				route.MCCFetchBlock.String(), req, resp,
+				route.MCCFetchBlock.String(), req, nil,
 			); err == nil || !strings.Contains(err.Error(), "can't find service") {
 				return
 			}

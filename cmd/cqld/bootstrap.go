@@ -158,12 +158,14 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}()
 
 	// start json-rpc server
-	jsonrpcServer := &api.Service{
-		WebsocketAddr: wsapiAddr,
-		ReadTimeout:   60 * time.Second,
-		WriteTimeout:  60 * time.Second,
+	if wsapiAddr != "" {
+		jsonrpcServer := &api.Service{
+			WebsocketAddr: wsapiAddr,
+			ReadTimeout:   60 * time.Second,
+			WriteTimeout:  60 * time.Second,
+		}
+		jsonrpcServer.StartServers()
 	}
-	jsonrpcServer.StartServers()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

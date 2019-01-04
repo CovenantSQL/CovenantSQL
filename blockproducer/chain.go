@@ -447,19 +447,27 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 	var (
 		ttl = addTxReq.TTL
 		tx  = addTxReq.Tx
-		le  = log.WithFields(log.Fields{
-			"hash":    tx.Hash().Short(4),
-			"address": tx.GetAccountAddress(),
+
+		txhash = tx.Hash()
+		addr   = tx.GetAccountAddress()
+		nonce  = tx.GetAccountNonce()
+
+		le = log.WithFields(log.Fields{
+			"hash":    txhash.Short(4),
+			"address": addr,
+			"nonce":   nonce,
 			"type":    tx.GetTransactionType().String(),
 		})
-		err error
+
+		base pi.AccountNonce
+		err  error
 	)
 
 	// Existense check
 	if ok := func() (ok bool) {
 		c.RLock()
 		defer c.RUnlock()
-		_, ok = c.txPool[tx.Hash()]
+		_, ok = c.txPool[txhash]
 		return
 	}(); ok {
 		le.Debug("tx already exists, abort processing")
@@ -469,6 +477,18 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 	// Verify transaction
 	if err = tx.Verify(); err != nil {
 		le.WithError(err).Warn("failed to verify transaction")
+		return
+	}
+	if base, err = c.immutableNextNonce(addr); err != nil {
+		le.WithError(err).Warn("failed to load base nonce of transaction account")
+		return
+	}
+	if nonce < base || nonce >= nonce+pl.MaxPendingTxsPerAccount {
+		// TODO(leventeliu): should persist to some where for tx query?
+		le.WithFields(log.Fields{
+			"base_nonce":    base,
+			"pending_limit": pl.MaxPendingTxsPerAccount,
+		}).Warn("invalid transaction nonce")
 		return
 	}
 

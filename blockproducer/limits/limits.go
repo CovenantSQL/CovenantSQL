@@ -21,4 +21,6 @@ const (
 	// MaxTxBroadcastTTL defines the TTL limit of a AddTx request broadcasting within the
 	// block producers.
 	MaxTxBroadcastTTL = 1
+	// MaxPendingTxsPerAccount defines the limit of pending transactions of one account.
+	MaxPendingTxsPerAccount = 1000
 )

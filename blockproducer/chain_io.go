@@ -152,3 +152,9 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	// TODO(leventeliu): get confirmed state from tx history.
 	return
 }
+
+func (c *Chain) immutableNextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.immutable.nextNonce(addr)
+}

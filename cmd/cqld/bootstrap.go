@@ -85,6 +85,15 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	// start server
+	go func() {
+		server.Serve()
+	}()
+	defer func() {
+		server.Listener.Close()
+		server.Stop()
+	}()
+
 	// init storage
 	log.Info("init storage")
 	var st *LocalStorage
@@ -145,15 +154,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	log.Info(conf.StartSucceedMessage)
 	//go periodicPingBlockProducer()
-
-	// start server
-	go func() {
-		server.Serve()
-	}()
-	defer func() {
-		server.Listener.Close()
-		server.Stop()
-	}()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

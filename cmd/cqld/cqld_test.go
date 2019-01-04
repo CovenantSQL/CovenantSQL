@@ -20,11 +20,11 @@ package main
 
 import (
 	"context"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -33,30 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
 )
-
-func waitBPChainService(ctx context.Context, period time.Duration) (err error) {
-	var (
-		ticker = time.NewTicker(period)
-		req    = &types.FetchBlockReq{
-			Height: 0, // Genesis block
-		}
-		resp = &types.FetchTxBillingResp{}
-	)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			if err = rpc.RequestBP(
-				route.MCCFetchBlock.String(), req, resp,
-			); err == nil || strings.Contains(err.Error(), "can't find service") {
-				return
-			}
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-		}
-	}
-}
 
 func TestCQLD(t *testing.T) {
 	Convey("Test cqld 3BPs", t, func() {
@@ -85,7 +61,7 @@ func TestCQLD(t *testing.T) {
 		// Wait BP chain service to be ready
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccl2()
-		err = waitBPChainService(ctx2, 3*time.Second)
+		err = bp.WaitBPChainService(ctx2, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// Wait for block producing

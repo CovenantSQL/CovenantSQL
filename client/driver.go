@@ -27,6 +27,7 @@ import (
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -218,15 +219,15 @@ func Drop(dsn string) (err error) {
 	return
 }
 
-// GetStableCoinBalance get the stable coin balance of current account.
-func GetStableCoinBalance() (balance uint64, err error) {
+// GetTokenBalance get the token balance of current account.
+func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
 	}
 
-	req := new(types.QueryAccountStableBalanceReq)
-	resp := new(types.QueryAccountStableBalanceResp)
+	req := new(types.QueryAccountTokenBalanceReq)
+	resp := new(types.QueryAccountTokenBalanceResp)
 
 	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
@@ -236,37 +237,133 @@ func GetStableCoinBalance() (balance uint64, err error) {
 	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
 		return
 	}
+	req.TokenType = tt
 
-	if err = requestBP(route.MCCQueryAccountStableBalance, req, resp); err == nil {
+	if err = requestBP(route.MCCQueryAccountTokenBalance, req, resp); err == nil {
+		if !resp.OK {
+			err = ErrNoSuchTokenBalance
+			return
+		}
 		balance = resp.Balance
 	}
 
 	return
 }
 
-// GetCovenantCoinBalance get the covenant coin balance of current account.
-func GetCovenantCoinBalance() (balance uint64, err error) {
+// UpdatePermission sends UpdatePermission transaction to chain.
+func UpdatePermission(targetUser proto.AccountAddress,
+	targetChain proto.AccountAddress, perm types.UserPermission) (err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
 	}
 
-	req := new(types.QueryAccountCovenantBalanceReq)
-	resp := new(types.QueryAccountCovenantBalanceResp)
-
-	var pubKey *asymmetric.PublicKey
+	var (
+		pubKey  *asymmetric.PublicKey
+		privKey *asymmetric.PrivateKey
+		addr    proto.AccountAddress
+		nonce   interfaces.AccountNonce
+	)
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
 		return
 	}
-
-	if req.Addr, err = crypto.PubKeyHash(pubKey); err != nil {
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
 		return
 	}
 
-	if err = requestBP(route.MCCQueryAccountCovenantBalance, req, resp); err == nil {
-		balance = resp.Balance
+	nonce, err = getNonce(addr)
+	if err != nil {
+		return
 	}
 
+	up := types.NewUpdatePermission(&types.UpdatePermissionHeader{
+		TargetSQLChain: targetChain,
+		TargetUser:     targetUser,
+		Permission:     perm,
+		Nonce:          nonce,
+	})
+	err = up.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign failed")
+		return
+	}
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = up
+	err = requestBP(route.MCCAddTx, addTxReq, addTxResp)
+	if err != nil {
+		log.WithError(err).Warning("send tx failed")
+		return
+	}
+
+	return
+}
+
+// TransferToken send Transfer transaction to chain.
+func TransferToken(targetUser proto.AccountAddress, amount uint64, tokenType types.TokenType) (err error) {
+	if atomic.LoadUint32(&driverInitialized) == 0 {
+		err = ErrNotInitialized
+		return
+	}
+
+	var (
+		pubKey  *asymmetric.PublicKey
+		privKey *asymmetric.PrivateKey
+		addr    proto.AccountAddress
+		nonce   interfaces.AccountNonce
+	)
+	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
+		return
+	}
+	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+	if addr, err = crypto.PubKeyHash(pubKey); err != nil {
+		return
+	}
+
+	nonce, err = getNonce(addr)
+	if err != nil {
+		return
+	}
+
+	tran := types.NewTransfer(&types.TransferHeader{
+		Sender:    addr,
+		Receiver:  targetUser,
+		Amount:    amount,
+		TokenType: tokenType,
+		Nonce:     nonce,
+	})
+	err = tran.Sign(privKey)
+	if err != nil {
+		log.WithError(err).Warning("sign failed")
+		return
+	}
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = tran
+	err = requestBP(route.MCCAddTx, addTxReq, addTxResp)
+	if err != nil {
+		log.WithError(err).Warning("send tx failed")
+		return
+	}
+
+	return
+}
+
+func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = addr
+	err = requestBP(route.MCCNextAccountNonce, nonceReq, nonceResp)
+	if err != nil {
+		log.WithError(err).Warning("get nonce failed")
+		return
+	}
+	nonce = nonceResp.Nonce
 	return
 }
 

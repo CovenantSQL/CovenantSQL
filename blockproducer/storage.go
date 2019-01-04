@@ -81,6 +81,7 @@ func store(st xi.Storage, sps []storageProcedure, cb storageCallback) (err error
 	if tx, err = st.Writer().Begin(); err != nil {
 		return
 	}
+	log.Debugf("started database tx %p", tx)
 	// ROLLBACK on failure
 	defer tx.Rollback()
 	// WRITE
@@ -92,11 +93,13 @@ func store(st xi.Storage, sps []storageProcedure, cb storageCallback) (err error
 	// CALLBACK: MUST NOT FAIL
 	if cb != nil {
 		cb()
+		log.Debugf("invoked storage callback %p in tx %p", cb, tx)
 	}
 	// COMMIT
 	if err = tx.Commit(); err != nil {
 		log.WithError(err).Fatal("failed to commit storage transaction")
 	}
+	log.Debugf("committed database tx %p", tx)
 	return
 }
 
@@ -194,6 +197,11 @@ func updateAccount(account *types.Account) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
+		log.WithFields(log.Fields{
+			"account_address":  account.Address.String(),
+			"account_nonce":    account.NextNonce,
+			"account_balances": account.TokenBalance,
+		}).Debug("updating account")
 		_, err = tx.Exec(`INSERT OR REPLACE INTO "accounts" ("address", "encoded")
 	VALUES (?, ?)`,
 			account.Address.String(),
@@ -204,6 +212,9 @@ func updateAccount(account *types.Account) storageProcedure {
 
 func deleteAccount(address proto.AccountAddress) storageProcedure {
 	return func(tx *sql.Tx) (err error) {
+		log.WithFields(log.Fields{
+			"account_address": address.String(),
+		}).Debug("deleting account")
 		_, err = tx.Exec(`DELETE FROM "accounts" WHERE "address"=?`, address.String())
 		return
 	}
@@ -218,6 +229,13 @@ func updateShardChain(profile *types.SQLChainProfile) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
+		log.WithFields(log.Fields{
+			"profile_owner":         profile.Owner.String(),
+			"profile_address":       profile.Address.String(),
+			"profile_database_id":   profile.ID,
+			"profile_token_type":    profile.TokenType,
+			"profile_miners_number": len(profile.Miners),
+		}).Debug("updating profile")
 		_, err = tx.Exec(`INSERT OR REPLACE INTO "shardChain" ("address", "id", "encoded")
 	VALUES (?, ?, ?)`,
 			profile.Address.String(),
@@ -229,6 +247,9 @@ func updateShardChain(profile *types.SQLChainProfile) storageProcedure {
 
 func deleteShardChain(id proto.DatabaseID) storageProcedure {
 	return func(tx *sql.Tx) (err error) {
+		log.WithFields(log.Fields{
+			"profile_database_id": id,
+		}).Debug("deleting profile")
 		_, err = tx.Exec(`DELETE FROM "shardChain" WHERE "id"=?`, id)
 		return
 	}
@@ -243,6 +264,11 @@ func updateProvider(profile *types.ProviderProfile) storageProcedure {
 		return errPass(err)
 	}
 	return func(tx *sql.Tx) (err error) {
+		log.WithFields(log.Fields{
+			"provider_address":    profile.Provider.String(),
+			"provider_token_type": profile.TokenType,
+			"provider_node_id":    profile.NodeID,
+		}).Debug("updating provider")
 		_, err = tx.Exec(`INSERT OR REPLACE INTO "provider" ("address", "encoded") VALUES (?, ?)`,
 			profile.Provider.String(),
 			enc.Bytes())
@@ -252,6 +278,9 @@ func updateProvider(profile *types.ProviderProfile) storageProcedure {
 
 func deleteProvider(address proto.AccountAddress) storageProcedure {
 	return func(tx *sql.Tx) (err error) {
+		log.WithFields(log.Fields{
+			"provider_address": address.String(),
+		}).Debug("deleting provider")
 		_, err = tx.Exec(`DELETE FROM "provider" WHERE "address"=?`, address.String())
 		return
 	}

@@ -46,9 +46,6 @@ const (
 	// DBMetaFileName defines dbms meta file name.
 	DBMetaFileName = "db.meta"
 
-	// CheckInterval defines the bus service period.
-	CheckInterval = time.Second
-
 	// DefaultSlowQueryTime defines the default slow query log time
 	DefaultSlowQueryTime = time.Second * 5
 )
@@ -57,7 +54,6 @@ const (
 type DBMS struct {
 	cfg        *DBMSConfig
 	dbMap      sync.Map
-	chainMap   sync.Map
 	kayakMux   *DBKayakMuxService
 	chainMux   *sqlchain.MuxService
 	rpc        *DBMSRPCService
@@ -101,7 +97,7 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 	// init chain bus service
 	ctx := context.Background()
-	bs := NewBusService(ctx, addr, CheckInterval)
+	bs := NewBusService(ctx, addr, conf.GConf.ChainBusPeriod)
 	dbms.busService = bs
 
 	// private key cache
@@ -185,49 +181,9 @@ func (dbms *DBMS) Init() (err error) {
 		err = errors.Wrap(err, "init chain bus failed")
 		return
 	}
-	if err = dbms.busService.Subscribe("/UpdatePermission/", dbms.updatePermission); err != nil {
-		err = errors.Wrap(err, "init chain bus failed")
-		return
-	}
-	if err = dbms.busService.Subscribe("/UpdateBilling/", dbms.updateBilling); err != nil {
-		err = errors.Wrap(err, "init chain bus failed")
-		return
-	}
 	dbms.busService.Start()
 
 	return
-}
-
-func (dbms *DBMS) updateBilling(tx interfaces.Transaction, count uint32) {
-	ub, ok := tx.(*types.UpdateBilling)
-	if !ok {
-		log.WithError(ErrInvalidTransactionType).Warningf("invalid tx type in updateBilling: %s",
-			tx.GetTransactionType().String())
-		return
-	}
-
-	var (
-		dbID     = ub.Receiver.DatabaseID()
-		newState = types.UserState{
-			State: make(map[proto.AccountAddress]*types.PermStat),
-		}
-	)
-
-	p, ok := dbms.busService.RequestSQLProfile(dbID)
-	if !ok {
-		log.WithFields(log.Fields{
-			"databaseid": dbID,
-		}).Warning("database profile not found")
-		return
-	}
-
-	for _, user := range p.Users {
-		newState.State[user.Address] = &types.PermStat{
-			Permission: user.Permission,
-			Status:     user.Status,
-		}
-	}
-	dbms.chainMap.Store(ub.Receiver.DatabaseID(), newState)
 }
 
 func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
@@ -267,16 +223,6 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 		return
 	}
 
-	state := types.NewUserState()
-	for _, user := range p.Users {
-		log.Debugf("user address: %s, permission: %d, status: %d",
-			user.Address.String(), user.Permission, user.Status)
-		state.State[user.Address] = &types.PermStat{
-			Permission: user.Permission,
-			Status:     user.Status,
-		}
-	}
-
 	var si, err = dbms.buildSQLChainServiceInstance(p)
 	if err != nil {
 		log.WithError(err).Warn("failed to build sqlchain service instance from profile")
@@ -285,7 +231,6 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
-	dbms.chainMap.Store(dbID, *state)
 }
 
 func (dbms *DBMS) buildSQLChainServiceInstance(
@@ -326,32 +271,46 @@ func (dbms *DBMS) buildSQLChainServiceInstance(
 	return
 }
 
-func (dbms *DBMS) updatePermission(tx interfaces.Transaction, count uint32) {
-	up, ok := tx.(*types.UpdatePermission)
-	if !ok {
-		log.WithError(ErrInvalidTransactionType).Warning("unexpected error in updatePermission")
-		return
-	}
-
-	state, loaded := dbms.chainMap.Load(up.TargetSQLChain.DatabaseID())
-	if !loaded {
-		return
-	}
-
-	newState := state.(types.UserState)
-	newState.AddPermission(up.TargetUser, up.Permission)
-	dbms.chainMap.Store(up.TargetSQLChain.DatabaseID(), newState)
-}
-
 // UpdatePermission exports the update permission interface for test.
 func (dbms *DBMS) UpdatePermission(dbID proto.DatabaseID, user proto.AccountAddress, permStat *types.PermStat) (err error) {
-	s, loaded := dbms.chainMap.Load(dbID)
-	if !loaded {
-		err = errors.Wrap(ErrNotExists, "update permission failed")
-		return
+	dbms.busService.lock.Lock()
+	defer dbms.busService.lock.Unlock()
+	profile, ok := dbms.busService.sqlChainProfiles[dbID]
+	if !ok {
+		dbms.busService.sqlChainProfiles[dbID] = &types.SQLChainProfile{
+			ID: dbID,
+			Users: []*types.SQLChainUser{
+				&types.SQLChainUser{
+					Address:    user,
+					Permission: permStat.Permission,
+					Status:     permStat.Status,
+				},
+			},
+		}
+	} else {
+		exist := false
+		for _, u := range profile.Users {
+			u.Address = user
+			u.Permission = permStat.Permission
+			u.Status = permStat.Status
+			exist = true
+		}
+		if !exist {
+			profile.Users = append(profile.Users, &types.SQLChainUser{
+				Address:    user,
+				Permission: permStat.Permission,
+				Status:     permStat.Status,
+			})
+			dbms.busService.sqlChainProfiles[dbID] = profile
+		}
 	}
-	state := s.(types.UserState)
-	state.State[user] = permStat
+
+	_, ok = dbms.busService.sqlChainState[dbID]
+	if !ok {
+		dbms.busService.sqlChainState[dbID] = make(map[proto.AccountAddress]*types.PermStat)
+	}
+	dbms.busService.sqlChainState[dbID][user] = permStat
+
 	return
 }
 
@@ -440,11 +399,6 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 
 	// add to meta
 	err = dbms.addMeta(instance.DatabaseID, db)
-
-	// init chainMap
-	dbms.chainMap.Store(instance.DatabaseID, types.UserState{
-		State: make(map[proto.AccountAddress]*types.PermStat),
-	})
 
 	return
 }
@@ -547,43 +501,30 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 	dbID proto.DatabaseID, queryType types.QueryType) (err error) {
 	log.Debugf("in checkPermission, database id: %s, user addr: %s", dbID, addr.String())
-	state, loaded := dbms.chainMap.Load(dbID)
-	if !loaded {
-		err = errors.Wrap(ErrNotExists, "check permission failed")
-		return
-	}
 
-	var (
-		s = state.(types.UserState)
-	)
-
-	if permStat, ok := s.State[addr]; ok {
+	if permStat, ok := dbms.busService.RequestPermStat(dbID, addr); ok {
 		if !permStat.Status.EnableQuery() {
-			err = ErrPermissionDeny
-			log.WithError(err).Debugf("cannot query, status: %d", permStat.Status)
+			err = errors.Wrapf(ErrPermissionDeny, "cannot query, status: %d", permStat.Status)
 			return
 		}
 		if queryType == types.ReadQuery {
 			if !permStat.Permission.CheckRead() {
-				err = ErrPermissionDeny
-				log.WithError(err).Debugf("cannot read, permission: %d", permStat.Permission)
+				err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %d", permStat.Permission)
 				return
 			}
 		} else if queryType == types.WriteQuery {
 			if !permStat.Permission.CheckWrite() {
-				err = ErrPermissionDeny
-				log.WithError(err).Debugf("cannot write, permission: %d", permStat.Permission)
+				err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %d", permStat.Permission)
 				return
 			}
 		} else {
-			err = ErrInvalidPermission
-			log.WithError(err).Debugf("invalid permission, permission: %d", permStat.Permission)
+			err = errors.Wrapf(ErrInvalidPermission,
+				"invalid permission, permission: %d", permStat.Permission)
 			return
 
 		}
 	} else {
-		err = ErrPermissionDeny
-		log.WithError(err).Debug("cannot find permission")
+		err = errors.Wrap(ErrPermissionDeny, "database not exists")
 		return
 	}
 
@@ -608,6 +549,14 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 		}).WithError(err).Warning("generate addr failed in addTxSubscription")
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"dbID":        dbID,
+		"nodeID":      nodeID,
+		"addr":        addr.String(),
+		"startHeight": startHeight,
+	}).Debugf("addTxSubscription")
+
 	err = dbms.checkPermission(addr, dbID, types.ReadQuery)
 	if err != nil {
 		log.WithFields(log.Fields{"databaseID": dbID, "addr": addr}).WithError(err).Warning("permission deny")

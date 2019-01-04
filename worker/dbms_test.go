@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -67,6 +66,7 @@ func TestDBMS(t *testing.T) {
 		// init
 		err = dbms.Init()
 		So(err, ShouldBeNil)
+		dbms.busService.Stop()
 
 		// add database
 		var req *types.UpdateService
@@ -119,7 +119,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				// sending read query
 				var readQuery *types.Request
@@ -129,31 +129,17 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 
-			// grant read permission
-			up := &types.UpdatePermission{
-				UpdatePermissionHeader: types.UpdatePermissionHeader{
-					TargetSQLChain: dbAddr,
-					TargetUser:     userAddr,
-					Permission:     types.Write,
-				},
-			}
-			err = up.Sign(privateKey)
+			// grant write and read permission
+			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+				&types.PermStat{Permission: types.Write, Status: types.Normal})
 			So(err, ShouldBeNil)
-			dbms.updatePermission(up, 0)
-			us, ok := dbms.chainMap.Load(dbID)
+			userState, ok := dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			userState := us.(types.UserState)
-			perm, ok := userState.GetPermission(userAddr)
-			So(ok, ShouldBeTrue)
-			So(perm, ShouldEqual, types.Write)
-			stat, ok := userState.GetStatus(userAddr)
-			So(ok, ShouldBeTrue)
-			So(stat, ShouldEqual, types.UnknownStatus)
-			userState.UpdateStatus(userAddr, types.Normal)
-			dbms.chainMap.Store(dbID, userState)
+			So(userState.Permission, ShouldEqual, types.Write)
+			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("success write and read", func() {
 				// sending write query
@@ -199,23 +185,19 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = dbms.addTxSubscription(dbID2, nodeID, 1)
-				So(errors.Cause(err), ShouldEqual, ErrNotExists)
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 				err = dbms.addTxSubscription(dbID, nodeID, 1)
 				So(err, ShouldBeNil)
 				err = dbms.cancelTxSubscription(dbID, nodeID)
 				So(err, ShouldBeNil)
 
-				// grant read permission
-				up = &types.UpdatePermission{
-					UpdatePermissionHeader: types.UpdatePermissionHeader{
-						TargetSQLChain: dbAddr,
-						TargetUser:     userAddr,
-						Permission:     types.Read,
-					},
-				}
-				err = up.Sign(privateKey)
-				So(err, ShouldBeNil)
-				dbms.updatePermission(up, 0)
+				// revoke write permission
+				err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+					&types.PermStat{Permission: types.Read, Status: types.Normal})
+				userState, ok := dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
+				So(ok, ShouldBeTrue)
+				So(userState.Permission, ShouldEqual, types.Read)
+				So(userState.Status, ShouldEqual, types.Normal)
 
 				Convey("success reading and fail to write", func() {
 					// sending write query
@@ -228,7 +210,7 @@ func TestDBMS(t *testing.T) {
 					So(err, ShouldBeNil)
 
 					err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-					So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+					So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 					// sending read query
 					var readQuery *types.Request
@@ -246,16 +228,12 @@ func TestDBMS(t *testing.T) {
 			})
 
 			// grant invalid permission
-			up = &types.UpdatePermission{
-				UpdatePermissionHeader: types.UpdatePermissionHeader{
-					TargetSQLChain: dbAddr,
-					TargetUser:     userAddr,
-					Permission:     types.NumberOfUserPermission,
-				},
-			}
-			err = up.Sign(privateKey)
-			So(err, ShouldBeNil)
-			dbms.updatePermission(up, 0)
+			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+				&types.PermStat{Permission: types.Void, Status: types.Normal})
+			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
+			So(ok, ShouldBeTrue)
+			So(userState.Permission, ShouldEqual, types.Void)
+			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("invalid permission query should fail", func() {
 				// sending write query
@@ -268,7 +246,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				// sending read query
 				var readQuery *types.Request
@@ -278,19 +256,19 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				err = dbms.addTxSubscription(dbID, nodeID, 1)
-				So(err, ShouldEqual, ErrPermissionDeny)
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 
-			// switch user to arrears
-			us, ok = dbms.chainMap.Load(dbID)
+			// grant admin permission but in arrears
+			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+				&types.PermStat{Permission: types.Admin, Status: types.Arrears})
+			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			userState = us.(types.UserState)
-			userState.UpdatePermission(userAddr, types.Admin)
-			userState.UpdateStatus(userAddr, types.Arrears)
-			dbms.chainMap.Store(dbID, userState)
+			So(userState.Permission, ShouldEqual, types.Admin)
+			So(userState.Status, ShouldEqual, types.Arrears)
 
 			Convey("arrears query should fail", func() {
 				// sending write query
@@ -303,7 +281,7 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 				// sending read query
 				var readQuery *types.Request
@@ -313,17 +291,18 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err.Error(), ShouldEqual, ErrPermissionDeny.Error())
+				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 
 			// switch user to normal
-			us, ok = dbms.chainMap.Load(dbID)
+			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+				&types.PermStat{Permission: types.Admin, Status: types.Normal})
+			userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
-			userState = us.(types.UserState)
-			userState.UpdateStatus(userAddr, types.Normal)
-			dbms.chainMap.Store(dbID, userState)
+			So(userState.Permission, ShouldEqual, types.Admin)
+			So(userState.Status, ShouldEqual, types.Normal)
 
-			Convey("queries", func() {
+			Convey("can send read and write queries", func() {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response

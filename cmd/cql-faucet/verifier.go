@@ -210,12 +210,13 @@ func (v *Verifier) dispense() (err error) {
 }
 
 func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
-	balanceReq := &pt.QueryAccountStableBalanceReq{}
-	balanceRes := &pt.QueryAccountStableBalanceResp{}
+	balanceReq := &pt.QueryAccountTokenBalanceReq{}
+	balanceRes := &pt.QueryAccountTokenBalanceResp{}
 	balanceReq.Addr = v.vaultAddress
+	balanceReq.TokenType = pt.Particle
 
 	// get current balance
-	if err = requestBP(route.MCCQueryAccountStableBalance.String(), balanceReq, balanceRes); err != nil {
+	if err = requestBP(route.MCCQueryAccountTokenBalance.String(), balanceReq, balanceRes); err != nil {
 		log.WithError(err).Warning("get account balance failed")
 	} else {
 		log.WithField("balance", balanceRes.Balance).Info("get account balance")

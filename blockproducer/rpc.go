@@ -104,7 +104,7 @@ func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err
 		return ErrUnknownTransactionType
 	}
 	log.Infof("transaction type: %s, hash: %s, address: %s",
-		req.Tx.GetTransactionType().String(), req.Tx.Hash(), req.Tx.GetAccountAddress())
+		req.Tx.GetTransactionType().String(), req.Tx.Hash(), req.Tx.GetAccountAddress().String())
 	s.chain.addTx(req.Tx)
 	return
 }

@@ -416,7 +416,7 @@ func TestFullProcess(t *testing.T) {
 		}()
 
 		// wait for the observer to collect blocks, two periods is enough
-		time.Sleep(conf.GConf.SQLChainPeriod * 2)
+		time.Sleep(conf.GConf.SQLChainPeriod * 5)
 
 		// test get genesis block by height
 		res, err := getJSON("v1/height/%v/0", dbID)
@@ -425,14 +425,20 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
+		res, err = getJSON("v1/head/%v", dbID)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
+		maxHeight := ensureSuccess(res.Int("block", "height")).(int)
+		So(maxHeight, ShouldBeGreaterThan, 0)
+
 		// test get first containable block
 		var (
 			blockHash           string
 			byHeightBlockResult interface{}
 		)
 
-		// access 5 blocks
-		for i := 1; i <= 5; i++ {
+		// access from max height to found a non-empty block
+		for i := maxHeight; i > 0; i-- {
 			res, err = getJSON("v3/height/%v/%d", dbID, i)
 			So(err, ShouldBeNil)
 			So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)

@@ -112,16 +112,10 @@ func (c *Chain) nextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err err
 	return
 }
 
-func (c *Chain) loadAccountCovenantBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
+func (c *Chain) loadAccountTokenBalance(addr proto.AccountAddress, tt types.TokenType) (balance uint64, ok bool) {
 	c.RLock()
 	defer c.RUnlock()
-	return c.immutable.loadAccountCovenantBalance(addr)
-}
-
-func (c *Chain) loadAccountStableBalance(addr proto.AccountAddress) (balance uint64, ok bool) {
-	c.RLock()
-	defer c.RUnlock()
-	return c.immutable.loadAccountStableBalance(addr)
+	return c.immutable.loadAccountTokenBalance(addr, tt)
 }
 
 func (c *Chain) loadSQLChainProfile(databaseID proto.DatabaseID) (profile *types.SQLChainProfile, ok bool) {

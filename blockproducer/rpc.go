@@ -104,21 +104,12 @@ func (s *ChainRPCService) AddTx(req *types.AddTxReq, _ *types.AddTxResp) (err er
 	return
 }
 
-// QueryAccountStableBalance is the RPC method to query account stable coin balance.
-func (s *ChainRPCService) QueryAccountStableBalance(
-	req *types.QueryAccountStableBalanceReq, resp *types.QueryAccountStableBalanceResp) (err error,
+// QueryAccountTokenBalance is the RPC method to query account token balance.
+func (s *ChainRPCService) QueryAccountTokenBalance(
+	req *types.QueryAccountTokenBalanceReq, resp *types.QueryAccountTokenBalanceResp) (err error,
 ) {
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.loadAccountStableBalance(req.Addr)
-	return
-}
-
-// QueryAccountCovenantBalance is the RPC method to query account covenant coin balance.
-func (s *ChainRPCService) QueryAccountCovenantBalance(
-	req *types.QueryAccountCovenantBalanceReq, resp *types.QueryAccountCovenantBalanceResp) (err error,
-) {
-	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.loadAccountCovenantBalance(req.Addr)
+	resp.Balance, resp.OK = s.chain.loadAccountTokenBalance(req.Addr, req.TokenType)
 	return
 }
 

@@ -545,7 +545,12 @@ func TestFullProcess(t *testing.T) {
 			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
 			if user.AdvancePayment == testAdvancePayment {
 				time.Sleep(20 * time.Second)
+				break
 			}
+		}
+		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+		So(err, ShouldBeNil)
+		for _, user := range profileResp.Profile.Users {
 			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
 		}
 		getIncome := false

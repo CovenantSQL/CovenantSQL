@@ -263,7 +263,7 @@ func (s *metaState) increaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			err := errors.Wrap(ErrAccountNotFound, "increase account balance fail")
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -279,7 +279,7 @@ func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			err := errors.Wrap(ErrAccountNotFound, "decrease account balance fail")
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -1001,7 +1001,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		log.WithFields(log.Fields{
 			"miner_addr": minerAddr,
 			"miners":     newProfile.Miners,
-		}).WithError(err).Warning("sender does not include in sqlchain (updateBilling)")
+		}).WithError(err).Warning("sender does not exists in sqlchain (updateBilling)")
 		return
 	}
 

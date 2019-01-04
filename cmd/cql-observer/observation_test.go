@@ -252,21 +252,18 @@ func TestFullProcess(t *testing.T) {
 
 	Convey("test full process", t, func() {
 		var (
-			err         error
-			cliPriv     *asymmetric.PrivateKey
-			addr, addr2 proto.AccountAddress
-			dsn, dsn2   string
-			cfg, cfg2   *client.Config
-			dbID, dbID2 string
-			ctx, ctx2   context.Context
-			ccl, ccl2   context.CancelFunc
+			err              error
+			cliPriv          *asymmetric.PrivateKey
+			addr, addr2      proto.AccountAddress
+			dsn, dsn2        string
+			cfg, cfg2        *client.Config
+			dbID, dbID2      string
+			ctx1, ctx2, ctx3 context.Context
+			ccl1, ccl2, ccl3 context.CancelFunc
 		)
 		startNodes()
 		defer stopNodes()
 
-		time.Sleep(10 * time.Second)
-
-		// the node_c private.key is the same as node_observer
 		err = client.Init(FJ(testWorkingDir, "./observation/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
@@ -279,6 +276,12 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, addr2, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
+		So(err, ShouldBeNil)
+
+		// wait until bp chain service is ready
+		ctx1, ccl1 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl1()
+		err = bp.WaitBPChainService(ctx1, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// create
@@ -296,9 +299,9 @@ func TestFullProcess(t *testing.T) {
 		cfg, err = client.ParseDSN(dsn)
 		So(err, ShouldBeNil)
 		dbID = cfg.DatabaseID
-		ctx, ccl = context.WithTimeout(context.Background(), 5*time.Minute)
-		defer ccl()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dbID), db, 3*time.Second)
+		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
+		defer ccl2()
+		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID), db, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
@@ -368,9 +371,9 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		dbID2 = cfg2.DatabaseID
 		So(dbID, ShouldNotResemble, dbID2)
-		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
-		defer ccl2()
-		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID2), db2, 3*time.Second)
+		ctx3, ccl3 = context.WithTimeout(context.Background(), 5*time.Minute)
+		defer ccl3()
+		err = bp.WaitDatabaseCreation(ctx3, proto.DatabaseID(dbID2), db2, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")

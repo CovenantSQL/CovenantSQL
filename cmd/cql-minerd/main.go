@@ -139,7 +139,7 @@ func main() {
 	if conf.GConf.Miner == nil {
 		log.Fatal("miner config does not exists")
 	}
-	if conf.GConf.Miner.MetricCollectInterval.Seconds() <= 0 {
+	if conf.GConf.Miner.ProvideServiceInterval.Seconds() <= 0 {
 		log.Fatal("miner metric collect interval is invalid")
 	}
 	if conf.GConf.Miner.MaxReqTimeGap.Seconds() <= 0 {
@@ -188,7 +188,7 @@ func main() {
 		// start prometheus collector
 		reg := metric.StartMetricCollector()
 
-		tick := time.NewTicker(conf.GConf.Miner.MetricCollectInterval)
+		tick := time.NewTicker(conf.GConf.Miner.ProvideServiceInterval)
 		defer tick.Stop()
 
 		for {

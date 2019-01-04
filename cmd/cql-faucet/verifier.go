@@ -234,28 +234,6 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 
 	// decode target account address
 	var targetAddress proto.AccountAddress
-	var addrVersion byte
-	if addrVersion, targetAddress, err = crypto.Addr2Hash(r.address); err != nil || addrVersion != crypto.TestNet {
-		if err == nil && addrVersion != crypto.TestNet {
-			err = ErrInvalidAddress
-		}
-
-		// log error
-		log.WithError(err).Warning("decode transfer target address failed")
-
-		// mark failed
-		r.failReason = err.Error()
-		r.state = StateFailed
-		if err = v.p.updateRecord(r); err != nil {
-			return
-		}
-
-		log.WithFields(log.Fields(r.asMap())).Info("dispensed application record failed")
-
-		// skip invalid address faucet application
-		err = nil
-		return
-	}
 
 	req := &pt.AddTxReq{}
 	resp := &pt.AddTxResp{}

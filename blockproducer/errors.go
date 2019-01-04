@@ -31,8 +31,6 @@ var (
 	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
-	// ErrNoSuchBlock defines no such block error.
-	ErrNoSuchBlock = errors.New("Cannot find such block")
 
 	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
 	ErrBalanceOverflow = errors.New("balance overflow")

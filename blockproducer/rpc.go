@@ -154,23 +154,17 @@ func WaitDatabaseCreation(
 	period time.Duration,
 ) (err error) {
 	var (
-		timer = time.NewTimer(0)
-		req   = &types.QuerySQLChainProfileReq{
+		ticker = time.NewTicker(period)
+		req    = &types.QuerySQLChainProfileReq{
 			DBID: dbID,
 		}
-		resp = &types.QuerySQLChainProfileResp{}
 	)
-	defer func() {
-		if !timer.Stop() {
-			<-timer.C
-		}
-	}()
+	defer ticker.Stop()
 	for {
 		select {
-		case <-timer.C:
-			timer.Reset(period)
+		case <-ticker.C:
 			if err = rpc.RequestBP(
-				route.MCCQuerySQLChainProfile.String(), req, resp,
+				route.MCCQuerySQLChainProfile.String(), req, nil,
 			); err != nil {
 				if !strings.Contains(err.Error(), ErrDatabaseNotFound.Error()) {
 					// err != nil && err != ErrDatabaseNotFound (unexpected error)
@@ -185,6 +179,30 @@ func WaitDatabaseCreation(
 					// err == nil (connect to Miner OK)
 					return
 				}
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
+}
+
+// WaitBPChainService waits until BP chain service is ready.
+func WaitBPChainService(ctx context.Context, period time.Duration) (err error) {
+	var (
+		ticker = time.NewTicker(period)
+		req    = &types.FetchBlockReq{
+			Height: 0, // Genesis block
+		}
+	)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err = rpc.RequestBP(
+				route.MCCFetchBlock.String(), req, nil,
+			); err == nil || !strings.Contains(err.Error(), "can't find service") {
+				return
 			}
 		case <-ctx.Done():
 			err = ctx.Err()

@@ -88,7 +88,15 @@ stop:
 logs:
 	docker-compose logs -f --tail=10
 
+push_testnet:
+	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):testnet
+	docker push $(OB_IMAGE):testnet
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):testnet
+	docker push $(IMAGE):testnet
+
 push:
+	docker push $(OB_IMAGE):$(VERSION)
+	docker push $(OB_IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
@@ -112,6 +120,7 @@ test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS
 ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS
 ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS
+ldflags_role_client_simple_log := $(ldflags_role_client) -X github.com/CovenantSQL/CovenantSQL/utils/log.SimpleLog=Y
 
 GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(testtags)"
 GOBUILD := CGO_ENABLED=1 go build -tags "$(tags)"
@@ -154,19 +163,19 @@ bin/cql-observer:
 
 bin/cql-utils:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
+		-ldflags "$(ldflags_role_client_simple_log)" \
 		-o bin/cql-utils \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 
 bin/cql:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
+		-ldflags "$(ldflags_role_client_simple_log)" \
 		-o bin/cql \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 bin/cql-fuse:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
+		-ldflags "$(ldflags_role_client_simple_log)" \
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
@@ -207,4 +216,6 @@ all: bp miner observer client
 clean:
 	rm -rf bin/cql*
 
-.PHONY: status start stop logs push clean
+.PHONY: status start stop logs push push_testnet clean \
+	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils \
+	bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer

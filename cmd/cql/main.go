@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -29,9 +30,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
@@ -39,6 +37,10 @@ import (
 	"github.com/xo/usql/handler"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const name = "cql"
@@ -148,8 +150,14 @@ func init() {
 		RowsAffected: func(sql.Result) (int64, error) {
 			return 0, nil
 		},
-		Open: func(url *dburl.URL) (func(string, string) (*sql.DB, error), error) {
+		Open: func(url *dburl.URL) (handler func(driver string, dsn string) (*sql.DB, error), err error) {
 			log.Infof("connecting to %#v", url.DSN)
+
+			// wait for database to become ready
+			if err = client.WaitDBCreation(context.Background(), dsn); err != nil {
+				return
+			}
+
 			return sql.Open, nil
 		},
 	})

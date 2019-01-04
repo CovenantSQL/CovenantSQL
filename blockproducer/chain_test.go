@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -232,6 +233,13 @@ func TestChain(t *testing.T) {
 				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Bug regression: duplicate branch #%d", i), func() {
+					var branchCount = len(chain.branches)
+					err = chain.pushBlock(bl)
+					So(err, ShouldBeNil)
+					So(branchCount, ShouldEqual, len(chain.branches))
+				})
 			}
 
 			Convey("The chain immutable should be updated to irreversible block", func() {
@@ -284,11 +292,13 @@ func TestChain(t *testing.T) {
 						count, height uint32
 					)
 
-					_, _, err = chain.fetchBlockByHeight(100)
-					So(err, ShouldEqual, ErrNoSuchBlock)
+					bl, _, err = chain.fetchBlockByHeight(100)
+					So(bl, ShouldBeNil)
+					So(err, ShouldBeNil)
 
-					_, _, err = chain.fetchBlockByCount(100)
-					So(err, ShouldEqual, ErrNoSuchBlock)
+					bl, _, err = chain.fetchBlockByCount(100)
+					So(bl, ShouldBeNil)
+					So(err, ShouldBeNil)
 
 					bl, count, err = chain.fetchBlockByHeight(0)
 					So(err, ShouldBeNil)
@@ -332,6 +342,7 @@ func TestChain(t *testing.T) {
 					defer sv.Stop()
 
 					chain.server = sv
+					chain.confirms = 1
 					chain.Start()
 					defer func() {
 						chain.Stop()

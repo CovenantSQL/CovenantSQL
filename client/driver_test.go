@@ -23,13 +23,14 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestInit(t *testing.T) {
@@ -68,7 +69,9 @@ func TestCreate(t *testing.T) {
 		dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 
-		err = WaitDBCreation(context.Background(), dsn, time.Nanosecond)
+		waitCtx, cancelWait := context.WithTimeout(context.Background(), time.Nanosecond)
+		defer cancelWait()
+		err = WaitDBCreation(waitCtx, dsn)
 		So(err, ShouldResemble, context.DeadlineExceeded)
 
 		// Calculate database ID
@@ -87,7 +90,9 @@ func TestCreate(t *testing.T) {
 			UseLeader:  true,
 		})
 
-		err = WaitDBCreation(context.Background(), dsn, time.Minute)
+		waitCtx2, cancelWait2 := context.WithTimeout(context.Background(), time.Minute)
+		defer cancelWait2()
+		err = WaitDBCreation(waitCtx2, dsn)
 		So(err, ShouldBeNil)
 	})
 }

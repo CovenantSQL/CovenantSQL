@@ -619,6 +619,9 @@ func (c *Chain) replaceAndSwitchToBranch(
 		sps      []storageProcedure
 		up       storageCallback
 		height   = c.heightOfTime(newBlock.Timestamp())
+
+		resultTxPool = make(map[hash.Hash]pi.Transaction)
+		expiredTxs   []pi.Transaction
 	)
 
 	// Find new irreversible blocks
@@ -630,13 +633,33 @@ func (c *Chain) replaceAndSwitchToBranch(
 	newIrres = lastIrre.fetchNodeList(c.lastIrre.count)
 
 	// Apply irreversible blocks to create dirty map on immutable cache
-	//
-	// TODO(leventeliu): use old metaState for now, better use separated dirty cache.
+	for k, v := range c.txPool {
+		resultTxPool[k] = v
+	}
 	for _, b := range newIrres {
 		for _, tx := range b.block.Transactions {
 			if err := c.immutable.apply(tx); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
+			delete(resultTxPool, tx.Hash()) // Remove confirmed transaction
+		}
+	}
+
+	// Check tx expiration
+	for k, v := range resultTxPool {
+		if base, err := c.immutable.nextNonce(
+			v.GetAccountAddress(),
+		); err != nil || v.GetAccountNonce() < base {
+			log.WithFields(log.Fields{
+				"hash":    k.Short(4),
+				"type":    v.GetTransactionType().String(),
+				"account": v.GetAccountAddress(),
+				"nonce":   v.GetAccountNonce(),
+
+				"immutable_base_nonce": base,
+			}).Debug("transaction expired")
+			expiredTxs = append(expiredTxs, v)
+			delete(resultTxPool, k) // Remove expired transaction
 		}
 	}
 
@@ -665,6 +688,9 @@ func (c *Chain) replaceAndSwitchToBranch(
 	}
 	for _, n := range newIrres {
 		sps = append(sps, deleteTxs(n.block.Transactions))
+	}
+	if len(expiredTxs) > 0 {
+		sps = append(sps, deleteTxs(expiredTxs))
 	}
 	sps = append(sps, updateIrreversible(lastIrre.hash))
 
@@ -704,15 +730,17 @@ func (c *Chain) replaceAndSwitchToBranch(
 		c.headBranch = newBranch
 		c.headIndex = idx
 		c.branches = brs
-		// Clear packed transactions
+		// Clear transactions in each branch
 		for _, b := range newIrres {
 			for _, br := range c.branches {
 				br.clearPackedTxs(b.block.Transactions)
 			}
-			for _, tx := range b.block.Transactions {
-				delete(c.txPool, tx.Hash())
-			}
 		}
+		for _, br := range c.branches {
+			br.clearUnpackedTxs(expiredTxs)
+		}
+		// Update txPool to result txPool (packed and expired transactions cleared!)
+		c.txPool = resultTxPool
 	}
 
 	// Write to immutable database and update cache

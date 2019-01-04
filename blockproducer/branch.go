@@ -214,6 +214,12 @@ func (b *branch) clearPackedTxs(txs []pi.Transaction) {
 	}
 }
 
+func (b *branch) clearUnpackedTxs(txs []pi.Transaction) {
+	for _, v := range txs {
+		delete(b.unpacked, v.Hash())
+	}
+}
+
 func (b *branch) queryTx(hash hash.Hash) (state pi.TransactionState, ok bool) {
 	if _, ok = b.unpacked[hash]; ok {
 		state = pi.TransactionStatePending

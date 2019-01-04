@@ -18,6 +18,7 @@ package interfaces
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -28,6 +29,8 @@ func TestTransactionTypeMixin(t *testing.T) {
 		So(m.GetTransactionType(), ShouldEqual, TransactionTypeBaseAccount)
 		m.SetTransactionType(TransactionTypeTransfer)
 		So(m.GetTransactionType(), ShouldEqual, TransactionTypeTransfer)
-		So(m.GetTimestamp(), ShouldEqual, 0)
+		t, _ := time.Parse(time.RFC3339Nano, "2002-06-23T06:06:52.112154144Z")
+		m.SetTimestamp(t)
+		So(m.GetTimestamp(), ShouldEqual, t)
 	})
 }

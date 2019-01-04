@@ -18,6 +18,7 @@ package interfaces
 
 import (
 	"encoding/binary"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -114,7 +115,7 @@ type Transaction interface {
 	GetTransactionType() TransactionType
 	GetAccountAddress() proto.AccountAddress
 	GetAccountNonce() AccountNonce
-	GetTimestamp() int64
+	GetTimestamp() time.Time
 	Hash() hash.Hash
 	Sign(signer *asymmetric.PrivateKey) error
 	Verify() error

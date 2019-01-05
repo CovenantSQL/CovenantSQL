@@ -52,9 +52,9 @@ func newBlockProduerInfos(
 
 	bpInfos = make([]*blockProducerInfo, total)
 	for i, v := range peers.PeersHeader.Servers {
-		var role = "Follower"
+		var role = "F"
 		if v == peers.Leader {
-			role = "Leader"
+			role = "L"
 		}
 		bpInfos[i] = &blockProducerInfo{
 			rank:   uint32(i),

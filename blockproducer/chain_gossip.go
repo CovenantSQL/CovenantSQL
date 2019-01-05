@@ -43,8 +43,8 @@ func (c *Chain) nonblockingBroadcastBlock(block *types.BPBlock) {
 						ctx, remote.nodeID, route.MCCAdviseNewBlock.String(), req, nil)
 				)
 				log.WithFields(log.Fields{
-					"local":       c.getLocalBPInfo().String(),
-					"remote":      remote.String(),
+					"local":       c.getLocalBPInfo(),
+					"remote":      remote,
 					"block_time":  block.Timestamp(),
 					"block_hash":  block.BlockHash().Short(4),
 					"parent_hash": block.ParentHash().Short(4),
@@ -70,11 +70,11 @@ func (c *Chain) nonblockingBroadcastTx(ttl uint32, tx pi.Transaction) {
 						ctx, remote.nodeID, route.MCCAddTx.String(), req, nil)
 				)
 				log.WithFields(log.Fields{
-					"local":   c.getLocalBPInfo().String(),
-					"remote":  remote.String(),
+					"local":   c.getLocalBPInfo(),
+					"remote":  remote,
 					"hash":    tx.Hash().Short(4),
 					"address": tx.GetAccountAddress(),
-					"type":    tx.GetTransactionType().String(),
+					"type":    tx.GetTransactionType(),
 				}).WithError(err).Debug("broadcast transaction to other peers")
 			}, c.tick)
 		}(info)
@@ -105,8 +105,8 @@ func (c *Chain) blockingFetchBlock(ctx context.Context, h uint32) (unreachable u
 				resp = &types.FetchBlockResp{}
 			)
 			var le = log.WithFields(log.Fields{
-				"local":  c.getLocalBPInfo().String(),
-				"remote": remote.String(),
+				"local":  c.getLocalBPInfo(),
+				"remote": remote,
 				"height": h,
 			})
 			if err = c.cl.CallNodeWithContext(

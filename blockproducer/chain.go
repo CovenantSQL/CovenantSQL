@@ -251,9 +251,9 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		txPool:     txPool,
 	}
 	log.WithFields(log.Fields{
-		"local":  c.getLocalBPInfo().String(),
-		"period": c.period.String(),
-		"tick":   c.tick.String(),
+		"local":  c.getLocalBPInfo(),
+		"period": c.period,
+		"tick":   c.tick,
 		"height": c.head().height,
 	}).Debug("current chain state")
 	return
@@ -280,7 +280,7 @@ func (c *Chain) Start() {
 func (c *Chain) Stop() (err error) {
 	// Stop main process
 	var le = log.WithFields(log.Fields{
-		"local": c.getLocalBPInfo().String(),
+		"local": c.getLocalBPInfo(),
 	})
 	le.Debug("stopping chain")
 	c.stop()
@@ -361,7 +361,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 	var elapsed = -d
 
 	log.WithFields(log.Fields{
-		"local":            c.getLocalBPInfo().String(),
+		"local":            c.getLocalBPInfo(),
 		"enclosing_height": c.getNextHeight() - 1,
 		"using_timestamp":  now.Format(time.RFC3339Nano),
 		"elapsed_seconds":  elapsed.Seconds(),
@@ -456,7 +456,7 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 			"hash":    txhash.Short(4),
 			"address": addr,
 			"nonce":   nonce,
-			"type":    tx.GetTransactionType().String(),
+			"type":    tx.GetTransactionType(),
 		})
 
 		base pi.AccountNonce
@@ -541,7 +541,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 				c.advanceNextHeight(t, d)
 			} else {
 				log.WithFields(log.Fields{
-					"peer":        c.getLocalBPInfo().String(),
+					"peer":        c.getLocalBPInfo(),
 					"next_height": c.getNextHeight(),
 					"head_height": c.head().height,
 					"head_block":  c.head().hash.Short(4),
@@ -605,7 +605,7 @@ func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 
 	if ok = unreachable+needConfirms <= serversNum; !ok {
 		log.WithFields(log.Fields{
-			"peer":              c.getLocalBPInfo().String(),
+			"peer":              c.getLocalBPInfo(),
 			"sync_head_height":  h,
 			"unreachable_count": unreachable,
 		}).Warn("one or more block producers are currently unreachable")
@@ -672,7 +672,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		); err != nil || v.GetAccountNonce() < base {
 			log.WithFields(log.Fields{
 				"hash":    k.Short(4),
-				"type":    v.GetTransactionType().String(),
+				"type":    v.GetTransactionType(),
 				"account": v.GetAccountAddress(),
 				"nonce":   v.GetAccountNonce(),
 

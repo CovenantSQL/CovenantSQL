@@ -1286,6 +1286,35 @@ func (s *metaState) makeCopy() *metaState {
 	}
 }
 
+// compileChanges compiles storage procedures for changes in dirty map.
+func (s *metaState) compileChanges(
+	dst []storageProcedure) (results []storageProcedure,
+) {
+	results = dst
+	for k, v := range s.dirty.accounts {
+		if v != nil {
+			results = append(results, updateAccount(v))
+		} else {
+			results = append(results, deleteAccount(k))
+		}
+	}
+	for k, v := range s.dirty.databases {
+		if v != nil {
+			results = append(results, updateShardChain(v))
+		} else {
+			results = append(results, deleteShardChain(k))
+		}
+	}
+	for k, v := range s.dirty.provider {
+		if v != nil {
+			results = append(results, updateProvider(v))
+		} else {
+			results = append(results, deleteProvider(k))
+		}
+	}
+	return
+}
+
 func minDeposit(gasPrice uint64, minerNumber uint64) uint64 {
 	return gasPrice * uint64(conf.GConf.QPS) *
 		conf.GConf.BillingBlockCount * minerNumber

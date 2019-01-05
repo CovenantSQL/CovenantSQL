@@ -123,9 +123,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 
-	// Storage genesis
+	// Create initial state from genesis block and store
 	if !existed {
-		// TODO(leventeliu): reuse chain.replaceAndSwitchToBranch to construct initial state.
 		var init = newMetaState()
 		for _, v := range cfg.Genesis.Transactions {
 			if ierr = init.apply(v); ierr != nil {
@@ -133,29 +132,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 				return
 			}
 		}
-		var sps []storageProcedure
+		var sps = init.compileChanges(nil)
 		sps = append(sps, addBlock(0, cfg.Genesis))
-		for k, v := range init.dirty.accounts {
-			if v != nil {
-				sps = append(sps, updateAccount(v))
-			} else {
-				sps = append(sps, deleteAccount(k))
-			}
-		}
-		for k, v := range init.dirty.databases {
-			if v != nil {
-				sps = append(sps, updateShardChain(v))
-			} else {
-				sps = append(sps, deleteShardChain(k))
-			}
-		}
-		for k, v := range init.dirty.provider {
-			if v != nil {
-				sps = append(sps, updateProvider(v))
-			} else {
-				sps = append(sps, deleteProvider(k))
-			}
-		}
 		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.BlockHash))
 		if ierr = store(st, sps, nil); ierr != nil {
 			err = errors.Wrap(ierr, "failed to initialize storage")
@@ -684,28 +662,8 @@ func (c *Chain) replaceAndSwitchToBranch(
 	}
 
 	// Prepare storage procedures to update immutable database
+	sps = c.immutable.compileChanges(sps)
 	sps = append(sps, addBlock(height, newBlock))
-	for k, v := range c.immutable.dirty.accounts {
-		if v != nil {
-			sps = append(sps, updateAccount(v))
-		} else {
-			sps = append(sps, deleteAccount(k))
-		}
-	}
-	for k, v := range c.immutable.dirty.databases {
-		if v != nil {
-			sps = append(sps, updateShardChain(v))
-		} else {
-			sps = append(sps, deleteShardChain(k))
-		}
-	}
-	for k, v := range c.immutable.dirty.provider {
-		if v != nil {
-			sps = append(sps, updateProvider(v))
-		} else {
-			sps = append(sps, deleteProvider(k))
-		}
-	}
 	for _, n := range newIrres {
 		sps = append(sps, deleteTxs(n.block.Transactions))
 	}

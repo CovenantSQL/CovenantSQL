@@ -17,15 +17,15 @@
 package rpc
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var symmetricKeyCache sync.Map
@@ -34,7 +34,7 @@ var symmetricKeyCache sync.Map
 func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKey []byte, err error) {
 	if isAnonymous {
 		symmetricKey = []byte(`!&\\!qEyey*\cbLc,aKl`)
-		log.Debug("using anonymous ETLS")
+		//log.Debug("using anonymous ETLS")
 	} else {
 		symmetricKeyI, ok := symmetricKeyCache.Load(nodeID)
 		if ok {
@@ -46,7 +46,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
 				remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
 				if err != nil {
-					log.WithField("node", nodeID).WithError(err).Error("get public key locally failed")
+					err = errors.Wrapf(err, "get public key locally failed, node: %s", nodeID)
 					return
 				}
 			} else {
@@ -54,7 +54,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 				var nodeInfo *proto.Node
 				nodeInfo, err = GetNodeInfo(nodeID)
 				if err != nil {
-					log.WithField("node", nodeID).WithError(err).Error("get public key failed")
+					err = errors.Wrapf(err, "get public key failed, node: %s", nodeID)
 					return
 				}
 				remotePublicKey = nodeInfo.PublicKey
@@ -63,17 +63,17 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			var localPrivateKey *asymmetric.PrivateKey
 			localPrivateKey, err = kms.GetLocalPrivateKey()
 			if err != nil {
-				log.WithError(err).Error("get local private key failed")
+				err = errors.Wrap(err, "get local private key failed")
 				return
 			}
 
 			symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
 			symmetricKeyCache.Store(nodeID, symmetricKey)
-			log.WithFields(log.Fields{
-				"node":       nodeID.String(),
-				"remotePub":  fmt.Sprintf("%#x", remotePublicKey.Serialize()),
-				"sessionKey": fmt.Sprintf("%#x", symmetricKey),
-			}).Debug("generated shared secret")
+			//log.WithFields(log.Fields{
+			//	"node":       nodeID.String(),
+			//	"remotePub":  fmt.Sprintf("%#x", remotePublicKey.Serialize()),
+			//	"sessionKey": fmt.Sprintf("%#x", symmetricKey),
+			//}).Debug("generated shared secret")
 		}
 		//log.Debugf("ECDH for %s Public Key: %x, Private Key: %x Session Key: %x",
 		//	nodeID.ToNodeID(), remotePublicKey.Serialize(), localPrivateKey.Serialize(), symmetricKey)

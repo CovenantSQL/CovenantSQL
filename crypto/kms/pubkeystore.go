@@ -17,7 +17,6 @@
 package kms
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -32,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	bolt "github.com/coreos/bbolt"
+	"github.com/pkg/errors"
 )
 
 // PublicKeyStore holds db and bucket name
@@ -145,7 +145,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	for _, n := range initNodes {
 		err = setNode(&n)
 		if err != nil {
-			log.WithError(err).Error("set init nodes failed")
+			err = errors.Wrap(err, "set init nodes failed")
 			return
 		}
 	}
@@ -186,7 +186,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		return err // return from View func
 	})
 	if err != nil {
-		log.WithError(err).Error("get node info failed")
+		err = errors.Wrap(err, "get node info failed")
 	}
 	return
 }
@@ -210,7 +210,7 @@ func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 		return err // return from View func
 	})
 	if err != nil {
-		log.WithError(err).Error("get all node id failed")
+		err = errors.Wrap(err, "get all node id failed")
 	}
 	return
 
@@ -260,7 +260,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 
 	nodeBuf, err := utils.EncodeMsgPack(nodeInfo)
 	if err != nil {
-		log.WithError(err).Error("marshal node info failed")
+		err = errors.Wrap(err, "marshal node info failed")
 		return
 	}
 	log.Debugf("set node: %#v", nodeInfo)
@@ -273,7 +273,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 		return bucket.Put([]byte(nodeInfo.ID), nodeBuf.Bytes())
 	})
 	if err != nil {
-		log.WithError(err).Error("get node info failed")
+		err = errors.Wrap(err, "get node info failed")
 	}
 
 	return
@@ -295,7 +295,7 @@ func DelNode(id proto.NodeID) (err error) {
 		return bucket.Delete([]byte(id))
 	})
 	if err != nil {
-		log.WithError(err).Error("del node failed")
+		err = errors.Wrap(err, "del node failed")
 	}
 	return
 }
@@ -309,7 +309,7 @@ func removeBucket() (err error) {
 			return tx.DeleteBucket([]byte(kmsBucketName))
 		})
 		if err != nil {
-			log.WithError(err).Error("remove bucket failed")
+			err = errors.Wrap(err, "remove bucket failed")
 			return
 		}
 		// ks.bucket == nil means bucket not exist
@@ -332,7 +332,7 @@ func ResetBucket() error {
 	})
 	pks.bucket = bucketName
 	if err != nil {
-		log.WithError(err).Error("reset bucket failed")
+		err = errors.Wrap(err, "reset bucket failed")
 	}
 
 	return err

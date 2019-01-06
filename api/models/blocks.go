@@ -14,8 +14,8 @@ type BlocksModel struct{}
 type Block struct {
 	Height         int       `db:"height" json:"height"` // pk
 	Hash           string    `db:"hash" json:"hash"`
-	Timestamp      int64     `db:"timestamp" json:"-"`
-	TimestampHuman time.Time `db:"-" json:"timestamp"`
+	Timestamp      int64     `db:"timestamp" json:"timestamp"`
+	TimestampHuman time.Time `db:"-" json:"timestamp_human"`
 	Version        int32     `db:"version"  json:"version"`
 	Producer       string    `db:"producer" json:"producer"`
 	MerkleRoot     string    `db:"merkle_root" json:"merkle_root"`
@@ -32,7 +32,7 @@ func (b *Block) PostGet(s gorp.SqlExecutor) error {
 // GetBlockList get a list of blocks with height in [from, to).
 func (m *BlocksModel) GetBlockList(from, to int) (blocks []*Block, err error) {
 	query := `SELECT height, hash, timestamp, version, producer, merkle_root, parent, tx_count
-	FROM indexed_blocks WHERE height >= ? and height < ?`
+	FROM indexed_blocks WHERE height >= ? and height < ? ORDER BY height DESC`
 	_, err = chaindb.Select(&blocks, query, from, to)
 	return blocks, err
 }

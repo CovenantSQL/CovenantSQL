@@ -230,7 +230,7 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
 	if err != nil {
 		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
-		if err == kms.ErrKeyNotFound {
+		if errors.Cause(err) == kms.ErrKeyNotFound {
 			BPs := route.GetBPs()
 			if len(BPs) == 0 {
 				err = errors.New("no available BP")

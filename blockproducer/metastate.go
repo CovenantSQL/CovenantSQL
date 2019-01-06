@@ -67,13 +67,17 @@ func newMetaState() *metaState {
 }
 
 func (s *metaState) loadAccountObject(k proto.AccountAddress) (o *types.Account, loaded bool) {
-	if o, loaded = s.dirty.accounts[k]; loaded {
-		if o == nil {
+	var old *types.Account
+	if old, loaded = s.dirty.accounts[k]; loaded {
+		if old == nil {
 			loaded = false
+			return
 		}
+		o = deepcopy.Copy(old).(*types.Account)
 		return
 	}
-	if o, loaded = s.readonly.accounts[k]; loaded {
+	if old, loaded = s.readonly.accounts[k]; loaded {
+		o = deepcopy.Copy(old).(*types.Account)
 		return
 	}
 	return
@@ -92,43 +96,27 @@ func (s *metaState) loadOrStoreAccountObject(
 	return
 }
 
-func (s *metaState) loadAccountStableBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
+func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
+	tokenType types.TokenType) (b uint64, loaded bool) {
+	if !tokenType.Listed() {
+		return
+	}
 	var o *types.Account
 	defer func() {
 		log.WithFields(log.Fields{
-			"account": addr.String(),
-			"balance": b,
-			"loaded":  loaded,
-		}).Debug("queried stable account")
+			"account":   addr.String(),
+			"balance":   b,
+			"tokenType": tokenType.String(),
+			"loaded":    loaded,
+		}).Debug("queried token account")
 	}()
 
 	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.TokenBalance[types.Particle]
+		b = o.TokenBalance[tokenType]
 		return
 	}
 	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.TokenBalance[types.Particle]
-		return
-	}
-	return
-}
-
-func (s *metaState) loadAccountCovenantBalance(addr proto.AccountAddress) (b uint64, loaded bool) {
-	var o *types.Account
-	defer func() {
-		log.WithFields(log.Fields{
-			"account": addr.String(),
-			"balance": b,
-			"loaded":  loaded,
-		}).Debug("queried covenant account")
-	}()
-
-	if o, loaded = s.dirty.accounts[addr]; loaded && o != nil {
-		b = o.TokenBalance[types.Wave]
-		return
-	}
-	if o, loaded = s.readonly.accounts[addr]; loaded {
-		b = o.TokenBalance[types.Wave]
+		b = o.TokenBalance[tokenType]
 		return
 	}
 	return
@@ -275,7 +263,7 @@ func (s *metaState) increaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			err := errors.Wrap(ErrAccountNotFound, "increase account balance fail")
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -291,7 +279,7 @@ func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase stable balance fail")
+			err := errors.Wrap(ErrAccountNotFound, "decrease account balance fail")
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -322,6 +310,7 @@ func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
 		err = errors.Wrapf(ErrInvalidSender,
 			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
+		return
 	}
 
 	var (
@@ -882,10 +871,6 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		}).WithError(err).Error("unexpected err")
 		return
 	}
-	if sender == tx.TargetUser {
-		err = errors.Wrap(ErrInvalidSender, "user cannot update its permission by itself")
-		return
-	}
 	so, loaded := s.loadSQLChainObject(tx.TargetSQLChain.DatabaseID())
 	if !loaded {
 		log.WithFields(log.Fields{
@@ -903,9 +888,13 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 
 	// check whether sender is admin and find targetUser
 	isAdmin := false
+	numOfAdmin := 0
 	targetUserIndex := -1
 	for i, u := range so.Users {
 		isAdmin = isAdmin || (sender == u.Address && u.Permission == types.Admin)
+		if u.Permission == types.Admin {
+			numOfAdmin++
+		}
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i
 		}
@@ -919,12 +908,23 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		return ErrAccountPermissionDeny
 	}
 
+	// return error if number of Admin <= 1 and Admin want to revoke permission of itself
+	if numOfAdmin <= 1 && tx.TargetUser == sender && tx.Permission != types.Admin {
+		err = ErrNoAdminLeft
+		log.WithFields(log.Fields{
+			"sender":     sender.String(),
+			"dbID":       tx.TargetSQLChain.String(),
+			"targetUser": tx.TargetUser.String(),
+		}).WithError(err).Warning("in updatePermission")
+		return
+	}
+
 	// update targetUser's permission
 	if targetUserIndex == -1 {
 		u := types.SQLChainUser{
 			Address:    tx.TargetUser,
 			Permission: tx.Permission,
-			Status:     types.Normal,
+			Status:     types.UnknownStatus,
 		}
 		so.Users = append(so.Users, &u)
 	} else {
@@ -998,7 +998,10 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 	}
 	if !isMiner {
 		err = ErrInvalidSender
-		log.WithError(err).Warning("sender does not include in sqlchain (updateBilling)")
+		log.WithFields(log.Fields{
+			"miner_addr": minerAddr,
+			"miners":     newProfile.Miners,
+		}).WithError(err).Warning("sender does not exists in sqlchain (updateBilling)")
 		return
 	}
 
@@ -1074,29 +1077,82 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 	realSender, err := crypto.PubKeyHash(transfer.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "applyTx failed")
-		return err
+		return
 	}
 
 	if realSender != transfer.Sender {
 		err = errors.Wrapf(ErrInvalidSender,
 			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
+		return
 	}
 
 	var (
 		sqlchain *types.SQLChainProfile
+		account  *types.Account
 		ok       bool
 	)
-	sqlchain, ok = s.loadSQLChainObject(transfer.Sender.DatabaseID())
+	sqlchain, ok = s.loadSQLChainObject(transfer.Receiver.DatabaseID())
 	if !ok {
-		return ErrDatabaseNotFound
+		err = ErrDatabaseNotFound
+		log.WithFields(log.Fields{
+			"dbid":   transfer.Receiver.DatabaseID(),
+			"sender": transfer.Sender.String(),
+		}).WithError(err).Warning("database not exist in transferSQLChainTokenBalance")
+		return
+	}
+	if sqlchain.TokenType != transfer.TokenType {
+		err = ErrWrongTokenType
+		log.WithFields(log.Fields{
+			"dbid":   transfer.Receiver.DatabaseID(),
+			"sender": transfer.Sender.String(),
+		}).WithError(err).Warning("error token type in transferSQLChainTokenBalance")
+		return
+	}
+	account, ok = s.loadAccountObject(realSender)
+	if account.TokenBalance[transfer.TokenType] < transfer.Amount {
+		err = ErrInsufficientBalance
+		log.WithFields(log.Fields{
+			"addr":            account.Address.String(),
+			"amount":          account.TokenBalance[transfer.TokenType],
+			"transfer_amount": transfer.Amount,
+			"token_type":      transfer.TokenType.String(),
+		}).WithError(err).Warning("in transferSQLChainTokenBalance")
+		return
 	}
 
 	for _, user := range sqlchain.Users {
 		if user.Address == transfer.Sender {
-			if sqlchain.TokenType != transfer.TokenType {
-				return ErrWrongTokenType
+			// process arrears
+			if user.Arrears > 0 {
+				if user.Arrears <= transfer.Amount {
+					for _, miner := range sqlchain.Miners {
+						newUserArrears := make([]*types.UserArrears, len(miner.UserArrears))
+						i := 0
+						for _, ua := range miner.UserArrears {
+							if ua.User == user.Address {
+								miner.PendingIncome += miner.UserArrears[i].Arrears
+							} else {
+								newUserArrears[i] = ua
+								i++
+							}
+						}
+					}
+					user.Arrears = 0
+					user.Status = types.Normal
+
+					transfer.Amount -= user.Arrears
+					account.TokenBalance[transfer.TokenType] -= user.Arrears
+				} else {
+					err = ErrInsufficientTransfer
+					log.WithFields(log.Fields{
+						"arrears":         user.Arrears,
+						"transfer_amount": transfer.Amount,
+					}).WithError(err).Warning("in transferSQLChainTokenBalance")
+					return
+				}
 			}
+
 			minDep := minDeposit(sqlchain.GasPrice, uint64(len(sqlchain.Miners)))
 			if user.Deposit < minDep {
 				diff := minDep - user.Deposit
@@ -1105,15 +1161,22 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 				} else {
 					user.Deposit = minDep
 					diff2 := transfer.Amount - diff
-					user.Deposit += diff2
+					user.AdvancePayment += diff2
 				}
 			} else {
 				err = safeAdd(&user.AdvancePayment, &transfer.Amount)
 				if err != nil {
-					return err
+					return
 				}
 			}
-			s.dirty.databases[transfer.Sender.DatabaseID()] = sqlchain
+			account.TokenBalance[transfer.TokenType] -= transfer.Amount
+			if !user.Status.EnableQuery() {
+				if user.AdvancePayment > minDep {
+					user.Status = types.Normal
+				}
+			}
+			s.dirty.databases[transfer.Receiver.DatabaseID()] = sqlchain
+			s.dirty.accounts[realSender] = account
 			return
 		}
 	}

@@ -7,6 +7,7 @@ ListenAddr: "10.250.100.6:4661"
 ThisNodeID: "0017017845ff9f9f7e8599d308652eb8ce480e689fbd49afb6b44cc9726cf84b"
 QPS: 1000
 BillingBlockCount: 3600
+ChainBusPeriod: 1s
 BPPeriod: 3s
 BPTick: 1s
 SQLChainPeriod: 3s
@@ -65,7 +66,7 @@ Miner:
   IsTestMode: true
   RootDir: "./data"
   MaxReqTimeGap: "60s"
-  MetricCollectInterval: "60s"
+  ProvideServiceInterval: "3s"
 KnownNodes:
 - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:

@@ -7,6 +7,7 @@ ListenAddr: "127.0.0.1:2144"
 ThisNodeID: "000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade"
 QPS: 1000
 BillingBlockCount: 2
+ChainBusPeriod: 1s
 BPPeriod: 3s
 BPTick: 1s
 SQLChainPeriod: 3s

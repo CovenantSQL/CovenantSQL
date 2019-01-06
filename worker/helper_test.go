@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
@@ -28,29 +29,47 @@ var (
 	testEventProfiles = []*types.SQLChainProfile{
 		&types.SQLChainProfile{
 			ID: proto.DatabaseID("111"),
+			Users: []*types.SQLChainUser{
+				testUser1,
+			},
 		},
 		&types.SQLChainProfile{
 			ID: proto.DatabaseID("222"),
+			Users: []*types.SQLChainUser{
+				testUser2,
+			},
 		},
 		&types.SQLChainProfile{
 			ID: proto.DatabaseID("333"),
+			Users: []*types.SQLChainUser{
+				testUser3,
+			},
 		},
 		&types.SQLChainProfile{
 			ID: proto.DatabaseID("444"),
-		},
-		&types.SQLChainProfile{
-			ID: proto.DatabaseID("555"),
+			Users: []*types.SQLChainUser{
+				testUser4,
+			},
 		},
 	}
 	testOddProfiles = []*types.SQLChainProfile{
 		&types.SQLChainProfile{
-			ID: proto.DatabaseID("777"),
+			ID: proto.DatabaseID("111"),
+			Users: []*types.SQLChainUser{
+				testUser4,
+			},
 		},
 		&types.SQLChainProfile{
-			ID: proto.DatabaseID("888"),
+			ID: proto.DatabaseID("222"),
+			Users: []*types.SQLChainUser{
+				testUser3,
+			},
 		},
 		&types.SQLChainProfile{
-			ID: proto.DatabaseID("999"),
+			ID: proto.DatabaseID("333"),
+			Users: []*types.SQLChainUser{
+				testUser2,
+			},
 		},
 	}
 	testEventBlocks = types.BPBlock{
@@ -75,8 +94,30 @@ var (
 			&types.Transfer{},
 		},
 	}
-	testEventID = proto.DatabaseID("111")
-	testOddID   = proto.DatabaseID("777")
+	testID           = proto.DatabaseID("111")
+	testNotExistID   = proto.DatabaseID("not exist")
+	testAddr         = proto.AccountAddress(hash.THashH([]byte{'a', 'd', 'd', 'r', '1'}))
+	testNotExistAddr = proto.AccountAddress(hash.THashH([]byte{'a', 'a'}))
+	testUser1        = &types.SQLChainUser{
+		Address:    testAddr,
+		Permission: types.Write,
+		Status:     types.Normal,
+	}
+	testUser2 = &types.SQLChainUser{
+		Address:    testAddr,
+		Permission: types.Read,
+		Status:     types.Arrears,
+	}
+	testUser3 = &types.SQLChainUser{
+		Address:    testAddr,
+		Permission: types.Write,
+		Status:     types.Reminder,
+	}
+	testUser4 = &types.SQLChainUser{
+		Address:    testAddr,
+		Permission: types.Read,
+		Status:     types.Arbitration,
+	}
 )
 
 type blockInfo struct {

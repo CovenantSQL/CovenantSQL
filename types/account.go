@@ -39,8 +39,8 @@ const (
 type UserPermission int32
 
 const (
-	// UnknownPerm defines the initial permission.
-	UnknownPerm UserPermission = iota
+	// Void defines the initial permission.
+	Void UserPermission = iota
 	// Admin defines the admin user permission.
 	Admin
 	// Write defines the writer user permission.
@@ -66,6 +66,27 @@ func (up *UserPermission) CheckAdmin() bool {
 	return *up == Admin
 }
 
+// Valid returns true if the value is a meaning permission value.
+func (up *UserPermission) Valid() bool {
+	return *up >= Admin && *up < NumberOfUserPermission
+}
+
+// FromString converts string to UserPermission.
+func (up *UserPermission) FromString(perm string) {
+	switch perm {
+	case "Admin":
+		*up = Admin
+	case "Write":
+		*up = Write
+	case "Read":
+		*up = Read
+	case "Void":
+		*up = Void
+	default:
+		*up = NumberOfUserPermission
+	}
+}
+
 // Status defines status of a SQLChain user/miner.
 type Status int32
 
@@ -87,6 +108,12 @@ const (
 // EnableQuery indicates whether the account is permitted to query.
 func (s *Status) EnableQuery() bool {
 	return *s >= Normal && *s <= Reminder
+}
+
+// PermStat defines the permissions status structure.
+type PermStat struct {
+	Permission UserPermission
+	Status     Status
 }
 
 // SQLChainUser defines a SQLChain user.

@@ -23,14 +23,14 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestInit(t *testing.T) {
@@ -109,8 +109,8 @@ func TestDrop(t *testing.T) {
 	})
 }
 
-func TestGetCovenantCoinBalance(t *testing.T) {
-	Convey("test get covenant coin balance", t, func() {
+func TestGetTokenBalance(t *testing.T) {
+	Convey("test get token balance", t, func() {
 		var stopTestService func()
 		var err error
 		stopTestService, _, err = startTestService()
@@ -118,25 +118,13 @@ func TestGetCovenantCoinBalance(t *testing.T) {
 		defer stopTestService()
 
 		var balance uint64
-		balance, err = GetCovenantCoinBalance()
+		balance, err = GetTokenBalance(types.Particle)
 
 		So(err, ShouldBeNil)
 		So(balance, ShouldEqual, 0)
-	})
-}
 
-func TestGetStableCoinBalance(t *testing.T) {
-	Convey("test get stable coin balance", t, func() {
-		var stopTestService func()
-		var err error
-		stopTestService, _, err = startTestService()
-		So(err, ShouldBeNil)
-		defer stopTestService()
+		balance, err = GetTokenBalance(-1)
 
-		var balance uint64
-		balance, err = GetStableCoinBalance()
-
-		So(err, ShouldBeNil)
-		So(balance, ShouldEqual, 0)
+		So(err, ShouldEqual, ErrNoSuchTokenBalance)
 	})
 }

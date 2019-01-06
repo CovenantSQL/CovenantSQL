@@ -34,23 +34,26 @@ var (
 
 // SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
 type SubscribeTransactionsReq struct {
-	DatabaseID   proto.DatabaseID
-	SubscriberID proto.NodeID
-	Height       int32
+	proto.Envelope
+	DatabaseID proto.DatabaseID
+	Height     int32
 }
 
 // SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
 type SubscribeTransactionsResp struct {
+	proto.Envelope
 }
 
 // CancelSubscriptionReq defines a request of CancelSubscription RPC method.
 type CancelSubscriptionReq struct {
-	DatabaseID   proto.DatabaseID
-	SubscriberID proto.NodeID
+	proto.Envelope
+	DatabaseID proto.DatabaseID
 }
 
 // CancelSubscriptionResp defines a response of CancelSubscription RPC method.
-type CancelSubscriptionResp struct{}
+type CancelSubscriptionResp struct {
+	proto.Envelope
+}
 
 // DBMSRPCService is the rpc endpoint of database management.
 type DBMSRPCService struct {
@@ -154,12 +157,14 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 
 // SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
 func (rpc *DBMSRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, resp *SubscribeTransactionsResp) (err error) {
-	err = rpc.dbms.addTxSubscription(req.DatabaseID, req.SubscriberID, req.Height)
+	subscribeID := req.GetNodeID().ToNodeID()
+	err = rpc.dbms.addTxSubscription(req.DatabaseID, subscribeID, req.Height)
 	return
 }
 
 // CancelSubscription is the RPC method to cancel subscription in the target server.
 func (rpc *DBMSRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) (err error) {
-	err = rpc.dbms.cancelTxSubscription(req.DatabaseID, req.SubscriberID)
+	nodeID := req.GetNodeID().ToNodeID()
+	err = rpc.dbms.cancelTxSubscription(req.DatabaseID, nodeID)
 	return
 }

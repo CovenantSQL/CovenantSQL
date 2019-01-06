@@ -20,9 +20,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestPubKeyHashAndAddressing(t *testing.T) {

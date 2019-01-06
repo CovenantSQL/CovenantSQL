@@ -45,7 +45,7 @@ type bpGetTransactionByHashParams struct {
 func bpGetTransactionByHash(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
 	result interface{}, err error,
 ) {
-	params := ctx.Value("_params").(*bpGetBlockByHashParams)
+	params := ctx.Value("_params").(*bpGetTransactionByHashParams)
 	model := models.TransactionsModel{}
 	return model.GetTransactionByHash(params.Hash)
 }

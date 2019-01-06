@@ -18,8 +18,8 @@ type Transaction struct {
 	TxIndex        int         `db:"tx_index" json:"index"`            // pk2
 	Hash           string      `db:"hash" json:"hash"`
 	BlockHash      string      `db:"block_hash" json:"block_hash"`
-	Timestamp      int64       `db:"timestamp" json:"-"`
-	TimestampHuman time.Time   `db:"-" json:"timestamp"`
+	Timestamp      int64       `db:"timestamp" json:"timestamp"`
+	TimestampHuman time.Time   `db:"-" json:"timestamp_human"`
 	TxType         int         `db:"tx_type" json:"type"`
 	Address        string      `db:"address" json:"address"`
 	Raw            string      `db:"raw" json:"raw"`
@@ -64,10 +64,10 @@ func (m *TransactionsModel) GetTransactionList(since, direction string, limit in
 	query := fmt.Sprintf(`SELECT block_height, tx_index, hash, block_hash,
 	timestamp, tx_type, address, raw
 	FROM indexed_transactions
-	WHERE block_height %s ? and tx_index %s ?
+	WHERE block_height %s ? or (block_height = ? and tx_index %s ?)
 	ORDER BY block_height %s, tx_index %s
 	LIMIT ?`, compare, compare, orderBy, orderBy)
 
-	_, err = chaindb.Select(&txs, query, tx.BlockHeight, tx.TxIndex, limit)
+	_, err = chaindb.Select(&txs, query, tx.BlockHeight, tx.BlockHeight, tx.TxIndex, limit)
 	return txs, err
 }

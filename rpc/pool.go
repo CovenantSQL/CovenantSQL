@@ -20,9 +20,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // SessPool is the session pool interface
@@ -105,7 +106,7 @@ func (p *SessionPool) LoadOrStore(id proto.NodeID, newSess *Session) (sess *Sess
 	sess, exist := p.sessions[id]
 	if exist {
 		p.Unlock()
-		log.WithField("node", id).Debug("load session for target node")
+		//log.WithField("node", id).Debug("load session for target node")
 		loaded = true
 	} else {
 		p.sessions[id] = newSess
@@ -132,7 +133,7 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 			//log.WithField("node", id).Debug("reusing session")
 			return
 		}
-		log.WithField("target", id).WithError(err).Error("open session failed")
+		//log.WithField("target", id).WithError(err).Debug("open session failed")
 		p.Remove(id)
 	}
 
@@ -140,13 +141,13 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	// Can't find existing Session, try to dial one
 	newConn, err := p.nodeDialer(id)
 	if err != nil {
-		log.WithField("node", id).WithError(err).Error("dial new session failed")
+		err = errors.Wrapf(err, "dial new session to %s failed", id)
 		return
 	}
 	newSess, err := toSession(id, newConn)
 	if err != nil {
 		newConn.Close()
-		log.WithField("node", id).WithError(err).Error("dial new session failed")
+		err = errors.Wrapf(err, "create new session to %s failed", id)
 		return
 	}
 	sess, loaded := p.LoadOrStore(id, newSess)

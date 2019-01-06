@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"io"
 	"math/rand"
 	"net"
@@ -30,6 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 )
 
@@ -66,17 +66,16 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.client == nil {
-		log.Debug("init new rpc client")
 		var conn net.Conn
 		conn, err = DialToNode(c.TargetID, c.pool, isAnonymous)
 		if err != nil {
-			log.WithField("target", c.TargetID).WithError(err).Error("dial to node failed")
+			err = errors.Wrap(err, "dial to node failed")
 			return
 		}
 		//conn.SetDeadline(time.Time{})
 		c.client, err = InitClientConn(conn)
 		if err != nil {
-			log.WithError(err).Error("init RPC client failed")
+			err = errors.Wrap(err, "init RPC client failed")
 			return
 		}
 	}
@@ -87,7 +86,7 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
 	err = c.initClient(method == route.DHTPing.String())
 	if err != nil {
-		log.WithError(err).Error("init PersistentCaller client failed")
+		err = errors.Wrap(err, "init PersistentCaller client failed")
 		return
 	}
 	err = c.client.Call(method, args, reply)
@@ -101,10 +100,11 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 			// if got EOF, retry once
 			reconnectErr := c.ResetClient(method)
 			if reconnectErr != nil {
-				log.WithField("rpc", method).WithError(reconnectErr).Error("reconnect failed")
+				err = errors.Wrap(reconnectErr, "reconnect failed")
 			}
 		}
-		log.WithField("rpc", method).WithError(err).Error("call RPC failed")
+		err = errors.Wrap(err, "call RPC failed")
+		return
 	}
 	return
 }
@@ -160,7 +160,7 @@ func (c *Caller) CallNodeWithContext(
 	ctx context.Context, node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
 	conn, err := DialToNode(node, c.pool, method == route.DHTPing.String())
 	if err != nil {
-		log.WithField("node", node).WithError(err).Error("dial to node failed")
+		err = errors.Wrapf(err, "dial to node %s failed", node)
 		return
 	}
 
@@ -175,7 +175,7 @@ func (c *Caller) CallNodeWithContext(
 
 	client, err := InitClientConn(conn)
 	if err != nil {
-		log.WithError(err).Error("init RPC client failed")
+		err = errors.Wrap(err, "init RPC client failed")
 		return
 	}
 
@@ -202,7 +202,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 		if err == route.ErrUnknownNodeID {
 			BPs := route.GetBPs()
 			if len(BPs) == 0 {
-				log.Error("no available BP")
+				err = errors.New("no available BP")
 				return
 			}
 			client := NewCaller()
@@ -215,10 +215,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			method := "DHT.FindNode"
 			err = client.CallNode(bp, method, reqFN, respFN)
 			if err != nil {
-				log.WithFields(log.Fields{
-					"bpNode": bp,
-					"rpc":    method,
-				}).WithError(err).Error("call dht rpc failed")
+				err = errors.Wrapf(err, "call dht rpc %s to %s failed", method, bp)
 				return
 			}
 			route.SetNodeAddrCache(id, respFN.Node.Addr)
@@ -232,11 +229,11 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
 	if err != nil {
-		log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
+		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
 		if err == kms.ErrKeyNotFound {
 			BPs := route.GetBPs()
 			if len(BPs) == 0 {
-				log.Error("no available BP")
+				err = errors.New("no available BP")
 				return
 			}
 			client := NewCaller()
@@ -248,10 +245,7 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 			method := "DHT.FindNode"
 			err = client.CallNode(bp, method, reqFN, respFN)
 			if err != nil {
-				log.WithFields(log.Fields{
-					"bpNode": bp,
-					"rpc":    method,
-				}).WithError(err).Error("call dht rpc failed")
+				err = errors.Wrapf(err, "call dht rpc %s to %s failed", method, bp)
 				return
 			}
 			nodeInfo = respFN.Node
@@ -279,11 +273,9 @@ func PingBP(node *proto.Node, BPNodeID proto.NodeID) (err error) {
 	resp := new(proto.PingResp)
 	err = client.CallNode(BPNodeID, "DHT.Ping", req, resp)
 	if err != nil {
-		log.WithError(err).Error("call DHT.Ping failed")
+		err = errors.Wrap(err, "call DHT.Ping failed")
 		return
 	}
-	log.Debugf("PingBP resp: %#v", resp)
-
 	return
 }
 
@@ -328,16 +320,16 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 	}
 
 	if len(res.Nodes) <= 0 {
-		log.Error("get no hash nearest block producer nodes")
 		// node not found
-		err = ErrNoChiefBlockProducerAvailable
+		err = errors.Wrapf(ErrNoChiefBlockProducerAvailable,
+			"get no hash nearest block producer nodes")
 		return
 	}
 
 	if res.Nodes[0].Role != proto.Leader && res.Nodes[0].Role != proto.Follower {
-		log.Error("no suitable nodes with proper block producer role")
 		// not block producer
-		err = ErrNoChiefBlockProducerAvailable
+		err = errors.Wrap(ErrNoChiefBlockProducerAvailable,
+			"no suitable nodes with proper block producer role")
 		return
 	}
 

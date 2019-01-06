@@ -18,15 +18,31 @@ func InitModels(dbFile string) error {
 	return initChainDBConnection(dbFile)
 }
 
-func initChainDBConnection(dbFile string) error {
-	dsn := fmt.Sprintf("%s?_journal=WAL&mode=ro", dbFile)
+// OpenSQLiteDBAsGorp opens a sqlite database an wrapped it in gorp.DbMap.
+func OpenSQLiteDBAsGorp(dbFile, mode string, maxOpen, maxIdle int) (db *gorp.DbMap, err error) {
+	dsn := fmt.Sprintf("%s?_journal=WAL&mode=%s", dbFile, mode)
 	underdb, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		return errors.WithMessage(err, "unable to open chain.db")
+		return nil, errors.Wrapf(err, "unable to open database %q", dsn)
 	}
-	chaindb = &gorp.DbMap{
+	underdb.SetMaxOpenConns(maxOpen)
+	underdb.SetMaxIdleConns(maxIdle)
+
+	if err := underdb.Ping(); err != nil {
+		return nil, errors.Wrapf(err, "ping to database %q failed", dsn)
+	}
+
+	db = &gorp.DbMap{
 		Db:      underdb,
 		Dialect: gorp.SqliteDialect{},
+	}
+	return db, nil
+}
+
+func initChainDBConnection(dbFile string) (err error) {
+	chaindb, err = OpenSQLiteDBAsGorp(dbFile, "ro", 100, 30)
+	if err != nil {
+		return err
 	}
 
 	// register tables

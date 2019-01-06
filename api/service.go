@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/api/models"
-
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -27,6 +26,15 @@ type Service struct {
 	WriteTimeout  time.Duration
 
 	stopChan chan struct{}
+	stopped  chan struct{}
+}
+
+// NewService creates a new Service.
+func NewService() *Service {
+	return &Service{
+		stopChan: make(chan struct{}),
+		stopped:  make(chan struct{}),
+	}
 }
 
 // StartServers start API servers in a non-blocking way, fatal on errors.
@@ -39,6 +47,12 @@ func (s *Service) StopServers() {
 	close(s.stopChan)
 }
 
+// StopServersAndWait wait servers to stop.
+func (s *Service) StopServersAndWait() {
+	s.StopServers()
+	<-s.stopped
+}
+
 // RunServers start API servers in a blocking way, fatal on errors.
 func (s *Service) RunServers() {
 	// setup database
@@ -46,8 +60,6 @@ func (s *Service) RunServers() {
 		log.WithError(err).Fatal("api: init models failed")
 		return
 	}
-
-	s.stopChan = make(chan struct{})
 	wg := sync.WaitGroup{}
 
 	if s.WebsocketAddr != "" {
@@ -119,4 +131,5 @@ func (s *Service) runWebsocketServer(wg *sync.WaitGroup) {
 	}
 	cancel()
 	log.Warn("api: websocket server stopped")
+	close(s.stopped)
 }

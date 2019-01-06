@@ -159,12 +159,11 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// start json-rpc server
 	if wsapiAddr != "" {
-		jsonrpcServer := &api.Service{
-			DBFile:        conf.GConf.BP.ChainFileName,
-			WebsocketAddr: wsapiAddr,
-			ReadTimeout:   60 * time.Second,
-			WriteTimeout:  60 * time.Second,
-		}
+		jsonrpcServer := api.NewService()
+		jsonrpcServer.DBFile = conf.GConf.BP.ChainFileName
+		jsonrpcServer.WebsocketAddr = wsapiAddr
+		jsonrpcServer.ReadTimeout = 60 * time.Second
+		jsonrpcServer.WriteTimeout = 60 * time.Second
 		jsonrpcServer.StartServers()
 	}
 

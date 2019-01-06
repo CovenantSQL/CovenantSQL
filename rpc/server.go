@@ -111,7 +111,7 @@ serverLoop:
 			if err != nil {
 				continue
 			}
-			log.WithField("remote", conn.RemoteAddr().String()).Infof("accept")
+			log.WithField("remote", conn.RemoteAddr().String()).Info("accept")
 			go s.handleConn(conn)
 		}
 	}

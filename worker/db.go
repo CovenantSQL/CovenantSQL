@@ -57,7 +57,7 @@ const (
 	CommitThreshold = 1.0
 
 	// PrepareTimeout defines the prepare timeout config.
-	PrepareTimeout = 5 * time.Second
+	PrepareTimeout = 10 * time.Second
 
 	// CommitTimeout defines the commit timeout config.
 	CommitTimeout = time.Minute

@@ -43,7 +43,7 @@ const (
 	kayakServiceName    = "Kayak"
 	kayakMethodName     = "Call"
 	kayakWalFileName    = "kayak.ldb"
-	kayakPrepareTimeout = 10 * time.Second
+	kayakPrepareTimeout = 5 * time.Second
 	kayakCommitTimeout  = time.Minute
 )
 

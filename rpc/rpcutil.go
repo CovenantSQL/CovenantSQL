@@ -103,7 +103,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 				err = errors.Wrap(reconnectErr, "reconnect failed")
 			}
 		}
-		err = errors.Wrap(err, "call RPC failed")
+		err = errors.Wrapf(err, "call %s failed", method)
 		return
 	}
 	return
@@ -321,7 +321,7 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 
 	if len(res.Nodes) <= 0 {
 		// node not found
-		err = errors.Wrapf(ErrNoChiefBlockProducerAvailable,
+		err = errors.Wrap(ErrNoChiefBlockProducerAvailable,
 			"get no hash nearest block producer nodes")
 		return
 	}

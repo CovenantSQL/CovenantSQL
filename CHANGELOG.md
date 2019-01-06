@@ -1,5 +1,29 @@
 # Changelog
 
+## [v0.2.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.2.0) (2019-01-05)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.1.0...v0.2.0)
+
+**Merged pull requests:**
+
+- Update GNTE config [\#193](https://github.com/CovenantSQL/CovenantSQL/pull/193) ([laodouya](https://github.com/laodouya))
+- Fix matchProvidersWithUser inconsistent [\#188](https://github.com/CovenantSQL/CovenantSQL/pull/188) ([auxten](https://github.com/auxten))
+- Speed up BPs at genesis startup [\#186](https://github.com/CovenantSQL/CovenantSQL/pull/186) ([leventeliu](https://github.com/leventeliu))
+- Wait for database creation fix [\#185](https://github.com/CovenantSQL/CovenantSQL/pull/185) ([xq262144](https://github.com/xq262144))
+- Simplify cql and cql-utils log [\#184](https://github.com/CovenantSQL/CovenantSQL/pull/184) ([auxten](https://github.com/auxten))
+- Fix Makefile PHONY, add push\_testnet [\#183](https://github.com/CovenantSQL/CovenantSQL/pull/183) ([auxten](https://github.com/auxten))
+- Fix issue: duplicate branches [\#182](https://github.com/CovenantSQL/CovenantSQL/pull/182) ([leventeliu](https://github.com/leventeliu))
+- Update testnet conf [\#181](https://github.com/CovenantSQL/CovenantSQL/pull/181) ([auxten](https://github.com/auxten))
+- Remove base58 wallet address [\#179](https://github.com/CovenantSQL/CovenantSQL/pull/179) ([auxten](https://github.com/auxten))
+- Fix GNTE test config missing miner wallet init coin [\#178](https://github.com/CovenantSQL/CovenantSQL/pull/178) ([laodouya](https://github.com/laodouya))
+- Upgrade transaction structure: add Timestamp field [\#177](https://github.com/CovenantSQL/CovenantSQL/pull/177) ([ggicci](https://github.com/ggicci))
+- Block main cycle when BP network is unreachable [\#176](https://github.com/CovenantSQL/CovenantSQL/pull/176) ([leventeliu](https://github.com/leventeliu))
+- Remove useless hash in base58 encoded private key [\#175](https://github.com/CovenantSQL/CovenantSQL/pull/175) ([auxten](https://github.com/auxten))
+- Prune unused codes [\#174](https://github.com/CovenantSQL/CovenantSQL/pull/174) ([leventeliu](https://github.com/leventeliu))
+- Fix docker entry point [\#173](https://github.com/CovenantSQL/CovenantSQL/pull/173) ([leventeliu](https://github.com/leventeliu))
+- Add permission granting/revoking [\#172](https://github.com/CovenantSQL/CovenantSQL/pull/172) ([leventeliu](https://github.com/leventeliu))
+- Extract observer to an independent docker image [\#163](https://github.com/CovenantSQL/CovenantSQL/pull/163) ([laodouya](https://github.com/laodouya))
+
 ## [v0.1.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.1.0) (2018-12-29)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.0.6...v0.1.0)

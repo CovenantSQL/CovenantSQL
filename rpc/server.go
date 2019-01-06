@@ -184,6 +184,12 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		err = errors.Wrap(err, "read node header error")
 		return
 	}
+
+	if rCount != ETLSHeaderSize {
+		err = errors.New("invalid ETLS header size")
+		return
+	}
+
 	if headerBuf[0] != etls.ETLSMagicBytes[0] || headerBuf[1] != etls.ETLSMagicBytes[1] {
 		err = errors.New("bad ETLS header")
 		return

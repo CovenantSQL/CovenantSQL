@@ -398,7 +398,7 @@ func TestFullProcess(t *testing.T) {
 		// wait for creation
 		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+		err = client.WaitDBCreation(ctx, dsn)
 		So(err, ShouldBeNil)
 
 		// check sqlchain profile exist
@@ -747,11 +747,9 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	So(err, ShouldBeNil)
 
 	// wait for creation
-	dsnCfg, err := client.ParseDSN(dsn)
-	So(err, ShouldBeNil)
 	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+	err = client.WaitDBCreation(ctx, dsn)
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)
@@ -843,13 +841,10 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	db, err := sql.Open("covenantsql", dsn)
 	So(err, ShouldBeNil)
 
-	dsnCfg, err := client.ParseDSN(dsn)
-	So(err, ShouldBeNil)
-
 	// wait for creation
 	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+	err = client.WaitDBCreation(ctx, dsn)
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)

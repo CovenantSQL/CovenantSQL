@@ -63,6 +63,16 @@ func (z AccountAddress) MarshalJSON() ([]byte, error) {
 	return ((hash.Hash)(z)).MarshalJSON()
 }
 
+// MarshalYAML implements the yaml.Marshaler interface.
+func (z AccountAddress) MarshalYAML() (interface{}, error) {
+	return ((hash.Hash)(z)).MarshalYAML()
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (z *AccountAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return ((*hash.Hash)(z)).UnmarshalYAML(unmarshal)
+}
+
 // NodeKey is node key on consistent hash ring, generate from Hash(NodeID).
 type NodeKey RawNodeID
 

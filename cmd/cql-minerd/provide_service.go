@@ -17,6 +17,7 @@
 package main
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -150,6 +151,10 @@ func sendProvideService(reg *prometheus.Registry) {
 			NodeID:        nodeID,
 		},
 	)
+
+	if conf.GConf.Miner != nil && len(conf.GConf.Miner.TargetUsers) > 0 {
+		tx.ProvideServiceHeader.TargetUser = conf.GConf.Miner.TargetUsers
+	}
 
 	tx.Nonce = nonceResp.Nonce
 

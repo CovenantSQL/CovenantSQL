@@ -42,9 +42,11 @@ import (
 )
 
 const (
-	kayakServiceName = "Kayak"
-	kayakMethodName  = "Call"
-	kayakWalFileName = "kayak.ldb"
+	kayakServiceName    = "Kayak"
+	kayakMethodName     = "Call"
+	kayakWalFileName    = "kayak.ldb"
+	kayakPrepareTimeout = 5 * time.Second
+	kayakCommitTimeout  = time.Minute
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
@@ -146,6 +148,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		conf.GConf.BPPeriod,
 		conf.GConf.BPTick,
 	)
+	chainConfig.Mode = mode
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
 		log.WithError(err).Error("init chain failed")
@@ -206,8 +209,8 @@ func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.H
 		Handler:          h,
 		PrepareThreshold: 1.0,
 		CommitThreshold:  1.0,
-		PrepareTimeout:   time.Second,
-		CommitTimeout:    time.Second * 60,
+		PrepareTimeout:   kayakPrepareTimeout,
+		CommitTimeout:    kayakCommitTimeout,
 		Peers:            peers,
 		Wal:              logWal,
 		NodeID:           node.ID,

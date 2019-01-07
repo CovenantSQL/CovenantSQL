@@ -54,7 +54,7 @@ func NewNodeCollector() (*NodeCollector, error) {
 	collectors["cpu"], _ = NewCPUCollector()
 	collectors["diskstats"], _ = NewDiskstatsCollector()
 	collectors["filesystem"], _ = NewFilesystemCollector()
-	collectors["ntp"], _ = NewNtpCollector()
+	//collectors["ntp"], _ = NewNtpCollector()
 	collectors["loadavg"], _ = NewLoadavgCollector()
 
 	return &NodeCollector{Collectors: collectors}, nil

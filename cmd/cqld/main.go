@@ -55,8 +55,8 @@ var (
 	noLogo      bool
 	showVersion bool
 	configFile  string
-
 	wsapiAddr string
+	mode string // "normal", "api"
 )
 
 const name = `cqld`
@@ -73,6 +73,7 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 
 	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API")
+	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)

@@ -31,7 +31,8 @@ var (
 	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
-
+	// ErrTooManyTransactionsInBlock defines error of too many transactions in a block.
+	ErrTooManyTransactionsInBlock = errors.New("too many transactions in block")
 	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
 	ErrBalanceOverflow = errors.New("balance overflow")
 	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.

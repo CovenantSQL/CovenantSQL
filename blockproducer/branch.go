@@ -29,6 +29,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const transactionsLimit = 10000
+
 type branch struct {
 	head     *blockNode
 	preview  *metaState
@@ -56,6 +58,10 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
+		if len(bn.block.Transactions) > transactionsLimit {
+			return nil, ErrTooManyTransactionsInBlock
+		}
+
 		for _, v := range bn.block.Transactions {
 			var k = v.Hash()
 			// Check in tx pool
@@ -126,6 +132,11 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 		return
 	}
 	var cpy = b.makeArena()
+
+	if len(n.block.Transactions) > transactionsLimit {
+		return nil, ErrTooManyTransactionsInBlock
+	}
+
 	for _, v := range n.block.Transactions {
 		var k = v.Hash()
 		// Check in tx pool
@@ -172,11 +183,17 @@ func (b *branch) produceBlock(
 	br *branch, bl *types.BPBlock, err error,
 ) {
 	var (
-		cpy  = b.makeArena()
-		txs  = cpy.sortUnpackedTxs()
-		out  = make([]pi.Transaction, 0, len(txs))
-		ierr error
+		cpy       = b.makeArena()
+		txs       = cpy.sortUnpackedTxs()
+		ierr      error
+		packCount = transactionsLimit
 	)
+
+	if len(txs) < packCount {
+		packCount = len(txs)
+	}
+
+	out := make([]pi.Transaction, 0, packCount)
 	for _, v := range txs {
 		var k = v.Hash()
 		if ierr = cpy.preview.apply(v); ierr != nil {
@@ -185,7 +202,11 @@ func (b *branch) produceBlock(
 		delete(cpy.unpacked, k)
 		cpy.packed[k] = v
 		out = append(out, v)
+		if len(out) == packCount {
+			break
+		}
 	}
+
 	// Create new block and update head
 	var block = &types.BPBlock{
 		SignedHeader: types.BPSignedHeader{

@@ -56,6 +56,12 @@ const (
 	// CommitThreshold defines the commit complete threshold.
 	CommitThreshold = 1.0
 
+	// PrepareTimeout defines the prepare timeout config.
+	PrepareTimeout = 10 * time.Second
+
+	// CommitTimeout defines the commit timeout config.
+	CommitTimeout = time.Minute
+
 	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
 	SlowQuerySampleSize = 1 << 10
 )
@@ -161,8 +167,8 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		Handler:          db,
 		PrepareThreshold: PrepareThreshold,
 		CommitThreshold:  CommitThreshold,
-		PrepareTimeout:   time.Second,
-		CommitTimeout:    time.Second * 60,
+		PrepareTimeout:   PrepareTimeout,
+		CommitTimeout:    CommitTimeout,
 		Peers:            peers,
 		Wal:              db.kayakWal,
 		NodeID:           db.nodeID,

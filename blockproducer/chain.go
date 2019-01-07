@@ -77,6 +77,7 @@ type Chain struct {
 	headBranch   *branch
 	branches     []*branch
 	txPool       map[hash.Hash]pi.Transaction
+	mode         string
 }
 
 // NewChain creates a new blockchain.
@@ -252,6 +253,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		headBranch: head,
 		branches:   branches,
 		txPool:     txPool,
+		mode:       cfg.Mode,
 	}
 	log.WithFields(log.Fields{
 		"index":     c.locSvIndex,
@@ -390,7 +392,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 
 	defer c.increaseNextHeight()
 	// Skip if it's not my turn
-	if !c.isMyTurn() {
+	if c.mode == "api" || !c.isMyTurn() {
 		return
 	}
 	// Normally, a block producing should start right after the new period, but more time may also
@@ -461,7 +463,7 @@ func (c *Chain) addTx(tx pi.Transaction) {
 func (c *Chain) processTx(tx pi.Transaction) {
 	if err := tx.Verify(); err != nil {
 		log.WithError(err).Errorf("failed to verify transaction with hash: %s, address: %s, tx type: %s",
-			tx.Hash(), tx.GetAccountAddress(), tx.GetTransactionType().String())
+			tx.Hash(), tx.GetAccountAddress().String(), tx.GetTransactionType().String())
 		return
 	}
 	if ok := func() (ok bool) {
@@ -711,6 +713,10 @@ func (c *Chain) replaceAndSwitchToBranch(
 
 	// Prepare storage procedures to update immutable database
 	sps = append(sps, addBlock(height, newBlock))
+
+	// Index blocks and transactions if running as API node
+	sps = append(sps, buildBlockIndex(height, newBlock))
+
 	for k, v := range c.immutable.dirty.accounts {
 		if v != nil {
 			sps = append(sps, updateAccount(v))

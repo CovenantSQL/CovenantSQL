@@ -106,7 +106,7 @@ func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
 		log.WithFields(log.Fields{
 			"account":   addr.String(),
 			"balance":   b,
-			"tokenType": tokenType.String(),
+			"tokenType": tokenType,
 			"loaded":    loaded,
 		}).Debug("queried token account")
 	}()
@@ -856,7 +856,7 @@ func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (m
 	if po.TokenType != req.TokenType {
 		err = errors.New("token type mismatch")
 		log.WithError(err).Debugf("miner's token type: %s, user's token type: %s",
-			po.TokenType.String(), req.TokenType.String())
+			po.TokenType, req.TokenType)
 		return
 	}
 
@@ -867,7 +867,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"tx": tx.Hash().String(),
+			"tx": tx.Hash(),
 		}).WithError(err).Error("unexpected err")
 		return
 	}
@@ -1116,7 +1116,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 			"addr":            account.Address.String(),
 			"amount":          account.TokenBalance[transfer.TokenType],
 			"transfer_amount": transfer.Amount,
-			"token_type":      transfer.TokenType.String(),
+			"token_type":      transfer.TokenType,
 		}).WithError(err).Warning("in transferSQLChainTokenBalance")
 		return
 	}
@@ -1245,7 +1245,7 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta typ
 }
 
 func (s *metaState) apply(t pi.Transaction) (err error) {
-	log.Infof("get tx: %s", t.GetTransactionType().String())
+	log.Infof("get tx: %s", t.GetTransactionType())
 	// NOTE(leventeliu): bypass pool in this method.
 	var (
 		addr  = t.GetAccountAddress()
@@ -1284,6 +1284,35 @@ func (s *metaState) makeCopy() *metaState {
 		dirty:    newMetaIndex(),
 		readonly: s.readonly.deepCopy(),
 	}
+}
+
+// compileChanges compiles storage procedures for changes in dirty map.
+func (s *metaState) compileChanges(
+	dst []storageProcedure) (results []storageProcedure,
+) {
+	results = dst
+	for k, v := range s.dirty.accounts {
+		if v != nil {
+			results = append(results, updateAccount(v))
+		} else {
+			results = append(results, deleteAccount(k))
+		}
+	}
+	for k, v := range s.dirty.databases {
+		if v != nil {
+			results = append(results, updateShardChain(v))
+		} else {
+			results = append(results, deleteShardChain(k))
+		}
+	}
+	for k, v := range s.dirty.provider {
+		if v != nil {
+			results = append(results, updateProvider(v))
+		} else {
+			results = append(results, deleteProvider(k))
+		}
+	}
+	return
 }
 
 func minDeposit(gasPrice uint64, minerNumber uint64) uint64 {

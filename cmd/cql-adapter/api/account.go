@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -39,7 +40,7 @@ func (a *accountAPI) StableCoinBalance(rw http.ResponseWriter, r *http.Request) 
 	var balance uint64
 	var err error
 
-	if balance, err = client.GetStableCoinBalance(); err != nil {
+	if balance, err = client.GetTokenBalance(types.Particle); err != nil {
 		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 	} else {
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
@@ -57,7 +58,7 @@ func (a *accountAPI) CovenantCoinBalance(rw http.ResponseWriter, r *http.Request
 	var balance uint64
 	var err error
 
-	if balance, err = client.GetCovenantCoinBalance(); err != nil {
+	if balance, err = client.GetTokenBalance(types.Wave); err != nil {
 		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 	} else {
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{

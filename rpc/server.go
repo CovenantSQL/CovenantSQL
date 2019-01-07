@@ -65,13 +65,13 @@ func (s *Server) InitRPCServer(
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
-		log.WithError(err).Error("init local key pair failed")
+		err = errors.Wrap(err, "init local key pair failed")
 		return
 	}
 
 	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
 	if err != nil {
-		log.WithError(err).Error("create crypto listener failed")
+		err = errors.Wrap(err, "create crypto listener failed")
 		return
 	}
 
@@ -111,6 +111,7 @@ serverLoop:
 			if err != nil {
 				continue
 			}
+			log.WithField("remote", conn.RemoteAddr().String()).Info("accept")
 			go s.handleConn(conn)
 		}
 	}
@@ -130,7 +131,7 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	sess, err := mux.Server(conn, YamuxConfig)
 	if err != nil {
-		log.Error(err)
+		err = errors.Wrap(err, "create mux server failed")
 		return
 	}
 	defer sess.Close()
@@ -145,9 +146,9 @@ sessionLoop:
 			muxConn, err := sess.AcceptStream()
 			if err != nil {
 				if err == io.EOF {
-					log.WithField("remote", remoteNodeID).Debug("session connection closed")
+					//log.WithField("remote", remoteNodeID).Debug("session connection closed")
 				} else {
-					log.WithField("remote", remoteNodeID).WithError(err).Error("session accept failed")
+					err = errors.Wrapf(err, "session accept failed, remote: %s", remoteNodeID)
 				}
 				break sessionLoop
 			}
@@ -179,10 +180,16 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	// NodeID + Uint256 Nonce
 	headerBuf := make([]byte, ETLSHeaderSize)
 	rCount, err := conn.Read(headerBuf)
-	if err != nil || rCount != ETLSHeaderSize {
-		log.WithError(err).Error("read node header error")
+	if err != nil {
+		err = errors.Wrap(err, "read node header error")
 		return
 	}
+
+	if rCount != ETLSHeaderSize {
+		err = errors.New("invalid ETLS header size")
+		return
+	}
+
 	if headerBuf[0] != etls.ETLSMagicBytes[0] || headerBuf[1] != etls.ETLSMagicBytes[1] {
 		err = errors.New("bad ETLS header")
 		return
@@ -199,7 +206,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
 	)
 	if err != nil {
-		log.WithField("target", rawNodeID.String()).WithError(err).Error("get shared secret")
+		err = errors.Wrapf(err, "get shared secret, target: %s", rawNodeID.String())
 		return
 	}
 	cipher := etls.NewCipher(symmetricKey)

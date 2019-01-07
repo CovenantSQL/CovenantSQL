@@ -2,6 +2,8 @@
 
 echo nameserver 1.1.1.1 > /etc/resolv.conf
 
+[ -s "${COVENANT_ALERT}" ] && [ -x "${COVENANT_ALERT}" ] && (eval "${COVENANT_ALERT}")
+
 case "${COVENANT_ROLE}" in
 miner)
     exec /app/cql-minerd -config "${COVENANT_CONF}" "${@}"

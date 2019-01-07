@@ -463,7 +463,7 @@ func (c *Chain) addTx(tx pi.Transaction) {
 func (c *Chain) processTx(tx pi.Transaction) {
 	if err := tx.Verify(); err != nil {
 		log.WithError(err).Errorf("failed to verify transaction with hash: %s, address: %s, tx type: %s",
-			tx.Hash(), tx.GetAccountAddress(), tx.GetTransactionType().String())
+			tx.Hash(), tx.GetAccountAddress().String(), tx.GetTransactionType().String())
 		return
 	}
 	if ok := func() (ok bool) {

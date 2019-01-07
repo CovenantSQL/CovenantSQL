@@ -37,6 +37,8 @@ var (
 	ErrBalanceOverflow = errors.New("balance overflow")
 	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.
 	ErrInsufficientBalance = errors.New("insufficient balance")
+	// ErrInsufficientTransfer indicates that the transfer amount is insufficient for paying arrears.
+	ErrInsufficientTransfer = errors.New("insufficient transfer")
 	// ErrAccountNotFound indicates that an account is not found.
 	ErrAccountNotFound = errors.New("account not found")
 	// ErrAccountExists indicates that the an account already exists.
@@ -60,6 +62,8 @@ var (
 	ErrNoEnoughMiner = errors.New("can not get enough miners")
 	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
 	ErrAccountPermissionDeny = errors.New("account permission deny")
+	// ErrNoAdminLeft indicates there is no admin user in sqlchain.
+	ErrNoAdminLeft = errors.New("no admin user left")
 	// ErrInvalidPermission indicates that the permission is invalid.
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.

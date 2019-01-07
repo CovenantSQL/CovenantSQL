@@ -301,7 +301,7 @@ func TestFullProcess(t *testing.T) {
 		dbID = cfg.DatabaseID
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl2()
-		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID), db, 3*time.Second)
+		err = client.WaitDBCreation(ctx2, dsn)
 		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
@@ -373,7 +373,7 @@ func TestFullProcess(t *testing.T) {
 		So(dbID, ShouldNotResemble, dbID2)
 		ctx3, ccl3 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl3()
-		err = bp.WaitDatabaseCreation(ctx3, proto.DatabaseID(dbID2), db2, 3*time.Second)
+		err = client.WaitDBCreation(ctx3, dsn2)
 		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")
@@ -416,7 +416,7 @@ func TestFullProcess(t *testing.T) {
 		}()
 
 		// wait for the observer to collect blocks, two periods is enough
-		time.Sleep(conf.GConf.SQLChainPeriod * 2)
+		time.Sleep(conf.GConf.SQLChainPeriod * 5)
 
 		// test get genesis block by height
 		res, err := getJSON("v1/height/%v/0", dbID)
@@ -425,14 +425,20 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
 		genesisHash := ensureSuccess(res.String("block", "hash")).(string)
 
+		res, err = getJSON("v1/head/%v", dbID)
+		So(err, ShouldBeNil)
+		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
+		maxHeight := ensureSuccess(res.Int("block", "height")).(int)
+		So(maxHeight, ShouldBeGreaterThan, 0)
+
 		// test get first containable block
 		var (
 			blockHash           string
 			byHeightBlockResult interface{}
 		)
 
-		// access 5 blocks
-		for i := 1; i <= 5; i++ {
+		// access from max height to found a non-empty block
+		for i := maxHeight; i > 0; i-- {
 			res, err = getJSON("v3/height/%v/%d", dbID, i)
 			So(err, ShouldBeNil)
 			So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)

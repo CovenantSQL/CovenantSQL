@@ -217,5 +217,5 @@ clean:
 	rm -rf bin/cql*
 
 .PHONY: status start stop logs push push_testnet clean \
-	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils \
+	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql-observer bin/cql-observer.test \
 	bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer

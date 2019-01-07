@@ -53,7 +53,8 @@ func TestNewBusService(t *testing.T) {
 			privKey           *asymmetric.PrivateKey
 			pubKey            *asymmetric.PublicKey
 			addr              proto.AccountAddress
-			testCheckInterval = 1 * time.Second
+			testCheckInterval = 30 * time.Second
+			count             uint32
 		)
 		privKey, err = kms.GetLocalPrivateKey()
 		So(err, ShouldBeNil)
@@ -64,7 +65,6 @@ func TestNewBusService(t *testing.T) {
 		defer cancelFunc()
 		bs := NewBusService(ctx, addr, testCheckInterval)
 		topic := fmt.Sprintf("/%s/", testOddBlocks.Transactions[0].GetTransactionType().String())
-		var count uint32
 		err = bs.Subscribe(topic, func(tx interfaces.Transaction, c uint32) {
 			atomic.AddUint32(&count, 1)
 		})
@@ -74,47 +74,52 @@ func TestNewBusService(t *testing.T) {
 
 		bs.Start()
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(4 * time.Second)
 
 		c := atomic.LoadUint32(&bs.blockCount)
 		if c%2 == 0 {
-			p, ok := bs.RequestSQLProfile(testEventID)
-			So(ok, ShouldBeTrue)
-			exist := false
-			for _, profile := range testEventProfiles {
-				if profile.ID == p.ID {
-					So(p, ShouldResemble, profile)
-					exist = true
-				}
-			}
-			So(exist, ShouldBeTrue)
 			dbMap := bs.GetCurrentDBMapping()
 			for _, profile := range testEventProfiles {
-				p, ok := dbMap[profile.ID]
+				// test RequestSQLProfile
+				p, ok := bs.RequestSQLProfile(profile.ID)
+				So(ok, ShouldBeTrue)
+				So(p, ShouldResemble, profile)
+
+				// test GetCurrentDBMapping
+				p, ok = dbMap[profile.ID]
 				So(ok, ShouldBeTrue)
 				So(profile, ShouldResemble, p)
+
+				// test RequestPermStat
+				permStat, ok := bs.RequestPermStat(profile.ID, testAddr)
+				So(ok, ShouldBeTrue)
+				So(permStat.Status, ShouldEqual, profile.Users[0].Status)
+				So(permStat.Permission, ShouldEqual, profile.Users[0].Permission)
+				permStat, ok = bs.RequestPermStat(profile.ID, testNotExistAddr)
 			}
-			p, ok = bs.RequestSQLProfile(testOddID)
+			p, ok := bs.RequestSQLProfile(testNotExistID)
 			So(ok, ShouldBeFalse)
 			So(p, ShouldBeNil)
 		} else {
-			p, ok := bs.RequestSQLProfile(testOddID)
-			So(ok, ShouldBeTrue)
-			exist := false
-			for _, profile := range testOddProfiles {
-				if profile.ID == p.ID {
-					So(p, ShouldResemble, profile)
-					exist = true
-				}
-			}
-			So(exist, ShouldBeTrue)
 			dbMap := bs.GetCurrentDBMapping()
 			for _, profile := range testOddProfiles {
-				p, ok := dbMap[profile.ID]
+				p, ok := bs.RequestSQLProfile(profile.ID)
+				So(ok, ShouldBeTrue)
+				So(p, ShouldResemble, profile)
+
+				// test GetCurrentDBMapping
+				p, ok = dbMap[profile.ID]
 				So(ok, ShouldBeTrue)
 				So(profile, ShouldResemble, p)
+
+				// test RequestPermStat
+				permStat, ok := bs.RequestPermStat(profile.ID, testAddr)
+				So(ok, ShouldBeTrue)
+				So(permStat.Status, ShouldEqual, profile.Users[0].Status)
+				So(permStat.Permission, ShouldEqual, profile.Users[0].Permission)
+				permStat, ok = bs.RequestPermStat(profile.ID, testNotExistAddr)
 			}
-			p, ok = bs.RequestSQLProfile(testEventID)
+			p, ok := bs.RequestSQLProfile(testNotExistID)
 			So(ok, ShouldBeFalse)
 			So(p, ShouldBeNil)
 		}

@@ -19,6 +19,7 @@ package blockproducer
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -35,40 +36,77 @@ var (
 	ddls = [...]string{
 		// Chain state tables
 		`CREATE TABLE IF NOT EXISTS "blocks" (
-	"height"    INT,
-	"hash"		TEXT,
-	"parent"	TEXT,
-	"encoded"	BLOB,
-	UNIQUE ("hash")
-)`,
+			"height"    INT,
+			"hash"		TEXT,
+			"parent"	TEXT,
+			"encoded"	BLOB,
+			UNIQUE ("hash")
+		);`,
+
 		`CREATE TABLE IF NOT EXISTS "txPool" (
-	"type"		INT,
-	"hash"		TEXT,
-	"encoded"	BLOB,
-	UNIQUE ("hash")
-)`,
+			"type"		INT,
+			"hash"		TEXT,
+			"encoded"	BLOB,
+			UNIQUE ("hash")
+		);`,
+
 		`CREATE TABLE IF NOT EXISTS "irreversible" (
-	"id"		INT,
-	"hash"		TEXT,
-	UNIQUE ("id")
-)`,
+			"id"		INT,
+			"hash"		TEXT,
+			UNIQUE ("id")
+		);`,
+
 		// Meta state tables
 		`CREATE TABLE IF NOT EXISTS "accounts" (
-	"address"	TEXT,
-	"encoded"	BLOB,
-	UNIQUE ("address")
-)`,
+			"address"	TEXT,
+			"encoded"	BLOB,
+			UNIQUE ("address")
+		);`,
+
 		`CREATE TABLE IF NOT EXISTS "shardChain" (
-	"address"	TEXT,
-	"id"		TEXT,
-	"encoded"	BLOB,
-	UNIQUE ("address", "id")
-)`,
+			"address"	TEXT,
+			"id"		TEXT,
+			"encoded"	BLOB,
+			UNIQUE ("address", "id")
+		);`,
+
 		`CREATE TABLE IF NOT EXISTS "provider" (
-	"address"	TEXT,
-	"encoded"	BLOB,
-	UNIQUE ("address")
-)`,
+			"address"	TEXT,
+			"encoded"	BLOB,
+			UNIQUE ("address")
+		);`,
+
+		`CREATE TABLE IF NOT EXISTS "indexed_blocks" (
+			"height"		INTEGER PRIMARY KEY,
+			"hash"			TEXT,
+			"timestamp"		INTEGER,
+			"version"		INTEGER,
+			"producer"		TEXT,
+			"merkle_root"	TEXT,
+			"parent"		TEXT,
+			"tx_count"		INTEGER
+		);`,
+
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_blocks__hash" ON "indexed_blocks" ("hash");`,
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_blocks__timestamp" ON "indexed_blocks" ("timestamp" DESC);`,
+
+		`CREATE TABLE IF NOT EXISTS "indexed_transactions" (
+			"block_height"	INTEGER,
+			"tx_index"		INTEGER,
+			"hash"			TEXT,
+			"block_hash"	TEXT,
+			"timestamp"		INTEGER,
+			"tx_type"		INTEGER,
+			"address"		TEXT,
+			"raw"			TEXT,
+			PRIMARY KEY ("block_height", "tx_index")
+		);`,
+
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__hash" ON "indexed_transactions" ("hash");`,
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__block_hash" ON "indexed_transactions" ("block_hash");`,
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__timestamp" ON "indexed_transactions" ("timestamp" DESC);`,
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__tx_type__timestamp" ON "indexed_transactions" ("tx_type", "timestamp" DESC);`,
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__address__timestamp" ON "indexed_transactions" ("address", "timestamp" DESC);`,
 	}
 )
 
@@ -156,7 +194,49 @@ func addTx(t pi.Transaction) storageProcedure {
 			uint32(t.GetTransactionType()),
 			t.Hash().String(),
 			enc.Bytes())
-		return
+		return err
+	}
+}
+
+func buildBlockIndex(height uint32, b *types.BPBlock) storageProcedure {
+	return func(tx *sql.Tx) (err error) {
+		var p = b.Producer()
+		if _, err = tx.Exec(`INSERT OR REPLACE INTO "indexed_blocks"
+			("height", "hash", "timestamp", "version", "producer",
+			"merkle_root", "parent", "tx_count") VALUES (?,?,?,?,?,?,?,?)`,
+			height,
+			b.BlockHash().String(),
+			b.Timestamp().UnixNano(),
+			b.SignedHeader.Version,
+			p.String(),
+			b.SignedHeader.MerkleRoot.String(),
+			b.ParentHash().String(),
+			len(b.Transactions),
+		); err != nil {
+			return err
+		}
+
+		for txIndex, t := range b.Transactions {
+			var (
+				addr   = t.GetAccountAddress()
+				raw, _ = json.Marshal(t)
+			)
+			if _, err := tx.Exec(`INSERT OR REPLACE INTO "indexed_transactions"
+			("block_height", "tx_index", "hash", "block_hash", "timestamp",
+			"tx_type", "address", "raw") VALUES (?,?,?,?,?,?,?,?)`,
+				height,
+				txIndex,
+				t.Hash().String(),
+				b.BlockHash().String(),
+				0, // FIXME: use Transaction.GetTimestamp()
+				t.GetTransactionType(),
+				addr.String(),
+				string(raw),
+			); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
 

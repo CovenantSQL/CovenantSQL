@@ -146,6 +146,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		conf.GConf.BPPeriod,
 		conf.GConf.BPTick,
 	)
+	chainConfig.Mode = mode
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
 		log.WithError(err).Error("init chain failed")

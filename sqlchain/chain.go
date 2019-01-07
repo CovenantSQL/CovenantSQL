@@ -1180,19 +1180,45 @@ func (c *Chain) replicationCycle(ctx context.Context) {
 
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
-	var ref *x.QueryTracker
+	var (
+		ref   *x.QueryTracker
+		start = time.Now()
+
+		quired, signed, added, updated time.Duration
+	)
+
+	defer func() {
+		var fields = log.Fields{}
+		if quired > 0 {
+			fields["1#queried"] = float64(quired.Nanoseconds()) / 1000
+		}
+		if signed > 0 {
+			fields["2#signed"] = float64((signed - quired).Nanoseconds()) / 1000
+		}
+		if added > 0 {
+			fields["3#added"] = float64((added - signed).Nanoseconds()) / 1000
+		}
+		if updated > 0 {
+			fields["4#updated"] = float64((updated - added).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Query duration stat (us)")
+	}()
 	// TODO(leventeliu): we're using an external context passed by request. Make sure that
 	// cancelling will be propagated to this context before chain instance stops.
 	if ref, resp, err = c.st.QueryWithContext(req.GetContext(), req); err != nil {
 		return
 	}
+	quired = time.Since(start)
 	if err = resp.Sign(c.pk); err != nil {
 		return
 	}
+	signed = time.Since(start)
 	if err = c.addResponse(&resp.Header); err != nil {
 		return
 	}
+	added = time.Since(start)
 	ref.UpdateResp(resp)
+	updated = time.Since(start)
 	return
 }
 

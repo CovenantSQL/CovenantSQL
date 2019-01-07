@@ -33,7 +33,7 @@ func (c *Chain) loadBlock(h hash.Hash) (b *types.BPBlock, err error) {
 		enc []byte
 		out = &types.BPBlock{}
 	)
-	if err = c.st.Reader().QueryRow(
+	if err = c.storage.Reader().QueryRow(
 		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, h.String(),
 	).Scan(&enc); err != nil {
 		return

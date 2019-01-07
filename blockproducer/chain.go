@@ -50,10 +50,10 @@ type Chain struct {
 	wg     *sync.WaitGroup
 	// RPC components
 	server *rpc.Server
-	cl     *rpc.Caller
+	caller *rpc.Caller
 	// Other components
-	st xi.Storage
-	bs chainbus.Bus
+	storage  xi.Storage
+	chainBus chainbus.Bus
 	// Channels for incoming blocks and transactions
 	pendingBlocks    chan *types.BPBlock
 	pendingAddTxReqs chan *types.AddTxReq
@@ -184,7 +184,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
-	if localBPInfo, bpInfos, err = newBlockProduerInfos(cfg.NodeID, cfg.Peers); err != nil {
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers); err != nil {
 		return
 	}
 	if t = cfg.ConfirmThreshold; t <= 0.0 {
@@ -202,10 +202,10 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		wg:     &sync.WaitGroup{},
 
 		server: cfg.Server,
-		cl:     rpc.NewCaller(),
+		caller: rpc.NewCaller(),
 
-		st: st,
-		bs: bus,
+		storage:  st,
+		chainBus: bus,
 
 		pendingBlocks:    make(chan *types.BPBlock),
 		pendingAddTxReqs: make(chan *types.AddTxReq),
@@ -265,7 +265,7 @@ func (c *Chain) Stop() (err error) {
 	le.Debug("stopping chain")
 	c.stop()
 	le.Debug("chain service stopped")
-	c.st.Close()
+	c.storage.Close()
 	le.Debug("chain database closed")
 
 	// FIXME(leventeliu): RPC server should provide an `unregister` method to detach chain service
@@ -602,7 +602,7 @@ func (c *Chain) storeTx(tx pi.Transaction) (err error) {
 		return
 	}
 
-	return store(c.st, []storageProcedure{addTx(tx)}, func() {
+	return store(c.storage, []storageProcedure{addTx(tx)}, func() {
 		c.txPool[k] = tx
 		for _, v := range c.branches {
 			v.addTx(tx)
@@ -725,7 +725,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	}
 
 	// Write to immutable database and update cache
-	if err = store(c.st, sps, up); err != nil {
+	if err = store(c.storage, sps, up); err != nil {
 		c.immutable.clean()
 	}
 	// TODO(leventeliu): trigger ChainBus.Publish.
@@ -774,7 +774,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			}
 			// Grow a branch while the current branch is not changed
 			if br.head.count <= c.headBranch.head.count {
-				return store(c.st,
+				return store(c.storage,
 					[]storageProcedure{addBlock(height, bl)},
 					func() {
 						br.preview.commit()
@@ -804,7 +804,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
 				return
 			}
-			return store(c.st,
+			return store(c.storage,
 				[]storageProcedure{addBlock(height, bl)},
 				func() { c.branches = append(c.branches, br) },
 			)

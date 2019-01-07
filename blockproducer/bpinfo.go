@@ -34,7 +34,7 @@ func (i *blockProducerInfo) String() string {
 	return fmt.Sprintf("[%d/%d|%s] %s", i.rank+1, i.total, i.role, i.nodeID)
 }
 
-func newBlockProduerInfos(
+func buildBlockProducerInfos(
 	localNodeID proto.NodeID, peers *proto.Peers,
 ) (
 	localBPInfo *blockProducerInfo, bpInfos []*blockProducerInfo, err error,

@@ -39,7 +39,7 @@ func (c *Chain) nonblockingBroadcastBlock(block *types.BPBlock) {
 						},
 						Block: block,
 					}
-					err = c.cl.CallNodeWithContext(
+					err = c.caller.CallNodeWithContext(
 						ctx, remote.nodeID, route.MCCAdviseNewBlock.String(), req, nil)
 				)
 				log.WithFields(log.Fields{
@@ -66,7 +66,7 @@ func (c *Chain) nonblockingBroadcastTx(ttl uint32, tx pi.Transaction) {
 						TTL: ttl,
 						Tx:  tx,
 					}
-					err = c.cl.CallNodeWithContext(
+					err = c.caller.CallNodeWithContext(
 						ctx, remote.nodeID, route.MCCAddTx.String(), req, nil)
 				)
 				log.WithFields(log.Fields{
@@ -109,7 +109,7 @@ func (c *Chain) blockingFetchBlock(ctx context.Context, h uint32) (unreachable u
 				"remote": remote,
 				"height": h,
 			})
-			if err = c.cl.CallNodeWithContext(
+			if err = c.caller.CallNodeWithContext(
 				cld, remote.nodeID, route.MCCFetchBlock.String(), req, resp,
 			); err != nil {
 				le.WithError(err).Warn("failed to fetch block")

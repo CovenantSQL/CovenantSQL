@@ -21,15 +21,15 @@ import (
 	"net"
 	"net/rpc"
 
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 )
 
 const (
@@ -61,7 +61,7 @@ func init() {
 func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher, isAnonymous bool) (c *etls.CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
-		log.WithField("addr", address).WithError(err).Error("connect to node failed")
+		err = errors.Wrapf(err, "connect to node %s failed", address)
 		return
 	}
 	writeBuf := make([]byte, ETLSHeaderSize)
@@ -76,12 +76,12 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 		var nonce *cpuminer.Uint256
 		nodeIDBytes, err = kms.GetLocalNodeIDBytes()
 		if err != nil {
-			log.WithError(err).Error("get local node id failed")
+			err = errors.Wrap(err, "get local node id failed")
 			return
 		}
 		nonce, err = kms.GetLocalNonce()
 		if err != nil {
-			log.WithError(err).Error("get local nonce failed")
+			err = errors.Wrap(err, "get local nonce failed")
 			return
 		}
 		copy(writeBuf[2:2+hash.HashSize], nodeIDBytes)
@@ -89,7 +89,7 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 	}
 	wrote, err := conn.Write(writeBuf)
 	if err != nil {
-		log.WithError(err).Error("write node id and nonce failed")
+		err = errors.Wrap(err, "write node id and nonce failed")
 		return
 	}
 
@@ -109,21 +109,20 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 		var sess *mux.Session
 		ETLSConn, err = dialToNodeEx(nodeID, isAnonymous)
 		if err != nil {
-			log.WithField("target", nodeID).WithError(err).Error("dialToNode failed")
 			return
 		}
 		sess, err = mux.Client(ETLSConn, YamuxConfig)
 		if err != nil {
-			log.WithField("target", nodeID).WithError(err).Error("init yamux client failed")
+			err = errors.Wrapf(err, "init yamux client to %s failed", nodeID)
 			return
 		}
 		conn, err = sess.OpenStream()
 		if err != nil {
-			log.WithField("target", nodeID).WithError(err).Error("open new session failed")
+			err = errors.Wrapf(err, "open new session to %s failed", nodeID)
 		}
 		return
 	}
-	log.WithField("poolSize", pool.Len()).Debug("session pool size")
+	//log.WithField("poolSize", pool.Len()).Debug("session pool size")
 	conn, err = pool.Get(nodeID)
 	return
 }
@@ -153,23 +152,19 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 	*/
 	symmetricKey, err := GetSharedSecretWith(rawNodeID, isAnonymous)
 	if err != nil {
-		log.WithField("target", rawNodeID.String()).WithError(err).Error("get shared secret failed")
 		return
 	}
 
 	nodeAddr, err := GetNodeAddr(rawNodeID)
 	if err != nil {
-		log.WithField("target", rawNodeID.String()).WithError(err).Error("resolve node failed")
+		err = errors.Wrapf(err, "resolve %s failed", rawNodeID.String())
 		return
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
 	conn, err = dial("tcp", nodeAddr, rawNodeID, cipher, isAnonymous)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"target": rawNodeID.String(),
-			"addr":   nodeAddr,
-		}).WithError(err).Error("connect failed")
+		err = errors.Wrapf(err, "connect %s %s failed", rawNodeID.String(), nodeAddr)
 		return
 	}
 
@@ -199,13 +194,13 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 		var sess *mux.Session
 		sess, err = mux.Client(conn, YamuxConfig)
 		if err != nil {
-			log.WithError(err).Error("init yamux client failed")
+			err = errors.Wrap(err, "init mux client failed")
 			return
 		}
 
 		muxConn, err = sess.OpenStream()
 		if err != nil {
-			log.WithError(err).Error("open stream failed")
+			err = errors.Wrap(err, "open stream failed")
 			return
 		}
 	}
@@ -218,6 +213,6 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 
 // Close the client RPC connection
 func (c *Client) Close() {
-	log.WithField("addr", c.RemoteAddr).Debug("closing client")
-	c.Client.Close()
+	//log.WithField("addr", c.RemoteAddr).Debug("closing client")
+	_ = c.Client.Close()
 }

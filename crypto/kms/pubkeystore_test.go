@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -71,7 +72,7 @@ func TestDB(t *testing.T) {
 
 		pubk, err = GetPublicKey(proto.NodeID("99999999"))
 		So(pubk, ShouldBeNil)
-		So(err, ShouldEqual, ErrKeyNotFound)
+		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
 
 		err = SetNode(nil)
 		So(err, ShouldEqual, ErrNilNode)
@@ -116,31 +117,31 @@ func TestDB(t *testing.T) {
 
 		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldBeNil)
-		So(err, ShouldEqual, ErrKeyNotFound)
+		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
 
 		err = removeBucket()
 		So(err, ShouldBeNil)
 
 		pubk, err = GetPublicKey(proto.NodeID("not exist"))
 		So(pubk, ShouldBeNil)
-		So(err, ShouldEqual, ErrBucketNotInitialized)
+		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
 
 		err = setNode(node1)
-		So(err, ShouldEqual, ErrBucketNotInitialized)
+		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
 
 		err = DelNode(proto.NodeID("2222"))
-		So(err, ShouldEqual, ErrBucketNotInitialized)
+		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
 
 		IDs, err = GetAllNodeID()
 		So(IDs, ShouldBeNil)
-		So(err, ShouldEqual, ErrBucketNotInitialized)
+		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
 
 		err = ResetBucket()
 		So(err, ShouldBeNil)
 
 		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldBeNil)
-		So(err, ShouldEqual, ErrKeyNotFound)
+		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
 
 		IDs, err = GetAllNodeID()
 		So(IDs, ShouldBeNil)

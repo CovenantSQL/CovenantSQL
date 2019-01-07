@@ -946,6 +946,12 @@ func benchTestnetMiner(b *testing.B, minerCount uint16) {
 	err = client.Init(tempConf, []byte(""))
 	So(err, ShouldBeNil)
 
+	for _, node := range conf.GConf.KnownNodes {
+		if node.Role == proto.Leader {
+			log.Infof("Benching started on bp addr: %v", node.Addr)
+		}
+	}
+
 	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
 	var dsn string
 	if minerCount > 0 {
@@ -981,17 +987,17 @@ func benchTestnetMiner(b *testing.B, minerCount uint16) {
 }
 
 func BenchmarkTestnetMiner1(b *testing.B) {
-	Convey("bench GNTE one node", b, func() {
+	Convey("bench testnet one node", b, func() {
 		benchTestnetMiner(b, 1)
 	})
 }
 func BenchmarkTestnetMiner2(b *testing.B) {
-	Convey("bench GNTE one node", b, func() {
+	Convey("bench testnet one node", b, func() {
 		benchTestnetMiner(b, 2)
 	})
 }
 func BenchmarkTestnetMiner3(b *testing.B) {
-	Convey("bench GNTE one node", b, func() {
+	Convey("bench testnet one node", b, func() {
 		benchTestnetMiner(b, 3)
 	})
 }

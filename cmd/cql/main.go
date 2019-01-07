@@ -72,7 +72,7 @@ var (
 type userPermission struct {
 	TargetChain proto.AccountAddress `json:"chain"`
 	TargetUser  proto.AccountAddress `json:"user"`
-	Perm        string               `json:"perm"`
+	Perm        json.RawMessage      `json:"perm"`
 }
 
 type tranToken struct {
@@ -335,16 +335,21 @@ func main() {
 		}
 
 		var p types.UserPermission
-		p.FromString(perm.Perm)
-		if p.Role > types.NumberOfUserPermission {
-			log.WithError(err).Errorf("update permission failed: invalid permission description")
-			os.Exit(-1)
-			return
+
+		if err := json.Unmarshal(perm.Perm, &p); err != nil {
+			// try again using role string representation
+			if err := json.Unmarshal(perm.Perm, &p.Role); err != nil {
+				log.WithError(err).Errorf("update permission failed: invalid permission description")
+				os.Exit(-1)
+				return
+			} else if !p.IsValid() {
+				log.Errorf("update permission failed: invalid permission description")
+				os.Exit(-1)
+				return
+			}
 		}
 
-		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, &p)
-
-		if err != nil {
+		if err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, &p); err != nil {
 			log.WithError(err).Error("update permission failed")
 			os.Exit(-1)
 			return

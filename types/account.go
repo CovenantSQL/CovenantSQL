@@ -17,6 +17,7 @@
 package types
 
 import (
+	"encoding/json"
 	"sync"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -43,10 +44,10 @@ type UserPermissionRole int32
 // UserPermission defines permissions of a SQLChain user.
 type UserPermission struct {
 	// User role to access database.
-	Role UserPermissionRole
+	Role UserPermissionRole `json:"role"`
 	// SQL pattern regulations for user queries
 	// only a fully matched (case-sensitive) sql query is permitted to execute.
-	Patterns []string
+	Patterns []string `json:"patterns"`
 
 	// patterns map cache for matching
 	cachedPatternMapOnce sync.Once
@@ -65,6 +66,53 @@ const (
 	// NumberOfUserPermission defines the user permission number.
 	NumberOfUserPermission
 )
+
+// UnmarshalJSON implements the json.Unmarshler interface.
+func (r *UserPermissionRole) UnmarshalJSON(data []byte) (err error) {
+	var s string
+	if err = json.Unmarshal(data, &s); err != nil {
+		return
+	}
+	r.FromString(s)
+	return
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (r UserPermissionRole) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.String())
+}
+
+// String implements the fmt.Stringer interface.
+func (r UserPermissionRole) String() string {
+	switch r {
+	case Admin:
+		return "Admin"
+	case Write:
+		return "Write"
+	case Read:
+		return "Read"
+	case Void:
+		return "Void"
+	default:
+		return "Unknown"
+	}
+}
+
+// FromString converts string to UserPermissionRole.
+func (r *UserPermissionRole) FromString(perm string) {
+	switch perm {
+	case "Admin":
+		*r = Admin
+	case "Write":
+		*r = Write
+	case "Read":
+		*r = Read
+	case "Void":
+		*r = Void
+	default:
+		*r = NumberOfUserPermission
+	}
+}
 
 // UserPermissionFromRole construct a new user permission instance from primitive user permission role enum.
 func UserPermissionFromRole(role UserPermissionRole) *UserPermission {
@@ -130,22 +178,6 @@ func (up *UserPermission) HasDisallowedQueryPatterns(queries []Query) (query str
 	}
 
 	return
-}
-
-// FromString converts string to UserPermission.
-func (up *UserPermission) FromString(perm string) {
-	switch perm {
-	case "Admin":
-		up.Role = Admin
-	case "Write":
-		up.Role = Write
-	case "Read":
-		up.Role = Read
-	case "Void":
-		up.Role = Void
-	default:
-		up.Role = NumberOfUserPermission
-	}
 }
 
 // Status defines status of a SQLChain user/miner.

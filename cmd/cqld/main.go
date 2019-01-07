@@ -58,6 +58,8 @@ var (
 
 	clientMode      bool
 	clientOperation string
+
+	mode string // "normal", "api"
 )
 
 const name = `cqld`
@@ -75,6 +77,7 @@ func init() {
 
 	flag.BoolVar(&clientMode, "client", false, "run as client")
 	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
+	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)

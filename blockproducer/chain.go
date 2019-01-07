@@ -561,7 +561,7 @@ func (c *Chain) blockingSyncCurrentHead(ctx context.Context) (err error) {
 }
 
 // syncCurrentHead synchronizes a block at the current height of the local peer from the known
-// remote peers. The return value `ok` indicates that there're at less `c.confirms-1` replies
+// remote peers. The return value `ok` indicates that there're at least `c.confirms-1` replies
 // from these gossip calls.
 func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 	var h = c.getNextHeight() - 1

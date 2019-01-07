@@ -927,7 +927,7 @@ func BenchmarkMinerGNTE8(b *testing.B) {
 	})
 }
 
-func benchTestnetMiner(b *testing.B, minerCount uint16, testnetConfDir string) {
+func benchTestnetMiner(b *testing.B, minerCount uint16) {
 	log.Warnf("benchmark for %d Miners", minerCount)
 
 	// Create temp directory
@@ -936,9 +936,9 @@ func benchTestnetMiner(b *testing.B, minerCount uint16, testnetConfDir string) {
 		panic(err)
 	}
 	defer os.RemoveAll(testDataDir)
-	clientConf := FJ(testnetConfDir, "config.yaml")
+	clientConf := FJ(baseDir, "./conf/testnet/config.yaml")
 	tempConf := FJ(testDataDir, "config.yaml")
-	clientKey := FJ(testnetConfDir, "private.key")
+	clientKey := FJ(baseDir, "./conf/testnet/private.key")
 	tempKey := FJ(testDataDir, "private.key")
 	utils.CopyFile(clientConf, tempConf)
 	utils.CopyFile(clientKey, tempKey)
@@ -964,34 +964,34 @@ func benchTestnetMiner(b *testing.B, minerCount uint16, testnetConfDir string) {
 		dsn = os.Getenv("DSN")
 	}
 
-	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	// wait for creation
-	log.Infof("Wait dsn %v to create", dsn)
-	timeout := 10 * time.Minute
-	err = client.WaitDBCreation(ctx, dsn, timeout)
-	So(err, ShouldBeNil)
-
 	db, err := sql.Open("covenantsql", dsn)
 	So(err, ShouldBeNil)
 
-	benchDB(b, db, minerCount > 0)
+	dsnCfg, err := client.ParseDSN(dsn)
+	So(err, ShouldBeNil)
 
+	// wait for creation
+	log.Infof("Wait dsn %v to create", dsn)
+	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+	So(err, ShouldBeNil)
+
+	benchDB(b, db, minerCount > 0)
 }
 
 func BenchmarkTestnetMiner1(b *testing.B) {
 	Convey("bench GNTE one node", b, func() {
-		benchTestnetMiner(b, 1, "")
+		benchTestnetMiner(b, 1)
 	})
 }
 func BenchmarkTestnetMiner2(b *testing.B) {
 	Convey("bench GNTE one node", b, func() {
-		benchTestnetMiner(b, 2, "")
+		benchTestnetMiner(b, 2)
 	})
 }
 func BenchmarkTestnetMiner3(b *testing.B) {
 	Convey("bench GNTE one node", b, func() {
-		benchTestnetMiner(b, 3, "")
+		benchTestnetMiner(b, 3)
 	})
 }

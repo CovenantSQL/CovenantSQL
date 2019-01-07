@@ -24,6 +24,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/api"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -157,6 +159,16 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	log.Info(conf.StartSucceedMessage)
 	//go periodicPingBlockProducer()
+
+	// start json-rpc server
+	if wsapiAddr != "" {
+		jsonrpcServer := api.NewService()
+		jsonrpcServer.DBFile = conf.GConf.BP.ChainFileName
+		jsonrpcServer.WebsocketAddr = wsapiAddr
+		jsonrpcServer.ReadTimeout = 60 * time.Second
+		jsonrpcServer.WriteTimeout = 60 * time.Second
+		jsonrpcServer.StartServers()
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

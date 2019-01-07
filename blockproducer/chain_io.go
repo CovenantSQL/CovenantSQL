@@ -140,10 +140,21 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	defer c.RUnlock()
 	var ok bool
 	state = pi.TransactionStateNotFound
-	if state, ok = c.headBranch.queryTx(hash); ok {
+	if state, ok = c.headBranch.queryTxState(hash); ok {
 		return
 	}
-	// TODO(leventeliu): get confirmed state from tx history.
+
+	var (
+		count    int
+		querySQL = `select count(*) from indexed_transactions where hash = ?`
+	)
+	if err = c.storage.Reader().QueryRow(querySQL, hash.String()).Scan(&count); err != nil {
+		return pi.TransactionStateNotFound, err
+	}
+
+	if count > 0 {
+		return pi.TransactionStateConfirmed, nil
+	}
 	return
 }
 

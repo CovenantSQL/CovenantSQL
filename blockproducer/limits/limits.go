@@ -23,4 +23,6 @@ const (
 	MaxTxBroadcastTTL = 1
 	// MaxPendingTxsPerAccount defines the limit of pending transactions of one account.
 	MaxPendingTxsPerAccount = 1000
+	// MaxTransactionsPerBlock defines the limit of transactions per block.
+	MaxTransactionsPerBlock = 10000
 )

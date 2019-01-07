@@ -22,14 +22,13 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pl "github.com/CovenantSQL/CovenantSQL/blockproducer/limits"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
-
-const transactionsLimit = 10000
 
 type branch struct {
 	head     *blockNode
@@ -58,7 +57,7 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
-		if len(bn.block.Transactions) > transactionsLimit {
+		if len(bn.block.Transactions) > pl.MaxPendingTxsPerAccount {
 			return nil, ErrTooManyTransactionsInBlock
 		}
 
@@ -133,7 +132,7 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 	}
 	var cpy = b.makeArena()
 
-	if len(n.block.Transactions) > transactionsLimit {
+	if len(n.block.Transactions) > pl.MaxTransactionsPerBlock {
 		return nil, ErrTooManyTransactionsInBlock
 	}
 
@@ -186,7 +185,7 @@ func (b *branch) produceBlock(
 		cpy       = b.makeArena()
 		txs       = cpy.sortUnpackedTxs()
 		ierr      error
-		packCount = transactionsLimit
+		packCount = pl.MaxTransactionsPerBlock
 	)
 
 	if len(txs) < packCount {

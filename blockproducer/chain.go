@@ -715,9 +715,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	sps = append(sps, addBlock(height, newBlock))
 
 	// Index blocks and transactions if running as API node
-	if c.mode == "api" {
-		sps = append(sps, buildBlockIndex(height, newBlock))
-	}
+	sps = append(sps, buildBlockIndex(height, newBlock))
 
 	for k, v := range c.immutable.dirty.accounts {
 		if v != nil {

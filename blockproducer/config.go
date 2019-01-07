@@ -30,6 +30,7 @@ const (
 
 // Config is the main chain configuration.
 type Config struct {
+	Mode    string
 	Genesis *types.BPBlock
 
 	DataFile string
@@ -49,6 +50,7 @@ func NewConfig(genesis *types.BPBlock, dataFile string,
 	server *rpc.Server, peers *proto.Peers,
 	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
 	config := Config{
+		Mode:     "normal",
 		Genesis:  genesis,
 		DataFile: dataFile,
 		Server:   server,

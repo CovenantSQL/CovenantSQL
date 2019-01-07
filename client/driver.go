@@ -196,8 +196,15 @@ func WaitDBCreation(ctx context.Context, dsn string) (err error) {
 	if err != nil {
 		return
 	}
+
+	db, err := sql.Open("covenantsql", dsn)
+	defer db.Close()
+	if err != nil {
+		return
+	}
+
 	// wait for creation
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
+	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	return
 }
 

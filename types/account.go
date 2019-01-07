@@ -44,10 +44,10 @@ type UserPermissionRole int32
 // UserPermission defines permissions of a SQLChain user.
 type UserPermission struct {
 	// User role to access database.
-	Role UserPermissionRole `json:"role"`
+	Role UserPermissionRole
 	// SQL pattern regulations for user queries
 	// only a fully matched (case-sensitive) sql query is permitted to execute.
-	Patterns []string `json:"patterns"`
+	Patterns []string
 
 	// patterns map cache for matching
 	cachedPatternMapOnce sync.Once

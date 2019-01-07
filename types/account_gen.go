@@ -103,6 +103,38 @@ func (z *MinerInfo) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
+func (z *PermStat) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = hsp.Require(b, z.Msgsize())
+	// map header, size 2
+	o = append(o, 0x82, 0x82)
+	if z.Permission == nil {
+		o = hsp.AppendNil(o)
+	} else {
+		if oTemp, err := z.Permission.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = append(o, 0x82)
+	o = hsp.AppendInt32(o, int32(z.Status))
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *PermStat) Msgsize() (s int) {
+	s = 1 + 11
+	if z.Permission == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.Permission.Msgsize()
+	}
+	s += 7 + hsp.Int32Size
+	return
+}
+
+// MarshalHash marshals for hash
 func (z *ProviderProfile) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())

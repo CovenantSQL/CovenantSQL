@@ -75,6 +75,14 @@ type userPermission struct {
 	Perm        json.RawMessage      `json:"perm"`
 }
 
+type userPermPayload struct {
+	// User role to access database.
+	Role types.UserPermissionRole `json:"role"`
+	// SQL pattern regulations for user queries
+	// only a fully matched (case-sensitive) sql query is permitted to execute.
+	Patterns []string `json:"patterns"`
+}
+
 type tranToken struct {
 	TargetUser proto.AccountAddress `json:"addr"`
 	Amount     string               `json:"amount"`
@@ -334,22 +342,29 @@ func main() {
 			return
 		}
 
-		var p types.UserPermission
+		var permPayload userPermPayload
 
-		if err := json.Unmarshal(perm.Perm, &p); err != nil {
+		if err := json.Unmarshal(perm.Perm, &permPayload); err != nil {
 			// try again using role string representation
-			if err := json.Unmarshal(perm.Perm, &p.Role); err != nil {
+			if err := json.Unmarshal(perm.Perm, &permPayload.Role); err != nil {
 				log.WithError(err).Errorf("update permission failed: invalid permission description")
-				os.Exit(-1)
-				return
-			} else if !p.IsValid() {
-				log.Errorf("update permission failed: invalid permission description")
 				os.Exit(-1)
 				return
 			}
 		}
 
-		if err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, &p); err != nil {
+		p := &types.UserPermission{
+			Role:     permPayload.Role,
+			Patterns: permPayload.Patterns,
+		}
+
+		if !p.IsValid() {
+			log.Errorf("update permission failed: invalid permission description")
+			os.Exit(-1)
+			return
+		}
+
+		if err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p); err != nil {
 			log.WithError(err).Error("update permission failed")
 			os.Exit(-1)
 			return

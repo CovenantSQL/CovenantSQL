@@ -585,6 +585,10 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
 		for !v.Ready() {
 			time.Sleep(1 * time.Millisecond)
+			if c.rt.ctx.Err() != nil {
+				err = c.rt.ctx.Err()
+				return
+			}
 		}
 		block.QueryTxs[i] = &types.QueryAsTx{
 			// TODO(leventeliu): add acks for billing.
@@ -1050,7 +1054,6 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	if block.Producer() == c.rt.server {
 		return c.pushBlock(block)
 	}
-
 	// Check block producer
 	index, found := peers.Find(block.Producer())
 

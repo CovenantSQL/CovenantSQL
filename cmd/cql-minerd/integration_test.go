@@ -54,7 +54,7 @@ var (
 	baseDir                   = utils.GetProjectSrcDir()
 	testWorkingDir            = FJ(baseDir, "./test/")
 	gnteConfDir               = FJ(testWorkingDir, "./GNTE/conf/node_c/")
-	testnetConfDir            = FJ(testWorkingDir, "./bench_testnet/node_c/")
+	testnetConfDir            = FJ(baseDir, "./conf/testnet/")
 	logDir                    = FJ(testWorkingDir, "./log/")
 	testGasPrice       uint64 = 1
 	testAdvancePayment uint64 = 20000000

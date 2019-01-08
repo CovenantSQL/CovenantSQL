@@ -4,7 +4,7 @@ PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
 ListenAddr: "127.0.0.1:4123"
-ThisNodeID: "0000002100a44923021af2c91822e47998b0842cd450774c020257304acdce0b"
+ThisNodeID: "00000045aecffbb1dc33a9846a2d4d1ca09593c3a316bb4ec635889ac3a8b0aa"
 QPS: 1000
 BillingBlockCount: 3600
 ChainBusPeriod: 1s
@@ -71,14 +71,14 @@ KnownNodes:
   Addr: 127.0.0.1:4120
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Follower
-- ID: 0000002100a44923021af2c91822e47998b0842cd450774c020257304acdce0b
+- ID: 00000045aecffbb1dc33a9846a2d4d1ca09593c3a316bb4ec635889ac3a8b0aa
   Nonce:
-    a: 819961
+    a: 4399024610213
     b: 0
     c: 0
-    d: 7322664668
+    d: 0
   Addr: 127.0.0.1:4123
-  PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+  PublicKey: 02505a09a833710b691a570c5de399f3633ec4752422ae80b75f0dc8a8acc48c62
   Role: Client
 - ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
   Nonce:

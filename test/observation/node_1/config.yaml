@@ -56,6 +56,9 @@ BlockProducer:
       - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
         StableCoinBalance: 1000000000
         CovenantCoinBalance: 1000000000
+      - Address: e4e1628477a17c969f3f915f4bc7c059c3fbcbaf37855bc55a811465ea2480af
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
 KnownNodes:
 - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:

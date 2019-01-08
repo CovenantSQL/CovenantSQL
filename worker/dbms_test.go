@@ -19,6 +19,7 @@ package worker
 import (
 	"io/ioutil"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -103,6 +104,8 @@ func TestDBMS(t *testing.T) {
 		err = req.Sign(privateKey)
 		So(err, ShouldBeNil)
 
+		var seqNo uint64
+
 		Convey("with bp privilege", func() {
 			// send update again
 			err = testRequest(route.DBSDeploy, req, &res)
@@ -112,10 +115,12 @@ func TestDBMS(t *testing.T) {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 1, dbID, []string{
-					"create table test (test int)",
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"create table test (test int)",
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
@@ -123,9 +128,11 @@ func TestDBMS(t *testing.T) {
 
 				// sending read query
 				var readQuery *types.Request
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 2, dbID, []string{
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -134,22 +141,24 @@ func TestDBMS(t *testing.T) {
 
 			// grant write and read permission
 			err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
-				&types.PermStat{Permission: types.UserPermissionFromRole(types.Write), Status: types.Normal})
+				&types.PermStat{Permission: types.UserPermissionFromRole(types.ReadWrite), Status: types.Normal})
 			So(err, ShouldBeNil)
 			userState, ok := dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
 			So(ok, ShouldBeTrue)
 			So(userState.Permission, ShouldNotBeNil)
-			So(userState.Permission.Role, ShouldEqual, types.Write)
+			So(userState.Permission.Role, ShouldEqual, types.ReadWrite)
 			So(userState.Status, ShouldEqual, types.Normal)
 
 			Convey("success write and read", func() {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 1, dbID, []string{
-					"create table test (test int)",
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"create table test (test int)",
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
@@ -160,9 +169,11 @@ func TestDBMS(t *testing.T) {
 
 				// sending read query
 				var readQuery *types.Request
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 2, dbID, []string{
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -205,20 +216,24 @@ func TestDBMS(t *testing.T) {
 					// sending write query
 					var writeQuery *types.Request
 					var queryRes *types.Response
-					writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 3, dbID, []string{
-						"create table test (test int)",
-						"insert into test values(1)",
-					})
+					writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+						1, atomic.AddUint64(&seqNo, 1),
+						dbID, []string{
+							"insert into test values(1)",
+						})
 					So(err, ShouldBeNil)
 
 					err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
 					// sending read query
 					var readQuery *types.Request
-					readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 4, dbID, []string{
-						"select * from test",
-					})
+					readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+						1, atomic.AddUint64(&seqNo, 1),
+						dbID, []string{
+							"select * from test",
+						})
 					So(err, ShouldBeNil)
 
 					err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -226,6 +241,46 @@ func TestDBMS(t *testing.T) {
 
 					err = dbms.addTxSubscription(dbID, nodeID, 1)
 					So(err, ShouldBeNil)
+				})
+
+				// grant write only permission
+				err = dbms.UpdatePermission(dbAddr.DatabaseID(), userAddr,
+					&types.PermStat{Permission: types.UserPermissionFromRole(types.Write), Status: types.Normal})
+				userState, ok = dbms.busService.RequestPermStat(dbAddr.DatabaseID(), userAddr)
+				So(ok, ShouldBeTrue)
+				So(userState.Permission, ShouldNotBeNil)
+				So(userState.Permission.Role, ShouldEqual, types.Write)
+				So(userState.Status, ShouldEqual, types.Normal)
+
+				Convey("success writing and failed to read", func() {
+					// sending read query
+					var readQuery *types.Request
+					var queryRes *types.Response
+					readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+						1, atomic.AddUint64(&seqNo, 1),
+						dbID, []string{
+							"select * from test",
+						})
+					So(err, ShouldBeNil)
+
+					err = testRequest(route.DBSQuery, readQuery, &queryRes)
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
+
+					// sending write query
+					var writeQuery *types.Request
+					writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+						1, atomic.AddUint64(&seqNo, 1),
+						dbID, []string{
+							"insert into test values(1)",
+						})
+					So(err, ShouldBeNil)
+
+					err = testRequest(route.DBSQuery, writeQuery, &queryRes)
+					So(err, ShouldBeNil)
+					err = queryRes.Verify()
+					So(err, ShouldBeNil)
+					So(queryRes.Header.RowCount, ShouldEqual, 0)
 				})
 			})
 
@@ -243,10 +298,12 @@ func TestDBMS(t *testing.T) {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 5, dbID, []string{
-					"create table test (test int)",
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"create table test (test int)",
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
@@ -254,9 +311,11 @@ func TestDBMS(t *testing.T) {
 
 				// sending read query
 				var readQuery *types.Request
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 6, dbID, []string{
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -280,10 +339,12 @@ func TestDBMS(t *testing.T) {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 7, dbID, []string{
-					"create table test (test int)",
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"create table test (test int)",
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
@@ -291,9 +352,11 @@ func TestDBMS(t *testing.T) {
 
 				// sending read query
 				var readQuery *types.Request
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 8, dbID, []string{
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -314,10 +377,12 @@ func TestDBMS(t *testing.T) {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 9, dbID, []string{
-					"create table test (test int)",
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"create table test (test int)",
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
@@ -328,9 +393,11 @@ func TestDBMS(t *testing.T) {
 
 				// sending read query
 				var readQuery *types.Request
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 10, dbID, []string{
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -376,10 +443,12 @@ func TestDBMS(t *testing.T) {
 				var queryRes *types.Response
 
 				// sending allowed write query
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 11, dbID, []string{
-					"create table test (test int)",
-					"INSERT INTO TEST VALUES(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"create table test (test int)",
+						"INSERT INTO TEST VALUES(1)",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
@@ -390,9 +459,11 @@ func TestDBMS(t *testing.T) {
 
 				// sending allowed read query
 				var readQuery *types.Request
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 12, dbID, []string{
-					"SELECT 1",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"SELECT 1",
+					})
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
@@ -405,35 +476,43 @@ func TestDBMS(t *testing.T) {
 				So(queryRes.Payload.Rows[0].Values[0], ShouldEqual, 1)
 
 				// sending disallowed write query
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 13, dbID, []string{
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldNotBeNil)
 
 				// sending disallowed write query mixed with valid write query
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 14, dbID, []string{
-					"INSERT INTO TEST VALUES(1)",
-					"insert into test values(1)",
-				})
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"INSERT INTO TEST VALUES(1)",
+						"insert into test values(1)",
+					})
 				So(err, ShouldBeNil)
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldNotBeNil)
 
 				// sending disallowed read query
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 15, dbID, []string{
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
 				So(err, ShouldNotBeNil)
 
 				// sending disallowed read query
-				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery, 1, 16, dbID, []string{
-					"SELECT 1",
-					"select * from test",
-				})
+				readQuery, err = buildQueryWithDatabaseID(types.ReadQuery,
+					1, atomic.AddUint64(&seqNo, 1),
+					dbID, []string{
+						"SELECT 1",
+						"select * from test",
+					})
 				So(err, ShouldBeNil)
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
 				So(err, ShouldNotBeNil)
@@ -453,7 +532,8 @@ func TestDBMS(t *testing.T) {
 				// sending write query
 				var writeQuery *types.Request
 				var queryRes *types.Response
-				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery, 1, 1,
+				writeQuery, err = buildQueryWithDatabaseID(types.WriteQuery,
+					1, atomic.AddUint64(&seqNo, 1),
 					proto.DatabaseID("db_not_exists"), []string{
 						"create table test (test int)",
 						"insert into test values(1)",

@@ -893,21 +893,21 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		return ErrInvalidPermission
 	}
 
-	// check whether sender is admin and find targetUser
-	isAdmin := false
-	numOfAdmin := 0
+	// check whether sender has super privilege and find targetUser
+	isSuperUser := false
+	numOfSuperUsers := 0
 	targetUserIndex := -1
 	for i, u := range so.Users {
-		isAdmin = isAdmin || (sender == u.Address && u.Permission.HasAdminPermission())
-		if u.Permission.HasAdminPermission() {
-			numOfAdmin++
+		isSuperUser = isSuperUser || (sender == u.Address && u.Permission.HasSuperPermission())
+		if u.Permission.HasSuperPermission() {
+			numOfSuperUsers++
 		}
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i
 		}
 	}
 
-	if !isAdmin {
+	if !isSuperUser {
 		log.WithFields(log.Fields{
 			"sender": sender,
 			"dbID":   tx.TargetSQLChain,
@@ -916,8 +916,8 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	}
 
 	// return error if number of Admin <= 1 and Admin want to revoke permission of itself
-	if numOfAdmin <= 1 && tx.TargetUser == sender && !tx.Permission.HasAdminPermission() {
-		err = ErrNoAdminLeft
+	if numOfSuperUsers <= 1 && tx.TargetUser == sender && !tx.Permission.HasSuperPermission() {
+		err = ErrNoSuperUserLeft
 		log.WithFields(log.Fields{
 			"sender":     sender,
 			"dbID":       tx.TargetSQLChain,
@@ -952,14 +952,14 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	}
 
 	// check sender's permission
-	isAdmin := false
+	isSuperUser := false
 	for _, user := range so.Users {
-		if sender == user.Address && user.Permission.HasAdminPermission() {
-			isAdmin = true
+		if sender == user.Address && user.Permission.HasSuperPermission() {
+			isSuperUser = true
 			break
 		}
 	}
-	if !isAdmin {
+	if !isSuperUser {
 		log.WithFields(log.Fields{
 			"sender": sender,
 			"dbID":   tx.TargetSQLChain,

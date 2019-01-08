@@ -33,12 +33,17 @@ func TestUserPermissionFromRole(t *testing.T) {
 		err = json.Unmarshal([]byte(`"Write"`), &r)
 		So(err, ShouldBeNil)
 		So(r, ShouldEqual, Write)
+		err = json.Unmarshal([]byte(`"Read,Write"`), &r)
+		So(err, ShouldBeNil)
+		So(r, ShouldEqual, ReadWrite)
 	})
 	Convey("test string/from string", t, func() {
 		var r UserPermissionRole
 		So(r, ShouldEqual, Void)
 		r.FromString(Read.String())
 		So(r, ShouldEqual, Read)
+		r.FromString(ReadWrite.String())
+		So(r, ShouldEqual, ReadWrite)
 	})
 }
 
@@ -47,7 +52,7 @@ func TestUserPermission(t *testing.T) {
 		p := (*UserPermission)(nil)
 		So(p.HasReadPermission(), ShouldBeFalse)
 		So(p.HasWritePermission(), ShouldBeFalse)
-		So(p.HasAdminPermission(), ShouldBeFalse)
+		So(p.HasSuperPermission(), ShouldBeFalse)
 		So(p.IsValid(), ShouldBeFalse)
 		_, state := p.HasDisallowedQueryPatterns([]Query{})
 		So(state, ShouldBeTrue)
@@ -55,30 +60,30 @@ func TestUserPermission(t *testing.T) {
 	Convey("has read permission", t, func() {
 		So(UserPermissionFromRole(Void).HasReadPermission(), ShouldBeFalse)
 		So(UserPermissionFromRole(Read).HasReadPermission(), ShouldBeTrue)
-		So(UserPermissionFromRole(Write).HasReadPermission(), ShouldBeTrue)
+		So(UserPermissionFromRole(Write).HasReadPermission(), ShouldBeFalse)
+		So(UserPermissionFromRole(ReadWrite).HasReadPermission(), ShouldBeTrue)
 		So(UserPermissionFromRole(Admin).HasReadPermission(), ShouldBeTrue)
-		So(UserPermissionFromRole(NumberOfUserPermission).HasReadPermission(), ShouldBeFalse)
 	})
 	Convey("has write permission", t, func() {
 		So(UserPermissionFromRole(Void).HasWritePermission(), ShouldBeFalse)
 		So(UserPermissionFromRole(Read).HasWritePermission(), ShouldBeFalse)
 		So(UserPermissionFromRole(Write).HasWritePermission(), ShouldBeTrue)
+		So(UserPermissionFromRole(ReadWrite).HasWritePermission(), ShouldBeTrue)
 		So(UserPermissionFromRole(Admin).HasWritePermission(), ShouldBeTrue)
-		So(UserPermissionFromRole(NumberOfUserPermission).HasWritePermission(), ShouldBeFalse)
 	})
 	Convey("has admin permission", t, func() {
-		So(UserPermissionFromRole(Void).HasAdminPermission(), ShouldBeFalse)
-		So(UserPermissionFromRole(Read).HasAdminPermission(), ShouldBeFalse)
-		So(UserPermissionFromRole(Write).HasAdminPermission(), ShouldBeFalse)
-		So(UserPermissionFromRole(Admin).HasAdminPermission(), ShouldBeTrue)
-		So(UserPermissionFromRole(NumberOfUserPermission).HasAdminPermission(), ShouldBeFalse)
+		So(UserPermissionFromRole(Void).HasSuperPermission(), ShouldBeFalse)
+		So(UserPermissionFromRole(Read).HasSuperPermission(), ShouldBeFalse)
+		So(UserPermissionFromRole(Write).HasSuperPermission(), ShouldBeFalse)
+		So(UserPermissionFromRole(ReadWrite).HasSuperPermission(), ShouldBeFalse)
+		So(UserPermissionFromRole(Admin).HasSuperPermission(), ShouldBeTrue)
 	})
 	Convey("is valid", t, func() {
 		So(UserPermissionFromRole(Void).IsValid(), ShouldBeFalse)
 		So(UserPermissionFromRole(Read).IsValid(), ShouldBeTrue)
 		So(UserPermissionFromRole(Write).IsValid(), ShouldBeTrue)
+		So(UserPermissionFromRole(ReadWrite).IsValid(), ShouldBeTrue)
 		So(UserPermissionFromRole(Admin).IsValid(), ShouldBeTrue)
-		So(UserPermissionFromRole(NumberOfUserPermission).IsValid(), ShouldBeFalse)
 	})
 	Convey("query patterns", t, func() {
 		// empty patterns limitation

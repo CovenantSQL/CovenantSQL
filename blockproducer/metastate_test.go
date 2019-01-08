@@ -1000,7 +1000,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
-				up.Permission = types.UserPermissionFromRole(types.NumberOfUserPermission)
+				up.Permission = types.UserPermissionFromRole(types.Void)
 				up.TargetSQLChain = dbAccount
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
@@ -1039,7 +1039,7 @@ func TestMetaState(t *testing.T) {
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
-				So(errors.Cause(err), ShouldEqual, ErrNoAdminLeft)
+				So(errors.Cause(err), ShouldEqual, ErrNoSuperUserLeft)
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 2
 				err = up.Sign(privKey1)

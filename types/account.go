@@ -18,6 +18,7 @@ package types
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -56,16 +57,24 @@ type UserPermission struct {
 }
 
 const (
-	// Void defines the initial permission.
-	Void UserPermissionRole = iota
-	// Admin defines the admin user permission.
-	Admin
+	// Read defines the read user permission.
+	Read UserPermissionRole = 1 << iota
 	// Write defines the writer user permission.
 	Write
-	// Read defines the reader user permission.
-	Read
-	// NumberOfUserPermission defines the user permission number.
-	NumberOfUserPermission
+	// Super defines the super user permission.
+	Super
+
+	// ReadOnly defines the reader user permission.
+	ReadOnly = Read
+	// WriteOnly defines the writer user permission.
+	WriteOnly = Write
+	// ReadWrite defines the reader && writer user permission.
+	ReadWrite = Read | Write
+	// Admin defines the privilege to full control the database.
+	Admin = Read | Write | Super
+
+	// Void defines the initial permission.
+	Void UserPermissionRole = 0
 )
 
 // UnmarshalJSON implements the json.Unmarshler interface.
@@ -85,33 +94,48 @@ func (r UserPermissionRole) MarshalJSON() ([]byte, error) {
 
 // String implements the fmt.Stringer interface.
 func (r UserPermissionRole) String() string {
-	switch r {
-	case Admin:
-		return "Admin"
-	case Write:
-		return "Write"
-	case Read:
-		return "Read"
-	case Void:
+	if r == Void {
 		return "Void"
-	default:
-		return "Unknown"
+	} else if r == Admin {
+		return "Admin"
 	}
+
+	var res []string
+	if r&Read != 0 {
+		res = append(res, "Read")
+	}
+	if r&Write != 0 {
+		res = append(res, "Write")
+	}
+	if r&Super != 0 {
+		res = append(res, "Super")
+	}
+
+	return strings.Join(res, ",")
 }
 
 // FromString converts string to UserPermissionRole.
 func (r *UserPermissionRole) FromString(perm string) {
-	switch perm {
-	case "Admin":
-		*r = Admin
-	case "Write":
-		*r = Write
-	case "Read":
-		*r = Read
-	case "Void":
+	if perm == "Void" {
 		*r = Void
-	default:
-		*r = NumberOfUserPermission
+		return
+	} else if perm == "Admin" {
+		*r = Admin
+		return
+	}
+
+	*r = Void
+
+	for _, p := range strings.Split(perm, ",") {
+		p = strings.TrimSpace(p)
+		switch p {
+		case "Read":
+			*r |= Read
+		case "Write":
+			*r |= Write
+		case "Super":
+			*r |= Super
+		}
 	}
 }
 
@@ -127,7 +151,7 @@ func (up *UserPermission) HasReadPermission() bool {
 	if up == nil {
 		return false
 	}
-	return up.Role >= Admin && up.Role < NumberOfUserPermission
+	return up.Role&Read != 0
 }
 
 // HasWritePermission returns true if user owns write permission.
@@ -135,20 +159,20 @@ func (up *UserPermission) HasWritePermission() bool {
 	if up == nil {
 		return false
 	}
-	return up.Role >= Admin && up.Role <= Write
+	return up.Role&Write != 0
 }
 
-// HasAdminPermission returns true if user owns admin permission.
-func (up *UserPermission) HasAdminPermission() bool {
+// HasSuperPermission returns true if user owns super permission.
+func (up *UserPermission) HasSuperPermission() bool {
 	if up == nil {
 		return false
 	}
-	return up.Role == Admin
+	return up.Role&Super != 0
 }
 
 // IsValid returns whether the permission object is valid or not.
 func (up *UserPermission) IsValid() bool {
-	return up != nil && up.Role < NumberOfUserPermission && up.Role >= Admin
+	return up != nil && up.Role != 0
 }
 
 // HasDisallowedQueryPatterns returns whether the queries are permitted.

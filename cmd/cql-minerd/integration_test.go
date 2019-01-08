@@ -907,6 +907,7 @@ func BenchmarkMinerGNTE1(b *testing.B) {
 		benchOutsideMiner(b, 1, gnteConfDir)
 	})
 }
+
 func BenchmarkMinerGNTE2(b *testing.B) {
 	Convey("bench GNTE two node", b, func() {
 		benchOutsideMiner(b, 2, gnteConfDir)
@@ -936,13 +937,33 @@ func BenchmarkTestnetMiner1(b *testing.B) {
 		benchOutsideMiner(b, 1, testnetConfDir)
 	})
 }
+
 func BenchmarkTestnetMiner2(b *testing.B) {
 	Convey("bench testnet one node", b, func() {
 		benchOutsideMiner(b, 2, testnetConfDir)
 	})
 }
+
 func BenchmarkTestnetMiner3(b *testing.B) {
 	Convey("bench testnet one node", b, func() {
 		benchOutsideMiner(b, 3, testnetConfDir)
+	})
+}
+
+func BenchmarkCustomMiner1(b *testing.B) {
+	Convey("bench custom one node", b, func() {
+		benchOutsideMiner(b, 1, os.Getenv("miner_conf_dir"))
+	})
+}
+
+func BenchmarkCustomMiner2(b *testing.B) {
+	Convey("bench custom one node", b, func() {
+		benchOutsideMiner(b, 2, os.Getenv("miner_conf_dir"))
+	})
+}
+
+func BenchmarkCustomMiner3(b *testing.B) {
+	Convey("bench custom one node", b, func() {
+		benchOutsideMiner(b, 3, os.Getenv("miner_conf_dir"))
 	})
 }

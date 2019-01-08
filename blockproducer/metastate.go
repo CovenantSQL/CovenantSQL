@@ -458,7 +458,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 		Users: []*types.SQLChainUser{
 			{
 				Address:    addr,
-				Permission: types.UserPermissionFromRole(types.Admin),
+				Permission: types.Admin,
 			},
 		},
 	}
@@ -466,7 +466,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 }
 
 func (s *metaState) addSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm *types.UserPermission) (_ error,
+	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
 ) {
 	var (
 		src, dst *types.SQLChainProfile
@@ -515,7 +515,8 @@ func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAdd
 }
 
 func (s *metaState) alterSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm *types.UserPermission) (_ error) {
+	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
+) {
 	var (
 		src, dst *types.SQLChainProfile
 		ok       bool
@@ -702,7 +703,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	users := make([]*types.SQLChainUser, 1)
 	users[0] = &types.SQLChainUser{
 		Address:        sender,
-		Permission:     types.UserPermissionFromRole(types.Admin),
+		Permission:     types.Admin,
 		Status:         types.Normal,
 		Deposit:        minAdvancePayment,
 		AdvancePayment: tx.AdvancePayment,
@@ -877,7 +878,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		}).WithError(ErrDatabaseNotFound).Error("unexpected error in updatePermission")
 		return ErrDatabaseNotFound
 	}
-	if !tx.Permission.IsValid() {
+	if tx.Permission >= types.NumberOfUserPermission {
 		log.WithFields(log.Fields{
 			"permission": tx.Permission,
 			"dbID":       tx.TargetSQLChain.DatabaseID(),
@@ -890,8 +891,8 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	numOfAdmin := 0
 	targetUserIndex := -1
 	for i, u := range so.Users {
-		isAdmin = isAdmin || (sender == u.Address && u.Permission.HasAdminPermission())
-		if u.Permission.HasAdminPermission() {
+		isAdmin = isAdmin || (sender == u.Address && u.Permission == types.Admin)
+		if u.Permission == types.Admin {
 			numOfAdmin++
 		}
 		if tx.TargetUser == u.Address {
@@ -908,7 +909,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	}
 
 	// return error if number of Admin <= 1 and Admin want to revoke permission of itself
-	if numOfAdmin <= 1 && tx.TargetUser == sender && !tx.Permission.HasAdminPermission() {
+	if numOfAdmin <= 1 && tx.TargetUser == sender && tx.Permission != types.Admin {
 		err = ErrNoAdminLeft
 		log.WithFields(log.Fields{
 			"sender":     sender.String(),
@@ -946,7 +947,7 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	// check sender's permission
 	isAdmin := false
 	for _, user := range so.Users {
-		if sender == user.Address && user.Permission.HasAdminPermission() {
+		if sender == user.Address && user.Permission == types.Admin {
 			isAdmin = true
 			break
 		}

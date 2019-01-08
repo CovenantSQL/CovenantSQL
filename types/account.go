@@ -17,9 +17,6 @@
 package types
 
 import (
-	"encoding/json"
-	"sync"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -38,25 +35,12 @@ const (
 	NumberOfRoles
 )
 
-// UserPermissionRole defines role of user permission including admin/write/read.
-type UserPermissionRole int32
-
 // UserPermission defines permissions of a SQLChain user.
-type UserPermission struct {
-	// User role to access database.
-	Role UserPermissionRole
-	// SQL pattern regulations for user queries
-	// only a fully matched (case-sensitive) sql query is permitted to execute.
-	Patterns []string
-
-	// patterns map cache for matching
-	cachedPatternMapOnce sync.Once
-	cachedPatternMap     map[string]bool
-}
+type UserPermission int32
 
 const (
 	// Void defines the initial permission.
-	Void UserPermissionRole = iota
+	Void UserPermission = iota
 	// Admin defines the admin user permission.
 	Admin
 	// Write defines the writer user permission.
@@ -67,117 +51,40 @@ const (
 	NumberOfUserPermission
 )
 
-// UnmarshalJSON implements the json.Unmarshler interface.
-func (r *UserPermissionRole) UnmarshalJSON(data []byte) (err error) {
-	var s string
-	if err = json.Unmarshal(data, &s); err != nil {
-		return
-	}
-	r.FromString(s)
-	return
+// CheckRead returns true if user owns read permission.
+func (up *UserPermission) CheckRead() bool {
+	return *up >= Admin && *up < NumberOfUserPermission
 }
 
-// MarshalJSON implements the json.Marshaler interface.
-func (r UserPermissionRole) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r.String())
+// CheckWrite returns true if user owns write permission.
+func (up *UserPermission) CheckWrite() bool {
+	return *up >= Admin && *up <= Write
 }
 
-// String implements the fmt.Stringer interface.
-func (r UserPermissionRole) String() string {
-	switch r {
-	case Admin:
-		return "Admin"
-	case Write:
-		return "Write"
-	case Read:
-		return "Read"
-	case Void:
-		return "Void"
-	default:
-		return "Unknown"
-	}
+// CheckAdmin returns true if user owns admin permission.
+func (up *UserPermission) CheckAdmin() bool {
+	return *up == Admin
 }
 
-// FromString converts string to UserPermissionRole.
-func (r *UserPermissionRole) FromString(perm string) {
+// Valid returns true if the value is a meaning permission value.
+func (up *UserPermission) Valid() bool {
+	return *up >= Admin && *up < NumberOfUserPermission
+}
+
+// FromString converts string to UserPermission.
+func (up *UserPermission) FromString(perm string) {
 	switch perm {
 	case "Admin":
-		*r = Admin
+		*up = Admin
 	case "Write":
-		*r = Write
+		*up = Write
 	case "Read":
-		*r = Read
+		*up = Read
 	case "Void":
-		*r = Void
+		*up = Void
 	default:
-		*r = NumberOfUserPermission
+		*up = NumberOfUserPermission
 	}
-}
-
-// UserPermissionFromRole construct a new user permission instance from primitive user permission role enum.
-func UserPermissionFromRole(role UserPermissionRole) *UserPermission {
-	return &UserPermission{
-		Role: role,
-	}
-}
-
-// HasReadPermission returns true if user owns read permission.
-func (up *UserPermission) HasReadPermission() bool {
-	if up == nil {
-		return false
-	}
-	return up.Role >= Admin && up.Role < NumberOfUserPermission
-}
-
-// HasWritePermission returns true if user owns write permission.
-func (up *UserPermission) HasWritePermission() bool {
-	if up == nil {
-		return false
-	}
-	return up.Role >= Admin && up.Role <= Write
-}
-
-// HasAdminPermission returns true if user owns admin permission.
-func (up *UserPermission) HasAdminPermission() bool {
-	if up == nil {
-		return false
-	}
-	return up.Role == Admin
-}
-
-// IsValid returns whether the permission object is valid or not.
-func (up *UserPermission) IsValid() bool {
-	return up != nil && up.Role < NumberOfUserPermission && up.Role >= Admin
-}
-
-// HasDisallowedQueryPatterns returns whether the queries are permitted.
-func (up *UserPermission) HasDisallowedQueryPatterns(queries []Query) (query string, status bool) {
-	if up == nil {
-		status = true
-		return
-	}
-	if len(up.Patterns) == 0 {
-		status = false
-		return
-	}
-
-	up.cachedPatternMapOnce.Do(func() {
-		up.cachedPatternMap = make(map[string]bool, len(up.Patterns))
-		for _, p := range up.Patterns {
-			up.cachedPatternMap[p] = true
-		}
-	})
-
-	for _, q := range queries {
-		if !up.cachedPatternMap[q.Pattern] {
-			// not permitted
-			query = q.Pattern
-			status = true
-			break
-		}
-	}
-
-	return
 }
 
 // Status defines status of a SQLChain user/miner.
@@ -205,14 +112,14 @@ func (s *Status) EnableQuery() bool {
 
 // PermStat defines the permissions status structure.
 type PermStat struct {
-	Permission *UserPermission
+	Permission UserPermission
 	Status     Status
 }
 
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
 	Address        proto.AccountAddress
-	Permission     *UserPermission
+	Permission     UserPermission
 	AdvancePayment uint64
 	Arrears        uint64
 	Deposit        uint64

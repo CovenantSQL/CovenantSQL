@@ -100,22 +100,22 @@ var (
 	testNotExistAddr = proto.AccountAddress(hash.THashH([]byte{'a', 'a'}))
 	testUser1        = &types.SQLChainUser{
 		Address:    testAddr,
-		Permission: types.UserPermissionFromRole(types.Write),
+		Permission: types.Write,
 		Status:     types.Normal,
 	}
 	testUser2 = &types.SQLChainUser{
 		Address:    testAddr,
-		Permission: types.UserPermissionFromRole(types.Read),
+		Permission: types.Read,
 		Status:     types.Arrears,
 	}
 	testUser3 = &types.SQLChainUser{
 		Address:    testAddr,
-		Permission: types.UserPermissionFromRole(types.Write),
+		Permission: types.Write,
 		Status:     types.Reminder,
 	}
 	testUser4 = &types.SQLChainUser{
 		Address:    testAddr,
-		Permission: types.UserPermissionFromRole(types.Read),
+		Permission: types.Read,
 		Status:     types.Arbitration,
 	}
 )

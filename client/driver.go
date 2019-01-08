@@ -259,7 +259,7 @@ func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 
 // UpdatePermission sends UpdatePermission transaction to chain.
 func UpdatePermission(targetUser proto.AccountAddress,
-	targetChain proto.AccountAddress, perm *types.UserPermission) (err error) {
+	targetChain proto.AccountAddress, perm types.UserPermission) (err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return

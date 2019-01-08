@@ -53,6 +53,8 @@ import (
 var (
 	baseDir                   = utils.GetProjectSrcDir()
 	testWorkingDir            = FJ(baseDir, "./test/")
+	gnteConfDir               = FJ(testWorkingDir, "./GNTE/conf/node_c/")
+	testnetConfDir            = FJ(testWorkingDir, "./bench_testnet/node_c/")
 	logDir                    = FJ(testWorkingDir, "./log/")
 	testGasPrice       uint64 = 1
 	testAdvancePayment uint64 = 20000000
@@ -792,9 +794,8 @@ func BenchmarkSQLite(b *testing.B) {
 	})
 }
 
-func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
-	log.Warnf("benchmark GNTE for %d Miners, BypassSignature: %v", minerCount, bypassSign)
-	asymmetric.BypassSignature = bypassSign
+func benchOutsideMiner(b *testing.B, minerCount uint16, confDir string) {
+	log.Warnf("benchmark %v for %d Miners:", confDir, minerCount)
 
 	// Create temp directory
 	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
@@ -802,15 +803,21 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		panic(err)
 	}
 	defer os.RemoveAll(testDataDir)
-	clientConf := FJ(testWorkingDir, "./GNTE/conf/node_c/config.yaml")
+	clientConf := FJ(confDir, "config.yaml")
 	tempConf := FJ(testDataDir, "config.yaml")
-	clientKey := FJ(testWorkingDir, "./GNTE/conf/node_c/private.key")
+	clientKey := FJ(confDir, "private.key")
 	tempKey := FJ(testDataDir, "private.key")
 	utils.CopyFile(clientConf, tempConf)
 	utils.CopyFile(clientKey, tempKey)
 
 	err = client.Init(tempConf, []byte(""))
 	So(err, ShouldBeNil)
+
+	for _, node := range conf.GConf.KnownNodes {
+		if node.Role == proto.Leader {
+			log.Infof("Benching started on bp addr: %v", node.Addr)
+		}
+	}
 
 	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
 	var dsn string
@@ -830,11 +837,19 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 		dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
+
+		// wait for creation
+		var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		err = client.WaitDBCreation(ctx, dsn)
+		So(err, ShouldBeNil)
+
 		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
 			log.Errorf("write .dsn failed: %v", err)
 		}
 		defer os.Remove(dsnFile)
+		defer client.Drop(dsn)
 	} else {
 		dsn = os.Getenv("DSN")
 	}
@@ -842,18 +857,7 @@ func benchGNTEMiner(b *testing.B, minerCount uint16, bypassSign bool) {
 	db, err := sql.Open("covenantsql", dsn)
 	So(err, ShouldBeNil)
 
-	// wait for creation
-	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	err = client.WaitDBCreation(ctx, dsn)
-	So(err, ShouldBeNil)
-
 	benchDB(b, db, minerCount > 0)
-
-	err = client.Drop(dsn)
-	So(err, ShouldBeNil)
-	time.Sleep(5 * time.Second)
-	stopNodes()
 }
 
 func BenchmarkMinerOneNoSign(b *testing.B) {
@@ -900,104 +904,45 @@ func BenchmarkClientOnly(b *testing.B) {
 
 func BenchmarkMinerGNTE1(b *testing.B) {
 	Convey("bench GNTE one node", b, func() {
-		benchGNTEMiner(b, 1, false)
+		benchOutsideMiner(b, 1, gnteConfDir)
 	})
 }
 func BenchmarkMinerGNTE2(b *testing.B) {
 	Convey("bench GNTE two node", b, func() {
-		benchGNTEMiner(b, 2, false)
+		benchOutsideMiner(b, 2, gnteConfDir)
 	})
 }
 
 func BenchmarkMinerGNTE3(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
-		benchGNTEMiner(b, 3, false)
+		benchOutsideMiner(b, 3, gnteConfDir)
 	})
 }
 
 func BenchmarkMinerGNTE4(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
-		benchGNTEMiner(b, 4, false)
+		benchOutsideMiner(b, 4, gnteConfDir)
 	})
 }
 
 func BenchmarkMinerGNTE8(b *testing.B) {
 	Convey("bench GNTE three node", b, func() {
-		benchGNTEMiner(b, 8, false)
+		benchOutsideMiner(b, 8, gnteConfDir)
 	})
-}
-
-func benchTestnetMiner(b *testing.B, minerCount uint16) {
-	log.Warnf("benchmark for %d Miners", minerCount)
-
-	// Create temp directory
-	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(testDataDir)
-	clientConf := FJ(baseDir, "./conf/testnet/config.yaml")
-	tempConf := FJ(testDataDir, "config.yaml")
-	clientKey := FJ(baseDir, "./conf/testnet/private.key")
-	tempKey := FJ(testDataDir, "private.key")
-	utils.CopyFile(clientConf, tempConf)
-	utils.CopyFile(clientKey, tempKey)
-
-	err = client.Init(tempConf, []byte(""))
-	So(err, ShouldBeNil)
-
-	for _, node := range conf.GConf.KnownNodes {
-		if node.Role == proto.Leader {
-			log.Infof("Benching started on bp addr: %v", node.Addr)
-		}
-	}
-
-	dsnFile := FJ(baseDir, "./cmd/cql-minerd/.dsn")
-	var dsn string
-	if minerCount > 0 {
-		// create
-		meta := client.ResourceMeta{}
-		meta.Node = minerCount
-		dsn, err = client.Create(meta)
-		So(err, ShouldBeNil)
-		log.Infof("the created database dsn is %v", dsn)
-		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
-		if err != nil {
-			log.Errorf("write .dsn failed: %v", err)
-		}
-		defer os.Remove(dsnFile)
-	} else {
-		dsn = os.Getenv("DSN")
-	}
-
-	db, err := sql.Open("covenantsql", dsn)
-	So(err, ShouldBeNil)
-
-	dsnCfg, err := client.ParseDSN(dsn)
-	So(err, ShouldBeNil)
-
-	// wait for creation
-	log.Infof("Wait dsn %v to create", dsn)
-	var ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
-	So(err, ShouldBeNil)
-
-	benchDB(b, db, minerCount > 0)
 }
 
 func BenchmarkTestnetMiner1(b *testing.B) {
 	Convey("bench testnet one node", b, func() {
-		benchTestnetMiner(b, 1)
+		benchOutsideMiner(b, 1, testnetConfDir)
 	})
 }
 func BenchmarkTestnetMiner2(b *testing.B) {
 	Convey("bench testnet one node", b, func() {
-		benchTestnetMiner(b, 2)
+		benchOutsideMiner(b, 2, testnetConfDir)
 	})
 }
 func BenchmarkTestnetMiner3(b *testing.B) {
 	Convey("bench testnet one node", b, func() {
-		benchTestnetMiner(b, 3)
+		benchOutsideMiner(b, 3, testnetConfDir)
 	})
 }

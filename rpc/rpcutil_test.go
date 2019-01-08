@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -33,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
@@ -227,8 +228,13 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	err = client.Call("DHT.FindNeighbor", req, resp)
 	if err == nil || !strings.Contains(err.Error(), "not permitted") {
+		if err != nil {
+			t.Errorf("unexpected error %s", err.Error())
+		} else {
+			t.Errorf("unexpected resp %v", resp)
+		}
 		t.Fatal("anonymous ETLS connection used by " +
-			"RPC other than DHTPing shuold not permitted")
+			"RPC other than DHTPing should not permitted")
 	}
 
 	// close anonymous ETLS connection, and create new one

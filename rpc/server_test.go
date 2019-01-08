@@ -185,6 +185,52 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	server.Stop()
 }
 
+func TestETLSBug(t *testing.T) {
+	defer os.Remove(PubKeyStorePath)
+	log.SetLevel(log.DebugLevel)
+	addr := "127.0.0.1:0"
+	masterKey := []byte("abc")
+	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	go server.Serve()
+	defer server.Stop()
+
+	// This should not block listener
+	var rawConn net.Conn
+	rawConn, err = net.Dial("tcp", server.Listener.Addr().String())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rawConn.Close()
+
+	publicKey, err := kms.GetLocalPublicKey()
+	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
+	serverNodeID := proto.NodeID(nonce.Hash.String())
+	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
+	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+
+	cryptoConn, err := DialToNode(serverNodeID, nil, false)
+	cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
+	client, err := InitClientConn(cryptoConn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	repSimple := new(int)
+	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
+	if err != nil {
+		log.Fatal(err)
+	}
+	CheckNum(*repSimple, 10, t)
+}
+
 func TestEncPingFindNeighbor(t *testing.T) {
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)

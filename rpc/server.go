@@ -123,10 +123,16 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	// remote remoteNodeID connection awareness
 	var remoteNodeID *proto.RawNodeID
+	var err error
 
 	if c, ok := conn.(*etls.CryptoConn); ok {
+		conn, err = s.Listener.(*etls.CryptoListener).CHandler(c.Conn)
+		if err != nil {
+			err = errors.Wrap(err, "handle ETLS handler failed")
+			return
+		}
 		// set node id
-		remoteNodeID = c.NodeID
+		remoteNodeID = conn.(*etls.CryptoConn).NodeID
 	}
 
 	sess, err := mux.Server(conn, YamuxConfig)

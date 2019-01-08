@@ -1222,7 +1222,7 @@ func (c *Chain) stat() {
 	var (
 		ic = atomic.LoadInt32(&multiIndexCount)
 		rc = atomic.LoadInt32(&responseCount)
-		tc = atomic.LoadInt32(&ackTrackerCount)
+		tc = atomic.LoadInt32(&ackCount)
 		bc = atomic.LoadInt32(&cachedBlockCount)
 	)
 	// Print chain stats

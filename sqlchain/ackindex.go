@@ -29,7 +29,7 @@ var (
 	// Global atomic counters for stats
 	multiIndexCount int32
 	responseCount   int32
-	ackTrackerCount int32
+	ackCount        int32
 )
 
 type multiAckIndex struct {
@@ -77,7 +77,7 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 	delete(i.respIndex, key)
 	i.ackIndex[key] = ack
 	atomic.AddInt32(&responseCount, -1)
-	atomic.AddInt32(&ackTrackerCount, 1)
+	atomic.AddInt32(&ackCount, 1)
 	return
 }
 
@@ -98,7 +98,7 @@ func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 			return
 		}
 		delete(i.ackIndex, key)
-		atomic.AddInt32(&ackTrackerCount, -1)
+		atomic.AddInt32(&ackCount, -1)
 		return
 	}
 	err = errors.Wrapf(ErrQueryNotFound, "remove key %s -x- ack %s", &key, ack.Hash())
@@ -192,7 +192,7 @@ func (i *ackIndex) advance(h int32) {
 	for _, v := range dl {
 		v.expire()
 		atomic.AddInt32(&responseCount, int32(-len(v.respIndex)))
-		atomic.AddInt32(&ackTrackerCount, int32(-len(v.ackIndex)))
+		atomic.AddInt32(&ackCount, int32(-len(v.ackIndex)))
 	}
 	atomic.AddInt32(&multiIndexCount, int32(-len(dl)))
 }

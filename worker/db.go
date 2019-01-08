@@ -243,6 +243,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 	switch request.Header.QueryType {
 	case types.ReadQuery:
 		if tracker, response, err = db.chain.Query(request); err != nil {
+			err = errors.Wrap(err, "failed to query read query")
 			return
 		}
 	case types.WriteQuery:
@@ -250,10 +251,12 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 			// reset context
 			request.SetContext(context.Background())
 			if tracker, response, err = db.chain.Query(request); err != nil {
+				err = errors.Wrap(err, "failed to execute with eventual consistency")
 				return
 			}
 		} else {
 			if tracker, response, err = db.writeQuery(request); err != nil {
+				err = errors.Wrap(err, "failed to execute")
 				return
 			}
 		}
@@ -264,9 +267,11 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	// Sign response
 	if err = response.Sign(db.privateKey); err != nil {
+		err = errors.Wrap(err, "failed to sign response")
 		return
 	}
 	if err = db.chain.AddResponse(&response.Header); err != nil {
+		err = errors.Wrap(err, "failed to add response to index")
 		return
 	}
 	tracker.UpdateResp(response)

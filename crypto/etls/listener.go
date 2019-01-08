@@ -45,7 +45,9 @@ func (l *CryptoListener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 
-	return l.CHandler(c)
+	return &CryptoConn{
+		Conn: c,
+	}, nil
 }
 
 // Close closes the listener.

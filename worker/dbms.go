@@ -444,7 +444,7 @@ func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 	if err != nil {
 		return
 	}
-	err = dbms.checkPermission(addr, req.Header.DatabaseID, req.Header.QueryType)
+	err = dbms.checkPermission(addr, req.Header.DatabaseID, req.Header.QueryType, req.Payload.Queries)
 	if err != nil {
 		return
 	}
@@ -499,32 +499,59 @@ func (dbms *DBMS) removeMeta(dbID proto.DatabaseID) (err error) {
 }
 
 func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
-	dbID proto.DatabaseID, queryType types.QueryType) (err error) {
+	dbID proto.DatabaseID, queryType types.QueryType, queries []types.Query) (err error) {
 	log.Debugf("in checkPermission, database id: %s, user addr: %s", dbID, addr.String())
 
-	if permStat, ok := dbms.busService.RequestPermStat(dbID, addr); ok {
-		if !permStat.Status.EnableQuery() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot query, status: %d", permStat.Status)
-			return
-		}
-		if queryType == types.ReadQuery {
-			if !permStat.Permission.CheckRead() {
-				err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %d", permStat.Permission)
-				return
-			}
-		} else if queryType == types.WriteQuery {
-			if !permStat.Permission.CheckWrite() {
-				err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %d", permStat.Permission)
-				return
-			}
-		} else {
-			err = errors.Wrapf(ErrInvalidPermission,
-				"invalid permission, permission: %d", permStat.Permission)
-			return
+	var (
+		permStat *types.PermStat
+		ok       bool
+	)
 
-		}
-	} else {
+	// get database perm stat
+	permStat, ok = dbms.busService.RequestPermStat(dbID, addr)
+
+	// perm stat not exists
+	if !ok {
 		err = errors.Wrap(ErrPermissionDeny, "database not exists")
+		return
+	}
+
+	// check if query is enabled
+	if !permStat.Status.EnableQuery() {
+		err = errors.Wrapf(ErrPermissionDeny, "cannot query, status: %d", permStat.Status)
+		return
+	}
+
+	// check query type permission
+	switch queryType {
+	case types.ReadQuery:
+		if !permStat.Permission.HasReadPermission() {
+			err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %d", permStat.Permission)
+			return
+		}
+	case types.WriteQuery:
+		if !permStat.Permission.HasWritePermission() {
+			err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %d", permStat.Permission)
+			return
+		}
+	default:
+		err = errors.Wrapf(ErrInvalidPermission,
+			"invalid permission, permission: %d", permStat.Permission)
+		return
+	}
+
+	// check for query pattern
+	var (
+		disallowedQuery    string
+		hasDisallowedQuery bool
+	)
+
+	if disallowedQuery, hasDisallowedQuery = permStat.Permission.HasDisallowedQueryPatterns(queries); hasDisallowedQuery {
+		err = errors.Wrapf(ErrPermissionDeny, "disallowed query %s", disallowedQuery)
+		log.WithError(err).WithFields(log.Fields{
+			"permission": permStat.Permission,
+			"query":      disallowedQuery,
+		}).Debug("can not query")
 		return
 	}
 
@@ -538,7 +565,7 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 		log.WithFields(log.Fields{
 			"databaseID": dbID,
 			"nodeID":     nodeID,
-		}).WithError(err).Warning("get pubkey failed in addTxSubscription")
+		}).WithError(err).Warning("get public key failed in addTxSubscription")
 		return
 	}
 	addr, err := crypto.PubKeyHash(pubkey)
@@ -557,7 +584,7 @@ func (dbms *DBMS) addTxSubscription(dbID proto.DatabaseID, nodeID proto.NodeID, 
 		"startHeight": startHeight,
 	}).Debugf("addTxSubscription")
 
-	err = dbms.checkPermission(addr, dbID, types.ReadQuery)
+	err = dbms.checkPermission(addr, dbID, types.ReadQuery, nil)
 	if err != nil {
 		log.WithFields(log.Fields{"databaseID": dbID, "addr": addr}).WithError(err).Warning("permission deny")
 		return

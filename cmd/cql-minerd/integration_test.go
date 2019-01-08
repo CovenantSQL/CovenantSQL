@@ -429,7 +429,8 @@ func TestFullProcess(t *testing.T) {
 		}
 		permStat, ok := usersMap[clientAddr]
 		So(ok, ShouldBeTrue)
-		So(permStat.Permission, ShouldEqual, types.Admin)
+		So(permStat.Permission, ShouldNotBeNil)
+		So(permStat.Permission.Role, ShouldEqual, types.Admin)
 		So(permStat.Status, ShouldEqual, types.Normal)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")

@@ -94,7 +94,7 @@ func TestNewBusService(t *testing.T) {
 				permStat, ok := bs.RequestPermStat(profile.ID, testAddr)
 				So(ok, ShouldBeTrue)
 				So(permStat.Status, ShouldEqual, profile.Users[0].Status)
-				So(permStat.Permission, ShouldEqual, profile.Users[0].Permission)
+				So(permStat.Permission, ShouldResemble, profile.Users[0].Permission)
 				permStat, ok = bs.RequestPermStat(profile.ID, testNotExistAddr)
 			}
 			p, ok := bs.RequestSQLProfile(testNotExistID)
@@ -116,7 +116,7 @@ func TestNewBusService(t *testing.T) {
 				permStat, ok := bs.RequestPermStat(profile.ID, testAddr)
 				So(ok, ShouldBeTrue)
 				So(permStat.Status, ShouldEqual, profile.Users[0].Status)
-				So(permStat.Permission, ShouldEqual, profile.Users[0].Permission)
+				So(permStat.Permission, ShouldResemble, profile.Users[0].Permission)
 				permStat, ok = bs.RequestPermStat(profile.ID, testNotExistAddr)
 			}
 			p, ok := bs.RequestSQLProfile(testNotExistID)

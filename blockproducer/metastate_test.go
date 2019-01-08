@@ -106,11 +106,11 @@ func TestMetaState(t *testing.T) {
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
 			err = ms.createSQLChain(addr1, dbID1)
 			So(err, ShouldEqual, ErrAccountNotFound)
-			err = ms.addSQLChainUser(dbID1, addr1, types.Admin)
+			err = ms.addSQLChainUser(dbID1, addr1, types.UserPermissionFromRole(types.Admin))
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 			err = ms.deleteSQLChainUser(dbID1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbID1, addr1, types.Write)
+			err = ms.alterSQLChainUser(dbID1, addr1, types.UserPermissionFromRole(types.Write))
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
@@ -170,9 +170,9 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
 						err = ms.deleteSQLChainUser(dbID3, addr2)
@@ -181,9 +181,9 @@ func TestMetaState(t *testing.T) {
 						So(err, ShouldBeNil)
 					})
 					Convey("The metaState object should be ok to alter user", func() {
-						err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Read))
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
@@ -204,9 +204,9 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 						})
 						Convey("The metaState object should be ok to alter user", func() {
-							err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Read))
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 							So(err, ShouldBeNil)
 						})
 					})
@@ -214,9 +214,9 @@ func TestMetaState(t *testing.T) {
 				Convey("When metaState change is committed", func() {
 					ms.commit()
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {
@@ -992,7 +992,7 @@ func TestMetaState(t *testing.T) {
 					UpdatePermissionHeader: types.UpdatePermissionHeader{
 						TargetSQLChain: addr1,
 						TargetUser:     addr3,
-						Permission:     types.Read,
+						Permission:     types.UserPermissionFromRole(types.Read),
 						Nonce:          cd1.Nonce + 1,
 					},
 				}
@@ -1000,7 +1000,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
-				up.Permission = 4
+				up.Permission = types.UserPermissionFromRole(types.NumberOfUserPermission)
 				up.TargetSQLChain = dbAccount
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
@@ -1009,7 +1009,7 @@ func TestMetaState(t *testing.T) {
 				// test permission update
 				// addr1(admin) update addr3 as admin
 				up.TargetUser = addr3
-				up.Permission = types.Admin
+				up.Permission = types.UserPermissionFromRole(types.Admin)
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
@@ -1018,7 +1018,7 @@ func TestMetaState(t *testing.T) {
 				// addr3(admin) update addr4 as read
 				up.TargetUser = addr4
 				up.Nonce = cd2.Nonce
-				up.Permission = types.Read
+				up.Permission = types.UserPermissionFromRole(types.Read)
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
@@ -1034,7 +1034,7 @@ func TestMetaState(t *testing.T) {
 				ms.commit()
 				// addr3(admin) update addr3(admin) as read fail
 				up.TargetUser = addr3
-				up.Permission = types.Read
+				up.Permission = types.UserPermissionFromRole(types.Read)
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
@@ -1050,15 +1050,18 @@ func TestMetaState(t *testing.T) {
 				co, loaded = ms.loadSQLChainObject(dbID)
 				for _, user := range co.Users {
 					if user.Address == addr1 {
-						So(user.Permission, ShouldEqual, types.Read)
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Read)
 						continue
 					}
 					if user.Address == addr3 {
-						So(user.Permission, ShouldEqual, types.Admin)
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Admin)
 						continue
 					}
 					if user.Address == addr4 {
-						So(user.Permission, ShouldEqual, types.Read)
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Read)
 						continue
 					}
 				}

@@ -311,7 +311,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl2()
-		err = bp.WaitDatabaseCreation(ctx2, proto.DatabaseID(dbID), db, 3*time.Second)
+		err = client.WaitDBCreation(ctx2, dsn)
 		So(err, ShouldBeNil)
 
 		// get nonce for observer
@@ -458,7 +458,7 @@ func TestFullProcess(t *testing.T) {
 		So(dbID, ShouldNotResemble, dbID2)
 		ctx3, ccl3 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl3()
-		err = bp.WaitDatabaseCreation(ctx3, proto.DatabaseID(dbID2), db2, 3*time.Second)
+		err = client.WaitDBCreation(ctx3, dsn2)
 		So(err, ShouldBeNil)
 
 		_, err = db2.Exec("CREATE TABLE test (test int)")

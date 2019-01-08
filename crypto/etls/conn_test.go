@@ -23,9 +23,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const service = "127.0.0.1:28000"
@@ -178,6 +180,16 @@ func clientComplex(pass string, args *QueryComplex) (ret *ResultComplex, err err
 
 func handleClient(conn net.Conn) {
 	defer conn.Close()
+	var err error
+
+	if c, ok := conn.(*CryptoConn); ok {
+		conn, err = simpleCipherHandler(c.Conn)
+		if err != nil {
+			err = errors.Wrap(err, "handle ETLS handler failed")
+			return
+		}
+	}
+
 	rpc.ServeConn(conn)
 	log.Debugln("server: conn: closed")
 }
@@ -272,8 +284,16 @@ func TestCryptoConn_RW(t *testing.T) {
 		go func() {
 			rBuf := make([]byte, len(msg))
 			conn, err := l.Accept()
-			cc, _ := conn.(*CryptoConn)
-			n, err := cc.Read(rBuf)
+
+			if c, ok := conn.(*CryptoConn); ok {
+				conn, err = l.CHandler(c.Conn)
+				if err != nil {
+					err = errors.Wrap(err, "handle ETLS handler failed")
+					return
+				}
+			}
+
+			n, err := conn.Read(rBuf)
 			c.So(n, ShouldEqual, len(msg))
 			c.So(string(rBuf), ShouldResemble, msg)
 			c.So(err, ShouldBeNil)

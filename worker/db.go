@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -34,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	"github.com/pkg/errors"
 )
 
@@ -78,6 +80,7 @@ type Database struct {
 	chain          *sqlchain.Chain
 	nodeID         proto.NodeID
 	mux            *DBKayakMuxService
+	privateKey     *asymmetric.PrivateKey
 }
 
 // NewDatabase create a single database instance using config.
@@ -93,12 +96,19 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		return
 	}
 
+	// get private key
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
 	// init database
 	db = &Database{
 		cfg:            cfg,
 		dbID:           cfg.DatabaseID,
 		mux:            cfg.KayakMux,
 		connSeqEvictCh: make(chan uint64, 1),
+		privateKey:     privateKey,
 	}
 
 	defer func() {
@@ -212,6 +222,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	var (
 		isSlowQuery uint32
+		tracker     *x.QueryTracker
 		tmStart     = time.Now()
 	)
 
@@ -231,18 +242,35 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		return db.chain.Query(request)
+		if tracker, response, err = db.chain.Query(request); err != nil {
+			return
+		}
 	case types.WriteQuery:
 		if db.cfg.UseEventualConsistency {
 			// reset context
 			request.SetContext(context.Background())
-			return db.chain.Query(request)
+			if tracker, response, err = db.chain.Query(request); err != nil {
+				return
+			}
+		} else {
+			if tracker, response, err = db.writeQuery(request); err != nil {
+				return
+			}
 		}
-		return db.writeQuery(request)
 	default:
 		// TODO(xq262144): verbose errors with custom error structure
 		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
+
+	// Sign response
+	if err = response.Sign(db.privateKey); err != nil {
+		return
+	}
+	if err = db.chain.AddResponse(&response.Header); err != nil {
+		return
+	}
+	tracker.UpdateResp(response)
+	return
 }
 
 func (db *Database) logSlow(request *types.Request, isFinished bool, tmStart time.Time) {
@@ -341,7 +369,7 @@ func (db *Database) Destroy() (err error) {
 	return
 }
 
-func (db *Database) writeQuery(request *types.Request) (response *types.Response, err error) {
+func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker, response *types.Response, err error) {
 	//ctx := context.Background()
 	//ctx, task := trace.NewTask(ctx, "writeQuery")
 	//defer task.End()
@@ -371,12 +399,16 @@ func (db *Database) writeQuery(request *types.Request) (response *types.Response
 		return
 	}
 
-	var ok bool
-	if response, ok = (result).(*types.Response); !ok {
+	var (
+		tr *TrackerAndResponse
+		ok bool
+	)
+	if tr, ok = (result).(*TrackerAndResponse); !ok {
 		err = errors.Wrap(err, "invalid response type")
 		return
 	}
-
+	tracker = tr.Tracker
+	response = tr.Response
 	return
 }
 

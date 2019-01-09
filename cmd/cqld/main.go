@@ -61,8 +61,8 @@ var (
 	noLogo      bool
 	showVersion bool
 	configFile  string
-	wsapiAddr string
-	mode string // "normal", "api"
+	wsapiAddr   string
+	mode        string // "normal", "api"
 )
 
 const name = `cqld`
@@ -121,13 +121,6 @@ func main() {
 
 	// BP DO NOT Generate new key pair
 	conf.GConf.GenerateKeyPair = false
-
-	if mode == "api" {
-		if err = registerNodeToBP(30 * time.Second); err != nil {
-			log.WithError(err).Fatal("register node to BP")
-			return
-		}
-	}
 
 	// init log
 	initLogs()

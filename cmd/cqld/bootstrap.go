@@ -79,6 +79,13 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	if mode == "api" {
+		if err = registerNodeToBP(30 * time.Second); err != nil {
+			log.WithError(err).Fatal("register node to BP")
+			return
+		}
+	}
+
 	var server *rpc.Server
 
 	// create server

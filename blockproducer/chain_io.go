@@ -139,14 +139,14 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	c.RLock()
 	defer c.RUnlock()
 	var ok bool
-	state = pi.TransactionStateNotFound
+
 	if state, ok = c.headBranch.queryTxState(hash); ok {
 		return
 	}
 
 	var (
 		count    int
-		querySQL = `select count(*) from indexed_transactions where hash = ?`
+		querySQL = `SELECT COUNT(*) FROM "indexed_transactions" WHERE "hash" = ?`
 	)
 	if err = c.storage.Reader().QueryRow(querySQL, hash.String()).Scan(&count); err != nil {
 		return pi.TransactionStateNotFound, err
@@ -155,7 +155,8 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	if count > 0 {
 		return pi.TransactionStateConfirmed, nil
 	}
-	return
+
+	return pi.TransactionStateNotFound, nil
 }
 
 func (c *Chain) immutableNextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {

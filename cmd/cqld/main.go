@@ -22,13 +22,19 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 const logo = `
@@ -112,8 +118,16 @@ func main() {
 
 	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
+
 	// BP DO NOT Generate new key pair
 	conf.GConf.GenerateKeyPair = false
+
+	if mode == "api" {
+		if err = registerNodeToBP(30 * time.Second); err != nil {
+			log.WithError(err).Fatal("register node to BP")
+			return
+		}
+	}
 
 	// init log
 	initLogs()
@@ -131,4 +145,52 @@ func main() {
 	}
 
 	log.Info("server stopped")
+}
+
+func registerNodeToBP(timeout time.Duration) (err error) {
+	// get local node id
+	localNodeID, err := kms.GetLocalNodeID()
+	if err != nil {
+		return errors.WithMessage(err, "get local node id")
+	}
+
+	// get local node info
+	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
+	if err != nil {
+		return errors.WithMessage(err, "get local node info")
+	}
+
+	log.WithField("node", localNodeInfo).Debug("construct local node info")
+
+	pingWaitCh := make(chan proto.NodeID)
+	bpNodeIDs := route.GetBPs()
+	for _, bpNodeID := range bpNodeIDs {
+		go func(ch chan proto.NodeID, id proto.NodeID) {
+			for {
+				err := rpc.PingBP(localNodeInfo, id)
+				if err == nil {
+					log.WithField("node", localNodeInfo).Info("ping BP node")
+					ch <- id
+					return
+				}
+				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
+					log.Debug("stop ping non-leader BP node")
+					return
+				}
+
+				log.WithField("node", localNodeInfo).WithError(err).Error("ping BP node")
+				time.Sleep(3 * time.Second)
+			}
+		}(pingWaitCh, bpNodeID)
+	}
+
+	select {
+	case bp := <-pingWaitCh:
+		close(pingWaitCh)
+		log.WithField("BP", bp).Infof("ping BP node")
+	case <-time.After(timeout):
+		return errors.New("ping BP timeout")
+	}
+
+	return
 }

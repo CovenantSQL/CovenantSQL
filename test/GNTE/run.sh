@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 yaml=(
-	./scripts/gnte_{0,5,20,100,200}ms.yaml
+	./scripts/gnte_{0,0.2,5,20,100}ms.yaml
 )
 
 TEST_WD=$(cd $(dirname $0)/; pwd)

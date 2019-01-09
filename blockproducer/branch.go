@@ -57,7 +57,7 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
-		if len(bn.block.Transactions) > pl.MaxPendingTxsPerAccount {
+		if len(bn.block.Transactions) > pl.MaxTransactionsPerBlock {
 			return nil, ErrTooManyTransactionsInBlock
 		}
 

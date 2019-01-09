@@ -45,23 +45,25 @@ var (
 	listenAddr    string
 	resetPosition string
 	showVersion   bool
+	logLevel      string
 )
 
 func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "config file path")
 	flag.StringVar(&dbID, "database", "", "database to listen for observation")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&resetPosition, "reset", "", "reset subscribe position")
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4663", "listen address for http explorer api")
+	flag.StringVar(&logLevel, "log-level", "", "service log level")
 }
 
 func main() {
+	flag.Parse()
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
-	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())

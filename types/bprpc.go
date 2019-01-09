@@ -18,6 +18,8 @@ package types
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -104,7 +106,9 @@ type NextAccountNonceResp struct {
 // AddTxReq defines a request of the AddTx RPC method.
 type AddTxReq struct {
 	proto.Envelope
-	Tx interfaces.Transaction
+
+	TTL uint32 // defines the broadcast TTL on BP network.
+	Tx  interfaces.Transaction
 }
 
 // AddTxResp defines a response of the AddTx RPC method.
@@ -167,4 +171,17 @@ type QuerySQLChainProfileReq struct {
 type QuerySQLChainProfileResp struct {
 	proto.Envelope
 	Profile SQLChainProfile
+}
+
+// QueryTxStateReq defines a request of the QueryTxState RPC method.
+type QueryTxStateReq struct {
+	proto.Envelope
+	Hash hash.Hash
+}
+
+// QueryTxStateResp defines a response of the QueryTxState RPC method.
+type QueryTxStateResp struct {
+	proto.Envelope
+	Hash  hash.Hash
+	State pi.TransactionState
 }

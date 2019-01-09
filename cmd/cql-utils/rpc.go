@@ -83,6 +83,7 @@ func runRPC() {
 	if rpcName == route.MCCAddTx.String() {
 		// special type of query
 		if addTxReqType, ok := req.(*types.AddTxReq); ok {
+			addTxReqType.TTL = 1
 			addTxReqType.Tx = &pi.TransactionWrapper{}
 		}
 	}

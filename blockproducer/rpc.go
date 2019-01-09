@@ -23,13 +23,13 @@ import (
 	"strings"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 )
 
@@ -99,13 +99,8 @@ func (s *ChainRPCService) NextAccountNonce(
 }
 
 // AddTx is the RPC method to add a transaction.
-func (s *ChainRPCService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err error) {
-	if req.Tx == nil {
-		return ErrUnknownTransactionType
-	}
-	log.Infof("transaction type: %s, hash: %s, address: %s",
-		req.Tx.GetTransactionType().String(), req.Tx.Hash(), req.Tx.GetAccountAddress().String())
-	s.chain.addTx(req.Tx)
+func (s *ChainRPCService) AddTx(req *types.AddTxReq, _ *types.AddTxResp) (err error) {
+	s.chain.addTx(req)
 	return
 }
 
@@ -130,10 +125,23 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 	return
 }
 
+// QueryTxState is the RPC method to query a transaction state.
+func (s *ChainRPCService) QueryTxState(
+	req *types.QueryTxStateReq, resp *types.QueryTxStateResp) (err error,
+) {
+	var state pi.TransactionState
+	if state, err = s.chain.queryTxState(req.Hash); err != nil {
+		return
+	}
+	resp.Hash = req.Hash
+	resp.State = state
+	return
+}
+
 // Sub is the RPC method to subscribe some event.
 func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error) {
-	return s.chain.bs.Subscribe(req.Topic, func(request interface{}, response interface{}) {
-		s.chain.cl.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
+	return s.chain.chainBus.Subscribe(req.Topic, func(request interface{}, response interface{}) {
+		s.chain.caller.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
 	})
 }
 

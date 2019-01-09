@@ -163,6 +163,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		meta.AdvancePayment = DefaultAdvancePayment
 	}
 
+	req.TTL = 1
 	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
 		Owner:          clientAddr,
 		ResourceMeta:   meta.ResourceMeta,

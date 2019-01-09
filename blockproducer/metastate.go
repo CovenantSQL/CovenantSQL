@@ -864,6 +864,12 @@ func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (m
 }
 
 func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
+	log.WithFields(log.Fields{
+		"tx_hash":     tx.Hash().String(),
+		"sender":      tx.GetAccountAddress(),
+		"db_id":       tx.TargetSQLChain.String(),
+		"target_user": tx.TargetUser,
+	}).Debug("in updatePermission")
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		log.WithFields(log.Fields{

@@ -90,10 +90,6 @@ const (
 	SQLCSignBilling
 	// SQLCLaunchBilling is used by blockproducer to trigger the billing process in sqlchain
 	SQLCLaunchBilling
-	// SQLCSubscribeTransactions is used by sqlchain to handle observer subscription request
-	SQLCSubscribeTransactions
-	// SQLCCancelSubscription is used by sqlchain to handle observer subscription cancellation request
-	SQLCCancelSubscription
 	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
 	OBSAdviseNewBlock
 	// MCCAdviseNewBlock is used by block producer to push block to adjacent nodes
@@ -166,10 +162,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.SignBilling"
 	case SQLCLaunchBilling:
 		return "SQLC.LaunchBilling"
-	case SQLCSubscribeTransactions:
-		return "SQLC.SubscribeTransactions"
-	case SQLCCancelSubscription:
-		return "SQLC.CancelSubscription"
 	case OBSAdviseNewBlock:
 		return "OBS.AdviseNewBlock"
 	case MCCAdviseNewBlock:

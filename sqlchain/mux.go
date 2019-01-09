@@ -103,34 +103,6 @@ type MuxFetchBlockResp struct {
 	FetchBlockResp
 }
 
-// MuxSubscribeTransactionsReq defines a request of the SubscribeTransactions RPC method.
-type MuxSubscribeTransactionsReq struct {
-	proto.Envelope
-	proto.DatabaseID
-	SubscribeTransactionsReq
-}
-
-// MuxSubscribeTransactionsResp defines a response of the SubscribeTransactions RPC method.
-type MuxSubscribeTransactionsResp struct {
-	proto.Envelope
-	proto.DatabaseID
-	SubscribeTransactionsResp
-}
-
-// MuxCancelSubscriptionReq defines a request of the CancelSubscription RPC method.
-type MuxCancelSubscriptionReq struct {
-	proto.Envelope
-	proto.DatabaseID
-	CancelSubscriptionReq
-}
-
-// MuxCancelSubscriptionResp defines a response of the CancelSubscription RPC method.
-type MuxCancelSubscriptionResp struct {
-	proto.Envelope
-	proto.DatabaseID
-	CancelSubscriptionResp
-}
-
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *MuxService) AdviseNewBlock(req *MuxAdviseNewBlockReq, resp *MuxAdviseNewBlockResp) error {
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
@@ -172,30 +144,6 @@ func (s *MuxService) FetchBlock(req *MuxFetchBlockReq, resp *MuxFetchBlockResp) 
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
 		return v.(*ChainRPCService).FetchBlock(&req.FetchBlockReq, &resp.FetchBlockResp)
-	}
-
-	return ErrUnknownMuxRequest
-}
-
-// SubscribeTransactions is the RPC method to subscribe transactions from the target server.
-func (s *MuxService) SubscribeTransactions(req *MuxSubscribeTransactionsReq, resp *MuxSubscribeTransactionsResp) (err error) {
-	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
-		resp.Envelope = req.Envelope
-		resp.DatabaseID = req.DatabaseID
-		req.SubscribeTransactionsReq.SubscriberID = req.GetNodeID().ToNodeID()
-		return v.(*ChainRPCService).SubscribeTransactions(&req.SubscribeTransactionsReq, &resp.SubscribeTransactionsResp)
-	}
-
-	return ErrUnknownMuxRequest
-}
-
-// CancelSubscription is the RPC method to cancel subscription from the target server.
-func (s *MuxService) CancelSubscription(req *MuxCancelSubscriptionReq, resp *MuxCancelSubscriptionResp) (err error) {
-	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
-		resp.Envelope = req.Envelope
-		resp.DatabaseID = req.DatabaseID
-		req.CancelSubscriptionReq.SubscriberID = req.GetNodeID().ToNodeID()
-		return v.(*ChainRPCService).CancelSubscription(&req.CancelSubscriptionReq, &resp.CancelSubscriptionResp)
 	}
 
 	return ErrUnknownMuxRequest

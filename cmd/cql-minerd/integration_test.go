@@ -815,6 +815,7 @@ func benchOutsideMiner(b *testing.B, minerCount uint16, confDir string) {
 	for _, node := range conf.GConf.KnownNodes {
 		if node.Role == proto.Leader {
 			log.Infof("Benching started on bp addr: %v", node.Addr)
+			
 		}
 	}
 

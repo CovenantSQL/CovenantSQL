@@ -33,7 +33,7 @@ func (c *Chain) loadBlock(h hash.Hash) (b *types.BPBlock, err error) {
 		enc []byte
 		out = &types.BPBlock{}
 	)
-	if err = c.st.Reader().QueryRow(
+	if err = c.storage.Reader().QueryRow(
 		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, h.String(),
 	).Scan(&enc); err != nil {
 		return
@@ -133,4 +133,33 @@ func (c *Chain) loadSQLChainProfiles(addr proto.AccountAddress) []*types.SQLChai
 	c.RLock()
 	defer c.RUnlock()
 	return c.immutable.loadROSQLChains(addr)
+}
+
+func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err error) {
+	c.RLock()
+	defer c.RUnlock()
+	var ok bool
+
+	if state, ok = c.headBranch.queryTxState(hash); ok {
+		return
+	}
+
+	var (
+		count    int
+		querySQL = `SELECT COUNT(*) FROM "indexed_transactions" WHERE "hash" = ?`
+	)
+	if err = c.storage.Reader().QueryRow(querySQL, hash.String()).Scan(&count); err != nil {
+		return pi.TransactionStateNotFound, err
+	}
+
+	if count > 0 {
+		return pi.TransactionStateConfirmed, nil
+	}
+	return pi.TransactionStateNotFound, nil
+}
+
+func (c *Chain) immutableNextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.immutable.nextNonce(addr)
 }

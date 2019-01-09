@@ -236,7 +236,7 @@ func (v *Verifier) dispenseOne(r *applicationRecord) (err error) {
 	// decode target account address
 	var targetAddress proto.AccountAddress
 
-	req := &pt.AddTxReq{}
+	req := &pt.AddTxReq{TTL: 1}
 	resp := &pt.AddTxResp{}
 	req.Tx = pt.NewTransfer(
 		&pt.TransferHeader{

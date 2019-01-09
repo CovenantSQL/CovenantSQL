@@ -22,10 +22,10 @@ import (
 	"math"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	pl "github.com/CovenantSQL/CovenantSQL/blockproducer/limits"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -50,13 +50,13 @@ type Chain struct {
 	wg     *sync.WaitGroup
 	// RPC components
 	server *rpc.Server
-	cl     *rpc.Caller
+	caller *rpc.Caller
 	// Other components
-	st xi.Storage
-	bs chainbus.Bus
+	storage  xi.Storage
+	chainBus chainbus.Bus
 	// Channels for incoming blocks and transactions
-	pendingBlocks chan *types.BPBlock
-	pendingTxs    chan pi.Transaction
+	pendingBlocks    chan *types.BPBlock
+	pendingAddTxReqs chan *types.AddTxReq
 	// The following fields are read-only in runtime
 	address     proto.AccountAddress
 	genesisTime time.Time
@@ -64,11 +64,10 @@ type Chain struct {
 	tick        time.Duration
 
 	sync.RWMutex // protects following fields
-	peers        *proto.Peers
-	nodeID       proto.NodeID
+	bpInfos      []*blockProducerInfo
+	localBPInfo  *blockProducerInfo
+	localNodeID  proto.NodeID
 	confirms     uint32
-	serversNum   uint32
-	locSvIndex   uint32
 	nextHeight   uint32
 	offset       time.Duration
 	lastIrre     *blockNode
@@ -89,7 +88,6 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
 		existed bool
-		ok      bool
 		ierr    error
 
 		cld context.Context
@@ -108,9 +106,10 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		br, head  *branch
 		headIndex int
 
-		pubKey     *asymmetric.PublicKey
-		addr       proto.AccountAddress
-		locSvIndex int32
+		pubKey      *asymmetric.PublicKey
+		addr        proto.AccountAddress
+		bpInfos     []*blockProducerInfo
+		localBPInfo *blockProducerInfo
 
 		bus = chainbus.New()
 	)
@@ -125,9 +124,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 
-	// Storage genesis
+	// Create initial state from genesis block and store
 	if !existed {
-		// TODO(leventeliu): reuse chain.replaceAndSwitchToBranch to construct initial state.
 		var init = newMetaState()
 		for _, v := range cfg.Genesis.Transactions {
 			if ierr = init.apply(v); ierr != nil {
@@ -135,29 +133,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 				return
 			}
 		}
-		var sps []storageProcedure
+		var sps = init.compileChanges(nil)
 		sps = append(sps, addBlock(0, cfg.Genesis))
-		for k, v := range init.dirty.accounts {
-			if v != nil {
-				sps = append(sps, updateAccount(v))
-			} else {
-				sps = append(sps, deleteAccount(k))
-			}
-		}
-		for k, v := range init.dirty.databases {
-			if v != nil {
-				sps = append(sps, updateShardChain(v))
-			} else {
-				sps = append(sps, deleteShardChain(k))
-			}
-		}
-		for k, v := range init.dirty.provider {
-			if v != nil {
-				sps = append(sps, updateProvider(v))
-			} else {
-				sps = append(sps, deleteProvider(k))
-			}
-		}
 		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.BlockHash))
 		if ierr = store(st, sps, nil); ierr != nil {
 			err = errors.Wrap(ierr, "failed to initialize storage")
@@ -207,8 +184,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
-	if locSvIndex, ok = cfg.Peers.Find(cfg.NodeID); !ok {
-		err = ErrLocalNodeNotFound
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers); err != nil {
 		return
 	}
 	if t = cfg.ConfirmThreshold; t <= 0.0 {
@@ -226,26 +202,25 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		wg:     &sync.WaitGroup{},
 
 		server: cfg.Server,
-		cl:     rpc.NewCaller(),
+		caller: rpc.NewCaller(),
 
-		st: st,
-		bs: bus,
+		storage:  st,
+		chainBus: bus,
 
-		pendingBlocks: make(chan *types.BPBlock),
-		pendingTxs:    make(chan pi.Transaction),
+		pendingBlocks:    make(chan *types.BPBlock),
+		pendingAddTxReqs: make(chan *types.AddTxReq),
 
 		address:     addr,
 		genesisTime: cfg.Genesis.SignedHeader.Timestamp,
 		period:      cfg.Period,
 		tick:        cfg.Tick,
 
-		peers:      cfg.Peers,
-		nodeID:     cfg.NodeID,
-		confirms:   m,
-		serversNum: l,
-		locSvIndex: uint32(locSvIndex),
-		nextHeight: head.head.height + 1,
-		offset:     time.Duration(0), // TODO(leventeliu): initialize offset
+		bpInfos:     bpInfos,
+		localBPInfo: localBPInfo,
+		localNodeID: cfg.NodeID,
+		confirms:    m,
+		nextHeight:  head.head.height + 1,
+		offset:      time.Duration(0), // TODO(leventeliu): initialize offset
 
 		lastIrre:   irre,
 		immutable:  immutable,
@@ -256,11 +231,10 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		mode:       cfg.Mode,
 	}
 	log.WithFields(log.Fields{
-		"index":     c.locSvIndex,
-		"bp_number": c.serversNum,
-		"period":    c.period.String(),
-		"tick":      c.tick.String(),
-		"height":    c.head().height,
+		"local":  c.getLocalBPInfo(),
+		"period": c.period,
+		"tick":   c.tick,
+		"height": c.head().height,
 	}).Debug("current chain state")
 	return
 }
@@ -285,11 +259,14 @@ func (c *Chain) Start() {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("stopping chain")
+	var le = log.WithFields(log.Fields{
+		"local": c.getLocalBPInfo(),
+	})
+	le.Debug("stopping chain")
 	c.stop()
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain service stopped")
-	c.st.Close()
-	log.WithFields(log.Fields{"peer": c.peerInfo()}).Debug("chain database closed")
+	le.Debug("chain service stopped")
+	c.storage.Close()
+	le.Debug("chain database closed")
 
 	// FIXME(leventeliu): RPC server should provide an `unregister` method to detach chain service
 	// instance. Add it to Chain.stop(), then working channels can be closed safely.
@@ -347,35 +324,16 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	if b, err = c.produceAndStoreBlock(now, priv); err != nil {
 		return
 	}
-	log.WithField("block", b).Debug("produced new block")
 
-	for _, s := range c.getPeers().Servers {
-		if !s.IsEqual(&c.nodeID) {
-			func(id proto.NodeID) {
-				c.goFuncWithTimeout(func(ctx context.Context) {
-					var (
-						req = &types.AdviseNewBlockReq{
-							Envelope: proto.Envelope{
-								// TODO(lambda): Add fields.
-							},
-							Block: b,
-						}
-						resp = &types.AdviseNewBlockResp{}
-						err  = c.cl.CallNodeWithContext(
-							ctx, id, route.MCCAdviseNewBlock.String(), req, resp)
-					)
-					log.WithFields(log.Fields{
-						"local":       c.peerInfo(),
-						"remote":      id,
-						"block_time":  b.Timestamp(),
-						"block_hash":  b.BlockHash().Short(4),
-						"parent_hash": b.ParentHash().Short(4),
-					}).WithError(err).Debug("broadcasting new block to other peers")
-				}, c.period)
-			}(s)
-		}
-	}
-	return err
+	log.WithFields(log.Fields{
+		"block_time":  b.Timestamp(),
+		"block_hash":  b.BlockHash().Short(4),
+		"parent_hash": b.ParentHash().Short(4),
+	}).Debug("produced new block")
+
+	// Broadcast to other block producers
+	c.nonblockingBroadcastBlock(b)
+	return
 }
 
 // advanceNextHeight does the check and runs block producing if its my turn.
@@ -383,8 +341,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 	var elapsed = -d
 
 	log.WithFields(log.Fields{
-		"bp_number":        c.serversNum,
-		"node_index":       c.locSvIndex,
+		"local":            c.getLocalBPInfo(),
 		"enclosing_height": c.getNextHeight() - 1,
 		"using_timestamp":  now.Format(time.RFC3339Nano),
 		"elapsed_seconds":  elapsed.Seconds(),
@@ -452,66 +409,88 @@ func (c *Chain) processBlocks(ctx context.Context) {
 	}
 }
 
-func (c *Chain) addTx(tx pi.Transaction) {
+func (c *Chain) addTx(req *types.AddTxReq) {
 	select {
-	case c.pendingTxs <- tx:
+	case c.pendingAddTxReqs <- req:
 	case <-c.ctx.Done():
 		log.WithError(c.ctx.Err()).Warn("add transaction aborted")
 	}
 }
 
-func (c *Chain) processTx(tx pi.Transaction) {
-	if err := tx.Verify(); err != nil {
-		log.WithError(err).Errorf("failed to verify transaction with hash: %s, address: %s, tx type: %s",
-			tx.Hash(), tx.GetAccountAddress().String(), tx.GetTransactionType().String())
+func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
+	// Nil check
+	if addTxReq == nil || addTxReq.Tx == nil {
+		log.Warn("empty add tx request")
 		return
 	}
+
+	var (
+		ttl = addTxReq.TTL
+		tx  = addTxReq.Tx
+
+		txhash = tx.Hash()
+		addr   = tx.GetAccountAddress()
+		nonce  = tx.GetAccountNonce()
+
+		le = log.WithFields(log.Fields{
+			"hash":    txhash.Short(4),
+			"address": addr,
+			"nonce":   nonce,
+			"type":    tx.GetTransactionType(),
+		})
+
+		base pi.AccountNonce
+		err  error
+	)
+
+	// Existense check
 	if ok := func() (ok bool) {
 		c.RLock()
 		defer c.RUnlock()
-		_, ok = c.txPool[tx.Hash()]
+		_, ok = c.txPool[txhash]
 		return
 	}(); ok {
-		log.WithFields(log.Fields{
-			"tx_hash": tx.Hash().Short(4),
-		}).Debug("tx already exists, abort processing")
+		le.Debug("tx already exists, abort processing")
 		return
 	}
-	for _, s := range c.getPeers().Servers {
-		if !s.IsEqual(&c.nodeID) {
-			func(id proto.NodeID) {
-				c.goFuncWithTimeout(func(ctx context.Context) {
-					var (
-						req = &types.AddTxReq{
-							Envelope: proto.Envelope{
-								// TODO(lambda): Add fields.
-							},
-							Tx: tx,
-						}
-						resp = &types.AddTxResp{}
-						err  = c.cl.CallNodeWithContext(
-							ctx, id, route.MCCAddTx.String(), req, resp)
-					)
-					log.WithFields(log.Fields{
-						"local":   c.peerInfo(),
-						"remote":  id,
-						"tx_hash": tx.Hash().Short(4),
-						"tx_type": tx.GetTransactionType(),
-					}).WithError(err).Debug("broadcasting transaction to other peers")
-				}, c.tick)
-			}(s)
-		}
+
+	// Verify transaction
+	if err = tx.Verify(); err != nil {
+		le.WithError(err).Warn("failed to verify transaction")
+		return
 	}
-	if err := c.storeTx(tx); err != nil {
-		log.WithError(err).Error("failed to add transaction")
+	if base, err = c.immutableNextNonce(addr); err != nil {
+		le.WithError(err).Warn("failed to load base nonce of transaction account")
+		return
+	}
+	if nonce < base || nonce >= base+pl.MaxPendingTxsPerAccount {
+		// TODO(leventeliu): should persist to somewhere for tx query?
+		le.WithFields(log.Fields{
+			"base_nonce":    base,
+			"pending_limit": pl.MaxPendingTxsPerAccount,
+		}).Warn("invalid transaction nonce")
+		return
+	}
+
+	// Broadcast to other block producers
+	if ttl > pl.MaxTxBroadcastTTL {
+		ttl = pl.MaxTxBroadcastTTL
+	}
+	if ttl > 0 {
+		c.nonblockingBroadcastTx(ttl-1, tx)
+	}
+
+	// Add to tx pool
+	if err = c.storeTx(tx); err != nil {
+		le.WithError(err).Error("failed to add transaction")
 	}
 }
 
 func (c *Chain) processTxs(ctx context.Context) {
 	for {
 		select {
-		case tx := <-c.pendingTxs:
-			c.processTx(tx)
+		case addTxReq := <-c.pendingAddTxReqs:
+			c.processAddTxReq(addTxReq)
 		case <-ctx.Done():
 			log.WithError(c.ctx.Err()).Info("abort transaction processing")
 			return
@@ -542,7 +521,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 				c.advanceNextHeight(t, d)
 			} else {
 				log.WithFields(log.Fields{
-					"peer":        c.peerInfo(),
+					"peer":        c.getLocalBPInfo(),
 					"next_height": c.getNextHeight(),
 					"head_height": c.head().height,
 					"head_block":  c.head().hash.Short(4),
@@ -582,7 +561,7 @@ func (c *Chain) blockingSyncCurrentHead(ctx context.Context) (err error) {
 }
 
 // syncCurrentHead synchronizes a block at the current height of the local peer from the known
-// remote peers. The return value `ok` indicates that there're at less `c.confirms-1` replies
+// remote peers. The return value `ok` indicates that there're at least `c.confirms-1` replies
 // from these gossip calls.
 func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 	var h = c.getNextHeight() - 1
@@ -590,76 +569,26 @@ func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 		ok = true
 		return
 	}
+
 	// Initiate blocking gossip calls to fetch block of the current height,
 	// with timeout of one tick.
 	var (
-		wg          = &sync.WaitGroup{}
-		cld, ccl    = context.WithTimeout(ctx, c.tick)
-		unreachable uint32
-	)
-	defer func() {
-		wg.Wait()
-		ccl()
-		var needConfirms, serversNum = func() (cf, sn uint32) {
+		unreachable = c.blockingFetchBlock(ctx, h)
+
+		needConfirms, serversNum = func() (cf, sn uint32) {
 			c.RLock()
 			defer c.RUnlock()
-			cf, sn = c.confirms, c.serversNum
+			cf, sn = c.confirms, c.localBPInfo.total
 			return
 		}()
-		if unreachable+needConfirms > serversNum {
-			log.WithFields(log.Fields{
-				"peer":              c.peerInfo(),
-				"sync_head_height":  h,
-				"unreachable_count": unreachable,
-			}).Warn("one or more block producers are currently unreachable")
-			ok = false
-		} else {
-			ok = true
-		}
-	}()
-	for _, s := range c.getPeers().Servers {
-		if !s.IsEqual(&c.nodeID) {
-			wg.Add(1)
-			go func(id proto.NodeID) {
-				defer wg.Done()
-				var (
-					err error
-					req = &types.FetchBlockReq{
-						Envelope: proto.Envelope{
-							// TODO(lambda): Add fields.
-						},
-						Height: h,
-					}
-					resp = &types.FetchBlockResp{}
-				)
-				var le = log.WithFields(log.Fields{
-					"local":  c.peerInfo(),
-					"remote": id,
-					"height": h,
-				})
-				if err = c.cl.CallNodeWithContext(
-					cld, id, route.MCCFetchBlock.String(), req, resp,
-				); err != nil {
-					le.WithError(err).Warn("failed to fetch block")
-					atomic.AddUint32(&unreachable, 1)
-					return
-				}
-				if resp.Block == nil {
-					le.Debug("fetch block request reply: no such block")
-					return
-				}
-				// Push new block from other peers
-				le.WithFields(log.Fields{
-					"parent": resp.Block.ParentHash().Short(4),
-					"hash":   resp.Block.BlockHash().Short(4),
-				}).Debug("fetch block request reply: found block")
-				select {
-				case c.pendingBlocks <- resp.Block:
-				case <-cld.Done():
-					log.WithError(cld.Err()).Warn("add pending block aborted")
-				}
-			}(s)
-		}
+	)
+
+	if ok = unreachable+needConfirms <= serversNum; !ok {
+		log.WithFields(log.Fields{
+			"peer":              c.getLocalBPInfo(),
+			"sync_head_height":  h,
+			"unreachable_count": unreachable,
+		}).Warn("one or more block producers are currently unreachable")
 	}
 	return
 }
@@ -673,7 +602,7 @@ func (c *Chain) storeTx(tx pi.Transaction) (err error) {
 		return
 	}
 
-	return store(c.st, []storageProcedure{addTx(tx)}, func() {
+	return store(c.storage, []storageProcedure{addTx(tx)}, func() {
 		c.txPool[k] = tx
 		for _, v := range c.branches {
 			v.addTx(tx)
@@ -690,6 +619,9 @@ func (c *Chain) replaceAndSwitchToBranch(
 		sps      []storageProcedure
 		up       storageCallback
 		height   = c.heightOfTime(newBlock.Timestamp())
+
+		resultTxPool = make(map[hash.Hash]pi.Transaction)
+		expiredTxs   []pi.Transaction
 	)
 
 	// Find new irreversible blocks
@@ -701,45 +633,45 @@ func (c *Chain) replaceAndSwitchToBranch(
 	newIrres = lastIrre.fetchNodeList(c.lastIrre.count)
 
 	// Apply irreversible blocks to create dirty map on immutable cache
-	//
-	// TODO(leventeliu): use old metaState for now, better use separated dirty cache.
+	for k, v := range c.txPool {
+		resultTxPool[k] = v
+	}
 	for _, b := range newIrres {
 		for _, tx := range b.block.Transactions {
 			if err := c.immutable.apply(tx); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
+			delete(resultTxPool, tx.Hash()) // Remove confirmed transaction
+		}
+	}
+
+	// Check tx expiration
+	for k, v := range resultTxPool {
+		if base, err := c.immutable.nextNonce(
+			v.GetAccountAddress(),
+		); err != nil || v.GetAccountNonce() < base {
+			log.WithFields(log.Fields{
+				"hash":    k.Short(4),
+				"type":    v.GetTransactionType(),
+				"account": v.GetAccountAddress(),
+				"nonce":   v.GetAccountNonce(),
+
+				"immutable_base_nonce": base,
+			}).Debug("transaction expired")
+			expiredTxs = append(expiredTxs, v)
+			delete(resultTxPool, k) // Remove expired transaction
 		}
 	}
 
 	// Prepare storage procedures to update immutable database
+	sps = c.immutable.compileChanges(sps)
 	sps = append(sps, addBlock(height, newBlock))
-
-	// Index blocks and transactions if running as API node
 	sps = append(sps, buildBlockIndex(height, newBlock))
-
-	for k, v := range c.immutable.dirty.accounts {
-		if v != nil {
-			sps = append(sps, updateAccount(v))
-		} else {
-			sps = append(sps, deleteAccount(k))
-		}
-	}
-	for k, v := range c.immutable.dirty.databases {
-		if v != nil {
-			sps = append(sps, updateShardChain(v))
-		} else {
-			sps = append(sps, deleteShardChain(k))
-		}
-	}
-	for k, v := range c.immutable.dirty.provider {
-		if v != nil {
-			sps = append(sps, updateProvider(v))
-		} else {
-			sps = append(sps, deleteProvider(k))
-		}
-	}
 	for _, n := range newIrres {
 		sps = append(sps, deleteTxs(n.block.Transactions))
+	}
+	if len(expiredTxs) > 0 {
+		sps = append(sps, deleteTxs(expiredTxs))
 	}
 	sps = append(sps, updateIrreversible(lastIrre.hash))
 
@@ -779,19 +711,21 @@ func (c *Chain) replaceAndSwitchToBranch(
 		c.headBranch = newBranch
 		c.headIndex = idx
 		c.branches = brs
-		// Clear packed transactions
+		// Clear transactions in each branch
 		for _, b := range newIrres {
 			for _, br := range c.branches {
 				br.clearPackedTxs(b.block.Transactions)
 			}
-			for _, tx := range b.block.Transactions {
-				delete(c.txPool, tx.Hash())
-			}
 		}
+		for _, br := range c.branches {
+			br.clearUnpackedTxs(expiredTxs)
+		}
+		// Update txPool to result txPool (packed and expired transactions cleared!)
+		c.txPool = resultTxPool
 	}
 
 	// Write to immutable database and update cache
-	if err = store(c.st, sps, up); err != nil {
+	if err = store(c.storage, sps, up); err != nil {
 		c.immutable.clean()
 	}
 	// TODO(leventeliu): trigger ChainBus.Publish.
@@ -840,7 +774,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 			}
 			// Grow a branch while the current branch is not changed
 			if br.head.count <= c.headBranch.head.count {
-				return store(c.st,
+				return store(c.storage,
 					[]storageProcedure{addBlock(height, bl)},
 					func() {
 						br.preview.commit()
@@ -870,7 +804,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
 				return
 			}
-			return store(c.st,
+			return store(c.storage,
 				[]storageProcedure{addBlock(height, bl)},
 				func() { c.branches = append(c.branches, br) },
 			)
@@ -944,7 +878,7 @@ func (c *Chain) nextTick() (t time.Time, d time.Duration) {
 func (c *Chain) isMyTurn() bool {
 	c.RLock()
 	defer c.RUnlock()
-	return c.nextHeight%c.serversNum == c.locSvIndex
+	return c.nextHeight%c.localBPInfo.total == c.localBPInfo.rank
 }
 
 // increaseNextHeight prepares the chain state for the next turn.
@@ -952,15 +886,6 @@ func (c *Chain) increaseNextHeight() {
 	c.Lock()
 	defer c.Unlock()
 	c.nextHeight++
-}
-
-func (c *Chain) peerInfo() string {
-	var index, bpNum, nodeID = func() (uint32, uint32, proto.NodeID) {
-		c.RLock()
-		defer c.RUnlock()
-		return c.locSvIndex, c.serversNum, c.nodeID
-	}()
-	return fmt.Sprintf("[%d/%d] %s", index, bpNum, nodeID)
 }
 
 // heightOfTime calculates the heightOfTime with this sql-chain config of a given time reading.
@@ -974,11 +899,22 @@ func (c *Chain) getNextHeight() uint32 {
 	return c.nextHeight
 }
 
-func (c *Chain) getPeers() *proto.Peers {
+func (c *Chain) getLocalBPInfo() *blockProducerInfo {
 	c.RLock()
 	defer c.RUnlock()
-	var peers = c.peers.Clone()
-	return &peers
+	return c.localBPInfo
+}
+
+func (c *Chain) getRemoteBPInfos() (remoteBPInfos []*blockProducerInfo) {
+	var localBPInfo, bpInfos = func() (*blockProducerInfo, []*blockProducerInfo) {
+		c.RLock()
+		defer c.RUnlock()
+		return c.localBPInfo, c.bpInfos
+	}()
+	remoteBPInfos = make([]*blockProducerInfo, 0, localBPInfo.total-1)
+	remoteBPInfos = append(remoteBPInfos, bpInfos[0:localBPInfo.rank]...)
+	remoteBPInfos = append(remoteBPInfos, bpInfos[localBPInfo.rank+1:]...)
+	return
 }
 
 func (c *Chain) lastIrreversibleBlock() *blockNode {

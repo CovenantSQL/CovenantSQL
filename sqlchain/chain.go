@@ -918,7 +918,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 								log.WithError(err).Warning("sign tx failed")
 							}
 
-							addTxReq := &types.AddTxReq{}
+							addTxReq := &types.AddTxReq{TTL: 1}
 							addTxResp := &types.AddTxResp{}
 							addTxReq.Tx = ub
 							log.Debugf("nonce in processBlocks: %d, addr: %s",

@@ -30,7 +30,7 @@ import (
 // AccountNonce defines the an account nonce.
 type AccountNonce uint32
 
-// TransactionType defines an transaction type.
+// TransactionType defines a transaction type.
 type TransactionType uint32
 
 // Bytes encodes a TransactionType to a byte slice.
@@ -108,6 +108,25 @@ func (t TransactionType) String() string {
 		return "Unknown"
 	}
 }
+
+// TransactionState defines a transaction state.
+type TransactionState uint32
+
+// Transaction state transition:
+// [o] ---[ Add ]--> Pending ---[ Produce Block ]--> Packed ---[ Irreversible ]--> Confirmed
+//        |                     |                              x
+//        |                     x                              +------[ Prune ]--> Not Found
+//        x                     |
+//        |                     +------------------------------------[ Expire ]--> Expired
+//        |
+//        +----------------------------------------------------------------------> Not Found
+const (
+	TransactionStatePending TransactionState = iota
+	TransactionStatePacked
+	TransactionStateConfirmed
+	TransactionStateExpired
+	TransactionStateNotFound
+)
 
 // Transaction is the interface implemented by an object that can be verified and processed by
 // block producers.

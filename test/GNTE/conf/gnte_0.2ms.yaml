@@ -1,0 +1,79 @@
+# Only support 10.250.0.2 ~ 10.250.254.254
+group:
+  -
+    name: bp
+    nodes:
+      - # bp10.250.1.2
+        ip: 10.250.1.2/32
+        cmd: "cd /scripts && ./bin/cqld -config ./node_0/config.yaml"
+      - # bp10.250.1.3
+        ip: 10.250.1.3/32
+        cmd: "cd /scripts && ./bin/cqld -config ./node_1/config.yaml"
+      - # bp10.250.1.4
+        ip: 10.250.1.4/32
+        cmd: "cd /scripts && ./bin/cqld -config ./node_2/config.yaml"
+    delay: "0.2ms"
+    rate: "1000mbit"
+  -
+    name: miner
+    nodes:
+      - # miner10.250.100.2
+        ip: 10.250.100.2/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.2/config.yaml"
+      - # miner10.250.100.3
+        ip: 10.250.100.3/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.3/config.yaml"
+      - # miner10.250.100.4
+        ip: 10.250.100.4/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.4/config.yaml"
+      - # miner10.250.100.5
+        ip: 10.250.100.5/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.5/config.yaml"
+      - # miner10.250.100.6
+        ip: 10.250.100.6/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.6/config.yaml"
+      - # miner10.250.100.7
+        ip: 10.250.100.7/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.7/config.yaml"
+      - # miner10.250.100.8
+        ip: 10.250.100.8/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.8/config.yaml"
+      - # miner10.250.100.9
+        ip: 10.250.100.9/32
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.9/config.yaml"
+    delay: "0.2ms"
+    rate: "1000mbit"
+  -
+    name: client
+    nodes:
+      - # node_c
+        ip: 10.250.0.2/32
+        cmd: "ping -c3 g.cn"
+      - # node_adapter
+        ip: 10.250.0.254/32
+        cmd: "cd /scripts && ./bin/cql-adapter -config ./node_c/config.yaml"
+    delay: "0.2ms"
+    rate: "1000mbit"
+
+network:
+  -
+    groups:
+      - bp
+      - miner
+    delay: "0.2ms"
+    rate: "1000mbit"
+
+  -
+    groups:
+      - bp
+      - client
+    delay: "0.2ms"
+    rate: "1000mbit"
+
+  -
+    groups:
+      - client
+      - miner
+    delay: "0.2ms"
+    rate: "1000mbit"
+

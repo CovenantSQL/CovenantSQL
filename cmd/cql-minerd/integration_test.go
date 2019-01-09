@@ -187,7 +187,7 @@ func startNodesProfile(bypassSign bool) {
 	ctx := context.Background()
 	bypassArg := ""
 	if bypassSign {
-		bypassArg = "-bypassSignature"
+		bypassArg = "-bypass-signature"
 	}
 
 	// wait for ports to be available
@@ -256,10 +256,10 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner0.profile"),
-			//"-traceFile", FJ(baseDir, "./cmd/cql-minerd/miner0.trace"),
-			"-metricGraphiteServer", "192.168.2.100:2003",
-			"-profileServer", "0.0.0.0:8080",
-			"-metricLog",
+			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner0.trace"),
+			"-metric-graphite-server", "192.168.2.100:2003",
+			"-profile-server", "0.0.0.0:8080",
+			"-metric-log",
 			bypassArg,
 		},
 		"miner0", testWorkingDir, logDir, false,
@@ -274,10 +274,10 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner1.profile"),
-			//"-traceFile", FJ(baseDir, "./cmd/cql-minerd/miner1.trace"),
-			"-metricGraphiteServer", "192.168.2.100:2003",
-			"-profileServer", "0.0.0.0:8081",
-			"-metricLog",
+			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner1.trace"),
+			"-metric-graphite-server", "192.168.2.100:2003",
+			"-profile-server", "0.0.0.0:8081",
+			"-metric-log",
 			bypassArg,
 		},
 		"miner1", testWorkingDir, logDir, false,
@@ -292,10 +292,10 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner2.profile"),
-			//"-traceFile", FJ(baseDir, "./cmd/cql-minerd/miner2.trace"),
-			"-metricGraphiteServer", "192.168.2.100:2003",
-			"-profileServer", "0.0.0.0:8082",
-			"-metricLog",
+			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner2.trace"),
+			"-metric-graphite-server", "192.168.2.100:2003",
+			"-profile-server", "0.0.0.0:8082",
+			"-metric-log",
 			bypassArg,
 		},
 		"miner2", testWorkingDir, logDir, false,

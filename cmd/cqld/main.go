@@ -69,7 +69,7 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
@@ -79,7 +79,7 @@ func init() {
 	flag.BoolVar(&clientMode, "client", false, "run as client")
 	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
 	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
-	flag.StringVar(&logLevel, "logLevel", "", "service log level")
+	flag.StringVar(&logLevel, "log-level", "", "service log level")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)

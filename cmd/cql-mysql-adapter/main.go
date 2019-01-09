@@ -46,14 +46,14 @@ var (
 func init() {
 	flag.StringVar(&configFile, "config", "./config.yaml", "config file for mysql adapter")
 	flag.StringVar(&password, "password", "", "master key password")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4664", "listen address for mysql adapter")
 	flag.StringVar(&mysqlUser, "mysql-user", "root", "mysql user for adapter server")
 	flag.StringVar(&mysqlPassword, "mysql-password", "calvin", "mysql password for adapter server")
-	flag.StringVar(&logLevel, "logLevel", "", "service log level")
+	flag.StringVar(&logLevel, "log-level", "", "service log level")
 }
 
 func main() {

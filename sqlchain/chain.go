@@ -488,7 +488,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 	// Keep track of the queries from the new block
 	var ierr error
 	for i, v := range b.QueryTxs {
-		if ierr = c.addResponse(v.Response); ierr != nil {
+		if ierr = c.AddResponse(v.Response); ierr != nil {
 			log.WithFields(log.Fields{
 				"index":      i,
 				"producer":   b.Producer(),
@@ -585,6 +585,10 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
 		for !v.Ready() {
 			time.Sleep(1 * time.Millisecond)
+			if c.rt.ctx.Err() != nil {
+				err = c.rt.ctx.Err()
+				return
+			}
 		}
 		block.QueryTxs[i] = &types.QueryAsTx{
 			// TODO(leventeliu): add acks for billing.
@@ -1050,7 +1054,6 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	if block.Producer() == c.rt.server {
 		return c.pushBlock(block)
 	}
-
 	// Check block producer
 	index, found := peers.Find(block.Producer())
 
@@ -1179,24 +1182,16 @@ func (c *Chain) replicationCycle(ctx context.Context) {
 }
 
 // Query queries req from local chain state and returns the query results in resp.
-func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
-	var ref *x.QueryTracker
+func (c *Chain) Query(
+	req *types.Request) (tracker *x.QueryTracker, resp *types.Response, err error,
+) {
 	// TODO(leventeliu): we're using an external context passed by request. Make sure that
 	// cancelling will be propagated to this context before chain instance stops.
-	if ref, resp, err = c.st.QueryWithContext(req.GetContext(), req); err != nil {
-		return
-	}
-	if err = resp.Sign(c.pk); err != nil {
-		return
-	}
-	if err = c.addResponse(&resp.Header); err != nil {
-		return
-	}
-	ref.UpdateResp(resp)
-	return
+	return c.st.QueryWithContext(req.GetContext(), req)
 }
 
-func (c *Chain) addResponse(resp *types.SignedResponseHeader) (err error) {
+// AddResponse addes a response to the ackIndex, awaiting for acknowledgement.
+func (c *Chain) AddResponse(resp *types.SignedResponseHeader) (err error) {
 	return c.ai.addResponse(c.rt.getHeightFromTime(resp.Request.Timestamp), resp)
 }
 
@@ -1230,7 +1225,7 @@ func (c *Chain) stat() {
 	var (
 		ic = atomic.LoadInt32(&multiIndexCount)
 		rc = atomic.LoadInt32(&responseCount)
-		tc = atomic.LoadInt32(&ackTrackerCount)
+		tc = atomic.LoadInt32(&ackCount)
 		bc = atomic.LoadInt32(&cachedBlockCount)
 	)
 	// Print chain stats

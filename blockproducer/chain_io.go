@@ -146,7 +146,7 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 
 	var (
 		count    int
-		querySQL = `select count(*) from indexed_transactions where hash = ?`
+		querySQL = `SELECT COUNT(*) FROM "indexed_transactions" WHERE "hash" = ?`
 	)
 	if err = c.storage.Reader().QueryRow(querySQL, hash.String()).Scan(&count); err != nil {
 		return pi.TransactionStateNotFound, err

@@ -17,7 +17,6 @@
 package sqlchain
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -64,24 +63,6 @@ type FetchBlockResp struct {
 	Block  *types.Block
 }
 
-// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
-type SubscribeTransactionsReq struct {
-	SubscriberID proto.NodeID
-	Height       int32
-}
-
-// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
-type SubscribeTransactionsResp struct {
-}
-
-// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
-type CancelSubscriptionReq struct {
-	SubscriberID proto.NodeID
-}
-
-// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
-type CancelSubscriptionResp struct{}
-
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
 	err error) {
@@ -106,14 +87,4 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (
 	resp.Height = req.Height
 	resp.Block, err = s.chain.FetchBlock(req.Height)
 	return
-}
-
-// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
-func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, _ *SubscribeTransactionsResp) error {
-	return s.chain.AddSubscription(req.SubscriberID, req.Height)
-}
-
-// CancelSubscription is the RPC method to cancel subscription in the target server.
-func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) error {
-	return s.chain.CancelSubscription(req.SubscriberID)
 }

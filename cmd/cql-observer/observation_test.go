@@ -35,12 +35,15 @@ import (
 	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -252,14 +255,16 @@ func TestFullProcess(t *testing.T) {
 
 	Convey("test full process", t, func() {
 		var (
-			err              error
-			cliPriv          *asymmetric.PrivateKey
-			addr, addr2      proto.AccountAddress
-			dsn, dsn2        string
-			cfg, cfg2        *client.Config
-			dbID, dbID2      string
-			ctx1, ctx2, ctx3 context.Context
-			ccl1, ccl2, ccl3 context.CancelFunc
+			err                              error
+			cliPriv, obPriv                  *asymmetric.PrivateKey
+			addr, addr2                      proto.AccountAddress
+			dbAddr, dbAddr2, obAddr, cliAddr proto.AccountAddress
+			dsn, dsn2                        string
+			cfg, cfg2                        *client.Config
+			dbID, dbID2                      proto.DatabaseID
+			nonce                            interfaces.AccountNonce
+			ctx1, ctx2, ctx3, ctx4, ctx5     context.Context
+			ccl1, ccl2, ccl3, ccl4, ccl5     context.CancelFunc
 		)
 		startNodes()
 		defer stopNodes()
@@ -268,7 +273,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// get miner addresses
-		cliPriv, _, err = privKeyStoreToAccountAddr(
+		cliPriv, cliAddr, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_c/private.key"), []byte{})
 		So(err, ShouldBeNil)
 		_, addr, err = privKeyStoreToAccountAddr(
@@ -276,6 +281,9 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, addr2, err = privKeyStoreToAccountAddr(
 			FJ(testWorkingDir, "./observation/node_miner_1/private.key"), []byte{})
+		So(err, ShouldBeNil)
+		obPriv, obAddr, err = privKeyStoreToAccountAddr(
+			FJ(testWorkingDir, "./observation/node_observer/private.key"), []byte{})
 		So(err, ShouldBeNil)
 
 		// wait until bp chain service is ready
@@ -298,10 +306,87 @@ func TestFullProcess(t *testing.T) {
 		// wait
 		cfg, err = client.ParseDSN(dsn)
 		So(err, ShouldBeNil)
-		dbID = cfg.DatabaseID
+		dbID = proto.DatabaseID(cfg.DatabaseID)
+		dbAddr, err = dbID.AccountAddress()
+		So(err, ShouldBeNil)
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl2()
 		err = client.WaitDBCreation(ctx2, dsn)
+		So(err, ShouldBeNil)
+
+		// get nonce for observer
+		nonce, err = requestNonce(cliAddr)
+		So(err, ShouldBeNil)
+
+		// update permission for observer
+		up := types.NewUpdatePermission(&types.UpdatePermissionHeader{
+			TargetSQLChain: dbAddr,
+			TargetUser:     obAddr,
+			Permission:     types.Read,
+			Nonce:          nonce,
+		})
+		err = up.Sign(cliPriv)
+		So(err, ShouldBeNil)
+		addTxReq := &types.AddTxReq{}
+		addTxResp := &types.AddTxResp{}
+		addTxReq.Tx = up
+		err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+		So(err, ShouldBeNil)
+
+		// wait for profile permission checking
+		ctx4, ccl4 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl4()
+		err = waitProfileChecking(ctx4, 3*time.Second, proto.DatabaseID(dbID), func(profile *types.SQLChainProfile) bool {
+			for _, user := range profile.Users {
+				log.WithFields(log.Fields{
+					"addr": user.Address.String(),
+					"perm": user.Permission,
+					"stat": user.Status,
+				}).Debug("checkFunc 1")
+				if user.Address == obAddr {
+					return user.Permission.CheckRead()
+				}
+			}
+			return false
+		})
+		So(err, ShouldBeNil)
+
+		// get nonce for ob
+		nonce, err = requestNonce(obAddr)
+		So(err, ShouldBeNil)
+
+		// transfer token to ob
+		tran := types.NewTransfer(&types.TransferHeader{
+			Sender:    obAddr,
+			Receiver:  dbAddr,
+			Amount:    100000000,
+			TokenType: types.Particle,
+			Nonce:     nonce,
+		})
+		err = tran.Sign(obPriv)
+		So(err, ShouldBeNil)
+		addTxReq = &types.AddTxReq{}
+		addTxResp = &types.AddTxResp{}
+		addTxReq.Tx = tran
+		err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+		So(err, ShouldBeNil)
+
+		// check ob status
+		ctx5, ccl5 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl5()
+		err = waitProfileChecking(ctx5, 3*time.Second, proto.DatabaseID(dbID), func(profile *types.SQLChainProfile) bool {
+			for _, user := range profile.Users {
+				log.WithFields(log.Fields{
+					"addr": user.Address.String(),
+					"perm": user.Permission,
+					"stat": user.Status,
+				}).Debug("checkFunc 2")
+				if user.Address == obAddr {
+					return user.Status.EnableQuery()
+				}
+			}
+			return false
+		})
 		So(err, ShouldBeNil)
 
 		_, err = db.Exec("CREATE TABLE test (test int)")
@@ -369,7 +454,7 @@ func TestFullProcess(t *testing.T) {
 		// wait
 		cfg2, err = client.ParseDSN(dsn2)
 		So(err, ShouldBeNil)
-		dbID2 = cfg2.DatabaseID
+		dbID2 = proto.DatabaseID(cfg2.DatabaseID)
 		So(dbID, ShouldNotResemble, dbID2)
 		ctx3, ccl3 = context.WithTimeout(context.Background(), 5*time.Minute)
 		defer ccl3()
@@ -403,7 +488,7 @@ func TestFullProcess(t *testing.T) {
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql-observer.test"),
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
-				"-database", dbID, "-reset", "oldest",
+				"-database", string(dbID), "-reset", "oldest",
 				"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/observer.cover.out"),
 			},
 			"observer", testWorkingDir, logDir, false,
@@ -532,6 +617,77 @@ func TestFullProcess(t *testing.T) {
 
 		// test get genesis block by height
 		res, err = getJSON("v3/head/%v", dbID2)
+		So(err, ShouldNotBeNil)
+
+		// get nonce for observer
+		nonce, err = requestNonce(cliAddr)
+		So(err, ShouldBeNil)
+
+		// update permission for observer
+		dbAddr2, err = dbID2.AccountAddress()
+		So(err, ShouldBeNil)
+		up = types.NewUpdatePermission(&types.UpdatePermissionHeader{
+			TargetSQLChain: dbAddr2,
+			TargetUser:     obAddr,
+			Permission:     types.Read,
+			Nonce:          nonce,
+		})
+		err = up.Sign(cliPriv)
+		So(err, ShouldBeNil)
+		addTxReq = &types.AddTxReq{}
+		addTxResp = &types.AddTxResp{}
+		addTxReq.Tx = up
+		err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+		So(err, ShouldBeNil)
+
+		// wait for profile permission checking
+		ctx4, ccl4 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl4()
+		err = waitProfileChecking(ctx4, 3*time.Second, proto.DatabaseID(dbID2), func(profile *types.SQLChainProfile) bool {
+			for _, user := range profile.Users {
+				if user.Address == obAddr {
+					return user.Permission.CheckRead()
+				}
+			}
+			return false
+		})
+		So(err, ShouldBeNil)
+
+		// get nonce for ob
+		nonce, err = requestNonce(obAddr)
+		So(err, ShouldBeNil)
+
+		// transfer token to ob
+		tran = types.NewTransfer(&types.TransferHeader{
+			Sender:    obAddr,
+			Receiver:  dbAddr2,
+			Amount:    100000000,
+			TokenType: types.Particle,
+			Nonce:     nonce,
+		})
+		err = tran.Sign(obPriv)
+		So(err, ShouldBeNil)
+		addTxReq = &types.AddTxReq{}
+		addTxResp = &types.AddTxResp{}
+		addTxReq.Tx = tran
+		err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+		So(err, ShouldBeNil)
+
+		// check ob status
+		ctx5, ccl5 = context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl5()
+		err = waitProfileChecking(ctx5, 3*time.Second, proto.DatabaseID(dbID2), func(profile *types.SQLChainProfile) bool {
+			for _, user := range profile.Users {
+				if user.Address == obAddr {
+					return user.Status.EnableQuery()
+				}
+			}
+			return false
+		})
+		So(err, ShouldBeNil)
+
+		// test get genesis block by height
+		res, err = getJSON("v3/head/%v", dbID2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
 		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
@@ -543,4 +699,46 @@ func TestFullProcess(t *testing.T) {
 		err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
 	})
+}
+
+func requestNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {
+	nonceReq := &types.NextAccountNonceReq{}
+	nonceResp := &types.NextAccountNonceResp{}
+	nonceReq.Addr = addr
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		return
+	}
+	nonce = nonceResp.Nonce
+	return
+}
+
+func waitProfileChecking(ctx context.Context, period time.Duration, dbID proto.DatabaseID,
+	checkFunc func(profile *types.SQLChainProfile) bool) (err error) {
+	var (
+		ticker = time.NewTicker(period)
+		req    = &types.QuerySQLChainProfileReq{}
+		resp   = &types.QuerySQLChainProfileResp{}
+	)
+	defer ticker.Stop()
+	req.DBID = dbID
+
+	for {
+		select {
+		case <-ticker.C:
+			err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp)
+			if err == nil {
+				if checkFunc(&resp.Profile) {
+					return
+				}
+				log.WithFields(log.Fields{
+					"dbID":        resp.Profile.Address,
+					"num_of_user": len(resp.Profile.Users),
+				}).Debugf("get profile but failed to check in waitProfileChecking")
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
 }

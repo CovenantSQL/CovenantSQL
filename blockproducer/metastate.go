@@ -104,10 +104,10 @@ func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
 	var o *types.Account
 	defer func() {
 		log.WithFields(log.Fields{
-			"account":   addr.String(),
-			"balance":   b,
-			"tokenType": tokenType,
-			"loaded":    loaded,
+			"account":    addr,
+			"balance":    b,
+			"token_type": tokenType,
+			"loaded":     loaded,
 		}).Debug("queried token account")
 	}()
 
@@ -124,7 +124,7 @@ func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
 
 func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *types.Account) (err error) {
 	log.WithFields(log.Fields{
-		"addr":    k.String(),
+		"addr":    k,
 		"account": v,
 	}).Debug("store account")
 	// Since a transfer tx may create an empty receiver account, this method should try to cover
@@ -308,7 +308,7 @@ func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
 	}
 	if realSender != transfer.Sender {
 		err = errors.Wrapf(ErrInvalidSender,
-			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
+			"applyTx failed: real sender %s, sender %s", realSender, transfer.Sender)
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
 		return
 	}
@@ -545,7 +545,7 @@ func (s *metaState) nextNonce(addr proto.AccountAddress) (nonce pi.AccountNonce,
 		if o, loaded = s.readonly.accounts[addr]; !loaded {
 			err = ErrAccountNotFound
 			log.WithFields(log.Fields{
-				"addr": addr.String(),
+				"addr": addr,
 			}).WithError(err).Error("unexpected error")
 			return
 		}
@@ -622,7 +622,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 	if sender != tx.Owner {
 		err = errors.Wrapf(ErrInvalidSender, "match failed with real sender: %s, sender: %s",
-			sender.String(), tx.Owner.String())
+			sender, tx.Owner)
 		return
 	}
 
@@ -650,8 +650,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	for _, m := range tx.ResourceMeta.TargetMiners {
 		if po, loaded := s.loadProviderObject(m); !loaded {
 			log.WithFields(log.Fields{
-				"miner_addr": m.String(),
-				"user_addr":  sender.String(),
+				"miner_addr": m,
+				"user_addr":  sender,
 			}).Error(err)
 			err = ErrNoSuchMiner
 			continue
@@ -865,9 +865,9 @@ func isProviderReqMatch(po *types.ProviderProfile, req *types.CreateDatabase) (m
 
 func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	log.WithFields(log.Fields{
-		"tx_hash":     tx.Hash().String(),
+		"tx_hash":     tx.Hash(),
 		"sender":      tx.GetAccountAddress(),
-		"db_id":       tx.TargetSQLChain.String(),
+		"db_id":       tx.TargetSQLChain,
 		"target_user": tx.TargetUser,
 	}).Debug("in updatePermission")
 	sender, err := crypto.PubKeyHash(tx.Signee)
@@ -918,9 +918,9 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	if numOfAdmin <= 1 && tx.TargetUser == sender && tx.Permission != types.Admin {
 		err = ErrNoAdminLeft
 		log.WithFields(log.Fields{
-			"sender":     sender.String(),
-			"dbID":       tx.TargetSQLChain.String(),
-			"targetUser": tx.TargetUser.String(),
+			"sender":     sender,
+			"dbID":       tx.TargetSQLChain,
+			"targetUser": tx.TargetUser,
 		}).WithError(err).Warning("in updatePermission")
 		return
 	}
@@ -1012,7 +1012,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 	}
 
 	for _, userCost := range tx.Users {
-		log.Debugf("update billing user cost: %s, cost: %d", userCost.User.String(), userCost.Cost)
+		log.Debugf("update billing user cost: %s, cost: %d", userCost.User, userCost.Cost)
 		costMap[userCost.User] = userCost.Cost
 		if _, ok := userMap[userCost.User]; !ok {
 			userMap[userCost.User] = make(map[proto.AccountAddress]uint64)
@@ -1088,7 +1088,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 
 	if realSender != transfer.Sender {
 		err = errors.Wrapf(ErrInvalidSender,
-			"applyTx failed: real sender %s, sender %s", realSender.String(), transfer.Sender.String())
+			"applyTx failed: real sender %s, sender %s", realSender, transfer.Sender)
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
 		return
 	}
@@ -1103,7 +1103,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 		err = ErrDatabaseNotFound
 		log.WithFields(log.Fields{
 			"dbid":   transfer.Receiver.DatabaseID(),
-			"sender": transfer.Sender.String(),
+			"sender": transfer.Sender,
 		}).WithError(err).Warning("database not exist in transferSQLChainTokenBalance")
 		return
 	}
@@ -1111,7 +1111,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 		err = ErrWrongTokenType
 		log.WithFields(log.Fields{
 			"dbid":   transfer.Receiver.DatabaseID(),
-			"sender": transfer.Sender.String(),
+			"sender": transfer.Sender,
 		}).WithError(err).Warning("error token type in transferSQLChainTokenBalance")
 		return
 	}
@@ -1119,7 +1119,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 	if account.TokenBalance[transfer.TokenType] < transfer.Amount {
 		err = ErrInsufficientBalance
 		log.WithFields(log.Fields{
-			"addr":            account.Address.String(),
+			"addr":            account.Address,
 			"amount":          account.TokenBalance[transfer.TokenType],
 			"transfer_amount": transfer.Amount,
 			"token_type":      transfer.TokenType,

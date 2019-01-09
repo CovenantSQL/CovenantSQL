@@ -240,7 +240,7 @@ func (b *branch) clearUnpackedTxs(txs []pi.Transaction) {
 	}
 }
 
-func (b *branch) queryTx(hash hash.Hash) (state pi.TransactionState, ok bool) {
+func (b *branch) queryTxState(hash hash.Hash) (state pi.TransactionState, ok bool) {
 	if _, ok = b.unpacked[hash]; ok {
 		state = pi.TransactionStatePending
 		return

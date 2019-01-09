@@ -23,6 +23,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	"github.com/pkg/errors"
 )
 
@@ -90,11 +91,21 @@ func (db *Database) Check(rawReq interface{}) (err error) {
 	return
 }
 
+// TrackerAndResponse defines a query tracker used by xenomint and an unsigned response.
+type TrackerAndResponse struct {
+	Tracker  *x.QueryTracker
+	Response *types.Response
+}
+
 // Commit implements kayak.types.Handler.Commit.
 func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 	// convert query and check syntax
-	var req *types.Request
-	var ok bool
+	var (
+		req      *types.Request
+		response *types.Response
+		tracker  *x.QueryTracker
+		ok       bool
+	)
 	if req, ok = rawReq.(*types.Request); !ok || req == nil {
 		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
 		return
@@ -104,7 +115,14 @@ func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 	req.SetContext(context.Background())
 
 	// execute
-	return db.chain.Query(req)
+	if tracker, response, err = db.chain.Query(req); err != nil {
+		return
+	}
+	result = &TrackerAndResponse{
+		Tracker:  tracker,
+		Response: response,
+	}
+	return
 }
 
 func (db *Database) recordSequence(connID uint64, seqNo uint64) {

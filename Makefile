@@ -100,6 +100,13 @@ push_bench:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):bench
 	docker push $(IMAGE):bench
 
+push_staging:
+	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):staging
+	docker push $(OB_IMAGE):staging
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):staging
+	docker push $(IMAGE):staging
+
+
 push:
 	docker push $(OB_IMAGE):$(VERSION)
 	docker push $(OB_IMAGE):latest

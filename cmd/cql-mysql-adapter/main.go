@@ -40,6 +40,7 @@ var (
 	mysqlUser     string
 	mysqlPassword string
 	showVersion   bool
+	logLevel      string
 )
 
 func init() {
@@ -52,10 +53,12 @@ func init() {
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4664", "listen address for mysql adapter")
 	flag.StringVar(&mysqlUser, "mysql-user", "root", "mysql user for adapter server")
 	flag.StringVar(&mysqlPassword, "mysql-password", "calvin", "mysql password for adapter server")
+	flag.StringVar(&logLevel, "logLevel", "", "service log level")
 }
 
 func main() {
 	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())

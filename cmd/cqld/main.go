@@ -59,7 +59,8 @@ var (
 	clientMode      bool
 	clientOperation string
 
-	mode string // "normal", "api"
+	mode     string // "normal", "api"
+	logLevel string
 )
 
 const name = `cqld`
@@ -78,6 +79,7 @@ func init() {
 	flag.BoolVar(&clientMode, "client", false, "run as client")
 	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
 	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
+	flag.StringVar(&logLevel, "logLevel", "", "service log level")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -93,10 +95,10 @@ func initLogs() {
 }
 
 func main() {
+	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
-	flag.Parse()
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

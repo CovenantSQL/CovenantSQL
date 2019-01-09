@@ -81,6 +81,7 @@ var (
 	// other
 	noLogo      bool
 	showVersion bool
+	logLevel    string
 )
 
 const name = `cql-minerd`
@@ -101,6 +102,7 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricGraphite, "metricGraphiteServer", "", "Metric graphite server to push metrics")
 	flag.StringVar(&traceFile, "traceFile", "", "trace profile")
+	flag.StringVar(&logLevel, "logLevel", "", "service log level")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -116,10 +118,10 @@ func initLogs() {
 }
 
 func main() {
+	flag.Parse()
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.InfoLevel)
-	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

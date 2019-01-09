@@ -45,6 +45,7 @@ var (
 	listenAddr    string
 	resetPosition string
 	showVersion   bool
+	logLevel      string
 )
 
 func init() {
@@ -55,13 +56,14 @@ func init() {
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&resetPosition, "reset", "", "reset subscribe position")
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4663", "listen address for http explorer api")
+	flag.StringVar(&logLevel, "logLevel", "", "service log level")
 }
 
 func main() {
+	flag.Parse()
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
-	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())

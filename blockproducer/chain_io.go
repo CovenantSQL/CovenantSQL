@@ -139,7 +139,7 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	c.RLock()
 	defer c.RUnlock()
 	var ok bool
-	state = pi.TransactionStateNotFound
+
 	if state, ok = c.headBranch.queryTxState(hash); ok {
 		return
 	}
@@ -155,7 +155,7 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	if count > 0 {
 		return pi.TransactionStateConfirmed, nil
 	}
-	return
+	return pi.TransactionStateNotFound, nil
 }
 
 func (c *Chain) immutableNextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {

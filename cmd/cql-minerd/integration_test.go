@@ -543,36 +543,64 @@ func TestFullProcess(t *testing.T) {
 			c.So(err, ShouldBeNil)
 		})
 
-		time.Sleep(20 * time.Second)
-
-		profileReq = &types.QuerySQLChainProfileReq{}
-		profileResp = &types.QuerySQLChainProfileResp{}
-		profileReq.DBID = dbID
-		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
-		So(err, ShouldBeNil)
-		for _, user := range profileResp.Profile.Users {
-			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
-			if user.AdvancePayment == testAdvancePayment {
-				time.Sleep(20 * time.Second)
-				break
+		ctx2, ccl2 := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl2()
+		err = waitProfileChecking(ctx2, 3*time.Second, dbID, func(profile *types.SQLChainProfile) bool {
+			for _, user := range profile.Users {
+				if user.AdvancePayment != testAdvancePayment {
+					return true
+				}
 			}
-		}
-		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+			return false
+		})
 		So(err, ShouldBeNil)
-		for _, user := range profileResp.Profile.Users {
-			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
-		}
-		getIncome := false
-		for _, miner := range profileResp.Profile.Miners {
-			getIncome = getIncome || (miner.PendingIncome != 0 || miner.ReceivedIncome != 0)
-		}
-		So(getIncome, ShouldBeTrue)
+
+		ctx3, ccl3 := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl3()
+		err = waitProfileChecking(ctx3, 3*time.Second, dbID, func(profile *types.SQLChainProfile) bool {
+			getIncome := false
+			for _, miner := range profile.Miners {
+				getIncome = getIncome || (miner.PendingIncome != 0 || miner.ReceivedIncome != 0)
+			}
+			return getIncome
+		})
+		So(err, ShouldBeNil)
 
 		err = db.Close()
 		So(err, ShouldBeNil)
 
 		// TODO(lambda): Drop database
 	})
+}
+
+func waitProfileChecking(ctx context.Context, period time.Duration, dbID proto.DatabaseID,
+	checkFunc func(profile *types.SQLChainProfile) bool) (err error) {
+	var (
+		ticker = time.NewTicker(period)
+		req    = &types.QuerySQLChainProfileReq{}
+		resp   = &types.QuerySQLChainProfileResp{}
+	)
+	defer ticker.Stop()
+	req.DBID = dbID
+
+	for {
+		select {
+		case <-ticker.C:
+			err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp)
+			if err == nil {
+				if checkFunc(&resp.Profile) {
+					return
+				}
+				log.WithFields(log.Fields{
+					"dbID":        resp.Profile.Address,
+					"num_of_user": len(resp.Profile.Users),
+				}).Debugf("get profile but failed to check in waitProfileChecking")
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
 }
 
 const ROWSTART = 1000000

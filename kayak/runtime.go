@@ -115,7 +115,7 @@ type commitReq struct {
 	result     chan *commitResult
 }
 
-// followerCommitResult defines the commit operation result.
+// commitResult defines the commit operation result.
 type commitResult struct {
 	start  time.Time
 	dbCost time.Duration

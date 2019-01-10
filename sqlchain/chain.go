@@ -1268,16 +1268,13 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 				return
 			}
 
+			if _, ok := minersMap[userAddr]; !ok {
+				minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
+			}
 			if tx.Request.Header.QueryType == types.ReadQuery {
-				if _, ok := minersMap[userAddr]; !ok {
-					minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
-				}
 				minersMap[userAddr][minerAddr] += tx.Response.RowCount
 				usersMap[userAddr] += tx.Response.RowCount
 			} else {
-				if _, ok := minersMap[userAddr]; !ok {
-					minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
-				}
 				minersMap[userAddr][minerAddr] += uint64(tx.Response.AffectedRows)
 				usersMap[userAddr] += uint64(tx.Response.AffectedRows)
 			}

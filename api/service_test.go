@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/api"
 	"github.com/CovenantSQL/CovenantSQL/api/models"
@@ -132,23 +133,35 @@ func mockData(t *testing.T) {
 }
 
 func setupWebsocketClient(addr string) (client *jsonrpc2.Conn, err error) {
-	// TODO: dial timeout
-	conn, _, err := websocket.DefaultDialer.DialContext(
-		context.Background(),
-		addr,
-		nil,
-	)
-	if err != nil {
-		return nil, err
+	var dial = func(ctx context.Context, addr string) (client *jsonrpc2.Conn, err error) {
+		conn, _, err := websocket.DefaultDialer.DialContext(
+			context.Background(),
+			addr,
+			nil,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		var connOpts []jsonrpc2.ConnOpt
+		return jsonrpc2.NewConn(
+			context.Background(),
+			wsstream.NewObjectStream(conn),
+			nil,
+			connOpts...,
+		), nil
 	}
 
-	var connOpts []jsonrpc2.ConnOpt
-	return jsonrpc2.NewConn(
-		context.Background(),
-		wsstream.NewObjectStream(conn),
-		nil,
-		connOpts...,
-	), nil
+	for i := 0; i < 3; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		client, err = dial(ctx, addr)
+		if err == nil {
+			break
+		}
+	}
+
+	return client, err
 }
 
 type bpGetBlockTestCase struct {
@@ -185,7 +198,7 @@ func (c *bpGetTransactionByHashTestCase) String() string {
 	return fmt.Sprintf("fetch transaction hashed %q", c.Hash)
 }
 
-func TestService(t *testing.T) {
+func TestJSONRPCService(t *testing.T) {
 	t.Logf("testdb: %s", testdb)
 	mockData(t)
 	defer os.Remove(testdb + "-shm")

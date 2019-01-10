@@ -184,7 +184,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
-	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers); err != nil {
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == "api"); err != nil {
 		return
 	}
 	if t = cfg.ConfirmThreshold; t <= 0.0 {
@@ -905,16 +905,22 @@ func (c *Chain) getLocalBPInfo() *blockProducerInfo {
 	return c.localBPInfo
 }
 
+// getRemoteBPInfos remove this node from the peer list
 func (c *Chain) getRemoteBPInfos() (remoteBPInfos []*blockProducerInfo) {
 	var localBPInfo, bpInfos = func() (*blockProducerInfo, []*blockProducerInfo) {
 		c.RLock()
 		defer c.RUnlock()
 		return c.localBPInfo, c.bpInfos
 	}()
-	remoteBPInfos = make([]*blockProducerInfo, 0, localBPInfo.total-1)
-	remoteBPInfos = append(remoteBPInfos, bpInfos[0:localBPInfo.rank]...)
-	remoteBPInfos = append(remoteBPInfos, bpInfos[localBPInfo.rank+1:]...)
-	return
+
+	for _, info := range bpInfos {
+		if info.nodeID.IsEqual(&localBPInfo.nodeID) {
+			continue
+		}
+		remoteBPInfos = append(remoteBPInfos, info)
+	}
+
+	return remoteBPInfos
 }
 
 func (c *Chain) lastIrreversibleBlock() *blockNode {

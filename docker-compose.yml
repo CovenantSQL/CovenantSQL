@@ -171,6 +171,26 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
+  covenantsql_api_0:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_api_0
+    restart: always
+    ports:
+      - "11110:8546"
+    command: ["-mode", "api", "-wsapi", ":8546"]
+    # entrypoint: ["sh"]
+    environment:
+      COVENANT_ROLE: blockproducer
+      COVENANT_CONF: ./apinode_0/config.yaml
+    volumes:
+      - ./test/service/apinode_0/:/app/apinode_0/
+    networks:
+      default:
+        ipv4_address: 172.254.1.11
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
 
 networks:
   default:

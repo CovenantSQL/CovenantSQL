@@ -584,7 +584,7 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 			fields["commit_dequeue"] = tmCommitDequeue.Sub(tmCheckPrepareFinished).Nanoseconds()
 		}
 		if tmMark.After(tmCommitDequeue) {
-			fields["commit_dequeue"] = tmMark.Sub(tmCommitDequeue).Nanoseconds()
+			fields["commit_mark"] = tmMark.Sub(tmCommitDequeue).Nanoseconds()
 		}
 		log.WithFields(fields).Debug("kayak follower commit stat")
 	}()

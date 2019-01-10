@@ -357,11 +357,22 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	})
 
 	b.Run("benchmark Persistent Call parallel Nil", func(b *testing.B) {
-
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				err := client.Call("DHT.Nil", nil, nil)
+				if err != nil {
+					b.Error(err)
+				}
+			}
+		})
+	})
+
+	b.Run("benchmark Persistent Call parallel 1k", func(b *testing.B) {
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				err := client.Call("DHT.Nil", strings.Repeat("a", 1000), nil)
 				if err != nil {
 					b.Error(err)
 				}

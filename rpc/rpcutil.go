@@ -24,6 +24,7 @@ import (
 	"net/rpc"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -63,6 +64,24 @@ func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
 }
 
 func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
+	var (
+		tmStart = time.Now()
+
+		tmDail, tmInitCliConn time.Time
+	)
+	defer func() {
+		var fields = log.Fields{
+			"is_anonymous": isAnonymous,
+			"method":       c.TargetID,
+		}
+		if tmDail.After(tmStart) {
+			fields["dail"] = tmDail.Sub(tmStart).Nanoseconds()
+		}
+		if tmInitCliConn.After(tmDail) {
+			fields["init_cli_conn"] = tmInitCliConn.Sub(tmDail).Nanoseconds()
+		}
+		log.WithFields(fields).Debug("persistent caller init client stat")
+	}()
 	c.Lock()
 	defer c.Unlock()
 	if c.client == nil {
@@ -72,23 +91,43 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 			err = errors.Wrap(err, "dial to node failed")
 			return
 		}
+		tmDail = time.Now()
 		//conn.SetDeadline(time.Time{})
 		c.client, err = InitClientConn(conn)
 		if err != nil {
 			err = errors.Wrap(err, "init RPC client failed")
 			return
 		}
+		tmInitCliConn = time.Now()
 	}
 	return
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
+	var (
+		tmStart        = time.Now()
+		tmInit, tmCall time.Time
+	)
+	defer func() {
+		var fields = log.Fields{
+			"method": method,
+			"remote": c.TargetID,
+		}
+		if tmInit.After(tmStart) {
+			fields["init_client"] = tmInit.Sub(tmStart).Nanoseconds()
+		}
+		if tmCall.After(tmInit) {
+			fields["call_remote"] = tmCall.Sub(tmInit).Nanoseconds()
+		}
+		log.WithFields(fields).Debug("persistent call remote stat")
+	}()
 	err = c.initClient(method == route.DHTPing.String())
 	if err != nil {
 		err = errors.Wrap(err, "init PersistentCaller client failed")
 		return
 	}
+	tmInit = time.Now()
 	err = c.client.Call(method, args, reply)
 	if err != nil {
 		if err == io.EOF ||
@@ -106,6 +145,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 		err = errors.Wrapf(err, "call %s failed", method)
 		return
 	}
+	tmCall = time.Now()
 	return
 }
 

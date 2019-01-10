@@ -1292,6 +1292,9 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 				log.WithError(err).Warning("billing fail: user addr")
 				return
 			}
+			if _, ok := minersMap[userAddr][minerAddr]; !ok {
+				minersMap[userAddr] = make(map[proto.AccountAddress]uint64)
+			}
 
 			minersMap[userAddr][minerAddr] += uint64(len(req.Payload.Queries))
 			usersMap[userAddr] += uint64(len(req.Payload.Queries))

@@ -107,21 +107,28 @@ type Runtime struct {
 
 // commitReq defines the commit operation input.
 type commitReq struct {
-	ctx        context.Context
-	data       interface{}
-	index      uint64
-	lastCommit uint64
-	log        *kt.Log
-	result     chan *commitResult
+	ctx             context.Context
+	data            interface{}
+	index           uint64
+	lastCommit      uint64
+	log             *kt.Log
+	result          chan *commitResult
+	tmStart         time.Time
+	tmDecode        time.Time
+	tmCommitEnqueue atomic.Value
 }
 
 // commitResult defines the commit operation result.
 type commitResult struct {
-	start  time.Time
-	dbCost time.Duration
-	result interface{}
-	err    error
-	rpc    *rpcTracker
+	decodeCost  time.Duration
+	enqueueCost time.Duration
+	queuedCost  time.Duration
+	start       time.Time
+	walCost     time.Duration
+	dbCost      time.Duration
+	result      interface{}
+	err         error
+	rpc         *rpcTracker
 }
 
 // NewRuntime creates new kayak Runtime.
@@ -563,13 +570,11 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 		cResult    *commitResult
 		tmStart    = time.Now()
 
-		tmGetPrepareLog, tmCheckPrepareFinished, tmCommitDequeue, tmMark time.Time
+		tmGetPrepareLog, tmCheckPrepareFinished, tmFollowerCommit, tmMark time.Time
 	)
 
 	defer func() {
-		var fields = log.Fields{
-			"index": l.Index,
-		}
+		var fields = log.Fields{"index": l.Index}
 		if tmGetPrepareLog.After(tmStart) {
 			fields["get_prepare_log"] = tmGetPrepareLog.Sub(tmStart).Nanoseconds()
 		}
@@ -577,14 +582,18 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 			fields["check_prepare_finish"] =
 				tmCheckPrepareFinished.Sub(tmGetPrepareLog).Nanoseconds()
 		}
-		if cResult != nil && cResult.dbCost > 0 {
+		if cResult != nil {
+			fields["decode_cost"] = cResult.decodeCost.Nanoseconds()
+			fields["enqueue_cost"] = cResult.enqueueCost.Nanoseconds()
+			fields["queued_cost"] = cResult.queuedCost.Nanoseconds()
+			fields["wal_cost"] = cResult.walCost.Nanoseconds()
 			fields["database_cost"] = cResult.dbCost.Nanoseconds()
 		}
-		if tmCommitDequeue.After(tmCheckPrepareFinished) {
-			fields["commit_dequeue"] = tmCommitDequeue.Sub(tmCheckPrepareFinished).Nanoseconds()
+		if tmFollowerCommit.After(tmCheckPrepareFinished) {
+			fields["dequeue_result"] = tmFollowerCommit.Sub(tmCheckPrepareFinished).Nanoseconds()
 		}
-		if tmMark.After(tmCommitDequeue) {
-			fields["commit_mark"] = tmMark.Sub(tmCommitDequeue).Nanoseconds()
+		if tmMark.After(tmFollowerCommit) {
+			fields["commit_mark"] = tmMark.Sub(tmFollowerCommit).Nanoseconds()
 		}
 		log.WithFields(fields).Debug("kayak follower commit stat")
 	}()
@@ -606,7 +615,7 @@ func (r *Runtime) followerCommit(l *kt.Log) (err error) {
 	if cResult != nil {
 		err = cResult.err
 	}
-	tmCommitDequeue = time.Now()
+	tmFollowerCommit = time.Now()
 
 	r.markPrepareFinished(l.Index)
 	tmMark = time.Now()
@@ -646,6 +655,11 @@ func (r *Runtime) followerCommitResult(ctx context.Context, commitLog *kt.Log, p
 	// decode log and send to commit channel to process
 	res = make(chan *commitResult, 1)
 
+	var (
+		tmStart  = time.Now()
+		tmDecode time.Time
+	)
+
 	if prepareLog == nil {
 		res <- &commitResult{
 			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
@@ -677,6 +691,7 @@ func (r *Runtime) followerCommitResult(ctx context.Context, commitLog *kt.Log, p
 		}
 		return
 	}
+	tmDecode = time.Now()
 
 	req := &commitReq{
 		ctx:        ctx,
@@ -685,13 +700,15 @@ func (r *Runtime) followerCommitResult(ctx context.Context, commitLog *kt.Log, p
 		lastCommit: lastCommit,
 		result:     res,
 		log:        commitLog,
+		tmStart:    tmStart,
+		tmDecode:   tmDecode,
 	}
 
 	select {
 	case <-ctx.Done():
 	case r.commitCh <- req:
+		req.tmCommitEnqueue.Store(time.Now())
 	}
-
 	return
 }
 
@@ -771,7 +788,17 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 		return
 	}
 
-	var tmStart = time.Now()
+	var (
+		tmStart = time.Now()
+		ok      bool
+
+		tmCommitEnqueue, tmWriteWAL time.Time
+	)
+
+	if tmCommitEnqueue, ok = req.tmCommitEnqueue.Load().(time.Time); !ok {
+		tmCommitEnqueue = tmStart
+	}
+
 	// check for last commit availability
 	myLastCommit := atomic.LoadUint64(&r.lastCommit)
 	if req.lastCommit != myLastCommit {
@@ -787,6 +814,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 		err = errors.Wrap(err, "write follower commit log failed")
 		return
 	}
+	tmWriteWAL = time.Now()
 
 	// do commit, not wrapping underlying handler commit error
 	_, err = r.sh.Commit(req.data)
@@ -794,7 +822,15 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	// mark last commit
 	atomic.StoreUint64(&r.lastCommit, req.log.Index)
 
-	req.result <- &commitResult{err: err, dbCost: time.Since(tmStart)}
+	req.result <- &commitResult{
+		err:         err,
+		start:       tmStart,
+		decodeCost:  req.tmDecode.Sub(req.tmStart),
+		enqueueCost: tmCommitEnqueue.Sub(req.tmDecode),
+		queuedCost:  tmStart.Sub(tmCommitEnqueue),
+		walCost:     tmWriteWAL.Sub(tmStart),
+		dbCost:      time.Since(tmWriteWAL),
+	}
 
 	return
 }

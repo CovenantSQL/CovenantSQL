@@ -61,8 +61,11 @@ var (
 	noLogo      bool
 	showVersion bool
 	configFile  string
+
 	wsapiAddr   string
 	mode        string // "normal", "api"
+
+	logLevel string
 )
 
 const name = `cqld`
@@ -71,7 +74,7 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
@@ -80,6 +83,7 @@ func init() {
 
 	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API")
 	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
+	flag.StringVar(&logLevel, "log-level", "", "service log level")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -95,10 +99,10 @@ func initLogs() {
 }
 
 func main() {
+	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
-	flag.Parse()
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

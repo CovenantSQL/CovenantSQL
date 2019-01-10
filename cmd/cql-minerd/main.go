@@ -81,6 +81,7 @@ var (
 	// other
 	noLogo      bool
 	showVersion bool
+	logLevel    string
 )
 
 const name = `cql-minerd`
@@ -88,19 +89,20 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
-	flag.BoolVar(&metricLog, "metricLog", false, "Print metrics in log")
+	flag.BoolVar(&metricLog, "metric-log", false, "Print metrics in log")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&genKeyPair, "genKeyPair", false, "Gen new key pair when no private key found")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&genKeyPair, "gen-keypair", false, "Gen new key pair when no private key found")
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
 
-	flag.StringVar(&profileServer, "profileServer", "", "Profile server address, default not started")
+	flag.StringVar(&profileServer, "profile-server", "", "Profile server address, default not started")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
-	flag.StringVar(&metricGraphite, "metricGraphiteServer", "", "Metric graphite server to push metrics")
-	flag.StringVar(&traceFile, "traceFile", "", "trace profile")
+	flag.StringVar(&metricGraphite, "metric-graphite-server", "", "Metric graphite server to push metrics")
+	flag.StringVar(&traceFile, "trace-file", "", "trace profile")
+	flag.StringVar(&logLevel, "log-level", "", "service log level")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -116,10 +118,10 @@ func initLogs() {
 }
 
 func main() {
+	flag.Parse()
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.InfoLevel)
-	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

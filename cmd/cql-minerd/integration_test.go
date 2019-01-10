@@ -187,7 +187,7 @@ func startNodesProfile(bypassSign bool) {
 	ctx := context.Background()
 	bypassArg := ""
 	if bypassSign {
-		bypassArg = "-bypassSignature"
+		bypassArg = "-bypass-signature"
 	}
 
 	// wait for ports to be available
@@ -256,10 +256,10 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner0.profile"),
-			//"-traceFile", FJ(baseDir, "./cmd/cql-minerd/miner0.trace"),
-			"-metricGraphiteServer", "192.168.2.100:2003",
-			"-profileServer", "0.0.0.0:8080",
-			"-metricLog",
+			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner0.trace"),
+			"-metric-graphite-server", "192.168.2.100:2003",
+			"-profile-server", "0.0.0.0:8080",
+			"-metric-log",
 			bypassArg,
 		},
 		"miner0", testWorkingDir, logDir, false,
@@ -274,10 +274,10 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner1.profile"),
-			//"-traceFile", FJ(baseDir, "./cmd/cql-minerd/miner1.trace"),
-			"-metricGraphiteServer", "192.168.2.100:2003",
-			"-profileServer", "0.0.0.0:8081",
-			"-metricLog",
+			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner1.trace"),
+			"-metric-graphite-server", "192.168.2.100:2003",
+			"-profile-server", "0.0.0.0:8081",
+			"-metric-log",
 			bypassArg,
 		},
 		"miner1", testWorkingDir, logDir, false,
@@ -292,10 +292,10 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner2.profile"),
-			//"-traceFile", FJ(baseDir, "./cmd/cql-minerd/miner2.trace"),
-			"-metricGraphiteServer", "192.168.2.100:2003",
-			"-profileServer", "0.0.0.0:8082",
-			"-metricLog",
+			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner2.trace"),
+			"-metric-graphite-server", "192.168.2.100:2003",
+			"-profile-server", "0.0.0.0:8082",
+			"-metric-log",
 			bypassArg,
 		},
 		"miner2", testWorkingDir, logDir, false,
@@ -543,36 +543,64 @@ func TestFullProcess(t *testing.T) {
 			c.So(err, ShouldBeNil)
 		})
 
-		time.Sleep(20 * time.Second)
-
-		profileReq = &types.QuerySQLChainProfileReq{}
-		profileResp = &types.QuerySQLChainProfileResp{}
-		profileReq.DBID = dbID
-		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
-		So(err, ShouldBeNil)
-		for _, user := range profileResp.Profile.Users {
-			log.Infof("user (%s) left advance payment: %d", user.Address.String(), user.AdvancePayment)
-			if user.AdvancePayment == testAdvancePayment {
-				time.Sleep(20 * time.Second)
-				break
+		ctx2, ccl2 := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl2()
+		err = waitProfileChecking(ctx2, 3*time.Second, dbID, func(profile *types.SQLChainProfile) bool {
+			for _, user := range profile.Users {
+				if user.AdvancePayment != testAdvancePayment {
+					return true
+				}
 			}
-		}
-		err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+			return false
+		})
 		So(err, ShouldBeNil)
-		for _, user := range profileResp.Profile.Users {
-			So(user.AdvancePayment, ShouldNotEqual, testAdvancePayment)
-		}
-		getIncome := false
-		for _, miner := range profileResp.Profile.Miners {
-			getIncome = getIncome || (miner.PendingIncome != 0 || miner.ReceivedIncome != 0)
-		}
-		So(getIncome, ShouldBeTrue)
+
+		ctx3, ccl3 := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer ccl3()
+		err = waitProfileChecking(ctx3, 3*time.Second, dbID, func(profile *types.SQLChainProfile) bool {
+			getIncome := false
+			for _, miner := range profile.Miners {
+				getIncome = getIncome || (miner.PendingIncome != 0 || miner.ReceivedIncome != 0)
+			}
+			return getIncome
+		})
+		So(err, ShouldBeNil)
 
 		err = db.Close()
 		So(err, ShouldBeNil)
 
 		// TODO(lambda): Drop database
 	})
+}
+
+func waitProfileChecking(ctx context.Context, period time.Duration, dbID proto.DatabaseID,
+	checkFunc func(profile *types.SQLChainProfile) bool) (err error) {
+	var (
+		ticker = time.NewTicker(period)
+		req    = &types.QuerySQLChainProfileReq{}
+		resp   = &types.QuerySQLChainProfileResp{}
+	)
+	defer ticker.Stop()
+	req.DBID = dbID
+
+	for {
+		select {
+		case <-ticker.C:
+			err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp)
+			if err == nil {
+				if checkFunc(&resp.Profile) {
+					return
+				}
+				log.WithFields(log.Fields{
+					"dbID":        resp.Profile.Address,
+					"num_of_user": len(resp.Profile.Users),
+				}).Debugf("get profile but failed to check in waitProfileChecking")
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
 }
 
 const ROWSTART = 1000000

@@ -415,6 +415,7 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	var tmStart, tmEnd time.Time
 
 	defer func() {
+		tmEnd = time.Now()
 		log.WithFields(log.Fields{
 			"t": l.Type.String(),
 			"i": l.Index,
@@ -422,6 +423,7 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		}).WithError(err).Debug("kayak follower apply")
 	}()
 
+	tmStart = time.Now()
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
@@ -482,24 +484,51 @@ func (r *Runtime) doCheck(req interface{}) (err error) {
 }
 
 func (r *Runtime) followerPrepare(l *kt.Log) (err error) {
+	var (
+		tmStart = time.Now()
+
+		tmDecode, tmCheck, tmWriteWAL, tmMark time.Time
+	)
+
+	defer func() {
+		var fields = log.Fields{"index": l.Index}
+		if tmDecode.After(tmStart) {
+			fields["decode"] = tmDecode.Sub(tmStart).Nanoseconds()
+		}
+		if tmCheck.After(tmDecode) {
+			fields["check"] = tmCheck.Sub(tmDecode).Nanoseconds()
+		}
+		if tmWriteWAL.After(tmCheck) {
+			fields["write_wal"] = tmWriteWAL.Sub(tmCheck).Nanoseconds()
+		}
+		if tmMark.After(tmWriteWAL) {
+			fields["mark"] = tmMark.Sub(tmWriteWAL).Nanoseconds()
+		}
+		log.WithFields(fields).Debug("kayak follower prepare stat")
+	}()
+
 	// decode
 	var req interface{}
 	if req, err = r.sh.DecodePayload(l.Data); err != nil {
 		err = errors.Wrap(err, "decode kayak payload failed")
 		return
 	}
+	tmDecode = time.Now()
 
 	if err = r.doCheck(req); err != nil {
 		return
 	}
+	tmCheck = time.Now()
 
 	// write log
 	if err = r.wal.Write(l); err != nil {
 		err = errors.Wrap(err, "write follower prepare log failed")
 		return
 	}
+	tmWriteWAL = time.Now()
 
 	r.markPendingPrepare(l.Index)
+	tmMark = time.Now()
 
 	return
 }
@@ -528,25 +557,59 @@ func (r *Runtime) followerRollback(l *kt.Log) (err error) {
 }
 
 func (r *Runtime) followerCommit(l *kt.Log) (err error) {
-	var prepareLog *kt.Log
-	var lastCommit uint64
+	var (
+		prepareLog *kt.Log
+		lastCommit uint64
+		cResult    *commitResult
+		tmStart    = time.Now()
+
+		tmGetPrepareLog, tmCheckPrepareFinished, tmCommitDequeue, tmMark time.Time
+	)
+
+	defer func() {
+		var fields = log.Fields{
+			"index": l.Index,
+		}
+		if tmGetPrepareLog.After(tmStart) {
+			fields["get_prepare_log"] = tmGetPrepareLog.Sub(tmStart).Nanoseconds()
+		}
+		if tmCheckPrepareFinished.After(tmGetPrepareLog) {
+			fields["check_prepare_finish"] =
+				tmCheckPrepareFinished.Sub(tmGetPrepareLog).Nanoseconds()
+		}
+		if cResult != nil && cResult.dbCost > 0 {
+			fields["database_cost"] = cResult.dbCost.Nanoseconds()
+		}
+		if tmCommitDequeue.After(tmCheckPrepareFinished) {
+			fields["commit_dequeue"] = tmCommitDequeue.Sub(tmCheckPrepareFinished).Nanoseconds()
+		}
+		if tmMark.After(tmCommitDequeue) {
+			fields["commit_dequeue"] = tmMark.Sub(tmCommitDequeue).Nanoseconds()
+		}
+		log.WithFields(fields).Debug("kayak follower commit stat")
+	}()
+
 	if lastCommit, prepareLog, err = r.getPrepareLog(l); err != nil {
 		err = errors.Wrap(err, "get original request in commit failed")
 		return
 	}
+	tmGetPrepareLog = time.Now()
 
 	// check if prepare already processed
 	if r.checkIfPrepareFinished(prepareLog.Index) {
 		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
 		return
 	}
+	tmCheckPrepareFinished = time.Now()
 
-	cResult := <-r.followerCommitResult(context.Background(), l, prepareLog, lastCommit)
+	cResult = <-r.followerCommitResult(context.Background(), l, prepareLog, lastCommit)
 	if cResult != nil {
 		err = cResult.err
 	}
+	tmCommitDequeue = time.Now()
 
 	r.markPrepareFinished(l.Index)
+	tmMark = time.Now()
 
 	return
 }
@@ -708,6 +771,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 		return
 	}
 
+	var tmStart = time.Now()
 	// check for last commit availability
 	myLastCommit := atomic.LoadUint64(&r.lastCommit)
 	if req.lastCommit != myLastCommit {
@@ -730,7 +794,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
 	// mark last commit
 	atomic.StoreUint64(&r.lastCommit, req.log.Index)
 
-	req.result <- &commitResult{err: err}
+	req.result <- &commitResult{err: err, dbCost: time.Since(tmStart)}
 
 	return
 }

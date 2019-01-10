@@ -33,7 +33,7 @@ Avaiable command-line arguments are:
 ```shell
 $ cql-mysql-adapter --help
 Usage of ./cql-mysql-adapter:
-  -bypassSignature
+  -bypass-signature
     	Disable signature sign and verify, for testing
   -config string
     	config file for mysql adapter (default "./config.yaml")

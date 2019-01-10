@@ -209,6 +209,20 @@ func GetLevel() logrus.Level {
 	return logrus.GetLevel()
 }
 
+// ParseLevel parse the level string and returns the logger level.
+func ParseLevel(lvl string) (logrus.Level, error) {
+	return logrus.ParseLevel(lvl)
+}
+
+// SetStringLevel enforce current log level.
+func SetStringLevel(lvl string, defaultLevel logrus.Level) {
+	if lvl, err := ParseLevel(lvl); err != nil {
+		SetLevel(defaultLevel)
+	} else {
+		SetLevel(lvl)
+	}
+}
+
 // AddHook adds a hook to the standard logger hooks.
 func AddHook(hook logrus.Hook) {
 	logrus.AddHook(hook)

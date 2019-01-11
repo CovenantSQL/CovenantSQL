@@ -145,6 +145,32 @@ func TestChain(t *testing.T) {
 			Tick:   time.Duration(300 * time.Millisecond),
 		}
 
+		Convey("A new chain running before genesis time should be waiting for genesis", func() {
+			config.Genesis.SignedHeader.Timestamp = time.Now().Add(24 * time.Hour)
+			err = genesis.PackAndSignBlock(testingPrivateKey)
+			So(err, ShouldBeNil)
+			chain, err = NewChain(config)
+			So(err, ShouldBeNil)
+
+			var sv = rpc.NewServer()
+			err = sv.InitRPCServer("localhost:0", testingPrivateKeyFile, []byte{})
+			So(err, ShouldBeNil)
+			defer sv.Stop()
+			chain.server = sv
+			chain.confirms = 1
+			chain.Start()
+			defer func() {
+				err = chain.Stop()
+				So(err, ShouldBeNil)
+				chain = nil
+			}()
+			time.Sleep(5 * chain.period)
+			var _, count, height, err = chain.fetchLastIrreversibleBlock()
+			So(err, ShouldBeNil)
+			So(count, ShouldEqual, 0)
+			So(height, ShouldEqual, 0)
+		})
+
 		chain, err = NewChain(config)
 		So(err, ShouldBeNil)
 		So(chain, ShouldNotBeNil)
@@ -345,7 +371,8 @@ func TestChain(t *testing.T) {
 					chain.confirms = 1
 					chain.Start()
 					defer func() {
-						chain.Stop()
+						err = chain.Stop()
+						So(err, ShouldBeNil)
 						chain = nil
 					}()
 					chain.addTx(&types.AddTxReq{TTL: 1, Tx: t1})

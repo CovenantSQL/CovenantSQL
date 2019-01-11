@@ -25,7 +25,6 @@ import (
 	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pl "github.com/CovenantSQL/CovenantSQL/blockproducer/limits"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -188,7 +187,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 	if t = cfg.ConfirmThreshold; t <= 0.0 {
-		t = float64(2) / 3.0
+		t = conf.DefaultConfirmThreshold
 	}
 	if m = uint32(math.Ceil(float64(l)*t + 1)); m > l {
 		m = l
@@ -393,7 +392,7 @@ func (c *Chain) syncHeads() {
 					"next_height": c.getNextHeight(),
 					"now_height":  nowHeight,
 				}).Debug("synchronizing head blocks")
-				c.syncCurrentHead(c.ctx, 2)
+				c.blockingSyncCurrentHead(c.ctx, conf.BPStartupRequiredReachableCount)
 			}
 			c.increaseNextHeight()
 		}
@@ -473,18 +472,18 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 		le.WithError(err).Warn("failed to load base nonce of transaction account")
 		return
 	}
-	if nonce < base || nonce >= base+pl.MaxPendingTxsPerAccount {
+	if nonce < base || nonce >= base+conf.MaxPendingTxsPerAccount {
 		// TODO(leventeliu): should persist to somewhere for tx query?
 		le.WithFields(log.Fields{
 			"base_nonce":    base,
-			"pending_limit": pl.MaxPendingTxsPerAccount,
+			"pending_limit": conf.MaxPendingTxsPerAccount,
 		}).Warn("invalid transaction nonce")
 		return
 	}
 
 	// Broadcast to other block producers
-	if ttl > pl.MaxTxBroadcastTTL {
-		ttl = pl.MaxTxBroadcastTTL
+	if ttl > conf.MaxTxBroadcastTTL {
+		ttl = conf.MaxTxBroadcastTTL
 	}
 	if ttl > 0 {
 		c.nonblockingBroadcastTx(ttl-1, tx)

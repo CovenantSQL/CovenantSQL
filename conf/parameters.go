@@ -18,6 +18,7 @@ package conf
 
 import "time"
 
+// This parameters should be kept consistent in all BPs.
 const (
 	// BPPeriod is the block producer block produce period.
 	BPPeriod = 3 * time.Second
@@ -29,4 +30,11 @@ const (
 	SQLChainTick = 1 * time.Second
 	// SQLChainTTL is the sqlchain unack query billing ttl.
 	SQLChainTTL = 10
+
+	DefaultConfirmThreshold = float64(2) / 3.0
+)
+
+// This parameters will not cause inconsistency within certain range.
+const (
+	BPStartupRequiredReachableCount = 2 // NOTE: this includes myself
 )

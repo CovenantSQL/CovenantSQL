@@ -557,11 +557,11 @@ func (c *Chain) blockingSyncCurrentHead(ctx context.Context, requiredReachable u
 	ticker = time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
+		if c.syncCurrentHead(ctx, requiredReachable) {
+			return
+		}
 		select {
 		case <-ticker.C:
-			if c.syncCurrentHead(ctx, requiredReachable) {
-				return
-			}
 		case <-ctx.Done():
 			err = ctx.Err()
 			return

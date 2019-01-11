@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 // rpcTracker defines the rpc call tracker
@@ -129,6 +130,8 @@ func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, me
 
 		break
 	}
+
+	defer trace.StartRegion(ctx, "rpcCall").End()
 
 	t.errLock.RLock()
 	defer t.errLock.RUnlock()

@@ -18,6 +18,7 @@ package kayak
 
 import (
 	"context"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/timer"
@@ -26,6 +27,8 @@ import (
 )
 
 func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req interface{}) (prepareLog *kt.Log, err error) {
+	defer trace.StartRegion(ctx, "doLeaderPrepare").End()
+
 	// check prepare in leader
 	if err = r.doCheck(ctx, req); err != nil {
 		err = errors.Wrap(err, "leader verify log")
@@ -51,7 +54,7 @@ func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req inte
 	}
 
 	// Leader pending map handling.
-	r.markPendingPrepare(prepareLog.Index)
+	r.markPendingPrepare(ctx, prepareLog.Index)
 
 	tm.Add("leader_prepare")
 
@@ -76,6 +79,7 @@ func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req inte
 
 func (r *Runtime) doLeaderCommit(ctx context.Context, tm *timer.Timer, prepareLog *kt.Log, req interface{}) (
 	result interface{}, logIndex uint64, err error) {
+	defer trace.StartRegion(ctx, "doLeaderCommit").End()
 	var commitResult *commitResult
 	if commitResult, err = r.leaderCommitResult(ctx, tm, req, prepareLog).Get(ctx); err != nil {
 		return
@@ -95,6 +99,7 @@ func (r *Runtime) doLeaderCommit(ctx context.Context, tm *timer.Timer, prepareLo
 }
 
 func (r *Runtime) doLeaderRollback(ctx context.Context, tm *timer.Timer, prepareLog *kt.Log) {
+	defer trace.StartRegion(ctx, "doLeaderRollback").End()
 	// rollback local
 	var rollbackLog *kt.Log
 	var logErr error
@@ -150,7 +155,7 @@ func (r *Runtime) followerPrepare(ctx context.Context, tm *timer.Timer, l *kt.Lo
 	}
 	tm.Add("write_wal")
 
-	r.markPendingPrepare(l.Index)
+	r.markPendingPrepare(ctx, l.Index)
 	tm.Add("mark")
 
 	return
@@ -165,7 +170,7 @@ func (r *Runtime) followerRollback(ctx context.Context, tm *timer.Timer, l *kt.L
 	tm.Add("get_prepare")
 
 	// check if prepare already processed
-	if r.checkIfPrepareFinished(prepareLog.Index) {
+	if r.checkIfPrepareFinished(ctx, prepareLog.Index) {
 		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
 		return
 	}
@@ -177,7 +182,7 @@ func (r *Runtime) followerRollback(ctx context.Context, tm *timer.Timer, l *kt.L
 	}
 	tm.Add("write_wal")
 
-	r.markPrepareFinished(l.Index)
+	r.markPrepareFinished(ctx, l.Index)
 	tm.Add("mark")
 
 	return
@@ -201,7 +206,7 @@ func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log
 	tm.Add("get_prepare")
 
 	// check if prepare already processed
-	if r.checkIfPrepareFinished(prepareLog.Index) {
+	if r.checkIfPrepareFinished(ctx, prepareLog.Index) {
 		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
 		return
 	}
@@ -212,7 +217,7 @@ func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log
 		err = cResult.err
 	}
 
-	r.markPrepareFinished(l.Index)
+	r.markPrepareFinished(ctx, l.Index)
 	tm.Add("mark")
 
 	return

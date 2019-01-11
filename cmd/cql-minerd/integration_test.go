@@ -822,6 +822,12 @@ func BenchmarkSQLite(b *testing.B) {
 }
 
 func benchOutsideMiner(b *testing.B, minerCount uint16, confDir string) {
+	benchOutsideMinerWithTargetMinerList(b, minerCount, nil, confDir)
+}
+
+func benchOutsideMinerWithTargetMinerList(
+	b *testing.B, minerCount uint16, targetMiners []proto.AccountAddress, confDir string,
+) {
 	log.Warnf("benchmark %v for %d Miners:", confDir, minerCount)
 
 	// Create temp directory
@@ -851,9 +857,13 @@ func benchOutsideMiner(b *testing.B, minerCount uint16, confDir string) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		meta := client.ResourceMeta{}
-		meta.Node = minerCount
-		meta.AdvancePayment = 1000000000
+		meta := client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: targetMiners,
+				Node:         minerCount,
+			},
+			AdvancePayment: 1000000000,
+		}
 		// wait for chain service
 		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel1()

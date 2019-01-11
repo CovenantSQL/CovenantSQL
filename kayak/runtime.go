@@ -18,9 +18,8 @@ package kayak
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
-	"io"
+	"github.com/CovenantSQL/CovenantSQL/utils/timer"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -28,8 +27,8 @@ import (
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
 )
 
@@ -107,28 +106,50 @@ type Runtime struct {
 
 // commitReq defines the commit operation input.
 type commitReq struct {
-	ctx             context.Context
-	data            interface{}
-	index           uint64
-	lastCommit      uint64
-	log             *kt.Log
-	result          chan *commitResult
-	tmStart         time.Time
-	tmDecode        time.Time
-	tmCommitEnqueue atomic.Value
+	ctx        context.Context
+	data       interface{}
+	index      uint64
+	lastCommit uint64
+	log        *kt.Log
+	result     *commitFuture
+	tm         *timer.Timer
 }
 
 // commitResult defines the commit operation result.
 type commitResult struct {
-	decodeCost  time.Duration
-	enqueueCost time.Duration
-	queuedCost  time.Duration
-	start       time.Time
-	walCost     time.Duration
-	dbCost      time.Duration
-	result      interface{}
-	err         error
-	rpc         *rpcTracker
+	index  uint64
+	result interface{}
+	err    error
+	rpc    *rpcTracker
+}
+
+type commitFuture struct {
+	ch chan *commitResult
+}
+
+func newCommitFuture() *commitFuture {
+	return &commitFuture{
+		ch: make(chan *commitResult),
+	}
+}
+
+func (f *commitFuture) Get(ctx context.Context) (cr *commitResult, err error) {
+	if f == nil || f.ch == nil {
+		err = errors.Wrap(ctx.Err(), "enqueue commit timeout")
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+		err = errors.Wrap(ctx.Err(), "get commit result timeout")
+		return
+	case cr = <-f.ch:
+		return
+	}
+}
+
+func (f *commitFuture) Set(cr *commitResult) {
+	f.ch <- cr
 }
 
 // NewRuntime creates new kayak Runtime.
@@ -252,54 +273,26 @@ func (r *Runtime) Shutdown() (err error) {
 
 // Apply defines entry for Leader node.
 func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{}, logIndex uint64, err error) {
-	var commitFuture <-chan *commitResult
-	var cResult *commitResult
+	ctx, task := trace.NewTask(ctx, "Kayak.Apply")
+	defer task.End()
 
-	var tmStart, tmLeaderPrepare, tmFollowerPrepare, tmCommitEnqueue, tmLeaderRollback,
-		tmRollback, tmCommitDequeue, tmLeaderCommit, tmCommit time.Time
-	var dbCost time.Duration
+	tm := timer.NewTimer()
 
 	defer func() {
-		fields := log.Fields{
-			"r": logIndex,
-		}
-		if !tmLeaderPrepare.Before(tmStart) {
-			fields["lp"] = tmLeaderPrepare.Sub(tmStart).Nanoseconds()
-		}
-		if !tmFollowerPrepare.Before(tmLeaderPrepare) {
-			fields["fp"] = tmFollowerPrepare.Sub(tmLeaderPrepare).Nanoseconds()
-		}
-		if !tmLeaderRollback.Before(tmFollowerPrepare) {
-			fields["lr"] = tmLeaderRollback.Sub(tmFollowerPrepare).Nanoseconds()
-		}
-		if !tmRollback.Before(tmLeaderRollback) {
-			fields["fr"] = tmRollback.Sub(tmLeaderRollback).Nanoseconds()
-		}
-		if !tmCommitEnqueue.Before(tmFollowerPrepare) {
-			fields["eq"] = tmCommitEnqueue.Sub(tmFollowerPrepare).Nanoseconds()
-		}
-		if !tmCommitDequeue.Before(tmCommitEnqueue) {
-			fields["dq"] = tmCommitDequeue.Sub(tmCommitEnqueue).Nanoseconds()
-		}
-		if !tmLeaderCommit.Before(tmCommitDequeue) {
-			fields["lc"] = tmLeaderCommit.Sub(tmCommitDequeue).Nanoseconds()
-		}
-		if !tmCommit.Before(tmLeaderCommit) {
-			fields["fc"] = tmCommit.Sub(tmLeaderCommit).Nanoseconds()
-		}
-		if dbCost > 0 {
-			fields["dc"] = dbCost.Nanoseconds()
-		}
-		if !tmCommit.Before(tmStart) {
-			fields["t"] = tmCommit.Sub(tmStart).Nanoseconds()
-		} else if !tmRollback.Before(tmStart) {
-			fields["t"] = tmRollback.Sub(tmStart).Nanoseconds()
-		}
-		log.WithFields(fields).WithError(err).Debug("kayak leader apply")
+		log.WithField("r", logIndex).
+			WithFields(tm.ToLogFields()).
+			WithError(err).
+			Debug("kayak leader apply")
 	}()
+
+	waitForLockRegion := trace.StartRegion(ctx, "peersLock")
 
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
+
+	tm.Add("prl")
+
+	waitForLockRegion.End()
 
 	if r.role != proto.Leader {
 		// not leader
@@ -307,107 +300,20 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 		return
 	}
 
-	tmStart = time.Now()
+	// prepare
+	prepareLog, err := r.doLeaderPrepare(ctx, tm, req)
 
-	// check prepare in leader
-	if err = r.doCheck(req); err != nil {
-		err = errors.Wrap(err, "leader verify log")
-		return
+	if prepareLog != nil {
+		defer r.markPrepareFinished(prepareLog.Index)
 	}
 
-	// encode request
-	var encBuf []byte
-	if encBuf, err = r.sh.EncodePayload(req); err != nil {
-		err = errors.Wrap(err, "encode kayak payload failed")
-		return
+	if err == nil {
+		// commit
+		return r.doLeaderCommit(ctx, tm, prepareLog, req)
 	}
 
-	// create prepare request
-	var prepareLog *kt.Log
-	if prepareLog, err = r.leaderLogPrepare(encBuf); err != nil {
-		// serve error, leader could not write logs, change leader in block producer
-		// TODO(): CHANGE LEADER
-		return
-	}
-
-	// Leader pending map handling.
-	r.markPendingPrepare(prepareLog.Index)
-	defer r.markPrepareFinished(prepareLog.Index)
-
-	tmLeaderPrepare = time.Now()
-
-	// send prepare to all nodes
-	prepareTracker := r.rpc(prepareLog, r.minPreparedFollowers)
-	prepareCtx, prepareCtxCancelFunc := context.WithTimeout(ctx, r.prepareTimeout)
-	defer prepareCtxCancelFunc()
-	prepareErrors, prepareDone, _ := prepareTracker.get(prepareCtx)
-	if !prepareDone {
-		// timeout, rollback
-		err = kt.ErrPrepareTimeout
-		goto ROLLBACK
-	}
-
-	// collect errors
-	if err = r.errorSummary(prepareErrors); err != nil {
-		goto ROLLBACK
-	}
-
-	tmFollowerPrepare = time.Now()
-
-	commitFuture = r.leaderCommitResult(ctx, req, prepareLog)
-
-	tmCommitEnqueue = time.Now()
-
-	if commitFuture == nil {
-		logIndex = prepareLog.Index
-		err = errors.Wrap(ctx.Err(), "enqueue commit timeout")
-		goto ROLLBACK
-	}
-
-	cResult = <-commitFuture
-	if cResult != nil {
-		logIndex = prepareLog.Index
-		result = cResult.result
-		err = cResult.err
-
-		tmCommitDequeue = cResult.start
-		dbCost = cResult.dbCost
-		tmLeaderCommit = time.Now()
-
-		// wait until context deadline or commit done
-		if cResult.rpc != nil {
-			cResult.rpc.get(ctx)
-		}
-	} else {
-		log.Fatal("IMPOSSIBLE BRANCH")
-		select {
-		case <-ctx.Done():
-			err = errors.Wrap(ctx.Err(), "process commit timeout")
-			goto ROLLBACK
-		default:
-		}
-	}
-
-	tmCommit = time.Now()
-
-	return
-
-ROLLBACK:
-	// rollback local
-	var rollbackLog *kt.Log
-	var logErr error
-	if rollbackLog, logErr = r.leaderLogRollback(prepareLog.Index); logErr != nil {
-		// serve error, construct rollback log failed, internal error
-		// TODO(): CHANGE LEADER
-		return
-	}
-
-	tmLeaderRollback = time.Now()
-
-	// async send rollback to all nodes
-	r.rpc(rollbackLog, 0)
-
-	tmRollback = time.Now()
+	// rollback
+	r.doLeaderRollback(ctx, tm, prepareLog)
 
 	return
 }
@@ -419,18 +325,22 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		return
 	}
 
-	var tmStart, tmEnd time.Time
+	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply")
+	defer task.End()
+
+	tm := timer.NewTimer()
 
 	defer func() {
-		tmEnd = time.Now()
-		log.WithFields(log.Fields{
-			"t": l.Type.String(),
-			"i": l.Index,
-			"c": tmEnd.Sub(tmStart).Nanoseconds(),
-		}).WithError(err).Debug("kayak follower apply")
+		log.
+			WithFields(log.Fields{
+				"t": l.Type.String(),
+				"i": l.Index,
+			}).
+			WithFields(tm.ToLogFields()).
+			WithError(err).
+			Debug("kayak follower apply")
 	}()
 
-	tmStart = time.Now()
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
@@ -443,17 +353,11 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	// verify log structure
 	switch l.Type {
 	case kt.LogPrepare:
-		err = r.followerPrepare(l)
+		err = r.followerPrepare(ctx, tm, l)
 	case kt.LogRollback:
-		err = r.followerRollback(l)
+		err = r.followerRollback(ctx, tm, l)
 	case kt.LogCommit:
-		err = r.followerCommit(l)
-	case kt.LogBarrier:
-		// support barrier for log truncation and peer update
-		fallthrough
-	case kt.LogNoop:
-		// do nothing
-		err = r.followerNoop(l)
+		err = r.followerCommit(ctx, tm, l)
 	}
 
 	if err == nil {
@@ -467,475 +371,6 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 func (r *Runtime) UpdatePeers(peers *proto.Peers) (err error) {
 	r.peersLock.Lock()
 	defer r.peersLock.Unlock()
-
-	return
-}
-
-func (r *Runtime) leaderLogPrepare(data []byte) (*kt.Log, error) {
-	// just write new log
-	return r.newLog(kt.LogPrepare, data)
-}
-
-func (r *Runtime) leaderLogRollback(i uint64) (*kt.Log, error) {
-	// just write new log
-	return r.newLog(kt.LogRollback, r.uint64ToBytes(i))
-}
-
-func (r *Runtime) doCheck(req interface{}) (err error) {
-	if err = r.sh.Check(req); err != nil {
-		err = errors.Wrap(err, "verify log")
-		return
-	}
-
-	return
-}
-
-func (r *Runtime) followerPrepare(l *kt.Log) (err error) {
-	var (
-		tmStart = time.Now()
-
-		tmDecode, tmCheck, tmWriteWAL, tmMark time.Time
-	)
-
-	defer func() {
-		var fields = log.Fields{"index": l.Index}
-		if tmDecode.After(tmStart) {
-			fields["decode"] = tmDecode.Sub(tmStart).Nanoseconds()
-		}
-		if tmCheck.After(tmDecode) {
-			fields["check"] = tmCheck.Sub(tmDecode).Nanoseconds()
-		}
-		if tmWriteWAL.After(tmCheck) {
-			fields["write_wal"] = tmWriteWAL.Sub(tmCheck).Nanoseconds()
-		}
-		if tmMark.After(tmWriteWAL) {
-			fields["mark"] = tmMark.Sub(tmWriteWAL).Nanoseconds()
-		}
-		log.WithFields(fields).Debug("kayak follower prepare stat")
-	}()
-
-	// decode
-	var req interface{}
-	if req, err = r.sh.DecodePayload(l.Data); err != nil {
-		err = errors.Wrap(err, "decode kayak payload failed")
-		return
-	}
-	tmDecode = time.Now()
-
-	if err = r.doCheck(req); err != nil {
-		return
-	}
-	tmCheck = time.Now()
-
-	// write log
-	if err = r.wal.Write(l); err != nil {
-		err = errors.Wrap(err, "write follower prepare log failed")
-		return
-	}
-	tmWriteWAL = time.Now()
-
-	r.markPendingPrepare(l.Index)
-	tmMark = time.Now()
-
-	return
-}
-
-func (r *Runtime) followerRollback(l *kt.Log) (err error) {
-	var prepareLog *kt.Log
-	if _, prepareLog, err = r.getPrepareLog(l); err != nil || prepareLog == nil {
-		err = errors.Wrap(err, "get original request in rollback failed")
-		return
-	}
-
-	// check if prepare already processed
-	if r.checkIfPrepareFinished(prepareLog.Index) {
-		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
-		return
-	}
-
-	// write wal
-	if err = r.wal.Write(l); err != nil {
-		err = errors.Wrap(err, "write follower rollback log failed")
-	}
-
-	r.markPrepareFinished(l.Index)
-
-	return
-}
-
-func (r *Runtime) followerCommit(l *kt.Log) (err error) {
-	var (
-		prepareLog *kt.Log
-		lastCommit uint64
-		cResult    *commitResult
-		tmStart    = time.Now()
-
-		tmGetPrepareLog, tmCheckPrepareFinished, tmFollowerCommit, tmMark time.Time
-	)
-
-	defer func() {
-		var fields = log.Fields{"index": l.Index}
-		if tmGetPrepareLog.After(tmStart) {
-			fields["get_prepare_log"] = tmGetPrepareLog.Sub(tmStart).Nanoseconds()
-		}
-		if tmCheckPrepareFinished.After(tmGetPrepareLog) {
-			fields["check_prepare_finish"] =
-				tmCheckPrepareFinished.Sub(tmGetPrepareLog).Nanoseconds()
-		}
-		if cResult != nil {
-			fields["decode_cost"] = cResult.decodeCost.Nanoseconds()
-			fields["enqueue_cost"] = cResult.enqueueCost.Nanoseconds()
-			fields["queued_cost"] = cResult.queuedCost.Nanoseconds()
-			fields["wal_cost"] = cResult.walCost.Nanoseconds()
-			fields["database_cost"] = cResult.dbCost.Nanoseconds()
-		}
-		if tmFollowerCommit.After(tmCheckPrepareFinished) {
-			fields["dequeue_result"] = tmFollowerCommit.Sub(tmCheckPrepareFinished).Nanoseconds()
-		}
-		if tmMark.After(tmFollowerCommit) {
-			fields["commit_mark"] = tmMark.Sub(tmFollowerCommit).Nanoseconds()
-		}
-		log.WithFields(fields).Debug("kayak follower commit stat")
-	}()
-
-	if lastCommit, prepareLog, err = r.getPrepareLog(l); err != nil {
-		err = errors.Wrap(err, "get original request in commit failed")
-		return
-	}
-	tmGetPrepareLog = time.Now()
-
-	// check if prepare already processed
-	if r.checkIfPrepareFinished(prepareLog.Index) {
-		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
-		return
-	}
-	tmCheckPrepareFinished = time.Now()
-
-	cResult = <-r.followerCommitResult(context.Background(), l, prepareLog, lastCommit)
-	if cResult != nil {
-		err = cResult.err
-	}
-	tmFollowerCommit = time.Now()
-
-	r.markPrepareFinished(l.Index)
-	tmMark = time.Now()
-
-	return
-}
-
-func (r *Runtime) leaderCommitResult(ctx context.Context, reqPayload interface{}, prepareLog *kt.Log) (res chan *commitResult) {
-	// decode log and send to commit channel to process
-	res = make(chan *commitResult, 1)
-
-	if prepareLog == nil {
-		res <- &commitResult{
-			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
-		}
-		return
-	}
-
-	// decode prepare log
-	req := &commitReq{
-		ctx:    ctx,
-		data:   reqPayload,
-		index:  prepareLog.Index,
-		result: res,
-	}
-
-	select {
-	case <-ctx.Done():
-		res = nil
-	case r.commitCh <- req:
-	}
-
-	return
-}
-
-func (r *Runtime) followerCommitResult(ctx context.Context, commitLog *kt.Log, prepareLog *kt.Log, lastCommit uint64) (res chan *commitResult) {
-	// decode log and send to commit channel to process
-	res = make(chan *commitResult, 1)
-
-	var (
-		tmStart  = time.Now()
-		tmDecode time.Time
-	)
-
-	if prepareLog == nil {
-		res <- &commitResult{
-			err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit"),
-		}
-		return
-	}
-
-	myLastCommit := atomic.LoadUint64(&r.lastCommit)
-
-	// check committed index
-	if lastCommit < myLastCommit {
-		// leader pushed a early index before commit
-		log.WithFields(log.Fields{
-			"head":     myLastCommit,
-			"supplied": lastCommit,
-		}).Warning("invalid last commit log")
-		res <- &commitResult{
-			err: errors.Wrap(kt.ErrInvalidLog, "invalid last commit log index"),
-		}
-		return
-	}
-
-	// decode prepare log
-	var logReq interface{}
-	var err error
-	if logReq, err = r.sh.DecodePayload(prepareLog.Data); err != nil {
-		res <- &commitResult{
-			err: errors.Wrap(err, "decode log payload failed"),
-		}
-		return
-	}
-	tmDecode = time.Now()
-
-	req := &commitReq{
-		ctx:        ctx,
-		data:       logReq,
-		index:      prepareLog.Index,
-		lastCommit: lastCommit,
-		result:     res,
-		log:        commitLog,
-		tmStart:    tmStart,
-		tmDecode:   tmDecode,
-	}
-
-	select {
-	case <-ctx.Done():
-	case r.commitCh <- req:
-		req.tmCommitEnqueue.Store(time.Now())
-	}
-	return
-}
-
-func (r *Runtime) commitCycle() {
-	// TODO(): panic recovery
-	for {
-		var cReq *commitReq
-
-		select {
-		case <-r.stopCh:
-			return
-		case cReq = <-r.commitCh:
-		}
-
-		if cReq != nil {
-			r.doCommit(cReq)
-		}
-	}
-}
-
-func (r *Runtime) doCommit(req *commitReq) {
-	r.peersLock.RLock()
-	defer r.peersLock.RUnlock()
-
-	resp := &commitResult{
-		start: time.Now(),
-	}
-
-	if r.role == proto.Leader {
-		resp.dbCost, resp.rpc, resp.result, resp.err = r.leaderDoCommit(req)
-		req.result <- resp
-	} else {
-		r.followerDoCommit(req)
-	}
-}
-
-func (r *Runtime) leaderDoCommit(req *commitReq) (dbCost time.Duration, tracker *rpcTracker, result interface{}, err error) {
-	if req.log != nil {
-		// mis-use follower commit for leader
-		log.Fatal("INVALID EXISTING LOG FOR LEADER COMMIT")
-		return
-	}
-
-	// create leader log
-	var l *kt.Log
-	var logData []byte
-
-	logData = append(logData, r.uint64ToBytes(req.index)...)
-	logData = append(logData, r.uint64ToBytes(atomic.LoadUint64(&r.lastCommit))...)
-
-	if l, err = r.newLog(kt.LogCommit, logData); err != nil {
-		// serve error, leader could not write log
-		return
-	}
-
-	// not wrapping underlying handler commit error
-	tmStartDB := time.Now()
-	result, err = r.sh.Commit(req.data)
-	dbCost = time.Now().Sub(tmStartDB)
-
-	// mark last commit
-	atomic.StoreUint64(&r.lastCommit, l.Index)
-
-	// send commit
-	tracker = r.rpc(l, r.minCommitFollowers)
-
-	// TODO(): text log for rpc errors
-
-	// TODO(): mark uncommitted nodes and remove from peers
-
-	return
-}
-
-func (r *Runtime) followerDoCommit(req *commitReq) (err error) {
-	if req.log == nil {
-		log.Fatal("NO LOG FOR FOLLOWER COMMIT")
-		return
-	}
-
-	var (
-		tmStart = time.Now()
-		ok      bool
-
-		tmCommitEnqueue, tmWriteWAL time.Time
-	)
-
-	if tmCommitEnqueue, ok = req.tmCommitEnqueue.Load().(time.Time); !ok {
-		tmCommitEnqueue = tmStart
-	}
-
-	// check for last commit availability
-	myLastCommit := atomic.LoadUint64(&r.lastCommit)
-	if req.lastCommit != myLastCommit {
-		// TODO(): need counter for retries, infinite commit re-order would cause troubles
-		go func(req *commitReq) {
-			r.commitCh <- req
-		}(req)
-		return
-	}
-
-	// write log first
-	if err = r.wal.Write(req.log); err != nil {
-		err = errors.Wrap(err, "write follower commit log failed")
-		return
-	}
-	tmWriteWAL = time.Now()
-
-	// do commit, not wrapping underlying handler commit error
-	_, err = r.sh.Commit(req.data)
-
-	// mark last commit
-	atomic.StoreUint64(&r.lastCommit, req.log.Index)
-
-	req.result <- &commitResult{
-		err:         err,
-		start:       tmStart,
-		decodeCost:  req.tmDecode.Sub(req.tmStart),
-		enqueueCost: tmCommitEnqueue.Sub(req.tmDecode),
-		queuedCost:  tmStart.Sub(tmCommitEnqueue),
-		walCost:     tmWriteWAL.Sub(tmStart),
-		dbCost:      time.Since(tmWriteWAL),
-	}
-
-	return
-}
-
-func (r *Runtime) getPrepareLog(l *kt.Log) (lastCommitIndex uint64, pl *kt.Log, err error) {
-	var prepareIndex uint64
-
-	// decode prepare index
-	if prepareIndex, err = r.bytesToUint64(l.Data); err != nil {
-		err = errors.Wrap(err, "log does not contain valid prepare index")
-		return
-	}
-
-	// decode commit index
-	if len(l.Data) >= 16 {
-		lastCommitIndex, _ = r.bytesToUint64(l.Data[8:])
-	}
-
-	pl, err = r.wal.Get(prepareIndex)
-
-	return
-}
-
-func (r *Runtime) newLog(logType kt.LogType, data []byte) (l *kt.Log, err error) {
-	// allocate index
-	r.nextIndexLock.Lock()
-	i := r.nextIndex
-	r.nextIndex++
-	r.nextIndexLock.Unlock()
-	l = &kt.Log{
-		LogHeader: kt.LogHeader{
-			Index:    i,
-			Type:     logType,
-			Producer: r.nodeID,
-		},
-		Data: data,
-	}
-
-	// error write will be a fatal error, cause to node to fail fast
-	if err = r.wal.Write(l); err != nil {
-		log.Fatalf("WRITE LOG FAILED: %v", err)
-	}
-
-	return
-}
-
-func (r *Runtime) readLogs() (err error) {
-	// load logs, only called during init
-	var l *kt.Log
-
-	for {
-		if l, err = r.wal.Read(); err != nil && err != io.EOF {
-			err = errors.Wrap(err, "load previous logs in wal failed")
-			return
-		} else if err == io.EOF {
-			err = nil
-			break
-		}
-
-		switch l.Type {
-		case kt.LogPrepare:
-			// record in pending prepares
-			r.pendingPrepares[l.Index] = true
-		case kt.LogCommit:
-			// record last commit
-			var lastCommit uint64
-			var prepareLog *kt.Log
-			if lastCommit, prepareLog, err = r.getPrepareLog(l); err != nil {
-				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
-				return
-			}
-			if lastCommit != r.lastCommit {
-				err = errors.Wrapf(err,
-					"last commit record in wal mismatched (expected: %v, actual: %v)", r.lastCommit, lastCommit)
-				return
-			}
-			if !r.pendingPrepares[prepareLog.Index] {
-				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
-				return
-			}
-			r.lastCommit = l.Index
-			// resolve previous prepared
-			delete(r.pendingPrepares, prepareLog.Index)
-		case kt.LogRollback:
-			var prepareLog *kt.Log
-			if _, prepareLog, err = r.getPrepareLog(l); err != nil {
-				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
-				return
-			}
-			if !r.pendingPrepares[prepareLog.Index] {
-				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
-				return
-			}
-			// resolve previous prepared
-			delete(r.pendingPrepares, prepareLog.Index)
-		case kt.LogBarrier:
-		case kt.LogNoop:
-		default:
-			err = errors.Wrapf(kt.ErrInvalidLog, "invalid log type: %v", l.Type)
-			return
-		}
-
-		// record nextIndex
-		r.updateNextIndex(l)
-	}
 
 	return
 }
@@ -968,70 +403,4 @@ func (r *Runtime) markPrepareFinished(index uint64) {
 	defer r.pendingPreparesLock.Unlock()
 
 	delete(r.pendingPrepares, index)
-}
-
-func (r *Runtime) errorSummary(errs map[proto.NodeID]error) error {
-	failNodes := make(map[proto.NodeID]error)
-
-	for s, err := range errs {
-		if err != nil {
-			failNodes[s] = err
-		}
-	}
-
-	if len(failNodes) == 0 {
-		return nil
-	}
-
-	return errors.Wrapf(kt.ErrPrepareFailed, "fail on nodes: %v", failNodes)
-}
-
-/// rpc related
-func (r *Runtime) rpc(l *kt.Log, minCount int) (tracker *rpcTracker) {
-	req := &kt.RPCRequest{
-		Instance: r.instanceID,
-		Log:      l,
-	}
-
-	tracker = newTracker(r, req, minCount)
-	tracker.send()
-
-	// TODO(): track this rpc
-
-	// TODO(): log remote errors
-
-	return
-}
-
-func (r *Runtime) getCaller(id proto.NodeID) Caller {
-	var caller Caller = rpc.NewPersistentCaller(id)
-	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
-	return rawCaller.(Caller)
-}
-
-func (r *Runtime) goFunc(f func()) {
-	r.wg.Add(1)
-	go func() {
-		defer r.wg.Done()
-		f()
-	}()
-}
-
-/// utils
-func (r *Runtime) uint64ToBytes(i uint64) (res []byte) {
-	res = make([]byte, 8)
-	binary.BigEndian.PutUint64(res, i)
-	return
-}
-
-func (r *Runtime) bytesToUint64(b []byte) (uint64, error) {
-	if len(b) < 8 {
-		return 0, kt.ErrInvalidLog
-	}
-	return binary.BigEndian.Uint64(b), nil
-}
-
-//// future extensions, barrier, noop log placeholder etc.
-func (r *Runtime) followerNoop(l *kt.Log) (err error) {
-	return r.wal.Write(l)
 }

@@ -15,16 +15,22 @@ func init() {
 }
 
 type bpGetBlockListParams struct {
-	From int `json:"from"`
-	To   int `json:"to"`
+	Since int `json:"since"`
+	Page  int `json:"page"`
+	Size  int `json:"size"`
 }
 
 func (params *bpGetBlockListParams) Validate() error {
-	diff := params.To - params.From
-	if diff < 5 || diff > 100 {
-		return errors.New("to - from should between 5 and 100")
+	if params.Size > 1000 {
+		return errors.New("max size is 1000")
 	}
 	return nil
+}
+
+// BPGetBlockListResponse is the response for method bp_getBlockList.
+type BPGetBlockListResponse struct {
+	Blocks     []*models.Block    `json:"blocks"`
+	Pagination *models.Pagination `json:"pagination"`
 }
 
 func bpGetBlockList(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
@@ -32,7 +38,15 @@ func bpGetBlockList(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Requ
 ) {
 	params := ctx.Value("_params").(*bpGetBlockListParams)
 	model := models.BlocksModel{}
-	return model.GetBlockList(params.From, params.To)
+	blocks, pagination, err := model.GetBlockList(params.Since, params.Page, params.Size)
+	if err != nil {
+		return nil, err
+	}
+	result = &BPGetBlockListResponse{
+		Blocks:     blocks,
+		Pagination: pagination,
+	}
+	return result, nil
 }
 
 type bpGetBlockByHeightParams struct {

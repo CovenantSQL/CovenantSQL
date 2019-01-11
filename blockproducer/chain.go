@@ -371,19 +371,29 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 
 func (c *Chain) syncHeads() {
 	for {
-		var h = c.heightOfTime(c.now())
-		if c.getNextHeight() > h {
+		var (
+			now       = c.now()
+			nowHeight uint32
+		)
+		if now.Before(c.genesisTime) {
+			log.WithFields(log.Fields{
+				"local": c.getLocalBPInfo(),
+			}).Info("now time is before genesis time, waiting for genesis")
 			break
 		}
-		for c.getNextHeight() <= h {
+		if nowHeight = c.heightOfTime(c.now()); c.getNextHeight() > nowHeight {
+			break
+		}
+		for c.getNextHeight() <= nowHeight {
 			// TODO(leventeliu): use the test mode flag to bypass the long-running synchronizing
 			// on startup by now, need better solution here.
 			if conf.GConf.StartupSyncHoles {
 				log.WithFields(log.Fields{
+					"local":       c.getLocalBPInfo(),
 					"next_height": c.getNextHeight(),
-					"height":      h,
+					"now_height":  nowHeight,
 				}).Debug("synchronizing head blocks")
-				c.syncCurrentHead(c.ctx)
+				c.syncCurrentHead(c.ctx, 2)
 			}
 			c.increaseNextHeight()
 		}
@@ -509,7 +519,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 		select {
 		case <-timer.C:
 			// Try to fetch block at height `nextHeight-1` until enough peers are reachable
-			if err := c.blockingSyncCurrentHead(ctx); err != nil {
+			if err := c.blockingSyncCurrentHead(ctx, c.getRequiredConfirms()); err != nil {
 				log.WithError(err).Info("abort main cycle")
 				timer.Reset(0)
 				return
@@ -537,7 +547,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	}
 }
 
-func (c *Chain) blockingSyncCurrentHead(ctx context.Context) (err error) {
+func (c *Chain) blockingSyncCurrentHead(ctx context.Context, requiredReachable uint32) (err error) {
 	var (
 		ticker   *time.Ticker
 		interval = 1 * time.Second
@@ -550,7 +560,7 @@ func (c *Chain) blockingSyncCurrentHead(ctx context.Context) (err error) {
 	for {
 		select {
 		case <-ticker.C:
-			if c.syncCurrentHead(ctx) {
+			if c.syncCurrentHead(ctx, requiredReachable) {
 				return
 			}
 		case <-ctx.Done():
@@ -561,11 +571,11 @@ func (c *Chain) blockingSyncCurrentHead(ctx context.Context) (err error) {
 }
 
 // syncCurrentHead synchronizes a block at the current height of the local peer from the known
-// remote peers. The return value `ok` indicates that there're at least `c.confirms-1` replies
-// from these gossip calls.
-func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
-	var h = c.getNextHeight() - 1
-	if c.head().height >= h {
+// remote peers. The return value `ok` indicates that there're at least `requiredReachable-1`
+// replies from these gossip calls.
+func (c *Chain) syncCurrentHead(ctx context.Context, requiredReachable uint32) (ok bool) {
+	var currentHeight = c.getNextHeight() - 1
+	if c.head().height >= currentHeight {
 		ok = true
 		return
 	}
@@ -573,20 +583,14 @@ func (c *Chain) syncCurrentHead(ctx context.Context) (ok bool) {
 	// Initiate blocking gossip calls to fetch block of the current height,
 	// with timeout of one tick.
 	var (
-		unreachable = c.blockingFetchBlock(ctx, h)
-
-		needConfirms, serversNum = func() (cf, sn uint32) {
-			c.RLock()
-			defer c.RUnlock()
-			cf, sn = c.confirms, c.localBPInfo.total
-			return
-		}()
+		unreachable = c.blockingFetchBlock(ctx, currentHeight)
+		serversNum  = c.getLocalBPInfo().total
 	)
 
-	if ok = unreachable+needConfirms <= serversNum; !ok {
+	if ok = unreachable+requiredReachable <= serversNum; !ok {
 		log.WithFields(log.Fields{
 			"peer":              c.getLocalBPInfo(),
-			"sync_head_height":  h,
+			"sync_head_height":  currentHeight,
 			"unreachable_count": unreachable,
 		}).Warn("one or more block producers are currently unreachable")
 	}
@@ -891,6 +895,12 @@ func (c *Chain) increaseNextHeight() {
 // heightOfTime calculates the heightOfTime with this sql-chain config of a given time reading.
 func (c *Chain) heightOfTime(t time.Time) uint32 {
 	return uint32(t.Sub(c.genesisTime) / c.period)
+}
+
+func (c *Chain) getRequiredConfirms() uint32 {
+	c.RLock()
+	defer c.RUnlock()
+	return c.confirms
 }
 
 func (c *Chain) getNextHeight() uint32 {

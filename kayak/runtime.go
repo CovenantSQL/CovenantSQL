@@ -325,7 +325,7 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 		return
 	}
 
-	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply")
+	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply."+l.Type.String())
 	defer task.End()
 
 	tm := timer.NewTimer()

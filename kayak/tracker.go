@@ -115,6 +115,8 @@ func (t *rpcTracker) done() {
 }
 
 func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, meets bool, finished bool) {
+	defer trace.StartRegion(ctx, "rpcCall").End()
+
 	for {
 		select {
 		case <-t.doneCh:
@@ -130,8 +132,6 @@ func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, me
 
 		break
 	}
-
-	defer trace.StartRegion(ctx, "rpcCall").End()
 
 	t.errLock.RLock()
 	defer t.errLock.RUnlock()

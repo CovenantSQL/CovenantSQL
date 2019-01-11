@@ -16,8 +16,6 @@
 
 package conf
 
-import "time"
-
 // This parameters should be kept consistent in all BPs.
 const (
 	DefaultConfirmThreshold = float64(2) / 3.0

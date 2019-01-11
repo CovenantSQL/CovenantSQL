@@ -543,7 +543,7 @@ func TestFullProcess(t *testing.T) {
 			c.So(err, ShouldBeNil)
 		})
 
-		ctx2, ccl2 := context.WithTimeout(context.Background(), 1*time.Minute)
+		ctx2, ccl2 := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer ccl2()
 		err = waitProfileChecking(ctx2, 3*time.Second, dbID, func(profile *types.SQLChainProfile) bool {
 			for _, user := range profile.Users {

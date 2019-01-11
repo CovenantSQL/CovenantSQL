@@ -201,7 +201,7 @@ func init() {
 	flag.StringVar(&fileName, "file", "", "execute commands from file and exit")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&noRC, "no-rc", false, "do not read start up file")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&outFile, "out", "", "output file")
 	flag.StringVar(&configFile, "config", "config.yaml", "config file for covenantsql")

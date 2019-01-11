@@ -79,6 +79,13 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	if mode == "api" {
+		if err = registerNodeToBP(30 * time.Second); err != nil {
+			log.WithError(err).Fatal("register node to BP")
+			return
+		}
+	}
+
 	var server *rpc.Server
 
 	// create server
@@ -98,43 +105,45 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server.Stop()
 	}()
 
-	// init storage
-	log.Info("init storage")
-	var st *LocalStorage
-	if st, err = initStorage(conf.GConf.DHTFileName); err != nil {
-		log.WithError(err).Error("init storage failed")
-		return
-	}
+	if mode == "normal" {
+		// init storage
+		log.Info("init storage")
+		var st *LocalStorage
+		if st, err = initStorage(conf.GConf.DHTFileName); err != nil {
+			log.WithError(err).Error("init storage failed")
+			return err
+		}
 
-	// init kayak
-	log.Info("init kayak runtime")
-	var kayakRuntime *kayak.Runtime
-	if kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, server); err != nil {
-		log.WithError(err).Error("init kayak runtime failed")
-		return
-	}
+		// init kayak
+		log.Info("init kayak runtime")
+		var kayakRuntime *kayak.Runtime
+		if kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, server); err != nil {
+			log.WithError(err).Error("init kayak runtime failed")
+			return err
+		}
 
-	// init kayak and consistent
-	log.Info("init kayak and consistent runtime")
-	kvServer := &KayakKVServer{
-		Runtime:   kayakRuntime,
-		KVStorage: st,
-	}
-	dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
-	if err != nil {
-		log.WithError(err).Error("init consistent hash failed")
-		return
-	}
+		// init kayak and consistent
+		log.Info("init kayak and consistent runtime")
+		kvServer := &KayakKVServer{
+			Runtime:   kayakRuntime,
+			KVStorage: st,
+		}
+		dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
+		if err != nil {
+			log.WithError(err).Error("init consistent hash failed")
+			return err
+		}
 
-	// set consistent handler to kayak storage
-	kvServer.KVStorage.consistent = dht.Consistent
+		// set consistent handler to kayak storage
+		kvServer.KVStorage.consistent = dht.Consistent
 
-	// register service rpc
-	log.Info("register dht service rpc")
-	err = server.RegisterService(route.DHTRPCName, dht)
-	if err != nil {
-		log.WithError(err).Error("register dht service failed")
-		return
+		// register service rpc
+		log.Info("register dht service rpc")
+		err = server.RegisterService(route.DHTRPCName, dht)
+		if err != nil {
+			log.WithError(err).Error("register dht service failed")
+			return err
+		}
 	}
 
 	// init main chain service
@@ -152,7 +161,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
 		log.WithError(err).Error("init chain failed")
-		return
+		return err
 	}
 	chain.Start()
 	defer chain.Stop()

@@ -44,7 +44,7 @@ var (
 func init() {
 	flag.StringVar(&configFile, "config", "config.yaml", "configuration file for covenantsql")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }

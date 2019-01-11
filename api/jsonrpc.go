@@ -17,7 +17,7 @@ var (
 type jsonrpcHandlerFunc func(context.Context, *jsonrpc2.Conn, *jsonrpc2.Request) (interface{}, error)
 
 func registerMethod(method string, handlerFunc jsonrpcHandlerFunc, paramsType interface{}) {
-	log.WithField("method", method).Info("api: register rpc method")
+	log.WithField("method", method).Debug("api: register rpc method")
 
 	if paramsType == nil {
 		jsonrpcHandler.RegisterMethod(method, handlerFunc)

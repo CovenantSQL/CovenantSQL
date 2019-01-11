@@ -37,21 +37,21 @@ func (r *Region) End() {}
 
 // NewTask mocks runtime/trace.NewTask.
 func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
-	return ctx, &Task{}
+	return pctx, &Task{}
 }
 
 // StartRegion mocks runtime/trace.StartRegion.
-func StartRegion(ctx context.Context, regionType string) {
-	return
+func StartRegion(ctx context.Context, regionType string) (region *Region) {
+	return &Region{}
 }
 
 // WithRegion mocks runtime/trace.WithRegion.
 func WithRegion(ctx context.Context, regionType string, fn func()) {
-	return
+	fn()
 }
 
 // IsEnabled mocks runtime/trace.IsEnabled.
-func IsEnabled() {
+func IsEnabled() bool {
 	return false
 }
 

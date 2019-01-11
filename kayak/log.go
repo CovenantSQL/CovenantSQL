@@ -18,11 +18,12 @@ package kayak
 
 import (
 	"context"
+	"io"
+	"log"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
-	"io"
-	"log"
 )
 
 func (r *Runtime) newLog(ctx context.Context, logType kt.LogType, data []byte) (l *kt.Log, err error) {
@@ -114,7 +115,7 @@ func (r *Runtime) readLogs() (err error) {
 		}
 
 		// record nextIndex
-		r.updateNextIndex(l)
+		r.updateNextIndex(context.Background(), l)
 	}
 
 	return

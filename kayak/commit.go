@@ -18,13 +18,14 @@ package kayak
 
 import (
 	"context"
+	"sync/atomic"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/timer"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
-	"sync/atomic"
 )
 
 func (r *Runtime) leaderCommitResult(ctx context.Context, tm *timer.Timer, reqPayload interface{}, prepareLog *kt.Log) (res *commitFuture) {
@@ -55,6 +56,8 @@ func (r *Runtime) leaderCommitResult(ctx context.Context, tm *timer.Timer, reqPa
 }
 
 func (r *Runtime) followerCommitResult(ctx context.Context, tm *timer.Timer, commitLog *kt.Log, prepareLog *kt.Log, lastCommit uint64) (res *commitFuture) {
+	defer trace.StartRegion(ctx, "followerCommitResult").End()
+
 	// decode log and send to commit channel to process
 	res = newCommitFuture()
 
@@ -79,7 +82,7 @@ func (r *Runtime) followerCommitResult(ctx context.Context, tm *timer.Timer, com
 	// decode prepare log
 	var logReq interface{}
 	var err error
-	if logReq, err = r.sh.DecodePayload(prepareLog.Data); err != nil {
+	if logReq, err = r.doDecodePayload(ctx, prepareLog.Data); err != nil {
 		res.Set(&commitResult{err: errors.Wrap(err, "decode log payload failed")})
 		return
 	}
@@ -121,7 +124,7 @@ func (r *Runtime) commitCycle() {
 	}
 }
 
-func (r *Runtime) leaderDoCommit(req *commitReq) () {
+func (r *Runtime) leaderDoCommit(req *commitReq) {
 	if req.log != nil {
 		// mis-use follower commit for leader
 		log.Fatal("INVALID EXISTING LOG FOR LEADER COMMIT")
@@ -213,6 +216,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 }
 
 func (r *Runtime) getPrepareLog(ctx context.Context, l *kt.Log) (lastCommitIndex uint64, pl *kt.Log, err error) {
+	defer trace.StartRegion(ctx, "getPrepareLog").End()
 	var prepareIndex uint64
 
 	// decode prepare index

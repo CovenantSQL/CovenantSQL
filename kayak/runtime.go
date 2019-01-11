@@ -19,7 +19,6 @@ package kayak
 import (
 	"context"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/utils/timer"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -28,6 +27,7 @@ import (
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/timer"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
 )
@@ -290,7 +290,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
-	tm.Add("prl")
+	tm.Add("peers_lock")
 
 	waitForLockRegion.End()
 
@@ -304,7 +304,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	prepareLog, err := r.doLeaderPrepare(ctx, tm, req)
 
 	if prepareLog != nil {
-		defer r.markPrepareFinished(prepareLog.Index)
+		defer r.markPrepareFinished(ctx, prepareLog.Index)
 	}
 
 	if err == nil {
@@ -341,8 +341,14 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 			Debug("kayak follower apply")
 	}()
 
+	waitForLockRegion := trace.StartRegion(ctx, "peersLock")
+
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
+
+	tm.Add("peers_lock")
+
+	waitForLockRegion.End()
 
 	if r.role == proto.Leader {
 		// not follower
@@ -361,7 +367,7 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	}
 
 	if err == nil {
-		r.updateNextIndex(l)
+		r.updateNextIndex(ctx, l)
 	}
 
 	return
@@ -375,7 +381,9 @@ func (r *Runtime) UpdatePeers(peers *proto.Peers) (err error) {
 	return
 }
 
-func (r *Runtime) updateNextIndex(l *kt.Log) {
+func (r *Runtime) updateNextIndex(ctx context.Context, l *kt.Log) {
+	defer trace.StartRegion(ctx, "updateNextIndex").End()
+
 	r.nextIndexLock.Lock()
 	defer r.nextIndexLock.Unlock()
 
@@ -384,21 +392,27 @@ func (r *Runtime) updateNextIndex(l *kt.Log) {
 	}
 }
 
-func (r *Runtime) checkIfPrepareFinished(index uint64) (finished bool) {
+func (r *Runtime) checkIfPrepareFinished(ctx context.Context, index uint64) (finished bool) {
+	defer trace.StartRegion(ctx, "checkIfPrepareFinished").End()
+
 	r.pendingPreparesLock.RLock()
 	defer r.pendingPreparesLock.RUnlock()
 
 	return !r.pendingPrepares[index]
 }
 
-func (r *Runtime) markPendingPrepare(index uint64) {
+func (r *Runtime) markPendingPrepare(ctx context.Context, index uint64) {
+	defer trace.StartRegion(ctx, "markPendingPrepare").End()
+
 	r.pendingPreparesLock.Lock()
 	defer r.pendingPreparesLock.Unlock()
 
 	r.pendingPrepares[index] = true
 }
 
-func (r *Runtime) markPrepareFinished(index uint64) {
+func (r *Runtime) markPrepareFinished(ctx context.Context, index uint64) {
+	defer trace.StartRegion(ctx, "markPrepareFinished").End()
+
 	r.pendingPreparesLock.Lock()
 	defer r.pendingPreparesLock.Unlock()
 

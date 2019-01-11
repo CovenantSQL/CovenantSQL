@@ -3,7 +3,6 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/go-gorp/gorp"
@@ -45,29 +44,108 @@ func (m *TransactionsModel) GetTransactionByHash(hash string) (tx *Transaction, 
 	return tx, err
 }
 
-// GetTransactionList get a transaction list by hash marker.
-func (m *TransactionsModel) GetTransactionList(since, direction string, limit int) (
-	txs []*Transaction, err error,
+// GetTransactionListOfBlock get a transaction list of block.
+func (m *TransactionsModel) GetTransactionListOfBlock(ofBlockHeight int, page, size int) (
+	txs []*Transaction, pagination *Pagination, err error,
 ) {
-	tx, err := m.GetTransactionByHash(since)
-	if tx == nil {
-		return txs, err
+	var (
+		querySQL = `
+		SELECT
+			block_height,
+			tx_index,
+			hash,
+			block_hash,
+			timestamp,
+			tx_type,
+			address,
+			raw
+		FROM
+			indexed_transactions
+		`
+		countSQL = buildCountSQL(querySQL)
+		conds    []string
+		args     []interface{}
+	)
+
+	pagination = NewPagination(page, size)
+	conds = append(conds, "block_height = ?")
+	args = append(args, ofBlockHeight)
+
+	querySQL, countSQL = buildSQLWithConds(querySQL, countSQL, conds)
+	count, err := chaindb.SelectInt(countSQL, args...)
+	if err != nil {
+		return nil, pagination, err
+	}
+	pagination.SetTotal(int(count))
+	if pagination.Offset() > pagination.Total {
+		return txs, pagination, nil
 	}
 
-	orderBy := "DESC"
-	compare := "<"
-	if direction == "forward" {
-		orderBy = "ASC"
-		compare = ">"
+	querySQL += " ORDER BY tx_index DESC"
+	querySQL += " LIMIT ? OFFSET ?"
+	args = append(args, pagination.Limit(), pagination.Offset())
+
+	_, err = chaindb.Select(&txs, querySQL, args...)
+	return txs, pagination, err
+}
+
+// GetTransactionList get a transaction list by hash marker.
+func (m *TransactionsModel) GetTransactionList(since string, page, size int) (
+	txs []*Transaction, pagination *Pagination, err error,
+) {
+	var (
+		sinceBlockHeight = 0
+		sinceTxIndex     = 0
+	)
+
+	if since != "" {
+		tx, err := m.GetTransactionByHash(since)
+		if tx == nil {
+			return txs, pagination, err
+		}
+		sinceBlockHeight = tx.BlockHeight
+		sinceTxIndex = tx.TxIndex
 	}
 
-	query := fmt.Sprintf(`SELECT block_height, tx_index, hash, block_hash,
-	timestamp, tx_type, address, raw
-	FROM indexed_transactions
-	WHERE block_height %s ? or (block_height = ? and tx_index %s ?)
-	ORDER BY block_height %s, tx_index %s
-	LIMIT ?`, compare, compare, orderBy, orderBy)
+	var (
+		querySQL = `
+		SELECT
+			block_height,
+			tx_index,
+			hash,
+			block_hash,
+			timestamp,
+			tx_type,
+			address,
+			raw
+		FROM
+			indexed_transactions
+		`
+		countSQL = buildCountSQL(querySQL)
+		conds    []string
+		args     []interface{}
+	)
 
-	_, err = chaindb.Select(&txs, query, tx.BlockHeight, tx.BlockHeight, tx.TxIndex, limit)
-	return txs, err
+	pagination = NewPagination(page, size)
+	if sinceBlockHeight > 0 {
+		conds = append(conds, "(block_height < ? or (block_height = ? and tx_index < ?))")
+		args = append(args, sinceBlockHeight, sinceBlockHeight, sinceTxIndex)
+	}
+
+	querySQL, countSQL = buildSQLWithConds(querySQL, countSQL, conds)
+	count, err := chaindb.SelectInt(countSQL, args...)
+	if err != nil {
+		return nil, pagination, err
+	}
+	pagination.SetTotal(int(count))
+	if pagination.Offset() > pagination.Total {
+		return txs, pagination, nil
+	}
+
+	querySQL += " ORDER BY block_height DESC, tx_index DESC"
+	querySQL += " LIMIT ? OFFSET ?"
+	args = append(args, pagination.Limit(), pagination.Offset())
+
+	_, err = chaindb.Select(&txs, querySQL, args...)
+	return txs, pagination, err
 }

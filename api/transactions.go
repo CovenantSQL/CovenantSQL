@@ -12,22 +12,26 @@ import (
 func init() {
 	registerMethod("bp_getTransactionList", bpGetTransactionList, bpGetTransactionListParams{})
 	registerMethod("bp_getTransactionByHash", bpGetTransactionByHash, bpGetTransactionByHashParams{})
+	registerMethod("bp_getTransactionListOfBlock", bpGetTransactionListOfBlock, bpGetTransactionListOfBlockParams{})
 }
 
 type bpGetTransactionListParams struct {
-	Since     string `json:"since"`
-	Direction string `json:"direction"`
-	Limit     int    `json:"limit"`
+	Since string `json:"since"`
+	Page  int    `json:"page"`
+	Size  int    `json:"size"`
 }
 
 func (params *bpGetTransactionListParams) Validate() error {
-	if params.Limit < 5 || params.Limit > 100 {
-		return errors.New("limit should between 5 and 100")
-	}
-	if params.Direction != "backward" && params.Direction != "forward" {
-		return fmt.Errorf("unknown direction %q", params.Direction)
+	if params.Size > 1000 {
+		return errors.New("max size is 1000")
 	}
 	return nil
+}
+
+// BPGetTransactionListResponse is the response for method bp_getTransactionList.
+type BPGetTransactionListResponse struct {
+	Transactions []*models.Transaction `json:"transactions"`
+	Pagination   *models.Pagination    `json:"pagination"`
 }
 
 func bpGetTransactionList(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
@@ -35,7 +39,47 @@ func bpGetTransactionList(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc
 ) {
 	params := ctx.Value("_params").(*bpGetTransactionListParams)
 	model := models.TransactionsModel{}
-	return model.GetTransactionList(params.Since, params.Direction, params.Limit)
+	transactions, pagination, err := model.GetTransactionList(params.Since, params.Page, params.Size)
+	if err != nil {
+		return nil, err
+	}
+	result = &BPGetTransactionListResponse{
+		Transactions: transactions,
+		Pagination:   pagination,
+	}
+	return result, nil
+}
+
+type bpGetTransactionListOfBlockParams struct {
+	BlockHeight int `json:"height"`
+	Page        int `json:"page"`
+	Size        int `json:"size"`
+}
+
+func (params *bpGetTransactionListOfBlockParams) Validate() error {
+	if params.BlockHeight < 1 {
+		return fmt.Errorf("invalid block height %d", params.BlockHeight)
+	}
+	if params.Size > 1000 {
+		return errors.New("max size is 1000")
+	}
+	return nil
+}
+
+func bpGetTransactionListOfBlock(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
+	result interface{}, err error,
+) {
+	params := ctx.Value("_params").(*bpGetTransactionListOfBlockParams)
+	model := models.TransactionsModel{}
+	transactions, pagination, err := model.GetTransactionListOfBlock(params.BlockHeight, params.Page, params.Size)
+	if err != nil {
+		return nil, err
+	}
+	result = &BPGetTransactionListResponse{
+		Transactions: transactions,
+		Pagination:   pagination,
+	}
+	return result, nil
 }
 
 type bpGetTransactionByHashParams struct {

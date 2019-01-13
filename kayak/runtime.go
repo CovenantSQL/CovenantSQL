@@ -129,7 +129,7 @@ type commitFuture struct {
 
 func newCommitFuture() *commitFuture {
 	return &commitFuture{
-		ch: make(chan *commitResult),
+		ch: make(chan *commitResult, 1),
 	}
 }
 
@@ -149,7 +149,10 @@ func (f *commitFuture) Get(ctx context.Context) (cr *commitResult, err error) {
 }
 
 func (f *commitFuture) Set(cr *commitResult) {
-	f.ch <- cr
+	select {
+	case f.ch <- cr:
+	default:
+	}
 }
 
 // NewRuntime creates new kayak Runtime.

@@ -313,7 +313,9 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	}
 
 	// rollback
-	r.doLeaderRollback(ctx, tm, prepareLog)
+	if prepareLog != nil {
+		r.doLeaderRollback(ctx, tm, prepareLog)
+	}
 
 	return
 }

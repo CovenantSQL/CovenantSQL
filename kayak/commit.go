@@ -180,7 +180,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	}
 
 	if req.task == nil {
-		req.task = trace.StartRegion(req.ctx, "commitCycle")
+		req.task = trace.StartRegion(req.ctx, "waitForLastCommit")
 	}
 
 	// check for last commit availability
@@ -194,10 +194,13 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	}
 
 	if req.task != nil {
-		defer req.task.End()
+		req.task.End()
+		req.task = nil
 	}
 
 	req.tm.Add("wait_last_commit")
+
+	defer trace.StartRegion(req.ctx, "commitCycle").End()
 
 	var err error
 

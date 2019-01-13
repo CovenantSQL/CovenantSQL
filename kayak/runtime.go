@@ -113,7 +113,6 @@ type commitReq struct {
 	log        *kt.Log
 	result     *commitFuture
 	tm         *timer.Timer
-	task       *trace.Region
 }
 
 // commitResult defines the commit operation result.

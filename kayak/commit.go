@@ -179,9 +179,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 		return
 	}
 
-	if req.task == nil {
-		req.task = trace.StartRegion(req.ctx, "waitForLastCommit")
-	}
+	waitCommitTask := trace.StartRegion(req.ctx, "waitForLastCommit")
 
 	// check for last commit availability
 	myLastCommit := atomic.LoadUint64(&r.lastCommit)
@@ -190,14 +188,11 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 		go func(req *commitReq) {
 			r.commitCh <- req
 		}(req)
+		waitCommitTask.End()
 		return
 	}
 
-	if req.task != nil {
-		req.task.End()
-		req.task = nil
-	}
-
+	waitCommitTask.End()
 	req.tm.Add("wait_last_commit")
 
 	defer trace.StartRegion(req.ctx, "commitCycle").End()

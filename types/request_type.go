@@ -77,8 +77,8 @@ type QueryKey struct {
 }
 
 // String implements fmt.Stringer for logging purpose.
-func (k *QueryKey) String() string {
-	return fmt.Sprintf("%s#%016x#%016x", string(k.NodeID[:8]), k.ConnectionID, k.SeqNo)
+func (k QueryKey) String() string {
+	return fmt.Sprintf("%s#%016x#%016x", string(k.NodeID[len(k.NodeID)-8:]), k.ConnectionID, k.SeqNo)
 }
 
 // SignedRequestHeader defines a signed query request header.
@@ -90,8 +90,9 @@ type SignedRequestHeader struct {
 // Request defines a complete query request.
 type Request struct {
 	proto.Envelope
-	Header  SignedRequestHeader `json:"h"`
-	Payload RequestPayload      `json:"p"`
+	Header        SignedRequestHeader `json:"h"`
+	Payload       RequestPayload      `json:"p"`
+	_marshalCache []byte              `json:"-"`
 }
 
 // String implements fmt.Stringer for logging purpose.
@@ -137,6 +138,14 @@ func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	}
 
 	return r.Header.Sign(signer)
+}
+
+func (r *Request) SetMarshalCache(buf []byte) {
+	r._marshalCache = buf
+}
+
+func (r *Request) GetMarshalCache() (buf []byte) {
+	return r._marshalCache
 }
 
 // GetQueryKey returns a unique query key of this request.

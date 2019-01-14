@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"math/rand"
 	"net"
 	"net/rpc"
@@ -39,7 +38,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/jordwest/mock-conn"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
+	mock_conn "github.com/jordwest/mock-conn"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -104,7 +104,7 @@ func (s *sqliteStorage) Check(data interface{}) (err error) {
 	return nil
 }
 
-func (s *sqliteStorage) Commit(data interface{}) (result interface{}, err error) {
+func (s *sqliteStorage) Commit(data interface{}, isLeader bool) (result interface{}, err error) {
 	var d *queryStructure
 	var ok bool
 	if d, ok = data.(*queryStructure); !ok {

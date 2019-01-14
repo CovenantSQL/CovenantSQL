@@ -150,7 +150,7 @@ func (r *Runtime) leaderDoCommit(req *commitReq) {
 	req.tm.Add("write_wal")
 
 	// not wrapping underlying handler commit error
-	cr.result, err = r.doCommit(req.ctx, req.data)
+	cr.result, err = r.doCommit(req.ctx, req.data, true)
 
 	req.tm.Add("db_write")
 
@@ -207,7 +207,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	req.tm.Add("write_wal")
 
 	// do commit, not wrapping underlying handler commit error
-	_, err = r.doCommit(req.ctx, req.data)
+	_, err = r.doCommit(req.ctx, req.data, false)
 
 	req.tm.Add("db_write")
 

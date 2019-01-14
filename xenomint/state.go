@@ -346,7 +346,7 @@ func (s *State) writeSingle(
 }
 
 func (s *State) write(
-	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
+	ctx context.Context, req *types.Request, isLeader bool) (ref *QueryTracker, resp *types.Response, err error,
 ) {
 	var (
 		lastSeq           uint64
@@ -434,7 +434,9 @@ func (s *State) write(
 			s.flushSQLExecuter()
 		}
 		writeDone = time.Since(start)
-		s.pool.enqueue(lastSeq, query)
+		if isLeader {
+			s.pool.enqueue(lastSeq, query)
+		}
 		enqueued = time.Since(start)
 		return
 	}(); err != nil {
@@ -659,20 +661,20 @@ func (s *State) getLocalTime() time.Time {
 
 // Query does the query(ies) in req, pools the request and persists any change to
 // the underlying storage.
-func (s *State) Query(req *types.Request) (ref *QueryTracker, resp *types.Response, err error) {
-	return s.QueryWithContext(context.Background(), req)
+func (s *State) Query(req *types.Request, isLeader bool) (ref *QueryTracker, resp *types.Response, err error) {
+	return s.QueryWithContext(context.Background(), req, isLeader)
 }
 
 // QueryWithContext does the query(ies) in req, pools the request and persists any change to
 // the underlying storage.
 func (s *State) QueryWithContext(
-	ctx context.Context, req *types.Request) (ref *QueryTracker, resp *types.Response, err error,
+	ctx context.Context, req *types.Request, isLeader bool) (ref *QueryTracker, resp *types.Response, err error,
 ) {
 	switch req.Header.QueryType {
 	case types.ReadQuery:
 		return s.readTx(ctx, req)
 	case types.WriteQuery:
-		return s.write(ctx, req)
+		return s.write(ctx, req, isLeader)
 	default:
 		err = ErrInvalidRequest
 	}

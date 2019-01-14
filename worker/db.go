@@ -244,7 +244,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		if tracker, response, err = db.chain.Query(request); err != nil {
+		if tracker, response, err = db.chain.Query(request, false); err != nil {
 			err = errors.Wrap(err, "failed to query read query")
 			return
 		}
@@ -252,7 +252,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		if db.cfg.UseEventualConsistency {
 			// reset context
 			request.SetContext(context.Background())
-			if tracker, response, err = db.chain.Query(request); err != nil {
+			if tracker, response, err = db.chain.Query(request, true); err != nil {
 				err = errors.Wrap(err, "failed to execute with eventual consistency")
 				return
 			}

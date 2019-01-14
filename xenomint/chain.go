@@ -80,7 +80,7 @@ func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 		}
 		log.WithFields(fields).Debug("Chain.Query duration stat (us)")
 	}()
-	if ref, resp, err = c.state.Query(req); err != nil {
+	if ref, resp, err = c.state.Query(req, true); err != nil {
 		return
 	}
 	queried = time.Since(start)

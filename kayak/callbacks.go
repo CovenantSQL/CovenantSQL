@@ -18,6 +18,7 @@ package kayak
 
 import (
 	"context"
+
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
 )
@@ -47,7 +48,7 @@ func (r *Runtime) doDecodePayload(ctx context.Context, data []byte) (req interfa
 	return
 }
 
-func (r *Runtime) doCommit(ctx context.Context, req interface{}) (result interface{}, err error) {
+func (r *Runtime) doCommit(ctx context.Context, req interface{}, isLeader bool) (result interface{}, err error) {
 	defer trace.StartRegion(ctx, "commit").End()
-	return r.sh.Commit(req)
+	return r.sh.Commit(req, isLeader)
 }

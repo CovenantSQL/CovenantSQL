@@ -1199,11 +1199,11 @@ func (c *Chain) replicationCycle(ctx context.Context) {
 
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(
-	req *types.Request) (tracker *x.QueryTracker, resp *types.Response, err error,
+	req *types.Request, isLeader bool) (tracker *x.QueryTracker, resp *types.Response, err error,
 ) {
 	// TODO(leventeliu): we're using an external context passed by request. Make sure that
 	// cancelling will be propagated to this context before chain instance stops.
-	return c.st.QueryWithContext(req.GetContext(), req)
+	return c.st.QueryWithContext(req.GetContext(), req, isLeader)
 }
 
 // AddResponse addes a response to the ackIndex, awaiting for acknowledgement.

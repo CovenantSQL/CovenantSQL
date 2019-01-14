@@ -115,7 +115,7 @@ func (s *LocalStorage) Check(req interface{}) (err error) {
 }
 
 // Commit implements kayak.types.Handler.Commit.
-func (s *LocalStorage) Commit(req interface{}) (_ interface{}, err error) {
+func (s *LocalStorage) Commit(req interface{}, isLeader bool) (_ interface{}, err error) {
 	var kp *KayakPayload
 	var cl *compiledLog
 	var ok bool
@@ -246,7 +246,7 @@ func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err erro
 			Command: CmdSet,
 			Data:    nodeBuf.Bytes(),
 		}
-		_, err = s.KVStorage.Commit(payload)
+		_, err = s.KVStorage.Commit(payload, true)
 		if err != nil {
 			log.WithError(err).Error("init kayak KV commit node failed")
 			return

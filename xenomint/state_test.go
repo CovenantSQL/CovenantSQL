@@ -431,9 +431,12 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						// Try to replay modified block #0
 						var blockx = &types.Block{
 							QueryTxs: []*types.QueryAsTx{
-								&types.QueryAsTx{
+								{
 									Request: &types.Request{
 										Header: types.SignedRequestHeader{
+											RequestHeader: types.RequestHeader{
+												QueryType: types.WriteQuery,
+											},
 											DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
 												DataHash: [32]byte{
 													0, 0, 0, 0, 0, 0, 0, 1,

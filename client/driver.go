@@ -430,12 +430,12 @@ func runPeerListUpdater() (err error) {
 					if _, err = getPeers(dbID, privKey); err != nil {
 						log.WithField("db", dbID).
 							WithError(err).
-							Warning("update peers failed")
+							Debug("update peers failed")
 
 						// TODO(xq262144), better rpc remote error judgement
 						if strings.Contains(err.Error(), bp.ErrNoSuchDatabase.Error()) {
 							log.WithField("db", dbID).
-								Warning("database no longer exists, stopped peers update")
+								Warning("database no longer exists, stopping peers update")
 							peerList.Delete(dbID)
 						}
 					}
@@ -493,14 +493,13 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 	profileReq.DBID = dbID
 	err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 	if err != nil {
-		log.WithError(err).Warning("get sqlchain profile failed in getPeers")
+		err = errors.Wrap(err, "get sqlchain profile failed in getPeers")
 		return
 	}
 
 	nodeIDs := make([]proto.NodeID, len(profileResp.Profile.Miners))
 	if len(profileResp.Profile.Miners) <= 0 {
-		err = ErrInvalidProfile
-		log.WithError(err).Warning("unexpected error in getPeers")
+		err = errors.Wrap(ErrInvalidProfile, "unexpected error in getPeers")
 		return
 	}
 	for i, mi := range profileResp.Profile.Miners {
@@ -514,7 +513,7 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 	}
 	err = peers.Sign(privKey)
 	if err != nil {
-		log.WithError(err).Warning("sign peers failed in getPeers")
+		err = errors.Wrap(err, "sign peers failed in getPeers")
 		return
 	}
 

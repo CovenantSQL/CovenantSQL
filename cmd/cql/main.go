@@ -89,7 +89,7 @@ func (v *varsFlag) Get() []string {
 	return append([]string{}, v.vars...)
 }
 
-func (v *varsFlag) String() string {
+func (v varsFlag) String() string {
 	return fmt.Sprintf("%#v", v.vars)
 }
 

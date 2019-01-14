@@ -30,7 +30,7 @@ type blockProducerInfo struct {
 }
 
 // String implements fmt.Stringer.
-func (i *blockProducerInfo) String() string {
+func (i blockProducerInfo) String() string {
 	return fmt.Sprintf("[%d/%d|%s] %s", i.rank+1, i.total, i.role, i.nodeID)
 }
 

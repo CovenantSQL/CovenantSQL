@@ -184,11 +184,11 @@ func main() {
 		}()
 	}
 
+	// start prometheus collector
+	reg := metric.StartMetricCollector()
+
 	// start period provide service transaction generator
 	go func() {
-		// start prometheus collector
-		reg := metric.StartMetricCollector()
-
 		tick := time.NewTicker(conf.GConf.Miner.ProvideServiceInterval)
 		defer tick.Stop()
 
@@ -205,7 +205,9 @@ func main() {
 
 	// start dbms
 	var dbms *worker.DBMS
-	if dbms, err = startDBMS(server); err != nil {
+	if dbms, err = startDBMS(server, func() {
+		sendProvideService(reg)
+	}); err != nil {
 		log.WithError(err).Fatal("start dbms failed")
 	}
 

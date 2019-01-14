@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// Package limits defines limits of the CovenantSQL system.
-package limits
+package conf
 
 const (
 	// MaxTxBroadcastTTL defines the TTL limit of a AddTx request broadcasting within the

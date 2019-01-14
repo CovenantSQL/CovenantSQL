@@ -48,7 +48,7 @@ type BusService struct {
 	lock             sync.RWMutex // a lock for the map
 	blockCount       uint32
 	sqlChainProfiles map[proto.DatabaseID]*types.SQLChainProfile
-	sqlChainState    map[proto.DatabaseID](map[proto.AccountAddress]*types.PermStat)
+	sqlChainState    map[proto.DatabaseID]map[proto.AccountAddress]*types.PermStat
 }
 
 // NewBusService creates a new chain bus instance.
@@ -87,7 +87,7 @@ func (bs *BusService) updateState(count uint32, profiles []*types.SQLChainProfil
 	defer bs.lock.Unlock()
 	var (
 		rebuilt       = make(map[proto.DatabaseID]*types.SQLChainProfile)
-		sqlchainState = make(map[proto.DatabaseID](map[proto.AccountAddress]*types.PermStat))
+		sqlchainState = make(map[proto.DatabaseID]map[proto.AccountAddress]*types.PermStat)
 	)
 	for _, v := range profiles {
 		rebuilt[v.ID] = v

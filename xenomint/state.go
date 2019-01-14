@@ -471,6 +471,9 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 	s.Lock()
 	defer s.Unlock()
 	for i, q := range block.QueryTxs {
+		if q.Request.Header.QueryType == types.ReadQuery {
+			continue
+		}
 		var query = &QueryTracker{Req: q.Request, Resp: &types.Response{Header: *q.Response}}
 		lastsp = s.getSeq()
 		if q.Response.ResponseHeader.LogOffset > lastsp {
@@ -487,9 +490,6 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 		}
 		// Replay query
 		for j, v := range q.Request.Payload.Queries {
-			if q.Request.Header.QueryType == types.ReadQuery {
-				continue
-			}
 			if q.Request.Header.QueryType != types.WriteQuery {
 				err = errors.Wrapf(ErrInvalidRequest, "replay block at %d:%d", i, j)
 				return

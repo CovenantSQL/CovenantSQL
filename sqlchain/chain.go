@@ -162,7 +162,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		return
 	}
 
-	log.Debugf("create new chain bdb %s", bdbFile)
+	log.WithField("db", c.DatabaseID).Debugf("create new chain bdb %s", bdbFile)
 
 	// Open LevelDB for ack/request/response
 	tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
@@ -172,7 +172,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		return
 	}
 
-	log.Debugf("create new chain tdb %s", tdbFile)
+	log.WithField("db", c.DatabaseID).Debugf("create new chain tdb %s", tdbFile)
 
 	// Open x.State
 	var (
@@ -197,7 +197,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 	addr, err = crypto.PubKeyHash(pk.PubKey())
 	if err != nil {
-		log.WithError(err).Warning("failed to generate addr in NewChain")
+		log.WithError(err).WithField("db", c.DatabaseID).Warning("failed to generate addr in NewChain")
 		return
 	}
 
@@ -283,7 +283,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	}
 	addr, err = crypto.PubKeyHash(pk.PubKey())
 	if err != nil {
-		log.WithError(err).Warning("failed to generate addr in LoadChain")
+		log.WithError(err).WithField("db", c.DatabaseID).Warning("failed to generate addr in LoadChain")
 		return
 	}
 
@@ -328,6 +328,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	log.WithFields(log.Fields{
 		"peer":  chain.rt.getPeerInfoString(),
 		"state": st,
+		"db":    c.DatabaseID,
 	}).Debug("loading state from database")
 
 	// Read blocks and rebuild memory index
@@ -355,6 +356,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		log.WithFields(log.Fields{
 			"peer":  chain.rt.getPeerInfoString(),
 			"block": block.BlockHash().String(),
+			"db":    c.DatabaseID,
 		}).Debug("loading block from database")
 
 		if last == nil {
@@ -413,6 +415,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		log.WithFields(log.Fields{
 			"height": h,
 			"header": resp.Hash().String(),
+			"db":     c.DatabaseID,
 		}).Debug("loaded new resp header")
 	}
 	if err = respIter.Error(); err != nil {
@@ -434,6 +437,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		log.WithFields(log.Fields{
 			"height": h,
 			"header": ack.Hash().String(),
+			"db":     c.DatabaseID,
 		}).Debug("loaded new ack header")
 	}
 	if err = respIter.Error(); err != nil {
@@ -493,6 +497,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 				"index":      i,
 				"producer":   b.Producer(),
 				"block_hash": b.BlockHash(),
+				"db":         c.databaseID,
 			}).WithError(ierr).Warn("failed to add response to ackIndex")
 		}
 	}
@@ -502,6 +507,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 				"index":      i,
 				"producer":   b.Producer(),
 				"block_hash": b.BlockHash(),
+				"db":         c.databaseID,
 			}).WithError(ierr).Warn("failed to remove Ack from ackIndex")
 		}
 	}
@@ -524,6 +530,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 					return "|"
 				}(), st.Head.String()[:8]),
 			"headHeight": c.rt.getHead().Height,
+			"db":         c.databaseID,
 		}).Info("pushed new block")
 	}
 
@@ -532,7 +539,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
-	log.Debugf("push ack %s", ack.Hash().String())
+	log.WithField("db", c.databaseID).Debugf("push ack %s", ack.Hash().String())
 	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
 	k := heightToKey(h)
 	var enc *bytes.Buffer
@@ -613,6 +620,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		"curr_turn":       c.rt.getNextTurn(),
 		"using_timestamp": now.Format(time.RFC3339Nano),
 		"block_hash":      block.BlockHash().String(),
+		"db":              c.databaseID,
 	}).Debug("produced new block")
 	// Advise new block to the other peers
 	var (
@@ -652,6 +660,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 						"curr_turn":       c.rt.getNextTurn(),
 						"using_timestamp": now.Format(time.RFC3339Nano),
 						"block_hash":      block.BlockHash().String(),
+						"db":              c.databaseID,
 					}).WithError(err).Error("failed to advise new block")
 				}
 			}(s)
@@ -693,6 +702,7 @@ func (c *Chain) syncHead() {
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
+						"db":          c.databaseID,
 					}).WithError(err).Debug(
 						"Failed to fetch block from peer")
 				} else {
@@ -710,6 +720,7 @@ func (c *Chain) syncHead() {
 						"curr_turn":   c.rt.getNextTurn(),
 						"head_height": c.rt.getHead().Height,
 						"head_block":  c.rt.getHead().Head.String(),
+						"db":          c.databaseID,
 					}).Debug(
 						"Fetch block from remote peer successfully")
 					succ = true
@@ -725,6 +736,7 @@ func (c *Chain) syncHead() {
 				"curr_turn":   c.rt.getNextTurn(),
 				"head_height": c.rt.getHead().Height,
 				"head_block":  c.rt.getHead().Head.String(),
+				"db":          c.databaseID,
 			}).Debug(
 				"Cannot get block from any peer")
 		}
@@ -750,6 +762,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		"head_height":     c.rt.getHead().Height,
 		"head_block":      c.rt.getHead().Head.String(),
 		"using_timestamp": now.Format(time.RFC3339Nano),
+		"db":              c.databaseID,
 	}).Debug("run current turn")
 
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {
@@ -760,6 +773,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 			"head_height":     c.rt.getHead().Height,
 			"head_block":      c.rt.getHead().Head.String(),
 			"using_timestamp": now.Format(time.RFC3339Nano),
+			"db":              c.databaseID,
 		}).Error("A block will be skipped")
 	}
 
@@ -773,6 +787,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 			"time":            c.rt.getChainTimeString(),
 			"curr_turn":       c.rt.getNextTurn(),
 			"using_timestamp": now.Format(time.RFC3339Nano),
+			"db":              c.databaseID,
 		}).WithError(err).Error(
 			"Failed to produce block")
 	}
@@ -796,6 +811,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 				//	"head_block":      c.rt.getHead().Head.String(),
 				//	"using_timestamp": t.Format(time.RFC3339Nano),
 				//	"duration":        d,
+				//	"db":              c.databaseID,
 				//}).Debug("main cycle")
 				time.Sleep(d)
 			} else {
@@ -810,6 +826,7 @@ func (c *Chain) sync() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
+		"db":   c.databaseID,
 	}).Debug("synchronizing chain state")
 
 	for {
@@ -861,6 +878,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 			log.WithFields(log.Fields{
 				"height": h,
 				"stashs": len(stash),
+				"db":     c.databaseID,
 			}).Debug("read new height from channel")
 			if stash != nil {
 				wg.Add(1)
@@ -877,6 +895,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				"head_block":   c.rt.getHead().Head.String(),
 				"block_height": height,
 				"block_hash":   block.BlockHash().String(),
+				"db":           c.databaseID,
 			}).Debug("processing new block")
 
 			if height > c.rt.getNextTurn()-1 {
@@ -896,6 +915,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 							"head_block":   c.rt.getHead().Head.String(),
 							"block_height": height,
 							"block_hash":   block.BlockHash().String(),
+							"db":           c.databaseID,
 						}).WithError(err).Error("Failed to check and push new block")
 					} else {
 						head := c.rt.getHead()
@@ -903,7 +923,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 						if currentCount%c.updatePeriod == 0 {
 							ub, err := c.billing(head.node)
 							if err != nil {
-								log.WithError(err).Error("billing failed")
+								log.WithError(err).WithField("db", c.databaseID).Error("billing failed")
 							}
 							// allocate nonce
 							nonceReq := &types.NextAccountNonceReq{}
@@ -911,20 +931,20 @@ func (c *Chain) processBlocks(ctx context.Context) {
 							nonceReq.Addr = *c.addr
 							if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
 								// allocate nonce failed
-								log.WithError(err).Warning("allocate nonce for transaction failed")
+								log.WithError(err).WithField("db", c.databaseID).Warning("allocate nonce for transaction failed")
 							}
 							ub.Nonce = nonceResp.Nonce
 							if err = ub.Sign(c.pk); err != nil {
-								log.WithError(err).Warning("sign tx failed")
+								log.WithError(err).WithField("db", c.databaseID).Warning("sign tx failed")
 							}
 
 							addTxReq := &types.AddTxReq{TTL: 1}
 							addTxResp := &types.AddTxResp{}
 							addTxReq.Tx = ub
-							log.Debugf("nonce in processBlocks: %d, addr: %s",
+							log.WithField("db", c.databaseID).Debugf("nonce in processBlocks: %d, addr: %s",
 								addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
 							if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
-								log.WithError(err).Warning("send tx failed")
+								log.WithError(err).WithField("db", c.databaseID).Warning("send tx failed")
 							}
 						}
 					}
@@ -957,11 +977,13 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
+		"db":   c.databaseID,
 	}).Debug("stopping chain")
 	c.rt.stop(c.databaseID)
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
+		"db":   c.databaseID,
 	}).Debug("chain service and workers stopped")
 	// Close LevelDB file
 	var ierr error
@@ -971,6 +993,7 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
+		"db":   c.databaseID,
 	}).WithError(ierr).Debug("chain database closed")
 	if ierr = c.tdb.Close(); ierr != nil && err == nil {
 		err = ierr
@@ -978,6 +1001,7 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
+		"db":   c.databaseID,
 	}).WithError(ierr).Debug("chain database closed")
 	// Close state
 	if ierr = c.st.Close(false); ierr != nil && err == nil {
@@ -986,6 +1010,7 @@ func (c *Chain) Stop() (err error) {
 	log.WithFields(log.Fields{
 		"peer": c.rt.getPeerInfoString(),
 		"time": c.rt.getChainTimeString(),
+		"db":   c.databaseID,
 	}).WithError(ierr).Debug("chain state storage closed")
 	return
 }
@@ -1035,6 +1060,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 		"blockparent": block.ParentHash().String(),
 		"headblock":   head.Head.String(),
 		"headheight":  head.Height,
+		"db":          c.databaseID,
 	}).WithError(err).Debug("checking new block from other peer")
 
 	if head.Height == height && head.Head.IsEqual(block.BlockHash()) {
@@ -1067,6 +1093,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 			"time":     c.rt.getChainTimeString(),
 			"expected": next,
 			"actual":   index,
+			"db":       c.databaseID,
 		}).WithError(err).Error(
 			"Failed to check new block")
 		return ErrInvalidProducer
@@ -1235,13 +1262,14 @@ func (c *Chain) stat() {
 		"response_header_count": rc,
 		"query_tracker_count":   tc,
 		"cached_block_count":    bc,
+		"db":                    c.databaseID,
 	}).Info("chain mem stats")
 	// Print xeno stats
 	c.st.Stat(c.databaseID)
 }
 
 func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
-	log.Debugf("begin to billing from count %d", node.count)
+	log.WithField("db", c.databaseID).Debugf("begin to billing from count %d", node.count)
 	var (
 		i, j      uint64
 		minerAddr proto.AccountAddress
@@ -1260,11 +1288,11 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 		}
 		for _, tx := range block.QueryTxs {
 			if minerAddr, err = crypto.PubKeyHash(tx.Response.Signee); err != nil {
-				log.WithError(err).Warning("billing fail: miner addr")
+				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
 				return
 			}
 			if userAddr, err = crypto.PubKeyHash(tx.Request.Header.Signee); err != nil {
-				log.WithError(err).Warning("billing fail: miner addr")
+				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
 				return
 			}
 
@@ -1282,11 +1310,11 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 
 		for _, req := range block.FailedReqs {
 			if minerAddr, err = crypto.PubKeyHash(block.Signee()); err != nil {
-				log.WithError(err).Warning("billing fail: miner addr")
+				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
 				return
 			}
 			if userAddr, err = crypto.PubKeyHash(req.Header.Signee); err != nil {
-				log.WithError(err).Warning("billing fail: user addr")
+				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: user addr")
 				return
 			}
 			if _, ok := minersMap[userAddr][minerAddr]; !ok {
@@ -1306,7 +1334,7 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	i = 0
 	j = 0
 	for userAddr, cost := range usersMap {
-		log.Debugf("user %s, cost %d", userAddr.String(), cost)
+		log.WithField("db", c.databaseID).Debugf("user %s, cost %d", userAddr.String(), cost)
 		ub.Users[i] = &types.UserCost{
 			User: userAddr,
 			Cost: cost,

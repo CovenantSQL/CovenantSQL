@@ -24,11 +24,15 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fortytw2/leaktest"
+	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
@@ -43,8 +47,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/fortytw2/leaktest"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var rootHash = hash.Hash{}
@@ -552,6 +554,52 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, err = os.Stat(rootDir)
 		So(err, ShouldNotBeNil)
+	})
+}
+
+func TestDatabase_EncodePayload(t *testing.T) {
+	Convey("encode payload cache", t, func() {
+		db := &Database{}
+		req := &types.Request{
+			Envelope: proto.Envelope{
+				Version: "",
+				TTL:     0,
+				Expire:  0,
+				NodeID: &proto.RawNodeID{
+					Hash: hash.Hash{},
+				},
+			},
+			Header: types.SignedRequestHeader{
+				RequestHeader: types.RequestHeader{
+					QueryType:    1,
+					NodeID:       "0000000000000000000000000000000000000000000000000000000000000001",
+					DatabaseID:   "1",
+					ConnectionID: 1,
+					SeqNo:        1,
+					Timestamp:    time.Now().UTC(),
+					BatchCount:   1,
+					QueriesHash:  hash.Hash{},
+				},
+			},
+			Payload: types.RequestPayload{
+				Queries: []types.Query{
+					{
+						Pattern: "xxx",
+						Args:    nil,
+					},
+				},
+			},
+		}
+		encoded, err := db.EncodePayload(req)
+		So(err, ShouldBeNil)
+		req2, err := db.DecodePayload(encoded)
+		So(err, ShouldBeNil)
+		So(req.Header, ShouldResemble, req2.(*types.Request).Header)
+		So(reflect.DeepEqual(req.Header, req2.(*types.Request).Header), ShouldBeTrue)
+		So(reflect.DeepEqual(req.Payload, req2.(*types.Request).Payload), ShouldBeTrue)
+		encoded2, err := db.EncodePayload(req)
+		So(err, ShouldBeNil)
+		So(encoded2, ShouldResemble, encoded)
 	})
 }
 

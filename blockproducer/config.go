@@ -24,10 +24,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-const (
-	blockVersion int32 = 0x01
-)
-
 // Config is the main chain configuration.
 type Config struct {
 	Mode    string

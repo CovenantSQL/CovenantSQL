@@ -236,11 +236,8 @@ func loadGenesis() (genesis *types.BPBlock, err error) {
 	genesis = &types.BPBlock{
 		SignedHeader: types.BPSignedHeader{
 			BPHeader: types.BPHeader{
-				Version:    genesisInfo.Version,
-				Producer:   proto.AccountAddress(genesisInfo.Producer),
-				MerkleRoot: genesisInfo.MerkleRoot,
-				ParentHash: genesisInfo.ParentHash,
-				Timestamp:  genesisInfo.Timestamp,
+				Version:   genesisInfo.Version,
+				Timestamp: genesisInfo.Timestamp,
 			},
 		},
 	}

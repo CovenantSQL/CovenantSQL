@@ -72,6 +72,9 @@ var (
 	ErrNilGenesis = errors.New("nil genesis block")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrGenesisHashNotMatch indicates that the genesis block hash in config doesn't match
+	// the persisted one.
+	ErrGenesisHashNotMatch = errors.New("persisted genesis block hash not match")
 	// ErrInvalidGasPrice indicates that the gas price is invalid.
 	ErrInvalidGasPrice = errors.New("gas price is invalid")
 	// ErrInvalidMinerCount indicates that the miner node count is invalid.

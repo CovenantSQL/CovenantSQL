@@ -130,6 +130,11 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		err = errors.Wrap(ierr, "failed to open storage")
 		return
 	}
+	defer func() {
+		if err != nil {
+			st.Close()
+		}
+	}()
 
 	// Create initial state from genesis block and store
 	if !existed {
@@ -152,6 +157,11 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	// Load from database and rebuild branches
 	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
 		err = errors.Wrap(ierr, "failed to load data from storage")
+		return
+	}
+	if persistedGenesis := irre.ancestorByCount(0); persistedGenesis == nil ||
+		!persistedGenesis.hash.IsEqual(cfg.Genesis.BlockHash()) {
+		err = ErrGenesisHashNotMatch
 		return
 	}
 	for _, v := range heads {

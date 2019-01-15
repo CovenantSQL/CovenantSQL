@@ -121,7 +121,7 @@ func TestChain(t *testing.T) {
 				}),
 			},
 		}
-		err = genesis.PackAndSignBlock(testingPrivateKey)
+		err = genesis.SetHash()
 		So(err, ShouldBeNil)
 		begin = genesis.Timestamp()
 
@@ -147,7 +147,7 @@ func TestChain(t *testing.T) {
 
 		Convey("A new chain running before genesis time should be waiting for genesis", func() {
 			config.Genesis.SignedHeader.Timestamp = time.Now().Add(24 * time.Hour)
-			err = genesis.PackAndSignBlock(testingPrivateKey)
+			err = genesis.SetHash()
 			So(err, ShouldBeNil)
 			chain, err = NewChain(config)
 			So(err, ShouldBeNil)

@@ -27,8 +27,6 @@ var (
 	ErrInvalidHash = errors.New("Hash is invalid")
 	// ErrExistedTx defines existed tx error.
 	ErrExistedTx = errors.New("Tx existed")
-	// ErrInvalidMerkleTreeRoot defines invalid merkle tree root error.
-	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
 	// ErrTooManyTransactionsInBlock defines error of too many transactions in a block.
@@ -70,6 +68,8 @@ var (
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
 	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
 	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
+	// ErrNilGenesis indicates that the genesis block is nil in config.
+	ErrNilGenesis = errors.New("nil genesis block")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
 	// ErrInvalidGasPrice indicates that the gas price is invalid.

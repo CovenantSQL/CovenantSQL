@@ -26,7 +26,6 @@ import (
 )
 
 //go:generate hsp
-//hsp:ignore TransactionState
 
 // AccountNonce defines the an account nonce.
 type AccountNonce uint32

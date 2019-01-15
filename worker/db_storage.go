@@ -31,6 +31,13 @@ import (
 
 // EncodePayload implements kayak.types.Handler.EncodePayload.
 func (db *Database) EncodePayload(request interface{}) (data []byte, err error) {
+	if req, ok := request.(*types.Request); ok {
+		data = req.GetMarshalCache()
+		if data != nil {
+			return
+		}
+	}
+
 	var buf *bytes.Buffer
 
 	if buf, err = utils.EncodeMsgPack(request); err != nil {
@@ -51,6 +58,7 @@ func (db *Database) DecodePayload(data []byte) (request interface{}, err error) 
 		return
 	}
 
+	req.SetMarshalCache(data)
 	request = req
 
 	return

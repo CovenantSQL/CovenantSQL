@@ -22,6 +22,7 @@ import (
 )
 
 //go:generate hsp
+//hsp:ignore PermStat
 
 // SQLChainRole defines roles of account in a SQLChain.
 type SQLChainRole byte

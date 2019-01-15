@@ -21,16 +21,19 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
+	lru "github.com/hashicorp/golang-lru"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 var (
 	// BypassSignature is the flag indicate if bypassing signature sign & verify
 	BypassSignature = false
 	bypassS         *Signature
+	verifyCache     *lru.Cache
 )
 
 // For test Signature.Sign mock
@@ -38,6 +41,7 @@ func init() {
 	priv, _ := ec.NewPrivateKey(ec.S256())
 	ss, _ := (*ec.PrivateKey)(priv).Sign(([]byte)("00000000000000000000000000000000"))
 	bypassS = (*Signature)(ss)
+	verifyCache, _ = lru.New(256)
 }
 
 // Signature is a type representing an ecdsa signature.
@@ -85,6 +89,7 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 		S: new(big.Int).SetBytes(sb[32:64]),
 	}
 	//s, e := (*ec.PrivateKey)(private).Sign(hash)
+
 	return (*Signature)(s), e
 }
 
@@ -98,12 +103,22 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 		return false
 	}
 
-	signature := make([]byte, 64)
+	cacheKey := make([]byte, 64+len(hash)+ec.PubKeyBytesLenUncompressed)
+	signature := cacheKey[:64]
 	copy(signature, utils.PaddedBigBytes(s.R, 32))
 	copy(signature[32:], utils.PaddedBigBytes(s.S, 32))
+	copy(cacheKey[64:64+len(hash)], hash)
 	signeeBytes := (*ec.PublicKey)(signee).SerializeUncompressed()
-	ret := secp256k1.VerifySignature(signeeBytes, hash, signature)
-	return ret
+	copy(cacheKey[64+len(hash):], signeeBytes)
+
+	if _, ok := verifyCache.Get(string(cacheKey)); ok {
+		return true
+	}
+	valid := secp256k1.VerifySignature(signeeBytes, hash, signature)
+	if valid {
+		verifyCache.Add(string(cacheKey), nil)
+	}
+	return valid
 	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 

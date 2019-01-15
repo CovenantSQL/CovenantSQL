@@ -240,6 +240,17 @@
   version = "v1.6.2"
 
 [[projects]]
+  digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
+  name = "github.com/hashicorp/golang-lru"
+  packages = [
+    ".",
+    "simplelru",
+  ]
+  pruneopts = "UT"
+  revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+  version = "v0.5.0"
+
+[[projects]]
   branch = "master"
   digest = "1:438016f7d4af8e5a7010b6d0705b267a7607ddc0decad051e83a9458c6b9a523"
   name = "github.com/jmoiron/jsonq"
@@ -651,6 +662,7 @@
     "github.com/fortytw2/leaktest",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
+    "github.com/hashicorp/golang-lru",
     "github.com/jmoiron/jsonq",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",

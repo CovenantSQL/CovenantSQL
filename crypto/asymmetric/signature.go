@@ -17,17 +17,16 @@
 package asymmetric
 
 import (
-	"context"
 	"crypto/elliptic"
 	"errors"
 	"math/big"
-	"runtime/trace"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
 	lru "github.com/hashicorp/golang-lru"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 var (
@@ -76,7 +75,6 @@ func (s *Signature) IsEqual(signature *Signature) bool {
 // a larger message) using the private key. Produced signature is deterministic (same message and
 // same key yield the same signature) and canonical in accordance with RFC6979 and BIP0062.
 func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
-	defer trace.StartRegion(context.Background(), "SignatureSign").End()
 	if len(hash) != 32 {
 		return nil, errors.New("only hash can be signed")
 	}
@@ -98,7 +96,6 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true
 // if the signature is valid, false otherwise.
 func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
-	defer trace.StartRegion(context.Background(), "SignatureVerify").End()
 	if BypassSignature {
 		return true
 	}
@@ -117,9 +114,7 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	if _, ok := verifyCache.Get(string(cacheKey)); ok {
 		return true
 	}
-	_, task := trace.NewTask(context.Background(), "secp256k1.VerifySignature")
 	valid := secp256k1.VerifySignature(signeeBytes, hash, signature)
-	task.End()
 	if valid {
 		verifyCache.Add(string(cacheKey), nil)
 	}

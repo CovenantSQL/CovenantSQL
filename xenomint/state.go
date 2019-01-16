@@ -86,10 +86,10 @@ func NewState(level sql.IsolationLevel, nodeID proto.NodeID, strg xi.Storage) (s
 }
 
 func (s *State) openSQLExecuter() {
-	var err error
 	if s.level == sql.LevelReadUncommitted {
+		var err error
 		if s.executer, err = s.strg.Writer().Begin(); err != nil {
-			log.Fatal("failed to open transaction: %v", err)
+			log.WithError(err).Fatal("failed to open transaction")
 		}
 	} else {
 		s.executer = &sqlDB{DB: s.strg.Writer()}
@@ -425,7 +425,7 @@ func (s *State) write(
 		// Try to commit if the ongoing tx is too large or schema is changed
 		if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||
 			atomic.LoadUint32(&s.hasSchemaChange) != 0 {
-			s.flush()
+			s.flushSQLExecuter()
 		}
 		writeDone = time.Since(start)
 		s.pool.enqueue(lastSeq, query)
@@ -478,7 +478,7 @@ func (s *State) replay(ctx context.Context, req *types.Request, resp *types.Resp
 	// Try to commit if the ongoing tx is too large or schema is changed
 	if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||
 		atomic.LoadUint32(&s.hasSchemaChange) != 0 {
-		s.flush()
+		s.flushSQLExecuter()
 	}
 	s.pool.enqueue(lastSeq, query)
 	return
@@ -531,7 +531,7 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 		s.pool.enqueue(lastsp, query)
 	}
 	// Always try to commit after a block is successfully replayed
-	s.flush()
+	s.flushSQLExecuter()
 	// Remove duplicate failed queries from local pool
 	for _, r := range block.FailedReqs {
 		s.pool.removeFailed(r)
@@ -569,7 +569,7 @@ func (s *State) commit() (err error) {
 		lockReleased = time.Since(start)
 	}()
 	lockAcquired = time.Since(start)
-	s.flush()
+	s.flushSQLExecuter()
 	committed = time.Since(start)
 	_ = s.pool.queries
 	s.pool = newPool()
@@ -615,7 +615,7 @@ func (s *State) CommitExWithContext(
 		lockReleased = time.Since(start)
 	}()
 	// Always try to commit before the block is produced
-	s.flush()
+	s.flushSQLExecuter()
 	committed = time.Since(start)
 	// Return pooled items and reset
 	failed = s.pool.failedList()
@@ -625,7 +625,7 @@ func (s *State) CommitExWithContext(
 	return
 }
 
-func (s *State) flush() {
+func (s *State) flushSQLExecuter() {
 	s.commitSQLExecuter()
 	s.openSQLExecuter()
 }

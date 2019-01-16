@@ -47,8 +47,7 @@ func TestState(t *testing.T) {
 		strg1, err = xs.NewSqlite(fmt.Sprint("file:", fl1))
 		So(err, ShouldBeNil)
 		So(strg1, ShouldNotBeNil)
-		st1, err = NewState(nodeID, strg1)
-		So(err, ShouldBeNil)
+		st1 = NewState(sql.LevelReadUncommitted, nodeID, strg1)
 		So(st1, ShouldNotBeNil)
 		Reset(func() {
 			// Clean database file after each pass
@@ -64,8 +63,7 @@ func TestState(t *testing.T) {
 		strg2, err = xs.NewSqlite(fmt.Sprint("file:", fl2))
 		So(err, ShouldBeNil)
 		So(strg1, ShouldNotBeNil)
-		st2, err = NewState(nodeID, strg2)
-		So(err, ShouldBeNil)
+		st2 = NewState(sql.LevelReadUncommitted, nodeID, strg2)
 		So(st1, ShouldNotBeNil)
 		Reset(func() {
 			// Clean database file after each pass

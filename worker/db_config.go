@@ -35,5 +35,6 @@ type DBConfig struct {
 	UpdateBlockCount       uint64
 	UseEventualConsistency bool
 	ConsistencyLevel       float64
+	IsolationLevel         int
 	SlowQueryTime          time.Duration
 }

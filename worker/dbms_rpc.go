@@ -57,13 +57,13 @@ type CancelSubscriptionResp struct {
 
 // DBMSRPCService is the rpc endpoint of database management.
 type DBMSRPCService struct {
-	dbms *DBMS
+	DBMS *DBMS
 }
 
 // NewDBMSRPCService returns new dbms rpc service endpoint.
 func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (service *DBMSRPCService) {
 	service = &DBMSRPCService{
-		dbms: dbms,
+		DBMS: dbms,
 	}
 	server.RegisterService(serviceName, service)
 
@@ -95,7 +95,7 @@ func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err e
 	}
 
 	var r *types.Response
-	if r, err = rpc.dbms.Query(req); err != nil {
+	if r, err = rpc.DBMS.Query(req); err != nil {
 		dbQueryFailCounter.Mark(1)
 		return
 	}
@@ -124,7 +124,7 @@ func (rpc *DBMSRPCService) Ack(ack *types.Ack, _ *types.AckResponse) (err error)
 	}
 
 	// verification
-	err = rpc.dbms.Ack(ack)
+	err = rpc.DBMS.Ack(ack)
 
 	return
 }
@@ -145,11 +145,11 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 	// create/drop/update
 	switch req.Header.Op {
 	case types.CreateDB:
-		err = rpc.dbms.Create(&req.Header.Instance, true)
+		err = rpc.DBMS.Create(&req.Header.Instance, true)
 	case types.UpdateDB:
-		err = rpc.dbms.Update(&req.Header.Instance)
+		err = rpc.DBMS.Update(&req.Header.Instance)
 	case types.DropDB:
-		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
+		err = rpc.DBMS.Drop(req.Header.Instance.DatabaseID)
 	}
 
 	return
@@ -158,13 +158,13 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 // SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
 func (rpc *DBMSRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, resp *SubscribeTransactionsResp) (err error) {
 	subscribeID := req.GetNodeID().ToNodeID()
-	err = rpc.dbms.addTxSubscription(req.DatabaseID, subscribeID, req.Height)
+	err = rpc.DBMS.addTxSubscription(req.DatabaseID, subscribeID, req.Height)
 	return
 }
 
 // CancelSubscription is the RPC method to cancel subscription in the target server.
 func (rpc *DBMSRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) (err error) {
 	nodeID := req.GetNodeID().ToNodeID()
-	err = rpc.dbms.cancelTxSubscription(req.DatabaseID, nodeID)
+	err = rpc.DBMS.cancelTxSubscription(req.DatabaseID, nodeID)
 	return
 }

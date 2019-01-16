@@ -44,6 +44,10 @@ type RuntimeConfig struct {
 	InstanceID string
 	// mux service name.
 	ServiceName string
-	// mux service method.
-	MethodName string
+	// apply service method.
+	ApplyMethodName string
+	// fetch service method.
+	FetchMethodName string
+	// fetch timeout.
+	LogWaitTimeout time.Duration
 }

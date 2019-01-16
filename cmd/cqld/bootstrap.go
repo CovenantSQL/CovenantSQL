@@ -48,7 +48,7 @@ const (
 	kayakWalFileName     = "kayak.ldb"
 	kayakPrepareTimeout  = 5 * time.Second
 	kayakCommitTimeout   = time.Minute
-	kayakLogWaitTimeout  = 30 * time.Second
+	kayakLogWaitTimeout  = 10 * time.Second
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {

@@ -162,10 +162,20 @@ func newFakeService(rt *kayak.Runtime) (fs *fakeService) {
 	return
 }
 
-func (s *fakeService) Call(req *kt.RPCRequest, resp *interface{}) (err error) {
+func (s *fakeService) Apply(req *kt.ApplyRequest, resp *interface{}) (err error) {
 	// add some delay for timeout test
 	//time.Sleep(time.Millisecond * 10)
 	return s.rt.FollowerApply(req.Log)
+}
+
+func (s *fakeService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err error) {
+	var l *kt.Log
+	if l, err = s.rt.Fetch(req.GetContext(), req.Index); err != nil {
+		return
+	}
+
+	resp.Log = l
+	return
 }
 
 func (s *fakeService) serveConn(c net.Conn) {
@@ -244,11 +254,12 @@ func TestRuntime(t *testing.T) {
 			CommitThreshold:  1.0,
 			PrepareTimeout:   time.Second,
 			CommitTimeout:    10 * time.Second,
+			LogWaitTimeout:   10 * time.Second,
 			Peers:            peers,
 			Wal:              wal1,
 			NodeID:           node1,
 			ServiceName:      "Test",
-			MethodName:       "Call",
+			ApplyMethodName:  "Apply",
 		}
 		rt1, err := kayak.NewRuntime(cfg1)
 		So(err, ShouldBeNil)
@@ -261,11 +272,12 @@ func TestRuntime(t *testing.T) {
 			CommitThreshold:  1.0,
 			PrepareTimeout:   time.Second,
 			CommitTimeout:    10 * time.Second,
+			LogWaitTimeout:   10 * time.Second,
 			Peers:            peers,
 			Wal:              wal2,
 			NodeID:           node2,
 			ServiceName:      "Test",
-			MethodName:       "Call",
+			ApplyMethodName:  "Apply",
 		}
 		rt2, err := kayak.NewRuntime(cfg2)
 		So(err, ShouldBeNil)
@@ -489,11 +501,12 @@ func TestRuntime(t *testing.T) {
 			CommitThreshold:  1.0,
 			PrepareTimeout:   time.Second,
 			CommitTimeout:    10 * time.Second,
+			LogWaitTimeout:   10 * time.Second,
 			Peers:            peers,
 			Wal:              w,
 			NodeID:           node1,
 			ServiceName:      "Test",
-			MethodName:       "Call",
+			ApplyMethodName:  "Apply",
 		}
 		rt, err := kayak.NewRuntime(cfg)
 		So(err, ShouldBeNil)
@@ -550,14 +563,15 @@ func BenchmarkRuntime(b *testing.B) {
 		cfg1 := &kt.RuntimeConfig{
 			Handler:          db1,
 			PrepareThreshold: 1.0,
-			CommitThreshold:  1.0,
+			CommitThreshold:  0.0,
 			PrepareTimeout:   time.Second,
 			CommitTimeout:    10 * time.Second,
+			LogWaitTimeout:   10 * time.Second,
 			Peers:            peers,
 			Wal:              wal1,
 			NodeID:           node1,
 			ServiceName:      "Test",
-			MethodName:       "Call",
+			ApplyMethodName:  "Apply",
 		}
 		rt1, err := kayak.NewRuntime(cfg1)
 		So(err, ShouldBeNil)
@@ -567,14 +581,15 @@ func BenchmarkRuntime(b *testing.B) {
 		cfg2 := &kt.RuntimeConfig{
 			Handler:          db2,
 			PrepareThreshold: 1.0,
-			CommitThreshold:  1.0,
+			CommitThreshold:  0.0,
 			PrepareTimeout:   time.Second,
 			CommitTimeout:    10 * time.Second,
+			LogWaitTimeout:   10 * time.Second,
 			Peers:            peers,
 			Wal:              wal2,
 			NodeID:           node2,
 			ServiceName:      "Test",
-			MethodName:       "Call",
+			ApplyMethodName:  "Apply",
 		}
 		rt2, err := kayak.NewRuntime(cfg2)
 		So(err, ShouldBeNil)
@@ -663,6 +678,7 @@ func BenchmarkRuntime(b *testing.B) {
 		})
 		So(d1, ShouldHaveLength, 1)
 		So(d1[0], ShouldHaveLength, 1)
+		_ = total
 		So(fmt.Sprint(d1[0][0]), ShouldEqual, fmt.Sprint(total))
 
 		//_, _, d2, _ := db2.Query(context.Background(), []storage.Query{

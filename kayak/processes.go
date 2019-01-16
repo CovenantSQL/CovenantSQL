@@ -59,7 +59,7 @@ func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req inte
 	tm.Add("leader_prepare")
 
 	// send prepare to all nodes
-	prepareTracker := r.rpc(prepareLog, r.minPreparedFollowers)
+	prepareTracker := r.applyRPC(prepareLog, r.minPreparedFollowers)
 	prepareCtx, prepareCtxCancelFunc := context.WithTimeout(ctx, r.prepareTimeout)
 	defer prepareCtxCancelFunc()
 	prepareErrors, prepareDone, _ := prepareTracker.get(prepareCtx)
@@ -112,7 +112,7 @@ func (r *Runtime) doLeaderRollback(ctx context.Context, tm *timer.Timer, prepare
 	defer trace.StartRegion(ctx, "followerRollback").End()
 
 	// async send rollback to all nodes
-	r.rpc(rollbackLog, 0)
+	r.applyRPC(rollbackLog, 0)
 
 	tm.Add("follower_rollback")
 }

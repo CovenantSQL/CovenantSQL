@@ -64,7 +64,7 @@ func newTracker(r *Runtime, req interface{}, minCount int) (t *rpcTracker) {
 	t = &rpcTracker{
 		r:        r,
 		nodes:    nodes,
-		method:   r.rpcMethod,
+		method:   r.applyRPCMethod,
 		req:      req,
 		minCount: minCount,
 		errors:   make(map[proto.NodeID]error, len(nodes)),

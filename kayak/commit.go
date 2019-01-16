@@ -158,7 +158,7 @@ func (r *Runtime) leaderDoCommit(req *commitReq) {
 	atomic.StoreUint64(&r.lastCommit, l.Index)
 
 	// send commit
-	cr.rpc = r.rpc(l, r.minCommitFollowers)
+	cr.rpc = r.applyRPC(l, r.minCommitFollowers)
 	cr.index = l.Index
 	cr.err = err
 
@@ -186,6 +186,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	if req.lastCommit != myLastCommit {
 		// TODO(): need counter for retries, infinite commit re-order would cause troubles
 		go func(req *commitReq) {
+			_, _ = r.waitForLog(req.ctx, req.lastCommit)
 			r.commitCh <- req
 		}(req)
 		waitCommitTask.End()
@@ -231,12 +232,20 @@ func (r *Runtime) getPrepareLog(ctx context.Context, l *kt.Log) (lastCommitIndex
 		return
 	}
 
+	if pl, err = r.waitForLog(ctx, prepareIndex); err != nil {
+		err = errors.Wrap(err, "wait for prepare log failed")
+		return
+	}
+
 	// decode commit index
 	if len(l.Data) >= 16 {
 		lastCommitIndex, _ = r.bytesToUint64(l.Data[8:])
-	}
 
-	pl, err = r.wal.Get(prepareIndex)
+		if _, err = r.waitForLog(ctx, lastCommitIndex); err != nil {
+			err = errors.Wrap(err, "wait for last commit log failed")
+			return
+		}
+	}
 
 	return
 }

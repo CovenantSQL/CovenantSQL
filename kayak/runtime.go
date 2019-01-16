@@ -18,7 +18,6 @@ package kayak
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -35,8 +34,10 @@ import (
 const (
 	// commit channel window size
 	commitWindow = 0
-	// prepare window
-	trackerWindow = 10
+	// missing log window
+	missingLogWindow = 10
+	// missing log concurrency
+	missingLogConcurrency = 10
 )
 
 // Runtime defines the main kayak Runtime.
@@ -81,10 +82,10 @@ type Runtime struct {
 	callerMap sync.Map // map[proto.NodeID]Caller
 	// service name for mux service.
 	serviceName string
-	// rpc method for coordination requests.
-	rpcMethod string
-	// tracks the outgoing rpc requests.
-	rpcTrackCh chan *rpcTracker
+	// rpc method for apply requests.
+	applyRPCMethod string
+	// rpc method for fetch requests.
+	fetchRPCMethod string
 
 	//// Parameters
 	// prepare threshold defines the minimum node count requirement for prepare operation.
@@ -95,8 +96,13 @@ type Runtime struct {
 	prepareTimeout time.Duration
 	// commit timeout defines the max allowed time for commit operation.
 	commitTimeout time.Duration
+	// log wait timeout to fetch missing logs.
+	logWaitTimeout time.Duration
 	// channel for awaiting commits.
 	commitCh chan *commitReq
+	// channel for missing log indexes.
+	missingLogCh chan *waitItem
+	waitLogMap   sync.Map // map[uint64]*waitItem
 
 	/// Sub-routines management.
 	started uint32
@@ -221,16 +227,18 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 		minCommitFollowers:   minCommitFollowers,
 
 		// rpc related
-		serviceName: cfg.ServiceName,
-		rpcMethod:   fmt.Sprintf("%v.%v", cfg.ServiceName, cfg.MethodName),
-		rpcTrackCh:  make(chan *rpcTracker, trackerWindow),
+		serviceName:    cfg.ServiceName,
+		applyRPCMethod: cfg.ServiceName + "." + cfg.ApplyMethodName,
+		fetchRPCMethod: cfg.ServiceName + "." + cfg.FetchMethodName,
 
 		// commits related
 		prepareThreshold: cfg.PrepareThreshold,
 		prepareTimeout:   cfg.PrepareTimeout,
 		commitThreshold:  cfg.CommitThreshold,
 		commitTimeout:    cfg.CommitTimeout,
+		logWaitTimeout:   cfg.LogWaitTimeout,
 		commitCh:         make(chan *commitReq, commitWindow),
+		missingLogCh:     make(chan *waitItem, missingLogWindow),
 
 		// stop coordinator
 		stopCh: make(chan struct{}),
@@ -252,8 +260,10 @@ func (r *Runtime) Start() (err error) {
 
 	// start commit cycle
 	r.goFunc(r.commitCycle)
-	// start rpc tracker collector
-	// TODO():
+	// start missing log worker
+	for i := 0; i != missingLogConcurrency; i++ {
+		r.goFunc(r.missingLogCycle)
+	}
 
 	return
 }
@@ -276,6 +286,11 @@ func (r *Runtime) Shutdown() (err error) {
 
 // Apply defines entry for Leader node.
 func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{}, logIndex uint64, err error) {
+	if atomic.LoadUint32(&r.started) != 1 {
+		err = kt.ErrStopped
+		return
+	}
+
 	ctx, task := trace.NewTask(ctx, "Kayak.Apply")
 	defer task.End()
 
@@ -323,10 +338,49 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	return
 }
 
+// Fetch defines entry for missing log fetch.
+func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error) {
+	if atomic.LoadUint32(&r.started) != 1 {
+		err = kt.ErrStopped
+		return
+	}
+
+	tm := timer.NewTimer()
+
+	defer func() {
+		log.WithField("l", index).
+			WithFields(tm.ToLogFields()).
+			WithError(err).
+			Debug("kayak log fetch")
+	}()
+
+	waitForLockRegion := trace.StartRegion(ctx, "peersLock")
+
+	r.peersLock.RLock()
+	defer r.peersLock.RUnlock()
+
+	tm.Add("peers_lock")
+
+	waitForLockRegion.End()
+
+	if r.role != proto.Leader {
+		// not leader
+		err = kt.ErrNotLeader
+		return
+	}
+
+	// wal get
+	return r.wal.Get(index)
+}
+
 // FollowerApply defines entry for follower node.
 func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 	if l == nil {
 		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
+		return
+	}
+	if atomic.LoadUint32(&r.started) != 1 {
+		err = kt.ErrStopped
 		return
 	}
 
@@ -373,6 +427,7 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 
 	if err == nil {
 		r.updateNextIndex(ctx, l)
+		r.triggerLogAwaits(l.Index)
 	}
 
 	return

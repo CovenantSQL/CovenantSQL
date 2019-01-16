@@ -42,11 +42,13 @@ import (
 )
 
 const (
-	kayakServiceName    = "Kayak"
-	kayakMethodName     = "Call"
-	kayakWalFileName    = "kayak.ldb"
-	kayakPrepareTimeout = 5 * time.Second
-	kayakCommitTimeout  = time.Minute
+	kayakServiceName     = "Kayak"
+	kayakApplyMethodName = "Apply"
+	kayakFetchMethodName = "Fetch"
+	kayakWalFileName     = "kayak.ldb"
+	kayakPrepareTimeout  = 5 * time.Second
+	kayakCommitTimeout   = time.Minute
+	kayakLogWaitTimeout  = 30 * time.Second
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
@@ -226,11 +228,13 @@ func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.H
 		CommitThreshold:  1.0,
 		PrepareTimeout:   kayakPrepareTimeout,
 		CommitTimeout:    kayakCommitTimeout,
+		LogWaitTimeout:   kayakLogWaitTimeout,
 		Peers:            peers,
 		Wal:              logWal,
 		NodeID:           node.ID,
 		ServiceName:      kayakServiceName,
-		MethodName:       kayakMethodName,
+		ApplyMethodName:  kayakApplyMethodName,
+		FetchMethodName:  kayakFetchMethodName,
 	}
 
 	// create kayak runtime

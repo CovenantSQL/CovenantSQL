@@ -56,13 +56,16 @@ const (
 	PrepareThreshold = 1.0
 
 	// CommitThreshold defines the commit complete threshold.
-	CommitThreshold = 1.0
+	CommitThreshold = 0.0
 
 	// PrepareTimeout defines the prepare timeout config.
 	PrepareTimeout = 10 * time.Second
 
 	// CommitTimeout defines the commit timeout config.
 	CommitTimeout = time.Minute
+
+	// LogWaitTimeout defines the missing log wait timeout config.
+	LogWaitTimeout = 5 * time.Second
 
 	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
 	SlowQuerySampleSize = 1 << 10
@@ -181,12 +184,14 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		CommitThreshold:  CommitThreshold,
 		PrepareTimeout:   PrepareTimeout,
 		CommitTimeout:    CommitTimeout,
+		LogWaitTimeout:   LogWaitTimeout,
 		Peers:            peers,
 		Wal:              db.kayakWal,
 		NodeID:           db.nodeID,
 		InstanceID:       string(db.dbID),
 		ServiceName:      DBKayakRPCName,
-		MethodName:       DBKayakMethodName,
+		ApplyMethodName:  DBKayakApplyMethodName,
+		FetchMethodName:  DBKayakFetchMethodName,
 	}
 
 	// create kayak runtime

@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -39,7 +40,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
-	mock_conn "github.com/jordwest/mock-conn"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -195,13 +195,11 @@ func newFakeCaller(m *fakeMux, nodeID proto.NodeID) *fakeCaller {
 }
 
 func (c *fakeCaller) Call(method string, req interface{}, resp interface{}) (err error) {
-	fakeConn := mock_conn.NewConn()
-
-	go c.m.get(c.target).serveConn(fakeConn.Server)
-	client := rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(fakeConn.Client))
-	defer client.Close()
-
-	return client.Call(method, req, resp)
+	if strings.HasSuffix(method, "Apply") {
+		return c.m.get(c.target).Apply(req.(*kt.ApplyRequest), nil)
+	} else {
+		return c.m.get(c.target).Fetch(req.(*kt.FetchRequest), resp.(*kt.FetchResponse))
+	}
 }
 
 func TestRuntime(t *testing.T) {

@@ -149,7 +149,6 @@ func startNodes() {
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
-			"-log-level", "debug",
 		},
 		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
@@ -163,7 +162,6 @@ func startNodes() {
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
-			"-log-level", "debug",
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -177,7 +175,6 @@ func startNodes() {
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
-			"-log-level", "debug",
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {

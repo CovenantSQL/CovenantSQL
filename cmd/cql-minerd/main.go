@@ -82,6 +82,7 @@ var (
 	noLogo      bool
 	showVersion bool
 	logLevel    string
+	wsapiAddr   string
 )
 
 const name = `cql-minerd`
@@ -102,6 +103,7 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricGraphite, "metric-graphite-server", "", "Metric graphite server to push metrics")
 	flag.StringVar(&traceFile, "trace-file", "", "trace profile")
+	// flag.StringVar(&wsapiAddr, "wsapi", ":8546", "Address of the websocket JSON-RPC API")
 	flag.StringVar(&logLevel, "log-level", "", "service log level")
 
 	flag.Usage = func() {
@@ -210,17 +212,15 @@ func main() {
 	if dbms, err = startDBMS(server); err != nil {
 		log.WithError(err).Fatal("start dbms failed")
 	}
-
 	defer dbms.Shutdown()
 
-	// start rpc server
-	go func() {
-		server.Serve()
-	}()
-	defer func() {
-		server.Listener.Close()
-		server.Stop()
-	}()
+	// start etls rpc server
+	go server.Serve()
+	defer server.Stop()
+
+	// start jsonrpc server (websocket)
+	// wsapiAddr = ":8546"
+	// startWebsocketAPI(wsapiAddr, dbms)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

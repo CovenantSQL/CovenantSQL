@@ -219,8 +219,8 @@ func main() {
 	defer server.Stop()
 
 	// start jsonrpc server (websocket)
-	// wsapiAddr = ":8546"
-	// startWebsocketAPI(wsapiAddr, dbms)
+	wsapiAddr = ":8546"
+	startWebsocketAPI(wsapiAddr, dbms)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

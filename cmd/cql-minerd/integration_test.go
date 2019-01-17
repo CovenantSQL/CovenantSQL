@@ -47,7 +47,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/sourcegraph/jsonrpc2"
+	wsstream "github.com/sourcegraph/jsonrpc2/websocket"
 )
 
 var (
@@ -570,7 +574,90 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// TODO(lambda): Drop database
+
+		Convey("test wsapi", FailureContinues, func(c C) {
+			var (
+				addr       = "ws://localhost:8546"
+				pkHexStr   = "0285a071326afac5cb6af4b3bde3a38a591a81854a1f03b942bba8306b7abc5c68"
+				walletAddr = "8298c837d4005bfb74a7f7901192d527f0a54adc376cef0125ffc41938c556dd"
+			)
+
+			Convey("register API (handshake)", func() {
+				client, err := setupWebsocketClient(addr)
+				if err != nil {
+					t.Errorf("failed to connect to wsapi server: %v", err)
+					return
+				}
+
+				testCases := []*registerClientTestCase{
+					{registerClientParams{walletAddr, pkHexStr}, nil},
+					{registerClientParams{walletAddr, "invalid"}, errors.New("invalid public key")},
+					{registerClientParams{"invalid", pkHexStr}, errors.New("invalid wallet address")},
+				}
+
+				for i, c := range testCases {
+					Convey(fmt.Sprintf("case#%d: %s", i, c.String()), func() {
+						var result interface{}
+						err := client.Call(
+							context.Background(),
+							"__register",
+							[]interface{}{c.Address, c.PublicKey},
+							&result,
+						)
+						if c.Expected == nil {
+							So(err, ShouldBeNil)
+						} else {
+							So(err, ShouldNotBeNil)
+						}
+					})
+				}
+			})
+		})
 	})
+}
+
+type registerClientTestCase struct {
+	registerClientParams
+	Expected error
+}
+
+func (c *registerClientTestCase) String() string {
+	if c.Expected != nil {
+		return "register client should fail on " + c.Expected.Error()
+	}
+	return "register client should success"
+}
+
+func setupWebsocketClient(addr string) (client *jsonrpc2.Conn, err error) {
+	var dial = func(ctx context.Context, addr string) (client *jsonrpc2.Conn, err error) {
+		conn, _, err := websocket.DefaultDialer.DialContext(
+			context.Background(),
+			addr,
+			nil,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		var connOpts []jsonrpc2.ConnOpt
+		return jsonrpc2.NewConn(
+			context.Background(),
+			wsstream.NewObjectStream(conn),
+			nil,
+			connOpts...,
+		), nil
+	}
+
+	for i := 0; i < 3; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		client, err = dial(ctx, addr)
+		if err == nil {
+			break
+		}
+	}
+
+	return client, err
 }
 
 func waitProfileChecking(ctx context.Context, period time.Duration, dbID proto.DatabaseID,

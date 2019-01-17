@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -29,39 +30,49 @@ func TestBlockNode(t *testing.T) {
 		var (
 			b0 = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
-					BlockHash: hash.Hash{0x1},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x1},
+					},
 				},
 			}
 			b1 = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
 					BPHeader: types.BPHeader{
-						ParentHash: b0.SignedHeader.BlockHash,
+						ParentHash: b0.SignedHeader.DataHash,
 					},
-					BlockHash: hash.Hash{0x2},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x2},
+					},
 				},
 			}
 			b2 = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
 					BPHeader: types.BPHeader{
-						ParentHash: b1.SignedHeader.BlockHash,
+						ParentHash: b1.SignedHeader.DataHash,
 					},
-					BlockHash: hash.Hash{0x3},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x3},
+					},
 				},
 			}
 			b3 = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
 					BPHeader: types.BPHeader{
-						ParentHash: b2.SignedHeader.BlockHash,
+						ParentHash: b2.SignedHeader.DataHash,
 					},
-					BlockHash: hash.Hash{0x4},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x4},
+					},
 				},
 			}
 			b4 = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
 					BPHeader: types.BPHeader{
-						ParentHash: b3.SignedHeader.BlockHash,
+						ParentHash: b3.SignedHeader.DataHash,
 					},
-					BlockHash: hash.Hash{0x5},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x5},
+					},
 				},
 			}
 			n0 = newBlockNode(0, b0, nil)
@@ -73,17 +84,21 @@ func TestBlockNode(t *testing.T) {
 			b3p = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
 					BPHeader: types.BPHeader{
-						ParentHash: b2.SignedHeader.BlockHash,
+						ParentHash: b2.SignedHeader.DataHash,
 					},
-					BlockHash: hash.Hash{0x6},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x6},
+					},
 				},
 			}
 			b4p = &types.BPBlock{
 				SignedHeader: types.BPSignedHeader{
 					BPHeader: types.BPHeader{
-						ParentHash: b3p.SignedHeader.BlockHash,
+						ParentHash: b3p.SignedHeader.DataHash,
 					},
-					BlockHash: hash.Hash{0x7},
+					DefaultHashSignVerifierImpl: verifier.DefaultHashSignVerifierImpl{
+						DataHash: hash.Hash{0x7},
+					},
 				},
 			}
 			n3p = newBlockNode(3, b3p, n2)

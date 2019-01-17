@@ -54,16 +54,8 @@ type BaseAccountInfo struct {
 type BPGenesisInfo struct {
 	// Version defines the block version
 	Version int32 `yaml:"Version"`
-	// Producer defines the block producer
-	Producer hash.Hash `yaml:"Producer"`
-	// MerkleRoot defines the transaction merkle tree's root
-	MerkleRoot hash.Hash `yaml:"MerkleRoot"`
-	// ParentHash defines the parent block's hash
-	ParentHash hash.Hash `yaml:"ParentHash"`
 	// Timestamp defines the initial time of chain
 	Timestamp time.Time `yaml:"Timestamp"`
-	// BlockHash defines the block hash of genesis block
-	BlockHash hash.Hash `yaml:"BlockHash"`
 	// BaseAccounts defines the base accounts for testnet
 	BaseAccounts []BaseAccountInfo `yaml:"BaseAccounts"`
 }

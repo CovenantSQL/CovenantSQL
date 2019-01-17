@@ -43,7 +43,7 @@ func newBlockNode(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
 		}(),
 		height: h,
 
-		hash:  b.SignedHeader.BlockHash,
+		hash:  b.SignedHeader.DataHash,
 		block: b,
 	}
 }

@@ -393,7 +393,7 @@ func (s *State) write(
 			lockReleased = time.Since(start)
 		}()
 		lastSeq = s.getSeq()
-		if qcnt > 1 {
+		if qcnt > 1 && s.level == sql.LevelReadUncommitted {
 			// Set savepoint
 			if _, ierr = s.executer.Exec(`SAVEPOINT "?"`, lastSeq); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to create savepoint %d", lastSeq)
@@ -415,12 +415,18 @@ func (s *State) write(
 			lastInsertID, _ = res.LastInsertId()
 			totalAffectedRows += curAffectedRows
 		}
-		if qcnt > 1 {
-			// Release savepoint
-			if _, ierr = s.executer.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
-				err = errors.Wrapf(ierr, "failed to release savepoint %d", lastSeq)
-				return
+		if s.level == sql.LevelReadUncommitted {
+			if qcnt > 1 {
+				// Release savepoint
+				if _, ierr = s.executer.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
+					err = errors.Wrapf(ierr, "failed to release savepoint %d", lastSeq)
+					return
+				}
 			}
+		} else {
+			// NOTE(leventeliu): this will cancel any uncommitted transaction, and do not harm to
+			// committed ones.
+			s.executer.Exec(`ROLLBACK`)
 		}
 		// Try to commit if the ongoing tx is too large or schema is changed
 		if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||

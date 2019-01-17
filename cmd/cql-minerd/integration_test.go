@@ -149,6 +149,7 @@ func startNodes() {
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner0.cover.out"),
+			"-log-level", "debug",
 		},
 		"miner0", testWorkingDir, logDir, true,
 	); err == nil {
@@ -162,6 +163,7 @@ func startNodes() {
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner1.cover.out"),
+			"-log-level", "debug",
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -175,6 +177,7 @@ func startNodes() {
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/miner2.cover.out"),
+			"-log-level", "debug",
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -373,8 +376,9 @@ func TestFullProcess(t *testing.T) {
 		// client send create database transaction
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				TargetMiners: minersAddrs,
-				Node:         uint16(len(minersAddrs)),
+				TargetMiners:   minersAddrs,
+				Node:           uint16(len(minersAddrs)),
+				IsolationLevel: int(sql.LevelReadUncommitted),
 			},
 			GasPrice:       testGasPrice,
 			AdvancePayment: testAdvancePayment,
@@ -540,8 +544,6 @@ func TestFullProcess(t *testing.T) {
 			err = row.Scan(&result)
 			c.So(err, ShouldBeNil)
 			c.So(result, ShouldEqual, 10000000000)
-
-			c.So(err, ShouldBeNil)
 		})
 
 		ctx2, ccl2 := context.WithTimeout(context.Background(), 3*time.Minute)

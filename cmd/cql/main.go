@@ -335,6 +335,7 @@ func main() {
 		}
 
 		log.Infof("the newly created database is: %#v", dsn)
+		fmt.Printf(dsn)
 		return
 	}
 

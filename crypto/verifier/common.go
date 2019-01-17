@@ -98,7 +98,7 @@ func (i *DefaultHashSignVerifierImpl) VerifyHash(mh MarshalHasher) (err error) {
 
 // VerifySignature implements HashSignVerifier.VerifySignature.
 func (i *DefaultHashSignVerifierImpl) VerifySignature() (err error) {
-	if i.Signature == nil || i.Signee == nil || !i.Signature.Verify(i.DataHash[:], i.Signee) {
+	if !i.Signature.Verify(i.DataHash[:], i.Signee) {
 		err = errors.WithStack(ErrSignatureNotMatch)
 		return
 	}

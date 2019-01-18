@@ -171,6 +171,9 @@ func runRPC() {
 			case pi.TransactionStateExpired, pi.TransactionStateNotFound:
 				fmt.Print("✘\n")
 				log.Fatalf("bad transaction state: %s", resp.State)
+			default:
+				fmt.Print("✘\n")
+				log.Fatal("unknown transaction state")
 			}
 			select {
 			case <-ticker.C:

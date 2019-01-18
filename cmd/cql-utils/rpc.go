@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -46,9 +47,10 @@ var (
 		route.SQLChainRPCName:      &sqlchain.MuxService{},
 		route.BlockProducerRPCName: &bp.ChainRPCService{},
 	}
-	rpcName     string
-	rpcEndpoint string
-	rpcReq      string
+	rpcName          string
+	rpcEndpoint      string
+	rpcReq           string
+	rpcTxWaitConfirm bool
 )
 
 type canSign interface {
@@ -59,6 +61,7 @@ func init() {
 	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
 	flag.StringVar(&rpcEndpoint, "rpc-endpoint", "", "rpc endpoint to do test call")
 	flag.StringVar(&rpcReq, "rpc-req", "", "rpc request to do test call, in json format")
+	flag.BoolVar(&rpcTxWaitConfirm, "rpc-tx-wait-confirm", false, "wait for transaction confirmation")
 }
 
 func runRPC() {
@@ -95,9 +98,10 @@ func runRPC() {
 	}
 
 	// fill nonce if this is a AddTx request
+	var tx pi.Transaction
 	if rpcName == route.MCCAddTx.String() {
 		if addTxReqType, ok := req.(*types.AddTxReq); ok {
-			var tx = addTxReqType.Tx
+			tx = addTxReqType.Tx
 			for {
 				if txWrapper, ok := tx.(*pi.TransactionWrapper); ok {
 					tx = txWrapper.Unwrap()
@@ -138,6 +142,41 @@ func runRPC() {
 	// print the response
 	log.Info("got response")
 	spewCfg.Dump(resp)
+
+	if rpcName == route.MCCAddTx.String() && rpcTxWaitConfirm {
+		log.Info("waiting for transaction confirmation...")
+		var (
+			err    error
+			ticker = time.NewTicker(1 * time.Second)
+			req    = &types.QueryTxStateReq{Hash: tx.Hash()}
+			resp   = &types.QueryTxStateResp{}
+		)
+		defer ticker.Stop()
+		for {
+			if err = rpc.NewCaller().CallNode(
+				proto.NodeID(rpcEndpoint),
+				route.MCCQueryTxState.String(),
+				req, resp,
+			); err != nil {
+				log.Fatalf("query transaction state failed: %v", err)
+			}
+			switch resp.State {
+			case pi.TransactionStatePending:
+				fmt.Print(".")
+			case pi.TransactionStatePacked:
+				fmt.Print("+")
+			case pi.TransactionStateConfirmed:
+				fmt.Print("✔\n")
+				return
+			case pi.TransactionStateExpired, pi.TransactionStateNotFound:
+				fmt.Print("✘\n")
+				log.Fatalf("bad transaction state: %s", resp.State)
+			}
+			select {
+			case <-ticker.C:
+			}
+		}
+	}
 }
 
 func checkAndSign(req interface{}) (err error) {

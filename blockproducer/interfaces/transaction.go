@@ -129,6 +129,23 @@ const (
 	TransactionStateNotFound
 )
 
+func (s TransactionState) String() string {
+	switch s {
+	case TransactionStatePending:
+		return "Pending"
+	case TransactionStatePacked:
+		return "Packed"
+	case TransactionStateConfirmed:
+		return "Confirmed"
+	case TransactionStateExpired:
+		return "Expired"
+	case TransactionStateNotFound:
+		return "Not Found"
+	default:
+		return "Unknown"
+	}
+}
+
 // Transaction is the interface implemented by an object that can be verified and processed by
 // block producers.
 type Transaction interface {

@@ -175,9 +175,7 @@ func runRPC() {
 				fmt.Print("✘\n")
 				log.Fatal("unknown transaction state")
 			}
-			select {
-			case <-ticker.C:
-			}
+			<-ticker.C
 		}
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/pkg/errors"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -58,10 +57,6 @@ func (h *Handler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 	jsonrpc2.HandlerWithError(h.handle).Handle(ctx, conn, req)
 }
 
-var methodNotFound = func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
-	return nil, errors.Errorf("method not found: %q", req.Method)
-}
-
 // handle is a function to be used by jsonrpc2.Handler.
 func (h *Handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
 	result interface{}, err error,
@@ -79,7 +74,7 @@ func (h *Handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 
 	fn := h.methods[req.Method]
 	if fn == nil {
-		fn = methodNotFound
+		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound}
 	} else if req.Params == nil {
 		// pre-check req.Params not be nil
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}

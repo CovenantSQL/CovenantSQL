@@ -52,13 +52,21 @@ func TestPubKeyHashAndAddressing(t *testing.T) {
 	}
 
 	Convey("Test the public key and address", t, func() {
-		for i := range testPubkeyAndAddr {
-			pubByte, err := hex.DecodeString(testPubkeyAndAddr[i].pubkey)
+		for _, c := range testPubkeyAndAddr {
+			pubByte, err := hex.DecodeString(c.pubkey)
 			So(err, ShouldBeNil)
-			pub, _ := asymmetric.ParsePubKey(pubByte)
+			pub, err := asymmetric.ParsePubKey(pubByte)
+			So(err, ShouldBeNil)
 			addr, err := PubKeyHash(pub)
-			So(addr.String(), ShouldEqual, testPubkeyAndAddr[i].addr)
 			So(err, ShouldBeNil)
+			So(addr.String(), ShouldEqual, c.addr)
 		}
+	})
+
+	Convey("empty pubkey to address should fail", t, func() {
+		pub := &asymmetric.PublicKey{}
+		addr, err := PubKeyHash(pub)
+		So(err, ShouldBeError)
+		So(addr.String(), ShouldEqual, "0000000000000000000000000000000000000000000000000000000000000000")
 	})
 }

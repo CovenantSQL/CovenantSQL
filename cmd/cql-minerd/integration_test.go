@@ -21,6 +21,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -332,16 +334,12 @@ func stopNodes() {
 
 func TestFullProcess(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+	startNodes()
+	defer stopNodes()
+	time.Sleep(10 * time.Second)
 
 	Convey("test full process", t, func(c C) {
-		startNodes()
-		defer stopNodes()
 		var err error
-
-		time.Sleep(10 * time.Second)
-
-		So(err, ShouldBeNil)
-
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
 
@@ -574,46 +572,201 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// TODO(lambda): Drop database
-
-		Convey("test wsapi", FailureContinues, func(c C) {
-			var (
-				addr       = "ws://localhost:8546"
-				pkHexStr   = "0285a071326afac5cb6af4b3bde3a38a591a81854a1f03b942bba8306b7abc5c68"
-				walletAddr = "8298c837d4005bfb74a7f7901192d527f0a54adc376cef0125ffc41938c556dd"
-			)
-
-			Convey("register API (handshake)", func() {
-				client, err := setupWebsocketClient(addr)
-				if err != nil {
-					t.Errorf("failed to connect to wsapi server: %v", err)
-					return
-				}
-
-				testCases := []*registerClientTestCase{
-					{registerClientParams{walletAddr, pkHexStr}, nil},
-					{registerClientParams{walletAddr, "invalid"}, errors.New("invalid public key")},
-					{registerClientParams{"invalid", pkHexStr}, errors.New("invalid wallet address")},
-				}
-
-				for i, c := range testCases {
-					Convey(fmt.Sprintf("case#%d: %s", i, c.String()), func() {
-						var result interface{}
-						err := client.Call(
-							context.Background(),
-							"__register",
-							[]interface{}{c.Address, c.PublicKey},
-							&result,
-						)
-						if c.Expected == nil {
-							So(err, ShouldBeNil)
-						} else {
-							So(err, ShouldNotBeNil)
-						}
-					})
-				}
-			})
-		})
 	})
+
+	Convey("test wsapi", t, func(c C) {
+		var buildParams = func(request interface{}) *dbmsProxyParams {
+			out, err := utils.EncodeMsgPack(request)
+			if err != nil {
+				fmt.Printf("panic on: %#v", request)
+				panic(err)
+			}
+			return &dbmsProxyParams{
+				Payload: base64.StdEncoding.EncodeToString(out.Bytes()),
+			}
+		}
+
+		var (
+			addr       = "ws://localhost:8546"
+			pkHexStr   = "0285a071326afac5cb6af4b3bde3a38a591a81854a1f03b942bba8306b7abc5c68"
+			walletAddr = "8298c837d4005bfb74a7f7901192d527f0a54adc376cef0125ffc41938c556dd"
+		)
+
+		privKey, err := kms.DecryptPrivateKeyBytes(
+			[]byte("Mbd6MNkyhRseP65wATBstPeUajTYYzTomuCdKZaqW9dFNPhJmHGb31o8bA5to8i8SZjD6EeCMa77ydoq8LfkLHgPYaC1yW"),
+			[]byte(""))
+		So(err, ShouldBeNil)
+		So(hex.EncodeToString(privKey.PubKey().Serialize()), ShouldEqual, pkHexStr)
+		computedAddr, err := crypto.PublicKeyToAddress(privKey.PubKey())
+		So(err, ShouldBeNil)
+		So(computedAddr.String(), ShouldEqual, walletAddr)
+
+		client, err := setupWebsocketClient(addr)
+		if err != nil {
+			t.Errorf("failed to connect to wsapi server: %v", err)
+			return
+		}
+
+		Convey("register API (handshake)", FailureContinues, func() {
+			testCases := []*registerClientTestCase{
+				{registerClientParams{walletAddr, pkHexStr}, nil},
+				{registerClientParams{walletAddr, "invalid"}, errors.New("invalid public key")},
+				{registerClientParams{walletAddr, ""}, errors.New("invalid public key")},
+				{registerClientParams{"invalid", pkHexStr}, errors.New("invalid wallet address")},
+			}
+
+			for i, c := range testCases {
+				Convey(fmt.Sprintf("case#%d: %s", i, c.String()), func() {
+					var result interface{}
+					err := client.Call(
+						context.Background(),
+						"__register",
+						[]interface{}{c.Address, c.PublicKey},
+						&result,
+					)
+					if c.Expected == nil {
+						So(err, ShouldBeNil)
+					} else {
+						So(err, ShouldNotBeNil)
+					}
+				})
+			}
+		})
+
+		Convey("dbms.Query JSON RPC API", FailureContinues, func() {
+			var buildRequest = func(sqlstr string, priv *asymmetric.PrivateKey) *types.Request {
+				req := &types.Request{
+					Envelope: proto.Envelope{
+						Version: "unknown",
+						NodeID:  proto.NodeID(walletAddr).ToRawNodeID(),
+					},
+					Header: types.SignedRequestHeader{
+						RequestHeader: types.RequestHeader{
+							QueryType:    types.ReadQuery,
+							NodeID:       proto.NodeID(walletAddr),
+							DatabaseID:   proto.DatabaseID("db"),
+							ConnectionID: 182412,
+							SeqNo:        1,
+							Timestamp:    time.Now(),
+							BatchCount:   1,
+						},
+					},
+					Payload: types.RequestPayload{
+						Queries: []types.Query{
+							{
+								Pattern: sqlstr,
+							},
+						},
+					},
+				}
+				if err := req.Sign(priv); err != nil {
+					panic(err)
+				}
+				return req
+			}
+
+			testCases := []struct {
+				name          string
+				params        *dbmsProxyParams
+				expectedError error
+			}{
+				{
+					name:          "empty payload is not allowed",
+					params:        &dbmsProxyParams{""},
+					expectedError: errors.New("empty payload"),
+				},
+				{
+					name:          "should fail on invalid payload (invalid base64)",
+					params:        &dbmsProxyParams{"hello"},
+					expectedError: errors.New("invalid base64 format"),
+				},
+				{
+					name:          "should fail on invalid payload (invalid msgpack)",
+					params:        &dbmsProxyParams{"aGVsbG8="},
+					expectedError: errors.New("invalid msgpack format"),
+				},
+				{
+					name:          "should fail on invalid payload (invalid request)",
+					params:        buildParams(buildRequest("select * from abc", privKey)),
+					expectedError: errors.New("invalid request"),
+				},
+			}
+
+			for i, c := range testCases {
+				Convey(fmt.Sprintf("case#%d: %s", i, c.name), func() {
+					var result interface{}
+					err := client.Call(
+						context.Background(),
+						"dbms_query",
+						[]interface{}{c.params.Payload},
+						&result,
+					)
+					if c.expectedError == nil {
+						So(err, ShouldBeNil)
+					} else {
+						t.Logf("error: %v", err)
+						So(err, ShouldBeError)
+					}
+				})
+			}
+		})
+
+		Convey("dbms.Ack JSON RPC API", FailureContinues, func() {
+			var buildAck = func(priv *asymmetric.PrivateKey) *types.Ack {
+				ack := &types.Ack{
+					Envelope: proto.Envelope{
+						Version: "unknown",
+						NodeID:  proto.NodeID(walletAddr).ToRawNodeID(),
+					},
+					Header: types.SignedAckHeader{
+						AckHeader: types.AckHeader{
+							NodeID:    proto.NodeID(walletAddr),
+							Timestamp: time.Now(),
+						},
+					},
+				}
+				if err := ack.Sign(priv, false); err != nil {
+					panic(err)
+				}
+				return ack
+			}
+
+			testCases := []struct {
+				name          string
+				params        *dbmsProxyParams
+				expectedError error
+			}{
+				{
+					name:          "should fail on invalid payload (invalid parameters)",
+					params:        &dbmsProxyParams{""},
+					expectedError: errors.New("invalid parameters"),
+				},
+				{
+					name:          "should fail on invalid payload (invalid request)",
+					params:        buildParams(buildAck(privKey)),
+					expectedError: errors.New("invalid request"),
+				},
+			}
+
+			for i, c := range testCases {
+				Convey(fmt.Sprintf("case#%d: %v", i, c.name), func() {
+					var result interface{}
+					err := client.Call(
+						context.Background(),
+						"dbms_ack",
+						[]interface{}{c.params.Payload},
+						&result,
+					)
+					if c.expectedError == nil {
+						So(err, ShouldBeNil)
+					} else {
+						t.Logf("error: %v", err)
+						So(err, ShouldBeError)
+					}
+				})
+			}
+		})
+	}) // end of wsapi test
 }
 
 type registerClientTestCase struct {

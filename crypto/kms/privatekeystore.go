@@ -18,7 +18,6 @@ package kms
 
 import (
 	"bytes"
-	"errors"
 	"io/ioutil"
 	"os"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -51,19 +51,23 @@ var (
 // LoadPrivateKey loads private key from keyFilePath, and verifies the hash
 // head
 func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
+	fileContent, err := ioutil.ReadFile(keyFilePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "open key file %q failed", keyFilePath)
+	}
+
+	return DecryptPrivateKeyBytes(fileContent, masterKey)
+}
+
+// DecryptPrivateKeyBytes decrypts private key bytes with it's master key.
+func DecryptPrivateKeyBytes(encrypted []byte, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
 	var (
 		isBinaryKey bool
 		decData     []byte
 	)
-	fileContent, err := ioutil.ReadFile(keyFilePath)
-	if err != nil {
-		log.WithField("path", keyFilePath).WithError(err).Error("read key file failed")
-		return
-	}
-
 	// It's very impossible to get an raw private key base58 decodable.
 	// So if it's not base58 decodable we just make fileContent the encData
-	encData, version, err := base58.CheckDecode(string(fileContent))
+	encData, version, err := base58.CheckDecode(string(encrypted))
 	switch err {
 	case base58.ErrChecksum:
 		return
@@ -71,7 +75,7 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	case base58.ErrInvalidFormat:
 		// be compatible with the original binary private key format
 		isBinaryKey = true
-		encData = fileContent
+		encData = encrypted
 	}
 
 	if version != 0 && version != PrivateKeyStoreVersion {
@@ -81,17 +85,17 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	if isBinaryKey {
 		decData, err = symmetric.DecryptWithPassword(encData, masterKey, []byte(oldPrivateKDFSalt))
 		if err != nil {
-			log.Error("decrypt private key error")
-			return
+			return nil, errors.WithMessage(err, "decrypt failed")
 		}
 
 		// sha256 + privateKey
 		if len(decData) != hash.HashBSize+asymmetric.PrivateKeyBytesLen {
-			log.WithFields(log.Fields{
-				"expected": hash.HashBSize + asymmetric.PrivateKeyBytesLen,
-				"actual":   len(decData),
-			}).Error("wrong binary private key file size")
-			return nil, ErrNotKeyFile
+			return nil, errors.Wrapf(
+				ErrNotKeyFile,
+				"invalid binary format private key, expected filesize %d but got %d",
+				hash.HashBSize+asymmetric.PrivateKeyBytesLen,
+				len(decData),
+			)
 		}
 
 		computedHash := hash.DoubleHashB(decData[hash.HashBSize:])
@@ -102,21 +106,20 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	} else {
 		decData, err = symmetric.DecryptWithPassword(encData, masterKey, privateKDFSalt)
 		if err != nil {
-			log.Error("decrypt private key error")
-			return
+			return nil, errors.WithMessage(err, "decrypt failed")
 		}
 
 		// privateKey
 		if len(decData) != asymmetric.PrivateKeyBytesLen {
-			log.WithFields(log.Fields{
-				"expected": asymmetric.PrivateKeyBytesLen,
-				"actual":   len(decData),
-			}).Error("wrong base58 private key file size")
-			return nil, ErrNotKeyFile
+			return nil, errors.Wrapf(
+				ErrNotKeyFile,
+				"invalid base58 format private key, expected filesize %d but got %d",
+				hash.HashBSize+asymmetric.PrivateKeyBytesLen,
+				len(decData),
+			)
 		}
 		key, _ = asymmetric.PrivKeyFromBytes(decData)
 	}
-
 	return
 }
 
@@ -142,7 +145,7 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	privateKey, err = LoadPrivateKey(privateKeyPath, masterKey)
 	if err != nil {
 		log.WithError(err).Info("load private key failed")
-		if err == ErrNotKeyFile {
+		if errors.Cause(err) == ErrNotKeyFile {
 			log.WithField("path", privateKeyPath).Error("not a valid private key file")
 			return
 		}

@@ -138,10 +138,10 @@ func (id *NodeID) Difficulty() (difficulty int) {
 }
 
 // ToRawNodeID converts NodeID to RawNodeID.
-func (id *NodeID) ToRawNodeID() *RawNodeID {
-	idHash, err := hash.NewHashFromStr(string(*id))
+func (id NodeID) ToRawNodeID() *RawNodeID {
+	idHash, err := hash.NewHashFromStr(string(id))
 	if err != nil {
-		log.WithField("id", *id).WithError(err).Error("error node id")
+		log.WithField("id", id).WithError(err).Error("error node id")
 		return nil
 	}
 	return &RawNodeID{*idHash}

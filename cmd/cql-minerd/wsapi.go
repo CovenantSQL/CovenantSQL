@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/ugorji/go/codec"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -17,12 +15,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-)
-
-var (
-	msgpackCodec codec.MsgpackHandle
 )
 
 func startWebsocketAPI(addr string, dbms *worker.DBMS) {
@@ -56,6 +51,7 @@ func registerClient(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Requ
 	result interface{}, err error,
 ) {
 	params := ctx.Value("_params").(*registerClientParams)
+
 	hexPubKey, err := hex.DecodeString(params.PublicKey)
 	if err != nil {
 		return nil, errors.WithMessage(err, "invalid hex format of public key")
@@ -71,7 +67,7 @@ func registerClient(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Requ
 		return nil, errors.WithMessage(err, "invalid public key: generate address error")
 	}
 	if expectedAddr.String() != params.Address {
-		return nil, errors.WithMessage(err, "address with key not match")
+		return nil, errors.New("invalid pair of address and public key")
 	}
 
 	nodeInfo := &proto.Node{
@@ -104,7 +100,7 @@ func (p *dbmsProxyParams) Unmarshal(params interface{}) error {
 	}
 
 	// bytes (msgpack) -> object
-	return codec.NewDecoder(bytes.NewReader(bs), &msgpackCodec).Decode(params)
+	return utils.DecodeMsgPack(bs, params)
 }
 
 func (p *dbmsProxy) Query(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
@@ -113,7 +109,10 @@ func (p *dbmsProxy) Query(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc
 	var params = ctx.Value("_params").(*dbmsProxyParams)
 	rpcReq := new(types.Request)
 	if err := params.Unmarshal(rpcReq); err != nil {
-		return nil, err
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: err.Error(),
+		}
 	}
 	return p.dbms.Query(rpcReq)
 }
@@ -124,7 +123,10 @@ func (p *dbmsProxy) Ack(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 	var params = ctx.Value("_params").(*dbmsProxyParams)
 	rpcReq := new(types.Ack)
 	if err := params.Unmarshal(rpcReq); err != nil {
-		return nil, err
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: err.Error(),
+		}
 	}
 	return nil, p.dbms.Ack(rpcReq)
 }

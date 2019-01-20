@@ -1,16 +1,18 @@
 #!/bin/bash -x
 
+set -e
+
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
 
 echo ${PROJECT_DIR}
 
 # Build
-cd ${PROJECT_DIR} && make clean
-cd ${PROJECT_DIR} && make use_all_cores
+# cd ${PROJECT_DIR} && make clean
+# cd ${PROJECT_DIR} && make use_all_cores
 
 cd ${TEST_WD}
-${PROJECT_DIR}/bin/cql-utils -tool confgen -skip-master-key
+echo -ne "y\n" | ${PROJECT_DIR}/bin/cql-utils -tool confgen -skip-master-key
 ${PROJECT_DIR}/bin/cql-utils -tool addrgen -private ./conf/private.key -skip-master-key | tee wallet.txt
 
 #get wallet addr

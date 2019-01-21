@@ -28,7 +28,6 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -393,9 +392,11 @@ func WaitTxConfirmation(
 		}).Debug("waiting for tx confirmation")
 
 		switch state {
-		case pi.TransactionStatePending:
-		case pi.TransactionStatePacked:
-		case pi.TransactionStateConfirmed, pi.TransactionStateExpired, pi.TransactionStateNotFound:
+		case interfaces.TransactionStatePending:
+		case interfaces.TransactionStatePacked:
+		case interfaces.TransactionStateConfirmed,
+			interfaces.TransactionStateExpired,
+			interfaces.TransactionStateNotFound:
 			return
 		default:
 			err = errors.Errorf("unknown transaction state %d", state)

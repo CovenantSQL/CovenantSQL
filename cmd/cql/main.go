@@ -30,6 +30,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -170,7 +171,9 @@ func init() {
 			log.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
-			if err = client.WaitDBCreation(context.Background(), dsn); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			if err = client.WaitDBCreation(ctx, dsn); err != nil {
 				return
 			}
 
@@ -440,8 +443,10 @@ func main() {
 				bindings = append(bindings, name)
 			}
 			log.Infof("available drivers are: %#v", bindings)
+			os.Exit(-1)
 			return
 		}
+		os.Exit(-1)
 	}
 }
 

@@ -24,14 +24,4 @@ before_script:
 
 test-my-project:
   stage: test
-  script:
-    - make clean
-    - make use_all_cores
-    - go test -race -failfast -parallel 16 -cpu 16 -coverpkg="github.com/CovenantSQL/CovenantSQL/..." -coverprofile "common.cover.out" $(go list ./... | grep -v "/vendor/" | grep -v "github.com/CovenantSQL/CovenantSQL/cmd/")
-    - for package in $(ls cmd/); do go test -race -failfast -parallel 16 -cpu 16 -coverpkg="github.com/CovenantSQL/CovenantSQL/..." -coverprofile "integ.${package}.cover.out" "github.com/CovenantSQL/CovenantSQL/cmd/${package}"; done
-    - go test -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
-    - bash cleanupDB.sh || true
-    - go test -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
-    - go test -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
-    - gocovmerge *.cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f *.cover.out
-    - bash <(curl -s https://codecov.io/bash)
+  script: ./alltest.sh

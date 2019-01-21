@@ -423,6 +423,9 @@ func TestShrinkGrow(t *testing.T) {
 	if data, err = tryGrow(db, data, id, BlockSize*5); err != nil {
 		log.Fatal(err)
 	}
+	if data, err = tryGrow(db, data, id, BlockSize*999); err != nil {
+		log.Fatal(err)
+	}
 
 	// Shrink it down to 0.
 	if data, err = tryShrink(db, data, id, 0); err != nil {

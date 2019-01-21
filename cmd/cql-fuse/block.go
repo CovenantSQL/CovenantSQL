@@ -40,7 +40,7 @@ import (
 
 // BlockSize is the size of each data block. It must not
 // change throughout the lifetime of the filesystem.
-const BlockSize = 4 << 10 // 4KB
+const BlockSize = 128 << 10 // 128KB
 
 func min(a, b uint64) uint64 {
 	if a < b {

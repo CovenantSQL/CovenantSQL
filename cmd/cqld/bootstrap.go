@@ -172,7 +172,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	// start json-rpc server
 	log.Info("wsapi: start service")
 	go api.Serve(wsapiAddr, conf.GConf.BP.ChainFileName)
-	defer api.StopService()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

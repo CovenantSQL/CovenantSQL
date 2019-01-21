@@ -39,7 +39,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	mock_conn "github.com/jordwest/mock-conn"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
@@ -210,11 +209,6 @@ func TestRuntime(t *testing.T) {
 		lvl := log.GetLevel()
 		log.SetLevel(log.DebugLevel)
 		defer log.SetLevel(lvl)
-		f, err := os.Create("trace")
-		So(err, ShouldBeNil)
-		defer f.Close()
-		trace.Start(f)
-		defer trace.Stop()
 
 		db1, err := newSQLiteStorage("test1.db")
 		So(err, ShouldBeNil)

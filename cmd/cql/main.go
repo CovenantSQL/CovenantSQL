@@ -464,8 +464,6 @@ func main() {
 				bindings = append(bindings, name)
 			}
 			log.Infof("available drivers are: %#v", bindings)
-			os.Exit(-1)
-			return
 		}
 		os.Exit(-1)
 	}

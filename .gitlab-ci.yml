@@ -21,17 +21,26 @@ before_script:
   - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
   - ulimit -n 8192
 #  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  - make clean
+  - make use_all_cores
 
 test-my-project:
   stage: test
   script:
-    - make clean
-    - make use_all_cores
     - go test -v -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
+    - gocovmerge cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f cover.out
+    - bash <(curl -s https://codecov.io/bash)
+
+bench-my-project:
+  stage: test
+  script:
     - go test -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
     - bash cleanupDB.sh || true
     - go test -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+    - bash cleanupDB.sh || true
+
+compatibility-testnet:
+  stage: test
+  script:
     - go test -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - bash test/testnet_client/run.sh
-    - gocovmerge cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f cover.out
-    - bash <(curl -s https://codecov.io/bash)

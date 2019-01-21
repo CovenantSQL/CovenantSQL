@@ -27,7 +27,7 @@ test-my-project:
   script:
     - make clean
     - make use_all_cores
-    - go test -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverpkg=all -coverprofile cover.out
+    - go test -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverpkg=github.com/CovenantSQL/CovenantSQL/... -coverprofile cover.out
     - go test -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
     - bash cleanupDB.sh || true
     - go test -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/

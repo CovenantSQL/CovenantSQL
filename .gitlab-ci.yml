@@ -5,24 +5,31 @@ variables:
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
 
-before_script:
-  # Setup dependency management tool
-#  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
-#  - chmod +x $GOPATH/bin/dep
-#  - go get github.com/mattn/goveralls
-#  - go get github.com/haya14busa/goverage
-#  - go get github.com/golang/lint/golint
-#  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
-#  - go get github.com/wadey/gocovmerge
-  - mkdir -p $GOPATH/src/github.com/CovenantSQL
-  - cp -r /builds/thunderdb/CovenantSQL $GOPATH/src/github.com/CovenantSQL/
-  - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
-#  - dep ensure
-  - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
-  - ulimit -n 8192
-#  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
-  - make clean
-  - make use_all_cores
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  before_script:
+    # Setup dependency management tool
+  #  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
+  #  - chmod +x $GOPATH/bin/dep
+  #  - go get github.com/mattn/goveralls
+  #  - go get github.com/haya14busa/goverage
+  #  - go get github.com/golang/lint/golint
+  #  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
+  #  - go get github.com/wadey/gocovmerge
+    - mkdir -p $GOPATH/src/github.com/CovenantSQL
+    - cp -r /builds/thunderdb/CovenantSQL $GOPATH/src/github.com/CovenantSQL/
+    - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
+  #  - dep ensure
+    - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
+    - ulimit -n 8192
+  #  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  script:
+    - make clean
+    - make use_all_cores
 
 test-my-project:
   stage: test

@@ -80,18 +80,24 @@ import (
 )
 
 var usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s -config <config> -dsn <dsn> -mount <mountpoint>\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	_, _ = fmt.Fprintf(os.Stderr, "  %s -config <config> -dsn <dsn> -mount <mountpoint>\n\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
 func main() {
-	var config, dsn, mountPoint, password string
-
+	var (
+		config     string
+		dsn        string
+		mountPoint string
+		password   string
+		readOnly   bool
+	)
 	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
 	flag.StringVar(&mountPoint, "mount", "./", "dir to mount")
 	flag.StringVar(&dsn, "dsn", "", "database url")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.BoolVar(&readOnly, "readonly", false, "mount read only volume")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -102,11 +108,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	cfg, err := client.ParseDSN(dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	db, err := sql.Open("covenantsql", dsn)
+	db, err := sql.Open("covenantsql", cfg.FormatDSN())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,13 +125,18 @@ func main() {
 	}
 
 	cfs := CFS{db}
+	opts := make([]fuse.MountOption, 0, 5)
+	opts = append(opts, fuse.FSName("CovenantFS"))
+	opts = append(opts, fuse.Subtype("CovenantFS"))
+	opts = append(opts, fuse.LocalVolume())
+	opts = append(opts, fuse.VolumeName(cfg.DatabaseID))
+	if readOnly {
+		opts = append(opts, fuse.ReadOnly())
+	}
 	// Mount filesystem.
 	c, err := fuse.Mount(
 		mountPoint,
-		fuse.FSName("CovenantFS"),
-		fuse.Subtype("CovenantFS"),
-		fuse.LocalVolume(),
-		fuse.VolumeName(""),
+		opts...,
 	)
 	if err != nil {
 		log.Fatal(err)

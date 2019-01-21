@@ -290,7 +290,7 @@ func TestNewPersistentCaller(t *testing.T) {
 
 }
 
-func BenchmarkPersistentCaller_Call2(b *testing.B) {
+func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	log.SetLevel(log.FatalLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
@@ -329,11 +329,6 @@ func BenchmarkPersistentCaller_Call2(b *testing.B) {
 	go server.Serve()
 
 	client := NewPersistentCaller(conf.GConf.BP.NodeID)
-	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo(100 * time.Millisecond)
-	node1.Addr = "1.1.1.1:1"
-
-	client = NewPersistentCaller(conf.GConf.BP.NodeID)
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -345,7 +340,10 @@ func BenchmarkPersistentCaller_Call2(b *testing.B) {
 			}
 		}
 	})
+	b.StopTimer()
+	time.Sleep(5 * time.Second)
 	server.Stop()
+	GetSessionPoolInstance().Close()
 }
 
 type fakeService struct{}

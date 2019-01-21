@@ -35,6 +35,7 @@ import (
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	crpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -164,7 +165,6 @@ func newFakeService(rt *kayak.Runtime) (fs *fakeService) {
 
 func (s *fakeService) Apply(req *kt.ApplyRequest, resp *interface{}) (err error) {
 	// add some delay for timeout test
-	//time.Sleep(time.Millisecond * 10)
 	return s.rt.FollowerApply(req.Log)
 }
 
@@ -179,7 +179,8 @@ func (s *fakeService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err e
 }
 
 func (s *fakeService) serveConn(c net.Conn) {
-	s.s.ServeCodec(utils.GetMsgPackServerCodec(c))
+	var r proto.NodeID
+	s.s.ServeCodec(crpc.NewNodeAwareServerCodec(context.Background(), utils.GetMsgPackServerCodec(c), r.ToRawNodeID()))
 }
 
 type fakeCaller struct {
@@ -521,7 +522,7 @@ func TestRuntime(t *testing.T) {
 
 func BenchmarkRuntime(b *testing.B) {
 	Convey("runtime test", b, func(c C) {
-		log.SetLevel(log.FatalLevel)
+		log.SetLevel(log.DebugLevel)
 		f, err := os.OpenFile("test.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		So(err, ShouldBeNil)
 		log.SetOutput(f)

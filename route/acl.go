@@ -41,6 +41,9 @@ ACLs:
 	Miner -> Miner, Kayak.Call():
 		ACL: Open to Miner Leader.
 
+    Miner -> BP, Metric.UploadMetrics():
+        ACL: Open to Registered Miner
+
    	BP -> BP, Exchange NodeInfo, Kayak.Call():
   		ACL: Open to BP
 
@@ -66,6 +69,8 @@ const (
 	DHTFindNode
 	// KayakCall is used by BP for data consistency
 	KayakCall
+	// MetricUploadMetrics uploads node metrics
+	MetricUploadMetrics
 	// DBSQuery is used by client to read/write database
 	DBSQuery
 	// DBSAck is used by client to send acknowledge to the query response
@@ -138,6 +143,8 @@ func (s RemoteFunc) String() string {
 		return "DHT.FindNeighbor"
 	case DHTFindNode:
 		return "DHT.FindNode"
+	case MetricUploadMetrics:
+		return "Metric.UploadMetrics"
 	case KayakCall:
 		return "Kayak.Call"
 	case DBSQuery:
@@ -213,7 +220,7 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 		// non BP
 		switch funcName {
 		// DHT related
-		case DHTPing, DHTFindNode, DHTFindNeighbor:
+		case DHTPing, DHTFindNode, DHTFindNeighbor, MetricUploadMetrics:
 			return true
 			// Kayak related
 		case KayakCall:

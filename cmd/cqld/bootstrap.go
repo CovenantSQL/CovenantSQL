@@ -170,14 +170,8 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	//go periodicPingBlockProducer()
 
 	// start json-rpc server
-	if wsapiAddr != "" {
-		jsonrpcServer := api.NewService()
-		jsonrpcServer.DBFile = conf.GConf.BP.ChainFileName
-		jsonrpcServer.WebsocketAddr = wsapiAddr
-		jsonrpcServer.ReadTimeout = 60 * time.Second
-		jsonrpcServer.WriteTimeout = 60 * time.Second
-		jsonrpcServer.StartServers()
-	}
+	log.Info("wsapi: start service")
+	go api.Serve(wsapiAddr, conf.GConf.BP.ChainFileName)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(
@@ -188,7 +182,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
 
 	<-signalCh
-
 	return
 }
 

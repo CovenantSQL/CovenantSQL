@@ -1,4 +1,4 @@
-package api
+package jsonrpc
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type Validator interface {
 }
 
 // middleware: unmarshal req.Params(JSON array) to pre-defined structures (Object)
-func processParams(h jsonrpcHandlerFunc, paramsType reflect.Type) jsonrpcHandlerFunc {
+func processParams(h HandlerFunc, paramsType reflect.Type) HandlerFunc {
 	return func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (
 		result interface{}, err error,
 	) {

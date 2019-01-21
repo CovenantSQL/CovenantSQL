@@ -10,9 +10,9 @@ import (
 )
 
 func init() {
-	registerMethod("bp_getTransactionList", bpGetTransactionList, bpGetTransactionListParams{})
-	registerMethod("bp_getTransactionByHash", bpGetTransactionByHash, bpGetTransactionByHashParams{})
-	registerMethod("bp_getTransactionListOfBlock", bpGetTransactionListOfBlock, bpGetTransactionListOfBlockParams{})
+	rpc.RegisterMethod("bp_getTransactionList", bpGetTransactionList, bpGetTransactionListParams{})
+	rpc.RegisterMethod("bp_getTransactionByHash", bpGetTransactionByHash, bpGetTransactionByHashParams{})
+	rpc.RegisterMethod("bp_getTransactionListOfBlock", bpGetTransactionListOfBlock, bpGetTransactionListOfBlockParams{})
 }
 
 type bpGetTransactionListParams struct {

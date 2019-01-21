@@ -9,9 +9,9 @@ import (
 )
 
 func init() {
-	registerMethod("bp_getBlockList", bpGetBlockList, bpGetBlockListParams{})
-	registerMethod("bp_getBlockByHeight", bpGetBlockByHeight, bpGetBlockByHeightParams{})
-	registerMethod("bp_getBlockByHash", bpGetBlockByHash, bpGetBlockByHashParams{})
+	rpc.RegisterMethod("bp_getBlockList", bpGetBlockList, bpGetBlockListParams{})
+	rpc.RegisterMethod("bp_getBlockByHeight", bpGetBlockByHeight, bpGetBlockByHeightParams{})
+	rpc.RegisterMethod("bp_getBlockByHash", bpGetBlockByHash, bpGetBlockByHashParams{})
 }
 
 type bpGetBlockListParams struct {

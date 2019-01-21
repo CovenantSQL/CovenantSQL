@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -238,18 +237,12 @@ func TestJSONRPCService(t *testing.T) {
 	defer os.Remove(testdb + "-wal")
 	defer os.Remove(testdb)
 
-	port := 8546
 	// log.SetLevel(log.DebugLevel)
-	service := api.NewService()
-	service.DBFile = testdb
-	service.WebsocketAddr = ":" + strconv.Itoa(port)
-	service.StartServers()
-	defer service.StopServersAndWait()
+	go api.Serve(":8546", testdb)
+	defer api.StopService()
 
 	var (
-		addr     = fmt.Sprintf("ws://localhost:%d", port)
-		callOpts []jsonrpc2.CallOption
-
+		addr        = "ws://localhost:8546"
 		conveyBlock = func(convey C, item *models.Block, cp []interface{}) {
 			if cp == nil {
 				convey.So(item, ShouldBeNil)
@@ -293,7 +286,7 @@ func TestJSONRPCService(t *testing.T) {
 
 		Convey("call method should fail if method not found", func() {
 			var result interface{}
-			err := rpc.Call(context.Background(), "method_NotFound", nil, &result, callOpts...)
+			err := rpc.Call(context.Background(), "method_NotFound", nil, &result)
 			So(err, ShouldNotBeNil)
 		})
 
@@ -321,7 +314,7 @@ func TestJSONRPCService(t *testing.T) {
 
 			for name, testCase := range testCases {
 				Convey(name, func() {
-					err := rpc.Call(context.Background(), "bp_getBlockList", testCase, &result, callOpts...)
+					err := rpc.Call(context.Background(), "bp_getBlockList", testCase, &result)
 					So(err, ShouldNotBeNil)
 				})
 			}
@@ -341,7 +334,7 @@ func TestJSONRPCService(t *testing.T) {
 
 			for i, testCase := range testCases {
 				Convey(fmt.Sprintf("case#%d: %s", i, testCase.String()), func(c C) {
-					err := rpc.Call(context.Background(), "bp_getBlockList", testCase.Params(), &result, callOpts...)
+					err := rpc.Call(context.Background(), "bp_getBlockList", testCase.Params(), &result)
 					So(err, ShouldBeNil)
 					So(len(result.Blocks), ShouldEqual, len(testCase.ExpectedResults))
 					So(result.Pagination, ShouldResemble, testCase.ExpectedPagination)
@@ -369,7 +362,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getBlockByHash",
 						[]interface{}{testCase.Hash},
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldBeNil)
 					conveyBlock(c, result, testCase.ExpectedResult)
@@ -394,7 +386,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getBlockByHeight",
 						[]interface{}{testCase.Height},
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldBeNil)
 					conveyBlock(c, result, testCase.ExpectedResult)
@@ -430,7 +421,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getTransactionList",
 						testCase,
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldNotBeNil)
 				})
@@ -467,7 +457,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getTransactionList",
 						testCase.Params(),
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldBeNil)
 					So(len(result.Transactions), ShouldEqual, len(testCase.ExpectedResults))
@@ -496,7 +485,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getTransactionListOfBlock",
 						testCase,
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldNotBeNil)
 				})
@@ -529,7 +517,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getTransactionListOfBlock",
 						testCase.Params(),
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldBeNil)
 					So(len(result.Transactions), ShouldEqual, len(testCase.ExpectedResults))
@@ -559,7 +546,6 @@ func TestJSONRPCService(t *testing.T) {
 						"bp_getTransactionByHash",
 						[]interface{}{testCase.Hash},
 						&result,
-						callOpts...,
 					)
 					So(err, ShouldBeNil)
 					conveyTransaction(c, result, testCase.ExpectedResult)

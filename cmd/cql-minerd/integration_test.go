@@ -48,6 +48,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var (
@@ -822,6 +823,12 @@ func BenchmarkSQLite(b *testing.B) {
 }
 
 func benchOutsideMiner(b *testing.B, minerCount uint16, confDir string) {
+	benchOutsideMinerWithTargetMinerList(b, minerCount, nil, confDir)
+}
+
+func benchOutsideMinerWithTargetMinerList(
+	b *testing.B, minerCount uint16, targetMiners []proto.AccountAddress, confDir string,
+) {
 	log.Warnf("benchmark %v for %d Miners:", confDir, minerCount)
 
 	// Create temp directory
@@ -851,9 +858,13 @@ func benchOutsideMiner(b *testing.B, minerCount uint16, confDir string) {
 	var dsn string
 	if minerCount > 0 {
 		// create
-		meta := client.ResourceMeta{}
-		meta.Node = minerCount
-		meta.AdvancePayment = 1000000000
+		meta := client.ResourceMeta{
+			ResourceMeta: types.ResourceMeta{
+				TargetMiners: targetMiners,
+				Node:         minerCount,
+			},
+			AdvancePayment: 1000000000,
+		}
 		// wait for chain service
 		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel1()
@@ -969,6 +980,32 @@ func BenchmarkTestnetMiner1(b *testing.B) {
 func BenchmarkTestnetMiner2(b *testing.B) {
 	Convey("bench testnet one node", b, func() {
 		benchOutsideMiner(b, 2, testnetConfDir)
+	})
+}
+
+func BenchmarkTestnetTargetMiner2(b *testing.B) {
+	var (
+		err error
+		// Public keys of miners for test
+		publicKeys = []string{
+			"0235abfb93031df7bf776332c510a862e48e81eebea76f5e165406af8fec5215d6",
+			"03aec5337c0a58b8eff96f8ab30518830ad8e329c74bb30b38901a9395c72340f8",
+		}
+	)
+	Convey("bench testnet one node", b, func() {
+		var (
+			pubKey       asymmetric.PublicKey
+			addr         proto.AccountAddress
+			targetMiners = make([]proto.AccountAddress, len(publicKeys))
+		)
+		for i, v := range publicKeys {
+			err = yaml.Unmarshal([]byte(v), &pubKey)
+			So(err, ShouldBeNil)
+			addr, err = crypto.PubKeyHash(&pubKey)
+			So(err, ShouldBeNil)
+			targetMiners[i] = addr
+		}
+		benchOutsideMinerWithTargetMinerList(b, 2, targetMiners, testnetConfDir)
 	})
 }
 

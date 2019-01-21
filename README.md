@@ -106,8 +106,7 @@ Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitt
 
 ## TestNet
 
-- [Quick Start](https://testnet.covenantsql.io/quickstart)
-- [TestNet faucet](https://testnet.covenantsql.io/)
+- [Quick Start](https://developers.covenantsql.io)
 
 ## Contact
 

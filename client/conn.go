@@ -158,7 +158,7 @@ ackWorkerLoop:
 		var ackRes types.AckResponse
 		// send ack back
 		if err = pc.Call(route.DBSAck.String(), ack, &ackRes); err != nil {
-			log.WithError(err).Warning("send ack failed")
+			log.WithError(err).Debug("send ack failed")
 			continue
 		}
 	}

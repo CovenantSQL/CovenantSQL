@@ -20,6 +20,8 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/CovenantSQL/bin/cql-observer /app/
+COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/CovenantSQL/bin/cql /app/
+COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/CovenantSQL/bin/cql-utils /app/
 COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/CovenantSQL/bin/docker-entry.sh /app/
 ENTRYPOINT [ "./docker-entry.sh" ]
 EXPOSE 4661

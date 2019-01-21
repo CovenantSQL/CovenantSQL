@@ -102,7 +102,6 @@ func (r *Runtime) followerCommitResult(ctx context.Context, tm *timer.Timer, com
 	select {
 	case <-ctx.Done():
 	case r.commitCh <- req:
-		tm.Add("enqueue")
 	}
 
 	return
@@ -130,6 +129,8 @@ func (r *Runtime) leaderDoCommit(req *commitReq) {
 		log.Fatal("INVALID EXISTING LOG FOR LEADER COMMIT")
 		return
 	}
+
+	req.tm.Add("queue")
 
 	// create leader log
 	var (
@@ -194,7 +195,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	}
 
 	waitCommitTask.End()
-	req.tm.Add("wait_last_commit")
+	req.tm.Add("queue")
 
 	defer trace.StartRegion(req.ctx, "commitCycle").End()
 

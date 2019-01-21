@@ -18,10 +18,11 @@ package kayak
 
 import (
 	"context"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"sync"
 	"time"
+
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 type waitItem struct {
@@ -82,7 +83,6 @@ func (r *Runtime) triggerLogAwaits(index uint64) {
 	item.doneOnce.Do(func() {
 		if item.ch != nil {
 			close(item.ch)
-			item.ch = nil
 		}
 	})
 }

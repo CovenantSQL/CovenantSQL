@@ -30,9 +30,13 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -67,6 +71,9 @@ var (
 	transferToken           string // transfer token to target account
 	getBalance              bool   // get balance of current account
 	getBalanceWithTokenName string // get specific token's balance of current account
+	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
+
+	waitTxConfirmationMaxDuration time.Duration
 )
 
 type userPermission struct {
@@ -216,6 +223,7 @@ func init() {
 	flag.StringVar(&transferToken, "transfer", "", "transfer token to target account")
 	flag.BoolVar(&getBalance, "get-balance", false, "get balance of current account")
 	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "get specific token's balance of current account, e.g. Particle, Wave, and etc.")
+	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "wait for transaction confirmation")
 }
 
 func main() {
@@ -234,6 +242,11 @@ func main() {
 		os.Exit(-1)
 		return
 	}
+
+	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
+	// enough informations from config to do that currently, so just use a fixed and long enough
+	// duration.
+	waitTxConfirmationMaxDuration = 10 * conf.GConf.BPPeriod
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
@@ -342,12 +355,16 @@ func main() {
 			return
 		}
 
-		err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
+		txHash, err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
 
 		if err != nil {
 			log.WithError(err).Error("update permission failed")
 			os.Exit(-1)
 			return
+		}
+
+		if waitTxConfirmation {
+			wait(txHash)
 		}
 
 		log.Info("succeed in sending transaction to CovenantSQL")
@@ -391,11 +408,16 @@ func main() {
 			return
 		}
 
-		err = client.TransferToken(tran.TargetUser, amount, unit)
+		var txHash hash.Hash
+		txHash, err = client.TransferToken(tran.TargetUser, amount, unit)
 		if err != nil {
 			log.WithError(err).Error("transfer token failed")
 			os.Exit(-1)
 			return
+		}
+
+		if waitTxConfirmation {
+			wait(txHash)
 		}
 
 		log.Info("succeed in sending transaction to CovenantSQL")
@@ -442,6 +464,19 @@ func main() {
 			log.Infof("available drivers are: %#v", bindings)
 			return
 		}
+	}
+}
+
+func wait(txHash hash.Hash) {
+	var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+	defer cancel()
+	var state, err = client.WaitTxConfirmation(ctx, txHash)
+	log.WithFields(log.Fields{
+		"tx_hash":  txHash,
+		"tx_state": state,
+	}).WithError(err).Info("wait transaction confirmation")
+	if err != nil || state != pi.TransactionStateConfirmed {
+		os.Exit(1)
 	}
 }
 

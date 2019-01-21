@@ -31,10 +31,11 @@ build:
   script:
     - make clean
     - make use_all_cores
+    - cp -r $GOPATH/src/github.com/CovenantSQL/CovenantSQL/bin /builds/thunderdb/CovenantSQL/
   artifacts:
     untracked: true
     paths:
-      - $GOPATH/src/github.com/CovenantSQL/CovenantSQL/bin/
+      - bin/
 
 test-my-project:
   stage: test

@@ -56,9 +56,6 @@ var (
 	showVersion bool
 	configFile  string
 
-	clientMode      bool
-	clientOperation string
-
 	mode     string // "normal", "api"
 	logLevel string
 )
@@ -76,14 +73,12 @@ func init() {
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 
-	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
 	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
 	flag.StringVar(&logLevel, "log-level", "", "service log level")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
+		_, _ = fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
+		_, _ = fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
 		flag.PrintDefaults()
 	}
 }
@@ -129,17 +124,8 @@ func main() {
 	}
 
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
-	utils.StartProfile(cpuProfile, memProfile)
+	_ = utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
-
-	if clientMode {
-		if err := runClient(conf.GConf.ThisNodeID); err != nil {
-			log.WithError(err).Fatal("run client failed")
-		} else {
-			log.Info("run client success")
-		}
-		return
-	}
 
 	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {
 		log.WithError(err).Fatal("run kayak failed")

@@ -105,8 +105,8 @@ func init() {
 	flag.StringVar(&logLevel, "log-level", "", "service log level")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
+		_, _ = fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
+		_, _ = fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
 		flag.PrintDefaults()
 	}
 }
@@ -160,7 +160,7 @@ func main() {
 	}
 
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
-	utils.StartProfile(cpuProfile, memProfile)
+	_ = utils.StartProfile(cpuProfile, memProfile)
 
 	// set generate key pair config
 	conf.GConf.GenerateKeyPair = genKeyPair
@@ -218,7 +218,7 @@ func main() {
 		server.Serve()
 	}()
 	defer func() {
-		server.Listener.Close()
+		_ = server.Listener.Close()
 		server.Stop()
 	}()
 

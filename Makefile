@@ -228,6 +228,8 @@ all: bp miner observer client
 
 clean:
 	rm -rf bin/cql*
+	rm -f *.cover.out
+	rm -f coverage.txt
 
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql-observer bin/cql-observer.test \

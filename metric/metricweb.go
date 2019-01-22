@@ -35,7 +35,7 @@ func collect(cc *CollectClient) (err error) {
 		err = errors.Wrap(err, "gathering node metrics failed")
 		return
 	}
-	mm := make(metricMap, 0)
+	mm := make(SimpleMetricMap, 0)
 	for _, mf := range mfs {
 		mm[*mf.Name] = mf
 		log.Debugf("gathered node: %v", mf)

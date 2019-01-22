@@ -29,10 +29,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
@@ -64,10 +64,10 @@ var (
 	showVersion bool
 	configFile  string
 
-	wsapiAddr   string
-	mode        string // "normal", "api"
+	wsapiAddr string
+	mode      string // "normal", "api"
 
-  logLevel string
+	logLevel string
 )
 
 const name = `cqld`

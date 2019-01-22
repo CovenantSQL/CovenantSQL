@@ -62,6 +62,10 @@
   branch = "master"
 
 [[override]]
+  name = "github.com/zserge/metric"
+  branch = "master"
+
+[[override]]
   name = "github.com/xtaci/smux"
   branch = "master"
 

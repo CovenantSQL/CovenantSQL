@@ -70,6 +70,7 @@ var (
 	configFile string
 	genKeyPair bool
 	metricLog  bool
+	metricWeb  string
 
 	// profile
 	cpuProfile     string
@@ -101,8 +102,10 @@ func init() {
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricGraphite, "metric-graphite-server", "", "Metric graphite server to push metrics")
-	flag.StringVar(&traceFile, "trace-file", "", "trace profile")
-	flag.StringVar(&logLevel, "log-level", "", "service log level")
+	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
+
+	flag.StringVar(&traceFile, "trace-file", "", "Trace profile")
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -184,6 +187,14 @@ func main() {
 		go func() {
 			log.Println(http.ListenAndServe(profileServer, nil))
 		}()
+	}
+
+	if len(metricWeb) > 0 {
+		err = metric.InitMetricWeb(metricWeb)
+		if err != nil {
+			log.Errorf("start metric web server on %s failed: %v", metricWeb, err)
+			os.Exit(-1)
+		}
 	}
 
 	// start period provide service transaction generator

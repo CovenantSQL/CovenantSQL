@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -50,6 +51,7 @@ var (
 	// profile
 	cpuProfile string
 	memProfile string
+	metricWeb  string
 
 	// other
 	noLogo      bool
@@ -72,9 +74,10 @@ func init() {
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
+	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
-	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
-	flag.StringVar(&logLevel, "log-level", "", "service log level")
+	flag.StringVar(&mode, "mode", "normal", "Run mode, e.g. normal, api")
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
@@ -85,7 +88,8 @@ func init() {
 
 func initLogs() {
 	log.Infof("%#v starting, version %#v, commit %#v, branch %#v", name, version, commit, branch)
-	log.Infof("%#v, target architecture is %#v, operating system target is %#v", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("%#v, target architecture is %#v, operating system target is %#v",
+		runtime.Version(), runtime.GOARCH, runtime.GOOS)
 	log.Infof("role: %#v", conf.RoleTag)
 }
 
@@ -113,7 +117,7 @@ func main() {
 
 	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
-	// BP DO NOT Generate new key pair
+	// BP Never Generate new key pair
 	conf.GConf.GenerateKeyPair = false
 
 	// init log
@@ -123,6 +127,13 @@ func main() {
 		fmt.Print(logo)
 	}
 
+	if len(metricWeb) > 0 {
+		err = metric.InitMetricWeb(metricWeb)
+		if err != nil {
+			log.Errorf("start metric web server on %s failed: %v", metricWeb, err)
+			os.Exit(-1)
+		}
+	}
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	_ = utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()

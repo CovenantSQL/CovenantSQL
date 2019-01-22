@@ -22,14 +22,13 @@ wallet=$(awk '{print $3}' wallet.txt)
 ${PROJECT_DIR}/bin/cql -config ${PROJECT_DIR}/conf/testnet/config.yaml -transfer \
     '{"addr":"'${wallet}'", "amount":"100000000 Particle"}' -wait-tx-confirm
 
-${PROJECT_DIR}/bin/cql -config conf/config.yaml -create 2 | tee dsn.txt
+${PROJECT_DIR}/bin/cql -config conf/config.yaml -get-balance
+
+${PROJECT_DIR}/bin/cql -config conf/config.yaml -create 2 -wait-tx-confirm | tee dsn.txt
 
 #get dsn
 dsn=$(cat dsn.txt)
 
-sleep 60
-
-${PROJECT_DIR}/bin/cql -config conf/config.yaml -get-balance
 ${PROJECT_DIR}/bin/cql -config conf/config.yaml -dsn ${dsn} \
     -command 'create table test_for_new_account(column1 int);'
 

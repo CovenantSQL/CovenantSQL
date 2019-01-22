@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -260,7 +261,7 @@ func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 
 // UpdatePermission sends UpdatePermission transaction to chain.
 func UpdatePermission(targetUser proto.AccountAddress,
-	targetChain proto.AccountAddress, perm types.UserPermission) (err error) {
+	targetChain proto.AccountAddress, perm types.UserPermission) (txHash hash.Hash, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
@@ -307,11 +308,14 @@ func UpdatePermission(targetUser proto.AccountAddress,
 		return
 	}
 
+	txHash = up.Hash()
 	return
 }
 
 // TransferToken send Transfer transaction to chain.
-func TransferToken(targetUser proto.AccountAddress, amount uint64, tokenType types.TokenType) (err error) {
+func TransferToken(targetUser proto.AccountAddress, amount uint64, tokenType types.TokenType) (
+	txHash hash.Hash, err error,
+) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
@@ -359,6 +363,53 @@ func TransferToken(targetUser proto.AccountAddress, amount uint64, tokenType typ
 		return
 	}
 
+	txHash = tran.Hash()
+	return
+}
+
+// WaitTxConfirmation waits for the transaction with target hash txHash to be confirmed. It also
+// returns if any error occurs or a final state is returned from BP.
+func WaitTxConfirmation(
+	ctx context.Context, txHash hash.Hash) (state interfaces.TransactionState, err error,
+) {
+	var (
+		ticker = time.NewTicker(1 * time.Second)
+		method = route.MCCQueryTxState
+		req    = &types.QueryTxStateReq{Hash: txHash}
+		resp   = &types.QueryTxStateResp{}
+	)
+	defer ticker.Stop()
+	for {
+		if err = requestBP(method, req, resp); err != nil {
+			err = errors.Wrapf(err, "failed to call %s", method)
+			return
+		}
+
+		state = resp.State
+		log.WithFields(log.Fields{
+			"tx_hash":  txHash,
+			"tx_state": state,
+		}).Debug("waiting for tx confirmation")
+
+		switch state {
+		case interfaces.TransactionStatePending:
+		case interfaces.TransactionStatePacked:
+		case interfaces.TransactionStateConfirmed,
+			interfaces.TransactionStateExpired,
+			interfaces.TransactionStateNotFound:
+			return
+		default:
+			err = errors.Errorf("unknown transaction state %d", state)
+			return
+		}
+
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
 	return
 }
 

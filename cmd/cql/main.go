@@ -203,27 +203,27 @@ func init() {
 		Override: "",
 	})
 
-	flag.StringVar(&dsn, "dsn", "", "database url")
-	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
-	flag.StringVar(&fileName, "file", "", "execute commands from file and exit")
+	flag.StringVar(&dsn, "dsn", "", "Database url")
+	flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
+	flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&noRC, "no-rc", false, "do not read start up file")
+	flag.BoolVar(&noRC, "no-rc", false, "Do not read start up file")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&outFile, "out", "", "output file")
-	flag.StringVar(&configFile, "config", "config.yaml", "config file for covenantsql")
-	flag.StringVar(&password, "password", "", "master key password for covenantsql")
-	flag.BoolVar(&singleTransaction, "single-transaction", false, "execute as a single transaction (if non-interactive)")
-	flag.Var(&variables, "variable", "set variable")
+	flag.StringVar(&outFile, "out", "", "Record stdout to file")
+	flag.StringVar(&configFile, "config", "config.yaml", "Config file for covenantsql")
+	flag.StringVar(&password, "password", "", "Master key password for covenantsql")
+	flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
+	flag.Var(&variables, "variable", "Set variable")
 
 	// DML flags
-	flag.StringVar(&createDB, "create", "", "create database, argument can be instance requirement json or simply a node count requirement")
-	flag.StringVar(&dropDB, "drop", "", "drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
-	flag.StringVar(&updatePermission, "update-perm", "", "update user's permission on specific sqlchain")
-	flag.StringVar(&transferToken, "transfer", "", "transfer token to target account")
-	flag.BoolVar(&getBalance, "get-balance", false, "get balance of current account")
-	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "get specific token's balance of current account, e.g. Particle, Wave, and etc.")
-	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "wait for transaction confirmation")
+	flag.StringVar(&createDB, "create", "", "Create database, argument can be instance requirement json or simply a node count requirement")
+	flag.StringVar(&dropDB, "drop", "", "Drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
+	flag.StringVar(&updatePermission, "update-perm", "", "Update user's permission on specific sqlchain")
+	flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
+	flag.BoolVar(&getBalance, "get-balance", false, "Get balance of current account")
+	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
+	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
 }
 
 func main() {

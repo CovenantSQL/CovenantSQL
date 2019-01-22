@@ -156,7 +156,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	defer chain.Stop()
 
 	log.Info(conf.StartSucceedMessage)
-	//go periodicPingBlockProducer()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

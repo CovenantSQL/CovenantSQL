@@ -7,9 +7,11 @@ services:
     restart: always
     ports:
       - "11099:4661"
+      - "12099:4665"
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_0/config.yaml
+      METRIC_WEB_ADDR: "0.0.0.0:4665"
     volumes:
       - ./test/service/node_0/:/app/node_0/
     networks:
@@ -26,9 +28,11 @@ services:
     restart: always
     ports:
       - "11100:4661"
+      - "12100:4665"
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_1/config.yaml
+      METRIC_WEB_ADDR: "0.0.0.0:4665"
     volumes:
       - ./test/service/node_1/:/app/node_1/
     networks:
@@ -45,9 +49,11 @@ services:
     restart: always
     ports:
       - "11101:4661"
+      - "12101:4665"
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_2/config.yaml
+      METRIC_WEB_ADDR: "0.0.0.0:4665"
     volumes:
       - ./test/service/node_2/:/app/node_2/
     networks:
@@ -64,9 +70,11 @@ services:
     restart: always
     ports:
       - "11102:4661"
+      - "12102:4665"
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_0/config.yaml
+      METRIC_WEB_ADDR: "0.0.0.0:4665"
     volumes:
       - ./test/service/node_miner_0/:/app/node_miner_0/
     networks:
@@ -83,9 +91,11 @@ services:
     restart: always
     ports:
       - "11103:4661"
+      - "12103:4665"
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_1/config.yaml
+      METRIC_WEB_ADDR: "0.0.0.0:4665"
     volumes:
       - ./test/service/node_miner_1/:/app/node_miner_1/
     networks:
@@ -102,9 +112,11 @@ services:
     restart: always
     ports:
       - "11104:4661"
+      - "12104:4665"
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_2/config.yaml
+      METRIC_WEB_ADDR: "0.0.0.0:4665"
     volumes:
       - ./test/service/node_miner_2/:/app/node_miner_2/
     networks:

@@ -32,6 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
@@ -56,6 +57,7 @@ var (
 	// profile
 	cpuProfile string
 	memProfile string
+	metricWeb  string
 
 	// other
 	noLogo      bool
@@ -65,7 +67,7 @@ var (
 	wsapiAddr   string
 	mode        string // "normal", "api"
 
-	logLevel string
+  logLevel string
 )
 
 const name = `cqld`
@@ -80,21 +82,23 @@ func init() {
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
+	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
 	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API")
-	flag.StringVar(&mode, "mode", "normal", "run mode, e.g. normal, api")
-	flag.StringVar(&logLevel, "log-level", "", "service log level")
+	flag.StringVar(&mode, "mode", "normal", "Run mode, e.g. normal, api")
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
+		_, _ = fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
+		_, _ = fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
 		flag.PrintDefaults()
 	}
 }
 
 func initLogs() {
 	log.Infof("%#v starting, version %#v, commit %#v, branch %#v", name, version, commit, branch)
-	log.Infof("%#v, target architecture is %#v, operating system target is %#v", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("%#v, target architecture is %#v, operating system target is %#v",
+		runtime.Version(), runtime.GOARCH, runtime.GOOS)
 	log.Infof("role: %#v", conf.RoleTag)
 }
 
@@ -122,8 +126,7 @@ func main() {
 
 	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
-
-	// BP DO NOT Generate new key pair
+	// BP Never Generate new key pair
 	conf.GConf.GenerateKeyPair = false
 
 	// init log
@@ -133,8 +136,15 @@ func main() {
 		fmt.Print(logo)
 	}
 
+	if len(metricWeb) > 0 {
+		err = metric.InitMetricWeb(metricWeb)
+		if err != nil {
+			log.Errorf("start metric web server on %s failed: %v", metricWeb, err)
+			os.Exit(-1)
+		}
+	}
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
-	utils.StartProfile(cpuProfile, memProfile)
+	_ = utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
 	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {

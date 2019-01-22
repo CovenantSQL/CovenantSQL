@@ -622,6 +622,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:95be927b2ec224dfd5357bdd9a8f588299779812525d9aeb0740a3713a5a2560"
+  name = "github.com/zserge/metric"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5a5d84c90520d706b4805b4a5cca4c57998868e0"
+
+[[projects]]
+  branch = "master"
   digest = "1:cfd661f1a52594117f2a753bb640a86d4dbf3e0d778c2641bfbc750e6a1c8be7"
   name = "golang.org/x/crypto"
   packages = [
@@ -701,6 +709,7 @@
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_model/go",
+    "github.com/prometheus/common/expfmt",
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
     "github.com/rcrowley/go-metrics",
@@ -724,6 +733,7 @@
     "github.com/xo/usql/rline",
     "github.com/xo/usql/text",
     "github.com/xtaci/smux",
+    "github.com/zserge/metric",
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",

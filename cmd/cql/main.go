@@ -105,7 +105,7 @@ func (v *varsFlag) Set(value string) error {
 	return nil
 }
 
-func init() {
+func usqlRegister() {
 	// set command name of usql
 	text.CommandName = "covenantsql"
 
@@ -177,7 +177,9 @@ func init() {
 			log.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
-			if err = client.WaitDBCreation(context.Background(), dsn); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			defer cancel()
+			if err = client.WaitDBCreation(ctx, dsn); err != nil {
 				return
 			}
 
@@ -202,28 +204,31 @@ func init() {
 		Aliases:  []string{},
 		Override: "",
 	})
+}
 
-	flag.StringVar(&dsn, "dsn", "", "database url")
-	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
-	flag.StringVar(&fileName, "file", "", "execute commands from file and exit")
+func init() {
+
+	flag.StringVar(&dsn, "dsn", "", "Database url")
+	flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
+	flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&noRC, "no-rc", false, "do not read start up file")
+	flag.BoolVar(&noRC, "no-rc", false, "Do not read start up file")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&outFile, "out", "", "output file")
-	flag.StringVar(&configFile, "config", "config.yaml", "config file for covenantsql")
-	flag.StringVar(&password, "password", "", "master key password for covenantsql")
-	flag.BoolVar(&singleTransaction, "single-transaction", false, "execute as a single transaction (if non-interactive)")
-	flag.Var(&variables, "variable", "set variable")
+	flag.StringVar(&outFile, "out", "", "Record stdout to file")
+	flag.StringVar(&configFile, "config", "config.yaml", "Config file for covenantsql")
+	flag.StringVar(&password, "password", "", "Master key password for covenantsql")
+	flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
+	flag.Var(&variables, "variable", "Set variable")
 
 	// DML flags
-	flag.StringVar(&createDB, "create", "", "create database, argument can be instance requirement json or simply a node count requirement")
-	flag.StringVar(&dropDB, "drop", "", "drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
-	flag.StringVar(&updatePermission, "update-perm", "", "update user's permission on specific sqlchain")
-	flag.StringVar(&transferToken, "transfer", "", "transfer token to target account")
-	flag.BoolVar(&getBalance, "get-balance", false, "get balance of current account")
-	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "get specific token's balance of current account, e.g. Particle, Wave, and etc.")
-	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "wait for transaction confirmation")
+	flag.StringVar(&createDB, "create", "", "Create database, argument can be instance requirement json or simply a node count requirement")
+	flag.StringVar(&dropDB, "drop", "", "Drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
+	flag.StringVar(&updatePermission, "update-perm", "", "Update user's permission on specific sqlchain")
+	flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
+	flag.BoolVar(&getBalance, "get-balance", false, "Get balance of current account")
+	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
+	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
 }
 
 func main() {
@@ -246,7 +251,9 @@ func main() {
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
-	waitTxConfirmationMaxDuration = 10 * conf.GConf.BPPeriod
+	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
+
+	usqlRegister()
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
@@ -334,7 +341,19 @@ func main() {
 			return
 		}
 
+		if waitTxConfirmation {
+			var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			defer cancel()
+			err = client.WaitDBCreation(ctx, dsn)
+			if err != nil {
+				log.WithError(err).Error("create database failed durating creation")
+				os.Exit(-1)
+				return
+			}
+		}
+
 		log.Infof("the newly created database is: %#v", dsn)
+		fmt.Printf(dsn)
 		return
 	}
 
@@ -462,8 +481,8 @@ func main() {
 				bindings = append(bindings, name)
 			}
 			log.Infof("available drivers are: %#v", bindings)
-			return
 		}
+		os.Exit(-1)
 	}
 }
 

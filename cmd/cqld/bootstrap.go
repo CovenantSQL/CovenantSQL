@@ -167,7 +167,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	defer chain.Stop()
 
 	log.Info(conf.StartSucceedMessage)
-	//go periodicPingBlockProducer()
 
 	// start json-rpc server
 	log.Info("wsapi: start service")

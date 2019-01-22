@@ -18,11 +18,14 @@ package blockproducer
 
 import (
 	"context"
+	"expvar"
 	"fmt"
 	"math"
 	"os"
 	"sync"
 	"time"
+
+	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
@@ -80,6 +83,11 @@ type Chain struct {
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
+	// Normally, NewChain() should only be called once in app.
+	// So, we just check expvar without a lock
+	if expvar.Get("height") == nil {
+		expvar.Publish("height", mw.NewGauge("5m1s"))
+	}
 	return NewChainWithContext(context.Background(), cfg)
 }
 
@@ -361,6 +369,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 		}).Warn("too much time elapsed in the new period, skip this block")
 		return
 	}
+	expvar.Get("height").(mw.Metric).Add(float64(c.getNextHeight()))
 	log.WithField("height", c.getNextHeight()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(

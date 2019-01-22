@@ -105,14 +105,9 @@ func (v *varsFlag) Set(value string) error {
 	return nil
 }
 
-func init() {
+func usqlRegister() {
 	// set command name of usql
 	text.CommandName = "covenantsql"
-
-	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
-	// enough informations from config to do that currently, so just use a fixed and long enough
-	// duration.
-	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
 
 	// register SQLite3 database
 	drivers.Register("sqlite3", drivers.Driver{
@@ -209,6 +204,9 @@ func init() {
 		Aliases:  []string{},
 		Override: "",
 	})
+}
+
+func init() {
 
 	flag.StringVar(&dsn, "dsn", "", "database url")
 	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
@@ -249,6 +247,13 @@ func main() {
 		os.Exit(-1)
 		return
 	}
+
+	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
+	// enough informations from config to do that currently, so just use a fixed and long enough
+	// duration.
+	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
+
+	usqlRegister()
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64

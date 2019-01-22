@@ -36,8 +36,6 @@ const (
 	PB
 	// EB is 1024 PB
 	EB
-	// ZB is 1024 EB
-	ZB
 )
 
 // Various big integer limit values.

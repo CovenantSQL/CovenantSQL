@@ -53,6 +53,7 @@ func (r *Runtime) newLog(ctx context.Context, logType kt.LogType, data []byte) (
 
 func (r *Runtime) writeWAL(ctx context.Context, l *kt.Log) (err error) {
 	defer trace.StartRegion(ctx, "writeWal").End()
+
 	if err = r.wal.Write(l); err != nil {
 		err = errors.Wrap(err, "write follower log failed")
 	}

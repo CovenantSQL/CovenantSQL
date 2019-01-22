@@ -35,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	"github.com/pkg/errors"
 )
@@ -249,11 +250,15 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
+		_, task := trace.NewTask(context.Background(), "ReadQuery")
+		defer task.End()
 		if tracker, response, err = db.chain.Query(request, false); err != nil {
 			err = errors.Wrap(err, "failed to query read query")
 			return
 		}
 	case types.WriteQuery:
+		_, task := trace.NewTask(context.Background(), "WriteQuery")
+		defer task.End()
 		if db.cfg.UseEventualConsistency {
 			// reset context
 			request.SetContext(context.Background())
@@ -382,11 +387,6 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker, response *types.Response, err error) {
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "writeQuery")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "writeQueryRegion").End()
-
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {
 		path := filepath.Join(db.cfg.DataDir, StorageFileName)

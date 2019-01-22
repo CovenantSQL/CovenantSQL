@@ -29,6 +29,8 @@ import (
 )
 
 func (r *Runtime) leaderCommitResult(ctx context.Context, tm *timer.Timer, reqPayload interface{}, prepareLog *kt.Log) (res *commitFuture) {
+	defer trace.StartRegion(ctx, "leaderCommitResult").End()
+
 	// decode log and send to commit channel to process
 	res = newCommitFuture()
 
@@ -225,6 +227,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 
 func (r *Runtime) getPrepareLog(ctx context.Context, l *kt.Log) (lastCommitIndex uint64, pl *kt.Log, err error) {
 	defer trace.StartRegion(ctx, "getPrepareLog").End()
+
 	var prepareIndex uint64
 
 	// decode prepare index

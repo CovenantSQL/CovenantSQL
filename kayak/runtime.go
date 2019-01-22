@@ -303,14 +303,10 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 			Debug("kayak leader apply")
 	}()
 
-	waitForLockRegion := trace.StartRegion(ctx, "peersLock")
-
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
 	tm.Add("peers_lock")
-
-	waitForLockRegion.End()
 
 	if r.role != proto.Leader {
 		// not leader
@@ -354,14 +350,10 @@ func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error
 			Debug("kayak log fetch")
 	}()
 
-	waitForLockRegion := trace.StartRegion(ctx, "peersLock")
-
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
 	tm.Add("peers_lock")
-
-	waitForLockRegion.End()
 
 	if r.role != proto.Leader {
 		// not leader
@@ -400,14 +392,10 @@ func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
 			Debug("kayak follower apply")
 	}()
 
-	waitForLockRegion := trace.StartRegion(ctx, "peersLock")
-
 	r.peersLock.RLock()
 	defer r.peersLock.RUnlock()
 
 	tm.Add("peers_lock")
-
-	waitForLockRegion.End()
 
 	if r.role == proto.Leader {
 		// not follower

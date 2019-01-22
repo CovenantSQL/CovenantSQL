@@ -46,6 +46,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 	yaml "gopkg.in/yaml.v2"
@@ -263,7 +264,7 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_0/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner0.profile"),
-			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner0.trace"),
+			"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner0.trace"),
 			"-metric-graphite-server", "192.168.2.100:2003",
 			"-profile-server", "0.0.0.0:8080",
 			"-metric-log",
@@ -281,7 +282,7 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_1/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner1.profile"),
-			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner1.trace"),
+			"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner1.trace"),
 			"-metric-graphite-server", "192.168.2.100:2003",
 			"-profile-server", "0.0.0.0:8081",
 			"-metric-log",
@@ -299,7 +300,7 @@ func startNodesProfile(bypassSign bool) {
 		FJ(baseDir, "./bin/cql-minerd"),
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_miner_2/config.yaml"),
 			"-cpu-profile", FJ(baseDir, "./cmd/cql-minerd/miner2.profile"),
-			//"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner2.trace"),
+			"-trace-file", FJ(baseDir, "./cmd/cql-minerd/miner2.trace"),
 			"-metric-graphite-server", "192.168.2.100:2003",
 			"-profile-server", "0.0.0.0:8082",
 			"-metric-log",
@@ -647,20 +648,25 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				ii := atomic.AddInt64(&i, 1)
 				index := ROWSTART + ii
 				//start := time.Now()
-				_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
+
+				ctx, task := trace.NewTask(context.Background(), "BenchInsert")
+
+				_, err = db.ExecContext(ctx, "INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 					"(?, ?)", index, ii,
 				)
 				//log.Warnf("insert index = %d %v", index, time.Since(start))
 				for err != nil && err.Error() == sqlite3.ErrBusy.Error() {
 					// retry forever
 					log.Warnf("index = %d retried", index)
-					_, err = db.Exec("INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
+					_, err = db.ExecContext(ctx, "INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 						"(?, ?)", index, ii,
 					)
 				}
 				if err != nil {
 					b.Fatal(err)
 				}
+
+				task.End()
 			}
 		})
 	})
@@ -690,9 +696,11 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				} else { //has data before ROWSTART
 					index = rand.Int63n(count - 1)
 				}
+
+				ctx, task := trace.NewTask(context.Background(), "BenchSelect")
 				//log.Debugf("index = %d", index)
 				//start := time.Now()
-				row := db.QueryRow("SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
+				row := db.QueryRowContext(ctx, "SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
 				//log.Warnf("select index = %d %v", index, time.Since(start))
 				var result []byte
 				err = row.Scan(&result)
@@ -700,6 +708,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 					log.Errorf("index = %d", index)
 					b.Fatal(err)
 				}
+				task.End()
 			}
 		})
 	})

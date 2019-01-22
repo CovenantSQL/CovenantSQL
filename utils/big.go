@@ -23,20 +23,21 @@ import (
 )
 
 const (
+	_ = iota
 	// KB is 1024 Bytes
-	KB int64 = 1024
+	KB int64 = 1 << (10 * iota)
 	// MB is 1024 KB
-	MB int64 = KB * 1024
+	MB
 	// GB is 1024 MB
-	GB int64 = MB * 1024
+	GB
 	// TB is 1024 GB
-	TB int64 = GB * 1024
+	TB
 	// PB is 1024 TB
-	PB int64 = TB * 1024
+	PB
 	// EB is 1024 PB
-	EB int64 = TB * 1024
+	EB
 	// ZB is 1024 EB
-	ZB int64 = TB * 1024
+	ZB
 )
 
 // Various big integer limit values.

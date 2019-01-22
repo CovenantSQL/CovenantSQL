@@ -550,13 +550,13 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 
 	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.Hash().AsBytes())
 
-	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash().String())
+	if err = c.register(ack); err != nil {
+		err = errors.Wrapf(err, "register ack %v at height %d", ack.Hash(), h)
 		return
 	}
 
-	if err = c.register(ack); err != nil {
-		err = errors.Wrapf(err, "register ack %v at height %d", ack.Hash(), h)
+	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
+		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash().String())
 		return
 	}
 

@@ -105,7 +105,7 @@ func (v *varsFlag) Set(value string) error {
 	return nil
 }
 
-func init() {
+func usqlRegister() {
 	// set command name of usql
 	text.CommandName = "covenantsql"
 
@@ -177,7 +177,9 @@ func init() {
 			log.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
-			if err = client.WaitDBCreation(context.Background(), dsn); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			defer cancel()
+			if err = client.WaitDBCreation(ctx, dsn); err != nil {
 				return
 			}
 
@@ -202,6 +204,9 @@ func init() {
 		Aliases:  []string{},
 		Override: "",
 	})
+}
+
+func init() {
 
 	flag.StringVar(&dsn, "dsn", "", "database url")
 	flag.StringVar(&command, "command", "", "run only single command (SQL or usql internal command) and exit")
@@ -247,6 +252,8 @@ func main() {
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
 	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
+
+	usqlRegister()
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
@@ -474,8 +481,8 @@ func main() {
 				bindings = append(bindings, name)
 			}
 			log.Infof("available drivers are: %#v", bindings)
-			return
 		}
+		os.Exit(-1)
 	}
 }
 

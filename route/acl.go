@@ -41,8 +41,8 @@ ACLs:
 	Miner -> Miner, Kayak.Call():
 		ACL: Open to Miner Leader.
 
-    Miner -> BP, Metric.UploadMetrics():
-        ACL: Open to Registered Miner
+	Miner -> BP, Metric.UploadMetrics():
+		ACL: Open to Registered Miner
 
    	BP -> BP, Exchange NodeInfo, Kayak.Call():
   		ACL: Open to BP

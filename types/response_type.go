@@ -17,12 +17,14 @@
 package types
 
 import (
+	"context"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
 )
 
@@ -87,6 +89,9 @@ func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) 
 
 // Verify checks hash and signature in whole response.
 func (sh *Response) Verify() (err error) {
+	_, task := trace.NewTask(context.Background(), "ResponseVerify")
+	defer task.End()
+
 	// verify data hash in header
 	if err = verifyHash(&sh.Payload, &sh.Header.PayloadHash); err != nil {
 		return
@@ -97,6 +102,9 @@ func (sh *Response) Verify() (err error) {
 
 // Sign the request.
 func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
+	_, task := trace.NewTask(context.Background(), "ResponseSign")
+	defer task.End()
+
 	// set rows count
 	sh.Header.RowCount = uint64(len(sh.Payload.Rows))
 

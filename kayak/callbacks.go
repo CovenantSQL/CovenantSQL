@@ -24,7 +24,7 @@ import (
 )
 
 func (r *Runtime) doCheck(ctx context.Context, req interface{}) (err error) {
-	defer trace.StartRegion(ctx, "check").End()
+	defer trace.StartRegion(ctx, "checkCallback").End()
 	if err = r.sh.Check(req); err != nil {
 		err = errors.Wrap(err, "verify log")
 	}
@@ -33,7 +33,7 @@ func (r *Runtime) doCheck(ctx context.Context, req interface{}) (err error) {
 }
 
 func (r *Runtime) doEncodePayload(ctx context.Context, req interface{}) (enc []byte, err error) {
-	defer trace.StartRegion(ctx, "encodePayload").End()
+	defer trace.StartRegion(ctx, "encodePayloadCallback").End()
 	if enc, err = r.sh.EncodePayload(req); err != nil {
 		err = errors.Wrap(err, "encode kayak payload failed")
 	}
@@ -41,7 +41,7 @@ func (r *Runtime) doEncodePayload(ctx context.Context, req interface{}) (enc []b
 }
 
 func (r *Runtime) doDecodePayload(ctx context.Context, data []byte) (req interface{}, err error) {
-	defer trace.StartRegion(ctx, "decodePayload").End()
+	defer trace.StartRegion(ctx, "decodePayloadCallback").End()
 	if req, err = r.sh.DecodePayload(data); err != nil {
 		err = errors.Wrap(err, "decode kayak payload failed")
 	}
@@ -49,6 +49,6 @@ func (r *Runtime) doDecodePayload(ctx context.Context, data []byte) (req interfa
 }
 
 func (r *Runtime) doCommit(ctx context.Context, req interface{}, isLeader bool) (result interface{}, err error) {
-	defer trace.StartRegion(ctx, "commit").End()
+	defer trace.StartRegion(ctx, "commitCallback").End()
 	return r.sh.Commit(req, isLeader)
 }

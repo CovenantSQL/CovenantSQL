@@ -17,6 +17,7 @@
 package types
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 //go:generate hsp
@@ -119,6 +121,9 @@ func (sh *SignedRequestHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 
 // Verify checks hash and signature in whole request.
 func (r *Request) Verify() (err error) {
+	_, task := trace.NewTask(context.Background(), "RequestVerify")
+	defer task.End()
+
 	// verify payload hash in signed header
 	if err = verifyHash(&r.Payload, &r.Header.QueriesHash); err != nil {
 		return
@@ -129,6 +134,9 @@ func (r *Request) Verify() (err error) {
 
 // Sign the request.
 func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
+	_, task := trace.NewTask(context.Background(), "RequestSign")
+	defer task.End()
+
 	// set query count
 	r.Header.BatchCount = uint64(len(r.Payload.Queries))
 

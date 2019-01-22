@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
@@ -115,7 +116,16 @@ func (t *rpcTracker) done() {
 }
 
 func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, meets bool, finished bool) {
-	defer trace.StartRegion(ctx, "rpcCall").End()
+	if trace.IsEnabled() {
+		// get request log type
+		traceType := "rpcCall"
+
+		if rawReq, ok := t.req.(*kt.ApplyRequest); ok {
+			traceType += rawReq.Log.Type.String()
+		}
+
+		defer trace.StartRegion(ctx, traceType).End()
+	}
 
 	for {
 		select {

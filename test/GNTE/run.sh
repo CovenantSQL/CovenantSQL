@@ -1,8 +1,13 @@
 #!/bin/bash -x
 
-yaml=(
-	./scripts/gnte_{0,0.2,5,20,100}ms.yaml
-)
+param=$1
+if [ "fast" == "$param" ]; then
+    yaml=./scripts/gnte_0ms.yaml
+else
+    yaml=(
+        ./scripts/gnte_{0,0.2,5,20,100}ms.yaml
+    )
+fi
 
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
@@ -44,7 +49,7 @@ do
 
     # Bench GNTE
     cd ${PROJECT_DIR}/cmd/cql-minerd/
-    bash -x ./benchGNTE.sh
+    bash -x ./benchGNTE.sh $param
     echo "${gnte_yaml}" >> ${tmp_file}
     grep BenchmarkMinerGNTE gnte.log >> ${tmp_file}
     echo "" >> ${tmp_file}

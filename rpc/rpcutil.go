@@ -18,12 +18,14 @@ package rpc
 
 import (
 	"context"
+	"expvar"
 	"io"
 	"math/rand"
 	"net"
 	"net/rpc"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -31,6 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
+	mw "github.com/zserge/metric"
 )
 
 var (
@@ -41,6 +44,8 @@ var (
 	currentBP proto.NodeID
 	// currentBPLock represents the chief block producer access lock.
 	currentBPLock sync.Mutex
+	// callRPCExpvarLock is the lock of RPC Call Publish lock
+	callRPCExpvarLock sync.Mutex
 )
 
 // PersistentCaller is a wrapper for session pooling and RPC calling.
@@ -84,6 +89,11 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
+	startTime := time.Now()
+	defer func() {
+		recordRPCCost(startTime, method, err)
+	}()
+
 	err = c.initClient(method == route.DHTPing.String())
 	if err != nil {
 		err = errors.Wrap(err, "init PersistentCaller client failed")
@@ -124,7 +134,7 @@ func (c *PersistentCaller) CloseStream() {
 		if c.client.Conn != nil {
 			stream, ok := c.client.Conn.(*mux.Stream)
 			if ok {
-				stream.Close()
+				_ = stream.Close()
 			}
 		}
 		c.client.Close()
@@ -155,9 +165,46 @@ func (c *Caller) CallNode(
 	return c.CallNodeWithContext(context.Background(), node, method, args, reply)
 }
 
+func recordRPCCost(startTime time.Time, method string, err error) {
+	var (
+		name, name_c string
+		val, val_c   expvar.Var
+	)
+	costTime := time.Since(startTime)
+	if err == nil {
+		name = "t_succ:" + method
+		name_c = "c_succ:" + method
+	} else {
+		name = "t_fail:" + method
+		name_c = "c_fail:" + method
+	}
+	// Optimistically, val will not be nil except the first Call of method
+	// expvar uses sync.Map
+	// So, we try it first without lock
+	if val = expvar.Get(name); val == nil {
+		callRPCExpvarLock.Lock()
+		val = expvar.Get(name)
+		if val == nil {
+			expvar.Publish(name, mw.NewHistogram("10s1s", "1m5s", "1h1m"))
+			expvar.Publish(name_c, mw.NewCounter("10s1s", "1h1m"))
+		}
+		callRPCExpvarLock.Unlock()
+		val = expvar.Get(name)
+	}
+	val.(mw.Metric).Add(costTime.Seconds())
+	val_c = expvar.Get(name_c)
+	val_c.(mw.Metric).Add(1)
+	return
+}
+
 // CallNodeWithContext invokes the named function, waits for it to complete or context timeout, and returns its error status.
 func (c *Caller) CallNodeWithContext(
 	ctx context.Context, node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
+	startTime := time.Now()
+	defer func() {
+		recordRPCCost(startTime, method, err)
+	}()
+
 	conn, err := DialToNode(node, c.pool, method == route.DHTPing.String())
 	if err != nil {
 		err = errors.Wrapf(err, "dial to node %s failed", node)

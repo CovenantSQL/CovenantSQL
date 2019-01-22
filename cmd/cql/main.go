@@ -246,7 +246,7 @@ func main() {
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
-	waitTxConfirmationMaxDuration = 10 * conf.GConf.BPPeriod
+	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
@@ -334,7 +334,19 @@ func main() {
 			return
 		}
 
+		if waitTxConfirmation {
+			var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			defer cancel()
+			err = client.WaitDBCreation(ctx, dsn)
+			if err != nil {
+				log.WithError(err).Error("create database failed durating creation")
+				os.Exit(-1)
+				return
+			}
+		}
+
 		log.Infof("the newly created database is: %#v", dsn)
+		fmt.Printf(dsn)
 		return
 	}
 

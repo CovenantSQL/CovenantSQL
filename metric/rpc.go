@@ -51,7 +51,7 @@ func NewCollectClient() *CollectClient {
 
 // CollectServer is the Metric receiver side
 type CollectServer struct {
-	NodeMetric NodeMetricMap // map[proto.NodeID]MetricMap
+	NodeMetric NodeMetricMap // map[proto.NodeID]metricMap
 }
 
 // NewCollectServer returns a new CollectServer
@@ -75,7 +75,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		return
 	}
 
-	mfm := make(MetricMap, len(req.MFBytes))
+	mfm := make(metricMap, len(req.MFBytes))
 	log.Debugf("RPC received MFS len %d", len(req.MFBytes))
 	for _, mf := range req.MFBytes[:] {
 		bufReader := bytes.NewReader(mf)

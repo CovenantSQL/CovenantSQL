@@ -64,7 +64,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 		So(ok, ShouldBeTrue)
 		//log.Debugf("NodeMetric：%#v", v)
 
-		m, _ := v.(MetricMap)
+		m, _ := v.(metricMap)
 		mfb, err := cc.GatherMetricBytes()
 		So(err, ShouldBeNil)
 		So(len(m), ShouldEqual, len(mfb))

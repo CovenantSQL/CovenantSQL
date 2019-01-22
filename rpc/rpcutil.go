@@ -167,16 +167,16 @@ func (c *Caller) CallNode(
 
 func recordRPCCost(startTime time.Time, method string, err error) {
 	var (
-		name, name_c string
-		val, val_c   expvar.Var
+		name, nameC string
+		val, valC   expvar.Var
 	)
 	costTime := time.Since(startTime)
 	if err == nil {
 		name = "t_succ:" + method
-		name_c = "c_succ:" + method
+		nameC = "c_succ:" + method
 	} else {
 		name = "t_fail:" + method
-		name_c = "c_fail:" + method
+		nameC = "c_fail:" + method
 	}
 	// Optimistically, val will not be nil except the first Call of method
 	// expvar uses sync.Map
@@ -186,14 +186,14 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 		val = expvar.Get(name)
 		if val == nil {
 			expvar.Publish(name, mw.NewHistogram("10s1s", "1m5s", "1h1m"))
-			expvar.Publish(name_c, mw.NewCounter("10s1s", "1h1m"))
+			expvar.Publish(nameC, mw.NewCounter("10s1s", "1h1m"))
 		}
 		callRPCExpvarLock.Unlock()
 		val = expvar.Get(name)
 	}
 	val.(mw.Metric).Add(costTime.Seconds())
-	val_c = expvar.Get(name_c)
-	val_c.(mw.Metric).Add(1)
+	valC = expvar.Get(nameC)
+	valC.(mw.Metric).Add(1)
 	return
 }
 

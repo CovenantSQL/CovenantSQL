@@ -20,9 +20,7 @@ wallet=$(awk '{print $3}' wallet.txt)
 
 #transfer some coin to above address
 ${PROJECT_DIR}/bin/cql -config ${PROJECT_DIR}/conf/testnet/config.yaml -transfer \
-    '{"addr":"'${wallet}'", "amount":"100000000 Particle"}'
-
-sleep 60
+    '{"addr":"'${wallet}'", "amount":"100000000 Particle"}' -wait-tx-confirm
 
 ${PROJECT_DIR}/bin/cql -config conf/config.yaml -create 2 | tee dsn.txt
 

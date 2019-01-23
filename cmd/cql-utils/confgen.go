@@ -62,7 +62,11 @@ func runConfgen() {
 			os.Exit(1)
 		}
 		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
-			os.RemoveAll(workingRoot)
+			err = os.RemoveAll(workingRoot)
+			if err != nil {
+				log.WithError(err).Error("unexpected error")
+				os.Exit(1)
+			}
 		} else {
 			os.Exit(0)
 		}

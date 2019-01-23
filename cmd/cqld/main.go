@@ -22,20 +22,14 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/metric"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 const logo = `
@@ -65,7 +59,6 @@ var (
 	configFile  string
 
 	wsapiAddr string
-	mode      string // "normal", "api"
 
 	logLevel string
 )
@@ -84,8 +77,7 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
-	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API")
-	flag.StringVar(&mode, "mode", "normal", "Run mode, e.g. normal, api")
+	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API, run as API Node")
 	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {
@@ -152,52 +144,4 @@ func main() {
 	}
 
 	log.Info("server stopped")
-}
-
-func registerNodeToBP(timeout time.Duration) (err error) {
-	// get local node id
-	localNodeID, err := kms.GetLocalNodeID()
-	if err != nil {
-		return errors.WithMessage(err, "get local node id")
-	}
-
-	// get local node info
-	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
-	if err != nil {
-		return errors.WithMessage(err, "get local node info")
-	}
-
-	log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-	pingWaitCh := make(chan proto.NodeID)
-	bpNodeIDs := route.GetBPs()
-	for _, bpNodeID := range bpNodeIDs {
-		go func(ch chan proto.NodeID, id proto.NodeID) {
-			for {
-				err := rpc.PingBP(localNodeInfo, id)
-				if err == nil {
-					log.WithField("node", localNodeInfo).Info("ping BP node")
-					ch <- id
-					return
-				}
-				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
-					log.Debug("stop ping non-leader BP node")
-					return
-				}
-
-				log.WithField("node", localNodeInfo).WithError(err).Error("ping BP node")
-				time.Sleep(3 * time.Second)
-			}
-		}(pingWaitCh, bpNodeID)
-	}
-
-	select {
-	case bp := <-pingWaitCh:
-		close(pingWaitCh)
-		log.WithField("BP", bp).Infof("ping BP node")
-	case <-time.After(timeout):
-		return errors.New("ping BP timeout")
-	}
-
-	return
 }

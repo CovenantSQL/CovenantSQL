@@ -78,7 +78,7 @@ type Chain struct {
 	headBranch   *branch
 	branches     []*branch
 	txPool       map[hash.Hash]pi.Transaction
-	mode         string
+	mode         RunMode
 }
 
 // NewChain creates a new blockchain.
@@ -191,7 +191,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
-	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == "api"); err != nil {
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode); err != nil {
 		return
 	}
 	if t = cfg.ConfirmThreshold; t <= 0.0 {
@@ -356,7 +356,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 
 	defer c.increaseNextHeight()
 	// Skip if it's not my turn
-	if c.mode == "api" || !c.isMyTurn() {
+	if c.mode == APINodeMode || !c.isMyTurn() {
 		return
 	}
 	// Normally, a block producing should start right after the new period, but more time may also

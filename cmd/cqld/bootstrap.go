@@ -79,8 +79,13 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
-	if mode == "api" {
-		if err = registerNodeToBP(30 * time.Second); err != nil {
+	mode := bp.BPMode
+	if wsapiAddr != "" {
+		mode = bp.APINodeMode
+	}
+
+	if mode == bp.APINodeMode {
+		if err = rpc.RegisterNodeToBP(30 * time.Second); err != nil {
 			log.WithError(err).Fatal("register node to BP")
 			return
 		}
@@ -105,7 +110,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server.Stop()
 	}()
 
-	if mode == "normal" {
+	if mode == bp.BPMode {
 		// init storage
 		log.Info("init storage")
 		var st *LocalStorage
@@ -169,8 +174,14 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	log.Info(conf.StartSucceedMessage)
 
 	// start json-rpc server
-	log.Info("wsapi: start service")
-	go api.Serve(wsapiAddr, conf.GConf.BP.ChainFileName)
+	if mode == bp.APINodeMode {
+		log.Info("wsapi: start service")
+		go func() {
+			if err := api.Serve(wsapiAddr, conf.GConf.BP.ChainFileName); err != nil {
+				log.WithError(err).Error("wsapi: start service")
+			}
+		}()
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

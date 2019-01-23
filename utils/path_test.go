@@ -19,6 +19,7 @@ package utils
 import (
 	"io/ioutil"
 	"os"
+	"os/user"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -45,5 +46,21 @@ func TestCopyFile(t *testing.T) {
 		n, err = CopyFile("testcopy", "/path/not/exist")
 		So(err, ShouldNotBeNil)
 		So(n, ShouldBeZeroValue)
+	})
+}
+
+func TestHomeDirExpand(t *testing.T) {
+	Convey("expand ~ dir", t, func() {
+		usr, err := user.Current()
+		So(err, ShouldBeNil)
+
+		homeDir := HomeDirExpand(usr, "~")
+		So(homeDir, ShouldEqual, usr.HomeDir)
+
+		fullFilepathWithHome := HomeDirExpand(usr, "~/.local")
+		So(fullFilepathWithHome, ShouldEqual, usr.HomeDir+"/.local")
+
+		fullFilepathRaw := HomeDirExpand(usr, "/dev/null")
+		So(fullFilepathRaw, ShouldEqual, "/dev/null")
 	})
 }

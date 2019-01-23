@@ -25,6 +25,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
@@ -44,16 +45,16 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "./config.yaml", "config file for mysql adapter")
-	flag.StringVar(&password, "password", "", "master key password")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for mysql adapter")
+	flag.StringVar(&password, "password", "", "Master key password")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 
-	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4664", "listen address for mysql adapter")
-	flag.StringVar(&mysqlUser, "mysql-user", "root", "mysql user for adapter server")
-	flag.StringVar(&mysqlPassword, "mysql-password", "calvin", "mysql password for adapter server")
-	flag.StringVar(&logLevel, "log-level", "", "service log level")
+	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4664", "Listen address for mysql adapter")
+	flag.StringVar(&mysqlUser, "mysql-user", "root", "MySQL user for adapter server")
+	flag.StringVar(&mysqlPassword, "mysql-password", "calvin", "MySQL password for adapter server")
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 }
 
 func main() {
@@ -64,6 +65,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

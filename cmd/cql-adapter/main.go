@@ -41,8 +41,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "config file for adapter")
-	flag.StringVar(&password, "password", "", "master key password")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for adapter")
+	flag.StringVar(&password, "password", "", "Master key password")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")

@@ -42,12 +42,14 @@ Created a new certificate valid for the following names 📜
  - "server"
 
 The certificate is at "./server.pem" and the key at "./server-key.pem" ✅
+
+And move them to ~/.cql/ dir.
 ``````
 
 You can use following interactive command to generate adapter config.
 
 ```shell
-$ cql-utils -tool adapterconfgen -config config.yaml
+$ cql-utils -tool adapterconfgen
 ListenAddr (default: 0.0.0.0:4661): ⏎
 CertificatePath (default: server.pem): ⏎
 PrivateKeyPath (default: server-key.pem): ⏎
@@ -58,7 +60,7 @@ WriteCerts (default:): ⏎
 StorageDriver (default: covenantsql): ⏎
 StorageRoot (default:): ⏎
 
-$ tail -n 20 config.yaml
+$ tail -n 20 ~/.cql/config.yaml
 ... skipping irrelevant configuration
 Adapter:
   ListenAddr: 0.0.0.0:4661
@@ -79,7 +81,7 @@ Adapter:
 Start the adapter by following commands:
 
 ```shell
-$ cql-adapter -config config.yaml
+$ cql-adapter
 ```
 
 ### API

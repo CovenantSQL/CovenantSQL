@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
@@ -40,7 +41,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "./config.yaml", "config file for adapter")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "config file for adapter")
 	flag.StringVar(&password, "password", "", "master key password")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
@@ -54,6 +55,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

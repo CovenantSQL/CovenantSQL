@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -49,14 +50,14 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "./config.yaml", "config file path")
-	flag.StringVar(&dbID, "database", "", "database to listen for observation")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
+	flag.StringVar(&dbID, "database", "", "Database to listen for observation")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&resetPosition, "reset", "", "reset subscribe position")
-	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4663", "listen address for http explorer api")
-	flag.StringVar(&logLevel, "log-level", "", "service log level")
+	flag.StringVar(&resetPosition, "reset", "", "Reset subscribe position")
+	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4663", "Listen address for http explorer api")
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 }
 
 func main() {
@@ -69,6 +70,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

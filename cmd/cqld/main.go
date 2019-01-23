@@ -58,7 +58,8 @@ var (
 	showVersion bool
 	configFile  string
 
-	mode     string // "normal", "api"
+	wsapiAddr string
+
 	logLevel string
 )
 
@@ -76,7 +77,7 @@ func init() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
-	flag.StringVar(&mode, "mode", "normal", "Run mode, e.g. normal, api")
+	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API, run as API Node")
 	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {

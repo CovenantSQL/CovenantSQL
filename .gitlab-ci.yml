@@ -29,7 +29,9 @@ test-my-project:
 compatibility-testnet:
   stage: test
   script:
+    - set -o errexit
+    - set -o pipefail
     - make clean
     - make -j8 client
     - go test -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
-    - bash test/testnet_client/run.sh
+    - bash -x test/testnet_client/run.sh

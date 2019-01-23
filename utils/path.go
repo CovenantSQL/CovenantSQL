@@ -49,13 +49,18 @@ func CopyFile(src, dst string) (int64, error) {
 	return io.Copy(df, sf)
 }
 
-// HomeDirExpand expands the tilde (~) in the front of a path to a the supplied
-// directory.
-func HomeDirExpand(u *user.User, path string) string {
+// HomeDirExpand tries to expand the tilde (~) in the front of a path
+// to a fullpath directory.
+func HomeDirExpand(path string) string {
+	usr, err := user.Current()
+	if err != nil {
+		return path
+	}
+
 	if path == "~" {
-		return u.HomeDir
+		return usr.HomeDir
 	} else if strings.HasPrefix(path, "~/") {
-		return filepath.Join(u.HomeDir, strings.TrimPrefix(path, "~/"))
+		return filepath.Join(usr.HomeDir, strings.TrimPrefix(path, "~/"))
 	}
 
 	return path

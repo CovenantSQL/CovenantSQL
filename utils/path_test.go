@@ -54,13 +54,13 @@ func TestHomeDirExpand(t *testing.T) {
 		usr, err := user.Current()
 		So(err, ShouldBeNil)
 
-		homeDir := HomeDirExpand(usr, "~")
+		homeDir := HomeDirExpand("~")
 		So(homeDir, ShouldEqual, usr.HomeDir)
 
-		fullFilepathWithHome := HomeDirExpand(usr, "~/.local")
+		fullFilepathWithHome := HomeDirExpand("~/.local")
 		So(fullFilepathWithHome, ShouldEqual, usr.HomeDir+"/.local")
 
-		fullFilepathRaw := HomeDirExpand(usr, "/dev/null")
+		fullFilepathRaw := HomeDirExpand("/dev/null")
 		So(fullFilepathRaw, ShouldEqual, "/dev/null")
 	})
 }

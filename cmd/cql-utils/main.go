@@ -43,11 +43,11 @@ const name = "cql-utils"
 func init() {
 	log.SetLevel(log.InfoLevel)
 
-	flag.StringVar(&tool, "tool", "", "tool type, miner, keytool, rpc, nonce, confgen, addrgen, adapterconfgen")
-	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
-	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "private key file to generate/show")
-	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "config file to use")
-	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "use empty master key")
+	flag.StringVar(&tool, "tool", "", "Tool type, miner, keytool, rpc, nonce, confgen, addrgen, adapterconfgen")
+	flag.StringVar(&publicKeyHex, "public", "", "Public key hex string to mine node id/nonce")
+	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "Private key file to generate/show")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file to use")
+	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "Use empty master key")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 

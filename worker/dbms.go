@@ -464,6 +464,15 @@ func (dbms *DBMS) Ack(ack *types.Ack) (err error) {
 	var db *Database
 	var exists bool
 
+	// check permission
+	addr, err := crypto.PubKeyHash(ack.Header.Signee)
+	if err != nil {
+		return
+	}
+	err = dbms.checkPermission(addr, ack.Header.Response.Request.DatabaseID, types.ReadQuery)
+	if err != nil {
+		return
+	}
 	// find database
 	if db, exists = dbms.getMeta(ack.Header.Response.Request.DatabaseID); !exists {
 		err = ErrNotExists

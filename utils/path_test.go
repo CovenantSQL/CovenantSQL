@@ -62,5 +62,8 @@ func TestHomeDirExpand(t *testing.T) {
 
 		fullFilepathRaw := HomeDirExpand("/dev/null")
 		So(fullFilepathRaw, ShouldEqual, "/dev/null")
+
+		emptyPath := HomeDirExpand("")
+		So(emptyPath, ShouldEqual, "")
 	})
 }

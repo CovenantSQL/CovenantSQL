@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -44,8 +45,8 @@ func init() {
 
 	flag.StringVar(&tool, "tool", "", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen, adapterconfgen")
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
-	flag.StringVar(&privateKeyFile, "private", "private.key", "private key file to generate/show")
-	flag.StringVar(&configFile, "config", "config.yaml", "config file to use")
+	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "private key file to generate/show")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "config file to use")
 	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "use empty master key")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
@@ -58,6 +59,9 @@ func main() {
 		os.Exit(0)
 	}
 	log.Infof("cql-utils build: %#v\n", version)
+
+	configFile = utils.HomeDirExpand(configFile)
+	privateKeyFile = utils.HomeDirExpand(privateKeyFile)
 
 	switch tool {
 	case "miner":

@@ -74,6 +74,10 @@ var (
 )
 
 func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
+	if lower := strings.ToLower(pattern); strings.Contains(lower, "begin") ||
+		strings.Contains(lower, "rollback") {
+		return false, pattern, nil, nil
+	}
 	var (
 		tokenizer  = sqlparser.NewStringTokenizer(pattern)
 		queryParts []string

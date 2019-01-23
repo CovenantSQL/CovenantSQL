@@ -21,6 +21,8 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+
+	"github.com/pkg/errors"
 )
 
 // ExecuteTx starts a transaction, and runs fn in it
@@ -39,11 +41,11 @@ func ExecuteTx(
 func ExecuteInTx(tx driver.Tx, fn func() error) (err error) {
 	err = fn()
 	if err == nil {
-		// Ignore commit errors. The tx has already been committed by RELEASE.
 		err = tx.Commit()
+		if err != nil {
+			err = errors.Wrapf(err, "exec in tx")
+		}
 	} else {
-		// We always need to execute a Rollback() so sql.DB releases the
-		// connection.
 		_ = tx.Rollback()
 	}
 	return

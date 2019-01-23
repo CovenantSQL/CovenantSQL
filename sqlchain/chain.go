@@ -19,6 +19,7 @@ package sqlchain
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -174,15 +175,9 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 
 	log.WithField("db", c.DatabaseID).Debugf("create new chain tdb %s", tdbFile)
 
-	// Open x.State
-	var (
-		strg  xi.Storage
-		state *x.State
-	)
+	// Open storage
+	var strg xi.Storage
 	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
-		return
-	}
-	if state, err = x.NewState(c.Server, strg); err != nil {
 		return
 	}
 
@@ -207,7 +202,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		tdb:          tdb,
 		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
-		st:           state,
+		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(ctx, c),
 		ctx:          ctx,
@@ -261,14 +256,8 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	}
 
 	// Open x.State
-	var (
-		strg   xi.Storage
-		xstate *x.State
-	)
+	var strg xi.Storage
 	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
-		return
-	}
-	if xstate, err = x.NewState(c.Server, strg); err != nil {
 		return
 	}
 
@@ -293,7 +282,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		tdb:          tdb,
 		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
-		st:           xstate,
+		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(ctx, c),
 		ctx:          ctx,

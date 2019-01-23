@@ -729,15 +729,17 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 
 	// create sqlchain
 	sp := &types.SQLChainProfile{
-		ID:             dbID,
-		Address:        dbAddr,
-		Period:         sqlchainPeriod,
-		GasPrice:       tx.GasPrice,
-		TokenType:      types.Particle,
-		Owner:          sender,
-		Users:          users,
-		EncodedGenesis: enc.Bytes(),
-		Miners:         miners,
+		ID:                dbID,
+		Address:           dbAddr,
+		Period:            sqlchainPeriod,
+		GasPrice:          tx.GasPrice,
+		LastUpdatedHeight: 0,
+		TokenType:         types.Particle,
+		Owner:             sender,
+		Miners:            miners,
+		Users:             users,
+		EncodedGenesis:    enc.Bytes(),
+		Meta:              tx.ResourceMeta,
 	}
 
 	if _, loaded := s.loadSQLChainObject(dbID); loaded {

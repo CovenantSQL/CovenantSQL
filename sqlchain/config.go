@@ -51,4 +51,6 @@ type Config struct {
 	TokenType    types.TokenType
 	GasPrice     uint64
 	UpdatePeriod uint64
+
+	IsolationLevel int
 }

@@ -76,8 +76,8 @@ func (z *InitServiceResponseHeader) Msgsize() (s int) {
 func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 8
-	o = append(o, 0x88, 0x88)
+	// map header, size 9
+	o = append(o, 0x89, 0x89)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.TargetMiners)))
 	for za0001 := range z.TargetMiners {
 		if oTemp, err := z.TargetMiners[za0001].MarshalHash(); err != nil {
@@ -86,20 +86,22 @@ func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x88)
+	o = append(o, 0x89)
 	o = hsp.AppendBool(o, z.UseEventualConsistency)
-	o = append(o, 0x88)
+	o = append(o, 0x89)
 	o = hsp.AppendFloat64(o, z.ConsistencyLevel)
-	o = append(o, 0x88)
+	o = append(o, 0x89)
 	o = hsp.AppendFloat64(o, z.LoadAvgPerCPU)
-	o = append(o, 0x88)
+	o = append(o, 0x89)
+	o = hsp.AppendInt(o, z.IsolationLevel)
+	o = append(o, 0x89)
 	o = hsp.AppendString(o, z.EncryptionKey)
-	o = append(o, 0x88)
+	o = append(o, 0x89)
 	o = hsp.AppendUint16(o, z.Node)
-	o = append(o, 0x88)
-	o = hsp.AppendUint64(o, z.Space)
-	o = append(o, 0x88)
+	o = append(o, 0x89)
 	o = hsp.AppendUint64(o, z.Memory)
+	o = append(o, 0x89)
+	o = hsp.AppendUint64(o, z.Space)
 	return
 }
 
@@ -109,7 +111,7 @@ func (z *ResourceMeta) Msgsize() (s int) {
 	for za0001 := range z.TargetMiners {
 		s += z.TargetMiners[za0001].Msgsize()
 	}
-	s += 23 + hsp.BoolSize + 17 + hsp.Float64Size + 14 + hsp.Float64Size + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size
+	s += 23 + hsp.BoolSize + 17 + hsp.Float64Size + 14 + hsp.Float64Size + 15 + hsp.IntSize + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 5 + hsp.Uint16Size + 7 + hsp.Uint64Size + 6 + hsp.Uint64Size
 	return
 }
 

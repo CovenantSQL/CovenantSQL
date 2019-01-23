@@ -2,10 +2,8 @@
 
 PROJECT_DIR=$(cd $(dirname $0)/; pwd)
 
-if [[ -x hsp ]]; then
-    echo "install HashStablePack cmd: hsp"
-    go get -u github.com/CovenantSQL/HashStablePack/hsp
-fi
+echo "install HashStablePack cmd: hsp"
+go get -v -u github.com/CovenantSQL/HashStablePack/hsp
 
 echo ${PROJECT_DIR}
 

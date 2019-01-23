@@ -410,7 +410,6 @@ func WaitTxConfirmation(
 			return
 		}
 	}
-	return
 }
 
 func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {

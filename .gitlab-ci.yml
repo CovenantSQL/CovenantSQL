@@ -36,6 +36,9 @@ test-my-project:
     - bash cleanupDB.sh || true
 
 compatibility-testnet:
+  except:
+    variables:
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "beta"
   stage: test
   script:
     - make clean

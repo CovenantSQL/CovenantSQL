@@ -21,33 +21,27 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
+	_ "github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func main() {
 	log.SetLevel(log.InfoLevel)
-	var config, password, dsn string
+	var dsn string
 
-	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
-	flag.StringVar(&dsn, "dsn", "", "database url")
-	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.StringVar(&dsn, "dsn", "", "Database url")
 	flag.Parse()
 
-	err := client.Init(config, []byte(password))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if dsn == "" {
-		meta := client.ResourceMeta{}
-		meta.Node = 2
-		dsn, err = client.Create(meta)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer client.Drop(dsn)
-	}
+	// If your CovenantSQL config.yaml is not in ~/.cql/config.yaml
+	// Uncomment and edit following code
+	/*
+			config := "/data/myconfig/config.yaml"
+			password := "mypassword"
+		    err := client.Init(config, []byte(password))
+		    if err != nil {
+		        log.Fatal(err)
+		    }
+	*/
 
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {

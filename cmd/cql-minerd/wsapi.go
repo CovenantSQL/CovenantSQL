@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,10 +32,12 @@ func startWebsocketAPI(addr string, dbms *worker.DBMS) {
 	h.RegisterMethod("dbms_ack", dbmsProxy.Ack, dbmsProxyParams{})
 
 	server := &jsonrpc.WebsocketServer{
-		Addr:         addr,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		Handler:      h,
+		Server: http.Server{
+			Addr:         addr,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 60 * time.Second,
+		},
+		RPCHandler: h,
 	}
 
 	log.WithField("addr", addr).Info("wsapi: start websocket api server")

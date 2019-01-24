@@ -345,7 +345,7 @@ func TestFullProcess(t *testing.T) {
 	defer stopNodes()
 	time.Sleep(10 * time.Second)
 
-	Convey("test full process", t, func(c C) {
+	SkipConvey("test full process", t, func(c C) {
 		var err error
 		err = client.Init(FJ(testWorkingDir, "./integration/node_c/config.yaml"), []byte(""))
 		So(err, ShouldBeNil)

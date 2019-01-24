@@ -22,6 +22,22 @@ import (
 	"math/big"
 )
 
+const (
+	_ = iota
+	// KB is 1024 Bytes
+	KB int64 = 1 << (10 * iota)
+	// MB is 1024 KB
+	MB
+	// GB is 1024 MB
+	GB
+	// TB is 1024 GB
+	TB
+	// PB is 1024 TB
+	PB
+	// EB is 1024 PB
+	EB
+)
+
 // Various big integer limit values.
 var (
 	tt255   = BigPow(2, 255)

@@ -24,23 +24,6 @@ import (
 	"github.com/prometheus/common/version"
 )
 
-const (
-	// KB is 1024 Bytes
-	KB int64 = 1024
-	// MB is 1024 KB
-	MB int64 = KB * 1024
-	// GB is 1024 MB
-	GB int64 = MB * 1024
-	// TB is 1024 GB
-	TB int64 = GB * 1024
-	// PB is 1024 TB
-	PB int64 = TB * 1024
-	// EB is 1024 PB
-	EB int64 = TB * 1024
-	// ZB is 1024 EB
-	ZB int64 = TB * 1024
-)
-
 func init() {
 	prometheus.MustRegister(version.NewCollector("CovenantSQL"))
 }

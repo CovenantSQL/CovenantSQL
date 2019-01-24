@@ -6,7 +6,7 @@ variables:
   CODECOV_TOKEN: $CODECOV_TOKEN
 
 before_script:
-    # Setup dependency management tool
+  # Setup dependency management tool
   #  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
   #  - chmod +x $GOPATH/bin/dep
   #  - go get github.com/mattn/goveralls
@@ -14,26 +14,17 @@ before_script:
   #  - go get github.com/golang/lint/golint
   #  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
   #  - go get github.com/wadey/gocovmerge
-    - mkdir -p $GOPATH/src/github.com/CovenantSQL
-    - cp -r /builds/thunderdb/CovenantSQL $GOPATH/src/github.com/CovenantSQL/
-    - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
+  - mkdir -p $GOPATH/src/github.com/CovenantSQL
+  - cp -r /builds/thunderdb/CovenantSQL $GOPATH/src/github.com/CovenantSQL/
+  - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
   #  - dep ensure
-    - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
-    - ulimit -n 8192
-  #  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
+  - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
+  - ulimit -n 8192
+#  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
 test-my-project:
   stage: test
-  script:
-    - make clean
-    - make -j6 bp miner observer
-    - go test -v -race -failfast -parallel 16 -cpu 16 $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
-    - gocovmerge cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f cover.out
-    - bash <(curl -s https://codecov.io/bash)
-    - go test -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
-    - bash cleanupDB.sh || true
-    - go test -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
-    - bash cleanupDB.sh || true
+  script: ./alltest.sh
 
 compatibility-testnet:
   stage: test

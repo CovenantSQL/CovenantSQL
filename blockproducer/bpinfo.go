@@ -35,7 +35,7 @@ func (i *blockProducerInfo) String() string {
 }
 
 func buildBlockProducerInfos(
-	localNodeID proto.NodeID, peers *proto.Peers,
+	localNodeID proto.NodeID, peers *proto.Peers, isAPINode bool,
 ) (
 	localBPInfo *blockProducerInfo, bpInfos []*blockProducerInfo, err error,
 ) {
@@ -44,11 +44,6 @@ func buildBlockProducerInfos(
 		index int32
 		found bool
 	)
-
-	if index, found = peers.Find(localNodeID); !found {
-		err = ErrLocalNodeNotFound
-		return
-	}
 
 	bpInfos = make([]*blockProducerInfo, total)
 	for i, v := range peers.PeersHeader.Servers {
@@ -63,6 +58,23 @@ func buildBlockProducerInfos(
 			nodeID: v,
 		}
 	}
+
+	if isAPINode {
+		localBPInfo = &blockProducerInfo{
+			rank:   0,
+			total:  uint32(total),
+			role:   "A",
+			nodeID: localNodeID,
+		}
+		return localBPInfo, bpInfos, nil
+	}
+
+	if index, found = peers.Find(localNodeID); !found {
+		err = ErrLocalNodeNotFound
+		return
+	}
+
 	localBPInfo = bpInfos[index]
+
 	return
 }

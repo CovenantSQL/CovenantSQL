@@ -19,18 +19,14 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -56,7 +52,7 @@ func initNode() (server *rpc.Server, err error) {
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
-	err = registerNodeToBP(30 * time.Second)
+	err = rpc.RegisterNodeToBP(30 * time.Second)
 	if err != nil {
 		log.Fatalf("register node to BP failed: %v", err)
 	}
@@ -80,56 +76,6 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	}
 
 	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
-
-	return
-}
-
-func registerNodeToBP(timeout time.Duration) (err error) {
-	// get local node id
-	localNodeID, err := kms.GetLocalNodeID()
-	if err != nil {
-		err = errors.Wrap(err, "register node to BP")
-		return
-	}
-
-	// get local node info
-	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
-	if err != nil {
-		err = errors.Wrap(err, "register node to BP")
-		return
-	}
-
-	log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-	pingWaitCh := make(chan proto.NodeID)
-	bpNodeIDs := route.GetBPs()
-	for _, bpNodeID := range bpNodeIDs {
-		go func(ch chan proto.NodeID, id proto.NodeID) {
-			for {
-				err := rpc.PingBP(localNodeInfo, id)
-				if err == nil {
-					log.Infof("ping BP succeed: %v", localNodeInfo)
-					ch <- id
-					return
-				}
-				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
-					log.Debug("stop ping non leader BP node")
-					return
-				}
-
-				log.Warnf("ping BP failed: %v", err)
-				time.Sleep(3 * time.Second)
-			}
-		}(pingWaitCh, bpNodeID)
-	}
-
-	select {
-	case bp := <-pingWaitCh:
-		close(pingWaitCh)
-		log.WithField("BP", bp).Infof("ping BP succeed")
-	case <-time.After(timeout):
-		return errors.New("ping BP timeout")
-	}
 
 	return
 }

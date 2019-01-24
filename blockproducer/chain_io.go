@@ -155,6 +155,7 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	if count > 0 {
 		return pi.TransactionStateConfirmed, nil
 	}
+
 	return pi.TransactionStateNotFound, nil
 }
 

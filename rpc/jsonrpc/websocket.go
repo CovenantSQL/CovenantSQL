@@ -15,12 +15,8 @@ import (
 
 // WebsocketServer is a websocket server providing JSON-RPC API service.
 type WebsocketServer struct {
-	Addr         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	Handler      jsonrpc2.Handler
-
-	// stopChan chan struct{}
+	http.Server
+	RPCHandler jsonrpc2.Handler
 }
 
 // Serve accepts incoming connections and serve each.
@@ -28,7 +24,7 @@ func (ws *WebsocketServer) Serve() error {
 	var (
 		mux      = http.NewServeMux()
 		upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-		handler  = ws.Handler
+		handler  = ws.RPCHandler
 	)
 
 	if handler == nil {
@@ -58,11 +54,17 @@ func (ws *WebsocketServer) Serve() error {
 		return errors.Wrapf(err, "couldn't bind to address %q", addr)
 	}
 
-	httpServer := &http.Server{
-		Handler:      mux,
-		ReadTimeout:  ws.ReadTimeout,
-		WriteTimeout: ws.WriteTimeout,
-	}
+	ws.Handler = mux
+	return ws.Server.Serve(listener)
+}
 
-	return httpServer.Serve(listener)
+// Stop stops the server and returns a channel indicating server is stopped.
+func (ws *WebsocketServer) Stop() {
+	log.Warn("jsonrpc: shutdown server")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := ws.Server.Shutdown(ctx); err != nil {
+		log.WithError(err).Error("jsonrpc: shutdown server")
+	}
+	cancel()
+	log.Warn("jsonrpc: server stopped")
 }

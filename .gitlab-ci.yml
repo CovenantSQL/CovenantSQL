@@ -25,11 +25,14 @@ before_script:
 
 test-my-project:
   stage: test
-  script: ./alltest.sh
+  script: 
+    - set -x
+    - ./alltest.sh
 
 compatibility-testnet:
   stage: test
   script:
+    - set -x
     - set -o errexit
     - set -o pipefail
     - make clean

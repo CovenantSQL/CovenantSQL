@@ -79,7 +79,7 @@ func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
 }
 
 func TestIncCounter(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestIncCounter(t *testing.T) {
 }
 
 func TestIncCounterSimpleArgs(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -149,7 +149,7 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 
 func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	defer os.Remove(PubKeyStorePath)
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
@@ -187,7 +187,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 
 func TestETLSBug(t *testing.T) {
 	defer os.Remove(PubKeyStorePath)
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
@@ -234,7 +234,7 @@ func TestETLSBug(t *testing.T) {
 func TestEncPingFindNeighbor(t *testing.T) {
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
@@ -315,7 +315,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 }
 
 func TestServer_Close(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	l, err := net.Listen("tcp", addr)
 	if err != nil {

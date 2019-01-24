@@ -54,7 +54,7 @@ type conn struct {
 type pconn struct {
 	parent  *conn
 	ackCh   chan *types.Ack
-	pCaller *rpc.PersistentCaller
+	pCaller *rpc.ClientPoolCaller
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
@@ -86,7 +86,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	if cfg.UseLeader {
 		c.leader = &pconn{
 			parent:  c,
-			pCaller: rpc.NewPersistentCaller(peers.Leader),
+			pCaller: rpc.NewClientPoolCaller(peers.Leader),
 		}
 	}
 
@@ -97,7 +97,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 			if node != peers.Leader {
 				c.follower = &pconn{
 					parent:  c,
-					pCaller: rpc.NewPersistentCaller(node),
+					pCaller: rpc.NewClientPoolCaller(node),
 				}
 				break
 			}
@@ -138,7 +138,7 @@ func (c *pconn) stopAckWorkers() {
 func (c *pconn) ackWorker() {
 	var (
 		oneTime sync.Once
-		pc      *rpc.PersistentCaller
+		pc      *rpc.ClientPoolCaller
 		err     error
 	)
 
@@ -149,7 +149,7 @@ ackWorkerLoop:
 			break ackWorkerLoop
 		}
 		oneTime.Do(func() {
-			pc = rpc.NewPersistentCaller(c.pCaller.TargetID)
+			pc = rpc.NewClientPoolCaller(c.pCaller.TargetID)
 		})
 		if err = ack.Sign(c.parent.privKey, false); err != nil {
 			log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
@@ -165,7 +165,7 @@ ackWorkerLoop:
 	}
 
 	if pc != nil {
-		pc.CloseStream()
+		pc.Close()
 	}
 
 	log.Debug("ack worker quiting")
@@ -174,7 +174,7 @@ ackWorkerLoop:
 func (c *pconn) close() error {
 	c.stopAckWorkers()
 	if c.pCaller != nil {
-		c.pCaller.CloseStream()
+		c.pCaller.Close()
 	}
 	return nil
 }
@@ -407,6 +407,7 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 
 	var response types.Response
 	if err = func() error {
+		// writeQuery region
 		defer trace.StartRegion(ctx, queryType.String()+"Query").End()
 		return uc.pCaller.Call(route.DBSQuery.String(), req, &response)
 	}(); err != nil {

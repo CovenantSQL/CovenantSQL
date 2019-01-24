@@ -21,15 +21,14 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
 )
 
 const (
@@ -45,14 +44,14 @@ type Client struct {
 }
 
 var (
-	// YamuxConfig holds the default Yamux config
-	YamuxConfig *mux.Config
+	// MuxConfig holds the default mux config
+	MuxConfig *mux.Config
 	// DefaultDialer holds the default dialer of SessionPool
 	DefaultDialer func(nodeID proto.NodeID) (conn net.Conn, err error)
 )
 
 func init() {
-	YamuxConfig = mux.DefaultConfig()
+	MuxConfig = mux.DefaultConfig()
 	DefaultDialer = dialToNode
 }
 
@@ -111,7 +110,7 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 		if err != nil {
 			return
 		}
-		sess, err = mux.Client(ETLSConn, YamuxConfig)
+		sess, err = mux.Client(ETLSConn, MuxConfig)
 		if err != nil {
 			err = errors.Wrapf(err, "init yamux client to %s failed", nodeID)
 			return
@@ -192,7 +191,7 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 	muxConn, ok := conn.(*mux.Stream)
 	if !ok {
 		var sess *mux.Session
-		sess, err = mux.Client(conn, YamuxConfig)
+		sess, err = mux.Client(conn, MuxConfig)
 		if err != nil {
 			err = errors.Wrap(err, "init mux client failed")
 			return

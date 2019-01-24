@@ -34,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -43,7 +44,7 @@ const (
 )
 
 func TestCaller_CallNode(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
 	os.Remove(publicKeyStore)
@@ -163,7 +164,7 @@ func TestCaller_CallNode(t *testing.T) {
 }
 
 func TestNewPersistentCaller(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
 	os.Remove(publicKeyStore)
@@ -275,11 +276,11 @@ func TestNewPersistentCaller(t *testing.T) {
 	client2.CloseStream()
 
 	wg.Wait()
-	sess, ok := client2.pool.getSessionFromPool(conf.GConf.BP.NodeID)
+	sess, ok := client2.pool.getSession(conf.GConf.BP.NodeID)
 	if !ok {
 		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
 	}
-	sess.conn.Close()
+	sess.Close()
 
 	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
@@ -332,12 +333,14 @@ func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
+			_, task := trace.NewTask(context.Background(), "callOnce")
 			req := &FakeRequest{}
 			req.Log.Data = []byte(strings.Repeat("1", 500))
 			err = client.Call("Test.Call", req, nil)
 			if err != nil {
 				b.Error(err)
 			}
+			task.End()
 		}
 	})
 	b.StopTimer()
@@ -362,7 +365,7 @@ type FakeRequest struct {
 }
 
 func (s *fakeService) Call(req *FakeRequest, resp *interface{}) (err error) {
-	time.Sleep(time.Microsecond * 200)
+	time.Sleep(time.Microsecond * 600)
 	return
 }
 

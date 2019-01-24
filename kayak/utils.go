@@ -18,13 +18,14 @@ package kayak
 
 import (
 	"encoding/binary"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 func (r *Runtime) getCaller(id proto.NodeID) Caller {
-	var caller Caller = rpc.NewPersistentCaller(id)
+	var caller Caller = rpc.NewClientPoolCaller(id)
 	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
 	return rawCaller.(Caller)
 }

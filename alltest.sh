@@ -3,7 +3,6 @@
 set -o errexit
 set -o pipefail
 set -o nounset
-set -x
 
 test::package() {
   local package="${1:-notset}"
@@ -27,6 +26,7 @@ main() {
     test::package "${package}"
   done
 
+  set -x
   gocovmerge *.cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f *.cover.out
   bash <(curl -s https://codecov.io/bash)
 

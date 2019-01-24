@@ -3,6 +3,7 @@
 set -o errexit
 set -o pipefail
 set -o nounset
+set -x
 
 test::package() {
   local package="${1:-notset}"

@@ -14,7 +14,7 @@ test::package() {
 
   local coverage_file="${package//\//.}.cover.out"
   echo "[TEST] package=${package}, coverage=${coverage_file}"
-  go test $UNITTESTTAGS -race -failfast -parallel 16 -cpu 16 -coverpkg="github.com/CovenantSQL/CovenantSQL/..." -coverprofile "${coverage_file}" "${package}"
+  go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverpkg="github.com/CovenantSQL/CovenantSQL/..." -coverprofile "${coverage_file}" "${package}"
 }
 
 main() {
@@ -30,9 +30,9 @@ main() {
   bash <(curl -s https://codecov.io/bash)
 
   # some benchmarks
-  go test $UNITTESTTAGS -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
+  go test -tags "$UNITTESTTAGS" -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
   bash cleanupDB.sh || true
-  go test $UNITTESTTAGS -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+  go test -tags "$UNITTESTTAGS" -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
   bash cleanupDB.sh || true
 }
 

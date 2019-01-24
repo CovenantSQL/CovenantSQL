@@ -4,7 +4,7 @@ variables:
   REVIEWDOG_VERSION: 0.9.11
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
-  UNITTESTTAGS: -tags "linux sqlite_omit_load_extension"
+  UNITTESTTAGS: linux sqlite_omit_load_extension
 
 before_script:
   # Setup dependency management tool
@@ -37,5 +37,5 @@ compatibility-testnet:
     - set -o pipefail
     - make clean
     - make -j8 client
-    - go test $UNITTESTTAGS -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+    - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - bash -x test/testnet_client/run.sh

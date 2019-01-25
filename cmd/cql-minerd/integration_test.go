@@ -45,6 +45,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -582,13 +583,13 @@ func TestFullProcess(t *testing.T) {
 	})
 
 	Convey("test cql-minerd wsapi", t, func(c C) {
-		var buildParams = func(request interface{}) *dbmsProxyParams {
+		var buildParams = func(request interface{}) *jsonrpc.MsgpackProxyParams {
 			out, err := utils.EncodeMsgPack(request)
 			if err != nil {
 				fmt.Printf("panic on: %#v", request)
 				panic(err)
 			}
-			return &dbmsProxyParams{
+			return &jsonrpc.MsgpackProxyParams{
 				Payload: base64.StdEncoding.EncodeToString(out.Bytes()),
 			}
 		}
@@ -616,10 +617,10 @@ func TestFullProcess(t *testing.T) {
 
 		Convey("register API (handshake)", FailureContinues, func() {
 			testCases := []*registerClientTestCase{
-				{registerClientParams{walletAddr, pkHexStr}, nil},
-				{registerClientParams{walletAddr, "invalid"}, errors.New("invalid public key")},
-				{registerClientParams{walletAddr, ""}, errors.New("invalid public key")},
-				{registerClientParams{"invalid", pkHexStr}, errors.New("invalid wallet address")},
+				{jsonrpc.RegisterClientParams{Address: walletAddr, PublicKey: pkHexStr}, nil},
+				{jsonrpc.RegisterClientParams{Address: walletAddr, PublicKey: "invalid"}, errors.New("invalid public key")},
+				{jsonrpc.RegisterClientParams{Address: walletAddr, PublicKey: ""}, errors.New("invalid public key")},
+				{jsonrpc.RegisterClientParams{Address: "invalid", PublicKey: pkHexStr}, errors.New("invalid wallet address")},
 			}
 
 			for i, c := range testCases {
@@ -674,22 +675,22 @@ func TestFullProcess(t *testing.T) {
 
 			testCases := []struct {
 				name          string
-				params        *dbmsProxyParams
+				params        *jsonrpc.MsgpackProxyParams
 				expectedError error
 			}{
 				{
 					name:          "empty payload is not allowed",
-					params:        &dbmsProxyParams{""},
+					params:        &jsonrpc.MsgpackProxyParams{Payload: ""},
 					expectedError: errors.New("empty payload"),
 				},
 				{
 					name:          "should fail on invalid payload (invalid base64)",
-					params:        &dbmsProxyParams{"hello"},
+					params:        &jsonrpc.MsgpackProxyParams{Payload: "hello"},
 					expectedError: errors.New("invalid base64 format"),
 				},
 				{
 					name:          "should fail on invalid payload (invalid msgpack)",
-					params:        &dbmsProxyParams{"aGVsbG8="},
+					params:        &jsonrpc.MsgpackProxyParams{Payload: "aGVsbG8="},
 					expectedError: errors.New("invalid msgpack format"),
 				},
 				{
@@ -740,12 +741,12 @@ func TestFullProcess(t *testing.T) {
 
 			testCases := []struct {
 				name          string
-				params        *dbmsProxyParams
+				params        *jsonrpc.MsgpackProxyParams
 				expectedError error
 			}{
 				{
 					name:          "should fail on invalid payload (invalid parameters)",
-					params:        &dbmsProxyParams{""},
+					params:        &jsonrpc.MsgpackProxyParams{Payload: ""},
 					expectedError: errors.New("invalid parameters"),
 				},
 				{
@@ -777,7 +778,7 @@ func TestFullProcess(t *testing.T) {
 }
 
 type registerClientTestCase struct {
-	registerClientParams
+	jsonrpc.RegisterClientParams
 	Expected error
 }
 

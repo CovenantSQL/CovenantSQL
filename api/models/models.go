@@ -48,6 +48,7 @@ func initChainDBConnection(dbFile string) (err error) {
 	// register tables
 	chaindb.AddTableWithName(Block{}, "indexed_blocks").SetKeys(false, "Height")
 	chaindb.AddTableWithName(Transaction{}, "indexed_transactions").SetKeys(false, "BlockHeight", "TxIndex")
+	chaindb.AddTableWithName(Account{}, "accounts").SetKeys(false, "Address")
 
 	return nil
 }

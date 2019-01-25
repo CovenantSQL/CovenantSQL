@@ -12,7 +12,7 @@ type BlocksModel struct{}
 
 // Block is a block.
 type Block struct {
-	Height         int       `db:"height" json:"height"` // pk
+	Height         int64     `db:"height" json:"height"` // pk
 	Hash           string    `db:"hash" json:"hash"`
 	Timestamp      int64     `db:"timestamp" json:"timestamp"`
 	TimestampHuman time.Time `db:"-" json:"timestamp_human"`
@@ -20,13 +20,19 @@ type Block struct {
 	Producer       string    `db:"producer" json:"producer"`
 	MerkleRoot     string    `db:"merkle_root" json:"merkle_root"`
 	Parent         string    `db:"parent" json:"parent"`
-	TxCount        int       `db:"tx_count" json:"tx_count"`
+	TxCount        int64     `db:"tx_count" json:"tx_count"`
 }
 
 // PostGet is the hook after SELECT query.
 func (b *Block) PostGet(s gorp.SqlExecutor) error {
 	b.TimestampHuman = time.Unix(0, b.Timestamp)
 	return nil
+}
+
+// GetMaxHeight returns the max height of the confirmed blocks.
+func (m *BlocksModel) GetMaxHeight() (height int64, err error) {
+	querySQL := `SELECT MAX("height") FROM "indexed_blocks";`
+	return chaindb.SelectInt(querySQL)
 }
 
 // GetBlockList get a list of blocks with height in [from, to).

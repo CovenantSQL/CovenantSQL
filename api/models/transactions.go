@@ -13,7 +13,7 @@ type TransactionsModel struct{}
 
 // Transaction is a transaction.
 type Transaction struct {
-	BlockHeight    int         `db:"block_height" json:"block_height"` // pk1
+	BlockHeight    int64       `db:"block_height" json:"block_height"` // pk1
 	TxIndex        int         `db:"tx_index" json:"index"`            // pk2
 	Hash           string      `db:"hash" json:"hash"`
 	BlockHash      string      `db:"block_hash" json:"block_hash"`
@@ -94,7 +94,7 @@ func (m *TransactionsModel) GetTransactionList(since string, page, size int) (
 	txs []*Transaction, pagination *Pagination, err error,
 ) {
 	var (
-		sinceBlockHeight = 0
+		sinceBlockHeight int64
 		sinceTxIndex     = 0
 	)
 

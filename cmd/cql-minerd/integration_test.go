@@ -581,7 +581,7 @@ func TestFullProcess(t *testing.T) {
 		// TODO(lambda): Drop database
 	})
 
-	Convey("test wsapi", t, func(c C) {
+	Convey("test cql-minerd wsapi", t, func(c C) {
 		var buildParams = func(request interface{}) *dbmsProxyParams {
 			out, err := utils.EncodeMsgPack(request)
 			if err != nil {

@@ -38,18 +38,16 @@ func (h *Handler) RegisterMethod(method string, handlerFunc HandlerFunc, paramsT
 		panic(fmt.Sprintf("method %q already registered", method))
 	}
 
-	if paramsType == nil {
-		h.methods[method] = handlerFunc
-		return
+	if paramsType != nil {
+		// Pre-process rpc parameters with a middleware
+		typ := reflect.TypeOf(paramsType)
+		if typ.Kind() == reflect.Ptr {
+			typ = typ.Elem()
+		}
+		handlerFunc = processParams(handlerFunc, typ)
 	}
 
-	// Pre-process rpc parameters with a middleware
-	typ := reflect.TypeOf(paramsType)
-	if typ.Kind() == reflect.Ptr {
-		typ = typ.Elem()
-	}
-
-	h.methods[method] = processParams(handlerFunc, typ)
+	h.methods[method] = handlerFunc
 }
 
 // Handle implements jsonrpc2.Handler.

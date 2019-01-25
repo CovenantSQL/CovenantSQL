@@ -21,6 +21,10 @@ func init() {
 			WriteTimeout: 60 * time.Second,
 		},
 	}
+
+	// Like handshake, the client must call this method after a successful connection.
+	// Then it will be able to call methods with write permissions through the websocket proxy.
+	rpc.RegisterMethod("__register", jsonrpc.RegisterClient, jsonrpc.RegisterClientParams{})
 }
 
 // Serve runs an API server on the specified address and database file.

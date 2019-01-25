@@ -232,7 +232,9 @@ func SetNode(nodeInfo *proto.Node) (err error) {
 	if nodeInfo == nil {
 		return ErrNilNode
 	}
-	if !Unittest {
+
+	// FIXME(ggicci): client node id is a fake one.
+	if !Unittest && nodeInfo.Role != proto.Client {
 		if !IsIDPubNonceValid(nodeInfo.ID.ToRawNodeID(), &nodeInfo.Nonce, nodeInfo.PublicKey) {
 			return ErrNodeIDKeyNonceNotMatch
 		}

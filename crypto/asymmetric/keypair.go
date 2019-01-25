@@ -19,6 +19,7 @@ package asymmetric
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -49,6 +50,11 @@ func (k PublicKey) Msgsize() (s int) {
 	return
 }
 
+// IsValid test a PublicKey is not nil.
+func (k *PublicKey) IsValid() bool {
+	return k != nil && k.X != nil && k.Y != nil
+}
+
 // MarshalHash marshals for hash
 func (k *PublicKey) MarshalHash() (keyBytes []byte, err error) {
 	return k.MarshalBinary()
@@ -61,6 +67,9 @@ func (k *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
 
 // UnmarshalBinary does the deserialization
 func (k *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
+	if len(keyBytes) == 0 {
+		return errors.New("empty key bytes")
+	}
 	pubKeyI, ok := parsedPublicKeyCache.Load(string(keyBytes))
 	if ok {
 		*k = *pubKeyI.(*PublicKey)

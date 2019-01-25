@@ -83,6 +83,7 @@ var (
 	noLogo      bool
 	showVersion bool
 	logLevel    string
+	wsapiAddr   string
 )
 
 const name = `cql-minerd`
@@ -95,15 +96,13 @@ func init() {
 	flag.BoolVar(&genKeyPair, "gen-keypair", false, "Gen new key pair when no private key found")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-
 	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
-
 	flag.StringVar(&profileServer, "profile-server", "", "Profile server address, default not started")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricGraphite, "metric-graphite-server", "", "Metric graphite server to push metrics")
+	flag.StringVar(&wsapiAddr, "wsapi", ":8546", "Address of the websocket JSON-RPC API")
 	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
-
 	flag.StringVar(&traceFile, "trace-file", "", "Trace profile")
 	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
@@ -221,17 +220,14 @@ func main() {
 	if dbms, err = startDBMS(server); err != nil {
 		log.WithError(err).Fatal("start dbms failed")
 	}
-
 	defer dbms.Shutdown()
 
-	// start rpc server
-	go func() {
-		server.Serve()
-	}()
-	defer func() {
-		_ = server.Listener.Close()
-		server.Stop()
-	}()
+	// start etls rpc server
+	go server.Serve()
+	defer server.Stop()
+
+	// start jsonrpc server (websocket)
+	startWebsocketAPI(wsapiAddr, dbms)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

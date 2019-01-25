@@ -160,6 +160,11 @@ func TestPublicKey_MarshalBinary(t *testing.T) {
 		So(buf1, ShouldResemble, buf3)
 		So(publicKey.Msgsize(), ShouldEqual, publicKey2.Msgsize())
 	})
+
+	Convey("unmarshal from empty key bytes should fail", t, func() {
+		pubKey := &PublicKey{}
+		So(pubKey.UnmarshalBinary(nil), ShouldNotBeNil)
+	})
 }
 
 func TestPrivateKey_Serialize(t *testing.T) {

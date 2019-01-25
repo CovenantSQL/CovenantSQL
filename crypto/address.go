@@ -23,10 +23,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// PublicKeyToAddress is an alias to function crypto.PubKeyHash
+var PublicKeyToAddress = PubKeyHash
+
 // PubKeyHash generates the account hash address for specified public key.
 func PubKeyHash(pubKey *asymmetric.PublicKey) (addr proto.AccountAddress, err error) {
-	if pubKey == nil {
-		err = errors.New("nil public key")
+	if !pubKey.IsValid() {
+		err = errors.New("invalid public key")
 		return
 	}
 	var enc []byte

@@ -238,8 +238,8 @@ func TestJSONRPCService(t *testing.T) {
 	defer os.Remove(testdb)
 
 	// log.SetLevel(log.DebugLevel)
-	go api.Serve(":8546", testdb)
-	defer api.StopService()
+	go api.Serve(":8546", testdb, nil)
+	defer api.Shutdown()
 
 	var (
 		addr        = "ws://localhost:8546"

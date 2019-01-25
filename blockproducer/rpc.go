@@ -38,6 +38,11 @@ type ChainRPCService struct {
 	chain *Chain
 }
 
+// NewChainRPCService creates a new ChainRPCService.
+func NewChainRPCService(chain *Chain) *ChainRPCService {
+	return &ChainRPCService{chain: chain}
+}
+
 // AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *types.AdviseNewBlockReq, resp *types.AdviseNewBlockResp) error {
 	s.chain.pendingBlocks <- req.Block

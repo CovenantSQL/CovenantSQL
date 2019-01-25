@@ -58,13 +58,12 @@ func (ws *WebsocketServer) Serve() error {
 	return ws.Server.Serve(listener)
 }
 
-// Stop stops the server and returns a channel indicating server is stopped.
-func (ws *WebsocketServer) Stop() {
-	log.Warn("jsonrpc: shutdown server")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+// Shutdown gracefully shuts down the server.
+func (ws *WebsocketServer) Shutdown() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	if err := ws.Server.Shutdown(ctx); err != nil {
-		log.WithError(err).Error("jsonrpc: shutdown server")
+		return err
 	}
-	cancel()
-	log.Warn("jsonrpc: server stopped")
+	return nil
 }

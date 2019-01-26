@@ -251,11 +251,11 @@ func TestJSONRPCService(t *testing.T) {
 	defer os.Remove(testdb)
 
 	// log.SetLevel(log.DebugLevel)
-	go api.Serve(":8546", testdb, nil)
+	go api.Serve(":8547", testdb, nil)
 	defer api.Shutdown()
 
 	var (
-		addr        = "ws://localhost:8546"
+		addr        = "ws://localhost:8547"
 		conveyBlock = func(convey C, item *models.Block, cp []interface{}) {
 			if cp == nil {
 				convey.So(item, ShouldBeNil)

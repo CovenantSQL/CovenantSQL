@@ -11,8 +11,14 @@ func (z *BPBlock) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82)
-	if oTemp, err := z.SignedHeader.MarshalHash(); err != nil {
+	// map header, size 2
+	o = append(o, 0x82, 0x82)
+	if oTemp, err := z.SignedHeader.BPHeader.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	if oTemp, err := z.SignedHeader.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -30,7 +36,7 @@ func (z *BPBlock) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BPBlock) Msgsize() (s int) {
-	s = 1 + 13 + z.SignedHeader.Msgsize() + 13 + hsp.ArrayHeaderSize
+	s = 1 + 13 + 1 + 9 + z.SignedHeader.BPHeader.Msgsize() + 28 + z.SignedHeader.DefaultHashSignVerifierImpl.Msgsize() + 13 + hsp.ArrayHeaderSize
 	for za0001 := range z.Transactions {
 		s += z.Transactions[za0001].Msgsize()
 	}
@@ -73,52 +79,23 @@ func (z *BPHeader) Msgsize() (s int) {
 func (z *BPSignedHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84)
+	// map header, size 2
+	o = append(o, 0x82)
 	if oTemp, err := z.BPHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	if oTemp, err := z.BlockHash.MarshalHash(); err != nil {
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
-	}
-	if z.Signature == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signature.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
 	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BPSignedHeader) Msgsize() (s int) {
-	s = 1 + 9 + z.BPHeader.Msgsize() + 10 + z.BlockHash.Msgsize() + 10
-	if z.Signature == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signature.Msgsize()
-	}
-	s += 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
+	s = 1 + 9 + z.BPHeader.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }

@@ -90,10 +90,11 @@ func (z *InitServiceResponseHeader) Msgsize() (s int) {
 func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 8
-	o = append(o, 0x88)
+	// map header, size 9
+	o = append(o, 0x89)
 	o = hsp.AppendFloat64(o, z.ConsistencyLevel)
 	o = hsp.AppendString(o, z.EncryptionKey)
+	o = hsp.AppendInt(o, z.IsolationLevel)
 	o = hsp.AppendFloat64(o, z.LoadAvgPerCPU)
 	o = hsp.AppendUint64(o, z.Memory)
 	o = hsp.AppendUint16(o, z.Node)
@@ -112,7 +113,7 @@ func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ResourceMeta) Msgsize() (s int) {
-	s = 1 + 17 + hsp.Float64Size + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 14 + hsp.Float64Size + 7 + hsp.Uint64Size + 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 13 + hsp.ArrayHeaderSize
+	s = 1 + 17 + hsp.Float64Size + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 15 + hsp.IntSize + 14 + hsp.Float64Size + 7 + hsp.Uint64Size + 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 13 + hsp.ArrayHeaderSize
 	for za0001 := range z.TargetMiners {
 		s += z.TargetMiners[za0001].Msgsize()
 	}

@@ -72,6 +72,9 @@ func TestCQLD(t *testing.T) {
 		So(err, ShouldBeNil)
 		time.Sleep(15 * time.Second)
 
+		// set current bp to leader bp
+		rpc.SetCurrentBP(route.GetBPs()[0])
+
 		// The other peers should be waiting
 		var (
 			req  = &types.FetchLastIrreversibleBlockReq{}

@@ -228,11 +228,12 @@ func (s *State) readWithContext(
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
-				Request:   req.Header,
-				NodeID:    s.nodeID,
-				Timestamp: s.getLocalTime(),
-				RowCount:  uint64(len(data)),
-				LogOffset: s.getSeq(),
+				Request:     req.Header.RequestHeader,
+				RequestHash: req.Header.Hash(),
+				NodeID:      s.nodeID,
+				Timestamp:   s.getLocalTime(),
+				RowCount:    uint64(len(data)),
+				LogOffset:   s.getSeq(),
 			},
 		},
 		Payload: types.ResponsePayload{
@@ -292,11 +293,12 @@ func (s *State) readTx(
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
-				Request:   req.Header,
-				NodeID:    s.nodeID,
-				Timestamp: s.getLocalTime(),
-				RowCount:  uint64(len(data)),
-				LogOffset: id,
+				Request:     req.Header.RequestHeader,
+				RequestHash: req.Header.Hash(),
+				NodeID:      s.nodeID,
+				Timestamp:   s.getLocalTime(),
+				RowCount:    uint64(len(data)),
+				LogOffset:   id,
 			},
 		},
 		Payload: types.ResponsePayload{
@@ -447,7 +449,8 @@ func (s *State) write(
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
-				Request:      req.Header,
+				Request:      req.Header.RequestHeader,
+				RequestHash:  req.Header.Hash(),
 				NodeID:       s.nodeID,
 				Timestamp:    s.getLocalTime(),
 				RowCount:     0,

@@ -25,10 +25,8 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
 )
@@ -161,15 +159,13 @@ func TestResponse_Sign(t *testing.T) {
 		res := &Response{
 			Header: SignedResponseHeader{
 				ResponseHeader: ResponseHeader{
-					Request: SignedRequestHeader{
-						RequestHeader: RequestHeader{
-							QueryType:    WriteQuery,
-							NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
-							DatabaseID:   proto.DatabaseID("db1"),
-							ConnectionID: uint64(1),
-							SeqNo:        uint64(2),
-							Timestamp:    time.Now().UTC(),
-						},
+					Request: RequestHeader{
+						QueryType:    WriteQuery,
+						NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
+						DatabaseID:   proto.DatabaseID("db1"),
+						ConnectionID: uint64(1),
+						SeqNo:        uint64(2),
+						Timestamp:    time.Now().UTC(),
 					},
 					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
 					Timestamp: time.Now().UTC(),
@@ -216,19 +212,7 @@ func TestResponse_Sign(t *testing.T) {
 
 		var err error
 
-		// sign directly, embedded original request is not filled
-		err = res.Sign(privKey)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldBeIn, []error{
-			verifier.ErrHashValueNotMatch,
-			verifier.ErrSignatureNotMatch,
-		})
-
-		// sign original request first
-		err = res.Header.Request.Sign(privKey)
-		So(err, ShouldBeNil)
-
-		// sign again
+		// sign
 		err = res.Sign(privKey)
 		So(err, ShouldBeNil)
 
@@ -279,22 +263,18 @@ func TestAck_Sign(t *testing.T) {
 		ack := &Ack{
 			Header: SignedAckHeader{
 				AckHeader: AckHeader{
-					Response: SignedResponseHeader{
-						ResponseHeader: ResponseHeader{
-							Request: SignedRequestHeader{
-								RequestHeader: RequestHeader{
-									QueryType:    WriteQuery,
-									NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
-									DatabaseID:   proto.DatabaseID("db1"),
-									ConnectionID: uint64(1),
-									SeqNo:        uint64(2),
-									Timestamp:    time.Now().UTC(),
-								},
-							},
-							NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
-							Timestamp: time.Now().UTC(),
-							RowCount:  uint64(1),
+					Response: ResponseHeader{
+						Request: RequestHeader{
+							QueryType:    WriteQuery,
+							NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
+							DatabaseID:   proto.DatabaseID("db1"),
+							ConnectionID: uint64(1),
+							SeqNo:        uint64(2),
+							Timestamp:    time.Now().UTC(),
 						},
+						NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
+						Timestamp: time.Now().UTC(),
+						RowCount:  uint64(1),
 					},
 					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
 					Timestamp: time.Now().UTC(),
@@ -305,30 +285,13 @@ func TestAck_Sign(t *testing.T) {
 		var err error
 
 		Convey("get query key", func() {
-			key := ack.Header.SignedRequestHeader().GetQueryKey()
-			So(key.NodeID, ShouldEqual, ack.Header.SignedRequestHeader().NodeID)
-			So(key.ConnectionID, ShouldEqual, ack.Header.SignedRequestHeader().ConnectionID)
-			So(key.SeqNo, ShouldEqual, ack.Header.SignedRequestHeader().SeqNo)
+			key := ack.Header.GetQueryKey()
+			So(key.NodeID, ShouldEqual, ack.Header.GetQueryKey().NodeID)
+			So(key.ConnectionID, ShouldEqual, ack.Header.GetQueryKey().ConnectionID)
+			So(key.SeqNo, ShouldEqual, ack.Header.GetQueryKey().SeqNo)
 		})
 
-		// sign directly, embedded original response is not filled
-		err = ack.Sign(privKey, false)
-		So(err, ShouldBeNil)
-		err = ack.Sign(privKey, true)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldBeIn, []error{
-			verifier.ErrHashValueNotMatch,
-			verifier.ErrSignatureNotMatch,
-		})
-
-		// sign nested structure, step by step
-		// this is not required during runtime
-		// during runtime, nested structures is signed and provided by peers
-		err = ack.Header.Response.Request.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = ack.Header.Response.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = ack.Sign(privKey, true)
+		err = ack.Sign(privKey)
 		So(err, ShouldBeNil)
 
 		Convey("verify", func() {
@@ -351,214 +314,6 @@ func TestAck_Sign(t *testing.T) {
 				ack.Header.Timestamp = ack.Header.Timestamp.Add(time.Second)
 
 				err = ack.Verify()
-				So(err, ShouldNotBeNil)
-			})
-		})
-	})
-}
-
-func TestNoAckReport_Sign(t *testing.T) {
-	privKey, _ := getCommKeys()
-
-	Convey("sign", t, func() {
-		noAck := &NoAckReport{
-			Header: SignedNoAckReportHeader{
-				NoAckReportHeader: NoAckReportHeader{
-					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
-					Timestamp: time.Now().UTC(),
-					Response: SignedResponseHeader{
-						ResponseHeader: ResponseHeader{
-							Request: SignedRequestHeader{
-								RequestHeader: RequestHeader{
-									QueryType:    WriteQuery,
-									NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
-									DatabaseID:   proto.DatabaseID("db1"),
-									ConnectionID: uint64(1),
-									SeqNo:        uint64(2),
-									Timestamp:    time.Now().UTC(),
-								},
-							},
-							NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
-							Timestamp: time.Now().UTC(),
-							RowCount:  uint64(1),
-						},
-					},
-				},
-			},
-		}
-
-		var err error
-
-		// sign directly, embedded original response/request is not filled
-		err = noAck.Sign(privKey)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldBeIn, []error{
-			verifier.ErrHashValueNotMatch,
-			verifier.ErrSignatureNotMatch,
-		})
-
-		// sign nested structure
-		err = noAck.Header.Response.Request.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = noAck.Header.Response.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = noAck.Sign(privKey)
-		So(err, ShouldBeNil)
-
-		Convey("verify", func() {
-			err = noAck.Verify()
-			So(err, ShouldBeNil)
-
-			Convey("request change", func() {
-				noAck.Header.Response.Request.QueryType = ReadQuery
-
-				err = noAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("response change", func() {
-				noAck.Header.Response.RowCount = 100
-
-				err = noAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change", func() {
-				noAck.Header.Timestamp = noAck.Header.Timestamp.Add(time.Second)
-
-				err = noAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-		})
-	})
-}
-
-func TestAggrNoAckReport_Sign(t *testing.T) {
-	privKey, _ := getCommKeys()
-
-	Convey("sign", t, func() {
-		aggrNoAck := &AggrNoAckReport{
-			Header: SignedAggrNoAckReportHeader{
-				AggrNoAckReportHeader: AggrNoAckReportHeader{
-					NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
-					Timestamp: time.Now().UTC(),
-					Reports: []SignedNoAckReportHeader{
-						{
-							NoAckReportHeader: NoAckReportHeader{
-								NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
-								Timestamp: time.Now().UTC(),
-								Response: SignedResponseHeader{
-									ResponseHeader: ResponseHeader{
-										Request: SignedRequestHeader{
-											RequestHeader: RequestHeader{
-												QueryType:    WriteQuery,
-												NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
-												DatabaseID:   proto.DatabaseID("db1"),
-												ConnectionID: uint64(1),
-												SeqNo:        uint64(2),
-												Timestamp:    time.Now().UTC(),
-											},
-										},
-										NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
-										Timestamp: time.Now().UTC(),
-										RowCount:  uint64(1),
-									},
-								},
-							},
-						},
-						{
-							NoAckReportHeader: NoAckReportHeader{
-								NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
-								Timestamp: time.Now().UTC(),
-								Response: SignedResponseHeader{
-									ResponseHeader: ResponseHeader{
-										Request: SignedRequestHeader{
-											RequestHeader: RequestHeader{
-												QueryType:    WriteQuery,
-												NodeID:       proto.NodeID("0000000000000000000000000000000000000000000000000000000000001111"),
-												DatabaseID:   proto.DatabaseID("db1"),
-												ConnectionID: uint64(1),
-												SeqNo:        uint64(2),
-												Timestamp:    time.Now().UTC(),
-											},
-										},
-										NodeID:    proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
-										Timestamp: time.Now().UTC(),
-										RowCount:  uint64(1),
-									},
-								},
-							},
-						},
-					},
-					Peers: &proto.Peers{
-						PeersHeader: proto.PeersHeader{
-							Term:   uint64(1),
-							Leader: proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
-							Servers: []proto.NodeID{
-								proto.NodeID("0000000000000000000000000000000000000000000000000000000000003333"),
-								proto.NodeID("0000000000000000000000000000000000000000000000000000000000002222"),
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var err error
-
-		// sign directly, embedded original response/request is not filled
-		err = aggrNoAck.Sign(privKey)
-		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldBeIn, []error{
-			verifier.ErrHashValueNotMatch,
-			verifier.ErrSignatureNotMatch,
-		})
-
-		// sign nested structure
-		err = aggrNoAck.Header.Reports[0].Response.Request.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = aggrNoAck.Header.Reports[1].Response.Request.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = aggrNoAck.Header.Reports[0].Response.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = aggrNoAck.Header.Reports[1].Response.Sign(privKey)
-		So(err, ShouldBeNil)
-		err = aggrNoAck.Header.Reports[0].Sign(privKey)
-		So(err, ShouldBeNil)
-		err = aggrNoAck.Header.Reports[1].Sign(privKey)
-		So(err, ShouldBeNil)
-		err = aggrNoAck.Sign(privKey)
-		So(err, ShouldBeNil)
-
-		Convey("verify", func() {
-			err = aggrNoAck.Verify()
-			So(err, ShouldBeNil)
-
-			Convey("request change", func() {
-				aggrNoAck.Header.Reports[0].Response.Request.QueryType = ReadQuery
-
-				err = aggrNoAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("response change", func() {
-				aggrNoAck.Header.Reports[0].Response.RowCount = 1000
-
-				err = aggrNoAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("report change", func() {
-				aggrNoAck.Header.Reports[0].Timestamp = aggrNoAck.Header.Reports[0].Timestamp.Add(time.Second)
-
-				err = aggrNoAck.Verify()
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("header change", func() {
-				aggrNoAck.Header.Timestamp = aggrNoAck.Header.Timestamp.Add(time.Second)
-
-				err = aggrNoAck.Verify()
 				So(err, ShouldNotBeNil)
 			})
 		})

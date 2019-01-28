@@ -29,9 +29,35 @@ import (
 
 // AckHeader defines client ack entity.
 type AckHeader struct {
-	Response  SignedResponseHeader `json:"r"`
-	NodeID    proto.NodeID         `json:"i"` // ack node id
-	Timestamp time.Time            `json:"t"` // time in UTC zone
+	Response     ResponseHeader `json:"r"`
+	ResponseHash hash.Hash      `json:"rh"`
+	NodeID       proto.NodeID   `json:"i"` // ack node id
+	Timestamp    time.Time      `json:"t"` // time in UTC zone
+}
+
+// GetQueryKey returns the request query key.
+func (h *AckHeader) GetQueryKey() QueryKey {
+	return h.Response.Request.GetQueryKey()
+}
+
+// GetRequestTimestamp returns the request timestamp.
+func (h *AckHeader) GetRequestTimestamp() time.Time {
+	return h.Response.GetRequestTimestamp()
+}
+
+// GetResponseTimestamp returns the response timestamp.
+func (h *AckHeader) GetResponseTimestamp() time.Time {
+	return h.Response.Timestamp
+}
+
+// GetRequestHash returns the request hash.
+func (h *AckHeader) GetRequestHash() hash.Hash {
+	return h.Response.GetRequestHash()
+}
+
+// GetResponseHash returns the response hash.
+func (h *AckHeader) GetResponseHash() hash.Hash {
+	return h.ResponseHash
 }
 
 // SignedAckHeader defines client signed ack entity.
@@ -51,24 +77,11 @@ type AckResponse struct{}
 
 // Verify checks hash and signature in ack header.
 func (sh *SignedAckHeader) Verify() (err error) {
-	// verify response
-	if err = sh.Response.Verify(); err != nil {
-		return
-	}
-
 	return sh.DefaultHashSignVerifierImpl.Verify(&sh.AckHeader)
 }
 
 // Sign the request.
-func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey, verifyReqHeader bool) (err error) {
-	// Only used by ack worker, and ack.Header is verified before build ack
-	if verifyReqHeader {
-		// check original header signature
-		if err = sh.Response.Verify(); err != nil {
-			return
-		}
-	}
-
+func (sh *SignedAckHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return sh.DefaultHashSignVerifierImpl.Sign(&sh.AckHeader, signer)
 }
 
@@ -78,22 +91,7 @@ func (a *Ack) Verify() error {
 }
 
 // Sign the request.
-func (a *Ack) Sign(signer *asymmetric.PrivateKey, verifyReqHeader bool) (err error) {
+func (a *Ack) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// sign
-	return a.Header.Sign(signer, verifyReqHeader)
-}
-
-// ResponseHash returns the deep shadowed Response Hash field.
-func (sh *SignedAckHeader) ResponseHash() hash.Hash {
-	return sh.AckHeader.Response.Hash()
-}
-
-// SignedRequestHeader returns the deep shadowed Request reference.
-func (sh *SignedAckHeader) SignedRequestHeader() *SignedRequestHeader {
-	return &sh.AckHeader.Response.Request
-}
-
-// SignedResponseHeader returns the Response reference.
-func (sh *SignedAckHeader) SignedResponseHeader() *SignedResponseHeader {
-	return &sh.Response
+	return a.Header.Sign(signer)
 }

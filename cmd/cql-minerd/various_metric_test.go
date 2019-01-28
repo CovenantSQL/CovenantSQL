@@ -178,7 +178,8 @@ func BenchmarkSignSignature(b *testing.B) {
 	rs := &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
-				Request:      r.Header,
+				Request:      r.Header.RequestHeader,
+				RequestHash:  r.Header.Hash(),
 				NodeID:       n.ToRawNodeID().ToNodeID(),
 				Timestamp:    time.Now().UTC(),
 				RowCount:     1,
@@ -339,7 +340,8 @@ func TestComputeMetrics(t *testing.T) {
 		rs := &types.Response{
 			Header: types.SignedResponseHeader{
 				ResponseHeader: types.ResponseHeader{
-					Request:      r.Header,
+					Request:      r.Header.RequestHeader,
+					RequestHash:  r.Header.Hash(),
 					NodeID:       n.ToRawNodeID().ToNodeID(),
 					Timestamp:    time.Now().UTC(),
 					RowCount:     1,

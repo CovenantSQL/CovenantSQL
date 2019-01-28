@@ -41,8 +41,8 @@ func (z *Response) Msgsize() (s int) {
 func (z *ResponseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 8
-	o = append(o, 0x88)
+	// map header, size 9
+	o = append(o, 0x89)
 	o = hsp.AppendInt64(o, z.AffectedRows)
 	o = hsp.AppendInt64(o, z.LastInsertID)
 	o = hsp.AppendUint64(o, z.LogOffset)
@@ -61,6 +61,11 @@ func (z *ResponseHeader) MarshalHash() (o []byte, err error) {
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
+	if oTemp, err := z.RequestHash.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	o = hsp.AppendUint64(o, z.RowCount)
 	o = hsp.AppendTime(o, z.Timestamp)
 	return
@@ -68,7 +73,7 @@ func (z *ResponseHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ResponseHeader) Msgsize() (s int) {
-	s = 1 + 13 + hsp.Int64Size + 13 + hsp.Int64Size + 10 + hsp.Uint64Size + 7 + z.NodeID.Msgsize() + 12 + z.PayloadHash.Msgsize() + 8 + z.Request.Msgsize() + 9 + hsp.Uint64Size + 10 + hsp.TimeSize
+	s = 1 + 13 + hsp.Int64Size + 13 + hsp.Int64Size + 10 + hsp.Uint64Size + 7 + z.NodeID.Msgsize() + 12 + z.PayloadHash.Msgsize() + 8 + z.Request.Msgsize() + 12 + z.RequestHash.Msgsize() + 9 + hsp.Uint64Size + 10 + hsp.TimeSize
 	return
 }
 

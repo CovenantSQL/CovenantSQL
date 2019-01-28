@@ -31,9 +31,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fortytw2/leaktest"
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -47,6 +44,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/fortytw2/leaktest"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var rootHash = hash.Hash{}
@@ -620,14 +619,15 @@ func buildAck(res *types.Response) (ack *types.Ack, err error) {
 	ack = &types.Ack{
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
-				Response:  res.Header,
-				NodeID:    nodeID,
-				Timestamp: getLocalTime(),
+				Response:     res.Header.ResponseHeader,
+				ResponseHash: res.Header.Hash(),
+				NodeID:       nodeID,
+				Timestamp:    getLocalTime(),
 			},
 		},
 	}
 
-	err = ack.Sign(privateKey, true)
+	err = ack.Sign(privateKey)
 
 	return
 }

@@ -25,7 +25,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
-	"github.com/pkg/errors"
 )
 
 //go:generate hsp
@@ -44,14 +43,25 @@ type ResponsePayload struct {
 
 // ResponseHeader defines a query response header.
 type ResponseHeader struct {
-	Request      SignedRequestHeader `json:"r"`
-	NodeID       proto.NodeID        `json:"id"` // response node id
-	Timestamp    time.Time           `json:"t"`  // time in UTC zone
-	RowCount     uint64              `json:"c"`  // response row count of payload
-	LogOffset    uint64              `json:"o"`  // request log offset
-	LastInsertID int64               `json:"l"`  // insert insert id
-	AffectedRows int64               `json:"a"`  // affected rows
-	PayloadHash  hash.Hash           `json:"dh"` // hash of query response payload
+	Request      RequestHeader `json:"r"`
+	RequestHash  hash.Hash     `json:"rh"`
+	NodeID       proto.NodeID  `json:"id"` // response node id
+	Timestamp    time.Time     `json:"t"`  // time in UTC zone
+	RowCount     uint64        `json:"c"`  // response row count of payload
+	LogOffset    uint64        `json:"o"`  // request log offset
+	LastInsertID int64         `json:"l"`  // insert insert id
+	AffectedRows int64         `json:"a"`  // affected rows
+	PayloadHash  hash.Hash     `json:"dh"` // hash of query response payload
+}
+
+// GetRequestHash returns the request hash.
+func (h *ResponseHeader) GetRequestHash() hash.Hash {
+	return h.RequestHash
+}
+
+// GetRequestTimestamp returns the request timestamp.
+func (h *ResponseHeader) GetRequestTimestamp() time.Time {
+	return h.Request.Timestamp
 }
 
 // SignedResponseHeader defines a signed query response header.
@@ -68,22 +78,11 @@ type Response struct {
 
 // Verify checks hash and signature in response header.
 func (sh *SignedResponseHeader) Verify() (err error) {
-	// verify original request header
-	if err = sh.Request.Verify(); err != nil {
-		return
-	}
-
 	return sh.DefaultHashSignVerifierImpl.Verify(&sh.ResponseHeader)
 }
 
 // Sign the request.
 func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
-	// make sure original header is signed
-	if err = sh.Request.Verify(); err != nil {
-		err = errors.Wrapf(err, "SignedResponseHeader %v", sh)
-		return
-	}
-
 	return sh.DefaultHashSignVerifierImpl.Sign(&sh.ResponseHeader, signer)
 }
 

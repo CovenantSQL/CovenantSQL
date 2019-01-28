@@ -151,7 +151,7 @@ ackWorkerLoop:
 		oneTime.Do(func() {
 			pc = rpc.NewClientPoolCaller(c.pCaller.TargetID)
 		})
-		if err = ack.Sign(c.parent.privKey, false); err != nil {
+		if err = ack.Sign(c.parent.privKey); err != nil {
 			log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
 			continue
 		}
@@ -434,9 +434,10 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 		uc.ackCh <- &types.Ack{
 			Header: types.SignedAckHeader{
 				AckHeader: types.AckHeader{
-					Response:  response.Header,
-					NodeID:    c.localNodeID,
-					Timestamp: getLocalTime(),
+					Response:     response.Header.ResponseHeader,
+					ResponseHash: response.Header.Hash(),
+					NodeID:       c.localNodeID,
+					Timestamp:    getLocalTime(),
 				},
 			},
 		}

@@ -34,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -121,15 +120,29 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		bus = chainbus.New()
 	)
 
-	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
-		existed = true
+	// Verify genesis block in config
+	if cfg.Genesis == nil {
+		err = ErrNilGenesis
+		return
+	}
+	if ierr = cfg.Genesis.VerifyHash(); ierr != nil {
+		err = errors.Wrap(ierr, "failed to verify genesis block hash")
+		return
 	}
 
 	// Open storage
+	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
+		existed = true
+	}
 	if st, ierr = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); ierr != nil {
 		err = errors.Wrap(ierr, "failed to open storage")
 		return
 	}
+	defer func() {
+		if err != nil {
+			st.Close()
+		}
+	}()
 
 	// Create initial state from genesis block and store
 	if !existed {
@@ -142,7 +155,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		}
 		var sps = init.compileChanges(nil)
 		sps = append(sps, addBlock(0, cfg.Genesis))
-		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.BlockHash))
+		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.DataHash))
 		if ierr = store(st, sps, nil); ierr != nil {
 			err = errors.Wrap(ierr, "failed to initialize storage")
 			return
@@ -152,6 +165,11 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	// Load from database and rebuild branches
 	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
 		err = errors.Wrap(ierr, "failed to load data from storage")
+		return
+	}
+	if persistedGenesis := irre.ancestorByCount(0); persistedGenesis == nil ||
+		!persistedGenesis.hash.IsEqual(cfg.Genesis.BlockHash()) {
+		err = ErrGenesisHashNotMatch
 		return
 	}
 	for _, v := range heads {
@@ -287,28 +305,9 @@ func (c *Chain) Stop() (err error) {
 	return
 }
 
-// checkBlock has following steps: 1. check parent block 2. checkTx 2. merkle tree 3. Hash 4. Signature.
-func (c *Chain) checkBlock(b *types.BPBlock) (err error) {
-	rootHash := merkle.NewMerkle(b.GetTxHashes()).GetRoot()
-	if !b.SignedHeader.MerkleRoot.IsEqual(rootHash) {
-		return ErrInvalidMerkleTreeRoot
-	}
-
-	enc, err := b.SignedHeader.BPHeader.MarshalHash()
-	if err != nil {
-		return err
-	}
-	h := hash.THashH(enc)
-	if !b.BlockHash().IsEqual(&h) {
-		return ErrInvalidHash
-	}
-
-	return nil
-}
-
 func (c *Chain) pushBlock(b *types.BPBlock) (err error) {
 	var ierr error
-	if ierr = c.checkBlock(b); ierr != nil {
+	if ierr = b.Verify(); ierr != nil {
 		err = errors.Wrap(ierr, "failed to check block")
 		return
 	}

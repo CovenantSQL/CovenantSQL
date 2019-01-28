@@ -17,6 +17,7 @@
 package xenomint
 
 import (
+	"database/sql"
 	"time"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -38,9 +39,8 @@ type Chain struct {
 // NewChain returns new chain instance.
 func NewChain(filename string) (c *Chain, err error) {
 	var (
-		strg  xi.Storage
-		state *State
-		priv  *ca.PrivateKey
+		strg xi.Storage
+		priv *ca.PrivateKey
 	)
 	// generate empty nodeId
 	nodeID := proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000")
@@ -49,14 +49,11 @@ func NewChain(filename string) (c *Chain, err error) {
 	if strg, err = xs.NewSqlite(filename); err != nil {
 		return
 	}
-	if state, err = NewState(nodeID, strg); err != nil {
-		return
-	}
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
 	c = &Chain{
-		state: state,
+		state: NewState(sql.LevelReadUncommitted, nodeID, strg),
 		priv:  priv,
 	}
 	return

@@ -390,6 +390,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		UpdateBlockCount:       conf.GConf.BillingBlockCount,
 		UseEventualConsistency: instance.ResourceMeta.UseEventualConsistency,
 		ConsistencyLevel:       instance.ResourceMeta.ConsistencyLevel,
+		IsolationLevel:         instance.ResourceMeta.IsolationLevel,
 		SlowQueryTime:          DefaultSlowQueryTime,
 	}
 

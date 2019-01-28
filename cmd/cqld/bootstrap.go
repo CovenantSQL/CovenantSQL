@@ -52,7 +52,10 @@ const (
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	rootPath := conf.GConf.WorkingRoot
 
-	genesis := loadGenesis()
+	genesis, err := loadGenesis()
+	if err != nil {
+		return
+	}
 
 	var masterKey []byte
 	if !conf.GConf.IsTestMode {
@@ -250,20 +253,16 @@ func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.H
 	return
 }
 
-func loadGenesis() *types.BPBlock {
+func loadGenesis() (genesis *types.BPBlock, err error) {
 	genesisInfo := conf.GConf.BP.BPGenesis
 	log.WithField("config", genesisInfo).Info("load genesis config")
 
-	genesis := &types.BPBlock{
+	genesis = &types.BPBlock{
 		SignedHeader: types.BPSignedHeader{
 			BPHeader: types.BPHeader{
-				Version:    genesisInfo.Version,
-				Producer:   proto.AccountAddress(genesisInfo.Producer),
-				MerkleRoot: genesisInfo.MerkleRoot,
-				ParentHash: genesisInfo.ParentHash,
-				Timestamp:  genesisInfo.Timestamp,
+				Version:   genesisInfo.Version,
+				Timestamp: genesisInfo.Timestamp,
 			},
-			BlockHash: genesisInfo.BlockHash,
 		},
 	}
 
@@ -280,5 +279,9 @@ func loadGenesis() *types.BPBlock {
 			}))
 	}
 
-	return genesis
+	// Rewrite genesis merkle and block hash
+	if err = genesis.SetHash(); err != nil {
+		return
+	}
+	return
 }

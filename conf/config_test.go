@@ -62,12 +62,8 @@ func TestConf(t *testing.T) {
 		},
 		ChainFileName: "",
 		BPGenesis: BPGenesisInfo{
-			Version:    1,
-			Producer:   h,
-			MerkleRoot: h,
-			ParentHash: h,
-			Timestamp:  time.Now().UTC(),
-			BlockHash:  h,
+			Version:   1,
+			Timestamp: time.Now().UTC(),
 		},
 	}
 	Convey("LoadConfig", t, func() {

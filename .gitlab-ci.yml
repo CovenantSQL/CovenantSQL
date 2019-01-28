@@ -34,6 +34,9 @@ compatibility-testnet:
   script:
     - set -o errexit
     - set -o pipefail
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
     - make -j8 client
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/

@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -42,11 +43,11 @@ const name = "cql-utils"
 func init() {
 	log.SetLevel(log.InfoLevel)
 
-	flag.StringVar(&tool, "tool", "", "tool type, miner, keygen, keytool, rpc, nonce, confgen, addrgen, adapterconfgen")
-	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
-	flag.StringVar(&privateKeyFile, "private", "private.key", "private key file to generate/show")
-	flag.StringVar(&configFile, "config", "config.yaml", "config file to use")
-	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "use empty master key")
+	flag.StringVar(&tool, "tool", "", "Tool type, miner, keytool, rpc, nonce, confgen, addrgen, adapterconfgen")
+	flag.StringVar(&publicKeyHex, "public", "", "Public key hex string to mine node id/nonce")
+	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "Private key file to generate/show")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file to use")
+	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "Use empty master key")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
@@ -59,6 +60,9 @@ func main() {
 	}
 	log.Infof("cql-utils build: %#v\n", version)
 
+	configFile = utils.HomeDirExpand(configFile)
+	privateKeyFile = utils.HomeDirExpand(privateKeyFile)
+
 	switch tool {
 	case "miner":
 		if publicKeyHex == "" && privateKeyFile == "" {
@@ -67,13 +71,14 @@ func main() {
 			os.Exit(1)
 		}
 		runMiner()
-	case "keygen":
-		if privateKeyFile == "" {
-			// error
-			log.Error("privateKey path is required for keygen")
-			os.Exit(1)
-		}
-		runKeygen()
+	// Disable keygen independent call
+	//case "keygen":
+	//	if privateKeyFile == "" {
+	//		// error
+	//		log.Error("privateKey path is required for keygen")
+	//		os.Exit(1)
+	//	}
+	//	runKeygen()
 	case "keytool":
 		if privateKeyFile == "" {
 			// error

@@ -24,9 +24,21 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
+// RunMode defines modes that a bp can run as.
+type RunMode int
+
+const (
+	// BPMode is the default and normal mode.
+	BPMode RunMode = iota
+
+	// APINodeMode makes the bp behaviour like an API gateway. It becomes an API
+	// node, who syncs data from the bp network and exposes JSON-RPC API to users.
+	APINodeMode
+)
+
 // Config is the main chain configuration.
 type Config struct {
-	Mode    string
+	Mode    RunMode
 	Genesis *types.BPBlock
 
 	DataFile string
@@ -46,7 +58,7 @@ func NewConfig(genesis *types.BPBlock, dataFile string,
 	server *rpc.Server, peers *proto.Peers,
 	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
 	config := Config{
-		Mode:     "normal",
+		Mode:     BPMode,
 		Genesis:  genesis,
 		DataFile: dataFile,
 		Server:   server,

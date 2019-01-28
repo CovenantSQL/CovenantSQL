@@ -27,6 +27,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -36,10 +37,11 @@ var (
 )
 
 func init() {
-	flag.StringVar(&workingRoot, "root", "conf", "confgen root is the working root directory containing all auto-generating keys and certifications")
+	flag.StringVar(&workingRoot, "root", "~/.cql", "confgen root is the working root directory containing all auto-generating keys and certifications")
 }
 
 func runConfgen() {
+	workingRoot = utils.HomeDirExpand(workingRoot)
 	if workingRoot == "" {
 		log.Error("root directory is required for confgen")
 		os.Exit(1)
@@ -60,7 +62,11 @@ func runConfgen() {
 			os.Exit(1)
 		}
 		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
-			os.RemoveAll(workingRoot)
+			err = os.RemoveAll(workingRoot)
+			if err != nil {
+				log.WithError(err).Error("unexpected error")
+				os.Exit(1)
+			}
 		} else {
 			os.Exit(0)
 		}

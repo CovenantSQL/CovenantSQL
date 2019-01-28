@@ -100,6 +100,13 @@ push_bench:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):bench
 	docker push $(IMAGE):bench
 
+push_staging:
+	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):staging
+	docker push $(OB_IMAGE):staging
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):staging
+	docker push $(IMAGE):staging
+
+
 push:
 	docker push $(OB_IMAGE):$(VERSION)
 	docker push $(OB_IMAGE):latest
@@ -113,14 +120,14 @@ builddate := $(shell date +%Y%m%d%H%M%S)
 
 unamestr := $(shell uname)
 
-ifeq ($(unamestr),"Linux")
-platform := "linux"
+ifeq ($(unamestr),Linux)
+platform := linux
 endif
 
 version := $(branch)-$(GIT_COMMIT)-$(builddate)
 
 tags := $(platform) sqlite_omit_load_extension
-testtags := $(platform) sqlite_omit_load_extension testbinary
+testtags := $(tags) testbinary
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 
 ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS
@@ -221,6 +228,8 @@ all: bp miner observer client
 
 clean:
 	rm -rf bin/cql*
+	rm -f *.cover.out
+	rm -f coverage.txt
 
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql-observer bin/cql-observer.test \

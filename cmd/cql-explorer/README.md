@@ -21,7 +21,7 @@ Generate the main configuration file. Same as [Generating Default Config File in
 Start the explorer by following commands:
 
 ```shell
-$ cql-explorer -config config.yaml
+$ cql-explorer
 ```
 
 The available options are:
@@ -30,13 +30,13 @@ The available options are:
 $ cql-explorer --help
 Usage of cql-explorer:
   -config string
-    	config file path (default "./config.yaml")
+    	Config file path (default "~/.cql/config.yaml")
   -interval duration
-    	new block check interval for explorer (default 2s)
+    	New block check interval for explorer (default 2s)
   -listen string
-    	listen address for http explorer api (default "127.0.0.1:4665")
+    	Listen address for http explorer api (default "127.0.0.1:4665")
   -password string
-        master key password for covenantsql
+    	Master key password for covenantsql
 ```
 
 ### API

@@ -58,7 +58,8 @@ var (
 	showVersion bool
 	configFile  string
 
-	mode     string // "normal", "api"
+	wsapiAddr string
+
 	logLevel string
 )
 
@@ -70,13 +71,13 @@ func init() {
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
 	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
-	flag.StringVar(&mode, "mode", "normal", "Run mode, e.g. normal, api")
+	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API, run as API Node")
 	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {
@@ -104,6 +105,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

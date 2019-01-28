@@ -11,13 +11,12 @@ func (z *BaseAccount) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
+	o = append(o, 0x82)
 	if oTemp, err := z.Account.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
 	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
 		return nil, err
 	} else {

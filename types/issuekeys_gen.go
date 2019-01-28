@@ -11,20 +11,18 @@ func (z *IssueKeys) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
-	o = append(o, 0x83, 0x83)
+	o = append(o, 0x83)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	if oTemp, err := z.IssueKeysHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x83)
 	if oTemp, err := z.TransactionTypeMixin.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x83)
-	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -34,7 +32,7 @@ func (z *IssueKeys) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *IssueKeys) Msgsize() (s int) {
-	s = 1 + 16 + z.IssueKeysHeader.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
+	s = 1 + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 16 + z.IssueKeysHeader.Msgsize() + 21 + z.TransactionTypeMixin.Msgsize()
 	return
 }
 
@@ -43,26 +41,23 @@ func (z *IssueKeysHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
-	o = append(o, 0x83, 0x83)
+	o = append(o, 0x83)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.MinerKeys)))
 	for za0001 := range z.MinerKeys {
 		// map header, size 2
-		o = append(o, 0x82, 0x82)
+		o = append(o, 0x82)
 		if oTemp, err := z.MinerKeys[za0001].Miner.MarshalHash(); err != nil {
 			return nil, err
 		} else {
 			o = hsp.AppendBytes(o, oTemp)
 		}
-		o = append(o, 0x82)
 		o = hsp.AppendString(o, z.MinerKeys[za0001].EncryptionKey)
 	}
-	o = append(o, 0x83)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x83)
 	if oTemp, err := z.TargetSQLChain.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -86,19 +81,18 @@ func (z *MinerKey) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
+	o = append(o, 0x82)
+	o = hsp.AppendString(o, z.EncryptionKey)
 	if oTemp, err := z.Miner.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
-	o = hsp.AppendString(o, z.EncryptionKey)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *MinerKey) Msgsize() (s int) {
-	s = 1 + 6 + z.Miner.Msgsize() + 14 + hsp.StringPrefixSize + len(z.EncryptionKey)
+	s = 1 + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 6 + z.Miner.Msgsize()
 	return
 }

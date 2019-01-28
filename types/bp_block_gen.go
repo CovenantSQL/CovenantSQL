@@ -12,19 +12,17 @@ func (z *BPBlock) MarshalHash() (o []byte, err error) {
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
 	// map header, size 2
-	o = append(o, 0x82, 0x82, 0x82, 0x82)
+	o = append(o, 0x82, 0x82)
 	if oTemp, err := z.SignedHeader.BPHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
 	if oTemp, err := z.SignedHeader.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Transactions)))
 	for za0001 := range z.Transactions {
 		if oTemp, err := z.Transactions[za0001].MarshalHash(); err != nil {
@@ -50,34 +48,30 @@ func (z *BPHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	o = append(o, 0x85)
 	if oTemp, err := z.MerkleRoot.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
 	if oTemp, err := z.ParentHash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
-	o = hsp.AppendInt32(o, z.Version)
-	o = append(o, 0x85)
 	if oTemp, err := z.Producer.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
 	o = hsp.AppendTime(o, z.Timestamp)
+	o = hsp.AppendInt32(o, z.Version)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BPHeader) Msgsize() (s int) {
-	s = 1 + 11 + z.MerkleRoot.Msgsize() + 11 + z.ParentHash.Msgsize() + 8 + hsp.Int32Size + 9 + z.Producer.Msgsize() + 10 + hsp.TimeSize
+	s = 1 + 11 + z.MerkleRoot.Msgsize() + 11 + z.ParentHash.Msgsize() + 9 + z.Producer.Msgsize() + 10 + hsp.TimeSize + 8 + hsp.Int32Size
 	return
 }
 
@@ -86,13 +80,12 @@ func (z *BPSignedHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
+	o = append(o, 0x82)
 	if oTemp, err := z.BPHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
 	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {

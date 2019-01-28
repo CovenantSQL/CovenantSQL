@@ -228,7 +228,7 @@ func buildBlockIndex(height uint32, b *types.BPBlock) storageProcedure {
 				txIndex,
 				t.Hash().String(),
 				b.BlockHash().String(),
-				0, // FIXME: use Transaction.GetTimestamp()
+				t.GetTimestamp().UnixNano(),
 				t.GetTransactionType(),
 				addr.String(),
 				string(raw),

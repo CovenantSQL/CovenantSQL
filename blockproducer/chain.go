@@ -18,11 +18,14 @@ package blockproducer
 
 import (
 	"context"
+	"expvar"
 	"fmt"
 	"math"
 	"os"
 	"sync"
 	"time"
+
+	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/chainbus"
@@ -74,11 +77,16 @@ type Chain struct {
 	headBranch   *branch
 	branches     []*branch
 	txPool       map[hash.Hash]pi.Transaction
-	mode         string
+	mode         RunMode
 }
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
+	// Normally, NewChain() should only be called once in app.
+	// So, we just check expvar without a lock
+	if expvar.Get("height") == nil {
+		expvar.Publish("height", mw.NewGauge("5m1s"))
+	}
 	return NewChainWithContext(context.Background(), cfg)
 }
 
@@ -201,7 +209,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
-	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers); err != nil {
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode); err != nil {
 		return
 	}
 	if t = cfg.ConfirmThreshold; t <= 0.0 {
@@ -347,7 +355,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 
 	defer c.increaseNextHeight()
 	// Skip if it's not my turn
-	if c.mode == "api" || !c.isMyTurn() {
+	if c.mode == APINodeMode || !c.isMyTurn() {
 		return
 	}
 	// Normally, a block producing should start right after the new period, but more time may also
@@ -360,6 +368,7 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 		}).Warn("too much time elapsed in the new period, skip this block")
 		return
 	}
+	expvar.Get("height").(mw.Metric).Add(float64(c.getNextHeight()))
 	log.WithField("height", c.getNextHeight()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
@@ -913,16 +922,22 @@ func (c *Chain) getLocalBPInfo() *blockProducerInfo {
 	return c.localBPInfo
 }
 
+// getRemoteBPInfos remove this node from the peer list
 func (c *Chain) getRemoteBPInfos() (remoteBPInfos []*blockProducerInfo) {
 	var localBPInfo, bpInfos = func() (*blockProducerInfo, []*blockProducerInfo) {
 		c.RLock()
 		defer c.RUnlock()
 		return c.localBPInfo, c.bpInfos
 	}()
-	remoteBPInfos = make([]*blockProducerInfo, 0, localBPInfo.total-1)
-	remoteBPInfos = append(remoteBPInfos, bpInfos[0:localBPInfo.rank]...)
-	remoteBPInfos = append(remoteBPInfos, bpInfos[localBPInfo.rank+1:]...)
-	return
+
+	for _, info := range bpInfos {
+		if info.nodeID.IsEqual(&localBPInfo.nodeID) {
+			continue
+		}
+		remoteBPInfos = append(remoteBPInfos, info)
+	}
+
+	return remoteBPInfos
 }
 
 func (c *Chain) lastIrreversibleBlock() *blockNode {

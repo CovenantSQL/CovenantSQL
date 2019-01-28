@@ -33,6 +33,7 @@ var (
 	publicKeyHex   string
 	privateKeyFile string
 	configFile     string
+	skipMasterKey  bool
 	showVersion    bool
 )
 
@@ -45,6 +46,7 @@ func init() {
 	flag.StringVar(&publicKeyHex, "public", "", "public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "private.key", "private key file to generate/show")
 	flag.StringVar(&configFile, "config", "config.yaml", "config file to use")
+	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "use empty master key")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
 
@@ -100,6 +102,9 @@ func main() {
 }
 
 func readMasterKey() (string, error) {
+	if skipMasterKey {
+		return "", nil
+	}
 	fmt.Println("Enter master key(press Enter for default: \"\"): ")
 	bytePwd, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println()

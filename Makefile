@@ -120,8 +120,8 @@ builddate := $(shell date +%Y%m%d%H%M%S)
 
 unamestr := $(shell uname)
 
-ifeq ($(unamestr),"Linux")
-platform := "linux"
+ifeq ($(unamestr),Linux)
+platform := linux
 endif
 
 version := $(branch)-$(GIT_COMMIT)-$(builddate)

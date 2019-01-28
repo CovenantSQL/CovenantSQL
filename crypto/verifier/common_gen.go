@@ -11,17 +11,12 @@ func (z *DefaultHashSignVerifierImpl) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
-	o = append(o, 0x83, 0x83)
-	if z.Signee == nil {
-		o = hsp.AppendNil(o)
-	} else {
-		if oTemp, err := z.Signee.MarshalHash(); err != nil {
-			return nil, err
-		} else {
-			o = hsp.AppendBytes(o, oTemp)
-		}
-	}
 	o = append(o, 0x83)
+	if oTemp, err := z.DataHash.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	if z.Signature == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -31,29 +26,31 @@ func (z *DefaultHashSignVerifierImpl) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x83)
-	if oTemp, err := z.DataHash.MarshalHash(); err != nil {
-		return nil, err
+	if z.Signee == nil {
+		o = hsp.AppendNil(o)
 	} else {
-		o = hsp.AppendBytes(o, oTemp)
+		if oTemp, err := z.Signee.MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
 	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *DefaultHashSignVerifierImpl) Msgsize() (s int) {
-	s = 1 + 7
-	if z.Signee == nil {
-		s += hsp.NilSize
-	} else {
-		s += z.Signee.Msgsize()
-	}
-	s += 10
+	s = 1 + 9 + z.DataHash.Msgsize() + 10
 	if z.Signature == nil {
 		s += hsp.NilSize
 	} else {
 		s += z.Signature.Msgsize()
 	}
-	s += 9 + z.DataHash.Msgsize()
+	s += 7
+	if z.Signee == nil {
+		s += hsp.NilSize
+	} else {
+		s += z.Signee.Msgsize()
+	}
 	return
 }

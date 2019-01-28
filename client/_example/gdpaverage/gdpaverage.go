@@ -21,6 +21,7 @@ import (
 	"flag"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -28,10 +29,12 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 	var config, password, dsn string
 
-	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
+	flag.StringVar(&config, "config", "~/.cql/config.yaml", "config file path")
 	flag.StringVar(&dsn, "dsn", "", "database url")
 	flag.StringVar(&password, "password", "", "master key password for covenantsql")
 	flag.Parse()
+
+	config = utils.HomeDirExpand(config)
 
 	err := client.Init(config, []byte(password))
 	if err != nil {

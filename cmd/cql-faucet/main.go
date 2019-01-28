@@ -28,6 +28,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
 )
@@ -42,8 +43,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "config.yaml", "configuration file for covenantsql")
-	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Configuration file for covenantsql")
+	flag.StringVar(&password, "password", "", "Master key password for covenantsql")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
@@ -56,6 +57,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

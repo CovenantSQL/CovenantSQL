@@ -4,6 +4,7 @@ variables:
   REVIEWDOG_VERSION: 0.9.11
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
+  UNITTESTTAGS: linux sqlite_omit_load_extension
 
 before_script:
   # Setup dependency management tool
@@ -24,12 +25,19 @@ before_script:
 
 test-my-project:
   stage: test
-  script: ./alltest.sh
+  script: 
+    - ./alltest.sh
 
 compatibility-testnet:
   stage: test
   script:
+    - set -o errexit
+    - set -o pipefail
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
     - make -j8 client
-    - go test -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
-    - bash test/testnet_client/run.sh
+    - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+    - set -x
+    - ./test/testnet_client/run.sh

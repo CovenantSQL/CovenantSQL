@@ -14,7 +14,7 @@ test::package() {
 
   local coverage_file="${package//\//.}.cover.out"
   echo "[TEST] package=${package}, coverage=${coverage_file}"
-  go test -race -failfast -parallel 16 -cpu 16 -coverpkg="github.com/CovenantSQL/CovenantSQL/..." -coverprofile "${coverage_file}" "${package}"
+  go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverpkg="github.com/CovenantSQL/CovenantSQL/..." -coverprofile "${coverage_file}" "${package}"
 }
 
 main() {
@@ -26,13 +26,14 @@ main() {
     test::package "${package}"
   done
 
+  set -x
   gocovmerge *.cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f *.cover.out
   bash <(curl -s https://codecov.io/bash)
 
   # some benchmarks
-  go test -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
+  go test -tags "$UNITTESTTAGS" -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
   bash cleanupDB.sh || true
-  go test -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+  go test -tags "$UNITTESTTAGS" -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
   bash cleanupDB.sh || true
 }
 

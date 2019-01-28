@@ -26,7 +26,6 @@ before_script:
 test-my-project:
   stage: test
   script: 
-    - set -x
     - ./alltest.sh
 
 compatibility-testnet:

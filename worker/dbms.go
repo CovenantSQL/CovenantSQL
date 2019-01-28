@@ -469,7 +469,7 @@ func (dbms *DBMS) Ack(ack *types.Ack) (err error) {
 	if err != nil {
 		return
 	}
-	err = dbms.checkPermission(addr, ack.Header.Response.Request.DatabaseID, types.ReadQuery)
+	err = dbms.checkPermission(addr, ack.Header.Response.Request.DatabaseID, types.ReadQuery, nil)
 	if err != nil {
 		return
 	}

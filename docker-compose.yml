@@ -193,9 +193,9 @@ services:
     # entrypoint: ["sh"]
     environment:
       COVENANT_ROLE: blockproducer
-      COVENANT_CONF: ./apinode_0/config.yaml
+      COVENANT_CONF: ./fullnode_0/config.yaml
     volumes:
-      - ./test/service/apinode_0/:/app/apinode_0/
+      - ./test/service/fullnode_0/:/app/fullnode_0/
     networks:
       default:
         ipv4_address: 172.254.1.11

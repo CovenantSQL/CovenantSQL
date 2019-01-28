@@ -120,14 +120,14 @@ builddate := $(shell date +%Y%m%d%H%M%S)
 
 unamestr := $(shell uname)
 
-ifeq ($(unamestr),"Linux")
-platform := "linux"
+ifeq ($(unamestr),Linux)
+platform := linux
 endif
 
 version := $(branch)-$(GIT_COMMIT)-$(builddate)
 
 tags := $(platform) sqlite_omit_load_extension
-testtags := $(platform) sqlite_omit_load_extension testbinary
+testtags := $(tags) testbinary
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 
 ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS

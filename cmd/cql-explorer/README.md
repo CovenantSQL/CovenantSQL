@@ -36,7 +36,7 @@ Usage of cql-explorer:
   -listen string
     	Listen address for http explorer api (default "127.0.0.1:4665")
   -password string
-        Master key password for covenantsql
+    	Master key password for covenantsql
 ```
 
 ### API

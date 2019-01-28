@@ -649,7 +649,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		resultTxPool[k] = v
 	}
 	for _, b := range newIrres {
-		for _, tx := range b.block.Transactions {
+		for _, tx := range b.load().Transactions {
 			if err := c.immutable.apply(tx); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
@@ -680,7 +680,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	sps = append(sps, addBlock(height, newBlock))
 	sps = append(sps, buildBlockIndex(height, newBlock))
 	for _, n := range newIrres {
-		sps = append(sps, deleteTxs(n.block.Transactions))
+		sps = append(sps, deleteTxs(n.load().Transactions))
 	}
 	if len(expiredTxs) > 0 {
 		sps = append(sps, deleteTxs(expiredTxs))
@@ -726,7 +726,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		// Clear transactions in each branch
 		for _, b := range newIrres {
 			for _, br := range c.branches {
-				br.clearPackedTxs(b.block.Transactions)
+				br.clearPackedTxs(b.load().Transactions)
 			}
 		}
 		for _, br := range c.branches {

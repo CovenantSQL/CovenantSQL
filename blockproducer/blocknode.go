@@ -17,6 +17,8 @@
 package blockproducer
 
 import (
+	"sync/atomic"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
@@ -27,12 +29,13 @@ type blockNode struct {
 	count  uint32
 	height uint32
 	// Cached fields for quick reference
-	hash  hash.Hash
-	block *types.BPBlock
+	hash    hash.Hash
+	txCount int
+	block   atomic.Value
 }
 
-func newBlockNode(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
-	return &blockNode{
+func newBlockNode(h uint32, b *types.BPBlock, p *blockNode) (node *blockNode) {
+	node = &blockNode{
 		parent: p,
 
 		count: func() uint32 {
@@ -43,9 +46,19 @@ func newBlockNode(h uint32, b *types.BPBlock, p *blockNode) *blockNode {
 		}(),
 		height: h,
 
-		hash:  b.SignedHeader.BlockHash,
-		block: b,
+		hash:    b.SignedHeader.BlockHash,
+		txCount: len(b.Transactions),
 	}
+	node.block.Store(b)
+	return
+}
+
+func (n *blockNode) load() *types.BPBlock {
+	return n.block.Load().(*types.BPBlock)
+}
+
+func (n *blockNode) clear() {
+	n.block.Store(nil)
 }
 
 // fetchNodeList returns the block node list within range (from, n.count] from node head n.

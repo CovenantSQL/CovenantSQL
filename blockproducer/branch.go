@@ -57,11 +57,12 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
-		if len(bn.block.Transactions) > conf.MaxTransactionsPerBlock {
+		var block = bn.load()
+		if len(block.Transactions) > conf.MaxTransactionsPerBlock {
 			return nil, ErrTooManyTransactionsInBlock
 		}
 
-		for _, v := range bn.block.Transactions {
+		for _, v := range block.Transactions {
 			var k = v.Hash()
 			// Check in tx pool
 			if _, ok := inst.unpacked[k]; ok {
@@ -126,17 +127,18 @@ func (b *branch) addTx(tx pi.Transaction) {
 }
 
 func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
-	if !b.head.hash.IsEqual(n.block.ParentHash()) {
+	var block = n.load()
+	if !b.head.hash.IsEqual(block.ParentHash()) {
 		err = ErrParentNotMatch
 		return
 	}
 	var cpy = b.makeArena()
 
-	if len(n.block.Transactions) > conf.MaxTransactionsPerBlock {
+	if len(block.Transactions) > conf.MaxTransactionsPerBlock {
 		return nil, ErrTooManyTransactionsInBlock
 	}
 
-	for _, v := range n.block.Transactions {
+	for _, v := range block.Transactions {
 		var k = v.Hash()
 		// Check in tx pool
 		if _, ok := cpy.unpacked[k]; ok {
@@ -258,13 +260,13 @@ func (b *branch) sprint(from uint32) (buff string) {
 		if i == 0 {
 			var p = v.parent
 			buff += fmt.Sprintf("* #%d:%d %s {%d}",
-				p.height, p.count, p.hash.Short(4), len(p.block.Transactions))
+				p.height, p.count, p.hash.Short(4), p.txCount)
 		}
 		if d := v.height - v.parent.height; d > 1 {
 			buff += fmt.Sprintf(" <-- (skip %d blocks)", d-1)
 		}
 		buff += fmt.Sprintf(" <-- #%d:%d %s {%d}",
-			v.height, v.count, v.hash.Short(4), len(v.block.Transactions))
+			v.height, v.count, v.hash.Short(4), v.txCount)
 	}
 	return
 }

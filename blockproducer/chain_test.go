@@ -344,7 +344,7 @@ func TestChain(t *testing.T) {
 
 					// Try to use the no-cache version
 					var node = chain.headBranch.head.ancestorByCount(5)
-					node.block = nil // Clear cached block
+					node.clear()
 					bl, count, err = chain.fetchBlockByHeight(node.height)
 					So(err, ShouldBeNil)
 					So(count, ShouldEqual, node.count)
@@ -355,7 +355,7 @@ func TestChain(t *testing.T) {
 					So(bl.BlockHash(), ShouldResemble, &node.hash)
 
 					var irreBlock = chain.lastIrre.block
-					chain.lastIrre.block = nil // Clear cached block
+					node.clear()
 					bl, count, height, err = chain.fetchLastIrreversibleBlock()
 					So(err, ShouldBeNil)
 					So(bl, ShouldResemble, irreBlock)

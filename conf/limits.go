@@ -25,5 +25,5 @@ const (
 	// MaxTransactionsPerBlock defines the limit of transactions per block.
 	MaxTransactionsPerBlock = 10000
 	// MaxRPCPoolPhysicalConnection defines max underlying physical connection for one node pair.
-	MaxRPCPoolPhysicalConnection = 10
+	MaxRPCPoolPhysicalConnection = 2
 )

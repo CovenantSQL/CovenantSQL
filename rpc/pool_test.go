@@ -22,6 +22,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -32,7 +33,7 @@ import (
 const (
 	localAddr   = "127.0.0.1:4444"
 	localAddr2  = "127.0.0.1:4445"
-	concurrency = 15
+	concurrency = conf.MaxRPCPoolPhysicalConnection + 1
 	packetCount = 100
 )
 
@@ -151,12 +152,12 @@ func TestNewSessionPool(t *testing.T) {
 		}
 
 		wg.Wait()
-		So(p.Len(), ShouldEqual, MaxPhysicalConnection)
+		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
 
 		server(c, localAddr2, packetCount)
 		_, err := p.Get(proto.NodeID(localAddr2))
 		So(err, ShouldBeNil)
-		So(p.Len(), ShouldEqual, MaxPhysicalConnection+1)
+		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection+1)
 
 		wg2 := &sync.WaitGroup{}
 		wg2.Add(concurrency)
@@ -181,10 +182,10 @@ func TestNewSessionPool(t *testing.T) {
 		}
 
 		wg2.Wait()
-		So(p.Len(), ShouldEqual, MaxPhysicalConnection*2)
+		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection*2)
 
 		p.Remove(proto.NodeID(localAddr2))
-		So(p.Len(), ShouldEqual, MaxPhysicalConnection)
+		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
 
 		p.Close()
 		So(p.Len(), ShouldEqual, 0)

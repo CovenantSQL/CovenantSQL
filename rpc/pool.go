@@ -20,13 +20,11 @@ import (
 	"net"
 	"sync"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 )
-
-// MaxPhysicalConnection defines max underlying physical connection for one node pair.
-const MaxPhysicalConnection = 10
 
 // SessPool is the session pool interface
 type SessPool interface {
@@ -77,7 +75,7 @@ func (s *Session) Get() (conn net.Conn, err error) {
 	s.Lock()
 	defer s.Unlock()
 	s.offset++
-	s.offset %= MaxPhysicalConnection
+	s.offset %= conf.MaxRPCPoolPhysicalConnection
 
 	var (
 		sess     *mux.Session

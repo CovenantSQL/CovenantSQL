@@ -134,7 +134,7 @@ func startNodes() {
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/fullnode0.cover.out"),
 			"-metric-web", "0.0.0.0:13119", "-wsapi", ":23119", "-log-level", "info",
 		},
-		"fullnode0", testWorkingDir, logDir, false,
+		"fullnode0", testWorkingDir, logDir, true,
 	); err == nil {
 		nodeCmds = append(nodeCmds, cmd)
 	} else {

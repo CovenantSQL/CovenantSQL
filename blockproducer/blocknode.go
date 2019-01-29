@@ -58,7 +58,7 @@ func (n *blockNode) load() *types.BPBlock {
 }
 
 func (n *blockNode) clear() {
-	n.block.Store(nil)
+	n.block.Store((*types.BPBlock)(nil))
 }
 
 // fetchNodeList returns the block node list within range (from, n.count] from node head n.

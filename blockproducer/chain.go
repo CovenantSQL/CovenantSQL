@@ -44,6 +44,10 @@ import (
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
+func init() {
+	expvar.Publish("height", mw.NewCounter("5m1s"))
+}
+
 // Chain defines the main chain.
 type Chain struct {
 	// Routine controlling components
@@ -61,6 +65,7 @@ type Chain struct {
 	pendingAddTxReqs chan *types.AddTxReq
 	// The following fields are read-only in runtime
 	address     proto.AccountAddress
+	mode        RunMode
 	genesisTime time.Time
 	period      time.Duration
 	tick        time.Duration
@@ -78,16 +83,10 @@ type Chain struct {
 	headBranch   *branch
 	branches     []*branch
 	txPool       map[hash.Hash]pi.Transaction
-	mode         RunMode
 }
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
-	// Normally, NewChain() should only be called once in app.
-	// So, we just check expvar without a lock
-	if expvar.Get("height") == nil {
-		expvar.Publish("height", mw.NewGauge("5m1s"))
-	}
 	return NewChainWithContext(context.Background(), cfg)
 }
 
@@ -218,6 +217,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		pendingAddTxReqs: make(chan *types.AddTxReq),
 
 		address:     addr,
+		mode:        cfg.Mode,
 		genesisTime: cfg.Genesis.SignedHeader.Timestamp,
 		period:      cfg.Period,
 		tick:        cfg.Tick,
@@ -235,8 +235,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		headBranch: head,
 		branches:   branches,
 		txPool:     txPool,
-		mode:       cfg.Mode,
 	}
+	expvar.Get("height").(mw.Metric).Add(float64(c.nextHeight))
 	log.WithFields(log.Fields{
 		"local":  c.getLocalBPInfo(),
 		"period": c.period,
@@ -369,7 +369,6 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 		}).Warn("too much time elapsed in the new period, skip this block")
 		return
 	}
-	expvar.Get("height").(mw.Metric).Add(float64(c.getNextHeight()))
 	log.WithField("height", c.getNextHeight()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
@@ -895,6 +894,7 @@ func (c *Chain) isMyTurn() bool {
 
 // increaseNextHeight prepares the chain state for the next turn.
 func (c *Chain) increaseNextHeight() {
+	expvar.Get("height").(mw.Metric).Add(1)
 	c.Lock()
 	defer c.Unlock()
 	c.nextHeight++

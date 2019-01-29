@@ -95,6 +95,7 @@ func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err e
 	}
 
 	*res = *r
+	r.TriggerResponseCallback()
 	dbQuerySuccCounter.Mark(1)
 
 	return

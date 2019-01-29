@@ -72,8 +72,9 @@ type SignedResponseHeader struct {
 
 // Response defines a complete query response.
 type Response struct {
-	Header  SignedResponseHeader `json:"h"`
-	Payload ResponsePayload      `json:"p"`
+	Header   SignedResponseHeader `json:"h"`
+	Payload  ResponsePayload      `json:"p"`
+	callback func(res *Response)
 }
 
 // Verify checks hash and signature in response header.
@@ -87,31 +88,57 @@ func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) 
 }
 
 // Verify checks hash and signature in whole response.
-func (sh *Response) Verify() (err error) {
+func (r *Response) Verify() (err error) {
 	_, task := trace.NewTask(context.Background(), "ResponseVerify")
 	defer task.End()
 
 	// verify data hash in header
-	if err = verifyHash(&sh.Payload, &sh.Header.PayloadHash); err != nil {
+	if err = verifyHash(&r.Payload, &r.Header.PayloadHash); err != nil {
 		return
 	}
 
-	return sh.Header.Verify()
+	return r.Header.Verify()
 }
 
-// Sign the request.
-func (sh *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
+// Sign the response.
+func (r *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
 	_, task := trace.NewTask(context.Background(), "ResponseSign")
 	defer task.End()
 
-	// set rows count
-	sh.Header.RowCount = uint64(len(sh.Payload.Rows))
-
-	// build hash in header
-	if err = buildHash(&sh.Payload, &sh.Header.PayloadHash); err != nil {
+	if err = r.BuildHash(); err != nil {
 		return
 	}
 
-	// sign the request
-	return sh.Header.Sign(signer)
+	return r.SignHash(signer)
+}
+
+// SignHash computes the signature of the response through existing hash.
+func (r *Response) SignHash(signer *asymmetric.PrivateKey) (err error) {
+	return r.Header.SignHash(signer)
+}
+
+// BuildHash computes the hash of the response.
+func (r *Response) BuildHash() (err error) {
+	// set rows count
+	r.Header.RowCount = uint64(len(r.Payload.Rows))
+
+	// build hash in header
+	if err = buildHash(&r.Payload, &r.Header.PayloadHash); err != nil {
+		return
+	}
+
+	// compute header hash
+	return r.Header.SetHash(&r.Header.ResponseHeader)
+}
+
+// SetResponseCallback stores callback function to process after response processed.
+func (r *Response) SetResponseCallback(cb func(res *Response)) {
+	r.callback = cb
+}
+
+// TriggerResponseCallback async executes callback.
+func (r *Response) TriggerResponseCallback() {
+	if r.callback != nil {
+		go r.callback(r)
+	}
 }

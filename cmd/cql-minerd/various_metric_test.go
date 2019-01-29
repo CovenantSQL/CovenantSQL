@@ -20,6 +20,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/binary"
 	"io/ioutil"
 	"os"
@@ -88,10 +89,8 @@ func BenchmarkDBWrite(b *testing.B) {
 	if err == nil {
 		defer strg.Close()
 	}
-	state, err = x.NewState(n.ToRawNodeID().ToNodeID(), strg)
-	if err == nil {
-		defer state.Close(true)
-	}
+	state = x.NewState(sql.LevelReadUncommitted, n.ToRawNodeID().ToNodeID(), strg)
+	defer state.Close(true)
 
 	b.ResetTimer()
 	b.Run("commit", func(b *testing.B) {

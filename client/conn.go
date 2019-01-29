@@ -413,14 +413,6 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 	}(); err != nil {
 		return
 	}
-
-	// verify response
-	if err = func() error {
-		defer trace.StartRegion(ctx, "verifyResponse").End()
-		return response.Verify()
-	}(); err != nil {
-		return
-	}
 	rows = newRows(&response)
 
 	if queryType == types.WriteQuery {

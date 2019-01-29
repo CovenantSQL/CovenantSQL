@@ -277,16 +277,28 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
 
-	// Sign response
-	if err = response.Sign(db.privateKey); err != nil {
-		err = errors.Wrap(err, "failed to sign response")
+	// build hash
+	if err = response.BuildHash(); err != nil {
+		err = errors.Wrap(err, "failed to build response hash")
 		return
 	}
-	if err = db.chain.AddResponse(&response.Header); err != nil {
-		err = errors.Wrap(err, "failed to add response to index")
-		return
-	}
-	tracker.UpdateResp(response)
+
+	func(privKey *asymmetric.PrivateKey, tracker *x.QueryTracker) {
+		response.SetResponseCallback(func(res *types.Response) {
+			var err error
+			// Sign response
+			if err = res.SignHash(privKey); err != nil {
+				log.WithError(err).Debug("failed to sign response")
+				return
+			}
+			if err = db.chain.AddResponse(&res.Header); err != nil {
+				log.WithError(err).Debug("failed to add response to index")
+				return
+			}
+			tracker.UpdateResp(res)
+		})
+	}(db.privateKey, tracker)
+
 	return
 }
 

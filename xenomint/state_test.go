@@ -698,7 +698,7 @@ func TestSerializableState(t *testing.T) {
 				})
 				resp *types.Response
 			)
-			_, resp, err = state.Query(req)
+			_, resp, err = state.Query(req, true)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
 			Convey("The state should not see uncommitted changes", func(c C) {
@@ -728,7 +728,7 @@ func TestSerializableState(t *testing.T) {
 				go func() {
 					defer wg.Done()
 					for {
-						var _, resp, err = state.Query(req)
+						var _, resp, err = state.Query(req, true)
 						c.So(err, ShouldBeNil)
 						c.So(resp.Header.RowCount, ShouldEqual, 0)
 						select {
@@ -742,7 +742,7 @@ func TestSerializableState(t *testing.T) {
 				for i := 0; i < count; i++ {
 					_, resp, err = state.Query(buildRequest(types.ReadQuery, []types.Query{
 						buildQuery(`SELECT COUNT(1) AS cnt FROM t1`),
-					}))
+					}), true)
 					So(resp.Payload, ShouldResemble, types.ResponsePayload{
 						Columns:   []string{"cnt"},
 						DeclTypes: []string{""},

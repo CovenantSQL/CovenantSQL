@@ -1,0 +1,95 @@
+IsTestMode: true
+StartupSyncHoles: false
+WorkingRoot: ./
+PubKeyStoreFile: public.keystore
+PrivateKeyFile: private.key
+DHTFileName: dht.db
+ListenAddr: '127.0.0.1:3119'
+ThisNodeID: 0000017326811bc50b943b53ebf7d3aea48d7f641540f9520443e1c6ca797871
+QPS: 1000
+BillingBlockCount: 2
+ChainBusPeriod: 1s
+BPPeriod: 3s
+BPTick: 1s
+SQLChainPeriod: 3s
+SQLChainTick: 1s
+SQLChainTTL: 10
+MinProviderDeposit: 1000000
+ValidDNSKeys:
+  koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
+  mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
+  oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
+MinNodeIDDifficulty: 2
+DNSSeed:
+  EnforcedDNSSEC: false
+  DNSServers:
+    - 1.1.1.1
+    - 202.46.34.74
+    - 202.46.34.75
+    - 202.46.34.76
+BlockProducer:
+  PublicKey: 02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24
+  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+  ChainFileName: chain.db
+  BPGenesisInfo:
+    Version: 1
+    BlockHash: f745ca6427237aac858dd3c7f2df8e6f3c18d0f1c164e07a1c6b8eebeba6b154
+    Producer: 0000000000000000000000000000000000000000000000000000000000000001
+    MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
+    ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
+    Timestamp: 2018-08-13T21:59:59.12Z
+    BaseAccounts:
+      - Address: ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 9235bc4130a2ed4e6c35ea189dab35198ebb105640bedb97dd5269cc80863b16
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+KnownNodes:
+  - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+    Role: Leader
+    Addr: 127.0.0.1:3122
+    PublicKey: 02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24
+    Nonce:
+      a: 313283
+      b: 0
+      c: 0
+      d: 0
+  - ID: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
+    Nonce:
+      a: 478373
+      b: 0
+      c: 0
+      d: 2305843009893772025
+    Addr: 127.0.0.1:3121
+    PublicKey: '02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24'
+    Role: Follower
+  - ID: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
+    Nonce:
+      a: 259939
+      b: 0
+      c: 0
+      d: 2305843012544226372
+    Addr: 127.0.0.1:3120
+    PublicKey: '02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24'
+    Role: Follower
+  - ID: 0000017326811bc50b943b53ebf7d3aea48d7f641540f9520443e1c6ca797871
+    Role: Client
+    Addr: '127.0.0.1:3119'
+    PublicKey: 02a4cf8d755754ce07e95be958cd50092df2011223c4789ceef1b8c1d1f9c83d49
+    Nonce:
+      a: 951016
+      b: 0
+      c: 0
+      d: 1819933908

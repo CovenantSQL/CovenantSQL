@@ -451,8 +451,7 @@ func TestRecordRPCCost(t *testing.T) {
 			start      = time.Now()
 			rounds     = 1000
 			concurrent = 10
-			wg         = &sync.WaitGroup{}
-			body       = func(i int) {
+			body       = func(wg *sync.WaitGroup, i int) {
 				defer func() {
 					c.So(recover(), ShouldBeNil)
 					wg.Done()
@@ -460,12 +459,13 @@ func TestRecordRPCCost(t *testing.T) {
 				recordRPCCost(start, fmt.Sprintf("M%d", i), nil)
 			}
 		)
-		defer wg.Wait()
 		for i := 0; i < rounds; i++ {
+			var wg = &sync.WaitGroup{}
 			for j := 0; j < concurrent; j++ {
 				wg.Add(1)
-				go body(i)
+				go body(wg, i)
 			}
+			wg.Wait()
 		}
 	})
 }

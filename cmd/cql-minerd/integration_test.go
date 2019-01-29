@@ -41,6 +41,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -82,6 +83,7 @@ func startNodes() {
 		3122,
 		3121,
 		3120,
+		3119,
 	}, time.Millisecond*200)
 
 	if err != nil {
@@ -126,6 +128,18 @@ func startNodes() {
 	} else {
 		log.Errorf("start node failed: %v", err)
 	}
+	if cmd, err = utils.RunCommandNB(
+		FJ(baseDir, "./bin/cqld.test"),
+		[]string{"-config", FJ(testWorkingDir, "./integration/fullnode_0/config.yaml"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/fullnode0.cover.out"),
+			"-metric-web", "0.0.0.0:13119", "-wsapi", ":23119", "-log-level", "info",
+		},
+		"fullnode0", testWorkingDir, logDir, false,
+	); err == nil {
+		nodeCmds = append(nodeCmds, cmd)
+	} else {
+		log.Errorf("start node failed: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -133,6 +147,7 @@ func startNodes() {
 		3122,
 		3121,
 		3120,
+		3119,
 	}, time.Second)
 
 	if err != nil {
@@ -582,18 +597,131 @@ func TestFullProcess(t *testing.T) {
 		// TODO(lambda): Drop database
 	})
 
-	Convey("test cql-minerd wsapi", t, func(c C) {
-		var buildParams = func(request interface{}) *jsonrpc.MsgpackProxyParams {
-			out, err := utils.EncodeMsgPack(request)
-			if err != nil {
-				fmt.Printf("panic on: %#v", request)
-				panic(err)
-			}
-			return &jsonrpc.MsgpackProxyParams{
-				Payload: base64.StdEncoding.EncodeToString(out.Bytes()),
-			}
+	var buildParams = func(request interface{}) *jsonrpc.MsgpackProxyParams {
+		out, err := utils.EncodeMsgPack(request)
+		if err != nil {
+			fmt.Printf("panic on: %#v", request)
+			panic(err)
+		}
+		return &jsonrpc.MsgpackProxyParams{
+			Payload: base64.StdEncoding.EncodeToString(out.Bytes()),
+		}
+	}
+
+	Convey("test fullnode wsapi", t, func(c C) {
+		var (
+			addr       = "ws://localhost:23119"
+			pkHexStr   = "0285a071326afac5cb6af4b3bde3a38a591a81854a1f03b942bba8306b7abc5c68"
+			walletAddr = "8298c837d4005bfb74a7f7901192d527f0a54adc376cef0125ffc41938c556dd"
+		)
+
+		privKey, err := kms.DecryptPrivateKeyBytes(
+			[]byte("Mbd6MNkyhRseP65wATBstPeUajTYYzTomuCdKZaqW9dFNPhJmHGb31o8bA5to8i8SZjD6EeCMa77ydoq8LfkLHgPYaC1yW"),
+			[]byte(""))
+		So(err, ShouldBeNil)
+		So(hex.EncodeToString(privKey.PubKey().Serialize()), ShouldEqual, pkHexStr)
+		computedAddr, err := crypto.PublicKeyToAddress(privKey.PubKey())
+		So(err, ShouldBeNil)
+		So(computedAddr.String(), ShouldEqual, walletAddr)
+
+		client, err := setupWebsocketClient(addr)
+		if err != nil {
+			t.Errorf("failed to connect to wsapi server: %v", err)
+			return
 		}
 
+		Convey("register API (handshake)", FailureContinues, func() {
+			testCases := []*registerClientTestCase{
+				{jsonrpc.RegisterClientParams{Address: walletAddr, PublicKey: pkHexStr}, nil},
+				{jsonrpc.RegisterClientParams{Address: walletAddr, PublicKey: "invalid"}, errors.New("invalid public key")},
+				{jsonrpc.RegisterClientParams{Address: walletAddr, PublicKey: ""}, errors.New("invalid public key")},
+				{jsonrpc.RegisterClientParams{Address: "invalid", PublicKey: pkHexStr}, errors.New("invalid wallet address")},
+			}
+
+			for i, c := range testCases {
+				Convey(fmt.Sprintf("case#%d: %s", i, c.String()), func() {
+					var result interface{}
+					err := client.Call(
+						context.Background(),
+						"__register",
+						[]interface{}{c.Address, c.PublicKey},
+						&result,
+					)
+					if c.Expected == nil {
+						So(err, ShouldBeNil)
+					} else {
+						So(err, ShouldNotBeNil)
+					}
+				})
+			}
+		})
+
+		Convey("JSON RPC method: bp_addTx", FailureContinues, func() {
+			var buildRequest = func(priv *asymmetric.PrivateKey) *types.AddTxReq {
+				owner, _ := hash.NewHashFromStr(walletAddr)
+
+				tx := types.NewCreateDatabase(&types.CreateDatabaseHeader{
+					Owner: proto.AccountAddress(*owner),
+					Nonce: 1,
+				})
+
+				if err := tx.Sign(priv); err != nil {
+					panic(err)
+				}
+
+				req := &types.AddTxReq{
+					Envelope: proto.Envelope{
+						Version: "unknown",
+						NodeID:  proto.NodeID(walletAddr).ToRawNodeID(),
+					},
+					TTL: 0,
+					Tx:  tx,
+				}
+				return req
+			}
+
+			testCases := []struct {
+				name          string
+				params        *jsonrpc.MsgpackProxyParams
+				expectedError error
+			}{
+
+				{
+					name:          "should fail on invalid payload",
+					params:        buildParams("invalid payload"),
+					expectedError: errors.New("invalid payload"),
+				},
+				{
+					name:          "should succeed though there's not enough balance",
+					params:        buildParams(buildRequest(privKey)),
+					expectedError: nil,
+				},
+			}
+
+			for i, c := range testCases {
+				Convey(fmt.Sprintf("case#%d: %s", i, c.name), func() {
+					var result interface{}
+					err := client.Call(
+						context.Background(),
+						"bp_addTx",
+						[]interface{}{c.params.Payload},
+						&result,
+					)
+					if c.expectedError == nil {
+						So(err, ShouldBeNil)
+					} else {
+						So(err, ShouldBeError)
+					}
+				})
+			}
+		})
+
+		Reset(func() {
+			client.Close()
+		})
+	}) // end of test: fullnode wsapi
+
+	Convey("test cql-minerd wsapi", t, func(c C) {
 		var (
 			addr       = "ws://localhost:8546"
 			pkHexStr   = "0285a071326afac5cb6af4b3bde3a38a591a81854a1f03b942bba8306b7abc5c68"
@@ -712,7 +840,6 @@ func TestFullProcess(t *testing.T) {
 					if c.expectedError == nil {
 						So(err, ShouldBeNil)
 					} else {
-						t.Logf("error: %v", err)
 						So(err, ShouldBeError)
 					}
 				})
@@ -774,6 +901,10 @@ func TestFullProcess(t *testing.T) {
 				})
 			}
 		})
+
+		Reset(func() {
+			client.Close()
+		})
 	}) // end of wsapi test
 }
 
@@ -786,7 +917,7 @@ func (c *registerClientTestCase) String() string {
 	if c.Expected != nil {
 		return "register client should fail on " + c.Expected.Error()
 	}
-	return "register client should success"
+	return "register client should succeed"
 }
 
 func setupWebsocketClient(addr string) (client *jsonrpc2.Conn, err error) {

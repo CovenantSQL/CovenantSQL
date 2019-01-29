@@ -8,4 +8,3 @@ make bin/cqld.test
 go test -run TestFullProcess -v github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 gocovmerge $(find cmd/cql-minerd/ -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f cover.out
 go tool cover -html coverage.txt
-

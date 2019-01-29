@@ -19,7 +19,7 @@ See: [cql-utils doc](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd
 
 Use `cql` to check your wallet balance:
 ```bash
-$ cql -config conf/config.yaml -get-balance
+$ cql -get-balance
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c
@@ -37,7 +37,7 @@ You can get a database id when create a new SQL Chain:
 
 ```bash
 # if a non-default password applied on master key, use `-password` to pass it
-$ cql -config conf/config.yaml -create 1
+$ cql -create 1
 INFO[0000]
 ### Public Key ###
 039bc931161383c994ab9b81e95ddc1494b0efeb1cb735bb91e1043a1d6b98ebfd
@@ -49,7 +49,7 @@ INFO[0000] the newly created database is: covenantsql://0e9103318821b027f35b96c4
 Here, `-create 1` refers that there is only one node in SQL Chain.
 
 ```bash
-$ cql -config conf/config.yaml -dsn covenantsql://address
+$ cql -dsn covenantsql://address
 ```
 `address` is database id. 
 

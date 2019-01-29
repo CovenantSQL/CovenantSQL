@@ -182,7 +182,9 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 	// Optimistically, val will not be nil except the first Call of method
 	// expvar uses sync.Map
 	// So, we try it first without lock
-	if val = expvar.Get(name); val == nil {
+	val = expvar.Get(name)
+	valC = expvar.Get(nameC)
+	if val == nil || valC == nil {
 		callRPCExpvarLock.Lock()
 		val = expvar.Get(name)
 		if val == nil {
@@ -191,9 +193,9 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 		}
 		callRPCExpvarLock.Unlock()
 		val = expvar.Get(name)
+		valC = expvar.Get(nameC)
 	}
 	val.(mw.Metric).Add(costTime.Seconds())
-	valC = expvar.Get(nameC)
 	valC.(mw.Metric).Add(1)
 	return
 }
@@ -357,8 +359,7 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 		ID: localNodeID,
 		Roles: []proto.ServerRole{
 			proto.Leader,
-			// only leader is capable of allocating database in current implementation
-			//proto.Follower,
+			proto.Follower,
 		},
 		Count: 1,
 	}

@@ -96,7 +96,7 @@ func init() {
 	flag.BoolVar(&genKeyPair, "gen-keypair", false, "Gen new key pair when no private key found")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
 	flag.StringVar(&profileServer, "profile-server", "", "Profile server address, default not started")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
@@ -130,6 +130,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

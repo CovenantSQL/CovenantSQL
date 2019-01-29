@@ -19,7 +19,7 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 使用 `cql` 命令来检查钱包余额：
 ```bash
-$ cql -config conf/config.yaml -get-balance
+$ cql -get-balance
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c
@@ -36,7 +36,7 @@ INFO[0000] covenant coin balance is: 0                   caller="main.go:247 mai
 
 ```bash
 # if a non-default password applied on master key, use `-password` to pass it
-$ cql -config conf/config.yaml -create 1
+$ cql -create 1
 INFO[0000]
 ### Public Key ###
 039bc931161383c994ab9b81e95ddc1494b0efeb1cb735bb91e1043a1d6b98ebfd
@@ -48,7 +48,7 @@ INFO[0000] the newly created database is: covenantsql://0e9103318821b027f35b96c4
 这里 `-create 1` 表示创建一个单节点的 SQLChain。
 
 ```bash
-$ cql -config conf/config.yaml -dsn covenantsql://address
+$ cql -dsn covenantsql://address
 ```
 `address` 就是你的数据库 ID。
 

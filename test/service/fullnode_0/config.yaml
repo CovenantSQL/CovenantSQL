@@ -1,5 +1,5 @@
 IsTestMode: true
-StartupSyncHoles: true
+StartupSyncHoles: false
 WorkingRoot: ./
 PubKeyStoreFile: public.keystore
 PrivateKeyFile: private.key
@@ -19,21 +19,21 @@ DNSSeed:
     - 202.46.34.75
     - 202.46.34.76
 BlockProducer:
-  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  PublicKey: '02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24'
   NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:
     a: 313283
     b: 0
     c: 0
     d: 0
-  ChainFileName: "chain.db"
+  ChainFileName: 'chain.db'
   BPGenesisInfo:
     Version: 1
     BlockHash: f745ca6427237aac858dd3c7f2df8e6f3c18d0f1c164e07a1c6b8eebeba6b154
     Producer: 0000000000000000000000000000000000000000000000000000000000000001
     MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
-    Timestamp: "2019-01-10T12:49:07+08:00"
+    Timestamp: '2019-01-10T12:49:07+08:00'
     BaseAccounts:
       - Address: ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37
         StableCoinBalance: 10000000000000000000
@@ -55,7 +55,7 @@ KnownNodes:
       c: 0
       d: 0
     Addr: 172.254.1.2:4661
-    PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+    PublicKey: '02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24'
     Role: Leader
   - ID: 00000041772ecd779c68a3928d12675d9a65dce02f2ad6907f2cf53013f7e652
     Role: Client

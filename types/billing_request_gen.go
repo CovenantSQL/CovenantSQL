@@ -11,26 +11,17 @@ func (z *BillingRequest) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	o = append(o, 0x84)
 	if oTemp, err := z.Header.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
-	o = hsp.AppendArrayHeader(o, uint32(len(z.Signees)))
-	for za0001 := range z.Signees {
-		if z.Signees[za0001] == nil {
-			o = hsp.AppendNil(o)
-		} else {
-			if oTemp, err := z.Signees[za0001].MarshalHash(); err != nil {
-				return nil, err
-			} else {
-				o = hsp.AppendBytes(o, oTemp)
-			}
-		}
+	if oTemp, err := z.RequestHash.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Signatures)))
 	for za0002 := range z.Signatures {
 		if z.Signatures[za0002] == nil {
@@ -43,26 +34,24 @@ func (z *BillingRequest) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x84)
-	if oTemp, err := z.RequestHash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Signees)))
+	for za0001 := range z.Signees {
+		if z.Signees[za0001] == nil {
+			o = hsp.AppendNil(o)
+		} else {
+			if oTemp, err := z.Signees[za0001].MarshalHash(); err != nil {
+				return nil, err
+			} else {
+				o = hsp.AppendBytes(o, oTemp)
+			}
+		}
 	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BillingRequest) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize() + 8 + hsp.ArrayHeaderSize
-	for za0001 := range z.Signees {
-		if z.Signees[za0001] == nil {
-			s += hsp.NilSize
-		} else {
-			s += z.Signees[za0001].Msgsize()
-		}
-	}
-	s += 11 + hsp.ArrayHeaderSize
+	s = 1 + 7 + z.Header.Msgsize() + 12 + z.RequestHash.Msgsize() + 11 + hsp.ArrayHeaderSize
 	for za0002 := range z.Signatures {
 		if z.Signatures[za0002] == nil {
 			s += hsp.NilSize
@@ -70,7 +59,14 @@ func (z *BillingRequest) Msgsize() (s int) {
 			s += z.Signatures[za0002].Msgsize()
 		}
 	}
-	s += 12 + z.RequestHash.Msgsize()
+	s += 8 + hsp.ArrayHeaderSize
+	for za0001 := range z.Signees {
+		if z.Signees[za0001] == nil {
+			s += hsp.NilSize
+		} else {
+			s += z.Signees[za0001].Msgsize()
+		}
+	}
 	return
 }
 
@@ -79,7 +75,12 @@ func (z *BillingRequestHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 6
-	o = append(o, 0x86, 0x86)
+	o = append(o, 0x86)
+	if oTemp, err := z.DatabaseID.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	o = hsp.AppendArrayHeader(o, uint32(len(z.GasAmounts)))
 	for za0001 := range z.GasAmounts {
 		if z.GasAmounts[za0001] == nil {
@@ -92,34 +93,24 @@ func (z *BillingRequestHeader) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x86)
-	if oTemp, err := z.LowBlock.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x86)
 	if oTemp, err := z.HighBlock.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x86)
-	o = hsp.AppendInt32(o, z.LowHeight)
-	o = append(o, 0x86)
 	o = hsp.AppendInt32(o, z.HighHeight)
-	o = append(o, 0x86)
-	if oTemp, err := z.DatabaseID.MarshalHash(); err != nil {
+	if oTemp, err := z.LowBlock.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
+	o = hsp.AppendInt32(o, z.LowHeight)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BillingRequestHeader) Msgsize() (s int) {
-	s = 1 + 11 + hsp.ArrayHeaderSize
+	s = 1 + 11 + z.DatabaseID.Msgsize() + 11 + hsp.ArrayHeaderSize
 	for za0001 := range z.GasAmounts {
 		if z.GasAmounts[za0001] == nil {
 			s += hsp.NilSize
@@ -127,6 +118,6 @@ func (z *BillingRequestHeader) Msgsize() (s int) {
 			s += z.GasAmounts[za0001].Msgsize()
 		}
 	}
-	s += 9 + z.LowBlock.Msgsize() + 10 + z.HighBlock.Msgsize() + 10 + hsp.Int32Size + 11 + hsp.Int32Size + 11 + z.DatabaseID.Msgsize()
+	s += 10 + z.HighBlock.Msgsize() + 11 + hsp.Int32Size + 9 + z.LowBlock.Msgsize() + 10 + hsp.Int32Size
 	return
 }

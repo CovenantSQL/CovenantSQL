@@ -71,7 +71,7 @@ func init() {
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
@@ -105,6 +105,8 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
 		log.Infof("args %#v : %s", f.Name, f.Value)

@@ -17,10 +17,12 @@
 package xenomint
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"testing"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -33,6 +35,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var (
+	nodeID = proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000")
+)
+
 func TestState(t *testing.T) {
 	Convey("Given a chain state object", t, func() {
 		var (
@@ -43,12 +49,10 @@ func TestState(t *testing.T) {
 			strg1, strg2 xi.Storage
 			err          error
 		)
-		nodeID := proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000")
 		strg1, err = xs.NewSqlite(fmt.Sprint("file:", fl1))
 		So(err, ShouldBeNil)
 		So(strg1, ShouldNotBeNil)
-		st1, err = NewState(nodeID, strg1)
-		So(err, ShouldBeNil)
+		st1 = NewState(sql.LevelReadUncommitted, nodeID, strg1)
 		So(st1, ShouldNotBeNil)
 		Reset(func() {
 			// Clean database file after each pass
@@ -64,8 +68,7 @@ func TestState(t *testing.T) {
 		strg2, err = xs.NewSqlite(fmt.Sprint("file:", fl2))
 		So(err, ShouldBeNil)
 		So(strg1, ShouldNotBeNil)
-		st2, err = NewState(nodeID, strg2)
-		So(err, ShouldBeNil)
+		st2 = NewState(sql.LevelReadUncommitted, nodeID, strg2)
 		So(st1, ShouldNotBeNil)
 		Reset(func() {
 			// Clean database file after each pass
@@ -661,5 +664,92 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(containsDDL, ShouldBeTrue)
 		So(sanitizedQuery, ShouldEqual, ddlQuery)
+	})
+}
+
+func TestSerializableState(t *testing.T) {
+	Convey("Given a serialzable state", t, func() {
+		var (
+			filePath = path.Join(testingDataDir, t.Name())
+			state    *State
+			storage  xi.Storage
+			err      error
+		)
+		storage, err = xs.NewSqlite(fmt.Sprint("file:", filePath))
+		So(err, ShouldBeNil)
+		So(storage, ShouldNotBeNil)
+		state = NewState(sql.LevelSerializable, nodeID, storage)
+		So(state, ShouldNotBeNil)
+		Reset(func() {
+			// Clean database file after each pass
+			err = state.Close(true)
+			So(err, ShouldBeNil)
+			err = os.Remove(filePath)
+			So(err, ShouldBeNil)
+			err = os.Remove(fmt.Sprint(filePath, "-shm"))
+			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
+			err = os.Remove(fmt.Sprint(filePath, "-wal"))
+			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
+		})
+		Convey("When a basic KV table is created", func() {
+			var (
+				req = buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`CREATE TABLE t1 (k INT, v TEXT, PRIMARY KEY(k))`),
+				})
+				resp *types.Response
+			)
+			_, resp, err = state.Query(req)
+			So(err, ShouldBeNil)
+			So(resp, ShouldNotBeNil)
+			Convey("The state should not see uncommitted changes", func(c C) {
+				// Build transaction query
+				var (
+					count   = 1000
+					queries = make([]types.Query, count+1)
+					req     *types.Request
+				)
+				queries[0] = buildQuery(`BEGIN`)
+				for i := 0; i < count; i++ {
+					queries[i+1] = buildQuery(
+						`INSERT INTO t1(k, v) VALUES (?, ?)`, i, fmt.Sprintf("v%d", i),
+					)
+				}
+				req = buildRequest(types.WriteQuery, queries)
+				// Send uncommitted transaction on background
+				var (
+					wg          = &sync.WaitGroup{}
+					ctx, cancel = context.WithCancel(context.Background())
+				)
+				defer func() {
+					cancel()
+					wg.Wait()
+				}()
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					for {
+						var _, resp, err = state.Query(req)
+						c.So(err, ShouldBeNil)
+						c.So(resp.Header.RowCount, ShouldEqual, 0)
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
+					}
+				}()
+				// Test isolation level
+				for i := 0; i < count; i++ {
+					_, resp, err = state.Query(buildRequest(types.ReadQuery, []types.Query{
+						buildQuery(`SELECT COUNT(1) AS cnt FROM t1`),
+					}))
+					So(resp.Payload, ShouldResemble, types.ResponsePayload{
+						Columns:   []string{"cnt"},
+						DeclTypes: []string{""},
+						Rows:      []types.ResponseRow{{Values: []interface{}{int64(0)}}},
+					})
+				}
+			})
+		})
 	})
 }

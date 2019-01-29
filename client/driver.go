@@ -37,6 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 )
@@ -63,12 +64,15 @@ var (
 	connIDAvail         []uint64
 	globalSeqNo         uint64
 	randSource          = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	defaultConfigFile = "~/.cql/config.yaml"
 )
 
 func init() {
 	d := new(covenantSQLDriver)
 	sql.Register(DBScheme, d)
 	sql.Register(DBSchemeAlias, d)
+	log.Debug("CovenantSQL driver registered.")
 }
 
 // covenantSQLDriver implements sql.Driver interface.
@@ -83,8 +87,10 @@ func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 	}
 
 	if atomic.LoadUint32(&driverInitialized) == 0 {
-		err = ErrNotInitialized
-		return
+		err = defaultInit()
+		if err != nil && err != ErrAlreadyInitialized {
+			return
+		}
 	}
 
 	return newConn(cfg)
@@ -95,6 +101,18 @@ type ResourceMeta struct {
 	types.ResourceMeta
 	GasPrice       uint64
 	AdvancePayment uint64
+}
+
+func defaultInit() (err error) {
+	configFile := utils.HomeDirExpand(defaultConfigFile)
+	if configFile == defaultConfigFile {
+		//System not support ~ dir, need Init manually.
+		log.Debugf("Could not find CovenantSQL default config location: %v", configFile)
+		return ErrNotInitialized
+	}
+
+	log.Debugf("Using CovenantSQL default config location: %v", configFile)
+	return Init(configFile, []byte(""))
 }
 
 // Init defines init process for client.
@@ -261,7 +279,7 @@ func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 
 // UpdatePermission sends UpdatePermission transaction to chain.
 func UpdatePermission(targetUser proto.AccountAddress,
-	targetChain proto.AccountAddress, perm types.UserPermission) (txHash hash.Hash, err error) {
+	targetChain proto.AccountAddress, perm *types.UserPermission) (txHash hash.Hash, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
@@ -410,7 +428,6 @@ func WaitTxConfirmation(
 			return
 		}
 	}
-	return
 }
 
 func getNonce(addr proto.AccountAddress) (nonce interfaces.AccountNonce, err error) {

@@ -27,6 +27,7 @@ import (
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -67,10 +68,18 @@ func TestCQLD(t *testing.T) {
 		// Wait for block producing
 		time.Sleep(15 * time.Second)
 
-		// Kill one BP
+		// Kill one BP follower
 		err = nodeCmds[2].Cmd.Process.Signal(syscall.SIGTERM)
 		So(err, ShouldBeNil)
 		time.Sleep(15 * time.Second)
+
+		// set current bp to leader bp
+		for _, n := range conf.GConf.KnownNodes {
+			if n.Role == proto.Leader {
+				rpc.SetCurrentBP(n.ID)
+				break
+			}
+		}
 
 		// The other peers should be waiting
 		var (

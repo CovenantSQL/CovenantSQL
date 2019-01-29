@@ -22,7 +22,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/pkg/errors"
 )
 
 func TestHeader_MarshalUnmarshalBinary(t *testing.T) {
@@ -114,14 +116,50 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 		t.Fatalf("failed to generate block: %v", err)
 	}
 
+	err = block.verifyMerkleRoot()
+	if err != nil {
+		t.Fatalf("failed to verify: %v", err)
+	}
+
+	err = block.VerifyHash()
+	if err != nil {
+		t.Fatalf("failed to verify: %v", err)
+	}
+
 	err = block.Verify()
 	if err != nil {
 		t.Fatalf("failed to verify: %v", err)
 	}
 
-	block.SignedHeader.BlockHash[0]++
+	block.SignedHeader.DataHash[0]++
 	err = block.Verify()
-	if err != ErrHashVerification {
+	if errors.Cause(err) != verifier.ErrHashValueNotMatch {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = block.VerifyHash()
+	if errors.Cause(err) != verifier.ErrHashValueNotMatch {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = block.SetHash()
+	if err != nil {
+		t.Fatalf("failed to set hash: %v", err)
+	}
+	err = block.VerifyHash()
+	if err != nil {
+		t.Fatalf("failed to verify: %v", err)
+	}
+
+	block.SignedHeader.MerkleRoot[0]++
+	err = block.Verify()
+	if err != ErrMerkleRootVerification {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = block.VerifyHash()
+	if err != ErrMerkleRootVerification {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = block.verifyMerkleRoot()
+	if err != ErrMerkleRootVerification {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

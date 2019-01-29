@@ -76,6 +76,7 @@ import (
 	"bazil.org/fuse/fs"
 	_ "bazil.org/fuse/fs/fstestutil"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -87,23 +88,25 @@ var usage = func() {
 
 func main() {
 	var (
-		config     string
+		configFile string
 		dsn        string
 		mountPoint string
 		password   string
 		readOnly   bool
 	)
-	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
-	flag.StringVar(&mountPoint, "mount", "./", "dir to mount")
-	flag.StringVar(&dsn, "dsn", "", "database url")
-	flag.StringVar(&password, "password", "", "master key password for covenantsql")
-	flag.BoolVar(&readOnly, "readonly", false, "mount read only volume")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
+	flag.StringVar(&mountPoint, "mount", "./", "Dir to mount")
+	flag.StringVar(&dsn, "dsn", "", "Database url")
+	flag.StringVar(&password, "password", "", "Master key password for covenantsql")
+	flag.BoolVar(&readOnly, "readonly", false, "Mount read only volume")
 	flag.Usage = usage
 	flag.Parse()
 
 	log.SetLevel(log.InfoLevel)
 
-	err := client.Init(config, []byte(password))
+	configFile = utils.HomeDirExpand(configFile)
+
+	err := client.Init(configFile, []byte(password))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -46,7 +46,7 @@ func newBlockNode(h uint32, b *types.BPBlock, p *blockNode) (node *blockNode) {
 		}(),
 		height: h,
 
-		hash:    b.SignedHeader.BlockHash,
+		hash:    b.SignedHeader.DataHash,
 		txCount: len(b.Transactions),
 	}
 	node.block.Store(b)

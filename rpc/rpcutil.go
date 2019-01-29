@@ -359,8 +359,7 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 		ID: localNodeID,
 		Roles: []proto.ServerRole{
 			proto.Leader,
-			// only leader is capable of allocating database in current implementation
-			//proto.Follower,
+			proto.Follower,
 		},
 		Count: 1,
 	}

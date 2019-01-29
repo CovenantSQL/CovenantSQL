@@ -25,6 +25,7 @@ import (
 	mux "github.com/xtaci/smux"
 )
 
+// MaxPhysicalConnection defines max underlying physical connection for one node pair.
 const MaxPhysicalConnection = 10
 
 // SessPool is the session pool interface

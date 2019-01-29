@@ -100,6 +100,7 @@ func (c *ClientPoolCaller) allocClient(isAnonymous bool) (client *Client, err er
 	return
 }
 
+// Call issues rpc request to target node.
 func (c *ClientPoolCaller) Call(method string, args interface{}, reply interface{}) (err error) {
 	var (
 		isAnonymous = method == route.DHTPing.String()
@@ -132,6 +133,7 @@ func (c *ClientPoolCaller) Call(method string, args interface{}, reply interface
 	return
 }
 
+// Close does not do anything for client pool caller.
 func (c *ClientPoolCaller) Close() {
 	// free pool
 }

@@ -52,20 +52,3 @@ type Config struct {
 	Period time.Duration
 	Tick   time.Duration
 }
-
-// NewConfig creates new config.
-func NewConfig(genesis *types.BPBlock, dataFile string,
-	server *rpc.Server, peers *proto.Peers,
-	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
-	config := Config{
-		Mode:     BPMode,
-		Genesis:  genesis,
-		DataFile: dataFile,
-		Server:   server,
-		Peers:    peers,
-		NodeID:   nodeID,
-		Period:   period,
-		Tick:     tick,
-	}
-	return &config
-}

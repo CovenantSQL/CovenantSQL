@@ -153,16 +153,16 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// init main chain service
 	log.Info("register main chain service rpc")
-	chainConfig := bp.NewConfig(
-		genesis,
-		conf.GConf.BP.ChainFileName,
-		server,
-		peers,
-		nodeID,
-		conf.GConf.BPPeriod,
-		conf.GConf.BPTick,
-	)
-	chainConfig.Mode = mode
+	chainConfig := &bp.Config{
+		Mode:     mode,
+		Genesis:  genesis,
+		DataFile: conf.GConf.BP.ChainFileName,
+		Server:   server,
+		Peers:    peers,
+		NodeID:   nodeID,
+		Period:   conf.GConf.BPPeriod,
+		Tick:     conf.GConf.BPTick,
+	}
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
 		log.WithError(err).Error("init chain failed")

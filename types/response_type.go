@@ -17,14 +17,12 @@
 package types
 
 import (
-	"context"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 //go:generate hsp
@@ -89,9 +87,6 @@ func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) 
 
 // Verify checks hash and signature in whole response.
 func (r *Response) Verify() (err error) {
-	_, task := trace.NewTask(context.Background(), "ResponseVerify")
-	defer task.End()
-
 	// verify data hash in header
 	if err = verifyHash(&r.Payload, &r.Header.PayloadHash); err != nil {
 		return
@@ -102,9 +97,6 @@ func (r *Response) Verify() (err error) {
 
 // Sign the response.
 func (r *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
-	_, task := trace.NewTask(context.Background(), "ResponseSign")
-	defer task.End()
-
 	if err = r.BuildHash(); err != nil {
 		return
 	}

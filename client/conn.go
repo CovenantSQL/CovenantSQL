@@ -353,8 +353,6 @@ func (c *conn) addQuery(ctx context.Context, queryType types.QueryType, query *t
 }
 
 func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries []types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
-	ctx, task := trace.NewTask(ctx, "sendQuery")
-	defer task.End()
 	var uc *pconn // peer connection used to execute the queries
 
 	uc = c.leader
@@ -398,19 +396,12 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 		},
 	}
 
-	if err = func() error {
-		defer trace.StartRegion(ctx, "signRequest").End()
-		return req.Sign(c.privKey)
-	}(); err != nil {
+	if err = req.Sign(c.privKey); err != nil {
 		return
 	}
 
 	var response types.Response
-	if err = func() error {
-		// writeQuery region
-		defer trace.StartRegion(ctx, queryType.String()+"Query").End()
-		return uc.pCaller.Call(route.DBSQuery.String(), req, &response)
-	}(); err != nil {
+	if err = uc.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
 	rows = newRows(&response)

@@ -34,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -333,14 +332,12 @@ func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, task := trace.NewTask(context.Background(), "callOnce")
 			req := &FakeRequest{}
 			req.Log.Data = []byte(strings.Repeat("1", 500))
 			err = client.Call("Test.Call", req, nil)
 			if err != nil {
 				b.Error(err)
 			}
-			task.End()
 		}
 	})
 	b.StopTimer()

@@ -35,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	"github.com/pkg/errors"
 )
@@ -250,15 +249,11 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		_, task := trace.NewTask(context.Background(), "ReadQuery")
-		defer task.End()
 		if tracker, response, err = db.chain.Query(request, false); err != nil {
 			err = errors.Wrap(err, "failed to query read query")
 			return
 		}
 	case types.WriteQuery:
-		_, task := trace.NewTask(context.Background(), "WriteQuery")
-		defer task.End()
 		if db.cfg.UseEventualConsistency {
 			// reset context
 			request.SetContext(context.Background())

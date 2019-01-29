@@ -24,6 +24,7 @@ import (
 	"runtime"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/pkg/errors"
 )
 
 // FJ is short for filepath.Join
@@ -75,6 +76,11 @@ func RunCommandNB(bin string, args []string, processName string, workingDir stri
 	if err != nil {
 		log.WithField("wd", workingDir).Error("change working dir failed")
 		return
+	}
+
+	// ensure logdir exists
+	if err = os.MkdirAll(logDir, 0755); err != nil {
+		return nil, errors.Wrapf(err, "prepare logdir (%q) failed", logDir)
 	}
 
 	cmd.LogPath = FJ(logDir, processName+".log")

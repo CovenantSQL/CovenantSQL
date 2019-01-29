@@ -23,8 +23,10 @@ main() {
 
   # test package by package
   for package in $(go list ./... | grep -v "/vendor/"); do
-    test::package "${package}"
+    test::package "${package}" &
   done
+
+  wait
 
   set -x
   gocovmerge *.cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f *.cover.out

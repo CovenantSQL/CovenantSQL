@@ -70,12 +70,9 @@ func (h *Handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		}
 	}()
 
-	fn := h.methods[req.Method]
-	if fn == nil {
+	fn, methodFound := h.methods[req.Method]
+	if !methodFound {
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound}
-	} else if req.Params == nil {
-		// pre-check req.Params not be nil
-		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 	}
 
 	return fn(ctx, conn, req)

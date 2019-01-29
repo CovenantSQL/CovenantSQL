@@ -39,6 +39,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
@@ -216,7 +217,7 @@ func init() {
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.StringVar(&outFile, "out", "", "Record stdout to file")
-	flag.StringVar(&configFile, "config", "config.yaml", "Config file for covenantsql")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql")
 	flag.StringVar(&password, "password", "", "Master key password for covenantsql")
 	flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
 	flag.Var(&variables, "variable", "Set variable")
@@ -238,6 +239,9 @@ func main() {
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
+	log.Infof("cql build: %#v\n", version)
+
+	configFile = utils.HomeDirExpand(configFile)
 
 	var err error
 

@@ -894,25 +894,22 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 	}
 
 	// check whether sender has super privilege and find targetUser
-	isSuperUser := false
 	numOfSuperUsers := 0
 	targetUserIndex := -1
 	for i, u := range so.Users {
-		isSuperUser = isSuperUser || (sender == u.Address && u.Permission.HasSuperPermission())
+		if sender == u.Address && !u.Permission.HasSuperPermission() {
+			log.WithFields(log.Fields{
+				"sender": sender,
+				"dbID":   tx.TargetSQLChain,
+			}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updatePermission")
+			return ErrAccountPermissionDeny
+		}
 		if u.Permission.HasSuperPermission() {
 			numOfSuperUsers++
 		}
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i
 		}
-	}
-
-	if !isSuperUser {
-		log.WithFields(log.Fields{
-			"sender": sender,
-			"dbID":   tx.TargetSQLChain,
-		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updatePermission")
-		return ErrAccountPermissionDeny
 	}
 
 	// return error if number of Admin <= 1 and Admin want to revoke permission of itself
@@ -952,19 +949,18 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	}
 
 	// check sender's permission
-	isSuperUser := false
 	for _, user := range so.Users {
-		if sender == user.Address && user.Permission.HasSuperPermission() {
-			isSuperUser = true
+		if sender == user.Address {
+			if !user.Permission.HasSuperPermission() {
+				log.WithFields(log.Fields{
+					"sender": sender,
+					"dbID":   tx.TargetSQLChain,
+				}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
+				return ErrAccountPermissionDeny
+			}
+
 			break
 		}
-	}
-	if !isSuperUser {
-		log.WithFields(log.Fields{
-			"sender": sender,
-			"dbID":   tx.TargetSQLChain,
-		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
-		return ErrAccountPermissionDeny
 	}
 
 	// update miner's key

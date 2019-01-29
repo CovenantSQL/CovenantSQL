@@ -1,0 +1,13 @@
+{
+  "semi": false,
+  "overrides": [
+    {
+      "files": ["*.yaml", "*.yml"],
+      "options": {
+        "parser": "yaml",
+        "printWidth": 120,
+        "singleQuote": true
+      }
+    }
+  ]
+}

@@ -44,8 +44,16 @@ import (
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
+// Metric keys
+const (
+	mwKeyHeight      = "service:bp:height"
+	mwKeyTxPooled    = "service:bp:pooled"
+	mwKeyTxConfirmed = "service:bp:confirmed"
+)
+
 func init() {
-	expvar.Publish("height", mw.NewCounter("5m1s"))
+	expvar.Publish(mwKeyTxPooled, mw.NewCounter("5m1m"))
+	expvar.Publish(mwKeyTxConfirmed, mw.NewCounter("5m1m"))
 }
 
 // Chain defines the main chain.
@@ -236,7 +244,14 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		branches:   branches,
 		txPool:     txPool,
 	}
-	expvar.Get("height").(mw.Metric).Add(float64(c.nextHeight))
+
+	// NOTE(leventeliu): this implies that BP chain is a singleton, otherwise we will need
+	// independent metric key for each chain instance.
+	if expvar.Get(mwKeyHeight) == nil {
+		expvar.Publish(mwKeyHeight, mw.NewGauge(fmt.Sprintf("5m%.0fs", cfg.Period.Seconds())))
+	}
+	expvar.Get(mwKeyHeight).(mw.Metric).Add(float64(c.head().height))
+
 	log.WithFields(log.Fields{
 		"local":  c.getLocalBPInfo(),
 		"period": c.period,
@@ -354,7 +369,11 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 		"elapsed_seconds":  elapsed.Seconds(),
 	}).Info("enclosing current height and advancing to next height")
 
-	defer c.increaseNextHeight()
+	defer func() {
+		c.increaseNextHeight()
+		expvar.Get(mwKeyHeight).(mw.Metric).Add(float64(c.head().height))
+	}()
+
 	// Skip if it's not my turn
 	if c.mode == APINodeMode || !c.isMyTurn() {
 		return
@@ -500,7 +519,9 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 	// Add to tx pool
 	if err = c.storeTx(tx); err != nil {
 		le.WithError(err).Error("failed to add transaction")
+		return
 	}
+	expvar.Get(mwKeyTxPooled).(mw.Metric).Add(1)
 }
 
 func (c *Chain) processTxs(ctx context.Context) {
@@ -629,6 +650,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		newIrres []*blockNode
 		sps      []storageProcedure
 		up       storageCallback
+		txCount  int
 		height   = c.heightOfTime(newBlock.Timestamp())
 
 		resultTxPool = make(map[hash.Hash]pi.Transaction)
@@ -648,6 +670,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		resultTxPool[k] = v
 	}
 	for _, b := range newIrres {
+		txCount += b.txCount
 		for _, tx := range b.load().Transactions {
 			if err := c.immutable.apply(tx); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
@@ -738,7 +761,9 @@ func (c *Chain) replaceAndSwitchToBranch(
 	// Write to immutable database and update cache
 	if err = store(c.storage, sps, up); err != nil {
 		c.immutable.clean()
+		return
 	}
+	expvar.Get(mwKeyTxConfirmed).(mw.Metric).Add(float64(txCount))
 	// TODO(leventeliu): trigger ChainBus.Publish.
 	// ...
 	return
@@ -894,7 +919,6 @@ func (c *Chain) isMyTurn() bool {
 
 // increaseNextHeight prepares the chain state for the next turn.
 func (c *Chain) increaseNextHeight() {
-	expvar.Get("height").(mw.Metric).Add(1)
 	c.Lock()
 	defer c.Unlock()
 	c.nextHeight++

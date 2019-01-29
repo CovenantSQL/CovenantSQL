@@ -490,7 +490,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(resultBytes, ShouldResemble, []byte("ha\001ppy"))
 
-		Convey("test query cancel", FailureContinues, func(c C) {
+		SkipConvey("test query cancel", FailureContinues, func(c C) {
 			/* test cancel write query */
 			wg := sync.WaitGroup{}
 			wg.Add(1)

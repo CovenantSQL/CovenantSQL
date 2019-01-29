@@ -8,10 +8,11 @@ main() {
   make clean
   make -j6 bp miner observer
 
-  go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverprofile main.cover.out   ./...
+  go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverprofile main.cover.out $(go list ./... | grep -v CovenantSQL/api)
+  go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverpkg ./api/...,./rpc/jsonrpc -coverprofile api.cover.out ./api/...
 
   set -x
-  gocovmerge main.cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f *.cover.out
+  gocovmerge main.cover.out api.cover.out $(find cmd -name "*.cover.out") | grep -F -v '_gen.go' > coverage.txt && rm -f *.cover.out
   bash <(curl -s https://codecov.io/bash)
 
   # some benchmarks

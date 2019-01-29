@@ -460,12 +460,12 @@ func TestRecordRPCCost(t *testing.T) {
 				recordRPCCost(start, fmt.Sprintf("M%d", i), nil)
 			}
 		)
-		defer wg.Wait()
 		for i := 0; i < rounds; i++ {
 			for j := 0; j < concurrent; j++ {
 				wg.Add(1)
 				go body(i)
 			}
+			wg.Wait()
 		}
 	})
 }

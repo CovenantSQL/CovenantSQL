@@ -25,3 +25,8 @@ const (
 	// MaxTransactionsPerBlock defines the limit of transactions per block.
 	MaxTransactionsPerBlock = 10000
 )
+
+// These limits will not cause inconsistency within certain range.
+const (
+	MaxCachedBlock = 1000
+)

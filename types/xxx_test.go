@@ -267,7 +267,7 @@ func buildResponse(header *SignedRequestHeader, cols []string, types []string, r
 			Rows:      rows,
 		},
 	}
-	if err = r.Sign(testingPrivateKey); err != nil {
+	if err = r.BuildHash(); err != nil {
 		panic(err)
 	}
 	return

@@ -167,7 +167,7 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 		}
 	}
 
-	if err = resp.Sign(worker.PrivateKey); err != nil {
+	if err = resp.BuildHash(); err != nil {
 		return
 	}
 

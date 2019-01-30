@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -84,6 +85,7 @@ type Database struct {
 	nodeID         proto.NodeID
 	mux            *DBKayakMuxService
 	privateKey     *asymmetric.PrivateKey
+	accountAddr    proto.AccountAddress
 }
 
 // NewDatabase create a single database instance using config.
@@ -105,6 +107,11 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		return
 	}
 
+	var accountAddr proto.AccountAddress
+	if accountAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
+		return
+	}
+
 	// init database
 	db = &Database{
 		cfg:            cfg,
@@ -112,6 +119,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		mux:            cfg.KayakMux,
 		connSeqEvictCh: make(chan uint64, 1),
 		privateKey:     privateKey,
+		accountAddr:    accountAddr,
 	}
 
 	defer func() {
@@ -272,27 +280,19 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
 
+	response.Header.ResponseAccount = db.accountAddr
+
 	// build hash
 	if err = response.BuildHash(); err != nil {
 		err = errors.Wrap(err, "failed to build response hash")
 		return
 	}
 
-	func(privKey *asymmetric.PrivateKey, tracker *x.QueryTracker) {
-		response.SetResponseCallback(func(res *types.Response) {
-			var err error
-			// Sign response
-			if err = res.SignHash(privKey); err != nil {
-				log.WithError(err).Debug("failed to sign response")
-				return
-			}
-			if err = db.chain.AddResponse(&res.Header); err != nil {
-				log.WithError(err).Debug("failed to add response to index")
-				return
-			}
-			tracker.UpdateResp(res)
-		})
-	}(db.privateKey, tracker)
+	if err = db.chain.AddResponse(&response.Header); err != nil {
+		log.WithError(err).Debug("failed to add response to index")
+		return
+	}
+	tracker.UpdateResp(response)
 
 	return
 }

@@ -19,10 +19,9 @@ package types
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/pkg/errors"
 )
 
 //go:generate hsp
@@ -41,15 +40,16 @@ type ResponsePayload struct {
 
 // ResponseHeader defines a query response header.
 type ResponseHeader struct {
-	Request      RequestHeader `json:"r"`
-	RequestHash  hash.Hash     `json:"rh"`
-	NodeID       proto.NodeID  `json:"id"` // response node id
-	Timestamp    time.Time     `json:"t"`  // time in UTC zone
-	RowCount     uint64        `json:"c"`  // response row count of payload
-	LogOffset    uint64        `json:"o"`  // request log offset
-	LastInsertID int64         `json:"l"`  // insert insert id
-	AffectedRows int64         `json:"a"`  // affected rows
-	PayloadHash  hash.Hash     `json:"dh"` // hash of query response payload
+	Request         RequestHeader        `json:"r"`
+	RequestHash     hash.Hash            `json:"rh"`
+	NodeID          proto.NodeID         `json:"id"` // response node id
+	Timestamp       time.Time            `json:"t"`  // time in UTC zone
+	RowCount        uint64               `json:"c"`  // response row count of payload
+	LogOffset       uint64               `json:"o"`  // request log offset
+	LastInsertID    int64                `json:"l"`  // insert insert id
+	AffectedRows    int64                `json:"a"`  // affected rows
+	PayloadHash     hash.Hash            `json:"dh"` // hash of query response payload
+	ResponseAccount proto.AccountAddress `json:"aa"` // response account
 }
 
 // GetRequestHash returns the request hash.
@@ -65,48 +65,30 @@ func (h *ResponseHeader) GetRequestTimestamp() time.Time {
 // SignedResponseHeader defines a signed query response header.
 type SignedResponseHeader struct {
 	ResponseHeader
-	verifier.DefaultHashSignVerifierImpl
+	ResponseHash hash.Hash
+}
+
+// Hash returns the response header hash.
+func (sh *SignedResponseHeader) Hash() hash.Hash {
+	return sh.ResponseHash
+}
+
+// VerifyHash verify the hash of the response.
+func (sh *SignedResponseHeader) VerifyHash() (err error) {
+	return errors.Wrap(verifyHash(&sh.ResponseHeader, &sh.ResponseHash),
+		"verify response header hash failed")
+}
+
+// BuildHash computes the hash of the response header.
+func (sh *SignedResponseHeader) BuildHash() (err error) {
+	return errors.Wrap(buildHash(&sh.ResponseHeader, &sh.ResponseHash),
+		"compute response header hash failed")
 }
 
 // Response defines a complete query response.
 type Response struct {
-	Header   SignedResponseHeader `json:"h"`
-	Payload  ResponsePayload      `json:"p"`
-	callback func(res *Response)
-}
-
-// Verify checks hash and signature in response header.
-func (sh *SignedResponseHeader) Verify() (err error) {
-	return sh.DefaultHashSignVerifierImpl.Verify(&sh.ResponseHeader)
-}
-
-// Sign the request.
-func (sh *SignedResponseHeader) Sign(signer *asymmetric.PrivateKey) (err error) {
-	return sh.DefaultHashSignVerifierImpl.Sign(&sh.ResponseHeader, signer)
-}
-
-// Verify checks hash and signature in whole response.
-func (r *Response) Verify() (err error) {
-	// verify data hash in header
-	if err = verifyHash(&r.Payload, &r.Header.PayloadHash); err != nil {
-		return
-	}
-
-	return r.Header.Verify()
-}
-
-// Sign the response.
-func (r *Response) Sign(signer *asymmetric.PrivateKey) (err error) {
-	if err = r.BuildHash(); err != nil {
-		return
-	}
-
-	return r.SignHash(signer)
-}
-
-// SignHash computes the signature of the response through existing hash.
-func (r *Response) SignHash(signer *asymmetric.PrivateKey) (err error) {
-	return r.Header.SignHash(signer)
+	Header  SignedResponseHeader `json:"h"`
+	Payload ResponsePayload      `json:"p"`
 }
 
 // BuildHash computes the hash of the response.
@@ -116,21 +98,25 @@ func (r *Response) BuildHash() (err error) {
 
 	// build hash in header
 	if err = buildHash(&r.Payload, &r.Header.PayloadHash); err != nil {
+		err = errors.Wrap(err, "compute response payload hash failed")
 		return
 	}
 
 	// compute header hash
-	return r.Header.SetHash(&r.Header.ResponseHeader)
+	return r.Header.BuildHash()
 }
 
-// SetResponseCallback stores callback function to process after response processed.
-func (r *Response) SetResponseCallback(cb func(res *Response)) {
-	r.callback = cb
-}
-
-// TriggerResponseCallback async executes callback.
-func (r *Response) TriggerResponseCallback() {
-	if r.callback != nil {
-		go r.callback(r)
+// VerifyHash verify the hash of the response.
+func (r *Response) VerifyHash() (err error) {
+	if err = verifyHash(&r.Payload, &r.Header.PayloadHash); err != nil {
+		err = errors.Wrap(err, "verify response payload hash failed")
+		return
 	}
+
+	return r.Header.VerifyHash()
+}
+
+// Hash returns the response header hash.
+func (r *Response) Hash() hash.Hash {
+	return r.Header.Hash()
 }

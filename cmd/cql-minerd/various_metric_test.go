@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	kw "github.com/CovenantSQL/CovenantSQL/kayak/wal"
@@ -194,14 +195,14 @@ func BenchmarkSignSignature(b *testing.B) {
 	b.ResetTimer()
 	b.Run("sign nested", func(b *testing.B) {
 		for i := 0; i != b.N; i++ {
-			err = rs.Sign(priv)
+			err = rs.BuildHash()
 		}
 	})
 
 	b.ResetTimer()
 	b.Run("verify nested", func(b *testing.B) {
 		for i := 0; i != b.N; i++ {
-			err = rs.Verify()
+			err = rs.VerifyHash()
 		}
 	})
 
@@ -336,17 +337,21 @@ func TestComputeMetrics(t *testing.T) {
 
 		t.Logf("PrepareLogSize: %v", len(buf2.Bytes()))
 
+		respNodeAddr, err := crypto.PubKeyHash(priv.PubKey())
+		So(err, ShouldBeNil)
+
 		rs := &types.Response{
 			Header: types.SignedResponseHeader{
 				ResponseHeader: types.ResponseHeader{
-					Request:      r.Header.RequestHeader,
-					RequestHash:  r.Header.Hash(),
-					NodeID:       n.ToRawNodeID().ToNodeID(),
-					Timestamp:    time.Now().UTC(),
-					RowCount:     1,
-					LogOffset:    1,
-					LastInsertID: 1,
-					AffectedRows: 1,
+					Request:         r.Header.RequestHeader,
+					RequestHash:     r.Header.Hash(),
+					NodeID:          n.ToRawNodeID().ToNodeID(),
+					ResponseAccount: respNodeAddr,
+					Timestamp:       time.Now().UTC(),
+					RowCount:        1,
+					LogOffset:       1,
+					LastInsertID:    1,
+					AffectedRows:    1,
 				},
 			},
 		}

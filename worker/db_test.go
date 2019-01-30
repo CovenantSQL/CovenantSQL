@@ -358,7 +358,6 @@ func TestSingleDatabase(t *testing.T) {
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
 
-			res.TriggerResponseCallback()
 			// wait for callback to sign signature
 			time.Sleep(time.Millisecond * 10)
 

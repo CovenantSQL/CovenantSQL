@@ -1276,10 +1276,7 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 			}
 		}
 		for _, tx := range block.QueryTxs {
-			if minerAddr, err = crypto.PubKeyHash(tx.Response.Signee); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
-				return
-			}
+			minerAddr = tx.Response.ResponseAccount
 			if userAddr, err = crypto.PubKeyHash(tx.Request.Header.Signee); err != nil {
 				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
 				return

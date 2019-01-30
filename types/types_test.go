@@ -153,8 +153,6 @@ func TestRequest_Sign(t *testing.T) {
 }
 
 func TestResponse_Sign(t *testing.T) {
-	privKey, _ := getCommKeys()
-
 	Convey("sign", t, func() {
 		res := &Response{
 			Header: SignedResponseHeader{
@@ -213,7 +211,7 @@ func TestResponse_Sign(t *testing.T) {
 		var err error
 
 		// sign
-		err = res.Sign(privKey)
+		err = res.BuildHash()
 		So(err, ShouldBeNil)
 
 		// test hash
@@ -222,7 +220,7 @@ func TestResponse_Sign(t *testing.T) {
 
 		// verify
 		Convey("verify", func() {
-			err = res.Verify()
+			err = res.BuildHash()
 			So(err, ShouldBeNil)
 
 			Convey("encode/decode verify", func() {
@@ -231,25 +229,25 @@ func TestResponse_Sign(t *testing.T) {
 				var r *Response
 				err = utils.DecodeMsgPack(buf.Bytes(), &r)
 				So(err, ShouldBeNil)
-				err = r.Verify()
+				err = r.VerifyHash()
 				So(err, ShouldBeNil)
 			})
 			Convey("request change", func() {
 				res.Header.Request.BatchCount = 200
 
-				err = res.Verify()
+				err = res.VerifyHash()
 				So(err, ShouldNotBeNil)
 			})
 			Convey("payload change", func() {
 				res.Payload.DeclTypes[0] = "INT"
 
-				err = res.Verify()
+				err = res.VerifyHash()
 				So(err, ShouldNotBeNil)
 			})
 			Convey("header change", func() {
 				res.Header.Timestamp = res.Header.Timestamp.Add(time.Second)
 
-				err = res.Verify()
+				err = res.VerifyHash()
 				So(err, ShouldNotBeNil)
 			})
 		})

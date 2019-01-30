@@ -84,7 +84,7 @@ func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
 		return
 	}
 	queried = time.Since(start)
-	if err = resp.Sign(c.priv); err != nil {
+	if err = resp.BuildHash(); err != nil {
 		return
 	}
 	signed = time.Since(start)

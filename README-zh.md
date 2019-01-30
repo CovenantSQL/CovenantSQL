@@ -110,7 +110,7 @@ sql.Open("CovenantSQL", dbURI)
 
 #### 接口
 
-CovenantSQL仍在建设中，测试网已经发布，[尝试一下](https://testnet.covenantsql.io/).
+CovenantSQL仍在建设中，测试网已经发布，[尝试一下](https://developers.covenantsql.io/docs/quickstart).
 
 
 - [Golang](client/)

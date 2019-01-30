@@ -251,7 +251,8 @@ func buildResponse(header *SignedRequestHeader, cols []string, types []string, r
 	r = &Response{
 		Header: SignedResponseHeader{
 			ResponseHeader: ResponseHeader{
-				Request:      *header,
+				Request:      header.RequestHeader,
+				RequestHash:  header.Hash(),
 				NodeID:       id,
 				Timestamp:    time.Now().UTC(),
 				RowCount:     0,
@@ -266,7 +267,7 @@ func buildResponse(header *SignedRequestHeader, cols []string, types []string, r
 			Rows:      rows,
 		},
 	}
-	if err = r.Sign(testingPrivateKey); err != nil {
+	if err = r.BuildHash(); err != nil {
 		panic(err)
 	}
 	return

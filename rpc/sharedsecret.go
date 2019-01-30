@@ -36,7 +36,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 		symmetricKey = []byte(`!&\\!qEyey*\cbLc,aKl`)
 		//log.Debug("using anonymous ETLS")
 	} else {
-		symmetricKeyI, ok := symmetricKeyCache.Load(nodeID)
+		symmetricKeyI, ok := symmetricKeyCache.Load(nodeID.String())
 		if ok {
 			symmetricKey, _ = symmetricKeyI.([]byte)
 		} else {
@@ -68,7 +68,7 @@ func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKe
 			}
 
 			symmetricKey = asymmetric.GenECDHSharedSecret(localPrivateKey, remotePublicKey)
-			symmetricKeyCache.Store(nodeID, symmetricKey)
+			symmetricKeyCache.Store(nodeID.String(), symmetricKey)
 			//log.WithFields(log.Fields{
 			//	"node":       nodeID.String(),
 			//	"remotePub":  fmt.Sprintf("%#x", remotePublicKey.Serialize()),

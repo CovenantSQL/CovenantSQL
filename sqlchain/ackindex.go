@@ -61,7 +61,7 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 	var (
 		resp *types.SignedResponseHeader
 		ok   bool
-		key  = ack.SignedRequestHeader().GetQueryKey()
+		key  = ack.GetQueryKey()
 	)
 	log.Debugf("registering key %s <-- ack %s", &key, ack.Hash())
 
@@ -71,7 +71,7 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 		err = errors.Wrapf(ErrQueryNotFound, "register key %s <-- ack %s", &key, ack.Hash())
 		return
 	}
-	if resp.Hash() != ack.ResponseHash() {
+	if resp.Hash() != ack.GetResponseHash() {
 		err = errors.Wrapf(ErrResponseSeqNotMatch, "register key %s <-- ack %s", &key, ack.Hash())
 	}
 	delete(i.respIndex, key)
@@ -82,7 +82,7 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 }
 
 func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
-	var key = ack.SignedRequestHeader().GetQueryKey()
+	var key = ack.GetQueryKey()
 	log.Debugf("removing key %s -x- ack %s", &key, ack.Hash())
 	i.Lock()
 	defer i.Unlock()
@@ -120,8 +120,8 @@ func (i *multiAckIndex) expire() {
 	// TODO(leventeliu): need further processing.
 	for _, v := range i.respIndex {
 		log.WithFields(log.Fields{
-			"request_hash":  v.Request.Hash(),
-			"request_time":  v.Request.Timestamp,
+			"request_hash":  v.GetRequestHash(),
+			"request_time":  v.GetRequestTimestamp(),
 			"request_type":  v.Request.QueryType,
 			"request_node":  v.Request.NodeID,
 			"response_hash": v.Hash(),
@@ -131,13 +131,13 @@ func (i *multiAckIndex) expire() {
 	}
 	for _, v := range i.ackIndex {
 		log.WithFields(log.Fields{
-			"request_hash":  v.Response.Request.Hash(),
-			"request_time":  v.Response.Request.Timestamp,
+			"request_hash":  v.GetRequestHash(),
+			"request_time":  v.GetRequestTimestamp(),
 			"request_type":  v.Response.Request.QueryType,
 			"request_node":  v.Response.Request.NodeID,
-			"response_hash": v.Response.Hash(),
+			"response_hash": v.GetResponseHash(),
 			"response_node": v.Response.NodeID,
-			"response_time": v.Response.Timestamp,
+			"response_time": v.GetResponseTimestamp(),
 			"ack_hash":      v.Hash(),
 			"ack_node":      v.NodeID,
 			"ack_time":      v.Timestamp,

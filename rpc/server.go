@@ -135,7 +135,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		remoteNodeID = conn.(*etls.CryptoConn).NodeID
 	}
 
-	sess, err := mux.Server(conn, YamuxConfig)
+	sess, err := mux.Server(conn, MuxConfig)
 	if err != nil {
 		err = errors.Wrap(err, "create mux server failed")
 		return

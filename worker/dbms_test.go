@@ -163,8 +163,6 @@ func TestDBMS(t *testing.T) {
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldBeNil)
-				err = queryRes.Verify()
-				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, 0)
 
 				// sending read query
@@ -177,8 +175,6 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err, ShouldBeNil)
-				err = queryRes.Verify()
 				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, uint64(1))
 				So(queryRes.Payload.Columns, ShouldResemble, []string{"test"})
@@ -277,8 +273,6 @@ func TestDBMS(t *testing.T) {
 					So(err, ShouldBeNil)
 
 					err = testRequest(route.DBSQuery, writeQuery, &queryRes)
-					So(err, ShouldBeNil)
-					err = queryRes.Verify()
 					So(err, ShouldBeNil)
 					So(queryRes.Header.RowCount, ShouldEqual, 0)
 				})
@@ -387,8 +381,6 @@ func TestDBMS(t *testing.T) {
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldBeNil)
-				err = queryRes.Verify()
-				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, 0)
 
 				// sending read query
@@ -401,8 +393,6 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err, ShouldBeNil)
-				err = queryRes.Verify()
 				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, uint64(1))
 				So(queryRes.Payload.Columns, ShouldResemble, []string{"test"})
@@ -453,8 +443,6 @@ func TestDBMS(t *testing.T) {
 
 				err = testRequest(route.DBSQuery, writeQuery, &queryRes)
 				So(err, ShouldBeNil)
-				err = queryRes.Verify()
-				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, 0)
 
 				// sending allowed read query
@@ -467,8 +455,6 @@ func TestDBMS(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
-				So(err, ShouldBeNil)
-				err = queryRes.Verify()
 				So(err, ShouldBeNil)
 				So(queryRes.Header.RowCount, ShouldEqual, uint64(1))
 				So(queryRes.Payload.Rows, ShouldHaveLength, 1)

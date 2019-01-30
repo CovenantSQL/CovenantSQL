@@ -231,6 +231,10 @@ func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
 	if err != nil {
 		log.WithError(err).Error("create database error")
 	}
+
+	if dbms.cfg.OnCreateDatabase != nil {
+		go dbms.cfg.OnCreateDatabase()
+	}
 }
 
 func (dbms *DBMS) buildSQLChainServiceInstance(

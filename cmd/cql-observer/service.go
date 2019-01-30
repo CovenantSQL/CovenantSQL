@@ -35,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-
 	bolt "github.com/coreos/bbolt"
 )
 
@@ -342,7 +341,7 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 	if err = qt.Request.Verify(); err != nil {
 		return
 	}
-	if err = qt.Response.Verify(); err != nil {
+	if err = qt.Response.VerifyHash(); err != nil {
 		return
 	}
 

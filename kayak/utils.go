@@ -25,7 +25,7 @@ import (
 )
 
 func (r *Runtime) getCaller(id proto.NodeID) Caller {
-	var caller Caller = rpc.NewClientPoolCaller(id)
+	var caller Caller = rpc.NewPersistentCaller(id)
 	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
 	return rawCaller.(Caller)
 }

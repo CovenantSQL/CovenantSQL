@@ -54,7 +54,7 @@ type conn struct {
 type pconn struct {
 	parent  *conn
 	ackCh   chan *types.Ack
-	pCaller *rpc.ClientPoolCaller
+	pCaller *rpc.PersistentCaller
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
@@ -86,7 +86,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	if cfg.UseLeader {
 		c.leader = &pconn{
 			parent:  c,
-			pCaller: rpc.NewClientPoolCaller(peers.Leader),
+			pCaller: rpc.NewPersistentCaller(peers.Leader),
 		}
 	}
 
@@ -97,7 +97,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 			if node != peers.Leader {
 				c.follower = &pconn{
 					parent:  c,
-					pCaller: rpc.NewClientPoolCaller(node),
+					pCaller: rpc.NewPersistentCaller(node),
 				}
 				break
 			}
@@ -138,7 +138,7 @@ func (c *pconn) stopAckWorkers() {
 func (c *pconn) ackWorker() {
 	var (
 		oneTime sync.Once
-		pc      *rpc.ClientPoolCaller
+		pc      *rpc.PersistentCaller
 		err     error
 	)
 
@@ -149,7 +149,7 @@ ackWorkerLoop:
 			break ackWorkerLoop
 		}
 		oneTime.Do(func() {
-			pc = rpc.NewClientPoolCaller(c.pCaller.TargetID)
+			pc = rpc.NewPersistentCaller(c.pCaller.TargetID)
 		})
 		if err = ack.Sign(c.parent.privKey); err != nil {
 			log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")

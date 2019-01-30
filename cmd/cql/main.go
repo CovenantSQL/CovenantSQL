@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/user"
 	"regexp"
@@ -42,12 +43,15 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/rakyll/statik/fs"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/env"
 	"github.com/xo/usql/handler"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
+
+	_ "github.com/CovenantSQL/CovenantSQL/cmd/cql/statik" // to embed the shardchain-explorer
 )
 
 const name = "cql"
@@ -75,6 +79,7 @@ var (
 	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
 
 	waitTxConfirmationMaxDuration time.Duration
+	explorerAddr                  string
 )
 
 type userPermission struct {
@@ -208,7 +213,6 @@ func usqlRegister() {
 }
 
 func init() {
-
 	flag.StringVar(&dsn, "dsn", "", "Database url")
 	flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
 	flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
@@ -230,6 +234,20 @@ func init() {
 	flag.BoolVar(&getBalance, "get-balance", false, "Get balance of current account")
 	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
+
+	flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
+}
+
+func serverAsShardChainExplorer(addr string) {
+	statikFS, err := fs.New()
+	if err != nil {
+		log.WithError(err).Fatal("unable to create statik fs")
+	}
+
+	http.Handle("/", http.FileServer(statikFS))
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		log.WithError(err).Error("http.ListenAndServe")
+	}
 }
 
 func main() {
@@ -240,6 +258,11 @@ func main() {
 		os.Exit(0)
 	}
 	log.Infof("cql build: %#v\n", version)
+
+	if explorerAddr != "" {
+		serverAsShardChainExplorer(explorerAddr)
+		return
+	}
 
 	configFile = utils.HomeDirExpand(configFile)
 

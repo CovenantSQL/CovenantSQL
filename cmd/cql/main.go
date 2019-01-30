@@ -24,14 +24,26 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/user"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/rakyll/statik/fs"
+	"github.com/sirupsen/logrus"
+	"github.com/xo/dburl"
+	"github.com/xo/usql/drivers"
+	"github.com/xo/usql/env"
+	"github.com/xo/usql/handler"
+	"github.com/xo/usql/rline"
+	"github.com/xo/usql/text"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -42,14 +54,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	"github.com/rakyll/statik/fs"
-	"github.com/xo/dburl"
-	"github.com/xo/usql/drivers"
-	"github.com/xo/usql/env"
-	"github.com/xo/usql/handler"
-	"github.com/xo/usql/rline"
-	"github.com/xo/usql/text"
 
 	_ "github.com/CovenantSQL/CovenantSQL/cmd/cql/statik" // to embed the shardchain-explorer
 )
@@ -68,6 +72,11 @@ var (
 	singleTransaction bool
 	showVersion       bool
 	variables         varsFlag
+
+	// Shard chain explorer stuff
+	tmpPath    string         // background observer and explorer block and log file path
+	cLog       *logrus.Logger // console logger
+	bgLogLevel string         // background log level
 
 	// DML variables
 	createDB                string // as a instance meta json string or simply a node count
@@ -226,6 +235,10 @@ func init() {
 	flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
 	flag.Var(&variables, "variable", "Set variable")
 
+	// Explorer
+	flag.StringVar(&tmpPath, "tmp-path", "", "Explorer temp file path, use os.TempDir for default")
+	flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level")
+
 	// DML flags
 	flag.StringVar(&createDB, "create", "", "Create database, argument can be instance requirement json or simply a node count requirement")
 	flag.StringVar(&dropDB, "drop", "", "Drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
@@ -251,13 +264,31 @@ func serverAsShardChainExplorer(addr string) {
 }
 
 func main() {
+	var err error
+	// set random
+	rand.Seed(time.Now().UnixNano())
+
 	flag.Parse()
+	if tmpPath == "" {
+		tmpPath = os.TempDir()
+	}
+	logPath := filepath.Join(tmpPath, "covenant_explorer.log")
+	bgLog, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "open log file failed: %s, %v", logPath, err)
+		os.Exit(-1)
+	}
+	log.SetOutput(bgLog)
+	log.SetStringLevel(bgLogLevel, log.InfoLevel)
+
+	cLog = logrus.New()
+
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
 			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
-	log.Infof("cql build: %#v\n", version)
+	cLog.Infof("cql build: %#v\n", version)
 
 	if explorerAddr != "" {
 		serverAsShardChainExplorer(explorerAddr)
@@ -266,11 +297,9 @@ func main() {
 
 	configFile = utils.HomeDirExpand(configFile)
 
-	var err error
-
 	// init covenantsql driver
 	if err = client.Init(configFile, []byte(password)); err != nil {
-		log.WithError(err).Error("init covenantsql client failed")
+		cLog.WithError(err).Error("init covenantsql client failed")
 		os.Exit(-1)
 		return
 	}
@@ -286,16 +315,16 @@ func main() {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
-			log.WithError(err).Error("get Particle balance failed")
+			cLog.WithError(err).Error("get Particle balance failed")
 			return
 		}
 		if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
-			log.WithError(err).Error("get Wave balance failed")
+			cLog.WithError(err).Error("get Wave balance failed")
 			return
 		}
 
-		log.Infof("Particle balance is: %d", stableCoinBalance)
-		log.Infof("Wave balance is: %d", covenantCoinBalance)
+		cLog.Infof("Particle balance is: %d", stableCoinBalance)
+		cLog.Infof("Wave balance is: %d", covenantCoinBalance)
 
 		return
 	}
@@ -308,17 +337,17 @@ func main() {
 			for i := types.Particle; i < types.SupportTokenNumber; i++ {
 				values[i] = types.TokenList[i]
 			}
-			log.Errorf("no such token supporting in CovenantSQL (what we support: %s)",
+			cLog.Errorf("no such token supporting in CovenantSQL (what we support: %s)",
 				strings.Join(values, ", "))
 			os.Exit(-1)
 			return
 		}
 		if tokenBalance, err = client.GetTokenBalance(tokenType); err != nil {
-			log.WithError(err).Error("get token balance failed")
+			cLog.WithError(err).Error("get token balance failed")
 			os.Exit(-1)
 			return
 		}
-		log.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
+		cLog.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
 		return
 	}
 
@@ -333,12 +362,12 @@ func main() {
 
 		if err := client.Drop(dropDB); err != nil {
 			// drop database failed
-			log.WithField("db", dropDB).WithError(err).Error("drop database failed")
+			cLog.WithField("db", dropDB).WithError(err).Error("drop database failed")
 			return
 		}
 
 		// drop database success
-		log.Infof("drop database %#v success", dropDB)
+		cLog.Infof("drop database %#v success", dropDB)
 		return
 	}
 
@@ -352,7 +381,7 @@ func main() {
 			nodeCnt, err := strconv.ParseUint(createDB, 10, 16)
 			if err != nil {
 				// still failing
-				log.WithField("db", createDB).Error("create database failed: invalid instance description")
+				cLog.WithField("db", createDB).Error("create database failed: invalid instance description")
 				os.Exit(-1)
 				return
 			}
@@ -363,7 +392,7 @@ func main() {
 
 		dsn, err := client.Create(meta)
 		if err != nil {
-			log.WithError(err).Error("create database failed")
+			cLog.WithError(err).Error("create database failed")
 			os.Exit(-1)
 			return
 		}
@@ -373,13 +402,13 @@ func main() {
 			defer cancel()
 			err = client.WaitDBCreation(ctx, dsn)
 			if err != nil {
-				log.WithError(err).Error("create database failed durating creation")
+				cLog.WithError(err).Error("create database failed durating creation")
 				os.Exit(-1)
 				return
 			}
 		}
 
-		log.Infof("the newly created database is: %#v", dsn)
+		cLog.Infof("the newly created database is: %#v", dsn)
 		fmt.Printf(dsn)
 		return
 	}
@@ -388,7 +417,7 @@ func main() {
 		// update user's permission on sqlchain
 		var perm userPermission
 		if err := json.Unmarshal([]byte(updatePermission), &perm); err != nil {
-			log.WithError(err).Errorf("update permission failed: invalid permission description")
+			cLog.WithError(err).Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return
 		}
@@ -396,7 +425,7 @@ func main() {
 		var p types.UserPermission
 		p.FromString(perm.Perm)
 		if p > types.NumberOfUserPermission {
-			log.WithError(err).Errorf("update permission failed: invalid permission description")
+			cLog.WithError(err).Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return
 		}
@@ -404,7 +433,7 @@ func main() {
 		txHash, err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
 
 		if err != nil {
-			log.WithError(err).Error("update permission failed")
+			cLog.WithError(err).Error("update permission failed")
 			os.Exit(-1)
 			return
 		}
@@ -413,7 +442,7 @@ func main() {
 			wait(txHash)
 		}
 
-		log.Info("succeed in sending transaction to CovenantSQL")
+		cLog.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
 
@@ -421,35 +450,35 @@ func main() {
 		// transfer token
 		var tran tranToken
 		if err := json.Unmarshal([]byte(transferToken), &tran); err != nil {
-			log.WithError(err).Errorf("transfer token failed: invalid transfer description")
+			cLog.WithError(err).Errorf("transfer token failed: invalid transfer description")
 			os.Exit(-1)
 			return
 		}
 
 		var validAmount = regexp.MustCompile(`^([0-9]+) *([a-zA-Z]+)$`)
 		if !validAmount.MatchString(tran.Amount) {
-			log.Error("transfer token failed: invalid transfer description")
+			cLog.Error("transfer token failed: invalid transfer description")
 			os.Exit(-1)
 			return
 		}
 		amountUnit := validAmount.FindStringSubmatch(tran.Amount)
 		if len(amountUnit) != 3 {
-			log.Error("transfer token failed: invalid transfer description")
+			cLog.Error("transfer token failed: invalid transfer description")
 			for _, v := range amountUnit {
-				log.Error(v)
+				cLog.Error(v)
 			}
 			os.Exit(-1)
 			return
 		}
 		amount, err := strconv.ParseUint(amountUnit[1], 10, 64)
 		if err != nil {
-			log.Error("transfer token failed: invalid token amount")
+			cLog.Error("transfer token failed: invalid token amount")
 			os.Exit(-1)
 			return
 		}
 		unit := types.FromString(amountUnit[2])
 		if !unit.Listed() {
-			log.Error("transfer token failed: invalid token type")
+			cLog.Error("transfer token failed: invalid token type")
 			os.Exit(-1)
 			return
 		}
@@ -457,7 +486,7 @@ func main() {
 		var txHash hash.Hash
 		txHash, err = client.TransferToken(tran.TargetUser, amount, unit)
 		if err != nil {
-			log.WithError(err).Error("transfer token failed")
+			cLog.WithError(err).Error("transfer token failed")
 			os.Exit(-1)
 			return
 		}
@@ -466,7 +495,7 @@ func main() {
 			wait(txHash)
 		}
 
-		log.Info("succeed in sending transaction to CovenantSQL")
+		cLog.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
 
@@ -478,7 +507,7 @@ func main() {
 		// in docker, fake user
 		var wd string
 		if wd, err = os.Getwd(); err != nil {
-			log.WithError(err).Error("get working directory failed")
+			cLog.WithError(err).Error("get working directory failed")
 			os.Exit(-1)
 			return
 		}
@@ -491,7 +520,7 @@ func main() {
 		}
 	} else {
 		if curUser, err = user.Current(); err != nil {
-			log.WithError(err).Error("get current user failed")
+			cLog.WithError(err).Error("get current user failed")
 			os.Exit(-1)
 			return
 		}
@@ -500,14 +529,14 @@ func main() {
 	// run
 	err = run(curUser)
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
-		log.WithError(err).Error("run cli error")
+		cLog.WithError(err).Error("run cli error")
 
 		if e, ok := err.(*drivers.Error); ok && e.Err == text.ErrDriverNotAvailable {
 			bindings := make([]string, 0, len(available))
 			for name := range available {
 				bindings = append(bindings, name)
 			}
-			log.Infof("available drivers are: %#v", bindings)
+			cLog.Infof("available drivers are: %#v", bindings)
 		}
 		os.Exit(-1)
 	}
@@ -517,7 +546,7 @@ func wait(txHash hash.Hash) {
 	var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 	defer cancel()
 	var state, err = client.WaitTxConfirmation(ctx, txHash)
-	log.WithFields(log.Fields{
+	cLog.WithFields(logrus.Fields{
 		"tx_hash":  txHash,
 		"tx_state": state,
 	}).WithError(err).Info("wait transaction confirmation")
@@ -580,14 +609,14 @@ func run(u *user.User) (err error) {
 		h.SetSingleLineMode(true)
 		h.Reset([]rune(command))
 		if err = h.Run(); err != nil && err != io.EOF {
-			log.WithError(err).Error("run command failed")
+			cLog.WithError(err).Error("run command failed")
 			os.Exit(-1)
 			return
 		}
 	} else if fileName != "" {
 		// file
 		if err = h.Include(fileName, false); err != nil {
-			log.WithError(err).Error("run file failed")
+			cLog.WithError(err).Error("run file failed")
 			os.Exit(-1)
 			return
 		}

@@ -680,7 +680,7 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 
 	server = &http.Server{
 		Addr:         listenAddr,
-		WriteTimeout: apiTimeout,
+		WriteTimeout: apiTimeout * 10,
 		ReadTimeout:  apiTimeout,
 		IdleTimeout:  apiTimeout,
 		Handler:      router,

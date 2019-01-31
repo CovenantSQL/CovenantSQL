@@ -77,6 +77,21 @@ func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
 	return
 }
 
+func (n *blockNode) ancestorByCount(count int32) (ancestor *blockNode) {
+	if count < 0 || count > n.count {
+		return nil
+	}
+
+	for ancestor = n; ancestor != nil && ancestor.count > count; ancestor = ancestor.parent {
+	}
+
+	if ancestor != nil && ancestor.count < count {
+		ancestor = nil
+	}
+
+	return
+}
+
 func (n *blockNode) indexKey() (key []byte) {
 	key = make([]byte, hash.HashSize+4)
 	binary.BigEndian.PutUint32(key[0:4], uint32(n.height))

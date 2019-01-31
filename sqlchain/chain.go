@@ -119,15 +119,6 @@ type Chain struct {
 	gasPrice     uint64
 	updatePeriod uint64
 
-	// observerLock defines the lock of observer update operations.
-	observerLock sync.Mutex
-	// observers defines the observer nodes of current chain.
-	observers map[proto.NodeID]int32
-	// observerReplicators defines the observer states of current chain.
-	observerReplicators map[proto.NodeID]*observerReplicator
-	// replCh defines the replication trigger channel for replication check.
-	replCh chan struct{}
-
 	// Cached fileds, may need to renew some of this fields later.
 	//
 	// pk is the private key of the local miner.
@@ -215,11 +206,6 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		updatePeriod: c.UpdatePeriod,
 		databaseID:   c.DatabaseID,
 
-		// Observer related
-		observers:           make(map[proto.NodeID]int32),
-		observerReplicators: make(map[proto.NodeID]*observerReplicator),
-		replCh:              make(chan struct{}),
-
 		pk:   pk,
 		addr: &addr,
 	}
@@ -294,11 +280,6 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		gasPrice:     c.GasPrice,
 		updatePeriod: c.UpdatePeriod,
 		databaseID:   c.DatabaseID,
-
-		// Observer related
-		observers:           make(map[proto.NodeID]int32),
-		observerReplicators: make(map[proto.NodeID]*observerReplicator),
-		replCh:              make(chan struct{}),
 
 		pk:   pk,
 		addr: &addr,
@@ -657,8 +638,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	}
 	wg.Wait()
 
-	// fire replication to observers
-	c.startStopReplication(c.rt.ctx)
 	return
 }
 
@@ -939,8 +918,6 @@ func (c *Chain) processBlocks(ctx context.Context) {
 					}
 				}
 			}
-			// fire replication to observers
-			c.startStopReplication(c.rt.ctx)
 		case <-ctx.Done():
 			return
 		}
@@ -955,7 +932,6 @@ func (c *Chain) Start() (err error) {
 
 	c.rt.goFunc(c.processBlocks)
 	c.rt.goFunc(c.mainCycle)
-	c.rt.goFunc(c.replicationCycle)
 	c.rt.startService(c)
 	return
 }
@@ -1007,21 +983,53 @@ func (c *Chain) Stop() (err error) {
 // FetchBlock fetches the block at specified height from local cache.
 func (c *Chain) FetchBlock(height int32) (b *types.Block, err error) {
 	if n := c.rt.getHead().node.ancestor(height); n != nil {
-		k := utils.ConcatAll(metaBlockIndex[:], n.indexKey())
-		var v []byte
-		v, err = c.bdb.Get(k, nil)
+		b, err = c.fetchBlockByIndexKey(n.indexKey())
 		if err != nil {
-			err = errors.Wrapf(err, "fetch block %s", string(k))
+			return
+		}
+	}
+
+	return
+}
+
+// FetchBlockByCount fetches the block at specified count from local cache.
+func (c *Chain) FetchBlockByCount(count int32) (b *types.Block, realCount int32, height int32, err error) {
+	var n *blockNode
+
+	if count < 0 {
+		n = c.rt.getHead().node
+	} else {
+		n = c.rt.getHead().node.ancestorByCount(count)
+	}
+
+	if n != nil {
+		b, err = c.fetchBlockByIndexKey(n.indexKey())
+		if err != nil {
 			return
 		}
 
-		b = &types.Block{}
-		statBlock(b)
-		err = utils.DecodeMsgPack(v, b)
-		if err != nil {
-			err = errors.Wrapf(err, "fetch block %s", string(k))
-			return
-		}
+		height = n.height
+		realCount = n.count
+	}
+
+	return
+}
+
+func (c *Chain) fetchBlockByIndexKey(indexKey []byte) (b *types.Block, err error) {
+	k := utils.ConcatAll(metaBlockIndex[:], indexKey)
+	var v []byte
+	v, err = c.bdb.Get(k, nil)
+	if err != nil {
+		err = errors.Wrapf(err, "fetch block %s", string(k))
+		return
+	}
+
+	b = &types.Block{}
+	statBlock(b)
+	err = utils.DecodeMsgPack(v, b)
+	if err != nil {
+		err = errors.Wrapf(err, "fetch block %s", string(k))
+		return
 	}
 
 	return
@@ -1119,82 +1127,6 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) 
 // UpdatePeers updates peer list of the sql-chain.
 func (c *Chain) UpdatePeers(peers *proto.Peers) error {
 	return c.rt.updatePeers(peers)
-}
-
-// AddSubscription is used by dbms to add an observer.
-func (c *Chain) AddSubscription(nodeID proto.NodeID, startHeight int32) (err error) {
-	// send previous height and transactions using AdviseAckedQuery/AdviseNewBlock RPC method
-	// add node to subscriber list
-	c.observerLock.Lock()
-	defer c.observerLock.Unlock()
-	c.observers[nodeID] = startHeight
-	c.startStopReplication(c.rt.ctx)
-	return
-}
-
-// CancelSubscription is used by dbms to cancel an observer.
-func (c *Chain) CancelSubscription(nodeID proto.NodeID) (err error) {
-	// remove node from subscription list
-	c.observerLock.Lock()
-	defer c.observerLock.Unlock()
-	delete(c.observers, nodeID)
-	c.startStopReplication(c.rt.ctx)
-	return
-}
-
-func (c *Chain) startStopReplication(ctx context.Context) {
-	if c.replCh != nil {
-		select {
-		case c.replCh <- struct{}{}:
-		case <-ctx.Done():
-		default:
-		}
-	}
-}
-
-func (c *Chain) populateObservers() {
-	c.observerLock.Lock()
-	defer c.observerLock.Unlock()
-
-	// handle replication threads
-	for nodeID, startHeight := range c.observers {
-		if replicator, exists := c.observerReplicators[nodeID]; exists {
-			// already started
-			if startHeight >= 0 {
-				replicator.setNewHeight(startHeight)
-				c.observers[nodeID] = int32(-1)
-			}
-		} else {
-			// start new replication routine
-			replicator := newObserverReplicator(nodeID, startHeight, c)
-			c.observerReplicators[nodeID] = replicator
-			c.rt.goFunc(replicator.run)
-		}
-	}
-
-	// stop replicators
-	for nodeID, replicator := range c.observerReplicators {
-		if _, exists := c.observers[nodeID]; !exists {
-			replicator.stop()
-			delete(c.observerReplicators, nodeID)
-		}
-	}
-}
-
-func (c *Chain) replicationCycle(ctx context.Context) {
-	for {
-		select {
-		case <-c.replCh:
-			// populateObservers
-			c.populateObservers()
-			// send triggers to replicators
-			for _, replicator := range c.observerReplicators {
-				replicator.tick()
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // Query queries req from local chain state and returns the query results in resp.

@@ -500,7 +500,7 @@ func TestFullProcess(t *testing.T) {
 			observerCmd.Cmd.Wait()
 		}()
 
-		// wait for the observer to collect blocks, two periods is enough
+		// wait for the observer to collect blocks
 		time.Sleep(conf.GConf.SQLChainPeriod * 5)
 
 		// test get genesis block by height
@@ -686,11 +686,14 @@ func TestFullProcess(t *testing.T) {
 		})
 		So(err, ShouldBeNil)
 
+		// wait for the observer to be enabled query by miner, and collect blocks
+		time.Sleep(conf.GConf.SQLChainPeriod * 5)
+
 		// test get genesis block by height
 		res, err = getJSON("v3/head/%v", dbID2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
-		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
+		So(ensureSuccess(res.Int("block", "height")), ShouldBeGreaterThanOrEqualTo, 0)
 		log.Info(err, res)
 
 		err = client.Drop(dsn)

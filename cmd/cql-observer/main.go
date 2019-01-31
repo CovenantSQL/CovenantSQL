@@ -30,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -85,15 +84,14 @@ func main() {
 
 	kms.InitBP()
 
-	// start rpc
-	var server *rpc.Server
-	if server, err = initNode(); err != nil {
+	// init node
+	if err = initNode(); err != nil {
 		log.WithError(err).Fatal("init node failed")
 	}
 
 	// start service
 	var service *Service
-	if service, err = startService(server); err != nil {
+	if service, err = startService(); err != nil {
 		log.WithError(err).Fatal("start observation failed")
 	}
 
@@ -144,7 +142,7 @@ func main() {
 	}
 
 	// stop subscriptions
-	if err = stopService(service, server); err != nil {
+	if err = stopService(service); err != nil {
 		log.WithError(err).Fatal("stop service failed")
 	}
 

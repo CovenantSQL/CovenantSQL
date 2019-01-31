@@ -249,15 +249,16 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	// start server
 	go server.Serve()
 
+	// fake database init already processed
+	atomic.StoreUint32(&driverInitialized, 1)
+
 	cleanupFunc = func() {
 		os.RemoveAll(tempDir)
 		server.Listener.Close()
 		server.Stop()
+		// restore database init state
+		atomic.StoreUint32(&driverInitialized, 0)
 	}
-
-	// fake database init already processed
-	atomic.StoreUint32(&driverInitialized, 1)
-
 	return
 }
 

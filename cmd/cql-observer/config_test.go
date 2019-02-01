@@ -1,3 +1,5 @@
+// +build !testbinary
+
 /*
  * Copyright 2018 The CovenantSQL Authors.
  *

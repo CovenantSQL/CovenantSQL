@@ -435,7 +435,7 @@ func main() {
 		if err := json.Unmarshal(perm.Perm, &permPayload); err != nil {
 			// try again using role string representation
 			if err := json.Unmarshal(perm.Perm, &permPayload.Role); err != nil {
-				log.WithError(err).Errorf("update permission failed: invalid permission description")
+				cLog.WithError(err).Errorf("update permission failed: invalid permission description")
 				os.Exit(-1)
 				return
 			}
@@ -447,7 +447,7 @@ func main() {
 		}
 
 		if !p.IsValid() {
-			log.Errorf("update permission failed: invalid permission description")
+			cLog.Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return
 		}

@@ -77,10 +77,8 @@ const (
 	DBSAck
 	// DBSDeploy is used by BP to create/drop/update database
 	DBSDeploy
-	// DBSSubscribeTransactions is used by dbms to handle observer subscription request
-	DBSSubscribeTransactions
-	// DBSCancelSubscription is used by dbms to handle observer subscription cancellation request
-	DBSCancelSubscription
+	// DBSObserverFetchBlock is used by observer to fetch block.
+	DBSObserverFetchBlock
 	// DBCCall is used by Miner for data consistency
 	DBCCall
 	// SQLCAdviseNewBlock is used by sqlchain to advise new block between adjacent node
@@ -95,8 +93,6 @@ const (
 	SQLCSignBilling
 	// SQLCLaunchBilling is used by blockproducer to trigger the billing process in sqlchain
 	SQLCLaunchBilling
-	// OBSAdviseNewBlock is used by sqlchain to push new block to observers
-	OBSAdviseNewBlock
 	// MCCAdviseNewBlock is used by block producer to push block to adjacent nodes
 	MCCAdviseNewBlock
 	// MCCAdviseTxBilling is used by block producer to push billing transaction to adjacent nodes
@@ -130,8 +126,6 @@ const (
 	SQLChainRPCName = "SQLC"
 	// DBRPCName defines the sql chain db service rpc name
 	DBRPCName = "DBS"
-	// ObserverRPCName defines the observer node service rpc name
-	ObserverRPCName = "OBS"
 )
 
 // String returns the RemoteFunc string.
@@ -153,10 +147,8 @@ func (s RemoteFunc) String() string {
 		return "DBS.Ack"
 	case DBSDeploy:
 		return "DBS.Deploy"
-	case DBSSubscribeTransactions:
-		return "DBS.SubscribeTransactions"
-	case DBSCancelSubscription:
-		return "DBS.CancelSubscription"
+	case DBSObserverFetchBlock:
+		return "DBS.ObserverFetchBlock"
 	case DBCCall:
 		return "DBC.Call"
 	case SQLCAdviseNewBlock:
@@ -171,8 +163,6 @@ func (s RemoteFunc) String() string {
 		return "SQLC.SignBilling"
 	case SQLCLaunchBilling:
 		return "SQLC.LaunchBilling"
-	case OBSAdviseNewBlock:
-		return "OBS.AdviseNewBlock"
 	case MCCAdviseNewBlock:
 		return "MCC.AdviseNewBlock"
 	case MCCAdviseTxBilling:

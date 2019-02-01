@@ -30,11 +30,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/CovenantSQL/worker"
 	bolt "github.com/coreos/bbolt"
 )
 
@@ -95,9 +93,8 @@ var (
 
 // Service defines the observer service structure.
 type Service struct {
-	lock            sync.Mutex
-	subscription    map[proto.DatabaseID]int32
-	upstreamServers sync.Map
+	subscription    sync.Map // map[proto.DatabaseID]*subscribeWorker
+	upstreamServers sync.Map // map[proto.DatabaseID]*types.ServiceInstance
 
 	db      *bolt.DB
 	caller  *rpc.Caller
@@ -147,17 +144,16 @@ func NewService() (service *Service, err error) {
 
 	// init service
 	service = &Service{
-		subscription: make(map[proto.DatabaseID]int32),
-		db:           db,
-		caller:       rpc.NewCaller(),
+		db:     db,
+		caller: rpc.NewCaller(),
 	}
 
 	// load previous subscriptions
 	if err = db.View(func(tx *bolt.Tx) error {
-		return tx.Bucket(subscriptionBucket).ForEach(func(rawDBID, rawHeight []byte) (err error) {
+		return tx.Bucket(subscriptionBucket).ForEach(func(rawDBID, rawCount []byte) (err error) {
 			dbID := proto.DatabaseID(string(rawDBID))
-			h := bytesToInt32(rawHeight)
-			service.subscription[dbID] = h
+			count := bytesToInt32(rawCount)
+			service.subscription.Store(dbID, newSubscribeWorker(dbID, count, service))
 			return
 		})
 	}); err != nil {
@@ -182,10 +178,6 @@ func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string
 		return ErrStopped
 	}
 
-	s.lock.Lock()
-
-	shouldStartSubscribe := false
-
 	if resetSubscribePosition != "" {
 		var fromPos int32
 
@@ -198,46 +190,25 @@ func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string
 			fromPos = types.ReplicateFromNewest
 		}
 
-		s.subscription[dbID] = fromPos
-
-		// send start subscription request
-		// TODO(leventeliu): should also clean up obsolete data in db file!
-		shouldStartSubscribe = true
+		unpackWorker(s.subscription.LoadOrStore(dbID,
+			newSubscribeWorker(dbID, fromPos, s))).reset(fromPos)
 	} else {
 		// not resetting
-		if _, exists := s.subscription[dbID]; !exists {
-			s.subscription[dbID] = types.ReplicateFromNewest
-			shouldStartSubscribe = true
-		}
-	}
-
-	s.lock.Unlock()
-
-	if shouldStartSubscribe {
-		return s.startSubscribe(dbID)
+		unpackWorker(s.subscription.LoadOrStore(dbID,
+			newSubscribeWorker(dbID, types.ReplicateFromNewest, s))).start()
 	}
 
 	return
 }
 
-// AdviseNewBlock handles block replication request from the remote database chain service.
-func (s *Service) AdviseNewBlock(req *sqlchain.MuxAdviseNewBlockReq, resp *sqlchain.MuxAdviseNewBlockResp) (err error) {
-	if atomic.LoadInt32(&s.stopped) == 1 {
-		// stopped
-		return ErrStopped
-	}
-
-	if req.Block == nil {
-		log.WithField("node", req.GetNodeID().String()).Warning("received empty block")
+func unpackWorker(actual interface{}, _ ...interface{}) (worker *subscribeWorker) {
+	if actual == nil {
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"node":  req.GetNodeID().String(),
-		"block": req.Block.BlockHash(),
-	}).Debug("received block")
+	worker, _ = actual.(*subscribeWorker)
 
-	return s.addBlock(req.DatabaseID, req.Count, req.Block)
+	return
 }
 
 func (s *Service) start() (err error) {
@@ -246,52 +217,12 @@ func (s *Service) start() (err error) {
 		return ErrStopped
 	}
 
-	s.lock.Lock()
-	dbs := make([]proto.DatabaseID, len(s.subscription))
-	for dbID := range s.subscription {
-		dbs = append(dbs, dbID)
-	}
-	s.lock.Unlock()
-
-	for _, dbID := range dbs {
-		if err = s.startSubscribe(dbID); err != nil {
-			log.WithField("db", dbID).WithError(err).Warning("start subscription failed")
-		}
-	}
+	s.subscription.Range(func(_, rawWorker interface{}) bool {
+		unpackWorker(rawWorker).start()
+		return true
+	})
 
 	return nil
-}
-
-func (s *Service) startSubscribe(dbID proto.DatabaseID) (err error) {
-	if atomic.LoadInt32(&s.stopped) == 1 {
-		// stopped
-		return ErrStopped
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// start subscribe on first node of each sqlchain server peers
-	log.WithField("db", dbID).Info("start subscribing transactions")
-
-	instance, err := s.getUpstream(dbID)
-	if err != nil {
-		return
-	}
-
-	// store the genesis block
-	if err = s.addBlock(dbID, 0, instance.GenesisBlock); err != nil {
-		return
-	}
-
-	req := &worker.SubscribeTransactionsReq{}
-	resp := &worker.SubscribeTransactionsResp{}
-	req.Height = s.subscription[dbID]
-	req.DatabaseID = dbID
-
-	err = s.minerRequest(dbID, route.DBSSubscribeTransactions.String(), req, resp)
-
-	return
 }
 
 func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack *types.SignedAckHeader) (err error) {
@@ -305,9 +236,6 @@ func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack 
 		// stopped
 		return ErrStopped
 	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
 
 	if err = ack.Verify(); err != nil {
 		return
@@ -334,9 +262,6 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 		// stopped
 		return ErrStopped
 	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
 
 	if err = qt.Request.Verify(); err != nil {
 		return
@@ -433,23 +358,13 @@ func (s *Service) stop() (err error) {
 		return ErrStopped
 	}
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	// send cancel subscription to all databases
 	log.Info("stop subscribing all databases")
 
-	for dbID := range s.subscription {
-		// send cancel subscription rpc
-		req := &worker.CancelSubscriptionReq{}
-		resp := &worker.CancelSubscriptionResp{}
-		req.DatabaseID = dbID
-
-		if err = s.minerRequest(dbID, route.DBSCancelSubscription.String(), req, resp); err != nil {
-			// cancel subscription failed
-			log.WithField("db", dbID).WithError(err).Warning("cancel subscription")
-		}
-	}
+	s.subscription.Range(func(_, rawWorker interface{}) bool {
+		unpackWorker(rawWorker).stop()
+		return true
+	})
 
 	// close the subscription database
 	s.db.Close()
@@ -467,7 +382,7 @@ func (s *Service) minerRequest(dbID proto.DatabaseID, method string, request int
 }
 
 func (s *Service) getUpstream(dbID proto.DatabaseID) (instance *types.ServiceInstance, err error) {
-	log.WithField("db", dbID).Info("get peers info for database")
+	log.WithField("db", dbID).Debug("get peers info for database")
 
 	if iInstance, exists := s.upstreamServers.Load(dbID); exists {
 		instance = iInstance.(*types.ServiceInstance)

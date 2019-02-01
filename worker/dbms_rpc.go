@@ -30,27 +30,17 @@ var (
 	dbQueryFailCounter metrics.Meter
 )
 
-// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
-type SubscribeTransactionsReq struct {
+// ObserverFetchBlockReq defines the request for observer to fetch block.
+type ObserverFetchBlockReq struct {
 	proto.Envelope
-	DatabaseID proto.DatabaseID
-	Height     int32
+	proto.DatabaseID
+	Count int32
 }
 
-// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
-type SubscribeTransactionsResp struct {
-	proto.Envelope
-}
-
-// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
-type CancelSubscriptionReq struct {
-	proto.Envelope
-	DatabaseID proto.DatabaseID
-}
-
-// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
-type CancelSubscriptionResp struct {
-	proto.Envelope
+// ObserverFetchBlockResp defines the response for observer to fetch block.
+type ObserverFetchBlockResp struct {
+	Count int32
+	Block *types.Block
 }
 
 // DBMSRPCService is the rpc endpoint of database management.
@@ -141,19 +131,5 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}
 
-	return
-}
-
-// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
-func (rpc *DBMSRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, resp *SubscribeTransactionsResp) (err error) {
-	subscribeID := req.GetNodeID().ToNodeID()
-	err = rpc.dbms.addTxSubscription(req.DatabaseID, subscribeID, req.Height)
-	return
-}
-
-// CancelSubscription is the RPC method to cancel subscription in the target server.
-func (rpc *DBMSRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) (err error) {
-	nodeID := req.GetNodeID().ToNodeID()
-	err = rpc.dbms.cancelTxSubscription(req.DatabaseID, nodeID)
 	return
 }

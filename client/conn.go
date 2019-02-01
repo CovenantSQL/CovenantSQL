@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
 )
 
@@ -150,7 +151,7 @@ ackWorkerLoop:
 		oneTime.Do(func() {
 			pc = rpc.NewPersistentCaller(c.pCaller.TargetID)
 		})
-		if err = ack.Sign(c.parent.privKey, false); err != nil {
+		if err = ack.Sign(c.parent.privKey); err != nil {
 			log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
 			continue
 		}
@@ -164,7 +165,7 @@ ackWorkerLoop:
 	}
 
 	if pc != nil {
-		pc.CloseStream()
+		pc.Close()
 	}
 
 	log.Debug("ack worker quiting")
@@ -173,7 +174,7 @@ ackWorkerLoop:
 func (c *pconn) close() error {
 	c.stopAckWorkers()
 	if c.pCaller != nil {
-		c.pCaller.CloseStream()
+		c.pCaller.Close()
 	}
 	return nil
 }
@@ -237,6 +238,8 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 
 // ExecContext implements the driver.ExecerContext.ExecContext method.
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (result driver.Result, err error) {
+	defer trace.StartRegion(ctx, "dbExec").End()
+
 	if atomic.LoadInt32(&c.closed) != 0 {
 		err = driver.ErrBadConn
 		return
@@ -246,7 +249,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	sq := convertQuery(query, args)
 
 	var affectedRows, lastInsertID int64
-	if affectedRows, lastInsertID, _, err = c.addQuery(types.WriteQuery, sq); err != nil {
+	if affectedRows, lastInsertID, _, err = c.addQuery(ctx, types.WriteQuery, sq); err != nil {
 		return
 	}
 
@@ -260,6 +263,8 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 
 // QueryContext implements the driver.QueryerContext.QueryContext method.
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (rows driver.Rows, err error) {
+	defer trace.StartRegion(ctx, "dbQuery").End()
+
 	if atomic.LoadInt32(&c.closed) != 0 {
 		err = driver.ErrBadConn
 		return
@@ -267,7 +272,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
-	_, _, rows, err = c.addQuery(types.ReadQuery, sq)
+	_, _, rows, err = c.addQuery(ctx, types.ReadQuery, sq)
 
 	return
 }
@@ -289,7 +294,7 @@ func (c *conn) Commit() (err error) {
 
 	if len(c.queries) > 0 {
 		// send query
-		if _, _, _, err = c.sendQuery(types.WriteQuery, c.queries); err != nil {
+		if _, _, _, err = c.sendQuery(context.Background(), types.WriteQuery, c.queries); err != nil {
 			return
 		}
 	}
@@ -319,7 +324,7 @@ func (c *conn) Rollback() error {
 	return nil
 }
 
-func (c *conn) addQuery(queryType types.QueryType, query *types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
+func (c *conn) addQuery(ctx context.Context, queryType types.QueryType, query *types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	if c.inTransaction {
 		// check query type, enqueue query
 		if queryType == types.ReadQuery {
@@ -344,10 +349,10 @@ func (c *conn) addQuery(queryType types.QueryType, query *types.Query) (affected
 		"args":    query.Args,
 	}).Debug("execute query")
 
-	return c.sendQuery(queryType, []types.Query{*query})
+	return c.sendQuery(ctx, queryType, []types.Query{*query})
 }
 
-func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
+func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries []types.Query) (affectedRows int64, lastInsertID int64, rows driver.Rows, err error) {
 	var uc *pconn // peer connection used to execute the queries
 
 	uc = c.leader
@@ -399,11 +404,6 @@ func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affe
 	if err = uc.pCaller.Call(route.DBSQuery.String(), req, &response); err != nil {
 		return
 	}
-
-	// verify response
-	if err = response.Verify(); err != nil {
-		return
-	}
 	rows = newRows(&response)
 
 	if queryType == types.WriteQuery {
@@ -412,15 +412,19 @@ func (c *conn) sendQuery(queryType types.QueryType, queries []types.Query) (affe
 	}
 
 	// build ack
-	uc.ackCh <- &types.Ack{
-		Header: types.SignedAckHeader{
-			AckHeader: types.AckHeader{
-				Response:  response.Header,
-				NodeID:    c.localNodeID,
-				Timestamp: getLocalTime(),
+	func() {
+		defer trace.StartRegion(ctx, "ackEnqueue").End()
+		uc.ackCh <- &types.Ack{
+			Header: types.SignedAckHeader{
+				AckHeader: types.AckHeader{
+					Response:     response.Header.ResponseHeader,
+					ResponseHash: response.Header.Hash(),
+					NodeID:       c.localNodeID,
+					Timestamp:    getLocalTime(),
+				},
 			},
-		},
-	}
+		}
+	}()
 
 	return
 }

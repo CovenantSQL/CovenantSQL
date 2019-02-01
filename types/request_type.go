@@ -69,6 +69,15 @@ type RequestHeader struct {
 	QueriesHash  hash.Hash        `json:"qh"` // hash of query payload
 }
 
+// GetQueryKey returns a unique query key of this request.
+func (h *RequestHeader) GetQueryKey() QueryKey {
+	return QueryKey{
+		NodeID:       h.NodeID,
+		ConnectionID: h.ConnectionID,
+		SeqNo:        h.SeqNo,
+	}
+}
+
 // QueryKey defines an unique query key of a request.
 type QueryKey struct {
 	NodeID       proto.NodeID `json:"id"`
@@ -148,13 +157,4 @@ func (r *Request) SetMarshalCache(buf []byte) {
 // GetMarshalCache gets _marshalCache
 func (r *Request) GetMarshalCache() (buf []byte) {
 	return r._marshalCache
-}
-
-// GetQueryKey returns a unique query key of this request.
-func (sh *SignedRequestHeader) GetQueryKey() QueryKey {
-	return QueryKey{
-		NodeID:       sh.NodeID,
-		ConnectionID: sh.ConnectionID,
-		SeqNo:        sh.SeqNo,
-	}
 }

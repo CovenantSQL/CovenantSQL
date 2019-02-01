@@ -86,7 +86,6 @@ type Cipher struct {
 	decStream cipher.Stream
 	key       []byte
 	info      *cipherInfo
-	iv        []byte
 }
 
 // NewCipher creates a cipher that can be used in Dial(), Listen() etc.
@@ -109,14 +108,9 @@ func NewCipher(rawKey []byte) (c *Cipher) {
 
 // initEncrypt Initializes the block cipher with CFB mode, returns IV.
 func (c *Cipher) initEncrypt() (iv []byte, err error) {
-	if c.iv == nil {
-		iv = make([]byte, c.info.ivLen)
-		if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-			return nil, err
-		}
-		c.iv = iv
-	} else {
-		iv = c.iv
+	iv = make([]byte, c.info.ivLen)
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
 	}
 	c.encStream, err = c.info.newEncStream(c.key, iv)
 	return

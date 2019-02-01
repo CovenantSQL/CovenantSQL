@@ -38,7 +38,18 @@ func NewKayakService(server *rpc.Server, serviceName string, rt *kayak.Runtime) 
 	return
 }
 
-// Call handles kayak call.
-func (s *KayakService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
+// Apply handles kayak apply call.
+func (s *KayakService) Apply(req *kt.ApplyRequest, _ *interface{}) (err error) {
 	return s.rt.FollowerApply(req.Log)
+}
+
+// Fetch handles kayak log fetch call.
+func (s *KayakService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err error) {
+	var l *kt.Log
+	if l, err = s.rt.Fetch(req.GetContext(), req.Index); err != nil {
+		return
+	}
+
+	resp.Log = l
+	return
 }

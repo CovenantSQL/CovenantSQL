@@ -21,10 +21,8 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"sync/atomic"
-
-	//"runtime/trace"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -227,20 +225,7 @@ func setup() {
 		panic(err)
 	}
 
-	// Setup runtime trace for testing
-	//if testingTraceFile, err = ioutil.TempFile("", "CovenantSQL.trace."); err != nil {
-	//	panic(err)
-	//}
-	//if err = trace.Start(testingTraceFile); err != nil {
-	//	panic(err)
-	//}
-
 	log.SetLevel(log.DebugLevel)
-	//fl, err := os.OpenFile("./xenomint_test.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//log.SetOutput(fl)
 	log.SetOutput(os.Stdout)
 }
 

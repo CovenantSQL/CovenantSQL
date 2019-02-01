@@ -17,6 +17,10 @@
 package types
 
 import (
+	"encoding/json"
+	"strings"
+	"sync"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -36,56 +40,169 @@ const (
 	NumberOfRoles
 )
 
+// UserPermissionRole defines role of user permission including admin/write/read.
+type UserPermissionRole int32
+
 // UserPermission defines permissions of a SQLChain user.
-type UserPermission int32
+type UserPermission struct {
+	// User role to access database.
+	Role UserPermissionRole
+	// SQL pattern regulations for user queries
+	// only a fully matched (case-sensitive) sql query is permitted to execute.
+	Patterns []string
+
+	// patterns map cache for matching
+	cachedPatternMapOnce sync.Once
+	cachedPatternMap     map[string]bool
+}
 
 const (
-	// Void defines the initial permission.
-	Void UserPermission = iota
-	// Admin defines the admin user permission.
-	Admin
+	// Read defines the read user permission.
+	Read UserPermissionRole = 1 << iota
 	// Write defines the writer user permission.
 	Write
-	// Read defines the reader user permission.
-	Read
-	// NumberOfUserPermission defines the user permission number.
-	NumberOfUserPermission
+	// Super defines the super user permission.
+	Super
+
+	// ReadOnly defines the reader user permission.
+	ReadOnly = Read
+	// WriteOnly defines the writer user permission.
+	WriteOnly = Write
+	// ReadWrite defines the reader && writer user permission.
+	ReadWrite = Read | Write
+	// Admin defines the privilege to full control the database.
+	Admin = Read | Write | Super
+
+	// Void defines the initial permission.
+	Void UserPermissionRole = 0
 )
 
-// CheckRead returns true if user owns read permission.
-func (up *UserPermission) CheckRead() bool {
-	return *up >= Admin && *up < NumberOfUserPermission
-}
-
-// CheckWrite returns true if user owns write permission.
-func (up *UserPermission) CheckWrite() bool {
-	return *up >= Admin && *up <= Write
-}
-
-// CheckAdmin returns true if user owns admin permission.
-func (up *UserPermission) CheckAdmin() bool {
-	return *up == Admin
-}
-
-// Valid returns true if the value is a meaning permission value.
-func (up *UserPermission) Valid() bool {
-	return *up >= Admin && *up < NumberOfUserPermission
-}
-
-// FromString converts string to UserPermission.
-func (up *UserPermission) FromString(perm string) {
-	switch perm {
-	case "Admin":
-		*up = Admin
-	case "Write":
-		*up = Write
-	case "Read":
-		*up = Read
-	case "Void":
-		*up = Void
-	default:
-		*up = NumberOfUserPermission
+// UnmarshalJSON implements the json.Unmarshler interface.
+func (r *UserPermissionRole) UnmarshalJSON(data []byte) (err error) {
+	var s string
+	if err = json.Unmarshal(data, &s); err != nil {
+		return
 	}
+	r.FromString(s)
+	return
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (r UserPermissionRole) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.String())
+}
+
+// String implements the fmt.Stringer interface.
+func (r UserPermissionRole) String() string {
+	if r == Void {
+		return "Void"
+	} else if r == Admin {
+		return "Admin"
+	}
+
+	var res []string
+	if r&Read != 0 {
+		res = append(res, "Read")
+	}
+	if r&Write != 0 {
+		res = append(res, "Write")
+	}
+	if r&Super != 0 {
+		res = append(res, "Super")
+	}
+
+	return strings.Join(res, ",")
+}
+
+// FromString converts string to UserPermissionRole.
+func (r *UserPermissionRole) FromString(perm string) {
+	if perm == "Void" {
+		*r = Void
+		return
+	} else if perm == "Admin" {
+		*r = Admin
+		return
+	}
+
+	*r = Void
+
+	for _, p := range strings.Split(perm, ",") {
+		p = strings.TrimSpace(p)
+		switch p {
+		case "Read":
+			*r |= Read
+		case "Write":
+			*r |= Write
+		case "Super":
+			*r |= Super
+		}
+	}
+}
+
+// UserPermissionFromRole construct a new user permission instance from primitive user permission role enum.
+func UserPermissionFromRole(role UserPermissionRole) *UserPermission {
+	return &UserPermission{
+		Role: role,
+	}
+}
+
+// HasReadPermission returns true if user owns read permission.
+func (up *UserPermission) HasReadPermission() bool {
+	if up == nil {
+		return false
+	}
+	return up.Role&Read != 0
+}
+
+// HasWritePermission returns true if user owns write permission.
+func (up *UserPermission) HasWritePermission() bool {
+	if up == nil {
+		return false
+	}
+	return up.Role&Write != 0
+}
+
+// HasSuperPermission returns true if user owns super permission.
+func (up *UserPermission) HasSuperPermission() bool {
+	if up == nil {
+		return false
+	}
+	return up.Role&Super != 0
+}
+
+// IsValid returns whether the permission object is valid or not.
+func (up *UserPermission) IsValid() bool {
+	return up != nil && up.Role != 0
+}
+
+// HasDisallowedQueryPatterns returns whether the queries are permitted.
+func (up *UserPermission) HasDisallowedQueryPatterns(queries []Query) (query string, status bool) {
+	if up == nil {
+		status = true
+		return
+	}
+	if len(up.Patterns) == 0 {
+		status = false
+		return
+	}
+
+	up.cachedPatternMapOnce.Do(func() {
+		up.cachedPatternMap = make(map[string]bool, len(up.Patterns))
+		for _, p := range up.Patterns {
+			up.cachedPatternMap[p] = true
+		}
+	})
+
+	for _, q := range queries {
+		if !up.cachedPatternMap[q.Pattern] {
+			// not permitted
+			query = q.Pattern
+			status = true
+			break
+		}
+	}
+
+	return
 }
 
 // Status defines status of a SQLChain user/miner.
@@ -113,14 +230,14 @@ func (s *Status) EnableQuery() bool {
 
 // PermStat defines the permissions status structure.
 type PermStat struct {
-	Permission UserPermission
+	Permission *UserPermission
 	Status     Status
 }
 
 // SQLChainUser defines a SQLChain user.
 type SQLChainUser struct {
 	Address        proto.AccountAddress
-	Permission     UserPermission
+	Permission     *UserPermission
 	AdvancePayment uint64
 	Arrears        uint64
 	Deposit        uint64

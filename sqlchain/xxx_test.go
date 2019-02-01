@@ -146,9 +146,10 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 	resp := &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
-				Request:   *req,
-				NodeID:    worker.NodeID,
-				Timestamp: createRandomTimeAfter(req.Timestamp, 100),
+				Request:     req.RequestHeader,
+				RequestHash: req.Hash(),
+				NodeID:      worker.NodeID,
+				Timestamp:   createRandomTimeAfter(req.Timestamp, 100),
 			},
 		},
 		Payload: types.ResponsePayload{
@@ -166,7 +167,7 @@ func createRandomQueryResponse(cli, worker *nodeProfile) (
 		}
 	}
 
-	if err = resp.Sign(worker.PrivateKey); err != nil {
+	if err = resp.BuildHash(); err != nil {
 		return
 	}
 
@@ -180,14 +181,15 @@ func createRandomQueryAckWithResponse(resp *types.SignedResponseHeader, cli *nod
 	ack := &types.Ack{
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
-				Response:  *resp,
-				NodeID:    cli.NodeID,
-				Timestamp: createRandomTimeAfter(resp.Timestamp, 100),
+				Response:     resp.ResponseHeader,
+				ResponseHash: resp.Hash(),
+				NodeID:       cli.NodeID,
+				Timestamp:    createRandomTimeAfter(resp.Timestamp, 100),
 			},
 		},
 	}
 
-	if err = ack.Sign(cli.PrivateKey, true); err != nil {
+	if err = ack.Sign(cli.PrivateKey); err != nil {
 		return
 	}
 

@@ -76,9 +76,6 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 		if err = c.initDecrypt(iv); err != nil {
 			return
 		}
-		if len(c.iv) == 0 {
-			c.iv = iv
-		}
 		c.decrypt(header, header)
 		if header[0] != ETLSMagicBytes[0] || header[1] != ETLSMagicBytes[1] {
 			err = errors.New("bad stream ETLS header")

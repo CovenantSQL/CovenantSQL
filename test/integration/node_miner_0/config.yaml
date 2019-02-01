@@ -51,7 +51,7 @@ Miner:
   IsTestMode: true
   RootDir: "./data"
   MaxReqTimeGap: "2s"
-  ProvideServiceInterval: "3s"
+  ProvideServiceInterval: "60s"
 KnownNodes:
 - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:

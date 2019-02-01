@@ -230,3 +230,40 @@ func BenchmarkAppendMsgUserArrears(b *testing.B) {
 		bts, _ = v.MarshalHash()
 	}
 }
+
+func TestMarshalHashUserPermission(t *testing.T) {
+	v := UserPermission{}
+	binary.Read(rand.Reader, binary.BigEndian, &v)
+	bts1, err := v.MarshalHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bts2, err := v.MarshalHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(bts1, bts2) {
+		t.Fatal("hash not stable")
+	}
+}
+
+func BenchmarkMarshalHashUserPermission(b *testing.B) {
+	v := UserPermission{}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		v.MarshalHash()
+	}
+}
+
+func BenchmarkAppendMsgUserPermission(b *testing.B) {
+	v := UserPermission{}
+	bts := make([]byte, 0, v.Msgsize())
+	bts, _ = v.MarshalHash()
+	b.SetBytes(int64(len(bts)))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bts, _ = v.MarshalHash()
+	}
+}

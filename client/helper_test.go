@@ -18,6 +18,7 @@ package client
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -149,8 +150,11 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	req = new(types.UpdateService)
 	req.Header.Op = types.CreateDB
 	req.Header.Instance = types.ServiceInstance{
-		DatabaseID:   dbID,
-		Peers:        peers,
+		DatabaseID: dbID,
+		Peers:      peers,
+		ResourceMeta: types.ResourceMeta{
+			IsolationLevel: int(sql.LevelReadUncommitted),
+		},
 		GenesisBlock: block,
 	}
 	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
@@ -175,7 +179,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 		return
 	}
 	permStat := &types.PermStat{
-		Permission: types.Admin,
+		Permission: types.UserPermissionFromRole(types.Admin),
 		Status:     types.Normal,
 	}
 	err = dbms.UpdatePermission(dbID, proto.AccountAddress(addr), permStat)

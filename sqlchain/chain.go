@@ -19,6 +19,7 @@ package sqlchain
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -174,15 +175,9 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 
 	log.WithField("db", c.DatabaseID).Debugf("create new chain tdb %s", tdbFile)
 
-	// Open x.State
-	var (
-		strg  xi.Storage
-		state *x.State
-	)
+	// Open storage
+	var strg xi.Storage
 	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
-		return
-	}
-	if state, err = x.NewState(c.Server, strg); err != nil {
 		return
 	}
 
@@ -207,7 +202,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		tdb:          tdb,
 		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
-		st:           state,
+		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(ctx, c),
 		ctx:          ctx,
@@ -261,14 +256,8 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	}
 
 	// Open x.State
-	var (
-		strg   xi.Storage
-		xstate *x.State
-	)
+	var strg xi.Storage
 	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
-		return
-	}
-	if xstate, err = x.NewState(c.Server, strg); err != nil {
 		return
 	}
 
@@ -293,7 +282,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		tdb:          tdb,
 		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
-		st:           xstate,
+		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(ctx, c),
 		ctx:          ctx,
@@ -540,7 +529,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 // pushAckedQuery pushes a acknowledged, signed and verified query into the chain.
 func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	log.WithField("db", c.databaseID).Debugf("push ack %s", ack.Hash().String())
-	h := c.rt.getHeightFromTime(ack.SignedResponseHeader().Timestamp)
+	h := c.rt.getHeightFromTime(ack.GetResponseTimestamp())
 	k := heightToKey(h)
 	var enc *bytes.Buffer
 
@@ -1115,7 +1104,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 // VerifyAndPushAckedQuery verifies a acknowledged and signed query, and pushed it if valid.
 func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
-	if c.rt.queryTimeIsExpired(ack.SignedResponseHeader().Timestamp) {
+	if c.rt.queryTimeIsExpired(ack.GetResponseTimestamp()) {
 		err = errors.Wrapf(ErrQueryExpired, "Verify ack query, min valid height %d, ack height %d", c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
 		return
 	}
@@ -1210,24 +1199,24 @@ func (c *Chain) replicationCycle(ctx context.Context) {
 
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(
-	req *types.Request) (tracker *x.QueryTracker, resp *types.Response, err error,
+	req *types.Request, isLeader bool) (tracker *x.QueryTracker, resp *types.Response, err error,
 ) {
 	// TODO(leventeliu): we're using an external context passed by request. Make sure that
 	// cancelling will be propagated to this context before chain instance stops.
-	return c.st.QueryWithContext(req.GetContext(), req)
+	return c.st.QueryWithContext(req.GetContext(), req, isLeader)
 }
 
 // AddResponse addes a response to the ackIndex, awaiting for acknowledgement.
 func (c *Chain) AddResponse(resp *types.SignedResponseHeader) (err error) {
-	return c.ai.addResponse(c.rt.getHeightFromTime(resp.Request.Timestamp), resp)
+	return c.ai.addResponse(c.rt.getHeightFromTime(resp.GetRequestTimestamp()), resp)
 }
 
 func (c *Chain) register(ack *types.SignedAckHeader) (err error) {
-	return c.ai.register(c.rt.getHeightFromTime(ack.SignedRequestHeader().Timestamp), ack)
+	return c.ai.register(c.rt.getHeightFromTime(ack.GetRequestTimestamp()), ack)
 }
 
 func (c *Chain) remove(ack *types.SignedAckHeader) (err error) {
-	return c.ai.remove(c.rt.getHeightFromTime(ack.SignedRequestHeader().Timestamp), ack)
+	return c.ai.remove(c.rt.getHeightFromTime(ack.GetRequestTimestamp()), ack)
 }
 
 func (c *Chain) pruneBlockCache() {
@@ -1287,10 +1276,7 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 			}
 		}
 		for _, tx := range block.QueryTxs {
-			if minerAddr, err = crypto.PubKeyHash(tx.Response.Signee); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
-				return
-			}
+			minerAddr = tx.Response.ResponseAccount
 			if userAddr, err = crypto.PubKeyHash(tx.Request.Header.Signee); err != nil {
 				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
 				return

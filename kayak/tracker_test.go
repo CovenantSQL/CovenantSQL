@@ -44,7 +44,7 @@ func TestTracker(t *testing.T) {
 		nodeID1 := proto.NodeID("000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5")
 		nodeID2 := proto.NodeID("000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade")
 		r := &Runtime{
-			rpcMethod: "test",
+			applyRPCMethod: "test",
 			followers: []proto.NodeID{
 				nodeID1,
 				nodeID2,

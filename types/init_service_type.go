@@ -39,6 +39,7 @@ type ResourceMeta struct {
 	EncryptionKey          string                 // encryption key for database instance
 	UseEventualConsistency bool                   // use eventual consistency replication if enabled
 	ConsistencyLevel       float64                // customized strong consistency level
+	IsolationLevel         int                    // customized isolation level
 }
 
 // ServiceInstance defines single instance to be initialized.

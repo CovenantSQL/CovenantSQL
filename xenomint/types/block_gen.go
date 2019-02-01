@@ -11,19 +11,6 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
-	// map header, size 2
-	o = append(o, 0x83, 0x83, 0x82, 0x82)
-	if oTemp, err := z.SignedBlockHeader.BlockHeader.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x82)
-	if oTemp, err := z.SignedBlockHeader.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
 	o = append(o, 0x83)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.ReadQueries)))
 	for za0001 := range z.ReadQueries {
@@ -37,7 +24,18 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 			}
 		}
 	}
-	o = append(o, 0x83)
+	// map header, size 2
+	o = append(o, 0x82)
+	if oTemp, err := z.SignedBlockHeader.BlockHeader.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	if oTemp, err := z.SignedBlockHeader.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	o = hsp.AppendArrayHeader(o, uint32(len(z.WriteQueries)))
 	for za0002 := range z.WriteQueries {
 		if z.WriteQueries[za0002] == nil {
@@ -55,7 +53,7 @@ func (z *Block) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Block) Msgsize() (s int) {
-	s = 1 + 18 + 1 + 12 + z.SignedBlockHeader.BlockHeader.Msgsize() + 28 + z.SignedBlockHeader.DefaultHashSignVerifierImpl.Msgsize() + 12 + hsp.ArrayHeaderSize
+	s = 1 + 12 + hsp.ArrayHeaderSize
 	for za0001 := range z.ReadQueries {
 		if z.ReadQueries[za0001] == nil {
 			s += hsp.NilSize
@@ -63,7 +61,7 @@ func (z *Block) Msgsize() (s int) {
 			s += z.ReadQueries[za0001].Msgsize()
 		}
 	}
-	s += 13 + hsp.ArrayHeaderSize
+	s += 18 + 1 + 12 + z.SignedBlockHeader.BlockHeader.Msgsize() + 28 + z.SignedBlockHeader.DefaultHashSignVerifierImpl.Msgsize() + 13 + hsp.ArrayHeaderSize
 	for za0002 := range z.WriteQueries {
 		if z.WriteQueries[za0002] == nil {
 			s += hsp.NilSize
@@ -79,40 +77,35 @@ func (z *BlockHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 6
-	o = append(o, 0x86, 0x86)
+	o = append(o, 0x86)
 	if oTemp, err := z.GenesisHash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x86)
-	if oTemp, err := z.ParentHash.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x86)
 	if oTemp, err := z.MerkleRoot.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x86)
-	o = hsp.AppendInt32(o, z.Version)
-	o = append(o, 0x86)
+	if oTemp, err := z.ParentHash.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	if oTemp, err := z.Producer.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x86)
 	o = hsp.AppendTime(o, z.Timestamp)
+	o = hsp.AppendInt32(o, z.Version)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BlockHeader) Msgsize() (s int) {
-	s = 1 + 12 + z.GenesisHash.Msgsize() + 11 + z.ParentHash.Msgsize() + 11 + z.MerkleRoot.Msgsize() + 8 + hsp.Int32Size + 9 + z.Producer.Msgsize() + 10 + hsp.TimeSize
+	s = 1 + 12 + z.GenesisHash.Msgsize() + 11 + z.MerkleRoot.Msgsize() + 11 + z.ParentHash.Msgsize() + 9 + z.Producer.Msgsize() + 10 + hsp.TimeSize + 8 + hsp.Int32Size
 	return
 }
 
@@ -121,13 +114,12 @@ func (z *SignedBlockHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
+	o = append(o, 0x82)
 	if oTemp, err := z.BlockHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
 	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {

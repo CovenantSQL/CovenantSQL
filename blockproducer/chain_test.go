@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -121,7 +122,7 @@ func TestChain(t *testing.T) {
 				}),
 			},
 		}
-		err = genesis.PackAndSignBlock(testingPrivateKey)
+		err = genesis.SetHash()
 		So(err, ShouldBeNil)
 		begin = genesis.Timestamp()
 
@@ -147,7 +148,7 @@ func TestChain(t *testing.T) {
 
 		Convey("A new chain running before genesis time should be waiting for genesis", func() {
 			config.Genesis.SignedHeader.Timestamp = time.Now().Add(24 * time.Hour)
-			err = genesis.PackAndSignBlock(testingPrivateKey)
+			err = genesis.SetHash()
 			So(err, ShouldBeNil)
 			chain, err = NewChain(config)
 			So(err, ShouldBeNil)
@@ -310,6 +311,47 @@ func TestChain(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(chain, ShouldNotBeNil)
 					chain.stat()
+				})
+
+				Convey("The chain should report error if genesis in config is cleared", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					config.Genesis = nil
+					chain, err = NewChain(config)
+					So(err, ShouldEqual, ErrNilGenesis)
+					So(chain, ShouldBeNil)
+				})
+
+				Convey("The chain should report error if config is changed", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					config.Genesis.Transactions = append(
+						config.Genesis.Transactions,
+						types.NewBaseAccount(&types.Account{
+							Address:      addr2,
+							TokenBalance: [5]uint64{1000, 1000, 1000, 1000, 1000},
+						}),
+					)
+					chain, err = NewChain(config)
+					So(errors.Cause(err), ShouldEqual, types.ErrMerkleRootVerification)
+					So(chain, ShouldBeNil)
+				})
+
+				Convey("The chain should report error if config is changed and rehashed", func() {
+					err = chain.Stop()
+					So(err, ShouldBeNil)
+					config.Genesis.Transactions = append(
+						config.Genesis.Transactions,
+						types.NewBaseAccount(&types.Account{
+							Address:      addr2,
+							TokenBalance: [5]uint64{1000, 1000, 1000, 1000, 1000},
+						}),
+					)
+					err = config.Genesis.SetHash()
+					So(err, ShouldBeNil)
+					chain, err = NewChain(config)
+					So(err, ShouldEqual, ErrGenesisHashNotMatch)
+					So(chain, ShouldBeNil)
 				})
 
 				Convey("The chain APIs should return expected results", func() {

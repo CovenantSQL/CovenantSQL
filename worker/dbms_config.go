@@ -29,7 +29,8 @@ var (
 
 // DBMSConfig defines the local multi-database management system config.
 type DBMSConfig struct {
-	RootDir       string
-	Server        *rpc.Server
-	MaxReqTimeGap time.Duration
+	RootDir          string
+	Server           *rpc.Server
+	MaxReqTimeGap    time.Duration
+	OnCreateDatabase func()
 }

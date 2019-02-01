@@ -322,7 +322,7 @@ func TestFullProcess(t *testing.T) {
 		up := types.NewUpdatePermission(&types.UpdatePermissionHeader{
 			TargetSQLChain: dbAddr,
 			TargetUser:     obAddr,
-			Permission:     types.Read,
+			Permission:     types.UserPermissionFromRole(types.Read),
 			Nonce:          nonce,
 		})
 		err = up.Sign(cliPriv)
@@ -344,7 +344,7 @@ func TestFullProcess(t *testing.T) {
 					"stat": user.Status,
 				}).Debug("checkFunc 1")
 				if user.Address == obAddr {
-					return user.Permission.CheckRead()
+					return user.Permission.HasReadPermission()
 				}
 			}
 			return false
@@ -629,7 +629,7 @@ func TestFullProcess(t *testing.T) {
 		up = types.NewUpdatePermission(&types.UpdatePermissionHeader{
 			TargetSQLChain: dbAddr2,
 			TargetUser:     obAddr,
-			Permission:     types.Read,
+			Permission:     types.UserPermissionFromRole(types.Read),
 			Nonce:          nonce,
 		})
 		err = up.Sign(cliPriv)
@@ -646,7 +646,7 @@ func TestFullProcess(t *testing.T) {
 		err = waitProfileChecking(ctx4, 3*time.Second, proto.DatabaseID(dbID2), func(profile *types.SQLChainProfile) bool {
 			for _, user := range profile.Users {
 				if user.Address == obAddr {
-					return user.Permission.CheckRead()
+					return user.Permission.HasReadPermission()
 				}
 			}
 			return false

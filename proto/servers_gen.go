@@ -11,14 +11,13 @@ func (z *Peers) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
-	o = append(o, 0x82, 0x82)
-	if oTemp, err := z.PeersHeader.MarshalHash(); err != nil {
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x82)
-	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+	if oTemp, err := z.PeersHeader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -28,7 +27,7 @@ func (z *Peers) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Peers) Msgsize() (s int) {
-	s = 1 + 12 + z.PeersHeader.Msgsize() + 28 + z.DefaultHashSignVerifierImpl.Msgsize()
+	s = 1 + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 12 + z.PeersHeader.Msgsize()
 	return
 }
 
@@ -37,13 +36,12 @@ func (z *PeersHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	o = append(o, 0x84)
 	if oTemp, err := z.Leader.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x84)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Servers)))
 	for za0001 := range z.Servers {
 		if oTemp, err := z.Servers[za0001].MarshalHash(); err != nil {
@@ -52,10 +50,8 @@ func (z *PeersHeader) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
-	o = hsp.AppendUint64(o, z.Version)
-	o = append(o, 0x84)
 	o = hsp.AppendUint64(o, z.Term)
+	o = hsp.AppendUint64(o, z.Version)
 	return
 }
 
@@ -65,6 +61,6 @@ func (z *PeersHeader) Msgsize() (s int) {
 	for za0001 := range z.Servers {
 		s += z.Servers[za0001].Msgsize()
 	}
-	s += 8 + hsp.Uint64Size + 5 + hsp.Uint64Size
+	s += 5 + hsp.Uint64Size + 8 + hsp.Uint64Size
 	return
 }

@@ -21,5 +21,5 @@ type Handler interface {
 	EncodePayload(req interface{}) (data []byte, err error)
 	DecodePayload(data []byte) (req interface{}, err error)
 	Check(request interface{}) error
-	Commit(request interface{}) (result interface{}, err error)
+	Commit(request interface{}, isLeader bool) (result interface{}, err error)
 }

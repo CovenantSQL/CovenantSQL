@@ -3,8 +3,8 @@ WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
-ListenAddr: "172.254.1.4:4661"
-ThisNodeID: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
+ListenAddr: "172.254.1.12:4661"
+ThisNodeID: "00000072b13c696b8fa4ccf29595ba83c5baa92d980891691b41777481446cc7"
 QPS: 1000
 ChainBusPeriod: 20s
 BPPeriod: 3s
@@ -99,3 +99,13 @@ KnownNodes:
     Addr: 172.254.1.7:4661
     PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
     Role: Miner
+  - ID: 00000072b13c696b8fa4ccf29595ba83c5baa92d980891691b41777481446cc7
+    Nonce:
+      a: 2786544
+      b: 0
+      c: 0
+      d: 1344760644
+    Addr: 172.254.1.12:4661
+    PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+    Role: Client
+

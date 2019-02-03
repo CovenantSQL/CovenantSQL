@@ -197,7 +197,7 @@ func TestGetTokenBalance(t *testing.T) {
 
 		// driver not initialized
 		_, err = GetTokenBalance(types.Particle)
-		So(err, ShouldNotBeNil)
+		So(err, ShouldEqual, ErrNotInitialized)
 
 		// fake driver initialized
 		atomic.StoreUint32(&driverInitialized, 1)

@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -66,22 +65,31 @@ func TestDefaultInit(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	// test defaultInit
 	Convey("test defaultInit", t, func() {
+		var stopTestService func()
+		var confDir string
 		var err error
+
+		// check and prepare ~/.cql
+		homePath := utils.HomeDirExpand("~/.cql")
+		So(utils.Exist(homePath), ShouldEqual, false)
 
 		// no config err
 		err = defaultInit()
 		So(err, ShouldNotBeNil)
 
-		// copy testnet conf
-		_, testFile, _, _ := runtime.Caller(0)
-		confFile := filepath.Join(filepath.Dir(testFile), "../conf/testnet/config.yaml")
-		privateKeyFile := filepath.Join(filepath.Dir(testFile), "../conf/testnet/private.key")
-
-		homePath := utils.HomeDirExpand("~/.cql")
-		homeConfig := filepath.Join(homePath, "config.yaml")
-		homeKey := filepath.Join(homePath, "private.key")
 		err = os.Mkdir(homePath, 0755)
 		So(err, ShouldBeNil)
+		defer os.RemoveAll(homePath)
+
+		stopTestService, confDir, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+
+		// copy standalone conf
+		confFile := filepath.Join(confDir, "config.yaml")
+		privateKeyFile := filepath.Join(confDir, "private.key")
+		homeConfig := filepath.Join(homePath, "config.yaml")
+		homeKey := filepath.Join(homePath, "private.key")
 		_, err = utils.CopyFile(confFile, homeConfig)
 		So(err, ShouldBeNil)
 		_, err = utils.CopyFile(privateKeyFile, homeKey)
@@ -97,8 +105,6 @@ func TestDefaultInit(t *testing.T) {
 		// clean
 		stopPeersUpdater()
 		atomic.StoreUint32(&driverInitialized, 0)
-		os.RemoveAll(homePath)
-		So(err, ShouldBeNil)
 	})
 }
 
@@ -184,9 +190,12 @@ func TestOpen(t *testing.T) {
 		_, err = cqlDriver.Open("invalid dsn")
 		So(err, ShouldNotBeNil)
 
-		// not initialized
+		// not initialized(will run defaultInit once)
 		_, err = cqlDriver.Open("covenantsql://db")
 		So(err, ShouldNotBeNil)
+
+		// reset driver not initialized
+		atomic.StoreUint32(&driverInitialized, 0)
 	})
 }
 

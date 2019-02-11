@@ -258,6 +258,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		server.Stop()
 		// restore database init state
 		atomic.StoreUint32(&driverInitialized, 0)
+		kms.ResetLocalKeyStore()
 	}
 	return
 }

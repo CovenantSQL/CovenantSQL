@@ -48,6 +48,7 @@ func TestLocalKeyStore(t *testing.T) {
 		So(bytes.Compare(gotPrivate.Serialize(), privKey1.Serialize()), ShouldBeZeroValue)
 		So(gotPublic.IsEqual(pubKey1), ShouldBeTrue)
 		So(gotPrivate.PubKey().IsEqual(pubKey1), ShouldBeTrue)
+		ResetLocalKeyStore()
 	})
 	Convey("set and get key", t, func() {
 		initLocalKeyStore()

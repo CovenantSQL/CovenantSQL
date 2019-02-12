@@ -43,20 +43,25 @@ func TestInit(t *testing.T) {
 		var stopTestService func()
 		var confDir string
 		var err error
+
 		stopTestService, confDir, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
+
 		// already init ed
 		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))
 		So(err, ShouldNotBeNil)
+
 		// fake driver not initialized
 		atomic.StoreUint32(&driverInitialized, 0)
 		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))
 		So(err, ShouldBeNil)
+
 		// test loaded block producer nodes
 		bps := route.GetBPs()
 		So(len(bps), ShouldBeGreaterThanOrEqualTo, 1)
 		//So(bps[0].ToRawNodeID().ToNodeID(), ShouldResemble, (*conf.GConf.KnownNodes)[0].ID)
+
 		stopPeersUpdater()
 	})
 }
@@ -282,7 +287,6 @@ func TestTransferToken(t *testing.T) {
 		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
-		defer stopPeersUpdater()
 
 		// with mock bp, any params will be success
 		txHash, err := TransferToken(user, 100, types.Particle)
@@ -315,10 +319,43 @@ func TestUpdatePermission(t *testing.T) {
 		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
-		defer stopPeersUpdater()
 
 		// with mock bp, any params will be success
 		_, err = UpdatePermission(user, chain, &perm)
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestRunPeerListUpdater(t *testing.T) {
+	Convey("test peersUpdaterRunning", t, func() {
+		var stopTestService func()
+		var err error
+
+		err = runPeerListUpdater()
+		So(err, ShouldNotBeNil)
+
+		stopTestService, _, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+
+		// normal case
+		err = runPeerListUpdater()
+		So(err, ShouldBeNil)
+
+		// only one goroutine will be started
+		err = runPeerListUpdater()
+		So(err, ShouldBeNil)
+
+		var priv *asymmetric.PrivateKey
+		priv, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+		dbID := proto.DatabaseID("db")
+
+		_, err = getPeers(dbID, priv)
+		So(err, ShouldBeNil)
+
+		time.Sleep(PeersUpdateInterval)
+		time.Sleep(1 * time.Second)
+		stopPeersUpdater()
 	})
 }

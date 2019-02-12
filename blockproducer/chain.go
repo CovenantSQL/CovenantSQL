@@ -103,14 +103,7 @@ func NewChain(cfg *Config) (c *Chain, err error) {
 // NewChainWithContext creates a new blockchain with context.
 func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
-		existed bool
-		ierr    error
-
-		cld context.Context
-		ccl context.CancelFunc
-		l   = uint32(len(cfg.Peers.Servers))
-		t   float64
-		m   uint32
+		ierr error
 
 		st        xi.Storage
 		cache     *lru.Cache
@@ -119,11 +112,10 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		immutable *metaState
 		txPool    map[hash.Hash]pi.Transaction
 
-		branches  []*branch
-		br, head  *branch
-		headIndex int
+		branches   []*branch
+		headBranch *branch
+		headIndex  int
 
-		pubKey      *asymmetric.PublicKey
 		addr        proto.AccountAddress
 		bpInfos     []*blockProducerInfo
 		localBPInfo *blockProducerInfo
@@ -142,6 +134,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Open storage
+	var existed bool
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
 		existed = true
 	}
@@ -213,6 +206,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			"head_count": v.count,
 		}).Debug("checking head")
 		if v.hasAncestor(irre) {
+			var br *branch
 			if br, ierr = newBranch(irre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
 				return
@@ -227,13 +221,14 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 	// Set head branch
 	for i, v := range branches {
-		if head == nil || v.head.count > head.head.count {
+		if headBranch == nil || v.head.count > headBranch.head.count {
 			headIndex = i
-			head = v
+			headBranch = v
 		}
 	}
 
 	// Get accountAddress
+	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
 		return
 	}
@@ -242,18 +237,24 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
+	var (
+		l = uint32(len(cfg.Peers.Servers))
+
+		threshold    float64
+		needConfirms uint32
+	)
 	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode); err != nil {
 		return
 	}
-	if t = cfg.ConfirmThreshold; t <= 0.0 {
-		t = conf.DefaultConfirmThreshold
+	if threshold = cfg.ConfirmThreshold; threshold <= 0.0 {
+		threshold = conf.DefaultConfirmThreshold
 	}
-	if m = uint32(math.Ceil(float64(l)*t + 1)); m > l {
-		m = l
+	if needConfirms = uint32(math.Ceil(float64(l)*threshold + 1)); needConfirms > l {
+		needConfirms = l
 	}
 
 	// create chain
-	cld, ccl = context.WithCancel(ctx)
+	var cld, ccl = context.WithCancel(ctx)
 	c = &Chain{
 		ctx:    cld,
 		cancel: ccl,
@@ -279,14 +280,14 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		bpInfos:     bpInfos,
 		localBPInfo: localBPInfo,
 		localNodeID: cfg.NodeID,
-		confirms:    m,
-		nextHeight:  head.head.height + 1,
+		confirms:    needConfirms,
+		nextHeight:  headBranch.head.height + 1,
 		offset:      time.Duration(0), // TODO(leventeliu): initialize offset
 
 		lastIrre:   irre,
 		immutable:  immutable,
 		headIndex:  headIndex,
-		headBranch: head,
+		headBranch: headBranch,
 		branches:   branches,
 		txPool:     txPool,
 	}

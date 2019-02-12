@@ -52,5 +52,5 @@ type Config struct {
 	Period time.Duration
 	Tick   time.Duration
 
-	blockCacheSize int
+	BlockCacheSize int
 }

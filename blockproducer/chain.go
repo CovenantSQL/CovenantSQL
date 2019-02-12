@@ -150,13 +150,13 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}()
 
 	// Create block cache
-	if cfg.blockCacheSize > conf.MaxCachedBlock {
-		cfg.blockCacheSize = conf.MaxCachedBlock
+	if cfg.BlockCacheSize > conf.MaxCachedBlock {
+		cfg.BlockCacheSize = conf.MaxCachedBlock
 	}
-	if cfg.blockCacheSize <= 0 {
-		cfg.blockCacheSize = 1 // Must provide a positive size
+	if cfg.BlockCacheSize <= 0 {
+		cfg.BlockCacheSize = 1 // Must provide a positive size
 	}
-	if cache, err = lru.NewWithEvict(cfg.blockCacheSize, func(key interface{}, value interface{}) {
+	if cache, err = lru.NewWithEvict(cfg.BlockCacheSize, func(key interface{}, value interface{}) {
 		if node, ok := value.(*blockNode); ok && node != nil {
 			node.clear()
 		}

@@ -251,7 +251,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	}
 
 	// close anonymous ETLS connection, and create new one
-	client.Close()
+	client.ResetClient("DHT.FindNeighbor")
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)

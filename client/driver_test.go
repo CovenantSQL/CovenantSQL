@@ -354,7 +354,6 @@ func TestRunPeerListUpdater(t *testing.T) {
 		_, err = getPeers(dbID, priv)
 		So(err, ShouldBeNil)
 
-		time.Sleep(PeersUpdateInterval)
 		time.Sleep(1 * time.Second)
 		stopPeersUpdater()
 	})

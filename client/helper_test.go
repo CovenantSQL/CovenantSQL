@@ -90,6 +90,13 @@ func (s *stubBPService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err e
 	return
 }
 
+func (s *stubBPService) QueryTxState(
+	req *types.QueryTxStateReq, resp *types.QueryTxStateResp) (err error,
+) {
+	resp.State = pi.TransactionStateConfirmed
+	return
+}
+
 func startTestService() (stopTestService func(), tempDir string, err error) {
 	var server *rpc.Server
 	var cleanup func()

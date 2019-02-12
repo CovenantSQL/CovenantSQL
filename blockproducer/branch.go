@@ -58,11 +58,11 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
-		var block = bn.load()
-		if len(block.Transactions) > conf.MaxTransactionsPerBlock {
+		if bn.txCount > conf.MaxTransactionsPerBlock {
 			return nil, ErrTooManyTransactionsInBlock
 		}
 
+		var block = bn.load()
 		for _, v := range block.Transactions {
 			var k = v.Hash()
 			// Check in tx pool
@@ -135,7 +135,7 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 	}
 	var cpy = b.makeArena()
 
-	if len(block.Transactions) > conf.MaxTransactionsPerBlock {
+	if n.txCount > conf.MaxTransactionsPerBlock {
 		return nil, ErrTooManyTransactionsInBlock
 	}
 

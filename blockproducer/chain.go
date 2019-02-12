@@ -30,7 +30,6 @@ import (
 	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -62,17 +61,21 @@ type Chain struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
+
 	// RPC components
 	server *rpc.Server
 	caller *rpc.Caller
+
 	// Other components
-	storage  xi.Storage
-	chainBus chainbus.Bus
-	// This LRU object is only used for block cache control, do NOT use it for query.
+	storage xi.Storage
+	// NOTE(leventeliu): this LRU object is only used for block cache control,
+	// do NOT read it in any case.
 	blockCache *lru.Cache
+
 	// Channels for incoming blocks and transactions
 	pendingBlocks    chan *types.BPBlock
 	pendingAddTxReqs chan *types.AddTxReq
+
 	// The following fields are read-only in runtime
 	address     proto.AccountAddress
 	mode        RunMode
@@ -107,7 +110,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 		st        xi.Storage
 		cache     *lru.Cache
-		irre      *blockNode
+		lastIrre  *blockNode
 		heads     []*blockNode
 		immutable *metaState
 		txPool    map[hash.Hash]pi.Transaction
@@ -119,8 +122,6 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		addr        proto.AccountAddress
 		bpInfos     []*blockProducerInfo
 		localBPInfo *blockProducerInfo
-
-		bus = chainbus.New()
 	)
 
 	// Verify genesis block in config
@@ -179,13 +180,13 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Load from database
-	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
+	if lastIrre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
 		err = errors.Wrap(ierr, "failed to load data from storage")
 		return
 	}
 
 	// Check genesis block
-	var irreBlocks = irre.fetchNodeList(0)
+	var irreBlocks = lastIrre.fetchNodeList(0)
 	if persistedGenesis := irreBlocks[0]; persistedGenesis == nil ||
 		!persistedGenesis.hash.IsEqual(cfg.Genesis.BlockHash()) {
 		err = ErrGenesisHashNotMatch
@@ -200,14 +201,14 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	// Rebuild branches
 	for _, v := range heads {
 		log.WithFields(log.Fields{
-			"irre_hash":  irre.hash.Short(4),
-			"irre_count": irre.count,
+			"irre_hash":  lastIrre.hash.Short(4),
+			"irre_count": lastIrre.count,
 			"head_hash":  v.hash.Short(4),
 			"head_count": v.count,
 		}).Debug("checking head")
-		if v.hasAncestor(irre) {
+		if v.hasAncestor(lastIrre) {
 			var br *branch
-			if br, ierr = newBranch(irre, v, immutable, txPool); ierr != nil {
+			if br, ierr = newBranch(lastIrre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
 				return
 			}
@@ -219,7 +220,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 
-	// Set head branch
+	// Select head branch
 	for i, v := range branches {
 		if headBranch == nil || v.head.count > headBranch.head.count {
 			headIndex = i
@@ -243,7 +244,9 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		threshold    float64
 		needConfirms uint32
 	)
-	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode); err != nil {
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(
+		cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode,
+	); err != nil {
 		return
 	}
 	if threshold = cfg.ConfirmThreshold; threshold <= 0.0 {
@@ -263,9 +266,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		server: cfg.Server,
 		caller: rpc.NewCaller(),
 
-		storage:  st,
-		chainBus: bus,
-
+		storage:    st,
 		blockCache: cache,
 
 		pendingBlocks:    make(chan *types.BPBlock),
@@ -283,13 +284,12 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		confirms:    needConfirms,
 		nextHeight:  headBranch.head.height + 1,
 		offset:      time.Duration(0), // TODO(leventeliu): initialize offset
-
-		lastIrre:   irre,
-		immutable:  immutable,
-		headIndex:  headIndex,
-		headBranch: headBranch,
-		branches:   branches,
-		txPool:     txPool,
+		lastIrre:    lastIrre,
+		immutable:   immutable,
+		headIndex:   headIndex,
+		headBranch:  headBranch,
+		branches:    branches,
+		txPool:      txPool,
 	}
 
 	// NOTE(leventeliu): this implies that BP chain is a singleton, otherwise we will need

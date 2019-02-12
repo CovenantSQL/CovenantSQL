@@ -416,7 +416,7 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 }
 
 func loadBlocks(
-	st xi.Storage, irreHash hash.Hash) (irre *blockNode, heads []*blockNode, err error,
+	st xi.Storage, irreHash hash.Hash) (lastIrre *blockNode, heads []*blockNode, err error,
 ) {
 	var (
 		rows *sql.Rows
@@ -494,7 +494,7 @@ func loadBlocks(
 		headsIndex[bh] = bn
 	}
 
-	if irre, ok = index[irreHash]; !ok {
+	if lastIrre, ok = index[irreHash]; !ok {
 		err = errors.Wrapf(ErrParentNotFound, "irreversible block %s not found", ph.Short(4))
 		return
 	}

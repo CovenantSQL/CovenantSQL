@@ -31,9 +31,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fortytw2/leaktest"
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -47,6 +44,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/fortytw2/leaktest"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var rootHash = hash.Hash{}
@@ -111,8 +110,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(writeQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			// test show tables query
 			var readQuery *types.Request
@@ -122,8 +119,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -139,8 +134,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
@@ -154,8 +147,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -173,8 +164,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
@@ -191,8 +180,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
@@ -208,8 +195,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -230,8 +215,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(writeQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 			So(res.Header.RowCount, ShouldEqual, 0)
 
 			// test select query
@@ -242,8 +225,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -268,8 +249,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			// request once
 			res, err = db.Query(writeQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 			So(res.Header.RowCount, ShouldEqual, 0)
 
@@ -316,8 +295,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
@@ -359,8 +336,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(0))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
@@ -382,8 +357,9 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
+
+			// wait for callback to sign signature
+			time.Sleep(time.Millisecond * 10)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
@@ -526,8 +502,6 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		res, err = db.Query(writeQuery)
 		So(err, ShouldBeNil)
-		err = res.Verify()
-		So(err, ShouldBeNil)
 		So(res.Header.RowCount, ShouldEqual, 0)
 
 		// test select query
@@ -538,8 +512,6 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		res, err = db.Query(readQuery)
-		So(err, ShouldBeNil)
-		err = res.Verify()
 		So(err, ShouldBeNil)
 
 		So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -620,14 +592,15 @@ func buildAck(res *types.Response) (ack *types.Ack, err error) {
 	ack = &types.Ack{
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
-				Response:  res.Header,
-				NodeID:    nodeID,
-				Timestamp: getLocalTime(),
+				Response:     res.Header.ResponseHeader,
+				ResponseHash: res.Header.Hash(),
+				NodeID:       nodeID,
+				Timestamp:    getLocalTime(),
 			},
 		},
 	}
 
-	err = ack.Sign(privateKey, true)
+	err = ack.Sign(privateKey)
 
 	return
 }

@@ -33,4 +33,6 @@ var (
 	ErrNotInPeer = errors.New("node not in peer")
 	// ErrInvalidConfig represents invalid kayak runtime config.
 	ErrInvalidConfig = errors.New("invalid runtime config")
+	// ErrStopped represents runtime not started.
+	ErrStopped = errors.New("stopped")
 )

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -56,13 +57,16 @@ const (
 	PrepareThreshold = 1.0
 
 	// CommitThreshold defines the commit complete threshold.
-	CommitThreshold = 1.0
+	CommitThreshold = 0.0
 
 	// PrepareTimeout defines the prepare timeout config.
 	PrepareTimeout = 10 * time.Second
 
 	// CommitTimeout defines the commit timeout config.
 	CommitTimeout = time.Minute
+
+	// LogWaitTimeout defines the missing log wait timeout config.
+	LogWaitTimeout = 1 * time.Second
 
 	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
 	SlowQuerySampleSize = 1 << 10
@@ -81,6 +85,7 @@ type Database struct {
 	nodeID         proto.NodeID
 	mux            *DBKayakMuxService
 	privateKey     *asymmetric.PrivateKey
+	accountAddr    proto.AccountAddress
 }
 
 // NewDatabase create a single database instance using config.
@@ -102,6 +107,11 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		return
 	}
 
+	var accountAddr proto.AccountAddress
+	if accountAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
+		return
+	}
+
 	// init database
 	db = &Database{
 		cfg:            cfg,
@@ -109,6 +119,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		mux:            cfg.KayakMux,
 		connSeqEvictCh: make(chan uint64, 1),
 		privateKey:     privateKey,
+		accountAddr:    accountAddr,
 	}
 
 	defer func() {
@@ -181,12 +192,14 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		CommitThreshold:  CommitThreshold,
 		PrepareTimeout:   PrepareTimeout,
 		CommitTimeout:    CommitTimeout,
+		LogWaitTimeout:   LogWaitTimeout,
 		Peers:            peers,
 		Wal:              db.kayakWal,
 		NodeID:           db.nodeID,
 		InstanceID:       string(db.dbID),
 		ServiceName:      DBKayakRPCName,
-		MethodName:       DBKayakMethodName,
+		ApplyMethodName:  DBKayakApplyMethodName,
+		FetchMethodName:  DBKayakFetchMethodName,
 	}
 
 	// create kayak runtime
@@ -244,7 +257,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		if tracker, response, err = db.chain.Query(request); err != nil {
+		if tracker, response, err = db.chain.Query(request, false); err != nil {
 			err = errors.Wrap(err, "failed to query read query")
 			return
 		}
@@ -252,7 +265,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		if db.cfg.UseEventualConsistency {
 			// reset context
 			request.SetContext(context.Background())
-			if tracker, response, err = db.chain.Query(request); err != nil {
+			if tracker, response, err = db.chain.Query(request, true); err != nil {
 				err = errors.Wrap(err, "failed to execute with eventual consistency")
 				return
 			}
@@ -267,16 +280,20 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
 
-	// Sign response
-	if err = response.Sign(db.privateKey); err != nil {
-		err = errors.Wrap(err, "failed to sign response")
+	response.Header.ResponseAccount = db.accountAddr
+
+	// build hash
+	if err = response.BuildHash(); err != nil {
+		err = errors.Wrap(err, "failed to build response hash")
 		return
 	}
+
 	if err = db.chain.AddResponse(&response.Header); err != nil {
-		err = errors.Wrap(err, "failed to add response to index")
+		log.WithError(err).Debug("failed to add response to index")
 		return
 	}
 	tracker.UpdateResp(response)
+
 	return
 }
 
@@ -377,11 +394,6 @@ func (db *Database) Destroy() (err error) {
 }
 
 func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker, response *types.Response, err error) {
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "writeQuery")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "writeQueryRegion").End()
-
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {
 		path := filepath.Join(db.cfg.DataDir, StorageFileName)

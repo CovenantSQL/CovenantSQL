@@ -32,19 +32,17 @@ func TestAckIndex(t *testing.T) {
 			ai   = newAckIndex()
 			resp = &types.SignedResponseHeader{
 				ResponseHeader: types.ResponseHeader{
-					Request: types.SignedRequestHeader{
-						RequestHeader: types.RequestHeader{
-							NodeID: proto.NodeID(
-								"0000000000000000000000000000000000000000000000000000000000000000"),
-							ConnectionID: 0,
-							SeqNo:        0,
-						},
+					Request: types.RequestHeader{
+						NodeID: proto.NodeID(
+							"0000000000000000000000000000000000000000000000000000000000000000"),
+						ConnectionID: 0,
+						SeqNo:        0,
 					},
 				},
 			}
 			ack = &types.SignedAckHeader{
 				AckHeader: types.AckHeader{
-					Response: *resp,
+					Response: resp.ResponseHeader,
 				},
 			}
 		)

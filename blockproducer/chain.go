@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	mw "github.com/zserge/metric"
 
@@ -67,6 +68,8 @@ type Chain struct {
 	// Other components
 	storage  xi.Storage
 	chainBus chainbus.Bus
+	// This LRU object is only used for block cache control, do NOT use it for query.
+	blockCache *lru.Cache
 	// Channels for incoming blocks and transactions
 	pendingBlocks    chan *types.BPBlock
 	pendingAddTxReqs chan *types.AddTxReq
@@ -110,6 +113,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		m   uint32
 
 		st        xi.Storage
+		cache     *lru.Cache
 		irre      *blockNode
 		heads     []*blockNode
 		immutable *metaState
@@ -150,6 +154,18 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			st.Close()
 		}
 	}()
+
+	// Create block cache
+	if cfg.blockCacheSize > conf.MaxCachedBlock {
+		cfg.blockCacheSize = conf.MaxCachedBlock
+	}
+	if cache, err = lru.NewWithEvict(cfg.blockCacheSize, func(key interface{}, value interface{}) {
+		if node, ok := value.(*blockNode); ok && node != nil {
+			node.clear()
+		}
+	}); err != nil {
+		return
+	}
 
 	// Create initial state from genesis block and store
 	if !existed {
@@ -238,6 +254,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 		storage:  st,
 		chainBus: bus,
+
+		blockCache: cache,
 
 		pendingBlocks:    make(chan *types.BPBlock),
 		pendingAddTxReqs: make(chan *types.AddTxReq),
@@ -755,6 +773,10 @@ func (c *Chain) replaceAndSwitchToBranch(
 		}
 		// Update txPool to result txPool (packed and expired transactions cleared!)
 		c.txPool = resultTxPool
+		// Register new irreversible blocks to LRU cache list
+		for _, b := range newIrres {
+			c.blockCache.Add(b.count, b)
+		}
 	}
 
 	// Write to immutable database and update cache

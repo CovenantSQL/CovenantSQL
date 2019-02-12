@@ -17,9 +17,7 @@
 package client
 
 import (
-	"bytes"
 	"database/sql"
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -40,6 +38,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -204,7 +203,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	os.Remove(clientPubKeyStoreFile)
 	dupConfFile := filepath.Join(tempDir, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	if err = dupConf(confFile, dupConfFile); err != nil {
+	if err = test.DupConf(confFile, dupConfFile); err != nil {
 		return
 	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
@@ -362,22 +361,4 @@ func genPeers(term uint64) (peers *proto.Peers, err error) {
 	}
 	err = peers.Sign(privateKey)
 	return
-}
-
-// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
-func dupConf(confFile string, newConfFile string) (err error) {
-	// replace port in confFile
-	var fileBytes []byte
-	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
-		return
-	}
-
-	var ports []int
-	if ports, err = utils.GetRandomPorts("127.0.0.1", 4000, 5000, 1); err != nil {
-		return
-	}
-
-	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
-
-	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

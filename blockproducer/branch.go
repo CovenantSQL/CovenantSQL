@@ -44,7 +44,7 @@ func newBranch(
 	br *branch, err error,
 ) {
 	var (
-		list = headNode.fetchNodeList(baseNode.count)
+		list = headNode.fetchNodeList(baseNode.count + 1)
 		inst = &branch{
 			head:     headNode,
 			preview:  baseState.makeCopy(),

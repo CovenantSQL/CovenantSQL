@@ -185,16 +185,26 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		}
 	}
 
-	// Load from database and rebuild branches
+	// Load from database
 	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
 		err = errors.Wrap(ierr, "failed to load data from storage")
 		return
 	}
-	if persistedGenesis := irre.ancestorByCount(0); persistedGenesis == nil ||
+
+	// Check genesis block
+	var irreBlocks = irre.fetchNodeList(0)
+	if persistedGenesis := irreBlocks[0]; persistedGenesis == nil ||
 		!persistedGenesis.hash.IsEqual(cfg.Genesis.BlockHash()) {
 		err = ErrGenesisHashNotMatch
 		return
 	}
+
+	// Add blocks to LRU list
+	for _, v := range irreBlocks {
+		cache.Add(v.count, v)
+	}
+
+	// Rebuild branches
 	for _, v := range heads {
 		log.WithFields(log.Fields{
 			"irre_hash":  irre.hash.Short(4),
@@ -680,7 +690,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	// May have multiple new irreversible blocks here if peer list shrinks. May also have
 	// no new irreversible block at all if peer list expands.
 	lastIrre = newBranch.head.lastIrreversible(c.confirms)
-	newIrres = lastIrre.fetchNodeList(c.lastIrre.count)
+	newIrres = lastIrre.fetchNodeList(c.lastIrre.count + 1)
 
 	// Apply irreversible blocks to create dirty map on immutable cache
 	for k, v := range c.txPool {
@@ -800,7 +810,7 @@ func (c *Chain) stat() {
 		} else {
 			buff += fmt.Sprintf("[%04d] ", i)
 		}
-		buff += v.sprint(c.lastIrre.count)
+		buff += v.sprint(c.lastIrre.count + 1)
 		log.WithFields(log.Fields{
 			"branch": buff,
 		}).Info("runtime state")

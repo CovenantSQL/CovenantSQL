@@ -61,12 +61,12 @@ func (n *blockNode) clear() {
 	n.block.Store((*types.BPBlock)(nil))
 }
 
-// fetchNodeList returns the block node list within range (from, n.count] from node head n.
+// fetchNodeList returns the block node list within range [from, n.count] from node head n.
 func (n *blockNode) fetchNodeList(from uint32) (bl []*blockNode) {
-	if n.count <= from {
+	if n.count < from {
 		return
 	}
-	bl = make([]*blockNode, n.count-from)
+	bl = make([]*blockNode, n.count-from+1)
 	var iter = n
 	for i := len(bl) - 1; i >= 0; i-- {
 		bl[i] = iter

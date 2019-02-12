@@ -268,9 +268,6 @@ func TestTransferToken(t *testing.T) {
 		var err error
 		var user proto.AccountAddress
 
-		err = user.UnmarshalJSON([]byte("\"9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd\""))
-		So(err, ShouldBeNil)
-
 		// driver not initialized
 		_, err = TransferToken(user, 100, types.Particle)
 		So(err, ShouldEqual, ErrNotInitialized)
@@ -288,7 +285,40 @@ func TestTransferToken(t *testing.T) {
 		defer stopPeersUpdater()
 
 		// with mock bp, any params will be success
-		_, err = TransferToken(user, 100, types.Particle)
+		txHash, err := TransferToken(user, 100, types.Particle)
+		So(err, ShouldBeNil)
+
+		ctx := context.Background()
+		_, err = WaitTxConfirmation(ctx, txHash)
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestUpdatePermission(t *testing.T) {
+	Convey("test UpdatePermission to a address", t, func() {
+		var stopTestService func()
+		var err error
+		var user, chain proto.AccountAddress
+		var perm types.UserPermission
+
+		// driver not initialized
+		_, err = UpdatePermission(user, chain, &perm)
+		So(err, ShouldEqual, ErrNotInitialized)
+
+		// fake driver initialized
+		atomic.StoreUint32(&driverInitialized, 1)
+		_, err = UpdatePermission(user, chain, &perm)
+		So(err, ShouldNotBeNil)
+		// reset driver not initialized
+		atomic.StoreUint32(&driverInitialized, 0)
+
+		stopTestService, _, err = startTestService()
+		So(err, ShouldBeNil)
+		defer stopTestService()
+		defer stopPeersUpdater()
+
+		// with mock bp, any params will be success
+		_, err = UpdatePermission(user, chain, &perm)
 		So(err, ShouldBeNil)
 	})
 }

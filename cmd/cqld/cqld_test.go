@@ -24,12 +24,12 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
@@ -62,7 +62,7 @@ func TestCQLD(t *testing.T) {
 		// Wait BP chain service to be ready
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccl2()
-		err = bp.WaitBPChainService(ctx2, 3*time.Second)
+		err = test.WaitBPChainService(ctx2, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// Wait for block producing

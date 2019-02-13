@@ -396,6 +396,7 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 							err = ms.transferAccountToken(tran3)
 							So(err, ShouldEqual, ErrBalanceOverflow)
+
 							tran4 := &types.Transfer{
 								TransferHeader: types.TransferHeader{
 									Sender:    addr2,
@@ -410,6 +411,34 @@ func TestMetaState(t *testing.T) {
 							err = ms.transferAccountToken(tran4)
 							So(err, ShouldBeNil)
 							ms.commit()
+
+							// wrong private sign test
+							tran5 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran5.Sign(privKey3)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran5)
+							So(err, ShouldNotBeNil)
+
+							// nil sign test
+							tran6 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = ms.transferAccountToken(tran6)
+							So(err, ShouldNotBeNil)
 						},
 					)
 					Convey(
@@ -1110,6 +1139,19 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(dbID, ShouldEqual, dbAccount.DatabaseID())
 					trans2.Nonce = nonce
+					//no sign err
+					err = ms.apply(trans2)
+					So(err, ShouldEqual, ErrInvalidSender)
+					//wrong key sign err
+					err = trans2.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2)
+					So(err, ShouldNotBeNil)
+					//invalid sign
+					copy([]byte("invalid hash"), trans2.DataHash[:])
+					err = ms.apply(trans2)
+					So(err, ShouldNotBeNil)
+					//correct transfer
 					err = trans2.Sign(privKey3)
 					So(err, ShouldBeNil)
 					err = ms.apply(trans2)

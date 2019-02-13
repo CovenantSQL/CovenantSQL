@@ -910,7 +910,7 @@ func TestMetaState(t *testing.T) {
 					TokenType:     0,
 					NodeID:        "0002111",
 				}
-				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("10")))] = &types.ProviderProfile{
+				po, loaded = ms.loadOrStoreProviderObject(proto.AccountAddress(hash.HashH([]byte("10"))), &types.ProviderProfile{
 					TargetUser:    []proto.AccountAddress{addr2},
 					GasPrice:      1,
 					LoadAvgPerCPU: 0.001,
@@ -918,7 +918,9 @@ func TestMetaState(t *testing.T) {
 					Space:         100,
 					TokenType:     0,
 					NodeID:        "0003111",
-				}
+				})
+				So(po, ShouldBeNil)
+				So(loaded, ShouldBeFalse)
 				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("11")))] = &types.ProviderProfile{
 					TargetUser:    []proto.AccountAddress{addr2},
 					GasPrice:      1,
@@ -1222,6 +1224,52 @@ func TestMetaState(t *testing.T) {
 						}
 					}
 
+					// transfer too much token
+					trans5 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    18446744073709551615,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans5.Nonce = nonce
+					err = trans5.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans5)
+					So(err, ShouldEqual, ErrInsufficientBalance)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer wrong type of token
+					trans6 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    4000000,
+						TokenType: -1,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans6.Nonce = nonce
+					err = trans6.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans6)
+					So(err, ShouldEqual, ErrWrongTokenType)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
 					// transfer enough token
 					trans4 := types.NewTransfer(&types.TransferHeader{
 						Sender:    addr3,
@@ -1244,7 +1292,6 @@ func TestMetaState(t *testing.T) {
 							break
 						}
 					}
-
 				})
 				Convey("update key", func() {
 					invalidIk1 := &types.IssueKeys{}

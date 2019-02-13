@@ -17,10 +17,8 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -30,27 +28,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 )
-
-// DupConf duplicate conf file using random new listen addr to avoid failure on concurrent test cases
-func DupConf(confFile string, newConfFile string) (err error) {
-	// replace port in confFile
-	var fileBytes []byte
-	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
-		return
-	}
-
-	var ports []int
-	if ports, err = utils.GetRandomPorts("127.0.0.1", 4000, 6000, 1); err != nil {
-		return
-	}
-
-	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
-
-	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
-}
 
 // WaitBPChainService waits until BP chain service is ready.
 func WaitBPChainService(ctx context.Context, period time.Duration) (err error) {

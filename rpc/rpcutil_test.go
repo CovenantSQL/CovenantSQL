@@ -33,7 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
@@ -181,7 +180,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	_, testFile, _, _ := runtime.Caller(0)
 	dupConfFile := filepath.Join(d, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	if err = test.DupConf(confFile, dupConfFile); err != nil {
+	if err = utils.DupConf(confFile, dupConfFile); err != nil {
 		return
 	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")

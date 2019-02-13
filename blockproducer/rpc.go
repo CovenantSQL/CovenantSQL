@@ -17,15 +17,7 @@
 package blockproducer
 
 import (
-	"context"
-	"database/sql"
-	"strings"
-	"time"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
 )
@@ -140,45 +132,4 @@ func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error
 	return s.chain.chainBus.Subscribe(req.Topic, func(request interface{}, response interface{}) {
 		s.chain.caller.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
 	})
-}
-
-// WaitDatabaseCreation waits for database creation complete.
-func WaitDatabaseCreation(
-	ctx context.Context,
-	dbID proto.DatabaseID,
-	db *sql.DB,
-	period time.Duration,
-) (err error) {
-	var (
-		ticker = time.NewTicker(period)
-		req    = &types.QuerySQLChainProfileReq{
-			DBID: dbID,
-		}
-	)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			if err = rpc.RequestBP(
-				route.MCCQuerySQLChainProfile.String(), req, nil,
-			); err != nil {
-				if !strings.Contains(err.Error(), ErrDatabaseNotFound.Error()) {
-					// err != nil && err != ErrDatabaseNotFound (unexpected error)
-					return
-				}
-			} else {
-				// err == nil (creation done on BP): try to use database connection
-				if db == nil {
-					return
-				}
-				if _, err = db.ExecContext(ctx, "SHOW TABLES"); err == nil {
-					// err == nil (connect to Miner OK)
-					return
-				}
-			}
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-		}
-	}
 }

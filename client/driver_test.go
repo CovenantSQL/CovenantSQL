@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -140,7 +139,7 @@ func TestCreate(t *testing.T) {
 		waitCtx, cancelWait := context.WithTimeout(context.Background(), time.Nanosecond)
 		defer cancelWait()
 		// should not use client.WaitDBCreation, sql.Open is not supported in this test case
-		err = bp.WaitDatabaseCreation(waitCtx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
+		err = WaitBPDatabaseCreation(waitCtx, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
 		So(err, ShouldResemble, context.DeadlineExceeded)
 
 		// Calculate database ID
@@ -162,7 +161,7 @@ func TestCreate(t *testing.T) {
 		waitCtx2, cancelWait2 := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancelWait2()
 		// should not use client.WaitDBCreation, sql.Open is not supported in this test case
-		err = bp.WaitDatabaseCreation(waitCtx2, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
+		err = WaitBPDatabaseCreation(waitCtx2, proto.DatabaseID(dsnCfg.DatabaseID), nil, 3*time.Second)
 		So(err, ShouldBeNil)
 	})
 }

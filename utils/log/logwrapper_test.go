@@ -102,6 +102,7 @@ func TestWithField(t *testing.T) {
 
 	call0()
 
+	WithError(errors.New("new")).WithField("newfieldkey", "newfieldvalue").WithTime(time.Now()).Debug("debug")
 	f := new(Fields)
 	WithError(errors.New("new")).WithFields(*f).WithTime(time.Now()).Debug("debug")
 
@@ -179,10 +180,23 @@ func TestSimpleLog(t *testing.T) {
 	Debug("Debug")
 	Debugln("Debugln")
 	Debugf("Debugf %d", 1)
+}
+
+func TestFatalLog(t *testing.T) {
+	SetStringLevel("willusenextparam", ErrorLevel)
+	if GetLevel() != ErrorLevel {
+		t.Fail()
+	}
 
 	logrus.StandardLogger().ExitFunc = func(code int) {}
 	Fatal("Fatal")
 	Fatalln("Fatalln")
 	Fatalf("Fatalf %d", 1)
+
+	entry := WithError(errors.New("new"))
+	entry.Fatal("entry Fatal")
+	entry.Fatalln("entry Fatalln")
+	entry.Fatalf("entry Fatal %d", 1)
+
 	logrus.StandardLogger().ExitFunc = nil
 }

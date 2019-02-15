@@ -60,6 +60,7 @@ func TestBadType(t *testing.T) {
 	}
 
 	st, err := New(fmt.Sprintf("file:%s", fl.Name()))
+	defer st.Close()
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -92,6 +93,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	st, err := New(fmt.Sprintf("file:%s", fl.Name()))
+	defer st.Close()
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)

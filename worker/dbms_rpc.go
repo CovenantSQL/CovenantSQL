@@ -34,12 +34,12 @@ var (
 type ObserverFetchBlockReq struct {
 	proto.Envelope
 	proto.DatabaseID
-	Count int32
+	Count int32 // sqlchain block serial number since genesis block (0)
 }
 
 // ObserverFetchBlockResp defines the response for observer to fetch block.
 type ObserverFetchBlockResp struct {
-	Count int32
+	Count int32 // sqlchain block serial number since genesis block (0)
 	Block *types.Block
 }
 

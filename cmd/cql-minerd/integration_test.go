@@ -34,7 +34,6 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -43,6 +42,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -390,7 +390,7 @@ func TestFullProcess(t *testing.T) {
 		// wait for chain service
 		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel1()
-		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		err = test.WaitBPChainService(ctx1, 3*time.Second)
 		if err != nil {
 			t.Fatalf("wait for chain service failed: %v", err)
 		}
@@ -776,7 +776,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool, useEventualCon
 		// wait for chain service
 		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel1()
-		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		err = test.WaitBPChainService(ctx1, 3*time.Second)
 		if err != nil {
 			b.Fatalf("wait for chain service failed: %v", err)
 		}
@@ -887,7 +887,7 @@ func benchOutsideMinerWithTargetMinerList(
 		// wait for chain service
 		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel1()
-		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		err = test.WaitBPChainService(ctx1, 3*time.Second)
 		if err != nil {
 			b.Fatalf("wait for chain service failed: %v", err)
 		}

@@ -375,63 +375,6 @@ func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
 
 }
 
-func (s *metaState) transferAccountStableBalance(
-	sender, receiver proto.AccountAddress, amount uint64) (err error,
-) {
-	if sender == receiver || amount == 0 {
-		return
-	}
-
-	// Create empty receiver account if not found
-	s.loadOrStoreAccountObject(receiver, &types.Account{Address: receiver})
-
-	var (
-		so, ro     *types.Account
-		sd, rd, ok bool
-	)
-
-	// Load sender and receiver objects
-	if so, sd = s.dirty.accounts[sender]; !sd {
-		if so, ok = s.readonly.accounts[sender]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-	}
-	if ro, rd = s.dirty.accounts[receiver]; !rd {
-		if ro, ok = s.readonly.accounts[receiver]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-	}
-
-	// Try transfer
-	var (
-		sb = so.TokenBalance[types.Particle]
-		rb = ro.TokenBalance[types.Particle]
-	)
-	if err = safeSub(&sb, &amount); err != nil {
-		return
-	}
-	if err = safeAdd(&rb, &amount); err != nil {
-		return
-	}
-
-	// Proceed transfer
-	if !sd {
-		var cpy = deepcopy.Copy(so).(*types.Account)
-		so = cpy
-		s.dirty.accounts[sender] = cpy
-	}
-	if !rd {
-		var cpy = deepcopy.Copy(ro).(*types.Account)
-		ro = cpy
-		s.dirty.accounts[receiver] = cpy
-	}
-	so.TokenBalance[types.Particle] = sb
-	ro.TokenBalance[types.Particle] = rb
-	return
-}
-
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
 	return s.increaseAccountToken(k, amount, types.Wave)
 }
@@ -454,7 +397,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 	s.dirty.databases[id] = &types.SQLChainProfile{
 		ID:     id,
 		Owner:  addr,
-		Miners: make([]*types.MinerInfo, 0),
+		Miners: make(MinerInfos, 0),
 		Users: []*types.SQLChainUser{
 			{
 				Address:    addr,
@@ -660,21 +603,21 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 				log.Warnf("miner filtered %v", err)
 			}
 			// if got enough, break
-			if uint64(len(miners)) == minerCount {
+			if uint64(miners.Len()) == minerCount {
 				break
 			}
 		}
 	}
 
 	// not enough, find more miner(s)
-	if uint64(len(miners)) < minerCount {
+	if uint64(miners.Len()) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			err = errors.Wrapf(err, "miners match target are not enough %d:%d", len(miners), minerCount)
+			err = errors.Wrapf(err, "miners match target are not enough %d:%d", miners.Len(), minerCount)
 			return
 		}
 		var newMiners MinerInfos
 		// create new merged map
-		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-len(miners))
+		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-miners.Len())
 		if err != nil {
 			return
 		}
@@ -784,7 +727,7 @@ func (s *metaState) filterNMiners(
 	for _, po := range allProviderMap {
 		newMiners, _ = filterAndAppendMiner(newMiners, po, tx, user)
 	}
-	if len(newMiners) < minerCount {
+	if newMiners.Len() < minerCount {
 		err = ErrNoEnoughMiner
 		return
 	}
@@ -794,11 +737,11 @@ func (s *metaState) filterNMiners(
 }
 
 func filterAndAppendMiner(
-	miners []*types.MinerInfo,
+	miners MinerInfos,
 	po *types.ProviderProfile,
 	req *types.CreateDatabase,
 	user proto.AccountAddress,
-) (newMiners []*types.MinerInfo, err error) {
+) (newMiners MinerInfos, err error) {
 	newMiners = miners
 	if !isProviderUserMatch(po.TargetUser, user) {
 		err = ErrMinerUserNotMatch
@@ -1075,6 +1018,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 	if transfer.Signee == nil {
 		err = ErrInvalidSender
 		log.WithError(err).Warning("invalid signee in applyTransaction")
+		return
 	}
 
 	realSender, err := crypto.PubKeyHash(transfer.Signee)

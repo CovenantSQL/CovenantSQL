@@ -68,7 +68,13 @@ func TestDatabaseID_AccountAddress(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(h[:], ShouldResemble, a[:])
 		}
+	})
 
+	Convey("AccountAddress invalid convert", t, func() {
+		invalid := "invalid"
+		dbID := DatabaseID(invalid)
+		_, err := dbID.AccountAddress()
+		So(err, ShouldNotBeNil)
 	})
 }
 

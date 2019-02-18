@@ -53,13 +53,27 @@ func newNamedQuery(query string, args map[string]interface{}) (q Query) {
 }
 
 func TestBadType(t *testing.T) {
-	fl, err := ioutil.TempFile("", "sqlite3-")
+	// invalid storage
+	invalidString1 := "file:test.db?p1"
 
-	if err != nil {
-		t.Fatalf("error occurred: %v", err)
+	st, err := New(invalidString1)
+	if err == nil {
+		defer st.Close()
+		t.Fatalf("should occurred error: %v", st)
 	}
 
-	st, err := New(fmt.Sprintf("file:%s", fl.Name()))
+	st = &Storage{
+		dsn: invalidString1,
+		db:  nil,
+	}
+	err = st.Close()
+	if err == nil {
+		t.Fatalf("should occurred error: %v", st)
+	}
+
+	// valid storage
+	st, err = New("file::memory:")
+	defer st.Close()
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -82,6 +96,16 @@ func TestBadType(t *testing.T) {
 	} else {
 		t.Logf("Error occurred as expected: %v", err)
 	}
+
+	// empty query
+	_, _, _, err = st.Query(context.Background(), []Query{})
+	if err != nil {
+		t.Fatal("empty query should be successed")
+	}
+	_, err = st.Exec(context.Background(), []Query{})
+	if err != nil {
+		t.Fatal("empty exec should be successed")
+	}
 }
 
 func TestStorage(t *testing.T) {
@@ -92,6 +116,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	st, err := New(fmt.Sprintf("file:%s", fl.Name()))
+	defer st.Close()
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)

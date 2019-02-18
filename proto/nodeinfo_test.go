@@ -43,6 +43,18 @@ func TestAccountAddress_DatabaseID(t *testing.T) {
 			So(string(d), ShouldEqual, target[i])
 		}
 	})
+
+	Convey("AccountAddress JSON Convert", t, func() {
+		for i := range target {
+			var a AccountAddress
+			dbIDJson := []byte("\"" + target[i] + "\"")
+			err := a.UnmarshalJSON(dbIDJson)
+			So(err, ShouldBeNil)
+			d := a.DatabaseID()
+			So(string(d), ShouldEqual, target[i])
+		}
+	})
+
 }
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {

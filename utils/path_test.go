@@ -67,3 +67,11 @@ func TestHomeDirExpand(t *testing.T) {
 		So(emptyPath, ShouldEqual, "")
 	})
 }
+
+func TestExist(t *testing.T) {
+	Convey("path exist or not", t, func() {
+		So(Exist("/tmp/anemptypathshouldnotexist"), ShouldEqual, false)
+		So(Exist("/"), ShouldEqual, true)
+		So(Exist("/dev/null"), ShouldEqual, true)
+	})
+}

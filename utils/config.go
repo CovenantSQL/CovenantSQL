@@ -14,24 +14,28 @@
  * limitations under the License.
  */
 
-package log
+package utils
 
 import (
-	"github.com/sirupsen/logrus"
+	"bytes"
+	"fmt"
+	"io/ioutil"
 )
 
-// NilFormatter just discards the log entry
-type NilFormatter struct{}
+// DupConf duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+func DupConf(confFile string, newConfFile string) (err error) {
+	// replace port in confFile
+	var fileBytes []byte
+	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
+		return
+	}
 
-// Format just return nil, nil for discarding log entry
-func (f *NilFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	return nil, nil
-}
+	var ports []int
+	if ports, err = GetRandomPorts("127.0.0.1", 4000, 6000, 1); err != nil {
+		return
+	}
 
-// NilWriter just discards the log entry
-type NilWriter struct{}
+	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
 
-// Write just return 0, nil for discarding log entry
-func (w *NilWriter) Write(p []byte) (n int, err error) {
-	return 0, nil
+	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

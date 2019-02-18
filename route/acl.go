@@ -122,6 +122,7 @@ const (
 	MCCQueryAccountTokenBalance
 	// MCCQueryTxState is used by client to query transaction state.
 	MCCQueryTxState
+
 	// DHTRPCName defines the block producer dh-rpc service name
 	DHTRPCName = "DHT"
 	// BlockProducerRPCName defines main chain rpc name

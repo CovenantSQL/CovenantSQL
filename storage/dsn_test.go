@@ -43,5 +43,24 @@ func TestDSN(t *testing.T) {
 
 		dsn.AddParam("key", "value")
 		t.Logf("Test set add param: formatted = %s", dsn.Format())
+
+		dsn.AddParam("key", "")
+		t.Logf("Test delete param by set empty to add param: formatted = %s", dsn.Format())
+		if _, ok := dsn.GetParam("key"); ok {
+			t.Errorf("Should not have deleted key")
+		}
+	}
+
+	invalidString1 := "file:test.db?p1"
+	dsn, err := NewDSN(invalidString1)
+	if err == nil {
+		t.Errorf("Should occurred unrecognized parameter error: %v", dsn)
+	}
+
+	dsn = &DSN{}
+	dsn.AddParam("clone", "true")
+	clone := dsn.Clone()
+	if _, ok := clone.GetParam("clone"); !ok {
+		t.Errorf("Should cloned params")
 	}
 }

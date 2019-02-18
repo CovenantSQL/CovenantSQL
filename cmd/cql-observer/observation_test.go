@@ -34,7 +34,6 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -44,6 +43,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -289,11 +289,11 @@ func TestFullProcess(t *testing.T) {
 		// wait until bp chain service is ready
 		ctx1, ccl1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer ccl1()
-		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		err = test.WaitBPChainService(ctx1, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// create
-		_, dsn, err = bp.Create(types.ResourceMeta{
+		_, dsn, err = test.Create(types.ResourceMeta{
 			TargetMiners: []proto.AccountAddress{addr},
 			Node:         1,
 		}, 1, 10000000, cliPriv)
@@ -440,7 +440,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		_, dsn2, err = bp.Create(types.ResourceMeta{
+		_, dsn2, err = test.Create(types.ResourceMeta{
 			TargetMiners: []proto.AccountAddress{addr2},
 			Node:         1,
 		}, 1, 10000000, cliPriv)

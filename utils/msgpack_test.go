@@ -59,4 +59,22 @@ func TestMsgPack_EncodeDecode(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(*preValue, ShouldResemble, postValue)
 	})
+
+	Convey("DecodeMsgPackPlain test", t, func() {
+		log.SetLevel(log.DebugLevel)
+		str := "test"
+		buf, err := EncodeMsgPack(str)
+		log.Debugf("string: test encoded len %d to %x", len(buf.Bytes()), buf.Bytes())
+		So(err, ShouldBeNil)
+
+		var value string
+		err = DecodeMsgPackPlain(buf.Bytes(), &value)
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, str)
+
+		var value2 string
+		err = DecodeMsgPack(buf.Bytes(), &value2)
+		So(err, ShouldBeNil)
+		So(value2, ShouldEqual, str)
+	})
 }

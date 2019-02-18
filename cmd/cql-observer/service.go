@@ -225,6 +225,19 @@ func (s *Service) start() (err error) {
 	return nil
 }
 
+func (s *Service) saveSubscriptionStatus(dbID proto.DatabaseID, count int32) (err error) {
+	log.WithFields(log.Fields{}).Debug("save subscription status")
+
+	if atomic.LoadInt32(&s.stopped) == 1 {
+		// stopped
+		return ErrStopped
+	}
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(subscriptionBucket).Put([]byte(dbID), int32ToBytes(count))
+	})
+}
+
 func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack *types.SignedAckHeader) (err error) {
 	log.WithFields(log.Fields{
 		"height": height,
@@ -769,6 +782,17 @@ func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (count int32, he
 		count = bytesToInt32(blockKey[4+hash.HashSize:])
 
 		return utils.DecodeMsgPack(blockBytes, &b)
+	})
+
+	return
+}
+
+func (s *Service) getAllSubscriptions() (subscriptions map[proto.DatabaseID]int32, err error) {
+	subscriptions = map[proto.DatabaseID]int32{}
+	s.subscription.Range(func(_, rawWorker interface{}) bool {
+		worker := unpackWorker(rawWorker)
+		subscriptions[worker.dbID] = worker.getHead()
+		return true
 	})
 
 	return

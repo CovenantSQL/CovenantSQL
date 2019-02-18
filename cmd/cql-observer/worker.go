@@ -58,7 +58,7 @@ func (w *subscribeWorker) run() {
 		case <-w.stopCh:
 			return
 		case <-time.After(nextTick):
-			if err := w.pull(atomic.LoadInt32(&w.head)); err != nil {
+			if err := w.pull(w.getHead()); err != nil {
 				// calc next tick
 				nextTick = conf.GConf.SQLChainPeriod
 			} else {
@@ -115,7 +115,10 @@ func (w *subscribeWorker) pull(count int32) (err error) {
 		next = count + 1
 	}
 
-	atomic.CompareAndSwapInt32(&w.head, count, next)
+	if atomic.CompareAndSwapInt32(&w.head, count, next) {
+		// update subscription status to database
+		_ = w.s.saveSubscriptionStatus(w.dbID, next)
+	}
 
 	return
 }
@@ -129,12 +132,19 @@ func (w *subscribeWorker) start() {
 	w.l.Lock()
 	defer w.l.Unlock()
 
+	// update subscription status to database
+	_ = w.s.saveSubscriptionStatus(w.dbID, w.getHead())
+
 	if w.isStopped() {
 		w.stopCh = make(chan struct{})
 		w.wg = new(sync.WaitGroup)
 		w.wg.Add(1)
 		go w.run()
 	}
+}
+
+func (w *subscribeWorker) getHead() int32 {
+	return atomic.LoadInt32(&w.head)
 }
 
 func (w *subscribeWorker) stop() {

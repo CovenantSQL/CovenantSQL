@@ -27,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -302,7 +301,7 @@ func setup() {
 
 func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -324,28 +323,14 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	}
 
 	if isGenesis {
-		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.NonceInfo)
-		quitCh := make(chan struct{})
-		miner := cpuminer.NewCPUMiner(quitCh)
-		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.Serialize(),
-			NonceChan: nonceCh,
-			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
-		nonce := <-nonceCh
-		close(quitCh)
-		close(nonceCh)
-		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
-
-		if err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub); err != nil {
-			return nil, err
-		}
-
-		// Set genesis hash as zero value
+		emptyNode := &proto.RawNodeID{}
+		b.SignedHeader.ParentHash = hash.Hash{}
 		b.SignedHeader.GenesisHash = hash.Hash{}
+		b.SignedHeader.Producer = emptyNode.ToNodeID()
+		b.SignedHeader.MerkleRoot = hash.Hash{}
+
+		err = b.PackAsGenesis()
+		return
 	}
 
 	err = b.PackAndSignBlock(priv)

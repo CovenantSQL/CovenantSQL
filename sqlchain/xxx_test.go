@@ -237,7 +237,7 @@ func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
 
 func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
 	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
 
 	if err != nil {
 		return
@@ -271,16 +271,15 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 	}
 
 	if isGenesis {
-		// Register node for genesis verification
-		var nis []cpuminer.NonceInfo
-		nis, err = registerNodesWithPublicKey(pub, testDifficulty, 1)
-
-		if err != nil {
-			return
-		}
-
+		emptyNode := &proto.RawNodeID{}
+		b.SignedHeader.ParentHash = hash.Hash{}
 		b.SignedHeader.GenesisHash = hash.Hash{}
-		b.SignedHeader.Header.Producer = proto.NodeID(nis[0].Hash.String())
+		b.SignedHeader.Producer = emptyNode.ToNodeID()
+		b.SignedHeader.MerkleRoot = hash.Hash{}
+		b.Acks = nil
+
+		err = b.PackAsGenesis()
+		return
 	}
 
 	err = b.PackAndSignBlock(priv)

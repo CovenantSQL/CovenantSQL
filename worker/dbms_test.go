@@ -86,7 +86,7 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create sqlchain block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// get peers

@@ -79,7 +79,7 @@ func TestSingleDatabase(t *testing.T) {
 
 		// create genesis block
 		var block *types.Block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// create database
@@ -418,7 +418,7 @@ func TestInitFailed(t *testing.T) {
 
 		// create genesis block
 		var block *types.Block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// broken peers configuration
@@ -472,7 +472,7 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		// create genesis block
 		var block *types.Block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// create database

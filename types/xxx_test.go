@@ -33,7 +33,6 @@ import (
 
 var (
 	uuidLen           = 32
-	genesisHash       = hash.Hash{}
 	testingPrivateKey *asymmetric.PrivateKey
 	testingPublicKey  *asymmetric.PublicKey
 )
@@ -297,44 +296,6 @@ func setup() {
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
-}
-
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
-	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &Block{
-		SignedHeader: SignedHeader{
-			Header: Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: genesisHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		emptyNode := &proto.RawNodeID{}
-		b.SignedHeader.ParentHash = hash.Hash{}
-		b.SignedHeader.GenesisHash = hash.Hash{}
-		b.SignedHeader.Producer = emptyNode.ToNodeID()
-		b.SignedHeader.MerkleRoot = hash.Hash{}
-
-		err = b.PackAsGenesis()
-		return
-	}
-
-	err = b.PackAndSignBlock(priv)
-	return
 }
 
 func TestMain(m *testing.M) {

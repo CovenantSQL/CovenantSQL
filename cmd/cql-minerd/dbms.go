@@ -19,9 +19,7 @@ package main
 import (
 	"bytes"
 	"io/ioutil"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -123,7 +121,7 @@ func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *types.Block, e
 
 	if os.IsNotExist(err) && fixture.AutoGenerateGenesisBlock {
 		// generate
-		if block, err = createRandomBlock(rootHash, true); err != nil {
+		if block, err = types.CreateRandomBlock(rootHash, true); err != nil {
 			err = errors.Wrap(err, "create random block failed")
 			return
 		}
@@ -143,44 +141,5 @@ func loadGenesisBlock(fixture *conf.MinerDatabaseFixture) (block *types.Block, e
 		err = utils.DecodeMsgPack(blockBytes, &block)
 	}
 
-	return
-}
-
-// copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
-	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: rootHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		emptyNode := &proto.RawNodeID{}
-		b.SignedHeader.ParentHash = hash.Hash{}
-		b.SignedHeader.GenesisHash = hash.Hash{}
-		b.SignedHeader.Producer = emptyNode.ToNodeID()
-		b.SignedHeader.MerkleRoot = hash.Hash{}
-
-		err = b.PackAsGenesis()
-		return
-	}
-
-	err = b.PackAndSignBlock(priv)
 	return
 }

@@ -17,19 +17,16 @@
 package worker
 
 import (
-	"crypto/rand"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -241,44 +238,5 @@ func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 		rpc.GetSessionPoolInstance().Close()
 	}
 
-	return
-}
-
-// copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
-	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: rootHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		emptyNode := &proto.RawNodeID{}
-		b.SignedHeader.ParentHash = hash.Hash{}
-		b.SignedHeader.GenesisHash = hash.Hash{}
-		b.SignedHeader.Producer = emptyNode.ToNodeID()
-		b.SignedHeader.MerkleRoot = hash.Hash{}
-
-		err = b.PackAsGenesis()
-		return
-	}
-
-	err = b.PackAndSignBlock(priv)
 	return
 }

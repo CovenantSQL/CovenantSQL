@@ -279,6 +279,7 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 		b.Acks = nil
 
 		err = b.PackAsGenesis()
+		return
 	}
 
 	err = b.PackAndSignBlock(priv)

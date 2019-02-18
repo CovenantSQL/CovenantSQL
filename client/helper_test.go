@@ -19,13 +19,11 @@ package client
 import (
 	"database/sql"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -143,7 +141,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	dbID := proto.DatabaseID("db")
 
 	// create sqlchain block
-	block, err = createRandomBlock(rootHash, true)
+	block, err = types.CreateRandomBlock(rootHash, true)
 
 	// get database peers
 	if peers, err = genPeers(1); err != nil {
@@ -264,45 +262,6 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		atomic.StoreUint32(&driverInitialized, 0)
 		kms.ResetLocalKeyStore()
 	}
-	return
-}
-
-// copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
-	// Generate key pair
-	priv, _, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: rootHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		emptyNode := &proto.RawNodeID{}
-		b.SignedHeader.ParentHash = hash.Hash{}
-		b.SignedHeader.GenesisHash = hash.Hash{}
-		b.SignedHeader.Producer = emptyNode.ToNodeID()
-		b.SignedHeader.MerkleRoot = hash.Hash{}
-
-		err = b.PackAsGenesis()
-		return
-	}
-
-	err = b.PackAndSignBlock(priv)
 	return
 }
 

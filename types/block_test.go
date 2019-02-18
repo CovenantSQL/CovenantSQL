@@ -30,7 +30,7 @@ import (
 )
 
 func TestSignAndVerify(t *testing.T) {
-	block, err := createRandomBlock(genesisHash, false)
+	block, err := CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -58,7 +58,7 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func TestHeaderMarshalUnmarshaler(t *testing.T) {
-	block, err := createRandomBlock(genesisHash, false)
+	block, err := CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -96,7 +96,7 @@ func TestHeaderMarshalUnmarshaler(t *testing.T) {
 }
 
 func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
-	block, err := createRandomBlock(genesisHash, false)
+	block, err := CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -143,11 +143,11 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 }
 
 func TestBlockMarshalUnmarshaler(t *testing.T) {
-	origin, err := createRandomBlock(genesisHash, false)
+	origin, err := CreateRandomBlock(genesisHash, false)
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
-	origin2, err := createRandomBlock(genesisHash, false)
+	origin2, err := CreateRandomBlock(genesisHash, false)
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 }
 
 func TestGenesis(t *testing.T) {
-	genesis, err := createRandomBlock(genesisHash, true)
+	genesis, err := CreateRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -219,7 +219,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	// Test non-genesis block
-	genesis, err = createRandomBlock(genesisHash, false)
+	genesis, err = CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -232,7 +232,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	// Test altered block
-	genesis, err = createRandomBlock(genesisHash, true)
+	genesis, err = CreateRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)

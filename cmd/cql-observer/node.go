@@ -18,18 +18,16 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-func initNode() (server *rpc.Server, err error) {
+func initNode() (err error) {
 	var masterKey []byte
 	if !conf.GConf.IsTestMode {
 		fmt.Print("Type in Master key to continue:")
@@ -49,26 +47,6 @@ func initNode() (server *rpc.Server, err error) {
 
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
-
-	// init server
-	if server, err = createServer(
-		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, conf.GConf.ListenAddr); err != nil {
-		log.WithError(err).Error("create server failed")
-		return
-	}
-
-	return
-}
-
-func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (server *rpc.Server, err error) {
-	os.Remove(pubKeyStorePath)
-
-	server = rpc.NewServer()
-	if err != nil {
-		return
-	}
-
-	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
 
 	return
 }

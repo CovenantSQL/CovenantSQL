@@ -192,11 +192,9 @@ func TestDBMS(t *testing.T) {
 				err = testRequest(route.DBSAck, ack, &ackRes)
 				So(err, ShouldBeNil)
 
-				err = dbms.addTxSubscription(dbID2, nodeID, 1)
+				_, _, err = dbms.observerFetchBlock(dbID2, nodeID, 1)
 				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
-				err = dbms.addTxSubscription(dbID, nodeID, 1)
-				So(err, ShouldBeNil)
-				err = dbms.cancelTxSubscription(dbID, nodeID)
+				_, _, err = dbms.observerFetchBlock(dbID, nodeID, 1)
 				So(err, ShouldBeNil)
 
 				// revoke write permission
@@ -235,7 +233,7 @@ func TestDBMS(t *testing.T) {
 					err = testRequest(route.DBSQuery, readQuery, &queryRes)
 					So(err, ShouldBeNil)
 
-					err = dbms.addTxSubscription(dbID, nodeID, 1)
+					_, _, err = dbms.observerFetchBlock(dbID, nodeID, 1)
 					So(err, ShouldBeNil)
 				})
 
@@ -315,7 +313,7 @@ func TestDBMS(t *testing.T) {
 				err = testRequest(route.DBSQuery, readQuery, &queryRes)
 				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 
-				err = dbms.addTxSubscription(dbID, nodeID, 1)
+				_, _, err = dbms.observerFetchBlock(dbID, nodeID, 1)
 				So(err.Error(), ShouldContainSubstring, ErrPermissionDeny.Error())
 			})
 

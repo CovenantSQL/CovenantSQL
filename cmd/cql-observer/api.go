@@ -83,6 +83,16 @@ func newPaginationFromReq(r *http.Request) (op *paginationOps) {
 	return
 }
 
+func (a *explorerAPI) GetAllSubscriptions(rw http.ResponseWriter, r *http.Request) {
+	subscriptions, err := a.service.getAllSubscriptions()
+	if err != nil {
+		sendResponse(500, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(200, true, "", subscriptions, rw)
+}
+
 func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -677,6 +687,7 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	v3Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCountV3).Methods("GET")
 	v3Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeightV3).Methods("GET")
 	v3Router.HandleFunc("/head/{db}", api.GetHighestBlockV3).Methods("GET")
+	v3Router.HandleFunc("/subscriptions", api.GetAllSubscriptions).Methods("GET")
 
 	server = &http.Server{
 		Addr:         listenAddr,

@@ -500,7 +500,7 @@ func TestFullProcess(t *testing.T) {
 			observerCmd.Cmd.Wait()
 		}()
 
-		// wait for the observer to collect blocks, two periods is enough
+		// wait for the observer to collect blocks
 		time.Sleep(conf.GConf.SQLChainPeriod * 5)
 
 		// test get genesis block by height
@@ -686,11 +686,14 @@ func TestFullProcess(t *testing.T) {
 		})
 		So(err, ShouldBeNil)
 
+		// wait for the observer to be enabled query by miner, and collect blocks
+		time.Sleep(conf.GConf.SQLChainPeriod * 5)
+
 		// test get genesis block by height
 		res, err = getJSON("v3/head/%v", dbID2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
-		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
+		So(ensureSuccess(res.Int("block", "height")), ShouldBeGreaterThanOrEqualTo, 0)
 		log.Info(err, res)
 
 		err = client.Drop(dsn)
@@ -698,6 +701,32 @@ func TestFullProcess(t *testing.T) {
 
 		err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
+
+		observerCmd.Cmd.Process.Signal(os.Interrupt)
+		observerCmd.Cmd.Wait()
+
+		// start observer again
+		observerCmd, err = utils.RunCommandNB(
+			FJ(baseDir, "./bin/cql-observer.test"),
+			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
+				"-database", string(dbID), "-reset", "oldest",
+				"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/observer.cover.out"),
+			},
+			"observer", testWorkingDir, logDir, false,
+		)
+		So(err, ShouldBeNil)
+
+		// call observer subscription status
+		// wait for observer to start
+		time.Sleep(time.Second * 3)
+
+		res, err = getJSON("v3/subscriptions")
+		So(err, ShouldBeNil)
+		subscriptions, err := res.Object()
+		So(subscriptions, ShouldContainKey, string(dbID))
+		So(subscriptions, ShouldContainKey, string(dbID2))
+		So(subscriptions[string(dbID)], ShouldBeGreaterThanOrEqualTo, 1)
+		So(subscriptions[string(dbID2)], ShouldBeGreaterThanOrEqualTo, 0)
 	})
 }
 

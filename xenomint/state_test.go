@@ -25,7 +25,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -458,9 +457,10 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 								},
 							},
 						}
-						blockx.QueryTxs[0].Request.Header.DataHash = hash.Hash{0x0, 0x0, 0x0, 0x1}
+						// modify response offset
+						blockx.QueryTxs[0].Response.ResponseHeader.LogOffset = 10000
 						err = st2.ReplayBlock(blockx)
-						So(err, ShouldEqual, ErrQueryConflict)
+						So(errors.Cause(err), ShouldEqual, ErrMissingParent)
 					},
 				)
 				Convey(

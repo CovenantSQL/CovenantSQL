@@ -106,5 +106,27 @@ func TestUserPermission(t *testing.T) {
 			},
 		})
 		So(state, ShouldBeFalse)
+
+		// test patterns limit
+		up := UserPermissionFromRole(Read)
+		up.Patterns = append(up.Patterns, "select 1")
+		up.Patterns = append(up.Patterns, "select 2")
+		// has patterns more than limit
+		_, state = up.HasDisallowedQueryPatterns([]Query{
+			{
+				Pattern: "select 1",
+			},
+			{
+				Pattern: "select 3",
+			},
+		})
+		So(state, ShouldBeTrue)
+		// only has limit patterns
+		_, state = up.HasDisallowedQueryPatterns([]Query{
+			{
+				Pattern: "select 1",
+			},
+		})
+		So(state, ShouldBeFalse)
 	})
 }

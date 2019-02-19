@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -433,10 +432,6 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 					select {
 					case ch <- id:
 					}
-					return
-				}
-				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
-					log.Debug("stop ping non leader BP node")
 					return
 				}
 

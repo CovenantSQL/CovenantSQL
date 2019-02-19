@@ -431,6 +431,7 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 					log.Infof("ping BP succeed: %v", localNodeInfo)
 					select {
 					case ch <- id:
+					default:
 					}
 					return
 				}

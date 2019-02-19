@@ -316,10 +316,15 @@ func main() {
 			dropDB = cfg.FormatDSN()
 		}
 
-		if err := client.Drop(dropDB); err != nil {
+		txHash, err := client.Drop(dropDB)
+		if err != nil {
 			// drop database failed
 			log.WithField("db", dropDB).WithError(err).Error("drop database failed")
 			return
+		}
+
+		if waitTxConfirmation {
+			wait(txHash)
 		}
 
 		// drop database success
@@ -346,7 +351,7 @@ func main() {
 			meta.Node = uint16(nodeCnt)
 		}
 
-		dsn, err := client.Create(meta)
+		txHash, dsn, err := client.Create(meta)
 		if err != nil {
 			log.WithError(err).Error("create database failed")
 			os.Exit(-1)
@@ -354,14 +359,7 @@ func main() {
 		}
 
 		if waitTxConfirmation {
-			var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
-			defer cancel()
-			err = client.WaitDBCreation(ctx, dsn)
-			if err != nil {
-				log.WithError(err).Error("create database failed durating creation")
-				os.Exit(-1)
-				return
-			}
+			wait(txHash)
 		}
 
 		log.Infof("the newly created database is: %#v", dsn)

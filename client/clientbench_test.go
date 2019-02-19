@@ -66,7 +66,7 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 	// create
 	meta := ResourceMeta{}
 	meta.Node = 3
-	dsn, err := Create(meta)
+	_, dsn, err := Create(meta)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	err = Drop(dsn)
+	_, err = Drop(dsn)
 	if err != nil {
 		b.Fatal(err)
 	}

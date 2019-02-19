@@ -99,6 +99,7 @@ func TestChain(t *testing.T) {
 
 			priv1, priv2 *asymmetric.PrivateKey
 			addr1, addr2 proto.AccountAddress
+			dbid1        = proto.DatabaseID("db#1")
 		)
 
 		priv1, err = kms.GetLocalPrivateKey()
@@ -184,6 +185,39 @@ func TestChain(t *testing.T) {
 			}
 			err = os.Remove(config.DataFile)
 			So(err, ShouldBeNil)
+		})
+
+		Convey("When chain state objects are injected", func() {
+			rpcService := &ChainRPCService{chain: chain}
+			err = rpcService.QuerySQLChainProfile(
+				&types.QuerySQLChainProfileReq{DBID: dbid1},
+				&types.QuerySQLChainProfileResp{})
+			So(err, ShouldNotBeNil)
+			resp := &types.FetchLastIrreversibleBlockResp{}
+			err = rpcService.FetchLastIrreversibleBlock(
+				&types.FetchLastIrreversibleBlockReq{Address: addr1}, resp)
+			So(err, ShouldBeNil)
+			So(resp.SQLChains, ShouldBeEmpty)
+
+			var loaded bool
+			_, loaded = chain.immutable.loadOrStoreProviderObject(addr1, &types.ProviderProfile{})
+			So(loaded, ShouldBeFalse)
+			_, loaded = chain.immutable.loadOrStoreSQLChainObject(dbid1, &types.SQLChainProfile{
+				Miners: []*types.MinerInfo{&types.MinerInfo{Address: addr2}},
+			})
+			So(loaded, ShouldBeFalse)
+			_, loaded = chain.immutable.loadOrStoreAccountObject(addr2, &types.Account{})
+			So(loaded, ShouldBeFalse)
+			chain.immutable.commit()
+
+			err = rpcService.QuerySQLChainProfile(
+				&types.QuerySQLChainProfileReq{DBID: dbid1},
+				&types.QuerySQLChainProfileResp{})
+			So(err, ShouldBeNil)
+			err = rpcService.FetchLastIrreversibleBlock(
+				&types.FetchLastIrreversibleBlockReq{Address: addr2}, resp)
+			So(err, ShouldBeNil)
+			So(resp.SQLChains, ShouldNotBeEmpty)
 		})
 
 		Convey("When transfer transactions are added", func() {

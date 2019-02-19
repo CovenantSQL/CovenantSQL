@@ -360,6 +360,13 @@ func main() {
 
 		if waitTxConfirmation {
 			wait(txHash)
+			var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			defer cancel()
+			err = client.WaitDBCreation(ctx, dsn)
+			if err != nil {
+				log.WithError(err).Error("wait database failed during creation")
+				os.Exit(-1)
+			}
 		}
 
 		log.Infof("the newly created database is: %#v", dsn)

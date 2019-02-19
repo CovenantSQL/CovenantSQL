@@ -65,3 +65,9 @@ func HomeDirExpand(path string) string {
 
 	return path
 }
+
+// Exist return if file or path is exist.
+func Exist(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || os.IsExist(err)
+}

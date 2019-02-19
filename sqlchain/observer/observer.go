@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package main
+package observer
 
 import (
+	"net/http"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func registerNode() (err error) {
@@ -41,19 +43,12 @@ func registerNode() (err error) {
 	return
 }
 
-func startService(server *rpc.Server) (service *Service, err error) {
+func startService() (service *Service, err error) {
 	// register observer service to rpc server
 	service, err = NewService()
 	if err != nil {
 		return
 	}
-
-	if err = server.RegisterService(route.ObserverRPCName, service); err != nil {
-		return
-	}
-
-	// start service rpc, observer acts as client role but listen to
-	go server.Serve()
 
 	// start observer service
 	service.start()
@@ -61,13 +56,47 @@ func startService(server *rpc.Server) (service *Service, err error) {
 	return
 }
 
-func stopService(service *Service, server *rpc.Server) (err error) {
+func stopService(service *Service) (err error) {
 	// stop subscription
 	service.stop()
 
-	// stop rpc service
-	server.Listener.Close()
-	server.Stop()
+	return
+}
 
+func StartObserver(listenAddr string, version string) (service *Service, httpServer *http.Server, err error) {
+	// init node
+	if err = initNode(); err != nil {
+		log.WithError(err).Fatal("init node failed")
+	}
+
+	// start service
+	if service, err = startService(); err != nil {
+		log.WithError(err).Fatal("start observation failed")
+	}
+
+	// start explorer api
+	httpServer, err = startAPI(service, listenAddr, version)
+	if err != nil {
+		log.WithError(err).Fatal("start explorer api failed")
+	}
+
+	// register node
+	if err = registerNode(); err != nil {
+		log.WithError(err).Fatal("register node failed")
+	}
+	return
+
+}
+
+func StopObserver(service *Service, httpServer *http.Server) (err error) {
+	// stop explorer api
+	if err = stopAPI(httpServer); err != nil {
+		log.WithError(err).Fatal("stop explorer api failed")
+	}
+
+	// stop subscriptions
+	if err = stopService(service); err != nil {
+		log.WithError(err).Fatal("stop service failed")
+	}
 	return
 }

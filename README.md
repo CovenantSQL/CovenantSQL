@@ -93,7 +93,7 @@ that inspired us:
 
 #### Connector
 
-CovenantSQL is still under construction and Testnet is already released, [have a try](https://testnet.covenantsql.io/).
+CovenantSQL is still under construction and Testnet is already released, [have a try](https://developers.covenantsql.io/docs/quickstart).
 
 
 - [Golang](client/)

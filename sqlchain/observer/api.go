@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package main
+package observer
 
 import (
 	"context"
@@ -49,10 +49,6 @@ func sendResponse(code int, success bool, msg interface{}, data interface{}, rw 
 	})
 }
 
-func notSupported(rw http.ResponseWriter, _ *http.Request) {
-	sendResponse(500, false, fmt.Sprintf("not supported in %v", version), nil, rw)
-}
-
 type explorerAPI struct {
 	service *Service
 }
@@ -81,6 +77,16 @@ func newPaginationFromReq(r *http.Request) (op *paginationOps) {
 		op.size = 10
 	}
 	return
+}
+
+func (a *explorerAPI) GetAllSubscriptions(rw http.ResponseWriter, r *http.Request) {
+	subscriptions, err := a.service.getAllSubscriptions()
+	if err != nil {
+		sendResponse(500, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(200, true, "", subscriptions, rw)
 }
 
 func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
@@ -596,8 +602,8 @@ func (a *explorerAPI) formatResponseHeader(resp *types.SignedResponseHeader) map
 			"affected_rows":  resp.AffectedRows,
 		},
 		"request": map[string]interface{}{
-			"hash":      resp.Request.Hash().String(),
-			"timestamp": a.formatTime(resp.Request.Timestamp),
+			"hash":      resp.GetRequestHash().String(),
+			"timestamp": a.formatTime(resp.GetRequestTimestamp()),
 			"node":      resp.Request.NodeID,
 			"type":      resp.Request.QueryType.String(),
 			"count":     resp.Request.BatchCount,
@@ -609,15 +615,15 @@ func (a *explorerAPI) formatAck(ack *types.SignedAckHeader) map[string]interface
 	return map[string]interface{}{
 		"ack": map[string]interface{}{
 			"request": map[string]interface{}{
-				"hash":      ack.Response.Request.Hash().String(),
-				"timestamp": a.formatTime(ack.Response.Request.Timestamp),
+				"hash":      ack.GetRequestHash().String(),
+				"timestamp": a.formatTime(ack.GetRequestTimestamp()),
 				"node":      ack.Response.Request.NodeID,
 				"type":      ack.Response.Request.QueryType.String(),
 				"count":     ack.Response.Request.BatchCount,
 			},
 			"response": map[string]interface{}{
-				"hash":           ack.Response.Hash().String(),
-				"timestamp":      a.formatTime(ack.Response.Timestamp),
+				"hash":           ack.GetResponseHash().String(),
+				"timestamp":      a.formatTime(ack.GetResponseTimestamp()),
 				"node":           ack.Response.NodeID,
 				"log_id":         ack.Response.LogOffset, // savepoint id in eventual consistency mode
 				"last_insert_id": ack.Response.LastInsertID,
@@ -650,7 +656,7 @@ func (a *explorerAPI) getHash(vars map[string]string) (h *hash.Hash, err error) 
 	return hash.NewHashFromStr(hStr)
 }
 
-func startAPI(service *Service, listenAddr string) (server *http.Server, err error) {
+func startAPI(service *Service, listenAddr string, version string) (server *http.Server, err error) {
 	router := mux.NewRouter()
 	router.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
@@ -663,7 +669,11 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	}
 	v1Router := router.PathPrefix("/v1").Subrouter()
 	v1Router.HandleFunc("/ack/{db}/{hash}", api.GetAck).Methods("GET")
-	v1Router.HandleFunc("/offset/{db}/{offset:[0-9]+}", notSupported).Methods("GET")
+	v1Router.HandleFunc("/offset/{db}/{offset:[0-9]+}",
+		func(writer http.ResponseWriter, request *http.Request) {
+			sendResponse(500, false, fmt.Sprintf("not supported in %v", version), nil, writer)
+		},
+	).Methods("GET")
 	v1Router.HandleFunc("/request/{db}/{hash}", api.GetRequest).Methods("GET")
 	v1Router.HandleFunc("/block/{db}/{hash}", api.GetBlock).Methods("GET")
 	v1Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCount).Methods("GET")
@@ -677,10 +687,11 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	v3Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCountV3).Methods("GET")
 	v3Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeightV3).Methods("GET")
 	v3Router.HandleFunc("/head/{db}", api.GetHighestBlockV3).Methods("GET")
+	v3Router.HandleFunc("/subscriptions", api.GetAllSubscriptions).Methods("GET")
 
 	server = &http.Server{
 		Addr:         listenAddr,
-		WriteTimeout: apiTimeout,
+		WriteTimeout: apiTimeout * 10,
 		ReadTimeout:  apiTimeout,
 		IdleTimeout:  apiTimeout,
 		Handler:      router,

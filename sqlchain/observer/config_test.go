@@ -1,3 +1,5 @@
+// +build !testbinary
+
 /*
  * Copyright 2018 The CovenantSQL Authors.
  *
@@ -14,7 +16,7 @@
  * limitations under the License.
  */
 
-package main
+package observer
 
 import (
 	"io/ioutil"

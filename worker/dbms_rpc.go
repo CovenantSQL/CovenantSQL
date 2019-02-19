@@ -18,8 +18,6 @@ package worker
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	//"context"
-	//"runtime/trace"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -32,27 +30,17 @@ var (
 	dbQueryFailCounter metrics.Meter
 )
 
-// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
-type SubscribeTransactionsReq struct {
+// ObserverFetchBlockReq defines the request for observer to fetch block.
+type ObserverFetchBlockReq struct {
 	proto.Envelope
-	DatabaseID proto.DatabaseID
-	Height     int32
+	proto.DatabaseID
+	Count int32 // sqlchain block serial number since genesis block (0)
 }
 
-// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
-type SubscribeTransactionsResp struct {
-	proto.Envelope
-}
-
-// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
-type CancelSubscriptionReq struct {
-	proto.Envelope
-	DatabaseID proto.DatabaseID
-}
-
-// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
-type CancelSubscriptionResp struct {
-	proto.Envelope
+// ObserverFetchBlockResp defines the response for observer to fetch block.
+type ObserverFetchBlockResp struct {
+	Count int32 // sqlchain block serial number since genesis block (0)
+	Block *types.Block
 }
 
 // DBMSRPCService is the rpc endpoint of database management.
@@ -82,10 +70,6 @@ func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err e
 	//	dbQueryFailCounter.Mark(1)
 	//	return
 	//}
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "Query")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "QueryRegion").End()
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
@@ -112,11 +96,6 @@ func (rpc *DBMSRPCService) Ack(ack *types.Ack, _ *types.AckResponse) (err error)
 	//if err = ack.Verify(); err != nil {
 	//	return
 	//}
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "Ack")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "AckRegion").End()
-
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {
 		err = errors.Wrap(ErrInvalidRequest, "request node id mismatch in ack")
@@ -152,19 +131,5 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}
 
-	return
-}
-
-// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
-func (rpc *DBMSRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, resp *SubscribeTransactionsResp) (err error) {
-	subscribeID := req.GetNodeID().ToNodeID()
-	err = rpc.dbms.addTxSubscription(req.DatabaseID, subscribeID, req.Height)
-	return
-}
-
-// CancelSubscription is the RPC method to cancel subscription in the target server.
-func (rpc *DBMSRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) (err error) {
-	nodeID := req.GetNodeID().ToNodeID()
-	err = rpc.dbms.cancelTxSubscription(req.DatabaseID, nodeID)
 	return
 }

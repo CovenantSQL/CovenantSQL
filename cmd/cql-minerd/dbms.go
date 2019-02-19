@@ -38,16 +38,17 @@ import (
 
 var rootHash = hash.Hash{}
 
-func startDBMS(server *rpc.Server) (dbms *worker.DBMS, err error) {
+func startDBMS(server *rpc.Server, onCreateDB func()) (dbms *worker.DBMS, err error) {
 	if conf.GConf.Miner == nil {
 		err = errors.New("invalid database config")
 		return
 	}
 
 	cfg := &worker.DBMSConfig{
-		RootDir:       conf.GConf.Miner.RootDir,
-		Server:        server,
-		MaxReqTimeGap: conf.GConf.Miner.MaxReqTimeGap,
+		RootDir:          conf.GConf.Miner.RootDir,
+		Server:           server,
+		MaxReqTimeGap:    conf.GConf.Miner.MaxReqTimeGap,
+		OnCreateDatabase: onCreateDB,
 	}
 
 	if dbms, err = worker.NewDBMS(cfg); err != nil {

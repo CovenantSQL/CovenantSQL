@@ -31,7 +31,7 @@ import (
 )
 
 func TestSessionPool_SessionBroken(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	var err error
 
 	conf.GConf, err = conf.LoadConfig(FJ(testWorkingDir, "./leak/client.yaml"))
@@ -109,7 +109,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	}
 
 	pool := GetSessionPoolInstance()
-	sess, _ := pool.getSessionFromPool(leaderNodeID)
+	sess, _ := pool.getSession(leaderNodeID)
 	log.Debugf("session for %s, %#v", leaderNodeID, sess)
 	sess.Close()
 

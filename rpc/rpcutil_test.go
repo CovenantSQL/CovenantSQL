@@ -19,6 +19,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,8 +28,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -36,6 +35,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
@@ -44,7 +44,7 @@ const (
 )
 
 func TestCaller_CallNode(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
 	os.Remove(publicKeyStore)
@@ -164,17 +164,28 @@ func TestCaller_CallNode(t *testing.T) {
 }
 
 func TestNewPersistentCaller(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.FatalLevel)
 	os.Remove(PubKeyStorePath)
 	defer os.Remove(PubKeyStorePath)
 	os.Remove(publicKeyStore)
 	defer os.Remove(publicKeyStore)
 
+	var d string
+	var err error
+	if d, err = ioutil.TempDir("", "rpcutil_test_"); err != nil {
+		return
+	}
+
+	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config2.yaml")
+	dupConfFile := filepath.Join(d, "config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	if err = utils.DupConf(confFile, dupConfFile); err != nil {
+		return
+	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
 
-	conf.GConf, _ = conf.LoadConfig(confFile)
+	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
 	route.Once = sync.Once{}
@@ -239,7 +250,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	}
 
 	// close anonymous ETLS connection, and create new one
-	client.Close()
+	client.ResetClient("DHT.FindNeighbor")
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
@@ -276,11 +287,11 @@ func TestNewPersistentCaller(t *testing.T) {
 	client2.CloseStream()
 
 	wg.Wait()
-	sess, ok := client2.pool.getSessionFromPool(conf.GConf.BP.NodeID)
+	sess, ok := client2.pool.getSession(conf.GConf.BP.NodeID)
 	if !ok {
 		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
 	}
-	sess.conn.Close()
+	sess.Close()
 
 	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
@@ -289,6 +300,82 @@ func TestNewPersistentCaller(t *testing.T) {
 	}
 	client3.CloseStream()
 
+}
+
+func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
+	log.SetLevel(log.FatalLevel)
+	os.Remove(PubKeyStorePath)
+	defer os.Remove(PubKeyStorePath)
+	os.Remove(publicKeyStore)
+	defer os.Remove(publicKeyStore)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	err := utils.WaitForPorts(ctx, "127.0.0.1", []int{
+		2230,
+	}, time.Millisecond*200)
+
+	if err != nil {
+		log.Fatalf("wait for port ready timeout: %v", err)
+	}
+
+	_, testFile, _, _ := runtime.Caller(0)
+	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+
+	conf.GConf, _ = conf.LoadConfig(confFile)
+	log.Debugf("GConf: %#v", conf.GConf)
+	// reset the once
+	route.Once = sync.Once{}
+	route.InitKMS(publicKeyStore)
+
+	addr := conf.GConf.ListenAddr
+	_, err = route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+
+	server, err := NewServerWithService(ServiceMap{"Test": &fakeService{}})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	_ = server.InitRPCServer(addr, privateKeyPath, []byte{})
+	go server.Serve()
+
+	client := NewPersistentCaller(conf.GConf.BP.NodeID)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			req := &FakeRequest{}
+			req.Log.Data = []byte(strings.Repeat("1", 500))
+			err = client.Call("Test.Call", req, nil)
+			if err != nil {
+				b.Error(err)
+			}
+		}
+	})
+	b.StopTimer()
+	time.Sleep(5 * time.Second)
+	server.Stop()
+	GetSessionPoolInstance().Close()
+}
+
+type fakeService struct{}
+
+type FakeRequest struct {
+	proto.Envelope
+	Instance string
+	Log      struct {
+		Index      uint64       // log index
+		Version    uint64       // log version
+		Type       uint8        // log type
+		Producer   proto.NodeID // producer node
+		DataLength uint64       // data length
+		Data       []byte
+	}
+}
+
+func (s *fakeService) Call(req *FakeRequest, resp *interface{}) (err error) {
+	time.Sleep(time.Microsecond * 600)
+	return
 }
 
 func BenchmarkPersistentCaller_Call(b *testing.B) {

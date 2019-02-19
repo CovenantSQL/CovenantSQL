@@ -223,8 +223,49 @@ func WaitDBCreation(ctx context.Context, dsn string) (err error) {
 	}
 
 	// wait for creation
-	err = bp.WaitDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
+	err = WaitBPDatabaseCreation(ctx, proto.DatabaseID(dsnCfg.DatabaseID), db, 3*time.Second)
 	return
+}
+
+// WaitBPDatabaseCreation waits for database creation complete.
+func WaitBPDatabaseCreation(
+	ctx context.Context,
+	dbID proto.DatabaseID,
+	db *sql.DB,
+	period time.Duration,
+) (err error) {
+	var (
+		ticker = time.NewTicker(period)
+		req    = &types.QuerySQLChainProfileReq{
+			DBID: dbID,
+		}
+	)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err = rpc.RequestBP(
+				route.MCCQuerySQLChainProfile.String(), req, nil,
+			); err != nil {
+				if !strings.Contains(err.Error(), bp.ErrDatabaseNotFound.Error()) {
+					// err != nil && err != ErrDatabaseNotFound (unexpected error)
+					return
+				}
+			} else {
+				// err == nil (creation done on BP): try to use database connection
+				if db == nil {
+					return
+				}
+				if _, err = db.ExecContext(ctx, "SHOW TABLES"); err == nil {
+					// err == nil (connect to Miner OK)
+					return
+				}
+			}
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		}
+	}
 }
 
 // Drop send drop database operation to block producer.
@@ -279,7 +320,7 @@ func GetTokenBalance(tt types.TokenType) (balance uint64, err error) {
 
 // UpdatePermission sends UpdatePermission transaction to chain.
 func UpdatePermission(targetUser proto.AccountAddress,
-	targetChain proto.AccountAddress, perm types.UserPermission) (txHash hash.Hash, err error) {
+	targetChain proto.AccountAddress, perm *types.UserPermission) (txHash hash.Hash, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return

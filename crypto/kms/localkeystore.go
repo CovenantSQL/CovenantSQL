@@ -64,6 +64,17 @@ func initLocalKeyStore() {
 	})
 }
 
+// ResetLocalKeyStore FOR UNIT TEST, DO NOT USE IT.
+func ResetLocalKeyStore() {
+	localKey = &LocalKeyStore{
+		isSet:     false,
+		private:   nil,
+		public:    nil,
+		nodeID:    nil,
+		nodeNonce: nil,
+	}
+}
+
 // SetLocalKeyPair sets private and public key, this is a one time thing
 func SetLocalKeyPair(private *asymmetric.PrivateKey, public *asymmetric.PublicKey) {
 	localKey.Lock()

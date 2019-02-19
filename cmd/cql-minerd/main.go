@@ -26,19 +26,17 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-
-	"github.com/CovenantSQL/CovenantSQL/metric"
-
-	//"runtime/trace"
 	"syscall"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 	graphite "github.com/cyberdelia/go-metrics-graphite"
 	metrics "github.com/rcrowley/go-metrics"
@@ -199,11 +197,11 @@ func main() {
 		}
 	}
 
+	// start prometheus collector
+	reg := metric.StartMetricCollector()
+
 	// start period provide service transaction generator
 	go func() {
-		// start prometheus collector
-		reg := metric.StartMetricCollector()
-
 		tick := time.NewTicker(conf.GConf.Miner.ProvideServiceInterval)
 		defer tick.Stop()
 
@@ -220,7 +218,9 @@ func main() {
 
 	// start dbms
 	var dbms *worker.DBMS
-	if dbms, err = startDBMS(server); err != nil {
+	if dbms, err = startDBMS(server, func() {
+		sendProvideService(reg)
+	}); err != nil {
 		log.WithError(err).Fatal("start dbms failed")
 	}
 
@@ -257,22 +257,22 @@ func main() {
 		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, minerName, addr)
 	}
 
-	//if traceFile != "" {
-	//	f, err := os.Create(traceFile)
-	//	if err != nil {
-	//		log.WithError(err).Fatal("failed to create trace output file")
-	//	}
-	//	defer func() {
-	//		if err := f.Close(); err != nil {
-	//			log.WithError(err).Fatal("failed to close trace file")
-	//		}
-	//	}()
+	if traceFile != "" {
+		f, err := os.Create(traceFile)
+		if err != nil {
+			log.WithError(err).Fatal("failed to create trace output file")
+		}
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.WithError(err).Fatal("failed to close trace file")
+			}
+		}()
 
-	//	if err := trace.Start(f); err != nil {
-	//		log.WithError(err).Fatal("failed to start trace")
-	//	}
-	//	defer trace.Stop()
-	//}
+		if err := trace.Start(f); err != nil {
+			log.WithError(err).Fatal("failed to start trace")
+		}
+		defer trace.Stop()
+	}
 
 	<-signalCh
 	utils.StopProfile()

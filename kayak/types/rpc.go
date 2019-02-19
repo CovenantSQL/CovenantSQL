@@ -18,8 +18,22 @@ package types
 
 import "github.com/CovenantSQL/CovenantSQL/proto"
 
-// RPCRequest defines the RPC request entity.
-type RPCRequest struct {
+// ApplyRequest defines the apply request entity.
+type ApplyRequest struct {
+	proto.Envelope
+	Instance string
+	Log      *Log
+}
+
+// FetchRequest defines the fetch request entity.
+type FetchRequest struct {
+	proto.Envelope
+	Instance string
+	Index    uint64
+}
+
+// FetchResponse defines the fetch response entity.
+type FetchResponse struct {
 	proto.Envelope
 	Instance string
 	Log      *Log

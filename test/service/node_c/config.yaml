@@ -7,7 +7,6 @@ ListenAddr: "127.0.0.1:4661"
 ThisNodeID: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
 QPS: 1000
 ChainBusPeriod: 20s
-BillingBlockCount: 3600
 BPPeriod: 3s
 BPTick: 1s
 SQLChainPeriod: 3s
@@ -36,13 +35,6 @@ BlockProducer:
     c: 0
     d: 0
   ChainFileName: "chain.db"
-  BPGenesisInfo:
-    Version: 1
-    BlockHash: f745ca6427237aac858dd3c7f2df8e6f3c18d0f1c164e07a1c6b8eebeba6b154
-    Producer: 0000000000000000000000000000000000000000000000000000000000000001
-    MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
-    ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
-    Timestamp: "2019-01-10T12:49:07+08:00"
 KnownNodes:
   - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
     Nonce:
@@ -107,14 +99,4 @@ KnownNodes:
     Addr: 127.0.0.1:11104 #172.254.1.7:4661
     PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
     Role: Miner
-Adapter:
-  ListenAddr: 0.0.0.0:4661
-  CertificatePath: ./server.test.covenantsql.io.pem
-  PrivateKeyPath: ./server.test.covenantsql.io-key.pem
-  VerifyCertificate: true
-  ClientCAPath: ./rootCA.pem
-  AdminCerts:
-    - ./admin.test.covenantsql.io.pem
-  WriteCerts:
-    - ./write.test.covenantsql.io.pem
-  StorageDriver: covenantsql
+

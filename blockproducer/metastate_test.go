@@ -106,11 +106,11 @@ func TestMetaState(t *testing.T) {
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
 			err = ms.createSQLChain(addr1, dbID1)
 			So(err, ShouldEqual, ErrAccountNotFound)
-			err = ms.addSQLChainUser(dbID1, addr1, types.Admin)
+			err = ms.addSQLChainUser(dbID1, addr1, types.UserPermissionFromRole(types.Admin))
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 			err = ms.deleteSQLChainUser(dbID1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbID1, addr1, types.Write)
+			err = ms.alterSQLChainUser(dbID1, addr1, types.UserPermissionFromRole(types.Write))
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
@@ -170,9 +170,9 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+					err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
 						err = ms.deleteSQLChainUser(dbID3, addr2)
@@ -181,9 +181,9 @@ func TestMetaState(t *testing.T) {
 						So(err, ShouldBeNil)
 					})
 					Convey("The metaState object should be ok to alter user", func() {
-						err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Read))
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
@@ -204,9 +204,9 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 						})
 						Convey("The metaState object should be ok to alter user", func() {
-							err = ms.alterSQLChainUser(dbID3, addr2, types.Read)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Read))
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbID3, addr2, types.Write)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 							So(err, ShouldBeNil)
 						})
 					})
@@ -214,9 +214,9 @@ func TestMetaState(t *testing.T) {
 				Convey("When metaState change is committed", func() {
 					ms.commit()
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbID3, addr2, types.Write)
+						err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {
@@ -396,6 +396,7 @@ func TestMetaState(t *testing.T) {
 							So(err, ShouldBeNil)
 							err = ms.transferAccountToken(tran3)
 							So(err, ShouldEqual, ErrBalanceOverflow)
+
 							tran4 := &types.Transfer{
 								TransferHeader: types.TransferHeader{
 									Sender:    addr2,
@@ -410,6 +411,34 @@ func TestMetaState(t *testing.T) {
 							err = ms.transferAccountToken(tran4)
 							So(err, ShouldBeNil)
 							ms.commit()
+
+							// wrong private sign test
+							tran5 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran5.Sign(privKey3)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran5)
+							So(err, ShouldNotBeNil)
+
+							// nil sign test
+							tran6 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = ms.transferAccountToken(tran6)
+							So(err, ShouldNotBeNil)
 						},
 					)
 					Convey(
@@ -881,7 +910,7 @@ func TestMetaState(t *testing.T) {
 					TokenType:     0,
 					NodeID:        "0002111",
 				}
-				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("10")))] = &types.ProviderProfile{
+				po, loaded = ms.loadOrStoreProviderObject(proto.AccountAddress(hash.HashH([]byte("10"))), &types.ProviderProfile{
 					TargetUser:    []proto.AccountAddress{addr2},
 					GasPrice:      1,
 					LoadAvgPerCPU: 0.001,
@@ -889,7 +918,9 @@ func TestMetaState(t *testing.T) {
 					Space:         100,
 					TokenType:     0,
 					NodeID:        "0003111",
-				}
+				})
+				So(po, ShouldBeNil)
+				So(loaded, ShouldBeFalse)
 				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("11")))] = &types.ProviderProfile{
 					TargetUser:    []proto.AccountAddress{addr2},
 					GasPrice:      1,
@@ -992,7 +1023,7 @@ func TestMetaState(t *testing.T) {
 					UpdatePermissionHeader: types.UpdatePermissionHeader{
 						TargetSQLChain: addr1,
 						TargetUser:     addr3,
-						Permission:     types.Read,
+						Permission:     types.UserPermissionFromRole(types.Read),
 						Nonce:          cd1.Nonce + 1,
 					},
 				}
@@ -1000,7 +1031,7 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
-				up.Permission = 4
+				up.Permission = types.UserPermissionFromRole(types.Void)
 				up.TargetSQLChain = dbAccount
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
@@ -1009,7 +1040,7 @@ func TestMetaState(t *testing.T) {
 				// test permission update
 				// addr1(admin) update addr3 as admin
 				up.TargetUser = addr3
-				up.Permission = types.Admin
+				up.Permission = types.UserPermissionFromRole(types.Admin)
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
@@ -1018,7 +1049,7 @@ func TestMetaState(t *testing.T) {
 				// addr3(admin) update addr4 as read
 				up.TargetUser = addr4
 				up.Nonce = cd2.Nonce
-				up.Permission = types.Read
+				up.Permission = types.UserPermissionFromRole(types.Read)
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
@@ -1034,12 +1065,12 @@ func TestMetaState(t *testing.T) {
 				ms.commit()
 				// addr3(admin) update addr3(admin) as read fail
 				up.TargetUser = addr3
-				up.Permission = types.Read
+				up.Permission = types.UserPermissionFromRole(types.Read)
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
-				So(errors.Cause(err), ShouldEqual, ErrNoAdminLeft)
+				So(errors.Cause(err), ShouldEqual, ErrNoSuperUserLeft)
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 2
 				err = up.Sign(privKey1)
@@ -1050,15 +1081,18 @@ func TestMetaState(t *testing.T) {
 				co, loaded = ms.loadSQLChainObject(dbID)
 				for _, user := range co.Users {
 					if user.Address == addr1 {
-						So(user.Permission, ShouldEqual, types.Read)
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Read)
 						continue
 					}
 					if user.Address == addr3 {
-						So(user.Permission, ShouldEqual, types.Admin)
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Admin)
 						continue
 					}
 					if user.Address == addr4 {
-						So(user.Permission, ShouldEqual, types.Read)
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Read)
 						continue
 					}
 				}
@@ -1107,6 +1141,19 @@ func TestMetaState(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(dbID, ShouldEqual, dbAccount.DatabaseID())
 					trans2.Nonce = nonce
+					//no sign err
+					err = ms.apply(trans2)
+					So(err, ShouldEqual, ErrInvalidSender)
+					//wrong key sign err
+					err = trans2.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2)
+					So(err, ShouldNotBeNil)
+					//invalid sign
+					copy([]byte("invalid hash"), trans2.DataHash[:])
+					err = ms.apply(trans2)
+					So(err, ShouldNotBeNil)
+					//correct transfer
 					err = trans2.Sign(privKey3)
 					So(err, ShouldBeNil)
 					err = ms.apply(trans2)
@@ -1177,6 +1224,52 @@ func TestMetaState(t *testing.T) {
 						}
 					}
 
+					// transfer too much token
+					trans5 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    18446744073709551615,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans5.Nonce = nonce
+					err = trans5.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans5)
+					So(err, ShouldEqual, ErrInsufficientBalance)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer wrong type of token
+					trans6 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    4000000,
+						TokenType: -1,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans6.Nonce = nonce
+					err = trans6.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans6)
+					So(err, ShouldEqual, ErrWrongTokenType)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
 					// transfer enough token
 					trans4 := types.NewTransfer(&types.TransferHeader{
 						Sender:    addr3,
@@ -1199,7 +1292,6 @@ func TestMetaState(t *testing.T) {
 							break
 						}
 					}
-
 				})
 				Convey("update key", func() {
 					invalidIk1 := &types.IssueKeys{}

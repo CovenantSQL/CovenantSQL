@@ -152,7 +152,8 @@ func teardownChain(testName string, c *Chain) (err error) {
 		err = errors.Wrap(err, "failed to teardown bench environment: ")
 		return
 	}
-	return
+
+	return nil
 }
 
 func teardownBenchmarkChain(b *testing.B, c *Chain) {
@@ -245,8 +246,6 @@ func TestChain(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		err = teardownChain(t.Name(), c)
-		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
-			So(err, ShouldBeNil)
-		}
+		So(err, ShouldBeNil)
 	})
 }

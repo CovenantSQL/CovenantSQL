@@ -22,29 +22,46 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"sync/atomic"
 	"testing"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
+func setupChain(testName string) (c *Chain, err error) {
 	// Setup chain state
 	var (
-		fl   = path.Join(testingDataDir, b.Name())
-		err  error
-		stmt *sql.Stmt
+		fl = path.Join(testingDataDir, testName)
 	)
 	if c, err = NewChain(fmt.Sprint("file:", fl)); err != nil {
-		b.Fatalf("failed to setup bench environment: %v", err)
+		err = errors.Wrap(err, "failed to setup bench environment: ")
+		return
 	}
 	if _, err = c.state.strg.Writer().Exec(
 		`CREATE TABLE "bench" ("k" INT, "v1" TEXT, "v2" TEXT, "v3" TEXT, PRIMARY KEY("k"))`,
 	); err != nil {
-		b.Fatalf("failed to setup bench environment: %v", err)
+		err = errors.Wrap(err, "failed to setup bench environment: ")
+		return
 	}
+	return
+}
+
+func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
+	var (
+		err  error
+		stmt *sql.Stmt
+	)
+
+	c, err = setupChain(b.Name())
+	if err != nil {
+		b.Fatal(err)
+	}
+
 	if stmt, err = c.state.strg.Writer().Prepare(
 		`INSERT INTO "bench" VALUES (?, ?, ?, ?)`,
 	); err != nil {
@@ -110,24 +127,35 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
 	return
 }
 
+func teardownChain(testName string, c *Chain) (err error) {
+	var (
+		fl = path.Join(testingDataDir, testName)
+	)
+	if err = c.Stop(); err != nil {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	if err = os.Remove(fl); err != nil {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	return
+}
+
 func teardownBenchmarkChain(b *testing.B, c *Chain) {
 	b.StopTimer()
 
-	var (
-		fl  = path.Join(testingDataDir, b.Name())
-		err error
-	)
-	if err = c.Stop(); err != nil {
-		b.Fatalf("failed to teardown bench environment: %v", err)
-	}
-	if err = os.Remove(fl); err != nil {
-		b.Fatalf("failed to teardown bench environment: %v", err)
-	}
-	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("failed to teardown bench environment: %v", err)
-	}
-	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("failed to teardown bench environment: %v", err)
+	err := teardownChain(b.Name(), c)
+	if err != nil {
+		b.Fatal(err)
 	}
 }
 
@@ -171,4 +199,47 @@ func BenchmarkChainParallelMixRW(b *testing.B) {
 		}
 	})
 	teardownBenchmarkChain(b, c)
+}
+
+func TestChain(t *testing.T) {
+	Convey("test xenomint chain", t, func() {
+		var c, err = setupChain(t.Name())
+		So(err, ShouldBeNil)
+
+		// Setup query requests
+		var (
+			sel  = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+			ins  = `INSERT INTO bench VALUES (?, ?, ?, ?)`
+			rr   *types.Request
+			wr   *types.Request
+			priv *ca.PrivateKey
+		)
+		priv, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+
+		// Write query
+		wr = buildRequest(types.WriteQuery, []types.Query{
+			buildQuery(ins, 0, 1, 2, 3),
+		})
+		err = wr.Sign(priv)
+		So(err, ShouldBeNil)
+
+		_, err = c.Query(wr)
+		So(err, ShouldBeNil)
+
+		// Read query
+		rr = buildRequest(types.ReadQuery, []types.Query{
+			buildQuery(sel, 0),
+		})
+		err = rr.Sign(priv)
+		So(err, ShouldBeNil)
+
+		_, err = c.Query(rr)
+		So(err, ShouldBeNil)
+
+		err = teardownChain(t.Name(), c)
+		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+			So(err, ShouldBeNil)
+		}
+	})
 }

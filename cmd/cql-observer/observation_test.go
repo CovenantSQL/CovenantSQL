@@ -696,10 +696,10 @@ func TestFullProcess(t *testing.T) {
 		So(ensureSuccess(res.Int("block", "height")), ShouldBeGreaterThanOrEqualTo, 0)
 		log.Info(err, res)
 
-		err = client.Drop(dsn)
+		_, err = client.Drop(dsn)
 		So(err, ShouldBeNil)
 
-		err = client.Drop(dsn2)
+		_, err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
 
 		observerCmd.Cmd.Process.Signal(os.Interrupt)

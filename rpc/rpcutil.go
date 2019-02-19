@@ -430,7 +430,9 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 				err := PingBP(localNodeInfo, id)
 				if err == nil {
 					log.Infof("ping BP succeed: %v", localNodeInfo)
-					ch <- id
+					select {
+					case ch <- id:
+					}
 					return
 				}
 				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
@@ -446,7 +448,6 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 
 	select {
 	case bp := <-pingWaitCh:
-		close(pingWaitCh)
 		log.WithField("BP", bp).Infof("ping BP succeed")
 	case <-time.After(timeout):
 		return errors.New("ping BP timeout")

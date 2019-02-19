@@ -15,6 +15,7 @@
 
 package metric
 
+/*
 import (
 	"errors"
 	"fmt"
@@ -156,3 +157,4 @@ func (c *ntpCollector) Update(ch chan<- prometheus.Metric) error {
 
 	return nil
 }
+*/

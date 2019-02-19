@@ -269,7 +269,7 @@ func WaitBPDatabaseCreation(
 	}
 }
 
-// Drop send drop database operation to block producer.
+// Drop sends drop database operation to block producer.
 func Drop(dsn string) (txHash hash.Hash, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized

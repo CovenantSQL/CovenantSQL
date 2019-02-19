@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type nodeRPCInfo struct {
@@ -243,4 +244,58 @@ func BenchmarkMuxParallel(b *testing.B) {
 			})
 		})
 	}
+}
+
+func TestMuxService(t *testing.T) {
+	Convey("test xenomint MuxService", t, func() {
+		var (
+			err       error
+			priv      *ca.PrivateKey
+			bp, miner *nodeRPCInfo
+			ms        *MuxService
+			c         *Chain
+
+			sel = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+			rr  *types.Request
+
+			method = fmt.Sprintf("%s.%s", benchmarkRPCName, "Query")
+		)
+		// Use testing private key to create several nodes
+		priv, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+
+		bp, miner, ms, err = setupMuxParallel(priv)
+		So(err, ShouldBeNil)
+		defer teardownBenchmarkMuxParallel(bp.server, miner.server)
+
+		var caller = rpc.NewPersistentCaller(miner.node.ID)
+
+		c, err = setupChain(t.Name())
+		So(err, ShouldBeNil)
+
+		ms.register(benchmarkDatabaseID, c)
+		defer func() {
+			ms.unregister(benchmarkDatabaseID)
+			teardownChain(t.Name(), c)
+		}()
+
+		// Setup query requests
+		rr = buildRequest(types.ReadQuery, []types.Query{
+			buildQuery(sel, 0),
+		})
+		err = rr.Sign(priv)
+		So(err, ShouldBeNil)
+
+		r := &MuxQueryRequest{
+			DatabaseID: benchmarkDatabaseID,
+			Request:    rr,
+		}
+		err = caller.Call(
+			method, &r, &MuxQueryResponse{},
+		)
+		So(err, ShouldBeNil)
+		err = c.state.commit()
+		So(err, ShouldBeNil)
+
+	})
 }

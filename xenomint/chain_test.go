@@ -36,7 +36,7 @@ import (
 func setupChain(testName string) (c *Chain, err error) {
 	// Setup chain state
 	var (
-		fl = path.Join(testingDataDir, testName)
+		fl = path.Join(testingDataDir, strings.Replace(testName, "/", "-", -1))
 	)
 	if c, err = NewChain(fmt.Sprint("file:", fl)); err != nil {
 		err = errors.Wrap(err, "failed to setup bench environment: ")
@@ -51,42 +51,14 @@ func setupChain(testName string) (c *Chain, err error) {
 	return
 }
 
-func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
-	var (
-		err  error
-		stmt *sql.Stmt
-	)
-
-	c, err = setupChain(b.Name())
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	if stmt, err = c.state.strg.Writer().Prepare(
-		`INSERT INTO "bench" VALUES (?, ?, ?, ?)`,
-	); err != nil {
-		b.Fatalf("failed to setup bench environment: %v", err)
-	}
-	for i := 0; i < benchmarkReservedKeyLength; i++ {
-		var (
-			vals [benchmarkVNum][benchmarkVLen]byte
-			args [benchmarkVNum + 1]interface{}
-		)
-		args[0] = i + benchmarkReservedKeyOffset
-		for i := range vals {
-			rand.Read(vals[i][:])
-			args[i+1] = string(vals[i][:])
-		}
-		if _, err = stmt.Exec(args[:]...); err != nil {
-			b.Fatalf("failed to setup bench environment: %v", err)
-		}
-	}
+func setupBenchmarkChainRequest(b *testing.B) (r []*types.Request) {
 	// Setup query requests
 	var (
 		sel  = `SELECT v1, v2, v3 FROM bench WHERE k=?`
 		ins  = `INSERT INTO bench VALUES (?, ?, ?, ?)`
 		priv *ca.PrivateKey
 		src  = make([][]interface{}, benchmarkNewKeyLength)
+		err  error
 	)
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		b.Fatalf("failed to setup bench environment: %v", err)
@@ -119,6 +91,39 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
 	}
+	return
+}
+
+func setupBenchmarkChain(b *testing.B) (c *Chain) {
+	var (
+		err  error
+		stmt *sql.Stmt
+	)
+
+	c, err = setupChain(b.Name())
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	if stmt, err = c.state.strg.Writer().Prepare(
+		`INSERT INTO "bench" VALUES (?, ?, ?, ?)`,
+	); err != nil {
+		b.Fatalf("failed to setup bench environment: %v", err)
+	}
+	for i := 0; i < benchmarkReservedKeyLength; i++ {
+		var (
+			vals [benchmarkVNum][benchmarkVLen]byte
+			args [benchmarkVNum + 1]interface{}
+		)
+		args[0] = i + benchmarkReservedKeyOffset
+		for i := range vals {
+			rand.Read(vals[i][:])
+			args[i+1] = string(vals[i][:])
+		}
+		if _, err = stmt.Exec(args[:]...); err != nil {
+			b.Fatalf("failed to setup bench environment: %v", err)
+		}
+	}
 
 	allKeyPermKeygen.reset()
 	newKeyPermKeygen.reset()
@@ -129,7 +134,7 @@ func setupBenchmarkChain(b *testing.B) (c *Chain, r []*types.Request) {
 
 func teardownChain(testName string, c *Chain) (err error) {
 	var (
-		fl = path.Join(testingDataDir, testName)
+		fl = path.Join(testingDataDir, strings.Replace(testName, "/", "-", -1))
 	)
 	if err = c.Stop(); err != nil {
 		err = errors.Wrap(err, "failed to teardown bench environment: ")
@@ -160,7 +165,8 @@ func teardownBenchmarkChain(b *testing.B, c *Chain) {
 }
 
 func BenchmarkChainParallelWrite(b *testing.B) {
-	var c, r = setupBenchmarkChain(b)
+	var r = setupBenchmarkChainRequest(b)
+	var c = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {
 		var (
 			err     error
@@ -181,7 +187,8 @@ func BenchmarkChainParallelWrite(b *testing.B) {
 }
 
 func BenchmarkChainParallelMixRW(b *testing.B) {
-	var c, r = setupBenchmarkChain(b)
+	var r = setupBenchmarkChainRequest(b)
+	var c = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {
 		var (
 			err     error

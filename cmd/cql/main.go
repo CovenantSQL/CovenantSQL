@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -36,7 +35,6 @@ import (
 	"time"
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	"github.com/rakyll/statik/fs"
 	"github.com/sirupsen/logrus"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
@@ -51,11 +49,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/observer"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-
-	_ "github.com/CovenantSQL/CovenantSQL/cmd/cql/statik" // to embed the shardchain-explorer
 )
 
 const name = "cql"
@@ -72,11 +69,14 @@ var (
 	singleTransaction bool
 	showVersion       bool
 	variables         varsFlag
+	stopCh            = make(chan struct{})
+	logLevel          string
 
 	// Shard chain explorer stuff
-	tmpPath    string         // background observer and explorer block and log file path
-	cLog       *logrus.Logger // console logger
-	bgLogLevel string         // background log level
+	tmpPath      string         // background observer and explorer block and log file path
+	cLog         *logrus.Logger // console logger
+	bgLogLevel   string         // background log level
+	explorerAddr string         // explorer Web addr
 
 	// DML variables
 	createDB                string // as a instance meta json string or simply a node count
@@ -88,7 +88,6 @@ var (
 	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
 
 	waitTxConfirmationMaxDuration time.Duration
-	explorerAddr                  string
 )
 
 type userPermission struct {
@@ -230,6 +229,7 @@ func usqlRegister() {
 }
 
 func init() {
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 	flag.StringVar(&dsn, "dsn", "", "Database url")
 	flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
 	flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
@@ -246,6 +246,7 @@ func init() {
 	// Explorer
 	flag.StringVar(&tmpPath, "tmp-path", "", "Explorer temp file path, use os.TempDir for default")
 	flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level")
+	flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
 
 	// DML flags
 	flag.StringVar(&createDB, "create", "", "Create database, argument can be instance requirement json or simply a node count requirement")
@@ -255,20 +256,18 @@ func init() {
 	flag.BoolVar(&getBalance, "get-balance", false, "Get balance of current account")
 	flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
-
-	flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
 }
 
-func serverAsShardChainExplorer(addr string) {
-	statikFS, err := fs.New()
+func serverAsShardChainExplorer(webAddr string) {
+	service, httpServer, err := observer.StartObserver(webAddr, version)
 	if err != nil {
-		log.WithError(err).Fatal("unable to create statik fs")
+		log.WithError(err).Fatal("start observer failed")
 	}
+	<-stopCh
 
-	http.Handle("/", http.FileServer(statikFS))
-	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.WithError(err).Error("http.ListenAndServe")
-	}
+	_ = observer.StopObserver(service, httpServer)
+
+	log.Info("observer stopped")
 }
 
 func main() {
@@ -277,6 +276,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	if tmpPath == "" {
 		tmpPath = os.TempDir()
 	}
@@ -298,17 +298,25 @@ func main() {
 	}
 	cLog.Infof("cql build: %#v\n", version)
 
-	if explorerAddr != "" {
-		serverAsShardChainExplorer(explorerAddr)
-		return
-	}
-
 	configFile = utils.HomeDirExpand(configFile)
-	// init covenantsql driver
-	if err = client.Init(configFile, []byte(password)); err != nil {
-		cLog.WithError(err).Error("init covenantsql client failed")
-		os.Exit(-1)
+
+	if explorerAddr != "" {
+		var err error
+		conf.GConf, err = conf.LoadConfig(configFile)
+		if err != nil {
+			log.WithField("config", configFile).WithError(err).Fatal("load config failed")
+		}
+
+		serverAsShardChainExplorer(explorerAddr)
+		defer close(stopCh)
 		return
+	} else {
+		// init covenantsql driver
+		if err = client.Init(configFile, []byte(password)); err != nil {
+			cLog.WithError(err).Error("init covenantsql client failed")
+			os.Exit(-1)
+			return
+		}
 	}
 
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have

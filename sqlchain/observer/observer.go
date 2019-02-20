@@ -58,9 +58,7 @@ func startService() (service *Service, err error) {
 
 func stopService(service *Service) (err error) {
 	// stop subscription
-	service.stop()
-
-	return
+	return service.stop()
 }
 
 func StartObserver(listenAddr string, version string) (service *Service, httpServer *http.Server, err error) {
@@ -85,7 +83,6 @@ func StartObserver(listenAddr string, version string) (service *Service, httpSer
 		log.WithError(err).Fatal("register node failed")
 	}
 	return
-
 }
 
 func StopObserver(service *Service, httpServer *http.Server) (err error) {

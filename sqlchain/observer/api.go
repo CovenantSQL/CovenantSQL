@@ -22,14 +22,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	_ "github.com/CovenantSQL/CovenantSQL/sqlchain/observer/statik" // to embed the shardchain-explorer
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/mux"
+	"github.com/rakyll/statik/fs"
 )
 
 var (
@@ -657,8 +660,23 @@ func (a *explorerAPI) getHash(vars map[string]string) (h *hash.Hash, err error) 
 }
 
 func startAPI(service *Service, listenAddr string, version string) (server *http.Server, err error) {
+	statikFS, err := fs.New()
+	if err != nil {
+		log.WithError(err).Fatal("unable to create statik fs")
+	}
+
 	router := mux.NewRouter()
-	router.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
+	fs := http.FileServer(statikFS)
+	router.Handle("/", fs)
+	router.Handle("/static/{type}/{file}", fs)
+	router.PathPrefix("/dbs").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		r2 := new(http.Request)
+		*r2 = *request
+		r2.URL = new(url.URL)
+		r2.URL.Path = "/"
+		fs.ServeHTTP(writer, r2)
+	})
+	router.HandleFunc("/version", func(rw http.ResponseWriter, r *http.Request) {
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
 			"version": version,
 		}, rw)
@@ -667,7 +685,7 @@ func startAPI(service *Service, listenAddr string, version string) (server *http
 	api := &explorerAPI{
 		service: service,
 	}
-	v1Router := router.PathPrefix("/v1").Subrouter()
+	v1Router := router.PathPrefix("/apiproxy.covenantsql/v1").Subrouter()
 	v1Router.HandleFunc("/ack/{db}/{hash}", api.GetAck).Methods("GET")
 	v1Router.HandleFunc("/offset/{db}/{offset:[0-9]+}",
 		func(writer http.ResponseWriter, request *http.Request) {
@@ -679,9 +697,9 @@ func startAPI(service *Service, listenAddr string, version string) (server *http
 	v1Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCount).Methods("GET")
 	v1Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeight).Methods("GET")
 	v1Router.HandleFunc("/head/{db}", api.GetHighestBlock).Methods("GET")
-	v2Router := router.PathPrefix("/v2").Subrouter()
+	v2Router := router.PathPrefix("/apiproxy.covenantsql/v2").Subrouter()
 	v2Router.HandleFunc("/head/{db}", api.GetHighestBlockV2).Methods("GET")
-	v3Router := router.PathPrefix("/v3").Subrouter()
+	v3Router := router.PathPrefix("/apiproxy.covenantsql/v3").Subrouter()
 	v3Router.HandleFunc("/response/{db}/{hash}", api.GetResponse).Methods("GET")
 	v3Router.HandleFunc("/block/{db}/{hash}", api.GetBlockV3).Methods("GET")
 	v3Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCountV3).Methods("GET")

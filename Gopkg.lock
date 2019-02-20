@@ -614,11 +614,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fd9ee7072a8121eb2a1592611023924f00492432ef923e561110e4c5e380f285"
+  digest = "1:b0acd406d3c1386599fe05d81ee6a4c125292f0e4c642e7651763a96a242e45a"
   name = "github.com/xtaci/smux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "6cf098d439391c8f8f6a485f8928f47575b6002e"
+  revision = "f4f6ca39c6952883b801c3fa7f5f0bcdb772d7f9"
 
 [[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"

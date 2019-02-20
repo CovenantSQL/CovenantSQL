@@ -268,6 +268,9 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
 		if errors.Cause(err) == kms.ErrKeyNotFound {
 			nodeInfo, err = FindNodeInBP(id)
+			if err != nil {
+				return
+			}
 			errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
 			if errSet != nil {
 				log.WithError(errSet).Warning("set node addr cache failed")
@@ -308,7 +311,7 @@ func FindNodeInBP(id *proto.RawNodeID) (node *proto.Node, err error) {
 		log.WithFields(log.Fields{
 			"method": method,
 			"bp":     bp,
-		}).WithError(err).Error("call dht rpc failed")
+		}).WithError(err).Warning("call dht rpc failed")
 	}
 
 	err = errors.Wrapf(err, "could not find node in all block producers")

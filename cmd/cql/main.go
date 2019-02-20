@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -88,6 +89,8 @@ var (
 	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
 
 	waitTxConfirmationMaxDuration time.Duration
+	service                       *observer.Service
+	httpServer                    *http.Server
 )
 
 type userPermission struct {
@@ -258,18 +261,6 @@ func init() {
 	flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
 }
 
-func serverAsShardChainExplorer(webAddr string) {
-	service, httpServer, err := observer.StartObserver(webAddr, version)
-	if err != nil {
-		log.WithError(err).Fatal("start observer failed")
-	}
-	<-stopCh
-
-	_ = observer.StopObserver(service, httpServer)
-
-	log.Info("observer stopped")
-}
-
 func main() {
 	var err error
 	// set random
@@ -307,9 +298,18 @@ func main() {
 			log.WithField("config", configFile).WithError(err).Fatal("load config failed")
 		}
 
-		serverAsShardChainExplorer(explorerAddr)
-		defer close(stopCh)
-		return
+		service, httpServer, err = observer.StartObserver(explorerAddr, version)
+		if err != nil {
+			log.WithError(err).Fatal("start explorer failed")
+		} else {
+			cLog.Infof("explorer started on %s", explorerAddr)
+		}
+
+		go func() {
+			<-stopCh
+			_ = observer.StopObserver(service, httpServer)
+			log.Info("explorer stopped")
+		}()
 	} else {
 		// init covenantsql driver
 		if err = client.Init(configFile, []byte(password)); err != nil {
@@ -566,6 +566,7 @@ func main() {
 			}
 			cLog.Infof("available drivers are: %#v", bindings)
 		}
+		close(stopCh)
 		os.Exit(-1)
 	}
 }

@@ -26,13 +26,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/rakyll/statik/fs"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	_ "github.com/CovenantSQL/CovenantSQL/sqlchain/observer/statik" // to embed the shardchain-explorer
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/gorilla/mux"
-	"github.com/rakyll/statik/fs"
 )
 
 var (

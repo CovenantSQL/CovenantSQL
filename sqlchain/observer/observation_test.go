@@ -206,7 +206,7 @@ func stopNodes() {
 }
 
 func getJSON(pattern string, args ...interface{}) (result *jsonq.JsonQuery, err error) {
-	url := "http://localhost:4663/" + apiProxyPrefix + fmt.Sprintf(pattern, args...)
+	url := "http://localhost:4663/" + apiProxyPrefix + "/" + fmt.Sprintf(pattern, args...)
 	resp, err := http.Get(url)
 	if err != nil {
 		return

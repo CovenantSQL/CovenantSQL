@@ -235,7 +235,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 	}
 }
 
-func BenchmarkKayakKVServer_GetAllNodeInfo(b *testing.B) {
+func BenchmarkKVServer_GetAllNodeInfo(b *testing.B) {
 	log.SetLevel(log.DebugLevel)
 	start3BPs()
 

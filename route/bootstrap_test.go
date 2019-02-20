@@ -96,7 +96,7 @@ func TestGetBP(t *testing.T) {
 	// not DNSSEC domain
 	ips, err = dc.GetBPFromDNSSeed("_bp._tcp.gridbase.io.")
 	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
-		t.Fatal("should be error")
+		t.Fatalf("should be error: %v", err)
 	} else {
 		log.Debugf("error: %v", err)
 	}
@@ -121,7 +121,16 @@ func TestGetBPEnforced(t *testing.T) {
 	// not DNSSEC domain
 	ips, err = dc.GetBPFromDNSSeed("_bp._tcp.gridbase.io.")
 	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
-		t.Fatal("should be error")
+		t.Fatalf("should be error: %v", err)
+	} else {
+		log.Debugf("error: %v", err)
+	}
+
+	// EnforcedDNSSEC but no DNSSEC domain
+	conf.GConf.DNSSeed.EnforcedDNSSEC = true
+	ips, err = dc.GetBPFromDNSSeed("_bp._tcp.gridbase.io.")
+	if conf.GConf.DNSSeed.EnforcedDNSSEC && (err == nil || !strings.Contains(err.Error(), "not DNSSEC record")) {
+		t.Fatalf("should be error: %v", err)
 	} else {
 		log.Debugf("error: %v", err)
 	}

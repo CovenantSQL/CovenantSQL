@@ -1,4 +1,4 @@
-This doc introduce the usage of CovenantSQL adapter. This adapter lets you use CovenantSQL on any platform from any programming languages using http(s) protocol. The CovenantSQL  Java/Python Driver currently is based on adapter to service.
+This doc introduce the usage of CovenantSQL adapter. This adapter lets you use CovenantSQL on any platform from any programming languages using http(s) protocol. The CovenantSQL  Java/Python/NodeJS Driver currently is based on adapter to service.
 
 ## Prerequisites
 
@@ -8,80 +8,20 @@ Make sure the ```$GOPATH/bin``` is in your ```$PATH```, download build the adapt
 $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
 ```
 
-Adapter requires a simple ```config.yaml``` like we use in client bundled with exclusive adpater configuration.
+## Adapter Usage
+
+Adapter can use the same ```config.yaml``` and key pair with `cql`
 
 ### Generating Default Config File
 
 First, generate the main configuration file. Same as [Generating Default Config File in Golang Client Doc](https://github.com/CovenantSQL/CovenantSQL/tree/develop/client#generating-default-config-file). An existing configuration file can also be used.
-
-### Configure Adapter
-
-Adapter use tls certificate for client authorization, a public or self-signed ssl certificate is required for adapter server to start. The adapter config is placed as a ```Adapter``` section of the main config file including following configurable fields.
-
-| Name              | Type     | Description                                                  | Default |
-| ----------------- | -------- | ------------------------------------------------------------ | ------- |
-| ListenAddr        | string   | adapter server listen address                                |         |
-| CertificatePath   | string   | adapter server tls certificate file<br />** all following file path is related to working root |         |
-| PrivateKeyPath    | string   | adapter server tls private key file                          |         |
-| VerifyCertificate | bool     | should adapter server verify client certificate or not<br />a client custom CA is required, all valid clients certificate should be issued by this CA | false   |
-| AdminCerts        | []string | each item requires to be a certificate file path<br />client with configured certificate will be granted with ADMIN privilege<br />ADMIN privilege is able to CREATE/DROP database, send WRITE/READ request |         |
-| WriteCerts        | []string | same format as ```AdminCerts ``` field<br />client with configured certificate will be granted with WRITE privilege<br />WRITE privilege is able to send WRITE/READ request only |         |
-| StorageDriver     | string   | two available storage driver: ```sqlite3``` and ```covenantsql```, use ```sqlite3``` driver for test purpose only |         |
-| StorageRoot       | string   | required by ```sqlite3``` storage driver, database files is placed under this root path, this path is treated as relative to working root |         |
-
-[mkcert](https://github.com/FiloSottile/mkcert) is a handy command to generate tls certificates, run the following command to generate the server certificate.
-
-``````
-$ CAROOT=$(pwd) mkcert server
-Using the local CA at "/demo" ✨
-Warning: the local CA is not installed in the system trust store! ⚠️
-Warning: the local CA is not installed in the Firefox trust store! ⚠️
-Run "mkcert -install" to avoid verification errors ‼️
-
-Created a new certificate valid for the following names 📜
- - "server"
-
-The certificate is at "./server.pem" and the key at "./server-key.pem" ✅
-
-And move them to ~/.cql/ dir.
-``````
-
-You can use following interactive command to generate adapter config.
-
-```shell
-$ cql-utils -tool adapterconfgen
-ListenAddr (default: 0.0.0.0:4661): ⏎
-CertificatePath (default: server.pem): ⏎
-PrivateKeyPath (default: server-key.pem): ⏎
-VerifyCertificate (default: true) (y/n): ⏎
-ClientCAPath (default:): ⏎
-AdminCerts (default:): ⏎
-WriteCerts (default:): ⏎
-StorageDriver (default: covenantsql): ⏎
-StorageRoot (default:): ⏎
-
-$ tail -n 20 ~/.cql/config.yaml
-... skipping irrelevant configuration
-Adapter:
-  ListenAddr: 0.0.0.0:4661
-  CertificatePath: server.pem
-  PrivateKeyPath: server.key
-  VerifyCertificate: false
-  ClientCAPath: 
-  AdminCerts: []
-  WriteCerts: []
-  StorageDriver: covenantsql
-  StorageRoot:
-```
-
-## Adapter Usage
 
 ### Start
 
 Start the adapter by following commands:
 
 ```shell
-$ cql-adapter
+$ cql-adapter -listen 127.0.0.1:4661
 ```
 
 ### API
@@ -116,6 +56,41 @@ $ cql-adapter
     "success": true
 }
 ```
+
+### Configure HTTPS Adapter
+
+Adapter use tls certificate for client authorization, a public or self-signed ssl certificate is required for adapter server to start. The adapter config is placed as a ```Adapter``` section of the main config file including following configurable fields.
+
+| Name              | Type     | Description                                                  | Default |
+| ----------------- | -------- | ------------------------------------------------------------ | ------- |
+| ListenAddr        | string   | adapter server listen address                                |         |
+| CertificatePath   | string   | adapter server tls certificate file<br />** all following file path is related to working root |         |
+| PrivateKeyPath    | string   | adapter server tls private key file                          |         |
+| VerifyCertificate | bool     | should adapter server verify client certificate or not<br />a client custom CA is required, all valid clients certificate should be issued by this CA | false   |
+| AdminCerts        | []string | each item requires to be a certificate file path<br />client with configured certificate will be granted with ADMIN privilege<br />ADMIN privilege is able to CREATE/DROP database, send WRITE/READ request |         |
+| WriteCerts        | []string | same format as ```AdminCerts ``` field<br />client with configured certificate will be granted with WRITE privilege<br />WRITE privilege is able to send WRITE/READ request only |         |
+| StorageDriver     | string   | two available storage driver: ```sqlite3``` and ```covenantsql```, use ```sqlite3``` driver for test purpose only |         |
+| StorageRoot       | string   | required by ```sqlite3``` storage driver, database files is placed under this root path, this path is treated as relative to working root |         |
+
+[mkcert](https://github.com/FiloSottile/mkcert) is a handy command to generate tls certificates, run the following command to generate the server certificate.
+
+``````
+$ CAROOT=$(pwd) mkcert server
+Using the local CA at "/demo" ✨
+Warning: the local CA is not installed in the system trust store! ⚠️
+Warning: the local CA is not installed in the Firefox trust store! ⚠️
+Run "mkcert -install" to avoid verification errors ‼️
+
+Created a new certificate valid for the following names 📜
+ - "server"
+
+The certificate is at "./server.pem" and the key at "./server-key.pem" ✅
+
+And move them to ~/.cql/ dir.
+``````
+
+You can use following interactive command to generate adapter config.
+
 
 ###### Example
 

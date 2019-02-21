@@ -43,7 +43,7 @@ const name = "cql-utils"
 func init() {
 	log.SetLevel(log.InfoLevel)
 
-	flag.StringVar(&tool, "tool", "", "Tool type, miner, keytool, rpc, nonce, confgen, addrgen, adapterconfgen")
+	flag.StringVar(&tool, "tool", "", "Tool type, miner, keytool, rpc, nonce, confgen, addrgen")
 	flag.StringVar(&publicKeyHex, "public", "", "Public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "Private key file to generate/show")
 	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file to use")
@@ -92,8 +92,6 @@ func main() {
 		runNonce()
 	case "confgen":
 		runConfgen()
-	case "adapterconfgen":
-		runAdapterConfGen()
 	case "addrgen":
 		if privateKeyFile == "" && publicKeyHex == "" {
 			log.Error("privateKey path or publicKey hex is required for addrgen")

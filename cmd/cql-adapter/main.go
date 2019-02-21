@@ -36,6 +36,7 @@ const name = "cql-adapeter"
 var (
 	version     = "unknown"
 	configFile  string
+	listenAddr  string
 	password    string
 	showVersion bool
 )
@@ -43,6 +44,7 @@ var (
 func init() {
 	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for adapter")
 	flag.StringVar(&password, "password", "", "Master key password")
+	flag.StringVar(&listenAddr, "listen", "", "Listen address for adapter api")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
@@ -62,7 +64,7 @@ func main() {
 		log.Infof("args %#v : %s", f.Name, f.Value)
 	})
 
-	server, err := NewHTTPAdapter(configFile, password)
+	server, err := NewHTTPAdapter(listenAddr, configFile, password)
 	if err != nil {
 		log.WithError(err).Fatal("init adapter failed")
 		return

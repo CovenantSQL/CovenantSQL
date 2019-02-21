@@ -89,6 +89,9 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 
 	config = configWrapper.Adapter
 
+	if len(config.StorageDriver) == 0 {
+		config.StorageDriver = "covenantsql"
+	}
 	if config.StorageDriver == "covenantsql" {
 		// init client
 		if err = client.Init(configPath, []byte(password)); err != nil {
@@ -103,7 +106,7 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 
 	if config.CertificatePath == "" || config.PrivateKeyPath == "" {
 		// http mode
-		log.Warningf("running in http mode")
+		log.Info("running in http mode")
 	} else {
 		// tls mode
 		// init tls config

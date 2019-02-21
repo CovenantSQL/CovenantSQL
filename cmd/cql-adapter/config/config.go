@@ -65,7 +65,7 @@ type Config struct {
 }
 
 type confWrapper struct {
-	Adapter *Config `yaml:"Adapter"`
+	Adapter Config `yaml:"Adapter"`
 }
 
 // LoadConfig load and verify config in config file and set to global config instance.
@@ -81,13 +81,7 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 		return
 	}
 
-	if configWrapper.Adapter == nil {
-		err = ErrEmptyAdapterConfig
-		log.WithError(err).Error("could not read adapter config")
-		return
-	}
-
-	config = configWrapper.Adapter
+	config = &configWrapper.Adapter
 
 	if len(config.StorageDriver) == 0 {
 		config.StorageDriver = "covenantsql"

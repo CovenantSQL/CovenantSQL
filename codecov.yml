@@ -29,7 +29,7 @@ comment:
 
 ignore:
   - "vendor"
-  - "cmd"
+#  - "cmd"
   - "test"
   - "crypto/secp256k1"
   - "_example/**/*"

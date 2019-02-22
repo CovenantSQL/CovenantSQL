@@ -174,11 +174,6 @@ func main() {
 		log.WithError(err).Fatal("init node failed")
 	}
 
-	if conf.GConf.Miner.IsTestMode {
-		// miner test mode enabled
-		log.Debug("miner test mode enabled")
-	}
-
 	// stop channel for all daemon routines
 	stopCh := make(chan struct{})
 	defer close(stopCh)

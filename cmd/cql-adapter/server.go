@@ -33,7 +33,7 @@ type HTTPAdapter struct {
 }
 
 // NewHTTPAdapter creates adapter to service.
-func NewHTTPAdapter(configFile string, password string) (adapter *HTTPAdapter, err error) {
+func NewHTTPAdapter(listenAddr string, configFile string, password string) (adapter *HTTPAdapter, err error) {
 	adapter = new(HTTPAdapter)
 
 	// load config file
@@ -42,6 +42,9 @@ func NewHTTPAdapter(configFile string, password string) (adapter *HTTPAdapter, e
 		return
 	}
 
+	if listenAddr != "" {
+		cfg.ListenAddr = listenAddr
+	}
 	// init server
 	handler := handlers.CORS()(api.GetRouter())
 
@@ -61,7 +64,7 @@ func (adapter *HTTPAdapter) Serve() (err error) {
 
 	// bind port, start tls listener
 	var listener net.Listener
-	if listener, err = net.Listen("tcp", cfg.ListenAddr); err != nil {
+	if listener, err = net.Listen("tcp", adapter.server.Addr); err != nil {
 		return
 	}
 

@@ -18,21 +18,20 @@ package types
 
 import (
 	"bytes"
-	"math/big"
+	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func TestSignAndVerify(t *testing.T) {
-	block, err := createRandomBlock(genesisHash, true)
+	block, err := CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -60,7 +59,7 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func TestHeaderMarshalUnmarshaler(t *testing.T) {
-	block, err := createRandomBlock(genesisHash, false)
+	block, err := CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -98,7 +97,7 @@ func TestHeaderMarshalUnmarshaler(t *testing.T) {
 }
 
 func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
-	block, err := createRandomBlock(genesisHash, true)
+	block, err := CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -145,11 +144,11 @@ func TestSignedHeaderMarshaleUnmarshaler(t *testing.T) {
 }
 
 func TestBlockMarshalUnmarshaler(t *testing.T) {
-	origin, err := createRandomBlock(genesisHash, false)
+	origin, err := CreateRandomBlock(genesisHash, false)
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
-	origin2, err := createRandomBlock(genesisHash, false)
+	origin2, err := CreateRandomBlock(genesisHash, false)
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
@@ -210,22 +209,18 @@ func TestBlockMarshalUnmarshaler(t *testing.T) {
 }
 
 func TestGenesis(t *testing.T) {
-	genesis, err := createRandomBlock(genesisHash, true)
+	genesis, err := CreateRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
-		t.Fatalf("error occurred: %v", err)
-	}
-
-	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
 
 	// Test non-genesis block
-	genesis, err = createRandomBlock(genesisHash, false)
+	genesis, err = CreateRandomBlock(genesisHash, false)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
@@ -237,56 +232,16 @@ func TestGenesis(t *testing.T) {
 		t.Fatal("unexpected result: returned nil while expecting an error")
 	}
 
-	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("unexpected result: returned nil while expecting an error")
-	}
-
-	// Test altered public key block
-	genesis, err = createRandomBlock(genesisHash, true)
+	// Test altered block
+	genesis, err = CreateRandomBlock(genesisHash, true)
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)
 	}
 
-	_, pub, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		t.Fatalf("error occurred: %v", err)
-	}
-
-	genesis.SignedHeader.HSV.Signee = pub
+	rand.Read(genesis.SignedHeader.ParentHash[:])
 
 	if err = genesis.VerifyAsGenesis(); err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("unexpected result: returned nil while expecting an error")
-	}
-
-	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatal("unexpected result: returned nil while expecting an error")
-	}
-
-	// Test altered signature
-	genesis, err = createRandomBlock(genesisHash, true)
-
-	if err != nil {
-		t.Fatalf("error occurred: %v", err)
-	}
-
-	genesis.SignedHeader.HSV.Signature.R.Add(genesis.SignedHeader.HSV.Signature.R, big.NewInt(int64(1)))
-	genesis.SignedHeader.HSV.Signature.S.Add(genesis.SignedHeader.HSV.Signature.S, big.NewInt(int64(1)))
-
-	if err = genesis.VerifyAsGenesis(); err != nil {
-		t.Logf("Error occurred as expected: %v", err)
-	} else {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if err = genesis.SignedHeader.VerifyAsGenesis(); err != nil {
 		t.Logf("Error occurred as expected: %v", err)
 	} else {
 		t.Fatal("unexpected result: returned nil while expecting an error")

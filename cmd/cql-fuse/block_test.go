@@ -256,7 +256,7 @@ func initTestDB() (*sql.DB, func()) {
 	// create
 	meta := client.ResourceMeta{}
 	meta.Node = 1
-	dsn, err := client.Create(meta)
+	_, dsn, err := client.Create(meta)
 	if err != nil {
 		log.Errorf("create db failed: %v", err)
 		return nil, stopNodes

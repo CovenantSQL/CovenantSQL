@@ -150,7 +150,7 @@ func (id *NodeID) ToRawNodeID() *RawNodeID {
 
 // IsEmpty test if a nodeID is empty.
 func (id *NodeID) IsEmpty() bool {
-	return id == nil || "" == string(*id)
+	return id == nil || "" == string(*id) || id.ToRawNodeID().IsEqual(&hash.Hash{})
 }
 
 // IsEqual returns if two node id is equal.

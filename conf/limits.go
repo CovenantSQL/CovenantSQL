@@ -17,13 +17,18 @@
 package conf
 
 const (
-	// MaxTxBroadcastTTL defines the TTL limit of a AddTx request broadcasting within the
-	// block producers.
-	MaxTxBroadcastTTL = 1
 	// MaxPendingTxsPerAccount defines the limit of pending transactions of one account.
 	MaxPendingTxsPerAccount = 1000
 	// MaxTransactionsPerBlock defines the limit of transactions per block.
 	MaxTransactionsPerBlock = 10000
 	// MaxRPCPoolPhysicalConnection defines max underlying physical connection for one node pair.
 	MaxRPCPoolPhysicalConnection = 2
+)
+
+// These limits will not cause inconsistency within certain range.
+const (
+	// MaxTxBroadcastTTL defines the TTL limit of a AddTx request broadcasting within the
+	// block producers.
+	MaxTxBroadcastTTL = 1
+	MaxCachedBlock    = 1000
 )

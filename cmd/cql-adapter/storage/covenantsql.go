@@ -37,7 +37,7 @@ func (s *CovenantSQLStorage) Create(nodeCnt int) (dbID string, err error) {
 	meta.Node = uint16(nodeCnt)
 
 	var dsn string
-	if dsn, err = client.Create(meta); err != nil {
+	if _, dsn, err = client.Create(meta); err != nil {
 		return
 	}
 
@@ -54,7 +54,7 @@ func (s *CovenantSQLStorage) Create(nodeCnt int) (dbID string, err error) {
 func (s *CovenantSQLStorage) Drop(dbID string) (err error) {
 	cfg := client.NewConfig()
 	cfg.DatabaseID = dbID
-	err = client.Drop(cfg.FormatDSN())
+	_, err = client.Drop(cfg.FormatDSN())
 	return
 }
 

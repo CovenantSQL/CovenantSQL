@@ -145,8 +145,8 @@ func Init(configFile string, masterKey []byte) (err error) {
 	return
 }
 
-// Create send create database operation to block producer.
-func Create(meta ResourceMeta) (dsn string, err error) {
+// Create sends create database operation to block producer.
+func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
@@ -203,6 +203,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		return
 	}
 
+	txHash = req.Tx.Hash()
 	cfg := NewConfig()
 	cfg.DatabaseID = string(proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
 	dsn = cfg.FormatDSN()
@@ -269,8 +270,8 @@ func WaitBPDatabaseCreation(
 	}
 }
 
-// Drop send drop database operation to block producer.
-func Drop(dsn string) (err error) {
+// Drop sends drop database operation to block producer.
+func Drop(dsn string) (txHash hash.Hash, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return

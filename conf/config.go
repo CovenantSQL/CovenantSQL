@@ -93,10 +93,6 @@ type MinerInfo struct {
 	MaxReqTimeGap          time.Duration          `yaml:"MaxReqTimeGap,omitempty"`
 	ProvideServiceInterval time.Duration          `yaml:"ProvideServiceInterval,omitempty"`
 	TargetUsers            []proto.AccountAddress `yaml:"TargetUsers,omitempty"`
-
-	// when test mode, fixture database config is used.
-	IsTestMode   bool                    `yaml:"IsTestMode,omitempty"`
-	TestFixtures []*MinerDatabaseFixture `yaml:"TestFixtures,omitempty"`
 }
 
 // DNSSeed defines seed DNS info.

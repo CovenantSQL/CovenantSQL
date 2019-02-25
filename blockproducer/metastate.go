@@ -19,20 +19,17 @@ package blockproducer
 import (
 	"bytes"
 	"sort"
-	"time"
+
+	"github.com/mohae/deepcopy"
+	"github.com/pkg/errors"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/mohae/deepcopy"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -45,7 +42,7 @@ type metaState struct {
 	dirty, readonly *metaIndex
 }
 
-// MinerInfos is MinerInfo array
+// MinerInfos is MinerInfo array.
 type MinerInfos []*types.MinerInfo
 
 // Len returns the length of the uints array.
@@ -651,7 +648,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		AdvancePayment: tx.AdvancePayment,
 	}
 	// generate genesis block
-	gb, err := s.generateGenesisBlock(dbID, tx.ResourceMeta)
+	gb, err := s.generateGenesisBlock(dbID, tx)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"dbID":         dbID,
@@ -1161,32 +1158,19 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	return
 }
 
-func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, resourceMeta types.ResourceMeta) (genesisBlock *types.Block, err error) {
-	// TODO(xq262144): following is stub code, real logic should be implemented in the future
-	emptyHash := hash.Hash{}
-
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
+func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, tx *types.CreateDatabase) (genesisBlock *types.Block, err error) {
+	emptyNode := &proto.RawNodeID{}
 	genesisBlock = &types.Block{
 		SignedHeader: types.SignedHeader{
 			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    nodeID,
-				GenesisHash: emptyHash,
-				ParentHash:  emptyHash,
-				Timestamp:   time.Now().UTC(),
+				Version:   0x01000000,
+				Producer:  emptyNode.ToNodeID(),
+				Timestamp: tx.Timestamp,
 			},
 		},
 	}
 
-	err = genesisBlock.PackAndSignBlock(privKey)
+	err = genesisBlock.PackAsGenesis()
 
 	return
 }

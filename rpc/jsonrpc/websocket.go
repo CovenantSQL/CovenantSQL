@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/jsonrpc2"
 	wsstream "github.com/sourcegraph/jsonrpc2/websocket"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // WebsocketServer is a websocket server providing JSON-RPC API service.

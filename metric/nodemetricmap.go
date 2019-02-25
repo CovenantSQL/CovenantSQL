@@ -19,15 +19,16 @@ package metric
 import (
 	"sync"
 
+	dto "github.com/prometheus/client_model/go"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	dto "github.com/prometheus/client_model/go"
 )
 
 // SimpleMetricMap is map from metric name to MetricFamily.
 type SimpleMetricMap map[string]*dto.MetricFamily
 
-// NodeCrucialMetricMap is map[NodeID][MetricName]Value
+// NodeCrucialMetricMap is map[NodeID][MetricName]Value.
 type NodeCrucialMetricMap map[proto.NodeID]map[string]float64
 
 // FilterFunc is a function that knows how to filter a specific node
@@ -83,7 +84,7 @@ func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.No
 	return
 }
 
-// FilterCrucialMetrics filters crucial metrics and also add cpu_count
+// FilterCrucialMetrics filters crucial metrics and also add cpu_count.
 func (mfm *SimpleMetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 	crucialMetricNameMap := map[string]string{
 		"node_memory_MemAvailable_bytes": "mem_avail",
@@ -120,7 +121,7 @@ func (mfm *SimpleMetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 	return
 }
 
-// GetCrucialMetrics gets NodeCrucialMetricMap from NodeMetricMap
+// GetCrucialMetrics gets NodeCrucialMetricMap from NodeMetricMap.
 func (nmm *NodeMetricMap) GetCrucialMetrics() (ret NodeCrucialMetricMap) {
 	ret = make(NodeCrucialMetricMap)
 	metricsPicker := func(key, value interface{}) bool {

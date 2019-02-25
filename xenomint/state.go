@@ -23,11 +23,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
-	"github.com/pkg/errors"
 )
 
 type sqlQuerier interface {
@@ -522,10 +523,7 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 		}
 		// Match and skip already pooled query
 		if q.Response.ResponseHeader.LogOffset < lastsp {
-			if !s.pool.match(q.Response.ResponseHeader.LogOffset, q.Request) {
-				err = ErrQueryConflict
-				return
-			}
+			// TODO(), recover logic after sqlchain forks by multiple write point
 			continue
 		}
 		// Replay query

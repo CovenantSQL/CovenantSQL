@@ -25,10 +25,11 @@ import (
 	"sync"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/pkg/errors"
 	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/chainbus"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -40,8 +41,19 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
-	"github.com/pkg/errors"
 )
+
+// Metric keys
+const (
+	mwKeyHeight      = "service:bp:height"
+	mwKeyTxPooled    = "service:bp:pooled"
+	mwKeyTxConfirmed = "service:bp:confirmed"
+)
+
+func init() {
+	expvar.Publish(mwKeyTxPooled, mw.NewCounter("5m1m"))
+	expvar.Publish(mwKeyTxConfirmed, mw.NewCounter("5m1m"))
+}
 
 // Chain defines the main chain.
 type Chain struct {
@@ -49,17 +61,24 @@ type Chain struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
+
 	// RPC components
 	server *rpc.Server
 	caller *rpc.Caller
+
 	// Other components
-	storage  xi.Storage
-	chainBus chainbus.Bus
+	storage xi.Storage
+	// NOTE(leventeliu): this LRU object is only used for block cache control,
+	// do NOT read it in any case.
+	blockCache *lru.Cache
+
 	// Channels for incoming blocks and transactions
 	pendingBlocks    chan *types.BPBlock
 	pendingAddTxReqs chan *types.AddTxReq
+
 	// The following fields are read-only in runtime
 	address     proto.AccountAddress
+	mode        RunMode
 	genesisTime time.Time
 	period      time.Duration
 	tick        time.Duration
@@ -77,47 +96,32 @@ type Chain struct {
 	headBranch   *branch
 	branches     []*branch
 	txPool       map[hash.Hash]pi.Transaction
-	mode         RunMode
 }
 
 // NewChain creates a new blockchain.
 func NewChain(cfg *Config) (c *Chain, err error) {
-	// Normally, NewChain() should only be called once in app.
-	// So, we just check expvar without a lock
-	if expvar.Get("height") == nil {
-		expvar.Publish("height", mw.NewGauge("5m1s"))
-	}
 	return NewChainWithContext(context.Background(), cfg)
 }
 
 // NewChainWithContext creates a new blockchain with context.
 func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error) {
 	var (
-		existed bool
-		ierr    error
-
-		cld context.Context
-		ccl context.CancelFunc
-		l   = uint32(len(cfg.Peers.Servers))
-		t   float64
-		m   uint32
+		ierr error
 
 		st        xi.Storage
-		irre      *blockNode
+		cache     *lru.Cache
+		lastIrre  *blockNode
 		heads     []*blockNode
 		immutable *metaState
 		txPool    map[hash.Hash]pi.Transaction
 
-		branches  []*branch
-		br, head  *branch
-		headIndex int
+		branches   []*branch
+		headBranch *branch
+		headIndex  int
 
-		pubKey      *asymmetric.PublicKey
 		addr        proto.AccountAddress
 		bpInfos     []*blockProducerInfo
 		localBPInfo *blockProducerInfo
-
-		bus = chainbus.New()
 	)
 
 	// Verify genesis block in config
@@ -131,6 +135,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Open storage
+	var existed bool
 	if fi, err := os.Stat(cfg.DataFile); err == nil && fi.Mode().IsRegular() {
 		existed = true
 	}
@@ -143,6 +148,21 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			st.Close()
 		}
 	}()
+
+	// Create block cache
+	if cfg.BlockCacheSize > conf.MaxCachedBlock {
+		cfg.BlockCacheSize = conf.MaxCachedBlock
+	}
+	if cfg.BlockCacheSize <= 0 {
+		cfg.BlockCacheSize = 1 // Must provide a positive size
+	}
+	if cache, err = lru.NewWithEvict(cfg.BlockCacheSize, func(key interface{}, value interface{}) {
+		if node, ok := value.(*blockNode); ok && node != nil {
+			node.clear()
+		}
+	}); err != nil {
+		return
+	}
 
 	// Create initial state from genesis block and store
 	if !existed {
@@ -162,25 +182,36 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		}
 	}
 
-	// Load from database and rebuild branches
-	if irre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
+	// Load from database
+	if lastIrre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
 		err = errors.Wrap(ierr, "failed to load data from storage")
 		return
 	}
-	if persistedGenesis := irre.ancestorByCount(0); persistedGenesis == nil ||
+
+	// Check genesis block
+	var irreBlocks = lastIrre.fetchNodeList(0)
+	if persistedGenesis := irreBlocks[0]; persistedGenesis == nil ||
 		!persistedGenesis.hash.IsEqual(cfg.Genesis.BlockHash()) {
 		err = ErrGenesisHashNotMatch
 		return
 	}
+
+	// Add blocks to LRU list
+	for _, v := range irreBlocks {
+		cache.Add(v.count, v)
+	}
+
+	// Rebuild branches
 	for _, v := range heads {
 		log.WithFields(log.Fields{
-			"irre_hash":  irre.hash.Short(4),
-			"irre_count": irre.count,
+			"irre_hash":  lastIrre.hash.Short(4),
+			"irre_count": lastIrre.count,
 			"head_hash":  v.hash.Short(4),
 			"head_count": v.count,
 		}).Debug("checking head")
-		if v.hasAncestor(irre) {
-			if br, ierr = newBranch(irre, v, immutable, txPool); ierr != nil {
+		if v.hasAncestor(lastIrre) {
+			var br *branch
+			if br, ierr = newBranch(lastIrre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
 				return
 			}
@@ -192,15 +223,16 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 
-	// Set head branch
+	// Select head branch
 	for i, v := range branches {
-		if head == nil || v.head.count > head.head.count {
+		if headBranch == nil || v.head.count > headBranch.head.count {
 			headIndex = i
-			head = v
+			headBranch = v
 		}
 	}
 
 	// Get accountAddress
+	var pubKey *asymmetric.PublicKey
 	if pubKey, err = kms.GetLocalPublicKey(); err != nil {
 		return
 	}
@@ -209,18 +241,26 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Setup peer list
-	if localBPInfo, bpInfos, err = buildBlockProducerInfos(cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode); err != nil {
+	var (
+		l = uint32(len(cfg.Peers.Servers))
+
+		threshold    float64
+		needConfirms uint32
+	)
+	if localBPInfo, bpInfos, err = buildBlockProducerInfos(
+		cfg.NodeID, cfg.Peers, cfg.Mode == APINodeMode,
+	); err != nil {
 		return
 	}
-	if t = cfg.ConfirmThreshold; t <= 0.0 {
-		t = conf.DefaultConfirmThreshold
+	if threshold = cfg.ConfirmThreshold; threshold <= 0.0 {
+		threshold = conf.DefaultConfirmThreshold
 	}
-	if m = uint32(math.Ceil(float64(l)*t + 1)); m > l {
-		m = l
+	if needConfirms = uint32(math.Ceil(float64(l)*threshold + 1)); needConfirms > l {
+		needConfirms = l
 	}
 
 	// create chain
-	cld, ccl = context.WithCancel(ctx)
+	var cld, ccl = context.WithCancel(ctx)
 	c = &Chain{
 		ctx:    cld,
 		cancel: ccl,
@@ -229,13 +269,14 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		server: cfg.Server,
 		caller: rpc.NewCaller(),
 
-		storage:  st,
-		chainBus: bus,
+		storage:    st,
+		blockCache: cache,
 
 		pendingBlocks:    make(chan *types.BPBlock),
 		pendingAddTxReqs: make(chan *types.AddTxReq),
 
 		address:     addr,
+		mode:        cfg.Mode,
 		genesisTime: cfg.Genesis.SignedHeader.Timestamp,
 		period:      cfg.Period,
 		tick:        cfg.Tick,
@@ -243,18 +284,24 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		bpInfos:     bpInfos,
 		localBPInfo: localBPInfo,
 		localNodeID: cfg.NodeID,
-		confirms:    m,
-		nextHeight:  head.head.height + 1,
+		confirms:    needConfirms,
+		nextHeight:  headBranch.head.height + 1,
 		offset:      time.Duration(0), // TODO(leventeliu): initialize offset
-
-		lastIrre:   irre,
-		immutable:  immutable,
-		headIndex:  headIndex,
-		headBranch: head,
-		branches:   branches,
-		txPool:     txPool,
-		mode:       cfg.Mode,
+		lastIrre:    lastIrre,
+		immutable:   immutable,
+		headIndex:   headIndex,
+		headBranch:  headBranch,
+		branches:    branches,
+		txPool:      txPool,
 	}
+
+	// NOTE(leventeliu): this implies that BP chain is a singleton, otherwise we will need
+	// independent metric key for each chain instance.
+	if expvar.Get(mwKeyHeight) == nil {
+		expvar.Publish(mwKeyHeight, mw.NewGauge(fmt.Sprintf("5m%.0fs", cfg.Period.Seconds())))
+	}
+	expvar.Get(mwKeyHeight).(mw.Metric).Add(float64(c.head().height))
+
 	log.WithFields(log.Fields{
 		"local":  c.getLocalBPInfo(),
 		"period": c.period,
@@ -353,7 +400,11 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 		"elapsed_seconds":  elapsed.Seconds(),
 	}).Info("enclosing current height and advancing to next height")
 
-	defer c.increaseNextHeight()
+	defer func() {
+		c.increaseNextHeight()
+		expvar.Get(mwKeyHeight).(mw.Metric).Add(float64(c.head().height))
+	}()
+
 	// Skip if it's not my turn
 	if c.mode == APINodeMode || !c.isMyTurn() {
 		return
@@ -368,7 +419,6 @@ func (c *Chain) advanceNextHeight(now time.Time, d time.Duration) {
 		}).Warn("too much time elapsed in the new period, skip this block")
 		return
 	}
-	expvar.Get("height").(mw.Metric).Add(float64(c.getNextHeight()))
 	log.WithField("height", c.getNextHeight()).Info("producing a new block")
 	if err := c.produceBlock(now); err != nil {
 		log.WithField("now", now.Format(time.RFC3339Nano)).WithError(err).Errorln(
@@ -500,7 +550,9 @@ func (c *Chain) processAddTxReq(addTxReq *types.AddTxReq) {
 	// Add to tx pool
 	if err = c.storeTx(tx); err != nil {
 		le.WithError(err).Error("failed to add transaction")
+		return
 	}
+	expvar.Get(mwKeyTxPooled).(mw.Metric).Add(1)
 }
 
 func (c *Chain) processTxs(ctx context.Context) {
@@ -629,6 +681,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		newIrres []*blockNode
 		sps      []storageProcedure
 		up       storageCallback
+		txCount  int
 		height   = c.heightOfTime(newBlock.Timestamp())
 
 		resultTxPool = make(map[hash.Hash]pi.Transaction)
@@ -641,14 +694,15 @@ func (c *Chain) replaceAndSwitchToBranch(
 	// May have multiple new irreversible blocks here if peer list shrinks. May also have
 	// no new irreversible block at all if peer list expands.
 	lastIrre = newBranch.head.lastIrreversible(c.confirms)
-	newIrres = lastIrre.fetchNodeList(c.lastIrre.count)
+	newIrres = lastIrre.fetchNodeList(c.lastIrre.count + 1)
 
 	// Apply irreversible blocks to create dirty map on immutable cache
 	for k, v := range c.txPool {
 		resultTxPool[k] = v
 	}
 	for _, b := range newIrres {
-		for _, tx := range b.block.Transactions {
+		txCount += b.txCount
+		for _, tx := range b.load().Transactions {
 			if err := c.immutable.apply(tx); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
@@ -679,7 +733,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	sps = append(sps, addBlock(height, newBlock))
 	sps = append(sps, buildBlockIndex(height, newBlock))
 	for _, n := range newIrres {
-		sps = append(sps, deleteTxs(n.block.Transactions))
+		sps = append(sps, deleteTxs(n.load().Transactions))
 	}
 	if len(expiredTxs) > 0 {
 		sps = append(sps, deleteTxs(expiredTxs))
@@ -725,7 +779,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 		// Clear transactions in each branch
 		for _, b := range newIrres {
 			for _, br := range c.branches {
-				br.clearPackedTxs(b.block.Transactions)
+				br.clearPackedTxs(b.load().Transactions)
 			}
 		}
 		for _, br := range c.branches {
@@ -733,12 +787,18 @@ func (c *Chain) replaceAndSwitchToBranch(
 		}
 		// Update txPool to result txPool (packed and expired transactions cleared!)
 		c.txPool = resultTxPool
+		// Register new irreversible blocks to LRU cache list
+		for _, b := range newIrres {
+			c.blockCache.Add(b.count, b)
+		}
 	}
 
 	// Write to immutable database and update cache
 	if err = store(c.storage, sps, up); err != nil {
 		c.immutable.clean()
+		return
 	}
+	expvar.Get(mwKeyTxConfirmed).(mw.Metric).Add(float64(txCount))
 	// TODO(leventeliu): trigger ChainBus.Publish.
 	// ...
 	return
@@ -754,7 +814,7 @@ func (c *Chain) stat() {
 		} else {
 			buff += fmt.Sprintf("[%04d] ", i)
 		}
-		buff += v.sprint(c.lastIrre.count)
+		buff += v.sprint(c.lastIrre.count + 1)
 		log.WithFields(log.Fields{
 			"branch": buff,
 		}).Info("runtime state")
@@ -922,7 +982,7 @@ func (c *Chain) getLocalBPInfo() *blockProducerInfo {
 	return c.localBPInfo
 }
 
-// getRemoteBPInfos remove this node from the peer list
+// getRemoteBPInfos remove this node from the peer list.
 func (c *Chain) getRemoteBPInfos() (remoteBPInfos []*blockProducerInfo) {
 	var localBPInfo, bpInfos = func() (*blockProducerInfo, []*blockProducerInfo) {
 		c.RLock()

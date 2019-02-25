@@ -19,8 +19,9 @@ import (
 	"bytes"
 	"unsafe"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"golang.org/x/sys/unix"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (

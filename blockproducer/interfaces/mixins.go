@@ -30,7 +30,7 @@ type TransactionTypeMixin struct {
 func NewTransactionTypeMixin(txType TransactionType) *TransactionTypeMixin {
 	return &TransactionTypeMixin{
 		TxType:    txType,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -49,7 +49,7 @@ func (m *TransactionTypeMixin) SetTransactionType(t TransactionType) {
 	m.TxType = t
 }
 
-// GetTimestamp implements Transaciton.GetTimestamp()
+// GetTimestamp implements Transaciton.GetTimestamp().
 func (m *TransactionTypeMixin) GetTimestamp() time.Time {
 	return m.Timestamp
 }

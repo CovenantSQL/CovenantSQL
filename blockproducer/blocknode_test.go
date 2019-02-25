@@ -19,10 +19,11 @@ package blockproducer
 import (
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBlockNode(t *testing.T) {
@@ -115,11 +116,11 @@ func TestBlockNode(t *testing.T) {
 		So(n0.count, ShouldEqual, 0)
 		So(n1.count, ShouldEqual, n0.count+1)
 
-		So(n0.fetchNodeList(0), ShouldBeEmpty)
 		So(n0.fetchNodeList(1), ShouldBeEmpty)
 		So(n0.fetchNodeList(2), ShouldBeEmpty)
-		So(n3.fetchNodeList(0), ShouldResemble, []*blockNode{n1, n2, n3})
-		So(n4p.fetchNodeList(2), ShouldResemble, []*blockNode{n3p, n4p})
+		So(n0.fetchNodeList(3), ShouldBeEmpty)
+		So(n3.fetchNodeList(1), ShouldResemble, []*blockNode{n1, n2, n3})
+		So(n4p.fetchNodeList(3), ShouldResemble, []*blockNode{n3p, n4p})
 
 		So(n0.ancestor(1), ShouldBeNil)
 		So(n3.ancestor(3), ShouldEqual, n3)

@@ -22,7 +22,7 @@ import (
 	"io/ioutil"
 )
 
-// DupConf duplicate conf file using random new listen addr to avoid failure on concurrent test cases
+// DupConf duplicate conf file using random new listen addr to avoid failure on concurrent test cases.
 func DupConf(confFile string, newConfFile string) (err error) {
 	// replace port in confFile
 	var fileBytes []byte

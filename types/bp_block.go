@@ -66,7 +66,7 @@ type BPBlock struct {
 	Transactions []pi.Transaction
 }
 
-// GetTxHashes returns all hashes of tx in block.{Billings, ...}
+// GetTxHashes returns all hashes of tx in block.{Billings, ...}.
 func (b *BPBlock) GetTxHashes() []*hash.Hash {
 	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
 	// get hashes in block.Transactions

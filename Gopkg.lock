@@ -432,6 +432,14 @@
   revision = "1dc9a6cbc91aacc3e8b2d63db4d2e957a5394ac4"
 
 [[projects]]
+  digest = "1:ea0700160aca4ef099f4e06686a665a87691f4248dddd40796925eda2e46bd64"
+  name = "github.com/rakyll/statik"
+  packages = ["fs"]
+  pruneopts = "UT"
+  revision = "1355192d24db2566a83c3914e187e2a7e7679832"
+  version = "v0.1.5"
+
+[[projects]]
   branch = "master"
   digest = "1:d38f81081a389f1466ec98192cf9115a82158854d6f01e1c23e2e7554b97db71"
   name = "github.com/rcrowley/go-metrics"
@@ -606,11 +614,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fd9ee7072a8121eb2a1592611023924f00492432ef923e561110e4c5e380f285"
+  digest = "1:b0acd406d3c1386599fe05d81ee6a4c125292f0e4c642e7651763a96a242e45a"
   name = "github.com/xtaci/smux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "6cf098d439391c8f8f6a485f8928f47575b6002e"
+  revision = "f4f6ca39c6952883b801c3fa7f5f0bcdb772d7f9"
 
 [[projects]]
   digest = "1:4619abe2e9ceabced45ff40a4826866c48f264bb58384efe799a8fb83c2256e0"
@@ -712,6 +720,7 @@
     "github.com/prometheus/common/expfmt",
     "github.com/prometheus/common/version",
     "github.com/prometheus/procfs",
+    "github.com/rakyll/statik/fs",
     "github.com/rcrowley/go-metrics",
     "github.com/satori/go.uuid",
     "github.com/siddontang/go-mysql/mysql",

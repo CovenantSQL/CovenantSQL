@@ -28,6 +28,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -40,10 +45,6 @@ import (
 	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
-	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 const (
@@ -87,7 +88,7 @@ func heightToKey(h int32) (key []byte) {
 // req key:
 // ['R', 'E', 'Q', 'U', height, hash]
 // block key:
-// ['B', 'L', 'C', 'K', height, hash]
+// ['B', 'L', 'C', 'K', height, hash].
 func keyWithSymbolToHeight(k []byte) int32 {
 	if len(k) < 8 {
 		return -1

@@ -23,6 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -31,8 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func newTransfer(
@@ -486,11 +487,11 @@ func TestChain(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(count, ShouldEqual, chain.lastIrre.count)
 					So(height, ShouldEqual, chain.lastIrre.height)
-					So(bl, ShouldResemble, chain.lastIrre.block)
+					So(bl, ShouldResemble, chain.lastIrre.load())
 
 					// Try to use the no-cache version
 					var node = chain.headBranch.head.ancestorByCount(5)
-					node.block = nil // Clear cached block
+					node.clear()
 					bl, count, err = chain.fetchBlockByHeight(node.height)
 					So(err, ShouldBeNil)
 					So(count, ShouldEqual, node.count)
@@ -500,8 +501,8 @@ func TestChain(t *testing.T) {
 					So(height, ShouldEqual, node.height)
 					So(bl.BlockHash(), ShouldResemble, &node.hash)
 
-					var irreBlock = chain.lastIrre.block
-					chain.lastIrre.block = nil // Clear cached block
+					var irreBlock = chain.lastIrre.load()
+					node.clear()
 					bl, count, height, err = chain.fetchLastIrreversibleBlock()
 					So(err, ShouldBeNil)
 					So(bl, ShouldResemble, irreBlock)

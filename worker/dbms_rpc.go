@@ -17,12 +17,13 @@
 package worker
 
 import (
+	"github.com/pkg/errors"
+	metrics "github.com/rcrowley/go-metrics"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
-	metrics "github.com/rcrowley/go-metrics"
 )
 
 var (

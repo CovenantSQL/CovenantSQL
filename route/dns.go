@@ -26,10 +26,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// NodeIDAddressMap is the map of proto.RawNodeID to node address
+// NodeIDAddressMap is the map of proto.RawNodeID to node address.
 type NodeIDAddressMap map[proto.RawNodeID]string
 
-// IDNodeMap is the map of proto.RawNodeID to node
+// IDNodeMap is the map of proto.RawNodeID to node.
 type IDNodeMap map[proto.RawNodeID]proto.Node
 
 var (
@@ -47,14 +47,14 @@ var (
 	ErrNilNodeID = errors.New("nil node id")
 )
 
-// Resolver does NodeID translation
+// Resolver does NodeID translation.
 type Resolver struct {
 	cache     NodeIDAddressMap
 	bpNodeIDs NodeIDAddressMap
 	sync.RWMutex
 }
 
-// initResolver returns a new resolver
+// initResolver returns a new resolver.
 func initResolver() {
 	Once.Do(func() {
 		resolver = &Resolver{
@@ -65,7 +65,7 @@ func initResolver() {
 	})
 }
 
-// IsBPNodeID returns if it is Block Producer node id
+// IsBPNodeID returns if it is Block Producer node id.
 func IsBPNodeID(id *proto.RawNodeID) bool {
 	initResolver()
 	if id == nil {
@@ -75,7 +75,7 @@ func IsBPNodeID(id *proto.RawNodeID) bool {
 	return ok
 }
 
-// setResolveCache initializes Resolver.cache by a new map
+// setResolveCache initializes Resolver.cache by a new map.
 func setResolveCache(initCache NodeIDAddressMap) {
 	initResolver()
 	resolver.Lock()
@@ -83,7 +83,7 @@ func setResolveCache(initCache NodeIDAddressMap) {
 	resolver.cache = initCache
 }
 
-// GetNodeAddrCache gets node addr by node id, if cache missed try RPC
+// GetNodeAddrCache gets node addr by node id, if cache missed try RPC.
 func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 	initResolver()
 	if id == nil {
@@ -98,7 +98,7 @@ func GetNodeAddrCache(id *proto.RawNodeID) (addr string, err error) {
 	return
 }
 
-// setNodeAddrCache sets node id and addr
+// setNodeAddrCache sets node id and addr.
 func setNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	if id == nil {
 		return ErrNilNodeID
@@ -109,13 +109,13 @@ func setNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	return
 }
 
-// SetNodeAddrCache sets node id and addr
+// SetNodeAddrCache sets node id and addr.
 func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 	initResolver()
 	return setNodeAddrCache(id, addr)
 }
 
-// initBPNodeIDs initializes BlockProducer route and map from config file and DNS Seed
+// initBPNodeIDs initializes BlockProducer route and map from config file and DNS Seed.
 func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	// clear address map before init
 	resolver.bpNodeIDs = make(NodeIDAddressMap)
@@ -176,7 +176,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	return resolver.bpNodeIDs
 }
 
-// GetBPs returns the known BP node id list
+// GetBPs returns the known BP node id list.
 func GetBPs() (BPAddrs []proto.NodeID) {
 	BPAddrs = make([]proto.NodeID, 0, len(resolver.bpNodeIDs))
 	for id := range resolver.bpNodeIDs {
@@ -185,7 +185,7 @@ func GetBPs() (BPAddrs []proto.NodeID) {
 	return
 }
 
-// InitKMS inits nasty stuff, only for testing
+// InitKMS inits nasty stuff, only for testing.
 func InitKMS(PubKeyStoreFile string) {
 	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
 	if conf.GConf.KnownNodes != nil {

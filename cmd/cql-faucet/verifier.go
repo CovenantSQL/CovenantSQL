@@ -27,6 +27,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CovenantSQL/xurls"
+	"github.com/dyatlov/go-opengraph/opengraph"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -34,8 +37,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	pt "github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/xurls"
-	"github.com/dyatlov/go-opengraph/opengraph"
 )
 
 var (

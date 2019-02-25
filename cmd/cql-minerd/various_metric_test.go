@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -37,7 +39,6 @@ import (
 	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func BenchmarkDBWrite(b *testing.B) {

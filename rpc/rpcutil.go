@@ -27,14 +27,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 	mw "github.com/zserge/metric"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -129,7 +129,7 @@ func (c *PersistentCaller) ResetClient(method string) (err error) {
 	return
 }
 
-// CloseStream closes the stream and RPC client
+// CloseStream closes the stream and RPC client.
 func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {
@@ -142,7 +142,7 @@ func (c *PersistentCaller) CloseStream() {
 	}
 }
 
-// Close closes the stream and RPC client
+// Close closes the stream and RPC client.
 func (c *PersistentCaller) Close() {
 	c.CloseStream()
 	//c.pool.Remove(c.TargetID)
@@ -250,26 +250,13 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	if err != nil {
 		//log.WithField("target", id.String()).WithError(err).Debug("get node addr from cache failed")
 		if err == route.ErrUnknownNodeID {
-			BPs := route.GetBPs()
-			if len(BPs) == 0 {
-				err = errors.New("no available BP")
-				return
-			}
-			client := NewCaller()
-			reqFN := &proto.FindNodeReq{
-				ID: proto.NodeID(id.String()),
-			}
-			respFN := new(proto.FindNodeResp)
-
-			bp := BPs[rand.Intn(len(BPs))]
-			method := "DHT.FindNode"
-			err = client.CallNode(bp, method, reqFN, respFN)
+			var node *proto.Node
+			node, err = FindNodeInBP(id)
 			if err != nil {
-				err = errors.Wrapf(err, "call dht rpc %s to %s failed", method, bp)
 				return
 			}
-			route.SetNodeAddrCache(id, respFN.Node.Addr)
-			addr = respFN.Node.Addr
+			route.SetNodeAddrCache(id, node.Addr)
+			addr = node.Addr
 		}
 	}
 	return
@@ -281,24 +268,10 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	if err != nil {
 		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
 		if errors.Cause(err) == kms.ErrKeyNotFound {
-			BPs := route.GetBPs()
-			if len(BPs) == 0 {
-				err = errors.New("no available BP")
-				return
-			}
-			client := NewCaller()
-			reqFN := &proto.FindNodeReq{
-				ID: proto.NodeID(id.String()),
-			}
-			respFN := new(proto.FindNodeResp)
-			bp := BPs[rand.Intn(len(BPs))]
-			method := "DHT.FindNode"
-			err = client.CallNode(bp, method, reqFN, respFN)
+			nodeInfo, err = FindNodeInBP(id)
 			if err != nil {
-				err = errors.Wrapf(err, "call dht rpc %s to %s failed", method, bp)
 				return
 			}
-			nodeInfo = respFN.Node
 			errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
 			if errSet != nil {
 				log.WithError(errSet).Warning("set node addr cache failed")
@@ -309,6 +282,40 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 			}
 		}
 	}
+	return
+}
+
+// FindNodeInBP find node in block producer dht service.
+func FindNodeInBP(id *proto.RawNodeID) (node *proto.Node, err error) {
+	bps := route.GetBPs()
+	if len(bps) == 0 {
+		err = errors.New("no available BP")
+		return
+	}
+	client := NewCaller()
+	req := &proto.FindNodeReq{
+		ID: proto.NodeID(id.String()),
+	}
+	resp := new(proto.FindNodeResp)
+	bpCount := len(bps)
+	offset := rand.Intn(bpCount)
+	method := route.DHTFindNode.String()
+
+	for i := 0; i != bpCount; i++ {
+		bp := bps[(offset+i)%bpCount]
+		err = client.CallNode(bp, method, req, resp)
+		if err == nil {
+			node = resp.Node
+			return
+		}
+
+		log.WithFields(log.Fields{
+			"method": method,
+			"bp":     bp,
+		}).WithError(err).Warning("call dht rpc failed")
+	}
+
+	err = errors.Wrapf(err, "could not find node in all block producers")
 	return
 }
 
@@ -430,11 +437,10 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 				err := PingBP(localNodeInfo, id)
 				if err == nil {
 					log.Infof("ping BP succeed: %v", localNodeInfo)
-					ch <- id
-					return
-				}
-				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
-					log.Debug("stop ping non leader BP node")
+					select {
+					case ch <- id:
+					default:
+					}
 					return
 				}
 
@@ -446,7 +452,6 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 
 	select {
 	case bp := <-pingWaitCh:
-		close(pingWaitCh)
 		log.WithField("BP", bp).Infof("ping BP succeed")
 	case <-time.After(timeout):
 		return errors.New("ping BP timeout")

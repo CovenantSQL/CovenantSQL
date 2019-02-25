@@ -20,16 +20,16 @@ import (
 	"net"
 )
 
-// CipherHandler is the func type for converting net.Conn to CryptoConn
+// CipherHandler is the func type for converting net.Conn to CryptoConn.
 type CipherHandler func(conn net.Conn) (cryptoConn *CryptoConn, err error)
 
-// CryptoListener implements net.Listener
+// CryptoListener implements net.Listener.
 type CryptoListener struct {
 	net.Listener
 	CHandler CipherHandler
 }
 
-// NewCryptoListener returns a new CryptoListener
+// NewCryptoListener returns a new CryptoListener.
 func NewCryptoListener(network, addr string, handler CipherHandler) (*CryptoListener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {

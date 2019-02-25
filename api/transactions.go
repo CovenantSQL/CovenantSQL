@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/CovenantSQL/CovenantSQL/api/models"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/CovenantSQL/CovenantSQL/api/models"
 )
 
 func init() {

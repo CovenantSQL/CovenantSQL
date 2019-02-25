@@ -57,7 +57,7 @@ ACLs:
   		ACL: Open to world
 */
 
-// RemoteFunc defines the RPC Call name
+// RemoteFunc defines the RPC Call name.
 type RemoteFunc int
 
 const (
@@ -67,8 +67,8 @@ const (
 	DHTFindNeighbor
 	// DHTFindNode gets node info
 	DHTFindNode
-	// KayakCall is used by BP for data consistency
-	KayakCall
+	// DHTGSetNode is used by BP for dht data gossip
+	DHTGSetNode
 	// MetricUploadMetrics uploads node metrics
 	MetricUploadMetrics
 	// DBSQuery is used by client to read/write database
@@ -121,6 +121,8 @@ const (
 
 	// DHTRPCName defines the block producer dh-rpc service name
 	DHTRPCName = "DHT"
+	// DHTGossipRPCName defines the block producer dh-rpc gossip service name
+	DHTGossipRPCName = "DHTG"
 	// BlockProducerRPCName defines main chain rpc name
 	BlockProducerRPCName = "MCC"
 	// SQLChainRPCName defines the sql chain rpc name
@@ -138,10 +140,10 @@ func (s RemoteFunc) String() string {
 		return "DHT.FindNeighbor"
 	case DHTFindNode:
 		return "DHT.FindNode"
+	case DHTGSetNode:
+		return "DHTG.SetNode"
 	case MetricUploadMetrics:
 		return "Metric.UploadMetrics"
-	case KayakCall:
-		return "Kayak.Call"
 	case DBSQuery:
 		return "DBS.Query"
 	case DBSAck:
@@ -213,8 +215,8 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 		// DHT related
 		case DHTPing, DHTFindNode, DHTFindNeighbor, MetricUploadMetrics:
 			return true
-			// Kayak related
-		case KayakCall:
+			// DHTGSetNode is for block producer to update node info
+		case DHTGSetNode:
 			return false
 			// DBSDeploy
 		case DBSDeploy:

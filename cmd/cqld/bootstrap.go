@@ -20,40 +20,29 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/api"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh/terminal"
 
+	"github.com/CovenantSQL/CovenantSQL/api"
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	kayakServiceName     = "Kayak"
-	kayakApplyMethodName = "Apply"
-	kayakFetchMethodName = "Fetch"
-	kayakWalFileName     = "kayak.ldb"
-	kayakPrepareTimeout  = 5 * time.Second
-	kayakCommitTimeout   = time.Minute
-	kayakLogWaitTimeout  = 10 * time.Second
+	dhtGossipServiceName = "DHTG"
+	dhtGossipTimeout     = time.Second * 20
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
-	rootPath := conf.GConf.WorkingRoot
-
 	genesis, err := loadGenesis()
 	if err != nil {
 		return
@@ -119,30 +108,29 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 			return err
 		}
 
-		// init kayak
-		log.Info("init kayak runtime")
-		var kayakRuntime *kayak.Runtime
-		if kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, server); err != nil {
-			log.WithError(err).Error("init kayak runtime failed")
-			return err
-		}
-
-		// init kayak and consistent
-		log.Info("init kayak and consistent runtime")
-		kvServer := &KayakKVServer{
-			Runtime:   kayakRuntime,
-			KVStorage: st,
-		}
+		// init dht node server
+		log.Info("init consistent runtime")
+		kvServer := NewKVServer(thisNode.ID, peers, st, dhtGossipTimeout)
 		dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
 		if err != nil {
 			log.WithError(err).Error("init consistent hash failed")
 			return err
 		}
+		defer kvServer.Stop()
 
-		// set consistent handler to kayak storage
-		kvServer.KVStorage.consistent = dht.Consistent
+		// set consistent handler to local storage
+		kvServer.storage.consistent = dht.Consistent
 
-		// register service rpc
+		// register gossip service rpc
+		gossipService := NewGossipService(kvServer)
+		log.Info("register dht gossip service rpc")
+		err = server.RegisterService(route.DHTGossipRPCName, gossipService)
+		if err != nil {
+			log.WithError(err).Error("register dht gossip service failed")
+			return err
+		}
+
+		// register dht service rpc
 		log.Info("register dht service rpc")
 		err = server.RegisterService(route.DHTRPCName, dht)
 		if err != nil {
@@ -153,16 +141,17 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 
 	// init main chain service
 	log.Info("register main chain service rpc")
-	chainConfig := bp.NewConfig(
-		genesis,
-		conf.GConf.BP.ChainFileName,
-		server,
-		peers,
-		nodeID,
-		conf.GConf.BPPeriod,
-		conf.GConf.BPTick,
-	)
-	chainConfig.Mode = mode
+	chainConfig := &bp.Config{
+		Mode:           mode,
+		Genesis:        genesis,
+		DataFile:       conf.GConf.BP.ChainFileName,
+		Server:         server,
+		Peers:          peers,
+		NodeID:         nodeID,
+		Period:         conf.GConf.BPPeriod,
+		Tick:           conf.GConf.BPTick,
+		BlockCacheSize: 1000,
+	}
 	chain, err := bp.NewChain(chainConfig)
 	if err != nil {
 		log.WithError(err).Error("init chain failed")
@@ -206,49 +195,8 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	return
 }
 
-func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.Handler, server *rpc.Server) (runtime *kayak.Runtime, err error) {
-	// create kayak config
-	log.Info("create kayak config")
-
-	walPath := filepath.Join(rootDir, kayakWalFileName)
-
-	var logWal kt.Wal
-	if logWal, err = kl.NewLevelDBWal(walPath); err != nil {
-		err = errors.Wrap(err, "init kayak log pool failed")
-		return
-	}
-
-	config := &kt.RuntimeConfig{
-		Handler:          h,
-		PrepareThreshold: 1.0,
-		CommitThreshold:  1.0,
-		PrepareTimeout:   kayakPrepareTimeout,
-		CommitTimeout:    kayakCommitTimeout,
-		LogWaitTimeout:   kayakLogWaitTimeout,
-		Peers:            peers,
-		Wal:              logWal,
-		NodeID:           node.ID,
-		ServiceName:      kayakServiceName,
-		ApplyMethodName:  kayakApplyMethodName,
-		FetchMethodName:  kayakFetchMethodName,
-	}
-
-	// create kayak runtime
-	log.Info("init kayak runtime")
-	if runtime, err = kayak.NewRuntime(config); err != nil {
-		err = errors.Wrap(err, "init kayak runtime failed")
-		return
-	}
-
-	// register rpc service
-	if _, err = NewKayakService(server, kayakServiceName, runtime); err != nil {
-		err = errors.Wrap(err, "init kayak rpc service failed")
-		return
-	}
-
-	// init runtime
-	log.Info("start kayak runtime")
-	runtime.Start()
+func initDHTGossip() (err error) {
+	log.Info("init gossip service")
 
 	return
 }

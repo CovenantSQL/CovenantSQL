@@ -46,6 +46,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 

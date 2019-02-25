@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-// Package rpc provides RPC Client/Server functions
+// Package rpc provides RPC Client/Server functions.
 package rpc
 
 import (
 	"net"
 	"net/rpc"
+
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -27,8 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 )
 
 const (
@@ -36,7 +37,7 @@ const (
 	ETLSHeaderSize = 2 + hash.HashBSize + 32
 )
 
-// Client is RPC client
+// Client is RPC client.
 type Client struct {
 	*rpc.Client
 	RemoteAddr string
@@ -56,7 +57,7 @@ func init() {
 }
 
 // dial connects to a address with a Cipher
-// address should be in the form of host:port
+// address should be in the form of host:port.
 func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher, isAnonymous bool) (c *etls.CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
@@ -101,7 +102,7 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 	return
 }
 
-// DialToNode ties use connection in pool, if fails then connects to the node with nodeID
+// DialToNode ties use connection in pool, if fails then connects to the node with nodeID.
 func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn net.Conn, err error) {
 	if pool == nil || isAnonymous {
 		var ETLSConn net.Conn
@@ -126,12 +127,12 @@ func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn 
 	return
 }
 
-// dialToNode connects to the node with nodeID
+// dialToNode connects to the node with nodeID.
 func dialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
 	return dialToNodeEx(nodeID, false)
 }
 
-// dialToNodeEx connects to the node with nodeID
+// dialToNodeEx connects to the node with nodeID.
 func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	var rawNodeID = nodeID.ToRawNodeID()
 	/*
@@ -170,12 +171,12 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 	return
 }
 
-// NewClient returns a RPC client
+// NewClient returns a RPC client.
 func NewClient() *Client {
 	return &Client{}
 }
 
-// initClient initializes client with connection to given addr
+// initClient initializes client with connection to given addr.
 func initClient(addr string) (client *Client, err error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -184,7 +185,7 @@ func initClient(addr string) (client *Client, err error) {
 	return InitClientConn(conn)
 }
 
-// InitClientConn initializes client with connection to given addr
+// InitClientConn initializes client with connection to given addr.
 func InitClientConn(conn net.Conn) (client *Client, err error) {
 	client = NewClient()
 	var muxConn *mux.Stream
@@ -210,7 +211,7 @@ func InitClientConn(conn net.Conn) (client *Client, err error) {
 	return client, nil
 }
 
-// Close the client RPC connection
+// Close the client RPC connection.
 func (c *Client) Close() {
 	//log.WithField("addr", c.RemoteAddr).Debug("closing client")
 	_ = c.Client.Close()

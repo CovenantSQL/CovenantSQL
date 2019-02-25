@@ -22,6 +22,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	con "github.com/CovenantSQL/CovenantSQL/consistent"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -30,8 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 type nodeRPCInfo struct {

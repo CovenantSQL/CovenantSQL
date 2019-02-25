@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -39,7 +41,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -144,8 +145,8 @@ func Init(configFile string, masterKey []byte) (err error) {
 	return
 }
 
-// Create send create database operation to block producer.
-func Create(meta ResourceMeta) (dsn string, err error) {
+// Create sends create database operation to block producer.
+func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return
@@ -202,6 +203,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 		return
 	}
 
+	txHash = req.Tx.Hash()
 	cfg := NewConfig()
 	cfg.DatabaseID = string(proto.FromAccountAndNonce(clientAddr, uint32(nonceResp.Nonce)))
 	dsn = cfg.FormatDSN()
@@ -209,7 +211,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	return
 }
 
-// WaitDBCreation waits for database creation complete
+// WaitDBCreation waits for database creation complete.
 func WaitDBCreation(ctx context.Context, dsn string) (err error) {
 	dsnCfg, err := ParseDSN(dsn)
 	if err != nil {
@@ -268,8 +270,8 @@ func WaitBPDatabaseCreation(
 	}
 }
 
-// Drop send drop database operation to block producer.
-func Drop(dsn string) (err error) {
+// Drop sends drop database operation to block producer.
+func Drop(dsn string) (txHash hash.Hash, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {
 		err = ErrNotInitialized
 		return

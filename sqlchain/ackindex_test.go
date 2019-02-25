@@ -19,9 +19,10 @@ package sqlchain
 import (
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestAckIndex(t *testing.T) {

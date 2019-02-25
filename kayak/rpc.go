@@ -17,9 +17,10 @@
 package kayak
 
 import (
+	"github.com/pkg/errors"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/pkg/errors"
 )
 
 func (r *Runtime) errorSummary(errs map[proto.NodeID]error) error {

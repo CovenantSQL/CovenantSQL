@@ -21,9 +21,10 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 	"github.com/ugorji/go/codec"
+
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 const (
@@ -49,7 +50,7 @@ var (
 
 func init() {
 	// detect msgpack version
-	if codec.GenVersion != 8 {
+	if codec.GenVersion < 8 {
 		panic(ErrMsgPackVersionMismatch)
 	}
 

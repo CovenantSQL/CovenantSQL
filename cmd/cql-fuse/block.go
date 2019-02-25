@@ -51,7 +51,7 @@ func min(a, b uint64) uint64 {
 
 // blockRange describes a range of blocks.
 // If the first and last block are the same, the effective data range
-// will be: [startOffset, lastLength)
+// will be: [startOffset, lastLength).
 type blockRange struct {
 	start       int    // index of the start block
 	startOffset uint64 // starting offset within the first block

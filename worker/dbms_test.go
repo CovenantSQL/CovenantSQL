@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -31,7 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestDBMS(t *testing.T) {
@@ -86,7 +87,7 @@ func TestDBMS(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create sqlchain block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// get peers

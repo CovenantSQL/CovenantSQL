@@ -19,9 +19,10 @@ package types
 import (
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/pkg/errors"
 )
 
 //go:generate hsp

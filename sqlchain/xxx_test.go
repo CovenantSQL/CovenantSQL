@@ -236,26 +236,19 @@ func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
 }
 
 func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
-	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-
+	b, err = types.CreateRandomBlock(parent, isGenesis)
 	if err != nil {
 		return
 	}
 
-	h := hash.Hash{}
-	rand.Read(h[:])
+	if isGenesis {
+		return
+	}
 
-	b = &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: genesisHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
+	// Generate key pair
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		return
 	}
 
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
@@ -268,19 +261,6 @@ func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err er
 				},
 			},
 		}
-	}
-
-	if isGenesis {
-		// Register node for genesis verification
-		var nis []cpuminer.NonceInfo
-		nis, err = registerNodesWithPublicKey(pub, testDifficulty, 1)
-
-		if err != nil {
-			return
-		}
-
-		b.SignedHeader.GenesisHash = hash.Hash{}
-		b.SignedHeader.Header.Producer = proto.NodeID(nis[0].Hash.String())
 	}
 
 	err = b.PackAndSignBlock(priv)

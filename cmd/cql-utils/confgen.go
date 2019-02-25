@@ -25,11 +25,12 @@ import (
 	"path"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 var (

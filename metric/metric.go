@@ -19,16 +19,17 @@ package metric
 import (
 	"sort"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("CovenantSQL"))
 }
 
-// StartMetricCollector starts collector registered in NewNodeCollector()
+// StartMetricCollector starts collector registered in NewNodeCollector().
 func StartMetricCollector() (registry *prometheus.Registry) {
 	nc, err := NewNodeCollector()
 	if err != nil {

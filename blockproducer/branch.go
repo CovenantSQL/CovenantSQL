@@ -10,7 +10,8 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and * limitations under the License.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package blockproducer
@@ -21,13 +22,14 @@ import (
 	"sort"
 	"time"
 
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
 )
 
 type branch struct {
@@ -43,7 +45,7 @@ func newBranch(
 	br *branch, err error,
 ) {
 	var (
-		list = headNode.fetchNodeList(baseNode.count)
+		list = headNode.fetchNodeList(baseNode.count + 1)
 		inst = &branch{
 			head:     headNode,
 			preview:  baseState.makeCopy(),
@@ -57,11 +59,12 @@ func newBranch(
 	}
 	// Apply new blocks to view and pool
 	for _, bn := range list {
-		if len(bn.block.Transactions) > conf.MaxTransactionsPerBlock {
+		if bn.txCount > conf.MaxTransactionsPerBlock {
 			return nil, ErrTooManyTransactionsInBlock
 		}
 
-		for _, v := range bn.block.Transactions {
+		var block = bn.load()
+		for _, v := range block.Transactions {
 			var k = v.Hash()
 			// Check in tx pool
 			if _, ok := inst.unpacked[k]; ok {
@@ -126,17 +129,18 @@ func (b *branch) addTx(tx pi.Transaction) {
 }
 
 func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
-	if !b.head.hash.IsEqual(n.block.ParentHash()) {
+	var block = n.load()
+	if !b.head.hash.IsEqual(block.ParentHash()) {
 		err = ErrParentNotMatch
 		return
 	}
 	var cpy = b.makeArena()
 
-	if len(n.block.Transactions) > conf.MaxTransactionsPerBlock {
+	if n.txCount > conf.MaxTransactionsPerBlock {
 		return nil, ErrTooManyTransactionsInBlock
 	}
 
-	for _, v := range n.block.Transactions {
+	for _, v := range block.Transactions {
 		var k = v.Hash()
 		// Check in tx pool
 		if _, ok := cpy.unpacked[k]; ok {
@@ -258,13 +262,13 @@ func (b *branch) sprint(from uint32) (buff string) {
 		if i == 0 {
 			var p = v.parent
 			buff += fmt.Sprintf("* #%d:%d %s {%d}",
-				p.height, p.count, p.hash.Short(4), len(p.block.Transactions))
+				p.height, p.count, p.hash.Short(4), p.txCount)
 		}
 		if d := v.height - v.parent.height; d > 1 {
 			buff += fmt.Sprintf(" <-- (skip %d blocks)", d-1)
 		}
 		buff += fmt.Sprintf(" <-- #%d:%d %s {%d}",
-			v.height, v.count, v.hash.Short(4), len(v.block.Transactions))
+			v.height, v.count, v.hash.Short(4), v.txCount)
 	}
 	return
 }

@@ -88,7 +88,7 @@ func (l *Logger) Printf(format string, args ...interface{}) {
 	Printf(format, args...)
 }
 
-// NewCallerHook creates new CallerHook
+// NewCallerHook creates new CallerHook.
 func NewCallerHook(stackLevels []logrus.Level) *CallerHook {
 	return &CallerHook{
 		StackLevels: stackLevels,

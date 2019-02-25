@@ -21,6 +21,8 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -29,78 +31,77 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
-	"github.com/pkg/errors"
 )
 
 var (
 	ddls = [...]string{
 		// Chain state tables
 		`CREATE TABLE IF NOT EXISTS "blocks" (
-			"height"    INT,
-			"hash"		TEXT,
-			"parent"	TEXT,
-			"encoded"	BLOB,
-			UNIQUE ("hash")
-		);`,
+	"height"	INT,
+	"hash"		TEXT,
+	"parent"	TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("hash")
+);`,
 
 		`CREATE TABLE IF NOT EXISTS "txPool" (
-			"type"		INT,
-			"hash"		TEXT,
-			"encoded"	BLOB,
-			UNIQUE ("hash")
-		);`,
+	"type"		INT,
+	"hash"		TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("hash")
+);`,
 
 		`CREATE TABLE IF NOT EXISTS "irreversible" (
-			"id"		INT,
-			"hash"		TEXT,
-			UNIQUE ("id")
-		);`,
+	"id"		INT,
+	"hash"		TEXT,
+	UNIQUE ("id")
+);`,
 
 		// Meta state tables
 		`CREATE TABLE IF NOT EXISTS "accounts" (
-			"address"	TEXT,
-			"encoded"	BLOB,
-			UNIQUE ("address")
-		);`,
+	"address"	TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("address")
+);`,
 
 		`CREATE TABLE IF NOT EXISTS "shardChain" (
-			"address"	TEXT,
-			"id"		TEXT,
-			"encoded"	BLOB,
-			UNIQUE ("address", "id")
-		);`,
+	"address"	TEXT,
+	"id"		TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("address", "id")
+);`,
 
 		`CREATE TABLE IF NOT EXISTS "provider" (
-			"address"	TEXT,
-			"encoded"	BLOB,
-			UNIQUE ("address")
-		);`,
+	"address"	TEXT,
+	"encoded"	BLOB,
+	UNIQUE ("address")
+);`,
 
 		`CREATE TABLE IF NOT EXISTS "indexed_blocks" (
-			"height"		INTEGER PRIMARY KEY,
-			"hash"			TEXT,
-			"timestamp"		INTEGER,
-			"version"		INTEGER,
-			"producer"		TEXT,
-			"merkle_root"	TEXT,
-			"parent"		TEXT,
-			"tx_count"		INTEGER
-		);`,
+	"height"		INTEGER PRIMARY KEY,
+	"hash"			TEXT,
+	"timestamp"		INTEGER,
+	"version"		INTEGER,
+	"producer"		TEXT,
+	"merkle_root"	TEXT,
+	"parent"		TEXT,
+	"tx_count"		INTEGER
+);`,
 
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_blocks__hash" ON "indexed_blocks" ("hash");`,
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_blocks__timestamp" ON "indexed_blocks" ("timestamp" DESC);`,
 
 		`CREATE TABLE IF NOT EXISTS "indexed_transactions" (
-			"block_height"	INTEGER,
-			"tx_index"		INTEGER,
-			"hash"			TEXT,
-			"block_hash"	TEXT,
-			"timestamp"		INTEGER,
-			"tx_type"		INTEGER,
-			"address"		TEXT,
-			"raw"			TEXT,
-			PRIMARY KEY ("block_height", "tx_index")
-		);`,
+	"block_height"	INTEGER,
+	"tx_index"		INTEGER,
+	"hash"			TEXT,
+	"block_hash"	TEXT,
+	"timestamp"		INTEGER,
+	"tx_type"		INTEGER,
+	"address"		TEXT,
+	"raw"			TEXT,
+	PRIMARY KEY ("block_height", "tx_index")
+);`,
 
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__hash" ON "indexed_transactions" ("hash");`,
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__block_hash" ON "indexed_transactions" ("block_hash");`,
@@ -416,7 +417,7 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 }
 
 func loadBlocks(
-	st xi.Storage, irreHash hash.Hash) (irre *blockNode, heads []*blockNode, err error,
+	st xi.Storage, irreHash hash.Hash) (lastIrre *blockNode, heads []*blockNode, err error,
 ) {
 	var (
 		rows *sql.Rows
@@ -494,7 +495,7 @@ func loadBlocks(
 		headsIndex[bh] = bn
 	}
 
-	if irre, ok = index[irreHash]; !ok {
+	if lastIrre, ok = index[irreHash]; !ok {
 		err = errors.Wrapf(ErrParentNotFound, "irreversible block %s not found", ph.Short(4))
 		return
 	}

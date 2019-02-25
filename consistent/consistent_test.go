@@ -49,7 +49,7 @@ func init() {
 	})
 }
 
-// CheckNum make int assertion
+// CheckNum make int assertion.
 func CheckNum(num, expected int, t *testing.T) {
 	if num != expected {
 		t.Errorf("got %d, expected %d", num, expected)
@@ -934,7 +934,7 @@ func BenchmarkGetTwoLarge(b *testing.B) {
 	}
 }
 
-// from @edsrzf on github:
+// from @edsrzf on github:.
 func TestAddCollision(t *testing.T) {
 	// These two strings produce several crc32 collisions after "|i" is
 	// appended added by Consistent.eltKey.

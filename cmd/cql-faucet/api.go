@@ -23,8 +23,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/gorilla/mux"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (

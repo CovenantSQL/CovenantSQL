@@ -20,9 +20,10 @@ import (
 	"database/sql"
 	"time"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
 const (

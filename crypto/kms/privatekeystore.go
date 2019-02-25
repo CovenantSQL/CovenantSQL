@@ -21,13 +21,14 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -49,7 +50,7 @@ var (
 )
 
 // LoadPrivateKey loads private key from keyFilePath, and verifies the hash
-// head
+// head.
 func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
 	fileContent, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
@@ -124,7 +125,7 @@ func DecryptPrivateKeyBytes(encrypted []byte, masterKey []byte) (key *asymmetric
 }
 
 // SavePrivateKey saves private key with its hash on the head to keyFilePath,
-// default perm is 0600
+// default perm is 0600.
 func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []byte) (err error) {
 	serializedKey := key.Serialize()
 	encKey, err := symmetric.EncryptWithPassword(serializedKey, masterKey, privateKDFSalt)
@@ -137,7 +138,7 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 	return ioutil.WriteFile(keyFilePath, []byte(base58EncKey), 0600)
 }
 
-// InitLocalKeyPair initializes local private key
+// InitLocalKeyPair initializes local private key.
 func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	var privateKey *asymmetric.PrivateKey
 	var publicKey *asymmetric.PublicKey

@@ -22,18 +22,19 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const PubKeyStorePath = "./public.keystore"
 
-// CheckNum make int assertion
+// CheckNum make int assertion.
 func CheckNum(num, expected int, t *testing.T) {
 	if num != expected {
 		t.Errorf("got %d, expected %d", num, expected)

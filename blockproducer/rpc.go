@@ -17,9 +17,10 @@
 package blockproducer
 
 import (
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
 )
 
 // ChainRPCService defines a main chain RPC server.
@@ -130,11 +131,4 @@ func (s *ChainRPCService) QueryTxState(
 	resp.Hash = req.Hash
 	resp.State = state
 	return
-}
-
-// Sub is the RPC method to subscribe some event.
-func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error) {
-	return s.chain.chainBus.Subscribe(req.Topic, func(request interface{}, response interface{}) {
-		s.chain.caller.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
-	})
 }

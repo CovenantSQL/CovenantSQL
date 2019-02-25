@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/api/models"
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
-	"github.com/pkg/errors"
 )
 
 var (

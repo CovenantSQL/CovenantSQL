@@ -29,7 +29,8 @@ comment:
 
 ignore:
   - "vendor"
-#  - "cmd"
+  - "cmd"
+  - "sqlchain/observer"
   - "test"
   - "crypto/secp256k1"
   - "_example/**/*"

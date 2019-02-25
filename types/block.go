@@ -19,13 +19,13 @@ package types
 import (
 	"time"
 
+	"github.com/pkg/errors"
+
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 //go:generate hsp
@@ -56,24 +56,14 @@ func (s *SignedHeader) Verify() error {
 	return s.HSV.Verify(&s.Header)
 }
 
-// VerifyAsGenesis verifies the signed header as a genesis block header.
-func (s *SignedHeader) VerifyAsGenesis() (err error) {
-	var pk *ca.PublicKey
-	log.WithFields(log.Fields{
-		"producer": s.Producer,
-		"root":     s.GenesisHash.String(),
-		"parent":   s.ParentHash.String(),
-		"merkle":   s.MerkleRoot.String(),
-		"block":    s.HSV.Hash().String(),
-	}).Debug("verifying genesis block header")
-	if pk, err = kms.GetPublicKey(s.Producer); err != nil {
-		return
-	}
-	if !pk.IsEqual(s.HSV.Signee) {
-		err = ErrNodePublicKeyNotMatch
-		return
-	}
-	return s.Verify()
+// VerifyHash verifies the hash of the signed header.
+func (s *SignedHeader) VerifyHash() error {
+	return s.HSV.VerifyHash(&s.Header)
+}
+
+// ComputeHash computes the hash of the signed header.
+func (s *SignedHeader) ComputeHash() error {
+	return s.HSV.SetHash(&s.Header)
 }
 
 // QueryAsTx defines a tx struct which is combined with request and signed response header
@@ -115,6 +105,11 @@ func (b *Block) PackAndSignBlock(signer *ca.PrivateKey) (err error) {
 	return b.SignedHeader.Sign(signer)
 }
 
+// PackAsGenesis generates the hash of the genesis block.
+func (b *Block) PackAsGenesis() (err error) {
+	return b.SignedHeader.ComputeHash()
+}
+
 // Verify verifies the merkle root and header signature of the block.
 func (b *Block) Verify() (err error) {
 	// Verify merkle root
@@ -126,15 +121,24 @@ func (b *Block) Verify() (err error) {
 
 // VerifyAsGenesis verifies the block as a genesis block.
 func (b *Block) VerifyAsGenesis() (err error) {
-	var pk *ca.PublicKey
-	if pk, err = kms.GetPublicKey(b.SignedHeader.Producer); err != nil {
-		return
+	if !b.SignedHeader.Producer.IsEmpty() {
+		// not empty
+		return errors.Wrap(ErrInvalidGenesis, "invalid producer")
 	}
-	if !pk.IsEqual(b.SignedHeader.HSV.Signee) {
-		err = ErrNodePublicKeyNotMatch
-		return
+	if !b.SignedHeader.GenesisHash.IsEqual(&hash.Hash{}) {
+		// not empty
+		return errors.Wrap(ErrInvalidGenesis, "invalid genesis hash")
 	}
-	return b.Verify()
+	if !b.SignedHeader.ParentHash.IsEqual(&hash.Hash{}) {
+		// not empty
+		return errors.Wrap(ErrInvalidGenesis, "invalid parent hash")
+	}
+	if !b.SignedHeader.MerkleRoot.IsEqual(&hash.Hash{}) {
+		// not empty
+		return errors.Wrap(ErrInvalidGenesis, "invalid merkle root")
+	}
+
+	return b.SignedHeader.VerifyHash()
 }
 
 // Timestamp returns the timestamp field of the block header.

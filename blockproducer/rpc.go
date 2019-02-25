@@ -127,10 +127,3 @@ func (s *ChainRPCService) QueryTxState(
 	resp.State = state
 	return
 }
-
-// Sub is the RPC method to subscribe some event.
-func (s *ChainRPCService) Sub(req *types.SubReq, resp *types.SubResp) (err error) {
-	return s.chain.chainBus.Subscribe(req.Topic, func(request interface{}, response interface{}) {
-		s.chain.caller.CallNode(req.NodeID.ToNodeID(), req.Callback, request, response)
-	})
-}

@@ -21,7 +21,7 @@ const (
 	DefaultConfirmThreshold = float64(2) / 3.0
 )
 
-// This parameters will not cause inconsistency within certain range.
+// These parameters will not cause inconsistency within certain range.
 const (
 	BPStartupRequiredReachableCount = 2 // NOTE: this includes myself
 )

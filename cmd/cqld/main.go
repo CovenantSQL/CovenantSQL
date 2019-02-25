@@ -143,7 +143,7 @@ func main() {
 	defer utils.StopProfile()
 
 	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {
-		log.WithError(err).Fatal("run kayak failed")
+		log.WithError(err).Fatal("run block producer node failed")
 	}
 
 	log.Info("server stopped")

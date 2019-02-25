@@ -32,4 +32,6 @@ var (
 	ErrBillingNotMatch = errors.New("billing request doesn't match")
 	// ErrHashVerification indicates a failed hash verification.
 	ErrHashVerification = errors.New("hash verification failed")
+	// ErrInvalidGenesis indicates a failed genesis block verification.
+	ErrInvalidGenesis = errors.New("invalid genesis block")
 )

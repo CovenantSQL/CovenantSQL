@@ -523,10 +523,7 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 		}
 		// Match and skip already pooled query
 		if q.Response.ResponseHeader.LogOffset < lastsp {
-			if !s.pool.match(q.Response.ResponseHeader.LogOffset, q.Request) {
-				err = ErrQueryConflict
-				return
-			}
+			// TODO(), recover logic after sqlchain forks by multiple write point
 			continue
 		}
 		// Replay query

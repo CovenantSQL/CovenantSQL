@@ -96,12 +96,6 @@ func TestMultiChain(t *testing.T) {
 		t.Fatalf("error occurred: %v", err)
 	}
 
-	gnonce, err := kms.GetNodeInfo(genesis.Producer())
-
-	if err != nil {
-		t.Fatalf("error occurred: %v", err)
-	}
-
 	// Create peer list: `testPeersNumber` miners + 1 block producer
 	nis, peers, err := createTestPeers(testPeersNumber + 1)
 
@@ -268,12 +262,6 @@ func TestMultiChain(t *testing.T) {
 	// Test chain data reloading before exit
 	for _, v := range chains {
 		defer func(p *chainParams) {
-			if _, err := kms.GetPublicKey(genesis.Producer()); err != nil {
-				if err = kms.SetPublicKey(genesis.Producer(), gnonce.Nonce, genesis.Signee()); err != nil {
-					t.Errorf("error occurred: %v", err)
-				}
-			}
-
 			if chain, err := NewChain(p.config); err != nil {
 				t.Errorf("error occurred: %v", err)
 			} else {

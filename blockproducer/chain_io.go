@@ -49,8 +49,7 @@ func (c *Chain) fetchLastIrreversibleBlock() (
 	b *types.BPBlock, count uint32, height uint32, err error,
 ) {
 	var node = c.lastIrreversibleBlock()
-	if node.block != nil {
-		b = node.block
+	if b = node.load(); b != nil {
 		height = node.height
 		count = node.count
 		return
@@ -71,8 +70,7 @@ func (c *Chain) fetchBlockByHeight(h uint32) (b *types.BPBlock, count uint32, er
 		return
 	}
 	// OK, and block is cached
-	if node.block != nil {
-		b = node.block
+	if b = node.load(); b != nil {
 		count = node.count
 		return
 	}
@@ -91,8 +89,7 @@ func (c *Chain) fetchBlockByCount(count uint32) (b *types.BPBlock, height uint32
 		return
 	}
 	// OK, and block is cached
-	if node.block != nil {
-		b = node.block
+	if b = node.load(); b != nil {
 		height = node.height
 		return
 	}

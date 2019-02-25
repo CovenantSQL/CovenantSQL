@@ -88,7 +88,6 @@ func main() {
 	kms.InitBP()
 
 	service, httpServer, err := observer.StartObserver(listenAddr, version)
-
 	if err != nil {
 		log.WithError(err).Fatal("start observer failed")
 	}
@@ -96,7 +95,6 @@ func main() {
 	<-signalCh
 
 	_ = observer.StopObserver(service, httpServer)
-
 	log.Info("observer stopped")
 
 	return

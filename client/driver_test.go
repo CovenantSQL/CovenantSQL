@@ -121,12 +121,12 @@ func TestCreate(t *testing.T) {
 		var err error
 		var dsn string
 
-		dsn, err = Create(ResourceMeta{})
+		_, dsn, err = Create(ResourceMeta{})
 		So(err, ShouldEqual, ErrNotInitialized)
 
 		// fake driver initialized
 		atomic.StoreUint32(&driverInitialized, 1)
-		dsn, err = Create(ResourceMeta{})
+		_, dsn, err = Create(ResourceMeta{})
 		So(err, ShouldNotBeNil)
 		// reset driver not initialized
 		atomic.StoreUint32(&driverInitialized, 0)
@@ -134,7 +134,7 @@ func TestCreate(t *testing.T) {
 		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
-		dsn, err = Create(ResourceMeta{})
+		_, dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 		dsnCfg, err := ParseDSN(dsn)
 		So(err, ShouldBeNil)
@@ -174,16 +174,16 @@ func TestDrop(t *testing.T) {
 		var stopTestService func()
 		var err error
 
-		err = Drop("covenantsql://db")
+		_, err = Drop("covenantsql://db")
 		So(err, ShouldEqual, ErrNotInitialized)
 
 		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
-		err = Drop("covenantsql://db")
+		_, err = Drop("covenantsql://db")
 		So(err, ShouldBeNil)
 
-		err = Drop("invalid dsn")
+		_, err = Drop("invalid dsn")
 		So(err, ShouldNotBeNil)
 	})
 }
@@ -262,7 +262,7 @@ func TestWaitDBCreation(t *testing.T) {
 		err = WaitDBCreation(ctx, "covenantsql://db")
 		So(err, ShouldBeNil)
 
-		dsn, err = Create(ResourceMeta{})
+		_, dsn, err = Create(ResourceMeta{})
 		So(err, ShouldBeNil)
 		err = WaitDBCreation(ctx, dsn)
 		So(err, ShouldNotBeNil)

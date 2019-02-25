@@ -51,7 +51,7 @@ type conn struct {
 	follower *pconn
 }
 
-// pconn represents a connection to a peer
+// pconn represents a connection to a peer.
 type pconn struct {
 	parent  *conn
 	ackCh   chan *types.Ack

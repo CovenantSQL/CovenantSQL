@@ -35,7 +35,7 @@ type covenantSQLStatsMetrics []struct {
 	valType prometheus.ValueType
 }
 
-// CovenantSQLCollector collects CovenantSQL metrics
+// CovenantSQLCollector collects CovenantSQL metrics.
 type CovenantSQLCollector struct {
 	covenantSQLStatHistory [historyCount]int64
 	sync.RWMutex
@@ -48,7 +48,7 @@ func covenantSQLStatNamespace(s string) string {
 	return fmt.Sprintf("covenantsqlstats_%s", s)
 }
 
-// NewCovenantSQLCollector returns a new CovenantSQLCollector
+// NewCovenantSQLCollector returns a new CovenantSQLCollector.
 func NewCovenantSQLCollector() prometheus.Collector {
 	cc := &CovenantSQLCollector{
 		covenantSQLStatHistory: [historyCount]int64{},
@@ -94,7 +94,7 @@ func (cc *CovenantSQLCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-// updateCovenantSQLStat updates metric in background
+// updateCovenantSQLStat updates metric in background.
 func (cc *CovenantSQLCollector) updateCovenantSQLStat() error {
 	cc.Lock()
 	defer cc.Unlock()
@@ -106,7 +106,7 @@ func (cc *CovenantSQLCollector) updateCovenantSQLStat() error {
 	return nil
 }
 
-// CovenantSQLIdle gets the idle of DB
+// CovenantSQLIdle gets the idle of DB.
 func CovenantSQLIdle(cc *CovenantSQLCollector) float64 {
 	cc.RLock()
 	defer cc.RUnlock()
@@ -114,7 +114,7 @@ func CovenantSQLIdle(cc *CovenantSQLCollector) float64 {
 	return float64(cc.covenantSQLStatHistory[0] - cc.covenantSQLStatHistory[1])
 }
 
-// CovenantSQLPrepared returns true when the metric is ready to be collected
+// CovenantSQLPrepared returns true when the metric is ready to be collected.
 func (cc *CovenantSQLCollector) CovenantSQLPrepared() bool {
 	cc.RLock()
 	defer cc.RUnlock()

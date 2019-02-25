@@ -88,7 +88,7 @@ func heightToKey(h int32) (key []byte) {
 // req key:
 // ['R', 'E', 'Q', 'U', height, hash]
 // block key:
-// ['B', 'L', 'C', 'K', height, hash]
+// ['B', 'L', 'C', 'K', height, hash].
 func keyWithSymbolToHeight(k []byte) int32 {
 	if len(k) < 8 {
 		return -1

@@ -922,7 +922,7 @@ func (c *Chain) getLocalBPInfo() *blockProducerInfo {
 	return c.localBPInfo
 }
 
-// getRemoteBPInfos remove this node from the peer list
+// getRemoteBPInfos remove this node from the peer list.
 func (c *Chain) getRemoteBPInfos() (remoteBPInfos []*blockProducerInfo) {
 	var localBPInfo, bpInfos = func() (*blockProducerInfo, []*blockProducerInfo) {
 		c.RLock()

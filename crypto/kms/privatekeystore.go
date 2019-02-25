@@ -50,7 +50,7 @@ var (
 )
 
 // LoadPrivateKey loads private key from keyFilePath, and verifies the hash
-// head
+// head.
 func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
 	var (
 		isBinaryKey bool
@@ -122,7 +122,7 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 }
 
 // SavePrivateKey saves private key with its hash on the head to keyFilePath,
-// default perm is 0600
+// default perm is 0600.
 func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []byte) (err error) {
 	serializedKey := key.Serialize()
 	encKey, err := symmetric.EncryptWithPassword(serializedKey, masterKey, privateKDFSalt)
@@ -135,7 +135,7 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 	return ioutil.WriteFile(keyFilePath, []byte(base58EncKey), 0600)
 }
 
-// InitLocalKeyPair initializes local private key
+// InitLocalKeyPair initializes local private key.
 func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	var privateKey *asymmetric.PrivateKey
 	var publicKey *asymmetric.PublicKey

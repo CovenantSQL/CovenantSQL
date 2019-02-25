@@ -46,7 +46,7 @@ func randSig() []byte {
 }
 
 // tests for malleability
-// highest bit of signature ECDSA s value must be 0, in the 33th byte
+// highest bit of signature ECDSA s value must be 0, in the 33th byte.
 func compactSigCheck(t *testing.T, sig []byte) {
 	var b = int(sig[32])
 	if b < 0 {
@@ -202,7 +202,7 @@ func TestRandomMessagesAgainstValidSig(t *testing.T) {
 }
 
 // Useful when the underlying libsecp256k1 API changes to quickly
-// check only recover function without use of signature function
+// check only recover function without use of signature function.
 func TestRecoverSanity(t *testing.T) {
 	msg, _ := hex.DecodeString("ce0677bb30baa8cf067c88db9811f4333d131bf8bcf12fe7065d211dce971008")
 	sig, _ := hex.DecodeString("90f27b8b488db00b00606796d2987f6a5f59ae62ea05effe84fef5b8b0e549984a691139ad57a3f0b906637673aa2f63d1f55cb1a69199d4009eea23ceaddc9301")

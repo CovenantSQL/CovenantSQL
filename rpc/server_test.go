@@ -34,7 +34,7 @@ import (
 
 const PubKeyStorePath = "./public.keystore"
 
-// CheckNum make int assertion
+// CheckNum make int assertion.
 func CheckNum(num, expected int, t *testing.T) {
 	if num != expected {
 		t.Errorf("got %d, expected %d", num, expected)

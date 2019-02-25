@@ -48,7 +48,7 @@ type NodeCollector struct {
 	Collectors map[string]Collector
 }
 
-// NewNodeCollector creates a new NodeCollector
+// NewNodeCollector creates a new NodeCollector.
 func NewNodeCollector() (*NodeCollector, error) {
 	collectors := make(map[string]Collector)
 	collectors["meminfo"], _ = NewMeminfoCollector()

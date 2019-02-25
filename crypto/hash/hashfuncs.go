@@ -29,7 +29,7 @@ import (
 	blake2b "github.com/minio/blake2b-simd"
 )
 
-// HashBSize is the size of HashB
+// HashBSize is the size of HashB.
 const HashBSize = sha256.Size
 
 // HashSuite contains the hash length and the func handler.
@@ -56,7 +56,7 @@ func FNVHash32B(b []byte) []byte {
 	return hash.Sum(nil)
 }
 
-// FNVHash32uint return the uint32 value of fnv hash 32 of b
+// FNVHash32uint return the uint32 value of fnv hash 32 of b.
 func FNVHash32uint(b []byte) uint32 {
 	return binary.BigEndian.Uint32(FNVHash32B(b))
 }
@@ -77,7 +77,7 @@ func DoubleHashH(b []byte) Hash {
 
 // THashB is a combination of blake2b-512 and SHA256
 //  The cryptographic hash function BLAKE2 is an improved version of the
-// SHA-3 finalist BLAKE
+// SHA-3 finalist BLAKE.
 func THashB(b []byte) []byte {
 	first := blake2b.Sum512(b)
 	second := sha256.Sum256(first[:])

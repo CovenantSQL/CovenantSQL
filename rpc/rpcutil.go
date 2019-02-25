@@ -130,7 +130,7 @@ func (c *PersistentCaller) ResetClient(method string) (err error) {
 	return
 }
 
-// CloseStream closes the stream and RPC client
+// CloseStream closes the stream and RPC client.
 func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {
@@ -143,7 +143,7 @@ func (c *PersistentCaller) CloseStream() {
 	}
 }
 
-// Close closes the stream and RPC client
+// Close closes the stream and RPC client.
 func (c *PersistentCaller) Close() {
 	c.CloseStream()
 	//c.pool.Remove(c.TargetID)

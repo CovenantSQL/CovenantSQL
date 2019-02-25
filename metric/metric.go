@@ -29,7 +29,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("CovenantSQL"))
 }
 
-// StartMetricCollector starts collector registered in NewNodeCollector()
+// StartMetricCollector starts collector registered in NewNodeCollector().
 func StartMetricCollector() (registry *prometheus.Registry) {
 	nc, err := NewNodeCollector()
 	if err != nil {

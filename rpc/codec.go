@@ -23,14 +23,14 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// NodeAwareServerCodec wraps normal rpc.ServerCodec and inject node id during request process
+// NodeAwareServerCodec wraps normal rpc.ServerCodec and inject node id during request process.
 type NodeAwareServerCodec struct {
 	rpc.ServerCodec
 	NodeID *proto.RawNodeID
 	Ctx    context.Context
 }
 
-// NewNodeAwareServerCodec returns new NodeAwareServerCodec with normal rpc.ServerCode and proto.RawNodeID
+// NewNodeAwareServerCodec returns new NodeAwareServerCodec with normal rpc.ServerCode and proto.RawNodeID.
 func NewNodeAwareServerCodec(ctx context.Context, codec rpc.ServerCodec, nodeID *proto.RawNodeID) *NodeAwareServerCodec {
 	return &NodeAwareServerCodec{
 		ServerCodec: codec,
@@ -39,7 +39,7 @@ func NewNodeAwareServerCodec(ctx context.Context, codec rpc.ServerCodec, nodeID 
 	}
 }
 
-// ReadRequestBody override default rpc.ServerCodec behaviour and inject remote node id into request
+// ReadRequestBody override default rpc.ServerCodec behaviour and inject remote node id into request.
 func (nc *NodeAwareServerCodec) ReadRequestBody(body interface{}) (err error) {
 	err = nc.ServerCodec.ReadRequestBody(body)
 	if err != nil {

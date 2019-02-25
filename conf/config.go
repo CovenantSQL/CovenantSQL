@@ -30,7 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// these const specify the role of this app, which can be "miner", "blockProducer"
+// these const specify the role of this app, which can be "miner", "blockProducer".
 const (
 	MinerBuildTag         = "M"
 	BlockProducerBuildTag = "B"

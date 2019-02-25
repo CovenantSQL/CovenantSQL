@@ -36,7 +36,7 @@ var (
 	verifyCache     *lru.Cache
 )
 
-// For test Signature.Sign mock
+// For test Signature.Sign mock.
 func init() {
 	priv, _ := ec.NewPrivateKey(ec.S256())
 	ss, _ := (*ec.PrivateKey)(priv).Sign(([]byte)("00000000000000000000000000000000"))
@@ -50,7 +50,7 @@ type Signature struct {
 	S *big.Int
 }
 
-// Serialize converts a signature to stirng
+// Serialize converts a signature to stirng.
 func (s *Signature) Serialize() []byte {
 	return (*ec.Signature)(s).Serialize()
 }
@@ -60,13 +60,13 @@ func ParseSignature(sigStr []byte) (*Signature, error) {
 	return ParseDERSignature(sigStr, ec.S256())
 }
 
-// ParseDERSignature recovers the signature from a sigStr
+// ParseDERSignature recovers the signature from a sigStr.
 func ParseDERSignature(sigStr []byte, curve elliptic.Curve) (*Signature, error) {
 	sig, err := ec.ParseDERSignature(sigStr, curve)
 	return (*Signature)(sig), err
 }
 
-// IsEqual return true if two signature is equal
+// IsEqual return true if two signature is equal.
 func (s *Signature) IsEqual(signature *Signature) bool {
 	return (*ec.Signature)(s).IsEqual((*ec.Signature)(signature))
 }
@@ -133,12 +133,12 @@ func (s *Signature) MarshalBinary() (keyBytes []byte, err error) {
 	return
 }
 
-// MarshalHash marshals for hash
+// MarshalHash marshals for hash.
 func (s *Signature) MarshalHash() (keyBytes []byte, err error) {
 	return s.MarshalBinary()
 }
 
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (s Signature) Msgsize() (sz int) {
 	sz = hsp.BytesPrefixSize + 70
 	return

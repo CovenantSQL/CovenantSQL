@@ -46,7 +46,7 @@ type metaState struct {
 	dirty, readonly *metaIndex
 }
 
-// MinerInfos is MinerInfo array
+// MinerInfos is MinerInfo array.
 type MinerInfos []*types.MinerInfo
 
 // Len returns the length of the uints array.

@@ -53,7 +53,7 @@ func collect(cc *CollectClient) (err error) {
 	return
 }
 
-// InitMetricWeb initializes the /debug/metrics web
+// InitMetricWeb initializes the /debug/metrics web.
 func InitMetricWeb(metricWeb string) (err error) {
 	// Some Go internal metrics
 	expvar.Publish("go:numgoroutine", mw.NewGauge("1m1s", "5m5s", "1h1m"))

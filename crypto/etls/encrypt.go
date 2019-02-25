@@ -80,7 +80,7 @@ type cipherInfo struct {
 	newEncStream func(key, iv []byte) (cipher.Stream, error)
 }
 
-// Cipher struct keeps cipher mode, key, iv
+// Cipher struct keeps cipher mode, key, iv.
 type Cipher struct {
 	encStream cipher.Stream
 	decStream cipher.Stream

@@ -1,5 +1,5 @@
 #!/bin/bash -x
-
+param=$1
 set -e
 
 TEST_WD=$(cd $(dirname $0)/; pwd)

@@ -30,7 +30,7 @@ import (
 type UpdatePermissionHeader struct {
 	TargetSQLChain proto.AccountAddress
 	TargetUser     proto.AccountAddress
-	Permission     UserPermission
+	Permission     *UserPermission
 	Nonce          interfaces.AccountNonce
 }
 

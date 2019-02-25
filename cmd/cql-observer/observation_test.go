@@ -34,7 +34,6 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -44,6 +43,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -289,11 +289,11 @@ func TestFullProcess(t *testing.T) {
 		// wait until bp chain service is ready
 		ctx1, ccl1 = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer ccl1()
-		err = bp.WaitBPChainService(ctx1, 3*time.Second)
+		err = test.WaitBPChainService(ctx1, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// create
-		_, dsn, err = bp.Create(types.ResourceMeta{
+		_, dsn, err = test.Create(types.ResourceMeta{
 			TargetMiners: []proto.AccountAddress{addr},
 			Node:         1,
 		}, 1, 10000000, cliPriv)
@@ -322,7 +322,7 @@ func TestFullProcess(t *testing.T) {
 		up := types.NewUpdatePermission(&types.UpdatePermissionHeader{
 			TargetSQLChain: dbAddr,
 			TargetUser:     obAddr,
-			Permission:     types.Read,
+			Permission:     types.UserPermissionFromRole(types.Read),
 			Nonce:          nonce,
 		})
 		err = up.Sign(cliPriv)
@@ -344,7 +344,7 @@ func TestFullProcess(t *testing.T) {
 					"stat": user.Status,
 				}).Debug("checkFunc 1")
 				if user.Address == obAddr {
-					return user.Permission.CheckRead()
+					return user.Permission.HasReadPermission()
 				}
 			}
 			return false
@@ -440,7 +440,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// create
-		_, dsn2, err = bp.Create(types.ResourceMeta{
+		_, dsn2, err = test.Create(types.ResourceMeta{
 			TargetMiners: []proto.AccountAddress{addr2},
 			Node:         1,
 		}, 1, 10000000, cliPriv)
@@ -500,7 +500,7 @@ func TestFullProcess(t *testing.T) {
 			observerCmd.Cmd.Wait()
 		}()
 
-		// wait for the observer to collect blocks, two periods is enough
+		// wait for the observer to collect blocks
 		time.Sleep(conf.GConf.SQLChainPeriod * 5)
 
 		// test get genesis block by height
@@ -629,7 +629,7 @@ func TestFullProcess(t *testing.T) {
 		up = types.NewUpdatePermission(&types.UpdatePermissionHeader{
 			TargetSQLChain: dbAddr2,
 			TargetUser:     obAddr,
-			Permission:     types.Read,
+			Permission:     types.UserPermissionFromRole(types.Read),
 			Nonce:          nonce,
 		})
 		err = up.Sign(cliPriv)
@@ -646,7 +646,7 @@ func TestFullProcess(t *testing.T) {
 		err = waitProfileChecking(ctx4, 3*time.Second, proto.DatabaseID(dbID2), func(profile *types.SQLChainProfile) bool {
 			for _, user := range profile.Users {
 				if user.Address == obAddr {
-					return user.Permission.CheckRead()
+					return user.Permission.HasReadPermission()
 				}
 			}
 			return false
@@ -686,11 +686,14 @@ func TestFullProcess(t *testing.T) {
 		})
 		So(err, ShouldBeNil)
 
+		// wait for the observer to be enabled query by miner, and collect blocks
+		time.Sleep(conf.GConf.SQLChainPeriod * 5)
+
 		// test get genesis block by height
 		res, err = getJSON("v3/head/%v", dbID2)
 		So(err, ShouldBeNil)
 		So(ensureSuccess(res.Interface("block")), ShouldNotBeNil)
-		So(ensureSuccess(res.Int("block", "height")), ShouldEqual, 0)
+		So(ensureSuccess(res.Int("block", "height")), ShouldBeGreaterThanOrEqualTo, 0)
 		log.Info(err, res)
 
 		err = client.Drop(dsn)
@@ -698,6 +701,32 @@ func TestFullProcess(t *testing.T) {
 
 		err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
+
+		observerCmd.Cmd.Process.Signal(os.Interrupt)
+		observerCmd.Cmd.Wait()
+
+		// start observer again
+		observerCmd, err = utils.RunCommandNB(
+			FJ(baseDir, "./bin/cql-observer.test"),
+			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
+				"-database", string(dbID), "-reset", "oldest",
+				"-test.coverprofile", FJ(baseDir, "./cmd/cql-observer/observer.cover.out"),
+			},
+			"observer", testWorkingDir, logDir, false,
+		)
+		So(err, ShouldBeNil)
+
+		// call observer subscription status
+		// wait for observer to start
+		time.Sleep(time.Second * 3)
+
+		res, err = getJSON("v3/subscriptions")
+		So(err, ShouldBeNil)
+		subscriptions, err := res.Object()
+		So(subscriptions, ShouldContainKey, string(dbID))
+		So(subscriptions, ShouldContainKey, string(dbID2))
+		So(subscriptions[string(dbID)], ShouldBeGreaterThanOrEqualTo, 1)
+		So(subscriptions[string(dbID2)], ShouldBeGreaterThanOrEqualTo, 0)
 	})
 }
 

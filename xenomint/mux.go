@@ -17,8 +17,6 @@
 package xenomint
 
 import (
-	//"context"
-	//"runtime/trace"
 	"sync"
 	"time"
 
@@ -87,9 +85,6 @@ type MuxQueryResponse struct {
 
 // Query is the RPC method to process database query on mux service.
 func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err error) {
-	//var ctx, task = trace.NewTask(context.Background(), "MuxService.Query")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "Total").End()
 	var (
 		c *Chain
 		r *types.Response

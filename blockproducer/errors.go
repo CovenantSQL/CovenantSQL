@@ -27,8 +27,6 @@ var (
 	ErrInvalidHash = errors.New("Hash is invalid")
 	// ErrExistedTx defines existed tx error.
 	ErrExistedTx = errors.New("Tx existed")
-	// ErrInvalidMerkleTreeRoot defines invalid merkle tree root error.
-	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
 	// ErrTooManyTransactionsInBlock defines error of too many transactions in a block.
@@ -62,16 +60,21 @@ var (
 	ErrNoEnoughMiner = errors.New("can not get enough miners")
 	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
 	ErrAccountPermissionDeny = errors.New("account permission deny")
-	// ErrNoAdminLeft indicates there is no admin user in sqlchain.
-	ErrNoAdminLeft = errors.New("no admin user left")
+	// ErrNoSuperUserLeft indicates there is no super user in sqlchain.
+	ErrNoSuperUserLeft = errors.New("no super user left")
 	// ErrInvalidPermission indicates that the permission is invalid.
 	ErrInvalidPermission = errors.New("invalid permission")
 	// ErrMinerUserNotMatch indicates that the miner and user do not match.
 	ErrMinerUserNotMatch = errors.New("miner and user do not match")
 	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
 	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
+	// ErrNilGenesis indicates that the genesis block is nil in config.
+	ErrNilGenesis = errors.New("nil genesis block")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrGenesisHashNotMatch indicates that the genesis block hash in config doesn't match
+	// the persisted one.
+	ErrGenesisHashNotMatch = errors.New("persisted genesis block hash not match")
 	// ErrInvalidGasPrice indicates that the gas price is invalid.
 	ErrInvalidGasPrice = errors.New("gas price is invalid")
 	// ErrInvalidMinerCount indicates that the miner node count is invalid.

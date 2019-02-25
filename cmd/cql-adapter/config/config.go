@@ -65,7 +65,7 @@ type Config struct {
 }
 
 type confWrapper struct {
-	Adapter *Config `yaml:"Adapter"`
+	Adapter Config `yaml:"Adapter"`
 }
 
 // LoadConfig load and verify config in config file and set to global config instance.
@@ -81,14 +81,11 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 		return
 	}
 
-	if configWrapper.Adapter == nil {
-		err = ErrEmptyAdapterConfig
-		log.WithError(err).Error("could not read adapter config")
-		return
+	config = &configWrapper.Adapter
+
+	if len(config.StorageDriver) == 0 {
+		config.StorageDriver = "covenantsql"
 	}
-
-	config = configWrapper.Adapter
-
 	if config.StorageDriver == "covenantsql" {
 		// init client
 		if err = client.Init(configPath, []byte(password)); err != nil {
@@ -103,7 +100,7 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 
 	if config.CertificatePath == "" || config.PrivateKeyPath == "" {
 		// http mode
-		log.Warningf("running in http mode")
+		log.Info("running in http mode")
 	} else {
 		// tls mode
 		// init tls config

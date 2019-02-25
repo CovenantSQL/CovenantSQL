@@ -1,5 +1,41 @@
 # Changelog
 
+## [v0.3.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.3.0) (2019-01-30)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.2.0...v0.3.0)
+
+**Closed issues:**
+
+- Blocks are not written to chain [\#219](https://github.com/CovenantSQL/CovenantSQL/issues/219)
+
+**Merged pull requests:**
+
+- Improve database query performance [\#240](https://github.com/CovenantSQL/CovenantSQL/pull/240) ([xq262144](https://github.com/xq262144))
+- Support query regulations and flag bit permissions [\#239](https://github.com/CovenantSQL/CovenantSQL/pull/239) ([xq262144](https://github.com/xq262144))
+- Run each round sequentially to decrease running goroutines [\#238](https://github.com/CovenantSQL/CovenantSQL/pull/238) ([leventeliu](https://github.com/leventeliu))
+- Fix bug: bad critical section for multiple values [\#237](https://github.com/CovenantSQL/CovenantSQL/pull/237) ([leventeliu](https://github.com/leventeliu))
+- Add missing private key and rename apinode to fullnode [\#236](https://github.com/CovenantSQL/CovenantSQL/pull/236) ([ggicci](https://github.com/ggicci))
+- Regen HashStablePack for v2.0.0 [\#235](https://github.com/CovenantSQL/CovenantSQL/pull/235) ([auxten](https://github.com/auxten))
+- Use ~/.cql/ directory as default config location. [\#233](https://github.com/CovenantSQL/CovenantSQL/pull/233) ([laodouya](https://github.com/laodouya))
+- GetCurrentBP also return BP follower [\#229](https://github.com/CovenantSQL/CovenantSQL/pull/229) ([auxten](https://github.com/auxten))
+- Use 114 DNS for default [\#228](https://github.com/CovenantSQL/CovenantSQL/pull/228) ([auxten](https://github.com/auxten))
+-  Add metric web for cqld and cql-minerd [\#227](https://github.com/CovenantSQL/CovenantSQL/pull/227) ([auxten](https://github.com/auxten))
+- Add testnet client init process test. Add a param 'fast' for GNTE test [\#226](https://github.com/CovenantSQL/CovenantSQL/pull/226) ([laodouya](https://github.com/laodouya))
+-  Fix bug to avoid ack DDoS and add timeout for connecting db [\#225](https://github.com/CovenantSQL/CovenantSQL/pull/225) ([zeqing-guo](https://github.com/zeqing-guo))
+-  Add readonly flag for fuse [\#224](https://github.com/CovenantSQL/CovenantSQL/pull/224) ([auxten](https://github.com/auxten))
+- Add other cmd tools in observer image [\#222](https://github.com/CovenantSQL/CovenantSQL/pull/222) ([zeqing-guo](https://github.com/zeqing-guo))
+- Add cql-utils option to wait for confirmation [\#221](https://github.com/CovenantSQL/CovenantSQL/pull/221) ([leventeliu](https://github.com/leventeliu))
+- Add isolation level for xenomint state [\#220](https://github.com/CovenantSQL/CovenantSQL/pull/220) ([leventeliu](https://github.com/leventeliu))
+- Add TransactionState MarshalHash [\#218](https://github.com/CovenantSQL/CovenantSQL/pull/218) ([auxten](https://github.com/auxten))
+- Fix block producer genesis block hash mismatch [\#217](https://github.com/CovenantSQL/CovenantSQL/pull/217) ([leventeliu](https://github.com/leventeliu))
+- Fix gitlab ci script pipline will not return failed when go test failed. [\#216](https://github.com/CovenantSQL/CovenantSQL/pull/216) ([laodouya](https://github.com/laodouya))
+- Add query payload encode cache [\#215](https://github.com/CovenantSQL/CovenantSQL/pull/215) ([auxten](https://github.com/auxten))
+- Client log optimize [\#214](https://github.com/CovenantSQL/CovenantSQL/pull/214) ([auxten](https://github.com/auxten))
+- Add testnet compatibility test in CI process. [\#212](https://github.com/CovenantSQL/CovenantSQL/pull/212) ([laodouya](https://github.com/laodouya))
+- Fix block producers forking on startup [\#211](https://github.com/CovenantSQL/CovenantSQL/pull/211) ([leventeliu](https://github.com/leventeliu))
+- Coping with sqlchain soft forks [\#201](https://github.com/CovenantSQL/CovenantSQL/pull/201) ([xq262144](https://github.com/xq262144))
+- Support JSON RPC API [\#164](https://github.com/CovenantSQL/CovenantSQL/pull/164) ([ggicci](https://github.com/ggicci))
+
 ## [v0.2.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.2.0) (2019-01-05)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.1.0...v0.2.0)

@@ -22,6 +22,7 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/merkle"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -40,18 +41,23 @@ type BPHeader struct {
 // BPSignedHeader defines the main chain header with the signature.
 type BPSignedHeader struct {
 	BPHeader
-	BlockHash hash.Hash
-	Signee    *asymmetric.PublicKey
-	Signature *asymmetric.Signature
+	verifier.DefaultHashSignVerifierImpl
 }
 
-// Verify verifies the signature.
-func (s *BPSignedHeader) Verify() error {
-	if !s.Signature.Verify(s.BlockHash[:], s.Signee) {
-		return ErrSignVerification
-	}
+func (s *BPSignedHeader) verifyHash() error {
+	return s.DefaultHashSignVerifierImpl.VerifyHash(&s.BPHeader)
+}
 
-	return nil
+func (s *BPSignedHeader) verify() error {
+	return s.DefaultHashSignVerifierImpl.Verify(&s.BPHeader)
+}
+
+func (s *BPSignedHeader) setHash() error {
+	return s.DefaultHashSignVerifierImpl.SetHash(&s.BPHeader)
+}
+
+func (s *BPSignedHeader) sign(signer *asymmetric.PrivateKey) error {
+	return s.DefaultHashSignVerifierImpl.Sign(&s.BPHeader, signer)
 }
 
 // BPBlock defines the main chain block.
@@ -73,47 +79,45 @@ func (b *BPBlock) GetTxHashes() []*hash.Hash {
 	return hs
 }
 
+func (b *BPBlock) setMerkleRoot() {
+	var merkleRoot = merkle.NewMerkle(b.GetTxHashes()).GetRoot()
+	b.SignedHeader.MerkleRoot = *merkleRoot
+}
+
+func (b *BPBlock) verifyMerkleRoot() error {
+	var merkleRoot = *merkle.NewMerkle(b.GetTxHashes()).GetRoot()
+	if !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
+		return ErrMerkleRootVerification
+	}
+	return nil
+}
+
+// SetHash sets the block header hash, including the merkle root of the packed transactions.
+func (b *BPBlock) SetHash() error {
+	b.setMerkleRoot()
+	return b.SignedHeader.setHash()
+}
+
+// VerifyHash verifies the block header hash, including the merkle root of the packed transactions.
+func (b *BPBlock) VerifyHash() error {
+	if err := b.verifyMerkleRoot(); err != nil {
+		return err
+	}
+	return b.SignedHeader.verifyHash()
+}
+
 // PackAndSignBlock computes block's hash and sign it.
 func (b *BPBlock) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
-	hs := b.GetTxHashes()
-
-	b.SignedHeader.MerkleRoot = *merkle.NewMerkle(hs).GetRoot()
-	enc, err := b.SignedHeader.BPHeader.MarshalHash()
-
-	if err != nil {
-		return err
-	}
-
-	b.SignedHeader.BlockHash = hash.THashH(enc)
-	b.SignedHeader.Signature, err = signer.Sign(b.SignedHeader.BlockHash[:])
-	b.SignedHeader.Signee = signer.PubKey()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	b.setMerkleRoot()
+	return b.SignedHeader.sign(signer)
 }
 
 // Verify verifies whether the block is valid.
 func (b *BPBlock) Verify() error {
-	hs := b.GetTxHashes()
-	merkleRoot := *merkle.NewMerkle(hs).GetRoot()
-	if !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
-		return ErrMerkleRootVerification
-	}
-
-	enc, err := b.SignedHeader.BPHeader.MarshalHash()
-	if err != nil {
+	if err := b.verifyMerkleRoot(); err != nil {
 		return err
 	}
-
-	h := hash.THashH(enc)
-	if !h.IsEqual(&b.SignedHeader.BlockHash) {
-		return ErrHashVerification
-	}
-
-	return b.SignedHeader.Verify()
+	return b.SignedHeader.verify()
 }
 
 // Timestamp returns timestamp of block.
@@ -133,5 +137,5 @@ func (b *BPBlock) ParentHash() *hash.Hash {
 
 // BlockHash returns the parent hash field of the block header.
 func (b *BPBlock) BlockHash() *hash.Hash {
-	return &b.SignedHeader.BlockHash
+	return &b.SignedHeader.DataHash
 }

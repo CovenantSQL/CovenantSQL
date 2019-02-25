@@ -375,63 +375,6 @@ func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
 
 }
 
-func (s *metaState) transferAccountStableBalance(
-	sender, receiver proto.AccountAddress, amount uint64) (err error,
-) {
-	if sender == receiver || amount == 0 {
-		return
-	}
-
-	// Create empty receiver account if not found
-	s.loadOrStoreAccountObject(receiver, &types.Account{Address: receiver})
-
-	var (
-		so, ro     *types.Account
-		sd, rd, ok bool
-	)
-
-	// Load sender and receiver objects
-	if so, sd = s.dirty.accounts[sender]; !sd {
-		if so, ok = s.readonly.accounts[sender]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-	}
-	if ro, rd = s.dirty.accounts[receiver]; !rd {
-		if ro, ok = s.readonly.accounts[receiver]; !ok {
-			err = ErrAccountNotFound
-			return
-		}
-	}
-
-	// Try transfer
-	var (
-		sb = so.TokenBalance[types.Particle]
-		rb = ro.TokenBalance[types.Particle]
-	)
-	if err = safeSub(&sb, &amount); err != nil {
-		return
-	}
-	if err = safeAdd(&rb, &amount); err != nil {
-		return
-	}
-
-	// Proceed transfer
-	if !sd {
-		var cpy = deepcopy.Copy(so).(*types.Account)
-		so = cpy
-		s.dirty.accounts[sender] = cpy
-	}
-	if !rd {
-		var cpy = deepcopy.Copy(ro).(*types.Account)
-		ro = cpy
-		s.dirty.accounts[receiver] = cpy
-	}
-	so.TokenBalance[types.Particle] = sb
-	ro.TokenBalance[types.Particle] = rb
-	return
-}
-
 func (s *metaState) increaseAccountCovenantBalance(k proto.AccountAddress, amount uint64) error {
 	return s.increaseAccountToken(k, amount, types.Wave)
 }
@@ -454,11 +397,11 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 	s.dirty.databases[id] = &types.SQLChainProfile{
 		ID:     id,
 		Owner:  addr,
-		Miners: make([]*types.MinerInfo, 0),
+		Miners: make(MinerInfos, 0),
 		Users: []*types.SQLChainUser{
 			{
 				Address:    addr,
-				Permission: types.Admin,
+				Permission: types.UserPermissionFromRole(types.Admin),
 			},
 		},
 	}
@@ -466,7 +409,7 @@ func (s *metaState) createSQLChain(addr proto.AccountAddress, id proto.DatabaseI
 }
 
 func (s *metaState) addSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
+	k proto.DatabaseID, addr proto.AccountAddress, perm *types.UserPermission) (_ error,
 ) {
 	var (
 		src, dst *types.SQLChainProfile
@@ -515,8 +458,7 @@ func (s *metaState) deleteSQLChainUser(k proto.DatabaseID, addr proto.AccountAdd
 }
 
 func (s *metaState) alterSQLChainUser(
-	k proto.DatabaseID, addr proto.AccountAddress, perm types.UserPermission) (_ error,
-) {
+	k proto.DatabaseID, addr proto.AccountAddress, perm *types.UserPermission) (_ error) {
 	var (
 		src, dst *types.SQLChainProfile
 		ok       bool
@@ -661,21 +603,21 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 				log.Warnf("miner filtered %v", err)
 			}
 			// if got enough, break
-			if uint64(len(miners)) == minerCount {
+			if uint64(miners.Len()) == minerCount {
 				break
 			}
 		}
 	}
 
 	// not enough, find more miner(s)
-	if uint64(len(miners)) < minerCount {
+	if uint64(miners.Len()) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			err = errors.Wrapf(err, "miners match target are not enough %d:%d", len(miners), minerCount)
+			err = errors.Wrapf(err, "miners match target are not enough %d:%d", miners.Len(), minerCount)
 			return
 		}
 		var newMiners MinerInfos
 		// create new merged map
-		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-len(miners))
+		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-miners.Len())
 		if err != nil {
 			return
 		}
@@ -703,7 +645,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	users := make([]*types.SQLChainUser, 1)
 	users[0] = &types.SQLChainUser{
 		Address:        sender,
-		Permission:     types.Admin,
+		Permission:     types.UserPermissionFromRole(types.Admin),
 		Status:         types.Normal,
 		Deposit:        minAdvancePayment,
 		AdvancePayment: tx.AdvancePayment,
@@ -729,15 +671,17 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 
 	// create sqlchain
 	sp := &types.SQLChainProfile{
-		ID:             dbID,
-		Address:        dbAddr,
-		Period:         sqlchainPeriod,
-		GasPrice:       tx.GasPrice,
-		TokenType:      types.Particle,
-		Owner:          sender,
-		Users:          users,
-		EncodedGenesis: enc.Bytes(),
-		Miners:         miners,
+		ID:                dbID,
+		Address:           dbAddr,
+		Period:            sqlchainPeriod,
+		GasPrice:          tx.GasPrice,
+		LastUpdatedHeight: 0,
+		TokenType:         types.Particle,
+		Owner:             sender,
+		Miners:            miners,
+		Users:             users,
+		EncodedGenesis:    enc.Bytes(),
+		Meta:              tx.ResourceMeta,
 	}
 
 	if _, loaded := s.loadSQLChainObject(dbID); loaded {
@@ -783,7 +727,7 @@ func (s *metaState) filterNMiners(
 	for _, po := range allProviderMap {
 		newMiners, _ = filterAndAppendMiner(newMiners, po, tx, user)
 	}
-	if len(newMiners) < minerCount {
+	if newMiners.Len() < minerCount {
 		err = ErrNoEnoughMiner
 		return
 	}
@@ -793,11 +737,11 @@ func (s *metaState) filterNMiners(
 }
 
 func filterAndAppendMiner(
-	miners []*types.MinerInfo,
+	miners MinerInfos,
 	po *types.ProviderProfile,
 	req *types.CreateDatabase,
 	user proto.AccountAddress,
-) (newMiners []*types.MinerInfo, err error) {
+) (newMiners MinerInfos, err error) {
 	newMiners = miners
 	if !isProviderUserMatch(po.TargetUser, user) {
 		err = ErrMinerUserNotMatch
@@ -884,7 +828,7 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		}).WithError(ErrDatabaseNotFound).Error("unexpected error in updatePermission")
 		return ErrDatabaseNotFound
 	}
-	if tx.Permission >= types.NumberOfUserPermission {
+	if !tx.Permission.IsValid() {
 		log.WithFields(log.Fields{
 			"permission": tx.Permission,
 			"dbID":       tx.TargetSQLChain.DatabaseID(),
@@ -892,31 +836,28 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		return ErrInvalidPermission
 	}
 
-	// check whether sender is admin and find targetUser
-	isAdmin := false
-	numOfAdmin := 0
+	// check whether sender has super privilege and find targetUser
+	numOfSuperUsers := 0
 	targetUserIndex := -1
 	for i, u := range so.Users {
-		isAdmin = isAdmin || (sender == u.Address && u.Permission == types.Admin)
-		if u.Permission == types.Admin {
-			numOfAdmin++
+		if sender == u.Address && !u.Permission.HasSuperPermission() {
+			log.WithFields(log.Fields{
+				"sender": sender,
+				"dbID":   tx.TargetSQLChain,
+			}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updatePermission")
+			return ErrAccountPermissionDeny
+		}
+		if u.Permission.HasSuperPermission() {
+			numOfSuperUsers++
 		}
 		if tx.TargetUser == u.Address {
 			targetUserIndex = i
 		}
 	}
 
-	if !isAdmin {
-		log.WithFields(log.Fields{
-			"sender": sender,
-			"dbID":   tx.TargetSQLChain,
-		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updatePermission")
-		return ErrAccountPermissionDeny
-	}
-
 	// return error if number of Admin <= 1 and Admin want to revoke permission of itself
-	if numOfAdmin <= 1 && tx.TargetUser == sender && tx.Permission != types.Admin {
-		err = ErrNoAdminLeft
+	if numOfSuperUsers <= 1 && tx.TargetUser == sender && !tx.Permission.HasSuperPermission() {
+		err = ErrNoSuperUserLeft
 		log.WithFields(log.Fields{
 			"sender":     sender,
 			"dbID":       tx.TargetSQLChain,
@@ -951,19 +892,18 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 	}
 
 	// check sender's permission
-	isAdmin := false
 	for _, user := range so.Users {
-		if sender == user.Address && user.Permission == types.Admin {
-			isAdmin = true
+		if sender == user.Address {
+			if !user.Permission.HasSuperPermission() {
+				log.WithFields(log.Fields{
+					"sender": sender,
+					"dbID":   tx.TargetSQLChain,
+				}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
+				return ErrAccountPermissionDeny
+			}
+
 			break
 		}
-	}
-	if !isAdmin {
-		log.WithFields(log.Fields{
-			"sender": sender,
-			"dbID":   tx.TargetSQLChain,
-		}).WithError(ErrAccountPermissionDeny).Error("unexpected error in updateKeys")
-		return ErrAccountPermissionDeny
 	}
 
 	// update miner's key
@@ -1078,6 +1018,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 	if transfer.Signee == nil {
 		err = ErrInvalidSender
 		log.WithError(err).Warning("invalid signee in applyTransaction")
+		return
 	}
 
 	realSender, err := crypto.PubKeyHash(transfer.Signee)

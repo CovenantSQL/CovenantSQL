@@ -27,8 +27,10 @@ import (
 )
 
 const (
-	// DBKayakMethodName defines the database kayak rpc method name.
-	DBKayakMethodName = "Call"
+	// DBKayakApplyMethodName defines the database kayak apply rpc method name.
+	DBKayakApplyMethodName = "Apply"
+	// DBKayakFetchMethodName defines the database kayak fetch rpc method name.
+	DBKayakFetchMethodName = "Fetch"
 )
 
 // DBKayakMuxService defines a mux service for sqlchain kayak.
@@ -55,14 +57,30 @@ func (s *DBKayakMuxService) unregister(id proto.DatabaseID) {
 	s.serviceMap.Delete(id)
 }
 
-// Call handles kayak call.
-func (s *DBKayakMuxService) Call(req *kt.RPCRequest, _ *interface{}) (err error) {
+// Apply handles kayak apply call.
+func (s *DBKayakMuxService) Apply(req *kt.ApplyRequest, _ *interface{}) (err error) {
 	// call apply to specified kayak
 	// treat req.Instance as DatabaseID
 	id := proto.DatabaseID(req.Instance)
 
 	if v, ok := s.serviceMap.Load(id); ok {
 		return v.(*kayak.Runtime).FollowerApply(req.Log)
+	}
+
+	return errors.Wrapf(ErrUnknownMuxRequest, "instance %v", req.Instance)
+}
+
+// Fetch handles kayak fetch call.
+func (s *DBKayakMuxService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err error) {
+	id := proto.DatabaseID(req.Instance)
+
+	if v, ok := s.serviceMap.Load(id); ok {
+		var l *kt.Log
+		if l, err = v.(*kayak.Runtime).Fetch(req.GetContext(), req.Index); err != nil {
+			resp.Log = l
+			resp.Instance = req.Instance
+			return err
+		}
 	}
 
 	return errors.Wrapf(ErrUnknownMuxRequest, "instance %v", req.Instance)

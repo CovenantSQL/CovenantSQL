@@ -24,11 +24,12 @@ import (
 	"testing"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
@@ -61,19 +62,24 @@ func TestCQLD(t *testing.T) {
 		// Wait BP chain service to be ready
 		ctx2, ccl2 = context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccl2()
-		err = bp.WaitBPChainService(ctx2, 3*time.Second)
+		err = test.WaitBPChainService(ctx2, 3*time.Second)
 		So(err, ShouldBeNil)
 
 		// Wait for block producing
 		time.Sleep(15 * time.Second)
 
-		// Kill one BP
+		// Kill one BP follower
 		err = nodeCmds[2].Cmd.Process.Signal(syscall.SIGTERM)
 		So(err, ShouldBeNil)
 		time.Sleep(15 * time.Second)
 
 		// set current bp to leader bp
-		rpc.SetCurrentBP(route.GetBPs()[0])
+		for _, n := range conf.GConf.KnownNodes {
+			if n.Role == proto.Leader {
+				rpc.SetCurrentBP(n.ID)
+				break
+			}
+		}
 
 		// The other peers should be waiting
 		var (

@@ -83,6 +83,16 @@ func newPaginationFromReq(r *http.Request) (op *paginationOps) {
 	return
 }
 
+func (a *explorerAPI) GetAllSubscriptions(rw http.ResponseWriter, r *http.Request) {
+	subscriptions, err := a.service.getAllSubscriptions()
+	if err != nil {
+		sendResponse(500, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(200, true, "", subscriptions, rw)
+}
+
 func (a *explorerAPI) GetAck(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -596,8 +606,8 @@ func (a *explorerAPI) formatResponseHeader(resp *types.SignedResponseHeader) map
 			"affected_rows":  resp.AffectedRows,
 		},
 		"request": map[string]interface{}{
-			"hash":      resp.Request.Hash().String(),
-			"timestamp": a.formatTime(resp.Request.Timestamp),
+			"hash":      resp.GetRequestHash().String(),
+			"timestamp": a.formatTime(resp.GetRequestTimestamp()),
 			"node":      resp.Request.NodeID,
 			"type":      resp.Request.QueryType.String(),
 			"count":     resp.Request.BatchCount,
@@ -609,15 +619,15 @@ func (a *explorerAPI) formatAck(ack *types.SignedAckHeader) map[string]interface
 	return map[string]interface{}{
 		"ack": map[string]interface{}{
 			"request": map[string]interface{}{
-				"hash":      ack.Response.Request.Hash().String(),
-				"timestamp": a.formatTime(ack.Response.Request.Timestamp),
+				"hash":      ack.GetRequestHash().String(),
+				"timestamp": a.formatTime(ack.GetRequestTimestamp()),
 				"node":      ack.Response.Request.NodeID,
 				"type":      ack.Response.Request.QueryType.String(),
 				"count":     ack.Response.Request.BatchCount,
 			},
 			"response": map[string]interface{}{
-				"hash":           ack.Response.Hash().String(),
-				"timestamp":      a.formatTime(ack.Response.Timestamp),
+				"hash":           ack.GetResponseHash().String(),
+				"timestamp":      a.formatTime(ack.GetResponseTimestamp()),
 				"node":           ack.Response.NodeID,
 				"log_id":         ack.Response.LogOffset, // savepoint id in eventual consistency mode
 				"last_insert_id": ack.Response.LastInsertID,
@@ -677,10 +687,11 @@ func startAPI(service *Service, listenAddr string) (server *http.Server, err err
 	v3Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCountV3).Methods("GET")
 	v3Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeightV3).Methods("GET")
 	v3Router.HandleFunc("/head/{db}", api.GetHighestBlockV3).Methods("GET")
+	v3Router.HandleFunc("/subscriptions", api.GetAllSubscriptions).Methods("GET")
 
 	server = &http.Server{
 		Addr:         listenAddr,
-		WriteTimeout: apiTimeout,
+		WriteTimeout: apiTimeout * 10,
 		ReadTimeout:  apiTimeout,
 		IdleTimeout:  apiTimeout,
 		Handler:      router,

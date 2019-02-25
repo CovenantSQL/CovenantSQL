@@ -106,7 +106,7 @@ type TrackerAndResponse struct {
 }
 
 // Commit implements kayak.types.Handler.Commit.
-func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
+func (db *Database) Commit(rawReq interface{}, isLeader bool) (result interface{}, err error) {
 	// convert query and check syntax
 	var (
 		req      *types.Request
@@ -123,7 +123,7 @@ func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
 	req.SetContext(context.Background())
 
 	// execute
-	if tracker, response, err = db.chain.Query(req); err != nil {
+	if tracker, response, err = db.chain.Query(req, isLeader); err != nil {
 		return
 	}
 	result = &TrackerAndResponse{

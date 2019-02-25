@@ -36,6 +36,7 @@ import (
 	"time"
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
@@ -305,6 +306,7 @@ func main() {
 			cLog.Infof("explorer started on %s", explorerAddr)
 		}
 
+		defer close(stopCh)
 		go func() {
 			<-stopCh
 			_ = observer.StopObserver(service, httpServer)
@@ -467,7 +469,11 @@ func main() {
 		}
 
 		if waitTxConfirmation {
-			wait(txHash)
+			err = wait(txHash)
+			if err != nil {
+				os.Exit(-1)
+				return
+			}
 		}
 
 		cLog.Info("succeed in sending transaction to CovenantSQL")
@@ -520,7 +526,11 @@ func main() {
 		}
 
 		if waitTxConfirmation {
-			wait(txHash)
+			err = wait(txHash)
+			if err != nil {
+				os.Exit(-1)
+				return
+			}
 		}
 
 		cLog.Info("succeed in sending transaction to CovenantSQL")
@@ -566,22 +576,24 @@ func main() {
 			}
 			cLog.Infof("available drivers are: %#v", bindings)
 		}
-		close(stopCh)
 		os.Exit(-1)
+		return
 	}
 }
 
-func wait(txHash hash.Hash) {
+func wait(txHash hash.Hash) (err error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 	defer cancel()
-	var state, err = client.WaitTxConfirmation(ctx, txHash)
+	var state pi.TransactionState
+	state, err = client.WaitTxConfirmation(ctx, txHash)
 	cLog.WithFields(logrus.Fields{
 		"tx_hash":  txHash,
 		"tx_state": state,
 	}).WithError(err).Info("wait transaction confirmation")
-	if err != nil || state != pi.TransactionStateConfirmed {
-		os.Exit(1)
+	if err == nil && state != pi.TransactionStateConfirmed {
+		err = errors.New("bad transaction state")
 	}
+	return
 }
 
 func run(u *user.User) (err error) {

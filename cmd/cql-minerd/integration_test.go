@@ -34,6 +34,10 @@ import (
 	"testing"
 	"time"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	. "github.com/smartystreets/goconvey/convey"
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -47,9 +51,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	. "github.com/smartystreets/goconvey/convey"
-	yaml "gopkg.in/yaml.v2"
 )
 
 var (
@@ -769,7 +770,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool, useEventualCon
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				Node:                   minerCount,
+				Node: minerCount,
 				UseEventualConsistency: useEventualConsistency,
 			},
 		}

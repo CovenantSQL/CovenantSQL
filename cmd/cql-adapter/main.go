@@ -25,10 +25,11 @@ import (
 	"runtime"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"golang.org/x/sys/unix"
 )
 
 const name = "cql-adapeter"

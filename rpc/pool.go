@@ -20,10 +20,11 @@ import (
 	"net"
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
+
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // SessPool is the session pool interface

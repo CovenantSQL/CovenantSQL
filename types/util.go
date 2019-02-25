@@ -17,9 +17,10 @@
 package types
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
-	"github.com/pkg/errors"
 )
 
 type canMarshalHash interface {

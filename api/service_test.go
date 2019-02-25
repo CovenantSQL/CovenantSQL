@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/api"
 	"github.com/CovenantSQL/CovenantSQL/api/models"
-	"github.com/pkg/errors"
 
 	"github.com/gorilla/websocket"
 	. "github.com/smartystreets/goconvey/convey"

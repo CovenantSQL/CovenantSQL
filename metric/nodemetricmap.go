@@ -19,9 +19,10 @@ package metric
 import (
 	"sync"
 
+	dto "github.com/prometheus/client_model/go"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	dto "github.com/prometheus/client_model/go"
 )
 
 // SimpleMetricMap is map from metric name to MetricFamily.

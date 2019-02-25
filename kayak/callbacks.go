@@ -19,8 +19,9 @@ package kayak
 import (
 	"context"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 func (r *Runtime) doCheck(ctx context.Context, req interface{}) (err error) {

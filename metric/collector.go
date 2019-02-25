@@ -20,8 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // Namespace defines the common namespace to be used by all metrics.

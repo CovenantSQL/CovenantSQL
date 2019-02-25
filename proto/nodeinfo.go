@@ -20,11 +20,12 @@ import (
 	"strings"
 	"time"
 
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 )
 
 //go:generate hsp

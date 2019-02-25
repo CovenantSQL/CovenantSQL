@@ -21,9 +21,10 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 	"github.com/ugorji/go/codec"
+
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 const (

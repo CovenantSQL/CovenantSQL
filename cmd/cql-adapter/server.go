@@ -22,9 +22,10 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/gorilla/handlers"
+
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/api"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/config"
-	"github.com/gorilla/handlers"
 )
 
 // HTTPAdapter is a adapter for covenantsql/alternative sqlite3 service.

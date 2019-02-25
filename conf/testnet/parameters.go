@@ -18,9 +18,10 @@
 package testnet
 
 import (
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (

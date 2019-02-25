@@ -20,9 +20,10 @@ import (
 	"reflect"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 type complexStructure struct {

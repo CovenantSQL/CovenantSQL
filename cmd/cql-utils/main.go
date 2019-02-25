@@ -23,9 +23,10 @@ import (
 	"runtime"
 	"syscall"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (

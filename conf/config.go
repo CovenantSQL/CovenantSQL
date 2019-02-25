@@ -21,12 +21,13 @@ import (
 	"path"
 	"time"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // these const specify the role of this app, which can be "miner", "blockProducer"

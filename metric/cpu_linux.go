@@ -23,9 +23,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type cpuCollector struct {

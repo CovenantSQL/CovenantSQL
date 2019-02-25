@@ -20,12 +20,13 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/pkg/errors"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/timer"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
-	"github.com/pkg/errors"
 )
 
 func (r *Runtime) leaderCommitResult(ctx context.Context, tm *timer.Timer, reqPayload interface{}, prepareLog *kt.Log) (res *commitFuture) {

@@ -19,11 +19,12 @@ package worker
 import (
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/pkg/errors"
 )
 
 const (

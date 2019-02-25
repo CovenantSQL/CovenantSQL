@@ -19,11 +19,12 @@ package metric
 import (
 	"testing"
 
+	dto "github.com/prometheus/client_model/go"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	dto "github.com/prometheus/client_model/go"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCollectServer_FilterNode(t *testing.T) {

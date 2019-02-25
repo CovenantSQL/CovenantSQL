@@ -23,6 +23,9 @@ import (
 	"strings"
 	"sync"
 
+	bolt "github.com/coreos/bbolt"
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -30,8 +33,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	bolt "github.com/coreos/bbolt"
-	"github.com/pkg/errors"
 )
 
 // PublicKeyStore holds db and bucket name

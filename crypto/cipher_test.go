@@ -20,8 +20,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 )
 
 // Test 1: Encryption and decryption

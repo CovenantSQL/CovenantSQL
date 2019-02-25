@@ -21,8 +21,9 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func TestUint256(t *testing.T) {

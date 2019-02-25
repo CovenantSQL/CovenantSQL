@@ -27,14 +27,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
+	mw "github.com/zserge/metric"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
-	mw "github.com/zserge/metric"
 )
 
 var (

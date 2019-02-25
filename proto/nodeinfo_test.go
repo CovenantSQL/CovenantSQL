@@ -21,9 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 func TestAccountAddress_DatabaseID(t *testing.T) {

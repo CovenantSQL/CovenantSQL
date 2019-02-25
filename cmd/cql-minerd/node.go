@@ -22,12 +22,13 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 func initNode() (server *rpc.Server, err error) {

@@ -50,7 +50,7 @@ var (
 
 func init() {
 	// detect msgpack version
-	if codec.GenVersion != 8 {
+	if codec.GenVersion < 8 {
 		panic(ErrMsgPackVersionMismatch)
 	}
 

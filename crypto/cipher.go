@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Package crypto implements Asymmetric, Symmetric Encryption and Hash function
+// Package crypto implements Asymmetric, Symmetric Encryption and Hash function.
 package crypto
 
 import (
@@ -22,22 +22,23 @@ import (
 	"crypto/aes"
 	"errors"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	ec "github.com/btcsuite/btcd/btcec"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 )
 
 var errInvalidPadding = errors.New("invalid PKCS#7 padding")
 
 // Implement PKCS#7 padding with block size of 16 (AES block size).
 
-// AddPKCSPadding adds padding to a block of data
+// AddPKCSPadding adds padding to a block of data.
 func AddPKCSPadding(src []byte) []byte {
 	padding := aes.BlockSize - len(src)%aes.BlockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(src, padtext...)
 }
 
-// RemovePKCSPadding removes padding from data that was added with addPKCSPadding
+// RemovePKCSPadding removes padding from data that was added with addPKCSPadding.
 func RemovePKCSPadding(src []byte) ([]byte, error) {
 	length := len(src)
 	padLength := int(src[length-1])
@@ -59,7 +60,7 @@ func EncryptAndSign(inputPublicKey *asymmetric.PublicKey, inData []byte) ([]byte
 
 // DecryptAndCheck (inputPrivateKey, inData) MAIN PROCEDURE:
 //	1. Decrypt the inData
-//  2. Verify the HMAC
+//  2. Verify the HMAC.
 func DecryptAndCheck(inputPrivateKey *asymmetric.PrivateKey, inData []byte) ([]byte, error) {
 	return ec.Decrypt((*ec.PrivateKey)(inputPrivateKey), inData)
 }

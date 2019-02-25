@@ -22,8 +22,9 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // HashSize of array used to store hashes.  See Hash.
@@ -78,12 +79,12 @@ func (h *Hash) CloneBytes() []byte {
 	return newHash
 }
 
-// MarshalHash marshals for hash
+// MarshalHash marshals for hash.
 func (h *Hash) MarshalHash() (o []byte, err error) {
 	return h.CloneBytes(), nil
 }
 
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (h *Hash) Msgsize() (s int) {
 	return hsp.BytesPrefixSize + HashSize
 }
@@ -113,7 +114,7 @@ func (h *Hash) IsEqual(target *Hash) bool {
 }
 
 // Difficulty returns the leading Zero **bit** count of Hash in binary.
-//  return -1 indicate the Hash pointer is nil
+//  return -1 indicate the Hash pointer is nil.
 func (h *Hash) Difficulty() (difficulty int) {
 	if h == nil {
 		return -1

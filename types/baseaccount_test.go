@@ -19,11 +19,12 @@ package types
 import (
 	"testing"
 
+	"github.com/mohae/deepcopy"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/mohae/deepcopy"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBaseAccount(t *testing.T) {

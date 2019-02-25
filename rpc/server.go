@@ -22,6 +22,9 @@ import (
 	"net"
 	"net/rpc"
 
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -29,14 +32,12 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 )
 
-// ServiceMap maps service name to service instance
+// ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
-// Server is the RPC server struct
+// Server is the RPC server struct.
 type Server struct {
 	rpcServer  *rpc.Server
 	stopCh     chan interface{}
@@ -44,7 +45,7 @@ type Server struct {
 	Listener   net.Listener
 }
 
-// NewServer return a new Server
+// NewServer return a new Server.
 func NewServer() *Server {
 	return &Server{
 		rpcServer:  rpc.NewServer(),
@@ -55,7 +56,7 @@ func NewServer() *Server {
 
 // InitRPCServer load the private key, init the crypto transfer layer and register RPC
 // services.
-// IF ANY ERROR returned, please raise a FATAL
+// IF ANY ERROR returned, please raise a FATAL.
 func (s *Server) InitRPCServer(
 	addr string,
 	privateKeyPath string,
@@ -80,7 +81,7 @@ func (s *Server) InitRPCServer(
 	return
 }
 
-// NewServerWithService also return a new Server, and also register the Server.ServiceMap
+// NewServerWithService also return a new Server, and also register the Server.ServiceMap.
 func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 	server = NewServer()
 	for k, v := range serviceMap {
@@ -93,12 +94,12 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 	return server, nil
 }
 
-// SetListener set the service loop listener, used by func Serve main loop
+// SetListener set the service loop listener, used by func Serve main loop.
 func (s *Server) SetListener(l net.Listener) {
 	s.Listener = l
 }
 
-// Serve start the Server main loop,
+// Serve start the Server main loop,.
 func (s *Server) Serve() {
 serverLoop:
 	for {
@@ -117,7 +118,7 @@ serverLoop:
 	}
 }
 
-// handleConn do all the work
+// handleConn do all the work.
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
@@ -169,12 +170,12 @@ sessionLoop:
 	}
 }
 
-// RegisterService with a Service name, used by Client RPC
+// RegisterService with a Service name, used by Client RPC.
 func (s *Server) RegisterService(name string, service interface{}) error {
 	return s.rpcServer.RegisterName(name, service)
 }
 
-// Stop Server main loop
+// Stop Server main loop.
 func (s *Server) Stop() {
 	if s.Listener != nil {
 		s.Listener.Close()

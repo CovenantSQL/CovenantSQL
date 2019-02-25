@@ -23,6 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -31,8 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func newTransfer(

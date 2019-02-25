@@ -44,7 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// NodeKeys is NodeKey array
+// NodeKeys is NodeKey array.
 type NodeKeys []proto.NodeKey
 
 // Len returns the length of the uints array.
@@ -173,7 +173,7 @@ func (c *Consistent) Set(nodes []proto.Node) (err error) {
 	return
 }
 
-// need c.Lock() before calling
+// need c.Lock() before calling.
 func (c *Consistent) add(node proto.Node) (err error) {
 	err = c.persist.SetNode(&node)
 	if err != nil {
@@ -235,7 +235,7 @@ func (c *Consistent) GetNeighbor(name string) (proto.Node, error) {
 	return *c.circle[c.sortedHashes[i]], nil
 }
 
-// GetNode returns an node by its node id
+// GetNode returns an node by its node id.
 func (c *Consistent) GetNode(name string) (*proto.Node, error) {
 	c.RLock()
 	defer c.RUnlock()

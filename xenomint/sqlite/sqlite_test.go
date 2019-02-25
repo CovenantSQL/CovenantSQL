@@ -27,8 +27,9 @@ import (
 	"testing"
 	"time"
 
-	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	. "github.com/smartystreets/goconvey/convey"
+
+	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
 func TestStorage(t *testing.T) {

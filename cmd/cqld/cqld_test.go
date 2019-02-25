@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -32,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCQLD(t *testing.T) {

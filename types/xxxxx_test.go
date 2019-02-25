@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func BenchmarkEncode(b *testing.B) {

@@ -18,7 +18,7 @@ package types
 
 //go:generate hsp
 
-// TokenType defines token's type
+// TokenType defines token's type.
 type TokenType int32
 
 const (

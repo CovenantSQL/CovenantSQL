@@ -27,14 +27,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+	mux "github.com/xtaci/smux"
+	mw "github.com/zserge/metric"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
-	mw "github.com/zserge/metric"
 )
 
 var (
@@ -129,7 +130,7 @@ func (c *PersistentCaller) ResetClient(method string) (err error) {
 	return
 }
 
-// CloseStream closes the stream and RPC client
+// CloseStream closes the stream and RPC client.
 func (c *PersistentCaller) CloseStream() {
 	if c.client != nil {
 		if c.client.Conn != nil {
@@ -142,7 +143,7 @@ func (c *PersistentCaller) CloseStream() {
 	}
 }
 
-// Close closes the stream and RPC client
+// Close closes the stream and RPC client.
 func (c *PersistentCaller) Close() {
 	c.CloseStream()
 	//c.pool.Remove(c.TargetID)

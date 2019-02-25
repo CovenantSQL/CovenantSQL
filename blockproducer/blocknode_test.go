@@ -19,10 +19,11 @@ package blockproducer
 import (
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBlockNode(t *testing.T) {

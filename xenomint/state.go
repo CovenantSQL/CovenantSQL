@@ -23,11 +23,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
-	"github.com/pkg/errors"
 )
 
 type sqlQuerier interface {

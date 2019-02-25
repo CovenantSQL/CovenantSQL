@@ -26,6 +26,9 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/api"
 
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh/terminal"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -37,8 +40,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (

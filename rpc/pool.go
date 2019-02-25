@@ -20,26 +20,27 @@ import (
 	"net"
 	"sync"
 
-	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
+
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// SessPool is the session pool interface
+// SessPool is the session pool interface.
 type SessPool interface {
 	Get(proto.NodeID) (net.Conn, error)
 	Close()
 	Len() int
 }
 
-// NodeDialer is the dialer handler
+// NodeDialer is the dialer handler.
 type NodeDialer func(nodeID proto.NodeID) (net.Conn, error)
 
-// SessionMap is the map from node id to session
+// SessionMap is the map from node id to session.
 type SessionMap map[proto.NodeID]*Session
 
-// Session is the Session type of SessionPool
+// Session is the Session type of SessionPool.
 type Session struct {
 	sync.RWMutex
 	nodeDialer NodeDialer
@@ -48,7 +49,7 @@ type Session struct {
 	offset     int
 }
 
-// SessionPool is the struct type of session pool
+// SessionPool is the struct type of session pool.
 type SessionPool struct {
 	sync.RWMutex
 	sessions   SessionMap
@@ -60,7 +61,7 @@ var (
 	once     sync.Once
 )
 
-// Close closes the session
+// Close closes the session.
 func (s *Session) Close() {
 	s.Lock()
 	defer s.Unlock()
@@ -130,7 +131,7 @@ func (s *Session) newSession() (sess *mux.Session, err error) {
 	return mux.Client(conn, MuxConfig)
 }
 
-// newSessionPool creates a new SessionPool
+// newSessionPool creates a new SessionPool.
 func newSessionPool(nd NodeDialer) *SessionPool {
 	return &SessionPool{
 		sessions:   make(SessionMap),
@@ -138,7 +139,7 @@ func newSessionPool(nd NodeDialer) *SessionPool {
 	}
 }
 
-// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer
+// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
 func GetSessionPoolInstance() *SessionPool {
 	once.Do(func() {
 		instance = newSessionPool(DefaultDialer)
@@ -165,14 +166,14 @@ func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
 	return
 }
 
-// Get returns existing session to the node, if not exist try best to create one
+// Get returns existing session to the node, if not exist try best to create one.
 func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	var sess *Session
 	sess, _ = p.getSession(id)
 	return sess.Get()
 }
 
-// Remove the node sessions in the pool
+// Remove the node sessions in the pool.
 func (p *SessionPool) Remove(id proto.NodeID) {
 	p.Lock()
 	defer p.Unlock()
@@ -184,7 +185,7 @@ func (p *SessionPool) Remove(id proto.NodeID) {
 	return
 }
 
-// Close closes all sessions in the pool
+// Close closes all sessions in the pool.
 func (p *SessionPool) Close() {
 	p.Lock()
 	defer p.Unlock()
@@ -194,7 +195,7 @@ func (p *SessionPool) Close() {
 	p.sessions = make(SessionMap)
 }
 
-// Len returns the session counts in the pool
+// Len returns the session counts in the pool.
 func (p *SessionPool) Len() (total int) {
 	p.RLock()
 	defer p.RUnlock()

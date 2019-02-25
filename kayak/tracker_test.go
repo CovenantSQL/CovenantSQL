@@ -21,9 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 type fakeTrackerCaller struct {

@@ -119,7 +119,7 @@ type TransactionState uint32
 //        x                     |
 //        |                     +------------------------------------[ Expire ]--> Expired
 //        |
-//        +----------------------------------------------------------------------> Not Found
+//        +----------------------------------------------------------------------> Not Found.
 const (
 	TransactionStatePending TransactionState = iota
 	TransactionStatePacked

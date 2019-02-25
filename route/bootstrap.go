@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/miekg/dns"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -31,7 +33,6 @@ import (
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/miekg/dns"
 )
 
 const (
@@ -39,20 +40,20 @@ const (
 	nonceCD = "cd."
 )
 
-// BPDomain is the default BP domain list
+// BPDomain is the default BP domain list.
 const BPDomain = "_bp._tcp.gridb.io."
 
-// TestBPDomain is the default BP domain list for test
+// TestBPDomain is the default BP domain list for test.
 const TestBPDomain = "_bp._tcp.test.gridb.io."
 
-// DNSClient contains tools for querying nameservers
+// DNSClient contains tools for querying nameservers.
 type DNSClient struct {
 	msg  *dns.Msg
 	clt  *dns.Client
 	conf *dns.ClientConfig
 }
 
-// NewDNSClient returns a new DNSClient
+// NewDNSClient returns a new DNSClient.
 func NewDNSClient() *DNSClient {
 	m := new(dns.Msg)
 	m.SetEdns0(4096, true)
@@ -82,7 +83,7 @@ func NewDNSClient() *DNSClient {
 	}
 }
 
-// Query DNS nameserver and return the response
+// Query DNS nameserver and return the response.
 func (dc *DNSClient) Query(qname string, qtype uint16) (*dns.Msg, error) {
 	dc.msg.SetQuestion(qname, qtype)
 	for _, server := range dc.conf.Servers {
@@ -98,7 +99,7 @@ func (dc *DNSClient) Query(qname string, qtype uint16) (*dns.Msg, error) {
 	return nil, errors.New("no available name server")
 }
 
-// GetKey returns the DNSKey for a name server
+// GetKey returns the DNSKey for a name server.
 func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 	r, err := dc.Query(name, dns.TypeDNSKEY)
 	if err != nil {
@@ -114,7 +115,7 @@ func (dc *DNSClient) GetKey(name string, keytag uint16) (*dns.DNSKEY, error) {
 	return nil, errors.New("no DNSKEY returned by nameserver")
 }
 
-// VerifySection checks RRSIGs to make sure the name server is authentic
+// VerifySection checks RRSIGs to make sure the name server is authentic.
 func (dc *DNSClient) VerifySection(set []dns.RR) error {
 	if conf.GConf != nil && !conf.GConf.DNSSeed.EnforcedDNSSEC {
 		log.Debug("DNSSEC not enforced, just pass verification")
@@ -154,7 +155,7 @@ func (dc *DNSClient) VerifySection(set []dns.RR) error {
 	return errors.New("not DNSSEC record")
 }
 
-// GetRRSet returns the RRset belonging to the signature with name and type t
+// GetRRSet returns the RRset belonging to the signature with name and type t.
 func GetRRSet(l []dns.RR, name string, t uint16) []dns.RR {
 	var l1 []dns.RR
 	for _, rr := range l {
@@ -165,12 +166,12 @@ func GetRRSet(l []dns.RR, name string, t uint16) []dns.RR {
 	return l1
 }
 
-// Shorten RRSIG
+// Shorten RRSIG.
 func shortSig(sig *dns.RRSIG) string {
 	return sig.Header().Name + " RRSIG(" + dns.TypeToString[sig.TypeCovered] + ")"
 }
 
-// GetBPFromDNSSeed returns an array of the BP IP addresses listed at a domain
+// GetBPFromDNSSeed returns an array of the BP IP addresses listed at a domain.
 func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err error) {
 	srvRR := dc.GetSRVRecords(BPDomain)
 	if srvRR == nil {
@@ -310,7 +311,7 @@ func (dc *DNSClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err e
 	return
 }
 
-// GetSRVRecords retrieves TypeSRV RRs
+// GetSRVRecords retrieves TypeSRV RRs.
 func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeSRV)
 	if err != nil {
@@ -320,7 +321,7 @@ func (dc *DNSClient) GetSRVRecords(name string) *dns.Msg {
 	return in
 }
 
-// GetARecord retrieves TypeA RRs
+// GetARecord retrieves TypeA RRs.
 func (dc *DNSClient) GetARecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeA)
 	if err != nil {
@@ -330,7 +331,7 @@ func (dc *DNSClient) GetARecord(name string) *dns.Msg {
 	return in
 }
 
-// GetAAAARecord retrieves TypeAAAA(IPv6) RRs
+// GetAAAARecord retrieves TypeAAAA(IPv6) RRs.
 func (dc *DNSClient) GetAAAARecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeAAAA)
 	if err != nil {
@@ -340,7 +341,7 @@ func (dc *DNSClient) GetAAAARecord(name string) *dns.Msg {
 	return in
 }
 
-// GetTXTRecord retrieves TypeTXT RRs
+// GetTXTRecord retrieves TypeTXT RRs.
 func (dc *DNSClient) GetTXTRecord(name string) *dns.Msg {
 	in, err := dc.Query(name, dns.TypeTXT)
 	if err != nil {

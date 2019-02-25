@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -40,7 +41,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
-	"github.com/pkg/errors"
 )
 
 // Chain defines the main chain.
@@ -922,7 +922,7 @@ func (c *Chain) getLocalBPInfo() *blockProducerInfo {
 	return c.localBPInfo
 }
 
-// getRemoteBPInfos remove this node from the peer list
+// getRemoteBPInfos remove this node from the peer list.
 func (c *Chain) getRemoteBPInfos() (remoteBPInfos []*blockProducerInfo) {
 	var localBPInfo, bpInfos = func() (*blockProducerInfo, []*blockProducerInfo) {
 		c.RLock()

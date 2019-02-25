@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -39,7 +41,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -209,7 +210,7 @@ func Create(meta ResourceMeta) (dsn string, err error) {
 	return
 }
 
-// WaitDBCreation waits for database creation complete
+// WaitDBCreation waits for database creation complete.
 func WaitDBCreation(ctx context.Context, dsn string) (err error) {
 	dsnCfg, err := ParseDSN(dsn)
 	if err != nil {

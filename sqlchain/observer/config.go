@@ -19,8 +19,9 @@ package observer
 import (
 	"io/ioutil"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // Database defines single database subscription status.

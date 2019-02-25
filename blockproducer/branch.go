@@ -21,13 +21,14 @@ import (
 	"sort"
 	"time"
 
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
 )
 
 type branch struct {

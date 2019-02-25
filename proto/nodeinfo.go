@@ -20,11 +20,12 @@ import (
 	"strings"
 	"time"
 
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 )
 
 //go:generate hsp
@@ -285,7 +286,7 @@ func parseServerRole(roleStr string) (role ServerRole, err error) {
 // ServerRoles is []ServerRole.
 type ServerRoles []ServerRole
 
-// Contains returns if given role is in the ServerRoles>
+// Contains returns if given role is in the ServerRoles>.
 func (ss *ServerRoles) Contains(role ServerRole) bool {
 	for _, s := range *ss {
 		if s == role {

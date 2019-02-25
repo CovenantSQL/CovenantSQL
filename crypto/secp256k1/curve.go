@@ -77,7 +77,7 @@ func readBits(bigint *big.Int, buf []byte) {
 // affine coordinates.
 
 // A BitCurve represents a Koblitz Curve with a=0.
-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html.
 type BitCurve struct {
 	P       *big.Int // the order of the underlying field
 	N       *big.Int // the order of the base point
@@ -86,7 +86,7 @@ type BitCurve struct {
 	BitSize int      // the size of the underlying field
 }
 
-// Params returns Koblitz Curve parameters
+// Params returns Koblitz Curve parameters.
 func (BitCurve *BitCurve) Params() *elliptic.CurveParams {
 	return &elliptic.CurveParams{
 		P:       BitCurve.P,
@@ -128,7 +128,7 @@ func (BitCurve *BitCurve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 	return
 }
 
-// Add returns the sum of (x1,y1) and (x2,y2)
+// Add returns the sum of (x1,y1) and (x2,y2).
 func (BitCurve *BitCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	z := new(big.Int).SetInt64(1)
 	return BitCurve.affineFromJacobian(BitCurve.addJacobian(x1, y1, z, x2, y2, z))
@@ -199,7 +199,7 @@ func (BitCurve *BitCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 	return x3, y3, z3
 }
 
-// Double returns 2*(x,y)
+// Double returns 2*(x,y).
 func (BitCurve *BitCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	z1 := new(big.Int).SetInt64(1)
 	return BitCurve.affineFromJacobian(BitCurve.doubleJacobian(x1, y1, z1))
@@ -239,7 +239,7 @@ func (BitCurve *BitCurve) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	return x3, y3, z3
 }
 
-// ScalarMult does the private scalar
+// ScalarMult does the private scalar.
 func (BitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	// Ensure scalar is exactly 32 bytes. We pad always, even if
 	// scalar is 32 bytes long, to avoid a timing side channel.

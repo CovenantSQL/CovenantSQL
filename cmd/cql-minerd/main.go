@@ -29,6 +29,9 @@ import (
 	"syscall"
 	"time"
 
+	graphite "github.com/cyberdelia/go-metrics-graphite"
+	metrics "github.com/rcrowley/go-metrics"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -38,8 +41,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	graphite "github.com/cyberdelia/go-metrics-graphite"
-	metrics "github.com/rcrowley/go-metrics"
 )
 
 const logo = `

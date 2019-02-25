@@ -17,11 +17,12 @@
 package main
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	"github.com/pkg/errors"
 )
 
 var rootHash = hash.Hash{}

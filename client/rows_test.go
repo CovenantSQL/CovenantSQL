@@ -21,8 +21,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/types"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 func TestRowsStructure(t *testing.T) {

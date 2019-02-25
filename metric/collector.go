@@ -20,8 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // Namespace defines the common namespace to be used by all metrics.
@@ -47,7 +48,7 @@ type NodeCollector struct {
 	Collectors map[string]Collector
 }
 
-// NewNodeCollector creates a new NodeCollector
+// NewNodeCollector creates a new NodeCollector.
 func NewNodeCollector() (*NodeCollector, error) {
 	collectors := make(map[string]Collector)
 	collectors["meminfo"], _ = NewMeminfoCollector()

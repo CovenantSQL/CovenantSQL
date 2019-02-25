@@ -61,7 +61,7 @@ func stopService(service *Service) (err error) {
 	return service.stop()
 }
 
-// StartObserver starts the observer service and http API server
+// StartObserver starts the observer service and http API server.
 func StartObserver(listenAddr string, version string) (service *Service, httpServer *http.Server, err error) {
 	// init node
 	if err = initNode(); err != nil {
@@ -86,7 +86,7 @@ func StartObserver(listenAddr string, version string) (service *Service, httpSer
 	return
 }
 
-// StopObserver stops the service and http API server returned by StartObserver
+// StopObserver stops the service and http API server returned by StartObserver.
 func StopObserver(service *Service, httpServer *http.Server) (err error) {
 	// stop explorer api
 	if err = stopAPI(httpServer); err != nil {

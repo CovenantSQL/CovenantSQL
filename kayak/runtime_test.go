@@ -30,6 +30,11 @@ import (
 	"testing"
 	"time"
 
+	mock_conn "github.com/jordwest/mock-conn"
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+	"github.com/xtaci/smux"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
@@ -40,10 +45,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	mock_conn "github.com/jordwest/mock-conn"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
-	"github.com/xtaci/smux"
 )
 
 func init() {

@@ -17,9 +17,10 @@
 package verifier
 
 import (
+	"github.com/pkg/errors"
+
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/pkg/errors"
 )
 
 //go:generate hsp

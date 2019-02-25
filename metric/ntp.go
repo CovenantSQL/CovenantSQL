@@ -51,7 +51,7 @@ type ntpCollector struct {
 // NewNtpCollector returns a new Collector exposing sanity of local NTP server.
 // Default definition of "local" is:
 // - collector.ntp.server address is a loopback address (or collector.ntp.server-is-mine flag is turned on)
-// - the server is reachable with outgoin IP_TTL = 1
+// - the server is reachable with outgoin IP_TTL = 1.
 func NewNtpCollector() (Collector, error) {
 	ipaddr := net.ParseIP(ntpServer)
 	if !ntpServerIsLocal && (ipaddr == nil || !ipaddr.IsLoopback()) {

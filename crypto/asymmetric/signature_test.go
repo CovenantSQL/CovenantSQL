@@ -26,10 +26,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 )
 
 var (

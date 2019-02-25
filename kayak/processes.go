@@ -19,11 +19,12 @@ package kayak
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/timer"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
-	"github.com/pkg/errors"
 )
 
 func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req interface{}) (prepareLog *kt.Log, err error) {

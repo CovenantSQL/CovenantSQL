@@ -22,6 +22,8 @@ import (
 	"database/sql"
 	"os"
 
+	"github.com/pkg/errors"
+
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -33,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -45,7 +46,7 @@ const (
 	CmdDeleteDatabase = "delete_database"
 )
 
-// LocalStorage holds consistent and storage struct
+// LocalStorage holds consistent and storage struct.
 type LocalStorage struct {
 	consistent *consistent.Consistent
 	*storage.Storage
@@ -227,13 +228,13 @@ func (s *LocalStorage) compileLog(payload *KayakPayload) (result *compiledLog, e
 	return
 }
 
-// KayakKVServer holds kayak.Runtime and LocalStorage
+// KayakKVServer holds kayak.Runtime and LocalStorage.
 type KayakKVServer struct {
 	Runtime   *kayak.Runtime
 	KVStorage *LocalStorage
 }
 
-// Init implements consistent.Persistence
+// Init implements consistent.Persistence.
 func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err error) {
 	for _, n := range initNodes {
 		var nodeBuf *bytes.Buffer
@@ -255,13 +256,13 @@ func (s *KayakKVServer) Init(storePath string, initNodes []proto.Node) (err erro
 	return
 }
 
-// KayakPayload is the payload used in kayak Leader and Follower
+// KayakPayload is the payload used in kayak Leader and Follower.
 type KayakPayload struct {
 	Command string
 	Data    []byte
 }
 
-// SetNode implements consistent.Persistence
+// SetNode implements consistent.Persistence.
 func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 	nodeBuf, err := utils.EncodeMsgPack(node)
 	if err != nil {
@@ -281,13 +282,13 @@ func (s *KayakKVServer) SetNode(node *proto.Node) (err error) {
 	return
 }
 
-// DelNode implements consistent.Persistence
+// DelNode implements consistent.Persistence.
 func (s *KayakKVServer) DelNode(nodeID proto.NodeID) (err error) {
 	// no need to del node currently
 	return
 }
 
-// Reset implements consistent.Persistence
+// Reset implements consistent.Persistence.
 func (s *KayakKVServer) Reset() (err error) {
 	// no need to reset for kayak
 	return
@@ -412,7 +413,7 @@ func (s *KayakKVServer) GetAllDatabases() (instances []types.ServiceInstance, er
 	return
 }
 
-// GetAllNodeInfo implements consistent.Persistence
+// GetAllNodeInfo implements consistent.Persistence.
 func (s *KayakKVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	var result [][]interface{}
 	query := "SELECT `node` FROM `dht`;"

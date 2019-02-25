@@ -34,6 +34,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/jsonq"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -47,8 +50,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/jmoiron/jsonq"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (

@@ -24,6 +24,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	bolt "github.com/coreos/bbolt"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -33,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	bolt "github.com/coreos/bbolt"
 )
 
 const (

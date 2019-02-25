@@ -22,6 +22,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -32,8 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestMetaState(t *testing.T) {

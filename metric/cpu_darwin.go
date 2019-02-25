@@ -46,7 +46,7 @@ import (
 */
 import "C"
 
-// ClocksPerSec default value. from time.h
+// ClocksPerSec default value. from time.h.
 const ClocksPerSec = float64(C.CLK_TCK)
 
 type statCollector struct {

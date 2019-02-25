@@ -68,6 +68,11 @@ start:
 	docker-compose up --no-start
 	docker-compose start
 
+start_bp_miner:
+	docker-compose down
+	docker-compose up --no-start covenantsql_bp_0 covenantsql_bp_1 covenantsql_bp_2 covenantsql_miner_0 covenantsql_miner_1 covenantsql_miner_2
+	docker-compose start covenantsql_bp_0 covenantsql_bp_1 covenantsql_bp_2 covenantsql_miner_0 covenantsql_miner_1 covenantsql_miner_2
+
 stop:
 	docker-compose down
 

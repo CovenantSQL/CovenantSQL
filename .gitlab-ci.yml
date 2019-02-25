@@ -41,3 +41,12 @@ compatibility-testnet:
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - set -x
     - ./test/testnet_client/run.sh
+
+compatibility-old-client:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - ./test/testnet_client/run.sh old
+

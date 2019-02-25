@@ -770,7 +770,7 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool, useEventualCon
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				Node: minerCount,
+				Node:                   minerCount,
 				UseEventualConsistency: useEventualConsistency,
 			},
 		}

@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
 	"github.com/gorilla/websocket"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/sourcegraph/jsonrpc2"
 	wsstream "github.com/sourcegraph/jsonrpc2/websocket"
+
+	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
 )
 
 var (

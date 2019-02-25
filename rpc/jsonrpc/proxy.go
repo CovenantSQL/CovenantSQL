@@ -3,8 +3,9 @@ package jsonrpc
 import (
 	"encoding/base64"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 // MsgpackProxyParams is used for transmit data encoded in msgpack protocol

@@ -3,9 +3,10 @@ package api
 import (
 	"context"
 
+	"github.com/sourcegraph/jsonrpc2"
+
 	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 func init() {

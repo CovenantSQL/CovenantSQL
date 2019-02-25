@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 
+	"github.com/pkg/errors"
+	"github.com/sourcegraph/jsonrpc2"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/pkg/errors"
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 // RegisterClientParams defines parameters to call RPC method "__register".

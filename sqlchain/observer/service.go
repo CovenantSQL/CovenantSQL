@@ -309,6 +309,9 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (
 	if err != nil {
 		return
 	}
+	if b == nil {
+		return
+	}
 
 	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / conf.GConf.SQLChainPeriod)
 	key := utils.ConcatAll(int32ToBytes(h), b.BlockHash().AsBytes(), int32ToBytes(count))

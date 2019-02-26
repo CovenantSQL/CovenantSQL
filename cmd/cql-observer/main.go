@@ -77,6 +77,10 @@ func main() {
 	}
 	kms.InitBP()
 
+	if err = initNode(); err != nil {
+		return
+	}
+
 	service, httpServer, err := observer.StartObserver(listenAddr, version)
 	if err != nil {
 		log.WithError(err).Fatal("start observer failed")

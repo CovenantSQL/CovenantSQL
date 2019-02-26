@@ -22,7 +22,7 @@ import (
 	"syscall"
 )
 
-// WaitForExit waits for user cancellation signals: SIGINT/SIGTERM/SIGHUP/SIGTTIN/SIGTTOU.
+// WaitForExit waits for user cancellation signals: SIGINT/SIGTERM and ignore SIGHUP/SIGTTIN/SIGTTOU.
 func WaitForExit() <-chan os.Signal {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

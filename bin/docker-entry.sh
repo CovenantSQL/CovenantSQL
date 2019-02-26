@@ -26,8 +26,5 @@ cli)
 faucet)
     exec /app/cql-faucet -config ${COVENANT_CONF} "${@}"
     ;;
-explorer)
-    exec /app/cql-explorer -config ${COVENANT_CONF} "${@}"
-    ;;
 esac
 

@@ -862,7 +862,7 @@ func TestFullProcess(t *testing.T) {
 						},
 					},
 				}
-				if err := ack.Sign(priv, false); err != nil {
+				if err := ack.Sign(priv); err != nil {
 					panic(err)
 				}
 				return ack

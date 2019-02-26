@@ -491,7 +491,7 @@ func TestFullProcess(t *testing.T) {
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-bg-log-level", "debug",
 				"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
-				"-web", "127.0.0.1:4123",
+				"-web", "127.0.0.1:4663",
 			},
 			"observer", testWorkingDir, logDir, false,
 		)
@@ -722,7 +722,7 @@ func TestFullProcess(t *testing.T) {
 			[]string{"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-bg-log-level", "debug",
 				"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
-				"-web", "127.0.0.1:4123",
+				"-web", "127.0.0.1:4663",
 			},
 			"observer", testWorkingDir, logDir, false,
 		)

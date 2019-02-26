@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 
@@ -668,15 +669,15 @@ func startAPI(service *Service, listenAddr string, version string) (server *http
 	}
 
 	router := mux.NewRouter()
-	fs := http.FileServer(statikFS)
-	router.Handle("/", fs)
-	router.Handle("/static/{type}/{file}", fs)
+	fsh := http.FileServer(statikFS)
+	router.Handle("/", fsh)
+	router.Handle("/static/{type}/{file}", fsh)
 	router.PathPrefix("/dbs").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		r2 := new(http.Request)
 		*r2 = *request
 		r2.URL = new(url.URL)
 		r2.URL.Path = "/"
-		fs.ServeHTTP(writer, r2)
+		fsh.ServeHTTP(writer, r2)
 	})
 	router.HandleFunc("/version", func(rw http.ResponseWriter, r *http.Request) {
 		sendResponse(http.StatusOK, true, nil, map[string]interface{}{
@@ -714,7 +715,7 @@ func startAPI(service *Service, listenAddr string, version string) (server *http
 		WriteTimeout: apiTimeout * 10,
 		ReadTimeout:  apiTimeout,
 		IdleTimeout:  apiTimeout,
-		Handler:      router,
+		Handler:      handlers.CORS()(router),
 	}
 
 	go func() {

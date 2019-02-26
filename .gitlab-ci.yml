@@ -1,4 +1,4 @@
-image: covenantsql/build
+image: laodouya/covenantsqlbuild
 
 variables:
   REVIEWDOG_VERSION: 0.9.11

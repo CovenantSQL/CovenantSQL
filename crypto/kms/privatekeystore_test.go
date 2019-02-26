@@ -24,9 +24,6 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcutil/base58"
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 

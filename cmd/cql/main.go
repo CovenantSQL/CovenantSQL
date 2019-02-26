@@ -33,7 +33,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -45,7 +44,6 @@ import (
 	"github.com/xo/usql/handler"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
-	"golang.org/x/crypto/ssh/terminal"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -323,12 +321,6 @@ func main() {
 		}
 	}
 
-	// if stdin is not tty and web flag is enabled
-	if !terminal.IsTerminal(syscall.Stdin) && explorerAddr != "" {
-		<-utils.WaitForExit()
-		return
-	}
-
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
@@ -590,6 +582,12 @@ func main() {
 			cLog.Infof("available drivers are: %#v", bindings)
 		}
 		os.Exit(-1)
+		return
+	}
+
+	// if web flag is enabled
+	if explorerAddr != "" {
+		<-utils.WaitForExit()
 		return
 	}
 }

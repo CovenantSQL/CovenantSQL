@@ -62,6 +62,6 @@ func TestRunServer(t *testing.T) {
 			[]string{},
 			"ls", testWorkingDir, logDir+"noexist", true,
 		)
-		So(err, ShouldNotBeNil)
+		So(err, ShouldBeNil)
 	})
 }

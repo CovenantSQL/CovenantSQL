@@ -167,6 +167,6 @@ func TestInitLocalKeyPair_error(t *testing.T) {
 		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.ErrNotKeyFile", enc, 0600)
 		err := InitLocalKeyPair("./.ErrNotKeyFile", []byte(password))
-		So(err, ShouldEqual, ErrNotKeyFile)
+		So(errors.Cause(err), ShouldEqual, ErrNotKeyFile)
 	})
 }

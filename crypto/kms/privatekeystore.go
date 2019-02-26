@@ -146,11 +146,12 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 	privateKey, err = LoadPrivateKey(privateKeyPath, masterKey)
 	if err != nil {
 		log.WithError(err).Info("load private key failed")
-		if errors.Cause(err) == ErrNotKeyFile {
+		cause := errors.Cause(err)
+		if cause == ErrNotKeyFile {
 			log.WithField("path", privateKeyPath).Error("not a valid private key file")
 			return
 		}
-		if _, ok := err.(*os.PathError); (ok || err == os.ErrNotExist) && conf.GConf.GenerateKeyPair {
+		if os.IsNotExist(cause) && conf.GConf.GenerateKeyPair {
 			log.Info("private key file not exist, generating one")
 			privateKey, publicKey, err = asymmetric.GenSecp256k1KeyPair()
 			if err != nil {

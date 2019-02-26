@@ -1,5 +1,30 @@
 # Changelog
 
+## [v0.4.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.4.0) (2019-02-25)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.3.0...v0.4.0)
+
+**Merged pull requests:**
+
+- Use minimum assertion instead of exact version [\#265](https://github.com/CovenantSQL/CovenantSQL/pull/265) ([leventeliu](https://github.com/leventeliu))
+- Promote beta branch [\#264](https://github.com/CovenantSQL/CovenantSQL/pull/264) ([leventeliu](https://github.com/leventeliu))
+- Add imports format script and format all codes [\#263](https://github.com/CovenantSQL/CovenantSQL/pull/263) ([leventeliu](https://github.com/leventeliu))
+- Add listen flag for adapter [\#262](https://github.com/CovenantSQL/CovenantSQL/pull/262) ([auxten](https://github.com/auxten))
+- Use rpc broadcast for dht node info synchronization instead of kayak [\#261](https://github.com/CovenantSQL/CovenantSQL/pull/261) ([xq262144](https://github.com/xq262144))
+- Merge observer and explorer into cql [\#260](https://github.com/CovenantSQL/CovenantSQL/pull/260) ([auxten](https://github.com/auxten))
+-  Add transaction hash as return value in create/drop [\#259](https://github.com/CovenantSQL/CovenantSQL/pull/259) ([leventeliu](https://github.com/leventeliu))
+- Combine createRandomBlock functions into one. [\#258](https://github.com/CovenantSQL/CovenantSQL/pull/258) ([laodouya](https://github.com/laodouya))
+- Improve unit test cover ratio [\#257](https://github.com/CovenantSQL/CovenantSQL/pull/257) ([laodouya](https://github.com/laodouya))
+- Refactor observer synchronization to pull mode [\#256](https://github.com/CovenantSQL/CovenantSQL/pull/256) ([xq262144](https://github.com/xq262144))
+- Refactor observer synchronization to pull mode [\#255](https://github.com/CovenantSQL/CovenantSQL/pull/255) ([xq262144](https://github.com/xq262144))
+- Fix SQLChain forks [\#254](https://github.com/CovenantSQL/CovenantSQL/pull/254) ([xq262144](https://github.com/xq262144))
+- Update beta with develop updates [\#253](https://github.com/CovenantSQL/CovenantSQL/pull/253) ([xq262144](https://github.com/xq262144))
+- Improve unit test cover ratio. [\#251](https://github.com/CovenantSQL/CovenantSQL/pull/251) ([laodouya](https://github.com/laodouya))
+- Add blocks cache limit for block producers [\#249](https://github.com/CovenantSQL/CovenantSQL/pull/249) ([leventeliu](https://github.com/leventeliu))
+- Support pprof http handler in BlockProducer [\#248](https://github.com/CovenantSQL/CovenantSQL/pull/248) ([xq262144](https://github.com/xq262144))
+- Unit all docker client config to same private.key [\#247](https://github.com/CovenantSQL/CovenantSQL/pull/247) ([laodouya](https://github.com/laodouya))
+- Make observer API writeTimeout = 10 \* readTimeout [\#246](https://github.com/CovenantSQL/CovenantSQL/pull/246) ([auxten](https://github.com/auxten))
+
 ## [v0.3.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.3.0) (2019-01-30)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.2.0...v0.3.0)

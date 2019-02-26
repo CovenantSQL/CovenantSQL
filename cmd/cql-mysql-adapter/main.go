@@ -20,10 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"runtime"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -79,9 +76,6 @@ func main() {
 		return
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, unix.SIGTERM)
-
 	server, err := NewServer(listenAddr, mysqlUser, mysqlPassword)
 	if err != nil {
 		log.WithError(err).Fatal("init server failed")
@@ -92,7 +86,7 @@ func main() {
 
 	log.Info("start mysql adapter")
 
-	<-stop
+	<-utils.WaitForExit()
 
 	server.Shutdown()
 

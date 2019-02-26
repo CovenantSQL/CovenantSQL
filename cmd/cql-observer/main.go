@@ -21,9 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -66,14 +64,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-
 	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
@@ -87,12 +77,16 @@ func main() {
 	}
 	kms.InitBP()
 
+	if err = initNode(); err != nil {
+		return
+	}
+
 	service, httpServer, err := observer.StartObserver(listenAddr, version)
 	if err != nil {
 		log.WithError(err).Fatal("start observer failed")
 	}
 
-	<-signalCh
+	<-utils.WaitForExit()
 
 	_ = observer.StopObserver(service, httpServer)
 	log.Info("observer stopped")

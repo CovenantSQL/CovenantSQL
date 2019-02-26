@@ -2,7 +2,7 @@
 
 package metric
 
-// #include <mach/mach_host.h>.
+// #include <mach/mach_host.h>
 import "C"
 
 import (

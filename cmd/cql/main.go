@@ -292,13 +292,14 @@ func main() {
 
 	configFile = utils.HomeDirExpand(configFile)
 
-	if explorerAddr != "" {
-		var err error
-		conf.GConf, err = conf.LoadConfig(configFile)
-		if err != nil {
-			log.WithField("config", configFile).WithError(err).Fatal("load config failed")
-		}
+	// init covenantsql driver
+	if err = client.Init(configFile, []byte(password)); err != nil {
+		cLog.WithError(err).Error("init covenantsql client failed")
+		os.Exit(-1)
+		return
+	}
 
+	if explorerAddr != "" {
 		service, httpServer, err = observer.StartObserver(explorerAddr, version)
 		if err != nil {
 			log.WithError(err).Fatal("start explorer failed")
@@ -312,13 +313,6 @@ func main() {
 			_ = observer.StopObserver(service, httpServer)
 			log.Info("explorer stopped")
 		}()
-	} else {
-		// init covenantsql driver
-		if err = client.Init(configFile, []byte(password)); err != nil {
-			cLog.WithError(err).Error("init covenantsql client failed")
-			os.Exit(-1)
-			return
-		}
 	}
 
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
@@ -582,6 +576,13 @@ func main() {
 			cLog.Infof("available drivers are: %#v", bindings)
 		}
 		os.Exit(-1)
+		return
+	}
+
+	// if web flag is enabled
+	if explorerAddr != "" {
+		fmt.Printf("Ctrl + C to stop explorer listen on %s", explorerAddr)
+		<-utils.WaitForExit()
 		return
 	}
 }

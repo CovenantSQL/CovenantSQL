@@ -22,9 +22,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -99,15 +97,7 @@ func main() {
 		return
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-
-	<-signalCh
+	<-utils.WaitForExit()
 
 	// stop explorer api
 	if err = stopAPI(httpServer); err != nil {

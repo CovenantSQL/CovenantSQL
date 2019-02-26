@@ -21,11 +21,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"runtime"
 	"time"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -71,16 +68,13 @@ func main() {
 		return
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, unix.SIGTERM)
-
 	log.Info("start adapter")
 	if err = server.Serve(); err != nil {
 		log.WithError(err).Fatal("start adapter failed")
 		return
 	}
 
-	<-stop
+	<-utils.WaitForExit()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

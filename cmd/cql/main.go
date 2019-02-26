@@ -581,6 +581,7 @@ func main() {
 
 	// if web flag is enabled
 	if explorerAddr != "" {
+		fmt.Printf("Ctrl + C to stop explorer listen on %s", explorerAddr)
 		<-utils.WaitForExit()
 		return
 	}

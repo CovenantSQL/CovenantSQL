@@ -18,9 +18,10 @@
 package testnet
 
 import (
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -53,6 +54,9 @@ DNSSeed:
   - 202.46.34.74
   - 202.46.34.75
   - 202.46.34.76
+Adapter:
+  ListenAddr: "127.0.0.1:4661"
+  StorageDriver: covenantsql
 
 BlockProducer:
   PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
@@ -63,29 +67,7 @@ BlockProducer:
     c: 0
     d: 6148914694092305796
   ChainFileName: "chain.db"
-  BPGenesisInfo:
-    Version: 1
-    BlockHash: f745ca6427237aac858dd3c7f2df8e6f3c18d0f1c164e07a1c6b8eebeba6b154
-    Producer: 0000000000000000000000000000000000000000000000000000000000000001
-    MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
-    ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
-    Timestamp: 2019-01-02T13:33:00.00Z
-    BaseAccounts:
-      - Address: ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37
-        StableCoinBalance: 10000000000000000000
-        CovenantCoinBalance: 10000000000000000000
-      - Address: 1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be
-        StableCoinBalance: 10000000000000000000
-        CovenantCoinBalance: 10000000000000000000
-      - Address: 9235bc4130a2ed4e6c35ea189dab35198ebb105640bedb97dd5269cc80863b16
-        StableCoinBalance: 10000000000000000000
-        CovenantCoinBalance: 10000000000000000000
-      - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
-        StableCoinBalance: 10000000000000000000
-        CovenantCoinBalance: 10000000000000000000
-      - Address: 58aceaf4b730b54bf00c0fb3f7b14886de470767f313c2d108968cd8bf0794b7
-        StableCoinBalance: 10000000000000000000
-        CovenantCoinBalance: 10000000000000000000
+
 KnownNodes:
 - ID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
   Nonce:

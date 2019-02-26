@@ -17,9 +17,10 @@
 package blockproducer
 
 import (
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
 )
 
 // ChainRPCService defines a main chain RPC server.

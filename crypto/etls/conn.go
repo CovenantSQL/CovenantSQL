@@ -16,7 +16,7 @@
 
 // Package etls implements "Enhanced Transport Layer Security", but more efficient
 // than TLS used in https.
-// example can be found in test case
+// example can be found in test case.
 package etls
 
 import (
@@ -24,9 +24,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -34,14 +35,14 @@ var (
 	ETLSMagicBytes = []byte{0xC0, 0x4E}
 )
 
-// CryptoConn implements net.Conn and Cipher interface
+// CryptoConn implements net.Conn and Cipher interface.
 type CryptoConn struct {
 	net.Conn
 	*Cipher
 	NodeID *proto.RawNodeID
 }
 
-// NewConn returns a new CryptoConn
+// NewConn returns a new CryptoConn.
 func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
 	return &CryptoConn{
 		Conn:   c,
@@ -51,7 +52,7 @@ func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
 }
 
 // Dial connects to a address with a Cipher
-// address should be in the form of host:port
+// address should be in the form of host:port.
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
@@ -63,7 +64,7 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 	return
 }
 
-// Read iv and Encrypted data
+// Read iv and Encrypted data.
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
 		buf := make([]byte, c.info.ivLen+len(ETLSMagicBytes))
@@ -95,7 +96,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	return
 }
 
-// Write iv and Encrypted data
+// Write iv and Encrypted data.
 func (c *CryptoConn) Write(b []byte) (n int, err error) {
 	var iv []byte
 	if c.encStream == nil {

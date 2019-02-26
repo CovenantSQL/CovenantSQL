@@ -36,5 +36,5 @@
 // preventing length-extension attacks. Some of them use a method that is rather
 // like SHA-256d, i.e. they do an extra "finalization" hash of their state at the
 // end, before emitting a result.
-//                                --From: https://crypto.stackexchange.com/a/884
+//                                --From: https://crypto.stackexchange.com/a/884.
 package hash

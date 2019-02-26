@@ -23,12 +23,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/btcsuite/btcutil/base58"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
-	"github.com/btcsuite/btcutil/base58"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (

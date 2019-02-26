@@ -20,9 +20,10 @@ import (
 	"net"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const nodeID = "0000"

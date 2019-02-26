@@ -149,12 +149,12 @@ func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return r.Header.Sign(signer)
 }
 
-// SetMarshalCache sets _marshalCache
+// SetMarshalCache sets _marshalCache.
 func (r *Request) SetMarshalCache(buf []byte) {
 	r._marshalCache = buf
 }
 
-// GetMarshalCache gets _marshalCache
+// GetMarshalCache gets _marshalCache.
 func (r *Request) GetMarshalCache() (buf []byte) {
 	return r._marshalCache
 }

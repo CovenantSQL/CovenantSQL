@@ -30,7 +30,7 @@ import (
 
 var symmetricKeyCache sync.Map
 
-// GetSharedSecretWith gets shared symmetric key with ECDH
+// GetSharedSecretWith gets shared symmetric key with ECDH.
 func GetSharedSecretWith(nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKey []byte, err error) {
 	if isAnonymous {
 		symmetricKey = []byte(`!&\\!qEyey*\cbLc,aKl`)

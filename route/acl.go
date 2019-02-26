@@ -57,7 +57,7 @@ ACLs:
   		ACL: Open to world
 */
 
-// RemoteFunc defines the RPC Call name
+// RemoteFunc defines the RPC Call name.
 type RemoteFunc int
 
 const (

@@ -21,15 +21,16 @@ import (
 	"path"
 	"time"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
-// these const specify the role of this app, which can be "miner", "blockProducer"
+// these const specify the role of this app, which can be "miner", "blockProducer".
 const (
 	MinerBuildTag         = "M"
 	BlockProducerBuildTag = "B"
@@ -93,10 +94,6 @@ type MinerInfo struct {
 	MaxReqTimeGap          time.Duration          `yaml:"MaxReqTimeGap,omitempty"`
 	ProvideServiceInterval time.Duration          `yaml:"ProvideServiceInterval,omitempty"`
 	TargetUsers            []proto.AccountAddress `yaml:"TargetUsers,omitempty"`
-
-	// when test mode, fixture database config is used.
-	IsTestMode   bool                    `yaml:"IsTestMode,omitempty"`
-	TestFixtures []*MinerDatabaseFixture `yaml:"TestFixtures,omitempty"`
 }
 
 // DNSSeed defines seed DNS info.

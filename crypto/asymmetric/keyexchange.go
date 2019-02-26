@@ -23,7 +23,7 @@ import ec "github.com/btcsuite/btcd/btcec"
 // public key using Diffie-Hellman key exchange (ECDH) (RFC 4753).
 // RFC5903 Section 9 states we should only return x.
 // Key Feature:
-// 		GenECDHSharedSecret(BPub, APriv) == GenECDHSharedSecret(APub, BPriv)
+// 		GenECDHSharedSecret(BPub, APriv) == GenECDHSharedSecret(APub, BPriv).
 func GenECDHSharedSecret(privateKey *PrivateKey, publicKey *PublicKey) []byte {
 	return ec.GenerateSharedSecret((*ec.PrivateKey)(privateKey), (*ec.PublicKey)(publicKey))
 }

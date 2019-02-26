@@ -146,7 +146,7 @@ func PaddedBigBytes(bigint *big.Int, n int) []byte {
 
 // bigEndianByteAt returns the byte at position n,
 // in Big-Endian encoding
-// So n==0 returns the least significant byte
+// So n==0 returns the least significant byte.
 func bigEndianByteAt(bigint *big.Int, n int) byte {
 	words := bigint.Bits()
 	// Check word-bucket the byte will reside in
@@ -164,7 +164,7 @@ func bigEndianByteAt(bigint *big.Int, n int) byte {
 // Byte returns the byte at position n,
 // with the supplied padlength in Little-Endian encoding.
 // n==0 returns the MSB
-// Example: bigint '5', padlength 32, n=31 => 5
+// Example: bigint '5', padlength 32, n=31 => 5.
 func Byte(bigint *big.Int, padlength, n int) byte {
 	if n >= padlength {
 		return byte(0)
@@ -196,7 +196,7 @@ func U256(x *big.Int) *big.Int {
 //   S256(0)        = 0
 //   S256(1)        = 1
 //   S256(2**255)   = -2**255
-//   S256(2**256-1) = -1
+//   S256(2**256-1) = -1.
 func S256(x *big.Int) *big.Int {
 	if x.Cmp(tt255) < 0 {
 		return x
@@ -208,7 +208,7 @@ func S256(x *big.Int) *big.Int {
 // Exp returns a newly-allocated big integer and does not change
 // base or exponent. The result is truncated to 256 bits.
 //
-// Courtesy @karalabe and @chfast
+// Courtesy @karalabe and @chfast.
 func Exp(base, exponent *big.Int) *big.Int {
 	result := big.NewInt(1)
 

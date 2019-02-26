@@ -22,11 +22,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestSignAndVerify(t *testing.T) {

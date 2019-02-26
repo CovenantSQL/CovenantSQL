@@ -24,10 +24,11 @@ import (
 	"sync"
 	"time"
 
-	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec"
+
+	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // PrivateKeyBytesLen defines the length in bytes of a serialized private key.
@@ -43,23 +44,23 @@ type PrivateKey ec.PrivateKey
 // public key without having to directly import the ecdsa package.
 type PublicKey ec.PublicKey
 
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (k PublicKey) Msgsize() (s int) {
 	s = hsp.BytesPrefixSize + ec.PubKeyBytesLenCompressed
 	return
 }
 
-// MarshalHash marshals for hash
+// MarshalHash marshals for hash.
 func (k *PublicKey) MarshalHash() (keyBytes []byte, err error) {
 	return k.MarshalBinary()
 }
 
-// MarshalBinary does the serialization
+// MarshalBinary does the serialization.
 func (k *PublicKey) MarshalBinary() (keyBytes []byte, err error) {
 	return k.Serialize(), nil
 }
 
-// UnmarshalBinary does the deserialization
+// UnmarshalBinary does the deserialization.
 func (k *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
 	pubKeyI, ok := parsedPublicKeyCache.Load(string(keyBytes))
 	if ok {
@@ -97,7 +98,7 @@ func (k *PublicKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return err
 }
 
-// IsEqual return true if two keys are equal
+// IsEqual return true if two keys are equal.
 func (k *PublicKey) IsEqual(public *PublicKey) bool {
 	return (*ec.PublicKey)(k).IsEqual((*ec.PublicKey)(public))
 }
@@ -109,12 +110,12 @@ func (k *PublicKey) IsEqual(public *PublicKey) bool {
 // SerializeCompressed.
 //
 // BenchmarkParsePublicKey-12                 50000             39819 ns/op            2401 B/op         35 allocs/op
-// BenchmarkParsePublicKey-12               1000000              1039 ns/op             384 B/op          9 allocs/op
+// BenchmarkParsePublicKey-12               1000000              1039 ns/op             384 B/op          9 allocs/op.
 func (k *PublicKey) Serialize() []byte {
 	return (*ec.PublicKey)(k).SerializeCompressed()
 }
 
-// ParsePubKey recovers the public key from pubKeyStr
+// ParsePubKey recovers the public key from pubKeyStr.
 func ParsePubKey(pubKeyStr []byte) (*PublicKey, error) {
 	key, err := ec.ParsePubKey(pubKeyStr, ec.S256())
 	return (*PublicKey)(key), err
@@ -144,7 +145,7 @@ func (private *PrivateKey) Serialize() []byte {
 	return paddedAppend(PrivateKeyBytesLen, b, private.D.Bytes())
 }
 
-// PubKey return the public key
+// PubKey return the public key.
 func (private *PrivateKey) PubKey() *PublicKey {
 	return (*PublicKey)((*ec.PrivateKey)(private).PubKey())
 }
@@ -159,7 +160,7 @@ func paddedAppend(size uint, dst, src []byte) []byte {
 	return append(dst, src...)
 }
 
-// GenSecp256k1KeyPair generate Secp256k1(used by Bitcoin) key pair
+// GenSecp256k1KeyPair generate Secp256k1(used by Bitcoin) key pair.
 func GenSecp256k1KeyPair() (
 	privateKey *PrivateKey,
 	publicKey *PublicKey,

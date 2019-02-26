@@ -19,11 +19,12 @@ package types
 import (
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestTxCreateDatabase(t *testing.T) {

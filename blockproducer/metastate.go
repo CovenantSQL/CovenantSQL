@@ -20,6 +20,9 @@ import (
 	"bytes"
 	"sort"
 
+	"github.com/mohae/deepcopy"
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -27,8 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/mohae/deepcopy"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -41,7 +42,7 @@ type metaState struct {
 	dirty, readonly *metaIndex
 }
 
-// MinerInfos is MinerInfo array
+// MinerInfos is MinerInfo array.
 type MinerInfos []*types.MinerInfo
 
 // Len returns the length of the uints array.

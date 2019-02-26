@@ -18,10 +18,10 @@ package sqlchain
 
 import "github.com/CovenantSQL/CovenantSQL/proto"
 
-// BlockID is the hash of block content
+// BlockID is the hash of block content.
 type BlockID string
 
-// StorageProofBlock records block's status
+// StorageProofBlock records block's status.
 type StorageProofBlock struct {
 	// Block id
 	ID BlockID

@@ -23,6 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -31,8 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func newTransfer(
@@ -99,6 +100,7 @@ func TestChain(t *testing.T) {
 
 			priv1, priv2 *asymmetric.PrivateKey
 			addr1, addr2 proto.AccountAddress
+			dbid1        = proto.DatabaseID("db#1")
 		)
 
 		priv1, err = kms.GetLocalPrivateKey()
@@ -184,6 +186,109 @@ func TestChain(t *testing.T) {
 			}
 			err = os.Remove(config.DataFile)
 			So(err, ShouldBeNil)
+		})
+
+		Convey("When chain service are created over the chain instance", func() {
+			var rpcService = &ChainRPCService{chain: chain}
+			err = rpcService.QuerySQLChainProfile(
+				&types.QuerySQLChainProfileReq{DBID: dbid1},
+				&types.QuerySQLChainProfileResp{})
+			So(err, ShouldNotBeNil)
+
+			var fetchBlockResp = &types.FetchLastIrreversibleBlockResp{}
+			err = rpcService.FetchLastIrreversibleBlock(
+				&types.FetchLastIrreversibleBlockReq{Address: addr1}, fetchBlockResp)
+			So(err, ShouldBeNil)
+			So(fetchBlockResp.SQLChains, ShouldBeEmpty)
+
+			var (
+				queryBalanceReq  = &types.QueryAccountTokenBalanceReq{Addr: addr2, TokenType: 0}
+				queryBalanceResp = &types.QueryAccountTokenBalanceResp{}
+			)
+			err = rpcService.QueryAccountTokenBalance(queryBalanceReq, queryBalanceResp)
+			So(err, ShouldBeNil)
+			So(queryBalanceResp.OK, ShouldBeFalse)
+
+			Convey("Chain APIs should return correct result of state objects", func() {
+				var loaded bool
+				_, loaded = chain.immutable.loadOrStoreProviderObject(addr1, &types.ProviderProfile{})
+				So(loaded, ShouldBeFalse)
+				_, loaded = chain.immutable.loadOrStoreSQLChainObject(dbid1, &types.SQLChainProfile{
+					Miners: []*types.MinerInfo{&types.MinerInfo{Address: addr2}},
+				})
+				So(loaded, ShouldBeFalse)
+				_, loaded = chain.immutable.loadOrStoreAccountObject(addr2, &types.Account{
+					Address:      addr2,
+					TokenBalance: [types.SupportTokenNumber]uint64{100, 100, 100, 100, 100},
+				})
+				So(loaded, ShouldBeFalse)
+				chain.immutable.commit()
+
+				err = rpcService.QuerySQLChainProfile(
+					&types.QuerySQLChainProfileReq{DBID: dbid1},
+					&types.QuerySQLChainProfileResp{})
+				So(err, ShouldBeNil)
+				err = rpcService.FetchLastIrreversibleBlock(
+					&types.FetchLastIrreversibleBlockReq{Address: addr2}, fetchBlockResp)
+				So(err, ShouldBeNil)
+				So(fetchBlockResp.SQLChains, ShouldNotBeEmpty)
+
+				err = rpcService.QueryAccountTokenBalance(queryBalanceReq, queryBalanceResp)
+				So(err, ShouldBeNil)
+				So(queryBalanceResp.OK, ShouldBeTrue)
+				So(queryBalanceResp.Balance, ShouldEqual, 100)
+			})
+
+			Convey("Chain APIs should return correct result of tx state", func() {
+				var tx pi.Transaction
+				tx, err = newTransfer(1, priv1, addr1, addr2, 1)
+				So(err, ShouldBeNil)
+				So(tx, ShouldNotBeNil)
+
+				var (
+					req  = &types.QueryTxStateReq{Hash: tx.Hash()}
+					resp = &types.QueryTxStateResp{}
+				)
+				err = rpcService.QueryTxState(req, resp)
+				So(err, ShouldBeNil)
+				So(resp.State, ShouldEqual, pi.TransactionStateNotFound)
+
+				chain.headBranch.addTx(tx)
+				err = rpcService.QueryTxState(req, resp)
+				So(err, ShouldBeNil)
+				So(resp.State, ShouldEqual, pi.TransactionStatePending)
+
+				delete(chain.headBranch.unpacked, req.Hash)
+				chain.headBranch.packed[req.Hash] = tx
+				err = rpcService.QueryTxState(req, resp)
+				So(err, ShouldBeNil)
+				So(resp.State, ShouldEqual, pi.TransactionStatePacked)
+
+				delete(chain.headBranch.packed, req.Hash)
+				_, err = chain.storage.Writer().Exec(`INSERT INTO "indexed_transactions" (
+	"block_height",
+	"tx_index",
+	"hash",
+	"block_hash",
+	"timestamp",
+	"tx_type",
+	"address",
+	"raw"
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					1,
+					0,
+					tx.Hash().String(),
+					"",
+					tx.GetTimestamp().UnixNano(),
+					tx.GetTransactionType(),
+					tx.GetAccountAddress().String(),
+					"",
+				)
+				So(err, ShouldBeNil)
+				err = rpcService.QueryTxState(req, resp)
+				So(err, ShouldBeNil)
+				So(resp.State, ShouldEqual, pi.TransactionStateConfirmed)
+			})
 		})
 
 		Convey("When transfer transactions are added", func() {

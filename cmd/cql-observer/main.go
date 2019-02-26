@@ -29,7 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/observer"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -40,21 +40,17 @@ var (
 	version = "unknown"
 
 	// config
-	configFile    string
-	dbID          string
-	listenAddr    string
-	resetPosition string
-	showVersion   bool
-	logLevel      string
+	configFile  string
+	listenAddr  string
+	showVersion bool
+	logLevel    string
 )
 
 func init() {
 	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
-	flag.StringVar(&dbID, "database", "", "Database to listen for observation")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&resetPosition, "reset", "", "Reset subscribe position")
 	flag.StringVar(&listenAddr, "listen", "127.0.0.1:4663", "Listen address for http explorer api")
 	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 }
@@ -70,6 +66,14 @@ func main() {
 		os.Exit(0)
 	}
 
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(
+		signalCh,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
+
 	configFile = utils.HomeDirExpand(configFile)
 
 	flag.Visit(func(f *flag.Flag) {
@@ -81,70 +85,17 @@ func main() {
 	if err != nil {
 		log.WithField("config", configFile).WithError(err).Fatal("load config failed")
 	}
-
 	kms.InitBP()
 
-	// init node
-	if err = initNode(); err != nil {
-		log.WithError(err).Fatal("init node failed")
-	}
-
-	// start service
-	var service *Service
-	if service, err = startService(); err != nil {
-		log.WithError(err).Fatal("start observation failed")
-	}
-
-	// start explorer api
-	httpServer, err := startAPI(service, listenAddr)
+	service, httpServer, err := observer.StartObserver(listenAddr, version)
 	if err != nil {
-		log.WithError(err).Fatal("start explorer api failed")
+		log.WithError(err).Fatal("start observer failed")
 	}
-
-	// register node
-	if err = registerNode(); err != nil {
-		log.WithError(err).Fatal("register node failed")
-	}
-
-	// start subscription
-	var cfg *Config
-	if cfg, err = loadConfig(configFile); err != nil {
-		log.WithError(err).Fatal("failed to load config")
-	}
-	if cfg != nil {
-		for _, v := range cfg.Databases {
-			if err = service.subscribe(proto.DatabaseID(v.ID), v.Position); err != nil {
-				log.WithError(err).Fatal("init subscription failed")
-			}
-		}
-	}
-	// Process command arguments after config file so that you can reset subscribe on startup
-	// without changing the config.
-	if dbID != "" {
-		if err = service.subscribe(proto.DatabaseID(dbID), resetPosition); err != nil {
-			log.WithError(err).Fatal("init subscription failed")
-		}
-	}
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
 
 	<-signalCh
 
-	// stop explorer api
-	if err = stopAPI(httpServer); err != nil {
-		log.WithError(err).Fatal("stop explorer api failed")
-	}
-
-	// stop subscriptions
-	if err = stopService(service); err != nil {
-		log.WithError(err).Fatal("stop service failed")
-	}
-
+	_ = observer.StopObserver(service, httpServer)
 	log.Info("observer stopped")
+
+	return
 }

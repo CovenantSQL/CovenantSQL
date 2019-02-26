@@ -33,7 +33,7 @@ type Storage interface {
 	Exec(dbID string, query string, args ...interface{}) (affectedRows int64, lastInsertID int64, err error)
 }
 
-// golang does trick convert, use rowScanner to return the original result type in sqlite3 driver
+// golang does trick convert, use rowScanner to return the original result type in sqlite3 driver.
 type rowScanner struct {
 	fieldCnt int
 	column   int           // current column

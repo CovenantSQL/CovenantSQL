@@ -29,7 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// TestService to be register to RPC server
+// TestService to be register to RPC server.
 type TestService struct {
 }
 

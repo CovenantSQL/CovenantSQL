@@ -29,7 +29,7 @@
 // permissions and limitations under the License. See the AUTHORS file
 // for names of contributors.
 //
-// Author: Marc Berhault (marc@cockroachlabs.com)
+// Author: Marc Berhault (marc@cockroachlabs.com).
 package main
 
 import (

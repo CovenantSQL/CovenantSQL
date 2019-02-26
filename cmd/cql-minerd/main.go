@@ -29,6 +29,9 @@ import (
 	"syscall"
 	"time"
 
+	graphite "github.com/cyberdelia/go-metrics-graphite"
+	metrics "github.com/rcrowley/go-metrics"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -38,8 +41,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/CovenantSQL/CovenantSQL/worker"
-	graphite "github.com/cyberdelia/go-metrics-graphite"
-	metrics "github.com/rcrowley/go-metrics"
 )
 
 const logo = `
@@ -172,11 +173,6 @@ func main() {
 	var server *rpc.Server
 	if server, err = initNode(); err != nil {
 		log.WithError(err).Fatal("init node failed")
-	}
-
-	if conf.GConf.Miner.IsTestMode {
-		// miner test mode enabled
-		log.Debug("miner test mode enabled")
 	}
 
 	// stop channel for all daemon routines

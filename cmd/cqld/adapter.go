@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -31,10 +33,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
 )
 
-// LocalStorage holds consistent and storage struct
+// LocalStorage holds consistent and storage struct.
 type LocalStorage struct {
 	consistent *consistent.Consistent
 	*storage.Storage
@@ -171,18 +172,18 @@ func (s *KVServer) SetNodeEx(node *proto.Node, ttl uint32, origin proto.NodeID) 
 	return
 }
 
-// DelNode implements consistent.Persistence
+// DelNode implements consistent.Persistence.
 func (s *KVServer) DelNode(nodeID proto.NodeID) (err error) {
 	// no need to del node currently
 	return
 }
 
-// Reset implements consistent.Persistence
+// Reset implements consistent.Persistence.
 func (s *KVServer) Reset() (err error) {
 	return
 }
 
-// GetAllNodeInfo implements consistent.Persistence
+// GetAllNodeInfo implements consistent.Persistence.
 func (s *KVServer) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	var result [][]interface{}
 	query := "SELECT `node` FROM `dht`;"

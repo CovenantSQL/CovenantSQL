@@ -51,7 +51,7 @@ var (
 	stubNextNonce pi.AccountNonce = 1
 )
 
-// fake BPDB service
+// fake BPDB service.
 type stubBPService struct{}
 
 func (s *stubBPService) QueryAccountTokenBalance(req *types.QueryAccountTokenBalanceReq,

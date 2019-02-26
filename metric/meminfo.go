@@ -23,8 +23,9 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
@@ -33,7 +34,7 @@ const (
 
 type meminfoCollector struct{}
 
-// ProcPath is the proc system path, expose for test
+// ProcPath is the proc system path, expose for test.
 var ProcPath = "/proc"
 
 // NewMeminfoCollector returns a new Collector exposing memory stats.

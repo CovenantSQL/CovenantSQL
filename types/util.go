@@ -20,11 +20,12 @@ import (
 	"crypto/rand"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/pkg/errors"
 )
 
 var genesisHash = hash.Hash{}

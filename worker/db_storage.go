@@ -21,10 +21,11 @@ import (
 	"container/list"
 	"context"
 
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	x "github.com/CovenantSQL/CovenantSQL/xenomint"
-	"github.com/pkg/errors"
 )
 
 // Following contains storage related logic extracted from main database instance definition.

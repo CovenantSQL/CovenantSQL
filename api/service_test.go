@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/api"
-	"github.com/CovenantSQL/CovenantSQL/api/models"
-	"github.com/pkg/errors"
-
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/sourcegraph/jsonrpc2"
 	wsstream "github.com/sourcegraph/jsonrpc2/websocket"
+
+	"github.com/CovenantSQL/CovenantSQL/api"
+	"github.com/CovenantSQL/CovenantSQL/api/models"
 )
 
 const (

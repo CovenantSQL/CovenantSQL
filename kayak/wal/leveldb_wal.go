@@ -23,12 +23,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 var (

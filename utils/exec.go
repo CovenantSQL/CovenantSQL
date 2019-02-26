@@ -26,24 +26,24 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// FJ is short for filepath.Join
+// FJ is short for filepath.Join.
 var FJ = filepath.Join
 
-// CMD is the struct holding exec.Cmd and log path
+// CMD is the struct holding exec.Cmd and log path.
 type CMD struct {
 	Cmd     *exec.Cmd
 	LogPath string
 	LogFD   *os.File
 }
 
-// GetProjectSrcDir gets the src code root
+// GetProjectSrcDir gets the src code root.
 func GetProjectSrcDir() string {
 	_, testFile, _, _ := runtime.Caller(0)
 	return FJ(filepath.Dir(testFile), "../")
 }
 
 // RunCommand runs a command and capture its output to a log file,
-//  if toStd is true also output to stdout and stderr
+//  if toStd is true also output to stdout and stderr.
 func RunCommand(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (err error) {
 	cmd, err := RunCommandNB(bin, args, processName, workingDir, logDir, toStd)
 	if err != nil {
@@ -68,7 +68,7 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 	return
 }
 
-// RunCommandNB starts a non-blocking command
+// RunCommandNB starts a non-blocking command.
 func RunCommandNB(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (cmd *CMD, err error) {
 	cmd = new(CMD)
 	err = os.Chdir(workingDir)

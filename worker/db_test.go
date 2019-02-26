@@ -25,6 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fortytw2/leaktest"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -33,8 +36,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/fortytw2/leaktest"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var rootHash = hash.Hash{}

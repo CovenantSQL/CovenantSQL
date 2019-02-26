@@ -22,9 +22,10 @@ import (
 	"strconv"
 	"unsafe"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sys/unix"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type clockinfo struct {

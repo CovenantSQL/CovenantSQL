@@ -26,7 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// LocalKeyStore is the type hold local private & public key
+// LocalKeyStore is the type hold local private & public key.
 type LocalKeyStore struct {
 	isSet     bool
 	private   *asymmetric.PrivateKey
@@ -51,7 +51,7 @@ func init() {
 	initLocalKeyStore()
 }
 
-// initLocalKeyStore returns a new LocalKeyStore
+// initLocalKeyStore returns a new LocalKeyStore.
 func initLocalKeyStore() {
 	once.Do(func() {
 		localKey = &LocalKeyStore{
@@ -75,7 +75,7 @@ func ResetLocalKeyStore() {
 	}
 }
 
-// SetLocalKeyPair sets private and public key, this is a one time thing
+// SetLocalKeyPair sets private and public key, this is a one time thing.
 func SetLocalKeyPair(private *asymmetric.PrivateKey, public *asymmetric.PublicKey) {
 	localKey.Lock()
 	defer localKey.Unlock()
@@ -87,7 +87,7 @@ func SetLocalKeyPair(private *asymmetric.PrivateKey, public *asymmetric.PublicKe
 	localKey.public = public
 }
 
-// SetLocalNodeIDNonce sets private and public key, this is a one time thing
+// SetLocalNodeIDNonce sets private and public key, this is a one time thing.
 func SetLocalNodeIDNonce(rawNodeID []byte, nonce *mine.Uint256) {
 	localKey.Lock()
 	defer localKey.Unlock()
@@ -99,7 +99,7 @@ func SetLocalNodeIDNonce(rawNodeID []byte, nonce *mine.Uint256) {
 	}
 }
 
-// GetLocalNodeID gets current node ID in hash string format
+// GetLocalNodeID gets current node ID in hash string format.
 func GetLocalNodeID() (rawNodeID proto.NodeID, err error) {
 	var rawNodeIDBytes []byte
 	if rawNodeIDBytes, err = GetLocalNodeIDBytes(); err != nil {
@@ -114,7 +114,7 @@ func GetLocalNodeID() (rawNodeID proto.NodeID, err error) {
 	return
 }
 
-// GetLocalNodeIDBytes get current node ID copy in []byte
+// GetLocalNodeIDBytes get current node ID copy in []byte.
 func GetLocalNodeIDBytes() (rawNodeID []byte, err error) {
 	localKey.RLock()
 	if localKey.nodeID != nil {
@@ -127,7 +127,7 @@ func GetLocalNodeIDBytes() (rawNodeID []byte, err error) {
 	return
 }
 
-// GetLocalNonce gets current node nonce copy
+// GetLocalNonce gets current node nonce copy.
 func GetLocalNonce() (nonce *mine.Uint256, err error) {
 	localKey.RLock()
 	if localKey.nodeNonce != nil {
@@ -140,7 +140,7 @@ func GetLocalNonce() (nonce *mine.Uint256, err error) {
 	return
 }
 
-// GetLocalPublicKey gets local public key, if not set yet returns nil
+// GetLocalPublicKey gets local public key, if not set yet returns nil.
 func GetLocalPublicKey() (public *asymmetric.PublicKey, err error) {
 	localKey.RLock()
 	public = localKey.public
@@ -152,7 +152,7 @@ func GetLocalPublicKey() (public *asymmetric.PublicKey, err error) {
 }
 
 // GetLocalPrivateKey gets local private key, if not set yet returns nil
-//  all call to this func will be logged
+//  all call to this func will be logged.
 func GetLocalPrivateKey() (private *asymmetric.PrivateKey, err error) {
 	localKey.RLock()
 	private = localKey.private

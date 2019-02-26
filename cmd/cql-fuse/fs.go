@@ -42,6 +42,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -88,7 +89,7 @@ func initSchema(db *sql.DB) error {
 // create inserts a new node.
 // parentID: inode ID of the parent directory.
 // name: name of the new node
-// node: new node
+// node: new node.
 func (cfs CFS) create(ctx context.Context, parentID uint64, name string, node *Node) error {
 	inode := node.toJSON()
 	const insertNode = `INSERT INTO fs_inode VALUES (?, ?)`

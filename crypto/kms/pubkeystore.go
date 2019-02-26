@@ -23,6 +23,9 @@ import (
 	"strings"
 	"sync"
 
+	bolt "github.com/coreos/bbolt"
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -30,11 +33,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	bolt "github.com/coreos/bbolt"
-	"github.com/pkg/errors"
 )
 
-// PublicKeyStore holds db and bucket name
+// PublicKeyStore holds db and bucket name.
 type PublicKeyStore struct {
 	db     *bolt.DB
 	bucket []byte
@@ -79,7 +80,7 @@ func init() {
 	}
 }
 
-// InitBP initializes kms.BP struct with conf.GConf
+// InitBP initializes kms.BP struct with conf.GConf.
 func InitBP() {
 	if conf.GConf == nil {
 		log.Fatal("must call conf.LoadConfig first")
@@ -106,7 +107,7 @@ var (
 )
 
 // InitPublicKeyStore opens a db file, if not exist, creates it.
-// and creates a bucket if not exist
+// and creates a bucket if not exist.
 func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	//testFlag := flag.Lookup("test")
 	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
@@ -154,7 +155,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 }
 
 // GetPublicKey gets a PublicKey of given id
-// Returns an error if the id was not found
+// Returns an error if the id was not found.
 func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) {
 	node, err := GetNodeInfo(id)
 	if err == nil {
@@ -164,7 +165,7 @@ func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) 
 }
 
 // GetNodeInfo gets node info of given id
-// Returns an error if the id was not found
+// Returns an error if the id was not found.
 func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -191,7 +192,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 	return
 }
 
-// GetAllNodeID get all node ids exist in store
+// GetAllNodeID get all node ids exist in store.
 func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 	if pks == nil || pks.db == nil {
 		return nil, ErrPKSNotInitialized
@@ -216,7 +217,7 @@ func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 
 }
 
-// SetPublicKey verifies nonce and set Public Key
+// SetPublicKey verifies nonce and set Public Key.
 func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *asymmetric.PublicKey) (err error) {
 	nodeInfo := &proto.Node{
 		ID:        id,
@@ -227,7 +228,7 @@ func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *asymmetric.Pub
 	return SetNode(nodeInfo)
 }
 
-// SetNode verifies nonce and sets {proto.Node.ID: proto.Node}
+// SetNode verifies nonce and sets {proto.Node.ID: proto.Node}.
 func SetNode(nodeInfo *proto.Node) (err error) {
 	if nodeInfo == nil {
 		return ErrNilNode
@@ -241,7 +242,7 @@ func SetNode(nodeInfo *proto.Node) (err error) {
 	return setNode(nodeInfo)
 }
 
-// IsIDPubNonceValid returns if `id == HashBlock(key, nonce)`
+// IsIDPubNonceValid returns if `id == HashBlock(key, nonce)`.
 func IsIDPubNonceValid(id *proto.RawNodeID, nonce *mine.Uint256, key *asymmetric.PublicKey) bool {
 	if key == nil || id == nil || nonce == nil {
 		return false
@@ -250,7 +251,7 @@ func IsIDPubNonceValid(id *proto.RawNodeID, nonce *mine.Uint256, key *asymmetric
 	return keyHash.IsEqual(&id.Hash)
 }
 
-// setNode sets id and its publicKey
+// setNode sets id and its publicKey.
 func setNode(nodeInfo *proto.Node) (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -279,7 +280,7 @@ func setNode(nodeInfo *proto.Node) (err error) {
 	return
 }
 
-// DelNode removes PublicKey to the id
+// DelNode removes PublicKey to the id.
 func DelNode(id proto.NodeID) (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -300,7 +301,7 @@ func DelNode(id proto.NodeID) (err error) {
 	return
 }
 
-// removeBucket this bucket
+// removeBucket this bucket.
 func removeBucket() (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -318,7 +319,7 @@ func removeBucket() (err error) {
 	return
 }
 
-// ResetBucket this bucket
+// ResetBucket this bucket.
 func ResetBucket() error {
 	// cause we are going to reset the bucket, the return of removeBucket
 	// is not useful

@@ -23,10 +23,6 @@ if [ "old" == "$param" ]; then
     mkdir -p ~/.cql
     cp ${PROJECT_DIR}/test/service/node_c/config.yaml ~/.cql/
     cp ${PROJECT_DIR}/test/service/node_c/private.key ~/.cql/
-    cd ${PROJECT_DIR}
-    make runner
-    make start_bp_miner
-    cd ${TEST_WD}
 else
     BIN=${CURRENTBIN}
     echo -ne "y\n" | ${BIN}/cql-utils -tool confgen -skip-master-key
@@ -52,11 +48,5 @@ ${BIN}/cql -dsn ${dsn} \
 
 ${BIN}/cql -dsn ${dsn} \
     -command 'show tables;' | tee result.log
-
-# clean docker
-if [ "old" == "$param" ]; then
-    make stop
-    make docker_clean
-fi
 
 grep "1 row" result.log

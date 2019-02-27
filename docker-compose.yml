@@ -164,7 +164,7 @@ services:
         max-size: '1m'
         max-file: '10'
   covenantsql_observer:
-    image: covenantsql/covenantsql-observer:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_observer
     restart: always
     ports:
@@ -172,7 +172,6 @@ services:
     environment:
       COVENANT_ROLE: observer
       COVENANT_CONF: ./node_observer/config.yaml
-      COVENANTSQL_EXPLORER_DOMAIN: localhost
       COVENANTSQL_OBSERVER_ADDR: localhost:4663
     volumes:
       - ./test/service/node_observer/:/app/node_observer/

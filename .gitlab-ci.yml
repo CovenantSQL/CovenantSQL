@@ -48,5 +48,5 @@ compatibility-old-client:
     - set -o errexit
     - set -o pipefail
     - set -x
-    - ./test/testnet_client/run.sh old
+    - ./test/compatibility/old_client_test.sh /CovenantSQL_bins/v0.3.0
 

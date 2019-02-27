@@ -1,13 +1,9 @@
 #!/bin/bash -x
-param=$1
 set -e
 
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
-
-CURRENTBIN=${PROJECT_DIR}/bin
-OLDBIN="/CovenantSQL_bins/v0.3.0"
-BIN=${CURRENTBIN}
+BIN=${PROJECT_DIR}/bin
 
 echo ${PROJECT_DIR}
 
@@ -17,24 +13,15 @@ echo ${PROJECT_DIR}
 
 cd ${TEST_WD}
 
-if [ "old" == "$param" ]; then
-    BIN=${OLDBIN}
-    rm -rf ~/.cql
-    mkdir -p ~/.cql
-    cp ${PROJECT_DIR}/test/service/node_c/config.yaml ~/.cql/
-    cp ${PROJECT_DIR}/test/service/node_c/private.key ~/.cql/
-else
-    BIN=${CURRENTBIN}
-    echo -ne "y\n" | ${BIN}/cql-utils -tool confgen -skip-master-key
+echo -ne "y\n" | ${BIN}/cql-utils -tool confgen -skip-master-key
 
-    #get wallet addr
-    ${BIN}/cql-utils -tool addrgen -skip-master-key | tee wallet.txt
-    wallet=$(awk '{print $3}' wallet.txt)
+#get wallet addr
+${BIN}/cql-utils -tool addrgen -skip-master-key | tee wallet.txt
+wallet=$(awk '{print $3}' wallet.txt)
 
-    #transfer some coin to above address
-    ${BIN}/cql -config ${PROJECT_DIR}/conf/testnet/config.yaml -transfer \
-        '{"addr":"'${wallet}'", "amount":"100000000 Particle"}' -wait-tx-confirm
-fi
+#transfer some coin to above address
+${BIN}/cql -config ${PROJECT_DIR}/conf/testnet/config.yaml -transfer \
+    '{"addr":"'${wallet}'", "amount":"100000000 Particle"}' -wait-tx-confirm
 
 ${BIN}/cql -get-balance
 

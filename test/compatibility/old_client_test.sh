@@ -4,6 +4,7 @@ OUTSIDE_BIN_DIR=$1
 
 TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
+cd ${TEST_WD}
 
 if [ -n "$OUTSIDE_BIN_DIR" ]; then
     BIN=${OUTSIDE_BIN_DIR}
@@ -15,19 +16,17 @@ cp ${PROJECT_DIR}/test/integration/node_c/config.yaml ~/.cql/
 cp ${PROJECT_DIR}/test/integration/node_c/private.key ~/.cql/
 
 # start current version bp
-${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_0/config.yaml
-${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_1/config.yaml
-${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_2/config.yaml
+nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/bp0.log
+nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/bp1.log
+nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_2/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/bp2.log
 
 # wait bp start
 sleep 10
 
 # start current version miner
-${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml
-${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml
-${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml
-
-cd ${TEST_WD}
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/miner0.log
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/miner1.log
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/miner2.log
 
 ${BIN}/cql -get-balance
 

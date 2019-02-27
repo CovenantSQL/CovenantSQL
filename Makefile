@@ -40,7 +40,7 @@ builder: status
 		-f docker/builder.Dockerfile \
 		.
 
-runner: builder
+docker: builder
 	docker build \
 		--tag $(IMAGE):$(VERSION) \
 		--tag $(IMAGE):latest \
@@ -48,8 +48,6 @@ runner: builder
 		--build-arg VERSION=$(VERSION) \
 		-f docker/Dockerfile \
 		.
-
-docker: runner
 
 docker_clean: status
 	docker rmi -f $(BUILDER):latest

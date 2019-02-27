@@ -14,18 +14,20 @@ fi
 
 # TODO get pid for kill
 # start current version bp
-nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/bp0.log &
-nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/bp1.log &
-nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_2/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/bp2.log &
+nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>${OUTSIDE_BIN_DIR}/bp0.log &
+nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>${OUTSIDE_BIN_DIR}/bp1.log &
+nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_2/config.yaml 2>${OUTSIDE_BIN_DIR}/bp2.log &
 
 # wait bp start
 sleep 10
 
 # start current version miner
-nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/miner0.log &
-nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/miner1.log &
-nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>&1 > ${OUTSIDE_BIN_DIR}/miner2.log &
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner0.log &
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner1.log &
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner2.log &
 
+# wait miner start
+sleep 10
 
 ${BIN}/cql -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -get-balance
 

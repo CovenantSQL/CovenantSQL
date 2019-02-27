@@ -49,6 +49,6 @@ compatibility-old-client:
     - set -o pipefail
     - set -x
     - make clean
-    - make bin/cqld bin/cql-minerd
+    - make -j2 bin/cqld bin/cql-minerd
     - ./test/compatibility/old_client_test.sh /CovenantSQL_bins/v0.3.0
 

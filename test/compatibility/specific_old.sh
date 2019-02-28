@@ -33,19 +33,19 @@ case $test_case in
         ;;
 esac
 
-
+2>&1
 # start bp
-nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>${LOGS_DIR}/bp0.log &
-nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>${LOGS_DIR}/bp1.log &
-nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_2/config.yaml 2>${LOGS_DIR}/bp2.log &
+nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_0/config.yaml >${LOGS_DIR}/bp0.log 2>&1 &
+nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_1/config.yaml >${LOGS_DIR}/bp1.log 2>&1 &
+nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_2/config.yaml >${LOGS_DIR}/bp2.log 2>&1 &
 
 # wait bp start
 sleep 20
 
 # start miner
-nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${LOGS_DIR}/miner0.log &
-nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_1/config.yaml 2>${LOGS_DIR}/miner1.log &
-nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_2/config.yaml 2>${LOGS_DIR}/miner2.log &
+nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml >${LOGS_DIR}/miner0.log 2>&1 &
+nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_1/config.yaml >${LOGS_DIR}/miner1.log 2>&1 &
+nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_2/config.yaml >${LOGS_DIR}/miner2.log 2>&1 &
 
 # wait miner start
 sleep 20

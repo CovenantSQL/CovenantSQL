@@ -102,5 +102,5 @@ cleanup_cache:
 cleanup_logs:
   stage: cleanup
   script:
-    - rm -r ${LOG_CACHE}
+    - rm -r ${CACHE_DIR}/${CI_PIPELINE_IID}
   when: on_success

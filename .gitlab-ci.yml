@@ -11,7 +11,7 @@ variables:
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
   CACHE_DIR: /CovenantSQL_bins
-  PIPLINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
+  PIPELINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
   BIN_CACHE: $CACHE_DIR/$CI_PIPELINE_IID/bin
   PREV_VERSION: v0.4.0
   # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
@@ -96,5 +96,5 @@ old-miner-compatibility:
 cleanup_cache:
   stage: cleanup
   script:
-    - rm -r ${PIPLINE_CACHE}
+    - rm -r ${PIPELINE_CACHE}
   when: on_success

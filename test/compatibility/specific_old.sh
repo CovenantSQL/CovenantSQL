@@ -9,6 +9,9 @@ cd ${TEST_WD}
 OLD_BIN_DIR=/CovenantSQL_bins/${LAST_VERSION}
 NEW_BIN_DIR=${PROJECT_DIR}/bin
 
+LOGS_DIR=/CovenantSQL_bins/logs/old_${test_case}
+mkdir -p ${LOGS_DIR}
+
 case $test_case in
     "client")
         CLIENTBIN=${OLD_BIN_DIR}/cql
@@ -31,18 +34,18 @@ case $test_case in
 esac
 
 
-# start current version bp
-nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>${OLD_BIN_DIR}/bp0.log &
-nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>${OLD_BIN_DIR}/bp1.log &
-nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_2/config.yaml 2>${OLD_BIN_DIR}/bp2.log &
+# start bp
+nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>${LOGS_DIR}/bp0.log &
+nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>${LOGS_DIR}/bp1.log &
+nohup ${BPBIN} -config ${PROJECT_DIR}/test/integration/node_2/config.yaml 2>${LOGS_DIR}/bp2.log &
 
 # wait bp start
 sleep 20
 
-# start current version miner
-nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OLD_BIN_DIR}/miner0.log &
-nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_1/config.yaml 2>${OLD_BIN_DIR}/miner1.log &
-nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_2/config.yaml 2>${OLD_BIN_DIR}/miner2.log &
+# start miner
+nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${LOGS_DIR}/miner0.log &
+nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_1/config.yaml 2>${LOGS_DIR}/miner1.log &
+nohup ${MINERBIN} -config ${PROJECT_DIR}/test/integration/node_miner_2/config.yaml 2>${LOGS_DIR}/miner2.log &
 
 # wait miner start
 sleep 20

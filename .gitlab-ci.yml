@@ -5,7 +5,7 @@ variables:
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
-  LAST_VERSION: v0.3.0
+  LAST_VERSION: v0.4.0
   # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 
 before_script:

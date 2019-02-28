@@ -107,10 +107,14 @@ Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitt
 ## TestNet
 
 - [Quick Start](https://developers.covenantsql.io)
+- [MainChain Explorer](http://scan.covenantsql.io)
+- [SQLChain Explorer](https://explorer.dbhub.org)
+- [Demo & Forum](https://demo.covenantsql.io/forum/)
 
 ## Contact
 
-- [mail us](mailto:webmaster@covenantsql.io)
+- [Mail](mailto:webmaster@covenantsql.io)
+- [Forum](https://demo.covenantsql.io/forum/)
 - <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs">
           <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
               alt="follow on Twitter"></a>

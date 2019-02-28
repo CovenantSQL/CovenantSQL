@@ -27,7 +27,7 @@ nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node
 nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner2.log &
 
 # wait miner start
-sleep 30
+sleep 20
 
 ${BIN}/cql -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -get-balance
 
@@ -35,6 +35,9 @@ ${BIN}/cql -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -create 2 
 
 #get dsn
 dsn=$(cat dsn.txt)
+if [ -z "$dsn" ]; then
+    exit 1
+fi
 
 ${BIN}/cql -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
     -command 'create table test_for_new_account(column1 int);'

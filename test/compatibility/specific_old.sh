@@ -9,7 +9,7 @@ cd ${TEST_WD}
 OLD_BIN_DIR=${CACHE_DIR}/${PREV_VERSION}
 NEW_BIN_DIR=${PROJECT_DIR}/bin
 
-LOGS_DIR=${LOG_CACHE}/old_${test_case}
+LOGS_DIR=${PIPLINE_CACHE}/logs/old_${test_case}
 mkdir -p ${LOGS_DIR}
 
 case $test_case in

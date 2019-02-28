@@ -11,8 +11,8 @@ variables:
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
   CACHE_DIR: /CovenantSQL_bins
-  JOB_CACHE: ${CACHE_DIR}/${CI_PIPELINE_IID}/bin
-  LOG_CACHE: ${CACHE_DIR}/${CI_PIPELINE_IID}/logs
+  PIPLINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
+  BIN_CACHE: $CACHE_DIR/$CI_PIPELINE_IID/bin
   PREV_VERSION: v0.4.0
   # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 
@@ -36,17 +36,17 @@ before_script:
 build:
   stage: build
   script:
+    - set -x
     - make clean
     - make use_all_cores
-    - mkdir -p ${JOB_CACHE}
-    - mkdir -p ${LOG_CACHE}
-    - cp bin/* ${JOB_CACHE}/
+    - mkdir -p ${BIN_CACHE}
+    - cp bin/* ${BIN_CACHE}/
 
 unit-test:
   stage: test
   script: 
     - make clean
-    - cp ${JOB_CACHE}/* bin/
+    - cp ${BIN_CACHE}/* bin/
     - ./alltest.sh
 
 testnet-compatibility:
@@ -58,7 +58,7 @@ testnet-compatibility:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - cp ${JOB_CACHE}/* bin/
+    - cp ${BIN_CACHE}/* bin/
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - set -x
     - ./test/testnet_client/run.sh
@@ -70,7 +70,7 @@ old-client-compatibility:
     - set -o pipefail
     - set -x
     - make clean
-    - cp ${JOB_CACHE}/* bin/
+    - cp ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh client
 
 old-bp-compatibility:
@@ -80,7 +80,7 @@ old-bp-compatibility:
     - set -o pipefail
     - set -x
     - make clean
-    - cp ${JOB_CACHE}/* bin/
+    - cp ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh bp
 
 old-miner-compatibility:
@@ -90,17 +90,11 @@ old-miner-compatibility:
     - set -o pipefail
     - set -x
     - make clean
-    - cp ${JOB_CACHE}/* bin/
+    - cp ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh miner
 
 cleanup_cache:
   stage: cleanup
   script:
-    - rm -r ${JOB_CACHE}
-  when: always
-
-cleanup_logs:
-  stage: cleanup
-  script:
-    - rm -r ${CACHE_DIR}/${CI_PIPELINE_IID}
+    - rm -r ${PIPLINE_CACHE}
   when: on_success

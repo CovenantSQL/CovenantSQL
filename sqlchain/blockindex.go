@@ -33,31 +33,16 @@ type blockNode struct {
 }
 
 func newBlockNode(height int32, block *types.Block, parent *blockNode) *blockNode {
+	var count int32
+	if parent != nil {
+		count = parent.count + 1
+	}
 	return &blockNode{
-		hash:   *block.BlockHash(),
+		hash:   block.SignedHeader.HSV.DataHash,
 		parent: parent,
 		block:  block,
 		height: height,
-		count: func() int32 {
-			if parent != nil {
-				return parent.count + 1
-			}
-
-			return 0
-		}(),
-	}
-}
-
-func (n *blockNode) initBlockNode(height int32, block *types.Block, parent *blockNode) {
-	n.block = block
-	n.hash = *block.BlockHash()
-	n.parent = nil
-	n.height = height
-	n.count = 0
-
-	if parent != nil {
-		n.parent = parent
-		n.count = parent.count + 1
+		count:  count,
 	}
 }
 

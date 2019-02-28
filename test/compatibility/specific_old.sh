@@ -13,17 +13,17 @@ case $test_case in
     "client")
         CLIENTBIN=${OLD_BIN_DIR}/cql
         BPBIN=${NEW_BIN_DIR}/cqld
-        MINERBIN=${NEW_BIN_DIR}/cql-miner
+        MINERBIN=${NEW_BIN_DIR}/cql-minerd
         ;;
     "bp")
         CLIENTBIN=${NEW_BIN_DIR}/cql
         BPBIN=${OLD_BIN_DIR}/cqld
-        MINERBIN=${NEW_BIN_DIR}/cql-miner
+        MINERBIN=${NEW_BIN_DIR}/cql-minerd
         ;;
     "miner")
         CLIENTBIN=${NEW_BIN_DIR}/cql
         BPBIN=${NEW_BIN_DIR}/cqld
-        MINERBIN=${OLD_BIN_DIR}/cql-miner
+        MINERBIN=${OLD_BIN_DIR}/cql-minerd
         ;;
     *)
         exit 1

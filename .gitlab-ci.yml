@@ -30,7 +30,8 @@ build:
   script:
     - make clean
     - make use_all_cores
-    - mv bin /CovenantSQL_bins/current
+    - rm /CovenantSQL_bins/current/*
+    - cp bin/* /CovenantSQL_bins/current/
 
 unit-test:
   stage: test

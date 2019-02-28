@@ -6,10 +6,10 @@ TEST_WD=$(cd $(dirname $0)/; pwd)
 PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
 cd ${TEST_WD}
 
-OLD_BIN_DIR=/CovenantSQL_bins/${LAST_VERSION}
+OLD_BIN_DIR=${CACHE_DIR}/${PREV_VERSION}
 NEW_BIN_DIR=${PROJECT_DIR}/bin
 
-LOGS_DIR=/CovenantSQL_bins/logs/old_${test_case}
+LOGS_DIR=${JOB_CACHE}/old_${test_case}_log
 mkdir -p ${LOGS_DIR}
 
 case $test_case in

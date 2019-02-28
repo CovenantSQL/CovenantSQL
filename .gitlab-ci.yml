@@ -1,11 +1,18 @@
 image: covenantsql/build
 
+stages:
+  - build
+  - test
+  - cleanup
+
 variables:
   REVIEWDOG_VERSION: 0.9.11
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
-  LAST_VERSION: v0.4.0
+  CACHE_DIR: /CovenantSQL_bins
+  JOB_CACHE: ${CACHE_DIR}/${CI_JOB_ID}
+  PREV_VERSION: v0.4.0
   # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 
 before_script:
@@ -30,14 +37,13 @@ build:
   script:
     - make clean
     - make use_all_cores
-    - rm /CovenantSQL_bins/current/*
-    - cp bin/* /CovenantSQL_bins/current/
+    - cp bin/* ${JOB_CACHE}/
 
 unit-test:
   stage: test
   script: 
     - make clean
-    - cp -r /CovenantSQL_bins/current/* bin/
+    - cp ${JOB_CACHE}/* bin/
     - ./alltest.sh
 
 testnet-compatibility:
@@ -49,7 +55,7 @@ testnet-compatibility:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - cp -r /CovenantSQL_bins/current/* bin/
+    - cp ${JOB_CACHE}/* bin/
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - set -x
     - ./test/testnet_client/run.sh
@@ -61,7 +67,7 @@ old-client-compatibility:
     - set -o pipefail
     - set -x
     - make clean
-    - cp -r /CovenantSQL_bins/current/* bin/
+    - cp ${JOB_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh client
 
 old-bp-compatibility:
@@ -71,7 +77,7 @@ old-bp-compatibility:
     - set -o pipefail
     - set -x
     - make clean
-    - cp -r /CovenantSQL_bins/current/* bin/
+    - cp ${JOB_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh bp
 
 old-miner-compatibility:
@@ -81,6 +87,11 @@ old-miner-compatibility:
     - set -o pipefail
     - set -x
     - make clean
-    - cp -r /CovenantSQL_bins/current/* bin/
+    - cp ${JOB_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh miner
 
+cleanup_job:
+  stage: cleanup
+  script:
+    - rm -r ${JOB_CACHE}/*
+  when: always

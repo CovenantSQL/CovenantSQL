@@ -5,6 +5,8 @@ variables:
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
+  LAST_VERSION: v0.3.0
+  # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 
 before_script:
   # Setup dependency management tool
@@ -34,7 +36,6 @@ test-my-project:
   stage: test
   script: 
     - make clean
-    - mkdir -p bin
     - cp -r /CovenantSQL_bins/current/* bin/
     - ./alltest.sh
 
@@ -47,7 +48,6 @@ compatibility-testnet:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - mkdir -p bin
     - cp -r /CovenantSQL_bins/current/* bin/
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - set -x
@@ -60,7 +60,26 @@ compatibility-old-client:
     - set -o pipefail
     - set -x
     - make clean
-    - mkdir -p bin
     - cp -r /CovenantSQL_bins/current/* bin/
-    - ./test/compatibility/old_client_test.sh /CovenantSQL_bins/v0.3.0
+    - ./test/compatibility/specific_old.sh client
+
+compatibility-old-bp:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - make clean
+    - cp -r /CovenantSQL_bins/current/* bin/
+    - ./test/compatibility/specific_old.sh bp
+
+compatibility-old-miner:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - make clean
+    - cp -r /CovenantSQL_bins/current/* bin/
+    - ./test/compatibility/specific_old.sh miner
 

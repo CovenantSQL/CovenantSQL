@@ -12,7 +12,6 @@ else
     BIN=${PROJECT_DIR}/bin
 fi
 
-# TODO get pid for kill
 # start current version bp
 nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_0/config.yaml 2>${OUTSIDE_BIN_DIR}/bp0.log &
 nohup ${PROJECT_DIR}/bin/cqld -config ${PROJECT_DIR}/test/integration/node_1/config.yaml 2>${OUTSIDE_BIN_DIR}/bp1.log &

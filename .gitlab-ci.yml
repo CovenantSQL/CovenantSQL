@@ -11,7 +11,7 @@ variables:
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
   CACHE_DIR: /CovenantSQL_bins
-  JOB_CACHE: ${CACHE_DIR}/${CI_JOB_ID}
+  JOB_CACHE: ${CACHE_DIR}/${CI_PIPELINE_IID}
   PREV_VERSION: v0.4.0
   # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 

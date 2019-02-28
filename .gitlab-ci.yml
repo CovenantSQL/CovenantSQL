@@ -37,6 +37,7 @@ build:
   script:
     - make clean
     - make use_all_cores
+    - mkdir -p ${JOB_CACHE}
     - cp bin/* ${JOB_CACHE}/
 
 unit-test:

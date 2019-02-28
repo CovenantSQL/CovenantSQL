@@ -23,8 +23,8 @@ sleep 20
 
 # start current version miner
 nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner0.log &
-nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner1.log &
-nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_0/config.yaml 2>${OUTSIDE_BIN_DIR}/miner2.log &
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_1/config.yaml 2>${OUTSIDE_BIN_DIR}/miner1.log &
+nohup ${PROJECT_DIR}/bin/cql-minerd -config ${PROJECT_DIR}/test/integration/node_miner_2/config.yaml 2>${OUTSIDE_BIN_DIR}/miner2.log &
 
 # wait miner start
 sleep 20

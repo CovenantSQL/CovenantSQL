@@ -32,14 +32,14 @@ build:
     - make use_all_cores
     - mv bin /CovenantSQL_bins/current
 
-test-my-project:
+unit-test:
   stage: test
   script: 
     - make clean
     - cp -r /CovenantSQL_bins/current/* bin/
     - ./alltest.sh
 
-compatibility-testnet:
+testnet-compatibility:
   stage: test
   script:
     - set -o errexit
@@ -53,7 +53,7 @@ compatibility-testnet:
     - set -x
     - ./test/testnet_client/run.sh
 
-compatibility-old-client:
+old-client-compatibility:
   stage: test
   script:
     - set -o errexit
@@ -63,7 +63,7 @@ compatibility-old-client:
     - cp -r /CovenantSQL_bins/current/* bin/
     - ./test/compatibility/specific_old.sh client
 
-compatibility-old-bp:
+old-bp-compatibility:
   stage: test
   script:
     - set -o errexit
@@ -73,7 +73,7 @@ compatibility-old-bp:
     - cp -r /CovenantSQL_bins/current/* bin/
     - ./test/compatibility/specific_old.sh bp
 
-compatibility-old-miner:
+old-miner-compatibility:
   stage: test
   script:
     - set -o errexit

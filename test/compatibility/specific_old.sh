@@ -26,7 +26,7 @@ case $test_case in
         MINERBIN=${OLD_BIN_DIR}/cql-miner
         ;;
     *)
-        return 1
+        exit 1
         ;;
 esac
 
@@ -54,7 +54,7 @@ ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -create 
 #get dsn
 dsn=$(cat dsn.txt)
 if [ -z "$dsn" ]; then
-    return 1
+    exit 1
 fi
 
 ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \

@@ -145,7 +145,7 @@ func (r *runtime) setGenesis(b *types.Block) {
 	r.head = &state{
 		node:   nil,
 		Head:   *b.GenesisHash(),
-		Height: -1,
+		Height: 0,
 	}
 }
 

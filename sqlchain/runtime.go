@@ -28,6 +28,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// state represents a snapshot of current best chain.
+type state struct {
+	node   *blockNode
+	Head   hash.Hash
+	Height int32
+}
+
 // runtime represents a chain runtime state.
 type runtime struct {
 	wg     *sync.WaitGroup

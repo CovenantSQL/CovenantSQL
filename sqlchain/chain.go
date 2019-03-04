@@ -51,7 +51,6 @@ const (
 )
 
 var (
-	metaState         = [4]byte{'S', 'T', 'A', 'T'}
 	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
 	metaAckIndex      = [4]byte{'Q', 'A', 'C', 'K'}
@@ -211,25 +210,6 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 	le = le.WithField("peer", chain.rt.getPeerInfoString())
 
-	// Read state struct
-	stateEnc, err := chain.bdb.Get(metaState[:], nil)
-	if err != nil {
-		if err != leveldb.ErrNotFound {
-			err = errors.Wrap(err, "fetch head state")
-			return
-		}
-		// err == leveldb.ErrNotFound, chain is in initial state
-		err = chain.genesis(c.Genesis)
-		return
-	}
-
-	st := &state{}
-	if err = utils.DecodeMsgPack(stateEnc, st); err != nil {
-		err = errors.Wrap(err, "decode head state")
-		return nil, err
-	}
-	le.WithField("state", st).Debug("loading state from database")
-
 	// Read blocks and rebuild memory index
 	var (
 		id           uint64
@@ -284,9 +264,21 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		return
 	}
 
+	// Initiate chain Genesis if block list is empty
+	if last == nil {
+		if err = chain.genesis(c.Genesis); err != nil {
+			return nil, err
+		}
+		return
+	}
+
 	// Set chain state
-	st.node = last
-	chain.rt.setHead(st)
+	var head = &state{
+		node:   last,
+		Head:   last.hash,
+		Height: last.height,
+	}
+	chain.rt.setHead(head)
 	chain.st.SetSeq(id)
 	chain.pruneBlockCache()
 
@@ -336,49 +328,34 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 
 	return
-
-	return
 }
 
 // pushBlock pushes the signed block header to extend the current main chain.
 func (c *Chain) pushBlock(b *types.Block) (err error) {
 	// Prepare and encode
-	h := c.rt.getHeightFromTime(b.Timestamp())
-	node := newBlockNode(h, b, c.rt.getHead().node)
-	st := &state{
-		node:   node,
-		Head:   node.hash,
-		Height: node.height,
-	}
-	var encBlock, encState *bytes.Buffer
+	var (
+		h    = c.rt.getHeightFromTime(b.Timestamp())
+		node = newBlockNode(h, b, c.rt.getHead().node)
+		head = &state{
+			node:   node,
+			Head:   node.hash,
+			Height: node.height,
+		}
 
+		blockKey = utils.ConcatAll(metaBlockIndex[:], node.indexKey())
+		encBlock *bytes.Buffer
+	)
 	if encBlock, err = utils.EncodeMsgPack(b); err != nil {
 		return
 	}
 
-	if encState, err = utils.EncodeMsgPack(st); err != nil {
-		return
-	}
-
-	// Update in transaction
-	t, err := c.bdb.OpenTransaction()
-	if err = t.Put(metaState[:], encState.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put %s", string(metaState[:]))
-		t.Discard()
-		return
-	}
-	blockKey := utils.ConcatAll(metaBlockIndex[:], node.indexKey())
-	if err = t.Put(blockKey, encBlock.Bytes(), nil); err != nil {
+	// Put block
+	err = c.bdb.Put(blockKey, encBlock.Bytes(), nil)
+	if err != nil {
 		err = errors.Wrapf(err, "put %s", string(node.indexKey()))
-		t.Discard()
 		return
 	}
-	if err = t.Commit(); err != nil {
-		err = errors.Wrapf(err, "commit error")
-		t.Discard()
-		return
-	}
-	c.rt.setHead(st)
+	c.rt.setHead(head)
 	c.bi.addBlock(node)
 
 	// Keep track of the queries from the new block
@@ -405,28 +382,25 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 		}
 	}
 
-	if err == nil {
-		log.WithFields(log.Fields{
-			"peer":       c.rt.getPeerInfoString()[:14],
-			"time":       c.rt.getChainTimeString(),
-			"block":      b.BlockHash().String()[:8],
-			"producer":   b.Producer()[:8],
-			"queryCount": len(b.QueryTxs),
-			"ackCount":   len(b.Acks),
-			"blockTime":  b.Timestamp().Format(time.RFC3339Nano),
-			"height":     c.rt.getHeightFromTime(b.Timestamp()),
-			"head": fmt.Sprintf("%s <- %s",
-				func() string {
-					if st.node.parent != nil {
-						return st.node.parent.hash.String()[:8]
-					}
-					return "|"
-				}(), st.Head.String()[:8]),
-			"headHeight": c.rt.getHead().Height,
-			"db":         c.databaseID,
-		}).Info("pushed new block")
-	}
-
+	log.WithFields(log.Fields{
+		"db":         c.databaseID,
+		"peer":       c.rt.getPeerInfoString()[:14],
+		"time":       c.rt.getChainTimeString(),
+		"block":      b.BlockHash().String()[:8],
+		"producer":   b.Producer()[:8],
+		"queryCount": len(b.QueryTxs),
+		"ackCount":   len(b.Acks),
+		"blockTime":  b.Timestamp().Format(time.RFC3339Nano),
+		"height":     c.rt.getHeightFromTime(b.Timestamp()),
+		"head": fmt.Sprintf("%s <- %s",
+			func() string {
+				if head.node.parent != nil {
+					return head.node.parent.hash.String()[:8]
+				}
+				return "|"
+			}(), head.Head.String()[:8]),
+		"headHeight": c.rt.getHead().Height,
+	}).Info("pushed new block")
 	return
 }
 

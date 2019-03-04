@@ -541,17 +541,17 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 	switch queryType {
 	case types.ReadQuery:
 		if !permStat.Permission.HasReadPermission() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %d", permStat.Permission)
+			err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %v", permStat.Permission)
 			return
 		}
 	case types.WriteQuery:
 		if !permStat.Permission.HasWritePermission() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %d", permStat.Permission)
+			err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %v", permStat.Permission)
 			return
 		}
 	default:
 		err = errors.Wrapf(ErrInvalidPermission,
-			"invalid permission, permission: %d", permStat.Permission)
+			"invalid permission, permission: %v", permStat.Permission)
 		return
 	}
 

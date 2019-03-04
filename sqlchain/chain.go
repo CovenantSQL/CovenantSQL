@@ -54,15 +54,13 @@ var (
 	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
 	metaAckIndex      = [4]byte{'Q', 'A', 'C', 'K'}
-	leveldbConf       = opt.Options{}
+	leveldbConf       = opt.Options{
+		Compression: opt.SnappyCompression,
+	}
 
 	// Atomic counters for stats
 	cachedBlockCount int32
 )
-
-func init() {
-	leveldbConf.Compression = opt.SnappyCompression
-}
 
 func trackBlock(b *types.Block) {
 	atomic.AddInt32(&cachedBlockCount, 1)
@@ -105,7 +103,6 @@ type Chain struct {
 	st  *x.State
 	cl  *rpc.Caller
 	rt  *runtime
-	ctx context.Context // ctx is the root context of Chain
 
 	blocks    chan *types.Block
 	heights   chan int32
@@ -124,18 +121,6 @@ type Chain struct {
 	pk *asymmetric.PrivateKey
 	// addr is the AccountAddress generate from public key.
 	addr *proto.AccountAddress
-}
-
-func (c *Chain) genesis(b *types.Block) (err error) {
-	if b == nil {
-		err = errors.New("genesis block not provided")
-		return
-	}
-	if err = b.VerifyAsGenesis(); err != nil {
-		err = errors.Wrap(err, "initialize chain state")
-		return
-	}
-	return c.pushBlock(b)
 }
 
 // NewChain creates a new sql-chain struct.
@@ -195,7 +180,6 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(ctx, c),
-		ctx:          ctx,
 		blocks:       make(chan *types.Block),
 		heights:      make(chan int32, 1),
 		responses:    make(chan *types.ResponseHeader),
@@ -328,6 +312,18 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 
 	return
+}
+
+func (c *Chain) genesis(b *types.Block) (err error) {
+	if b == nil {
+		err = errors.New("genesis block not provided")
+		return
+	}
+	if err = b.VerifyAsGenesis(); err != nil {
+		err = errors.Wrap(err, "initialize chain state")
+		return
+	}
+	return c.pushBlock(b)
 }
 
 // pushBlock pushes the signed block header to extend the current main chain.
@@ -553,23 +549,24 @@ func (c *Chain) syncHead() {
 		}
 		resp := &MuxFetchBlockResp{}
 		peers := c.rt.getPeers()
+		l := len(peers.Servers)
 		succ := false
+		le := log.WithFields(log.Fields{
+			"db":          c.databaseID,
+			"peer":        c.rt.getPeerInfoString(),
+			"time":        c.rt.getChainTimeString(),
+			"curr_turn":   c.rt.getNextTurn(),
+			"head_height": c.rt.getHead().Height,
+			"head_block":  c.rt.getHead().Head.String(),
+		})
 
 		for i, s := range peers.Servers {
+			ile := le.WithFields(log.Fields{"remote": fmt.Sprintf("[%d/%d] %s", i, l, s)})
 			if s != c.rt.getServer() {
 				if err = c.cl.CallNode(
 					s, route.SQLCFetchBlock.String(), req, resp,
 				); err != nil || resp.Block == nil {
-					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
-						"time":        c.rt.getChainTimeString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().Height,
-						"head_block":  c.rt.getHead().Head.String(),
-						"db":          c.databaseID,
-					}).WithError(err).Debug(
-						"Failed to fetch block from peer")
+					ile.WithError(err).Debug("failed to fetch block from peer")
 				} else {
 					trackBlock(resp.Block)
 					select {
@@ -578,16 +575,7 @@ func (c *Chain) syncHead() {
 						err = c.rt.ctx.Err()
 						return
 					}
-					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
-						"time":        c.rt.getChainTimeString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().Height,
-						"head_block":  c.rt.getHead().Head.String(),
-						"db":          c.databaseID,
-					}).Debug(
-						"Fetch block from remote peer successfully")
+					ile.Debug("fetch block from remote peer successfully")
 					succ = true
 					break
 				}
@@ -595,15 +583,7 @@ func (c *Chain) syncHead() {
 		}
 
 		if !succ {
-			log.WithFields(log.Fields{
-				"peer":        c.rt.getPeerInfoString(),
-				"time":        c.rt.getChainTimeString(),
-				"curr_turn":   c.rt.getNextTurn(),
-				"head_height": c.rt.getHead().Height,
-				"head_block":  c.rt.getHead().Head.String(),
-				"db":          c.databaseID,
-			}).Debug(
-				"Cannot get block from any peer")
+			le.Debug("cannot get block from any peer")
 		}
 	}
 }
@@ -640,17 +620,6 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	if err := c.produceBlock(now); err != nil {
 		le.WithError(err).Error("failed to produce block")
 	}
-}
-
-func (c *Chain) logEntryWithChainStatus() *log.Entry {
-	return log.WithFields(log.Fields{
-		"db":          c.databaseID,
-		"peer":        c.rt.getPeerInfoString(),
-		"time":        c.rt.getChainTimeString(),
-		"curr_turn":   c.rt.getNextTurn(),
-		"head_height": c.rt.getHead().Height,
-		"head_block":  c.rt.getHead().Head.String(),
-	})
 }
 
 // mainCycle runs main cycle of the sql-chain.
@@ -971,7 +940,9 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
 	if c.rt.queryTimeIsExpired(ack.GetResponseTimestamp()) {
-		err = errors.Wrapf(ErrQueryExpired, "Verify ack query, min valid height %d, ack height %d", c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
+		err = errors.Wrapf(ErrQueryExpired,
+			"Verify ack query, min valid height %d, ack height %d",
+			c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
 		return
 	}
 

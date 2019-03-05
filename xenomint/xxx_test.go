@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -198,16 +199,18 @@ func setup() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	// Set NOFILE limit
-	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
-	}
-	if lmt.Max < minNoFile {
-		panic("insufficient max RLIMIT_NOFILE")
-	}
-	lmt.Cur = lmt.Max
-	if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
+	if runtime.GOOS == "linux" {
+		// Set NOFILE limit
+		if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+			panic(err)
+		}
+		if lmt.Max < minNoFile {
+			panic("insufficient max RLIMIT_NOFILE")
+		}
+		lmt.Cur = lmt.Max
+		if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+			panic(err)
+		}
 	}
 
 	// Initialze kms

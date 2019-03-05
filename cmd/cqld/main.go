@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	_ "github.com/CovenantSQL/CovenantSQL/utils/log/debug"
 )
 
 const logo = `

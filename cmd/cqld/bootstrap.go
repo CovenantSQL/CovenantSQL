@@ -18,8 +18,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 	"syscall"
 	"time"
 
@@ -34,12 +32,12 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
-	dhtGossipServiceName = "DHTG"
-	dhtGossipTimeout     = time.Second * 20
+	dhtGossipTimeout = time.Second * 20
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
@@ -177,15 +175,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		}()
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-
-	<-signalCh
+	<-utils.WaitForExit()
 	return
 }
 

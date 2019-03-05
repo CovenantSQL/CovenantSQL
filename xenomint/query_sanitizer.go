@@ -76,7 +76,7 @@ var (
 
 func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
 	if lower := strings.ToLower(pattern); strings.Contains(lower, "begin") ||
-		strings.Contains(lower, "rollback") {
+		strings.Contains(lower, "rollback") || strings.Contains(lower, "commit") {
 		return false, pattern, nil, nil
 	}
 	var (

@@ -63,11 +63,6 @@ func stopService(service *Service) (err error) {
 
 // StartObserver starts the observer service and http API server.
 func StartObserver(listenAddr string, version string) (service *Service, httpServer *http.Server, err error) {
-	// init node
-	if err = initNode(); err != nil {
-		log.WithError(err).Fatal("init node failed")
-	}
-
 	// start service
 	if service, err = startService(); err != nil {
 		log.WithError(err).Fatal("start observation failed")

@@ -12,9 +12,7 @@ blockproducer)
     exec /app/cqld -config "${COVENANT_CONF}" -metric-web "${METRIC_WEB_ADDR}" "${@}"
     ;;
 observer)
-    MAGIC_DOLLAR='$' envsubst < /etc/nginx/conf.d/servers/explorer.conf.template > /etc/nginx/conf.d/default.conf
-    nginx -g 'daemon off;' </dev/null &
-    exec /app/cql-observer -config "${COVENANT_CONF}" -listen "${COVENANTSQL_OBSERVER_ADDR}"
+    exec /app/cql -config "${COVENANT_CONF}" -web "${COVENANTSQL_OBSERVER_ADDR}" "${@}"
     ;;
 adapter)
     exec /app/cql-adapter -config "${COVENANT_CONF}" "${@}"
@@ -27,9 +25,6 @@ cli)
     ;;
 faucet)
     exec /app/cql-faucet -config ${COVENANT_CONF} "${@}"
-    ;;
-explorer)
-    exec /app/cql-explorer -config ${COVENANT_CONF} "${@}"
     ;;
 esac
 

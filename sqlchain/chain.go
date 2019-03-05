@@ -471,20 +471,22 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 	// Send to pending list
-	select {
-	case c.blocks <- block:
-	case <-c.rt.ctx.Done():
-		err = c.rt.ctx.Err()
-		return
-	}
-	log.WithFields(log.Fields{
+	le := log.WithFields(log.Fields{
+		"db":              c.databaseID,
 		"peer":            c.rt.getPeerInfoString(),
 		"time":            c.rt.getChainTimeString(),
 		"curr_turn":       c.rt.getNextTurn(),
 		"using_timestamp": now.Format(time.RFC3339Nano),
 		"block_hash":      block.BlockHash().String(),
-		"db":              c.databaseID,
-	}).Debug("produced new block")
+	})
+	select {
+	case c.blocks <- block:
+	case <-c.rt.ctx.Done():
+		err = c.rt.ctx.Err()
+		le.WithError(err).Debug("abort block producing")
+		return
+	}
+	le.Debug("produced new block")
 	// Advise new block to the other peers
 	var (
 		req = &MuxAdviseNewBlockReq{
@@ -517,14 +519,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 				if err := c.cl.CallNodeWithContext(
 					c.rt.ctx, id, route.SQLCAdviseNewBlock.String(), req, resp,
 				); err != nil {
-					log.WithFields(log.Fields{
-						"peer":            c.rt.getPeerInfoString(),
-						"time":            c.rt.getChainTimeString(),
-						"curr_turn":       c.rt.getNextTurn(),
-						"using_timestamp": now.Format(time.RFC3339Nano),
-						"block_hash":      block.BlockHash().String(),
-						"db":              c.databaseID,
-					}).WithError(err).Error("failed to advise new block")
+					le.WithError(err).Error("failed to advise new block")
 				}
 			}(s)
 		}
@@ -573,6 +568,7 @@ func (c *Chain) syncHead() {
 					case c.blocks <- resp.Block:
 					case <-c.rt.ctx.Done():
 						err = c.rt.ctx.Err()
+						le.WithError(err).Debug("abort head block synchronizing")
 						return
 					}
 					ile.Debug("fetch block from remote peer successfully")
@@ -627,6 +623,9 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			log.WithFields(log.Fields{
+				"db": c.databaseID,
+			}).WithError(ctx.Err()).Debug("abort main cycle")
 			return
 		default:
 			c.syncHead()
@@ -684,9 +683,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 		wg.Wait()
 	}()
 
-	var (
-		stash []*types.Block
-	)
+	var stash []*types.Block
 	for {
 		le := log.WithFields(log.Fields{
 			"db":          c.databaseID,
@@ -761,6 +758,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				}
 			}
 		case <-ctx.Done():
+			le.WithError(ctx.Err()).Debug("abort block processing")
 			return
 		}
 	}

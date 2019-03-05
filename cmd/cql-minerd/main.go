@@ -37,6 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	_ "github.com/CovenantSQL/CovenantSQL/utils/log/debug"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )

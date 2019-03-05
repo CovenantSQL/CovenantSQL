@@ -28,8 +28,9 @@
 
 [中文简介](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README-zh.md)
 
-CovenantSQL is a decentralized, crowdsourcing SQL database on blockchain with features:
+CovenantSQL is a GDPR-compliant SQL database running on Open Internet without central coordination:
 
+- **GDPR-compliant**: Zero pain to be GDPR-compliant.
 - **SQL**: most SQL-92 support.
 - **Decentralize**: decentralize with our consensus algorithm DH-RPC & Kayak.
 - **Privacy**: access with granted permission and Encryption Pass.

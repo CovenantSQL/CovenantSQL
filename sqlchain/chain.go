@@ -367,7 +367,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 		if ierr = c.AddResponse(v.Response); ierr != nil {
 			le.WithFields(log.Fields{
 				"index": i,
-			}).WithError(ierr).Warn("failed to add response to ackIndex")
+			}).WithError(ierr).Warn("failed to add Response to ackIndex")
 		}
 	}
 	for i, v := range b.Acks {
@@ -378,10 +378,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 		}
 	}
 
-	log.WithFields(log.Fields{
-		"db":         c.databaseID,
-		"peer":       c.rt.getPeerInfoString()[:14],
-		"time":       c.rt.getChainTimeString(),
+	c.logEntry().WithFields(log.Fields{
 		"block":      b.BlockHash().String()[:8],
 		"producer":   b.Producer()[:8],
 		"queryCount": len(b.QueryTxs),
@@ -471,11 +468,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 	// Send to pending list
-	le := log.WithFields(log.Fields{
-		"db":              c.databaseID,
-		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeString(),
-		"curr_turn":       c.rt.getNextTurn(),
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
 		"using_timestamp": now.Format(time.RFC3339Nano),
 		"block_hash":      block.BlockHash().String(),
 	})
@@ -483,7 +476,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	case c.blocks <- block:
 	case <-c.rt.ctx.Done():
 		err = c.rt.ctx.Err()
-		le.WithError(err).Debug("abort block producing")
+		le.WithError(err).Info("abort block producing")
 		return
 	}
 	le.Debug("produced new block")
@@ -546,14 +539,7 @@ func (c *Chain) syncHead() {
 		peers := c.rt.getPeers()
 		l := len(peers.Servers)
 		succ := false
-		le := log.WithFields(log.Fields{
-			"db":          c.databaseID,
-			"peer":        c.rt.getPeerInfoString(),
-			"time":        c.rt.getChainTimeString(),
-			"curr_turn":   c.rt.getNextTurn(),
-			"head_height": c.rt.getHead().Height,
-			"head_block":  c.rt.getHead().Head.String(),
-		})
+		le := c.logEntryWithHeadState()
 
 		for i, s := range peers.Servers {
 			ile := le.WithFields(log.Fields{"remote": fmt.Sprintf("[%d/%d] %s", i, l, s)})
@@ -568,7 +554,7 @@ func (c *Chain) syncHead() {
 					case c.blocks <- resp.Block:
 					case <-c.rt.ctx.Done():
 						err = c.rt.ctx.Err()
-						le.WithError(err).Debug("abort head block synchronizing")
+						le.WithError(err).Info("abort head block synchronizing")
 						return
 					}
 					ile.Debug("fetch block from remote peer successfully")
@@ -596,13 +582,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		c.heights <- c.rt.getHead().Height
 	}()
 
-	var le = log.WithFields(log.Fields{
-		"db":              c.databaseID,
-		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeString(),
-		"curr_turn":       c.rt.getNextTurn(),
-		"head_height":     c.rt.getHead().Height,
-		"head_block":      c.rt.getHead().Head.String(),
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
 		"using_timestamp": now.Format(time.RFC3339Nano),
 	})
 
@@ -623,9 +603,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.WithFields(log.Fields{
-				"db": c.databaseID,
-			}).WithError(ctx.Err()).Debug("abort main cycle")
+			c.logEntry().WithError(ctx.Err()).Info("abort main cycle")
 			return
 		default:
 			c.syncHead()
@@ -640,12 +618,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 
 // sync synchronizes blocks and queries from the other peers.
 func (c *Chain) sync() (err error) {
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).Debug("synchronizing chain state")
-
+	c.logEntry().Debug("synchronizing chain state")
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)
@@ -657,7 +630,6 @@ func (c *Chain) sync() (err error) {
 			c.rt.setNextTurn()
 		}
 	}
-
 	return
 }
 
@@ -669,10 +641,13 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 	returnStash := func(stash []*types.Block) {
 		defer wg.Done()
-		for _, block := range stash {
+		for i, block := range stash {
 			select {
 			case c.blocks <- block:
 			case <-cld.Done():
+				c.logEntry().WithFields(log.Fields{
+					"remaining": len(stash) - i,
+				}).WithError(cld.Err()).Debug("abort stash returning")
 				return
 			}
 		}
@@ -685,22 +660,13 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 	var stash []*types.Block
 	for {
-		le := log.WithFields(log.Fields{
-			"db":          c.databaseID,
-			"peer":        c.rt.getPeerInfoString(),
-			"time":        c.rt.getChainTimeString(),
-			"curr_turn":   c.rt.getNextTurn(),
-			"head_height": c.rt.getHead().Height,
-			"head_block":  c.rt.getHead().Head.String(),
-		})
 		select {
 		case h := <-c.heights:
 			// Return all stashed blocks to pending channel
-			le.WithFields(log.Fields{
+			c.logEntryWithHeadState().WithFields(log.Fields{
 				"height": h,
 				"stashs": len(stash),
 			}).Debug("read new height from channel")
-
 			if stash != nil {
 				wg.Add(1)
 				go returnStash(stash)
@@ -708,7 +674,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 			}
 		case block := <-c.blocks:
 			height := c.rt.getHeightFromTime(block.Timestamp())
-			le = le.WithFields(log.Fields{
+			le := c.logEntryWithHeadState().WithFields(log.Fields{
 				"block_height": height,
 				"block_hash":   block.BlockHash().String(),
 			})
@@ -758,7 +724,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				}
 			}
 		case <-ctx.Done():
-			le.WithError(ctx.Err()).Debug("abort block processing")
+			c.logEntryWithHeadState().WithError(ctx.Err()).Debug("abort block processing")
 			return
 		}
 	}
@@ -779,11 +745,7 @@ func (c *Chain) Start() (err error) {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	le := log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	})
+	le := c.logEntry()
 	le.Debug("stopping chain")
 	c.rt.stop(c.databaseID)
 	le.Debug("chain service and workers stopped")
@@ -872,29 +834,27 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 		}
 		return -1
 	}()
-	log.WithFields(log.Fields{
-		"peer":        c.rt.getPeerInfoString(),
-		"time":        c.rt.getChainTimeString(),
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
 		"block":       block.BlockHash().String(),
 		"producer":    block.Producer(),
 		"blocktime":   block.Timestamp().Format(time.RFC3339Nano),
 		"blockheight": height,
 		"blockparent": block.ParentHash().String(),
-		"headblock":   head.Head.String(),
-		"headheight":  head.Height,
-		"db":          c.databaseID,
-	}).WithError(err).Debug("checking new block from other peer")
+	})
+	le.Debug("checking new block from other peer")
 
 	if head.Height == height && head.Head.IsEqual(block.BlockHash()) {
 		// Maybe already set by FetchBlock
 		return nil
 	} else if !block.ParentHash().IsEqual(&head.Head) {
-		// Pushed block must extend the best chain
+		err = ErrInvalidBlock
+		le.WithError(err).Error("invalid new block for the current chain")
 		return ErrInvalidBlock
 	}
 
 	// Verify block signatures
 	if err = block.Verify(); err != nil {
+		le.WithError(err).Error("failed to verify block")
 		return
 	}
 
@@ -904,21 +864,19 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	}
 	// Check block producer
 	index, found := peers.Find(block.Producer())
-
 	if !found {
+		err = ErrUnknownProducer
+		le.WithError(err).Error("unknown producer of new block")
 		return ErrUnknownProducer
 	}
 
 	if index != next {
-		log.WithFields(log.Fields{
-			"peer":     c.rt.getPeerInfoString(),
-			"time":     c.rt.getChainTimeString(),
+		err = ErrInvalidProducer
+		le.WithFields(log.Fields{
 			"expected": next,
 			"actual":   index,
-			"db":       c.databaseID,
-		}).WithError(err).Error(
-			"Failed to check new block")
-		return ErrInvalidProducer
+		}).WithError(err).Error("invalid producer of new block")
+		return
 	}
 
 	// TODO(leventeliu): check if too many periods are skipped or store block for future use.
@@ -928,6 +886,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 
 	// Replicate local state from the new block
 	if err = c.st.ReplayBlockWithContext(c.rt.ctx, block); err != nil {
+		le.WithError(err).Error("failed to replay new block")
 		return
 	}
 
@@ -1004,8 +963,7 @@ func (c *Chain) stat() {
 		bc = atomic.LoadInt32(&cachedBlockCount)
 	)
 	// Print chain stats
-	log.WithFields(log.Fields{
-		"database_id":           c.databaseID,
+	c.logEntry().WithFields(log.Fields{
 		"multiIndex_count":      ic,
 		"response_header_count": rc,
 		"query_tracker_count":   tc,
@@ -1098,4 +1056,23 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	}
 	ub.Receiver, err = c.databaseID.AccountAddress()
 	return
+}
+
+func (c *Chain) logEntry() *log.Entry {
+	return log.WithFields(log.Fields{
+		"db":     c.databaseID,
+		"peer":   c.rt.getPeerInfoString(),
+		"offset": c.rt.getChainTimeString(),
+	})
+}
+
+func (c *Chain) logEntryWithHeadState() *log.Entry {
+	return log.WithFields(log.Fields{
+		"db":          c.databaseID,
+		"peer":        c.rt.getPeerInfoString(),
+		"offset":      c.rt.getChainTimeString(),
+		"curr_turn":   c.rt.getNextTurn(),
+		"head_height": c.rt.getHead().Height,
+		"head_block":  c.rt.getHead().Head.String(),
+	})
 }

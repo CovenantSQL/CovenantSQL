@@ -59,7 +59,7 @@ func runConfgen() {
 	}
 
 	fmt.Println("Generating key pair...")
-	publicKey := runKeygen()
+	publicKey := runKeygen(privateKeyFile)
 	fmt.Println("Generated key pair.")
 
 	fmt.Println("Generating nonce...")

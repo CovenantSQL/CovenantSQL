@@ -25,25 +25,25 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-func runKeygen() *asymmetric.PublicKey {
+func runKeygen(privateKeyPath string) *asymmetric.PublicKey {
 
-	askDeletePath(privateKeyFile)
-
-	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
-	if err != nil {
-		log.WithError(err).Fatal("generate key pair failed")
-	}
+	askDeletePath(privateKeyPath)
 
 	masterKey, err := readMasterKey()
 	if err != nil {
 		log.WithError(err).Fatal("read master key failed")
 	}
 
-	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(masterKey)); err != nil {
+	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		log.WithError(err).Fatal("generate key pair failed")
+	}
+
+	if err = kms.SavePrivateKey(privateKeyPath, privateKey, []byte(masterKey)); err != nil {
 		log.WithError(err).Fatal("save generated keypair failed")
 	}
 
-	fmt.Printf("Private key file: %s\n", privateKeyFile)
+	fmt.Printf("Private key file: %s\n", privateKeyPath)
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
 	return privateKey.PubKey()
 }

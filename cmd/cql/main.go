@@ -274,7 +274,7 @@ func main() {
 	if tmpPath == "" {
 		tmpPath = os.TempDir()
 	}
-	logPath := filepath.Join(tmpPath, "covenant_explorer.log")
+	logPath := filepath.Join(tmpPath, "covenant_service.log")
 	bgLog, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "open log file failed: %s, %v", logPath, err)
@@ -316,15 +316,16 @@ func main() {
 	}
 
 	if adapterAddr != "" {
-		server, err := adapter.NewHTTPAdapter(adapterAddr, configFile, password)
+		server, err := adapter.NewHTTPAdapter(adapterAddr, configFile)
 		if err != nil {
 			log.WithError(err).Fatal("init adapter failed")
 		}
 
-		log.Info("start adapter")
 		if err = server.Serve(); err != nil {
 			log.WithError(err).Fatal("start adapter failed")
 		} else {
+			cLog.Infof("adapter started on %s", adapterAddr)
+
 			defer func() {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()

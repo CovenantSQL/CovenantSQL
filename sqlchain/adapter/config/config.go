@@ -27,7 +27,6 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -69,8 +68,9 @@ type confWrapper struct {
 	Adapter Config `yaml:"Adapter"`
 }
 
-// LoadConfig load and verify config in config file and set to global config instance.
-func LoadConfig(configPath string, password string) (config *Config, err error) {
+// LoadConfig load and verify config in config file (Reuse some global config instance values).
+// Should call conf.LoadConfig before use. e.g client.Init
+func LoadConfig(configPath string) (config *Config, err error) {
 	var workingRoot string
 	var configBytes []byte
 	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
@@ -88,10 +88,6 @@ func LoadConfig(configPath string, password string) (config *Config, err error) 
 		config.StorageDriver = "covenantsql"
 	}
 	if config.StorageDriver == "covenantsql" {
-		// init client
-		if err = client.Init(configPath, []byte(password)); err != nil {
-			return
-		}
 		workingRoot = conf.GConf.WorkingRoot
 	} else {
 		if workingRoot, err = os.Getwd(); err != nil {

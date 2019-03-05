@@ -165,12 +165,6 @@ bin/cql-fuse:
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
-bin/cql-adapter:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
-		-o bin/cql-adapter \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
-
 bin/cql-mysql-adapter:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
@@ -187,7 +181,7 @@ bp: bin/cqld.test bin/cqld
 
 miner: bin/cql-minerd.test bin/cql-minerd
 
-client: bin/cql-utils bin/cql bin/cql.test bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet
+client: bin/cql-utils bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
 all: bp miner client
 
@@ -198,4 +192,4 @@ clean:
 
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils \
-	bin/cql bin/cql.test bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet
+	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet

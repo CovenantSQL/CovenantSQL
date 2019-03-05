@@ -28,8 +28,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/storage"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 

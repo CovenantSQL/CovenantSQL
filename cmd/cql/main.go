@@ -51,6 +51,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/observer"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -71,14 +72,14 @@ var (
 	singleTransaction bool
 	showVersion       bool
 	variables         varsFlag
-	stopCh            = make(chan struct{})
 	logLevel          string
 
-	// Shard chain explorer stuff
+	// Shard chain explorer/adapter stuff
 	tmpPath      string         // background observer and explorer block and log file path
 	cLog         *logrus.Logger // console logger
 	bgLogLevel   string         // background log level
 	explorerAddr string         // explorer Web addr
+	adapterAddr  string         // adapter listen addr
 
 	// DML variables
 	createDB                string // as a instance meta json string or simply a node count
@@ -251,6 +252,7 @@ func init() {
 	flag.StringVar(&tmpPath, "tmp-path", "", "Explorer temp file path, use os.TempDir for default")
 	flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level")
 	flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
+	flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
 
 	// DML flags
 	flag.StringVar(&createDB, "create", "", "Create database, argument can be instance requirement json or simply a node count requirement")
@@ -307,12 +309,29 @@ func main() {
 			cLog.Infof("explorer started on %s", explorerAddr)
 		}
 
-		defer close(stopCh)
-		go func() {
-			<-stopCh
+		defer func() {
 			_ = observer.StopObserver(service, httpServer)
 			log.Info("explorer stopped")
 		}()
+	}
+
+	if adapterAddr != "" {
+		server, err := adapter.NewHTTPAdapter(adapterAddr, configFile, password)
+		if err != nil {
+			log.WithError(err).Fatal("init adapter failed")
+		}
+
+		log.Info("start adapter")
+		if err = server.Serve(); err != nil {
+			log.WithError(err).Fatal("start adapter failed")
+		} else {
+			defer func() {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				server.Shutdown(ctx)
+				log.Info("stopped adapter")
+			}()
+		}
 	}
 
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
@@ -580,8 +599,8 @@ func main() {
 	}
 
 	// if web flag is enabled
-	if explorerAddr != "" {
-		fmt.Printf("Ctrl + C to stop explorer listen on %s", explorerAddr)
+	if explorerAddr != "" || adapterAddr != "" {
+		fmt.Printf("Ctrl + C to stop explorer on %s and adapter on %s", explorerAddr, adapterAddr)
 		<-utils.WaitForExit()
 		return
 	}

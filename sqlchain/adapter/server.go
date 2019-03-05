@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package main
+package adapter
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 
 	"github.com/gorilla/handlers"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/api"
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/config"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter/api"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter/config"
 )
 
 // HTTPAdapter is a adapter for covenantsql/alternative sqlite3 service.

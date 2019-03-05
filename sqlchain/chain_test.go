@@ -104,7 +104,7 @@ func TestMultiChain(t *testing.T) {
 	}
 
 	for i, p := range peers.Servers {
-		t.Logf("Peer #%d: %s", i, p)
+		t.Logf("peer #%d: %s", i, p)
 	}
 
 	// Create config info from created nodes
@@ -265,7 +265,7 @@ func TestMultiChain(t *testing.T) {
 			if chain, err := NewChain(p.config); err != nil {
 				t.Errorf("error occurred: %v", err)
 			} else {
-				t.Logf("Load chain from file %s: head = %s height = %d",
+				t.Logf("load chain from file %s: head = %s height = %d",
 					p.dbfile, chain.rt.getHead().Head, chain.rt.getHead().Height)
 			}
 		}(v)
@@ -290,12 +290,12 @@ func TestMultiChain(t *testing.T) {
 			for i := int32(0); i <= ch; i++ {
 				var node *blockNode
 				if node = c.rt.getHead().node.ancestor(i); node == nil {
-					t.Logf("Block at height %d not found in peer %s, continue",
+					t.Logf("block at height %d not found in peer %s, continue",
 						i, c.rt.getPeerInfoString())
 					continue
 				}
 				if node.block != nil {
-					t.Logf("Checking block %v at height %d in peer %s",
+					t.Logf("checking block %v at height %d in peer %s",
 						node.block.BlockHash(), i, c.rt.getPeerInfoString())
 				}
 			}

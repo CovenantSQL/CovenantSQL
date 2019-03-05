@@ -430,6 +430,11 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		qts []*x.QueryTracker
 	)
 	if frs, qts, err = c.st.CommitEx(); err != nil {
+		err = errors.Wrap(err, "failed to fetch query list from db state")
+		return
+	}
+	if len(frs) == 0 && len(qts) == 0 {
+		c.logEntryWithHeadState().Debug("no query found in current period, skip block producing")
 		return
 	}
 	var block = &types.Block{
@@ -617,20 +622,23 @@ func (c *Chain) mainCycle(ctx context.Context) {
 }
 
 // sync synchronizes blocks and queries from the other peers.
-func (c *Chain) sync() (err error) {
-	c.logEntry().Debug("synchronizing chain state")
+func (c *Chain) sync() {
+	le := c.logEntry()
+	le.Debug("synchronizing chain state")
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)
-		if c.rt.getNextTurn() >= height {
+		if now.Before(c.rt.chainInitTime) {
+			le.Debug("now time is before genesis time, waiting for genesis")
+			return
+		}
+		if c.rt.getNextTurn() > height {
 			break
 		}
 		for c.rt.getNextTurn() <= height {
-			// TODO(leventeliu): fetch blocks and queries.
-			c.rt.setNextTurn()
+			c.syncHead()
 		}
 	}
-	return
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
@@ -732,11 +740,8 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 // Start starts the main process of the sql-chain.
 func (c *Chain) Start() (err error) {
-	if err = c.sync(); err != nil {
-		return
-	}
-
 	c.rt.goFunc(c.processBlocks)
+	c.sync()
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
 	return

@@ -17,11 +17,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -29,26 +26,8 @@ import (
 )
 
 func runKeygen() *asymmetric.PublicKey {
-	if _, err := os.Stat(privateKeyFile); err == nil {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("Private key file \"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
-			privateKeyFile)
-		t, err := reader.ReadString('\n')
-		t = strings.Trim(t, "\n")
-		if err != nil {
-			log.WithError(err).Error("unexpected error")
-			os.Exit(1)
-		}
-		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
-			err = os.Remove(privateKeyFile)
-			if err != nil {
-				log.WithError(err).Error("unexpected error")
-				os.Exit(1)
-			}
-		} else {
-			os.Exit(0)
-		}
-	}
+
+	askDeletePath(privateKeyFile)
 
 	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {

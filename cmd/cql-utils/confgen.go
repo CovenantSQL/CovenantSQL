@@ -17,13 +17,11 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -52,26 +50,7 @@ func runConfgen() {
 	publicKeystoreFileName := "public.keystore"
 	privateKeyFile = path.Join(workingRoot, privateKeyFileName)
 
-	if _, err := os.Stat(workingRoot); err == nil {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("The directory \"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
-			workingRoot)
-		t, err := reader.ReadString('\n')
-		t = strings.Trim(t, "\n")
-		if err != nil {
-			log.WithError(err).Error("unexpected error")
-			os.Exit(1)
-		}
-		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
-			err = os.RemoveAll(workingRoot)
-			if err != nil {
-				log.WithError(err).Error("unexpected error")
-				os.Exit(1)
-			}
-		} else {
-			os.Exit(0)
-		}
-	}
+	askDeletePath(workingRoot)
 
 	err := os.Mkdir(workingRoot, 0755)
 	if err != nil {

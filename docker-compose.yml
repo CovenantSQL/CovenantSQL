@@ -136,6 +136,7 @@ services:
     environment:
       COVENANT_ROLE: adapter
       COVENANT_CONF: ./node_adapter/config.yaml
+      COVENANTSQL_ADAPTER_ADDR: localhost:4661
     volumes:
       - ./test/service/node_adapter/config.yaml:/app/config.yaml
       - ./test/service/node_adapter/private.key:/app/private.key

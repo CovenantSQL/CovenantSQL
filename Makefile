@@ -17,7 +17,6 @@ use_all_cores:
 
 BUILDER := covenantsql/covenantsql-builder
 IMAGE := covenantsql/covenantsql
-OB_IMAGE := covenantsql/covenantsql-observer
 
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 GIT_DIRTY ?= $(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
@@ -41,7 +40,7 @@ builder: status
 		-f docker/builder.Dockerfile \
 		.
 
-runner: builder
+docker: builder
 	docker build \
 		--tag $(IMAGE):$(VERSION) \
 		--tag $(IMAGE):latest \
@@ -50,24 +49,11 @@ runner: builder
 		-f docker/Dockerfile \
 		.
 
-observer_docker: builder
-	docker build \
-		--tag $(OB_IMAGE):$(VERSION) \
-		--tag $(OB_IMAGE):latest \
-		--build-arg COMMIT=$(COMMIT) \
-		--build-arg VERSION=$(VERSION) \
-		-f docker/observer.Dockerfile \
-		.
-
-docker: runner observer_docker
-
 docker_clean: status
 	docker rmi -f $(BUILDER):latest
 	docker rmi -f $(IMAGE):latest
-	docker rmi -f $(OB_IMAGE):latest
 	docker rmi -f $(BUILDER):$(VERSION)
 	docker rmi -f $(IMAGE):$(VERSION)
-	docker rmi -f $(OB_IMAGE):$(VERSION)
 
 
 save: status
@@ -89,27 +75,19 @@ logs:
 	docker-compose logs -f --tail=10
 
 push_testnet:
-	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):testnet
-	docker push $(OB_IMAGE):testnet
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):testnet
 	docker push $(IMAGE):testnet
 
 push_bench:
-	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):bench
-	docker push $(OB_IMAGE):bench
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):bench
 	docker push $(IMAGE):bench
 
 push_staging:
-	docker tag $(OB_IMAGE):$(VERSION) $(OB_IMAGE):staging
-	docker push $(OB_IMAGE):staging
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):staging
 	docker push $(IMAGE):staging
 
 
 push:
-	docker push $(OB_IMAGE):$(VERSION)
-	docker push $(OB_IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
@@ -162,18 +140,6 @@ bin/cql-minerd:
 		-o bin/cql-minerd \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
-bin/cql-observer.test:
-	$(GOTEST) \
-		-ldflags "$(ldflags_role_client)" \
-		-o bin/cql-observer.test \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
-
-bin/cql-observer:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
-		-o bin/cql-observer \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-observer
-
 bin/cql-utils:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client_simple_log)" \
@@ -186,17 +152,18 @@ bin/cql:
 		-o bin/cql \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
+bin/cql.test:
+	$(GOTEST) \
+		-ldflags "$(ldflags_role_client)" \
+		-o bin/cql.test \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql
+
+
 bin/cql-fuse:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client_simple_log)" \
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
-
-bin/cql-adapter:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
-		-o bin/cql-adapter \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter
 
 bin/cql-mysql-adapter:
 	$(GOBUILD) \
@@ -210,21 +177,13 @@ bin/cql-faucet:
 		-o bin/cql-faucet \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 
-bin/cql-explorer:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
-		-o bin/cql-explorer \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-explorer
-
 bp: bin/cqld.test bin/cqld
 
 miner: bin/cql-minerd.test bin/cql-minerd
 
-observer: bin/cql-observer.test bin/cql-observer
+client: bin/cql-utils bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
-client: bin/cql-utils bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer
-
-all: bp miner observer client
+all: bp miner client
 
 clean:
 	rm -rf bin/cql*
@@ -232,5 +191,5 @@ clean:
 	rm -f coverage.txt
 
 .PHONY: status start stop logs push push_testnet clean \
-	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils bin/cql-observer bin/cql-observer.test \
-	bin/cql bin/cql-fuse bin/cql-adapter bin/cql-mysql-adapter bin/cql-faucet bin/cql-explorer
+	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils \
+	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet

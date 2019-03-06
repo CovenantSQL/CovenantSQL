@@ -5,9 +5,6 @@ set -o pipefail
 set -o nounset
 
 main() {
-  make clean
-  make -j6 bp miner observer
-
   go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverprofile main.cover.out $(go list ./... | grep -v CovenantSQL/api)
   go test -tags "$UNITTESTTAGS" -race -failfast -parallel 16 -cpu 16 -coverpkg ./api/...,./rpc/jsonrpc -coverprofile api.cover.out ./api/...
 

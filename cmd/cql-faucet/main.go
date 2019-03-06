@@ -22,11 +22,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime"
 	"time"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -106,10 +103,7 @@ func main() {
 
 	log.Info("started faucet")
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, unix.SIGTERM)
-
-	<-stop
+	<-utils.WaitForExit()
 
 	// stop verifier
 	v.stop()

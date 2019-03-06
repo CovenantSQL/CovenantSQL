@@ -24,9 +24,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	graphite "github.com/cyberdelia/go-metrics-graphite"
@@ -39,6 +37,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	_ "github.com/CovenantSQL/CovenantSQL/utils/log/debug"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )
@@ -231,14 +230,6 @@ func main() {
 		server.Stop()
 	}()
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-
 	if metricLog {
 		go metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.StandardLogger())
 	}
@@ -270,7 +261,7 @@ func main() {
 		defer trace.Stop()
 	}
 
-	<-signalCh
+	<-utils.WaitForExit()
 	utils.StopProfile()
 
 	log.Info("miner stopped")

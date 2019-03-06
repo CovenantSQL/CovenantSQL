@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -702,6 +703,72 @@ func TestSerializableState(t *testing.T) {
 			_, resp, err = state.Query(req, true)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
+			Convey("The state should keep consistent with committed transaction", func(c C) {
+				var (
+					count         = 1000
+					insertQueries = make([]types.Query, count+2)
+					deleteQueries = make([]types.Query, count+2)
+					iReq, dReq    *types.Request
+				)
+				insertQueries[0] = buildQuery(`BEGIN`)
+				deleteQueries[0] = buildQuery(`BEGIN`)
+				for i := 0; i < count; i++ {
+					insertQueries[i+1] = buildQuery(
+						`INSERT INTO t1(k, v) VALUES (?, ?)`, i, fmt.Sprintf("v%d", i),
+					)
+					deleteQueries[i+1] = buildQuery(`DELETE FROM t1 WHERE k=?`, i)
+				}
+				insertQueries[count+1] = buildQuery(`COMMIT`)
+				deleteQueries[count+1] = buildQuery(`COMMIT`)
+				iReq = buildRequest(types.WriteQuery, insertQueries)
+				dReq = buildRequest(types.WriteQuery, deleteQueries)
+
+				var (
+					wg          = &sync.WaitGroup{}
+					ctx, cancel = context.WithCancel(context.Background())
+				)
+				defer func() {
+					cancel()
+					wg.Wait()
+				}()
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					var (
+						resp *types.Response
+						err  error
+					)
+					for {
+						_, resp, err = state.Query(iReq, true)
+						c.So(err, ShouldBeNil)
+						c.Printf("insert affected rows: %d\n", resp.Header.AffectedRows)
+						_, resp, err = state.Query(dReq, true)
+						c.So(err, ShouldBeNil)
+						c.Printf("delete affected rows: %d\n", resp.Header.AffectedRows)
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
+					}
+				}()
+
+				for i := 0; i < count; i++ {
+					_, resp, err = state.Query(buildRequest(types.ReadQuery, []types.Query{
+						buildQuery(`SELECT COUNT(1) AS cnt FROM t1`),
+					}), true)
+					So(reflect.DeepEqual(resp.Payload, types.ResponsePayload{
+						Columns:   []string{"cnt"},
+						DeclTypes: []string{""},
+						Rows:      []types.ResponseRow{{Values: []interface{}{int64(0)}}},
+					}) || reflect.DeepEqual(resp.Payload, types.ResponsePayload{
+						Columns:   []string{"cnt"},
+						DeclTypes: []string{""},
+						Rows:      []types.ResponseRow{{Values: []interface{}{int64(count)}}},
+					}), ShouldBeTrue)
+					Printf("index = %d, count = %v\n", i, resp)
+				}
+			})
 			Convey("The state should not see uncommitted changes", func(c C) {
 				// Build transaction query
 				var (
@@ -750,6 +817,82 @@ func TestSerializableState(t *testing.T) {
 						Rows:      []types.ResponseRow{{Values: []interface{}{int64(0)}}},
 					})
 				}
+			})
+			Convey("The state should see changes", FailureContinues, func(c C) {
+				// Build transaction query
+				var (
+					count   = 1000
+					queries = make([]types.Query, count+2)
+					req     *types.Request
+				)
+				queries[0] = buildQuery(`BEGIN`)
+				for i := 0; i < count; i++ {
+					queries[i+1] = buildQuery(
+						`INSERT INTO t1(k, v) VALUES (?, ?)`, i, fmt.Sprintf("v%d", i),
+					)
+				}
+				queries[count+1] = buildQuery(`COMMIT`)
+				req = buildRequest(types.WriteQuery, queries)
+				// Send uncommitted transaction on background
+				var _, resp, err = state.Query(req, true)
+				c.So(err, ShouldBeNil)
+				c.So(resp.Header.RowCount, ShouldEqual, 0)
+
+				// Test isolation level
+				for i := 0; i < count; i++ {
+					_, resp, err = state.Query(buildRequest(types.ReadQuery, []types.Query{
+						buildQuery(`SELECT COUNT(1) AS cnt FROM t1`),
+					}), true)
+					So(resp.Payload, ShouldResemble, types.ResponsePayload{
+						Columns:   []string{"cnt"},
+						DeclTypes: []string{""},
+						Rows:      []types.ResponseRow{{Values: []interface{}{int64(count)}}},
+					})
+				}
+
+				req = buildRequest(types.WriteQuery, []types.Query{
+					buildQuery("DELETE FROM t1"),
+				})
+				_, resp, err = state.Query(req, true)
+				c.So(err, ShouldBeNil)
+			})
+			Convey("The state should not see changes because of failure query content", FailureContinues, func(c C) {
+				// Build transaction query
+				var (
+					count   = 1000
+					queries = make([]types.Query, count+3)
+					req     *types.Request
+				)
+				queries[0] = buildQuery(`BEGIN`)
+				for i := 0; i < count; i++ {
+					queries[i+1] = buildQuery(
+						`INSERT INTO t1(k, v) VALUES (?, ?)`, i, fmt.Sprintf("v%d", i),
+					)
+				}
+				queries[count+1] = buildQuery(`HAHA`)
+				queries[count+2] = buildQuery(`COMMIT`)
+				req = buildRequest(types.WriteQuery, queries)
+				// Send uncommitted transaction on background
+				var _, resp, err = state.Query(req, true)
+				c.So(err, ShouldNotBeNil)
+
+				// Test isolation level
+				for i := 0; i < count; i++ {
+					_, resp, err = state.Query(buildRequest(types.ReadQuery, []types.Query{
+						buildQuery(`SELECT COUNT(1) AS cnt FROM t1`),
+					}), true)
+					So(resp.Payload, ShouldResemble, types.ResponsePayload{
+						Columns:   []string{"cnt"},
+						DeclTypes: []string{""},
+						Rows:      []types.ResponseRow{{Values: []interface{}{int64(0)}}},
+					})
+				}
+
+				req = buildRequest(types.WriteQuery, []types.Query{
+					buildQuery("DELETE FROM t1"),
+				})
+				_, resp, err = state.Query(req, true)
+				c.So(err, ShouldBeNil)
 			})
 		})
 	})

@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-adapter/config"
+	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter/config"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 

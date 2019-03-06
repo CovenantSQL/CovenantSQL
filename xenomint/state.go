@@ -404,6 +404,11 @@ func (s *State) write(
 			}
 			defer s.executer.Exec(`ROLLBACK TO "?"`, lastSeq)
 		}
+		if s.level != sql.LevelReadUncommitted {
+			// NOTE(leventeliu): this will cancel any uncommitted transaction, and do not harm to
+			// committed ones.
+			defer s.executer.Exec(`ROLLBACK`)
+		}
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
 			if res, ierr = s.writeSingle(ctx, &v); ierr != nil {
@@ -426,10 +431,6 @@ func (s *State) write(
 					return
 				}
 			}
-		} else {
-			// NOTE(leventeliu): this will cancel any uncommitted transaction, and do not harm to
-			// committed ones.
-			s.executer.Exec(`ROLLBACK`)
 		}
 		// Try to commit if the ongoing tx is too large or schema is changed
 		if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||

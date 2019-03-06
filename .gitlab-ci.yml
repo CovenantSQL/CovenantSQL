@@ -1,10 +1,20 @@
 image: covenantsql/build
 
+stages:
+  - build
+  - test
+  - cleanup
+
 variables:
   REVIEWDOG_VERSION: 0.9.11
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
   UNITTESTTAGS: linux sqlite_omit_load_extension
+  CACHE_DIR: /CovenantSQL_bins
+  PIPELINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
+  BIN_CACHE: $CACHE_DIR/$CI_PIPELINE_IID/bin
+  PREV_VERSION: v0.4.0
+  # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 
 before_script:
   # Setup dependency management tool
@@ -23,12 +33,23 @@ before_script:
   - ulimit -n 8192
 #  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
-test-my-project:
+build:
+  stage: build
+  script:
+    - set -x
+    - make clean
+    - make use_all_cores
+    - mkdir -p ${BIN_CACHE}
+    - cp bin/* ${BIN_CACHE}/
+
+unit-test:
   stage: test
   script: 
+    - make clean
+    - cp ${BIN_CACHE}/* bin/
     - ./alltest.sh
 
-compatibility-testnet:
+testnet-compatibility:
   stage: test
   script:
     - set -o errexit
@@ -37,7 +58,43 @@ compatibility-testnet:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - make -j8 client
+    - cp ${BIN_CACHE}/* bin/
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - set -x
     - ./test/testnet_client/run.sh
+
+old-client-compatibility:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - make clean
+    - cp ${BIN_CACHE}/* bin/
+    - ./test/compatibility/specific_old.sh client
+
+old-bp-compatibility:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - make clean
+    - cp ${BIN_CACHE}/* bin/
+    - ./test/compatibility/specific_old.sh bp
+
+old-miner-compatibility:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - make clean
+    - cp ${BIN_CACHE}/* bin/
+    - ./test/compatibility/specific_old.sh miner
+
+cleanup_cache:
+  stage: cleanup
+  script:
+    - rm -r ${PIPELINE_CACHE}
+  when: on_success

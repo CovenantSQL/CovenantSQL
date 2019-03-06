@@ -20,7 +20,7 @@ import (
 	"errors"
 )
 
-// #include <stdlib.h>.
+// #include <stdlib.h>
 import "C"
 
 func getLoad() ([]float64, error) {

@@ -70,7 +70,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -152,14 +151,9 @@ func main() {
 	log.Infof("DB: %s mount on %s succeed", dsn, mountPoint)
 
 	go func() {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, os.Interrupt)
-		for range sig {
-			if err := fuse.Unmount(mountPoint); err != nil {
-				log.Printf("Signal received, but could not unmount: %s", err)
-			} else {
-				break
-			}
+		<-utils.WaitForExit()
+		if err := fuse.Unmount(mountPoint); err != nil {
+			log.Printf("Signal received, but could not unmount: %s", err)
 		}
 	}()
 

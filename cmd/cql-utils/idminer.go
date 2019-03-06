@@ -23,15 +23,14 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -69,14 +68,6 @@ func runMiner() {
 		publicKey = privateKey.PubKey()
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-
 	cpuCount := runtime.NumCPU()
 	log.Infof("cpu: %#v\n", cpuCount)
 	nonceChs := make([]chan mine.NonceInfo, cpuCount)
@@ -102,7 +93,7 @@ func runMiner() {
 		}(i)
 	}
 
-	sig := <-signalCh
+	sig := <-utils.WaitForExit()
 	log.Infof("received signal %#v\n", sig)
 	for i := 0; i < cpuCount; i++ {
 		close(stopChs[i])

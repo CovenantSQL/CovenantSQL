@@ -33,7 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 var (
@@ -88,7 +88,7 @@ func TestIndexKey(t *testing.T) {
 }
 
 func TestMultiChain(t *testing.T) {
-	log.SetLevel(log.InfoLevel)
+	//log.SetLevel(log.InfoLevel)
 	// Create genesis block
 	genesis, err := createRandomBlock(genesisHash, true)
 
@@ -302,18 +302,38 @@ func TestMultiChain(t *testing.T) {
 		}(v.chain)
 	}
 
+	// Create table
+	cli, err := newRandomNode(chains[0].chain, true)
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	req, err := cli.buildQuery(types.WriteQuery, []types.Query{
+		buildQuery(`CREATE TABLE t1 (k INT, v TEXT, PRIMARY KEY(k))`),
+		buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)`,
+			1, "v1", 2, "v2", 3, "v3", 4, "v4", 5, "v5",
+		),
+	})
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	for i, v := range chains {
+		cli, err := newRandomNode(v.chain, i == 0)
+		if err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
+		err = cli.sendQuery(req)
+		if err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
+	}
+
 	// Create some random clients to push new queries
 	for i, v := range chains {
 		sC := make(chan struct{})
 		wg := &sync.WaitGroup{}
-		wk := &nodeProfile{
-			NodeID:     peers.Servers[i],
-			PrivateKey: testPrivKey,
-			PublicKey:  testPubKey,
-		}
 
 		for j := 0; j < testClientNumberPerChain; j++ {
-			cli, err := newRandomNode()
+			cli, err := newRandomNode(v.chain, i == 0)
 
 			if err != nil {
 				t.Fatalf("error occurred: %v", err)
@@ -328,21 +348,12 @@ func TestMultiChain(t *testing.T) {
 					case <-sC:
 						break foreverLoop
 					default:
+						var err error
 						// Send a random query
-						resp, err := createRandomQueryResponse(p, wk)
-
+						err = cli.query(types.ReadQuery, []types.Query{
+							buildQuery(`SELECT v FROM t1 WHERE k=?`, rand.Intn(5)),
+						})
 						if err != nil {
-							t.Errorf("error occurred: %v", err)
-						} else if err = c.AddResponse(resp); err != nil {
-							t.Errorf("error occurred: %v", err)
-						}
-
-						time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
-						ack, err := createRandomQueryAckWithResponse(resp, p)
-
-						if err != nil {
-							t.Errorf("error occurred: %v", err)
-						} else if err = c.VerifyAndPushAckedQuery(ack); err != nil {
 							t.Errorf("error occurred: %v", err)
 						}
 					}

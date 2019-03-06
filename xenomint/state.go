@@ -226,6 +226,9 @@ func (s *State) readWithContext(
 	}
 	// Build query response
 	ref = &QueryTracker{Req: req}
+	s.Lock()
+	s.pool.enqueueRead(ref)
+	s.Unlock()
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
@@ -291,6 +294,9 @@ func (s *State) readTx(
 	}
 	// Build query response
 	ref = &QueryTracker{Req: req}
+	s.Lock()
+	s.pool.enqueueRead(ref)
+	s.Unlock()
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
@@ -630,6 +636,9 @@ func (s *State) CommitExWithContext(
 	// Return pooled items and reset
 	failed = s.pool.failedList()
 	queries = s.pool.queries
+	for _, v := range s.pool.reads {
+		queries = append(queries, v)
+	}
 	s.pool = newPool()
 	poolCleaned = time.Since(start)
 	return

@@ -456,7 +456,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	for i, v := range qts {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
 		for !v.Ready() {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(c.rt.period / 10)
 			if c.rt.ctx.Err() != nil {
 				err = c.rt.ctx.Err()
 				return

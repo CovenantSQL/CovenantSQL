@@ -136,7 +136,7 @@ func createNodesWithPublicKey(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			miner.ComputeBlockNonce(block, next, diff)
+			_ = miner.ComputeBlockNonce(block, next, diff)
 		}()
 		ni = <-nic
 		nis[i] = proto.Node{

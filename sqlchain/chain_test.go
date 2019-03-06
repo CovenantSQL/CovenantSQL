@@ -241,7 +241,9 @@ func TestMultiChain(t *testing.T) {
 
 	for _, n := range conf.GConf.KnownNodes {
 		rawNodeID := n.ID.ToRawNodeID()
-		route.SetNodeAddrCache(rawNodeID, n.Addr)
+		if err = route.SetNodeAddrCache(rawNodeID, n.Addr); err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
 		node := &proto.Node{
 			ID:        n.ID,
 			Addr:      n.Addr,
@@ -279,7 +281,7 @@ func TestMultiChain(t *testing.T) {
 
 		defer func(c *Chain) {
 			// Stop chain main process before exit
-			c.Stop()
+			_ = c.Stop()
 		}(v.chain)
 	}
 

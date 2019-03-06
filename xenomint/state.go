@@ -168,7 +168,9 @@ func readSingle(
 	if rows, err = qer.QueryContext(ctx, pattern, args...); err != nil {
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	// Fetch column names and types
 	if names, err = rows.Columns(); err != nil {
 		return
@@ -271,7 +273,9 @@ func (s *State) readTx(
 			return
 		}
 		querier = tx
-		defer tx.Rollback()
+		defer func() {
+			_ = tx.Rollback()
+		}()
 	}
 
 	defer func() {
@@ -408,12 +412,16 @@ func (s *State) write(
 				err = errors.Wrapf(ierr, "failed to create savepoint %d", lastSeq)
 				return
 			}
-			defer s.executer.Exec(`ROLLBACK TO "?"`, lastSeq)
+			defer func() {
+				_, _ = s.executer.Exec(`ROLLBACK TO "?"`, lastSeq)
+			}()
 		}
 		if s.level != sql.LevelReadUncommitted {
 			// NOTE(leventeliu): this will cancel any uncommitted transaction, and do not harm to
 			// committed ones.
-			defer s.executer.Exec(`ROLLBACK`)
+			defer func() {
+				_, _ = s.executer.Exec(`ROLLBACK`)
+			}()
 		}
 		for i, v := range req.Payload.Queries {
 			var res sql.Result

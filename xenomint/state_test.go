@@ -741,10 +741,10 @@ func TestSerializableState(t *testing.T) {
 					for {
 						_, resp, err = state.Query(iReq, true)
 						c.So(err, ShouldBeNil)
-						c.Printf("insert affected rows: %d\n", resp.Header.AffectedRows)
+						_, _ = c.Printf("insert affected rows: %d\n", resp.Header.AffectedRows)
 						_, resp, err = state.Query(dReq, true)
 						c.So(err, ShouldBeNil)
-						c.Printf("delete affected rows: %d\n", resp.Header.AffectedRows)
+						_, _ = c.Printf("delete affected rows: %d\n", resp.Header.AffectedRows)
 						select {
 						case <-ctx.Done():
 							return
@@ -766,7 +766,7 @@ func TestSerializableState(t *testing.T) {
 						DeclTypes: []string{""},
 						Rows:      []types.ResponseRow{{Values: []interface{}{int64(count)}}},
 					}), ShouldBeTrue)
-					Printf("index = %d, count = %v\n", i, resp)
+					_, _ = Printf("index = %d, count = %v\n", i, resp)
 				}
 			})
 			Convey("The state should not see uncommitted changes", func(c C) {

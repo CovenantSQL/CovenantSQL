@@ -17,10 +17,12 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -113,4 +115,27 @@ func readMasterKey() (string, error) {
 	bytePwd, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println()
 	return string(bytePwd), err
+}
+
+func askDeletePath(path string) {
+	if _, err := os.Stat(path); err == nil {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("\"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
+			path)
+		t, err := reader.ReadString('\n')
+		t = strings.Trim(t, "\n")
+		if err != nil {
+			log.WithError(err).Error("unexpected error")
+			os.Exit(1)
+		}
+		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
+			err = os.RemoveAll(path)
+			if err != nil {
+				log.WithError(err).Error("unexpected error")
+				os.Exit(1)
+			}
+		} else {
+			os.Exit(0)
+		}
+	}
 }

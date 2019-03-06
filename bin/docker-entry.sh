@@ -15,7 +15,7 @@ observer)
     exec /app/cql -config "${COVENANT_CONF}" -web "${COVENANTSQL_OBSERVER_ADDR}" "${@}"
     ;;
 adapter)
-    exec /app/cql-adapter -config "${COVENANT_CONF}" "${@}"
+    exec /app/cql -config "${COVENANT_CONF}" -adapter "${COVENANTSQL_ADAPTER_ADDR}" "${@}"
     ;;
 mysql-adapter)
     exec /app/cql-mysql-adapter -config "${COVENANT_CONF}" "${@}"

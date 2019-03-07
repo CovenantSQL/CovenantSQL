@@ -72,7 +72,6 @@ var (
 	singleTransaction bool
 	showVersion       bool
 	variables         varsFlag
-	logLevel          string
 
 	// Shard chain explorer/adapter stuff
 	tmpPath      string         // background observer and explorer block and log file path
@@ -201,7 +200,7 @@ func usqlRegister() {
 			return 0, nil
 		},
 		Open: func(url *dburl.URL) (handler func(driver string, dsn string) (*sql.DB, error), err error) {
-			log.Infof("connecting to %#v", url.DSN)
+			cLog.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
 			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
@@ -234,7 +233,6 @@ func usqlRegister() {
 }
 
 func init() {
-	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 	flag.StringVar(&dsn, "dsn", "", "Database url")
 	flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
 	flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
@@ -248,8 +246,8 @@ func init() {
 	flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
 	flag.Var(&variables, "variable", "Set variable")
 
-	// Explorer
-	flag.StringVar(&tmpPath, "tmp-path", "", "Explorer temp file path, use os.TempDir for default")
+	// Explorer/Adapter
+	flag.StringVar(&tmpPath, "tmp-path", "", "Background service temp file path, use os.TempDir for default")
 	flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level")
 	flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
 	flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
@@ -270,18 +268,6 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	flag.Parse()
-	log.SetStringLevel(logLevel, log.InfoLevel)
-	if tmpPath == "" {
-		tmpPath = os.TempDir()
-	}
-	logPath := filepath.Join(tmpPath, "covenant_service.log")
-	bgLog, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "open log file failed: %s, %v", logPath, err)
-		os.Exit(-1)
-	}
-	log.SetOutput(bgLog)
-	log.SetStringLevel(bgLogLevel, log.InfoLevel)
 
 	cLog = logrus.New()
 
@@ -300,6 +286,18 @@ func main() {
 		os.Exit(-1)
 		return
 	}
+
+	if tmpPath == "" {
+		tmpPath = os.TempDir()
+	}
+	logPath := filepath.Join(tmpPath, "covenant_service.log")
+	bgLog, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "open log file failed: %s, %v", logPath, err)
+		os.Exit(-1)
+	}
+	log.SetOutput(bgLog)
+	log.SetStringLevel(bgLogLevel, log.InfoLevel)
 
 	if explorerAddr != "" {
 		service, httpServer, err = observer.StartObserver(explorerAddr, version)
@@ -339,8 +337,6 @@ func main() {
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
 	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
-
-	usqlRegister()
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
@@ -555,6 +551,8 @@ func main() {
 		cLog.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
+
+	usqlRegister()
 
 	var (
 		curUser   *user.User

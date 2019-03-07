@@ -26,10 +26,11 @@ import (
 )
 
 type waitItem struct {
-	index    uint64
-	doneOnce sync.Once
-	ch       chan struct{}
-	waitLock sync.Mutex
+	index      uint64
+	doneOnce   sync.Once
+	ch         chan struct{}
+	waitLock   sync.Mutex
+	processing int32
 }
 
 func newWaitItem(index uint64) *waitItem {

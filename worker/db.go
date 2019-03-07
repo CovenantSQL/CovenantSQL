@@ -67,7 +67,7 @@ const (
 	CommitTimeout = time.Minute
 
 	// LogWaitTimeout defines the missing log wait timeout config.
-	LogWaitTimeout = 1 * time.Second
+	LogWaitTimeout = 10 * time.Second
 
 	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
 	SlowQuerySampleSize = 1 << 10

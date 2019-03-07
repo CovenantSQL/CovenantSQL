@@ -17,6 +17,8 @@
 package kayak
 
 import (
+	"sync/atomic"
+
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -29,9 +31,11 @@ func (r *Runtime) markMissingLog(index uint64) {
 	rawItem, _ := r.waitLogMap.LoadOrStore(index, newWaitItem(index))
 	item := rawItem.(*waitItem)
 
-	select {
-	case <-r.stopCh:
-	case r.missingLogCh <- item:
+	if atomic.CompareAndSwapInt32(&item.processing, 0, 1) {
+		select {
+		case <-r.stopCh:
+		case r.missingLogCh <- item:
+		}
 	}
 }
 
@@ -70,6 +74,7 @@ func (r *Runtime) executeMissingWaits(waitItem *waitItem) {
 	}
 
 	go func() {
+		defer atomic.StoreInt32(&waitItem.processing, 0)
 		waitItem.waitLock.Lock()
 		defer waitItem.waitLock.Unlock()
 		r.peersLock.RLock()

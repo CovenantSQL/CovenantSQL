@@ -37,8 +37,6 @@ const (
 	commitWindow = 0
 	// missing log window
 	missingLogWindow = 10
-	// missing log concurrency
-	missingLogConcurrency = 10
 )
 
 // Runtime defines the main kayak Runtime.
@@ -262,9 +260,7 @@ func (r *Runtime) Start() (err error) {
 	// start commit cycle
 	r.goFunc(r.commitCycle)
 	// start missing log worker
-	for i := 0; i != missingLogConcurrency; i++ {
-		r.goFunc(r.missingLogCycle)
-	}
+	r.goFunc(r.missingLogCycle)
 
 	return
 }

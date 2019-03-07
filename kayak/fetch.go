@@ -37,63 +37,60 @@ func (r *Runtime) markMissingLog(index uint64) {
 
 func (r *Runtime) missingLogCycle() {
 	for {
-		var waitItem *waitItem
-
 		select {
 		case <-r.stopCh:
 			return
-		case waitItem = <-r.missingLogCh:
+		case waitItem := <-r.missingLogCh:
+			if waitItem != nil {
+				r.executeMissingWaits(waitItem)
+			}
+		}
+	}
+}
+
+func (r *Runtime) executeMissingWaits(waitItem *waitItem) {
+	var (
+		req = &kt.FetchRequest{
+			Instance: r.instanceID,
+			Index:    waitItem.index,
+		}
+		resp = &kt.FetchResponse{}
+		err  error
+	)
+
+	// check existence
+	if _, err = r.wal.Get(waitItem.index); err == nil {
+		// already exists
+		log.WithFields(log.Fields{
+			"index":    waitItem.index,
+			"instance": r.instanceID,
+		}).Debug("log already exists")
+		r.triggerLogAwaits(waitItem.index)
+		return
+	}
+
+	go func() {
+		waitItem.waitLock.Lock()
+		defer waitItem.waitLock.Unlock()
+		r.peersLock.RLock()
+		defer r.peersLock.RUnlock()
+
+		if err = r.getCaller(r.peers.Leader).Call(r.fetchRPCMethod, req, resp); err != nil {
+			log.WithFields(log.Fields{
+				"index":    waitItem.index,
+				"instance": r.instanceID,
+			}).WithError(err).Debug("fetch log failed")
+			return
 		}
 
-		// execute
-		func() {
-			r.peersLock.RLock()
-			defer r.peersLock.RUnlock()
-
-			if waitItem == nil {
-				return
-			}
-
-			waitItem.waitLock.Lock()
-			defer waitItem.waitLock.Unlock()
-
-			var (
-				req = &kt.FetchRequest{
-					Instance: r.instanceID,
-					Index:    waitItem.index,
-				}
-				resp = &kt.FetchResponse{}
-				err  error
-			)
-
-			// check existence
-			if _, err = r.wal.Get(waitItem.index); err == nil {
-				// already exists
+		// call follower apply
+		if resp.Log != nil {
+			if err = r.FollowerApply(resp.Log); err != nil {
 				log.WithFields(log.Fields{
 					"index":    waitItem.index,
 					"instance": r.instanceID,
-				}).Debug("log already exists")
-				r.triggerLogAwaits(waitItem.index)
-				return
+				}).WithError(err).Debug("apply log failed")
 			}
-
-			if err = r.getCaller(r.peers.Leader).Call(r.fetchRPCMethod, req, resp); err != nil {
-				log.WithFields(log.Fields{
-					"index":    waitItem.index,
-					"instance": r.instanceID,
-				}).WithError(err).Debug("fetch log failed")
-				return
-			}
-
-			// call follower apply
-			if resp.Log != nil {
-				if err = r.FollowerApply(resp.Log); err != nil {
-					log.WithFields(log.Fields{
-						"index":    waitItem.index,
-						"instance": r.instanceID,
-					}).WithError(err).Debug("apply log failed")
-				}
-			}
-		}()
-	}
+		}
+	}()
 }

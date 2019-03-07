@@ -637,6 +637,11 @@ func (c *Chain) sync() {
 		}
 		for c.rt.getNextTurn() <= height {
 			c.syncHead()
+			c.stat()
+			c.pruneBlockCache()
+			c.rt.setNextTurn()
+			c.ai.advance(c.rt.getMinValidHeight())
+			c.heights <- c.rt.getHead().Height
 		}
 	}
 }

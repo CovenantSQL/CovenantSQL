@@ -577,6 +577,10 @@ func (c *Chain) syncHead() {
 
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
+		"using_timestamp": now.Format(time.RFC3339Nano),
+	})
+
 	defer func() {
 		c.stat()
 		c.pruneBlockCache()
@@ -584,12 +588,12 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		c.ai.advance(c.rt.getMinValidHeight())
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
-		c.heights <- c.rt.getHead().Height
+		select {
+		case c.heights <- c.rt.getHead().Height:
+		case <-c.rt.ctx.Done():
+			le.Debug("abort publishing height")
+		}
 	}()
-
-	le := c.logEntryWithHeadState().WithFields(log.Fields{
-		"using_timestamp": now.Format(time.RFC3339Nano),
-	})
 
 	le.Debug("run current turn")
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {

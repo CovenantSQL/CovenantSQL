@@ -990,7 +990,7 @@ func (c *Chain) stat() {
 
 func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err error) {
 	le := c.logEntryWithHeadState()
-	le.WithFields(log.Fields{"given_height": h}).Debug("begin to billing")
+	le.WithFields(log.Fields{"given_height": h}).Info("begin to billing")
 	var (
 		i, j      uint64
 		iter      *blockNode
@@ -1003,7 +1003,7 @@ func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err 
 
 	for iter = node; iter != nil && iter.height > h; iter = iter.parent {
 	}
-	for i = 0; i < c.updatePeriod && iter != nil && iter.height > minHeight; i++ {
+	for iter != nil && iter.height > minHeight {
 		var block = iter.block
 		// Not cached, recover from storage
 		if block == nil {

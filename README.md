@@ -57,6 +57,9 @@ sql.Open("CovenantSQL", dbURI)
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
+## How it works
+[How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
+
 ## Papers
 Our team members published:
 

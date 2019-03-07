@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo nameserver 114.114.114.114 > /etc/resolv.conf
+# echo nameserver 114.114.114.114 > /etc/resolv.conf
 
 [ -s "${COVENANT_ALERT}" ] && [ -x "${COVENANT_ALERT}" ] && (eval "${COVENANT_ALERT}")
 

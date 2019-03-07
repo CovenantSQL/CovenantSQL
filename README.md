@@ -114,8 +114,8 @@ Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitt
 
 ## Contact
 
+- [Blog](https://medium.com/@covenant_labs)
 - [YouTube](https://www.youtube.com/channel/UCe9P_TMiexSHW2GGV5qBmZw)
-- [Blog](https://medium.com/me/stories/public)
 - [Mail](mailto:webmaster@covenantsql.io)
 - [Forum](https://demo.covenantsql.io/forum/)
 - <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs"><img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs" alt="follow on Twitter"></a>

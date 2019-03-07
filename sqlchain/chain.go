@@ -1079,6 +1079,7 @@ func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err 
 	return
 }
 
+// SetLastBillingHeight sets the last billing height of this chain instance.
 func (c *Chain) SetLastBillingHeight(h int32) {
 	c.logEntryWithHeadState().WithFields(
 		log.Fields{"new_height": h}).Debug("set last billing height")

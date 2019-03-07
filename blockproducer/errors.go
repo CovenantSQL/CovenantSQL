@@ -54,6 +54,8 @@ var (
 	ErrUnknownTransactionType = errors.New("unknown transaction type")
 	// ErrInvalidSender indicates that tx.Signee != tx.Sender.
 	ErrInvalidSender = errors.New("invalid sender")
+	// ErrInvalidRange indicates that the billing range is invalid.
+	ErrInvalidRange = errors.New("invalid billing range")
 	// ErrNoSuchMiner indicates that this miner does not exist or register.
 	ErrNoSuchMiner = errors.New("no such miner")
 	// ErrNoEnoughMiner indicates that there is not enough miners

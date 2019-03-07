@@ -42,9 +42,9 @@ type Config struct {
 	BlockCacheTTL int32
 
 	// DBAccount info
-	TokenType    types.TokenType
-	GasPrice     uint64
-	UpdatePeriod uint64
-
-	IsolationLevel int
+	TokenType         types.TokenType
+	GasPrice          uint64
+	UpdatePeriod      uint64
+	LastBillingHeight int32
+	IsolationLevel    int
 }

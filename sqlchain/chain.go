@@ -577,6 +577,7 @@ func (c *Chain) syncHead() {
 
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
+	h := c.rt.getNextTurn()
 	le := c.logEntryWithHeadState().WithFields(log.Fields{
 		"using_timestamp": now.Format(time.RFC3339Nano),
 	})
@@ -589,7 +590,7 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
 		select {
-		case c.heights <- c.rt.getHead().Height:
+		case c.heights <- h:
 		case <-c.rt.ctx.Done():
 			le.Debug("abort publishing height")
 		}
@@ -682,9 +683,8 @@ func (c *Chain) processBlocks(ctx context.Context) {
 		select {
 		case h := <-c.heights:
 			// Trigger billing
-			head := c.rt.getHead()
 			if uint64(h)%c.updatePeriod == 0 {
-				ub, err := c.billing(h, head.node)
+				ub, err := c.billing(h, c.rt.getHead().node)
 				if err != nil {
 					le.WithError(err).Error("billing failed")
 				}
@@ -737,7 +737,6 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				} else {
 					if err := c.CheckAndPushNewBlock(block); err != nil {
 						le.WithError(err).Error("failed to check and push new block")
-					} else {
 					}
 				}
 			}
@@ -996,7 +995,7 @@ func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err 
 		iter      *blockNode
 		minerAddr proto.AccountAddress
 		userAddr  proto.AccountAddress
-		minHeight = h - int32(c.updatePeriod)
+		minHeight = c.rt.getLastBillingHeight()
 		usersMap  = make(map[proto.AccountAddress]uint64)
 		minersMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
 	)
@@ -1075,7 +1074,15 @@ func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err 
 		i++
 	}
 	ub.Receiver, err = c.databaseID.AccountAddress()
+	ub.Range.From = uint32(minHeight)
+	ub.Range.To = uint32(h)
 	return
+}
+
+func (c *Chain) SetLastBillingHeight(h int32) {
+	c.logEntryWithHeadState().WithFields(
+		log.Fields{"new_height": h}).Debug("set last billing height")
+	c.rt.setLastBillingHeight(h)
 }
 
 func (c *Chain) logEntry() *log.Entry {

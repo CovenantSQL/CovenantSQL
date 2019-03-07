@@ -1163,6 +1163,10 @@ func TestMetaState(t *testing.T) {
 								},
 							},
 						},
+						Range: types.Range{
+							From: 0,
+							To:   10,
+						},
 					})
 					nonce, err = ms.nextNonce(addr2)
 					So(err, ShouldBeNil)
@@ -1341,6 +1345,10 @@ func TestMetaState(t *testing.T) {
 						UpdateBillingHeader: types.UpdateBillingHeader{
 							Receiver: addr1,
 							Nonce:    up.Nonce,
+							Range: types.Range{
+								From: 0,
+								To:   10,
+							},
 						},
 					}
 					err = ub1.Sign(privKey1)
@@ -1427,6 +1435,10 @@ func TestMetaState(t *testing.T) {
 							Receiver: dbAccount,
 							Users:    users[:],
 							Nonce:    2,
+							Range: types.Range{
+								From: 0,
+								To:   10,
+							},
 						},
 					}
 					err = ub2.Sign(privKey2)
@@ -1474,6 +1486,10 @@ func TestMetaState(t *testing.T) {
 							Receiver: dbAccount,
 							Users:    users[:],
 							Nonce:    3,
+							Range: types.Range{
+								From: 10,
+								To:   20,
+							},
 						},
 					}
 					err = ub3.Sign(privKey2)

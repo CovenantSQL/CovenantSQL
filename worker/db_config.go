@@ -33,6 +33,7 @@ type DBConfig struct {
 	EncryptionKey          string
 	SpaceLimit             uint64
 	UpdateBlockCount       uint64
+	LastBillingHeight      int32
 	UseEventualConsistency bool
 	ConsistencyLevel       float64
 	IsolationLevel         int

@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -59,6 +60,32 @@ func randStringBytes(n int) string {
 	return string(b)
 }
 
+func generateRandomTransferHeader() (header *TransferHeader, err error) {
+	header = &TransferHeader{
+		Nonce:     pi.AccountNonce(rand.Uint64()),
+		Amount:    rand.Uint64(),
+		TokenType: TokenType(rand.Intn(int(SupportTokenNumber))),
+	}
+	return
+}
+
+func generateRandomTransfer() (tx *Transfer, err error) {
+	header, err := generateRandomTransferHeader()
+	if err != nil {
+		return
+
+	}
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		return
+	}
+	tx = NewTransfer(header)
+	if err = tx.Sign(priv); err != nil {
+		return
+	}
+	return
+}
+
 func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err error) {
 	// Generate key pair
 	priv, _, err := asymmetric.GenSecp256k1KeyPair()
@@ -82,7 +109,7 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err erro
 	}
 
 	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
-		tb, err := generateRandomBilling()
+		tb, err := generateRandomTransfer()
 		if err != nil {
 			return nil, err
 

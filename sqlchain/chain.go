@@ -625,6 +625,11 @@ func (c *Chain) mainCycle(ctx context.Context) {
 func (c *Chain) sync() {
 	le := c.logEntry()
 	le.Debug("synchronizing chain state")
+	defer func() {
+		c.stat()
+		c.pruneBlockCache()
+		c.ai.advance(c.rt.getMinValidHeight())
+	}()
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)
@@ -637,11 +642,7 @@ func (c *Chain) sync() {
 		}
 		for c.rt.getNextTurn() <= height {
 			c.syncHead()
-			c.stat()
-			c.pruneBlockCache()
 			c.rt.setNextTurn()
-			c.ai.advance(c.rt.getMinValidHeight())
-			c.heights <- c.rt.getHead().Height
 		}
 	}
 }
@@ -673,8 +674,38 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 	var stash []*types.Block
 	for {
+		le := c.logEntryWithHeadState()
 		select {
 		case h := <-c.heights:
+			// Trigger billing
+			head := c.rt.getHead()
+			if uint64(h)%c.updatePeriod == 0 {
+				ub, err := c.billing(h, head.node)
+				if err != nil {
+					le.WithError(err).Error("billing failed")
+				}
+				// allocate nonce
+				nonceReq := &types.NextAccountNonceReq{}
+				nonceResp := &types.NextAccountNonceResp{}
+				nonceReq.Addr = *c.addr
+				if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+					// allocate nonce failed
+					le.WithError(err).Warning("allocate nonce for transaction failed")
+				}
+				ub.Nonce = nonceResp.Nonce
+				if err = ub.Sign(c.pk); err != nil {
+					le.WithError(err).Warning("sign tx failed")
+				}
+
+				addTxReq := &types.AddTxReq{TTL: 1}
+				addTxResp := &types.AddTxResp{}
+				addTxReq.Tx = ub
+				le.Debugf("nonce in processBlocks: %d, addr: %s",
+					addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
+				if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
+					le.WithError(err).Warning("send tx failed")
+				}
+			}
 			// Return all stashed blocks to pending channel
 			c.logEntryWithHeadState().WithFields(log.Fields{
 				"height": h,
@@ -687,11 +718,10 @@ func (c *Chain) processBlocks(ctx context.Context) {
 			}
 		case block := <-c.blocks:
 			height := c.rt.getHeightFromTime(block.Timestamp())
-			le := c.logEntryWithHeadState().WithFields(log.Fields{
+			le.WithFields(log.Fields{
 				"block_height": height,
 				"block_hash":   block.BlockHash().String(),
-			})
-			le.Debug("processing new block")
+			}).Debug("processing new block")
 
 			if height > c.rt.getNextTurn()-1 {
 				// Stash newer blocks for later check
@@ -704,35 +734,6 @@ func (c *Chain) processBlocks(ctx context.Context) {
 					if err := c.CheckAndPushNewBlock(block); err != nil {
 						le.WithError(err).Error("failed to check and push new block")
 					} else {
-						head := c.rt.getHead()
-						currentCount := uint64(head.node.count)
-						if currentCount%c.updatePeriod == 0 {
-							ub, err := c.billing(head.node)
-							if err != nil {
-								le.WithError(err).Error("billing failed")
-							}
-							// allocate nonce
-							nonceReq := &types.NextAccountNonceReq{}
-							nonceResp := &types.NextAccountNonceResp{}
-							nonceReq.Addr = *c.addr
-							if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
-								// allocate nonce failed
-								le.WithError(err).Warning("allocate nonce for transaction failed")
-							}
-							ub.Nonce = nonceResp.Nonce
-							if err = ub.Sign(c.pk); err != nil {
-								le.WithError(err).Warning("sign tx failed")
-							}
-
-							addTxReq := &types.AddTxReq{TTL: 1}
-							addTxResp := &types.AddTxResp{}
-							addTxReq.Tx = ub
-							le.Debugf("nonce in processBlocks: %d, addr: %s",
-								addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
-							if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
-								le.WithError(err).Warning("send tx failed")
-							}
-						}
 					}
 				}
 			}
@@ -983,28 +984,33 @@ func (c *Chain) stat() {
 	c.st.Stat(c.databaseID)
 }
 
-func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
-	log.WithField("db", c.databaseID).Debugf("begin to billing from count %d", node.count)
+func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err error) {
+	le := c.logEntryWithHeadState()
+	le.WithFields(log.Fields{"given_height": h}).Debug("begin to billing")
 	var (
 		i, j      uint64
+		iter      *blockNode
 		minerAddr proto.AccountAddress
 		userAddr  proto.AccountAddress
+		minHeight = h - int32(c.updatePeriod)
 		usersMap  = make(map[proto.AccountAddress]uint64)
 		minersMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
 	)
 
-	for i = 0; i < c.updatePeriod && node != nil; i++ {
-		var block = node.block
+	for iter = node; iter != nil && iter.height > h; iter = iter.parent {
+	}
+	for i = 0; i < c.updatePeriod && iter != nil && iter.height > minHeight; i++ {
+		var block = iter.block
 		// Not cached, recover from storage
 		if block == nil {
-			if block, err = c.FetchBlock(node.height); err != nil {
+			if block, err = c.FetchBlock(iter.height); err != nil {
 				return
 			}
 		}
 		for _, tx := range block.QueryTxs {
 			minerAddr = tx.Response.ResponseAccount
 			if userAddr, err = crypto.PubKeyHash(tx.Request.Header.Signee); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
+				le.WithError(err).Warning("billing fail: miner addr")
 				return
 			}
 
@@ -1022,11 +1028,11 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 
 		for _, req := range block.FailedReqs {
 			if minerAddr, err = crypto.PubKeyHash(block.Signee()); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
+				le.WithError(err).Warning("billing fail: miner addr")
 				return
 			}
 			if userAddr, err = crypto.PubKeyHash(req.Header.Signee); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: user addr")
+				le.WithError(err).Warning("billing fail: user addr")
 				return
 			}
 			if _, ok := minersMap[userAddr][minerAddr]; !ok {
@@ -1036,7 +1042,7 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 			minersMap[userAddr][minerAddr] += uint64(len(req.Payload.Queries))
 			usersMap[userAddr] += uint64(len(req.Payload.Queries))
 		}
-		node = node.parent
+		iter = iter.parent
 	}
 
 	ub = types.NewUpdateBilling(&types.UpdateBillingHeader{
@@ -1046,7 +1052,7 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 	i = 0
 	j = 0
 	for userAddr, cost := range usersMap {
-		log.WithField("db", c.databaseID).Debugf("user %s, cost %d", userAddr.String(), cost)
+		le.Debugf("user %s, cost %d", userAddr.String(), cost)
 		ub.Users[i] = &types.UserCost{
 			User: userAddr,
 			Cost: cost,

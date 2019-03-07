@@ -34,17 +34,6 @@ type AdviseNewBlockResp struct {
 	proto.Envelope
 }
 
-// AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
-type AdviseTxBillingReq struct {
-	proto.Envelope
-	TxBilling *Billing
-}
-
-// AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
-type AdviseTxBillingResp struct {
-	proto.Envelope
-}
-
 // FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	proto.Envelope

@@ -509,21 +509,6 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	return
 }
 
-func (s *metaState) applyBilling(tx *types.Billing) (err error) {
-	for i, v := range tx.Receivers {
-		// Create empty receiver account if not found
-		s.loadOrStoreAccountObject(*v, &types.Account{Address: *v})
-
-		if err = s.increaseAccountCovenantBalance(*v, tx.Fees[i]); err != nil {
-			return
-		}
-		if err = s.increaseAccountStableBalance(*v, tx.Rewards[i]); err != nil {
-			return
-		}
-	}
-	return
-}
-
 func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
@@ -1135,8 +1120,6 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 			err = s.transferAccountToken(t)
 		}
 		return
-	case *types.Billing:
-		err = s.applyBilling(t)
 	case *types.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &t.Account)
 	case *types.ProvideService:

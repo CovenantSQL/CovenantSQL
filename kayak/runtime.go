@@ -364,58 +364,7 @@ func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error
 
 // FollowerApply defines entry for follower node.
 func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
-	if l == nil {
-		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
-		return
-	}
-	if atomic.LoadUint32(&r.started) != 1 {
-		err = kt.ErrStopped
-		return
-	}
-
-	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply."+l.Type.String())
-	defer task.End()
-
-	tm := timer.NewTimer()
-
-	defer func() {
-		log.
-			WithFields(log.Fields{
-				"t": l.Type.String(),
-				"i": l.Index,
-			}).
-			WithFields(tm.ToLogFields()).
-			WithError(err).
-			Debug("kayak follower apply")
-	}()
-
-	r.peersLock.RLock()
-	defer r.peersLock.RUnlock()
-
-	tm.Add("peers_lock")
-
-	if r.role == proto.Leader {
-		// not follower
-		err = kt.ErrNotFollower
-		return
-	}
-
-	// verify log structure
-	switch l.Type {
-	case kt.LogPrepare:
-		err = r.followerPrepare(ctx, tm, l)
-	case kt.LogRollback:
-		err = r.followerRollback(ctx, tm, l)
-	case kt.LogCommit:
-		err = r.followerCommit(ctx, tm, l)
-	}
-
-	if err == nil {
-		r.updateNextIndex(ctx, l)
-		r.triggerLogAwaits(l.Index)
-	}
-
-	return
+	return r.followerApply(l, true)
 }
 
 // UpdatePeers defines entry for peers update logic.
@@ -462,4 +411,59 @@ func (r *Runtime) markPrepareFinished(ctx context.Context, index uint64) {
 	defer r.pendingPreparesLock.Unlock()
 
 	delete(r.pendingPrepares, index)
+}
+
+func (r *Runtime) followerApply(l *kt.Log, checkPrepare bool) (err error) {
+	if l == nil {
+		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
+		return
+	}
+	if atomic.LoadUint32(&r.started) != 1 {
+		err = kt.ErrStopped
+		return
+	}
+
+	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply."+l.Type.String())
+	defer task.End()
+
+	tm := timer.NewTimer()
+
+	defer func() {
+		log.
+			WithFields(log.Fields{
+				"t": l.Type.String(),
+				"i": l.Index,
+			}).
+			WithFields(tm.ToLogFields()).
+			WithError(err).
+			Debug("kayak follower apply")
+	}()
+
+	r.peersLock.RLock()
+	defer r.peersLock.RUnlock()
+
+	tm.Add("peers_lock")
+
+	if r.role == proto.Leader {
+		// not follower
+		err = kt.ErrNotFollower
+		return
+	}
+
+	// verify log structure
+	switch l.Type {
+	case kt.LogPrepare:
+		err = r.followerPrepare(ctx, tm, l, checkPrepare)
+	case kt.LogRollback:
+		err = r.followerRollback(ctx, tm, l)
+	case kt.LogCommit:
+		err = r.followerCommit(ctx, tm, l)
+	}
+
+	if err == nil {
+		r.updateNextIndex(ctx, l)
+		r.triggerLogAwaits(l.Index)
+	}
+
+	return
 }

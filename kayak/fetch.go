@@ -90,7 +90,7 @@ func (r *Runtime) executeMissingWaits(waitItem *waitItem) {
 
 		// call follower apply
 		if resp.Log != nil {
-			if err = r.FollowerApply(resp.Log); err != nil {
+			if err = r.followerApply(resp.Log, false); err != nil {
 				log.WithFields(log.Fields{
 					"index":    waitItem.index,
 					"instance": r.instanceID,

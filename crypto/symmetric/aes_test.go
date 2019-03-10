@@ -30,6 +30,18 @@ const (
 )
 
 func TestEncryptDecryptWithPassword(t *testing.T) {
+	Convey("encrypt & decrypt 0 length string with aes256", t, func() {
+		enc, err := EncryptWithPassword([]byte(""), []byte(password), []byte(salt))
+		So(enc, ShouldNotBeNil)
+		So(len(enc), ShouldEqual, 2*aes.BlockSize)
+		So(err, ShouldBeNil)
+
+		dec, err := DecryptWithPassword(enc, []byte(password), []byte(salt))
+		So(dec, ShouldNotBeNil)
+		So(len(dec), ShouldEqual, 0)
+		So(err, ShouldBeNil)
+	})
+
 	Convey("encrypt & decrypt 0 length bytes with aes256", t, func() {
 		enc, err := EncryptWithPassword([]byte(nil), []byte(password), []byte(salt))
 		So(enc, ShouldNotBeNil)

@@ -715,7 +715,9 @@ func startAPI(service *Service, listenAddr string, version string) (server *http
 		WriteTimeout: apiTimeout * 10,
 		ReadTimeout:  apiTimeout,
 		IdleTimeout:  apiTimeout,
-		Handler:      handlers.CORS()(router),
+		Handler: handlers.CORS(
+			handlers.AllowedHeaders([]string{"Content-Type"}),
+		)(router),
 	}
 
 	go func() {

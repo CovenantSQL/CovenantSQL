@@ -47,7 +47,9 @@ func NewHTTPAdapter(listenAddr string, configFile string) (adapter *HTTPAdapter,
 		cfg.ListenAddr = listenAddr
 	}
 	// init server
-	handler := handlers.CORS()(api.GetRouter())
+	handler := handlers.CORS(
+		handlers.AllowedHeaders([]string{"Content-Type"}),
+	)(api.GetRouter())
 
 	adapter.server = &http.Server{
 		TLSConfig: cfg.TLSConfig,

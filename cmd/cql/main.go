@@ -601,7 +601,7 @@ func main() {
 
 	// if web flag is enabled
 	if explorerAddr != "" || adapterAddr != "" {
-		fmt.Printf("Ctrl + C to stop explorer on %s and adapter on %s", explorerAddr, adapterAddr)
+		fmt.Printf("Ctrl + C to stop explorer on %s and adapter on %s\n", explorerAddr, adapterAddr)
 		<-utils.WaitForExit()
 		return
 	}

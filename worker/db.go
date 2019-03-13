@@ -166,13 +166,12 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		MuxService: cfg.ChainMux,
 		Server:     db.nodeID,
 
-		Period:   conf.GConf.SQLChainPeriod,
-		Tick:     conf.GConf.SQLChainTick,
-		QueryTTL: conf.GConf.SQLChainTTL,
-
-		UpdatePeriod: cfg.UpdateBlockCount,
-
-		IsolationLevel: cfg.IsolationLevel,
+		Period:            conf.GConf.SQLChainPeriod,
+		Tick:              conf.GConf.SQLChainTick,
+		QueryTTL:          conf.GConf.SQLChainTTL,
+		LastBillingHeight: cfg.LastBillingHeight,
+		UpdatePeriod:      cfg.UpdateBlockCount,
+		IsolationLevel:    cfg.IsolationLevel,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return

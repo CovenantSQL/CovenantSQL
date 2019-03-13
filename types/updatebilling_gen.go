@@ -28,6 +28,23 @@ func (z *MinerIncome) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
+func (z Range) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = hsp.Require(b, z.Msgsize())
+	// map header, size 2
+	o = append(o, 0x82)
+	o = hsp.AppendUint32(o, z.From)
+	o = hsp.AppendUint32(o, z.To)
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z Range) Msgsize() (s int) {
+	s = 1 + 5 + hsp.Uint32Size + 3 + hsp.Uint32Size
+	return
+}
+
+// MarshalHash marshals for hash
 func (z *UpdateBilling) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
@@ -61,13 +78,17 @@ func (z *UpdateBilling) Msgsize() (s int) {
 func (z *UpdateBillingHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 3
-	o = append(o, 0x83)
+	// map header, size 4
+	o = append(o, 0x84)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
+	// map header, size 2
+	o = append(o, 0x82)
+	o = hsp.AppendUint32(o, z.Range.From)
+	o = hsp.AppendUint32(o, z.Range.To)
 	if oTemp, err := z.Receiver.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -90,7 +111,7 @@ func (z *UpdateBillingHeader) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *UpdateBillingHeader) Msgsize() (s int) {
-	s = 1 + 6 + z.Nonce.Msgsize() + 9 + z.Receiver.Msgsize() + 6 + hsp.ArrayHeaderSize
+	s = 1 + 6 + z.Nonce.Msgsize() + 6 + 1 + 5 + hsp.Uint32Size + 3 + hsp.Uint32Size + 9 + z.Receiver.Msgsize() + 6 + hsp.ArrayHeaderSize
 	for za0001 := range z.Users {
 		if z.Users[za0001] == nil {
 			s += hsp.NilSize

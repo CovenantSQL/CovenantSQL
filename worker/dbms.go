@@ -182,9 +182,42 @@ func (dbms *DBMS) Init() (err error) {
 		err = errors.Wrap(err, "init chain bus failed")
 		return
 	}
+	if err = dbms.busService.Subscribe("/UpdateBilling/", dbms.updateBilling); err != nil {
+		err = errors.Wrap(err, "init chain bus failed")
+		return
+	}
 	dbms.busService.Start()
 
 	return
+}
+
+func (dbms *DBMS) updateBilling(itx interfaces.Transaction, count uint32) {
+	var (
+		tx *types.UpdateBilling
+		ok bool
+	)
+	if tx, ok = itx.(*types.UpdateBilling); !ok {
+		log.WithFields(log.Fields{
+			"type": itx.GetTransactionType(),
+		}).WithError(ErrInvalidTransactionType).Warn("invalid tx type in update billing")
+		return
+	}
+	// Get profile and database instance
+	var (
+		id       = tx.Receiver.DatabaseID()
+		profile  *types.SQLChainProfile
+		database *Database
+	)
+	le := log.WithFields(log.Fields{
+		"id": id,
+	})
+	if database, ok = dbms.getMeta(id); !ok {
+		le.Warn("cannot find database")
+	}
+	if profile, ok = dbms.busService.RequestSQLProfile(id); !ok {
+		le.Warn("cannot find profile")
+	}
+	database.chain.SetLastBillingHeight(int32(profile.LastUpdatedHeight))
 }
 
 func (dbms *DBMS) createDatabase(tx interfaces.Transaction, count uint32) {
@@ -399,6 +432,11 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 		SlowQueryTime:          DefaultSlowQueryTime,
 	}
 
+	// set last billing height
+	if profile, ok := dbms.busService.RequestSQLProfile(dbCfg.DatabaseID); ok {
+		dbCfg.LastBillingHeight = int32(profile.LastUpdatedHeight)
+	}
+
 	if db, err = NewDatabase(dbCfg, instance.Peers, instance.GenesisBlock); err != nil {
 		return
 	}
@@ -541,17 +579,17 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 	switch queryType {
 	case types.ReadQuery:
 		if !permStat.Permission.HasReadPermission() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %d", permStat.Permission)
+			err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %v", permStat.Permission)
 			return
 		}
 	case types.WriteQuery:
 		if !permStat.Permission.HasWritePermission() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %d", permStat.Permission)
+			err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %v", permStat.Permission)
 			return
 		}
 	default:
 		err = errors.Wrapf(ErrInvalidPermission,
-			"invalid permission, permission: %d", permStat.Permission)
+			"invalid permission, permission: %v", permStat.Permission)
 		return
 	}
 

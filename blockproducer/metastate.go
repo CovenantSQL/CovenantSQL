@@ -509,21 +509,6 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	return
 }
 
-func (s *metaState) applyBilling(tx *types.Billing) (err error) {
-	for i, v := range tx.Receivers {
-		// Create empty receiver account if not found
-		s.loadOrStoreAccountObject(*v, &types.Account{Address: *v})
-
-		if err = s.increaseAccountCovenantBalance(*v, tx.Fees[i]); err != nil {
-			return
-		}
-		if err = s.increaseAccountStableBalance(*v, tx.Rewards[i]); err != nil {
-			return
-		}
-	}
-	return
-}
-
 func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
@@ -922,6 +907,12 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
 		return
 	}
+	if tx.Range.From >= tx.Range.To || newProfile.LastUpdatedHeight != tx.Range.From {
+		err = errors.Wrapf(ErrInvalidRange,
+			"update billing within range %d:(%d, %d]",
+			newProfile.LastUpdatedHeight, tx.Range.From, tx.Range.To)
+		return
+	}
 	log.Debugf("update billing addr: %s, user: %d, tx: %v", tx.GetAccountAddress(), len(tx.Users), tx)
 
 	if newProfile.GasPrice == 0 {
@@ -995,6 +986,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 			}
 		}
 	}
+	newProfile.LastUpdatedHeight = tx.Range.To
 	s.dirty.databases[tx.Receiver.DatabaseID()] = newProfile
 	return
 }
@@ -1135,8 +1127,6 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 			err = s.transferAccountToken(t)
 		}
 		return
-	case *types.Billing:
-		err = s.applyBilling(t)
 	case *types.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &t.Account)
 	case *types.ProvideService:

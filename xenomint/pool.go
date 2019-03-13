@@ -50,6 +50,7 @@ type pool struct {
 	// Failed queries: hash => Request
 	failed map[hash.Hash]*types.Request
 	// Succeeded queries and their index
+	reads   map[hash.Hash]*QueryTracker
 	queries []*QueryTracker
 	index   map[uint64]int
 	// Atomic counters for stats
@@ -60,6 +61,7 @@ type pool struct {
 func newPool() *pool {
 	return &pool{
 		failed:  make(map[hash.Hash]*types.Request),
+		reads:   make(map[hash.Hash]*QueryTracker),
 		queries: make([]*QueryTracker, 0),
 		index:   make(map[uint64]int),
 	}
@@ -71,6 +73,11 @@ func (p *pool) enqueue(sp uint64, q *QueryTracker) {
 	p.index[sp] = pos
 	atomic.StoreInt32(&p.trackerCount, int32(len(p.queries)))
 	return
+}
+
+func (p *pool) enqueueRead(q *QueryTracker) {
+	// NOTE(leventeliu): this overwrites any request with a same hash
+	p.reads[q.Req.Header.Hash()] = q
 }
 
 func (p *pool) setFailed(req *types.Request) {

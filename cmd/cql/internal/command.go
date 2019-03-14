@@ -81,7 +81,7 @@ func (t *SqTime) parse(s string) error {
 }
 
 // UsqlRegister init xo/usql driver
-func UsqlRegister(dsn string) {
+func UsqlRegister() {
 	// set command name of usql
 	text.CommandName = "covenantsql"
 
@@ -155,7 +155,7 @@ func UsqlRegister(dsn string) {
 			// wait for database to become ready
 			ctx, cancel := context.WithTimeout(context.Background(), WaitTxConfirmationMaxDuration)
 			defer cancel()
-			if err = client.WaitDBCreation(ctx, dsn); err != nil {
+			if err = client.WaitDBCreation(ctx, url.DSN); err != nil {
 				return
 			}
 

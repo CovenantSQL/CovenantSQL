@@ -448,7 +448,7 @@ func main() {
 		return
 	}
 
-	internal.UsqlRegister(dsn)
+	internal.UsqlRegister()
 
 	var (
 		curUser   *user.User

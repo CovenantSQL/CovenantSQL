@@ -19,7 +19,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -35,10 +34,8 @@ import (
 	"strings"
 	"time"
 
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/env"
 	"github.com/xo/usql/handler"
@@ -47,6 +44,7 @@ import (
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -57,8 +55,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
-
-const name = "cql"
 
 var (
 	version           = "unknown"
@@ -131,107 +127,6 @@ func (v *varsFlag) Set(value string) error {
 	return nil
 }
 
-func usqlRegister() {
-	// set command name of usql
-	text.CommandName = "covenantsql"
-
-	// register SQLite3 database
-	drivers.Register("sqlite3", drivers.Driver{
-		AllowMultilineComments: true,
-		ForceParams: drivers.ForceQueryParameters([]string{
-			"loc", "auto",
-		}),
-		Version: func(db drivers.DB) (string, error) {
-			var ver string
-			err := db.QueryRow(`SELECT sqlite_version()`).Scan(&ver)
-			if err != nil {
-				return "", err
-			}
-			return "SQLite3 " + ver, nil
-		},
-		Err: func(err error) (string, string) {
-			if e, ok := err.(sqlite3.Error); ok {
-				return strconv.Itoa(int(e.Code)), e.Error()
-			}
-
-			code, msg := "", err.Error()
-			if e, ok := err.(sqlite3.ErrNo); ok {
-				code = strconv.Itoa(int(e))
-			}
-
-			return code, msg
-		},
-		ConvertBytes: func(buf []byte, tfmt string) (string, error) {
-			// attempt to convert buf if it matches a time format, and if it
-			// does, then return a formatted time string.
-			s := string(buf)
-			if s != "" && strings.TrimSpace(s) != "" {
-				t := new(SqTime)
-				if err := t.Scan(buf); err == nil {
-					return t.Format(tfmt), nil
-				}
-			}
-			return s, nil
-		},
-	})
-
-	// register CovenantSQL database
-	drivers.Register("covenantsql", drivers.Driver{
-		AllowMultilineComments: true,
-		Version: func(db drivers.DB) (string, error) {
-			return version, nil
-		},
-		Err: func(err error) (string, string) {
-			return "", err.Error()
-		},
-		ConvertBytes: func(buf []byte, tfmt string) (string, error) {
-			// attempt to convert buf if it matches a time format, and if it
-			// does, then return a formatted time string.
-			s := string(buf)
-			if s != "" && strings.TrimSpace(s) != "" {
-				t := new(SqTime)
-				if err := t.Scan(buf); err == nil {
-					return t.Format(tfmt), nil
-				}
-			}
-			return s, nil
-		},
-		RowsAffected: func(sql.Result) (int64, error) {
-			return 0, nil
-		},
-		Open: func(url *dburl.URL) (handler func(driver string, dsn string) (*sql.DB, error), err error) {
-			cLog.Infof("connecting to %#v", url.DSN)
-
-			// wait for database to become ready
-			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
-			defer cancel()
-			if err = client.WaitDBCreation(ctx, dsn); err != nil {
-				return
-			}
-
-			return sql.Open, nil
-		},
-	})
-
-	// register covenantsql:// scheme to dburl
-	dburl.Register(dburl.Scheme{
-		Driver: "covenantsql",
-		Generator: func(url *dburl.URL) (string, error) {
-			dbID, err := dburl.GenOpaque(url)
-			if err != nil {
-				return "", err
-			}
-			cfg := client.NewConfig()
-			cfg.DatabaseID = dbID
-			return cfg.FormatDSN(), nil
-		},
-		Proto:    0,
-		Opaque:   true,
-		Aliases:  []string{},
-		Override: "",
-	})
-}
-
 func init() {
 	flag.StringVar(&dsn, "dsn", "", "Database url")
 	flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
@@ -263,6 +158,9 @@ func init() {
 }
 
 func main() {
+
+	internal.Version = version
+
 	var err error
 	// set random
 	rand.Seed(time.Now().UnixNano())
@@ -273,10 +171,10 @@ func main() {
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
-			name, version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+			internal.Name, internal.Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
-	cLog.Infof("cql build: %#v\n", version)
+	cLog.Infof("cql build: %#v\n", internal.Version)
 
 	configFile = utils.HomeDirExpand(configFile)
 
@@ -300,7 +198,7 @@ func main() {
 	log.SetStringLevel(bgLogLevel, log.InfoLevel)
 
 	if explorerAddr != "" {
-		service, httpServer, err = observer.StartObserver(explorerAddr, version)
+		service, httpServer, err = observer.StartObserver(explorerAddr, internal.Version)
 		if err != nil {
 			log.WithError(err).Fatal("start explorer failed")
 		} else {
@@ -552,7 +450,7 @@ func main() {
 		return
 	}
 
-	usqlRegister()
+	internal.UsqlRegister(cLog, waitTxConfirmationMaxDuration, dsn)
 
 	var (
 		curUser   *user.User

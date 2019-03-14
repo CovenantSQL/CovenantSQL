@@ -70,11 +70,10 @@ var (
 	variables         varsFlag
 
 	// Shard chain explorer/adapter stuff
-	tmpPath      string         // background observer and explorer block and log file path
-	cLog         *logrus.Logger // console logger
-	bgLogLevel   string         // background log level
-	explorerAddr string         // explorer Web addr
-	adapterAddr  string         // adapter listen addr
+	tmpPath      string // background observer and explorer block and log file path
+	bgLogLevel   string // background log level
+	explorerAddr string // explorer Web addr
+	adapterAddr  string // adapter listen addr
 
 	// DML variables
 	createDB                string // as a instance meta json string or simply a node count
@@ -85,9 +84,8 @@ var (
 	getBalanceWithTokenName string // get specific token's balance of current account
 	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
 
-	waitTxConfirmationMaxDuration time.Duration
-	service                       *observer.Service
-	httpServer                    *http.Server
+	service    *observer.Service
+	httpServer *http.Server
 )
 
 type userPermission struct {
@@ -167,20 +165,20 @@ func main() {
 
 	flag.Parse()
 
-	cLog = logrus.New()
+	internal.ConsoleLog = logrus.New()
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
 			internal.Name, internal.Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		os.Exit(0)
 	}
-	cLog.Infof("cql build: %#v\n", internal.Version)
+	internal.ConsoleLog.Infof("cql build: %#v\n", internal.Version)
 
 	configFile = utils.HomeDirExpand(configFile)
 
 	// init covenantsql driver
 	if err = client.Init(configFile, []byte(password)); err != nil {
-		cLog.WithError(err).Error("init covenantsql client failed")
+		internal.ConsoleLog.WithError(err).Error("init covenantsql client failed")
 		os.Exit(-1)
 		return
 	}
@@ -202,7 +200,7 @@ func main() {
 		if err != nil {
 			log.WithError(err).Fatal("start explorer failed")
 		} else {
-			cLog.Infof("explorer started on %s", explorerAddr)
+			internal.ConsoleLog.Infof("explorer started on %s", explorerAddr)
 		}
 
 		defer func() {
@@ -220,7 +218,7 @@ func main() {
 		if err = server.Serve(); err != nil {
 			log.WithError(err).Fatal("start adapter failed")
 		} else {
-			cLog.Infof("adapter started on %s", adapterAddr)
+			internal.ConsoleLog.Infof("adapter started on %s", adapterAddr)
 
 			defer func() {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -234,22 +232,22 @@ func main() {
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
-	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
+	internal.WaitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
 
 	if getBalance {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
-			cLog.WithError(err).Error("get Particle balance failed")
+			internal.ConsoleLog.WithError(err).Error("get Particle balance failed")
 			return
 		}
 		if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
-			cLog.WithError(err).Error("get Wave balance failed")
+			internal.ConsoleLog.WithError(err).Error("get Wave balance failed")
 			return
 		}
 
-		cLog.Infof("Particle balance is: %d", stableCoinBalance)
-		cLog.Infof("Wave balance is: %d", covenantCoinBalance)
+		internal.ConsoleLog.Infof("Particle balance is: %d", stableCoinBalance)
+		internal.ConsoleLog.Infof("Wave balance is: %d", covenantCoinBalance)
 
 		return
 	}
@@ -262,17 +260,17 @@ func main() {
 			for i := types.Particle; i < types.SupportTokenNumber; i++ {
 				values[i] = types.TokenList[i]
 			}
-			cLog.Errorf("no such token supporting in CovenantSQL (what we support: %s)",
+			internal.ConsoleLog.Errorf("no such token supporting in CovenantSQL (what we support: %s)",
 				strings.Join(values, ", "))
 			os.Exit(-1)
 			return
 		}
 		if tokenBalance, err = client.GetTokenBalance(tokenType); err != nil {
-			cLog.WithError(err).Error("get token balance failed")
+			internal.ConsoleLog.WithError(err).Error("get token balance failed")
 			os.Exit(-1)
 			return
 		}
-		cLog.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
+		internal.ConsoleLog.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
 		return
 	}
 
@@ -288,7 +286,7 @@ func main() {
 		txHash, err := client.Drop(dropDB)
 		if err != nil {
 			// drop database failed
-			cLog.WithField("db", dropDB).WithError(err).Error("drop database failed")
+			internal.ConsoleLog.WithField("db", dropDB).WithError(err).Error("drop database failed")
 			return
 		}
 
@@ -297,7 +295,7 @@ func main() {
 		}
 
 		// drop database success
-		cLog.Infof("drop database %#v success", dropDB)
+		internal.ConsoleLog.Infof("drop database %#v success", dropDB)
 		return
 	}
 
@@ -311,7 +309,7 @@ func main() {
 			nodeCnt, err := strconv.ParseUint(createDB, 10, 16)
 			if err != nil {
 				// still failing
-				cLog.WithField("db", createDB).Error("create database failed: invalid instance description")
+				internal.ConsoleLog.WithField("db", createDB).Error("create database failed: invalid instance description")
 				os.Exit(-1)
 				return
 			}
@@ -322,23 +320,23 @@ func main() {
 
 		txHash, dsn, err := client.Create(meta)
 		if err != nil {
-			cLog.WithError(err).Error("create database failed")
+			internal.ConsoleLog.WithError(err).Error("create database failed")
 			os.Exit(-1)
 			return
 		}
 
 		if waitTxConfirmation {
 			wait(txHash)
-			var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			var ctx, cancel = context.WithTimeout(context.Background(), internal.WaitTxConfirmationMaxDuration)
 			defer cancel()
 			err = client.WaitDBCreation(ctx, dsn)
 			if err != nil {
-				cLog.WithError(err).Error("create database failed durating creation")
+				internal.ConsoleLog.WithError(err).Error("create database failed durating creation")
 				os.Exit(-1)
 			}
 		}
 
-		cLog.Infof("the newly created database is: %#v", dsn)
+		internal.ConsoleLog.Infof("the newly created database is: %#v", dsn)
 		fmt.Printf(dsn)
 		return
 	}
@@ -347,7 +345,7 @@ func main() {
 		// update user's permission on sqlchain
 		var perm userPermission
 		if err := json.Unmarshal([]byte(updatePermission), &perm); err != nil {
-			cLog.WithError(err).Errorf("update permission failed: invalid permission description")
+			internal.ConsoleLog.WithError(err).Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return
 		}
@@ -357,7 +355,7 @@ func main() {
 		if err := json.Unmarshal(perm.Perm, &permPayload); err != nil {
 			// try again using role string representation
 			if err := json.Unmarshal(perm.Perm, &permPayload.Role); err != nil {
-				cLog.WithError(err).Errorf("update permission failed: invalid permission description")
+				internal.ConsoleLog.WithError(err).Errorf("update permission failed: invalid permission description")
 				os.Exit(-1)
 				return
 			}
@@ -369,14 +367,14 @@ func main() {
 		}
 
 		if !p.IsValid() {
-			cLog.Errorf("update permission failed: invalid permission description")
+			internal.ConsoleLog.Errorf("update permission failed: invalid permission description")
 			os.Exit(-1)
 			return
 		}
 
 		txHash, err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
 		if err != nil {
-			cLog.WithError(err).Error("update permission failed")
+			internal.ConsoleLog.WithError(err).Error("update permission failed")
 			os.Exit(-1)
 			return
 		}
@@ -389,7 +387,7 @@ func main() {
 			}
 		}
 
-		cLog.Info("succeed in sending transaction to CovenantSQL")
+		internal.ConsoleLog.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
 
@@ -397,35 +395,35 @@ func main() {
 		// transfer token
 		var tran tranToken
 		if err := json.Unmarshal([]byte(transferToken), &tran); err != nil {
-			cLog.WithError(err).Errorf("transfer token failed: invalid transfer description")
+			internal.ConsoleLog.WithError(err).Errorf("transfer token failed: invalid transfer description")
 			os.Exit(-1)
 			return
 		}
 
 		var validAmount = regexp.MustCompile(`^([0-9]+) *([a-zA-Z]+)$`)
 		if !validAmount.MatchString(tran.Amount) {
-			cLog.Error("transfer token failed: invalid transfer description")
+			internal.ConsoleLog.Error("transfer token failed: invalid transfer description")
 			os.Exit(-1)
 			return
 		}
 		amountUnit := validAmount.FindStringSubmatch(tran.Amount)
 		if len(amountUnit) != 3 {
-			cLog.Error("transfer token failed: invalid transfer description")
+			internal.ConsoleLog.Error("transfer token failed: invalid transfer description")
 			for _, v := range amountUnit {
-				cLog.Error(v)
+				internal.ConsoleLog.Error(v)
 			}
 			os.Exit(-1)
 			return
 		}
 		amount, err := strconv.ParseUint(amountUnit[1], 10, 64)
 		if err != nil {
-			cLog.Error("transfer token failed: invalid token amount")
+			internal.ConsoleLog.Error("transfer token failed: invalid token amount")
 			os.Exit(-1)
 			return
 		}
 		unit := types.FromString(amountUnit[2])
 		if !unit.Listed() {
-			cLog.Error("transfer token failed: invalid token type")
+			internal.ConsoleLog.Error("transfer token failed: invalid token type")
 			os.Exit(-1)
 			return
 		}
@@ -433,7 +431,7 @@ func main() {
 		var txHash hash.Hash
 		txHash, err = client.TransferToken(tran.TargetUser, amount, unit)
 		if err != nil {
-			cLog.WithError(err).Error("transfer token failed")
+			internal.ConsoleLog.WithError(err).Error("transfer token failed")
 			os.Exit(-1)
 			return
 		}
@@ -446,11 +444,11 @@ func main() {
 			}
 		}
 
-		cLog.Info("succeed in sending transaction to CovenantSQL")
+		internal.ConsoleLog.Info("succeed in sending transaction to CovenantSQL")
 		return
 	}
 
-	internal.UsqlRegister(cLog, waitTxConfirmationMaxDuration, dsn)
+	internal.UsqlRegister(dsn)
 
 	var (
 		curUser   *user.User
@@ -460,7 +458,7 @@ func main() {
 		// in docker, fake user
 		var wd string
 		if wd, err = os.Getwd(); err != nil {
-			cLog.WithError(err).Error("get working directory failed")
+			internal.ConsoleLog.WithError(err).Error("get working directory failed")
 			os.Exit(-1)
 			return
 		}
@@ -473,7 +471,7 @@ func main() {
 		}
 	} else {
 		if curUser, err = user.Current(); err != nil {
-			cLog.WithError(err).Error("get current user failed")
+			internal.ConsoleLog.WithError(err).Error("get current user failed")
 			os.Exit(-1)
 			return
 		}
@@ -482,14 +480,14 @@ func main() {
 	// run
 	err = run(curUser)
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
-		cLog.WithError(err).Error("run cli error")
+		internal.ConsoleLog.WithError(err).Error("run cli error")
 
 		if e, ok := err.(*drivers.Error); ok && e.Err == text.ErrDriverNotAvailable {
 			bindings := make([]string, 0, len(available))
 			for name := range available {
 				bindings = append(bindings, name)
 			}
-			cLog.Infof("available drivers are: %#v", bindings)
+			internal.ConsoleLog.Infof("available drivers are: %#v", bindings)
 		}
 		os.Exit(-1)
 		return
@@ -504,11 +502,11 @@ func main() {
 }
 
 func wait(txHash hash.Hash) (err error) {
-	var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+	var ctx, cancel = context.WithTimeout(context.Background(), internal.WaitTxConfirmationMaxDuration)
 	defer cancel()
 	var state pi.TransactionState
 	state, err = client.WaitTxConfirmation(ctx, txHash)
-	cLog.WithFields(logrus.Fields{
+	internal.ConsoleLog.WithFields(logrus.Fields{
 		"tx_hash":  txHash,
 		"tx_state": state,
 	}).WithError(err).Info("wait transaction confirmation")
@@ -572,14 +570,14 @@ func run(u *user.User) (err error) {
 		h.SetSingleLineMode(true)
 		h.Reset([]rune(command))
 		if err = h.Run(); err != nil && err != io.EOF {
-			cLog.WithError(err).Error("run command failed")
+			internal.ConsoleLog.WithError(err).Error("run command failed")
 			os.Exit(-1)
 			return
 		}
 	} else if fileName != "" {
 		// file
 		if err = h.Include(fileName, false); err != nil {
-			cLog.WithError(err).Error("run file failed")
+			internal.ConsoleLog.WithError(err).Error("run file failed")
 			os.Exit(-1)
 			return
 		}

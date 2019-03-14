@@ -29,7 +29,6 @@ import (
 	"time"
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
-	"github.com/sirupsen/logrus"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/text"
@@ -82,7 +81,7 @@ func (t *SqTime) parse(s string) error {
 }
 
 // UsqlRegister init xo/usql driver
-func UsqlRegister(log *logrus.Logger, waitTxConfirmationMaxDuration time.Duration, dsn string) {
+func UsqlRegister(dsn string) {
 	// set command name of usql
 	text.CommandName = "covenantsql"
 
@@ -151,10 +150,10 @@ func UsqlRegister(log *logrus.Logger, waitTxConfirmationMaxDuration time.Duratio
 			return 0, nil
 		},
 		Open: func(url *dburl.URL) (handler func(driverName, dataSourceName string) (*sql.DB, error), err error) {
-			log.Infof("connecting to %#v", url.DSN)
+			ConsoleLog.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
-			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			ctx, cancel := context.WithTimeout(context.Background(), WaitTxConfirmationMaxDuration)
 			defer cancel()
 			if err = client.WaitDBCreation(ctx, dsn); err != nil {
 				return

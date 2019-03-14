@@ -22,7 +22,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
+	"os"
+	"os/user"
 	"reflect"
 	"strconv"
 	"strings"
@@ -31,6 +35,9 @@ import (
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
+	"github.com/xo/usql/env"
+	"github.com/xo/usql/handler"
+	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -80,8 +87,26 @@ func (t *SqTime) parse(s string) error {
 	return errors.New("could not parse time")
 }
 
+type VarsFlag struct {
+	flag.Value
+	vars []string
+}
+
+func (v *VarsFlag) Get() []string {
+	return append([]string{}, v.vars...)
+}
+
+func (v *VarsFlag) String() string {
+	return fmt.Sprintf("%#v", v.vars)
+}
+
+func (v *VarsFlag) Set(value string) error {
+	v.vars = append(v.vars, value)
+	return nil
+}
+
 // UsqlRegister init xo/usql driver
-func UsqlRegister() {
+func usqlRegister() {
 	// set command name of usql
 	text.CommandName = "covenantsql"
 
@@ -180,4 +205,134 @@ func UsqlRegister() {
 		Aliases:  []string{},
 		Override: "",
 	})
+}
+
+func run(u *user.User, dsn, command, fileName, outFile string, noRC, singleTransaction bool, variables VarsFlag) (err error) {
+	// get working directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// handle variables
+	for _, v := range variables.Get() {
+		if i := strings.Index(v, "="); i != -1 {
+			env.Set(v[:i], v[i+1:])
+		} else {
+			env.Unset(v)
+		}
+	}
+
+	// create input/output
+	interactive := command != "" || fileName != ""
+	l, err := rline.New(interactive, outFile, env.HistoryFile(u))
+	if err != nil {
+		return err
+	}
+	defer l.Close()
+
+	// create handler
+	h := handler.New(l, u, wd, true)
+
+	// open dsn
+	if err = h.Open(dsn); err != nil {
+		return err
+	}
+
+	// start transaction
+	if singleTransaction {
+		if h.IO().Interactive() {
+			return text.ErrSingleTransactionCannotBeUsedWithInteractiveMode
+		}
+		if err = h.Begin(); err != nil {
+			return err
+		}
+	}
+
+	// rc file
+	if rc := env.RCFile(u); !noRC && rc != "" {
+		if err = h.Include(rc, false); err != nil && err != text.ErrNoSuchFileOrDirectory {
+			return err
+		}
+	}
+
+	if command != "" {
+		// one liner command
+		h.SetSingleLineMode(true)
+		h.Reset([]rune(command))
+		if err = h.Run(); err != nil && err != io.EOF {
+			ConsoleLog.WithError(err).Error("run command failed")
+			os.Exit(-1)
+			return
+		}
+	} else if fileName != "" {
+		// file
+		if err = h.Include(fileName, false); err != nil {
+			ConsoleLog.WithError(err).Error("run file failed")
+			os.Exit(-1)
+			return
+		}
+	} else {
+		// interactive
+		if err = h.Run(); err != nil {
+			return
+		}
+
+	}
+
+	// commit
+	if singleTransaction {
+		return h.Commit()
+	}
+
+	return nil
+}
+
+// RunConsole runs a console for sql operation in command line.
+func RunConsole(dsn, command, fileName, outFile string, noRC, singleTransaction bool, variables VarsFlag) {
+
+	usqlRegister()
+
+	var (
+		curUser   *user.User
+		available = drivers.Available()
+	)
+	if st, err := os.Stat("/.dockerenv"); err == nil && !st.IsDir() {
+		// in docker, fake user
+		var wd string
+		if wd, err = os.Getwd(); err != nil {
+			ConsoleLog.WithError(err).Error("get working directory failed")
+			os.Exit(-1)
+			return
+		}
+		curUser = &user.User{
+			Uid:      "0",
+			Gid:      "0",
+			Username: "docker",
+			Name:     "docker",
+			HomeDir:  wd,
+		}
+	} else {
+		if curUser, err = user.Current(); err != nil {
+			ConsoleLog.WithError(err).Error("get current user failed")
+			os.Exit(-1)
+			return
+		}
+	}
+
+	// run
+	err := run(curUser, dsn, command, fileName, outFile, noRC, singleTransaction, variables)
+	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
+		ConsoleLog.WithError(err).Error("run cli error")
+
+		if e, ok := err.(*drivers.Error); ok && e.Err == text.ErrDriverNotAvailable {
+			bindings := make([]string, 0, len(available))
+			for name := range available {
+				bindings = append(bindings, name)
+			}
+			ConsoleLog.Infof("available drivers are: %#v", bindings)
+		}
+		os.Exit(-1)
+		return
+	}
 }

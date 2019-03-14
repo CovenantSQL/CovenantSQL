@@ -43,6 +43,35 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
+var CmdConsole = &Command{
+	UsageLine:   "cql console [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables]",
+	Description: "run a console for realtime sql operation",
+}
+
+//TODO(laodouya) add web/adapter flag   {command/filename}
+var (
+	variables         VarsFlag
+	dsn               string
+	outFile           string
+	noRC              bool
+	singleTransaction bool
+	command           string
+	fileName          string
+)
+
+func init() {
+	CmdConsole.Run = runConsole
+
+	AddCommonFlags(CmdConsole)
+	CmdConsole.Flag.Var(&variables, "variable", "Set variable")
+	CmdConsole.Flag.StringVar(&dsn, "dsn", "", "Database url")
+	CmdConsole.Flag.StringVar(&outFile, "out", "", "Record stdout to file")
+	CmdConsole.Flag.BoolVar(&noRC, "no-rc", false, "Do not read start up file")
+	CmdConsole.Flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
+	CmdConsole.Flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
+	CmdConsole.Flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
+}
+
 // SqTime provides a type that will correctly scan the various timestamps
 // values stored by the github.com/mattn/go-sqlite3 driver for time.Time
 // values, as well as correctly satisfying the sql/driver/Valuer interface.
@@ -207,7 +236,7 @@ func usqlRegister() {
 	})
 }
 
-func run(u *user.User, dsn, command, fileName, outFile string, noRC, singleTransaction bool, variables VarsFlag) (err error) {
+func run(u *user.User) (err error) {
 	// get working directory
 	wd, err := os.Getwd()
 	if err != nil {
@@ -288,8 +317,10 @@ func run(u *user.User, dsn, command, fileName, outFile string, noRC, singleTrans
 	return nil
 }
 
-// RunConsole runs a console for sql operation in command line.
-func RunConsole(dsn, command, fileName, outFile string, noRC, singleTransaction bool, variables VarsFlag) {
+// runConsole runs a console for sql operation in command line.
+func runConsole(cmd *Command, args []string) {
+
+	configInit()
 
 	usqlRegister()
 
@@ -321,7 +352,7 @@ func RunConsole(dsn, command, fileName, outFile string, noRC, singleTransaction 
 	}
 
 	// run
-	err := run(curUser, dsn, command, fileName, outFile, noRC, singleTransaction, variables)
+	err := run(curUser)
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
 		ConsoleLog.WithError(err).Error("run cli error")
 

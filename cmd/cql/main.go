@@ -18,7 +18,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -27,13 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
@@ -41,9 +36,6 @@ import (
 var (
 	version = "unknown"
 
-//	configFile  string
-//	password    string
-//
 //	// Shard chain explorer/adapter stuff
 //	tmpPath      string // background observer and explorer block and log file path
 //	bgLogLevel   string // background log level
@@ -51,7 +43,6 @@ var (
 //	adapterAddr  string // adapter listen addr
 //
 //	// DML variables
-//	createDB                string // as a instance meta json string or simply a node count
 //	dropDB                  string // database id to drop
 //	updatePermission        string // update user's permission on specific sqlchain
 //	transferToken           string // transfer token to target account
@@ -81,18 +72,12 @@ type tranToken struct {
 }
 
 func init() {
-	// flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
-	// "Disable signature sign and verify, for testing")
-	// flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql")
-	// flag.StringVar(&password, "password", "", "Master key password for covenantsql")
-
 	// // Explorer/Adapter
 	// flag.StringVar(&tmpPath, "tmp-path", "", "Background service temp file path, use os.TempDir for default")
 	// flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level") // flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
 	// flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
 
 	// // DML flags
-	// flag.StringVar(&createDB, "create", "", "Create database, argument can be instance requirement json or simply a node count requirement")
 	// flag.StringVar(&dropDB, "drop", "", "Drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
 	// flag.StringVar(&updatePermission, "update-perm", "", "Update user's permission on specific sqlchain")
 	// flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
@@ -102,6 +87,7 @@ func init() {
 		internal.CmdConsole,
 		internal.CmdVersion,
 		internal.CmdBalance,
+		internal.CmdCreate,
 	}
 }
 
@@ -199,48 +185,6 @@ func main() {
 	//
 	//		// drop database success
 	//		internal.ConsoleLog.Infof("drop database %#v success", dropDB)
-	//		return
-	//	}
-	//
-	//	if createDB != "" {
-	//		// create database
-	//		// parse instance requirement
-	//		var meta client.ResourceMeta
-	//
-	//		if err := json.Unmarshal([]byte(createDB), &meta); err != nil {
-	//			// not a instance json, try if it is a number describing node count
-	//			nodeCnt, err := strconv.ParseUint(createDB, 10, 16)
-	//			if err != nil {
-	//				// still failing
-	//				internal.ConsoleLog.WithField("db", createDB).Error("create database failed: invalid instance description")
-	//				os.Exit(-1)
-	//				return
-	//			}
-	//
-	//			meta = client.ResourceMeta{}
-	//			meta.Node = uint16(nodeCnt)
-	//		}
-	//
-	//		txHash, dsn, err := client.Create(meta)
-	//		if err != nil {
-	//			internal.ConsoleLog.WithError(err).Error("create database failed")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		if waitTxConfirmation {
-	//			wait(txHash)
-	//			var ctx, cancel = context.WithTimeout(context.Background(), internal.WaitTxConfirmationMaxDuration)
-	//			defer cancel()
-	//			err = client.WaitDBCreation(ctx, dsn)
-	//			if err != nil {
-	//				internal.ConsoleLog.WithError(err).Error("create database failed durating creation")
-	//				os.Exit(-1)
-	//			}
-	//		}
-	//
-	//		internal.ConsoleLog.Infof("the newly created database is: %#v", dsn)
-	//		fmt.Printf(dsn)
 	//		return
 	//	}
 	//
@@ -379,21 +323,6 @@ func main() {
 	//	<-utils.WaitForExit()
 	//	return
 	//}
-}
-
-func wait(txHash hash.Hash) (err error) {
-	var ctx, cancel = context.WithTimeout(context.Background(), internal.WaitTxConfirmationMaxDuration)
-	defer cancel()
-	var state pi.TransactionState
-	state, err = client.WaitTxConfirmation(ctx, txHash)
-	internal.ConsoleLog.WithFields(logrus.Fields{
-		"tx_hash":  txHash,
-		"tx_state": state,
-	}).WithError(err).Info("wait transaction confirmation")
-	if err == nil && state != pi.TransactionStateConfirmed {
-		err = errors.New("bad transaction state")
-	}
-	return
 }
 
 func mainUsage() {

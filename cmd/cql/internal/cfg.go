@@ -1,10 +1,16 @@
 package internal
 
 import (
+	"context"
+	"errors"
+
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/sirupsen/logrus"
 )
 
 // These are general flags used by console and other commands.
@@ -12,11 +18,12 @@ var (
 	configFile string
 	password   string
 
+	waitTxConfirmation bool // wait for transaction confirmation before exiting
+
 	CmdName string
 )
 
-// AddCommonFlags adds the flags common to all commands.
-func AddCommonFlags(cmd *Command) {
+func addCommonFlags(cmd *Command) {
 	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql")
 	cmd.Flag.StringVar(&password, "password", "", "Master key password for covenantsql")
 
@@ -40,4 +47,23 @@ func configInit() {
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
 	WaitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
+}
+
+func addWaitFlag(cmd *Command) {
+	cmd.Flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
+}
+
+func wait(txHash hash.Hash) (err error) {
+	var ctx, cancel = context.WithTimeout(context.Background(), WaitTxConfirmationMaxDuration)
+	defer cancel()
+	var state pi.TransactionState
+	state, err = client.WaitTxConfirmation(ctx, txHash)
+	ConsoleLog.WithFields(logrus.Fields{
+		"tx_hash":  txHash,
+		"tx_state": state,
+	}).WithError(err).Info("wait transaction confirmation")
+	if err == nil && state != pi.TransactionStateConfirmed {
+		err = errors.New("bad transaction state")
+	}
+	return
 }

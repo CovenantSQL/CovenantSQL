@@ -50,7 +50,7 @@ var CmdConsole = &Command{
 
 //TODO(laodouya) add web/adapter flag   {command/filename}
 var (
-	variables         VarsFlag
+	variables         varsFlag
 	dsn               string
 	outFile           string
 	noRC              bool
@@ -62,7 +62,7 @@ var (
 func init() {
 	CmdConsole.Run = runConsole
 
-	AddCommonFlags(CmdConsole)
+	addCommonFlags(CmdConsole)
 	CmdConsole.Flag.Var(&variables, "variable", "Set variable")
 	CmdConsole.Flag.StringVar(&dsn, "dsn", "", "Database url")
 	CmdConsole.Flag.StringVar(&outFile, "out", "", "Record stdout to file")
@@ -116,20 +116,20 @@ func (t *SqTime) parse(s string) error {
 	return errors.New("could not parse time")
 }
 
-type VarsFlag struct {
+type varsFlag struct {
 	flag.Value
 	vars []string
 }
 
-func (v *VarsFlag) Get() []string {
+func (v *varsFlag) Get() []string {
 	return append([]string{}, v.vars...)
 }
 
-func (v *VarsFlag) String() string {
+func (v *varsFlag) String() string {
 	return fmt.Sprintf("%#v", v.vars)
 }
 
-func (v *VarsFlag) Set(value string) error {
+func (v *varsFlag) Set(value string) error {
 	v.vars = append(v.vars, value)
 	return nil
 }

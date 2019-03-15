@@ -19,7 +19,7 @@ var CmdBalance = &Command{
 func init() {
 	CmdBalance.Run = runBalance
 
-	AddCommonFlags(CmdBalance)
+	addCommonFlags(CmdBalance)
 	CmdBalance.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 }
 

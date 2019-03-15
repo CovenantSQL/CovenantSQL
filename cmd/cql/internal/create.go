@@ -57,7 +57,7 @@ func runCreate(cmd *Command, args []string) {
 
 	if waitTxConfirmation {
 		wait(txHash)
-		var ctx, cancel = context.WithTimeout(context.Background(), WaitTxConfirmationMaxDuration)
+		var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 		defer cancel()
 		err = client.WaitDBCreation(ctx, dsn)
 		if err != nil {

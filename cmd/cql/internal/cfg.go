@@ -46,7 +46,7 @@ func configInit() {
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough
 	// duration.
-	WaitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
+	waitTxConfirmationMaxDuration = 20 * conf.GConf.BPPeriod
 }
 
 func addWaitFlag(cmd *Command) {
@@ -54,7 +54,7 @@ func addWaitFlag(cmd *Command) {
 }
 
 func wait(txHash hash.Hash) (err error) {
-	var ctx, cancel = context.WithTimeout(context.Background(), WaitTxConfirmationMaxDuration)
+	var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 	defer cancel()
 	var state pi.TransactionState
 	state, err = client.WaitTxConfirmation(ctx, txHash)

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	WaitTxConfirmationMaxDuration time.Duration
+	waitTxConfirmationMaxDuration time.Duration
 
 	// ConsoleLog is logging for console.
 	ConsoleLog *logrus.Logger

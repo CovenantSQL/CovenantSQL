@@ -207,7 +207,7 @@ func usqlRegister() {
 			ConsoleLog.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
-			ctx, cancel := context.WithTimeout(context.Background(), WaitTxConfirmationMaxDuration)
+			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 			defer cancel()
 			if err = client.WaitDBCreation(ctx, url.DSN); err != nil {
 				return

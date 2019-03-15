@@ -43,10 +43,8 @@ var (
 //	adapterAddr  string // adapter listen addr
 //
 //	// DML variables
-//	dropDB                  string // database id to drop
 //	updatePermission        string // update user's permission on specific sqlchain
 //	transferToken           string // transfer token to target account
-//	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
 //
 //	service    *observer.Service
 //	httpServer *http.Server
@@ -78,16 +76,15 @@ func init() {
 	// flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
 
 	// // DML flags
-	// flag.StringVar(&dropDB, "drop", "", "Drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
 	// flag.StringVar(&updatePermission, "update-perm", "", "Update user's permission on specific sqlchain")
 	// flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
-	// flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
 
 	internal.CqlCommands = []*internal.Command{
 		internal.CmdConsole,
 		internal.CmdVersion,
 		internal.CmdBalance,
 		internal.CmdCreate,
+		internal.CmdDrop,
 	}
 }
 
@@ -162,31 +159,6 @@ func main() {
 	//		}
 	//	}
 	//
-	//
-	//	if dropDB != "" {
-	//		// drop database
-	//		if _, err := client.ParseDSN(dropDB); err != nil {
-	//			// not a dsn
-	//			cfg := client.NewConfig()
-	//			cfg.DatabaseID = dropDB
-	//			dropDB = cfg.FormatDSN()
-	//		}
-	//
-	//		txHash, err := client.Drop(dropDB)
-	//		if err != nil {
-	//			// drop database failed
-	//			internal.ConsoleLog.WithField("db", dropDB).WithError(err).Error("drop database failed")
-	//			return
-	//		}
-	//
-	//		if waitTxConfirmation {
-	//			wait(txHash)
-	//		}
-	//
-	//		// drop database success
-	//		internal.ConsoleLog.Infof("drop database %#v success", dropDB)
-	//		return
-	//	}
 	//
 	//	if updatePermission != "" {
 	//		// update user's permission on sqlchain

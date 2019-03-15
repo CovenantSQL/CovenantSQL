@@ -21,7 +21,17 @@ func init() {
 	CmdVersion.Run = runVersion
 }
 
-func runVersion(cmd *Command, args []string) {
-	fmt.Printf("%v %v %v %v %v\n",
+func PrintVersion(printLog bool) string {
+	version := fmt.Sprintf("%v %v %v %v %v\n",
 		name, Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+
+	if printLog {
+		ConsoleLog.Infof("cql build: %s", version)
+	}
+
+	return version
+}
+
+func runVersion(cmd *Command, args []string) {
+	fmt.Print(PrintVersion(false))
 }

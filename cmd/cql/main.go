@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
 )
 
@@ -81,9 +79,7 @@ func main() {
 		return
 	}
 
-	internal.ConsoleLog = logrus.New()
-
-	internal.ConsoleLog.Infof("cql build: %#v\n", internal.Version)
+	internal.PrintVersion(true)
 	//
 	//	if tmpPath == "" {
 	//		tmpPath = os.TempDir()

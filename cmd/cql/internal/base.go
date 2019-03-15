@@ -21,6 +21,10 @@ var (
 	CqlCommands []*Command
 )
 
+func init() {
+	ConsoleLog = logrus.New()
+}
+
 // A Command is an implementation of a cql command
 // like cql create or cql transfer.
 type Command struct {

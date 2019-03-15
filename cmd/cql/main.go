@@ -28,7 +28,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 var (
@@ -40,26 +39,15 @@ var (
 //	explorerAddr string // explorer Web addr
 //	adapterAddr  string // adapter listen addr
 //
-//	// DML variables
-//	transferToken           string // transfer token to target account
-//
 //	service    *observer.Service
 //	httpServer *http.Server
 )
-
-type tranToken struct {
-	TargetUser proto.AccountAddress `json:"addr"`
-	Amount     string               `json:"amount"`
-}
 
 func init() {
 	// // Explorer/Adapter
 	// flag.StringVar(&tmpPath, "tmp-path", "", "Background service temp file path, use os.TempDir for default")
 	// flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level") // flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
 	// flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
-
-	// // DML flags
-	// flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
 
 	internal.CqlCommands = []*internal.Command{
 		internal.CmdConsole,
@@ -68,6 +56,7 @@ func init() {
 		internal.CmdCreate,
 		internal.CmdDrop,
 		internal.CmdPermission,
+		internal.CmdTransfer,
 	}
 }
 
@@ -142,64 +131,6 @@ func main() {
 	//		}
 	//	}
 	//
-	//
-	//	if transferToken != "" {
-	//		// transfer token
-	//		var tran tranToken
-	//		if err := json.Unmarshal([]byte(transferToken), &tran); err != nil {
-	//			internal.ConsoleLog.WithError(err).Errorf("transfer token failed: invalid transfer description")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		var validAmount = regexp.MustCompile(`^([0-9]+) *([a-zA-Z]+)$`)
-	//		if !validAmount.MatchString(tran.Amount) {
-	//			internal.ConsoleLog.Error("transfer token failed: invalid transfer description")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//		amountUnit := validAmount.FindStringSubmatch(tran.Amount)
-	//		if len(amountUnit) != 3 {
-	//			internal.ConsoleLog.Error("transfer token failed: invalid transfer description")
-	//			for _, v := range amountUnit {
-	//				internal.ConsoleLog.Error(v)
-	//			}
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//		amount, err := strconv.ParseUint(amountUnit[1], 10, 64)
-	//		if err != nil {
-	//			internal.ConsoleLog.Error("transfer token failed: invalid token amount")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//		unit := types.FromString(amountUnit[2])
-	//		if !unit.Listed() {
-	//			internal.ConsoleLog.Error("transfer token failed: invalid token type")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		var txHash hash.Hash
-	//		txHash, err = client.TransferToken(tran.TargetUser, amount, unit)
-	//		if err != nil {
-	//			internal.ConsoleLog.WithError(err).Error("transfer token failed")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		if waitTxConfirmation {
-	//			err = wait(txHash)
-	//			if err != nil {
-	//				os.Exit(-1)
-	//				return
-	//			}
-	//		}
-	//
-	//		internal.ConsoleLog.Info("succeed in sending transaction to CovenantSQL")
-	//		return
-	//	}
-
 	for _, cmd := range internal.CqlCommands {
 		if cmd.Name() != args[0] {
 			continue

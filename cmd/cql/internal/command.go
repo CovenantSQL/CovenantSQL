@@ -291,14 +291,14 @@ func run(u *user.User) (err error) {
 		h.Reset([]rune(command))
 		if err = h.Run(); err != nil && err != io.EOF {
 			ConsoleLog.WithError(err).Error("run command failed")
-			os.Exit(-1)
+			SetExitStatus(1)
 			return
 		}
 	} else if fileName != "" {
 		// file
 		if err = h.Include(fileName, false); err != nil {
 			ConsoleLog.WithError(err).Error("run file failed")
-			os.Exit(-1)
+			SetExitStatus(1)
 			return
 		}
 	} else {
@@ -333,7 +333,7 @@ func runConsole(cmd *Command, args []string) {
 		var wd string
 		if wd, err = os.Getwd(); err != nil {
 			ConsoleLog.WithError(err).Error("get working directory failed")
-			os.Exit(-1)
+			SetExitStatus(1)
 			return
 		}
 		curUser = &user.User{
@@ -346,13 +346,14 @@ func runConsole(cmd *Command, args []string) {
 	} else {
 		if curUser, err = user.Current(); err != nil {
 			ConsoleLog.WithError(err).Error("get current user failed")
-			os.Exit(-1)
+			SetExitStatus(1)
 			return
 		}
 	}
 
 	// run
 	err := run(curUser)
+	ExitIfErrors()
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
 		ConsoleLog.WithError(err).Error("run cli error")
 
@@ -363,7 +364,7 @@ func runConsole(cmd *Command, args []string) {
 			}
 			ConsoleLog.Infof("available drivers are: %#v", bindings)
 		}
-		os.Exit(-1)
+		SetExitStatus(1)
 		return
 	}
 }

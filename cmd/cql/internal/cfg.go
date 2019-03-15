@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"os"
-
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -33,7 +31,8 @@ func configInit() {
 	// init covenantsql driver
 	if err := client.Init(configFile, []byte(password)); err != nil {
 		ConsoleLog.WithError(err).Error("init covenantsql client failed")
-		os.Exit(-1)
+		SetExitStatus(1)
+		Exit()
 		return
 	}
 

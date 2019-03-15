@@ -43,7 +43,6 @@ var (
 
 //	configFile  string
 //	password    string
-//	showVersion bool
 //
 //	// Shard chain explorer/adapter stuff
 //	tmpPath      string // background observer and explorer block and log file path
@@ -84,7 +83,6 @@ type tranToken struct {
 }
 
 func init() {
-	// flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	// flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 	// "Disable signature sign and verify, for testing")
 	// flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql")
@@ -106,6 +104,7 @@ func init() {
 
 	internal.CqlCommands = []*internal.Command{
 		internal.CmdConsole,
+		internal.CmdVersion,
 	}
 }
 
@@ -132,12 +131,6 @@ func main() {
 
 	internal.ConsoleLog = logrus.New()
 
-	//  var err error
-	//	if showVersion {
-	//		fmt.Printf("%v %v %v %v %v\n",
-	//			internal.Name, internal.Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
-	//		os.Exit(0)
-	//	}
 	internal.ConsoleLog.Infof("cql build: %#v\n", internal.Version)
 	//
 	//	if tmpPath == "" {

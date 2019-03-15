@@ -18,7 +18,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -30,7 +29,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 var (
@@ -43,26 +41,11 @@ var (
 //	adapterAddr  string // adapter listen addr
 //
 //	// DML variables
-//	updatePermission        string // update user's permission on specific sqlchain
 //	transferToken           string // transfer token to target account
 //
 //	service    *observer.Service
 //	httpServer *http.Server
 )
-
-type userPermission struct {
-	TargetChain proto.AccountAddress `json:"chain"`
-	TargetUser  proto.AccountAddress `json:"user"`
-	Perm        json.RawMessage      `json:"perm"`
-}
-
-type userPermPayload struct {
-	// User role to access database.
-	Role types.UserPermissionRole `json:"role"`
-	// SQL pattern regulations for user queries
-	// only a fully matched (case-sensitive) sql query is permitted to execute.
-	Patterns []string `json:"patterns"`
-}
 
 type tranToken struct {
 	TargetUser proto.AccountAddress `json:"addr"`
@@ -76,7 +59,6 @@ func init() {
 	// flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
 
 	// // DML flags
-	// flag.StringVar(&updatePermission, "update-perm", "", "Update user's permission on specific sqlchain")
 	// flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
 
 	internal.CqlCommands = []*internal.Command{
@@ -85,6 +67,7 @@ func init() {
 		internal.CmdBalance,
 		internal.CmdCreate,
 		internal.CmdDrop,
+		internal.CmdPermission,
 	}
 }
 
@@ -159,56 +142,6 @@ func main() {
 	//		}
 	//	}
 	//
-	//
-	//	if updatePermission != "" {
-	//		// update user's permission on sqlchain
-	//		var perm userPermission
-	//		if err := json.Unmarshal([]byte(updatePermission), &perm); err != nil {
-	//			internal.ConsoleLog.WithError(err).Errorf("update permission failed: invalid permission description")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		var permPayload userPermPayload
-	//
-	//		if err := json.Unmarshal(perm.Perm, &permPayload); err != nil {
-	//			// try again using role string representation
-	//			if err := json.Unmarshal(perm.Perm, &permPayload.Role); err != nil {
-	//				internal.ConsoleLog.WithError(err).Errorf("update permission failed: invalid permission description")
-	//				os.Exit(-1)
-	//				return
-	//			}
-	//		}
-	//
-	//		p := &types.UserPermission{
-	//			Role:     permPayload.Role,
-	//			Patterns: permPayload.Patterns,
-	//		}
-	//
-	//		if !p.IsValid() {
-	//			internal.ConsoleLog.Errorf("update permission failed: invalid permission description")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		txHash, err := client.UpdatePermission(perm.TargetUser, perm.TargetChain, p)
-	//		if err != nil {
-	//			internal.ConsoleLog.WithError(err).Error("update permission failed")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//
-	//		if waitTxConfirmation {
-	//			err = wait(txHash)
-	//			if err != nil {
-	//				os.Exit(-1)
-	//				return
-	//			}
-	//		}
-	//
-	//		internal.ConsoleLog.Info("succeed in sending transaction to CovenantSQL")
-	//		return
-	//	}
 	//
 	//	if transferToken != "" {
 	//		// transfer token

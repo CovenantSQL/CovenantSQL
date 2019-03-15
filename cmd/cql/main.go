@@ -55,8 +55,6 @@ var (
 //	dropDB                  string // database id to drop
 //	updatePermission        string // update user's permission on specific sqlchain
 //	transferToken           string // transfer token to target account
-//	getBalance              bool   // get balance of current account
-//	getBalanceWithTokenName string // get specific token's balance of current account
 //	waitTxConfirmation      bool   // wait for transaction confirmation before exiting
 //
 //	service    *observer.Service
@@ -98,13 +96,12 @@ func init() {
 	// flag.StringVar(&dropDB, "drop", "", "Drop database, argument should be a database id (without covenantsql:// scheme is acceptable)")
 	// flag.StringVar(&updatePermission, "update-perm", "", "Update user's permission on specific sqlchain")
 	// flag.StringVar(&transferToken, "transfer", "", "Transfer token to target account")
-	// flag.BoolVar(&getBalance, "get-balance", false, "Get balance of current account")
-	// flag.StringVar(&getBalanceWithTokenName, "token-balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 	// flag.BoolVar(&waitTxConfirmation, "wait-tx-confirm", false, "Wait for transaction confirmation")
 
 	internal.CqlCommands = []*internal.Command{
 		internal.CmdConsole,
 		internal.CmdVersion,
+		internal.CmdBalance,
 	}
 }
 
@@ -179,46 +176,6 @@ func main() {
 	//		}
 	//	}
 	//
-	//
-	//	if getBalance {
-	//		var stableCoinBalance, covenantCoinBalance uint64
-	//
-	//		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
-	//			internal.ConsoleLog.WithError(err).Error("get Particle balance failed")
-	//			return
-	//		}
-	//		if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
-	//			internal.ConsoleLog.WithError(err).Error("get Wave balance failed")
-	//			return
-	//		}
-	//
-	//		internal.ConsoleLog.Infof("Particle balance is: %d", stableCoinBalance)
-	//		internal.ConsoleLog.Infof("Wave balance is: %d", covenantCoinBalance)
-	//
-	//		return
-	//	}
-	//
-	//	if getBalanceWithTokenName != "" {
-	//		var tokenBalance uint64
-	//		tokenType := types.FromString(getBalanceWithTokenName)
-	//		if !tokenType.Listed() {
-	//			values := make([]string, len(types.TokenList))
-	//			for i := types.Particle; i < types.SupportTokenNumber; i++ {
-	//				values[i] = types.TokenList[i]
-	//			}
-	//			internal.ConsoleLog.Errorf("no such token supporting in CovenantSQL (what we support: %s)",
-	//				strings.Join(values, ", "))
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//		if tokenBalance, err = client.GetTokenBalance(tokenType); err != nil {
-	//			internal.ConsoleLog.WithError(err).Error("get token balance failed")
-	//			os.Exit(-1)
-	//			return
-	//		}
-	//		internal.ConsoleLog.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
-	//		return
-	//	}
 	//
 	//	if dropDB != "" {
 	//		// drop database

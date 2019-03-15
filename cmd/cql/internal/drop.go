@@ -6,7 +6,7 @@ import (
 
 var CmdDrop = &Command{
 	UsageLine:   "cql drop [-wait-tx-confirm] [dsn/dbid]",
-	Description: "Drop CovenantSQL database by database id",
+	Description: "Drop CovenantSQL database by dsn or database id",
 }
 
 func init() {
@@ -29,9 +29,9 @@ func runDrop(cmd *Command, args []string) {
 	// drop database
 	if _, err := client.ParseDSN(dsn); err != nil {
 		// not a dsn
-		cfg := client.NewConfig()
-		cfg.DatabaseID = dsn
-		dsn = cfg.FormatDSN()
+		ConsoleLog.WithField("db", dsn).WithError(err).Error("Not a valid dsn")
+		SetExitStatus(1)
+		return
 	}
 
 	txHash, err := client.Drop(dsn)
@@ -43,7 +43,12 @@ func runDrop(cmd *Command, args []string) {
 	}
 
 	if waitTxConfirmation {
-		wait(txHash)
+		err = wait(txHash)
+		if err != nil {
+			ConsoleLog.WithField("db", dsn).WithError(err).Error("drop database failed")
+			SetExitStatus(1)
+			return
+		}
 	}
 
 	// drop database success

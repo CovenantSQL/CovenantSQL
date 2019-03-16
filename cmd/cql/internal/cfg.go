@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -10,6 +12,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,6 +22,9 @@ var (
 	password   string
 
 	waitTxConfirmation bool // wait for transaction confirmation before exiting
+	// Shard chain explorer/adapter stuff
+	tmpPath    string // background observer and explorer block and log file path
+	bgLogLevel string // background log level
 
 	CmdName string
 )
@@ -40,7 +46,6 @@ func configInit() {
 		ConsoleLog.WithError(err).Error("init covenantsql client failed")
 		SetExitStatus(1)
 		Exit()
-		return
 	}
 
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
@@ -66,4 +71,25 @@ func wait(txHash hash.Hash) (err error) {
 		err = errors.New("bad transaction state")
 	}
 	return
+}
+
+func addBgServerFlag(cmd *Command) {
+	cmd.Flag.StringVar(&tmpPath, "tmp-path", "", "Background service temp file path, use os.TempDir for default")
+	cmd.Flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level")
+}
+
+func bgServerInit() {
+	if tmpPath == "" {
+		tmpPath = os.TempDir()
+	}
+	logPath := filepath.Join(tmpPath, "covenant_service.log")
+	bgLog, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		ConsoleLog.Errorf("open log file failed: %s, %v", logPath, err)
+		SetExitStatus(1)
+		Exit()
+	}
+
+	log.SetOutput(bgLog)
+	log.SetStringLevel(bgLogLevel, log.InfoLevel)
 }

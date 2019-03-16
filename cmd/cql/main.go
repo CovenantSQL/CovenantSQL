@@ -31,20 +31,11 @@ import (
 var (
 	version = "unknown"
 
-//	// Shard chain explorer/adapter stuff
-//	tmpPath      string // background observer and explorer block and log file path
-//	bgLogLevel   string // background log level
-//	explorerAddr string // explorer Web addr
 //	adapterAddr  string // adapter listen addr
-//
-//	service    *observer.Service
-//	httpServer *http.Server
 )
 
 func init() {
-	// // Explorer/Adapter
-	// flag.StringVar(&tmpPath, "tmp-path", "", "Background service temp file path, use os.TempDir for default")
-	// flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level") // flag.StringVar(&explorerAddr, "web", "", "Address to serve a database chain explorer, e.g. :8546")
+	// Adapter
 	// flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
 
 	internal.CqlCommands = []*internal.Command{
@@ -55,6 +46,7 @@ func init() {
 		internal.CmdDrop,
 		internal.CmdPermission,
 		internal.CmdTransfer,
+		internal.CmdWeb,
 	}
 }
 
@@ -80,33 +72,6 @@ func main() {
 	}
 
 	internal.PrintVersion(true)
-	//
-	//	if tmpPath == "" {
-	//		tmpPath = os.TempDir()
-	//	}
-	//	logPath := filepath.Join(tmpPath, "covenant_service.log")
-	//	bgLog, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	//	if err != nil {
-	//		fmt.Fprintf(os.Stderr, "open log file failed: %s, %v", logPath, err)
-	//		os.Exit(-1)
-	//	}
-	//	log.SetOutput(bgLog)
-	//	log.SetStringLevel(bgLogLevel, log.InfoLevel)
-	//
-	//	if explorerAddr != "" {
-	//		service, httpServer, err = observer.StartObserver(explorerAddr, internal.Version)
-	//		if err != nil {
-	//			log.WithError(err).Fatal("start explorer failed")
-	//		} else {
-	//			internal.ConsoleLog.Infof("explorer started on %s", explorerAddr)
-	//		}
-	//
-	//		defer func() {
-	//			_ = observer.StopObserver(service, httpServer)
-	//			log.Info("explorer stopped")
-	//		}()
-	//	}
-	//
 	//	if adapterAddr != "" {
 	//		server, err := adapter.NewHTTPAdapter(adapterAddr, configFile)
 	//		if err != nil {

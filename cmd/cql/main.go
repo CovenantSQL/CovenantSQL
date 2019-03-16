@@ -30,14 +30,9 @@ import (
 
 var (
 	version = "unknown"
-
-//	adapterAddr  string // adapter listen addr
 )
 
 func init() {
-	// Adapter
-	// flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
-
 	internal.CqlCommands = []*internal.Command{
 		internal.CmdConsole,
 		internal.CmdVersion,
@@ -47,6 +42,7 @@ func init() {
 		internal.CmdPermission,
 		internal.CmdTransfer,
 		internal.CmdWeb,
+		internal.CmdAdapter,
 	}
 }
 
@@ -72,26 +68,7 @@ func main() {
 	}
 
 	internal.PrintVersion(true)
-	//	if adapterAddr != "" {
-	//		server, err := adapter.NewHTTPAdapter(adapterAddr, configFile)
-	//		if err != nil {
-	//			log.WithError(err).Fatal("init adapter failed")
-	//		}
-	//
-	//		if err = server.Serve(); err != nil {
-	//			log.WithError(err).Fatal("start adapter failed")
-	//		} else {
-	//			internal.ConsoleLog.Infof("adapter started on %s", adapterAddr)
-	//
-	//			defer func() {
-	//				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	//				defer cancel()
-	//				server.Shutdown(ctx)
-	//				log.Info("stopped adapter")
-	//			}()
-	//		}
-	//	}
-	//
+
 	for _, cmd := range internal.CqlCommands {
 		if cmd.Name() != args[0] {
 			continue

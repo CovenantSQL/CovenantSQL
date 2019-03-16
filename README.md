@@ -63,9 +63,9 @@ sql.Open("CovenantSQL", dbURI)
 ## Demos
 
 - [CovenantForum](https://demo.covenantsql.io/forum/)
-- [Twitter iBlockPin](https://twitter.com/iblockpin)
-- [Weibo BlockPin](https://weibo.com/BlockPin)
-- [Markdown Editor](https://github.com/CovenantSQL/stackedit)
+- [Twitter Bot @iBlockPin](https://twitter.com/iblockpin)
+- [Weibo Bot @BlockPin](https://weibo.com/BlockPin)
+- [Markdown Editor with CovenantSQL sync](https://github.com/CovenantSQL/stackedit)
 - [Web Admin for CovenantSQL](https://github.com/CovenantSQL/adminer)
 
 ## Papers

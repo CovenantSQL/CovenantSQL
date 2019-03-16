@@ -60,6 +60,14 @@ sql.Open("CovenantSQL", dbURI)
 ## How it works
 [How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
 
+## Demos
+
+- [CovenantForum](https://demo.covenantsql.io/forum/)
+- [Twitter iBlockPin](https://twitter.com/iblockpin)
+- [Weibo BlockPin](https://weibo.com/BlockPin)
+- [Markdown Editor](https://github.com/CovenantSQL/stackedit)
+- [Web Admin for CovenantSQL](https://github.com/CovenantSQL/adminer)
+
 ## Papers
 Our team members published:
 

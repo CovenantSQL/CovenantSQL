@@ -47,7 +47,7 @@ func startAdapterServer(adapterAddr string) func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		adapterHTTPServer.Shutdown(ctx)
-		ConsoleLog.Info("stopped adapter")
+		ConsoleLog.Info("adapter stopped")
 	}
 }
 

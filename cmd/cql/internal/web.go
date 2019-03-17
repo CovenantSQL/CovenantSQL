@@ -35,6 +35,8 @@ func startWebServer(webAddr string) func() {
 		return nil
 	}
 
+	ConsoleLog.Infof("web server started on %s", webAddr)
+
 	return func() {
 		_ = observer.StopObserver(webService, webHTTPServer)
 		ConsoleLog.Info("explorer stopped")

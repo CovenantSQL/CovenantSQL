@@ -41,6 +41,7 @@ import (
 	"github.com/xo/usql/text"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 var CmdConsole = &Command{
@@ -70,6 +71,8 @@ func init() {
 	CmdConsole.Flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
 	CmdConsole.Flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
 	CmdConsole.Flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
+	CmdConsole.Flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
+	CmdConsole.Flag.StringVar(&webAddr, "web", "", "Address serve a database chain explorer, e.g. :8546")
 }
 
 // SqTime provides a type that will correctly scan the various timestamps
@@ -351,6 +354,16 @@ func runConsole(cmd *Command, args []string) {
 		}
 	}
 
+	if adapterAddr != "" {
+		cancelFunc := startAdapterServer(adapterAddr)
+		defer cancelFunc()
+	}
+
+	if webAddr != "" {
+		cancelFunc := startWebServer(webAddr)
+		defer cancelFunc()
+	}
+
 	// run
 	err := run(curUser)
 	ExitIfErrors()
@@ -366,5 +379,10 @@ func runConsole(cmd *Command, args []string) {
 		}
 		SetExitStatus(1)
 		return
+	}
+
+	if adapterAddr != "" || webAddr != "" {
+		ConsoleLog.Printf("Ctrl + C to stop background server on %s %s\n", adapterAddr, webAddr)
+		<-utils.WaitForExit()
 	}
 }

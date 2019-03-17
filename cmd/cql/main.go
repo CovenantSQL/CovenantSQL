@@ -90,13 +90,6 @@ func main() {
 	fmt.Fprintf(os.Stderr, "cql %s: unknown command\nRun 'cql help%s' for usage.\n", internal.CmdName, helpArg)
 	internal.SetExitStatus(2)
 	internal.Exit()
-
-	// if web flag is enabled
-	//if explorerAddr != "" || adapterAddr != "" {
-	//	fmt.Printf("Ctrl + C to stop explorer on %s and adapter on %s\n", explorerAddr, adapterAddr)
-	//	<-utils.WaitForExit()
-	//	return
-	//}
 }
 
 func mainUsage() {

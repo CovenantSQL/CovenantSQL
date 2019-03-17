@@ -50,6 +50,6 @@ func runWeb(cmd *Command, args []string) {
 		ConsoleLog.Info("explorer stopped")
 	}()
 
-	ConsoleLog.Printf("Ctrl + C to stop web server on %s", webAddr)
+	ConsoleLog.Printf("Ctrl + C to stop web server on %s\n", webAddr)
 	<-utils.WaitForExit()
 }

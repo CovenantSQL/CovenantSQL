@@ -60,6 +60,6 @@ func runAdapter(cmd *Command, args []string) {
 		ConsoleLog.Info("stopped adapter")
 	}()
 
-	ConsoleLog.Printf("Ctrl + C to stop adapter server on %s", adapterAddr)
+	ConsoleLog.Printf("Ctrl + C to stop adapter server on %s\n", adapterAddr)
 	<-utils.WaitForExit()
 }

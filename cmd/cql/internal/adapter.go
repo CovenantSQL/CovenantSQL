@@ -27,6 +27,30 @@ func init() {
 	addBgServerFlag(CmdAdapter)
 }
 
+func startAdapterServer(adapterAddr string) func() {
+	adapterHTTPServer, err := adapter.NewHTTPAdapter(adapterAddr, configFile)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("init adapter failed")
+		SetExitStatus(1)
+		return nil
+	}
+
+	if err = adapterHTTPServer.Serve(); err != nil {
+		ConsoleLog.WithError(err).Error("start adapter failed")
+		SetExitStatus(1)
+		return nil
+	}
+
+	ConsoleLog.Infof("adapter started on %s", adapterAddr)
+
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		adapterHTTPServer.Shutdown(ctx)
+		ConsoleLog.Info("stopped adapter")
+	}
+}
+
 func runAdapter(cmd *Command, args []string) {
 	configInit()
 	bgServerInit()
@@ -38,27 +62,9 @@ func runAdapter(cmd *Command, args []string) {
 	}
 	adapterAddr = args[0]
 
-	adapterHTTPServer, err := adapter.NewHTTPAdapter(adapterAddr, configFile)
-	if err != nil {
-		ConsoleLog.WithError(err).Error("init adapter failed")
-		SetExitStatus(1)
-		return
-	}
-
-	if err = adapterHTTPServer.Serve(); err != nil {
-		ConsoleLog.WithError(err).Error("start adapter failed")
-		SetExitStatus(1)
-		return
-	}
-
-	ConsoleLog.Infof("adapter started on %s", adapterAddr)
-
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
-		adapterHTTPServer.Shutdown(ctx)
-		ConsoleLog.Info("stopped adapter")
-	}()
+	cancelFunc := startAdapterServer(adapterAddr)
+	ExitIfErrors()
+	defer cancelFunc()
 
 	ConsoleLog.Printf("Ctrl + C to stop adapter server on %s\n", adapterAddr)
 	<-utils.WaitForExit()

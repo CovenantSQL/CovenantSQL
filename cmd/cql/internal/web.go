@@ -26,6 +26,21 @@ func init() {
 	addBgServerFlag(CmdWeb)
 }
 
+func startWebServer(webAddr string) func() {
+	var err error
+	webService, webHTTPServer, err = observer.StartObserver(webAddr, Version)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("start explorer failed")
+		SetExitStatus(1)
+		return nil
+	}
+
+	return func() {
+		_ = observer.StopObserver(webService, webHTTPServer)
+		ConsoleLog.Info("explorer stopped")
+	}
+}
+
 func runWeb(cmd *Command, args []string) {
 	configInit()
 	bgServerInit()
@@ -37,18 +52,9 @@ func runWeb(cmd *Command, args []string) {
 	}
 	webAddr = args[0]
 
-	var err error
-	webService, webHTTPServer, err = observer.StartObserver(webAddr, Version)
-	if err != nil {
-		ConsoleLog.WithError(err).Error("start explorer failed")
-		SetExitStatus(1)
-		return
-	}
-
-	defer func() {
-		_ = observer.StopObserver(webService, webHTTPServer)
-		ConsoleLog.Info("explorer stopped")
-	}()
+	cancelFunc := startWebServer(webAddr)
+	ExitIfErrors()
+	defer cancelFunc()
 
 	ConsoleLog.Printf("Ctrl + C to stop web server on %s\n", webAddr)
 	<-utils.WaitForExit()

@@ -18,9 +18,13 @@
 
 package main
 
-import "testing"
+import (
+	"flag"
+	"testing"
+)
 
 func TestMain(m *testing.M) {
+	flag.Parse()
 	defer m.Run()
 	main()
 }

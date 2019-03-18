@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -648,6 +649,19 @@ func cleanBenchTable(db *sql.DB) {
 	So(err, ShouldBeNil)
 }
 
+func makeBenchName(trailings ...string) string {
+	var parts = make([]string, 0, 3+len(trailings))
+	parts = append(parts, fmt.Sprintf("%dMiner", benchMinerCount))
+	if benchBypassSignature {
+		parts = append(parts, "BypassSignature")
+	}
+	if benchEventualConsistency {
+		parts = append(parts, "EventualConsistency")
+	}
+	parts = append(parts, trailings...)
+	return strings.Join(parts, "_")
+}
+
 func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	var err error
 	if createDB {
@@ -659,7 +673,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	var i int64
 	i = -1
 
-	b.Run("benchmark INSERT", func(b *testing.B) {
+	b.Run(makeBenchName("INSERT"), func(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
@@ -704,7 +718,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	}
 	log.Warnf("row Count: %v", count)
 
-	b.Run("benchmark SELECT", func(b *testing.B) {
+	b.Run(makeBenchName("SELECT"), func(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {

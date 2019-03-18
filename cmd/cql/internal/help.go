@@ -18,6 +18,7 @@ package internal
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -37,8 +38,18 @@ Use "cql help <command>" for more information about a command.
 `,
 }
 
+// CmdHelp is cql help command entity.
+var CmdHelp = &Command{
+	UsageLine: "cql help [command]",
+	Short:     "show help of sub commands",
+	Long: `
+Use "cql help <command>" for more information about a command.
+`,
+}
+
 func init() {
 	CmdVersion.Run = runVersion
+	CmdHelp.Run = runHelp
 }
 
 // PrintVersion prints program git version.
@@ -55,4 +66,57 @@ func PrintVersion(printLog bool) string {
 
 func runVersion(cmd *Command, args []string) {
 	fmt.Print(PrintVersion(false))
+}
+
+func runHelp(cmd *Command, args []string) {
+	if len(args) != 1 {
+		MainUsage()
+	}
+
+	cmdName := args[0]
+	for _, cmd := range CqlCommands {
+		if cmd.Name() != cmdName {
+			continue
+		}
+		fmt.Fprintf(os.Stderr, cmd.UsageLine)
+		fmt.Fprintf(os.Stderr, cmd.Long)
+		SetExitStatus(2)
+		return
+	}
+
+	//Not support command
+	MainUsage()
+}
+
+// MainUsage prints cql base help
+func MainUsage() {
+	helpHead := `cql is a tool for managing CovenantSQL database.
+
+Usage:
+
+	cql <command> [-params] [arguments]
+
+The commands are:
+
+`
+	helpTail := `
+Use "cql help <command>" for more information about a command.
+`
+
+	helpMsg := helpHead
+	for _, cmd := range CqlCommands {
+		if cmd.Name() == "help" {
+			continue
+		}
+		cmdName := cmd.Name()
+		if len(cmd.Name()) < 8 {
+			cmdName += "\t"
+		}
+		helpMsg += "\t" + cmdName + "\t" + cmd.Short + "\n"
+	}
+	helpMsg += helpTail
+
+	fmt.Fprintf(os.Stderr, helpMsg)
+	SetExitStatus(2)
+	Exit()
 }

@@ -41,6 +41,7 @@ func init() {
 		internal.CmdWeb,
 		internal.CmdAdapter,
 		internal.CmdVersion,
+		internal.CmdHelp,
 	}
 }
 
@@ -51,17 +52,12 @@ func main() {
 	// set random
 	rand.Seed(time.Now().UnixNano())
 
-	flag.Usage = mainUsage
+	flag.Usage = internal.MainUsage
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) < 1 {
-		mainUsage()
-	}
-
-	if args[0] == "help" {
-		mainUsage()
-		return
+		internal.MainUsage()
 	}
 
 	internal.PrintVersion(true)
@@ -81,38 +77,6 @@ func main() {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "cql %s: unknown command\nRun 'cql help' for usage.\n", args[0])
-	internal.SetExitStatus(2)
-	internal.Exit()
-}
-
-func mainUsage() {
-	helpHead := `cql is a tool for managing CovenantSQL database.
-
-Usage:
-
-	cql <command> [-params] [arguments]
-
-The commands are:
-
-`
-	helpTail := `
-Use "cql help <command>" for more information about a command.
-`
-
-	helpMsg := helpHead
-	for _, cmd := range internal.CqlCommands {
-		if cmd.Name() == "help" {
-			continue
-		}
-		cmdName := cmd.Name()
-		if len(cmd.Name()) < 8 {
-			cmdName += "\t"
-		}
-		helpMsg += "\t" + cmdName + "\t" + cmd.Short + "\n"
-	}
-	helpMsg += helpTail
-
-	fmt.Fprintf(os.Stderr, helpMsg)
 	internal.SetExitStatus(2)
 	internal.Exit()
 }

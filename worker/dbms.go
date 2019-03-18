@@ -295,10 +295,11 @@ func (dbms *DBMS) UpdatePermission(dbID proto.DatabaseID, user proto.AccountAddr
 	} else {
 		exist := false
 		for _, u := range profile.Users {
-			u.Address = user
-			u.Permission = permStat.Permission
-			u.Status = permStat.Status
-			exist = true
+			if u.Address == user {
+				u.Permission = permStat.Permission
+				u.Status = permStat.Status
+				exist = true
+			}
 		}
 		if !exist {
 			profile.Users = append(profile.Users, &types.SQLChainUser{

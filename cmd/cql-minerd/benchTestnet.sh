@@ -1,11 +1,32 @@
-#!/bin/bash
+#! /usr/bin/env bash
+set -euo pipefail
 
-make -C ../../ clean && \
-make -C ../../ use_all_cores
-go test -bench=^BenchmarkTestnetMiner1$ -benchtime=10s -run ^$ |tee testnet.log
-go test -bench=^BenchmarkTestnetMiner2$ -benchtime=10s -run ^$ |tee -a testnet.log
-go test -bench=^BenchmarkTestnetMiner3$ -benchtime=10s -run ^$ |tee -a testnet.log
+main() {
+    local wd="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.."; pwd)"
+    make -C "$wd" clean
+    make -C "$wd" use_all_cores
 
-go test -cpu=1 -bench=^BenchmarkTestnetMiner1$ -benchtime=10s -run ^$ |tee -a testnet.log
-go test -cpu=1 -bench=^BenchmarkTestnetMiner2$ -benchtime=10s -run ^$ |tee -a testnet.log
-go test -cpu=1 -bench=^BenchmarkTestnetMiner3$ -benchtime=10s -run ^$ |tee -a testnet.log
+    rm -f testnet.log
+    touch testnet.log
+
+    local flags=(
+        "-bench=^BenchmarkTestnetMiner$"
+        "-benchtime=10s"
+        "-run=^$"
+    )
+    local pkg="github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd"
+    local cpus=("" 1) counts=(1 2 3)
+    local cpu count caseflags
+    for cpu in "${cpus[@]}"; do
+        if [[ -z $cpu ]]; then
+            caseflags=("${flags[@]}")
+        else
+            caseflags=("-cpu=$cpu" "${flags[@]}")
+        fi
+        for count in "${counts[@]}"; do
+            go test "${caseflags[@]}" "$pkg" -bench-miner-count=$count | tee -a testnet.log
+        done
+    done
+}
+
+main "$@"

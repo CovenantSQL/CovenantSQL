@@ -32,8 +32,13 @@ var (
 
 // CmdWeb is cql web command.
 var CmdWeb = &Command{
-	UsageLine:   "cql web [-tmp-path path] [-bg-log-level level] [address]",
-	Description: "Web command serve a database chain explorer, e.g. :8546",
+	UsageLine: "cql web [-config file] [-tmp-path path] [-bg-log-level level] [address]",
+	Short:     "start a database chain web explorer",
+	Long: `
+Web command serve a database chain web explorer.
+e.g.
+	cql web 127.0.0.1:8546",
+`,
 }
 
 func init() {

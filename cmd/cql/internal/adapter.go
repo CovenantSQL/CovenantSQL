@@ -33,8 +33,13 @@ var (
 
 // CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
-	UsageLine:   "cql adapter [-tmp-path path] [-bg-log-level level] [address]",
-	Description: "Adapter command serve a database chain adapter, e.g. :7784",
+	UsageLine: "cql adapter [-config file] [-password masterkey] [-tmp-path path] [-bg-log-level level] [address]",
+	Short:     "start a database chain adapter",
+	Long: `
+Adapter command serve a database chain adapter
+e.g.
+	cql adapter 127.0.0.1:7784
+`,
 }
 
 func init() {

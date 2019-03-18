@@ -22,8 +22,17 @@ import (
 
 // CmdDrop is cql drop command entity.
 var CmdDrop = &Command{
-	UsageLine:   "cql drop [-wait-tx-confirm] [dsn/dbid]",
-	Description: "Drop CovenantSQL database by dsn or database id",
+	UsageLine: "cql drop [-config file] [-password masterkey] [-wait-tx-confirm] [dsn/dbid]",
+	Short:     "drop a database by dsn or database id",
+	Long: `
+Drop command can drop a database by dsn or database id
+e.g.
+	cql drop covenant://the_dsn_of_your_database
+
+Since CovenantSQL is blockchain database, you may want get confirm of drop operation.
+e.g.
+	cql drop -wait-tx-confirm covenant://the_dsn_of_your_database
+`,
 }
 
 func init() {

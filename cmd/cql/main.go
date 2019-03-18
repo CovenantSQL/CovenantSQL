@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
@@ -34,14 +33,14 @@ var (
 func init() {
 	internal.CqlCommands = []*internal.Command{
 		internal.CmdConsole,
-		internal.CmdVersion,
-		internal.CmdBalance,
 		internal.CmdCreate,
 		internal.CmdDrop,
-		internal.CmdPermission,
+		internal.CmdBalance,
 		internal.CmdTransfer,
+		internal.CmdPermission,
 		internal.CmdWeb,
 		internal.CmdAdapter,
+		internal.CmdVersion,
 	}
 }
 
@@ -60,7 +59,6 @@ func main() {
 		mainUsage()
 	}
 
-	internal.CmdName = args[0] // for error messages
 	if args[0] == "help" {
 		mainUsage()
 		return
@@ -82,16 +80,39 @@ func main() {
 		internal.Exit()
 		return
 	}
-	helpArg := ""
-	if i := strings.LastIndex(internal.CmdName, " "); i >= 0 {
-		helpArg = " " + internal.CmdName[:i]
-	}
-	fmt.Fprintf(os.Stderr, "cql %s: unknown command\nRun 'cql help%s' for usage.\n", internal.CmdName, helpArg)
+	fmt.Fprintf(os.Stderr, "cql %s: unknown command\nRun 'cql help' for usage.\n", args[0])
 	internal.SetExitStatus(2)
 	internal.Exit()
 }
 
 func mainUsage() {
-	//TODO(laodouya) print stderr main usage
-	os.Exit(2)
+	helpHead := `cql is a tool for managing CovenantSQL database.
+
+Usage:
+
+	cql <command> [-params] [arguments]
+
+The commands are:
+
+`
+	helpTail := `
+Use "cql help <command>" for more information about a command.
+`
+
+	helpMsg := helpHead
+	for _, cmd := range internal.CqlCommands {
+		if cmd.Name() == "help" {
+			continue
+		}
+		cmdName := cmd.Name()
+		if len(cmd.Name()) < 8 {
+			cmdName += "\t"
+		}
+		helpMsg += "\t" + cmdName + "\t" + cmd.Short + "\n"
+	}
+	helpMsg += helpTail
+
+	fmt.Fprintf(os.Stderr, helpMsg)
+	internal.SetExitStatus(2)
+	internal.Exit()
 }

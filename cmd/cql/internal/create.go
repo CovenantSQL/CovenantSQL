@@ -26,11 +26,16 @@ import (
 
 // CmdCreate is cql create command entity.
 var CmdCreate = &Command{
-	UsageLine: "cql create [-wait-tx-confirm] [dbmeta]",
-	Description: `
-Create CovenantSQL database by database metainfo json string(must include node count)
-	e.g.
-		cql create -wait-tx-confirm '{"node":2}'
+	UsageLine: "cql create [-config file] [-password masterkey] [-wait-tx-confirm] [dbmeta]",
+	Short:     "create a database",
+	Long: `
+Create CovenantSQL database by database metainfo json string, metainfo must include node count.
+e.g.
+	cql create '{"node":2}'
+
+Since CovenantSQL is blockchain database, you may want get confirm of creation.
+e.g.
+	cql create -wait-tx-confirm '{"node":2}'
 `,
 }
 

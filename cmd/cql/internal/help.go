@@ -30,8 +30,11 @@ var (
 
 // CmdVersion is cql version command entity.
 var CmdVersion = &Command{
-	UsageLine:   "cql version",
-	Description: "Show cql build version infomation",
+	UsageLine: "cql version",
+	Short:     "show build version infomation",
+	Long: `
+Use "cql help <command>" for more information about a command.
+`,
 }
 
 func init() {

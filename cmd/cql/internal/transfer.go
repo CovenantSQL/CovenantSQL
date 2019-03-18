@@ -29,8 +29,18 @@ import (
 
 // CmdTransfer is cql transfer command entity.
 var CmdTransfer = &Command{
-	UsageLine:   "cql transfer [-wait-tx-confirm] [meta_json]",
-	Description: "Transfer token to target account",
+	UsageLine: "cql transfer [-config file] [-password masterkey] [-wait-tx-confirm] [meta_json]",
+	Short:     "transfer token to target account",
+	Long: `
+Transfer command can transfer your token to target account.
+Command argument is json meta info of a token transaction.
+e.g.
+	cql transfer '{"addr":"your_account_addr","amount":"100 Particle"}'
+
+Since CovenantSQL is blockchain database, you may want get confirm of permission update.
+e.g.
+	cql transfer -wait-tx-confirm '{"addr":"your_account_addr","amount":"100 Particle"}'
+`,
 }
 
 func init() {

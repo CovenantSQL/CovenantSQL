@@ -52,8 +52,11 @@ type Command struct {
 	// The first word in the line is taken to be the command name.
 	UsageLine string
 
+	// Short is the short description shown in the 'cql help' output.
+	Short string
+
 	// Long is the long message shown in the 'cql help <this-command>' output.
-	Description string
+	Long string
 
 	// Flag is a set of flags specific to this command.
 	Flag flag.FlagSet

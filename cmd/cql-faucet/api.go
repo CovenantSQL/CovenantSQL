@@ -155,8 +155,9 @@ func (d *service) applyToken(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
-		"id": applicationID,
-		"tx": txHash.String(),
+		"id":     applicationID,
+		"tx":     txHash.String(),
+		"amount": d.p.tokenAmount,
 	}, rw)
 
 	return

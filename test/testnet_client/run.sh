@@ -25,7 +25,7 @@ ${BIN}/cql transfer -config ${PROJECT_DIR}/conf/testnet/config.yaml -wait-tx-con
 
 ${BIN}/cql balance
 
-${BIN}/cql create -wait-tx-confirm 2 | tee dsn.txt
+${BIN}/cql create -wait-tx-confirm '{"node":2}' | tee dsn.txt
 
 #get dsn
 dsn=$(cat dsn.txt)

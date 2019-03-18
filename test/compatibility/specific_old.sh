@@ -53,7 +53,7 @@ sleep 20
 if [[ $CLIENTBIN =~ "v0.4.0" ]]; then
     ${CLIENTBIN} -config node_c/config.yaml -get-balance
 
-    ${CLIENTBIN} -config node_c/config.yaml -wait-tx-confirm -create 2 | tee dsn.txt
+    ${CLIENTBIN} -config node_c/config.yaml -wait-tx-confirm -create '{"node":2}' | tee dsn.txt
 
     #get dsn
     dsn=$(cat dsn.txt)
@@ -69,7 +69,7 @@ if [[ $CLIENTBIN =~ "v0.4.0" ]]; then
 else
     ${CLIENTBIN} balance -config node_c/config.yaml
 
-    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm 2 | tee dsn.txt
+    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm '{"node":2}' | tee dsn.txt
 
     #get dsn
     dsn=$(cat dsn.txt)

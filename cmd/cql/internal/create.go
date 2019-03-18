@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
 // CmdCreate is cql create command entity.
 var CmdCreate = &Command{
-	UsageLine:   "cql create [-wait-tx-confirm] [dbmeta/nodecount]",
-	Description: "Create CovenantSQL database by database metainfo or just number for node count",
+	UsageLine: "cql create [-wait-tx-confirm] [dbmeta]",
+	Description: `
+Create CovenantSQL database by database metainfo json string(must include node count)
+	e.g.
+		cql create -wait-tx-confirm '{"node":2}'
+`,
 }
 
 func init() {
@@ -26,7 +29,7 @@ func runCreate(cmd *Command, args []string) {
 	configInit()
 
 	if len(args) != 1 {
-		ConsoleLog.Error("Create command need database_meta_info string or node_count as params")
+		ConsoleLog.Error("Create command need database_meta_info string as params")
 		SetExitStatus(1)
 		return
 	}
@@ -36,17 +39,15 @@ func runCreate(cmd *Command, args []string) {
 	var meta client.ResourceMeta
 
 	if err := json.Unmarshal([]byte(metaStr), &meta); err != nil {
-		// not a instance json, try if it is a number describing node count
-		nodeCnt, err := strconv.ParseUint(metaStr, 10, 16)
-		if err != nil {
-			// still failing
-			ConsoleLog.WithField("db", metaStr).Error("create database failed: invalid instance description")
-			SetExitStatus(1)
-			return
-		}
+		ConsoleLog.WithField("db", metaStr).Error("create database failed: invalid instance description")
+		SetExitStatus(1)
+		return
+	}
 
-		meta = client.ResourceMeta{}
-		meta.Node = uint16(nodeCnt)
+	if meta.Node == 0 {
+		ConsoleLog.WithField("db", metaStr).Error("create database failed: request node count must > 1")
+		SetExitStatus(1)
+		return
 	}
 
 	txHash, dsn, err := client.Create(meta)

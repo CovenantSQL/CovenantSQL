@@ -86,27 +86,15 @@ func main() {
 		return
 	}
 
-	// init verifier
-	var v *Verifier
-	if v, err = NewVerifier(cfg, p); err != nil {
-		return
-	}
-
-	// start verifier
-	go v.run()
-
 	// init faucet api
 	var server *http.Server
-	if server, err = startAPI(v, p, cfg.ListenAddr); err != nil {
+	if server, err = startAPI(p, cfg.ListenAddr); err != nil {
 		return
 	}
 
 	log.Info("started faucet")
 
 	<-utils.WaitForExit()
-
-	// stop verifier
-	v.stop()
 
 	// stop faucet api
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

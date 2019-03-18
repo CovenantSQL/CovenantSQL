@@ -18,25 +18,21 @@ package main
 
 import (
 	"io/ioutil"
-	"time"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// Config defines the configurable options for faucet application backend.
+// Config defines the configurable options for faucet applyToken backend.
 type Config struct {
 	// faucet server related
-	ListenAddr           string        `yaml:"ListenAddr"`
-	URLRequired          string        `yaml:"URLRequired"` // can be a part of a valid url
-	ContentRequired      []string      `yaml:"ContentRequired"`
-	FaucetAmount         int64         `yaml:"FaucetAmount"`
-	DatabaseID           string        `yaml:"DatabaseID"`       // database id for persistence
-	LocalDatabase        bool          `yaml:"UseLocalDatabase"` // use local sqlite3 database for persistence
-	AddressDailyQuota    uint          `yaml:"AddressDailyQuota"`
-	AccountDailyQuota    uint          `yaml:"AccountDailyQuota"`
-	VerificationInterval time.Duration `yaml:"VerificationInterval"`
+	ListenAddr        string `yaml:"ListenAddr"`
+	FaucetAmount      int64  `yaml:"FaucetAmount"`
+	DatabaseID        string `yaml:"DatabaseID"`       // database id for persistence
+	LocalDatabase     bool   `yaml:"UseLocalDatabase"` // use local sqlite3 database for persistence
+	AddressDailyQuota uint   `yaml:"AddressDailyQuota"`
+	AccountDailyQuota uint   `yaml:"AccountDailyQuota"`
 }
 
 type confWrapper struct {
@@ -72,21 +68,15 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
-	if config.URLRequired == "" && len(config.ContentRequired) == 0 {
-		err = ErrInvalidFaucetConfig
-		log.Error("at least one URL/Content config for faucet application is required")
-		return
-	}
-
 	if config.DatabaseID == "" {
 		err = ErrInvalidFaucetConfig
-		log.Error("a database id is required for faucet application persistence")
+		log.Error("a database id is required for faucet applyToken persistence")
 		return
 	}
 
 	if config.FaucetAmount <= 0 {
 		err = ErrInvalidFaucetConfig
-		log.Error("a positive faucet amount is required for every application")
+		log.Error("a positive faucet amount is required for every applyToken")
 		return
 	}
 
@@ -101,12 +91,6 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		}
 
 		return
-	}
-
-	if config.VerificationInterval.Nanoseconds() <= 0 {
-		log.Warning("a valid VerificationInterval is required, 30 seconds assumed")
-
-		config.VerificationInterval = 30 * time.Second
 	}
 
 	return

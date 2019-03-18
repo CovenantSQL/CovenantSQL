@@ -40,7 +40,7 @@ type confWrapper struct {
 }
 
 // LoadConfig load the common covenantsql client config again for extra faucet config.
-func LoadConfig(configPath string) (config *Config, err error) {
+func LoadConfig(listenAddr string, configPath string) (config *Config, err error) {
 	var configBytes []byte
 	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
 		log.WithError(err).Error("read config file failed")
@@ -62,6 +62,10 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	config = configWrapper.Faucet
 
 	// validate config
+	if listenAddr != "" {
+		config.ListenAddr = listenAddr
+	}
+
 	if config.ListenAddr == "" {
 		err = ErrInvalidFaucetConfig
 		log.Error("ListenAddr is not defined in faucet config")

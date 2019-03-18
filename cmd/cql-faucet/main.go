@@ -35,12 +35,14 @@ const name = "cql-faucet"
 
 var (
 	version     = "unknown"
+	listenAddr  string
 	configFile  string
 	password    string
 	showVersion bool
 )
 
 func init() {
+	flag.StringVar(&listenAddr, "listen", "", "API listen addr (will override settings in config file")
 	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Configuration file for covenantsql")
 	flag.StringVar(&password, "password", "", "Master key password for covenantsql")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
@@ -73,7 +75,7 @@ func main() {
 	// load faucet config from same config file
 	var cfg *Config
 
-	if cfg, err = LoadConfig(configFile); err != nil {
+	if cfg, err = LoadConfig(listenAddr, configFile); err != nil {
 		log.WithError(err).Error("read faucet config failed")
 		os.Exit(-1)
 		return

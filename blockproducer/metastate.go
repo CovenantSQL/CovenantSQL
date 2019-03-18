@@ -825,13 +825,6 @@ func (s *metaState) updatePermission(tx *types.UpdatePermission) (err error) {
 		}).WithError(ErrDatabaseNotFound).Error("unexpected error in updatePermission")
 		return ErrDatabaseNotFound
 	}
-	if !tx.Permission.IsValid() {
-		log.WithFields(log.Fields{
-			"permission": tx.Permission,
-			"dbID":       tx.TargetSQLChain.DatabaseID(),
-		}).WithError(ErrInvalidPermission).Error("unexpected error in updatePermission")
-		return ErrInvalidPermission
-	}
 
 	// check whether sender has super privilege and find targetUser
 	numOfSuperUsers := 0

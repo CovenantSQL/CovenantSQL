@@ -49,21 +49,40 @@ nohup ${MINERBIN} -config node_miner_2/config.yaml >${LOGS_DIR}/miner2.log 2>&1 
 # wait miner start
 sleep 20
 
-${CLIENTBIN} balance -config node_c/config.yaml
+# TODO(laodouya) remove v0.4.0 code after v0.5.0 release
+if [ $PREV_VERSION == "v0.4.0" ]; then
+    ${CLIENTBIN} -config node_c/config.yaml -get-balance
 
-${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm 2 | tee dsn.txt
+    ${CLIENTBIN} -config node_c/config.yaml -wait-tx-confirm -create 2 | tee dsn.txt
 
-#get dsn
-dsn=$(cat dsn.txt)
-if [ -z "$dsn" ]; then
-    exit 1
+    #get dsn
+    dsn=$(cat dsn.txt)
+    if [ -z "$dsn" ]; then
+        exit 1
+    fi
+
+    ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
+        -command 'create table test_for_new_account(column1 int);'
+
+    ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
+        -command 'show tables;' | tee result.log
+else
+    ${CLIENTBIN} balance -config node_c/config.yaml
+
+    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm 2 | tee dsn.txt
+
+    #get dsn
+    dsn=$(cat dsn.txt)
+    if [ -z "$dsn" ]; then
+        exit 1
+    fi
+
+    ${CLIENTBIN} console -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
+        -command 'create table test_for_new_account(column1 int);'
+
+    ${CLIENTBIN} console -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
+        -command 'show tables;' | tee result.log
 fi
-
-${CLIENTBIN} console -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
-    -command 'create table test_for_new_account(column1 int);'
-
-${CLIENTBIN} console -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
-    -command 'show tables;' | tee result.log
 
 grep "1 row" result.log
 

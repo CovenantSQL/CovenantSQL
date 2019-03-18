@@ -488,9 +488,9 @@ func TestFullProcess(t *testing.T) {
 		var observerCmd *utils.CMD
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql.test"),
-			[]string{"web", "-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
+			[]string{"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
+				"web", "-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-bg-log-level", "debug",
-				"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
 				"127.0.0.1:4663",
 			},
 			"observer", testWorkingDir, logDir, false,
@@ -719,9 +719,9 @@ func TestFullProcess(t *testing.T) {
 		// start observer again
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql.test"),
-			[]string{"web", "-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
+			[]string{"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
+				"web", "-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-bg-log-level", "debug",
-				"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
 				"127.0.0.1:4663",
 			},
 			"observer", testWorkingDir, logDir, false,

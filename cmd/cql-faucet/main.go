@@ -84,7 +84,7 @@ func main() {
 	// init persistence
 	var p *Persistence
 	if p, err = NewPersistence(cfg); err != nil {
-		log.Errorf("")
+		log.WithError(err).Error("init persistence storage failed")
 		return
 	}
 

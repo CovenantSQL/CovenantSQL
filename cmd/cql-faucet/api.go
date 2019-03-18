@@ -371,7 +371,7 @@ func (d *service) privatizeDB(rw http.ResponseWriter, r *http.Request) {
 
 func (d *service) waitTx(rw http.ResponseWriter, r *http.Request) {
 	// get args
-	tx := r.FormValue("tx")
+	tx := r.FormValue(argTx)
 
 	var (
 		txHash  *hash.Hash

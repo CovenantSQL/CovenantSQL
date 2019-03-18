@@ -421,7 +421,7 @@ func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error
 	v1Router.HandleFunc("/apply_token", service.applyToken).Methods("POST")
 	v1Router.HandleFunc("/account_balance", service.getBalance).Methods("GET", "POST")
 	v1Router.HandleFunc("/db_balance", service.getDBBalance).Methods("GET", "POST")
-	v1Router.HandleFunc("/create_database", service.getDBBalance).Methods("POST")
+	v1Router.HandleFunc("/create_database", service.createDB).Methods("POST")
 	v1Router.HandleFunc("/privatize", service.privatizeDB).Methods("POST")
 	v1Router.HandleFunc("/wait_tx", service.waitTx).Methods("GET", "POST")
 

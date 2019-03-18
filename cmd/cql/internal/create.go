@@ -9,6 +9,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
+// CmdCreate is cql create command entity.
 var CmdCreate = &Command{
 	UsageLine:   "cql create [-wait-tx-confirm] [dbmeta/nodecount]",
 	Description: "Create CovenantSQL database by database metainfo or just number for node count",

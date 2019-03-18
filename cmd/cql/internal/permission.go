@@ -8,6 +8,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
+// CmdPermission is cql permission command entity.
 var CmdPermission = &Command{
 	UsageLine:   "cql permission [-wait-tx-confirm] [perm_meta]",
 	Description: "Update user's permission on specific sqlchain",

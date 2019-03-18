@@ -12,6 +12,7 @@ var (
 	Version = "unknown"
 )
 
+// CmdVersion is cql version command entity.
 var CmdVersion = &Command{
 	UsageLine:   "cql version",
 	Description: "Show cql build version infomation",

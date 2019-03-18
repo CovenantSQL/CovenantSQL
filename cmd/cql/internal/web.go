@@ -14,6 +14,7 @@ var (
 	webHTTPServer *http.Server
 )
 
+// CmdWeb is cql web command.
 var CmdWeb = &Command{
 	UsageLine:   "cql web [-tmp-path path] [-bg-log-level level] [address]",
 	Description: "Web command serve a database chain explorer, e.g. :8546",

@@ -26,6 +26,7 @@ var (
 	tmpPath    string // background observer and explorer block and log file path
 	bgLogLevel string // background log level
 
+	// CmdName stores cql command strings for error messages.
 	CmdName string
 )
 

@@ -4,6 +4,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
+// CmdDrop is cql drop command entity.
 var CmdDrop = &Command{
 	UsageLine:   "cql drop [-wait-tx-confirm] [dsn/dbid]",
 	Description: "Drop CovenantSQL database by dsn or database id",

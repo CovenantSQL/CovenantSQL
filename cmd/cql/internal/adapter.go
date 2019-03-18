@@ -15,6 +15,7 @@ var (
 	adapterHTTPServer *http.Server
 )
 
+// CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
 	UsageLine:   "cql adapter [-tmp-path path] [-bg-log-level level] [address]",
 	Description: "Adapter command serve a database chain adapter, e.g. :7784",

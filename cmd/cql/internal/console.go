@@ -44,6 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
+// CmdConsole is cql console command entity.
 var CmdConsole = &Command{
 	UsageLine:   "cql console [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables]",
 	Description: "run a console for realtime sql operation",

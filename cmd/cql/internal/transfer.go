@@ -11,6 +11,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
+// CmdTransfer is cql transfer command entity.
 var CmdTransfer = &Command{
 	UsageLine:   "cql transfer [-wait-tx-confirm] [meta_json]",
 	Description: "Transfer token to target account",

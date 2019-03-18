@@ -11,6 +11,7 @@ var (
 	tokenName string // get specific token's balance of current account
 )
 
+// CmdBalance is cql balance command entity.
 var CmdBalance = &Command{
 	UsageLine:   "cql balance [-token token_name]",
 	Description: "Get CovenantSQL balance of current account",

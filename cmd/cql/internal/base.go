@@ -64,6 +64,7 @@ func (c *Command) Name() string {
 	return name
 }
 
+// Usage print base usage help info.
 func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "Run 'cql help %s' for details.\n", c.LongName())
@@ -78,10 +79,11 @@ func (c *Command) Runnable() bool {
 
 var atExitFuncs []func()
 
-func AtExit(f func()) {
+func atExit(f func()) {
 	atExitFuncs = append(atExitFuncs, f)
 }
 
+// Exit will run all exit funcs and then return with exitStatus
 func Exit() {
 	for _, f := range atExitFuncs {
 		f()
@@ -89,6 +91,7 @@ func Exit() {
 	os.Exit(exitStatus)
 }
 
+// ExitIfErrors will call Exit() if exitStatus is not 0
 func ExitIfErrors() {
 	if exitStatus != 0 {
 		Exit()
@@ -98,6 +101,7 @@ func ExitIfErrors() {
 var exitStatus = 0
 var exitMu sync.Mutex
 
+// SetExitStatus provide thread safe set exit status func.
 func SetExitStatus(n int) {
 	exitMu.Lock()
 	if exitStatus < n {

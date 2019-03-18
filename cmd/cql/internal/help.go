@@ -22,6 +22,7 @@ func init() {
 	CmdVersion.Run = runVersion
 }
 
+// PrintVersion prints program git version.
 func PrintVersion(printLog bool) string {
 	version := fmt.Sprintf("%v %v %v %v %v\n",
 		name, Version, runtime.GOOS, runtime.GOARCH, runtime.Version())

@@ -50,7 +50,7 @@ nohup ${MINERBIN} -config node_miner_2/config.yaml >${LOGS_DIR}/miner2.log 2>&1 
 sleep 20
 
 # TODO(laodouya) remove v0.4.0 code after v0.5.0 release
-if [ $PREV_VERSION == "v0.4.0" ]; then
+if [[ $CLIENTBIN =~ "v0.4.0" ]]; then
     ${CLIENTBIN} -config node_c/config.yaml -get-balance
 
     ${CLIENTBIN} -config node_c/config.yaml -wait-tx-confirm -create 2 | tee dsn.txt

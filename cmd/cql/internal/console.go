@@ -50,7 +50,6 @@ var CmdConsole = &Command{
 	Description: "run a console for realtime sql operation",
 }
 
-//TODO(laodouya) add web/adapter flag   {command/filename}
 var (
 	variables         varsFlag
 	dsn               string

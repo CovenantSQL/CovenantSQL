@@ -47,17 +47,17 @@ import (
 // CmdConsole is cql console command entity.
 var CmdConsole = &Command{
 	UsageLine: "cql console [-config file] [-password masterkey] [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-web web_addr] [-adapter adapter_addr]",
-	Short:     "run a console for realtime sql operation",
+	Short:     "run a console for interactive sql operation",
 	Long: `
-Console command can run a real-time SQL console for CovenantSQL
+Console command can run a interactive SQL console for CovenantSQL
 The -dsn param is required
 e.g.
-    cql console -dsn covenant://the_dsn_of_your_database
+    cql console -dsn covenantsql://the_dsn_of_your_database
 
 There is also a -command param for SQL script, and a -file param for reading SQL in a file.
 If those params are set, it will run SQL script and exit without staying console mode.
 e.g.
-    cql console -dsn covenant://the_dsn_of_your_database -command "create table test1(test2 int);"
+    cql console -dsn covenantsql://the_dsn_of_your_database -command "create table test1(test2 int);"
 `,
 }
 

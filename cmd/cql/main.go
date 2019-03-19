@@ -60,7 +60,9 @@ func main() {
 		internal.MainUsage()
 	}
 
-	internal.PrintVersion(true)
+	if args[0] != "version" && args[0] != "help" {
+		internal.PrintVersion(true)
+	}
 
 	for _, cmd := range internal.CqlCommands {
 		if cmd.Name() != args[0] {

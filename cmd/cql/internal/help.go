@@ -78,7 +78,7 @@ func runHelp(cmd *Command, args []string) {
 		if cmd.Name() != cmdName {
 			continue
 		}
-		fmt.Fprintf(os.Stderr, cmd.UsageLine)
+		fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
 		fmt.Fprintf(os.Stderr, cmd.Long)
 		SetExitStatus(2)
 		return
@@ -94,7 +94,7 @@ func MainUsage() {
 
 Usage:
 
-	cql <command> [-params] [arguments]
+    cql <command> [-params] [arguments]
 
 The commands are:
 

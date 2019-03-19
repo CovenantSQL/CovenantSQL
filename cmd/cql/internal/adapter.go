@@ -36,9 +36,9 @@ var CmdAdapter = &Command{
 	UsageLine: "cql adapter [-config file] [-password masterkey] [-tmp-path path] [-bg-log-level level] [address]",
 	Short:     "start a database chain adapter",
 	Long: `
-Adapter command serve a database chain adapter
+Adapter command serves a database chain adapter
 e.g.
-	cql adapter 127.0.0.1:7784
+    cql adapter 127.0.0.1:7784
 `,
 }
 

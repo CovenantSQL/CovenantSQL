@@ -30,13 +30,13 @@ var (
 // CmdBalance is cql balance command entity.
 var CmdBalance = &Command{
 	UsageLine: "cql balance [-config file] [-password masterkey] [-token token_name]",
-	Short:     "get balance of current account",
+	Short:     "get the balance of current account",
 	Long: `
 Balance command can get CovenantSQL token balance of current account
 e.g.
-	cql balance
+    cql balance
 
-	cql balance -token Particle
+    cql balance -token Particle
 `,
 }
 

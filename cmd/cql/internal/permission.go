@@ -29,13 +29,13 @@ var CmdPermission = &Command{
 	UsageLine: "cql permission [-config file] [-password masterkey] [-wait-tx-confirm] [perm_meta]",
 	Short:     "update user's permission on specific sqlchain",
 	Long: `
-Permission command can give a user specific permissions on your database
+Permission command can give a user some specific permissions on your database
 e.g.
-	cql permission '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql permission '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
 
 Since CovenantSQL is blockchain database, you may want get confirm of permission update.
 e.g.
-	cql permission -wait-tx-confirm '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql permission -wait-tx-confirm '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
 `,
 }
 

@@ -35,9 +35,9 @@ var CmdWeb = &Command{
 	UsageLine: "cql web [-config file] [-tmp-path path] [-bg-log-level level] [address]",
 	Short:     "start a database chain web explorer",
 	Long: `
-Web command serve a database chain web explorer.
+Web command serves a database chain web explorer.
 e.g.
-	cql web 127.0.0.1:8546",
+    cql web 127.0.0.1:8546",
 `,
 }
 

@@ -37,7 +37,7 @@ var CmdWeb = &Command{
 	Long: `
 Web command serves a SQLChain web explorer.
 e.g.
-    cql web 127.0.0.1:8546",
+    cql web 127.0.0.1:8546
 `,
 }
 

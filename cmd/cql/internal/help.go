@@ -80,6 +80,8 @@ func runHelp(cmd *Command, args []string) {
 		}
 		fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
 		fmt.Fprintf(os.Stderr, cmd.Long)
+		fmt.Fprintf(os.Stderr, "\nParams:\n")
+		cmd.Flag.PrintDefaults()
 		SetExitStatus(2)
 		return
 	}

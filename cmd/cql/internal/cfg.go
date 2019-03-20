@@ -19,8 +19,10 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -30,12 +32,14 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // These are general flags used by console and other commands.
 var (
 	configFile string
 	password   string
+	noPassword bool
 
 	waitTxConfirmation bool // wait for transaction confirmation before exiting
 	// Shard chain explorer/adapter stuff
@@ -45,15 +49,20 @@ var (
 
 func addCommonFlags(cmd *Command) {
 	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql")
-	cmd.Flag.StringVar(&password, "password", "", "Master key password for covenantsql")
+	cmd.Flag.StringVar(&password, "password", "", "Master key password for covenantsql(NOT SAFE, for debug or script only)")
 
 	// Undocumented, unstable debugging flags.
+	cmd.Flag.BoolVar(&noPassword, "no-password", false, "Use empty password for master key")
 	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 }
 
 func configInit() {
 	configFile = utils.HomeDirExpand(configFile)
+
+	if password == "" {
+		password = readMasterKey(noPassword)
+	}
 
 	// init covenantsql driver
 	if err := client.Init(configFile, []byte(password)); err != nil {
@@ -106,4 +115,20 @@ func bgServerInit() {
 
 	log.SetOutput(bgLog)
 	log.SetStringLevel(bgLogLevel, log.InfoLevel)
+}
+
+// readMasterKey reads the password of private key from terminal
+func readMasterKey(skip bool) string {
+	if skip {
+		return ""
+	}
+	fmt.Println("Enter master key(press Enter for default: \"\"): ")
+	bytePwd, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println()
+	if err != nil {
+		ConsoleLog.Errorf("read master key failed: %v", err)
+		SetExitStatus(1)
+		Exit()
+	}
+	return string(bytePwd)
 }

@@ -1041,7 +1041,7 @@ func TestMetaState(t *testing.T) {
 				// test permission update
 				// addr1(admin) update addr3 as admin
 				up.TargetUser = addr3
-				up.Nonce += 1
+				up.Nonce++
 				up.Permission = types.UserPermissionFromRole(types.Admin)
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)

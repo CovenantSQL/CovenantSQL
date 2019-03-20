@@ -35,8 +35,6 @@ import (
 const (
 	// commit channel window size
 	commitWindow = 0
-	// missing log window
-	missingLogWindow = 10
 )
 
 // Runtime defines the main kayak Runtime.
@@ -83,7 +81,7 @@ type Runtime struct {
 	serviceName string
 	// rpc method for apply requests.
 	applyRPCMethod string
-	// rpc method for fetch requests.
+	// rpc method for startFetch requests.
 	fetchRPCMethod string
 
 	//// Parameters
@@ -95,12 +93,10 @@ type Runtime struct {
 	prepareTimeout time.Duration
 	// commit timeout defines the max allowed time for commit operation.
 	commitTimeout time.Duration
-	// log wait timeout to fetch missing logs.
+	// log wait timeout to startFetch missing logs.
 	logWaitTimeout time.Duration
 	// channel for awaiting commits.
 	commitCh chan *commitReq
-	// channel for missing log indexes.
-	missingLogCh chan *waitItem
 	waitLogMap   sync.Map // map[uint64]*waitItem
 
 	/// Sub-routines management.
@@ -237,7 +233,6 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 		commitTimeout:    cfg.CommitTimeout,
 		logWaitTimeout:   cfg.LogWaitTimeout,
 		commitCh:         make(chan *commitReq, commitWindow),
-		missingLogCh:     make(chan *waitItem, missingLogWindow),
 
 		// stop coordinator
 		stopCh: make(chan struct{}),
@@ -259,8 +254,6 @@ func (r *Runtime) Start() (err error) {
 
 	// start commit cycle
 	r.goFunc(r.commitCycle)
-	// start missing log worker
-	r.goFunc(r.missingLogCycle)
 
 	return
 }
@@ -331,7 +324,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	return
 }
 
-// Fetch defines entry for missing log fetch.
+// Fetch defines entry for missing log startFetch.
 func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error) {
 	if atomic.LoadUint32(&r.started) != 1 {
 		err = kt.ErrStopped
@@ -344,7 +337,7 @@ func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error
 		log.WithField("l", index).
 			WithFields(tm.ToLogFields()).
 			WithError(err).
-			Debug("kayak log fetch")
+			Debug("kayak log startFetch")
 	}()
 
 	r.peersLock.RLock()
@@ -462,7 +455,7 @@ func (r *Runtime) followerApply(l *kt.Log, checkPrepare bool) (err error) {
 
 	if err == nil {
 		r.updateNextIndex(ctx, l)
-		r.triggerLogAwaits(l.Index)
+		r.triggerLogAwaits(l)
 	}
 
 	return

@@ -18,7 +18,9 @@ package kayak
 
 import (
 	"context"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -26,51 +28,150 @@ import (
 )
 
 type waitItem struct {
+	r          *Runtime
 	index      uint64
-	doneOnce   sync.Once
-	ch         chan struct{}
-	waitLock   sync.Mutex
-	processing int32
+	l          sync.RWMutex
+	log        *kt.Log
+	fetchTimer *time.Timer
+	started    uint32
+	stopCh     chan struct{}
+	waitCh     chan struct{}
 }
 
-func newWaitItem(index uint64) *waitItem {
+func newWaitItem(r *Runtime, index uint64) *waitItem {
 	return &waitItem{
-		index: index,
-		ch:    make(chan struct{}),
+		r:      r,
+		index:  index,
+		waitCh: make(chan struct{}, 1),
+		stopCh: make(chan struct{}),
+	}
+}
+
+func (i *waitItem) startFetch() {
+	i.l.Lock()
+	defer i.l.Unlock()
+
+	if atomic.CompareAndSwapUint32(&i.started, 0, 1) {
+		go i.run()
+	}
+}
+
+func (i *waitItem) run() {
+	// startFetch and apply and trigger pending
+	i.r.peersLock.RLock()
+	defer i.r.peersLock.RUnlock()
+
+	// check log existence
+	if l, err := i.r.wal.Get(i.index); err == nil {
+		i.set(l)
+		return
+	}
+
+	var (
+		req = &kt.FetchRequest{
+			Instance: i.r.instanceID,
+			Index:    i.index,
+		}
+		resp *kt.FetchResponse
+		err  error
+	)
+
+	// fetch log
+	for {
+		select {
+		case <-i.stopCh:
+			return
+		case <-time.After(i.r.logWaitTimeout):
+		}
+
+		resp = new(kt.FetchResponse)
+
+		if err = i.r.getCaller(i.r.peers.Leader).Call(i.r.fetchRPCMethod, req, resp); err != nil {
+			log.WithFields(log.Fields{
+				"index":    i.index,
+				"instance": i.r.instanceID,
+			}).WithError(err).Debug("send fetch rpc failed")
+			continue
+		} else if resp.Log == nil {
+			log.WithFields(log.Fields{
+				"index":    i.index,
+				"instance": i.r.instanceID,
+			}).Debug("could not fetch log")
+			continue
+		}
+
+		if err = i.r.followerApply(resp.Log, false); err != nil {
+			// apply log
+			log.WithFields(log.Fields{
+				"index":    i.index,
+				"instance": i.r.instanceID,
+			}).WithError(err).Debug("apply log failed")
+			continue
+		}
+
+		return
+	}
+}
+
+func (i *waitItem) get() *kt.Log {
+	i.l.RLock()
+	defer i.l.RUnlock()
+
+	return i.log
+}
+
+func (i *waitItem) set(l *kt.Log) {
+	i.l.Lock()
+	defer i.l.Unlock()
+
+	if i.waitCh != nil {
+		select {
+		case <-i.waitCh:
+		default:
+			close(i.waitCh)
+		}
+	}
+
+	if i.stopCh != nil {
+		select {
+		case <-i.stopCh:
+		default:
+			close(i.stopCh)
+		}
 	}
 }
 
 func (r *Runtime) waitForLog(ctx context.Context, index uint64) (l *kt.Log, err error) {
 	defer trace.StartRegion(ctx, "waitForLog").End()
 
-	for {
-		if l, err = r.wal.Get(index); err == nil {
-			// exists
-			return
-		}
-
-		rawItem, _ := r.waitLogMap.LoadOrStore(index, newWaitItem(index))
-		item := rawItem.(*waitItem)
-
-		if item == nil {
-			err = kt.ErrInvalidLog
-			return
-		}
-
-		select {
-		case <-item.ch:
-			r.waitLogMap.Delete(index)
-		case <-time.After(r.logWaitTimeout):
-			r.markMissingLog(index)
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-		}
+	if l, err = r.wal.Get(index); err == nil {
+		// exists
+		return
 	}
+
+	rawItem, _ := r.waitLogMap.LoadOrStore(index, newWaitItem(r, index))
+	item := rawItem.(*waitItem)
+
+	if item == nil {
+		err = kt.ErrInvalidLog
+		return
+	}
+
+	item.startFetch()
+
+	select {
+	case <-item.waitCh:
+		l = item.get()
+		r.waitLogMap.Delete(index)
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+
+	return
 }
 
-func (r *Runtime) triggerLogAwaits(index uint64) {
-	rawItem, ok := r.waitLogMap.Load(index)
+func (r *Runtime) triggerLogAwaits(l *kt.Log) {
+	rawItem, ok := r.waitLogMap.Load(l.Index)
 	if !ok || rawItem == nil {
 		return
 	}
@@ -81,9 +182,5 @@ func (r *Runtime) triggerLogAwaits(index uint64) {
 		return
 	}
 
-	item.doneOnce.Do(func() {
-		if item.ch != nil {
-			close(item.ch)
-		}
-	})
+	item.set(l)
 }

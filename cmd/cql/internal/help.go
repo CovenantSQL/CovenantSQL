@@ -82,12 +82,12 @@ func runHelp(cmd *Command, args []string) {
 		fmt.Fprintf(os.Stderr, cmd.Long)
 		fmt.Fprintf(os.Stderr, "\nParams:\n")
 		cmd.Flag.PrintDefaults()
-		SetExitStatus(2)
 		return
 	}
 
 	//Not support command
 	MainUsage()
+	SetExitStatus(2)
 }
 
 // MainUsage prints cql base help
@@ -119,6 +119,5 @@ Use "cql help <command>" for more information about a command.
 	helpMsg += helpTail
 
 	fmt.Fprintf(os.Stderr, helpMsg)
-	SetExitStatus(2)
 	Exit()
 }

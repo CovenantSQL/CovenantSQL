@@ -67,9 +67,9 @@ if [[ $CLIENTBIN =~ "v0.4.0" ]]; then
     ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
         -command 'show tables;' | tee result.log
 else
-    ${CLIENTBIN} balance -config node_c/config.yaml
+    ${CLIENTBIN} balance -config node_c/config.yaml -no-password
 
-    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm '{"node":2}' | tee dsn.txt
+    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm -no-password '{"node":2}' | tee dsn.txt
 
     #get dsn
     dsn=$(cat dsn.txt)
@@ -78,10 +78,10 @@ else
     fi
 
     ${CLIENTBIN} console -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
-        -command 'create table test_for_new_account(column1 int);'
+        -command 'create table test_for_new_account(column1 int);' -no-password
 
     ${CLIENTBIN} console -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
-        -command 'show tables;' | tee result.log
+        -command 'show tables;' -no-password | tee result.log
 fi
 
 grep "1 row" result.log

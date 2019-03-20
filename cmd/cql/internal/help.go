@@ -86,8 +86,8 @@ func runHelp(cmd *Command, args []string) {
 	}
 
 	//Not support command
-	MainUsage()
 	SetExitStatus(2)
+	MainUsage()
 }
 
 // MainUsage prints cql base help
@@ -111,8 +111,8 @@ Use "cql help <command>" for more information about a command.
 			continue
 		}
 		cmdName := cmd.Name()
-		if len(cmd.Name()) < 8 {
-			cmdName += "\t"
+		for len(cmdName) < 10 {
+			cmdName += " "
 		}
 		helpMsg += "\t" + cmdName + "\t" + cmd.Short + "\n"
 	}

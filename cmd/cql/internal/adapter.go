@@ -33,7 +33,7 @@ var (
 
 // CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
-	UsageLine: "cql adapter [-config file] [-password masterkey] [-tmp-path path] [-bg-log-level level] [address]",
+	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] [address]",
 	Short:     "start a SQLChain adapter",
 	Long: `
 Adapter command serves a SQLChain adapter

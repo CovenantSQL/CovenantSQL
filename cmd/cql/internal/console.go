@@ -46,7 +46,7 @@ import (
 
 // CmdConsole is cql console command entity.
 var CmdConsole = &Command{
-	UsageLine: "cql console [-config file] [-password masterkey] [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-web web_addr] [-adapter adapter_addr]",
+	UsageLine: "cql console [-config file] [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-web web_addr] [-adapter adapter_addr]",
 	Short:     "run a console for interactive sql operation",
 	Long: `
 Console command can run a interactive SQL console for CovenantSQL

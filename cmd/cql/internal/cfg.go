@@ -48,10 +48,10 @@ var (
 )
 
 func addCommonFlags(cmd *Command) {
-	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql")
-	cmd.Flag.StringVar(&password, "password", "", "Master key password for covenantsql(NOT SAFE, for debug or script only)")
+	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql (Usually no need to set, default is enough.)")
 
 	// Undocumented, unstable debugging flags.
+	cmd.Flag.StringVar(&password, "password", "", "Master key password for covenantsql (NOT SAFE, for debug or script only)")
 	cmd.Flag.BoolVar(&noPassword, "no-password", false, "Use empty password for master key")
 	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")

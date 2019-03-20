@@ -26,7 +26,7 @@ import (
 
 // CmdPermission is cql permission command entity.
 var CmdPermission = &Command{
-	UsageLine: "cql permission [-config file] [-password masterkey] [-wait-tx-confirm] [perm_meta]",
+	UsageLine: "cql permission [-config file] [-wait-tx-confirm] [perm_meta]",
 	Short:     "update user's permission on specific sqlchain",
 	Long: `
 Permission command can give a user some specific permissions on your database

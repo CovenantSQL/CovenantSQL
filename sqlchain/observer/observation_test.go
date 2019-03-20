@@ -489,7 +489,7 @@ func TestFullProcess(t *testing.T) {
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql.test"),
 			[]string{"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
-				"web",
+				"explorer",
 				"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-no-password",
 				"-bg-log-level", "debug",
@@ -722,7 +722,7 @@ func TestFullProcess(t *testing.T) {
 		observerCmd, err = utils.RunCommandNB(
 			FJ(baseDir, "./bin/cql.test"),
 			[]string{"-test.coverprofile", FJ(baseDir, "./cmd/cql/observer.cover.out"),
-				"web",
+				"explorer",
 				"-config", FJ(testWorkingDir, "./observation/node_observer/config.yaml"),
 				"-no-password",
 				"-bg-log-level", "debug",

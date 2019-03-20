@@ -24,26 +24,26 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-// CmdPermission is cql permission command entity.
-var CmdPermission = &Command{
-	UsageLine: "cql permission [-config file] [-wait-tx-confirm] perm_meta_json",
-	Short:     "update user's permission on specific sqlchain",
+// CmdGrant is cql grant command entity.
+var CmdGrant = &Command{
+	UsageLine: "cql grant [-config file] [-wait-tx-confirm] permission_meta_json",
+	Short:     "grant a user's permissions on specific sqlchain",
 	Long: `
-Permission command can give a user some specific permissions on your database
+Grant command can give a user some specific permissions on your database
 e.g.
-    cql permission '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql grant '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
 
 Since CovenantSQL is blockchain database, you may want get confirm of permission update.
 e.g.
-    cql permission -wait-tx-confirm '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql grant -wait-tx-confirm '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
 `,
 }
 
 func init() {
-	CmdPermission.Run = runPermission
+	CmdGrant.Run = runGrant
 
-	addCommonFlags(CmdPermission)
-	addWaitFlag(CmdPermission)
+	addCommonFlags(CmdGrant)
+	addWaitFlag(CmdGrant)
 }
 
 type userPermission struct {
@@ -60,11 +60,11 @@ type userPermPayload struct {
 	Patterns []string `json:"patterns"`
 }
 
-func runPermission(cmd *Command, args []string) {
+func runGrant(cmd *Command, args []string) {
 	configInit()
 
 	if len(args) != 1 {
-		ConsoleLog.Error("Permission command need CovenantSQL perm_meta json string as param")
+		ConsoleLog.Error("Grant command need CovenantSQL perm_meta json string as param")
 		SetExitStatus(1)
 		return
 	}

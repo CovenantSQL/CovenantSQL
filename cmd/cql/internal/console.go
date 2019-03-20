@@ -46,7 +46,7 @@ import (
 
 // CmdConsole is cql console command entity.
 var CmdConsole = &Command{
-	UsageLine: "cql console [-config file] [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-web web_addr] [-adapter adapter_addr]",
+	UsageLine: "cql console [-config file] [-dsn dsn_string] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-explorer explorer_addr] [-adapter adapter_addr]",
 	Short:     "run a console for interactive sql operation",
 	Long: `
 Console command can run a interactive SQL console for CovenantSQL
@@ -82,7 +82,7 @@ func init() {
 	CmdConsole.Flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
 	CmdConsole.Flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
 	CmdConsole.Flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
-	CmdConsole.Flag.StringVar(&webAddr, "web", "", "Address serve a database chain explorer, e.g. :8546")
+	CmdConsole.Flag.StringVar(&explorerAddr, "explorer", "", "Address serve a database chain explorer, e.g. :8546")
 }
 
 // SqTime provides a type that will correctly scan the various timestamps
@@ -369,8 +369,8 @@ func runConsole(cmd *Command, args []string) {
 		defer cancelFunc()
 	}
 
-	if webAddr != "" {
-		cancelFunc := startWebServer(webAddr)
+	if explorerAddr != "" {
+		cancelFunc := startExplorerServer(explorerAddr)
 		defer cancelFunc()
 	}
 
@@ -391,8 +391,8 @@ func runConsole(cmd *Command, args []string) {
 		return
 	}
 
-	if adapterAddr != "" || webAddr != "" {
-		ConsoleLog.Printf("Ctrl + C to stop background server on %s %s\n", adapterAddr, webAddr)
+	if adapterAddr != "" || explorerAddr != "" {
+		ConsoleLog.Printf("Ctrl + C to stop background server on %s %s\n", adapterAddr, explorerAddr)
 		<-utils.WaitForExit()
 	}
 }

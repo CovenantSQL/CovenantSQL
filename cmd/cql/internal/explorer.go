@@ -24,62 +24,62 @@ import (
 )
 
 var (
-	webAddr string // Web addr
+	explorerAddr string // Explorer addr
 
-	webService    *observer.Service
-	webHTTPServer *http.Server
+	explorerService    *observer.Service
+	explorerHTTPServer *http.Server
 )
 
-// CmdWeb is cql web command.
-var CmdWeb = &Command{
-	UsageLine: "cql web [-config file] [-tmp-path path] [-bg-log-level level] address",
-	Short:     "start a SQLChain web explorer",
+// CmdExplorer is cql explorer command.
+var CmdExplorer = &Command{
+	UsageLine: "cql explorer [-config file] [-tmp-path path] [-bg-log-level level] address",
+	Short:     "start a SQLChain explorer explorer",
 	Long: `
-Web command serves a SQLChain web explorer.
+Explorer command serves a SQLChain web explorer.
 e.g.
-    cql web 127.0.0.1:8546
+    cql explorer 127.0.0.1:8546
 `,
 }
 
 func init() {
-	CmdWeb.Run = runWeb
+	CmdExplorer.Run = runExplorer
 
-	addCommonFlags(CmdWeb)
-	addBgServerFlag(CmdWeb)
+	addCommonFlags(CmdExplorer)
+	addBgServerFlag(CmdExplorer)
 }
 
-func startWebServer(webAddr string) func() {
+func startExplorerServer(explorerAddr string) func() {
 	var err error
-	webService, webHTTPServer, err = observer.StartObserver(webAddr, Version)
+	explorerService, explorerHTTPServer, err = observer.StartObserver(explorerAddr, Version)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("start explorer failed")
 		SetExitStatus(1)
 		return nil
 	}
 
-	ConsoleLog.Infof("web server started on %s", webAddr)
+	ConsoleLog.Infof("explorer server started on %s", explorerAddr)
 
 	return func() {
-		_ = observer.StopObserver(webService, webHTTPServer)
+		_ = observer.StopObserver(explorerService, explorerHTTPServer)
 		ConsoleLog.Info("explorer stopped")
 	}
 }
 
-func runWeb(cmd *Command, args []string) {
+func runExplorer(cmd *Command, args []string) {
 	configInit()
 	bgServerInit()
 
 	if len(args) != 1 {
-		ConsoleLog.Error("Web command need listen address as param")
+		ConsoleLog.Error("Explorer command need listen address as param")
 		SetExitStatus(1)
 		return
 	}
-	webAddr = args[0]
+	explorerAddr = args[0]
 
-	cancelFunc := startWebServer(webAddr)
+	cancelFunc := startExplorerServer(explorerAddr)
 	ExitIfErrors()
 	defer cancelFunc()
 
-	ConsoleLog.Printf("Ctrl + C to stop web server on %s\n", webAddr)
+	ConsoleLog.Printf("Ctrl + C to stop explorer server on %s\n", explorerAddr)
 	<-utils.WaitForExit()
 }

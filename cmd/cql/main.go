@@ -38,7 +38,7 @@ func init() {
 		internal.CmdBalance,
 		internal.CmdTransfer,
 		internal.CmdGrant,
-		internal.CmdWeb,
+		internal.CmdExplorer,
 		internal.CmdAdapter,
 		internal.CmdVersion,
 		internal.CmdHelp,

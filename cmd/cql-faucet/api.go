@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -42,10 +43,11 @@ import (
 )
 
 const (
-	argAccount  = "account"
-	argEmail    = "email"
-	argDatabase = "db"
-	argTx       = "tx"
+	argAccount   = "account"
+	argEmail     = "email"
+	argDatabase  = "db"
+	argTx        = "tx"
+	argNodeCount = "node_count"
 )
 
 var (
@@ -196,10 +198,18 @@ func (d *service) getBalance(rw http.ResponseWriter, r *http.Request) {
 func (d *service) createDB(rw http.ResponseWriter, r *http.Request) {
 	// get args
 	account := r.FormValue(argAccount)
+	rawNodeCount := r.FormValue(argNodeCount)
+	nodeCount := uint16(1)
 
 	if !regexAccount.MatchString(account) {
 		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
 		return
+	}
+
+	if rawNodeCount != "" {
+		if tempNodeCount, _ := strconv.Atoi(rawNodeCount); tempNodeCount > 0 {
+			nodeCount = uint16(tempNodeCount)
+		}
 	}
 
 	var (
@@ -220,7 +230,7 @@ func (d *service) createDB(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	meta := client.ResourceMeta{}
-	meta.Node = 1
+	meta.Node = nodeCount
 
 	if txCreateHash, dsn, err = client.Create(meta); err != nil {
 		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)

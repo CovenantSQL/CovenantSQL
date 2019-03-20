@@ -50,7 +50,6 @@ var CmdConsole = &Command{
 	Short:     "run a console for interactive sql operation",
 	Long: `
 Console command can run a interactive SQL console for CovenantSQL
-The -dsn param is required
 e.g.
     cql console -dsn covenantsql://the_dsn_of_your_database
 

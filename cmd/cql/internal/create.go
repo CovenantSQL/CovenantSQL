@@ -26,7 +26,7 @@ import (
 
 // CmdCreate is cql create command entity.
 var CmdCreate = &Command{
-	UsageLine: "cql create [-config file] [-wait-tx-confirm] [dbmeta]",
+	UsageLine: "cql create [-config file] [-wait-tx-confirm] db_meta_json",
 	Short:     "create a database",
 	Long: `
 Create CovenantSQL database by database meta info JSON string, meta info must include node count.

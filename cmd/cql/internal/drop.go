@@ -22,7 +22,7 @@ import (
 
 // CmdDrop is cql drop command entity.
 var CmdDrop = &Command{
-	UsageLine: "cql drop [-config file] [-wait-tx-confirm] [dsn/dbid]",
+	UsageLine: "cql drop [-config file] [-wait-tx-confirm] dsn/dbid",
 	Short:     "drop a database by dsn or database id",
 	Long: `
 Drop command can drop a database by DSN or database id

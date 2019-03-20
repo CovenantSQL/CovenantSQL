@@ -32,7 +32,7 @@ var (
 
 // CmdWeb is cql web command.
 var CmdWeb = &Command{
-	UsageLine: "cql web [-config file] [-tmp-path path] [-bg-log-level level] [address]",
+	UsageLine: "cql web [-config file] [-tmp-path path] [-bg-log-level level] address",
 	Short:     "start a SQLChain web explorer",
 	Long: `
 Web command serves a SQLChain web explorer.
@@ -70,7 +70,7 @@ func runWeb(cmd *Command, args []string) {
 	bgServerInit()
 
 	if len(args) != 1 {
-		ConsoleLog.Error("Web command need listern address as param")
+		ConsoleLog.Error("Web command need listen address as param")
 		SetExitStatus(1)
 		return
 	}

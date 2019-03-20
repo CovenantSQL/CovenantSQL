@@ -33,7 +33,7 @@ var (
 
 // CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
-	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] [address]",
+	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] address",
 	Short:     "start a SQLChain adapter",
 	Long: `
 Adapter command serves a SQLChain adapter
@@ -78,7 +78,7 @@ func runAdapter(cmd *Command, args []string) {
 	bgServerInit()
 
 	if len(args) != 1 {
-		ConsoleLog.Error("Adapter command need listern address as param")
+		ConsoleLog.Error("Adapter command need listen address as param")
 		SetExitStatus(1)
 		return
 	}

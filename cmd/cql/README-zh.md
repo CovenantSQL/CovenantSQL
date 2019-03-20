@@ -18,8 +18,9 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 ## 检查钱包余额
 
 使用 `cql` 命令来检查钱包余额：
+
 ```bash
-$ cql -get-balance
+$ cql balance
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c
@@ -36,7 +37,7 @@ INFO[0000] covenant coin balance is: 0                   caller="main.go:247 mai
 
 ```bash
 # if a non-default password applied on master key, use `-password` to pass it
-$ cql -create 1
+$ cql create '{"node":1}'
 INFO[0000]
 ### Public Key ###
 039bc931161383c994ab9b81e95ddc1494b0efeb1cb735bb91e1043a1d6b98ebfd
@@ -45,17 +46,17 @@ INFO[0000]
 INFO[0000] the newly created database is: covenantsql://0e9103318821b027f35b96c4fd5562683543276b72c488966d616bfe0fe4d213  caller="main.go:297 main.main"
 ```
 
-这里 `-create 1` 表示创建一个单节点的 SQLChain。
+这里 `create '{"node":1}'` 表示创建一个单节点的 SQLChain。
 
 ```bash
-$ cql -dsn covenantsql://address
+$ cql console -dsn covenantsql://address
 ```
 `address` 就是你的数据库 ID。
 
 `cql` 命令的详细使用帮助如下：
 
 ```bash
-$ cql -help
+$ cql help
 ```
 
 ## 使用 `cql`

@@ -1,4 +1,4 @@
-This doc introduce the usage of CovenantSQL commandline client `cql`. `cql` is a command line interface for batch scripting used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
+This doc introduces the usage of CovenantSQL command line client `cql`. `cql` is a command line interface for batch scripting used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
 
 ## Install
 Download [Latest Release](https://github.com/CovenantSQL/CovenantSQL/releases) or build from src:
@@ -18,8 +18,9 @@ See: [cql-utils doc](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd
 ## Check balance
 
 Use `cql` to check your wallet balance:
+
 ```bash
-$ cql -get-balance
+$ cql balance
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c
@@ -37,7 +38,7 @@ You can get a database id when create a new SQL Chain:
 
 ```bash
 # if a non-default password applied on master key, use `-password` to pass it
-$ cql -create 1
+$ cql create '{"node":1}'
 INFO[0000]
 ### Public Key ###
 039bc931161383c994ab9b81e95ddc1494b0efeb1cb735bb91e1043a1d6b98ebfd
@@ -46,17 +47,17 @@ INFO[0000]
 INFO[0000] the newly created database is: covenantsql://0e9103318821b027f35b96c4fd5562683543276b72c488966d616bfe0fe4d213  caller="main.go:297 main.main"
 ```
 
-Here, `-create 1` refers that there is only one node in SQL Chain.
+Here, `create '{"node":1}'` refers that there is only one node in SQL Chain.
 
 ```bash
-$ cql -dsn covenantsql://address
+$ cql console -dsn covenantsql://address
 ```
 `address` is database id. 
 
 Show the complete usage of `cql`:
 
 ```bash
-$ cql -help
+$ cql help
 ```
 
 ## Use the `cql`

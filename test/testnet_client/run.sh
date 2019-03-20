@@ -20,20 +20,20 @@ ${BIN}/cql-utils -tool addrgen -skip-master-key | tee wallet.txt
 wallet=$(awk '{print $3}' wallet.txt)
 
 #transfer some coin to above address
-${BIN}/cql -config ${PROJECT_DIR}/conf/testnet/config.yaml -transfer \
-    '{"addr":"'${wallet}'", "amount":"100000000 Particle"}' -wait-tx-confirm
+${BIN}/cql transfer -config ${PROJECT_DIR}/conf/testnet/config.yaml -wait-tx-confirm -no-password \
+    '{"addr":"'${wallet}'", "amount":"100000000 Particle"}'
 
-${BIN}/cql -get-balance
+${BIN}/cql balance -no-password
 
-${BIN}/cql -create 2 -wait-tx-confirm | tee dsn.txt
+${BIN}/cql create -wait-tx-confirm -no-password '{"node":2}' | tee dsn.txt
 
 #get dsn
 dsn=$(cat dsn.txt)
 
-${BIN}/cql -dsn ${dsn} \
+${BIN}/cql console -dsn ${dsn} -no-password \
     -command 'create table test_for_new_account(column1 int);'
 
-${BIN}/cql -dsn ${dsn} \
+${BIN}/cql console -dsn ${dsn} -no-password \
     -command 'show tables;' | tee result.log
 
 grep "1 row" result.log

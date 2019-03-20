@@ -16,6 +16,8 @@
 
 package types
 
+import "strings"
+
 //go:generate hsp
 
 // TokenType defines token's type.
@@ -58,7 +60,7 @@ func (t TokenType) String() string {
 func FromString(t string) TokenType {
 	var i TokenType
 	for ; i < SupportTokenNumber; i++ {
-		if TokenList[i] == t {
+		if strings.ToLower(TokenList[i]) == strings.ToLower(t) {
 			return i
 		}
 	}

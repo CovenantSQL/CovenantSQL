@@ -117,6 +117,9 @@ var (
 func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	//testFlag := flag.Lookup("test")
 	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
+	// close already opened public key store
+	ClosePublicKeyStore()
+
 	pksLock.Lock()
 	InitBP()
 

@@ -55,7 +55,7 @@ type conn struct {
 type pconn struct {
 	parent  *conn
 	ackCh   chan *types.Ack
-	pCaller *rpc.PersistentCaller
+	pCaller rpc.PCaller
 }
 
 func newConn(cfg *Config) (c *conn, err error) {
@@ -139,7 +139,7 @@ func (c *pconn) stopAckWorkers() {
 func (c *pconn) ackWorker() {
 	var (
 		oneTime sync.Once
-		pc      *rpc.PersistentCaller
+		pc      rpc.PCaller
 		err     error
 	)
 
@@ -150,10 +150,10 @@ ackWorkerLoop:
 			break ackWorkerLoop
 		}
 		oneTime.Do(func() {
-			pc = rpc.NewPersistentCaller(c.pCaller.TargetID)
+			pc = c.pCaller.New()
 		})
 		if err = ack.Sign(c.parent.privKey); err != nil {
-			log.WithField("target", pc.TargetID).WithError(err).Error("failed to sign ack")
+			log.WithField("target", pc.Target()).WithError(err).Error("failed to sign ack")
 			continue
 		}
 
@@ -375,7 +375,7 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 			"type":   queryType.String(),
 			"connID": connID,
 			"seqNo":  seqNo,
-			"target": uc.pCaller.TargetID,
+			"target": uc.pCaller.Target(),
 			"source": c.localNodeID,
 		}).WithError(err).Debug("send query")
 	}()

@@ -130,6 +130,9 @@ func TestDB(t *testing.T) {
 		IDs, err = GetAllNodeID()
 		So(IDs, ShouldBeNil)
 		So(err, ShouldBeNil)
+
+		// test close, this close is for leak test purpose
+		ClosePublicKeyStore()
 	})
 }
 

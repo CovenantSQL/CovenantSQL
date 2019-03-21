@@ -321,6 +321,16 @@ func ResetBucket() error {
 	return removeBucket()
 }
 
+// ClosePublicKeyStore closes the public key store.
+func ClosePublicKeyStore() {
+	pksLock.Lock()
+	defer pksLock.Unlock()
+	if pks != nil {
+		_ = pks.db.Close()
+		pks = nil
+	}
+}
+
 func removeFileIfIsNotSQLite(filename string) (err error) {
 	var (
 		f          *os.File

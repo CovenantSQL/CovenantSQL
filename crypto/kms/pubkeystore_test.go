@@ -17,6 +17,7 @@
 package kms
 
 import (
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -62,7 +63,6 @@ func TestDB(t *testing.T) {
 		os.Remove(dbFile)
 		defer os.Remove(dbFile)
 		InitPublicKeyStore(dbFile, []proto.Node{*BPNode})
-		So(pks.bucket, ShouldNotBeNil)
 
 		nodeInfo, err := GetNodeInfo(BP.NodeID)
 		log.Debugf("nodeInfo %v", nodeInfo)
@@ -120,23 +120,6 @@ func TestDB(t *testing.T) {
 		So(pubk, ShouldBeNil)
 		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
 
-		err = removeBucket()
-		So(err, ShouldBeNil)
-
-		pubk, err = GetPublicKey(proto.NodeID("not exist"))
-		So(pubk, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
-		err = setNode(node1)
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
-		err = DelNode(proto.NodeID("2222"))
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
-		IDs, err = GetAllNodeID()
-		So(IDs, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
 		err = ResetBucket()
 		So(err, ShouldBeNil)
 
@@ -147,6 +130,95 @@ func TestDB(t *testing.T) {
 		IDs, err = GetAllNodeID()
 		So(IDs, ShouldBeNil)
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestInvalidKeystoreFileRecover(t *testing.T) {
+	Convey("invalid file recover", t, func() {
+		os.Remove(dbFile + ".bak")
+		os.Remove(dbFile)
+		defer os.Remove(dbFile + ".bak")
+		defer os.Remove(dbFile)
+		pks = nil
+		var err error
+		err = ioutil.WriteFile(dbFile, []byte("UNKNOWN_DATA_MUST_NOT_BE_A_SQLITE_DATABASE"), 0600)
+		So(err, ShouldBeNil)
+		st, err := os.Stat(dbFile)
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+		// backup should exists
+		st, err = os.Stat(dbFile + ".bak")
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+	})
+
+	Convey("backup keystore file should not be overwritten if exists", t, func() {
+		backupFile := dbFile + ".bak"
+		os.Remove(backupFile)
+		os.Remove(dbFile)
+		defer os.Remove(backupFile)
+		defer os.Remove(dbFile)
+
+		pks = nil
+
+		var err error
+		err = ioutil.WriteFile(dbFile, []byte("backup_1"), 0600)
+		So(err, ShouldBeNil)
+		err = ioutil.WriteFile(backupFile, []byte("backup_2"), 0600)
+		So(err, ShouldBeNil)
+		st, err := os.Stat(dbFile)
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+		st, err = os.Stat(backupFile)
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+		// backup should not be overwritten
+		backupData, err := ioutil.ReadFile(backupFile)
+		So(err, ShouldBeNil)
+		So(backupData, ShouldResemble, []byte("backup_2"))
+	})
+
+	Convey("sqlite keystore should not be truncated", t, func() {
+		os.Remove(dbFile)
+		defer os.Remove(dbFile)
+
+		_, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
+		node1 := &proto.Node{
+			ID:        proto.NodeID("1111"),
+			Addr:      "",
+			PublicKey: pubKey1,
+			Nonce:     cpuminer.Uint256{},
+		}
+
+		var err error
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+
+		// set node
+		setNode(node1)
+		// get node
+		node, err := GetNodeInfo(node1.ID)
+		So(node, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+
+		// clear and init again
+		pks = nil
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+
+		// get again
+		node, err = GetNodeInfo(node1.ID)
+		So(node, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+
+		// backup file should not exists
+		_, err = os.Stat(dbFile + ".bak")
+		So(err, ShouldNotBeNil)
+		So(os.IsNotExist(err), ShouldBeTrue)
 	})
 }
 

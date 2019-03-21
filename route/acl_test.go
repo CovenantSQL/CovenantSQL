@@ -18,7 +18,6 @@ package route
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -29,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -36,8 +36,8 @@ const PubKeyStorePath = "./acl.keystore"
 
 func TestIsPermitted(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 
 	_, testFile, _, _ := runtime.Caller(0)
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_0/config.yaml")

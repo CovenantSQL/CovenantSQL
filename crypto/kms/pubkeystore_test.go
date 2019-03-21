@@ -36,7 +36,6 @@ import (
 const dbFile = ".test.keystore"
 
 func TestDB(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
 	privKey1, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
 	privKey2, pubKey2, _ := asymmetric.GenSecp256k1KeyPair()
 	node1 := &proto.Node{
@@ -59,9 +58,9 @@ func TestDB(t *testing.T) {
 	}
 
 	Convey("Init db", t, func() {
-		pks = nil
-		os.Remove(dbFile)
-		defer os.Remove(dbFile)
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
 		InitPublicKeyStore(dbFile, []proto.Node{*BPNode})
 
 		nodeInfo, err := GetNodeInfo(BP.NodeID)
@@ -138,11 +137,9 @@ func TestDB(t *testing.T) {
 
 func TestInvalidKeystoreFileRecover(t *testing.T) {
 	Convey("invalid file recover", t, func() {
-		os.Remove(dbFile + ".bak")
-		os.Remove(dbFile)
-		defer os.Remove(dbFile + ".bak")
-		defer os.Remove(dbFile)
-		pks = nil
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
 		var err error
 		err = ioutil.WriteFile(dbFile, []byte("UNKNOWN_DATA_MUST_NOT_BE_A_SQLITE_DATABASE"), 0600)
 		So(err, ShouldBeNil)
@@ -158,13 +155,10 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 	})
 
 	Convey("backup keystore file should not be overwritten if exists", t, func() {
+		ClosePublicKeyStore()
 		backupFile := dbFile + ".bak"
-		os.Remove(backupFile)
-		os.Remove(dbFile)
-		defer os.Remove(backupFile)
-		defer os.Remove(dbFile)
-
-		pks = nil
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
 
 		var err error
 		err = ioutil.WriteFile(dbFile, []byte("backup_1"), 0600)
@@ -186,8 +180,9 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 	})
 
 	Convey("sqlite keystore should not be truncated", t, func() {
-		os.Remove(dbFile)
-		defer os.Remove(dbFile)
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
 
 		_, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
 		node1 := &proto.Node{
@@ -209,7 +204,7 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// clear and init again
-		pks = nil
+		ClosePublicKeyStore()
 		err = InitPublicKeyStore(dbFile, nil)
 		So(err, ShouldBeNil)
 
@@ -223,11 +218,27 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(os.IsNotExist(err), ShouldBeTrue)
 	})
+
+	Convey("test empty file", t, func() {
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
+
+		err := ioutil.WriteFile(dbFile, []byte{}, 0600)
+		So(err, ShouldBeNil)
+
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+
+		st, err := os.Stat(dbFile + ".bak")
+		So(err, ShouldBeNil)
+		So(st.Size(), ShouldEqual, 0)
+	})
 }
 
 func TestErrorPath(t *testing.T) {
 	Convey("can not init db", t, func() {
-		pks = nil
+		ClosePublicKeyStore()
 		err := InitPublicKeyStore("/path/not/exist", nil)
 		So(pks, ShouldBeNil)
 		So(err, ShouldNotBeNil)

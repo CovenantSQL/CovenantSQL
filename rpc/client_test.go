@@ -62,7 +62,7 @@ func TestDial(t *testing.T) {
 
 //func TestDialToNode(t *testing.T) {
 //	Convey("DialToNode error case", t, func() {
-//		defer os.Remove(publicKeyStore)
+//		defer utils.RemoveAll(publicKeyStore + "*")
 //		defer os.Remove(privateKey)
 //		c, err := DialToNode(kms.BP.NodeID, nil, false)
 //		So(c, ShouldBeNil)

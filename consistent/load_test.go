@@ -17,7 +17,6 @@
 package consistent
 
 import (
-	"os"
 	"sort"
 	"testing"
 
@@ -32,8 +31,8 @@ const testStorePath2 = "./test2.keystore"
 
 func TestSaveDHT(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath1)
-	os.Remove(testStorePath2)
+	utils.RemoveAll(testStorePath1 + "*")
+	utils.RemoveAll(testStorePath2 + "*")
 	//kms.ResetBucket()
 
 	Convey("save DHT", t, func() {
@@ -52,8 +51,8 @@ func TestLoadDHT(t *testing.T) {
 	Convey("load existing DHT", t, func() {
 		kms.Unittest = true
 		x, _ := InitConsistent(testStorePath2, new(KMSStorage), false)
-		defer os.Remove(testStorePath1)
-		defer os.Remove(testStorePath2)
+		defer utils.RemoveAll(testStorePath1 + "*")
+		defer utils.RemoveAll(testStorePath2 + "*")
 		// with BP node, there should be 3 nodes
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)
 		So(len(x.sortedHashes), ShouldEqual, x.NumberOfReplicas*2)

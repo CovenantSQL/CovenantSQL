@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package main
+package internal
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"reflect"
 	"strings"
@@ -28,7 +27,6 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -37,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )
 
@@ -48,41 +45,49 @@ var (
 		route.SQLChainRPCName:      &sqlchain.MuxService{},
 		route.BlockProducerRPCName: &bp.ChainRPCService{},
 	}
-	rpcName          string
-	rpcEndpoint      string
-	rpcReq           string
-	rpcTxWaitConfirm bool
+	rpcName     string
+	rpcEndpoint string
+	rpcReq      string
 )
+
+// CmdRPC is cql rpc command entity.
+var CmdRPC = &Command{
+	UsageLine: "cql rpc [-config file] [-wait-tx-confirm] -name rpc_name -endpoint rpc_endpoint -req rpc_request",
+	Short:     "make a rpc request",
+	Long: `
+Rpc command make a RPC request to server
+e.g.
+    cql rpc -name -endpoint -req
+`,
+}
 
 type canSign interface {
 	Sign(signer *asymmetric.PrivateKey) error
 }
 
 func init() {
-	flag.StringVar(&rpcName, "rpc", "", "rpc name to do test call")
-	flag.StringVar(&rpcEndpoint, "rpc-endpoint", "", "rpc endpoint to do test call")
-	flag.StringVar(&rpcReq, "rpc-req", "", "rpc request to do test call, in json format")
-	flag.BoolVar(&rpcTxWaitConfirm, "rpc-tx-wait-confirm", false, "wait for transaction confirmation")
+	CmdRPC.Run = runRPC
+
+	addCommonFlags(CmdRPC)
+	addWaitFlag(CmdRPC)
+
+	CmdRPC.Flag.StringVar(&rpcName, "name", "", "RPC name to do test call")
+	CmdRPC.Flag.StringVar(&rpcEndpoint, "endpoint", "", "RPC endpoint to do test call")
+	CmdRPC.Flag.StringVar(&rpcReq, "req", "", "RPC request to do test call, in json format")
 }
 
-func runRPC() {
-	if configFile == "" {
-		// error
-		log.Fatal("config file path is required for rpc tool")
-		return
-	}
+func runRPC(cmd *Command, args []string) {
+	configInit()
+
 	if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
 		// error
-		log.Fatal("rpc payload is required for rpc tool")
-		return
-	}
-
-	if err := client.Init(configFile, []byte("")); err != nil {
-		log.Fatalf("init rpc client failed: %v\n", err)
+		ConsoleLog.Error("rpc payload is required for rpc tool")
+		SetExitStatus(1)
 		return
 	}
 
 	req, resp := resolveRPCEntities()
+	ExitIfErrors()
 
 	if rpcName == route.MCCAddTx.String() {
 		// special type of query
@@ -94,7 +99,8 @@ func runRPC() {
 
 	// fill the req with request body
 	if err := json.Unmarshal([]byte(rpcReq), req); err != nil {
-		log.Fatalf("decode request body failed: %v\n", err)
+		ConsoleLog.WithError(err).Error("decode request body failed")
+		SetExitStatus(1)
 		return
 	}
 
@@ -113,12 +119,14 @@ func runRPC() {
 
 			// unwrapped tx, find account nonce field and set
 			if err := fillTxNonce(tx); err != nil {
-				log.Fatalf("fill block producer transaction nonce failed: %v\n", err)
+				ConsoleLog.WithError(err).Error("fill block producer transaction nonce failed")
+				SetExitStatus(1)
 				return
 			}
 
 			if err := checkAndSign(tx); err != nil {
-				log.Fatalf("sign transaction failed: %v\n", err)
+				ConsoleLog.WithError(err).Error("sign transaction failed")
+				SetExitStatus(1)
 				return
 			}
 		}
@@ -126,26 +134,27 @@ func runRPC() {
 
 	// requires signature?
 	if err := checkAndSign(req); err != nil {
-		log.Fatalf("sign request failed: %v\n", err)
+		ConsoleLog.WithError(err).Error("sign request failed")
+		SetExitStatus(1)
 		return
 	}
 
-	log.Info("sending request")
+	ConsoleLog.Info("sending request")
 	spewCfg := spew.NewDefaultConfig()
 	spewCfg.MaxDepth = 6
 	spewCfg.Dump(req)
 	if err := rpc.NewCaller().CallNode(proto.NodeID(rpcEndpoint), rpcName, req, resp); err != nil {
 		// send request failed
-		log.Infof("call rpc failed: %v\n", err)
+		ConsoleLog.Infof("call rpc failed: %v\n", err)
 		return
 	}
 
 	// print the response
-	log.Info("got response")
+	ConsoleLog.Info("got response")
 	spewCfg.Dump(resp)
 
-	if rpcName == route.MCCAddTx.String() && rpcTxWaitConfirm {
-		log.Info("waiting for transaction confirmation...")
+	if rpcName == route.MCCAddTx.String() && waitTxConfirmation {
+		ConsoleLog.Info("waiting for transaction confirmation...")
 		var (
 			err    error
 			ticker = time.NewTicker(1 * time.Second)
@@ -159,7 +168,9 @@ func runRPC() {
 				route.MCCQueryTxState.String(),
 				req, resp,
 			); err != nil {
-				log.Fatalf("query transaction state failed: %v", err)
+				ConsoleLog.WithError(err).Error("query transaction state failed")
+				SetExitStatus(1)
+				return
 			}
 			switch resp.State {
 			case pi.TransactionStatePending:
@@ -171,10 +182,14 @@ func runRPC() {
 				return
 			case pi.TransactionStateExpired, pi.TransactionStateNotFound:
 				fmt.Print("✘\n")
-				log.Fatalf("bad transaction state: %s", resp.State)
+				ConsoleLog.Errorf("bad transaction state: %s", resp.State)
+				SetExitStatus(1)
+				return
 			default:
 				fmt.Print("✘\n")
-				log.Fatal("unknown transaction state")
+				ConsoleLog.Error("unknown transaction state")
+				SetExitStatus(1)
+				return
 			}
 			<-ticker.C
 		}
@@ -187,7 +202,7 @@ func checkAndSign(req interface{}) (err error) {
 	}
 
 	if canSignObj, ok := req.(canSign); ok {
-		log.Info("signing request")
+		ConsoleLog.Info("signing request")
 
 		var privKey *asymmetric.PrivateKey
 		if privKey, err = kms.GetLocalPrivateKey(); err != nil {
@@ -283,7 +298,7 @@ func fillTxNonce(tx pi.Transaction) (err error) {
 		}
 
 		rv.SetUint(uint64(nonceResp.Nonce))
-		log.Infof("filled tx type %s nonce field %s with nonce %d",
+		ConsoleLog.Infof("filled tx type %s nonce field %s with nonce %d",
 			tx.GetTransactionType().String(), fieldPath, nonceResp.Nonce)
 
 		return
@@ -297,7 +312,8 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 
 	if len(rpcParts) != 2 {
 		// error rpc name
-		log.Fatalf("%v is not a valid rpc name\n", rpcName)
+		ConsoleLog.Errorf("%v is not a valid rpc name\n", rpcName)
+		SetExitStatus(1)
 		return
 	}
 
@@ -314,7 +330,7 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 			if method.Name == rpcParts[1] {
 				// name matched
 				if mtype.PkgPath() != "" || mtype.NumIn() != 3 || mtype.NumOut() != 1 {
-					log.Infof("%v is not a valid rpc endpoint method\n", rpcName)
+					ConsoleLog.Infof("%v is not a valid rpc endpoint method\n", rpcName)
 					return
 				}
 
@@ -335,6 +351,6 @@ func resolveRPCEntities() (req interface{}, resp interface{}) {
 	}
 
 	// not found
-	log.Infof("rpc method %v not found\n", rpcName)
+	ConsoleLog.Infof("rpc method %v not found\n", rpcName)
 	return
 }

@@ -10,7 +10,7 @@ idminer
 coverage.txt
 analysisVendor.png
 vendor/**/.gitignore
-*.keystore
+*.keystore*
 node_*/
 kayak_test
 *.conf

@@ -1037,10 +1037,11 @@ func TestMetaState(t *testing.T) {
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidPermission)
+				So(err, ShouldBeNil)
 				// test permission update
 				// addr1(admin) update addr3 as admin
 				up.TargetUser = addr3
+				up.Nonce++
 				up.Permission = types.UserPermissionFromRole(types.Admin)
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
@@ -1073,7 +1074,7 @@ func TestMetaState(t *testing.T) {
 				err = ms.apply(&up)
 				So(errors.Cause(err), ShouldEqual, ErrNoSuperUserLeft)
 				// addr1(read) update addr3(admin) fail
-				up.Nonce = cd1.Nonce + 2
+				up.Nonce = cd1.Nonce + 3
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up)
@@ -1313,7 +1314,7 @@ func TestMetaState(t *testing.T) {
 					invalidIk3 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
 							TargetSQLChain: dbAccount,
-							Nonce:          3,
+							Nonce:          4,
 						},
 					}
 					err = invalidIk3.Sign(privKey1)

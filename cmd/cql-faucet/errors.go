@@ -21,22 +21,16 @@ import "errors"
 var (
 	// user errors
 
-	// ErrInvalidURL represents the invalid media url error.
-	ErrInvalidURL = errors.New("INVALID_URL")
-	// ErrInvalidAddress represents address is not a valid test net address.
-	ErrInvalidAddress = errors.New("INVALID_ADDRESS")
-	// ErrInvalidApplicationID represents the application id provided is invalid.
-	ErrInvalidApplicationID = errors.New("INVALID_APPLICATION_ID")
-	// ErrAccountQuotaExceeded represents the applicant has exceeded the account daily application quota.
+	// ErrInvalidAccount represents account is not a valid account.
+	ErrInvalidAccount = errors.New("INVALID_ADDRESS")
+	// ErrInvalidDatabase represents database id is not valid.
+	ErrInvalidDatabase = errors.New("INVALID_DATABASE")
+	// ErrAccountQuotaExceeded represents the applicant has exceeded the account daily applyToken quota.
 	ErrAccountQuotaExceeded = errors.New("ACCOUNT_QUOTA_EXCEEDED")
-	// ErrAddressQuotaExceeded represents the applicant has exceeded the address daily application quota.
-	ErrAddressQuotaExceeded = errors.New("ADDRESS_QUOTA_EXCEEDED")
-	// ErrEnqueueApplication represents failing to enqueue the application request.
-	ErrEnqueueApplication = errors.New("ENQUEUE_FAILED")
-	// ErrRequiredContentNotExists represents invalid application which contains no advertising content.
-	ErrRequiredContentNotExists = errors.New("NO_REQUIRED_CONTENT")
-	// ErrRequiredURLNotExists represents invalid application which contains no advertising url.
-	ErrRequiredURLNotExists = errors.New("NO_REQUIRED_LINK")
+	// ErrEmailQuotaExceeded represents the applicant has exceeded the account daily applyToken quota.
+	ErrEmailQuotaExceeded = errors.New("EMAIL_QUOTA_EXCEEDED")
+	// ErrEnqueueApplication represents failing to enqueue the applyToken request.
+	ErrEnqueueApplication = errors.New("ADD_RECORD_FAILED")
 
 	// system errors
 

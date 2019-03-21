@@ -355,8 +355,9 @@ func removeFileIfIsNotSQLite(filename string) (err error) {
 	if _, err = os.Stat(bakFile); err != nil && os.IsNotExist(err) {
 		err = nil
 		_ = os.Rename(filename, filename+".bak")
+	} else {
+		_ = os.Remove(filename)
 	}
-	_ = os.Remove(filename)
 
 	return
 }

@@ -84,39 +84,48 @@ func newConn(cfg *Config) (c *conn, err error) {
 		return nil, errors.WithMessage(err, "cacheGetPeers failed")
 	}
 
-	if cfg.UseLeader {
+	if cfg.Mirror != "" {
 		c.leader = &pconn{
 			parent:  c,
-			pCaller: rpc.NewPersistentCaller(peers.Leader),
+			pCaller: rpc.NewRawCaller(cfg.Mirror),
 		}
-	}
 
-	// choose a random follower node
-	if cfg.UseFollower && len(peers.Servers) > 1 {
-		for {
-			node := peers.Servers[randSource.Intn(len(peers.Servers))]
-			if node != peers.Leader {
-				c.follower = &pconn{
-					parent:  c,
-					pCaller: rpc.NewPersistentCaller(node),
-				}
-				break
+		// no ack workers required, mirror mode does not support ack worker
+	} else {
+		if cfg.UseLeader {
+			c.leader = &pconn{
+				parent:  c,
+				pCaller: rpc.NewPersistentCaller(peers.Leader),
 			}
 		}
-	}
 
-	if c.leader == nil && c.follower == nil {
-		return nil, errors.New("no follower peers found")
-	}
-
-	if c.leader != nil {
-		if err := c.leader.startAckWorkers(2); err != nil {
-			return nil, errors.WithMessage(err, "leader startAckWorkers failed")
+		// choose a random follower node
+		if cfg.UseFollower && len(peers.Servers) > 1 {
+			for {
+				node := peers.Servers[randSource.Intn(len(peers.Servers))]
+				if node != peers.Leader {
+					c.follower = &pconn{
+						parent:  c,
+						pCaller: rpc.NewPersistentCaller(node),
+					}
+					break
+				}
+			}
 		}
-	}
-	if c.follower != nil {
-		if err := c.follower.startAckWorkers(2); err != nil {
-			return nil, errors.WithMessage(err, "follower startAckWorkers failed")
+
+		if c.leader == nil && c.follower == nil {
+			return nil, errors.New("no follower peers found")
+		}
+
+		if c.leader != nil {
+			if err := c.leader.startAckWorkers(2); err != nil {
+				return nil, errors.WithMessage(err, "leader startAckWorkers failed")
+			}
+		}
+		if c.follower != nil {
+			if err := c.follower.startAckWorkers(2); err != nil {
+				return nil, errors.WithMessage(err, "follower startAckWorkers failed")
+			}
 		}
 	}
 
@@ -133,7 +142,13 @@ func (c *pconn) startAckWorkers(workerCount int) (err error) {
 }
 
 func (c *pconn) stopAckWorkers() {
-	close(c.ackCh)
+	if c.ackCh != nil {
+		select {
+		case <-c.ackCh:
+		default:
+			close(c.ackCh)
+		}
+	}
 }
 
 func (c *pconn) ackWorker() {
@@ -415,15 +430,17 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 	// build ack
 	func() {
 		defer trace.StartRegion(ctx, "ackEnqueue").End()
-		uc.ackCh <- &types.Ack{
-			Header: types.SignedAckHeader{
-				AckHeader: types.AckHeader{
-					Response:     response.Header.ResponseHeader,
-					ResponseHash: response.Header.Hash(),
-					NodeID:       c.localNodeID,
-					Timestamp:    getLocalTime(),
+		if uc.ackCh != nil {
+			uc.ackCh <- &types.Ack{
+				Header: types.SignedAckHeader{
+					AckHeader: types.AckHeader{
+						Response:     response.Header.ResponseHeader,
+						ResponseHash: response.Header.Hash(),
+						NodeID:       c.localNodeID,
+						Timestamp:    getLocalTime(),
+					},
 				},
-			},
+			}
 		}
 	}()
 

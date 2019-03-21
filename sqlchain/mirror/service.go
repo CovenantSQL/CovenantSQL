@@ -243,6 +243,12 @@ func (s *Service) Query(req *types.Request, res *types.Response) (err error) {
 		return
 	}
 
+	if req.Header.DatabaseID != s.dbID {
+		// database instance not matched
+		err = worker.ErrNotExists
+		return
+	}
+
 	var r *types.Response
 	if _, r, err = s.st.Query(req, false); err != nil {
 		return

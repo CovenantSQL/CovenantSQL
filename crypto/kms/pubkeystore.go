@@ -18,6 +18,7 @@ package kms
 
 import (
 	"database/sql"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -348,7 +349,7 @@ func removeFileIfIsNotSQLite(filename string) (err error) {
 		return
 	}
 
-	if _, err = f.Read(fileHeader[:]); err != nil {
+	if _, err = f.Read(fileHeader[:]); err != nil && errors.Cause(err) != io.EOF {
 		// read file failed
 		_ = f.Close()
 		return

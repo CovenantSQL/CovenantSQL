@@ -32,39 +32,6 @@ import (
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
 
-// State defines the token application request state.
-type State int
-
-const (
-	// StateApplication represents application request initial state.
-	StateApplication State = iota
-	// StateVerified represents the application request has already been verified.
-	StateVerified
-	// StateDispensed represents the application request has been fulfilled and tokens are dispensed.
-	StateDispensed
-	// StateFailed represents the application is invalid or maybe quota exceeded.
-	StateFailed
-	// StateUnknown represents invalid state
-	StateUnknown
-)
-
-func (s State) String() string {
-	switch s {
-	case StateApplication:
-		return "StateApplication"
-	case StateVerified:
-		return "StateVerified"
-	case StateDispensed:
-		return "StateDispensed"
-	case StateFailed:
-		return "StateFailed"
-	case StateUnknown:
-		return "StateUnknown"
-	}
-
-	return ""
-}
-
 // Persistence defines the persistence api for faucet service.
 type Persistence struct {
 	db                *sql.DB
@@ -75,34 +42,28 @@ type Persistence struct {
 
 // applicationRecord defines single record for verification.
 type applicationRecord struct {
-	rowID         int64
-	applicationID string
-	platform      string
-	address       string
-	mediaURL      string
-	account       string
-	state         State
-	tokenAmount   int64 // covenantsql could store uint64 value, use int64 instead
-	failReason    string
+	id          string
+	rowID       int64
+	account     string
+	email       string
+	tokenAmount int64 // covenantsql could not store uint64 value, use int64 instead
+	createTime  time.Time
 }
 
 func (r *applicationRecord) asMap() (result map[string]interface{}) {
 	result = make(map[string]interface{})
 
+	result["id"] = r.id
 	result["rowID"] = r.rowID
-	result["applicationID"] = r.applicationID
-	result["platform"] = r.platform
-	result["address"] = r.address
-	result["mediaURL"] = r.mediaURL
 	result["account"] = r.account
-	result["state"] = r.state.String()
+	result["email"] = r.email
 	result["tokenAmount"] = r.tokenAmount
-	result["failReason"] = r.failReason
+	result["createTime"] = r.createTime.String()
 
 	return
 }
 
-// NewPersistence returns a new application persistence api.
+// NewPersistence returns a new applyToken persistence api.
 func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 	p = &Persistence{
 		accountDailyQuota: faucetCfg.AccountDailyQuota,
@@ -135,28 +96,23 @@ func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 func (p *Persistence) initDB() (err error) {
 	_, err = p.db.ExecContext(context.Background(),
 		`CREATE TABLE IF NOT EXISTS faucet_records (
-				id string unique,
-				platform string,
-				account string, 
-				url string,
-				address string, 
-				state int, 
+				id text unique,
+				account text, 
+				email text,
 				amount bigint, 
-				reason string, 
 				ctime datetime
 			  )`)
 	return
 }
 
-func (p *Persistence) checkAccountLimit(platform string, account string) (err error) {
-	// TODO, consider cache the limits in memory?
+func (p *Persistence) checkAccountLimit(account string) (err error) {
 	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
 	row := p.db.QueryRowContext(context.Background(),
 		`SELECT COUNT(1) AS cnt FROM faucet_records
-		WHERE ctime >= ? AND platform = ? AND account = ? AND state IN (?, ?, ?)`,
-		timeOfDayStart, platform, account, StateApplication, StateVerified, StateDispensed)
+		WHERE ctime >= ? AND account = ?`,
+		timeOfDayStart, account)
 
 	var result uint
 
@@ -167,25 +123,21 @@ func (p *Persistence) checkAccountLimit(platform string, account string) (err er
 
 	if result >= p.accountDailyQuota {
 		// quota exceeded
-		log.WithFields(log.Fields{
-			"account":  account,
-			"platform": platform,
-		}).Error("daily account quota exceeded")
+		log.WithField("account", account).Error("daily account quota exceeded")
 		return ErrAccountQuotaExceeded
 	}
 
 	return
 }
 
-func (p *Persistence) checkAddressLimit(address string) (err error) {
-	// TODO, consider cache the limits in memory?
+func (p *Persistence) checkEmailLimit(email string) (err error) {
 	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
 	row := p.db.QueryRowContext(context.Background(),
 		`SELECT COUNT(1) AS cnt FROM faucet_records
-		WHERE ctime >= ? AND address = ? AND state IN (?, ?, ?)`,
-		timeOfDayStart, address, StateApplication, StateVerified, StateDispensed)
+		WHERE ctime >= ? AND email = ?`,
+		timeOfDayStart, email)
 
 	var result uint
 
@@ -196,142 +148,38 @@ func (p *Persistence) checkAddressLimit(address string) (err error) {
 
 	if result >= p.addressDailyQuota {
 		// quota exceeded
-		log.WithFields(log.Fields{
-			"address": address,
-		}).Error("daily address quota exceeded")
-		return ErrAddressQuotaExceeded
+		log.WithField("email", email).Error("daily email quota exceeded")
+		return ErrEmailQuotaExceeded
 	}
 
 	return
 }
 
-// enqueueApplication record a new token application to CovenantSQL database.
-func (p *Persistence) enqueueApplication(address string, mediaURL string) (applicationID string, err error) {
-	// resolve account name in address
-	var meta urlMeta
-	meta, err = extractPlatformInURL(mediaURL)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"address":  address,
-			"mediaURL": mediaURL,
-		}).Errorf("enqueue application with invalid url: %v", err)
-		return
-	}
-
-	// check limits
-	if err = p.checkAccountLimit(meta.platform, meta.account); err != nil {
-		return
-	}
-	if err = p.checkAddressLimit(address); err != nil {
-		return
-	}
-
+// addRecord record a new token applyToken to CovenantSQL database.
+func (p *Persistence) addRecord(account string, email string) (applicationID string, err error) {
 	// generate uuid
 	applicationID = uuid.Must(uuid.NewV4()).String()
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	// enqueue
 	_, err = p.db.ExecContext(context.Background(),
 		`INSERT INTO faucet_records (
 				id,
-				platform,
 				account,
-				url,
-				address,
-				state,
+				email,
 				amount,
-				reason,
 				ctime
-			  ) VALUES (?, ?, ?, ?, ?, ?, ?, '', CURRENT_TIMESTAMP)`,
-		applicationID, meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
+			  ) VALUES (?, ?, ?, ?, ?)`,
+		applicationID, account, email, p.tokenAmount, now)
 
 	if err != nil {
 		log.WithFields(log.Fields{
-			"address":  address,
-			"mediaURL": mediaURL,
-		}).Errorf("enqueue application failed: %v", err)
+			"account": account,
+			"email":   email,
+		}).Errorf("enqueue applyToken failed: %v", err)
 
 		err = ErrEnqueueApplication
 	}
-
-	return
-}
-
-// queryState returns faucet application state.
-func (p *Persistence) queryState(address string, applicationID string) (record *applicationRecord, err error) {
-	row := p.db.QueryRowContext(context.Background(),
-		`SELECT id, rowid, platform, address, url, account, state, amount, reason FROM faucet_records WHERE 
-				address = ? AND id = ? LIMIT 1`, address, applicationID)
-
-	record = &applicationRecord{}
-	err = row.Scan(&record.applicationID, &record.rowID, &record.platform, &record.address, &record.mediaURL,
-		&record.account, &record.state, &record.tokenAmount, &record.failReason)
-
-	return
-}
-
-// getRecords fetch records need to be processed.
-func (p *Persistence) getRecords(startRowID int64, platform string, state State, limitCount int) (records []*applicationRecord, err error) {
-	var rows *sql.Rows
-
-	args := make([]interface{}, 0)
-	baseSQL := "SELECT id, rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 1=1 "
-
-	if startRowID > 0 {
-		baseSQL += " AND rowid >= ? "
-		args = append(args, startRowID)
-	}
-	if platform != "" {
-		baseSQL += " AND platform = ? "
-		args = append(args, platform)
-	}
-	if state != StateUnknown {
-		baseSQL += " AND state = ? "
-		args = append(args, state)
-	}
-	if limitCount > 0 {
-		baseSQL += " LIMIT ?"
-		args = append(args, limitCount)
-	}
-
-	rows, err = p.db.QueryContext(context.Background(), baseSQL, args...)
-
-	for rows.Next() {
-		r := &applicationRecord{}
-
-		if err = rows.Scan(&r.applicationID, &r.rowID, &r.platform, &r.address, &r.mediaURL,
-			&r.account, &r.state, &r.tokenAmount); err != nil {
-			return
-		}
-
-		records = append(records, r)
-	}
-
-	return
-}
-
-// updateRecord updates application record.
-func (p *Persistence) updateRecord(record *applicationRecord) (err error) {
-	_, err = p.db.ExecContext(context.Background(),
-		`UPDATE faucet_records SET
-				id = ?,
-				platform = ?,
-				address = ?,
-				url = ?,
-				account = ?,
-				state = ?,
-				reason = ?,
-				amount = ?
-			  WHERE rowid = ?`,
-		record.applicationID,
-		record.platform,
-		record.address,
-		record.mediaURL,
-		record.account,
-		int(record.state),
-		record.failReason,
-		record.tokenAmount,
-		record.rowID,
-	)
 
 	return
 }

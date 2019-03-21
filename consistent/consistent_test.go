@@ -34,7 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const testStorePath = "./test.store"
+const testStorePath = "./test.keystore"
 
 var o sync.Once
 

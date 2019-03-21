@@ -27,8 +27,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-const testStorePath1 = "./test.store1"
-const testStorePath2 = "./test.store2"
+const testStorePath1 = "./test1.keystore"
+const testStorePath2 = "./test2.keystore"
 
 func TestSaveDHT(t *testing.T) {
 	kms.Unittest = true
@@ -43,6 +43,7 @@ func TestSaveDHT(t *testing.T) {
 		So(len(x.circle), ShouldEqual, x.NumberOfReplicas*2)
 		So(len(x.sortedHashes), ShouldEqual, x.NumberOfReplicas*2)
 		So(sort.IsSorted(x.sortedHashes), ShouldBeTrue)
+		kms.ClosePublicKeyStore()
 		utils.CopyFile(testStorePath1, testStorePath2)
 	})
 }

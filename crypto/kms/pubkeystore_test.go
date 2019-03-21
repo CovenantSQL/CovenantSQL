@@ -33,7 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const dbFile = ".test.db"
+const dbFile = ".test.keystore"
 
 func TestDB(t *testing.T) {
 	log.SetLevel(log.DebugLevel)

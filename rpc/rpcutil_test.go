@@ -225,6 +225,14 @@ func TestNewPersistentCaller(t *testing.T) {
 		Node: *node1,
 	}
 
+	if client.Target() != string(conf.GConf.BP.NodeID) {
+		t.Fatal("persistent caller target not equal")
+	}
+
+	if client.New() == nil {
+		t.Fatal("new persistent caller failed")
+	}
+
 	respA := new(proto.PingResp)
 	err = client.Call("DHT.Ping", reqA, respA)
 	if err != nil {

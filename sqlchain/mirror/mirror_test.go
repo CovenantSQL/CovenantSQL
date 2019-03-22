@@ -272,7 +272,7 @@ func TestFullProcess(t *testing.T) {
 				dsnCfg.DatabaseID,
 				"127.0.0.1:5663",
 			},
-			"mirror", testWorkingDir, logDir, false,
+			"mirror", testWorkingDir, logDir, true,
 		)
 		So(err, ShouldBeNil)
 		defer func() {

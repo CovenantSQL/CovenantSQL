@@ -17,7 +17,6 @@
 package metric
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -29,13 +28,14 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const PubKeyStorePath = "./public.keystore"
 
 func TestCollectClient_UploadMetrics(t *testing.T) {
-	defer os.Remove(PubKeyStorePath)
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")

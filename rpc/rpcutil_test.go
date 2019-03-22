@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -46,10 +45,10 @@ const (
 
 func TestCaller_CallNode(t *testing.T) {
 	log.SetLevel(log.FatalLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
+	utils.RemoveAll(publicKeyStore + "*")
+	defer utils.RemoveAll(publicKeyStore + "*")
 
 	_, testFile, _, _ := runtime.Caller(0)
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
@@ -166,10 +165,10 @@ func TestCaller_CallNode(t *testing.T) {
 
 func TestNewPersistentCaller(t *testing.T) {
 	log.SetLevel(log.FatalLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
+	utils.RemoveAll(publicKeyStore + "*")
+	defer utils.RemoveAll(publicKeyStore + "*")
 
 	var d string
 	var err error
@@ -305,10 +304,10 @@ func TestNewPersistentCaller(t *testing.T) {
 
 func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	log.SetLevel(log.FatalLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
+	utils.RemoveAll(publicKeyStore + "*")
+	defer utils.RemoveAll(publicKeyStore + "*")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
@@ -381,10 +380,10 @@ func (s *fakeService) Call(req *FakeRequest, resp *interface{}) (err error) {
 
 func BenchmarkPersistentCaller_Call(b *testing.B) {
 	log.SetLevel(log.InfoLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
+	utils.RemoveAll(publicKeyStore + "*")
+	defer utils.RemoveAll(publicKeyStore + "*")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()

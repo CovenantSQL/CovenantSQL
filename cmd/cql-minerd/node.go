@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -69,7 +69,7 @@ func initNode() (server *rpc.Server, err error) {
 }
 
 func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (server *rpc.Server, err error) {
-	os.Remove(pubKeyStorePath)
+	utils.RemoveAll(pubKeyStorePath + "*")
 
 	server = rpc.NewServer()
 	if err != nil {

@@ -17,6 +17,7 @@
 package kms
 
 import (
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -32,10 +33,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const dbFile = ".test.db"
+const dbFile = ".test.keystore"
 
 func TestDB(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
 	privKey1, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
 	privKey2, pubKey2, _ := asymmetric.GenSecp256k1KeyPair()
 	node1 := &proto.Node{
@@ -58,11 +58,10 @@ func TestDB(t *testing.T) {
 	}
 
 	Convey("Init db", t, func() {
-		pks = nil
-		os.Remove(dbFile)
-		defer os.Remove(dbFile)
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
 		InitPublicKeyStore(dbFile, []proto.Node{*BPNode})
-		So(pks.bucket, ShouldNotBeNil)
 
 		nodeInfo, err := GetNodeInfo(BP.NodeID)
 		log.Debugf("nodeInfo %v", nodeInfo)
@@ -120,23 +119,6 @@ func TestDB(t *testing.T) {
 		So(pubk, ShouldBeNil)
 		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
 
-		err = removeBucket()
-		So(err, ShouldBeNil)
-
-		pubk, err = GetPublicKey(proto.NodeID("not exist"))
-		So(pubk, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
-		err = setNode(node1)
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
-		err = DelNode(proto.NodeID("2222"))
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
-		IDs, err = GetAllNodeID()
-		So(IDs, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrBucketNotInitialized)
-
 		err = ResetBucket()
 		So(err, ShouldBeNil)
 
@@ -147,12 +129,116 @@ func TestDB(t *testing.T) {
 		IDs, err = GetAllNodeID()
 		So(IDs, ShouldBeNil)
 		So(err, ShouldBeNil)
+
+		// test close, this close is for leak test purpose
+		ClosePublicKeyStore()
+	})
+}
+
+func TestInvalidKeystoreFileRecover(t *testing.T) {
+	Convey("invalid file recover", t, func() {
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
+		var err error
+		err = ioutil.WriteFile(dbFile, []byte("UNKNOWN_DATA_MUST_NOT_BE_A_SQLITE_DATABASE"), 0600)
+		So(err, ShouldBeNil)
+		st, err := os.Stat(dbFile)
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+		// backup should exists
+		st, err = os.Stat(dbFile + ".bak")
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+	})
+
+	Convey("backup keystore file should not be overwritten if exists", t, func() {
+		ClosePublicKeyStore()
+		backupFile := dbFile + ".bak"
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
+
+		var err error
+		err = ioutil.WriteFile(dbFile, []byte("backup_1"), 0600)
+		So(err, ShouldBeNil)
+		err = ioutil.WriteFile(backupFile, []byte("backup_2"), 0600)
+		So(err, ShouldBeNil)
+		st, err := os.Stat(dbFile)
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+		st, err = os.Stat(backupFile)
+		So(err, ShouldBeNil)
+		So(st.IsDir(), ShouldBeFalse)
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+		// backup should not be overwritten
+		backupData, err := ioutil.ReadFile(backupFile)
+		So(err, ShouldBeNil)
+		So(backupData, ShouldResemble, []byte("backup_2"))
+	})
+
+	Convey("sqlite keystore should not be truncated", t, func() {
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
+
+		_, pubKey1, _ := asymmetric.GenSecp256k1KeyPair()
+		node1 := &proto.Node{
+			ID:        proto.NodeID("1111"),
+			Addr:      "",
+			PublicKey: pubKey1,
+			Nonce:     cpuminer.Uint256{},
+		}
+
+		var err error
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+
+		// set node
+		setNode(node1)
+		// get node
+		node, err := GetNodeInfo(node1.ID)
+		So(node, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+
+		// clear and init again
+		ClosePublicKeyStore()
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+
+		// get again
+		node, err = GetNodeInfo(node1.ID)
+		So(node, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+
+		// backup file should not exists
+		_, err = os.Stat(dbFile + ".bak")
+		So(err, ShouldNotBeNil)
+		So(os.IsNotExist(err), ShouldBeTrue)
+	})
+
+	Convey("test empty file", t, func() {
+		ClosePublicKeyStore()
+		utils.RemoveAll(dbFile + "*")
+		defer utils.RemoveAll(dbFile + "*")
+
+		err := ioutil.WriteFile(dbFile, []byte{}, 0600)
+		So(err, ShouldBeNil)
+
+		err = InitPublicKeyStore(dbFile, nil)
+		So(err, ShouldBeNil)
+
+		st, err := os.Stat(dbFile + ".bak")
+		So(err, ShouldBeNil)
+		So(st.Size(), ShouldEqual, 0)
 	})
 }
 
 func TestErrorPath(t *testing.T) {
 	Convey("can not init db", t, func() {
-		pks = nil
+		ClosePublicKeyStore()
 		err := InitPublicKeyStore("/path/not/exist", nil)
 		So(pks, ShouldBeNil)
 		So(err, ShouldNotBeNil)

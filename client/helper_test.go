@@ -201,9 +201,9 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_dht")
-	os.Remove(pubKeyStoreFile)
+	utils.RemoveAll(pubKeyStoreFile + "*")
 	clientPubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_c")
-	os.Remove(clientPubKeyStoreFile)
+	utils.RemoveAll(clientPubKeyStoreFile + "*")
 	dupConfFile := filepath.Join(tempDir, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
 	if err = utils.DupConf(confFile, dupConfFile); err != nil {

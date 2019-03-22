@@ -17,11 +17,13 @@
 package internal
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -133,4 +135,29 @@ func readMasterKey(skip bool) string {
 		Exit()
 	}
 	return string(bytePwd)
+}
+
+func askDeletePath(path string) {
+	if _, err := os.Stat(path); err == nil {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("\"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
+			path)
+		t, err := reader.ReadString('\n')
+		t = strings.Trim(t, "\n")
+		if err != nil {
+			ConsoleLog.WithError(err).Error("unexpected error")
+			SetExitStatus(1)
+			Exit()
+		}
+		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
+			err = os.RemoveAll(path)
+			if err != nil {
+				ConsoleLog.WithError(err).Error("unexpected error")
+				SetExitStatus(1)
+				Exit()
+			}
+		} else {
+			Exit()
+		}
+	}
 }

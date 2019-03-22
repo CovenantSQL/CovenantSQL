@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -63,8 +64,8 @@ type Service struct {
 // NewService returns new mirror service handler.
 func NewService(database string, server *rpc.Server) (s *Service, err error) {
 	var (
-		dbProgressPath = database + progressFileSuffix
-		dbPath         = database + dbFileSuffix
+		dbProgressPath = filepath.Join(conf.GConf.WorkingRoot, database+progressFileSuffix)
+		dbPath         = filepath.Join(conf.GConf.WorkingRoot, database+dbFileSuffix)
 		progress       int32
 	)
 
@@ -219,7 +220,7 @@ func (s *Service) getProgress() int32 {
 }
 
 func (s *Service) saveProgress() {
-	progressFile := string(s.dbID) + progressFileSuffix
+	progressFile := filepath.Join(conf.GConf.WorkingRoot, string(s.dbID)+progressFileSuffix)
 	_ = ioutil.WriteFile(progressFile, []byte(fmt.Sprintf("%d", s.getProgress())), 0644)
 }
 

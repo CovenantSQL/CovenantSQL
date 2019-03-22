@@ -73,7 +73,7 @@ func configInit() {
 		Exit()
 	}
 
-	ConsoleLog.Info("init config success")
+	ConsoleLog.WithField("path", configFile).Info("init config success")
 
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough

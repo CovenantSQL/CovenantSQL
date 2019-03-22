@@ -284,7 +284,8 @@ func Drop(dsn string) (txHash hash.Hash, err error) {
 
 	_ = cfg
 
-	// currently not supported
+	//TODO(laodouya) currently not supported
+	err = errors.New("drop db current not support")
 
 	return
 }

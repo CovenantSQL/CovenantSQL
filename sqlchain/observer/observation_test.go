@@ -89,7 +89,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql/leader.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql/leader-observer.cover.out"),
 		},
 		"leader", testWorkingDir, logDir, false,
 	); err == nil {
@@ -100,7 +100,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql/follower1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql/follower1-observer.cover.out"),
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -111,7 +111,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cqld.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql/follower2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql/follower2-observer.cover.out"),
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -148,7 +148,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_0/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql/miner0.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql/miner0-observer.cover.out"),
 		},
 		"miner0", testWorkingDir, logDir, false,
 	); err == nil {
@@ -161,7 +161,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_1/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql/miner1.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql/miner1-observer.cover.out"),
 		},
 		"miner1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -174,7 +174,7 @@ func startNodes() {
 	if cmd, err = utils.RunCommandNB(
 		FJ(baseDir, "./bin/cql-minerd.test"),
 		[]string{"-config", FJ(testWorkingDir, "./observation/node_miner_2/config.yaml"),
-			"-test.coverprofile", FJ(baseDir, "./cmd/cql/miner2.cover.out"),
+			"-test.coverprofile", FJ(baseDir, "./cmd/cql/miner2-observer.cover.out"),
 		},
 		"miner2", testWorkingDir, logDir, false,
 	); err == nil {

@@ -47,7 +47,6 @@ func init() {
 }
 
 func main() {
-
 	internal.Version = version
 
 	// set random

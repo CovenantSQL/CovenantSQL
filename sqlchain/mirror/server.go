@@ -50,7 +50,7 @@ func StartMirror(database string, listenAddr string) (service *Service, err erro
 
 	// start mirror
 	if err = service.start(); err != nil {
-
+		return
 	}
 
 	return

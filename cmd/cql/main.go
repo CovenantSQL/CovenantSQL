@@ -38,6 +38,7 @@ func init() {
 		internal.CmdBalance,
 		internal.CmdTransfer,
 		internal.CmdGrant,
+		internal.CmdMirror,
 		internal.CmdExplorer,
 		internal.CmdAdapter,
 		internal.CmdVersion,
@@ -46,7 +47,6 @@ func init() {
 }
 
 func main() {
-
 	internal.Version = version
 
 	// set random

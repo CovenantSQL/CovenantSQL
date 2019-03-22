@@ -18,7 +18,6 @@ package internal
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter"
@@ -26,14 +25,13 @@ import (
 )
 
 var (
-	adapterAddr string // adapter listen addr
-
-	adapterHTTPServer *http.Server
+	adapterAddr          string // adapter listen addr
+	adapterUseMirrorAddr string
 )
 
 // CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
-	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] address",
+	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] [-mirror addr] address",
 	Short:     "start a SQLChain adapter",
 	Long: `
 Adapter command serves a SQLChain adapter
@@ -44,13 +42,14 @@ e.g.
 
 func init() {
 	CmdAdapter.Run = runAdapter
+	CmdAdapter.Flag.StringVar(&adapterUseMirrorAddr, "mirror", "", "mirror server for adapter to query")
 
 	addCommonFlags(CmdAdapter)
 	addBgServerFlag(CmdAdapter)
 }
 
-func startAdapterServer(adapterAddr string) func() {
-	adapterHTTPServer, err := adapter.NewHTTPAdapter(adapterAddr, configFile)
+func startAdapterServer(adapterAddr string, adapterUseMirrorAddr string) func() {
+	adapterHTTPServer, err := adapter.NewHTTPAdapter(adapterAddr, configFile, adapterUseMirrorAddr)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("init adapter failed")
 		SetExitStatus(1)
@@ -84,7 +83,7 @@ func runAdapter(cmd *Command, args []string) {
 	}
 	adapterAddr = args[0]
 
-	cancelFunc := startAdapterServer(adapterAddr)
+	cancelFunc := startAdapterServer(adapterAddr, adapterUseMirrorAddr)
 	ExitIfErrors()
 	defer cancelFunc()
 

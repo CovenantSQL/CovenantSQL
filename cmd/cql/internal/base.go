@@ -98,7 +98,8 @@ func (c *Command) Runnable() bool {
 
 var atExitFuncs []func()
 
-func atExit(f func()) {
+// AtExit will register function to be executed before exit.
+func AtExit(f func()) {
 	atExitFuncs = append(atExitFuncs, f)
 }
 

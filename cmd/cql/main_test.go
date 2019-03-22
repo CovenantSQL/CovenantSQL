@@ -18,9 +18,15 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
+)
 
 func TestMain(m *testing.M) {
-	defer m.Run()
+	internal.AtExit(func() {
+		m.Run()
+	})
 	main()
 }

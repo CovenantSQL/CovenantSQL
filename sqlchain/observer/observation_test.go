@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -190,7 +191,7 @@ func stopNodes() {
 		wg.Add(1)
 		go func(thisCmd *utils.CMD) {
 			defer wg.Done()
-			thisCmd.Cmd.Process.Signal(os.Interrupt)
+			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
 			thisCmd.Cmd.Wait()
 			grepRace := exec.Command("/bin/sh", "-c", "grep -a -A 50 'DATA RACE' "+thisCmd.LogPath)
 			out, _ := grepRace.Output()
@@ -497,7 +498,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		defer func() {
-			observerCmd.Cmd.Process.Signal(os.Interrupt)
+			observerCmd.Cmd.Process.Signal(syscall.SIGTERM)
 			observerCmd.Cmd.Wait()
 		}()
 
@@ -712,7 +713,7 @@ func TestFullProcess(t *testing.T) {
 		_, err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
 
-		observerCmd.Cmd.Process.Signal(os.Interrupt)
+		observerCmd.Cmd.Process.Signal(syscall.SIGTERM)
 		observerCmd.Cmd.Wait()
 
 		// start observer again

@@ -20,7 +20,7 @@ package main
 
 import (
 	"context"
-	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -70,7 +70,7 @@ func TestCQLD(t *testing.T) {
 		time.Sleep(15 * time.Second)
 
 		// Kill one BP follower
-		err = nodeCmds[2].Cmd.Process.Signal(os.Interrupt)
+		err = nodeCmds[2].Cmd.Process.Signal(syscall.SIGTERM)
 		So(err, ShouldBeNil)
 		time.Sleep(15 * time.Second)
 

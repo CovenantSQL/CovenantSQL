@@ -32,6 +32,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -339,7 +340,7 @@ func stopNodes() {
 		wg.Add(1)
 		go func(thisCmd *utils.CMD) {
 			defer wg.Done()
-			thisCmd.Cmd.Process.Signal(os.Interrupt)
+			thisCmd.Cmd.Process.Signal(syscall.SIGTERM)
 			thisCmd.Cmd.Wait()
 			grepRace := exec.Command("/bin/sh", "-c", "grep -a -A 50 'DATA RACE' "+thisCmd.LogPath)
 			out, _ := grepRace.Output()

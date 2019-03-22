@@ -26,6 +26,7 @@ import (
 // DBConfig defines the database config.
 type DBConfig struct {
 	DatabaseID             proto.DatabaseID
+	RootDir                string
 	DataDir                string
 	KayakMux               *DBKayakMuxService
 	ChainMux               *sqlchain.MuxService

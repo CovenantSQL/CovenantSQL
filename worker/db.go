@@ -150,7 +150,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 	}
 
 	// init chain
-	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
+	chainFile := filepath.Join(cfg.RootDir, SQLChainFileName)
 	if db.nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}

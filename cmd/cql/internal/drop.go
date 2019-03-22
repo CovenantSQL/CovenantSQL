@@ -54,7 +54,7 @@ func runDrop(cmd *Command, args []string) {
 
 	// drop database
 	if _, err := client.ParseDSN(dsn); err != nil {
-		// not a dsn
+		// not a dsn/dbid
 		ConsoleLog.WithField("db", dsn).WithError(err).Error("Not a valid dsn")
 		SetExitStatus(1)
 		return

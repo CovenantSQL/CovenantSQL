@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/mirror"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
@@ -30,12 +31,12 @@ var (
 
 // CmdMirror is cql mirror command.
 var CmdMirror = &Command{
-	UsageLine: "cql mirror [-config file] [-tmp-path path] [-bg-log-level level] database address",
+	UsageLine: "cql mirror [-config file] [-tmp-path path] [-bg-log-level level] dsn/dbid address",
 	Short:     "start a SQLChain database mirror",
 	Long: `
 Mirror command subscribes database updates and serves a read-only database mirror.
 e.g.
-    cql mirror 127.0.0.1:8546
+    cql mirror database_id 127.0.0.1:9389
 `,
 }
 
@@ -69,13 +70,23 @@ func runMirror(cmd *Command, args []string) {
 	bgServerInit()
 
 	if len(args) != 2 {
-		ConsoleLog.Error("Mirror command need database and listen address as parameters")
+		ConsoleLog.Error("Mirror command need database_id/dsn and listen address as parameters")
 		SetExitStatus(1)
 		return
 	}
 
-	mirrorDatabase = args[0]
+	dsn := args[0]
 	mirrorAddr = args[1]
+
+	cfg, err := client.ParseDSN(dsn)
+	if err != nil {
+		// not a dsn/dbid
+		ConsoleLog.WithField("db", dsn).WithError(err).Error("Not a valid dsn")
+		SetExitStatus(1)
+		return
+	}
+
+	mirrorDatabase = cfg.DatabaseID
 
 	cancelFunc := startMirrorServer(mirrorDatabase, mirrorAddr)
 	ExitIfErrors()

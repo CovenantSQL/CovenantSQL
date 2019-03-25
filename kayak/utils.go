@@ -21,7 +21,7 @@ import (
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
 
 func (r *Runtime) getCaller(id proto.NodeID) Caller {

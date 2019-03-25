@@ -46,7 +46,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -801,7 +801,7 @@ func benchMiner(b *testing.B, minerCount uint16) {
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				Node: minerCount,
+				Node:                   minerCount,
 				UseEventualConsistency: benchEventualConsistency,
 			},
 		}

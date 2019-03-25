@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 

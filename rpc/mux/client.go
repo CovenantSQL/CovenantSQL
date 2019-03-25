@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// Package rpc provides RPC Client/Server functions.
-package rpc
+// Package mux provides RPC Client/Server functions.
+package mux
 
 import (
 	"net"

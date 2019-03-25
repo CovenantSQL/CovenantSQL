@@ -41,7 +41,7 @@ import (
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	crpc "github.com/CovenantSQL/CovenantSQL/rpc"
+	crpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"

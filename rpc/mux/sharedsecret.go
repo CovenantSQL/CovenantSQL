@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package rpc
+package mux
 
 import (
 	"sync"

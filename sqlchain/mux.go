@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
 
 // MuxService defines multiplexing service of sql-chain.

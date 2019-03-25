@@ -21,7 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )
 

@@ -6,6 +6,7 @@ Make sure that `$GOPATH/bin` is in your `$PATH`
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 ```
 
 and import `client` package if you want to use it in your code.

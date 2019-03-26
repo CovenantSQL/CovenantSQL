@@ -57,7 +57,9 @@ var CmdRPC = &Command{
 	Long: `
 Rpc command make a RPC request to server
 e.g.
-    cql rpc -name -endpoint -req
+    cql rpc -name 'MCC.QuerySQLChainProfile' \
+            -rpc-endpoint 000000fd2c8f68d54d55d97d0ad06c6c0d91104e4e51a7247f3629cc2a0127cf \
+            -rpc-req '{"DBID": "c8328272ba9377acdf1ee8e73b17f2b0f7430c798141080d0282195507eb94e7"}'
 `,
 }
 

@@ -6,6 +6,7 @@
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 ```
 
 然后在你的 go 代码中 import 第一个 `client` 包。

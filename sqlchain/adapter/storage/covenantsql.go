@@ -23,11 +23,13 @@ import (
 )
 
 // CovenantSQLStorage defines the covenantsql database abstraction.
-type CovenantSQLStorage struct{}
+type CovenantSQLStorage struct {
+	mirrorServerAddr string
+}
 
 // NewCovenantSQLStorage returns new covenantsql storage handler.
-func NewCovenantSQLStorage() (s *CovenantSQLStorage) {
-	s = &CovenantSQLStorage{}
+func NewCovenantSQLStorage(mirrorServerAddr string) (s *CovenantSQLStorage) {
+	s = &CovenantSQLStorage{mirrorServerAddr: mirrorServerAddr}
 	return
 }
 
@@ -116,6 +118,9 @@ func (s *CovenantSQLStorage) Exec(dbID string, query string, args ...interface{}
 func (s *CovenantSQLStorage) getConn(dbID string) (db *sql.DB, err error) {
 	cfg := client.NewConfig()
 	cfg.DatabaseID = dbID
+	if s.mirrorServerAddr != "" {
+		cfg.Mirror = s.mirrorServerAddr
+	}
 
 	return sql.Open("covenantsql", cfg.FormatDSN())
 }

@@ -365,7 +365,7 @@ func runConsole(cmd *Command, args []string) {
 	}
 
 	if adapterAddr != "" {
-		cancelFunc := startAdapterServer(adapterAddr)
+		cancelFunc := startAdapterServer(adapterAddr, "")
 		defer cancelFunc()
 	}
 

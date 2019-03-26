@@ -32,7 +32,7 @@ import (
 )
 
 const TestDomain = "unittest.optool.net"
-const IntergrationTestDomain = "intergration-test.gridb.io"
+const IntergrationTestDomain = "intergrationtest.gridb.io"
 
 func TestIPv6Seed(t *testing.T) {
 	isc := IPv6SeedClient{}

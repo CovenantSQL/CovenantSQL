@@ -66,7 +66,7 @@ var (
 	globalSeqNo         uint64
 	randSource          = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// Default path of config file
+	// DefaultConfigFile is the default path of config file
 	DefaultConfigFile = "~/.cql/config.yaml"
 )
 

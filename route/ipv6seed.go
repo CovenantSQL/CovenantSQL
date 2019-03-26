@@ -29,14 +29,20 @@ import (
 )
 
 const (
-	NODEID = "id."
+	// ID is node id
+	ID = "id."
+	// PUBKEY is public key
 	PUBKEY = "pub."
-	NONCE  = "n."
-	ADDR   = "addr."
+	// NONCE is nonce
+	NONCE = "n."
+	// ADDR is address
+	ADDR = "addr."
 )
 
+// IPv6SeedClient is IPv6 DNS seed client
 type IPv6SeedClient struct{}
 
+// GetBPFromDNSSeed gets BP info from the IPv6 domain
 func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err error) {
 	// Public key
 	pubKeyBuf := make([]byte, asymmetric.PublicKeyBytesLen)
@@ -75,19 +81,19 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 	}
 
 	// NodeID
-	nodeIdBuf, err := ipv6.FromDomain(NODEID + BPDomain)
+	nodeIDBuf, err := ipv6.FromDomain(ID + BPDomain)
 	if err != nil {
 		return
 	}
-	var nodeId proto.RawNodeID
-	err = nodeId.SetBytes(nodeIdBuf)
+	var nodeID proto.RawNodeID
+	err = nodeID.SetBytes(nodeIDBuf)
 	if err != nil {
 		return
 	}
 
 	BPNodes = make(IDNodeMap)
-	BPNodes[nodeId] = proto.Node{
-		ID:        nodeId.ToNodeID(),
+	BPNodes[nodeID] = proto.Node{
+		ID:        nodeID.ToNodeID(),
 		Addr:      string(addrBytes),
 		PublicKey: &pubKey,
 		Nonce:     *nonce,
@@ -96,14 +102,15 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 	return
 }
 
+// GenBPIPv6 generates the IPv6 addrs contain BP info
 func (isc *IPv6SeedClient) GenBPIPv6(node *proto.Node, domain string) (out string, err error) {
 	// NodeID
-	nodeIdIps, err := ipv6.ToIPv6(node.ID.ToRawNodeID().AsBytes())
+	nodeIDIps, err := ipv6.ToIPv6(node.ID.ToRawNodeID().AsBytes())
 	if err != nil {
 		return "", err
 	}
-	for i, ip := range nodeIdIps {
-		out += fmt.Sprintf("%02d.%s%s	1	IN	AAAA	%s\n", i, NODEID, domain, ip)
+	for i, ip := range nodeIDIps {
+		out += fmt.Sprintf("%02d.%s%s	1	IN	AAAA	%s\n", i, ID, domain, ip)
 	}
 
 	// Public key, with leading 1 byte type trimmed

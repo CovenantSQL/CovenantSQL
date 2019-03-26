@@ -158,6 +158,10 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
+	if config.BPPeriod == time.Duration(0) {
+		config.BPPeriod = 3 * time.Second
+	}
+
 	if config.WorkingRoot == "" {
 		config.WorkingRoot = "./"
 	}

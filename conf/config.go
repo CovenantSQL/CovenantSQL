@@ -159,7 +159,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	}
 
 	if config.BPPeriod == time.Duration(0) {
-		config.BPPeriod = 3 * time.Second
+		config.BPPeriod = 10 * time.Second
 	}
 
 	if config.WorkingRoot == "" {

@@ -90,6 +90,7 @@ func runMiner() {
 			start := mine.Uint256{D: step*uint64(i) + uint64(rand.Uint32())}
 			log.Infof("miner #%#v start: %#v\n", i, start)
 			miner.ComputeBlockNonce(block, start, difficulty)
+			//TODO(laodouya) add wait group
 		}(i)
 	}
 

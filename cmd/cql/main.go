@@ -32,6 +32,7 @@ var (
 
 func init() {
 	internal.CqlCommands = []*internal.Command{
+		internal.CmdGenerate,
 		internal.CmdConsole,
 		internal.CmdCreate,
 		internal.CmdDrop,

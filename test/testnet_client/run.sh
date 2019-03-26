@@ -13,10 +13,10 @@ echo ${PROJECT_DIR}
 
 cd ${TEST_WD}
 
-echo -ne "y\n" | ${BIN}/cql-utils -tool confgen -skip-master-key
+echo -ne "y\n" | ${BIN}/cql generate -no-password config
 
 #get wallet addr
-${BIN}/cql-utils -tool addrgen -skip-master-key | tee wallet.txt
+${BIN}/cql generate -no-password wallet | tee wallet.txt
 wallet=$(awk '{print $3}' wallet.txt)
 
 #transfer some coin to above address

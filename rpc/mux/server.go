@@ -25,11 +25,7 @@ import (
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -71,7 +67,7 @@ func (s *Server) InitRPCServer(
 		return
 	}
 
-	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		err = errors.Wrap(err, "create crypto listener failed")
 		return
@@ -121,22 +117,17 @@ serverLoop:
 
 // handleConn do all the work.
 func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
+	etlsconn := rrpc.NewServerConn(conn)
+	defer etlsconn.Close() // take ownership of conn
 
-	// remote remoteNodeID connection awareness
-	var remoteNodeID *proto.RawNodeID
+	// TODO(leventeliu): consider to do handshake in the first Read/Write like tls.
 	var err error
-
-	if c, ok := conn.(*etls.CryptoConn); ok {
-		conn, err = s.Listener.(*etls.CryptoListener).CHandler(c.Conn)
-		if err != nil {
-			err = errors.Wrap(err, "handle ETLS handler failed")
-			return
-		}
-		// set node id
-		remoteNodeID = conn.(*etls.CryptoConn).NodeID
+	if err = etlsconn.Handshake(); err != nil {
+		return
 	}
+	var remoteNodeID = etlsconn.RemoteNodeID()
 
+	// create session
 	sess, err := mux.Server(conn, MuxConfig)
 	if err != nil {
 		err = errors.Wrap(err, "create mux server failed")
@@ -165,7 +156,7 @@ sessionLoop:
 				<-muxConn.GetDieCh()
 				cancelFunc()
 			}()
-			nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
+			nodeAwareCodec := rrpc.NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), &remoteNodeID)
 			go s.rpcServer.ServeCodec(nodeAwareCodec)
 		}
 	}
@@ -182,43 +173,4 @@ func (s *Server) Stop() {
 		s.Listener.Close()
 	}
 	close(s.stopCh)
-}
-
-func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
-	// NodeID + Uint256 Nonce
-	headerBuf := make([]byte, ETLSHeaderSize)
-	rCount, err := conn.Read(headerBuf)
-	if err != nil {
-		err = errors.Wrap(err, "read node header error")
-		return
-	}
-
-	if rCount != ETLSHeaderSize {
-		err = errors.New("invalid ETLS header size")
-		return
-	}
-
-	if headerBuf[0] != etls.ETLSMagicBytes[0] || headerBuf[1] != etls.ETLSMagicBytes[1] {
-		err = errors.New("bad ETLS header")
-		return
-	}
-
-	// headerBuf len is hash.HashBSize, so there won't be any error
-	idHash, _ := hash.NewHash(headerBuf[2 : 2+hash.HashBSize])
-	rawNodeID := &proto.RawNodeID{Hash: *idHash}
-	// TODO(auxten): compute the nonce and check difficulty
-	cpuminer.Uint256FromBytes(headerBuf[2+hash.HashBSize:])
-
-	symmetricKey, err := rrpc.GetSharedSecretWith(
-		rawNodeID,
-		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
-	)
-	if err != nil {
-		err = errors.Wrapf(err, "get shared secret, target: %s", rawNodeID.String())
-		return
-	}
-	cipher := etls.NewCipher(symmetricKey)
-	cryptoConn = etls.NewConn(conn, cipher, rawNodeID)
-
-	return
 }

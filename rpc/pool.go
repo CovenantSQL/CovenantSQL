@@ -37,8 +37,7 @@ type Session struct {
 	sync.RWMutex
 	nodeDialer NodeDialer
 	target     proto.NodeID
-	sess       []net.Conn
-	offset     int
+	sess       chan net.Conn
 }
 
 // SessionPool is the struct type of session pool.
@@ -57,31 +56,21 @@ var (
 func (s *Session) Close() {
 	s.Lock()
 	defer s.Unlock()
-	for _, s := range s.sess {
+	close(s.sess)
+	for s := range s.sess {
 		_ = s.Close()
 	}
-	s.sess = s.sess[:0]
 }
 
 // Get returns new connection from session.
 func (s *Session) Get() (sess net.Conn, err error) {
 	s.Lock()
 	defer s.Unlock()
-	s.offset++
-	s.offset %= conf.MaxRPCPoolPhysicalConnection
 
-	if len(s.sess) <= s.offset {
-		// open new session
-		sess, err = s.newSession()
-		if err != nil {
-			return
-		}
-		s.sess = append(s.sess, sess)
-		s.offset = len(s.sess) - 1
-	} else {
-		sess = s.sess[s.offset]
+	if sess, ok := <-s.sess; ok {
+		return sess, nil
 	}
-	return
+	return s.newSession()
 }
 
 // Len returns physical connection count.
@@ -98,6 +87,17 @@ func (s *Session) newSession() (conn net.Conn, err error) {
 		return
 	}
 
+	return
+}
+
+func (s *Session) put(conn net.Conn) (ok bool) {
+	s.Lock()
+	defer s.Unlock()
+	select {
+	case s.sess <- conn:
+	default:
+		_ = conn.Close()
+	}
 	return
 }
 
@@ -130,6 +130,7 @@ func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
 		sess = &Session{
 			nodeDialer: p.nodeDialer,
 			target:     id,
+			sess:       make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
 		}
 		p.sessions[id] = sess
 	}
@@ -141,6 +142,16 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	var sess *Session
 	sess, _ = p.getSession(id)
 	return sess.Get()
+}
+
+func (p *SessionPool) Put(id proto.NodeID, conn net.Conn) (ok bool) {
+	p.Lock()
+	defer p.Unlock()
+	sess, ok := p.sessions[id]
+	if ok {
+		sess.put(conn)
+	}
+	return
 }
 
 // Remove the node sessions in the pool.

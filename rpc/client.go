@@ -30,11 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-const (
-	// ETLSHeaderSize is the header size with ETLSHeader + NodeID + Nonce
-	ETLSHeaderSize = 2 + hash.HashBSize + 32
-)
-
 // Client is RPC client.
 type Client struct {
 	*rpc.Client

@@ -42,12 +42,25 @@ type CryptoConn struct {
 	NodeID *proto.RawNodeID
 }
 
+func NewConnEx(c net.Conn, cipher *Cipher) *CryptoConn {
+	return &CryptoConn{
+		Conn:   c,
+		Cipher: cipher,
+	}
+}
+
 // NewConn returns a new CryptoConn.
 func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
 	return &CryptoConn{
 		Conn:   c,
 		Cipher: cipher,
 		NodeID: nodeID,
+	}
+}
+
+func NewConnWithRaw(c net.Conn) *CryptoConn {
+	return &CryptoConn{
+		Conn: c,
 	}
 }
 

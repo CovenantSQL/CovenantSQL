@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -27,7 +28,7 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [-config file] config/private/wallet/public/nonce",
+	UsageLine: "cql generate [-config file] config/wallet/public/nonce",
 	Short:     "generate config related file or keys",
 	Long: `
 Generate command can generate private.key and config.yaml for CovenantSQL.
@@ -52,11 +53,13 @@ func runGenerate(cmd *Command, args []string) {
 
 	switch genType {
 	case "config":
-	case "private":
 	case "wallet":
+		configInit()
 		walletGen()
 	case "public":
 		configInit()
+		publicKey := publicGen()
+		fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
 	case "nonce":
 		configInit()
 	default:
@@ -73,8 +76,6 @@ func privateGen() {
 }
 
 func walletGen() {
-	configInit()
-
 	//TODO if config has wallet, print and return
 
 	var publicKey *asymmetric.PublicKey
@@ -92,13 +93,8 @@ func walletGen() {
 	} else {
 		//use config specific private key file(already init by configInit())
 		ConsoleLog.Infof("generate wallet address directly from private key: %s", conf.GConf.PrivateKeyFile)
-		privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
-		if err != nil {
-			ConsoleLog.WithError(err).Error("load private key file failed")
-			SetExitStatus(1)
-			return
-		}
-		publicKey = privateKey.PubKey()
+		publicKey = publicGen()
+		ExitIfErrors()
 	}
 
 	keyHash, err := crypto.PubKeyHash(publicKey)
@@ -113,7 +109,14 @@ func walletGen() {
 	//TODO store in config.yaml
 }
 
-func publicGen() {
+func publicGen() *asymmetric.PublicKey {
+	privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
+	if err != nil {
+		ConsoleLog.WithError(err).Error("load private key file failed")
+		SetExitStatus(1)
+		return nil
+	}
+	return privateKey.PubKey()
 }
 
 func nonceGen() {

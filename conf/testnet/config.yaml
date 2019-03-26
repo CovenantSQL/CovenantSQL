@@ -84,7 +84,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 8791026473473316840
-  Addr: bp04.hk.gridb.io:7777
+  Addr: bp04.cn.gridb.io:7777
   PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
   Role: Follower
 - ID: 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c

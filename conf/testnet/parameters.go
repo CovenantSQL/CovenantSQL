@@ -28,11 +28,8 @@ const (
 	// CQLConfigYAML is the config string in YAML format of the CovenantSQL TestNet.
 	CQLConfigYAML = `
 DNSSeed:
-  Domain: "bp.testnet.gridb.io"
-
-Adapter:
-  ListenAddr: "127.0.0.1:4661"
-  StorageDriver: covenantsql
+  Domain: "testnet.gridb.io"
+  BPCount: 6
 `
 )
 

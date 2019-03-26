@@ -101,6 +101,7 @@ type DNSSeed struct {
 	EnforcedDNSSEC bool     `yaml:"EnforcedDNSSEC"`
 	DNSServers     []string `yaml:"DNSServers"`
 	Domain         string   `yaml:"Domain"`
+	BPCount        int      `yaml:"BPCount"`
 }
 
 // Config holds all the config read from yaml config file.
@@ -155,6 +156,16 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	if err != nil {
 		log.WithError(err).Error("unmarshal config file failed")
 		return
+	}
+
+	if RoleTag[0] == ClientBuildTag[0] {
+		if config.DNSSeed.Domain == "" {
+			config.DNSSeed.Domain = "testnet.gridb.io"
+		}
+
+		if config.DNSSeed.BPCount == 0 {
+			config.DNSSeed.BPCount = 6
+		}
 	}
 
 	if config.WorkingRoot == "" {

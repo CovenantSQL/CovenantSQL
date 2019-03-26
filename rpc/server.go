@@ -14,23 +14,20 @@
  * limitations under the License.
  */
 
-package mux
+package rpc
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/rpc"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -136,39 +133,12 @@ func (s *Server) handleConn(conn net.Conn) {
 		// set node id
 		remoteNodeID = conn.(*etls.CryptoConn).NodeID
 	}
-
-	sess, err := mux.Server(conn, MuxConfig)
-	if err != nil {
-		err = errors.Wrap(err, "create mux server failed")
-		return
-	}
-	defer sess.Close()
-
-sessionLoop:
-	for {
-		select {
-		case <-s.stopCh:
-			log.Info("stopping Session Loop")
-			break sessionLoop
-		default:
-			muxConn, err := sess.AcceptStream()
-			if err != nil {
-				if err == io.EOF {
-					//log.WithField("remote", remoteNodeID).Debug("session connection closed")
-				} else {
-					err = errors.Wrapf(err, "session accept failed, remote: %s", remoteNodeID)
-				}
-				break sessionLoop
-			}
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			go func() {
-				<-muxConn.GetDieCh()
-				cancelFunc()
-			}()
-			nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
-			go s.rpcServer.ServeCodec(nodeAwareCodec)
-		}
-	}
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(conn), remoteNodeID)
+	go func() {
+		defer cancelFunc()
+		s.rpcServer.ServeCodec(nodeAwareCodec)
+	}()
 }
 
 // RegisterService with a Service name, used by Client RPC.
@@ -209,7 +179,7 @@ func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	// TODO(auxten): compute the nonce and check difficulty
 	cpuminer.Uint256FromBytes(headerBuf[2+hash.HashBSize:])
 
-	symmetricKey, err := rrpc.GetSharedSecretWith(
+	symmetricKey, err := GetSharedSecretWith(
 		rawNodeID,
 		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
 	)

@@ -15,22 +15,19 @@
  */
 
 // Package mux provides RPC Client/Server functions.
-package mux
+package rpc
 
 import (
 	"net"
 	"net/rpc"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 const (
@@ -46,14 +43,11 @@ type Client struct {
 }
 
 var (
-	// MuxConfig holds the default mux config
-	MuxConfig *mux.Config
 	// DefaultDialer holds the default dialer of SessionPool
 	DefaultDialer func(nodeID proto.NodeID) (conn net.Conn, err error)
 )
 
 func init() {
-	MuxConfig = mux.DefaultConfig()
 	DefaultDialer = dialToNode
 }
 
@@ -106,21 +100,7 @@ func dial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.C
 // DialToNode ties use connection in pool, if fails then connects to the node with nodeID.
 func DialToNode(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn net.Conn, err error) {
 	if pool == nil || isAnonymous {
-		var ETLSConn net.Conn
-		var sess *mux.Session
-		ETLSConn, err = dialToNodeEx(nodeID, isAnonymous)
-		if err != nil {
-			return
-		}
-		sess, err = mux.Client(ETLSConn, MuxConfig)
-		if err != nil {
-			err = errors.Wrapf(err, "init yamux client to %s failed", nodeID)
-			return
-		}
-		conn, err = sess.OpenStream()
-		if err != nil {
-			err = errors.Wrapf(err, "open new session to %s failed", nodeID)
-		}
+		conn, err = dialToNodeEx(nodeID, isAnonymous)
 		return
 	}
 	//log.WithField("poolSize", pool.Len()).Debug("session pool size")
@@ -151,7 +131,7 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 			- https://tools.ietf.org/html/rfc5246#section-5
 			- https://www.cryptologie.net/article/340/tls-pre-master-secrets-and-master-secrets/
 	*/
-	symmetricKey, err := rrpc.GetSharedSecretWith(rawNodeID, isAnonymous)
+	symmetricKey, err := GetSharedSecretWith(rawNodeID, isAnonymous)
 	if err != nil {
 		return
 	}
@@ -175,41 +155,6 @@ func dialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err err
 // NewClient returns a RPC client.
 func NewClient() *Client {
 	return &Client{}
-}
-
-// initClient initializes client with connection to given addr.
-func initClient(addr string) (client *Client, err error) {
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-	return InitClientConn(conn)
-}
-
-// InitClientConn initializes client with connection to given addr.
-func InitClientConn(conn net.Conn) (client *Client, err error) {
-	client = NewClient()
-	var muxConn *mux.Stream
-	muxConn, ok := conn.(*mux.Stream)
-	if !ok {
-		var sess *mux.Session
-		sess, err = mux.Client(conn, MuxConfig)
-		if err != nil {
-			err = errors.Wrap(err, "init mux client failed")
-			return
-		}
-
-		muxConn, err = sess.OpenStream()
-		if err != nil {
-			err = errors.Wrap(err, "open stream failed")
-			return
-		}
-	}
-	client.Conn = muxConn
-	client.Client = rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(muxConn))
-	client.RemoteAddr = conn.RemoteAddr().String()
-
-	return client, nil
 }
 
 // Close the client RPC connection.

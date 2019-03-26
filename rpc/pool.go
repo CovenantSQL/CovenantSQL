@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package mux
+package rpc
 
 import (
 	"net"
 	"sync"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -38,7 +37,7 @@ type Session struct {
 	sync.RWMutex
 	nodeDialer NodeDialer
 	target     proto.NodeID
-	sess       []*mux.Session
+	sess       []net.Conn
 	offset     int
 }
 
@@ -65,45 +64,24 @@ func (s *Session) Close() {
 }
 
 // Get returns new connection from session.
-func (s *Session) Get() (conn net.Conn, err error) {
+func (s *Session) Get() (sess net.Conn, err error) {
 	s.Lock()
 	defer s.Unlock()
 	s.offset++
 	s.offset %= conf.MaxRPCPoolPhysicalConnection
 
-	var (
-		sess     *mux.Session
-		stream   *mux.Stream
-		sessions []*mux.Session
-	)
-
-	for {
-		if len(s.sess) <= s.offset {
-			// open new session
-			sess, err = s.newSession()
-			if err != nil {
-				return
-			}
-			s.sess = append(s.sess, sess)
-			s.offset = len(s.sess) - 1
-		} else {
-			sess = s.sess[s.offset]
-		}
-
-		// open connection
-		stream, err = sess.OpenStream()
+	if len(s.sess) <= s.offset {
+		// open new session
+		sess, err = s.newSession()
 		if err != nil {
-			// invalidate session
-			sessions = nil
-			sessions = append(sessions, s.sess[0:s.offset]...)
-			sessions = append(sessions, s.sess[s.offset+1:]...)
-			s.sess = sessions
-			continue
+			return
 		}
-
-		conn = stream
-		return
+		s.sess = append(s.sess, sess)
+		s.offset = len(s.sess) - 1
+	} else {
+		sess = s.sess[s.offset]
 	}
+	return
 }
 
 // Len returns physical connection count.
@@ -113,15 +91,14 @@ func (s *Session) Len() int {
 	return len(s.sess)
 }
 
-func (s *Session) newSession() (sess *mux.Session, err error) {
-	var conn net.Conn
+func (s *Session) newSession() (conn net.Conn, err error) {
 	conn, err = s.nodeDialer(s.target)
 	if err != nil {
 		err = errors.Wrap(err, "dialing new session connection failed")
 		return
 	}
 
-	return mux.Client(conn, MuxConfig)
+	return
 }
 
 // newSessionPool creates a new SessionPool.

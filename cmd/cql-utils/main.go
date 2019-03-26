@@ -27,19 +27,15 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
-	version        = "unknown"
-	tool           string
-	publicKeyHex   string
-	privateKeyFile string
-	configFile     string
-	skipMasterKey  bool
-	showVersion    bool
-	difficulty     int
+	version       = "unknown"
+	tool          string
+	skipMasterKey bool
+	showVersion   bool
+	difficulty    int
 )
 
 const name = "cql-utils"
@@ -49,9 +45,6 @@ func init() {
 
 	flag.StringVar(&tool, "tool", "", "Tool type: confgen")
 	flag.IntVar(&difficulty, "difficulty", 24, "difficulty for miner to mine nodes and generating nonce")
-	flag.StringVar(&publicKeyHex, "public", "", "Public key hex string to mine node id/nonce")
-	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "Private key file to generate/show")
-	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file to use")
 	flag.BoolVar(&skipMasterKey, "skip-master-key", false, "Use empty master key")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 }
@@ -65,18 +58,7 @@ func main() {
 	}
 	log.Infof("cql-utils build: %#v\n", version)
 
-	configFile = utils.HomeDirExpand(configFile)
-	privateKeyFile = utils.HomeDirExpand(privateKeyFile)
-
 	switch tool {
-	// Disable keygen independent call
-	//case "keygen":
-	//	if privateKeyFile == "" {
-	//		// error
-	//		log.Error("privateKey path is required for keygen")
-	//		os.Exit(1)
-	//	}
-	//	runKeygen()
 	case "confgen":
 		runConfgen()
 	default:

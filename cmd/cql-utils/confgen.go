@@ -17,6 +17,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -26,6 +27,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -47,8 +50,7 @@ func runConfgen() {
 	}
 
 	privateKeyFileName := "private.key"
-	publicKeystoreFileName := "public.keystore"
-	privateKeyFile = path.Join(workingRoot, privateKeyFileName)
+	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
 
 	askDeletePath(workingRoot)
 
@@ -59,7 +61,24 @@ func runConfgen() {
 	}
 
 	fmt.Println("Generating key pair...")
-	publicKey := runKeygen(privateKeyFile)
+	masterKey, err := readMasterKey()
+	if err != nil {
+		log.WithError(err).Fatal("read master key failed")
+	}
+
+	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		log.WithError(err).Fatal("generate key pair failed")
+	}
+
+	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(masterKey)); err != nil {
+		log.WithError(err).Fatal("save generated keypair failed")
+	}
+
+	fmt.Printf("Private key file: %s\n", privateKeyFile)
+	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
+	publicKey := privateKey.PubKey()
+
 	fmt.Println("Generated key pair.")
 
 	fmt.Println("Generating nonce...")
@@ -72,7 +91,6 @@ func runConfgen() {
 	testnetConfig := testnet.GetTestNetConfig()
 	// Add client config
 	testnetConfig.PrivateKeyFile = privateKeyFileName
-	testnetConfig.PubKeyStoreFile = publicKeystoreFileName
 	testnetConfig.ThisNodeID = cliNodeID
 	testnetConfig.KnownNodes = append(testnetConfig.KnownNodes, proto.Node{
 		ID:        cliNodeID,

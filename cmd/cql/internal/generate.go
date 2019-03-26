@@ -24,6 +24,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 )
 
 // CmdGenerate is cql generate command entity.
@@ -62,11 +63,39 @@ func runGenerate(cmd *Command, args []string) {
 		fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
 	case "nonce":
 		configInit()
+		_ = nonceGen()
 	default:
 		cmd.Usage()
 		SetExitStatus(1)
 		return
 	}
+}
+
+func publicGen() *asymmetric.PublicKey {
+	//use config specific private key file(already init by configInit())
+	ConsoleLog.Infof("generate public key directly from private key: %s", conf.GConf.PrivateKeyFile)
+	privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
+	if err != nil {
+		ConsoleLog.WithError(err).Error("load private key file failed")
+		SetExitStatus(1)
+		ExitIfErrors()
+	}
+	return privateKey.PubKey()
+}
+
+func getPublic() *asymmetric.PublicKey {
+	//if config has public, use it
+	for _, node := range conf.GConf.KnownNodes {
+		if node.ID == conf.GConf.ThisNodeID {
+			if node.PublicKey != nil {
+				ConsoleLog.Infof("use public key in config file: %s", configFile)
+				return node.PublicKey
+			}
+			break
+		}
+	}
+
+	return publicGen()
 }
 
 func configGen() {
@@ -78,24 +107,7 @@ func privateGen() {
 func walletGen() {
 	//TODO if config has wallet, print and return
 
-	var publicKey *asymmetric.PublicKey
-
-	//if config has public, use it
-	for _, node := range conf.GConf.KnownNodes {
-		if node.ID == conf.GConf.ThisNodeID {
-			publicKey = node.PublicKey
-			break
-		}
-	}
-
-	if publicKey != nil {
-		ConsoleLog.Infof("use public key in config file: %s", configFile)
-	} else {
-		//use config specific private key file(already init by configInit())
-		ConsoleLog.Infof("generate wallet address directly from private key: %s", conf.GConf.PrivateKeyFile)
-		publicKey = publicGen()
-		ExitIfErrors()
-	}
+	publicKey := getPublic()
 
 	keyHash, err := crypto.PubKeyHash(publicKey)
 	if err != nil {
@@ -109,15 +121,6 @@ func walletGen() {
 	//TODO store in config.yaml
 }
 
-func publicGen() *asymmetric.PublicKey {
-	privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
-	if err != nil {
-		ConsoleLog.WithError(err).Error("load private key file failed")
-		SetExitStatus(1)
-		return nil
-	}
-	return privateKey.PubKey()
-}
-
-func nonceGen() {
+func nonceGen() *mine.NonceInfo {
+	return nil
 }

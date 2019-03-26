@@ -506,7 +506,9 @@ func registerNode() (err error) {
 		return
 	}
 
-	err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
+	if nodeInfo.Role != proto.Leader && nodeInfo.Role != proto.Follower {
+		err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
+	}
 
 	return
 }

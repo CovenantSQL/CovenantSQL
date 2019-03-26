@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
@@ -48,7 +48,7 @@ BlockProducer:
         StableCoinBalance: 10000000000000000000
         CovenantCoinBalance: 10000000000000000000
 Miner:
-  IsTestMode: true
+  UseTestMasterKey: true
   RootDir: "./data"
   MaxReqTimeGap: "2s"
   ProvideServiceInterval: "3s"

@@ -94,9 +94,17 @@ func InitBP() {
 	if conf.GConf == nil {
 		log.Fatal("must call conf.LoadConfig first")
 	}
-	BP = conf.GConf.BP
+	if conf.GConf.BP == nil {
+		seedBP := &conf.GConf.SeedBPNodes[0]
+		conf.GConf.BP = &conf.BPInfo{
+			PublicKey: seedBP.PublicKey,
+			NodeID:    seedBP.ID,
+			Nonce:     seedBP.Nonce,
+		}
+	}
 
-	err := hash.Decode(&BP.RawNodeID.Hash, string(BP.NodeID))
+	BP = conf.GConf.BP
+	err := hash.Decode(&conf.GConf.BP.RawNodeID.Hash, string(conf.GConf.BP.NodeID))
 	if err != nil {
 		log.WithError(err).Fatal("BP.NodeID error")
 	}

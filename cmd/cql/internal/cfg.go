@@ -17,13 +17,11 @@
 package internal
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -31,6 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/sirupsen/logrus"
@@ -137,27 +136,25 @@ func readMasterKey(skip bool) string {
 	return string(bytePwd)
 }
 
-func askDeletePath(path string) {
-	if _, err := os.Stat(path); err == nil {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("\"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
-			path)
-		t, err := reader.ReadString('\n')
-		t = strings.Trim(t, "\n")
-		if err != nil {
-			ConsoleLog.WithError(err).Error("unexpected error")
-			SetExitStatus(1)
-			Exit()
-		}
-		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
-			err = os.RemoveAll(path)
-			if err != nil {
-				ConsoleLog.WithError(err).Error("unexpected error")
-				SetExitStatus(1)
-				Exit()
+func getPublic() *asymmetric.PublicKey {
+	//if config has public, use it
+	for _, node := range conf.GConf.KnownNodes {
+		if node.ID == conf.GConf.ThisNodeID {
+			if node.PublicKey != nil {
+				ConsoleLog.Infof("use public key in config file: %s", configFile)
+				return node.PublicKey
 			}
-		} else {
-			Exit()
+			break
 		}
 	}
+
+	//use config specific private key file(already init by configInit())
+	ConsoleLog.Infof("generate public key directly from private key: %s", conf.GConf.PrivateKeyFile)
+	privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
+	if err != nil {
+		ConsoleLog.WithError(err).Error("load private key file failed")
+		SetExitStatus(1)
+		ExitIfErrors()
+	}
+	return privateKey.PubKey()
 }

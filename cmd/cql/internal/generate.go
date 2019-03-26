@@ -17,19 +17,18 @@
 package internal
 
 import (
+	"bufio"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 )
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [-config file] config/wallet/public/nonce",
+	UsageLine: "cql generate [-config file] config/wallet/public",
 	Short:     "generate config related file or keys",
 	Long: `
 Generate command can generate private.key and config.yaml for CovenantSQL.
@@ -42,6 +41,31 @@ func init() {
 	CmdGenerate.Run = runGenerate
 
 	addCommonFlags(CmdGenerate)
+}
+
+func askDeletePath(path string) {
+	if _, err := os.Stat(path); err == nil {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("\"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
+			path)
+		t, err := reader.ReadString('\n')
+		t = strings.Trim(t, "\n")
+		if err != nil {
+			ConsoleLog.WithError(err).Error("unexpected error")
+			SetExitStatus(1)
+			Exit()
+		}
+		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
+			err = os.RemoveAll(path)
+			if err != nil {
+				ConsoleLog.WithError(err).Error("unexpected error")
+				SetExitStatus(1)
+				Exit()
+			}
+		} else {
+			Exit()
+		}
+	}
 }
 
 func runGenerate(cmd *Command, args []string) {
@@ -59,43 +83,13 @@ func runGenerate(cmd *Command, args []string) {
 		walletGen()
 	case "public":
 		configInit()
-		publicKey := publicGen()
+		publicKey := getPublic()
 		fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
-	case "nonce":
-		configInit()
-		_ = nonceGen()
 	default:
 		cmd.Usage()
 		SetExitStatus(1)
 		return
 	}
-}
-
-func publicGen() *asymmetric.PublicKey {
-	//use config specific private key file(already init by configInit())
-	ConsoleLog.Infof("generate public key directly from private key: %s", conf.GConf.PrivateKeyFile)
-	privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
-	if err != nil {
-		ConsoleLog.WithError(err).Error("load private key file failed")
-		SetExitStatus(1)
-		ExitIfErrors()
-	}
-	return privateKey.PubKey()
-}
-
-func getPublic() *asymmetric.PublicKey {
-	//if config has public, use it
-	for _, node := range conf.GConf.KnownNodes {
-		if node.ID == conf.GConf.ThisNodeID {
-			if node.PublicKey != nil {
-				ConsoleLog.Infof("use public key in config file: %s", configFile)
-				return node.PublicKey
-			}
-			break
-		}
-	}
-
-	return publicGen()
 }
 
 func configGen() {
@@ -119,8 +113,4 @@ func walletGen() {
 	fmt.Printf("wallet address: %s\n", keyHash.String())
 
 	//TODO store in config.yaml
-}
-
-func nonceGen() *mine.NonceInfo {
-	return nil
 }

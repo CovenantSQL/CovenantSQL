@@ -42,6 +42,7 @@ func init() {
 		internal.CmdMirror,
 		internal.CmdExplorer,
 		internal.CmdAdapter,
+		internal.CmdIDMiner,
 		internal.CmdRPC,
 		internal.CmdVersion,
 		internal.CmdHelp,

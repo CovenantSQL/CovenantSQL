@@ -56,7 +56,7 @@ func TestInit(t *testing.T) {
 		// fake driver not initialized
 		atomic.StoreUint32(&driverInitialized, 0)
 		err = Init(filepath.Join(confDir, "config.yaml"), []byte(""))
-		So(err.Error(), ShouldResemble, "call DHT.Ping failed: setting Leader node is not permitted")
+		So(err, ShouldBeNil)
 
 		// test loaded block producer nodes
 		bps := route.GetBPs()

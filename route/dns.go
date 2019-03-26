@@ -18,6 +18,8 @@ package route
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -129,10 +131,13 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 	var err error
 
 	if conf.GConf.DNSSeed.Domain != "" {
+		var bpIndex int
 		dc := IPv6SeedClient{}
-		resolver.bpNodes, err = dc.GetBPFromDNSSeed(conf.GConf.DNSSeed.Domain)
+		bpIndex = rand.Intn(conf.GConf.DNSSeed.BPCount)
+		bpDomain := fmt.Sprintf("bp%02d.%s", bpIndex, conf.GConf.DNSSeed.Domain)
+		resolver.bpNodes, err = dc.GetBPFromDNSSeed(bpDomain)
 		if err != nil {
-			log.WithField("seed", conf.GConf.DNSSeed.Domain).WithError(err).Error(
+			log.WithField("seed", bpDomain).WithError(err).Error(
 				"getting BP addr from DNS failed")
 			return
 		}

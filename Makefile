@@ -140,12 +140,6 @@ bin/cql-minerd:
 		-o bin/cql-minerd \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
-bin/cql-utils:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client_simple_log)" \
-		-o bin/cql-utils \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
-
 bin/cql:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client_simple_log)" \
@@ -181,7 +175,7 @@ bp: bin/cqld.test bin/cqld
 
 miner: bin/cql-minerd.test bin/cql-minerd
 
-client: bin/cql-utils bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+client: bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
 all: bp miner client
 
@@ -191,5 +185,5 @@ clean:
 	rm -f coverage.txt
 
 .PHONY: status start stop logs push push_testnet clean \
-	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd bin/cql-utils \
+	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd \
 	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet

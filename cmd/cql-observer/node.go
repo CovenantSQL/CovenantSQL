@@ -30,7 +30,7 @@ import (
 
 func initNode() (err error) {
 	var masterKey []byte
-	if !conf.GConf.IsTestMode {
+	if !conf.GConf.UseTestMasterKey {
 		fmt.Print("Type in Master key to continue:")
 		masterKey, err = terminal.ReadPassword(syscall.Stdin)
 		if err != nil {

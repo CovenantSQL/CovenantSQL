@@ -57,7 +57,7 @@ func TestLoadConfig(t *testing.T) {
 		})
 		Convey("Given a config file without observer section", func() {
 			err = ioutil.WriteFile(fl, []byte(
-				`IsTestMode: true
+				`UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
@@ -184,7 +184,7 @@ KnownNodes:
 		})
 		Convey("Given a full config file", func() {
 			err = ioutil.WriteFile(fl, []byte(
-				`IsTestMode: true
+				`UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"

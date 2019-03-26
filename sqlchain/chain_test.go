@@ -206,14 +206,14 @@ func TestMultiChain(t *testing.T) {
 	}
 
 	conf.GConf = &conf.Config{
-		IsTestMode:      true,
-		GenerateKeyPair: false,
-		WorkingRoot:     testDataDir,
-		PubKeyStoreFile: "public.keystore",
-		PrivateKeyFile:  "private.key",
-		DHTFileName:     "dht.db",
-		ListenAddr:      bpsvr.Listener.Addr().String(),
-		ThisNodeID:      bpinfo.NodeID,
+		UseTestMasterKey: true,
+		GenerateKeyPair:  false,
+		WorkingRoot:      testDataDir,
+		PubKeyStoreFile:  "public.keystore",
+		PrivateKeyFile:   "private.key",
+		DHTFileName:      "dht.db",
+		ListenAddr:       bpsvr.Listener.Addr().String(),
+		ThisNodeID:       bpinfo.NodeID,
 		ValidDNSKeys: map[string]string{
 			"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",
 			"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",

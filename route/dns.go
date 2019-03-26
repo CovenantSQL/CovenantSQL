@@ -138,7 +138,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 		resolver.bpNodes, err = dc.GetBPFromDNSSeed(bpDomain)
 		if err != nil {
 			log.WithField("seed", bpDomain).WithError(err).Error(
-				"getting BP addr from DNS failed")
+				"getting BP info from DNS failed")
 			return
 		}
 	}

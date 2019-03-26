@@ -158,16 +158,6 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		return
 	}
 
-	if RoleTag[0] == ClientBuildTag[0] {
-		if config.DNSSeed.Domain == "" {
-			config.DNSSeed.Domain = "testnet.gridb.io"
-		}
-
-		if config.DNSSeed.BPCount == 0 {
-			config.DNSSeed.BPCount = 6
-		}
-	}
-
 	if config.WorkingRoot == "" {
 		config.WorkingRoot = "./"
 	}

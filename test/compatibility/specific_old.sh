@@ -61,10 +61,10 @@ if [[ $CLIENTBIN =~ "v0.4.0" ]]; then
         exit 1
     fi
 
-    ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
+    ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/v0.4.0.yaml -dsn ${dsn} \
         -command 'create table test_for_new_account(column1 int);'
 
-    ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/config.yaml -dsn ${dsn} \
+    ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/v0.4.0.yaml -dsn ${dsn} \
         -command 'show tables;' | tee result.log
 else
     ${CLIENTBIN} balance -config node_c/config.yaml -no-password

@@ -110,7 +110,7 @@ func TestGenTestNetDomain(t *testing.T) {
 		log.SetLevel(log.DebugLevel)
 		var (
 			baseDir     = utils.GetProjectSrcDir()
-			testnetConf = utils.FJ(baseDir, "./conf/testnet/config.yaml")
+			testnetConf = utils.FJ(baseDir, "./conf/testnet/testnet-bp.yaml")
 		)
 
 		conf, err := conf.LoadConfig(testnetConf)

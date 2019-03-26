@@ -17,7 +17,6 @@
 package internal
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -28,7 +27,7 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [-config file] config/private/addr/public/nonce",
+	UsageLine: "cql generate [-config file] config/private/wallet/public/nonce",
 	Short:     "generate config related file or keys",
 	Long: `
 Generate command can generate private.key and config.yaml for CovenantSQL.
@@ -54,8 +53,8 @@ func runGenerate(cmd *Command, args []string) {
 	switch genType {
 	case "config":
 	case "private":
-	case "addr":
-		addrGen()
+	case "wallet":
+		walletGen()
 	case "public":
 		configInit()
 	case "nonce":
@@ -73,33 +72,29 @@ func configGen() {
 func privateGen() {
 }
 
-func addrGen() {
+func walletGen() {
 	configInit()
+
+	//TODO if config has wallet, print and return
 
 	var publicKey *asymmetric.PublicKey
 
-	//TODO if config has addr, print
+	//if config has public, use it
+	for _, node := range conf.GConf.KnownNodes {
+		if node.ID == conf.GConf.ThisNodeID {
+			publicKey = node.PublicKey
+			break
+		}
+	}
 
-	//TODO if config has public, use it
-	publicKeyHex := ""
-	if publicKeyHex != "" {
-		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
-		if err != nil {
-			ConsoleLog.WithError(err).Error("error converting hex")
-			SetExitStatus(1)
-			return
-		}
-		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-		if err != nil {
-			ConsoleLog.WithError(err).Error("error converting public key")
-			SetExitStatus(1)
-			return
-		}
+	if publicKey != nil {
+		ConsoleLog.Infof("use public key in config file: %s", configFile)
 	} else {
 		//use config specific private key file(already init by configInit())
+		ConsoleLog.Infof("generate wallet address directly from private key: %s", conf.GConf.PrivateKeyFile)
 		privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
 		if err != nil {
-			ConsoleLog.WithError(err).Fatal("load private key file failed")
+			ConsoleLog.WithError(err).Error("load private key file failed")
 			SetExitStatus(1)
 			return
 		}

@@ -17,10 +17,8 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/rand"
-	"os"
 	"runtime"
 	"time"
 
@@ -30,36 +28,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
-
-func runNonce() {
-	var publicKey *asymmetric.PublicKey
-
-	if publicKeyHex != "" {
-		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
-		if err != nil {
-			log.WithError(err).Fatal("error converting hex")
-		}
-		publicKey, err = asymmetric.ParsePubKey(publicKeyBytes)
-		if err != nil {
-			log.WithError(err).Fatal("error converting public key")
-		}
-	} else if privateKeyFile != "" {
-		masterKey, err := readMasterKey()
-		if err != nil {
-			log.WithError(err).Error("read master key failed")
-			os.Exit(1)
-		}
-		privateKey, err := kms.LoadPrivateKey(privateKeyFile, []byte(masterKey))
-		if err != nil {
-			log.WithError(err).Fatal("load private key file failed")
-		}
-		publicKey = privateKey.PubKey()
-	} else {
-		log.Fatalln("can neither convert public key nor load private key")
-	}
-
-	noncegen(publicKey)
-}
 
 func noncegen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	publicKeyBytes := publicKey.Serialize()

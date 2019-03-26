@@ -39,6 +39,7 @@ var (
 	configFile     string
 	skipMasterKey  bool
 	showVersion    bool
+	difficulty     int
 )
 
 const name = "cql-utils"
@@ -46,7 +47,8 @@ const name = "cql-utils"
 func init() {
 	log.SetLevel(log.InfoLevel)
 
-	flag.StringVar(&tool, "tool", "", "Tool type, miner, nonce, confgen")
+	flag.StringVar(&tool, "tool", "", "Tool type: confgen")
+	flag.IntVar(&difficulty, "difficulty", 24, "difficulty for miner to mine nodes and generating nonce")
 	flag.StringVar(&publicKeyHex, "public", "", "Public key hex string to mine node id/nonce")
 	flag.StringVar(&privateKeyFile, "private", "~/.cql/private.key", "Private key file to generate/show")
 	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file to use")
@@ -67,13 +69,6 @@ func main() {
 	privateKeyFile = utils.HomeDirExpand(privateKeyFile)
 
 	switch tool {
-	case "miner":
-		if publicKeyHex == "" && privateKeyFile == "" {
-			// error
-			log.Error("publicKey or privateKey is required in miner mode")
-			os.Exit(1)
-		}
-		runMiner()
 	// Disable keygen independent call
 	//case "keygen":
 	//	if privateKeyFile == "" {
@@ -82,8 +77,6 @@ func main() {
 	//		os.Exit(1)
 	//	}
 	//	runKeygen()
-	case "nonce":
-		runNonce()
 	case "confgen":
 		runConfgen()
 	default:

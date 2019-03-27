@@ -26,7 +26,7 @@ Public key's hex: 03bc9e90e3301a2f5ae52bfa1f9e033cde81b6b6e7188b11831562bf5847bf
 ### 使用私钥文件生成钱包地址
 
 ```
-$ cql generate wallet
+$ cql wallet
 Enter master key(default: ""):
 ⏎
 wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
@@ -46,7 +46,7 @@ wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
 使用 `cql` 命令来检查钱包余额：
 
 ```bash
-$ cql balance
+$ cql wallet -balance all
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c

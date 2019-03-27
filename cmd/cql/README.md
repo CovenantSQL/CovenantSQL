@@ -26,7 +26,7 @@ The ~/.cql/private.key is your encrypted private key file, and the pubkey hex is
 ### Generate Wallet Address from existing Key
 
 ```
-$ cql generate wallet
+$ cql wallet
 Enter master key(default: ""):
 ⏎
 wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
@@ -43,7 +43,7 @@ You can generate your *wallet* address for test net according to your private ke
 Use `cql` to check your wallet balance:
 
 ```bash
-$ cql balance
+$ cql wallet -balance all
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c

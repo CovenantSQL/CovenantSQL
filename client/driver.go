@@ -283,14 +283,12 @@ func Drop(dsn string) (txHash hash.Hash, err error) {
 		return
 	}
 
-<<<<<<< HEAD
 	_ = cfg
+
+	peerList.Delete(cfg.DatabaseID)
 
 	//TODO(laodouya) currently not supported
 	//err = errors.New("drop db current not support")
-=======
-	peerList.Delete(cfg.DatabaseID)
->>>>>>> origin/develop
 
 	return
 }

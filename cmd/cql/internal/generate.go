@@ -165,6 +165,9 @@ func configGen() {
 	// Add client config
 	testnetConfig.PrivateKeyFile = privateKeyFileName
 	testnetConfig.ThisNodeID = cliNodeID
+	if testnetConfig.KnownNodes == nil {
+		testnetConfig.KnownNodes = make([]proto.Node, 0, 1)
+	}
 	testnetConfig.KnownNodes = append(testnetConfig.KnownNodes, proto.Node{
 		ID:        cliNodeID,
 		Role:      proto.Client,

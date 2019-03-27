@@ -223,9 +223,10 @@ func TestStartBP_CallRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	time.Sleep(3 * time.Second)
 	caller := rpc.NewCaller()
 	for _, n := range conf.GConf.KnownNodes {
-		if n.Role == proto.Follower {
+		if n.Role == proto.Follower || n.Role == proto.Leader {
 			err = caller.CallNode(n.ID, "DHT."+reqType, reqFN, respFN)
 			log.Debugf("respFN %s: %##v", reqType, respFN.Node)
 			if err != nil || respFN.Node.Addr != "nodePayloadAddr" {

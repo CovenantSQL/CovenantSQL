@@ -32,7 +32,14 @@ import (
 )
 
 // PrivateKeyBytesLen defines the length in bytes of a serialized private key.
-const PrivateKeyBytesLen = 32
+const PrivateKeyBytesLen = ec.PrivKeyBytesLen
+
+// PublicKeyBytesLen defines the length in bytes of a serialized public key.
+const PublicKeyBytesLen = ec.PubKeyBytesLenCompressed
+
+// PublicKeyFormatHeader is the default header of PublicKey.Serialize()
+//  see: github.com/btcsuite/btcd/btcec/pubkey.go#L63
+const PublicKeyFormatHeader byte = 0x2
 
 var parsedPublicKeyCache sync.Map
 

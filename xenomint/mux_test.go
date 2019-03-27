@@ -79,7 +79,7 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	nis[2].Role = proto.Client
 	// Setup global config
 	conf.GConf = &conf.Config{
-		IsTestMode:          true,
+		UseTestMasterKey:    true,
 		GenerateKeyPair:     false,
 		MinNodeIDDifficulty: testingNonceDifficulty,
 		BP: &conf.BPInfo{

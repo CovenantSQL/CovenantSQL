@@ -89,3 +89,7 @@
 [[constraint]]
   name = "github.com/rakyll/statik"
   version = "0.1.5"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/CovenantSQL/beacon"

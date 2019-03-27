@@ -419,6 +419,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 	// new db
 	dbCfg := &DBConfig{
 		DatabaseID:             instance.DatabaseID,
+		RootDir:                dbms.cfg.RootDir,
 		DataDir:                rootDir,
 		KayakMux:               dbms.kayakMux,
 		ChainMux:               dbms.chainMux,

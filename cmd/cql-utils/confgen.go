@@ -75,15 +75,15 @@ func runConfgen() {
 	testnetConfig.PubKeyStoreFile = publicKeystoreFileName
 	testnetConfig.ThisNodeID = cliNodeID
 	if testnetConfig.KnownNodes == nil {
-		testnetConfig.KnownNodes = make([]proto.Node, 1)
+		testnetConfig.KnownNodes = make([]proto.Node, 0, 1)
 	}
-	testnetConfig.KnownNodes[0] = proto.Node{
+	testnetConfig.KnownNodes = append(testnetConfig.KnownNodes, proto.Node{
 		ID:        cliNodeID,
 		Role:      proto.Client,
 		Addr:      "0.0.0.0:15151",
 		PublicKey: publicKey,
 		Nonce:     nonce.Nonce,
-	}
+	})
 
 	// Write config
 	out, err := yaml.Marshal(testnetConfig)

@@ -66,7 +66,7 @@ func askDeletePath(path string) {
 			SetExitStatus(1)
 			Exit()
 		}
-		if strings.Compare(t, "y") == 0 || strings.Compare(t, "yes") == 0 {
+		if strings.EqualFold(t, "y") || strings.EqualFold(t, "yes") {
 			err = os.RemoveAll(path)
 			if err != nil {
 				ConsoleLog.WithError(err).Error("unexpected error")

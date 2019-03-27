@@ -283,8 +283,6 @@ func Drop(dsn string) (txHash hash.Hash, err error) {
 		return
 	}
 
-	_ = cfg
-
 	peerList.Delete(cfg.DatabaseID)
 
 	//TODO(laodouya) currently not supported

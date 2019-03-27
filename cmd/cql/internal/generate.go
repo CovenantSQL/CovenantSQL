@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -37,7 +36,7 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [-config file] config/wallet/public",
+	UsageLine: "cql generate [-config file] config/public",
 	Short:     "generate config related file or keys",
 	Long: `
 Generate command can generate private.key and config.yaml for CovenantSQL.
@@ -91,9 +90,6 @@ func runGenerate(cmd *Command, args []string) {
 	switch genType {
 	case "config":
 		configGen()
-	case "wallet":
-		configInit()
-		walletGen()
 	case "public":
 		configInit()
 		publicKey := getPublic()
@@ -191,21 +187,4 @@ func configGen() {
 	}
 	fmt.Println("Generated config.")
 
-}
-
-func walletGen() {
-	//TODO if config has wallet, print and return
-
-	publicKey := getPublic()
-
-	keyHash, err := crypto.PubKeyHash(publicKey)
-	if err != nil {
-		ConsoleLog.WithError(err).Error("unexpected error")
-		SetExitStatus(1)
-		return
-	}
-
-	fmt.Printf("wallet address: %s\n", keyHash.String())
-
-	//TODO store in config.yaml
 }

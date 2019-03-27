@@ -36,7 +36,7 @@ func init() {
 		internal.CmdConsole,
 		internal.CmdCreate,
 		internal.CmdDrop,
-		internal.CmdBalance,
+		internal.CmdWallet,
 		internal.CmdTransfer,
 		internal.CmdGrant,
 		internal.CmdMirror,

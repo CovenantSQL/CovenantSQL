@@ -25,18 +25,13 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 )
-
-// NodeDialer is the dialer handler.
-type NodeDialer func(nodeID proto.NodeID) (net.Conn, error)
-
-// SessionMap is the map from node id to session.
-type SessionMap map[proto.NodeID]*Session
 
 // Session is the Session type of SessionPool.
 type Session struct {
 	sync.RWMutex
-	nodeDialer NodeDialer
+	nodeDialer rrpc.NodeDialer
 	target     proto.NodeID
 	sess       []*mux.Session
 	offset     int
@@ -45,14 +40,17 @@ type Session struct {
 // SessionPool is the struct type of session pool.
 type SessionPool struct {
 	sync.RWMutex
-	sessions   SessionMap
-	nodeDialer NodeDialer
+	sessions   map[proto.NodeID]*Session
+	nodeDialer rrpc.NodeDialer
 }
 
 var (
-	instance *SessionPool
-	once     sync.Once
+	defaultPool *SessionPool
 )
+
+func init() {
+	defaultPool = newSessionPool(rrpc.DefaultNodeDialer)
+}
 
 // Close closes the session.
 func (s *Session) Close() {
@@ -125,19 +123,16 @@ func (s *Session) newSession() (sess *mux.Session, err error) {
 }
 
 // newSessionPool creates a new SessionPool.
-func newSessionPool(nd NodeDialer) *SessionPool {
+func newSessionPool(nd rrpc.NodeDialer) *SessionPool {
 	return &SessionPool{
-		sessions:   make(SessionMap),
+		sessions:   make(map[proto.NodeID]*Session),
 		nodeDialer: nd,
 	}
 }
 
 // GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
 func GetSessionPoolInstance() *SessionPool {
-	once.Do(func() {
-		instance = newSessionPool(DefaultDialer)
-	})
-	return instance
+	return defaultPool
 }
 
 func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
@@ -185,7 +180,7 @@ func (p *SessionPool) Close() {
 	for _, s := range p.sessions {
 		s.Close()
 	}
-	p.sessions = make(SessionMap)
+	p.sessions = make(map[proto.NodeID]*Session)
 }
 
 // Len returns the session counts in the pool.

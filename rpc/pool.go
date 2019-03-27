@@ -29,8 +29,14 @@ import (
 // NodeDialer is the dialer handler.
 type NodeDialer func(nodeID proto.NodeID) (net.Conn, error)
 
-// SessionMap is the map from node id to session.
-type SessionMap map[proto.NodeID]*Session
+type PoolConn struct {
+	net.Conn
+	session *Session
+}
+
+func (c *PoolConn) Close() error {
+	return c.session.put(c)
+}
 
 // Session is the Session type of SessionPool.
 type Session struct {
@@ -39,18 +45,6 @@ type Session struct {
 	target     proto.NodeID
 	sess       chan net.Conn
 }
-
-// SessionPool is the struct type of session pool.
-type SessionPool struct {
-	sync.RWMutex
-	sessions   SessionMap
-	nodeDialer NodeDialer
-}
-
-var (
-	instance *SessionPool
-	once     sync.Once
-)
 
 // Close closes the session.
 func (s *Session) Close() {
@@ -63,14 +57,17 @@ func (s *Session) Close() {
 }
 
 // Get returns new connection from session.
-func (s *Session) Get() (sess net.Conn, err error) {
+func (s *Session) Get() (conn net.Conn, err error) {
 	s.Lock()
 	defer s.Unlock()
 
-	if sess, ok := <-s.sess; ok {
-		return sess, nil
+	if conn, ok := <-s.sess; ok {
+		return &PoolConn{
+			Conn:    conn,
+			session: s,
+		}, nil
 	}
-	return s.newSession()
+	return s.newConn()
 }
 
 // Len returns physical connection count.
@@ -80,7 +77,7 @@ func (s *Session) Len() int {
 	return len(s.sess)
 }
 
-func (s *Session) newSession() (conn net.Conn, err error) {
+func (s *Session) newConn() (conn net.Conn, err error) {
 	conn, err = s.nodeDialer(s.target)
 	if err != nil {
 		err = errors.Wrap(err, "dialing new session connection failed")
@@ -90,31 +87,30 @@ func (s *Session) newSession() (conn net.Conn, err error) {
 	return
 }
 
-func (s *Session) put(conn net.Conn) (ok bool) {
+func (s *Session) put(conn net.Conn) (err error) {
 	s.Lock()
 	defer s.Unlock()
 	select {
 	case s.sess <- conn:
 	default:
-		_ = conn.Close()
+		return conn.Close()
 	}
-	return
+	return nil
 }
 
 // newSessionPool creates a new SessionPool.
 func newSessionPool(nd NodeDialer) *SessionPool {
 	return &SessionPool{
-		sessions:   make(SessionMap),
+		sessions:   make(map[proto.NodeID]*Session),
 		nodeDialer: nd,
 	}
 }
 
-// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
-func GetSessionPoolInstance() *SessionPool {
-	once.Do(func() {
-		instance = newSessionPool(DefaultDialer)
-	})
-	return instance
+// SessionPool is the struct type of session pool.
+type SessionPool struct {
+	sync.RWMutex
+	sessions   map[proto.NodeID]*Session
+	nodeDialer NodeDialer
 }
 
 func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
@@ -144,16 +140,6 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	return sess.Get()
 }
 
-func (p *SessionPool) Put(id proto.NodeID, conn net.Conn) (ok bool) {
-	p.Lock()
-	defer p.Unlock()
-	sess, ok := p.sessions[id]
-	if ok {
-		sess.put(conn)
-	}
-	return
-}
-
 // Remove the node sessions in the pool.
 func (p *SessionPool) Remove(id proto.NodeID) {
 	p.Lock()
@@ -173,7 +159,7 @@ func (p *SessionPool) Close() {
 	for _, s := range p.sessions {
 		s.Close()
 	}
-	p.sessions = make(SessionMap)
+	p.sessions = make(map[proto.NodeID]*Session)
 }
 
 // Len returns the session counts in the pool.
@@ -185,4 +171,12 @@ func (p *SessionPool) Len() (total int) {
 		total += s.Len()
 	}
 	return
+}
+
+var (
+	defaultPool *SessionPool
+)
+
+func init() {
+	defaultPool = newSessionPool(DefaultNodeDialer)
 }

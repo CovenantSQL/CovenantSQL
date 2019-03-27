@@ -16,49 +16,50 @@
 
 package mux
 
-import (
-	"net"
-	"testing"
-
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
-)
-
-const nodeID = "0000"
+//import (
+//	"net"
+//	"testing"
+//
+//	. "github.com/smartystreets/goconvey/convey"
+//
+//	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+//	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+//)
+//
+//const nodeID = "0000"
 const publicKeyStore = "./test.keystore"
 
-func TestDial(t *testing.T) {
-	Convey("dial error case", t, func() {
-		c, err := dial("tcp", "wrongaddr", nil, nil, false)
-		So(c, ShouldBeNil)
-		So(err, ShouldNotBeNil)
-
-		var l net.Listener
-		l, _ = net.Listen("tcp", "127.0.0.1:0")
-		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(err, ShouldNotBeNil)
-		So(c, ShouldBeNil)
-
-		kms.SetLocalNodeIDNonce([]byte(nodeID), nil)
-		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(err, ShouldNotBeNil)
-		So(c, ShouldBeNil)
-
-		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{A: 1, B: 1, C: 1, D: 1})
-		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(err, ShouldBeNil)
-		So(c, ShouldNotBeNil)
-
-		go func() {
-			l.Accept()
-		}()
-		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
-		So(err, ShouldBeNil)
-		So(c, ShouldNotBeNil)
-	})
-}
+//
+//func TestDial(t *testing.T) {
+//	Convey("dial error case", t, func() {
+//		c, err := dial("tcp", "wrongaddr", nil, nil, false)
+//		So(c, ShouldBeNil)
+//		So(err, ShouldNotBeNil)
+//
+//		var l net.Listener
+//		l, _ = net.Listen("tcp", "127.0.0.1:0")
+//		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
+//		So(err, ShouldNotBeNil)
+//		So(c, ShouldBeNil)
+//
+//		kms.SetLocalNodeIDNonce([]byte(nodeID), nil)
+//		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
+//		So(err, ShouldNotBeNil)
+//		So(c, ShouldBeNil)
+//
+//		kms.SetLocalNodeIDNonce([]byte(nodeID), &mine.Uint256{A: 1, B: 1, C: 1, D: 1})
+//		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
+//		So(err, ShouldBeNil)
+//		So(c, ShouldNotBeNil)
+//
+//		go func() {
+//			l.Accept()
+//		}()
+//		c, err = dial("tcp", l.Addr().String(), nil, nil, false)
+//		So(err, ShouldBeNil)
+//		So(c, ShouldNotBeNil)
+//	})
+//}
 
 //func TestDialToNode(t *testing.T) {
 //	Convey("DialToNode error case", t, func() {

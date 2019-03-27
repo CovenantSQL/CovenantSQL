@@ -165,7 +165,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 	var conn net.Conn
 	var RPCClient *rpc.Client
 
-	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance(), false); err != nil {
+	if conn, err = rpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		t.Fatal(err)
 	}
 	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
@@ -296,7 +296,7 @@ func BenchmarkKVServer_GetAllNodeInfo(b *testing.B) {
 	var conn net.Conn
 	var RPCClient *rpc.Client
 
-	if conn, err = rpc.DialToNode(leaderNodeID, rpc.GetSessionPoolInstance(), false); err != nil {
+	if conn, err = rpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		return
 	}
 	if RPCClient, err = rpc.InitClientConn(conn); err != nil {

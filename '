@@ -36,7 +36,7 @@ type ServiceMap map[string]interface{}
 
 // Server is the RPC server struct.
 type Server struct {
-	rawConn    bool // use raw connection instead of etls if set
+	rawConn    bool // use raw connection instead of etsl if set
 	rpcServer  *rpc.Server
 	stopCh     chan interface{}
 	serviceMap ServiceMap

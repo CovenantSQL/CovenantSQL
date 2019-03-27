@@ -20,6 +20,7 @@ import (
 	"context"
 	"expvar"
 	"math/rand"
+	"net/rpc"
 	"sync"
 	"time"
 
@@ -45,6 +46,7 @@ var (
 )
 
 type Caller struct {
+	pool NodeConnPool
 }
 
 func NewCaller() *Caller {
@@ -82,81 +84,6 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 	}
 	val.(mw.Metric).Add(costTime.Seconds())
 	valC.(mw.Metric).Add(1)
-	return
-}
-
-// GetNodeAddr tries best to get node addr.
-func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
-	addr, err = route.GetNodeAddrCache(id)
-	if err != nil {
-		//log.WithField("target", id.String()).WithError(err).Debug("get node addr from cache failed")
-		if err == route.ErrUnknownNodeID {
-			var node *proto.Node
-			node, err = FindNodeInBP(id)
-			if err != nil {
-				return
-			}
-			route.SetNodeAddrCache(id, node.Addr)
-			addr = node.Addr
-		}
-	}
-	return
-}
-
-// GetNodeInfo tries best to get node info.
-func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
-	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
-	if err != nil {
-		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
-		if errors.Cause(err) == kms.ErrKeyNotFound {
-			nodeInfo, err = FindNodeInBP(id)
-			if err != nil {
-				return
-			}
-			errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
-			if errSet != nil {
-				log.WithError(errSet).Warning("set node addr cache failed")
-			}
-			errSet = kms.SetNode(nodeInfo)
-			if errSet != nil {
-				log.WithError(errSet).Warning("set node to kms failed")
-			}
-		}
-	}
-	return
-}
-
-// FindNodeInBP find node in block producer dht service.
-func FindNodeInBP(id *proto.RawNodeID) (node *proto.Node, err error) {
-	bps := route.GetBPs()
-	if len(bps) == 0 {
-		err = errors.New("no available BP")
-		return
-	}
-	client := NewCaller()
-	req := &proto.FindNodeReq{
-		ID: proto.NodeID(id.String()),
-	}
-	resp := new(proto.FindNodeResp)
-	bpCount := len(bps)
-	offset := rand.Intn(bpCount)
-	method := route.DHTFindNode.String()
-
-	for i := 0; i != bpCount; i++ {
-		bp := bps[(offset+i)%bpCount]
-		err = client.CallNode(bp, method, req, resp)
-		if err == nil {
-			node = resp.Node
-			return
-		}
-
-		log.WithFields(log.Fields{
-			"method": method,
-			"bp":     bp,
-		}).WithError(err).Warning("call dht rpc failed")
-	}
-
-	err = errors.Wrapf(err, "could not find node in all block producers")
 	return
 }
 
@@ -304,6 +231,106 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 func (c *Caller) CallNodeWithContext(
 	ctx context.Context, node proto.NodeID, method string, args, reply interface{}) (err error,
 ) {
+	startTime := time.Now()
+	defer func() {
+		recordRPCCost(startTime, method, err)
+	}()
+
+	conn, err := DialToNodeWithPool(c.pool, node, method == route.DHTPing.String())
+	if err != nil {
+		err = errors.Wrapf(err, "dial to node %s failed", node)
+		return
+	}
+	defer conn.Close()
+
+	client := NewRPCClient(conn)
+	defer client.Close()
+
+	// TODO(xq262144): golang net/rpc does not support cancel in progress calls
+	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))
+
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case call := <-ch.Done:
+		err = call.Error
+	}
+
+	return
+}
+
+// FindNodeInBP find node in block producer dht service.
+func FindNodeInBP(id *proto.RawNodeID) (node *proto.Node, err error) {
+	bps := route.GetBPs()
+	if len(bps) == 0 {
+		err = errors.New("no available BP")
+		return
+	}
+	client := NewCaller()
+	req := &proto.FindNodeReq{
+		ID: proto.NodeID(id.String()),
+	}
+	resp := new(proto.FindNodeResp)
+	bpCount := len(bps)
+	offset := rand.Intn(bpCount)
+	method := route.DHTFindNode.String()
+
+	for i := 0; i != bpCount; i++ {
+		bp := bps[(offset+i)%bpCount]
+		err = client.CallNode(bp, method, req, resp)
+		if err == nil {
+			node = resp.Node
+			return
+		}
+
+		log.WithFields(log.Fields{
+			"method": method,
+			"bp":     bp,
+		}).WithError(err).Warning("call dht rpc failed")
+	}
+
+	err = errors.Wrapf(err, "could not find node in all block producers")
+	return
+}
+
+// GetNodeAddr tries best to get node addr.
+func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
+	addr, err = route.GetNodeAddrCache(id)
+	if err != nil {
+		//log.WithField("target", id.String()).WithError(err).Debug("get node addr from cache failed")
+		if err == route.ErrUnknownNodeID {
+			var node *proto.Node
+			node, err = FindNodeInBP(id)
+			if err != nil {
+				return
+			}
+			route.SetNodeAddrCache(id, node.Addr)
+			addr = node.Addr
+		}
+	}
+	return
+}
+
+// GetNodeInfo tries best to get node info.
+func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
+	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
+	if err != nil {
+		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
+		if errors.Cause(err) == kms.ErrKeyNotFound {
+			nodeInfo, err = FindNodeInBP(id)
+			if err != nil {
+				return
+			}
+			errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
+			if errSet != nil {
+				log.WithError(errSet).Warning("set node addr cache failed")
+			}
+			errSet = kms.SetNode(nodeInfo)
+			if errSet != nil {
+				log.WithError(errSet).Warning("set node to kms failed")
+			}
+		}
+	}
 	return
 }
 

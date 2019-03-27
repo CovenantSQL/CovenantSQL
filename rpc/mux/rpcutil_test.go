@@ -52,8 +52,8 @@ func TestCaller_CallNode(t *testing.T) {
 	defer os.Remove(publicKeyStore)
 
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+	confFile := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
@@ -180,11 +180,11 @@ func TestNewPersistentCaller(t *testing.T) {
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
 	dupConfFile := filepath.Join(d, "config.yaml")
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
+	confFile := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/config.yaml")
 	if err = utils.DupConf(confFile, dupConfFile); err != nil {
 		return
 	}
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
@@ -288,7 +288,11 @@ func TestNewPersistentCaller(t *testing.T) {
 	client2.CloseStream()
 
 	wg.Wait()
-	sess, ok := client2.pool.getSession(conf.GConf.BP.NodeID)
+	pool, ok := client2.pool.(*SessionPool)
+	if !ok {
+		t.Fatal("pool is not mux session pool")
+	}
+	sess, ok := pool.getSession(conf.GConf.BP.NodeID)
 	if !ok {
 		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
 	}
@@ -321,8 +325,8 @@ func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	}
 
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+	confFile := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
@@ -397,8 +401,8 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	}
 
 	_, testFile, _, _ := runtime.Caller(0)
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
+	confFile := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/config.yaml")
+	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/private.key")
 
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)

@@ -18,6 +18,11 @@ const (
 	ETLSHeaderSize = 2 + hash.HashBSize + 32
 )
 
+type NodeConnPool interface {
+	Get(remote proto.NodeID) (net.Conn, error)
+	Close()
+}
+
 type ETLSConn struct {
 	*etls.CryptoConn
 	isClient bool
@@ -35,8 +40,9 @@ func NewServerConn(conn net.Conn) *ETLSConn {
 
 func NewClientConn(conn net.Conn) *ETLSConn {
 	return &ETLSConn{
-		CryptoConn: etls.NewConnWithRaw(conn),
-		isClient:   true,
+		CryptoConn:  etls.NewConnWithRaw(conn),
+		isClient:    true,
+		isAnonymous: true,
 	}
 }
 
@@ -126,15 +132,10 @@ func (c *ETLSConn) clientHandshake() (err error) {
 	return
 }
 
-// dialToNode connects to the node with nodeID.
-func cDialToNode(nodeID proto.NodeID) (conn net.Conn, err error) {
-	return cDialToNodeEx(nodeID, false)
-}
-
 // DialToNode ties use connection in pool, if fails then connects to the node with nodeID.
-func DialToNodeWithPool(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool) (conn net.Conn, err error) {
+func DialToNodeWithPool(pool NodeConnPool, nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	if pool == nil || isAnonymous {
-		conn, err = cDialToNodeEx(nodeID, isAnonymous)
+		conn, err = DialETLSEx(nodeID, isAnonymous)
 		return
 	}
 	//log.WithField("poolSize", pool.Len()).Debug("session pool size")
@@ -142,8 +143,13 @@ func DialToNodeWithPool(nodeID proto.NodeID, pool *SessionPool, isAnonymous bool
 	return
 }
 
+// dialToNode connects to the node with nodeID.
+func DialETLS(nodeID proto.NodeID) (conn net.Conn, err error) {
+	return DialETLSEx(nodeID, false)
+}
+
 // dialToNodeEx connects to the node with nodeID.
-func cDialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+func DialETLSEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	var rawNodeID = nodeID.ToRawNodeID()
 	/*
 		As a common practice of PKI, we should add some randomness to the ECDHed pre-master-key
@@ -172,34 +178,23 @@ func cDialToNodeEx(nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err er
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
-	conn, err = cdial("tcp", nodeAddr, rawNodeID, cipher, isAnonymous)
+	iconn, err := net.Dial("tcp", nodeAddr)
 	if err != nil {
+		err = errors.Wrapf(err, "connect to node %s failed", nodeAddr)
+		return
+	}
+
+	etlsconn := &ETLSConn{
+		CryptoConn:   etls.NewConnEx(iconn, cipher),
+		isAnonymous:  isAnonymous,
+		isClient:     true,
+		remoteNodeID: *rawNodeID,
+	}
+
+	if err = etlsconn.Handshake(); err != nil {
 		err = errors.Wrapf(err, "connect %s %s failed", rawNodeID.String(), nodeAddr)
 		return
 	}
 
-	return
-}
-
-// dial connects to a address with a Cipher
-// address should be in the form of host:port.
-func cdial(network, address string, remoteNodeID *proto.RawNodeID, cipher *etls.Cipher, isAnonymous bool) (c *ETLSConn, err error) {
-	conn, err := net.Dial(network, address)
-	if err != nil {
-		err = errors.Wrapf(err, "connect to node %s failed", address)
-		return
-	}
-
-	c = &ETLSConn{
-		CryptoConn:   etls.NewConnEx(conn, cipher),
-		isAnonymous:  isAnonymous,
-		isClient:     true,
-		remoteNodeID: *remoteNodeID,
-	}
-
-	if err = c.Handshake(); err != nil {
-		return
-	}
-
-	return
+	return etlsconn, nil
 }

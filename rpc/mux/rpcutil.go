@@ -34,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -51,7 +52,7 @@ var (
 
 // PersistentCaller is a wrapper for session pooling and RPC calling.
 type PersistentCaller struct {
-	pool       *SessionPool
+	pool       rrpc.NodeConnPool
 	client     *Client
 	TargetAddr string
 	TargetID   proto.NodeID
@@ -73,7 +74,7 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 	defer c.Unlock()
 	if c.client == nil {
 		var conn net.Conn
-		conn, err = DialToNode(c.TargetID, c.pool, isAnonymous)
+		conn, err = DialToNodeWithPool(c.pool, c.TargetID, isAnonymous)
 		if err != nil {
 			err = errors.Wrap(err, "dial to node failed")
 			return
@@ -150,7 +151,7 @@ func (c *PersistentCaller) Close() {
 
 // Caller is a wrapper for session pooling and RPC calling.
 type Caller struct {
-	pool *SessionPool
+	pool rrpc.NodeConnPool
 }
 
 // NewCaller returns a new RPCCaller.
@@ -208,7 +209,7 @@ func (c *Caller) CallNodeWithContext(
 		recordRPCCost(startTime, method, err)
 	}()
 
-	conn, err := DialToNode(node, c.pool, method == route.DHTPing.String())
+	conn, err := DialToNodeWithPool(c.pool, node, method == route.DHTPing.String())
 	if err != nil {
 		err = errors.Wrapf(err, "dial to node %s failed", node)
 		return

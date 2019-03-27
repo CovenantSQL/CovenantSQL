@@ -59,6 +59,7 @@ type Config struct {
 	WriteCertificates []*x509.Certificate `yaml:"-"`
 
 	// storage config
+	MirrorServer    string          `yaml:"Mirror"`        // use mirror server for queries
 	StorageDriver   string          `yaml:"StorageDriver"` // sqlite3 or covenantsql
 	StorageRoot     string          `yaml:"StorageRoot"`
 	StorageInstance storage.Storage `yaml:"-"`
@@ -160,7 +161,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	// load storage
 	switch config.StorageDriver {
 	case "covenantsql":
-		config.StorageInstance = storage.NewCovenantSQLStorage()
+		config.StorageInstance = storage.NewCovenantSQLStorage(config.MirrorServer)
 	case "sqlite3":
 		storageRoot := filepath.Join(workingRoot, config.StorageRoot)
 		if config.StorageInstance, err = storage.NewSQLite3Storage(storageRoot); err != nil {

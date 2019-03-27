@@ -1,3 +1,4 @@
 test/
 bin/cql*
+conf/testnet*/*.keystore
 *.cover.out

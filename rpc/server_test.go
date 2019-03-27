@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -29,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -149,7 +149,7 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 }
 
 func TestEncryptIncCounterSimpleArgs(t *testing.T) {
-	defer os.Remove(PubKeyStorePath)
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -187,7 +187,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 }
 
 func TestETLSBug(t *testing.T) {
-	defer os.Remove(PubKeyStorePath)
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -233,8 +233,8 @@ func TestETLSBug(t *testing.T) {
 }
 
 func TestEncPingFindNeighbor(t *testing.T) {
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")

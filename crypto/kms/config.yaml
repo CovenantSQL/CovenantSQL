@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 BlockProducer:
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9

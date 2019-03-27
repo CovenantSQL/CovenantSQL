@@ -23,6 +23,14 @@
   revision = "ea383e6c5f56c8db09130378d7eaf1631d14ecc0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:990258f605348daec943e55cef08be4049f496a6fdd02e0e90dd8d2d5a8ea743"
+  name = "github.com/CovenantSQL/beacon"
+  packages = ["ipv6"]
+  pruneopts = "UT"
+  revision = "9947ddd83bc5f20a432f6f3142a14ccec6977daf"
+
+[[projects]]
   branch = "develop"
   digest = "1:9691c7a98f7d559cf573a98dd19c26f0859d30343e59a6a30e91c3d187a8ad37"
   name = "github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -43,14 +51,6 @@
   ]
   pruneopts = "UT"
   revision = "8673c64d83a0954a21eaf0158bb2e1eb574304da"
-
-[[projects]]
-  branch = "master"
-  digest = "1:ef41f61c18347d6949e94a1f648e47415922afcbe894f955b69921014ff7c4d4"
-  name = "github.com/CovenantSQL/xurls"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "b72b1571892216ba2a42fb8abeb726d082b4c4d1"
 
 [[projects]]
   digest = "1:aa94227e54ee105fcd03f25c85d3e5bbe13d2f2d5eb02379b5b4db5320dfb371"
@@ -91,14 +91,6 @@
   pruneopts = "UT"
   revision = "881a441774f9d707d3b7852025b7f2149a556182"
   version = "v0.6.2"
-
-[[projects]]
-  digest = "1:a8d622a8049a4aa420e1c509873bb85d4c45c5107f420d922f919bfcb8d08694"
-  name = "github.com/beevik/ntp"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "62c80a04de2086884d8296004b6d74ee1846c582"
-  version = "v0.2.0"
 
 [[projects]]
   branch = "master"
@@ -166,14 +158,6 @@
   pruneopts = "UT"
   revision = "487489b64fb796de2e55f4e8a4ad1e145f80e957"
   version = "v1.1.6"
-
-[[projects]]
-  branch = "master"
-  digest = "1:665c8850f673be8d358fe61ab00412049e685202aa7466ae5c72ad50d89c84f7"
-  name = "github.com/dyatlov/go-opengraph"
-  packages = ["opengraph"]
-  pruneopts = "UT"
-  revision = "816b6608b3c8c1e871bc9cf777f390e2532081fe"
 
 [[projects]]
   digest = "1:547f5df5f708c880f0af507317c8d022b8d62053a5cb075e23c6eeed09eb2e4e"
@@ -345,14 +329,6 @@
   pruneopts = "UT"
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
   version = "v1.0.1"
-
-[[projects]]
-  digest = "1:702ff5d8a0196ccb0627f35996efd1081be00c8ae1719402adbffc6e0f8f59ac"
-  name = "github.com/miekg/dns"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "7586a3cbe8ccfc63f82de3ab2ceeb08c9939af72"
-  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -650,18 +626,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c079de57d24956ee13947278c02201b9cb478438b84d86fb2df5a891ea4a10c7"
+  digest = "1:76ee51c3f468493aff39dbacc401e8831fbb765104cbf613b89bef01cf4bad70"
   name = "golang.org/x/net"
-  packages = [
-    "bpf",
-    "context",
-    "html",
-    "html/atom",
-    "internal/iana",
-    "internal/socket",
-    "ipv4",
-    "ipv6",
-  ]
+  packages = ["context"]
   pruneopts = "UT"
   revision = "927f97764cc334a6575f4b7a1584a147864d5723"
 
@@ -692,16 +659,14 @@
     "bazil.org/fuse/fs",
     "bazil.org/fuse/fs/fstestutil",
     "github.com/CovenantSQL/HashStablePack/marshalhash",
+    "github.com/CovenantSQL/beacon/ipv6",
     "github.com/CovenantSQL/go-sqlite3-encrypt",
     "github.com/CovenantSQL/sqlparser",
-    "github.com/CovenantSQL/xurls",
-    "github.com/beevik/ntp",
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
     "github.com/coreos/bbolt",
     "github.com/cyberdelia/go-metrics-graphite",
     "github.com/davecgh/go-spew/spew",
-    "github.com/dyatlov/go-opengraph/opengraph",
     "github.com/fortytw2/leaktest",
     "github.com/go-gorp/gorp",
     "github.com/gorilla/handlers",
@@ -711,7 +676,6 @@
     "github.com/jmoiron/jsonq",
     "github.com/jordwest/mock-conn",
     "github.com/lufia/iostat",
-    "github.com/miekg/dns",
     "github.com/minio/blake2b-simd",
     "github.com/mohae/deepcopy",
     "github.com/pkg/errors",

@@ -25,131 +25,11 @@ import (
 )
 
 const (
-	// TestNetConfigYAML is the config string in YAML format of the CovenantSQL TestNet.
-	TestNetConfigYAML = `IsTestMode: true
-StartupSyncHoles: true
-WorkingRoot: "./"
-PubKeyStoreFile: "public.keystore"
-PrivateKeyFile: "private.key"
-DHTFileName: "dht.db"
-ListenAddr: "0.0.0.0:15151"
-ThisNodeID: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
-QPS: 1000
-BillingBlockCount: 60
-BPPeriod: 10s
-BPTick: 3s
-SQLChainPeriod: 60s
-SQLChainTick: 10s
-SQLChainTTL: 10
-MinProviderDeposit: 1000000
-ValidDNSKeys:
-  koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
-  mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
-  oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
-MinNodeIDDifficulty: 2
+	// CQLConfigYAML is the config string in YAML format of the CovenantSQL TestNet.
+	CQLConfigYAML = `
 DNSSeed:
-  EnforcedDNSSEC: false
-  DNSServers:
-  - 1.1.1.1
-  - 202.46.34.74
-  - 202.46.34.75
-  - 202.46.34.76
-Adapter:
-  ListenAddr: "127.0.0.1:4661"
-  StorageDriver: covenantsql
-
-BlockProducer:
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  NodeID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
-  Nonce:
-    a: 14396347928
-    b: 0
-    c: 0
-    d: 6148914694092305796
-  ChainFileName: "chain.db"
-
-KnownNodes:
-- ID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
-  Nonce:
-    a: 14396347928
-    b: 0
-    c: 0
-    d: 6148914694092305796
-  Addr: bp00.cn.gridb.io:7777
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  Role: Leader
-- ID: 000000000013fd4b3180dd424d5a895bc57b798e5315087b7198c926d8893f98
-  Nonce:
-    a: 789554103
-    b: 0
-    c: 0
-    d: 8070450536379825883
-  Addr: bp01.cn.gridb.io:7777
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  Role: Follower
-- ID: 00000000001771e2b2e12b6f9f85d58ef5261a4b98a2e80bba0c5ef7bd72c499
-  Nonce:
-    a: 1822880492
-    b: 0
-    c: 0
-    d: 8646911286604382906
-  Addr: bp02.cn.gridb.io:7777
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  Role: Follower
-- ID: 000000000014a2f14e79aec0a27a2a669aab416c392d5577760d43ed8503020d
-  Nonce:
-    a: 2552803966
-    b: 0
-    c: 0
-    d: 9079256850862786277
-  Addr: bp03.cn.gridb.io:7777
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  Role: Follower
-- ID: 00000000003b2bd120a7d07f248b181fc794ba8b278f07f9a780e61eb77f6abb
-  Nonce:
-    a: 2449538793
-    b: 0
-    c: 0
-    d: 8791026473473316840
-  Addr: bp04.hk.gridb.io:7777
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  Role: Follower
-- ID: 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c
-  Nonce:
-    a: 746598970
-    b: 0
-    c: 0
-    d: 10808639108098016056
-  Addr: bp05.cn.gridb.io:7777
-  PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
-  Role: Follower
-- ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
-  Nonce:
-    a: 567323
-    b: 0
-    c: 0
-    d: 3104982049
-  Addr: miner00.cn.gridb.io:7778
-  PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
-  Role: Miner
-- ID: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
-  Nonce:
-    a: 240524
-    b: 0
-    c: 0
-    d: 2305843010430351476
-  Addr: miner01.cn.gridb.io:7778
-  PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
-  Role: Miner
-- ID: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
-  Nonce:
-    a: 22403
-    b: 0
-    c: 0
-    d: 0
-  Addr: ""
-  PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-  Role: Client
+  Domain: "testnet.gridb.io"
+  BPCount: 6
 `
 )
 
@@ -157,7 +37,7 @@ KnownNodes:
 func GetTestNetConfig() (config *conf.Config) {
 	var err error
 	config = &conf.Config{}
-	if err = yaml.Unmarshal([]byte(TestNetConfigYAML), config); err != nil {
+	if err = yaml.Unmarshal([]byte(CQLConfigYAML), config); err != nil {
 		log.WithError(err).Fatal("failed to unmarshal testnet config")
 	}
 	return

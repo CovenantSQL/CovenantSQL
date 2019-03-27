@@ -45,6 +45,7 @@ func TestInit(t *testing.T) {
 		var err error
 
 		stopTestService, confDir, err = startTestService()
+		log.Debugf("config dir: %s", confDir)
 		So(err, ShouldBeNil)
 		defer stopTestService()
 
@@ -197,9 +198,12 @@ func TestOpen(t *testing.T) {
 		_, err = cqlDriver.Open("invalid dsn")
 		So(err, ShouldNotBeNil)
 
-		// not initialized(will run defaultInit once)
-		_, err = cqlDriver.Open("covenantsql://db")
-		So(err, ShouldNotBeNil)
+		if !utils.Exist(utils.HomeDirExpand(DefaultConfigFile)) {
+			// not initialized(will run defaultInit once)
+			_, err = cqlDriver.Open("covenantsql://db")
+			log.Errorf("2nd time open %v", err)
+			So(err, ShouldNotBeNil)
+		}
 
 		// reset driver not initialized
 		atomic.StoreUint32(&driverInitialized, 0)
@@ -210,6 +214,8 @@ func TestGetTokenBalance(t *testing.T) {
 	Convey("test get token balance", t, func() {
 		var stopTestService func()
 		var err error
+		// reset driver not initialized
+		atomic.StoreUint32(&driverInitialized, 0)
 
 		// driver not initialized
 		_, err = GetTokenBalance(types.Particle)

@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 StartupSyncHoles: false
 WorkingRoot: ./
 PubKeyStoreFile: public.keystore

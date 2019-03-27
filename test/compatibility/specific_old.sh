@@ -67,7 +67,7 @@ if [[ $CLIENTBIN =~ "v0.4.0" ]]; then
     ${CLIENTBIN} -config ${PROJECT_DIR}/test/integration/node_c/v0.4.0.yaml -dsn ${dsn} \
         -command 'show tables;' | tee result.log
 else
-    ${CLIENTBIN} balance -config node_c/config.yaml -no-password
+    ${CLIENTBIN} wallet -config node_c/config.yaml -balance all -no-password
 
     ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm -no-password '{"node":2}' | tee dsn.txt
 

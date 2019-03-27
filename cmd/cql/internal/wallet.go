@@ -17,9 +17,11 @@
 package internal
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -27,31 +29,54 @@ var (
 	tokenName string // get specific token's balance of current account
 )
 
-// CmdBalance is cql balance command entity.
-var CmdBalance = &Command{
-	UsageLine: "cql balance [-config file] [-token token_name]",
-	Short:     "get the balance of current account",
+// CmdWallet is cql wallet command entity.
+var CmdWallet = &Command{
+	UsageLine: "cql wallet [-config file] [-balance token_name]",
+	Short:     "get the wallet address and the balance of current account",
 	Long: `
-Balance command can get CovenantSQL token balance of current account
+Wallet command can get CovenantSQL wallet address and the token balance of current account
 e.g.
-    cql balance
+    cql wallet
 
-    cql balance -token Particle
+    cql wallet -balance Particle
+    cql wallet -balance all
 `,
 }
 
 func init() {
-	CmdBalance.Run = runBalance
+	CmdWallet.Run = runWallet
 
-	addCommonFlags(CmdBalance)
-	CmdBalance.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
+	addCommonFlags(CmdWallet)
+	CmdWallet.Flag.StringVar(&tokenName, "balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
 }
 
-func runBalance(cmd *Command, args []string) {
+func walletGen() {
+	//TODO if config has wallet, print and return
+
+	publicKey := getPublic()
+
+	keyHash, err := crypto.PubKeyHash(publicKey)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("unexpected error")
+		SetExitStatus(1)
+		return
+	}
+
+	fmt.Printf("wallet address: %s\n", keyHash.String())
+
+	//TODO store in config.yaml
+}
+
+func runWallet(cmd *Command, args []string) {
 	configInit()
 
 	var err error
 	if tokenName == "" {
+		walletGen()
+		return
+	}
+
+	if tokenName == "all" {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {

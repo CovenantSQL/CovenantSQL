@@ -29,6 +29,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/sirupsen/logrus"
@@ -71,7 +72,7 @@ func configInit() {
 		Exit()
 	}
 
-	ConsoleLog.Info("init config success")
+	ConsoleLog.WithField("path", configFile).Info("init config success")
 
 	// TODO(leventeliu): discover more specific confirmation duration from config. We don't have
 	// enough informations from config to do that currently, so just use a fixed and long enough
@@ -133,4 +134,27 @@ func readMasterKey(skip bool) string {
 		Exit()
 	}
 	return string(bytePwd)
+}
+
+func getPublic() *asymmetric.PublicKey {
+	//if config has public, use it
+	for _, node := range conf.GConf.KnownNodes {
+		if node.ID == conf.GConf.ThisNodeID {
+			if node.PublicKey != nil {
+				ConsoleLog.Infof("use public key in config file: %s", configFile)
+				return node.PublicKey
+			}
+			break
+		}
+	}
+
+	//use config specific private key file(already init by configInit())
+	ConsoleLog.Infof("generate public key directly from private key: %s", conf.GConf.PrivateKeyFile)
+	privateKey, err := kms.LoadPrivateKey(conf.GConf.PrivateKeyFile, []byte(password))
+	if err != nil {
+		ConsoleLog.WithError(err).Error("load private key file failed")
+		SetExitStatus(1)
+		ExitIfErrors()
+	}
+	return privateKey.PubKey()
 }

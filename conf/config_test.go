@@ -70,14 +70,14 @@ func TestConf(t *testing.T) {
 	Convey("LoadConfig", t, func() {
 		defer os.Remove(testFile)
 		config := &Config{
-			IsTestMode:      false,
-			GenerateKeyPair: false,
-			WorkingRoot:     "",
-			PubKeyStoreFile: "",
-			PrivateKeyFile:  "",
-			DHTFileName:     "",
-			ListenAddr:      "",
-			ThisNodeID:      "",
+			UseTestMasterKey: false,
+			GenerateKeyPair:  false,
+			WorkingRoot:      "",
+			PubKeyStoreFile:  "",
+			PrivateKeyFile:   "",
+			DHTFileName:      "",
+			ListenAddr:       "",
+			ThisNodeID:       "",
 			ValidDNSKeys: map[string]string{
 				// Cloudflare.com DNSKEY. SEE: `dig +multi cloudflare.com DNSKEY`
 				"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",

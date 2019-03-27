@@ -1,0 +1,55 @@
+KnownNodes:
+  - ID: 00000000000589366268c274fdc11ec8bdb17e668d2f619555a2e9c1a29c91d8
+    Nonce:
+      a: 14396347928
+      b: 0
+      c: 0
+      d: 6148914694092305796
+    Addr: bp00.cn.gridb.io:7777
+    PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+    Role: Leader
+  - ID: 000000000013fd4b3180dd424d5a895bc57b798e5315087b7198c926d8893f98
+    Nonce:
+      a: 789554103
+      b: 0
+      c: 0
+      d: 8070450536379825883
+    Addr: bp01.cn.gridb.io:7777
+    PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+    Role: Follower
+  - ID: 00000000001771e2b2e12b6f9f85d58ef5261a4b98a2e80bba0c5ef7bd72c499
+    Nonce:
+      a: 1822880492
+      b: 0
+      c: 0
+      d: 8646911286604382906
+    Addr: bp02.cn.gridb.io:7777
+    PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+    Role: Follower
+  - ID: 000000000014a2f14e79aec0a27a2a669aab416c392d5577760d43ed8503020d
+    Nonce:
+      a: 2552803966
+      b: 0
+      c: 0
+      d: 9079256850862786277
+    Addr: bp03.cn.gridb.io:7777
+    PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+    Role: Follower
+  - ID: 00000000003b2bd120a7d07f248b181fc794ba8b278f07f9a780e61eb77f6abb
+    Nonce:
+      a: 2449538793
+      b: 0
+      c: 0
+      d: 8791026473473316840
+    Addr: bp04.cn.gridb.io:7777
+    PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+    Role: Follower
+  - ID: 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c
+    Nonce:
+      a: 746598970
+      b: 0
+      c: 0
+      d: 10808639108098016056
+    Addr: bp05.cn.gridb.io:7777
+    PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
+    Role: Follower

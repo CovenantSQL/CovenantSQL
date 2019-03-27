@@ -6,7 +6,7 @@
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
-$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 ```
 
 然后在你的 go 代码中 import 第一个 `client` 包。
@@ -18,14 +18,14 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
 
 ### 生成默认的配置文件
 
-运行以下 `cql-utils` 命令，输入 master key（类似密码）来生成本地密钥对。等待几十秒，会在 `conf` 文件夹中，生成一个私钥文件和一个名为 `config.yaml` 的配置文件。
+运行以下 `cql` 命令，输入 master key（类似密码）来生成本地密钥对。等待几十秒，会在 `~/.cql` 文件夹中，生成一个私钥文件和一个名为 `config.yaml` 的配置文件。
 
 ```bash
-$ cql-utils -tool confgen -root conf
+$ cql generate config
 Generating key pair...
 Enter master key(press Enter for default: ""):
 ⏎
-Private key file: conf/private.key
+Private key file: ~/.cql/private.key
 Public key's hex: 025abec9b0072615170f4acf4a2fa1162a13864bb66bc3f140b29f6bf50ceafc75
 Generated key pair.
 Generating nonce...
@@ -35,7 +35,7 @@ nonce: {{1450338416 0 0 0} 26 0000002dd8bdb50ba0270642e4c4bc593c1630ef7784653f31
 node id: 0000002dd8bdb50ba0270642e4c4bc593c1630ef7784653f311b3c3d6374e514
 Generated nonce.
 Generating config file...
-Generated nonce.
+Generated config.
 ```
 
 有了配置文件之后，可以通过以下 go 代码来初始化 CovenantSQL 客户端：

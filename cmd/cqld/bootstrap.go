@@ -47,7 +47,7 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 	}
 
 	var masterKey []byte
-	if !conf.GConf.IsTestMode {
+	if !conf.GConf.UseTestMasterKey {
 		// read master key
 		fmt.Print("Type in Master key to continue: ")
 		masterKey, err = terminal.ReadPassword(syscall.Stdin)

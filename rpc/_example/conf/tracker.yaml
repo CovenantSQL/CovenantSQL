@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 ListenAddr: "127.0.0.1:2230"
 ThisNodeID: "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9"
 PubKeyStoreFile: "./tracker.public.keystore"

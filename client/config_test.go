@@ -91,4 +91,13 @@ func TestConfig(t *testing.T) {
 			UseFollower: true,
 		})
 	})
+
+	Convey("test format and parse dsn with mirror option", t, func() {
+		cfg, err := ParseDSN("covenantsql://db?mirror=happy")
+		So(err, ShouldBeNil)
+		So(cfg.Mirror, ShouldEqual, "happy")
+		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db?mirror=happy")
+		cfg.Mirror = ""
+		So(cfg.FormatDSN(), ShouldEqual, "covenantsql://db")
+	})
 }

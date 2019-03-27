@@ -1,7 +1,7 @@
 // +build testbinary
 
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,15 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
+)
 
 func TestMain(m *testing.M) {
-	defer m.Run()
+	internal.AtExit(func() {
+		m.Run()
+	})
 	main()
 }

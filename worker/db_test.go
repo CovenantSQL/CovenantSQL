@@ -433,6 +433,7 @@ func TestInitFailed(t *testing.T) {
 
 func TestDatabaseRecycle(t *testing.T) {
 	defer leaktest.Check(t)()
+	defer kms.ClosePublicKeyStore()
 
 	// test init/shutdown/destroy
 	// test goroutine status

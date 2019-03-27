@@ -1,32 +1,15 @@
-IsTestMode: true
+UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
+BPPeriod: 10s
 ListenAddr: "127.0.0.1:4661"
 ThisNodeID: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
-QPS: 1000
-ChainBusPeriod: 0s
-BillingBlockCount: 60
-BPPeriod: 10s
-BPTick: 3s
-SQLChainPeriod: 1m0s
-SQLChainTick: 10s
-SQLChainTTL: 10
-MinProviderDeposit: 1000000
-
-ValidDNSKeys:
-  koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
-  mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
-  oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
-MinNodeIDDifficulty: 2
 DNSSeed:
-  EnforcedDNSSEC: false
-  DNSServers:
-  - 1.1.1.1
-  - 202.46.34.74
-  - 202.46.34.75
-  - 202.46.34.76
+  Domain: testnet.gridb.io
+  BPCount: 6
+
 Adapter:
   ListenAddr: "127.0.0.1:4661"
   StorageDriver: covenantsql
@@ -84,7 +67,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 8791026473473316840
-  Addr: bp04.hk.gridb.io:7777
+  Addr: bp04.cn.gridb.io:7777
   PublicKey: "02c1db96f2ba7e1cb4e9822d12de0f63fb666feb828c7f509e81fab9bd7a34039c"
   Role: Follower
 - ID: 0000000000293f7216362791b6b1c9772184d6976cb34310c42547735410186c

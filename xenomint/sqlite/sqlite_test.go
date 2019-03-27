@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -58,6 +59,34 @@ func TestStorage(t *testing.T) {
 			// Create basic table for testing
 			_, err = st.Writer().Exec(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`)
 			So(err, ShouldBeNil)
+
+			Convey("Test custom encrypt decrypt func", func() {
+				_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, encrypt(?, "pass", "salt"))`, 0, "v0enc")
+				So(err, ShouldBeNil)
+				_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, encrypt(?)`, 1, "v0enc")
+				So(err.Error(), ShouldContainSubstring, "incomplete input")
+				var destStr string
+				err = st.Reader().QueryRow(`SELECT "v" FROM "t1" WHERE "k"=?`, 0).Scan(&destStr)
+				So(err, ShouldBeNil)
+				So(destStr, ShouldNotContainSubstring, "enc")
+				err = st.Reader().QueryRow(`SELECT decrypt("v", "pass", "salt") FROM "t1" WHERE "k"=?`, 0).Scan(&destStr)
+				So(err, ShouldBeNil)
+				So(destStr, ShouldEqual, "v0enc")
+
+				var destSlice []byte
+				_, err = st.Writer().Exec(`UPDATE "t1" SET v = encrypt(@1, "pass", "salt") WHERE "k"=@2`, "", 0)
+				So(err, ShouldBeNil)
+				err = st.Reader().QueryRow(`SELECT decrypt("v", "pass", "salt") FROM "t1" WHERE "k"=?`, 0).Scan(&destSlice)
+				So(err, ShouldBeNil)
+				So(len(destSlice), ShouldEqual, 0)
+
+				largeText := strings.Repeat("s", 10000)
+				_, err = st.Writer().Exec(`UPDATE "t1" SET v = encrypt(:1, "pass", "salt") WHERE "k"=:2`, largeText, 0)
+				So(err, ShouldBeNil)
+				err = st.Reader().QueryRow(`SELECT decrypt("v", "pass", "salt") FROM "t1" WHERE "k"=?`, 0).Scan(&destStr)
+				So(err, ShouldBeNil)
+				So(destStr, ShouldEqual, largeText)
+			})
 			Convey("When storage is closed", func() {
 				err = st.Close()
 				So(err, ShouldBeNil)

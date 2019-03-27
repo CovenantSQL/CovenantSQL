@@ -161,7 +161,7 @@ func InitLocalKeyPair(privateKeyPath string, masterKey []byte) (err error) {
 				return
 			}
 		} else {
-			log.WithError(err).Error("unexpected error while loading private key")
+			log.WithField("path", privateKeyPath).WithError(err).Error("unexpected error while loading private key")
 			return
 		}
 	}

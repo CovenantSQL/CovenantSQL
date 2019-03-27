@@ -6,7 +6,7 @@ Make sure that `$GOPATH/bin` is in your `$PATH`
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
-$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 ```
 
 and import `client` package if you want to use it in your code.
@@ -18,14 +18,14 @@ You need to provide a config and a master key for initialization. The master key
 
 ### Generating Default Config File
 
-Run `cql-utils` like below. Enter a master key (like a password) for generating local key pair. After that, it may take a few seconds with a private key file and config.yaml file generated in `conf` folder.
+Run `cql` like below. Enter a master key (like a password) for generating local key pair. After that, it may take a few seconds with a private key file and config.yaml file generated in `~/.cql/` folder.
 
 ```bash
-$ cql-utils -tool confgen -root conf
+$ cql generate config
 Generating key pair...
 Enter master key(press Enter for default: ""):
 ⏎
-Private key file: conf/private.key
+Private key file: ~/.cql/private.key
 Public key's hex: 025abec9b0072615170f4acf4a2fa1162a13864bb66bc3f140b29f6bf50ceafc75
 Generated key pair.
 Generating nonce...
@@ -35,7 +35,7 @@ nonce: {{1450338416 0 0 0} 26 0000002dd8bdb50ba0270642e4c4bc593c1630ef7784653f31
 node id: 0000002dd8bdb50ba0270642e4c4bc593c1630ef7784653f311b3c3d6374e514
 Generated nonce.
 Generating config file...
-Generated nonce.
+Generated config.
 ```
 
 After you prepare your master key and config file, CovenantSQL client can be initialized by:

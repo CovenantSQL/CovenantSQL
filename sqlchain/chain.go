@@ -546,7 +546,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	var block = &types.Block{
 		SignedHeader: types.SignedHeader{
 			Header: types.Header{
-				Version:     0x01000000,
 				Producer:    c.rt.getServer(),
 				GenesisHash: c.rt.genesisHash,
 				ParentHash:  c.rt.getHead().Head,

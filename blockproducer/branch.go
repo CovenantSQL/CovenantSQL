@@ -214,7 +214,6 @@ func (b *branch) produceBlock(
 	var block = &types.BPBlock{
 		SignedHeader: types.BPSignedHeader{
 			BPHeader: types.BPHeader{
-				Version:    0x01000000,
 				Producer:   addr,
 				ParentHash: cpy.head.hash,
 				Timestamp:  ts,

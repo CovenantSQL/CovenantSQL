@@ -74,7 +74,6 @@ func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err erro
 	b = &BPBlock{
 		SignedHeader: BPSignedHeader{
 			BPHeader: BPHeader{
-				Version:    0x01000000,
 				Producer:   proto.AccountAddress(h),
 				ParentHash: parent,
 				Timestamp:  time.Now().UTC(),

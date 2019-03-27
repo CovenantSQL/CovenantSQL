@@ -1156,7 +1156,6 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, tx *types.Create
 	genesisBlock = &types.Block{
 		SignedHeader: types.SignedHeader{
 			Header: types.Header{
-				Version:   0x01000000,
 				Producer:  emptyNode.ToNodeID(),
 				Timestamp: tx.Timestamp,
 			},

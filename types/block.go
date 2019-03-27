@@ -32,7 +32,7 @@ import (
 
 // Header is a block header.
 type Header struct {
-	Version     int32
+	Version     int32 `hsp:"Version,version"`
 	Producer    proto.NodeID
 	GenesisHash hash.Hash
 	ParentHash  hash.Hash

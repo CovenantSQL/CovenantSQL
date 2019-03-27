@@ -70,7 +70,6 @@ func CreateRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
 	b = &Block{
 		SignedHeader: SignedHeader{
 			Header: Header{
-				Version:     0x01000000,
 				Producer:    proto.NodeID(h.String()),
 				GenesisHash: genesisHash,
 				ParentHash:  parent,

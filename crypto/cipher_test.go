@@ -23,6 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // Test 1: Encryption and decryption.
@@ -153,4 +154,14 @@ func TestAddPKCSPadding(t *testing.T) {
 		So(cleanData, ShouldResemble, data)
 		So(err, ShouldBeNil)
 	})
+	Convey("non-padding", t, func() {
+		data := []byte("xxxxxxxxxxxxxxxx")
+		padData := AddPKCSPadding(data)
+		log.Infof("len %d after pkcs#7: %d", len(data), len(padData))
+		cleanData, err := RemovePKCSPadding(padData)
+
+		So(cleanData, ShouldResemble, data)
+		So(err, ShouldBeNil)
+	})
+
 }

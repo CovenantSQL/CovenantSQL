@@ -34,7 +34,7 @@ type HTTPAdapter struct {
 }
 
 // NewHTTPAdapter creates adapter to service.
-func NewHTTPAdapter(listenAddr string, configFile string) (adapter *HTTPAdapter, err error) {
+func NewHTTPAdapter(listenAddr string, configFile string, adapterUseMirrorAddr string) (adapter *HTTPAdapter, err error) {
 	adapter = new(HTTPAdapter)
 
 	// load config file
@@ -46,8 +46,13 @@ func NewHTTPAdapter(listenAddr string, configFile string) (adapter *HTTPAdapter,
 	if listenAddr != "" {
 		cfg.ListenAddr = listenAddr
 	}
+	if adapterUseMirrorAddr != "" {
+		cfg.MirrorServer = adapterUseMirrorAddr
+	}
 	// init server
-	handler := handlers.CORS()(api.GetRouter())
+	handler := handlers.CORS(
+		handlers.AllowedHeaders([]string{"Content-Type"}),
+	)(api.GetRouter())
 
 	adapter.server = &http.Server{
 		TLSConfig: cfg.TLSConfig,

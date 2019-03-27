@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 ListenAddr: "127.0.0.1:12231"
 ThisNodeID: "000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade"
 PubKeyStoreFile: "./node2.public.keystore"

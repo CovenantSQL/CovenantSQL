@@ -66,7 +66,8 @@ var (
 	globalSeqNo         uint64
 	randSource          = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	defaultConfigFile = "~/.cql/config.yaml"
+	// DefaultConfigFile is the default path of config file
+	DefaultConfigFile = "~/.cql/config.yaml"
 )
 
 func init() {
@@ -105,8 +106,8 @@ type ResourceMeta struct {
 }
 
 func defaultInit() (err error) {
-	configFile := utils.HomeDirExpand(defaultConfigFile)
-	if configFile == defaultConfigFile {
+	configFile := utils.HomeDirExpand(DefaultConfigFile)
+	if configFile == DefaultConfigFile {
 		//System not support ~ dir, need Init manually.
 		log.Debugf("Could not find CovenantSQL default config location: %v", configFile)
 		return ErrNotInitialized
@@ -282,9 +283,10 @@ func Drop(dsn string) (txHash hash.Hash, err error) {
 		return
 	}
 
-	_ = cfg
+	peerList.Delete(cfg.DatabaseID)
 
-	// currently not supported
+	//TODO(laodouya) currently not supported
+	//err = errors.New("drop db current not support")
 
 	return
 }
@@ -507,7 +509,9 @@ func registerNode() (err error) {
 		return
 	}
 
-	err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
+	if nodeInfo.Role != proto.Leader && nodeInfo.Role != proto.Follower {
+		err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
+	}
 
 	return
 }

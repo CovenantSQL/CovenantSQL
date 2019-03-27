@@ -41,10 +41,12 @@ var (
 	// ErrNoChiefBlockProducerAvailable defines failure on find chief block producer.
 	ErrNoChiefBlockProducerAvailable = errors.New("no chief block producer found")
 
+	//FIXME(auxten): remove currentBP stuff
 	// currentBP represents current chief block producer node.
 	currentBP proto.NodeID
 	// currentBPLock represents the chief block producer access lock.
 	currentBPLock sync.Mutex
+
 	// callRPCExpvarLock is the lock of RPC Call Publish lock
 	callRPCExpvarLock sync.Mutex
 )
@@ -66,6 +68,16 @@ func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
 		pool:     GetSessionPoolInstance(),
 		TargetID: target,
 	}
+}
+
+// Target returns the request target for logging purpose.
+func (c *PersistentCaller) Target() string {
+	return string(c.TargetID)
+}
+
+// New returns brand new persistent caller.
+func (c *PersistentCaller) New() PCaller {
+	return NewPersistentCaller(c.TargetID)
 }
 
 func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {

@@ -102,6 +102,13 @@ func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error
 		return
 	}
 
+	// BP node is not permitted to set by RPC
+	if req.Node.Role == proto.Leader || req.Node.Role == proto.Follower {
+		err = fmt.Errorf("setting %s node is not permitted", req.Node.Role.String())
+		log.Error(err)
+		return
+	}
+
 	// Checking if ID Nonce Pubkey matched
 	if !kms.IsIDPubNonceValid(req.Node.ID.ToRawNodeID(), &req.Node.Nonce, req.Node.PublicKey) {
 		err = fmt.Errorf("node: %s nonce public key not match", req.Node.ID)

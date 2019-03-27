@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package twopc
+package twopc_test
 
 import (
 	"context"
@@ -26,6 +26,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/twopc"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -49,7 +51,7 @@ const (
 )
 
 var (
-	nodes  []Worker
+	nodes  []twopc.Worker
 	policy TestPolicy
 	pass   = "DU>p~[/dd2iImUs*"
 )
@@ -215,7 +217,7 @@ func (r *RaftNodeRPCServer) RPCRollback(req *RaftRollbackReq, resp *RaftRollback
 	return nil
 }
 
-func (r *RaftNode) Prepare(ctx context.Context, wb WriteBatch) (err error) {
+func (r *RaftNode) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	log.WithFields(log.Fields{
 		"addr":  r.addr,
 		"phase": "prepare",
@@ -269,7 +271,7 @@ func (r *RaftNode) Prepare(ctx context.Context, wb WriteBatch) (err error) {
 	return err
 }
 
-func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (result interface{}, err error) {
+func (r *RaftNode) Commit(ctx context.Context, wb twopc.WriteBatch) (result interface{}, err error) {
 	log.Debugf("executing 2pc: addr = %s, phase = commit", r.addr)
 	defer log.Debugf("2pc result: addr = %s, phase = commit, result = %v", r.addr, err)
 
@@ -318,7 +320,7 @@ func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (result interface{
 	return
 }
 
-func (r *RaftNode) Rollback(ctx context.Context, wb WriteBatch) (err error) {
+func (r *RaftNode) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error) {
 	log.Debugf("executing 2pc: addr = %s, phase = rollback", r.addr)
 	defer log.Debugf("2pc result: addr = %s, phase = rollback, result = %v", r.addr, err)
 
@@ -368,7 +370,7 @@ func (r *RaftNode) Rollback(ctx context.Context, wb WriteBatch) (err error) {
 
 func testSetup() (err error) {
 	log.SetLevel(log.DebugLevel)
-	nodes = make([]Worker, 10)
+	nodes = make([]twopc.Worker, 10)
 
 	for index := 0; index < 10; index++ {
 		nodes[index], err = NewRaftNode()
@@ -414,7 +416,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestTwoPhaseCommit(t *testing.T) {
-	c := NewCoordinator(&Options{timeout: 5 * time.Second})
+	c := twopc.NewCoordinator(twopc.NewOptions(5 * time.Second))
 
 	testNodeReset()
 
@@ -461,29 +463,30 @@ func TestTwoPhaseCommit_WithHooks(t *testing.T) {
 	beforeRollbackError := errors.New("before rollback error")
 	policy = AllGood
 
-	c := NewCoordinator(&Options{
-		timeout: 5 * time.Second,
-		beforePrepare: func(cxt context.Context) error {
+	c := twopc.NewCoordinator(twopc.NewOptionsWithCallback(
+		5*time.Second,
+		func(cxt context.Context) error {
 			if errorBeforePrepare {
 				return beforePrepareError
 			}
 
 			return nil
-		},
-		beforeCommit: func(ctx context.Context) error {
+		}, // before prepare
+		func(ctx context.Context) error {
 			if errorBeforeCommit {
 				return beforeCommitError
 			}
 
 			return nil
-		},
-		beforeRollback: func(ctx context.Context) error {
+		}, // before commit
+		func(ctx context.Context) error {
 			if errorBeforeRollback {
 				return beforeRollbackError
 			}
 
 			return nil
-		}})
+		}, // before rollback
+		nil))
 
 	testNodeReset()
 

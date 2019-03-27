@@ -53,7 +53,6 @@ func (w *subscribeWorker) run() {
 	var nextTick time.Duration
 
 	for {
-
 		select {
 		case <-w.stopCh:
 			return

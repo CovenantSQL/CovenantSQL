@@ -1,0 +1,125 @@
+UseTestMasterKey: true
+WorkingRoot: "./"
+PubKeyStoreFile: "public.keystore"
+PrivateKeyFile: "private.key"
+DHTFileName: "dht.db"
+ListenAddr: "127.0.0.1:5121"
+ThisNodeID: "00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35"
+QPS: 1000
+BillingBlockCount: 3600
+ChainBusPeriod: 1s
+BPPeriod: 3s
+BPTick: 1s
+SQLChainPeriod: 3s
+SQLChainTick: 1s
+SQLChainTTL: 10
+MinProviderDeposit: 1000000
+ValidDNSKeys:
+  koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
+  mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
+  oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
+MinNodeIDDifficulty: 2
+DNSSeed:
+  EnforcedDNSSEC: false
+  DNSServers:
+  - 1.1.1.1
+  - 202.46.34.74
+  - 202.46.34.75
+  - 202.46.34.76
+
+BlockProducer:
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+  ChainFileName: "chain.db"
+  BPGenesisInfo:
+    Version: 1
+    BlockHash: f745ca6427237aac858dd3c7f2df8e6f3c18d0f1c164e07a1c6b8eebeba6b154
+    Producer: 0000000000000000000000000000000000000000000000000000000000000001
+    MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
+    ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
+    Timestamp: 2018-08-13T21:59:59.12Z
+    BaseAccounts:
+      - Address: ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 9235bc4130a2ed4e6c35ea189dab35198ebb105640bedb97dd5269cc80863b16
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: e4e1628477a17c969f3f915f4bc7c059c3fbcbaf37855bc55a811465ea2480af
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+KnownNodes:
+- ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+  Nonce:
+    a: 313283
+    b: 0
+    c: 0
+    d: 0
+  Addr: 127.0.0.1:5122
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  Role: Leader
+- ID: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
+  Nonce:
+    a: 478373
+    b: 0
+    c: 0
+    d: 2305843009893772025
+  Addr: 127.0.0.1:5121
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  Role: Follower
+- ID: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
+  Nonce:
+    a: 259939
+    b: 0
+    c: 0
+    d: 2305843012544226372
+  Addr: 127.0.0.1:5120
+  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+  Role: Follower
+- ID: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
+  Nonce:
+    a: 22403
+    b: 0
+    c: 0
+    d: 0
+  Addr: ""
+  PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+  Role: Client
+- ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
+  Nonce:
+    a: 567323
+    b: 0
+    c: 0
+    d: 3104982049
+  Addr: 127.0.0.1:5144
+  PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
+  Role: Miner
+- ID: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
+  Nonce:
+    a: 240524
+    b: 0
+    c: 0
+    d: 2305843010430351476
+  Addr: 127.0.0.1:5145
+  PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
+  Role: Miner
+- ID: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
+  Nonce:
+    a: 606016
+    b: 0
+    c: 0
+    d: 13835058056920509601
+  Addr: 127.0.0.1:5146
+  PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
+  Role: Miner

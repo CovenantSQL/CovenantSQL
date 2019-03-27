@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -28,6 +29,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -36,7 +38,6 @@ import (
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -61,11 +62,28 @@ var (
 	logDir                    = FJ(testWorkingDir, "./log/")
 	testGasPrice       uint64 = 1
 	testAdvancePayment uint64 = 20000000
+
+	nodeCmds []*utils.CMD
+
+	FJ = filepath.Join
+
+	// Benchmark flags
+	benchMinerCount          int
+	benchBypassSignature     bool
+	benchEventualConsistency bool
+	benchMinerConfigDir      string
 )
 
-var nodeCmds []*utils.CMD
-
-var FJ = filepath.Join
+func init() {
+	flag.IntVar(&benchMinerCount, "bench-miner-count", 1,
+		"Benchmark miner count.")
+	flag.BoolVar(&benchBypassSignature, "bench-bypass-signature", false,
+		"Benchmark bypassing signature.")
+	flag.BoolVar(&benchEventualConsistency, "bench-eventual-consistency", false,
+		"Benchmark with eventaul consistency.")
+	flag.StringVar(&benchMinerConfigDir, "bench-miner-config-dir", "",
+		"Benchmark custome miner config directory.")
+}
 
 func startNodes() {
 	ctx := context.Background()
@@ -578,6 +596,37 @@ func TestFullProcess(t *testing.T) {
 		err = db.Close()
 		So(err, ShouldBeNil)
 
+		// test query from follower node
+		dsnCfgMix := *dsnCfg
+		dsnCfgMix.UseLeader = true
+		dsnCfgMix.UseFollower = true
+		dbMix, err := sql.Open("covenantsql", dsnCfgMix.FormatDSN())
+		So(err, ShouldBeNil)
+		defer dbMix.Close()
+
+		result = 0
+		err = dbMix.QueryRow("SELECT * FROM test LIMIT 1").Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 4)
+
+		_, err = dbMix.Exec("INSERT INTO test VALUES(2)")
+		So(err, ShouldBeNil)
+
+		// test query from follower only
+		dsnCfgFollower := *dsnCfg
+		dsnCfgFollower.UseLeader = false
+		dsnCfgFollower.UseFollower = true
+		dbFollower, err := sql.Open("covenantsql", dsnCfgFollower.FormatDSN())
+		So(err, ShouldBeNil)
+		defer dbFollower.Close()
+
+		err = dbFollower.QueryRow("SELECT * FROM test LIMIT 1").Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 4)
+
+		_, err = dbFollower.Exec("INSERT INTO test VALUES(2)")
+		So(err, ShouldNotBeNil)
+
 		// TODO(lambda): Drop database
 	})
 }
@@ -631,6 +680,19 @@ func cleanBenchTable(db *sql.DB) {
 	So(err, ShouldBeNil)
 }
 
+func makeBenchName(trailings ...string) string {
+	var parts = make([]string, 0, 3+len(trailings))
+	parts = append(parts, fmt.Sprintf("%dMiner", benchMinerCount))
+	if benchBypassSignature {
+		parts = append(parts, "BypassSignature")
+	}
+	if benchEventualConsistency {
+		parts = append(parts, "EventualConsistency")
+	}
+	parts = append(parts, trailings...)
+	return strings.Join(parts, "_")
+}
+
 func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	var err error
 	if createDB {
@@ -642,7 +704,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	var i int64
 	i = -1
 
-	b.Run("benchmark INSERT", func(b *testing.B) {
+	b.Run(makeBenchName("INSERT"), func(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
@@ -687,7 +749,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	}
 	log.Warnf("row Count: %v", count)
 
-	b.Run("benchmark SELECT", func(b *testing.B) {
+	b.Run(makeBenchName("SELECT"), func(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
@@ -732,11 +794,11 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	So(err, ShouldBeNil)
 }
 
-func benchMiner(b *testing.B, minerCount uint16, bypassSign bool, useEventualConsistency bool) {
-	log.Warnf("benchmark for %d Miners, BypassSignature: %v", minerCount, bypassSign)
-	asymmetric.BypassSignature = bypassSign
+func benchMiner(b *testing.B, minerCount uint16) {
+	log.Warnf("benchmark for %d Miners, BypassSignature: %v", minerCount, benchBypassSignature)
+	asymmetric.BypassSignature = benchBypassSignature
 	if minerCount > 0 {
-		startNodesProfile(bypassSign)
+		startNodesProfile(benchBypassSignature)
 		utils.WaitToConnect(context.Background(), "127.0.0.1", []int{
 			2144,
 			2145,
@@ -770,8 +832,8 @@ func benchMiner(b *testing.B, minerCount uint16, bypassSign bool, useEventualCon
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				Node: minerCount,
-				UseEventualConsistency: useEventualConsistency,
+				Node:                   minerCount,
+				UseEventualConsistency: benchEventualConsistency,
 			},
 		}
 		// wait for chain service
@@ -919,172 +981,32 @@ func benchOutsideMinerWithTargetMinerList(
 	benchDB(b, db, minerCount > 0)
 }
 
-func BenchmarkMinerOneNoSign(b *testing.B) {
-	Convey("bench single node", b, func() {
-		benchMiner(b, 1, true, false)
-	})
-}
-
-func BenchmarkMinerTwoNoSign(b *testing.B) {
-	Convey("bench two node", b, func() {
-		benchMiner(b, 2, true, false)
-	})
-}
-
-func BenchmarkMinerThreeNoSign(b *testing.B) {
-	Convey("bench three node", b, func() {
-		benchMiner(b, 3, true, false)
-	})
-}
-
-func BenchmarkMinerOne(b *testing.B) {
-	Convey("bench single node", b, func() {
-		benchMiner(b, 1, false, false)
-	})
-}
-
-func BenchmarkMinerTwo(b *testing.B) {
-	Convey("bench two node", b, func() {
-		benchMiner(b, 2, false, false)
-	})
-}
-
-func BenchmarkMinerThree(b *testing.B) {
-	Convey("bench three node", b, func() {
-		benchMiner(b, 3, false, false)
-	})
-}
-
-func BenchmarkMinerOneNoSignWithEventualConsistency(b *testing.B) {
-	Convey("bench single node", b, func() {
-		benchMiner(b, 1, true, true)
-	})
-}
-
-func BenchmarkMinerTwoNoSignWithEventualConsistency(b *testing.B) {
-	Convey("bench two node", b, func() {
-		benchMiner(b, 2, true, true)
-	})
-}
-
-func BenchmarkMinerThreeNoSignWithEventualConsistency(b *testing.B) {
-	Convey("bench three node", b, func() {
-		benchMiner(b, 3, true, true)
-	})
-}
-
-func BenchmarkMinerOneWithEventualConsistency(b *testing.B) {
-	Convey("bench single node", b, func() {
-		benchMiner(b, 1, false, true)
-	})
-}
-
-func BenchmarkMinerTwoWithEventualConsistency(b *testing.B) {
-	Convey("bench two node", b, func() {
-		benchMiner(b, 2, false, true)
-	})
-}
-
-func BenchmarkMinerThreeWithEventualConsistency(b *testing.B) {
-	Convey("bench three node", b, func() {
-		benchMiner(b, 3, false, true)
-	})
-}
-
 func BenchmarkClientOnly(b *testing.B) {
 	Convey("bench three node", b, func() {
-		benchMiner(b, 0, false, false)
+		benchMiner(b, 0)
 	})
 }
 
-func BenchmarkMinerGNTE1(b *testing.B) {
-	Convey("bench GNTE one node", b, func() {
-		benchOutsideMiner(b, 1, gnteConfDir)
+func BenchmarkMiner(b *testing.B) {
+	Convey(fmt.Sprintf("bench %d node(s)", benchMinerCount), b, func() {
+		benchMiner(b, uint16(benchMinerCount))
 	})
 }
 
-func BenchmarkMinerGNTE2(b *testing.B) {
-	Convey("bench GNTE two node", b, func() {
-		benchOutsideMiner(b, 2, gnteConfDir)
+func BenchmarkMinerGNTE(b *testing.B) {
+	Convey(fmt.Sprintf("bench GNTE %d node(s)", benchMinerCount), b, func() {
+		benchOutsideMiner(b, uint16(benchMinerCount), gnteConfDir)
 	})
 }
 
-func BenchmarkMinerGNTE3(b *testing.B) {
-	Convey("bench GNTE three node", b, func() {
-		benchOutsideMiner(b, 3, gnteConfDir)
+func BenchmarkTestnetMiner(b *testing.B) {
+	Convey(fmt.Sprintf("bench testnet %d node(s)", benchMinerCount), b, func() {
+		benchOutsideMiner(b, uint16(benchMinerCount), testnetConfDir)
 	})
 }
 
-func BenchmarkMinerGNTE4(b *testing.B) {
-	Convey("bench GNTE three node", b, func() {
-		benchOutsideMiner(b, 4, gnteConfDir)
-	})
-}
-
-func BenchmarkMinerGNTE8(b *testing.B) {
-	Convey("bench GNTE three node", b, func() {
-		benchOutsideMiner(b, 8, gnteConfDir)
-	})
-}
-
-func BenchmarkTestnetMiner1(b *testing.B) {
-	Convey("bench testnet one node", b, func() {
-		benchOutsideMiner(b, 1, testnetConfDir)
-	})
-}
-
-func BenchmarkTestnetMiner2(b *testing.B) {
-	Convey("bench testnet one node", b, func() {
-		benchOutsideMiner(b, 2, testnetConfDir)
-	})
-}
-
-func BenchmarkTestnetTargetMiner2(b *testing.B) {
-	var (
-		err error
-		// Public keys of miners for test
-		publicKeys = []string{
-			"0235abfb93031df7bf776332c510a862e48e81eebea76f5e165406af8fec5215d6",
-			"03aec5337c0a58b8eff96f8ab30518830ad8e329c74bb30b38901a9395c72340f8",
-		}
-	)
-	Convey("bench testnet one node", b, func() {
-		var (
-			pubKey       asymmetric.PublicKey
-			addr         proto.AccountAddress
-			targetMiners = make([]proto.AccountAddress, len(publicKeys))
-		)
-		for i, v := range publicKeys {
-			err = yaml.Unmarshal([]byte(v), &pubKey)
-			So(err, ShouldBeNil)
-			addr, err = crypto.PubKeyHash(&pubKey)
-			So(err, ShouldBeNil)
-			targetMiners[i] = addr
-		}
-		benchOutsideMinerWithTargetMinerList(b, 2, targetMiners, testnetConfDir)
-	})
-}
-
-func BenchmarkTestnetMiner3(b *testing.B) {
-	Convey("bench testnet one node", b, func() {
-		benchOutsideMiner(b, 3, testnetConfDir)
-	})
-}
-
-func BenchmarkCustomMiner1(b *testing.B) {
-	Convey("bench custom one node", b, func() {
-		benchOutsideMiner(b, 1, os.Getenv("miner_conf_dir"))
-	})
-}
-
-func BenchmarkCustomMiner2(b *testing.B) {
-	Convey("bench custom one node", b, func() {
-		benchOutsideMiner(b, 2, os.Getenv("miner_conf_dir"))
-	})
-}
-
-func BenchmarkCustomMiner3(b *testing.B) {
-	Convey("bench custom one node", b, func() {
-		benchOutsideMiner(b, 3, os.Getenv("miner_conf_dir"))
+func BenchmarkCustomMiner(b *testing.B) {
+	Convey(fmt.Sprintf("bench custom %d node(s)", benchMinerCount), b, func() {
+		benchOutsideMiner(b, uint16(benchMinerCount), benchMinerConfigDir)
 	})
 }

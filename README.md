@@ -57,6 +57,17 @@ sql.Open("CovenantSQL", dbURI)
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
+## How it works
+[How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
+
+## Demos
+
+- [CovenantForum](https://demo.covenantsql.io/forum/)
+- [Twitter Bot @iBlockPin](https://twitter.com/iblockpin)
+- [Weibo Bot @BlockPin](https://weibo.com/BlockPin)
+- [Markdown Editor with CovenantSQL sync](https://github.com/CovenantSQL/stackedit)
+- [Web Admin for CovenantSQL](https://github.com/CovenantSQL/adminer)
+
 ## Papers
 Our team members published:
 
@@ -114,10 +125,8 @@ Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitt
 
 ## Contact
 
+- [Blog](https://medium.com/@covenant_labs)
+- [YouTube](https://www.youtube.com/channel/UCe9P_TMiexSHW2GGV5qBmZw)
 - [Mail](mailto:webmaster@covenantsql.io)
 - [Forum](https://demo.covenantsql.io/forum/)
-- <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs">
-          <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
-              alt="follow on Twitter"></a>
-
-- [![Join the chat at https://gitter.im/CovenantSQL/CovenantSQL](https://badges.gitter.im/CovenantSQL/CovenantSQL.svg)](https://gitter.im/CovenantSQL/CovenantSQL?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+- <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs"><img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs" alt="follow on Twitter"></a>

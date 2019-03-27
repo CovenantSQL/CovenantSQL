@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -35,11 +34,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const DHTStorePath = "./DHTStore"
+const DHTStorePath = "./DHTStore.keystore"
 
 func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
-	os.Remove(DHTStorePath)
-	defer os.Remove(DHTStorePath + "1")
+	utils.RemoveAll(DHTStorePath + "*")
+	defer utils.RemoveAll(DHTStorePath + "*")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	dht, _ := NewDHTService(DHTStorePath+"1", new(consistent.KMSStorage), false)
@@ -202,8 +201,8 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 }
 
 func TestDHTService_Ping(t *testing.T) {
-	os.Remove(DHTStorePath)
-	defer os.Remove(DHTStorePath)
+	utils.RemoveAll(DHTStorePath + "*")
+	defer utils.RemoveAll(DHTStorePath + "*")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 

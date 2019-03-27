@@ -100,11 +100,13 @@ type MinerInfo struct {
 type DNSSeed struct {
 	EnforcedDNSSEC bool     `yaml:"EnforcedDNSSEC"`
 	DNSServers     []string `yaml:"DNSServers"`
+	Domain         string   `yaml:"Domain"`
+	BPCount        int      `yaml:"BPCount"`
 }
 
 // Config holds all the config read from yaml config file.
 type Config struct {
-	IsTestMode bool `yaml:"IsTestMode,omitempty"` // when testMode use default empty masterKey and test DNS domain
+	UseTestMasterKey bool `yaml:"UseTestMasterKey,omitempty"` // when UseTestMasterKey use default empty masterKey
 	// StartupSyncHoles indicates synchronizing hole blocks from other peers on BP
 	// startup/reloading.
 	StartupSyncHoles bool `yaml:"StartupSyncHoles,omitempty"`
@@ -154,6 +156,25 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	if err != nil {
 		log.WithError(err).Error("unmarshal config file failed")
 		return
+	}
+
+	if config.BPPeriod == time.Duration(0) {
+		config.BPPeriod = 10 * time.Second
+	}
+
+	if config.WorkingRoot == "" {
+		config.WorkingRoot = "./"
+	}
+
+	if config.PrivateKeyFile == "" {
+		config.PrivateKeyFile = "private.key"
+	}
+
+	if config.PubKeyStoreFile == "" {
+		config.PubKeyStoreFile = "public.keystore"
+	}
+	if config.DHTFileName == "" {
+		config.DHTFileName = "dht.db"
 	}
 
 	configDir := path.Dir(configPath)

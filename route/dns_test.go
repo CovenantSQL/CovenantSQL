@@ -69,8 +69,8 @@ func TestResolver(t *testing.T) {
 		BPmap := initBPNodeIDs()
 		log.Debugf("BPmap: %v", BPmap)
 		BPs := GetBPs()
-		dc := NewDNSClient()
-		ips, err := dc.GetBPFromDNSSeed(BPDomain)
+		dc := IPv6SeedClient{}
+		ips, err := dc.GetBPFromDNSSeed(TestDomain)
 
 		log.Debugf("BPs: %v", BPs)
 		So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))

@@ -15,7 +15,7 @@ main() {
   # some benchmarks
   go test -tags "${UNITTESTTAGS:-}" -bench=^BenchmarkPersistentCaller_Call$ -run ^$ ./rpc/
   bash cleanupDB.sh || true
-  go test -tags "${UNITTESTTAGS:-}" -bench=^BenchmarkMinerTwo$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+  go test -tags "${UNITTESTTAGS:-}" -bench=^BenchmarkMiner$ -benchtime=5s -run ^$ ./cmd/cql-minerd/ -bench-miner-count=2
   bash cleanupDB.sh || true
 }
 

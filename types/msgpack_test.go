@@ -50,7 +50,6 @@ func TestEncodeDecodeTransactions(t *testing.T) {
 		var t []pi.Transaction
 		t = append(t, NewBaseAccount(&Account{}))
 		t = append(t, NewTransfer(&TransferHeader{}))
-		t = append(t, NewBilling(&BillingHeader{}))
 		t = append(t, NewCreateDatabase(&CreateDatabaseHeader{}))
 
 		buf, err := utils.EncodeMsgPack(t)
@@ -73,12 +72,10 @@ func TestEncodeDecodeTransactions(t *testing.T) {
 		t.Tx = NewBaseAccount(&Account{})
 		t.Txs = append(t.Txs, NewBaseAccount(&Account{}))
 		t.Txs = append(t.Txs, NewTransfer(&TransferHeader{}))
-		t.Txs = append(t.Txs, NewBilling(&BillingHeader{}))
 		t.Txs = append(t.Txs, NewCreateDatabase(&CreateDatabaseHeader{}))
 		t.Maps = make(map[string]pi.Transaction)
 		t.Maps["BaseAccount"] = NewBaseAccount(&Account{})
 		t.Maps["Transfer"] = NewTransfer(&TransferHeader{})
-		t.Maps["Billing"] = NewBilling(&BillingHeader{})
 		t.Maps["CreateDatabase"] = NewCreateDatabase(&CreateDatabaseHeader{})
 		buf, err := utils.EncodeMsgPack(t)
 		So(err, ShouldBeNil)

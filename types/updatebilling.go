@@ -26,6 +26,11 @@ import (
 
 //go:generate hsp
 
+// Range defines a height range (from, to].
+type Range struct {
+	From, To uint32
+}
+
 // MinerIncome defines the income of miner.
 type MinerIncome struct {
 	Miner  proto.AccountAddress
@@ -44,6 +49,8 @@ type UpdateBillingHeader struct {
 	Receiver proto.AccountAddress
 	Nonce    pi.AccountNonce
 	Users    []*UserCost
+	Range    Range
+	Version  int32 `hsp:"v,version"`
 }
 
 // UpdateBilling defines the UpdateBilling transaction.

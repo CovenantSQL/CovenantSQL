@@ -55,7 +55,7 @@ func TestTypes(t *testing.T) {
 		}
 	})
 	Convey("test string", t, func() {
-		for i := TransactionTypeBilling; i != TransactionTypeNumber+1; i++ {
+		for i := TransactionTypeTransfer; i != TransactionTypeNumber+1; i++ {
 			So(i.String(), ShouldNotBeEmpty)
 		}
 	})

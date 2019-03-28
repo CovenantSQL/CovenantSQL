@@ -30,22 +30,22 @@ func TestBlockCacheTTL(t *testing.T) {
 		}{
 			{
 				config: &Config{
-					BlockCacheTTL:  0,
-					BillingPeriods: 0,
+					BlockCacheTTL: 0,
+					UpdatePeriod:  0,
 				},
 				expect: minBlockCacheTTL,
 			},
 			{
 				config: &Config{
-					BlockCacheTTL:  minBlockCacheTTL + 1,
-					BillingPeriods: 0,
+					BlockCacheTTL: minBlockCacheTTL + 1,
+					UpdatePeriod:  0,
 				},
 				expect: minBlockCacheTTL + 1,
 			},
 			{
 				config: &Config{
-					BlockCacheTTL:  0,
-					BillingPeriods: minBlockCacheTTL + 1,
+					BlockCacheTTL: 0,
+					UpdatePeriod:  uint64(minBlockCacheTTL + 1),
 				},
 				expect: 2 * (minBlockCacheTTL + 1),
 			},

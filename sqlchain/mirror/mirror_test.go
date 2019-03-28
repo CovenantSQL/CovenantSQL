@@ -193,7 +193,13 @@ func waitForMirrorComplete(ctx context.Context, dbID string, tick time.Duration,
 		case <-time.After(tick):
 			progressData, _ := ioutil.ReadFile(progressFile)
 			progressCount, _ := strconv.Atoi(string(progressData))
+			log.WithFields(log.Fields{
+				"lastUpdate":     lastUpdate.String(),
+				"stableDuration": stableDuration,
+				"progressCount":  progressCount,
+			}).Infof("current mirror count progress")
 			if progressCount > lastProgress {
+				lastProgress = progressCount
 				lastUpdate = time.Now()
 			}
 			if progressCount > 5 || (progressCount > 0 && time.Now().Sub(lastUpdate) > stableDuration) {

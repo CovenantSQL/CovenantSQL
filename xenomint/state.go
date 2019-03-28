@@ -37,23 +37,18 @@ type sqlQuerier interface {
 }
 
 type sqlExecuter interface {
-	sqlQuerier
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+}
+
+type sqlTransaction interface {
 	Commit() error
 	Rollback() error
 }
 
-type sqlDB struct {
-	*sql.DB
-}
-
-func (db *sqlDB) Commit() error {
-	return nil
-}
-
-func (db *sqlDB) Rollback() error {
-	return nil
+type sqlHandler interface {
+	sqlQuerier
+	sqlExecuter
 }
 
 // State defines a xenomint state which is bound to a underlying storage.
@@ -66,7 +61,7 @@ type State struct {
 	closed bool
 	nodeID proto.NodeID
 
-	executer        sqlExecuter
+	handler         sqlHandler
 	maxTx           uint64
 	lastCommitPoint uint64
 	current         uint64 // current is the current lastSeq of the current transaction
@@ -82,18 +77,18 @@ func NewState(level sql.IsolationLevel, nodeID proto.NodeID, strg xi.Storage) (s
 		pool:   newPool(),
 		maxTx:  100,
 	}
-	s.openSQLExecuter()
+	s.openHandler()
 	return
 }
 
-func (s *State) openSQLExecuter() {
+func (s *State) openHandler() {
 	if s.level == sql.LevelReadUncommitted {
 		var err error
-		if s.executer, err = s.strg.Writer().Begin(); err != nil {
+		if s.handler, err = s.strg.Writer().Begin(); err != nil {
 			log.WithError(err).Fatal("failed to open transaction")
 		}
 	} else {
-		s.executer = &sqlDB{DB: s.strg.Writer()}
+		s.handler = s.strg.Writer()
 	}
 }
 
@@ -128,11 +123,11 @@ func (s *State) Close(commit bool) (err error) {
 	if s.closed {
 		return
 	}
-	if s.executer != nil {
+	if s.handler != nil {
 		if commit {
-			s.commitSQLExecuter()
+			s.commitHandler()
 		} else {
-			s.rollbackSQLExecuter()
+			s.rollbackHandler()
 		}
 	}
 	if err = s.strg.Close(); err != nil {
@@ -168,7 +163,9 @@ func readSingle(
 	if rows, err = qer.QueryContext(ctx, pattern, args...); err != nil {
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	// Fetch column names and types
 	if names, err = rows.Columns(); err != nil {
 		return
@@ -226,6 +223,9 @@ func (s *State) readWithContext(
 	}
 	// Build query response
 	ref = &QueryTracker{Req: req}
+	s.Lock()
+	s.pool.enqueueRead(ref)
+	s.Unlock()
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
@@ -260,7 +260,7 @@ func (s *State) readTx(
 		// lock transaction
 		s.Lock()
 		defer s.Unlock()
-		querier = s.executer
+		querier = s.handler
 	} else {
 		var tx *sql.Tx
 		if tx, ierr = s.reader().Begin(); ierr != nil {
@@ -268,7 +268,9 @@ func (s *State) readTx(
 			return
 		}
 		querier = tx
-		defer tx.Rollback()
+		defer func() {
+			_ = tx.Rollback()
+		}()
 	}
 
 	defer func() {
@@ -291,6 +293,9 @@ func (s *State) readTx(
 	}
 	// Build query response
 	ref = &QueryTracker{Req: req}
+	s.Lock()
+	s.pool.enqueueRead(ref)
+	s.Unlock()
 	resp = &types.Response{
 		Header: types.SignedResponseHeader{
 			ResponseHeader: types.ResponseHeader{
@@ -338,7 +343,7 @@ func (s *State) writeSingle(
 		return
 	}
 	//parsed = time.Since(start)
-	if res, err = s.executer.Exec(pattern, args...); err == nil {
+	if res, err = s.handler.Exec(pattern, args...); err == nil {
 		if containsDDL {
 			atomic.StoreUint32(&s.hasSchemaChange, 1)
 		}
@@ -398,16 +403,20 @@ func (s *State) write(
 		lastSeq = s.getSeq()
 		if qcnt > 1 && s.level == sql.LevelReadUncommitted {
 			// Set savepoint
-			if _, ierr = s.executer.Exec(`SAVEPOINT "?"`, lastSeq); ierr != nil {
+			if _, ierr = s.handler.Exec(`SAVEPOINT "?"`, lastSeq); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to create savepoint %d", lastSeq)
 				return
 			}
-			defer s.executer.Exec(`ROLLBACK TO "?"`, lastSeq)
+			defer func() {
+				_, _ = s.handler.Exec(`ROLLBACK TO "?"`, lastSeq)
+			}()
 		}
 		if s.level != sql.LevelReadUncommitted {
 			// NOTE(leventeliu): this will cancel any uncommitted transaction, and do not harm to
 			// committed ones.
-			defer s.executer.Exec(`ROLLBACK`)
+			defer func() {
+				_, _ = s.handler.Exec(`ROLLBACK`)
+			}()
 		}
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
@@ -426,7 +435,7 @@ func (s *State) write(
 		if s.level == sql.LevelReadUncommitted {
 			if qcnt > 1 {
 				// Release savepoint
-				if _, ierr = s.executer.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
+				if _, ierr = s.handler.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
 					err = errors.Wrapf(ierr, "failed to release savepoint %d", lastSeq)
 					return
 				}
@@ -435,7 +444,7 @@ func (s *State) write(
 		// Try to commit if the ongoing tx is too large or schema is changed
 		if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||
 			atomic.LoadUint32(&s.hasSchemaChange) != 0 {
-			s.flushSQLExecuter()
+			s.flushHandler()
 		}
 		writeDone = time.Since(start)
 		if isLeader {
@@ -491,7 +500,7 @@ func (s *State) replay(ctx context.Context, req *types.Request, resp *types.Resp
 	// Try to commit if the ongoing tx is too large or schema is changed
 	if s.getSeq()-s.getLastCommitPoint() > s.maxTx ||
 		atomic.LoadUint32(&s.hasSchemaChange) != 0 {
-		s.flushSQLExecuter()
+		s.flushHandler()
 	}
 	s.pool.enqueue(lastSeq, query)
 	return
@@ -541,7 +550,7 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 		s.pool.enqueue(lastsp, query)
 	}
 	// Always try to commit after a block is successfully replayed
-	s.flushSQLExecuter()
+	s.flushHandler()
 	// Remove duplicate failed queries from local pool
 	for _, r := range block.FailedReqs {
 		s.pool.removeFailed(r)
@@ -579,7 +588,7 @@ func (s *State) commit() (err error) {
 		lockReleased = time.Since(start)
 	}()
 	lockAcquired = time.Since(start)
-	s.flushSQLExecuter()
+	s.flushHandler()
 	committed = time.Since(start)
 	_ = s.pool.queries
 	s.pool = newPool()
@@ -625,33 +634,40 @@ func (s *State) CommitExWithContext(
 		lockReleased = time.Since(start)
 	}()
 	// Always try to commit before the block is produced
-	s.flushSQLExecuter()
+	s.flushHandler()
 	committed = time.Since(start)
 	// Return pooled items and reset
 	failed = s.pool.failedList()
 	queries = s.pool.queries
+	for _, v := range s.pool.reads {
+		queries = append(queries, v)
+	}
 	s.pool = newPool()
 	poolCleaned = time.Since(start)
 	return
 }
 
-func (s *State) flushSQLExecuter() {
-	s.commitSQLExecuter()
-	s.openSQLExecuter()
+func (s *State) flushHandler() {
+	s.commitHandler()
+	s.openHandler()
 }
 
-func (s *State) commitSQLExecuter() {
-	if err := s.executer.Commit(); err != nil {
-		log.WithError(err).Fatal("failed to commit")
+func (s *State) commitHandler() {
+	if tx, ok := s.handler.(sqlTransaction); ok {
+		if err := tx.Commit(); err != nil {
+			log.WithError(err).Fatal("failed to commit")
+		}
 	}
 	// reset schema change flag
 	atomic.StoreUint32(&s.hasSchemaChange, 0)
 	atomic.StoreUint64(&s.lastCommitPoint, s.getSeq())
 }
 
-func (s *State) rollbackSQLExecuter() {
-	if err := s.executer.Rollback(); err != nil {
-		log.WithError(err).Fatal("failed to rollback")
+func (s *State) rollbackHandler() {
+	if tx, ok := s.handler.(sqlTransaction); ok {
+		if err := tx.Rollback(); err != nil {
+			log.WithError(err).Fatal("failed to rollback")
+		}
 	}
 	// reset schema change flag
 	atomic.StoreUint32(&s.hasSchemaChange, 0)

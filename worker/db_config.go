@@ -26,6 +26,7 @@ import (
 // DBConfig defines the database config.
 type DBConfig struct {
 	DatabaseID             proto.DatabaseID
+	RootDir                string
 	DataDir                string
 	KayakMux               *DBKayakMuxService
 	ChainMux               *sqlchain.MuxService
@@ -33,6 +34,7 @@ type DBConfig struct {
 	EncryptionKey          string
 	SpaceLimit             uint64
 	UpdateBlockCount       uint64
+	LastBillingHeight      int32
 	UseEventualConsistency bool
 	ConsistencyLevel       float64
 	IsolationLevel         int

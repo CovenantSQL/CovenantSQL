@@ -70,7 +70,7 @@ func TestSingleDatabase(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:       "TEST",
+			DatabaseID:       "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9",
 			DataDir:          rootDir,
 			KayakMux:         kayakMuxService,
 			ChainMux:         chainMuxService,
@@ -409,7 +409,7 @@ func TestInitFailed(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:       "TEST",
+			DatabaseID:       "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9",
 			DataDir:          rootDir,
 			KayakMux:         kayakMuxService,
 			ChainMux:         chainMuxService,
@@ -464,7 +464,7 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:       "TEST",
+			DatabaseID:       "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9",
 			DataDir:          rootDir,
 			KayakMux:         kayakMuxService,
 			ChainMux:         chainMuxService,

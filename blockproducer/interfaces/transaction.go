@@ -46,8 +46,8 @@ func FromBytes(b []byte) TransactionType {
 }
 
 const (
-	// TransactionTypeBilling defines billing transaction type.
-	TransactionTypeBilling TransactionType = iota
+	// TransactionTypeDeprecated is a deprecated transaction type, do NOT use it.
+	TransactionTypeDeprecated TransactionType = iota
 	// TransactionTypeTransfer defines transfer transaction type.
 	TransactionTypeTransfer
 	// TransactionTypeCreateAccount defines account creation transaction type.
@@ -78,8 +78,6 @@ const (
 
 func (t TransactionType) String() string {
 	switch t {
-	case TransactionTypeBilling:
-		return "Billing"
 	case TransactionTypeTransfer:
 		return "Transfer"
 	case TransactionTypeCreateAccount:

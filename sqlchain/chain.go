@@ -181,6 +181,12 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		return
 	}
 
+	metaKeyPrefix, err := c.DatabaseID.AccountAddress()
+	if err != nil {
+		err = errors.Wrap(err, "failed to generate database meta prefix")
+		return
+	}
+
 	// Create chain state
 	chain = &Chain{
 		bi:           newBlockIndex(),
@@ -199,9 +205,9 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 
 		pk:                pk,
 		addr:              &addr,
-		metaBlockIndex:    utils.ConcatAll([]byte(c.DatabaseID), metaBlockIndex[:]),
-		metaResponseIndex: utils.ConcatAll([]byte(c.DatabaseID), metaResponseIndex[:]),
-		metaAckIndex:      utils.ConcatAll([]byte(c.DatabaseID), metaAckIndex[:]),
+		metaBlockIndex:    utils.ConcatAll(metaKeyPrefix[:], metaBlockIndex[:]),
+		metaResponseIndex: utils.ConcatAll(metaKeyPrefix[:], metaResponseIndex[:]),
+		metaAckIndex:      utils.ConcatAll(metaKeyPrefix[:], metaAckIndex[:]),
 	}
 	le = le.WithField("peer", chain.rt.getPeerInfoString())
 

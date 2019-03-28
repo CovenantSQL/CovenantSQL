@@ -126,6 +126,8 @@ func (i *waitItem) set(l *kt.Log) {
 	i.l.Lock()
 	defer i.l.Unlock()
 
+	i.log = l
+
 	if i.waitCh != nil {
 		select {
 		case <-i.waitCh:

@@ -207,7 +207,7 @@ func TestTransactionWrapper(t *testing.T) {
 		So(string(jsonData), ShouldContainSubstring, "TestField")
 
 		v18.(*pi.TransactionWrapper).Transaction = nil
-		jsonData = []byte(`{"TxType": 0, "TestField": 11}`)
+		jsonData = []byte(`{"TxType": 1, "TestField": 11}`)
 		err = json.Unmarshal(jsonData, &v18)
 		So(err, ShouldBeNil)
 		So(v18.GetTransactionType(), ShouldEqual, pi.TransactionTypeTransfer)

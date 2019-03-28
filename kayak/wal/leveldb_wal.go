@@ -168,6 +168,7 @@ func (p *LevelDBWal) Get(i uint64) (l *kt.Log, err error) {
 	var headerData []byte
 	if headerData, err = p.db.Get(headerKey, nil); err == leveldb.ErrNotFound {
 		err = ErrNotExists
+		return
 	} else if err != nil {
 		err = errors.Wrap(err, "get log header failed")
 		return

@@ -900,7 +900,8 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
 		return
 	}
-	if tx.Range.From >= tx.Range.To || newProfile.LastUpdatedHeight != tx.Range.From {
+
+	if tx.Version > 0 && (tx.Range.From >= tx.Range.To || newProfile.LastUpdatedHeight != tx.Range.From) {
 		err = errors.Wrapf(ErrInvalidRange,
 			"update billing within range %d:(%d, %d]",
 			newProfile.LastUpdatedHeight, tx.Range.From, tx.Range.To)

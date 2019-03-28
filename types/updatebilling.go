@@ -50,6 +50,7 @@ type UpdateBillingHeader struct {
 	Nonce    pi.AccountNonce
 	Users    []*UserCost
 	Range    Range
+	Version  int32 `hsp:"v,version"`
 }
 
 // UpdateBilling defines the UpdateBilling transaction.

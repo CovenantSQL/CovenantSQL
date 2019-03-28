@@ -1169,6 +1169,7 @@ func TestMetaState(t *testing.T) {
 							To:   10,
 						},
 					})
+					ub.Version = int32(ub.HSPDefaultVersion())
 					nonce, err = ms.nextNonce(addr2)
 					So(err, ShouldBeNil)
 					ub.Nonce = nonce
@@ -1352,6 +1353,7 @@ func TestMetaState(t *testing.T) {
 							},
 						},
 					}
+					ub1.Version = int32(ub1.HSPDefaultVersion())
 					err = ub1.Sign(privKey1)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub1)
@@ -1442,6 +1444,7 @@ func TestMetaState(t *testing.T) {
 							},
 						},
 					}
+					ub2.Version = int32(ub2.HSPDefaultVersion())
 					err = ub2.Sign(privKey2)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub2)
@@ -1493,6 +1496,7 @@ func TestMetaState(t *testing.T) {
 							},
 						},
 					}
+					ub3.Version = int32(ub3.HSPDefaultVersion())
 					err = ub3.Sign(privKey2)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub3)

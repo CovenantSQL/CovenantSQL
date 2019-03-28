@@ -89,9 +89,9 @@ var (
 			},
 		},
 		Transactions: []interfaces.Transaction{
-			&types.Transfer{},
-			&types.Transfer{},
-			&types.Transfer{},
+			types.NewTransfer(&types.TransferHeader{}),
+			types.NewTransfer(&types.TransferHeader{}),
+			types.NewTransfer(&types.TransferHeader{}),
 		},
 	}
 	testOddBlocks = types.BPBlock{
@@ -101,7 +101,7 @@ var (
 			},
 		},
 		Transactions: []interfaces.Transaction{
-			&types.Transfer{},
+			types.NewTransfer(&types.TransferHeader{}),
 		},
 	}
 	testID           = proto.DatabaseID("111")

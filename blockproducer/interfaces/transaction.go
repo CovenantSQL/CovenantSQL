@@ -46,8 +46,10 @@ func FromBytes(b []byte) TransactionType {
 }
 
 const (
+	// TransactionTypeDeprecated is a deprecated transaction type, do NOT use it.
+	TransactionTypeDeprecated TransactionType = iota
 	// TransactionTypeTransfer defines transfer transaction type.
-	TransactionTypeTransfer TransactionType = iota
+	TransactionTypeTransfer
 	// TransactionTypeCreateAccount defines account creation transaction type.
 	TransactionTypeCreateAccount
 	// TransactionTypeDeleteAccount defines account deletion transaction type.

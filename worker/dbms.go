@@ -213,9 +213,11 @@ func (dbms *DBMS) updateBilling(itx interfaces.Transaction, count uint32) {
 	})
 	if database, ok = dbms.getMeta(id); !ok {
 		le.Warn("cannot find database")
+		return
 	}
 	if profile, ok = dbms.busService.RequestSQLProfile(id); !ok {
 		le.Warn("cannot find profile")
+		return
 	}
 	database.chain.SetLastBillingHeight(int32(profile.LastUpdatedHeight))
 }

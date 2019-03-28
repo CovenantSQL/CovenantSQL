@@ -30,6 +30,7 @@ import (
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -195,6 +196,7 @@ func (p *LevelDBWal) load(logHeader []byte) (l *kt.Log, err error) {
 	l = new(kt.Log)
 
 	if err = utils.DecodeMsgPack(logHeader, &l.LogHeader); err != nil {
+		log.WithField("header", logHeader).WithError(err).Debug("decode log header failed")
 		err = errors.Wrap(err, "decode log header failed")
 		return
 	}

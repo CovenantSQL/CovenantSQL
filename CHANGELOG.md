@@ -1,5 +1,46 @@
 # Changelog
 
+## [v0.5.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.5.0) (2019-03-28)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.4.0...v0.5.0)
+
+**Closed issues:**
+
+- 生成的钱包地址无效 [\#282](https://github.com/CovenantSQL/CovenantSQL/issues/282)
+- I have developed an Excel add-in for this project [\#281](https://github.com/CovenantSQL/CovenantSQL/issues/281)
+- get stable coin balance failed [\#245](https://github.com/CovenantSQL/CovenantSQL/issues/245)
+- cql cannot parse covenantsql url with params [\#148](https://github.com/CovenantSQL/CovenantSQL/issues/148)
+- Error with fio test on cql-fuse [\#123](https://github.com/CovenantSQL/CovenantSQL/issues/123)
+- testnet.covenantsql.io上facebook发完有检测不到的情况 [\#107](https://github.com/CovenantSQL/CovenantSQL/issues/107)
+- Master key should not be input with env or args [\#106](https://github.com/CovenantSQL/CovenantSQL/issues/106)
+
+**Merged pull requests:**
+
+- Support version upgrade in update billing tx header [\#299](https://github.com/CovenantSQL/CovenantSQL/pull/299) ([xq262144](https://github.com/xq262144))
+- Promote beta branch [\#298](https://github.com/CovenantSQL/CovenantSQL/pull/298) ([leventeliu](https://github.com/leventeliu))
+- Revert a transaction type removal [\#297](https://github.com/CovenantSQL/CovenantSQL/pull/297) ([leventeliu](https://github.com/leventeliu))
+- Merge beta upstream [\#296](https://github.com/CovenantSQL/CovenantSQL/pull/296) ([leventeliu](https://github.com/leventeliu))
+- Reduce meta key length using byte version database id [\#294](https://github.com/CovenantSQL/CovenantSQL/pull/294) ([xq262144](https://github.com/xq262144))
+- Move all cql-utils functions to cql command [\#291](https://github.com/CovenantSQL/CovenantSQL/pull/291) ([laodouya](https://github.com/laodouya))
+- Simplify cql config and use IPv6 for bootstrap [\#290](https://github.com/CovenantSQL/CovenantSQL/pull/290) ([auxten](https://github.com/auxten))
+- Use a global leveldb instance for multiple chains [\#289](https://github.com/CovenantSQL/CovenantSQL/pull/289) ([leventeliu](https://github.com/leventeliu))
+- Support read-only local mirror [\#288](https://github.com/CovenantSQL/CovenantSQL/pull/288) ([xq262144](https://github.com/xq262144))
+- Use sqlite for dht key store [\#287](https://github.com/CovenantSQL/CovenantSQL/pull/287) ([xq262144](https://github.com/xq262144))
+- Refactor faucet for new testnet logic [\#286](https://github.com/CovenantSQL/CovenantSQL/pull/286) ([xq262144](https://github.com/xq262144))
+-  Refactor benchmark codes and scripts [\#285](https://github.com/CovenantSQL/CovenantSQL/pull/285) ([leventeliu](https://github.com/leventeliu))
+- Refactor cql command [\#284](https://github.com/CovenantSQL/CovenantSQL/pull/284) ([laodouya](https://github.com/laodouya))
+- Support content-type header in cors [\#280](https://github.com/CovenantSQL/CovenantSQL/pull/280) ([xq262144](https://github.com/xq262144))
+- Add end to end decrypt encrypt func [\#279](https://github.com/CovenantSQL/CovenantSQL/pull/279) ([auxten](https://github.com/auxten))
+- Trim release pkg [\#278](https://github.com/CovenantSQL/CovenantSQL/pull/278) ([auxten](https://github.com/auxten))
+- Use host default name server in docker [\#276](https://github.com/CovenantSQL/CovenantSQL/pull/276) ([auxten](https://github.com/auxten))
+- Skip empty block producing and add read queries [\#275](https://github.com/CovenantSQL/CovenantSQL/pull/275) ([leventeliu](https://github.com/leventeliu))
+- Update beta branch [\#274](https://github.com/CovenantSQL/CovenantSQL/pull/274) ([leventeliu](https://github.com/leventeliu))
+- Combine cql-adapter command into cql command. [\#273](https://github.com/CovenantSQL/CovenantSQL/pull/273) ([laodouya](https://github.com/laodouya))
+- Add http log level switcher for debug purpose [\#272](https://github.com/CovenantSQL/CovenantSQL/pull/272) ([xq262144](https://github.com/xq262144))
+- Fix isolation level auto rollback bug [\#271](https://github.com/CovenantSQL/CovenantSQL/pull/271) ([xq262144](https://github.com/xq262144))
+- Fix transaction directives, add commit to query sanitizer ignore list [\#270](https://github.com/CovenantSQL/CovenantSQL/pull/270) ([xq262144](https://github.com/xq262144))
+- Add previous version compatibility test [\#269](https://github.com/CovenantSQL/CovenantSQL/pull/269) ([laodouya](https://github.com/laodouya))
+
 ## [v0.4.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.4.0) (2019-02-25)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.3.0...v0.4.0)

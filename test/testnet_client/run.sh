@@ -29,9 +29,13 @@ ${BIN}/cql create -wait-tx-confirm -no-password '{"node":2}' | tee dsn.txt
 
 #get dsn
 dsn=$(cat dsn.txt)
+if [ -z "$dsn" ]; then
+    exit 1
+fi
 
-${BIN}/cql console -dsn ${dsn} -no-password \
-    -command 'create table test_for_new_account(column1 int);'
+${BIN}/cql console -no-password \
+    -command 'create table test_for_new_account(column1 int);' \
+    -dsn ${dsn}
 
 ${BIN}/cql console -dsn ${dsn} -no-password \
     -command 'show tables;' | tee result.log

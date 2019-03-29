@@ -51,14 +51,14 @@ do
     # Bench GNTE
     cd ${PROJECT_DIR}/cmd/cql-minerd/
     if ! bash -x ./benchGNTE.sh $param; then
-        docker logs miner10.250.100.2 2> miner10.250.100.2.log
-        docker logs miner10.250.100.3 2> miner10.250.100.3.log
-        docker logs miner10.250.100.4 2> miner10.250.100.4.log
-        docker logs miner10.250.100.5 2> miner10.250.100.5.log
-        docker logs miner10.250.100.6 2> miner10.250.100.6.log
-        docker logs miner10.250.100.7 2> miner10.250.100.7.log
-        docker logs miner10.250.100.8 2> miner10.250.100.8.log
-        docker logs miner10.250.100.9 2> miner10.250.100.9.log
+        docker logs miner10.250.100.2 2> $WORKSPACE/miner10.250.100.2.txt
+        docker logs miner10.250.100.3 2> $WORKSPACE/miner10.250.100.3.txt
+        docker logs miner10.250.100.4 2> $WORKSPACE/miner10.250.100.4.txt
+        docker logs miner10.250.100.5 2> $WORKSPACE/miner10.250.100.5.txt
+        docker logs miner10.250.100.6 2> $WORKSPACE/miner10.250.100.6.txt
+        docker logs miner10.250.100.7 2> $WORKSPACE/miner10.250.100.7.txt
+        docker logs miner10.250.100.8 2> $WORKSPACE/miner10.250.100.8.txt
+        docker logs miner10.250.100.9 2> $WORKSPACE/miner10.250.100.9.txt
         exit 1
     fi
     echo "${gnte_yaml}" >> ${tmp_file}

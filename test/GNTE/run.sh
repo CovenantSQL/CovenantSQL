@@ -1,4 +1,5 @@
 #!/bin/bash -x
+set -euo pipefail
 
 param=$1
 if [ "fast" == "$param" ]; then

@@ -50,14 +50,15 @@ do
 
     # Bench GNTE
     cd ${PROJECT_DIR}/cmd/cql-minerd/
-    ret=$(bash -x ./benchGNTE.sh $param)
-    if [ $ret -gt 0 ]; then
-        docker logs covenantsql_bp_0 2> ~/covenantsql_bp_0.log
-        docker logs covenantsql_bp_1 2> ~/covenantsql_bp_1.log
-        docker logs covenantsql_bp_2 2> ~/covenantsql_bp_2.log
-        docker logs covenantsql_miner_0 2> ~/covenantsql_miner_0.log
-        docker logs covenantsql_miner_1 2> ~/covenantsql_miner_1.log
-        docker logs covenantsql_miner_2 2> ~/covenantsql_miner_2.log
+    if ! bash -x ./benchGNTE.sh $param; then
+        docker logs miner10.250.100.2 2> miner10.250.100.2.log
+        docker logs miner10.250.100.3 2> miner10.250.100.3.log
+        docker logs miner10.250.100.4 2> miner10.250.100.4.log
+        docker logs miner10.250.100.5 2> miner10.250.100.5.log
+        docker logs miner10.250.100.6 2> miner10.250.100.6.log
+        docker logs miner10.250.100.7 2> miner10.250.100.7.log
+        docker logs miner10.250.100.8 2> miner10.250.100.8.log
+        docker logs miner10.250.100.9 2> miner10.250.100.9.log
         exit 1
     fi
     echo "${gnte_yaml}" >> ${tmp_file}

@@ -646,7 +646,17 @@ func (c *Chain) syncCurrentHead(ctx context.Context, requiredReachable uint32) (
 		serversNum  = c.getLocalBPInfo().total
 	)
 
-	if ok = unreachable+requiredReachable <= serversNum; !ok {
+	switch c.mode {
+	case BPMode:
+		ok = unreachable+requiredReachable <= serversNum
+	case APINodeMode:
+		ok = unreachable < serversNum
+	default:
+		ok = false
+		log.Fatalf("unknown run mode: %v", c.mode)
+	}
+
+	if ok {
 		log.WithFields(log.Fields{
 			"peer":              c.getLocalBPInfo(),
 			"sync_head_height":  currentHeight,

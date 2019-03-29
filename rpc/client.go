@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -32,21 +31,12 @@ type Client struct {
 	Conn       net.Conn
 }
 
-var (
-	// DefaultNodeDialer holds the default dialer of SessionPool
-	DefaultNodeDialer func(nodeID proto.NodeID) (conn net.Conn, err error)
-)
-
-func init() {
-	DefaultNodeDialer = DialETLS
-}
-
 // NewClient returns a RPC client.
 func NewClient() *Client {
 	return &Client{}
 }
 
-func NewRPCClient(conn net.Conn) (client *Client) {
+func NewClientWithConn(conn net.Conn) (client *Client) {
 	return &Client{
 		Conn:       conn,
 		Client:     rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(conn)),
@@ -57,5 +47,6 @@ func NewRPCClient(conn net.Conn) (client *Client) {
 // Close the client RPC connection.
 func (c *Client) Close() {
 	//log.WithField("addr", c.RemoteAddr).Debug("closing client")
+	_ = c.Conn.Close()
 	_ = c.Client.Close()
 }

@@ -33,6 +33,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -163,14 +164,11 @@ func TestStartBP_CallRPC(t *testing.T) {
 
 	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
-	var RPCClient *rpc.Client
 
-	if conn, err = rpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
+	if conn, err = rrpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		t.Fatal(err)
 	}
-	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
-		t.Fatal(err)
-	}
+	RPCClient := rrpc.NewClientWithConn(conn)
 
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -294,14 +292,11 @@ func BenchmarkKVServer_GetAllNodeInfo(b *testing.B) {
 
 	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
-	var RPCClient *rpc.Client
 
-	if conn, err = rpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
+	if conn, err = rrpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		return
 	}
-	if RPCClient, err = rpc.InitClientConn(conn); err != nil {
-		return
-	}
+	RPCClient := rrpc.NewClientWithConn(conn)
 
 	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()

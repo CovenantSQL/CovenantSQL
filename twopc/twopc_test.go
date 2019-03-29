@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -239,12 +239,7 @@ func (r *RaftNode) Prepare(ctx context.Context, wb WriteBatch) (err error) {
 		return err
 	}
 
-	client, err := rpc.InitClientConn(conn)
-
-	if err != nil {
-		return err
-	}
-
+	client := rpc.NewClientWithConn(conn)
 	d, ok := ctx.Deadline()
 
 	if ok {
@@ -287,12 +282,7 @@ func (r *RaftNode) Commit(ctx context.Context, wb WriteBatch) (result interface{
 		return
 	}
 
-	client, err := rpc.InitClientConn(conn)
-
-	if err != nil {
-		return
-	}
-
+	client := rpc.NewClientWithConn(conn)
 	d, ok := ctx.Deadline()
 
 	if ok {
@@ -336,12 +326,7 @@ func (r *RaftNode) Rollback(ctx context.Context, wb WriteBatch) (err error) {
 		return err
 	}
 
-	client, err := rpc.InitClientConn(conn)
-
-	if err != nil {
-		return err
-	}
-
+	client := rpc.NewClientWithConn(conn)
 	d, ok := ctx.Deadline()
 
 	if ok {

@@ -24,27 +24,34 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
+type ServeStream func(ctx context.Context, server *rpc.Server, conn net.Conn, remote proto.RawNodeID)
+
 // Server is the RPC server struct.
 type Server struct {
-	rpcServer  *rpc.Server
-	stopCh     chan interface{}
-	serviceMap ServiceMap
-	Listener   net.Listener
+	ctx         context.Context
+	cancel      context.CancelFunc
+	rpcServer   *rpc.Server
+	serviceMap  ServiceMap
+	serveStream ServeStream
+	Listener    net.Listener
 }
 
 // NewServer return a new Server.
-func NewServer() *Server {
+func NewServer(f ServeStream) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		rpcServer:  rpc.NewServer(),
-		stopCh:     make(chan interface{}),
-		serviceMap: make(ServiceMap),
+		ctx:         ctx,
+		cancel:      cancel,
+		rpcServer:   rpc.NewServer(),
+		serviceMap:  make(ServiceMap),
+		serveStream: f,
 	}
 }
 
@@ -77,7 +84,7 @@ func (s *Server) InitRPCServer(
 
 // NewServerWithService also return a new Server, and also register the Server.ServiceMap.
 func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
-	server = NewServer()
+	server = NewServer(ServeDirect)
 	for k, v := range serviceMap {
 		err = server.RegisterService(k, v)
 		if err != nil {
@@ -98,7 +105,7 @@ func (s *Server) Serve() {
 serverLoop:
 	for {
 		select {
-		case <-s.stopCh:
+		case <-s.ctx.Done():
 			log.Info("stopping Server Loop")
 			break serverLoop
 		default:
@@ -107,28 +114,26 @@ serverLoop:
 				continue
 			}
 			log.WithField("remote", conn.RemoteAddr().String()).Info("accept")
-			go s.handleConn(conn)
+			go s.serveConn(conn)
 		}
 	}
 }
 
-// handleConn do all the work.
-func (s *Server) handleConn(conn net.Conn) {
-	etlsconn := NewServerConn(conn)
-	defer etlsconn.Close() // take ownership of conn
-
-	// TODO(leventeliu): consider to do handshake in the first Read/Write like tls.
-	var err error
-	if err = etlsconn.Handshake(); err != nil {
+// serveConn do all the work.
+func (s *Server) serveConn(conn net.Conn) {
+	etlsconn, err := Accept(conn)
+	if err != nil {
 		return
 	}
+	defer etlsconn.Close()
 
-	// Serve
-	var remoteNodeID = etlsconn.RemoteNodeID()
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(conn), &remoteNodeID)
-	s.rpcServer.ServeCodec(nodeAwareCodec)
+	remote := etlsconn.RemoteNodeID()
+	log.WithFields(log.Fields{
+		"remote_addr": etlsconn.RemoteAddr(),
+		"remote_node": remote,
+	}).Debug("handshake success")
+
+	s.serveStream(s.ctx, s.rpcServer, etlsconn, remote)
 }
 
 // RegisterService with a Service name, used by Client RPC.
@@ -141,5 +146,5 @@ func (s *Server) Stop() {
 	if s.Listener != nil {
 		s.Listener.Close()
 	}
-	close(s.stopCh)
+	s.cancel()
 }

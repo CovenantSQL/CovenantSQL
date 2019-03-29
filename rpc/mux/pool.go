@@ -31,25 +31,26 @@ import (
 // Session is the Session type of SessionPool.
 type Session struct {
 	sync.RWMutex
-	nodeDialer rrpc.NodeDialer
-	target     proto.NodeID
-	sess       []*mux.Session
-	offset     int
+	target proto.NodeID
+	sess   []*mux.Session
+	offset int
 }
 
 // SessionPool is the struct type of session pool.
 type SessionPool struct {
 	sync.RWMutex
-	sessions   map[proto.NodeID]*Session
-	nodeDialer rrpc.NodeDialer
+	sessions map[proto.NodeID]*Session
 }
 
 var (
-	defaultPool *SessionPool
+	DefaultPool = &SessionPool{
+		sessions: make(map[proto.NodeID]*Session),
+	}
 )
 
-func init() {
-	defaultPool = newSessionPool(rrpc.DefaultNodeDialer)
+// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
+func GetSessionPoolInstance() *SessionPool {
+	return DefaultPool
 }
 
 // Close closes the session.
@@ -111,28 +112,17 @@ func (s *Session) Len() int {
 	return len(s.sess)
 }
 
-func (s *Session) newSession() (sess *mux.Session, err error) {
+func newSession(id proto.NodeID, isAnonymous bool) (sess *mux.Session, err error) {
 	var conn net.Conn
-	conn, err = s.nodeDialer(s.target)
-	if err != nil {
+	if conn, err = rrpc.DialEx(id, isAnonymous); err != nil {
 		err = errors.Wrap(err, "dialing new session connection failed")
 		return
 	}
-
-	return mux.Client(conn, MuxConfig)
+	return mux.Client(conn, mux.DefaultConfig())
 }
 
-// newSessionPool creates a new SessionPool.
-func newSessionPool(nd rrpc.NodeDialer) *SessionPool {
-	return &SessionPool{
-		sessions:   make(map[proto.NodeID]*Session),
-		nodeDialer: nd,
-	}
-}
-
-// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
-func GetSessionPoolInstance() *SessionPool {
-	return defaultPool
+func (s *Session) newSession() (sess *mux.Session, err error) {
+	return newSession(s.target, false)
 }
 
 func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
@@ -146,8 +136,7 @@ func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
 	} else {
 		// new session
 		sess = &Session{
-			nodeDialer: p.nodeDialer,
-			target:     id,
+			target: id,
 		}
 		p.sessions[id] = sess
 	}
@@ -159,6 +148,39 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	var sess *Session
 	sess, _ = p.getSession(id)
 	return sess.Get()
+}
+
+type anonymousMuxConn struct {
+	*mux.Stream
+	sess *mux.Session
+}
+
+func (c *anonymousMuxConn) Close() error {
+	if err := c.Stream.Close(); err != nil {
+		return err
+	}
+	return c.sess.Close()
+}
+
+func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+	if isAnonymous {
+		var (
+			sess   *mux.Session
+			stream *mux.Stream
+		)
+		if sess, err = newSession(id, true); err != nil {
+			return
+		}
+		if stream, err = sess.OpenStream(); err != nil {
+			err = errors.Wrapf(err, "open new session to %s failed", id)
+			return
+		}
+		return &anonymousMuxConn{
+			sess:   sess,
+			Stream: stream,
+		}, nil
+	}
+	return p.Get(id)
 }
 
 // Remove the node sessions in the pool.

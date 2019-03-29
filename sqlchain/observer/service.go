@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -98,7 +99,7 @@ type Service struct {
 	upstreamServers sync.Map // map[proto.DatabaseID]*types.ServiceInstance
 
 	db      *bolt.DB
-	caller  *rpc.Caller
+	caller  *rrpc.Caller
 	stopped int32
 }
 
@@ -146,7 +147,7 @@ func NewService() (service *Service, err error) {
 	// init service
 	service = &Service{
 		db:     db,
-		caller: rpc.NewCaller(),
+		caller: rrpc.NewCaller(rpc.GetSessionPoolInstance()),
 	}
 
 	// load previous subscriptions

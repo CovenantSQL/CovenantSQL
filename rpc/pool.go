@@ -26,9 +26,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// NodeDialer is the dialer handler.
-type NodeDialer func(nodeID proto.NodeID) (net.Conn, error)
-
 type PoolConn struct {
 	net.Conn
 	session *Session
@@ -41,9 +38,8 @@ func (c *PoolConn) Close() error {
 // Session is the Session type of SessionPool.
 type Session struct {
 	sync.RWMutex
-	nodeDialer NodeDialer
-	target     proto.NodeID
-	sess       chan net.Conn
+	target proto.NodeID
+	sess   chan net.Conn
 }
 
 // Close closes the session.
@@ -78,7 +74,7 @@ func (s *Session) Len() int {
 }
 
 func (s *Session) newConn() (conn net.Conn, err error) {
-	conn, err = s.nodeDialer(s.target)
+	conn, err = Dial(s.target)
 	if err != nil {
 		err = errors.Wrap(err, "dialing new session connection failed")
 		return
@@ -98,19 +94,10 @@ func (s *Session) put(conn net.Conn) (err error) {
 	return nil
 }
 
-// newSessionPool creates a new SessionPool.
-func newSessionPool(nd NodeDialer) *SessionPool {
-	return &SessionPool{
-		sessions:   make(map[proto.NodeID]*Session),
-		nodeDialer: nd,
-	}
-}
-
 // SessionPool is the struct type of session pool.
 type SessionPool struct {
 	sync.RWMutex
-	sessions   map[proto.NodeID]*Session
-	nodeDialer NodeDialer
+	sessions map[proto.NodeID]*Session
 }
 
 func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
@@ -124,9 +111,8 @@ func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
 	} else {
 		// new session
 		sess = &Session{
-			nodeDialer: p.nodeDialer,
-			target:     id,
-			sess:       make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
+			target: id,
+			sess:   make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
 		}
 		p.sessions[id] = sess
 	}
@@ -174,9 +160,7 @@ func (p *SessionPool) Len() (total int) {
 }
 
 var (
-	defaultPool *SessionPool
+	defaultPool = &SessionPool{
+		sessions: make(map[proto.NodeID]*Session),
+	}
 )
-
-func init() {
-	defaultPool = newSessionPool(DefaultNodeDialer)
-}

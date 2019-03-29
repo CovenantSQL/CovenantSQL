@@ -34,6 +34,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -233,7 +234,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	}
 
 	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
+	if server, err = rpc.NewServerWithService(rrpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
 		return
 	}
 

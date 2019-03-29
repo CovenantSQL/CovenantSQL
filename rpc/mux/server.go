@@ -17,71 +17,24 @@
 package mux
 
 import (
-	"context"
-	"io"
-	"net"
-	"net/rpc"
-
-	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// ServiceMap maps service name to service instance.
-type ServiceMap map[string]interface{}
-
 // Server is the RPC server struct.
 type Server struct {
-	rawConn    bool // use raw connection instead of etls if set
-	rpcServer  *rpc.Server
-	stopCh     chan interface{}
-	serviceMap ServiceMap
-	Listener   net.Listener
+	*rrpc.Server
 }
 
 // NewServer return a new Server.
 func NewServer() *Server {
 	return &Server{
-		rpcServer:  rpc.NewServer(),
-		stopCh:     make(chan interface{}),
-		serviceMap: make(ServiceMap),
+		Server: rrpc.NewServer(ServeMux),
 	}
 }
 
-// InitRPCServer load the private key, init the crypto transfer layer and register RPC
-// services.
-// IF ANY ERROR returned, please raise a FATAL.
-func (s *Server) InitRPCServer(
-	addr string,
-	privateKeyPath string,
-	masterKey []byte,
-) (err error) {
-	//route.InitResolver()
-
-	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
-	if err != nil {
-		err = errors.Wrap(err, "init local key pair failed")
-		return
-	}
-
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		err = errors.Wrap(err, "create crypto listener failed")
-		return
-	}
-
-	s.SetListener(l)
-
-	return
-}
-
-// NewServerWithService also return a new Server, and also register the Server.ServiceMap.
-func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
-	server = NewServer()
+func NewServerWithService(serviceMap rrpc.ServiceMap) (sv *Server, err error) {
+	server := rrpc.NewServer(ServeMux)
 	for k, v := range serviceMap {
 		err = server.RegisterService(k, v)
 		if err != nil {
@@ -89,94 +42,7 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 			return nil, err
 		}
 	}
-	return server, nil
-}
-
-// SetListener set the service loop listener, used by func Serve main loop.
-func (s *Server) SetListener(l net.Listener) {
-	s.Listener = l
-}
-
-// Serve start the Server main loop,.
-func (s *Server) Serve() {
-serverLoop:
-	for {
-		select {
-		case <-s.stopCh:
-			log.Info("stopping Server Loop")
-			break serverLoop
-		default:
-			log.Infof("server: %v, listener: %v", s, s.Listener)
-			conn, err := s.Listener.Accept()
-			if err != nil {
-				continue
-			}
-			log.WithField("remote", conn.RemoteAddr().String()).Info("accept")
-			go s.handleConn(conn)
-		}
-	}
-}
-
-// handleConn do all the work.
-func (s *Server) handleConn(conn net.Conn) {
-	etlsconn := rrpc.NewServerConn(conn)
-	defer etlsconn.Close() // take ownership of conn
-
-	// TODO(leventeliu): consider to do handshake in the first Read/Write like tls.
-	var err error
-	if err = etlsconn.Handshake(); err != nil {
-		return
-	}
-	var remoteNodeID = etlsconn.RemoteNodeID()
-	log.WithFields(log.Fields{
-		"remote_addr": etlsconn.RemoteAddr(),
-		"remote_node": remoteNodeID,
-	}).Debug("handshake success")
-
-	// create session
-	sess, err := mux.Server(etlsconn, MuxConfig)
-	if err != nil {
-		err = errors.Wrap(err, "create mux server failed")
-		return
-	}
-	defer sess.Close()
-
-sessionLoop:
-	for {
-		select {
-		case <-s.stopCh:
-			log.Info("stopping Session Loop")
-			break sessionLoop
-		default:
-			muxConn, err := sess.AcceptStream()
-			if err != nil {
-				if err == io.EOF {
-					//log.WithField("remote", remoteNodeID).Debug("session connection closed")
-				} else {
-					err = errors.Wrapf(err, "session accept failed, remote: %s", remoteNodeID)
-				}
-				break sessionLoop
-			}
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			go func() {
-				<-muxConn.GetDieCh()
-				cancelFunc()
-			}()
-			nodeAwareCodec := rrpc.NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), &remoteNodeID)
-			go s.rpcServer.ServeCodec(nodeAwareCodec)
-		}
-	}
-}
-
-// RegisterService with a Service name, used by Client RPC.
-func (s *Server) RegisterService(name string, service interface{}) error {
-	return s.rpcServer.RegisterName(name, service)
-}
-
-// Stop Server main loop.
-func (s *Server) Stop() {
-	if s.Listener != nil {
-		s.Listener.Close()
-	}
-	close(s.stopCh)
+	return &Server{
+		Server: server,
+	}, nil
 }

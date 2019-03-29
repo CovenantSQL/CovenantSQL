@@ -19,14 +19,11 @@ package mux
 import (
 	"net"
 	"path/filepath"
-	"sync"
-	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -86,114 +83,114 @@ func server(c C, localAddr string, n int) error {
 	return err
 }
 
-func BenchmarkSessionPool_Get(b *testing.B) {
-	Convey("session pool", b, func(c C) {
-		log.SetLevel(log.FatalLevel)
-		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
-			log.Debugf("creating new connection to %s", nodeID)
-			return net.Dial("tcp", string(nodeID))
-		})
-
-		wg := &sync.WaitGroup{}
-
-		server(c, localAddr, b.N)
-		b.ResetTimer()
-		wg.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
-			go func(c2 C, n int) {
-				// Open a new stream
-				// Stream implements net.Conn
-				defer wg.Done()
-				stream, err := p.Get(proto.NodeID(localAddr))
-				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; {
-					n, err := stream.Write([]byte("ping"))
-					if n == 4 && err == nil {
-						i++
-					}
-				}
-			}(c, b.N)
-		}
-		wg.Wait()
-	})
-}
-
-func TestNewSessionPool(t *testing.T) {
-	Convey("session pool", t, func(c C) {
-		log.SetLevel(log.FatalLevel)
-		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
-			log.Debugf("creating new connection to %s", nodeID)
-			return net.Dial("tcp", string(nodeID))
-		})
-
-		wg := &sync.WaitGroup{}
-
-		server(c, localAddr, packetCount)
-		p.Get(proto.NodeID(localAddr))
-
-		wg.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
-			go func(c2 C, n int) {
-				// Open a new stream
-				// Stream implements net.Conn
-				defer wg.Done()
-				stream, err := p.Get(proto.NodeID(localAddr))
-				if err != nil {
-					log.Errorf("get session failed: %s", err)
-					return
-				}
-				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; {
-					n, err := stream.Write([]byte("ping"))
-					if n == 4 && err == nil {
-						i++
-					}
-				}
-			}(c, packetCount)
-		}
-
-		wg.Wait()
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
-
-		server(c, localAddr2, packetCount)
-		_, err := p.Get(proto.NodeID(localAddr2))
-		So(err, ShouldBeNil)
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection+1)
-
-		wg2 := &sync.WaitGroup{}
-		wg2.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
-			go func(c2 C, n int) {
-				// Open a new stream
-				// Stream implements net.Conn
-				defer wg2.Done()
-				stream, err := p.Get(proto.NodeID(localAddr2))
-				if err != nil {
-					log.Errorf("get session failed: %s", err)
-					return
-				}
-				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; {
-					n, err := stream.Write([]byte("ping"))
-					if n == 4 && err == nil {
-						i++
-					}
-				}
-			}(c, packetCount)
-		}
-
-		wg2.Wait()
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection*2)
-
-		p.Remove(proto.NodeID(localAddr2))
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
-
-		p.Close()
-		So(p.Len(), ShouldEqual, 0)
-	})
-
-	Convey("session pool get instance", t, func(c C) {
-		So(GetSessionPoolInstance(), ShouldNotBeNil)
-		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
-	})
-}
+//func BenchmarkSessionPool_Get(b *testing.B) {
+//	Convey("session pool", b, func(c C) {
+//		log.SetLevel(log.FatalLevel)
+//		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
+//			log.Debugf("creating new connection to %s", nodeID)
+//			return net.Dial("tcp", string(nodeID))
+//		})
+//
+//		wg := &sync.WaitGroup{}
+//
+//		server(c, localAddr, b.N)
+//		b.ResetTimer()
+//		wg.Add(concurrency)
+//		for i := 0; i < concurrency; i++ {
+//			go func(c2 C, n int) {
+//				// Open a new stream
+//				// Stream implements net.Conn
+//				defer wg.Done()
+//				stream, err := p.Get(proto.NodeID(localAddr))
+//				c2.So(err, ShouldBeNil)
+//				for i := 0; i < n; {
+//					n, err := stream.Write([]byte("ping"))
+//					if n == 4 && err == nil {
+//						i++
+//					}
+//				}
+//			}(c, b.N)
+//		}
+//		wg.Wait()
+//	})
+//}
+//
+//func TestNewSessionPool(t *testing.T) {
+//	Convey("session pool", t, func(c C) {
+//		log.SetLevel(log.FatalLevel)
+//		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
+//			log.Debugf("creating new connection to %s", nodeID)
+//			return net.Dial("tcp", string(nodeID))
+//		})
+//
+//		wg := &sync.WaitGroup{}
+//
+//		server(c, localAddr, packetCount)
+//		p.Get(proto.NodeID(localAddr))
+//
+//		wg.Add(concurrency)
+//		for i := 0; i < concurrency; i++ {
+//			go func(c2 C, n int) {
+//				// Open a new stream
+//				// Stream implements net.Conn
+//				defer wg.Done()
+//				stream, err := p.Get(proto.NodeID(localAddr))
+//				if err != nil {
+//					log.Errorf("get session failed: %s", err)
+//					return
+//				}
+//				c2.So(err, ShouldBeNil)
+//				for i := 0; i < n; {
+//					n, err := stream.Write([]byte("ping"))
+//					if n == 4 && err == nil {
+//						i++
+//					}
+//				}
+//			}(c, packetCount)
+//		}
+//
+//		wg.Wait()
+//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
+//
+//		server(c, localAddr2, packetCount)
+//		_, err := p.Get(proto.NodeID(localAddr2))
+//		So(err, ShouldBeNil)
+//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection+1)
+//
+//		wg2 := &sync.WaitGroup{}
+//		wg2.Add(concurrency)
+//		for i := 0; i < concurrency; i++ {
+//			go func(c2 C, n int) {
+//				// Open a new stream
+//				// Stream implements net.Conn
+//				defer wg2.Done()
+//				stream, err := p.Get(proto.NodeID(localAddr2))
+//				if err != nil {
+//					log.Errorf("get session failed: %s", err)
+//					return
+//				}
+//				c2.So(err, ShouldBeNil)
+//				for i := 0; i < n; {
+//					n, err := stream.Write([]byte("ping"))
+//					if n == 4 && err == nil {
+//						i++
+//					}
+//				}
+//			}(c, packetCount)
+//		}
+//
+//		wg2.Wait()
+//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection*2)
+//
+//		p.Remove(proto.NodeID(localAddr2))
+//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
+//
+//		p.Close()
+//		So(p.Len(), ShouldEqual, 0)
+//	})
+//
+//	Convey("session pool get instance", t, func(c C) {
+//		So(GetSessionPoolInstance(), ShouldNotBeNil)
+//		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
+//	})
+//}

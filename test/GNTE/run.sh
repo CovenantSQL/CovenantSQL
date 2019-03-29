@@ -1,5 +1,5 @@
 #!/bin/bash -x
-set -euo pipefail
+set -eo pipefail
 
 param=$1
 if [ "fast" == "$param" ]; then
@@ -50,7 +50,16 @@ do
 
     # Bench GNTE
     cd ${PROJECT_DIR}/cmd/cql-minerd/
-    bash -x ./benchGNTE.sh $param
+    ret=$(bash -x ./benchGNTE.sh $param)
+    if [ $ret -gt 0 ]; then
+        docker logs covenantsql_bp_0 2> ~/covenantsql_bp_0.log
+        docker logs covenantsql_bp_1 2> ~/covenantsql_bp_1.log
+        docker logs covenantsql_bp_2 2> ~/covenantsql_bp_2.log
+        docker logs covenantsql_miner_0 2> ~/covenantsql_miner_0.log
+        docker logs covenantsql_miner_1 2> ~/covenantsql_miner_1.log
+        docker logs covenantsql_miner_2 2> ~/covenantsql_miner_2.log
+        exit 1
+    fi
     echo "${gnte_yaml}" >> ${tmp_file}
     grep BenchmarkMinerGNTE gnte.log >> ${tmp_file}
     echo "" >> ${tmp_file}

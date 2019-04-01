@@ -58,9 +58,9 @@ do
         exit 1
     else
         for ip in "${ips[@]}"; do
-            go tool pprof -png -inuse_objects http://10.250.100.${ips}:11112/debug/pprof/heap \
+            go tool pprof -png -inuse_objects http://10.250.100.${ips}:6060/debug/pprof/heap \
                 > ${WORKSPACE}/${gnte_yaml}_minor_${ips}_objectinuse.png
-            go tool pprof -png http://10.250.100.${ips}:11112/debug/pprof/heap \
+            go tool pprof -png http://10.250.100.${ips}:6060/debug/pprof/heap \
                 > ${WORKSPACE}/${gnte_yaml}_minor_${ips}_heapinuse.png
         done
     fi

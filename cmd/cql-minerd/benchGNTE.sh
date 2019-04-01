@@ -30,9 +30,9 @@ full() {
         done
         ips=(2 3 4 5 6 7 8 9)
         cur_sec=`date '+%s'`
-        go tool pprof -png -inuse_objects http://10.250.100.${ips}:11112/debug/pprof/heap \
+        go tool pprof -png -inuse_objects http://10.250.100.${ips}:6060/debug/pprof/heap \
                 > ${WORKSPACE}/${cur_sec}_minor_${ips}_objectinuse.png
-        go tool pprof -png http://10.250.100.${ips}:11112/debug/pprof/heap \
+        go tool pprof -png http://10.250.100.${ips}:6060/debug/pprof/heap \
                 > ${WORKSPACE}/${cur_sec}_minor_${ips}_heapinuse.png
     done
 }

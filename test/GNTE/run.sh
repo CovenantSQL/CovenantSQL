@@ -50,16 +50,19 @@ do
 
     # Bench GNTE
     cd ${PROJECT_DIR}/cmd/cql-minerd/
+    ips=(2 3 4 5 6 7 8 9)
     if ! bash -x ./benchGNTE.sh $param; then
-        docker logs miner10.250.100.2 2> $WORKSPACE/miner10.250.100.2.txt
-        docker logs miner10.250.100.3 2> $WORKSPACE/miner10.250.100.3.txt
-        docker logs miner10.250.100.4 2> $WORKSPACE/miner10.250.100.4.txt
-        docker logs miner10.250.100.5 2> $WORKSPACE/miner10.250.100.5.txt
-        docker logs miner10.250.100.6 2> $WORKSPACE/miner10.250.100.6.txt
-        docker logs miner10.250.100.7 2> $WORKSPACE/miner10.250.100.7.txt
-        docker logs miner10.250.100.8 2> $WORKSPACE/miner10.250.100.8.txt
-        docker logs miner10.250.100.9 2> $WORKSPACE/miner10.250.100.9.txt
+        for ip in "${ips[@]}"; do
+            docker logs miner10.250.100.${ips} 2> $WORKSPACE/miner10.250.100.${ips}.txt
+        done
         exit 1
+    else
+        for ip in "${ips[@]}"; do
+            go tool pprof -png -inuse_objects http://10.250.100.${ips}:11112/debug/pprof/heap \
+                > ${WORKSPACE}/${gnte_yaml}_minor_${ips}_objectinuse.png
+            go tool pprof -png http://10.250.100.${ips}:11112/debug/pprof/heap \
+                > ${WORKSPACE}/${gnte_yaml}_minor_${ips}_heapinuse.png
+        done
     fi
     echo "${gnte_yaml}" >> ${tmp_file}
     grep BenchmarkMinerGNTE gnte.log >> ${tmp_file}

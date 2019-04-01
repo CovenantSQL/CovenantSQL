@@ -17,9 +17,13 @@
 package utils
 
 import (
+	"net/http"
 	"os"
 	"runtime"
 	"runtime/pprof"
+
+	// for mem pprof test.
+	_ "net/http/pprof"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -43,6 +47,9 @@ func StartProfile(cpuprofile, memprofile string) error {
 	}
 
 	if memprofile != "" {
+		go func() {
+			http.ListenAndServe("0.0.0.0:6060", nil)
+		}()
 		f, err := os.Create(memprofile)
 		if err != nil {
 			log.WithField("file", memprofile).WithError(err).Error("failed to create memory profile file")

@@ -39,7 +39,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 		t.Errorf("load config from %s failed: %s", FJ(testWorkingDir, "./leak/client.yaml"), err)
 	}
 	log.Debugf("GConf: %##v", conf.GConf)
-	_ = os.Remove(conf.GConf.PubKeyStoreFile)
+	utils.RemoveAll(conf.GConf.PubKeyStoreFile + "*")
 	_ = os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db"))
 	_ = os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-shm"))
 	_ = os.Remove(FJ(testWorkingDir, "./leak/leader/dht.db-wal"))

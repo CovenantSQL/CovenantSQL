@@ -164,7 +164,7 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	tb, err := generateRandomBilling()
+	tb, err := generateRandomTransfer()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

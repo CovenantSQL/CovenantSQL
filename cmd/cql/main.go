@@ -32,21 +32,24 @@ var (
 
 func init() {
 	internal.CqlCommands = []*internal.Command{
+		internal.CmdGenerate,
 		internal.CmdConsole,
 		internal.CmdCreate,
 		internal.CmdDrop,
-		internal.CmdBalance,
+		internal.CmdWallet,
 		internal.CmdTransfer,
 		internal.CmdGrant,
+		internal.CmdMirror,
 		internal.CmdExplorer,
 		internal.CmdAdapter,
+		internal.CmdIDMiner,
+		internal.CmdRPC,
 		internal.CmdVersion,
 		internal.CmdHelp,
 	}
 }
 
 func main() {
-
 	internal.Version = version
 
 	// set random

@@ -11,16 +11,42 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 ## 生成默认配置文件
 
-首先需要一个 config 文件和由你输入的主密码（master key）来初始化，其中主密码用来加密解密本地密钥对。使用 `cql-utils` 工具进行配置文件生成后，你可以在生成的配置文件目录下找到密钥文件。
+首先需要一个 config 文件和由你输入的主密码（master key）来初始化，其中主密码用来加密解密本地密钥对。使用 `cql generate config` 工具进行配置文件生成后，你可以在生成的配置文件目录下找到密钥文件。
 
-具体请参考: [cql-utils 使用文档](https://github.com/CovenantSQL/docs/blob/master/docs/development-cmd-cql-utils-zh.md#使用) 中配置文件及钱包地址生成相关章节。
+```
+$ cql generate config
+Enter master key(press Enter for default: ""): 
+⏎
+Private key file: private.key
+Public key's hex: 03bc9e90e3301a2f5ae52bfa1f9e033cde81b6b6e7188b11831562bf5847bff4c0
+```
+
+生成的 ~/.cql/private.key 文件即是使用主密码加密过的私钥文件，而输出到屏幕上的字符串就是使用十六进制进行编码的公钥。
+
+### 使用私钥文件生成钱包地址
+
+```
+$ cql wallet
+Enter master key(default: ""):
+⏎
+wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
+```
+
+你也可以通过-config指定配置文件, 来直接生成钱包地址。
+
+```
+$ cql generate -config ~/.cql/config.yaml wallet
+Enter master key(default: ""):
+⏎
+wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
+```
 
 ## 检查钱包余额
 
 使用 `cql` 命令来检查钱包余额：
 
 ```bash
-$ cql balance
+$ cql wallet -balance all
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c

@@ -110,7 +110,7 @@ CovenantSQL is still under construction and Testnet is already released, [have a
 
 - [Golang](client/)
 - [Java](https://github.com/CovenantSQL/covenant-connector)
-- [NodeJS](https://github.com/CovenantSQL/node-covenantsql)
+- [NodeJS](https://github.com/CovenantSQL/covenantsql-proxy-js)
 - [Python](https://github.com/CovenantSQL/python-driver)
 - Coding for more……
 

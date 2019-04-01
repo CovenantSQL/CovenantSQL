@@ -596,6 +596,37 @@ func TestFullProcess(t *testing.T) {
 		err = db.Close()
 		So(err, ShouldBeNil)
 
+		// test query from follower node
+		dsnCfgMix := *dsnCfg
+		dsnCfgMix.UseLeader = true
+		dsnCfgMix.UseFollower = true
+		dbMix, err := sql.Open("covenantsql", dsnCfgMix.FormatDSN())
+		So(err, ShouldBeNil)
+		defer dbMix.Close()
+
+		result = 0
+		err = dbMix.QueryRow("SELECT * FROM test LIMIT 1").Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 4)
+
+		_, err = dbMix.Exec("INSERT INTO test VALUES(2)")
+		So(err, ShouldBeNil)
+
+		// test query from follower only
+		dsnCfgFollower := *dsnCfg
+		dsnCfgFollower.UseLeader = false
+		dsnCfgFollower.UseFollower = true
+		dbFollower, err := sql.Open("covenantsql", dsnCfgFollower.FormatDSN())
+		So(err, ShouldBeNil)
+		defer dbFollower.Close()
+
+		err = dbFollower.QueryRow("SELECT * FROM test LIMIT 1").Scan(&result)
+		So(err, ShouldBeNil)
+		So(result, ShouldEqual, 4)
+
+		_, err = dbFollower.Exec("INSERT INTO test VALUES(2)")
+		So(err, ShouldNotBeNil)
+
 		// TODO(lambda): Drop database
 	})
 }
@@ -704,7 +735,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	})
 
 	routineCount := runtime.NumGoroutine()
-	if routineCount > 100 {
+	if routineCount > 150 {
 		b.Errorf("go routine count: %d", routineCount)
 	} else {
 		log.Infof("go routine count: %d", routineCount)
@@ -746,7 +777,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 	})
 
 	routineCount = runtime.NumGoroutine()
-	if routineCount > 100 {
+	if routineCount > 150 {
 		b.Errorf("go routine count: %d", routineCount)
 	} else {
 		log.Infof("go routine count: %d", routineCount)

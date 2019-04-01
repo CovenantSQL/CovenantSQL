@@ -34,6 +34,7 @@ var (
 	// ErrNoChiefBlockProducerAvailable defines failure on find chief block producer.
 	ErrNoChiefBlockProducerAvailable = errors.New("no chief block producer found")
 
+	//FIXME(auxten): remove currentBP stuff
 	// currentBP represents current chief block producer node.
 	currentBP proto.NodeID
 	// currentBPLock represents the chief block producer access lock.

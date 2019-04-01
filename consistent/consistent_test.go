@@ -18,7 +18,6 @@ package consistent
 
 import (
 	"math/rand"
-	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -31,17 +30,18 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	. "github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const testStorePath = "./test.store"
+const testStorePath = "./test.keystore"
 
 var o sync.Once
 
 func init() {
 	o.Do(func() {
 		kms.Unittest = true
-		os.Remove(testStorePath)
+		utils.RemoveAll(testStorePath + "*")
 		x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
 		if x == nil {
 			log.Fatal("InitConsistent failed")
@@ -68,10 +68,10 @@ func NewNodeFromString(id string) Node {
 
 func TestNew(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	if x == nil {
 		t.Error("expected obj")
 	}
@@ -79,11 +79,11 @@ func TestNew(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	CheckNum(len(x.circle), x.NumberOfReplicas, t)
 	CheckNum(len(x.sortedHashes), x.NumberOfReplicas, t)
@@ -100,11 +100,11 @@ func TestAdd(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Remove("0000000000000000000000000000000000000000000000000000000000000000")
 	CheckNum(len(x.circle), 0, t)
@@ -113,11 +113,11 @@ func TestRemove(t *testing.T) {
 
 func TestRemoveNonExisting(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Remove("0000000000000000000000000000000000000000000000000000000000000000hijk")
 	CheckNum(len(x.circle), x.NumberOfReplicas, t)
@@ -125,11 +125,11 @@ func TestRemoveNonExisting(t *testing.T) {
 
 func TestGetEmpty(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	_, err := x.GetNeighbor("asdfsadfsadf")
 	if err == nil {
 		t.Error("expected error")
@@ -141,11 +141,11 @@ func TestGetEmpty(t *testing.T) {
 
 func TestGetSingle(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	f := func(s string) bool {
 		y, err := x.GetNeighbor(s)
@@ -162,11 +162,11 @@ func TestGetSingle(t *testing.T) {
 }
 func TestConsistent_GetNode(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 	nodeID := "40f26f9c816577adcb271734fec72c7640f26f9c816577adcb271734fec72c76"
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString(nodeID))
 	f := func(s string) bool {
 		_, err := x.GetNode(s)
@@ -197,11 +197,11 @@ var gmtests = []gtest{
 
 func TestGetMultiple(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -218,11 +218,11 @@ func TestGetMultiple(t *testing.T) {
 
 func TestGetMultipleQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -254,11 +254,11 @@ var rtestsAfter = []gtest{
 
 func TestGetMultipleRemove(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -285,11 +285,11 @@ func TestGetMultipleRemove(t *testing.T) {
 
 func TestGetMultipleRemoveQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -310,11 +310,11 @@ func TestGetMultipleRemoveQuick(t *testing.T) {
 
 func TestGetTwo(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -335,11 +335,11 @@ func TestGetTwo(t *testing.T) {
 
 func TestGetTwoEmpty(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	_, _, err := x.GetTwoNeighbors("9999999999999999999999999999999999999999999999999999999999999999")
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
@@ -348,11 +348,11 @@ func TestGetTwoEmpty(t *testing.T) {
 
 func TestGetTwoQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -384,11 +384,11 @@ func TestGetTwoQuick(t *testing.T) {
 
 func TestGetTwoOnlyTwoQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	f := func(s string) bool {
@@ -419,11 +419,11 @@ func TestGetTwoOnlyTwoQuick(t *testing.T) {
 
 func TestGetTwoOnlyOneInCircle(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	a, b, err := x.GetTwoNeighbors("9999999999999999999999999999999999999999999999999999999999999999")
 	if err != nil {
@@ -442,11 +442,11 @@ func TestGetTwoOnlyOneInCircle(t *testing.T) {
 
 func TestGetN(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -471,11 +471,11 @@ func TestGetN(t *testing.T) {
 
 func TestGetNFilterRole(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	n := NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000")
 	n.Role = Leader
 	x.Add(n)
@@ -509,11 +509,11 @@ func TestGetNFilterRole(t *testing.T) {
 
 func TestGetNLess(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -534,11 +534,11 @@ func TestGetNLess(t *testing.T) {
 
 func TestGetNMore(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -562,11 +562,11 @@ func TestGetNMore(t *testing.T) {
 
 func TestGetNEmpty(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	members, err := x.GetNeighbors("9999999", 5)
 	if err != ErrEmptyCircle {
 		t.Fatal(err)
@@ -578,11 +578,11 @@ func TestGetNEmpty(t *testing.T) {
 
 func TestGetNQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -617,11 +617,11 @@ func TestGetNQuick(t *testing.T) {
 
 func TestGetNLessQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -656,11 +656,11 @@ func TestGetNLessQuick(t *testing.T) {
 
 func TestGetNMoreQuick(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000000000000000000000000000000000000000000000000000000000000000"))
 	x.Add(NewNodeFromString("1111111111111111111111111111111111111111111111111111111111111111"))
 	x.Add(NewNodeFromString("2222222222222222222222222222222222222222222222222222222222222222"))
@@ -695,11 +695,11 @@ func TestGetNMoreQuick(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("0000"))
 	x.Add(NewNodeFromString("1111"))
 	x.Add(NewNodeFromString("2222"))
@@ -778,11 +778,11 @@ func mallocNum(f func()) uint64 {
 
 func BenchmarkAllocations(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	//kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("stays"))
 	b.ResetTimer()
 	allocSize := allocBytes(func() {
@@ -796,11 +796,11 @@ func BenchmarkAllocations(b *testing.B) {
 
 func BenchmarkMalloc(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("stays"))
 	b.ResetTimer()
 	mallocs := mallocNum(func() {
@@ -814,11 +814,11 @@ func BenchmarkMalloc(b *testing.B) {
 
 func BenchmarkCycle(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -829,11 +829,11 @@ func BenchmarkCycle(b *testing.B) {
 
 func BenchmarkCycleLarge(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
@@ -846,11 +846,11 @@ func BenchmarkCycleLarge(b *testing.B) {
 
 func BenchmarkGet(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -860,11 +860,11 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkGetLarge(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
@@ -876,11 +876,11 @@ func BenchmarkGetLarge(b *testing.B) {
 
 func BenchmarkGetN(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -890,11 +890,11 @@ func BenchmarkGetN(b *testing.B) {
 
 func BenchmarkGetNLarge(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
@@ -906,11 +906,11 @@ func BenchmarkGetNLarge(b *testing.B) {
 
 func BenchmarkGetTwo(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString("nothing"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -920,11 +920,11 @@ func BenchmarkGetTwo(b *testing.B) {
 
 func BenchmarkGetTwoLarge(b *testing.B) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	for i := 0; i < 10; i++ {
 		x.Add(NewNodeFromString("start" + strconv.Itoa(i)))
 	}
@@ -941,11 +941,11 @@ func TestAddCollision(t *testing.T) {
 	const s1 = "111111"
 	const s2 = "222222"
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Add(NewNodeFromString(s1))
 	x.Add(NewNodeFromString(s2))
 	elt1, err := x.GetNeighbor("111111")
@@ -954,7 +954,7 @@ func TestAddCollision(t *testing.T) {
 	}
 
 	y, _ := InitConsistent(testStorePath+"2", new(KMSStorage), false)
-	defer os.Remove(testStorePath + "2")
+	defer utils.RemoveAll(testStorePath + "*")
 	// add elements in opposite order
 	y.Add(NewNodeFromString(s2))
 	y.Add(NewNodeFromString(s1))
@@ -970,11 +970,11 @@ func TestAddCollision(t *testing.T) {
 
 func TestConcurrentGetSet(t *testing.T) {
 	kms.Unittest = true
-	os.Remove(testStorePath)
+	utils.RemoveAll(testStorePath + "*")
 	kms.ResetBucket()
 
 	x, _ := InitConsistent(testStorePath, new(KMSStorage), false)
-	defer os.Remove(testStorePath)
+	defer utils.RemoveAll(testStorePath + "*")
 	x.Set([]Node{NewNodeFromString("0000"), NewNodeFromString("1111"), NewNodeFromString("2222"), NewNodeFromString("3333"), NewNodeFromString("4444")})
 
 	var wg sync.WaitGroup

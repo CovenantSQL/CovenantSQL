@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"

@@ -13,7 +13,7 @@ variables:
   CACHE_DIR: /CovenantSQL_bins
   PIPELINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
   BIN_CACHE: $CACHE_DIR/$CI_PIPELINE_IID/bin
-  PREV_VERSION: v0.4.0
+  PREV_VERSION: v0.5.0
   # gitlabci bins: 192.168.2.100:/srv/gitlab-runner/config/CovenantSQL_bins
 
 before_script:
@@ -69,6 +69,9 @@ old-client-compatibility:
     - set -o errexit
     - set -o pipefail
     - set -x
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
     - cp ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh client
@@ -79,6 +82,9 @@ old-bp-compatibility:
     - set -o errexit
     - set -o pipefail
     - set -x
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
     - cp ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh bp
@@ -89,6 +95,9 @@ old-miner-compatibility:
     - set -o errexit
     - set -o pipefail
     - set -x
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
     - cp ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh miner

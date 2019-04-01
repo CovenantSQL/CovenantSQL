@@ -18,6 +18,8 @@ package route
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -51,6 +53,7 @@ var (
 type Resolver struct {
 	cache     NodeIDAddressMap
 	bpNodeIDs NodeIDAddressMap
+	bpNodes   IDNodeMap
 	sync.RWMutex
 }
 
@@ -117,54 +120,46 @@ func SetNodeAddrCache(id *proto.RawNodeID, addr string) (err error) {
 
 // initBPNodeIDs initializes BlockProducer route and map from config file and DNS Seed.
 func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
-	// clear address map before init
-	resolver.bpNodeIDs = make(NodeIDAddressMap)
-	bpNodeIDs = resolver.bpNodeIDs
-
 	if conf.GConf == nil {
 		log.Fatal("call conf.LoadConfig to init conf first")
 	}
 
-	var BPNodes = make(IDNodeMap)
+	// clear address map before init
+	resolver.bpNodeIDs = make(NodeIDAddressMap)
+	bpNodeIDs = resolver.bpNodeIDs
 
-	// ignore DNS seed in test mode
-	if !conf.GConf.IsTestMode {
-		dc := NewDNSClient()
-		var seedDomain = BPDomain
-		//seedDomain = TestBPDomain
-		var err error
-		BPNodes, err = dc.GetBPFromDNSSeed(seedDomain)
+	var err error
+
+	if conf.GConf.DNSSeed.Domain != "" {
+		var bpIndex int
+		dc := IPv6SeedClient{}
+		bpIndex = rand.Intn(conf.GConf.DNSSeed.BPCount)
+		bpDomain := fmt.Sprintf("bp%02d.%s", bpIndex, conf.GConf.DNSSeed.Domain)
+		resolver.bpNodes, err = dc.GetBPFromDNSSeed(bpDomain)
 		if err != nil {
-			log.WithField("seed", seedDomain).WithError(err).Error("getting BP addr from DNS failed")
+			log.WithField("seed", bpDomain).WithError(err).Error(
+				"getting BP info from DNS failed")
 			return
 		}
 	}
 
+	if resolver.bpNodes == nil {
+		resolver.bpNodes = make(IDNodeMap)
+	}
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range conf.GConf.KnownNodes {
 			rawID := n.ID.ToRawNodeID()
 			if rawID != nil {
 				if n.Role == proto.Leader || n.Role == proto.Follower {
-					BPNodes[*rawID] = n
+					resolver.bpNodes[*rawID] = n
 				}
 				setNodeAddrCache(rawID, n.Addr)
 			}
 		}
 	}
 
-	extraBP := *conf.GConf.BP.NodeID.ToRawNodeID()
-	if _, exists := BPNodes[extraBP]; !exists {
-		BPNodes[extraBP] = proto.Node{
-			ID:        conf.GConf.BP.NodeID,
-			Role:      proto.Leader,
-			Addr:      "",
-			PublicKey: conf.GConf.BP.PublicKey,
-			Nonce:     conf.GConf.BP.Nonce,
-		}
-	}
-
-	conf.GConf.SeedBPNodes = make([]proto.Node, 0, len(BPNodes))
-	for _, n := range BPNodes {
+	conf.GConf.SeedBPNodes = make([]proto.Node, 0, len(resolver.bpNodes))
+	for _, n := range resolver.bpNodes {
 		rawID := n.ID.ToRawNodeID()
 		if rawID != nil {
 			conf.GConf.SeedBPNodes = append(conf.GConf.SeedBPNodes, n)
@@ -177,16 +172,17 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 }
 
 // GetBPs returns the known BP node id list.
-func GetBPs() (BPAddrs []proto.NodeID) {
-	BPAddrs = make([]proto.NodeID, 0, len(resolver.bpNodeIDs))
+func GetBPs() (bpAddrs []proto.NodeID) {
+	bpAddrs = make([]proto.NodeID, 0, len(resolver.bpNodeIDs))
 	for id := range resolver.bpNodeIDs {
-		BPAddrs = append(BPAddrs, proto.NodeID(id.String()))
+		bpAddrs = append(bpAddrs, proto.NodeID(id.String()))
 	}
 	return
 }
 
 // InitKMS inits nasty stuff, only for testing.
 func InitKMS(PubKeyStoreFile string) {
+	initResolver()
 	kms.InitPublicKeyStore(PubKeyStoreFile, nil)
 	if conf.GConf.KnownNodes != nil {
 		for _, n := range conf.GConf.KnownNodes {

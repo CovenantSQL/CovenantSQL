@@ -489,13 +489,12 @@ func TestMetaState(t *testing.T) {
 							Amount:   0,
 						},
 					)
-					t2 = types.NewBilling(
-						&types.BillingHeader{
-							Nonce:     2,
-							Producer:  addr1,
-							Receivers: []*proto.AccountAddress{&addr2},
-							Fees:      []uint64{1},
-							Rewards:   []uint64{1},
+					t2 = types.NewTransfer(
+						&types.TransferHeader{
+							Sender:   addr1,
+							Receiver: addr2,
+							Nonce:    2,
+							Amount:   0,
 						},
 					)
 				)
@@ -557,22 +556,20 @@ func TestMetaState(t *testing.T) {
 							Amount:   10,
 						},
 					),
-					types.NewBilling(
-						&types.BillingHeader{
-							Nonce:     2,
-							Producer:  addr1,
-							Receivers: []*proto.AccountAddress{&addr2},
-							Fees:      []uint64{1},
-							Rewards:   []uint64{1},
+					types.NewTransfer(
+						&types.TransferHeader{
+							Sender:   addr2,
+							Receiver: addr1,
+							Nonce:    1,
+							Amount:   1,
 						},
 					),
-					types.NewBilling(
-						&types.BillingHeader{
-							Nonce:     1,
-							Producer:  addr2,
-							Receivers: []*proto.AccountAddress{&addr1},
-							Fees:      []uint64{1},
-							Rewards:   []uint64{1},
+					types.NewTransfer(
+						&types.TransferHeader{
+							Sender:   addr1,
+							Receiver: addr2,
+							Nonce:    2,
+							Amount:   10,
 						},
 					),
 					types.NewTransfer(
@@ -585,25 +582,9 @@ func TestMetaState(t *testing.T) {
 					),
 					types.NewTransfer(
 						&types.TransferHeader{
-							Sender:   addr1,
-							Receiver: addr2,
-							Nonce:    3,
-							Amount:   10,
-						},
-					),
-					types.NewTransfer(
-						&types.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    3,
-							Amount:   1,
-						},
-					),
-					types.NewTransfer(
-						&types.TransferHeader{
-							Sender:   addr2,
-							Receiver: addr1,
-							Nonce:    4,
 							Amount:   1,
 						},
 					),
@@ -612,12 +593,10 @@ func TestMetaState(t *testing.T) {
 			txs[0].Sign(privKey1)
 			txs[1].Sign(privKey2)
 			txs[2].Sign(privKey1)
-			txs[3].Sign(privKey1)
-			txs[4].Sign(privKey2)
+			txs[3].Sign(privKey2)
+			txs[4].Sign(privKey1)
 			txs[5].Sign(privKey2)
-			txs[6].Sign(privKey1)
-			txs[7].Sign(privKey2)
-			txs[8].Sign(privKey2)
+			txs[6].Sign(privKey2)
 			for _, tx := range txs {
 				err = ms.apply(tx)
 				So(err, ShouldBeNil)
@@ -626,10 +605,10 @@ func TestMetaState(t *testing.T) {
 			Convey("The state should match the update result", func() {
 				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
-				So(bl, ShouldEqual, 84)
+				So(bl, ShouldEqual, 83)
 				bl, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
 				So(loaded, ShouldBeTrue)
-				So(bl, ShouldEqual, 118)
+				So(bl, ShouldEqual, 117)
 			})
 		})
 		Convey("When SQLChain are created", func() {
@@ -1185,7 +1164,12 @@ func TestMetaState(t *testing.T) {
 								},
 							},
 						},
+						Range: types.Range{
+							From: 0,
+							To:   10,
+						},
 					})
+					ub.Version = int32(ub.HSPDefaultVersion())
 					nonce, err = ms.nextNonce(addr2)
 					So(err, ShouldBeNil)
 					ub.Nonce = nonce
@@ -1363,8 +1347,13 @@ func TestMetaState(t *testing.T) {
 						UpdateBillingHeader: types.UpdateBillingHeader{
 							Receiver: addr1,
 							Nonce:    up.Nonce,
+							Range: types.Range{
+								From: 0,
+								To:   10,
+							},
 						},
 					}
+					ub1.Version = int32(ub1.HSPDefaultVersion())
 					err = ub1.Sign(privKey1)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub1)
@@ -1449,8 +1438,13 @@ func TestMetaState(t *testing.T) {
 							Receiver: dbAccount,
 							Users:    users[:],
 							Nonce:    2,
+							Range: types.Range{
+								From: 0,
+								To:   10,
+							},
 						},
 					}
+					ub2.Version = int32(ub2.HSPDefaultVersion())
 					err = ub2.Sign(privKey2)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub2)
@@ -1496,8 +1490,13 @@ func TestMetaState(t *testing.T) {
 							Receiver: dbAccount,
 							Users:    users[:],
 							Nonce:    3,
+							Range: types.Range{
+								From: 10,
+								To:   20,
+							},
 						},
 					}
+					ub3.Version = int32(ub3.HSPDefaultVersion())
 					err = ub3.Sign(privKey2)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub3)

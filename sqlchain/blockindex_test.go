@@ -19,7 +19,6 @@ package sqlchain
 import (
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -74,20 +73,7 @@ func TestNewBlockNode(t *testing.T) {
 }
 
 func TestInitBlockNode(t *testing.T) {
-	parent := &blockNode{
-		parent: nil,
-		hash:   hash.Hash{},
-		count:  -1,
-	}
-
-	child := &blockNode{
-		parent: nil,
-		hash:   hash.Hash{},
-		count:  -1,
-	}
-
-	parent.initBlockNode(0, testBlocks[0], nil)
-
+	parent := newBlockNode(0, testBlocks[0], nil)
 	if parent == nil {
 		t.Fatal("unexpected result: nil")
 	} else if parent.parent != nil {
@@ -96,8 +82,7 @@ func TestInitBlockNode(t *testing.T) {
 		t.Fatalf("unexpected height: %d", parent.count)
 	}
 
-	child.initBlockNode(1, testBlocks[1], parent)
-
+	child := newBlockNode(1, testBlocks[1], parent)
 	if child == nil {
 		t.Fatal("unexpected result: nil")
 	} else if child.parent != parent {

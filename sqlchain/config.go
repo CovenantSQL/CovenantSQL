@@ -37,20 +37,14 @@ type Config struct {
 	Peers      *proto.Peers
 	Server     proto.NodeID
 
-	// Price sets query price in gases.
-	Price           map[types.QueryType]uint64
-	ProducingReward uint64
-	BillingPeriods  int32
-
 	// QueryTTL sets the unacknowledged query TTL in block periods.
-	QueryTTL int32
-
+	QueryTTL      int32
 	BlockCacheTTL int32
 
 	// DBAccount info
-	TokenType    types.TokenType
-	GasPrice     uint64
-	UpdatePeriod uint64
-
-	IsolationLevel int
+	TokenType         types.TokenType
+	GasPrice          uint64
+	UpdatePeriod      uint64
+	LastBillingHeight int32
+	IsolationLevel    int
 }

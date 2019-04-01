@@ -79,7 +79,7 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	nis[2].Role = proto.Client
 	// Setup global config
 	conf.GConf = &conf.Config{
-		IsTestMode:          true,
+		UseTestMasterKey:    true,
 		GenerateKeyPair:     false,
 		MinNodeIDDifficulty: testingNonceDifficulty,
 		BP: &conf.BPInfo{
@@ -101,8 +101,12 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	}
 	kms.SetLocalNodeIDNonce(nis[2].ID.ToRawNodeID().CloneBytes(), &nis[2].Nonce)
 	for i := range nis {
-		route.SetNodeAddrCache(nis[i].ID.ToRawNodeID(), nis[i].Addr)
-		kms.SetNode(&nis[i])
+		if err = route.SetNodeAddrCache(nis[i].ID.ToRawNodeID(), nis[i].Addr); err != nil {
+			return
+		}
+		if err = kms.SetNode(&nis[i]); err != nil {
+			return
+		}
 	}
 	// Register mux service
 	if ms, err = NewMuxService(benchmarkRPCName, mnSv); err != nil {
@@ -277,7 +281,7 @@ func TestMuxService(t *testing.T) {
 		ms.register(benchmarkDatabaseID, c)
 		defer func() {
 			ms.unregister(benchmarkDatabaseID)
-			teardownChain(t.Name(), c)
+			_ = teardownChain(t.Name(), c)
 		}()
 
 		// Setup query requests

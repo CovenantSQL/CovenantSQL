@@ -37,7 +37,7 @@ before_deploy:
   - make clean
   - make use_all_cores
   - mkdir -p build
-  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/cql bin/cql-fuse bin/cql-minerd bin/cql-mysql-adapter bin/cql-utils
+  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/cql bin/cql-fuse bin/cql-minerd bin/cql-mysql-adapter
 
 deploy:
   provider: releases

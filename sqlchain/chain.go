@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
-	"os"
 	rt "runtime"
 	"sync"
 	"sync/atomic"
@@ -52,21 +51,22 @@ const (
 )
 
 var (
-	metaState         = [4]byte{'S', 'T', 'A', 'T'}
 	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
 	metaAckIndex      = [4]byte{'Q', 'A', 'C', 'K'}
-	leveldbConf       = opt.Options{}
+
+	leveldbConf = opt.Options{
+		Compression: opt.SnappyCompression,
+	}
+	leveldbInit sync.Once
+	blkDB       *leveldb.DB
+	txDB        *leveldb.DB
 
 	// Atomic counters for stats
 	cachedBlockCount int32
 )
 
-func init() {
-	leveldbConf.Compression = opt.SnappyCompression
-}
-
-func statBlock(b *types.Block) {
+func trackBlock(b *types.Block) {
 	atomic.AddInt32(&cachedBlockCount, 1)
 	rt.SetFinalizer(b, func(_ *types.Block) {
 		atomic.AddInt32(&cachedBlockCount, -1)
@@ -98,16 +98,11 @@ func keyWithSymbolToHeight(k []byte) int32 {
 
 // Chain represents a sql-chain.
 type Chain struct {
-	// bdb stores state, profile and block
-	bdb *leveldb.DB
-	// tdb stores ack/request/response
-	tdb *leveldb.DB
-	bi  *blockIndex
-	ai  *ackIndex
-	st  *x.State
-	cl  *rpc.Caller
-	rt  *runtime
-	ctx context.Context // ctx is the root context of Chain
+	bi *blockIndex
+	ai *ackIndex
+	st *x.State
+	cl *rpc.Caller
+	rt *runtime
 
 	blocks    chan *types.Block
 	heights   chan int32
@@ -126,6 +121,10 @@ type Chain struct {
 	pk *asymmetric.PrivateKey
 	// addr is the AccountAddress generate from public key.
 	addr *proto.AccountAddress
+	// key prefixes
+	metaBlockIndex    []byte
+	metaResponseIndex []byte
+	metaAckIndex      []byte
 }
 
 // NewChain creates a new sql-chain struct.
@@ -135,41 +134,35 @@ func NewChain(c *Config) (chain *Chain, err error) {
 
 // NewChainWithContext creates a new sql-chain struct with context.
 func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err error) {
-	// TODO(leventeliu): this is a rough solution, you may also want to clean database file and
-	// force rebuilding.
-	var fi os.FileInfo
-	if fi, err = os.Stat(c.ChainFilePrefix + "-block-state.ldb"); err == nil && fi.Mode().IsDir() {
-		return LoadChain(c)
-	}
+	le := log.WithField("db", c.DatabaseID)
 
-	err = c.Genesis.VerifyAsGenesis()
+	leveldbInit.Do(func() {
+		// Open LevelDB for block and state
+		bdbFile := c.ChainFilePrefix + "-block-state.ldb"
+		blkDB, err = leveldb.OpenFile(bdbFile, &leveldbConf)
+		if err != nil {
+			err = errors.Wrapf(err, "open leveldb %s", bdbFile)
+			return
+		}
+		le.Debugf("opened chain bdb %s", bdbFile)
+
+		// Open LevelDB for ack/request/response
+		tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
+		txDB, err = leveldb.OpenFile(tdbFile, &leveldbConf)
+		if err != nil {
+			err = errors.Wrapf(err, "open leveldb %s", tdbFile)
+			return
+		}
+		le.Debugf("opened chain tdb %s", tdbFile)
+	})
 	if err != nil {
 		return
 	}
-
-	// Open LevelDB for block and state
-	bdbFile := c.ChainFilePrefix + "-block-state.ldb"
-	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
-	if err != nil {
-		err = errors.Wrapf(err, "open leveldb %s", bdbFile)
-		return
-	}
-
-	log.WithField("db", c.DatabaseID).Debugf("create new chain bdb %s", bdbFile)
-
-	// Open LevelDB for ack/request/response
-	tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
-	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
-	if err != nil {
-		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
-		return
-	}
-
-	log.WithField("db", c.DatabaseID).Debugf("create new chain tdb %s", tdbFile)
 
 	// Open storage
 	var strg xi.Storage
 	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
+		err = errors.Wrapf(err, "open data file %s", c.DataFile)
 		return
 	}
 
@@ -184,20 +177,23 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 	addr, err = crypto.PubKeyHash(pk.PubKey())
 	if err != nil {
-		log.WithError(err).WithField("db", c.DatabaseID).Warning("failed to generate addr in NewChain")
+		err = errors.Wrap(err, "failed to generate address")
+		return
+	}
+
+	metaKeyPrefix, err := c.DatabaseID.AccountAddress()
+	if err != nil {
+		err = errors.Wrap(err, "failed to generate database meta prefix")
 		return
 	}
 
 	// Create chain state
 	chain = &Chain{
-		bdb:          bdb,
-		tdb:          tdb,
 		bi:           newBlockIndex(),
 		ai:           newAckIndex(),
 		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
 		cl:           rpc.NewCaller(),
 		rt:           newRunTime(ctx, c),
-		ctx:          ctx,
 		blocks:       make(chan *types.Block),
 		heights:      make(chan int32, 1),
 		responses:    make(chan *types.ResponseHeader),
@@ -207,116 +203,26 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		updatePeriod: c.UpdatePeriod,
 		databaseID:   c.DatabaseID,
 
-		pk:   pk,
-		addr: &addr,
+		pk:                pk,
+		addr:              &addr,
+		metaBlockIndex:    utils.ConcatAll(metaKeyPrefix[:], metaBlockIndex[:]),
+		metaResponseIndex: utils.ConcatAll(metaKeyPrefix[:], metaResponseIndex[:]),
+		metaAckIndex:      utils.ConcatAll(metaKeyPrefix[:], metaAckIndex[:]),
 	}
-
-	if err = chain.pushBlock(c.Genesis); err != nil {
-		return nil, err
-	}
-
-	return
-}
-
-// LoadChain loads the chain state from the specified database and rebuilds a memory index.
-func LoadChain(c *Config) (chain *Chain, err error) {
-	return LoadChainWithContext(context.Background(), c)
-}
-
-// LoadChainWithContext loads the chain state from the specified database and rebuilds
-// a memory index with context.
-func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err error) {
-	// Open LevelDB for block and state
-	bdbFile := c.ChainFilePrefix + "-block-state.ldb"
-	bdb, err := leveldb.OpenFile(bdbFile, &leveldbConf)
-	if err != nil {
-		err = errors.Wrapf(err, "open leveldb %s", bdbFile)
-		return
-	}
-
-	// Open LevelDB for ack/request/response
-	tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
-	tdb, err := leveldb.OpenFile(tdbFile, &leveldbConf)
-	if err != nil {
-		err = errors.Wrapf(err, "open leveldb %s", tdbFile)
-		return
-	}
-
-	// Open x.State
-	var strg xi.Storage
-	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
-		return
-	}
-
-	// Cache local private key
-	var (
-		pk   *asymmetric.PrivateKey
-		addr proto.AccountAddress
-	)
-	if pk, err = kms.GetLocalPrivateKey(); err != nil {
-		err = errors.Wrap(err, "failed to cache private key")
-		return
-	}
-	addr, err = crypto.PubKeyHash(pk.PubKey())
-	if err != nil {
-		log.WithError(err).WithField("db", c.DatabaseID).Warning("failed to generate addr in LoadChain")
-		return
-	}
-
-	// Create chain state
-	chain = &Chain{
-		bdb:          bdb,
-		tdb:          tdb,
-		bi:           newBlockIndex(),
-		ai:           newAckIndex(),
-		st:           x.NewState(sql.IsolationLevel(c.IsolationLevel), c.Server, strg),
-		cl:           rpc.NewCaller(),
-		rt:           newRunTime(ctx, c),
-		ctx:          ctx,
-		blocks:       make(chan *types.Block),
-		heights:      make(chan int32, 1),
-		responses:    make(chan *types.ResponseHeader),
-		acks:         make(chan *types.AckHeader),
-		tokenType:    c.TokenType,
-		gasPrice:     c.GasPrice,
-		updatePeriod: c.UpdatePeriod,
-		databaseID:   c.DatabaseID,
-
-		pk:   pk,
-		addr: &addr,
-	}
-
-	// Read state struct
-	stateEnc, err := chain.bdb.Get(metaState[:], nil)
-	if err != nil {
-		return nil, err
-	}
-	st := &state{}
-	if err = utils.DecodeMsgPack(stateEnc, st); err != nil {
-		return nil, err
-	}
-
-	log.WithFields(log.Fields{
-		"peer":  chain.rt.getPeerInfoString(),
-		"state": st,
-		"db":    c.DatabaseID,
-	}).Debug("loading state from database")
+	le = le.WithField("peer", chain.rt.getPeerInfoString())
 
 	// Read blocks and rebuild memory index
 	var (
-		id        uint64
-		index     int32
-		last      *blockNode
-		blockIter = chain.bdb.NewIterator(util.BytesPrefix(metaBlockIndex[:]), nil)
+		id           uint64
+		last, parent *blockNode
+		blockIter    = blkDB.NewIterator(util.BytesPrefix(chain.metaBlockIndex), nil)
 	)
 	defer blockIter.Release()
-	for index = 0; blockIter.Next(); index++ {
+	for blockIter.Next() {
 		var (
 			k     = blockIter.Key()
 			v     = blockIter.Value()
 			block = &types.Block{}
-
-			current, parent *blockNode
 		)
 
 		if err = utils.DecodeMsgPack(v, block); err != nil {
@@ -324,11 +230,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 				keyWithSymbolToHeight(k), string(k))
 			return
 		}
-		log.WithFields(log.Fields{
-			"peer":  chain.rt.getPeerInfoString(),
-			"block": block.BlockHash().String(),
-			"db":    c.DatabaseID,
-		}).Debug("loading block from database")
+		le.WithField("block", block.BlockHash().String()).Debug("loading block from database")
 
 		if last == nil {
 			if err = block.VerifyAsGenesis(); err != nil {
@@ -355,24 +257,34 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 			id = nid
 		}
 
-		current = &blockNode{}
-		current.initBlockNode(chain.rt.getHeightFromTime(block.Timestamp()), block, parent)
-		chain.bi.addBlock(current)
-		last = current
+		last = newBlockNode(chain.rt.getHeightFromTime(block.Timestamp()), block, parent)
+		chain.bi.addBlock(last)
 	}
 	if err = blockIter.Error(); err != nil {
-		err = errors.Wrap(err, "load block")
+		err = errors.Wrap(err, "accumulated error of iterator")
+		return
+	}
+
+	// Initiate chain Genesis if block list is empty
+	if last == nil {
+		if err = chain.genesis(c.Genesis); err != nil {
+			return nil, err
+		}
 		return
 	}
 
 	// Set chain state
-	st.node = last
-	chain.rt.setHead(st)
+	var head = &state{
+		node:   last,
+		Head:   last.hash,
+		Height: last.height,
+	}
+	chain.rt.setHead(head)
 	chain.st.SetSeq(id)
 	chain.pruneBlockCache()
 
 	// Read queries and rebuild memory index
-	respIter := chain.tdb.NewIterator(util.BytesPrefix(metaResponseIndex[:]), nil)
+	respIter := txDB.NewIterator(util.BytesPrefix(chain.metaResponseIndex), nil)
 	defer respIter.Release()
 	for respIter.Next() {
 		k := respIter.Key()
@@ -394,7 +306,7 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 		return
 	}
 
-	ackIter := chain.tdb.NewIterator(util.BytesPrefix(metaAckIndex[:]), nil)
+	ackIter := txDB.NewIterator(util.BytesPrefix(chain.metaAckIndex), nil)
 	defer ackIter.Release()
 	for ackIter.Next() {
 		k := ackIter.Key()
@@ -419,92 +331,86 @@ func LoadChainWithContext(ctx context.Context, c *Config) (chain *Chain, err err
 	return
 }
 
+func (c *Chain) genesis(b *types.Block) (err error) {
+	if b == nil {
+		err = errors.New("genesis block not provided")
+		return
+	}
+	if err = b.VerifyAsGenesis(); err != nil {
+		err = errors.Wrap(err, "initialize chain state")
+		return
+	}
+	return c.pushBlock(b)
+}
+
 // pushBlock pushes the signed block header to extend the current main chain.
 func (c *Chain) pushBlock(b *types.Block) (err error) {
 	// Prepare and encode
-	h := c.rt.getHeightFromTime(b.Timestamp())
-	node := newBlockNode(h, b, c.rt.getHead().node)
-	st := &state{
-		node:   node,
-		Head:   node.hash,
-		Height: node.height,
-	}
-	var encBlock, encState *bytes.Buffer
+	var (
+		h    = c.rt.getHeightFromTime(b.Timestamp())
+		node = newBlockNode(h, b, c.rt.getHead().node)
+		head = &state{
+			node:   node,
+			Head:   node.hash,
+			Height: node.height,
+		}
 
+		blockKey = utils.ConcatAll(c.metaBlockIndex, node.indexKey())
+		encBlock *bytes.Buffer
+	)
 	if encBlock, err = utils.EncodeMsgPack(b); err != nil {
 		return
 	}
 
-	if encState, err = utils.EncodeMsgPack(st); err != nil {
-		return
-	}
-
-	// Update in transaction
-	t, err := c.bdb.OpenTransaction()
-	if err = t.Put(metaState[:], encState.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put %s", string(metaState[:]))
-		t.Discard()
-		return
-	}
-	blockKey := utils.ConcatAll(metaBlockIndex[:], node.indexKey())
-	if err = t.Put(blockKey, encBlock.Bytes(), nil); err != nil {
+	// Put block
+	err = blkDB.Put(blockKey, encBlock.Bytes(), nil)
+	if err != nil {
 		err = errors.Wrapf(err, "put %s", string(node.indexKey()))
-		t.Discard()
 		return
 	}
-	if err = t.Commit(); err != nil {
-		err = errors.Wrapf(err, "commit error")
-		t.Discard()
-		return
-	}
-	c.rt.setHead(st)
+	c.rt.setHead(head)
 	c.bi.addBlock(node)
 
 	// Keep track of the queries from the new block
-	var ierr error
+	var (
+		ierr error
+		le   = log.WithFields(log.Fields{
+			"db":         c.databaseID,
+			"producer":   b.Producer(),
+			"block_hash": b.BlockHash(),
+		})
+	)
 	for i, v := range b.QueryTxs {
 		if ierr = c.AddResponse(v.Response); ierr != nil {
-			log.WithFields(log.Fields{
-				"index":      i,
-				"producer":   b.Producer(),
-				"block_hash": b.BlockHash(),
-				"db":         c.databaseID,
-			}).WithError(ierr).Warn("failed to add response to ackIndex")
+			le.WithFields(log.Fields{
+				"index": i,
+			}).WithError(ierr).Warn("failed to add Response to ackIndex")
 		}
 	}
 	for i, v := range b.Acks {
 		if ierr = c.remove(v); ierr != nil {
-			log.WithFields(log.Fields{
-				"index":      i,
-				"producer":   b.Producer(),
-				"block_hash": b.BlockHash(),
-				"db":         c.databaseID,
+			le.WithFields(log.Fields{
+				"index": i,
 			}).WithError(ierr).Warn("failed to remove Ack from ackIndex")
 		}
 	}
 
-	if err == nil {
-		log.WithFields(log.Fields{
-			"peer":       c.rt.getPeerInfoString()[:14],
-			"time":       c.rt.getChainTimeString(),
-			"block":      b.BlockHash().String()[:8],
-			"producer":   b.Producer()[:8],
-			"queryCount": len(b.QueryTxs),
-			"ackCount":   len(b.Acks),
-			"blockTime":  b.Timestamp().Format(time.RFC3339Nano),
-			"height":     c.rt.getHeightFromTime(b.Timestamp()),
-			"head": fmt.Sprintf("%s <- %s",
-				func() string {
-					if st.node.parent != nil {
-						return st.node.parent.hash.String()[:8]
-					}
-					return "|"
-				}(), st.Head.String()[:8]),
-			"headHeight": c.rt.getHead().Height,
-			"db":         c.databaseID,
-		}).Info("pushed new block")
-	}
-
+	c.logEntry().WithFields(log.Fields{
+		"block":      b.BlockHash().String()[:8],
+		"producer":   b.Producer()[:8],
+		"queryCount": len(b.QueryTxs),
+		"ackCount":   len(b.Acks),
+		"blockTime":  b.Timestamp().Format(time.RFC3339Nano),
+		"height":     c.rt.getHeightFromTime(b.Timestamp()),
+		"head": fmt.Sprintf("%s <- %s",
+			func() string {
+				if head.node.parent != nil {
+					return head.node.parent.hash.String()[:8]
+				}
+				return "|"
+			}(), head.Head.String()[:8]),
+		"headHeight": c.rt.getHead().Height,
+	}).Info("pushed new block")
 	return
 }
 
@@ -519,14 +425,14 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 		return
 	}
 
-	tdbKey := utils.ConcatAll(metaAckIndex[:], k, ack.Hash().AsBytes())
+	tdbKey := utils.ConcatAll(c.metaAckIndex, k, ack.Hash().AsBytes())
 
 	if err = c.register(ack); err != nil {
 		err = errors.Wrapf(err, "register ack %v at height %d", ack.Hash(), h)
 		return
 	}
 
-	if err = c.tdb.Put(tdbKey, enc.Bytes(), nil); err != nil {
+	if err = txDB.Put(tdbKey, enc.Bytes(), nil); err != nil {
 		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash().String())
 		return
 	}
@@ -541,6 +447,11 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		qts []*x.QueryTracker
 	)
 	if frs, qts, err = c.st.CommitEx(); err != nil {
+		err = errors.Wrap(err, "failed to fetch query list from db state")
+		return
+	}
+	if len(frs) == 0 && len(qts) == 0 {
+		c.logEntryWithHeadState().Debug("no query found in current period, skip block producing")
 		return
 	}
 	var block = &types.Block{
@@ -558,11 +469,11 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		QueryTxs:   make([]*types.QueryAsTx, len(qts)),
 		Acks:       c.ai.acks(c.rt.getHeightFromTime(now)),
 	}
-	statBlock(block)
+	trackBlock(block)
 	for i, v := range qts {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
 		for !v.Ready() {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(c.rt.period / 10)
 			if c.rt.ctx.Err() != nil {
 				err = c.rt.ctx.Err()
 				return
@@ -579,20 +490,18 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		return
 	}
 	// Send to pending list
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
+		"using_timestamp": now.Format(time.RFC3339Nano),
+		"block_hash":      block.BlockHash().String(),
+	})
 	select {
 	case c.blocks <- block:
 	case <-c.rt.ctx.Done():
 		err = c.rt.ctx.Err()
+		le.WithError(err).Info("abort block producing")
 		return
 	}
-	log.WithFields(log.Fields{
-		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeString(),
-		"curr_turn":       c.rt.getNextTurn(),
-		"using_timestamp": now.Format(time.RFC3339Nano),
-		"block_hash":      block.BlockHash().String(),
-		"db":              c.databaseID,
-	}).Debug("produced new block")
+	le.Debug("produced new block")
 	// Advise new block to the other peers
 	var (
 		req = &MuxAdviseNewBlockReq{
@@ -625,14 +534,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 				if err := c.cl.CallNodeWithContext(
 					c.rt.ctx, id, route.SQLCAdviseNewBlock.String(), req, resp,
 				); err != nil {
-					log.WithFields(log.Fields{
-						"peer":            c.rt.getPeerInfoString(),
-						"time":            c.rt.getChainTimeString(),
-						"curr_turn":       c.rt.getNextTurn(),
-						"using_timestamp": now.Format(time.RFC3339Nano),
-						"block_hash":      block.BlockHash().String(),
-						"db":              c.databaseID,
-					}).WithError(err).Error("failed to advise new block")
+					le.WithError(err).Error("failed to advise new block")
 				}
 			}(s)
 		}
@@ -657,41 +559,27 @@ func (c *Chain) syncHead() {
 		}
 		resp := &MuxFetchBlockResp{}
 		peers := c.rt.getPeers()
+		l := len(peers.Servers)
 		succ := false
+		le := c.logEntryWithHeadState()
 
 		for i, s := range peers.Servers {
+			ile := le.WithFields(log.Fields{"remote": fmt.Sprintf("[%d/%d] %s", i, l, s)})
 			if s != c.rt.getServer() {
 				if err = c.cl.CallNode(
 					s, route.SQLCFetchBlock.String(), req, resp,
 				); err != nil || resp.Block == nil {
-					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
-						"time":        c.rt.getChainTimeString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().Height,
-						"head_block":  c.rt.getHead().Head.String(),
-						"db":          c.databaseID,
-					}).WithError(err).Debug(
-						"Failed to fetch block from peer")
+					ile.WithError(err).Debug("failed to fetch block from peer")
 				} else {
-					statBlock(resp.Block)
+					trackBlock(resp.Block)
 					select {
 					case c.blocks <- resp.Block:
 					case <-c.rt.ctx.Done():
 						err = c.rt.ctx.Err()
+						le.WithError(err).Info("abort head block synchronizing")
 						return
 					}
-					log.WithFields(log.Fields{
-						"peer":        c.rt.getPeerInfoString(),
-						"time":        c.rt.getChainTimeString(),
-						"remote":      fmt.Sprintf("[%d/%d] %s", i, len(peers.Servers), s),
-						"curr_turn":   c.rt.getNextTurn(),
-						"head_height": c.rt.getHead().Height,
-						"head_block":  c.rt.getHead().Head.String(),
-						"db":          c.databaseID,
-					}).Debug(
-						"Fetch block from remote peer successfully")
+					ile.Debug("fetch block from remote peer successfully")
 					succ = true
 					break
 				}
@@ -699,21 +587,18 @@ func (c *Chain) syncHead() {
 		}
 
 		if !succ {
-			log.WithFields(log.Fields{
-				"peer":        c.rt.getPeerInfoString(),
-				"time":        c.rt.getChainTimeString(),
-				"curr_turn":   c.rt.getNextTurn(),
-				"head_height": c.rt.getHead().Height,
-				"head_block":  c.rt.getHead().Head.String(),
-				"db":          c.databaseID,
-			}).Debug(
-				"Cannot get block from any peer")
+			le.Debug("cannot get block from any peer")
 		}
 	}
 }
 
 // runCurrentTurn does the check and runs block producing if its my turn.
 func (c *Chain) runCurrentTurn(now time.Time) {
+	h := c.rt.getNextTurn()
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
+		"using_timestamp": now.Format(time.RFC3339Nano),
+	})
+
 	defer func() {
 		c.stat()
 		c.pruneBlockCache()
@@ -721,44 +606,22 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 		c.ai.advance(c.rt.getMinValidHeight())
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
-		c.heights <- c.rt.getHead().Height
+		select {
+		case c.heights <- h:
+		case <-c.rt.ctx.Done():
+			le.Debug("abort publishing height")
+		}
 	}()
 
-	log.WithFields(log.Fields{
-		"peer":            c.rt.getPeerInfoString(),
-		"time":            c.rt.getChainTimeString(),
-		"curr_turn":       c.rt.getNextTurn(),
-		"head_height":     c.rt.getHead().Height,
-		"head_block":      c.rt.getHead().Head.String(),
-		"using_timestamp": now.Format(time.RFC3339Nano),
-		"db":              c.databaseID,
-	}).Debug("run current turn")
-
+	le.Debug("run current turn")
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {
-		log.WithFields(log.Fields{
-			"peer":            c.rt.getPeerInfoString(),
-			"time":            c.rt.getChainTimeString(),
-			"curr_turn":       c.rt.getNextTurn(),
-			"head_height":     c.rt.getHead().Height,
-			"head_block":      c.rt.getHead().Head.String(),
-			"using_timestamp": now.Format(time.RFC3339Nano),
-			"db":              c.databaseID,
-		}).Error("A block will be skipped")
+		le.Error("a block will be skipped")
 	}
-
 	if !c.rt.isMyTurn() {
 		return
 	}
-
 	if err := c.produceBlock(now); err != nil {
-		log.WithFields(log.Fields{
-			"peer":            c.rt.getPeerInfoString(),
-			"time":            c.rt.getChainTimeString(),
-			"curr_turn":       c.rt.getNextTurn(),
-			"using_timestamp": now.Format(time.RFC3339Nano),
-			"db":              c.databaseID,
-		}).WithError(err).Error(
-			"Failed to produce block")
+		le.WithError(err).Error("failed to produce block")
 	}
 }
 
@@ -767,21 +630,11 @@ func (c *Chain) mainCycle(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			c.logEntry().WithError(ctx.Err()).Info("abort main cycle")
 			return
 		default:
 			c.syncHead()
-
 			if t, d := c.rt.nextTick(); d > 0 {
-				//log.WithFields(log.Fields{
-				//	"peer":            c.rt.getPeerInfoString(),
-				//	"time":            c.rt.getChainTimeString(),
-				//	"next_turn":       c.rt.getNextTurn(),
-				//	"head_height":     c.rt.getHead().Height,
-				//	"head_block":      c.rt.getHead().Head.String(),
-				//	"using_timestamp": t.Format(time.RFC3339Nano),
-				//	"duration":        d,
-				//	"db":              c.databaseID,
-				//}).Debug("main cycle")
 				time.Sleep(d)
 			} else {
 				c.runCurrentTurn(t)
@@ -791,28 +644,29 @@ func (c *Chain) mainCycle(ctx context.Context) {
 }
 
 // sync synchronizes blocks and queries from the other peers.
-func (c *Chain) sync() (err error) {
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).Debug("synchronizing chain state")
-
+func (c *Chain) sync() {
+	le := c.logEntry()
+	le.Debug("synchronizing chain state")
+	defer func() {
+		c.stat()
+		c.pruneBlockCache()
+		c.ai.advance(c.rt.getMinValidHeight())
+	}()
 	for {
 		now := c.rt.now()
 		height := c.rt.getHeightFromTime(now)
-
-		if c.rt.getNextTurn() >= height {
+		if now.Before(c.rt.chainInitTime) {
+			le.Debug("now time is before genesis time, waiting for genesis")
+			return
+		}
+		if c.rt.getNextTurn() > height {
 			break
 		}
-
 		for c.rt.getNextTurn() <= height {
-			// TODO(leventeliu): fetch blocks and queries.
+			c.syncHead()
 			c.rt.setNextTurn()
 		}
 	}
-
-	return
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
@@ -823,10 +677,13 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 	returnStash := func(stash []*types.Block) {
 		defer wg.Done()
-		for _, block := range stash {
+		for i, block := range stash {
 			select {
 			case c.blocks <- block:
 			case <-cld.Done():
+				c.logEntry().WithFields(log.Fields{
+					"remaining": len(stash) - i,
+				}).WithError(cld.Err()).Debug("abort stash returning")
 				return
 			}
 		}
@@ -837,17 +694,43 @@ func (c *Chain) processBlocks(ctx context.Context) {
 		wg.Wait()
 	}()
 
-	var (
-		stash []*types.Block
-	)
+	var stash []*types.Block
 	for {
+		le := c.logEntryWithHeadState()
 		select {
 		case h := <-c.heights:
+			// Trigger billing
+			if uint64(h)%c.updatePeriod == 0 {
+				ub, err := c.billing(h, c.rt.getHead().node)
+				if err != nil {
+					le.WithError(err).Error("billing failed")
+				}
+				// allocate nonce
+				nonceReq := &types.NextAccountNonceReq{}
+				nonceResp := &types.NextAccountNonceResp{}
+				nonceReq.Addr = *c.addr
+				if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
+					// allocate nonce failed
+					le.WithError(err).Warning("allocate nonce for transaction failed")
+				}
+				ub.Nonce = nonceResp.Nonce
+				if err = ub.Sign(c.pk); err != nil {
+					le.WithError(err).Warning("sign tx failed")
+				}
+
+				addTxReq := &types.AddTxReq{TTL: 1}
+				addTxResp := &types.AddTxResp{}
+				addTxReq.Tx = ub
+				le.Debugf("nonce in processBlocks: %d, addr: %s",
+					addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
+				if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
+					le.WithError(err).Warning("send tx failed")
+				}
+			}
 			// Return all stashed blocks to pending channel
-			log.WithFields(log.Fields{
+			c.logEntryWithHeadState().WithFields(log.Fields{
 				"height": h,
 				"stashs": len(stash),
-				"db":     c.databaseID,
 			}).Debug("read new height from channel")
 			if stash != nil {
 				wg.Add(1)
@@ -856,15 +739,9 @@ func (c *Chain) processBlocks(ctx context.Context) {
 			}
 		case block := <-c.blocks:
 			height := c.rt.getHeightFromTime(block.Timestamp())
-			log.WithFields(log.Fields{
-				"peer":         c.rt.getPeerInfoString(),
-				"time":         c.rt.getChainTimeString(),
-				"curr_turn":    c.rt.getNextTurn(),
-				"head_height":  c.rt.getHead().Height,
-				"head_block":   c.rt.getHead().Head.String(),
+			le.WithFields(log.Fields{
 				"block_height": height,
 				"block_hash":   block.BlockHash().String(),
-				"db":           c.databaseID,
 			}).Debug("processing new block")
 
 			if height > c.rt.getNextTurn()-1 {
@@ -876,50 +753,12 @@ func (c *Chain) processBlocks(ctx context.Context) {
 					// TODO(leventeliu): check and add to fork list.
 				} else {
 					if err := c.CheckAndPushNewBlock(block); err != nil {
-						log.WithFields(log.Fields{
-							"peer":         c.rt.getPeerInfoString(),
-							"time":         c.rt.getChainTimeString(),
-							"curr_turn":    c.rt.getNextTurn(),
-							"head_height":  c.rt.getHead().Height,
-							"head_block":   c.rt.getHead().Head.String(),
-							"block_height": height,
-							"block_hash":   block.BlockHash().String(),
-							"db":           c.databaseID,
-						}).WithError(err).Error("Failed to check and push new block")
-					} else {
-						head := c.rt.getHead()
-						currentCount := uint64(head.node.count)
-						if currentCount%c.updatePeriod == 0 {
-							ub, err := c.billing(head.node)
-							if err != nil {
-								log.WithError(err).WithField("db", c.databaseID).Error("billing failed")
-							}
-							// allocate nonce
-							nonceReq := &types.NextAccountNonceReq{}
-							nonceResp := &types.NextAccountNonceResp{}
-							nonceReq.Addr = *c.addr
-							if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
-								// allocate nonce failed
-								log.WithError(err).WithField("db", c.databaseID).Warning("allocate nonce for transaction failed")
-							}
-							ub.Nonce = nonceResp.Nonce
-							if err = ub.Sign(c.pk); err != nil {
-								log.WithError(err).WithField("db", c.databaseID).Warning("sign tx failed")
-							}
-
-							addTxReq := &types.AddTxReq{TTL: 1}
-							addTxResp := &types.AddTxResp{}
-							addTxReq.Tx = ub
-							log.WithField("db", c.databaseID).Debugf("nonce in processBlocks: %d, addr: %s",
-								addTxReq.Tx.GetAccountNonce(), addTxReq.Tx.GetAccountAddress())
-							if err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp); err != nil {
-								log.WithError(err).WithField("db", c.databaseID).Warning("send tx failed")
-							}
-						}
+						le.WithError(err).Error("failed to check and push new block")
 					}
 				}
 			}
 		case <-ctx.Done():
+			c.logEntryWithHeadState().WithError(ctx.Err()).Debug("abort block processing")
 			return
 		}
 	}
@@ -927,11 +766,8 @@ func (c *Chain) processBlocks(ctx context.Context) {
 
 // Start starts the main process of the sql-chain.
 func (c *Chain) Start() (err error) {
-	if err = c.sync(); err != nil {
-		return
-	}
-
 	c.rt.goFunc(c.processBlocks)
+	c.sync()
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
 	return
@@ -940,44 +776,16 @@ func (c *Chain) Start() (err error) {
 // Stop stops the main process of the sql-chain.
 func (c *Chain) Stop() (err error) {
 	// Stop main process
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).Debug("stopping chain")
+	le := c.logEntry()
+	le.Debug("stopping chain")
 	c.rt.stop(c.databaseID)
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).Debug("chain service and workers stopped")
-	// Close LevelDB file
-	var ierr error
-	if ierr = c.bdb.Close(); ierr != nil && err == nil {
-		err = ierr
-	}
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).WithError(ierr).Debug("chain database closed")
-	if ierr = c.tdb.Close(); ierr != nil && err == nil {
-		err = ierr
-	}
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).WithError(ierr).Debug("chain database closed")
+	le.Debug("chain service and workers stopped")
 	// Close state
+	var ierr error
 	if ierr = c.st.Close(false); ierr != nil && err == nil {
 		err = ierr
 	}
-	log.WithFields(log.Fields{
-		"peer": c.rt.getPeerInfoString(),
-		"time": c.rt.getChainTimeString(),
-		"db":   c.databaseID,
-	}).WithError(ierr).Debug("chain state storage closed")
+	le.WithError(ierr).Debug("chain state storage closed")
 	return
 }
 
@@ -1017,16 +825,16 @@ func (c *Chain) FetchBlockByCount(count int32) (b *types.Block, realCount int32,
 }
 
 func (c *Chain) fetchBlockByIndexKey(indexKey []byte) (b *types.Block, err error) {
-	k := utils.ConcatAll(metaBlockIndex[:], indexKey)
+	k := utils.ConcatAll(c.metaBlockIndex, indexKey)
 	var v []byte
-	v, err = c.bdb.Get(k, nil)
+	v, err = blkDB.Get(k, nil)
 	if err != nil {
 		err = errors.Wrapf(err, "fetch block %s", string(k))
 		return
 	}
 
 	b = &types.Block{}
-	statBlock(b)
+	trackBlock(b)
 	err = utils.DecodeMsgPack(v, b)
 	if err != nil {
 		err = errors.Wrapf(err, "fetch block %s", string(k))
@@ -1048,29 +856,27 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 		}
 		return -1
 	}()
-	log.WithFields(log.Fields{
-		"peer":        c.rt.getPeerInfoString(),
-		"time":        c.rt.getChainTimeString(),
+	le := c.logEntryWithHeadState().WithFields(log.Fields{
 		"block":       block.BlockHash().String(),
 		"producer":    block.Producer(),
 		"blocktime":   block.Timestamp().Format(time.RFC3339Nano),
 		"blockheight": height,
 		"blockparent": block.ParentHash().String(),
-		"headblock":   head.Head.String(),
-		"headheight":  head.Height,
-		"db":          c.databaseID,
-	}).WithError(err).Debug("checking new block from other peer")
+	})
+	le.Debug("checking new block from other peer")
 
 	if head.Height == height && head.Head.IsEqual(block.BlockHash()) {
 		// Maybe already set by FetchBlock
 		return nil
 	} else if !block.ParentHash().IsEqual(&head.Head) {
-		// Pushed block must extend the best chain
+		err = ErrInvalidBlock
+		le.WithError(err).Error("invalid new block for the current chain")
 		return ErrInvalidBlock
 	}
 
 	// Verify block signatures
 	if err = block.Verify(); err != nil {
+		le.WithError(err).Error("failed to verify block")
 		return
 	}
 
@@ -1080,21 +886,19 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 	}
 	// Check block producer
 	index, found := peers.Find(block.Producer())
-
 	if !found {
+		err = ErrUnknownProducer
+		le.WithError(err).Error("unknown producer of new block")
 		return ErrUnknownProducer
 	}
 
 	if index != next {
-		log.WithFields(log.Fields{
-			"peer":     c.rt.getPeerInfoString(),
-			"time":     c.rt.getChainTimeString(),
+		err = ErrInvalidProducer
+		le.WithFields(log.Fields{
 			"expected": next,
 			"actual":   index,
-			"db":       c.databaseID,
-		}).WithError(err).Error(
-			"Failed to check new block")
-		return ErrInvalidProducer
+		}).WithError(err).Error("invalid producer of new block")
+		return
 	}
 
 	// TODO(leventeliu): check if too many periods are skipped or store block for future use.
@@ -1104,6 +908,7 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 
 	// Replicate local state from the new block
 	if err = c.st.ReplayBlockWithContext(c.rt.ctx, block); err != nil {
+		le.WithError(err).Error("failed to replay new block")
 		return
 	}
 
@@ -1114,7 +919,9 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
 	if c.rt.queryTimeIsExpired(ack.GetResponseTimestamp()) {
-		err = errors.Wrapf(ErrQueryExpired, "Verify ack query, min valid height %d, ack height %d", c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
+		err = errors.Wrapf(ErrQueryExpired,
+			"Verify ack query, min valid height %d, ack height %d",
+			c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
 		return
 	}
 
@@ -1178,40 +985,43 @@ func (c *Chain) stat() {
 		bc = atomic.LoadInt32(&cachedBlockCount)
 	)
 	// Print chain stats
-	log.WithFields(log.Fields{
-		"database_id":           c.databaseID,
+	c.logEntry().WithFields(log.Fields{
 		"multiIndex_count":      ic,
 		"response_header_count": rc,
 		"query_tracker_count":   tc,
 		"cached_block_count":    bc,
-		"db":                    c.databaseID,
 	}).Info("chain mem stats")
 	// Print xeno stats
 	c.st.Stat(c.databaseID)
 }
 
-func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
-	log.WithField("db", c.databaseID).Debugf("begin to billing from count %d", node.count)
+func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err error) {
+	le := c.logEntryWithHeadState()
+	le.WithFields(log.Fields{"given_height": h}).Info("begin to billing")
 	var (
 		i, j      uint64
+		iter      *blockNode
 		minerAddr proto.AccountAddress
 		userAddr  proto.AccountAddress
+		minHeight = c.rt.getLastBillingHeight()
 		usersMap  = make(map[proto.AccountAddress]uint64)
 		minersMap = make(map[proto.AccountAddress]map[proto.AccountAddress]uint64)
 	)
 
-	for i = 0; i < c.updatePeriod && node != nil; i++ {
-		var block = node.block
+	for iter = node; iter != nil && iter.height > h; iter = iter.parent {
+	}
+	for iter != nil && iter.height > minHeight {
+		var block = iter.block
 		// Not cached, recover from storage
 		if block == nil {
-			if block, err = c.FetchBlock(node.height); err != nil {
+			if block, err = c.FetchBlock(iter.height); err != nil {
 				return
 			}
 		}
 		for _, tx := range block.QueryTxs {
 			minerAddr = tx.Response.ResponseAccount
 			if userAddr, err = crypto.PubKeyHash(tx.Request.Header.Signee); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
+				le.WithError(err).Warning("billing fail: miner addr")
 				return
 			}
 
@@ -1229,11 +1039,11 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 
 		for _, req := range block.FailedReqs {
 			if minerAddr, err = crypto.PubKeyHash(block.Signee()); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: miner addr")
+				le.WithError(err).Warning("billing fail: miner addr")
 				return
 			}
 			if userAddr, err = crypto.PubKeyHash(req.Header.Signee); err != nil {
-				log.WithError(err).WithField("db", c.databaseID).Warning("billing fail: user addr")
+				le.WithError(err).Warning("billing fail: user addr")
 				return
 			}
 			if _, ok := minersMap[userAddr][minerAddr]; !ok {
@@ -1243,17 +1053,18 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 			minersMap[userAddr][minerAddr] += uint64(len(req.Payload.Queries))
 			usersMap[userAddr] += uint64(len(req.Payload.Queries))
 		}
-		node = node.parent
+		iter = iter.parent
 	}
 
 	ub = types.NewUpdateBilling(&types.UpdateBillingHeader{
 		Users: make([]*types.UserCost, len(usersMap)),
 	})
+	ub.Version = int32(ub.HSPDefaultVersion())
 
 	i = 0
 	j = 0
 	for userAddr, cost := range usersMap {
-		log.WithField("db", c.databaseID).Debugf("user %s, cost %d", userAddr.String(), cost)
+		le.Debugf("user %s, cost %d", userAddr.String(), cost)
 		ub.Users[i] = &types.UserCost{
 			User: userAddr,
 			Cost: cost,
@@ -1272,5 +1083,33 @@ func (c *Chain) billing(node *blockNode) (ub *types.UpdateBilling, err error) {
 		i++
 	}
 	ub.Receiver, err = c.databaseID.AccountAddress()
+	ub.Range.From = uint32(minHeight)
+	ub.Range.To = uint32(h)
 	return
+}
+
+// SetLastBillingHeight sets the last billing height of this chain instance.
+func (c *Chain) SetLastBillingHeight(h int32) {
+	c.logEntryWithHeadState().WithFields(
+		log.Fields{"new_height": h}).Debug("set last billing height")
+	c.rt.setLastBillingHeight(h)
+}
+
+func (c *Chain) logEntry() *log.Entry {
+	return log.WithFields(log.Fields{
+		"db":     c.databaseID,
+		"peer":   c.rt.getPeerInfoString(),
+		"offset": c.rt.getChainTimeString(),
+	})
+}
+
+func (c *Chain) logEntryWithHeadState() *log.Entry {
+	return log.WithFields(log.Fields{
+		"db":          c.databaseID,
+		"peer":        c.rt.getPeerInfoString(),
+		"offset":      c.rt.getChainTimeString(),
+		"curr_turn":   c.rt.getNextTurn(),
+		"head_height": c.rt.getHead().Height,
+		"head_block":  c.rt.getHead().Head.String(),
+	})
 }

@@ -1,4 +1,4 @@
-IsTestMode: true
+UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
@@ -35,7 +35,7 @@ BlockProducer:
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
     Timestamp: 2018-08-13T21:59:59.12Z
 Miner:
-  IsTestMode: true
+  UseTestMasterKey: true
   RootDir: "./data"
   MaxReqTimeGap: "2s"
   ProvideServiceInterval: "3s"

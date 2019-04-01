@@ -11,16 +11,39 @@ $ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 ## Generating Default Config File
 
-You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `cql-utils`, you can find the config file in the directory that `cql-utils` create.
+You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `cql generate config`, you can find the config file in the directory `~/.cql`.
 
-See: [cql-utils doc](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-utils#usage) for config generation and get wallet address.
+```
+$ cql generate config
+Enter master key(press Enter for default: ""):
+⏎
+Private key file: private.key
+Public key's hex: 03bc9e90e3301a2f5ae52bfa1f9e033cde81b6b6e7188b11831562bf5847bff4c0
+```
+
+The ~/.cql/private.key is your encrypted private key file, and the pubkey hex is your public key's hex.
+
+### Generate Wallet Address from existing Key
+
+```
+$ cql wallet
+Enter master key(default: ""):
+⏎
+wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
+$ cql generate -config ~/.cql/config.yaml wallet
+Enter master key(default: ""):
+⏎
+wallet address: 4jXvNvPHKNPU8Sncz5u5F5WSGcgXmzC1g8RuAXTCJzLsbF9Dsf9
+```
+
+You can generate your *wallet* address for test net according to your private key(default ~/.cql/private).
 
 ## Check balance
 
 Use `cql` to check your wallet balance:
 
 ```bash
-$ cql balance
+$ cql wallet -balance all
 INFO[0000] 
 ### Public Key ###
 0388954cf083bb6bb2b9c7248849b57c76326296fcc0d69764fc61eedb5b8d820c

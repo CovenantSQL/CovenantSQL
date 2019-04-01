@@ -18,7 +18,6 @@ package mux
 
 import (
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -176,7 +176,7 @@ func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
 //}
 
 func TestEncryptIncCounterSimpleArgs(t *testing.T) {
-	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -211,7 +211,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 }
 
 func TestETLSBug(t *testing.T) {
-	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -254,8 +254,8 @@ func TestETLSBug(t *testing.T) {
 }
 
 func TestEncPingFindNeighbor(t *testing.T) {
-	_ = os.Remove(PubKeyStorePath)
-	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	utils.RemoveAll(PubKeyStorePath + "*")
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")

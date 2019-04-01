@@ -28,6 +28,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// state represents a snapshot of current best chain.
+type state struct {
+	node   *blockNode
+	Head   hash.Hash
+	Height int32
+}
+
 // runtime represents a chain runtime state.
 type runtime struct {
 	wg     *sync.WaitGroup
@@ -69,8 +76,8 @@ type runtime struct {
 	nextTurn int32
 	// head is the current head of the best chain.
 	head *state
-	// forks is the alternative head of the sql-chain.
-	forks []*state
+	// lastBillingHeight is the last success billing height of the current database.
+	lastBillingHeight int32
 
 	// timeMutex protects following time-relative fields.
 	timeMutex sync.Mutex
@@ -81,7 +88,7 @@ type runtime struct {
 }
 
 func blockCacheTTLRequired(c *Config) (ttl int32) {
-	var billingRequiredTTL = 2 * c.BillingPeriods
+	var billingRequiredTTL = int32(2 * c.UpdatePeriod)
 	ttl = c.BlockCacheTTL
 	if ttl < minBlockCacheTTL {
 		ttl = minBlockCacheTTL
@@ -119,10 +126,11 @@ func newRunTime(ctx context.Context, c *Config) (r *runtime) {
 
 			return -1
 		}(),
-		total:    int32(len(c.Peers.Servers)),
-		nextTurn: 1,
-		head:     &state{},
-		offset:   time.Duration(0),
+		total:             int32(len(c.Peers.Servers)),
+		nextTurn:          1,
+		head:              &state{},
+		lastBillingHeight: c.LastBillingHeight,
+		offset:            time.Duration(0),
 	}
 
 	if c.Genesis != nil {
@@ -138,7 +146,7 @@ func (r *runtime) setGenesis(b *types.Block) {
 	r.head = &state{
 		node:   nil,
 		Head:   *b.GenesisHash(),
-		Height: -1,
+		Height: 0,
 	}
 }
 
@@ -309,6 +317,18 @@ func (r *runtime) getPeers() *proto.Peers {
 	defer r.peersMutex.Unlock()
 	peers := r.peers.Clone()
 	return &peers
+}
+
+func (r *runtime) getLastBillingHeight() int32 {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	return r.lastBillingHeight
+}
+
+func (r *runtime) setLastBillingHeight(h int32) {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	r.lastBillingHeight = h
 }
 
 func (r *runtime) getHead() *state {

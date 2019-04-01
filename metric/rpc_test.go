@@ -28,7 +28,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -44,7 +43,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 	cc := NewCollectClient()
 	cs := NewCollectServer()
 
-	server, err := rpc.NewServerWithService(rrpc.ServiceMap{MetricServiceName: cs})
+	server, err := rpc.NewServerWithService(rpc.ServiceMap{MetricServiceName: cs})
 	if err != nil {
 		log.Fatal(err)
 	}

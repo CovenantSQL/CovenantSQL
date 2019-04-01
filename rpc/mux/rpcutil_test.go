@@ -34,7 +34,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -65,7 +64,7 @@ func TestCaller_CallNode(t *testing.T) {
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(rrpc.ServiceMap{route.DHTRPCName: dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +160,7 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	server.Stop()
-	DefaultPool.Close()
+	defaultPool.Close()
 }
 
 func TestNewPersistentCaller(t *testing.T) {
@@ -196,7 +195,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(rrpc.ServiceMap{route.DHTRPCName: dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,11 +291,11 @@ func TestNewPersistentCaller(t *testing.T) {
 	//if !ok {
 	//	t.Fatal("pool is not mux session pool")
 	//}
-	//sess, ok := pool.getSession(conf.GConf.BP.NodeID)
-	//if !ok {
-	//	t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
-	//}
-	//sess.Close()
+	sess, ok := defaultPool.getSession(conf.GConf.BP.NodeID)
+	if !ok {
+		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
+	}
+	sess.Close()
 
 	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
@@ -337,7 +336,7 @@ func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	addr := conf.GConf.ListenAddr
 	_, err = route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(rrpc.ServiceMap{"Test": &fakeService{}})
+	server, err := NewServerWithService(ServiceMap{"Test": &fakeService{}})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -414,7 +413,7 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	masterKey := []byte("")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(rrpc.ServiceMap{route.DHTRPCName: dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		b.Fatal(err)
 	}

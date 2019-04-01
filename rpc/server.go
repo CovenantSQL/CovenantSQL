@@ -43,8 +43,8 @@ type Server struct {
 	Listener    net.Listener
 }
 
-// NewServer return a new Server.
-func NewServer(f ServeStream) *Server {
+// NewServerWithServeFunc return a new Server.
+func NewServerWithServeFunc(f ServeStream) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
 		ctx:         ctx,
@@ -82,19 +82,6 @@ func (s *Server) InitRPCServer(
 	return
 }
 
-// NewServerWithService also return a new Server, and also register the Server.ServiceMap.
-func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
-	server = NewServer(ServeDirect)
-	for k, v := range serviceMap {
-		err = server.RegisterService(k, v)
-		if err != nil {
-			log.Fatal(err)
-			return nil, err
-		}
-	}
-	return server, nil
-}
-
 // SetListener set the service loop listener, used by func Serve main loop.
 func (s *Server) SetListener(l net.Listener) {
 	s.Listener = l
@@ -121,19 +108,19 @@ serverLoop:
 
 // serveConn do all the work.
 func (s *Server) serveConn(conn net.Conn) {
-	etlsconn, err := Accept(conn)
+	csconn, err := Accept(conn)
 	if err != nil {
 		return
 	}
-	defer etlsconn.Close()
+	defer csconn.Close()
 
-	remote := etlsconn.RemoteNodeID()
+	remote := csconn.RemoteNodeID()
 	log.WithFields(log.Fields{
-		"remote_addr": etlsconn.RemoteAddr(),
+		"remote_addr": csconn.RemoteAddr(),
 		"remote_node": remote,
 	}).Debug("handshake success")
 
-	s.serveStream(s.ctx, s.rpcServer, etlsconn, remote)
+	s.serveStream(s.ctx, s.rpcServer, csconn, remote)
 }
 
 // RegisterService with a Service name, used by Client RPC.

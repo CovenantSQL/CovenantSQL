@@ -18,6 +18,7 @@ package mux
 
 import (
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -25,7 +26,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // Session is the Session type of SessionPool.
@@ -43,24 +44,31 @@ type SessionPool struct {
 }
 
 var (
-	DefaultPool = &SessionPool{
+	defaultPool = &SessionPool{
 		sessions: make(map[proto.NodeID]*Session),
 	}
 )
 
 // GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
 func GetSessionPoolInstance() *SessionPool {
-	return DefaultPool
+	return defaultPool
 }
 
 // Close closes the session.
-func (s *Session) Close() {
+func (s *Session) Close() error {
 	s.Lock()
 	defer s.Unlock()
+	var errmsgs []string
 	for _, s := range s.sess {
-		_ = s.Close()
+		if err := s.Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
 	}
 	s.sess = s.sess[:0]
+	if len(errmsgs) > 0 {
+		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close session %s", s.target)
+	}
+	return nil
 }
 
 // Get returns new connection from session.
@@ -114,7 +122,7 @@ func (s *Session) Len() int {
 
 func newSession(id proto.NodeID, isAnonymous bool) (sess *mux.Session, err error) {
 	var conn net.Conn
-	if conn, err = rrpc.DialEx(id, isAnonymous); err != nil {
+	if conn, err = rpc.DialEx(id, isAnonymous); err != nil {
 		err = errors.Wrap(err, "dialing new session connection failed")
 		return
 	}
@@ -150,12 +158,12 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	return sess.Get()
 }
 
-type anonymousMuxConn struct {
+type oneOffMuxConn struct {
 	*mux.Stream
 	sess *mux.Session
 }
 
-func (c *anonymousMuxConn) Close() error {
+func (c *oneOffMuxConn) Close() error {
 	if err := c.Stream.Close(); err != nil {
 		return err
 	}
@@ -175,7 +183,7 @@ func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, e
 			err = errors.Wrapf(err, "open new session to %s failed", id)
 			return
 		}
-		return &anonymousMuxConn{
+		return &oneOffMuxConn{
 			sess:   sess,
 			Stream: stream,
 		}, nil
@@ -196,13 +204,20 @@ func (p *SessionPool) Remove(id proto.NodeID) {
 }
 
 // Close closes all sessions in the pool.
-func (p *SessionPool) Close() {
+func (p *SessionPool) Close() error {
 	p.Lock()
 	defer p.Unlock()
+	var errmsgs []string
 	for _, s := range p.sessions {
-		s.Close()
+		if err := s.Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
 	}
 	p.sessions = make(map[proto.NodeID]*Session)
+	if len(errmsgs) > 0 {
+		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close session pool")
+	}
+	return nil
 }
 
 // Len returns the session counts in the pool.

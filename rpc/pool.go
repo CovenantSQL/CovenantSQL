@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -26,13 +27,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-type PoolConn struct {
+type pooledConn struct {
 	net.Conn
 	session *Session
 }
 
-func (c *PoolConn) Close() error {
-	return c.session.put(c)
+func (c *pooledConn) Close() error {
+	return c.session.put(c.Conn) // unwrap
 }
 
 // Session is the Session type of SessionPool.
@@ -43,27 +44,56 @@ type Session struct {
 }
 
 // Close closes the session.
-func (s *Session) Close() {
+func (s *Session) Close() error {
 	s.Lock()
 	defer s.Unlock()
 	close(s.sess)
+	var errmsgs []string
 	for s := range s.sess {
-		_ = s.Close()
+		if err := s.Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
 	}
+	s.sess = nil // set to nil explicitly to force close in Session.put
+	if len(errmsgs) > 0 {
+		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close session %s", s.target)
+	}
+	return nil
+}
+
+func (s *Session) put(conn net.Conn) error {
+	s.Lock()
+	defer s.Unlock()
+	select {
+	case s.sess <- conn:
+	default:
+		return conn.Close()
+	}
+	return nil
+}
+
+func (s *Session) get() (conn net.Conn, ok bool) {
+	s.RLock()
+	defer s.RUnlock()
+	conn, ok = <-s.sess
+	return
 }
 
 // Get returns new connection from session.
 func (s *Session) Get() (conn net.Conn, err error) {
-	s.Lock()
-	defer s.Unlock()
-
-	if conn, ok := <-s.sess; ok {
-		return &PoolConn{
-			Conn:    conn,
-			session: s,
-		}, nil
+	var (
+		raw net.Conn
+		ok  bool
+	)
+	if raw, ok = s.get(); !ok {
+		if raw, err = s.newConn(); err != nil {
+			return
+		}
 	}
-	return s.newConn()
+	return &pooledConn{
+		Conn:    raw, // wrap
+		session: s,
+	}, nil
 }
 
 // Len returns physical connection count.
@@ -79,88 +109,75 @@ func (s *Session) newConn() (conn net.Conn, err error) {
 		err = errors.Wrap(err, "dialing new session connection failed")
 		return
 	}
-
 	return
-}
-
-func (s *Session) put(conn net.Conn) (err error) {
-	s.Lock()
-	defer s.Unlock()
-	select {
-	case s.sess <- conn:
-	default:
-		return conn.Close()
-	}
-	return nil
 }
 
 // SessionPool is the struct type of session pool.
 type SessionPool struct {
-	sync.RWMutex
-	sessions map[proto.NodeID]*Session
+	nodeSessions sync.Map // proto.NodeID -> Session
 }
 
-func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
-	// NO Blocking operation in this function
-	p.Lock()
-	defer p.Unlock()
-	sess, exist := p.sessions[id]
-	if exist {
-		//log.WithField("node", id).Debug("load session for target node")
-		loaded = true
-	} else {
-		// new session
-		sess = &Session{
-			target: id,
-			sess:   make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
-		}
-		p.sessions[id] = sess
+func (p *SessionPool) loadSession(id proto.NodeID) (sess *Session, ok bool) {
+	var v interface{}
+	if v, ok = p.nodeSessions.Load(id); ok {
+		sess = v.(*Session)
+		return
 	}
+	v, ok = p.nodeSessions.LoadOrStore(id, &Session{
+		target: id,
+		sess:   make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
+	})
+	sess = v.(*Session)
 	return
 }
 
 // Get returns existing session to the node, if not exist try best to create one.
 func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
-	var sess *Session
-	sess, _ = p.getSession(id)
+	sess, _ := p.loadSession(id)
 	return sess.Get()
+}
+
+func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+	if isAnonymous {
+		return DialEx(id, true)
+	}
+	return p.Get(id)
 }
 
 // Remove the node sessions in the pool.
 func (p *SessionPool) Remove(id proto.NodeID) {
-	p.Lock()
-	defer p.Unlock()
-	sess, exist := p.sessions[id]
-	if exist {
-		sess.Close()
-		delete(p.sessions, id)
+	v, ok := p.nodeSessions.Load(id)
+	if ok {
+		v.(*Session).Close()
+		p.nodeSessions.Delete(id)
 	}
 	return
 }
 
 // Close closes all sessions in the pool.
-func (p *SessionPool) Close() {
-	p.Lock()
-	defer p.Unlock()
-	for _, s := range p.sessions {
-		s.Close()
+func (p *SessionPool) Close() error {
+	var errmsgs []string
+	p.nodeSessions.Range(func(k, v interface{}) bool {
+		if err := v.(*Session).Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
+		return true
+	})
+	if len(errmsgs) > 0 {
+		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close session pool")
 	}
-	p.sessions = make(map[proto.NodeID]*Session)
+	return nil
 }
 
 // Len returns the session counts in the pool.
 func (p *SessionPool) Len() (total int) {
-	p.RLock()
-	defer p.RUnlock()
-
-	for _, s := range p.sessions {
-		total += s.Len()
-	}
+	p.nodeSessions.Range(func(k, v interface{}) bool {
+		total += v.(*Session).Len()
+		return true
+	})
 	return
 }
 
 var (
-	defaultPool = &SessionPool{
-		sessions: make(map[proto.NodeID]*Session),
-	}
+	defaultPool = &SessionPool{}
 )

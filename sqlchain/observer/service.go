@@ -147,7 +147,7 @@ func NewService() (service *Service, err error) {
 	// init service
 	service = &Service{
 		db:     db,
-		caller: rrpc.NewCaller(rpc.GetSessionPoolInstance()),
+		caller: rrpc.NewCallerWithPool(rpc.GetSessionPoolInstance()),
 	}
 
 	// load previous subscriptions

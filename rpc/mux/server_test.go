@@ -30,7 +30,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -53,13 +53,13 @@ func (p *nilSessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn
 	if stream, err = sess.OpenStream(); err != nil {
 		return
 	}
-	return &anonymousMuxConn{
+	return &oneOffMuxConn{
 		sess:   sess,
 		Stream: stream,
 	}, nil
 }
 
-func (p *nilSessionPool) Close() {}
+func (p *nilSessionPool) Close() error { return nil }
 
 // CheckNum make int assertion.
 func CheckNum(num, expected int, t *testing.T) {
@@ -180,7 +180,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
-	server, err := NewServerWithService(rrpc.ServiceMap{"Test": NewTestService()})
+	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -196,8 +196,8 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	conn, err := rrpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	client := rrpc.NewClientWithConn(conn)
+	conn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
+	client := rpc.NewClientWithConn(conn)
 
 	repSimple := new(int)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
@@ -215,7 +215,7 @@ func TestETLSBug(t *testing.T) {
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
-	server, err := NewServerWithService(rrpc.ServiceMap{"Test": NewTestService()})
+	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -240,9 +240,9 @@ func TestETLSBug(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := rrpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
+	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 	cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
-	client := rrpc.NewClientWithConn(cryptoConn)
+	client := rpc.NewClientWithConn(cryptoConn)
 	defer client.Close()
 
 	repSimple := new(int)
@@ -261,7 +261,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	masterKey := []byte("abc")
 	dht, err := route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
 
-	server, err := NewServerWithService(rrpc.ServiceMap{route.DHTRPCName: dht})
+	server, err := NewServerWithService(ServiceMap{route.DHTRPCName: dht})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -277,8 +277,8 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := rrpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	client := rrpc.NewClientWithConn(cryptoConn)
+	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
+	client := rpc.NewClientWithConn(cryptoConn)
 
 	node1 := proto.NewNode()
 	node1.InitNodeCryptoInfo(100 * time.Millisecond)

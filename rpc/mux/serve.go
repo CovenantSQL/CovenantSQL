@@ -4,19 +4,18 @@ import (
 	"context"
 	"io"
 	"net"
-	"net/rpc"
+	nrpc "net/rpc"
 
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-func ServeMux(ctx context.Context, server *rpc.Server, conn net.Conn, remoteNodeID proto.RawNodeID) {
-	// create session
+func ServeMux(ctx context.Context, server *nrpc.Server, conn net.Conn, remoteNodeID proto.RawNodeID) {
 	sess, err := mux.Server(conn, mux.DefaultConfig())
 	if err != nil {
 		err = errors.Wrap(err, "create mux server failed")
@@ -45,7 +44,7 @@ sessionLoop:
 				<-muxConn.GetDieCh()
 				cancelFunc()
 			}()
-			nodeAwareCodec := rrpc.NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), &remoteNodeID)
+			nodeAwareCodec := rpc.NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), &remoteNodeID)
 			go server.ServeCodec(nodeAwareCodec)
 		}
 	}

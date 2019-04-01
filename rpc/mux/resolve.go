@@ -35,7 +35,7 @@ func (_ *muxRPCResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 }
 
 func init() {
-	csconn.SetResolver(&muxRPCResolver{})
+	csconn.RegisterResolver(&muxRPCResolver{})
 }
 
 // GetNodeAddr tries best to get node addr.

@@ -37,7 +37,7 @@ const pass = "123"
 
 var simpleCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
 	cipher := NewCipher([]byte(pass))
-	cryptoConn = NewConn(conn, cipher, nil)
+	cryptoConn = NewConn(conn, cipher)
 	return
 }
 
@@ -272,7 +272,7 @@ func TestComplexRPC(t *testing.T) {
 func TestCryptoConn_RW(t *testing.T) {
 	cipher := NewCipher([]byte(pass))
 	var nilCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
-		cryptoConn = NewConn(conn, cipher, nil)
+		cryptoConn = NewConn(conn, cipher)
 		return
 	}
 

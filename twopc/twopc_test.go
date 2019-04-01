@@ -118,7 +118,7 @@ func NewRaftNode() (r *RaftNode, err error) {
 
 var simpleCipherHandler etls.CipherHandler = func(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	cipher := etls.NewCipher([]byte(pass))
-	cryptoConn = etls.NewConn(conn, cipher, nil)
+	cryptoConn = etls.NewConn(conn, cipher)
 	return
 }
 

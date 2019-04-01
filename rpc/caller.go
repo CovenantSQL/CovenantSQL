@@ -56,7 +56,7 @@ type Caller struct {
 	pool NodeConnPool
 }
 
-func NewCaller(pool NodeConnPool) *Caller {
+func NewCallerWithPool(pool NodeConnPool) *Caller {
 	return &Caller{
 		pool: pool,
 	}

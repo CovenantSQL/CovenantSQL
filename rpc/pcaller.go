@@ -23,10 +23,10 @@ type PersistentCaller struct {
 	sync.Mutex
 }
 
-// NewPersistentCaller returns a persistent RPCCaller.
+// NewPersistentCallerWithPool returns a persistent RPCCaller.
 //  IMPORTANT: If a PersistentCaller is firstly used by a DHT.Ping, which is an anonymous
 //  ETLS connection. It should not be used by any other RPC except DHT.Ping.
-func NewPersistentCaller(pool NodeConnPool, target proto.NodeID) *PersistentCaller {
+func NewPersistentCallerWithPool(pool NodeConnPool, target proto.NodeID) *PersistentCaller {
 	return &PersistentCaller{
 		pool:     pool,
 		TargetID: target,

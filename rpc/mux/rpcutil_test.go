@@ -161,7 +161,7 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	server.Stop()
-	//client.pool.Close()
+	DefaultPool.Close()
 }
 
 func TestNewPersistentCaller(t *testing.T) {

@@ -52,16 +52,19 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 	return
 }
 
+// Caller is a wrapper for session pooling and RPC calling.
 type Caller struct {
 	pool NodeConnPool
 }
 
+// NewCallerWithPool returns a new Caller with the pool.
 func NewCallerWithPool(pool NodeConnPool) *Caller {
 	return &Caller{
 		pool: pool,
 	}
 }
 
+// CallNodeWithContext calls node method with context.
 func (c *Caller) CallNodeWithContext(
 	ctx context.Context, node proto.NodeID, method string, args, reply interface{}) (err error,
 ) {
@@ -75,7 +78,7 @@ func (c *Caller) CallNodeWithContext(
 		err = errors.Wrapf(err, "dial to node %s failed", node)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client := NewClientWithConn(conn)
 	defer client.Close()
@@ -93,6 +96,7 @@ func (c *Caller) CallNodeWithContext(
 	return
 }
 
+// CallNode calls node method.
 func (c *Caller) CallNode(node proto.NodeID, method string, args, reply interface{}) (err error) {
 	return c.CallNodeWithContext(context.Background(), node, method, args, reply)
 }

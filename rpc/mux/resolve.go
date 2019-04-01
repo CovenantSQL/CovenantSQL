@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package mux
 
 import (
@@ -26,11 +42,14 @@ var (
 
 type muxRPCResolver struct{}
 
-func (_ *muxRPCResolver) Resolve(id *proto.RawNodeID) (string, error) {
+// Resolve implements the node ID resolver using the BP network with mux-RPC protocol.
+func (r *muxRPCResolver) Resolve(id *proto.RawNodeID) (string, error) {
 	return GetNodeAddr(id)
 }
 
-func (_ *muxRPCResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
+// Resolve implements the node ID resolver extended method using the BP network
+// with mux-RPC protocol.
+func (r *muxRPCResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 	return GetNodeInfo(id)
 }
 
@@ -49,7 +68,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			if err != nil {
 				return
 			}
-			route.SetNodeAddrCache(id, node.Addr)
+			_ = route.SetNodeAddrCache(id, node.Addr)
 			addr = node.Addr
 		}
 	}

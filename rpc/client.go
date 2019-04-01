@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// Package mux provides RPC Client/Server functions.
 package rpc
 
 import (
@@ -36,6 +35,7 @@ func NewClient() *Client {
 	return &Client{}
 }
 
+// NewClientWithConn returns a new Client with conn.
 func NewClientWithConn(conn net.Conn) (client *Client) {
 	return &Client{
 		Conn:       conn,

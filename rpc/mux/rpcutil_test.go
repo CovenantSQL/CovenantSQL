@@ -39,16 +39,17 @@ import (
 )
 
 const (
-	RPCConcurrent = 10
-	RPCCount      = 100
+	publicKeyStore = "./test.keystore"
+	RPCConcurrent  = 10
+	RPCCount       = 100
 )
 
 func TestCaller_CallNode(t *testing.T) {
 	log.SetLevel(log.FatalLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	_ = os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	_ = os.Remove(publicKeyStore)
+	defer func() { _ = os.Remove(publicKeyStore) }()
 
 	_, testFile, _, _ := runtime.Caller(0)
 	confFile := filepath.Join(filepath.Dir(testFile), "../../test/node_standalone/config.yaml")
@@ -69,7 +70,7 @@ func TestCaller_CallNode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	_ = server.InitRPCServer(addr, privateKeyPath, masterKey)
 	go server.Serve()
 
 	//publicKey, err := kms.GetLocalPublicKey()
@@ -82,7 +83,7 @@ func TestCaller_CallNode(t *testing.T) {
 
 	client := NewCaller()
 	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)
 	node1.Addr = "1.1.1.1:1"
 
 	reqA := &proto.PingReq{
@@ -109,7 +110,7 @@ func TestCaller_CallNode(t *testing.T) {
 		log.Debugf("\nnode1 %##v \nnode2 %##v", node1, node2)
 	})
 
-	kms.DelNode(node2.ID)
+	_ = kms.DelNode(node2.ID)
 	node2, err = GetNodeInfo(node1.ID.ToRawNodeID())
 	Convey("test GetNodeInfo", t, func() {
 		So(err, ShouldBeNil)
@@ -160,15 +161,15 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 
 	server.Stop()
-	defaultPool.Close()
+	_ = defaultPool.Close()
 }
 
 func TestNewPersistentCaller(t *testing.T) {
 	log.SetLevel(log.FatalLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	_ = os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	_ = os.Remove(publicKeyStore)
+	defer func() { _ = os.Remove(publicKeyStore) }()
 
 	var d string
 	var err error
@@ -218,7 +219,7 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	client := NewPersistentCaller(conf.GConf.BP.NodeID)
 	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)
 	node1.Addr = "1.1.1.1:1"
 
 	reqA := &proto.PingReq{
@@ -250,7 +251,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	}
 
 	// close anonymous ETLS connection, and create new one
-	client.ResetClient("DHT.FindNeighbor")
+	_ = client.ResetClient("DHT.FindNeighbor")
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
@@ -295,7 +296,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	if !ok {
 		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
 	}
-	sess.Close()
+	_ = sess.Close()
 
 	client3 := NewPersistentCaller(conf.GConf.BP.NodeID)
 	err = client3.Call("DHT.FindNeighbor", reqF2, respF2)
@@ -308,10 +309,10 @@ func TestNewPersistentCaller(t *testing.T) {
 
 func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	log.SetLevel(log.FatalLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	_ = os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	_ = os.Remove(publicKeyStore)
+	defer func() { _ = os.Remove(publicKeyStore) }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
@@ -359,7 +360,7 @@ func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	b.StopTimer()
 	time.Sleep(5 * time.Second)
 	server.Stop()
-	GetSessionPoolInstance().Close()
+	_ = GetSessionPoolInstance().Close()
 }
 
 type fakeService struct{}
@@ -384,10 +385,10 @@ func (s *fakeService) Call(req *FakeRequest, resp *interface{}) (err error) {
 
 func BenchmarkPersistentCaller_Call(b *testing.B) {
 	log.SetLevel(log.InfoLevel)
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
-	os.Remove(publicKeyStore)
-	defer os.Remove(publicKeyStore)
+	_ = os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
+	_ = os.Remove(publicKeyStore)
+	defer func() { _ = os.Remove(publicKeyStore) }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
@@ -418,12 +419,12 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, privateKeyPath, masterKey)
+	_ = server.InitRPCServer(addr, privateKeyPath, masterKey)
 	go server.Serve()
 
 	client := NewPersistentCaller(conf.GConf.BP.NodeID)
 	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)
 	node1.Addr = "1.1.1.1:1"
 
 	reqA := &proto.PingReq{

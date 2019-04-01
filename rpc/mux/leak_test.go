@@ -111,7 +111,7 @@ func TestSessionPool_SessionBroken(t *testing.T) {
 	pool := GetSessionPoolInstance()
 	sess, _ := pool.getSession(leaderNodeID)
 	log.Debugf("session for %s, %#v", leaderNodeID, sess)
-	sess.Close()
+	_ = sess.Close()
 
 	reqType = "FindNode"
 	reqFN = &proto.FindNodeReq{

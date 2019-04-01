@@ -114,7 +114,7 @@ func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
 //		log.Fatal(err)
 //	}
 //
-//	server, err := NewServerWithService(rrpc.ServiceMap{"Test": NewTestService()})
+//	server, err := NewServerWithService(rpc.ServiceMap{"Test": NewTestService()})
 //	server.SetListener(l)
 //	go server.Serve()
 //
@@ -155,7 +155,7 @@ func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
 //		log.Fatal(err)
 //	}
 //
-//	server, err := NewServerWithService(rrpc.ServiceMap{"Test": NewTestService()})
+//	server, err := NewServerWithService(rpc.ServiceMap{"Test": NewTestService()})
 //	server.SetListener(l)
 //	go server.Serve()
 //
@@ -176,7 +176,7 @@ func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
 //}
 
 func TestEncryptIncCounterSimpleArgs(t *testing.T) {
-	defer os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -185,16 +185,16 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	_, _ = route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	_ = server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	_ = kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	conn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 	client := rpc.NewClientWithConn(conn)
@@ -211,7 +211,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 }
 
 func TestETLSBug(t *testing.T) {
-	defer os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -220,8 +220,8 @@ func TestETLSBug(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	_, _ = route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	_ = server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 	defer server.Stop()
 
@@ -231,17 +231,17 @@ func TestETLSBug(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rawConn.Close()
+	defer func() { _ = rawConn.Close() }()
 
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	_ = kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
+	_ = cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
 	client := rpc.NewClientWithConn(cryptoConn)
 	defer client.Close()
 
@@ -254,8 +254,8 @@ func TestETLSBug(t *testing.T) {
 }
 
 func TestEncPingFindNeighbor(t *testing.T) {
-	os.Remove(PubKeyStorePath)
-	defer os.Remove(PubKeyStorePath)
+	_ = os.Remove(PubKeyStorePath)
+	defer func() { _ = os.Remove(PubKeyStorePath) }()
 	log.SetLevel(log.FatalLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -266,22 +266,22 @@ func TestEncPingFindNeighbor(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	_ = server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	_ = kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 	client := rpc.NewClientWithConn(cryptoConn)
 
 	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqA := &proto.PingReq{
 		Node: *node1,
@@ -295,7 +295,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	node2 := proto.NewNode()
-	node2.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node2.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqB := &proto.PingReq{
 		Node: *node2,

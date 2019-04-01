@@ -170,6 +170,8 @@ func (c *oneOffMuxConn) Close() error {
 	return c.sess.Close()
 }
 
+// GetEx returns an one-off connection if it's anonymous, otherwise returns existing session
+// with Get.
 func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	if isAnonymous {
 		var (
@@ -197,7 +199,7 @@ func (p *SessionPool) Remove(id proto.NodeID) {
 	defer p.Unlock()
 	sess, exist := p.sessions[id]
 	if exist {
-		sess.Close()
+		_ = sess.Close()
 		delete(p.sessions, id)
 	}
 	return

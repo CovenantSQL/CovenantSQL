@@ -137,6 +137,8 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	return sess.Get()
 }
 
+// GetEx returns an one-off connection if it's anonymous, otherwise returns existing session
+// with Get.
 func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	if isAnonymous {
 		return DialEx(id, true)
@@ -148,7 +150,7 @@ func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, e
 func (p *SessionPool) Remove(id proto.NodeID) {
 	v, ok := p.nodeSessions.Load(id)
 	if ok {
-		v.(*Session).Close()
+		_ = v.(*Session).Close()
 		p.nodeSessions.Delete(id)
 	}
 	return

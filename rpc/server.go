@@ -31,6 +31,7 @@ import (
 // ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
+// ServeStream defines the stream serving function.
 type ServeStream func(ctx context.Context, server *rpc.Server, conn net.Conn, remote proto.RawNodeID)
 
 // Server is the RPC server struct.
@@ -106,13 +107,12 @@ serverLoop:
 	}
 }
 
-// serveConn do all the work.
 func (s *Server) serveConn(conn net.Conn) {
 	noconn, err := Accept(conn)
 	if err != nil {
 		return
 	}
-	defer noconn.Close()
+	defer func() { _ = noconn.Close() }()
 
 	remote := noconn.Remote()
 	log.WithFields(log.Fields{
@@ -123,7 +123,7 @@ func (s *Server) serveConn(conn net.Conn) {
 	s.serveStream(s.ctx, s.rpcServer, noconn, remote)
 }
 
-// RegisterService with a Service name, used by Client RPC.
+// RegisterService registers service with a Service name, used by Client RPC.
 func (s *Server) RegisterService(name string, service interface{}) error {
 	return s.rpcServer.RegisterName(name, service)
 }
@@ -131,7 +131,7 @@ func (s *Server) RegisterService(name string, service interface{}) error {
 // Stop Server main loop.
 func (s *Server) Stop() {
 	if s.Listener != nil {
-		s.Listener.Close()
+		_ = s.Listener.Close()
 	}
 	s.cancel()
 }

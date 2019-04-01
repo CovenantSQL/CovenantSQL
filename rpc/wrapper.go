@@ -10,7 +10,7 @@ func NewServer() *Server {
 	return NewServerWithServeFunc(ServeDirect)
 }
 
-// NewServerWithService also return a new Server, and also register the Server.ServiceMap.
+// NewServerWithService returns a new Server and registers the Server.ServiceMap.
 func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 	server = NewServer()
 	for k, v := range serviceMap {

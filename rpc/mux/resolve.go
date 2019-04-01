@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/csconn"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -35,7 +35,7 @@ func (_ *muxRPCResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 }
 
 func init() {
-	csconn.RegisterResolver(&muxRPCResolver{})
+	noconn.RegisterResolver(&muxRPCResolver{})
 }
 
 // GetNodeAddr tries best to get node addr.

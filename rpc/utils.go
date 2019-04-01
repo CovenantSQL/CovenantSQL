@@ -3,15 +3,15 @@ package rpc
 import (
 	"net"
 
-	"github.com/CovenantSQL/CovenantSQL/csconn"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
 // TODO(leventeliu): allow to config other node-oriented connection dialer/accepter.
 var (
-	Dial   = csconn.Dial
-	DialEx = csconn.DialEx
-	Accept = csconn.Accept
+	Dial   = noconn.Dial
+	DialEx = noconn.DialEx
+	Accept = noconn.Accept
 )
 
 type NodeConnPool interface {

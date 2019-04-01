@@ -30,11 +30,12 @@ import (
 )
 
 const (
+	// MagicSize is the ETLS magic header size.
 	MagicSize = 2
 )
 
 var (
-	// MagicBytes is the ETLS connection magic header
+	// MagicBytes is the ETLS connection magic header.
 	MagicBytes = [MagicSize]byte{0xC0, 0x4E}
 )
 
@@ -44,6 +45,7 @@ type CryptoConn struct {
 	*Cipher
 }
 
+// NewConn returns a new CryptoConn.
 func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 	return &CryptoConn{
 		Conn:   c,

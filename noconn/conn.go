@@ -1,4 +1,20 @@
-package csconn
+/*
+ * Copyright 2019 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package noconn
 
 import (
 	"bytes"
@@ -14,45 +30,49 @@ import (
 )
 
 const (
-	// HeaderSize is the header size with ETLSHeader + NodeID + Nonce
+	// HeaderSize is the header size with ETLSHeader + NodeID + Nonce.
 	HeaderSize = etls.MagicSize + hash.HashBSize + cpuminer.Uint256Size
 )
 
-type CSConn struct {
+// NOConn defines node-oriented connection based on ETLS crypto connection.
+type NOConn struct {
 	*etls.CryptoConn
 	isClient bool
 
 	// The following fields may be rewritten during handshake.
-	isAnonymous  bool
-	remoteNodeID proto.RawNodeID
+	isAnonymous bool
+	remote      proto.RawNodeID
 }
 
-func NewServerConn(conn net.Conn) *CSConn {
-	return &CSConn{
+// NewServerConn takes a raw connection and returns a new server side NOConn.
+func NewServerConn(conn net.Conn) *NOConn {
+	return &NOConn{
 		CryptoConn: etls.NewConn(conn, nil), // at server side, cipher will be set during handshake
 	}
 }
 
-//func NewClientConn(conn net.Conn) *CSConn {
-//	return &CSConn{
+//func NewClientConn(conn net.Conn) *NOConn {
+//	return &NOConn{
 //		CryptoConn:  etls.NewConn(conn, nil),
 //		isClient:    true,
 //		isAnonymous: true,
 //	}
 //}
 
-func (c *CSConn) RemoteNodeID() proto.RawNodeID {
-	return c.remoteNodeID
+// Remote returns the remote node ID of the NOConn.
+func (c *NOConn) Remote() proto.RawNodeID {
+	return c.remote
 }
 
-func (c *CSConn) Handshake() (err error) {
+// Handshake does the initial handshaking according to the connection role.
+func (c *NOConn) Handshake() (err error) {
 	if c.isClient {
 		return c.clientHandshake()
 	}
 	return c.serverHandshake()
 }
 
-func (c *CSConn) serverHandshake() (err error) {
+func (c *NOConn) serverHandshake() (err error) {
 	headerBuf := make([]byte, HeaderSize)
 	rCount, err := c.CryptoConn.Conn.Read(headerBuf)
 	if err != nil {
@@ -74,7 +94,7 @@ func (c *CSConn) serverHandshake() (err error) {
 	idHash, _ := hash.NewHash(headerBuf[etls.MagicSize : etls.MagicSize+hash.HashBSize])
 	rawNodeID := &proto.RawNodeID{Hash: *idHash}
 	// TODO(auxten): compute the nonce and check difficulty
-	cpuminer.Uint256FromBytes(headerBuf[etls.MagicSize+hash.HashBSize:])
+	_, _ = cpuminer.Uint256FromBytes(headerBuf[etls.MagicSize+hash.HashBSize:])
 
 	isAnonymous := rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash)
 	symmetricKey, err := GetSharedSecretWith(defaultResolver, rawNodeID, isAnonymous)
@@ -83,14 +103,14 @@ func (c *CSConn) serverHandshake() (err error) {
 		return
 	}
 	cipher := etls.NewCipher(symmetricKey)
-	c.CryptoConn.Cipher = cipher
-	c.remoteNodeID = *rawNodeID
+	c.CryptoConn.Cipher = cipher // reset cipher
+	c.remote = *rawNodeID
 	c.isAnonymous = isAnonymous
 
 	return
 }
 
-func (c *CSConn) clientHandshake() (err error) {
+func (c *NOConn) clientHandshake() (err error) {
 	writeBuf := make([]byte, HeaderSize)
 	copy(writeBuf, etls.MagicBytes[:])
 	if c.isAnonymous {
@@ -127,12 +147,12 @@ func (c *CSConn) clientHandshake() (err error) {
 }
 
 // Accept takes the ownership of conn and accepts it as a CSConn.
-func Accept(conn net.Conn) (*CSConn, error) {
-	csconn := NewServerConn(conn)
-	if err := csconn.Handshake(); err != nil {
+func Accept(conn net.Conn) (*NOConn, error) {
+	noconn := NewServerConn(conn)
+	if err := noconn.Handshake(); err != nil {
 		return nil, err
 	}
-	return csconn, nil
+	return noconn, nil
 }
 
 // Dial connects to the node with remote node id.
@@ -176,17 +196,17 @@ func DialEx(remote proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 		return
 	}
 
-	csconn := &CSConn{
-		CryptoConn:   etls.NewConn(iconn, cipher),
-		isAnonymous:  isAnonymous,
-		isClient:     true,
-		remoteNodeID: *rawNodeID,
+	noconn := &NOConn{
+		CryptoConn:  etls.NewConn(iconn, cipher),
+		isAnonymous: isAnonymous,
+		isClient:    true,
+		remote:      *rawNodeID,
 	}
 
-	if err = csconn.Handshake(); err != nil {
+	if err = noconn.Handshake(); err != nil {
 		err = errors.Wrapf(err, "connect %s %s failed", rawNodeID.String(), nodeAddr)
 		return
 	}
 
-	return csconn, nil
+	return noconn, nil
 }

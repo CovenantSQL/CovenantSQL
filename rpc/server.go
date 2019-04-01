@@ -108,19 +108,19 @@ serverLoop:
 
 // serveConn do all the work.
 func (s *Server) serveConn(conn net.Conn) {
-	csconn, err := Accept(conn)
+	noconn, err := Accept(conn)
 	if err != nil {
 		return
 	}
-	defer csconn.Close()
+	defer noconn.Close()
 
-	remote := csconn.RemoteNodeID()
+	remote := noconn.Remote()
 	log.WithFields(log.Fields{
-		"remote_addr": csconn.RemoteAddr(),
+		"remote_addr": noconn.RemoteAddr(),
 		"remote_node": remote,
 	}).Debug("handshake success")
 
-	s.serveStream(s.ctx, s.rpcServer, csconn, remote)
+	s.serveStream(s.ctx, s.rpcServer, noconn, remote)
 }
 
 // RegisterService with a Service name, used by Client RPC.

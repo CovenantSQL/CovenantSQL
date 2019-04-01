@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package csconn
+package noconn
 
 import (
 	"sync"
@@ -37,8 +37,8 @@ var symmetricKeyCache sync.Map
 // GetSharedSecretWith gets shared symmetric key with ECDH.
 func GetSharedSecretWith(resolver Resolver, nodeID *proto.RawNodeID, isAnonymous bool) (symmetricKey []byte, err error) {
 	if isAnonymous {
-		return []byte(sharedSecret), nil
 		//log.Debug("using anonymous ETLS")
+		return []byte(sharedSecret), nil
 	}
 
 	symmetricKeyI, ok := symmetricKeyCache.Load(nodeID.String())

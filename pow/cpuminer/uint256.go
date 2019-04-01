@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	// Uint256Size is the Uint256 byte size.
 	Uint256Size = 8 * 4
 )
 

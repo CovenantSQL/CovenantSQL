@@ -33,8 +33,8 @@ func NewServer() *Server {
 	}
 }
 
-func NewServerWithService(serviceMap rrpc.ServiceMap) (sv *Server, err error) {
-	server := rrpc.NewServer(ServeMux)
+func NewServerWithService(serviceMap rrpc.ServiceMap) (server *Server, err error) {
+	server = NewServer()
 	for k, v := range serviceMap {
 		err = server.RegisterService(k, v)
 		if err != nil {
@@ -42,7 +42,5 @@ func NewServerWithService(serviceMap rrpc.ServiceMap) (sv *Server, err error) {
 			return nil, err
 		}
 	}
-	return &Server{
-		Server: server,
-	}, nil
+	return
 }

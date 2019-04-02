@@ -54,9 +54,11 @@ func (DHT *DHTService) Nil(req *interface{}, resp *interface{}) (err error) {
 	return
 }
 
+var permissionCheckFunc = IsPermitted
+
 // FindNode RPC returns node with requested node id from DHT.
 func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp) (err error) {
-	if !IsPermitted(&req.Envelope, DHTFindNode) {
+	if permissionCheckFunc != nil && !permissionCheckFunc(&req.Envelope, DHTFindNode) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
@@ -73,7 +75,7 @@ func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp
 
 // FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT.
 func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
-	if !IsPermitted(&req.Envelope, DHTFindNeighbor) {
+	if permissionCheckFunc != nil && !permissionCheckFunc(&req.Envelope, DHTFindNeighbor) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
@@ -96,7 +98,7 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 // Ping RPC adds PingReq.Node to DHT.
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
-	if !IsPermitted(&req.Envelope, DHTPing) {
+	if permissionCheckFunc != nil && !permissionCheckFunc(&req.Envelope, DHTPing) {
 		err = fmt.Errorf("calling Ping from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return

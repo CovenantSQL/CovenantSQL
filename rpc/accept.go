@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -37,6 +38,18 @@ func (c *dummyNOConn) Remote() proto.RawNodeID {
 // AcceptRawConn accepts raw connection without encryption or node-oriented mechanism.
 func AcceptRawConn(ctx context.Context, conn net.Conn) (noconn.ConnRemoter, error) {
 	return &dummyNOConn{Conn: conn}, nil
+}
+
+// NewAcceptCryptoConnFunc returns a AcceptConn function which accepts raw connection and uses the
+// cipher handler to handle it as etls.CryptoConn.
+func NewAcceptCryptoConnFunc(handler etls.CipherHandler) AcceptConn {
+	return func(ctx context.Context, conn net.Conn) (noconn.ConnRemoter, error) {
+		cryptoConn, err := handler(conn)
+		if err != nil {
+			return nil, err
+		}
+		return &dummyNOConn{Conn: cryptoConn}, nil
+	}
 }
 
 // AcceptNOConn accepts connection as a noconn.NOConn.

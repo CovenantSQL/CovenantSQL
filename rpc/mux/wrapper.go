@@ -17,6 +17,10 @@
 package mux
 
 import (
+	"net"
+
+	mux "github.com/xtaci/smux"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -54,6 +58,21 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 func (s *Server) WithAcceptConnFunc(f rpc.AcceptConn) *Server {
 	s.Server.WithAcceptConnFunc(f)
 	return s
+}
+
+func NewOneOffMuxConn(conn net.Conn) (net.Conn, error) {
+	sess, err := mux.Client(conn, mux.DefaultConfig())
+	if err != nil {
+		return nil, err
+	}
+	stream, err := sess.OpenStream()
+	if err != nil {
+		return nil, err
+	}
+	return &oneOffMuxConn{
+		Stream: stream,
+		sess:   sess,
+	}, nil
 }
 
 // Caller is a wrapper for session pooling and RPC calling.

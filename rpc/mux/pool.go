@@ -173,9 +173,9 @@ func (c *oneOffMuxConn) Close() error {
 // NewOneOffMuxConn wraps a raw conn as a mux.Stream to access a rpc/mux.Server.
 //
 // Combine this with rpc.NewClient:
-//	 Dial conn with a corresponding dialer of RPC server
-//   Wrap conn as stream with NewOneOffMuxConn
-//   rpc.NewClient(stream) to get client.
+//	Dial conn with a corresponding dialer of RPC server
+// 	Wrap conn as stream with NewOneOffMuxConn
+// 	Call rpc.NewClient(stream) to get client.
 func NewOneOffMuxConn(conn net.Conn) (net.Conn, error) {
 	sess, err := mux.Client(conn, mux.DefaultConfig())
 	if err != nil {

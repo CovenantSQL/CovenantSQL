@@ -24,7 +24,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
@@ -40,7 +39,7 @@ type PCaller interface {
 // RawCaller defines a raw rpc caller without any encryption.
 type RawCaller struct {
 	targetAddr string
-	client     *rpc.Client
+	client     *nrpc.Client
 	sync.RWMutex
 }
 
@@ -63,7 +62,7 @@ func (c *RawCaller) resetClient() (err error) {
 	defer c.Unlock()
 
 	if c.client != nil {
-		c.client.Close()
+		_ = c.client.Close()
 		c.client = nil
 	}
 
@@ -72,20 +71,11 @@ func (c *RawCaller) resetClient() (err error) {
 		err = errors.Wrapf(err, "dial to target %s failed", c.targetAddr)
 		return
 	}
-	sess, err := mux.Client(conn, mux.DefaultConfig())
+	stream, err := NewOneOffMuxConn(conn)
 	if err != nil {
-		err = errors.Wrapf(err, "init client to target %s failed", c.targetAddr)
 		return
 	}
-	stream, err := sess.OpenStream()
-	if err != nil {
-		err = errors.Wrapf(err, "open stream to target %s failed", c.targetAddr)
-		return
-	}
-	c.client = rpc.NewClientWithConn(&oneOffMuxConn{
-		sess:   sess,
-		Stream: stream,
-	})
+	c.client = rpc.NewClient(stream)
 	return
 }
 
@@ -124,7 +114,7 @@ func (c *RawCaller) Close() {
 	c.Lock()
 	defer c.Unlock()
 	if c.client != nil {
-		c.client.Close()
+		_ = c.client.Close()
 		c.client = nil
 	}
 }

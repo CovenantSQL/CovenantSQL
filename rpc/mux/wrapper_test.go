@@ -225,7 +225,7 @@ func TestNewPersistentCaller(t *testing.T) {
 		Node: *node1,
 	}
 
-	if client.TargetAddr != string(conf.GConf.BP.NodeID) {
+	if client.TargetID != conf.GConf.BP.NodeID {
 		t.Fatal("persistent caller target not equal")
 	}
 
@@ -258,7 +258,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	}
 
 	// close anonymous ETLS connection, and create new one
-	_ = client.ResetClient("DHT.FindNeighbor")
+	_ = client.ResetClient()
 
 	wg := sync.WaitGroup{}
 	client = NewPersistentCaller(conf.GConf.BP.NodeID)
@@ -292,7 +292,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	client2.CloseStream()
+	client2.Close()
 
 	wg.Wait()
 	//pool, ok := client2.pool.(*SessionPool)
@@ -310,7 +310,7 @@ func TestNewPersistentCaller(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	client3.CloseStream()
+	client3.Close()
 
 }
 

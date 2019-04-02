@@ -34,10 +34,8 @@ const (
 	HeaderSize = etls.MagicSize + hash.HashBSize + cpuminer.Uint256Size
 )
 
-// ConnRemoter defines a patched net.Conn interface with a Remote method to acquire the remote node
-// ID.
-type ConnRemoter interface {
-	net.Conn
+// Remoter defines the interface to acquire remote node ID.
+type Remoter interface {
 	Remote() proto.RawNodeID
 }
 

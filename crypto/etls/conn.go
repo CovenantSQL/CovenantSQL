@@ -68,7 +68,6 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 
 // Read iv and Encrypted data.
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
-	log.Infof("connection %v", c)
 	if c.decStream == nil {
 		buf := make([]byte, c.info.ivLen+MagicSize)
 		if _, err = io.ReadFull(c.Conn, buf); err != nil {

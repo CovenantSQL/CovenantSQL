@@ -17,36 +17,13 @@
 package rpc
 
 import (
-	"net"
+	"io"
 	"net/rpc"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-// Client is RPC client.
-type Client struct {
-	*rpc.Client
-	RemoteAddr string
-	Conn       net.Conn
-}
-
-// NewClient returns a RPC client.
-func NewClient() *Client {
-	return &Client{}
-}
-
-// NewClientWithConn returns a new Client with conn.
-func NewClientWithConn(conn net.Conn) (client *Client) {
-	return &Client{
-		Conn:       conn,
-		Client:     rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(conn)),
-		RemoteAddr: conn.RemoteAddr().String(),
-	}
-}
-
-// Close the client RPC connection.
-func (c *Client) Close() {
-	//log.WithField("addr", c.RemoteAddr).Debug("closing client")
-	_ = c.Conn.Close()
-	_ = c.Client.Close()
+// NewClient returns a new Client with stream.
+func NewClient(stream io.ReadWriteCloser) (client *rpc.Client) {
+	return rpc.NewClientWithCodec(utils.GetMsgPackClientCodec(stream))
 }

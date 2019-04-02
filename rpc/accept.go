@@ -21,39 +21,38 @@ import (
 	"net"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-type dummyNOConn struct {
-	net.Conn
-	unknown proto.RawNodeID
-}
-
-func (c *dummyNOConn) Remote() proto.RawNodeID {
-	return c.unknown
-}
-
 // AcceptRawConn accepts raw connection without encryption or node-oriented mechanism.
-func AcceptRawConn(ctx context.Context, conn net.Conn) (noconn.ConnRemoter, error) {
-	return &dummyNOConn{Conn: conn}, nil
+//
+// Corresponding dialer is net.Dial.
+func AcceptRawConn(ctx context.Context, conn net.Conn) (net.Conn, error) {
+	// TODO(leventeliu): pass context.
+	return conn, nil
 }
 
 // NewAcceptCryptoConnFunc returns a AcceptConn function which accepts raw connection and uses the
 // cipher handler to handle it as etls.CryptoConn.
+//
+// Corresponding dialer is crypto/etls.Dial.
 func NewAcceptCryptoConnFunc(handler etls.CipherHandler) AcceptConn {
-	return func(ctx context.Context, conn net.Conn) (noconn.ConnRemoter, error) {
+	return func(ctx context.Context, conn net.Conn) (net.Conn, error) {
 		cryptoConn, err := handler(conn)
 		if err != nil {
 			return nil, err
 		}
-		return &dummyNOConn{Conn: cryptoConn}, nil
+		return cryptoConn, nil
 	}
 }
 
 // AcceptNOConn accepts connection as a noconn.NOConn.
-func AcceptNOConn(ctx context.Context, conn net.Conn) (noconn.ConnRemoter, error) {
+//
+// Default accept function of RPC server, and also the only accept function for
+// the connections from a NOConnPool.
+//
+// Corresponding dialer is noconn.Dial/noconn.DialEx.
+func AcceptNOConn(ctx context.Context, conn net.Conn) (net.Conn, error) {
 	noconn, err := Accept(conn)
 	if err != nil {
 		log.WithFields(log.Fields{

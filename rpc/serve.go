@@ -18,17 +18,19 @@ package rpc
 
 import (
 	"context"
-	"net"
+	"io"
 	"net/rpc"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-// ServeDirect serves conn directly.
-func ServeDirect(ctx context.Context, server *rpc.Server, conn net.Conn, remote proto.RawNodeID) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
+// ServeDirect serves data stream directly.
+func ServeDirect(
+	ctx context.Context, server *rpc.Server, stream io.ReadWriteCloser, remote *proto.RawNodeID,
+) {
+	subctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
-	nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(conn), &remote)
+	nodeAwareCodec := NewNodeAwareServerCodec(subctx, utils.GetMsgPackServerCodec(stream), remote)
 	server.ServeCodec(nodeAwareCodec)
 }

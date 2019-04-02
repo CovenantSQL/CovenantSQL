@@ -248,7 +248,7 @@ func (r *RaftNode) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error)
 		return
 	}
 
-	client := rpc.NewClientWithConn(muxconn)
+	client := rpc.NewClient(muxconn)
 	d, ok := ctx.Deadline()
 
 	if ok {
@@ -296,7 +296,7 @@ func (r *RaftNode) Commit(ctx context.Context, wb twopc.WriteBatch) (result inte
 		return
 	}
 
-	client := rpc.NewClientWithConn(muxconn)
+	client := rpc.NewClient(muxconn)
 	d, ok := ctx.Deadline()
 
 	if ok {
@@ -345,7 +345,7 @@ func (r *RaftNode) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error
 		return
 	}
 
-	client := rpc.NewClientWithConn(muxconn)
+	client := rpc.NewClient(muxconn)
 	d, ok := ctx.Deadline()
 
 	if ok {

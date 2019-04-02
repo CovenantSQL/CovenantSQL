@@ -18,7 +18,7 @@ package utils
 
 import (
 	"bytes"
-	"net"
+	"io"
 	"net/rpc"
 	"reflect"
 
@@ -61,11 +61,11 @@ func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 }
 
 // GetMsgPackServerCodec returns msgpack server codec for connection.
-func GetMsgPackServerCodec(c net.Conn) rpc.ServerCodec {
+func GetMsgPackServerCodec(c io.ReadWriteCloser) rpc.ServerCodec {
 	return codec.MsgpackSpecRpc.ServerCodec(c, msgPackHandle)
 }
 
 // GetMsgPackClientCodec returns msgpack client codec for connection.
-func GetMsgPackClientCodec(c net.Conn) rpc.ClientCodec {
+func GetMsgPackClientCodec(c io.ReadWriteCloser) rpc.ClientCodec {
 	return codec.MsgpackSpecRpc.ClientCodec(c, msgPackHandle)
 }

@@ -168,7 +168,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 	if conn, err = rrpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		t.Fatal(err)
 	}
-	RPCClient := rrpc.NewClientWithConn(conn)
+	RPCClient := rrpc.NewClient(conn)
 
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -297,7 +297,7 @@ func BenchmarkKVServer_GetAllNodeInfo(b *testing.B) {
 	if conn, err = rrpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		return
 	}
-	RPCClient := rrpc.NewClientWithConn(conn)
+	RPCClient := rrpc.NewClient(conn)
 
 	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()

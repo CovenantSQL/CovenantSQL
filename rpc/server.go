@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/rpc"
 
@@ -32,11 +33,15 @@ import (
 // ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
-// AcceptConn defines the function type which accepts a raw connetion as a noconn.ConnRemoter.
-type AcceptConn func(ctx context.Context, conn net.Conn) (stream noconn.ConnRemoter, err error)
+// AcceptConn defines the function type which accepts a raw connetion as a specific type
+// of connection.
+type AcceptConn func(ctx context.Context, conn net.Conn) (net.Conn, error)
 
-// ServeStream defines the stream serving function type.
-type ServeStream func(ctx context.Context, server *rpc.Server, conn net.Conn, remote proto.RawNodeID)
+// ServeStream defines the data stream serving function type which serves RPC at the given
+// io.ReadWriteCloser.
+type ServeStream func(
+	ctx context.Context, server *rpc.Server, stream io.ReadWriteCloser, remote *proto.RawNodeID,
+)
 
 // Server is the RPC server struct.
 type Server struct {
@@ -114,19 +119,23 @@ serverLoop:
 }
 
 func (s *Server) serveConn(conn net.Conn) {
-	noconn, err := s.acceptConn(s.ctx, conn)
+	le := log.WithField("remote_addr", conn.RemoteAddr())
+	stream, err := s.acceptConn(s.ctx, conn)
 	if err != nil {
+		le.WithError(err).Error("failed to accept conn")
 		return
 	}
-	defer func() { _ = noconn.Close() }()
-
-	remote := noconn.Remote()
-	log.WithFields(log.Fields{
-		"remote_addr": noconn.RemoteAddr(),
-		"remote_node": remote,
-	}).Debug("accept noconn.ConnRemoter success")
-
-	s.serveStream(s.ctx, s.rpcServer, noconn, remote)
+	defer func() { _ = stream.Close() }()
+	// Acquire remote node id if it's a noconn.Remoter conn
+	var remote *proto.RawNodeID
+	if remoter, ok := stream.(noconn.Remoter); ok {
+		id := remoter.Remote()
+		remote = &id
+		le = le.WithField("remote_node", id)
+	}
+	le.Debug("accept server conn")
+	// Serve data stream
+	s.serveStream(s.ctx, s.rpcServer, stream, remote)
 }
 
 // RegisterService registers service with a Service name, used by Client RPC.

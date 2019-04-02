@@ -70,11 +70,11 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 
 // Caller is a wrapper for session pooling and RPC calling.
 type Caller struct {
-	pool NodeConnPool
+	pool NOConnPool
 }
 
 // NewCallerWithPool returns a new Caller with the pool.
-func NewCallerWithPool(pool NodeConnPool) *Caller {
+func NewCallerWithPool(pool NOConnPool) *Caller {
 	return &Caller{
 		pool: pool,
 	}
@@ -96,8 +96,8 @@ func (c *Caller) CallNodeWithContext(
 	}
 	defer func() { _ = conn.Close() }()
 
-	client := NewClientWithConn(conn)
-	defer client.Close()
+	client := NewClient(conn)
+	defer func() { _ = client.Close() }()
 
 	// TODO(xq262144): golang net/rpc does not support cancel in progress calls
 	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))

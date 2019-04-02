@@ -19,7 +19,6 @@ package mux
 import (
 	"context"
 	"io"
-	"net"
 	nrpc "net/rpc"
 
 	"github.com/pkg/errors"
@@ -32,8 +31,10 @@ import (
 )
 
 // ServeMux takes conn and serves as a multiplexing server.
-func ServeMux(ctx context.Context, server *nrpc.Server, conn net.Conn, remoteNodeID proto.RawNodeID) {
-	sess, err := mux.Server(conn, mux.DefaultConfig())
+func ServeMux(
+	ctx context.Context, server *nrpc.Server, rawStream io.ReadWriteCloser, remote *proto.RawNodeID,
+) {
+	sess, err := mux.Server(rawStream, mux.DefaultConfig())
 	if err != nil {
 		err = errors.Wrap(err, "create mux server failed")
 		return
@@ -52,7 +53,7 @@ sessionLoop:
 				if err == io.EOF {
 					//log.WithField("remote", remoteNodeID).Debug("session connection closed")
 				} else {
-					err = errors.Wrapf(err, "session accept failed, remote: %s", remoteNodeID)
+					err = errors.Wrapf(err, "session accept failed, remote: %s", remote)
 				}
 				break sessionLoop
 			}
@@ -61,7 +62,7 @@ sessionLoop:
 				<-muxConn.GetDieCh()
 				cancelFunc()
 			}()
-			nodeAwareCodec := rpc.NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), &remoteNodeID)
+			nodeAwareCodec := rpc.NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remote)
 			go server.ServeCodec(nodeAwareCodec)
 		}
 	}

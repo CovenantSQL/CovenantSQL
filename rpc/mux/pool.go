@@ -170,6 +170,27 @@ func (c *oneOffMuxConn) Close() error {
 	return c.sess.Close()
 }
 
+// NewOneOffMuxConn wraps a raw conn as a mux.Stream to access a rpc/mux.Server.
+//
+// Combine this with rpc.NewClient:
+//	 Dial conn with a corresponding dialer of RPC server
+//   Wrap conn as stream with NewOneOffMuxConn
+//   rpc.NewClient(stream) to get client.
+func NewOneOffMuxConn(conn net.Conn) (net.Conn, error) {
+	sess, err := mux.Client(conn, mux.DefaultConfig())
+	if err != nil {
+		return nil, errors.Wrapf(err, "create session to %s", conn.RemoteAddr())
+	}
+	stream, err := sess.OpenStream()
+	if err != nil {
+		return nil, errors.Wrapf(err, "open stream to %s", conn.RemoteAddr())
+	}
+	return &oneOffMuxConn{
+		Stream: stream,
+		sess:   sess,
+	}, nil
+}
+
 // GetEx returns an one-off connection if it's anonymous, otherwise returns existing session
 // with Get.
 func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {

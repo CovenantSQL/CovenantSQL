@@ -197,7 +197,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	conn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	client := rpc.NewClientWithConn(conn)
+	client := rpc.NewClient(conn)
 
 	repSimple := new(int)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
@@ -206,7 +206,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	}
 	CheckNum(*repSimple, 10, t)
 
-	client.Close()
+	_ = client.Close()
 	server.Stop()
 }
 
@@ -242,8 +242,8 @@ func TestETLSBug(t *testing.T) {
 
 	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 	_ = cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
-	client := rpc.NewClientWithConn(cryptoConn)
-	defer client.Close()
+	client := rpc.NewClient(cryptoConn)
+	defer func() { _ = client.Close() }()
 
 	repSimple := new(int)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
@@ -278,7 +278,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
 	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	client := rpc.NewClientWithConn(cryptoConn)
+	client := rpc.NewClient(cryptoConn)
 
 	node1 := proto.NewNode()
 	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -329,7 +329,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 		So(nodeIDList, ShouldContain, string(node2.ID))
 		So(nodeIDList, ShouldContain, string(kms.BP.NodeID))
 	})
-	client.Close()
+	_ = client.Close()
 	server.Stop()
 }
 

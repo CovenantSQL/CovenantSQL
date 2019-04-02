@@ -20,6 +20,7 @@
 package etls
 
 import (
+	"bytes"
 	"io"
 	"net"
 	"time"
@@ -68,7 +69,7 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 // Read iv and Encrypted data.
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
-		buf := make([]byte, c.info.ivLen+len(MagicBytes))
+		buf := make([]byte, c.info.ivLen+MagicSize)
 		if _, err = io.ReadFull(c.Conn, buf); err != nil {
 			log.WithError(err).Info("read full failed")
 			return
@@ -79,7 +80,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 			return
 		}
 		c.decrypt(header, header)
-		if header[0] != MagicBytes[0] || header[1] != MagicBytes[1] {
+		if !bytes.Equal(header[:MagicSize], MagicBytes[:]) {
 			err = errors.New("bad stream ETLS header")
 			return
 		}

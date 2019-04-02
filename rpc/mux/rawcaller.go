@@ -75,10 +75,12 @@ func (c *RawCaller) resetClient() (err error) {
 	sess, err := mux.Client(conn, mux.DefaultConfig())
 	if err != nil {
 		err = errors.Wrapf(err, "init client to target %s failed", c.targetAddr)
+		return
 	}
 	stream, err := sess.OpenStream()
 	if err != nil {
 		err = errors.Wrapf(err, "open stream to target %s failed", c.targetAddr)
+		return
 	}
 	c.client = rpc.NewClientWithConn(&oneOffMuxConn{
 		sess:   sess,

@@ -34,6 +34,13 @@ const (
 	HeaderSize = etls.MagicSize + hash.HashBSize + cpuminer.Uint256Size
 )
 
+// ConnRemoter defines a patched net.Conn interface with a Remote method to acquire the remote node
+// ID.
+type ConnRemoter interface {
+	net.Conn
+	Remote() proto.RawNodeID
+}
+
 // NOConn defines node-oriented connection based on ETLS crypto connection.
 type NOConn struct {
 	*etls.CryptoConn

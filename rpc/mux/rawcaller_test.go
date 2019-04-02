@@ -22,6 +22,8 @@ import (
 
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 type testService struct{}
@@ -41,7 +43,7 @@ func (s *testService) TestReconnect(req *int, resp *interface{}) (err error) {
 
 func TestRawCaller(t *testing.T) {
 	Convey("test raw caller methods", t, func() {
-		s := NewServer()
+		s := NewServer().WithAcceptConnFunc(rpc.AcceptRawConn)
 		err := s.RegisterService("Test", &testService{})
 		So(err, ShouldBeNil)
 		l, err := net.Listen("tcp", ":0")

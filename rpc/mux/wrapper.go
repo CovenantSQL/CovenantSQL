@@ -30,7 +30,7 @@ type Server struct {
 	*rpc.Server
 }
 
-// NewServer return a new Server.
+// NewServer returns a new Server.
 func NewServer() *Server {
 	return &Server{
 		Server: rpc.NewServerWithServeFunc(ServeMux),
@@ -48,6 +48,12 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 		}
 	}
 	return
+}
+
+// WithAcceptConnFunc resets the AcceptConn function of server.
+func (s *Server) WithAcceptConnFunc(f rpc.AcceptConn) *Server {
+	s.Server.WithAcceptConnFunc(f)
+	return s
 }
 
 // Caller is a wrapper for session pooling and RPC calling.

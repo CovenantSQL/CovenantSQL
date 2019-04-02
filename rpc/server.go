@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -31,7 +32,10 @@ import (
 // ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
-// ServeStream defines the stream serving function.
+// AcceptConn defines the function type which accepts a raw connetion as a noconn.ConnRemoter.
+type AcceptConn func(ctx context.Context, conn net.Conn) (stream noconn.ConnRemoter, err error)
+
+// ServeStream defines the stream serving function type.
 type ServeStream func(ctx context.Context, server *rpc.Server, conn net.Conn, remote proto.RawNodeID)
 
 // Server is the RPC server struct.
@@ -40,6 +44,7 @@ type Server struct {
 	cancel      context.CancelFunc
 	rpcServer   *rpc.Server
 	serviceMap  ServiceMap
+	acceptConn  AcceptConn
 	serveStream ServeStream
 	Listener    net.Listener
 }
@@ -52,6 +57,7 @@ func NewServerWithServeFunc(f ServeStream) *Server {
 		cancel:      cancel,
 		rpcServer:   rpc.NewServer(),
 		serviceMap:  make(ServiceMap),
+		acceptConn:  AcceptNOConn,
 		serveStream: f,
 	}
 }
@@ -108,7 +114,7 @@ serverLoop:
 }
 
 func (s *Server) serveConn(conn net.Conn) {
-	noconn, err := Accept(conn)
+	noconn, err := s.acceptConn(s.ctx, conn)
 	if err != nil {
 		return
 	}
@@ -118,7 +124,7 @@ func (s *Server) serveConn(conn net.Conn) {
 	log.WithFields(log.Fields{
 		"remote_addr": noconn.RemoteAddr(),
 		"remote_node": remote,
-	}).Debug("handshake success")
+	}).Debug("accept noconn.ConnRemoter success")
 
 	s.serveStream(s.ctx, s.rpcServer, noconn, remote)
 }

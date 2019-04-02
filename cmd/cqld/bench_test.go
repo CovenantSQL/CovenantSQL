@@ -33,8 +33,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -165,10 +165,10 @@ func TestStartBP_CallRPC(t *testing.T) {
 	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
 
-	if conn, err = rrpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
+	if conn, err = rpc.DialToNodeWithPool(mux.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		t.Fatal(err)
 	}
-	RPCClient := rrpc.NewClient(conn)
+	RPCClient := rpc.NewClient(conn)
 
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -222,7 +222,7 @@ func TestStartBP_CallRPC(t *testing.T) {
 	}
 
 	time.Sleep(3 * time.Second)
-	caller := rpc.NewCaller()
+	caller := mux.NewCaller()
 	for _, n := range conf.GConf.KnownNodes {
 		if n.Role == proto.Follower || n.Role == proto.Leader {
 			err = caller.CallNode(n.ID, "DHT."+reqType, reqFN, respFN)
@@ -294,10 +294,10 @@ func BenchmarkKVServer_GetAllNodeInfo(b *testing.B) {
 	leaderNodeID := kms.BP.NodeID
 	var conn net.Conn
 
-	if conn, err = rrpc.DialToNodeWithPool(rpc.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
+	if conn, err = rpc.DialToNodeWithPool(mux.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		return
 	}
-	RPCClient := rrpc.NewClient(conn)
+	RPCClient := rpc.NewClient(conn)
 
 	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()

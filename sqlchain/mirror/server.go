@@ -21,17 +21,18 @@ import (
 
 	"github.com/pkg/errors"
 
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
 
-func createServer(listenAddr string) (s *rpc.Server, err error) {
+func createServer(listenAddr string) (s *mux.Server, err error) {
 	var l net.Listener
 	if l, err = net.Listen("tcp", listenAddr); err != nil {
 		err = errors.Wrap(err, "listen rpc server failed")
 		return
 	}
 
-	s = rpc.NewServer()
+	s = mux.NewServer().WithAcceptConnFunc(rpc.AcceptRawConn)
 	s.SetListener(l)
 
 	return
@@ -39,7 +40,7 @@ func createServer(listenAddr string) (s *rpc.Server, err error) {
 
 // StartMirror starts the mirror server and start mirror database.
 func StartMirror(database string, listenAddr string) (service *Service, err error) {
-	var server *rpc.Server
+	var server *mux.Server
 	if server, err = createServer(listenAddr); err != nil {
 		return
 	}

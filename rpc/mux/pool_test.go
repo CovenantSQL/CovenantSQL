@@ -31,7 +31,7 @@ import (
 const (
 	localAddr   = "127.0.0.1:4444"
 	localAddr2  = "127.0.0.1:4445"
-	concurrency = conf.MaxRPCPoolPhysicalConnection + 1
+	concurrency = conf.MaxRPCMuxPoolPhysicalConnection + 1
 	packetCount = 100
 )
 

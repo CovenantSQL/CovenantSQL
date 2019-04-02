@@ -76,7 +76,7 @@ func (s *Session) Get() (conn net.Conn, err error) {
 	s.Lock()
 	defer s.Unlock()
 	s.offset++
-	s.offset %= conf.MaxRPCPoolPhysicalConnection
+	s.offset %= conf.MaxRPCMuxPoolPhysicalConnection
 
 	var (
 		sess     *mux.Session
@@ -158,11 +158,13 @@ func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
 	return sess.Get()
 }
 
+// oneOffMuxConn wraps a mux.Session to implement net.Conn.
 type oneOffMuxConn struct {
 	*mux.Stream
 	sess *mux.Session
 }
 
+// Close closes mux.Stream and its underlying mux.Session.
 func (c *oneOffMuxConn) Close() error {
 	if err := c.Stream.Close(); err != nil {
 		return err

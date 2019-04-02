@@ -29,157 +29,157 @@ import (
 
 type pooledConn struct {
 	net.Conn
-	session *Session
+	freelist *freelist
 }
 
 func (c *pooledConn) Close() error {
-	return c.session.put(c.Conn) // unwrap
+	return c.freelist.put(c.Conn) // unwrap
 }
 
-// Session is the Session type of SessionPool.
-type Session struct {
+// freelist is the freelist type of ConnPool.
+type freelist struct {
 	sync.RWMutex
 	target proto.NodeID
-	sess   chan net.Conn
+	freeCh chan net.Conn
 }
 
-// Close closes the session.
-func (s *Session) Close() error {
-	s.Lock()
-	defer s.Unlock()
-	close(s.sess)
+// Close closes the freelist.
+func (l *freelist) Close() error {
+	l.Lock()
+	defer l.Unlock()
+	close(l.freeCh)
 	var errmsgs []string
-	for s := range s.sess {
+	for s := range l.freeCh {
 		if err := s.Close(); err != nil {
 			errmsgs = append(errmsgs, err.Error())
 		}
 	}
-	s.sess = nil // set to nil explicitly to force close in Session.put
+	l.freeCh = nil // set to nil explicitly to force close in freelist.put
 	if len(errmsgs) > 0 {
-		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close session %s", s.target)
+		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close free list %s", l.target)
 	}
 	return nil
 }
 
-func (s *Session) put(conn net.Conn) error {
-	s.Lock()
-	defer s.Unlock()
+func (l *freelist) put(conn net.Conn) error {
+	l.Lock()
+	defer l.Unlock()
 	select {
-	case s.sess <- conn:
+	case l.freeCh <- conn:
 	default:
 		return conn.Close()
 	}
 	return nil
 }
 
-func (s *Session) get() (conn net.Conn, ok bool) {
-	s.RLock()
-	defer s.RUnlock()
-	conn, ok = <-s.sess
+func (l *freelist) get() (conn net.Conn, ok bool) {
+	l.RLock()
+	defer l.RUnlock()
+	conn, ok = <-l.freeCh
 	return
 }
 
-// Get returns new connection from session.
-func (s *Session) Get() (conn net.Conn, err error) {
+// Get returns new connection from freelist.
+func (l *freelist) Get() (conn net.Conn, err error) {
 	var (
 		raw net.Conn
 		ok  bool
 	)
-	if raw, ok = s.get(); !ok {
-		if raw, err = s.newConn(); err != nil {
+	if raw, ok = l.get(); !ok {
+		if raw, err = l.newConn(); err != nil {
 			return
 		}
 	}
 	return &pooledConn{
-		Conn:    raw, // wrap
-		session: s,
+		Conn:     raw, // wrap
+		freelist: l,
 	}, nil
 }
 
 // Len returns physical connection count.
-func (s *Session) Len() int {
-	s.RLock()
-	defer s.RUnlock()
-	return len(s.sess)
+func (l *freelist) Len() int {
+	l.RLock()
+	defer l.RUnlock()
+	return len(l.freeCh)
 }
 
-func (s *Session) newConn() (conn net.Conn, err error) {
-	conn, err = Dial(s.target)
+func (l *freelist) newConn() (conn net.Conn, err error) {
+	conn, err = Dial(l.target)
 	if err != nil {
-		err = errors.Wrap(err, "dialing new session connection failed")
+		err = errors.Wrap(err, "dialing new connection failed")
 		return
 	}
 	return
 }
 
-// SessionPool is the struct type of session pool.
-type SessionPool struct {
-	nodeSessions sync.Map // proto.NodeID -> Session
+// ConnPool is the struct type of connection pool.
+type ConnPool struct {
+	nodeFreeLists sync.Map // proto.NodeID -> freelist
 }
 
-func (p *SessionPool) loadSession(id proto.NodeID) (sess *Session, ok bool) {
+func (p *ConnPool) loadFreeList(id proto.NodeID) (sess *freelist, ok bool) {
 	var v interface{}
-	if v, ok = p.nodeSessions.Load(id); ok {
-		sess = v.(*Session)
+	if v, ok = p.nodeFreeLists.Load(id); ok {
+		sess = v.(*freelist)
 		return
 	}
-	v, ok = p.nodeSessions.LoadOrStore(id, &Session{
+	v, ok = p.nodeFreeLists.LoadOrStore(id, &freelist{
 		target: id,
-		sess:   make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
+		freeCh: make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
 	})
-	sess = v.(*Session)
+	sess = v.(*freelist)
 	return
 }
 
-// Get returns existing session to the node, if not exist try best to create one.
-func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
-	sess, _ := p.loadSession(id)
+// Get returns existing freelist to the node, if not exist try best to create one.
+func (p *ConnPool) Get(id proto.NodeID) (conn net.Conn, err error) {
+	sess, _ := p.loadFreeList(id)
 	return sess.Get()
 }
 
-// GetEx returns an one-off connection if it's anonymous, otherwise returns existing session
+// GetEx returns an one-off connection if it's anonymous, otherwise returns existing freelist
 // with Get.
-func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+func (p *ConnPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	if isAnonymous {
 		return DialEx(id, true)
 	}
 	return p.Get(id)
 }
 
-// Remove the node sessions in the pool.
-func (p *SessionPool) Remove(id proto.NodeID) {
-	v, ok := p.nodeSessions.Load(id)
+// Remove the node freelist in the pool.
+func (p *ConnPool) Remove(id proto.NodeID) {
+	v, ok := p.nodeFreeLists.Load(id)
 	if ok {
-		_ = v.(*Session).Close()
-		p.nodeSessions.Delete(id)
+		_ = v.(*freelist).Close()
+		p.nodeFreeLists.Delete(id)
 	}
 	return
 }
 
-// Close closes all sessions in the pool.
-func (p *SessionPool) Close() error {
+// Close closes all FreeLists in the pool.
+func (p *ConnPool) Close() error {
 	var errmsgs []string
-	p.nodeSessions.Range(func(k, v interface{}) bool {
-		if err := v.(*Session).Close(); err != nil {
+	p.nodeFreeLists.Range(func(k, v interface{}) bool {
+		if err := v.(*freelist).Close(); err != nil {
 			errmsgs = append(errmsgs, err.Error())
 		}
 		return true
 	})
 	if len(errmsgs) > 0 {
-		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close session pool")
+		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close connection pool")
 	}
 	return nil
 }
 
-// Len returns the session counts in the pool.
-func (p *SessionPool) Len() (total int) {
-	p.nodeSessions.Range(func(k, v interface{}) bool {
-		total += v.(*Session).Len()
+// Len returns the connection count in the pool.
+func (p *ConnPool) Len() (total int) {
+	p.nodeFreeLists.Range(func(k, v interface{}) bool {
+		total += v.(*freelist).Len()
 		return true
 	})
 	return
 }
 
 var (
-	defaultPool = &SessionPool{}
+	defaultPool = &ConnPool{}
 )

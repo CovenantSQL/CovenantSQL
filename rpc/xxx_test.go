@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The CovenantSQL Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-package noconn
+package rpc
 
 import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -45,11 +45,12 @@ var (
 )
 
 type simpleResolver struct {
-	nodes sync.Map // *proto.RawNodeID -> *proto.Node
+	nodes sync.Map // proto.RawNodeID -> *proto.Node
 }
 
 func (r *simpleResolver) registerNode(node *proto.Node) {
 	key := *(node.ID.ToRawNodeID())
+	log.WithFields(log.Fields{"node": node}).Debug("register node")
 	r.nodes.Store(key, node)
 }
 
@@ -69,71 +70,44 @@ func (r *simpleResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 	return nil, fmt.Errorf("not found")
 }
 
-func TestNOConn(t *testing.T) {
-	Convey("Test simple NOConn", t, func(c C) {
-		l, err := net.Listen("tcp", "localhost:0")
-		So(err, ShouldBeNil)
-		defer func() { _ = l.Close() }()
-		// Register node
-		resolver := &simpleResolver{}
-		nodeinfo := thisNode()
-		So(nodeinfo, ShouldNotBeNil)
-		resolver.registerNode(&proto.Node{
-			Addr:      l.Addr().String(),
-			ID:        nodeinfo.ID,
-			PublicKey: nodeinfo.PublicKey,
-			Nonce:     nodeinfo.Nonce,
-		})
-		// Register resolver
-		RegisterResolver(resolver)
-		// Serve
-		rounds := 100
-		message := [1024]byte{}
-		rand.Read(message[:])
-		wg := &sync.WaitGroup{}
+var defaultResolver = &simpleResolver{}
+
+func createLocalNodes(diff int, num int) (nodes []*proto.Node, err error) {
+	pub, err := kms.GetLocalPublicKey()
+	if err != nil {
+		return
+	}
+	nodes = make([]*proto.Node, num)
+
+	miner := cpuminer.NewCPUMiner(nil)
+	nCh := make(chan cpuminer.NonceInfo)
+	defer close(nCh)
+	block := cpuminer.MiningBlock{
+		Data:      pub.Serialize(),
+		NonceChan: nCh,
+	}
+	next := cpuminer.Uint256{}
+	wg := &sync.WaitGroup{}
+
+	for i := 0; i < num; i++ {
 		wg.Add(1)
-		go func(c C) {
+		go func() {
 			defer wg.Done()
-			for i := 0; i < rounds; i++ {
-				conn, err := l.Accept()
-				c.So(err, ShouldBeNil)
-				wg.Add(1)
-				go func(c C, conn net.Conn) {
-					defer wg.Done()
-					noconn, err := Accept(conn)
-					c.So(err, ShouldBeNil)
-					defer func() { _ = noconn.Close() }()
-					t.Logf("accept conn %s <- %s", noconn.LocalAddr(), noconn.RemoteAddr())
-					buffer, err := ioutil.ReadAll(noconn)
-					c.So(err, ShouldBeNil)
-					c.So(buffer, ShouldResemble, message[:])
-				}(c, conn)
-			}
-		}(c)
-		// Send request
-		for i := 0; i < rounds; i++ {
-			wg.Add(1)
-			go func(c C) {
-				defer wg.Done()
-				var (
-					conn net.Conn
-					err  error
-				)
-				if rand.Int()%2 == 0 {
-					conn, err = Dial(nodeinfo.ID)
-				} else {
-					conn, err = DialEx(nodeinfo.ID, true)
-				}
-				c.So(err, ShouldBeNil)
-				defer func() { _ = conn.Close() }()
-				t.Logf("dial conn %s -> %s", conn.LocalAddr(), conn.RemoteAddr())
-				n, err := conn.Write(message[:])
-				c.So(err, ShouldBeNil)
-				c.So(n, ShouldEqual, len(message))
-			}(c)
+			_ = miner.ComputeBlockNonce(block, next, diff)
+		}()
+
+		n := <-nCh
+		nodes[i] = &proto.Node{
+			ID:        proto.NodeID(n.Hash.String()),
+			PublicKey: pub,
+			Nonce:     n.Nonce,
 		}
+
+		next = n.Nonce
+		next.Inc()
 		wg.Wait()
-	})
+	}
+	return
 }
 
 func thisNode() *proto.Node {
@@ -161,6 +135,12 @@ func setup() {
 		panic(err)
 	}
 	route.InitKMS(filepath.Join(tempDir, "public.keystore"))
+	noconn.RegisterResolver(defaultResolver)
+	if node := thisNode(); node != nil {
+		defaultResolver.registerNode(node)
+	}
+
+	log.SetLevel(log.DebugLevel)
 }
 
 func teardown() {

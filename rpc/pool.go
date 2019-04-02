@@ -33,7 +33,12 @@ type pooledConn struct {
 }
 
 func (c *pooledConn) Close() error {
-	return c.freelist.put(c.Conn) // unwrap
+	if c.freelist != nil {
+		err := c.freelist.put(c.Conn)
+		c.freelist = nil
+		return err
+	}
+	return nil
 }
 
 // freelist is the freelist type of ConnPool.
@@ -75,7 +80,10 @@ func (l *freelist) put(conn net.Conn) error {
 func (l *freelist) get() (conn net.Conn, ok bool) {
 	l.RLock()
 	defer l.RUnlock()
-	conn, ok = <-l.freeCh
+	select {
+	case conn, ok = <-l.freeCh:
+	default:
+	}
 	return
 }
 
@@ -117,24 +125,24 @@ type ConnPool struct {
 	nodeFreeLists sync.Map // proto.NodeID -> freelist
 }
 
-func (p *ConnPool) loadFreeList(id proto.NodeID) (sess *freelist, ok bool) {
+func (p *ConnPool) loadFreeList(id proto.NodeID) (list *freelist, ok bool) {
 	var v interface{}
 	if v, ok = p.nodeFreeLists.Load(id); ok {
-		sess = v.(*freelist)
+		list = v.(*freelist)
 		return
 	}
 	v, ok = p.nodeFreeLists.LoadOrStore(id, &freelist{
 		target: id,
 		freeCh: make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
 	})
-	sess = v.(*freelist)
+	list = v.(*freelist)
 	return
 }
 
 // Get returns existing freelist to the node, if not exist try best to create one.
 func (p *ConnPool) Get(id proto.NodeID) (conn net.Conn, err error) {
-	sess, _ := p.loadFreeList(id)
-	return sess.Get()
+	list, _ := p.loadFreeList(id)
+	return list.Get()
 }
 
 // GetEx returns an one-off connection if it's anonymous, otherwise returns existing freelist

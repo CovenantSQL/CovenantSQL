@@ -151,7 +151,7 @@ func (c *NOConn) clientHandshake() (err error) {
 	return
 }
 
-// Accept takes the ownership of conn and accepts it as a CSConn.
+// Accept takes the ownership of conn and accepts it as a NOConn.
 func Accept(conn net.Conn) (*NOConn, error) {
 	noconn := NewServerConn(conn)
 	if err := noconn.Handshake(); err != nil {

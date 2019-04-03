@@ -12,7 +12,7 @@ blockproducer)
     exec /app/cqld -config "${COVENANT_CONF}" -metric-web "${METRIC_WEB_ADDR}" "${@}"
     ;;
 observer)
-    exec /app/cql web -config "${COVENANT_CONF}" -no-password "${COVENANTSQL_OBSERVER_ADDR}" "${@}"
+    exec /app/cql explorer -config "${COVENANT_CONF}" -no-password "${COVENANTSQL_OBSERVER_ADDR}" "${@}"
     ;;
 adapter)
     exec /app/cql adapter -config "${COVENANT_CONF}" -no-password "${COVENANTSQL_ADAPTER_ADDR}" "${@}"

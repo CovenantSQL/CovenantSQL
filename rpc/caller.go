@@ -94,7 +94,6 @@ func (c *Caller) CallNodeWithContext(
 		err = errors.Wrapf(err, "dial to node %s failed", node)
 		return
 	}
-	defer func() { _ = conn.Close() }()
 
 	client := NewClient(conn)
 	defer func() { _ = client.Close() }()

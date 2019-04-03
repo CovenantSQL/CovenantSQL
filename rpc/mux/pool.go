@@ -72,7 +72,7 @@ func (s *Session) Close() error {
 }
 
 // Get returns new connection from session.
-func (s *Session) Get() (conn net.Conn, err error) {
+func (s *Session) Get() (conn rpc.Client, err error) {
 	s.Lock()
 	defer s.Unlock()
 	s.offset++
@@ -108,8 +108,7 @@ func (s *Session) Get() (conn net.Conn, err error) {
 			continue
 		}
 
-		conn = stream
-		return
+		return rpc.NewClient(stream), nil
 	}
 }
 
@@ -152,7 +151,7 @@ func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
 }
 
 // Get returns existing session to the node, if not exist try best to create one.
-func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
+func (p *SessionPool) Get(id proto.NodeID) (conn rpc.Client, err error) {
 	var sess *Session
 	sess, _ = p.getSession(id)
 	return sess.Get()
@@ -195,7 +194,7 @@ func NewOneOffMuxConn(conn net.Conn) (net.Conn, error) {
 
 // GetEx returns an one-off connection if it's anonymous, otherwise returns existing session
 // with Get.
-func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn rpc.Client, err error) {
 	if isAnonymous {
 		var (
 			sess   *mux.Session
@@ -208,10 +207,10 @@ func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, e
 			err = errors.Wrapf(err, "open new session to %s failed", id)
 			return
 		}
-		return &oneOffMuxConn{
+		return rpc.NewClient(&oneOffMuxConn{
 			sess:   sess,
 			Stream: stream,
-		}, nil
+		}), nil
 	}
 	return p.Get(id)
 }

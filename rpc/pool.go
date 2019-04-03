@@ -17,7 +17,7 @@
 package rpc
 
 import (
-	"net"
+	"net/rpc"
 	"strings"
 	"sync"
 
@@ -27,29 +27,54 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-type pooledConn struct {
-	net.Conn
+type pooledClient struct {
+	*rpc.Client
+
+	// Fields for pooling
+	sync.Mutex
 	freelist *freelist
+	lastErr  error
 }
 
-func (c *pooledConn) Close() error {
-	if c.freelist != nil {
-		err := c.freelist.put(c.Conn)
+func (c *pooledClient) setLastErr(err error) {
+	c.Lock()
+	defer c.Unlock()
+	if err != nil {
+		c.lastErr = err
+	}
+}
+
+// Call overwrites the Close method of client.
+func (c *pooledClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+	err := c.Client.Call(serviceMethod, args, reply)
+	if err != nil { // TODO(leventeliu): check recoverable errors
+		c.setLastErr(err)
+	}
+	return err
+}
+
+// TODO(leventeliu): call with Client.Go still needs to explicitly set last error.
+
+// Close overwrites the Close method of client.
+func (c *pooledClient) Close() error {
+	c.Lock()
+	if c.freelist != nil && c.lastErr == nil {
+		err := c.freelist.put(c.Client) // unwrap
 		c.freelist = nil
+		c.Unlock()
 		return err
 	}
-	return nil
+	c.Unlock()
+	return c.Client.Close()
 }
 
-// freelist is the freelist type of ConnPool.
 type freelist struct {
 	sync.RWMutex
 	target proto.NodeID
-	freeCh chan net.Conn
+	freeCh chan *rpc.Client
 }
 
-// Close closes the freelist.
-func (l *freelist) Close() error {
+func (l *freelist) close() error {
 	l.Lock()
 	defer l.Unlock()
 	close(l.freeCh)
@@ -66,66 +91,64 @@ func (l *freelist) Close() error {
 	return nil
 }
 
-func (l *freelist) put(conn net.Conn) error {
-	l.Lock()
-	defer l.Unlock()
+func (l *freelist) put(cli *rpc.Client) (err error) {
+	l.RLock() // note that this is read op on the freelist aspect
+	defer l.RUnlock()
 	select {
-	case l.freeCh <- conn:
+	case l.freeCh <- cli:
 	default:
-		return conn.Close()
+		err = cli.Close()
 	}
-	return nil
+	return
 }
 
-func (l *freelist) get() (conn net.Conn, ok bool) {
+func (l *freelist) getFree() (cli *rpc.Client, ok bool) {
 	l.RLock()
 	defer l.RUnlock()
 	select {
-	case conn, ok = <-l.freeCh:
+	case cli, ok = <-l.freeCh:
 	default:
 	}
 	return
 }
 
-// Get returns new connection from freelist.
-func (l *freelist) Get() (conn net.Conn, err error) {
+func (l *freelist) get() (cli Client, err error) {
 	var (
-		raw net.Conn
+		raw *rpc.Client
 		ok  bool
 	)
-	if raw, ok = l.get(); !ok {
-		if raw, err = l.newConn(); err != nil {
+	if raw, ok = l.getFree(); !ok {
+		if raw, err = l.newClient(); err != nil {
 			return
 		}
 	}
-	return &pooledConn{
-		Conn:     raw, // wrap
+	return &pooledClient{
+		Client:   raw, // wrap
 		freelist: l,
 	}, nil
 }
 
-// Len returns physical connection count.
-func (l *freelist) Len() int {
+// len returns physical connection count.
+func (l *freelist) len() int {
 	l.RLock()
 	defer l.RUnlock()
 	return len(l.freeCh)
 }
 
-func (l *freelist) newConn() (conn net.Conn, err error) {
-	conn, err = Dial(l.target)
+func (l *freelist) newClient() (*rpc.Client, error) {
+	conn, err := Dial(l.target)
 	if err != nil {
-		err = errors.Wrap(err, "dialing new connection failed")
-		return
+		return nil, errors.Wrap(err, "dialing new connection failed")
 	}
-	return
+	return NewClient(conn), err
 }
 
-// ConnPool is the struct type of connection pool.
-type ConnPool struct {
+// ClientPool is the struct type of connection pool.
+type ClientPool struct {
 	nodeFreeLists sync.Map // proto.NodeID -> freelist
 }
 
-func (p *ConnPool) loadFreeList(id proto.NodeID) (list *freelist, ok bool) {
+func (p *ClientPool) loadFreeList(id proto.NodeID) (list *freelist, ok bool) {
 	var v interface{}
 	if v, ok = p.nodeFreeLists.Load(id); ok {
 		list = v.(*freelist)
@@ -133,42 +156,46 @@ func (p *ConnPool) loadFreeList(id proto.NodeID) (list *freelist, ok bool) {
 	}
 	v, ok = p.nodeFreeLists.LoadOrStore(id, &freelist{
 		target: id,
-		freeCh: make(chan net.Conn, conf.MaxRPCPoolPhysicalConnection),
+		freeCh: make(chan *rpc.Client, conf.MaxRPCPoolPhysicalConnection),
 	})
 	list = v.(*freelist)
 	return
 }
 
 // Get returns existing freelist to the node, if not exist try best to create one.
-func (p *ConnPool) Get(id proto.NodeID) (conn net.Conn, err error) {
+func (p *ClientPool) Get(id proto.NodeID) (cli Client, err error) {
 	list, _ := p.loadFreeList(id)
-	return list.Get()
+	return list.get()
 }
 
-// GetEx returns an one-off connection if it's anonymous, otherwise returns existing freelist
-// with Get.
-func (p *ConnPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+// GetEx returns a client with an one-off connection if it's anonymous,
+// otherwise returns existing freelist with Get.
+func (p *ClientPool) GetEx(id proto.NodeID, isAnonymous bool) (cli Client, err error) {
 	if isAnonymous {
-		return DialEx(id, true)
+		cli, err := DialEx(id, true)
+		if err != nil {
+			return nil, err
+		}
+		return NewClient(cli), nil
 	}
 	return p.Get(id)
 }
 
 // Remove the node freelist in the pool.
-func (p *ConnPool) Remove(id proto.NodeID) {
+func (p *ClientPool) Remove(id proto.NodeID) {
 	v, ok := p.nodeFreeLists.Load(id)
 	if ok {
-		_ = v.(*freelist).Close()
+		_ = v.(*freelist).close()
 		p.nodeFreeLists.Delete(id)
 	}
 	return
 }
 
 // Close closes all FreeLists in the pool.
-func (p *ConnPool) Close() error {
+func (p *ClientPool) Close() error {
 	var errmsgs []string
 	p.nodeFreeLists.Range(func(k, v interface{}) bool {
-		if err := v.(*freelist).Close(); err != nil {
+		if err := v.(*freelist).close(); err != nil {
 			errmsgs = append(errmsgs, err.Error())
 		}
 		return true
@@ -180,14 +207,14 @@ func (p *ConnPool) Close() error {
 }
 
 // Len returns the connection count in the pool.
-func (p *ConnPool) Len() (total int) {
+func (p *ClientPool) Len() (total int) {
 	p.nodeFreeLists.Range(func(k, v interface{}) bool {
-		total += v.(*freelist).Len()
+		total += v.(*freelist).len()
 		return true
 	})
 	return
 }
 
 var (
-	defaultPool = &ConnPool{}
+	defaultPool = &ClientPool{}
 )

@@ -38,11 +38,11 @@ const PubKeyStorePath = "./public.keystore"
 
 type nilSessionPool struct{}
 
-func (p *nilSessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
+func (p *nilSessionPool) Get(id proto.NodeID) (rpc.Client, error) {
 	return p.GetEx(id, false)
 }
 
-func (p *nilSessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+func (p *nilSessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn rpc.Client, err error) {
 	var (
 		sess   *mux.Session
 		stream *mux.Stream
@@ -53,10 +53,10 @@ func (p *nilSessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn net.Conn
 	if stream, err = sess.OpenStream(); err != nil {
 		return
 	}
-	return &oneOffMuxConn{
+	return rpc.NewClient(&oneOffMuxConn{
 		sess:   sess,
 		Stream: stream,
-	}, nil
+	}), nil
 }
 
 func (p *nilSessionPool) Close() error { return nil }
@@ -196,8 +196,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	conn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	client := rpc.NewClient(conn)
+	client, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 
 	repSimple := new(int)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
@@ -240,9 +239,16 @@ func TestETLSBug(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	_ = cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
-	client := rpc.NewClient(cryptoConn)
+	cryptoConn, err := rpc.Dial(serverNodeID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	stream, err := NewOneOffMuxConn(cryptoConn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = stream.SetDeadline(time.Now().Add(3 * time.Second))
+	client := rpc.NewClient(stream)
 	defer func() { _ = client.Close() }()
 
 	repSimple := new(int)
@@ -277,8 +283,10 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
 	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
-	client := rpc.NewClient(cryptoConn)
+	client, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	node1 := proto.NewNode()
 	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)

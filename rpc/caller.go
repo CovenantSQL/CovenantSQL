@@ -70,11 +70,11 @@ func recordRPCCost(startTime time.Time, method string, err error) {
 
 // Caller is a wrapper for session pooling and RPC calling.
 type Caller struct {
-	pool NOConnPool
+	pool NOClientPool
 }
 
 // NewCallerWithPool returns a new Caller with the pool.
-func NewCallerWithPool(pool NOConnPool) *Caller {
+func NewCallerWithPool(pool NOClientPool) *Caller {
 	return &Caller{
 		pool: pool,
 	}
@@ -89,13 +89,11 @@ func (c *Caller) CallNodeWithContext(
 		recordRPCCost(startTime, method, err)
 	}()
 
-	conn, err := DialToNodeWithPool(c.pool, node, method == route.DHTPing.String())
+	client, err := DialToNodeWithPool(c.pool, node, method == route.DHTPing.String())
 	if err != nil {
 		err = errors.Wrapf(err, "dial to node %s failed", node)
 		return
 	}
-
-	client := NewClient(conn)
 	defer func() { _ = client.Close() }()
 
 	// TODO(xq262144): golang net/rpc does not support cancel in progress calls

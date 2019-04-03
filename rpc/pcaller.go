@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"io"
-	"net"
 	"net/rpc"
 	"strings"
 	"sync"
@@ -32,17 +31,17 @@ import (
 
 // PersistentCaller is a wrapper for session pooling and RPC calling.
 type PersistentCaller struct {
-	pool       NOConnPool
-	client     *rpc.Client
-	TargetAddr string
-	TargetID   proto.NodeID
+	pool   NOClientPool
+	client Client
+	//TargetAddr string
+	TargetID proto.NodeID
 	sync.Mutex
 }
 
 // NewPersistentCallerWithPool returns a persistent RPCCaller.
 //  IMPORTANT: If a PersistentCaller is firstly used by a DHT.Ping, which is an anonymous
 //  ETLS connection. It should not be used by any other RPC except DHT.Ping.
-func NewPersistentCallerWithPool(pool NOConnPool, target proto.NodeID) *PersistentCaller {
+func NewPersistentCallerWithPool(pool NOClientPool, target proto.NodeID) *PersistentCaller {
 	return &PersistentCaller{
 		pool:     pool,
 		TargetID: target,
@@ -53,15 +52,12 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.client == nil {
-		var conn net.Conn
-		conn, err = DialToNodeWithPool(c.pool, c.TargetID, isAnonymous)
+		c.client, err = DialToNodeWithPool(c.pool, c.TargetID, isAnonymous)
 		if err != nil {
 			err = errors.Wrap(err, "dial to node failed")
 			return
 		}
-		//conn.SetDeadline(time.Time{})
-		c.client = NewClient(conn)
-		c.TargetAddr = conn.RemoteAddr().String()
+		//c.TargetAddr = conn.RemoteAddr().String()
 	}
 	return
 }

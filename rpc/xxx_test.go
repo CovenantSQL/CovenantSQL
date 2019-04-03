@@ -23,6 +23,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -54,6 +56,10 @@ func (r *simpleResolver) registerNode(node *proto.Node) {
 	r.nodes.Store(key, node)
 }
 
+func (r *simpleResolver) deleteNode(key proto.RawNodeID) {
+	r.nodes.Delete(key)
+}
+
 func (r *simpleResolver) Resolve(id *proto.RawNodeID) (addr string, err error) {
 	var node *proto.Node
 	if node, err = r.ResolveEx(id); err != nil {
@@ -72,6 +78,46 @@ func (r *simpleResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 
 var defaultResolver = &simpleResolver{}
 
+type nilPool struct{} // mocks the pool interface with a direct dialer
+
+func (p *nilPool) Get(id proto.NodeID) (Client, error) {
+	return p.GetEx(id, false)
+}
+
+func (p *nilPool) GetEx(id proto.NodeID, isAnonymous bool) (Client, error) {
+	conn, err := Dial(id)
+	if err != nil {
+		return nil, err
+	}
+	return NewClient(conn), err
+}
+
+func (p *nilPool) Close() error { return nil }
+
+// CountService is a simple count service for testing.
+type CountService struct {
+	host   proto.NodeID
+	Counrt int32
+}
+
+type AddReq struct {
+	Delta int32
+}
+
+type AddResp struct {
+	Count int32
+}
+
+func (s *CountService) Add(req *AddReq, resp *AddResp) error {
+	resp.Count = atomic.AddInt32(&s.Counrt, req.Delta)
+	//log.WithFields(log.Fields{
+	//	"host":   s.host,
+	//	"result": resp.Count,
+	//}).Debug("call Add")
+	return nil
+}
+
+// createLocalNodes uses the cpu miner to mine node IDs for the local public key.
 func createLocalNodes(diff int, num int) (nodes []*proto.Node, err error) {
 	pub, err := kms.GetLocalPublicKey()
 	if err != nil {
@@ -138,6 +184,19 @@ func setup() {
 	noconn.RegisterResolver(defaultResolver)
 	if node := thisNode(); node != nil {
 		defaultResolver.registerNode(node)
+	}
+
+	const minNoFile = 10240
+	var lmt syscall.Rlimit
+	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+		panic(err)
+	}
+	if lmt.Max < minNoFile {
+		panic("insufficient max RLIMIT_NOFILE")
+	}
+	lmt.Cur = lmt.Max
+	if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+		panic(err)
 	}
 
 	log.SetLevel(log.DebugLevel)

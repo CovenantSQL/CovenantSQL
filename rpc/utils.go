@@ -17,8 +17,6 @@
 package rpc
 
 import (
-	"net"
-
 	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -33,15 +31,15 @@ var (
 	Accept = noconn.Accept
 )
 
-// NOConnPool defines the node-oriented connection pool interface.
-type NOConnPool interface {
-	Get(remote proto.NodeID) (net.Conn, error)
-	GetEx(remote proto.NodeID, isAnonymous bool) (net.Conn, error)
+// NOClientPool defines the node-oriented client pool interface.
+type NOClientPool interface {
+	Get(remote proto.NodeID) (Client, error)
+	GetEx(remote proto.NodeID, isAnonymous bool) (Client, error)
 	Close() error
 }
 
 // DialToNodeWithPool ties use connection in pool, if fails then connects to the node with nodeID.
-func DialToNodeWithPool(pool NOConnPool, nodeID proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
+func DialToNodeWithPool(pool NOClientPool, nodeID proto.NodeID, isAnonymous bool) (Client, error) {
 	if isAnonymous {
 		return pool.GetEx(nodeID, true)
 	}

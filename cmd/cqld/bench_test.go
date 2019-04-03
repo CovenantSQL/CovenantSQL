@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -163,12 +162,10 @@ func TestStartBP_CallRPC(t *testing.T) {
 	}
 
 	leaderNodeID := kms.BP.NodeID
-	var conn net.Conn
-
-	if conn, err = rpc.DialToNodeWithPool(mux.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
-		t.Fatal(err)
+	var RPCClient rpc.Client
+	if RPCClient, err = rpc.DialToNodeWithPool(mux.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
+		return
 	}
-	RPCClient := rpc.NewClient(conn)
 
 	nodePayload := proto.NewNode()
 	nodePayload.InitNodeCryptoInfo(100 * time.Millisecond)
@@ -292,12 +289,10 @@ func BenchmarkKVServer_GetAllNodeInfo(b *testing.B) {
 	//}
 
 	leaderNodeID := kms.BP.NodeID
-	var conn net.Conn
-
-	if conn, err = rpc.DialToNodeWithPool(mux.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
+	var RPCClient rpc.Client
+	if RPCClient, err = rpc.DialToNodeWithPool(mux.GetSessionPoolInstance(), leaderNodeID, false); err != nil {
 		return
 	}
-	RPCClient := rpc.NewClient(conn)
 
 	var reqType = "FindNeighbor"
 	nodePayload := proto.NewNode()

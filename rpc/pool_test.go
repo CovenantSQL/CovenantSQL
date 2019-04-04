@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -24,62 +25,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
-
-func setupServer(node *proto.Node) (server *Server, err error) {
-	if server, err = NewServerWithService(
-		ServiceMap{"Count": &CountService{host: node.ID}},
-	); err != nil {
-		return nil, err
-	}
-	if err = server.InitRPCServer(":0", privateKey, []byte{}); err != nil {
-		return nil, err
-	}
-	// register to resolver
-	node.Addr = server.Listener.Addr().String()
-	defaultResolver.registerNode(node)
-	return
-}
-
-func setupServers(nodes []*proto.Node) (stop func(), err error) {
-	servers := make([]*Server, len(nodes))
-	for i, v := range nodes {
-		if servers[i], err = setupServer(v); err != nil {
-			return
-		}
-	}
-
-	wg := &sync.WaitGroup{}
-	for _, v := range servers {
-		wg.Add(1)
-		go func(server *Server) {
-			defer wg.Done()
-			server.Serve()
-		}(v)
-	}
-
-	return func() {
-		for _, v := range nodes {
-			defaultResolver.deleteNode(*(v.ID.ToRawNodeID()))
-		}
-		for _, v := range servers {
-			v.Stop()
-		}
-		wg.Wait()
-	}, nil
-}
-
-func setupEnvironment(n int) ([]*proto.Node, func(), error) {
-	nodes, err := createLocalNodes(10, n)
-	if err != nil {
-		return nil, nil, err
-	}
-	stop, err := setupServers(nodes)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nodes, stop, nil
-}
 
 func benchCaller(b *testing.B, caller *Caller, remote proto.NodeID) {
 	b.ResetTimer()
@@ -143,7 +90,10 @@ func testPCaller(c C, wg *sync.WaitGroup, pool NOClientPool, remote proto.NodeID
 }
 
 func BenchmarkRPCComponents(b *testing.B) {
-	nodes, stop, err := setupEnvironment(1)
+	originLevel := log.GetLevel()
+	defer log.SetLevel(originLevel)
+	log.SetLevel(log.FatalLevel)
+	nodes, stop, err := setupEnvironment(1, AcceptNOConn)
 	if err != nil {
 		b.Fatal("failed to setup servers")
 	}
@@ -166,7 +116,7 @@ func BenchmarkRPCComponents(b *testing.B) {
 
 func TestRPCComponents(t *testing.T) {
 	Convey("Setup a single server for pool test", t, func(c C) {
-		nodes, stop, err := setupEnvironment(1)
+		nodes, stop, err := setupEnvironment(1, AcceptNOConn)
 		So(err, ShouldBeNil)
 		defer stop()
 
@@ -189,29 +139,43 @@ func TestRPCComponents(t *testing.T) {
 		pool.Remove(target)
 		So(pool.Len(), ShouldEqual, 0)
 
-		/*
+		Convey("Test pool functionality", func() {
 			// Test broken pipe
 			cli3, err := pool.GetEx(target, false)
 			So(err, ShouldBeNil)
 			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
 			So(err, ShouldBeNil)
-			stop() // shutdown server, should produce a broken pipe error on cli3
+			_ = cli3.(*pooledClient).Client.Close() // close underlying client, should produce an error upon any following Call
 			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
 			So(err, ShouldNotBeNil)
 			_ = cli3.Close() // should not return a broken client to pool
 			So(pool.Len(), ShouldEqual, 0)
-		*/
+		})
+
+		Convey("Test caller functionality", func() {
+			pool := &ClientPool{}
+			defer func() { _ = pool.Close() }()
+			caller := NewPersistentCallerWithPool(pool, target)
+			defer caller.Close()
+
+			// Set a bad client with raw tcp
+			rawconn, err := net.Dial("tcp", nodes[0].Addr)
+			So(err, ShouldBeNil)
+			caller.client = NewClient(rawconn)
+			err = caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{}) // should try reconnect
+			So(err, ShouldBeNil)
+		})
 	})
 
 	Convey("Setup servers", t, func(c C) {
-		nodes, stop, err := setupEnvironment(10)
+		nodes, stop, err := setupEnvironment(10, AcceptNOConn)
 		So(err, ShouldBeNil)
 		defer stop()
 
 		var (
-			totalQuest    = 10000 // of each server
-			callerCount   = 10    // of each server
-			callerConcurr = 10    // of each caller
+			totalQuest    = 1000 // of each server
+			callerCount   = 10   // of each server
+			callerConcurr = 10   // of each caller
 		)
 
 		Convey("Test RCP call with Caller", func(c C) {

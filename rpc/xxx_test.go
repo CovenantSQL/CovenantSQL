@@ -101,19 +101,18 @@ type CountService struct {
 }
 
 type AddReq struct {
+	proto.Envelope
 	Delta int32
 }
 
 type AddResp struct {
+	proto.Envelope
 	Count int32
 }
 
 func (s *CountService) Add(req *AddReq, resp *AddResp) error {
+	resp.SetNodeID(req.NodeID)
 	resp.Count = atomic.AddInt32(&s.Counrt, req.Delta)
-	//log.WithFields(log.Fields{
-	//	"host":   s.host,
-	//	"result": resp.Count,
-	//}).Debug("call Add")
 	return nil
 }
 
@@ -154,6 +153,61 @@ func createLocalNodes(diff int, num int) (nodes []*proto.Node, err error) {
 		wg.Wait()
 	}
 	return
+}
+
+func setupServer(node *proto.Node) (server *Server, err error) {
+	if server, err = NewServerWithService(
+		ServiceMap{"Count": &CountService{host: node.ID}},
+	); err != nil {
+		return nil, err
+	}
+	if err = server.InitRPCServer(":0", privateKey, []byte{}); err != nil {
+		return nil, err
+	}
+	// register to resolver
+	node.Addr = server.Listener.Addr().String()
+	defaultResolver.registerNode(node)
+	return
+}
+
+func setupServers(nodes []*proto.Node, f AcceptConn) (stop func(), err error) {
+	servers := make([]*Server, len(nodes))
+	for i, v := range nodes {
+		if servers[i], err = setupServer(v); err != nil {
+			return
+		}
+	}
+
+	wg := &sync.WaitGroup{}
+	for _, v := range servers {
+		wg.Add(1)
+		go func(server *Server) {
+			defer wg.Done()
+			server.WithAcceptConnFunc(f).Serve()
+		}(v)
+	}
+
+	return func() {
+		for _, v := range nodes {
+			defaultResolver.deleteNode(*(v.ID.ToRawNodeID()))
+		}
+		for _, v := range servers {
+			v.Stop()
+		}
+		wg.Wait()
+	}, nil
+}
+
+func setupEnvironment(n int, f AcceptConn) ([]*proto.Node, func(), error) {
+	nodes, err := createLocalNodes(10, n)
+	if err != nil {
+		return nil, nil, err
+	}
+	stop, err := setupServers(nodes, f)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nodes, stop, nil
 }
 
 func thisNode() *proto.Node {

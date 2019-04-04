@@ -69,7 +69,8 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 		recordRPCCost(startTime, method, err)
 	}()
 
-	err = c.initClient(method == route.DHTPing.String())
+	isAnonymous := (method == route.DHTPing.String())
+	err = c.initClient(isAnonymous)
 	if err != nil {
 		err = errors.Wrap(err, "init PersistentCaller client failed")
 		return
@@ -83,10 +84,13 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 			strings.Contains(strings.ToLower(err.Error()), "shut down") ||
 			strings.Contains(strings.ToLower(err.Error()), "broken pipe") {
 			// if got EOF, retry once
-			reconnectErr := c.ResetClient()
+			_ = c.ResetClient()
+			reconnectErr := c.initClient(isAnonymous)
 			if reconnectErr != nil {
 				err = errors.Wrap(reconnectErr, "reconnect failed")
+				return
 			}
+			return c.client.Call(method, args, reply)
 		}
 		err = errors.Wrapf(err, "call %s failed", method)
 		return

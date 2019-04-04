@@ -30,6 +30,11 @@ type Client interface {
 	Close() error
 }
 
+// Client defines the extend method to set client last error.
+type LastErrSetter interface {
+	SetLastErr(error)
+}
+
 // NewClient returns a new Client with stream.
 //
 // NOTE(leventeliu): ownership of stream is passed through:

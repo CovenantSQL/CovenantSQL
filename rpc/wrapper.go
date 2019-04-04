@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // NewServer return a new Server.
@@ -32,7 +31,6 @@ func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
 	for k, v := range serviceMap {
 		err = server.RegisterService(k, v)
 		if err != nil {
-			log.Fatal(err)
 			return nil, err
 		}
 	}

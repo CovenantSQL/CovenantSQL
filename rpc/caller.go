@@ -104,6 +104,12 @@ func (c *Caller) CallNodeWithContext(
 		err = ctx.Err()
 	case call := <-ch.Done:
 		err = call.Error
+		// Set error state so that the associated will not reuse this client
+		if err != nil { // TODO(leventeliu): check recoverable errors
+			if setter, ok := client.(LastErrSetter); ok {
+				setter.SetLastErr(err)
+			}
+		}
 	}
 
 	return

@@ -40,6 +40,7 @@ func NewAcceptCryptoConnFunc(handler etls.CipherHandler) AcceptConn {
 	return func(ctx context.Context, conn net.Conn) (net.Conn, error) {
 		cryptoConn, err := handler(conn)
 		if err != nil {
+			_ = conn.Close()
 			return nil, err
 		}
 		return cryptoConn, nil
@@ -59,6 +60,7 @@ func AcceptNOConn(ctx context.Context, conn net.Conn) (net.Conn, error) {
 			"local":  conn.LocalAddr(),
 			"remote": conn.RemoteAddr(),
 		}).WithError(err).Error("failed to accept NOConn")
+		_ = conn.Close()
 		return nil, err
 	}
 	return noconn, nil

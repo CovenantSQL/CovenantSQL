@@ -36,7 +36,7 @@ type pooledClient struct {
 	lastErr  error
 }
 
-func (c *pooledClient) setLastErr(err error) {
+func (c *pooledClient) SetLastErr(err error) {
 	c.Lock()
 	defer c.Unlock()
 	if err != nil {
@@ -48,7 +48,7 @@ func (c *pooledClient) setLastErr(err error) {
 func (c *pooledClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	err := c.Client.Call(serviceMethod, args, reply)
 	if err != nil { // TODO(leventeliu): check recoverable errors
-		c.setLastErr(err)
+		c.SetLastErr(err)
 	}
 	return err
 }
@@ -172,11 +172,11 @@ func (p *ClientPool) Get(id proto.NodeID) (cli Client, err error) {
 // otherwise returns existing freelist with Get.
 func (p *ClientPool) GetEx(id proto.NodeID, isAnonymous bool) (cli Client, err error) {
 	if isAnonymous {
-		cli, err := DialEx(id, true)
+		conn, err := DialEx(id, true)
 		if err != nil {
 			return nil, err
 		}
-		return NewClient(cli), nil
+		return NewClient(conn), nil
 	}
 	return p.Get(id)
 }

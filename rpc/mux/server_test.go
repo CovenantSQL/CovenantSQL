@@ -18,6 +18,7 @@ package mux
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -62,22 +63,22 @@ func (p *nilSessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn rpc.Clie
 func (p *nilSessionPool) Close() error { return nil }
 
 // CheckNum make int assertion.
-func CheckNum(num, expected int, t *testing.T) {
+func CheckNum(num, expected int32, t *testing.T) {
 	if num != expected {
 		t.Errorf("got %d, expected %d", num, expected)
 	}
 }
 
 type TestService struct {
-	counter int
+	counter int32
 }
 
 type TestReq struct {
-	Step int
+	Step int32
 }
 
 type TestRep struct {
-	Ret int
+	Ret int32
 }
 
 func NewTestService() *TestService {
@@ -91,89 +92,98 @@ func (s *TestService) IncCounter(req *TestReq, rep *TestRep) error {
 		"req":   *req,
 		"reply": *rep,
 	}).Debug("calling IncCounter")
-	s.counter += req.Step
-	rep.Ret = s.counter
+	rep.Ret = atomic.AddInt32(&s.counter, req.Step)
 	return nil
 }
 
-func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
+func (s *TestService) IncCounterSimpleArgs(step int32, ret *int32) error {
 	log.WithFields(log.Fields{
 		"req":   step,
 		"reply": ret,
 	}).Debug("calling IncCounter")
-	s.counter += step
-	*ret = s.counter
+	*ret = atomic.AddInt32(&s.counter, step)
+
 	return nil
 }
 
-//func TestIncCounter(t *testing.T) {
-//	log.SetLevel(log.FatalLevel)
-//	addr := "127.0.0.1:0"
-//	l, err := net.Listen("tcp", addr)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	server, err := NewServerWithService(rpc.ServiceMap{"Test": NewTestService()})
-//	server.SetListener(l)
-//	go server.Serve()
-//
-//	rep := new(TestRep)
-//	client, err := initClient(l.Addr().String())
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	err = client.Call("Test.IncCounter", &TestReq{Step: 10}, rep)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	CheckNum(rep.Ret, 10, t)
-//
-//	err = client.Call("Test.IncCounter", &TestReq{Step: 10}, rep)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	CheckNum(rep.Ret, 20, t)
-//
-//	repSimple := new(int)
-//	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	CheckNum(*repSimple, 30, t)
-//
-//	client.Close()
-//	server.Stop()
-//}
+func TestIncCounter(t *testing.T) {
+	log.SetLevel(log.FatalLevel)
+	addr := "127.0.0.1:0"
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-//func TestIncCounterSimpleArgs(t *testing.T) {
-//	log.SetLevel(log.FatalLevel)
-//	addr := "127.0.0.1:0"
-//	l, err := net.Listen("tcp", addr)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	server, err := NewServerWithService(rpc.ServiceMap{"Test": NewTestService()})
-//	server.SetListener(l)
-//	go server.Serve()
-//
-//	client, err := initClient(l.Addr().String())
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	repSimple := new(int)
-//	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	CheckNum(*repSimple, 10, t)
-//
-//	client.Close()
-//	server.Stop()
-//}
+	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+	server.SetListener(l)
+	go server.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
+
+	conn, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		log.Fatal(err)
+	}
+	stream, err := NewOneOffMuxConn(conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := rpc.NewClient(stream)
+
+	rep := new(TestRep)
+	err = client.Call("Test.IncCounter", &TestReq{Step: 10}, rep)
+	if err != nil {
+		log.Fatal(err)
+	}
+	CheckNum(rep.Ret, 10, t)
+
+	err = client.Call("Test.IncCounter", &TestReq{Step: 10}, rep)
+	if err != nil {
+		log.Fatal(err)
+	}
+	CheckNum(rep.Ret, 20, t)
+
+	repSimple := new(int32)
+	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
+	if err != nil {
+		log.Fatal(err)
+	}
+	CheckNum(*repSimple, 30, t)
+
+	_ = client.Close()
+	server.Stop()
+}
+
+func TestIncCounterSimpleArgs(t *testing.T) {
+	log.SetLevel(log.FatalLevel)
+	addr := "127.0.0.1:0"
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+	server.SetListener(l)
+	go server.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
+
+	conn, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		log.Fatal(err)
+	}
+	stream, err := NewOneOffMuxConn(conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := rpc.NewClient(stream)
+
+	repSimple := new(int32)
+	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
+	if err != nil {
+		log.Fatal(err)
+	}
+	CheckNum(*repSimple, 10, t)
+
+	_ = client.Close()
+	server.Stop()
+}
 
 func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 	defer utils.RemoveAll(PubKeyStorePath + "*")
@@ -198,7 +208,7 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 
 	client, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 
-	repSimple := new(int)
+	repSimple := new(int32)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)
@@ -251,7 +261,7 @@ func TestETLSBug(t *testing.T) {
 	client := rpc.NewClient(stream)
 	defer func() { _ = client.Close() }()
 
-	repSimple := new(int)
+	repSimple := new(int32)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)

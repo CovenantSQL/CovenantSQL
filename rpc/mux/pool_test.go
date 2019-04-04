@@ -19,18 +19,19 @@ package mux
 import (
 	"net"
 	"path/filepath"
+	"sync"
+	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
-	localAddr   = "127.0.0.1:4444"
-	localAddr2  = "127.0.0.1:4445"
 	concurrency = conf.MaxRPCMuxPoolPhysicalConnection + 1
 	packetCount = 100
 )
@@ -43,154 +44,148 @@ var (
 
 var FJ = filepath.Join
 
-func server(c C, localAddr string, n int) error {
-	// Accept a TCP connection
-	listener, err := net.Listen("tcp", localAddr)
-	go func() {
-		for i := 0; i < concurrency; i++ {
-			go func() {
-				conn, err := listener.Accept()
-				c.So(err, ShouldBeNil)
+// withTCPDialer overwrites the node-oriented dialer of rpc package, skips the noconn resolver
+// and implies a default resolving method: addr := string(remote node ID).
+func withTCPDialer() func() {
+	dial := rpc.Dial
+	dialEx := rpc.DialEx
 
-				// Setup server side of mux
-				log.Println("creating server session")
-				session, err := mux.Server(conn, nil)
-				c.So(err, ShouldBeNil)
+	rpc.Dial = func(remote proto.NodeID) (net.Conn, error) {
+		return net.Dial("tcp", string(remote))
+	}
 
-				for i := 0; i < concurrency; i++ {
-					// Accept a stream
-					//c.So(err, ShouldBeNil)
-					// Stream implements net.Conn
-					// Listen for a message
-					//c.So(string(buf1), ShouldEqual, "ping")
-					log.Println("accepting stream")
-					stream, err := session.AcceptStream()
-					if err == nil {
-						buf1 := make([]byte, 4)
-						for i := 0; i < n; {
-							n, err := stream.Read(buf1)
-							if n == 4 && err == nil {
-								i++
-								c.So(string(buf1), ShouldEqual, "ping")
-							}
-						}
-						log.Debugf("buf#%d read done", i)
-					}
-				}
-			}()
-		}
-	}()
-	return err
+	rpc.DialEx = func(remote proto.NodeID, isAnonymous bool) (net.Conn, error) {
+		return net.Dial("tcp", string(remote))
+	}
+
+	// recover func
+	return func() {
+		rpc.Dial = dial
+		rpc.DialEx = dialEx
+	}
 }
 
-//func BenchmarkSessionPool_Get(b *testing.B) {
-//	Convey("session pool", b, func(c C) {
-//		log.SetLevel(log.FatalLevel)
-//		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
-//			log.Debugf("creating new connection to %s", nodeID)
-//			return net.Dial("tcp", string(nodeID))
-//		})
-//
-//		wg := &sync.WaitGroup{}
-//
-//		server(c, localAddr, b.N)
-//		b.ResetTimer()
-//		wg.Add(concurrency)
-//		for i := 0; i < concurrency; i++ {
-//			go func(c2 C, n int) {
-//				// Open a new stream
-//				// Stream implements net.Conn
-//				defer wg.Done()
-//				stream, err := p.Get(proto.NodeID(localAddr))
-//				c2.So(err, ShouldBeNil)
-//				for i := 0; i < n; {
-//					n, err := stream.Write([]byte("ping"))
-//					if n == 4 && err == nil {
-//						i++
-//					}
-//				}
-//			}(c, b.N)
-//		}
-//		wg.Wait()
-//	})
-//}
-//
-//func TestNewSessionPool(t *testing.T) {
-//	Convey("session pool", t, func(c C) {
-//		log.SetLevel(log.FatalLevel)
-//		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
-//			log.Debugf("creating new connection to %s", nodeID)
-//			return net.Dial("tcp", string(nodeID))
-//		})
-//
-//		wg := &sync.WaitGroup{}
-//
-//		server(c, localAddr, packetCount)
-//		p.Get(proto.NodeID(localAddr))
-//
-//		wg.Add(concurrency)
-//		for i := 0; i < concurrency; i++ {
-//			go func(c2 C, n int) {
-//				// Open a new stream
-//				// Stream implements net.Conn
-//				defer wg.Done()
-//				stream, err := p.Get(proto.NodeID(localAddr))
-//				if err != nil {
-//					log.Errorf("get session failed: %s", err)
-//					return
-//				}
-//				c2.So(err, ShouldBeNil)
-//				for i := 0; i < n; {
-//					n, err := stream.Write([]byte("ping"))
-//					if n == 4 && err == nil {
-//						i++
-//					}
-//				}
-//			}(c, packetCount)
-//		}
-//
-//		wg.Wait()
-//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
-//
-//		server(c, localAddr2, packetCount)
-//		_, err := p.Get(proto.NodeID(localAddr2))
-//		So(err, ShouldBeNil)
-//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection+1)
-//
-//		wg2 := &sync.WaitGroup{}
-//		wg2.Add(concurrency)
-//		for i := 0; i < concurrency; i++ {
-//			go func(c2 C, n int) {
-//				// Open a new stream
-//				// Stream implements net.Conn
-//				defer wg2.Done()
-//				stream, err := p.Get(proto.NodeID(localAddr2))
-//				if err != nil {
-//					log.Errorf("get session failed: %s", err)
-//					return
-//				}
-//				c2.So(err, ShouldBeNil)
-//				for i := 0; i < n; {
-//					n, err := stream.Write([]byte("ping"))
-//					if n == 4 && err == nil {
-//						i++
-//					}
-//				}
-//			}(c, packetCount)
-//		}
-//
-//		wg2.Wait()
-//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection*2)
-//
-//		p.Remove(proto.NodeID(localAddr2))
-//		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
-//
-//		p.Close()
-//		So(p.Len(), ShouldEqual, 0)
-//	})
-//
-//	Convey("session pool get instance", t, func(c C) {
-//		So(GetSessionPoolInstance(), ShouldNotBeNil)
-//		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
-//	})
-//}
+func BenchmarkSessionPool_Get(b *testing.B) {
+	Convey("session pool", b, func(c C) {
+		log.SetLevel(log.FatalLevel)
+		p := &SessionPool{
+			sessions: make(map[proto.NodeID]*Session),
+		}
+		defer withTCPDialer()()
+		defer func() { _ = p.Close() }()
+
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatal(err)
+		}
+		server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+		server.SetListener(l)
+		go server.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
+		wg := &sync.WaitGroup{}
+		b.ResetTimer()
+
+		wg.Add(concurrency)
+		for i := 0; i < concurrency; i++ {
+			go func(c2 C, n int) {
+				defer wg.Done()
+				client, err := p.Get(proto.NodeID(l.Addr().String()))
+				defer func() { _ = client.Close() }()
+				if err != nil {
+					log.Errorf("get session failed: %s", err)
+					return
+				}
+				c2.So(err, ShouldBeNil)
+				err = client.Call("Test.IncCounter", &TestReq{Step: 1}, &TestRep{})
+				c2.So(err, ShouldBeNil)
+			}(c, b.N)
+		}
+		wg.Wait()
+	})
+}
+
+func TestNewSessionPool(t *testing.T) {
+	Convey("session pool", t, func(c C) {
+		log.SetLevel(log.FatalLevel)
+
+		// setup pool
+		p := &SessionPool{
+			sessions: make(map[proto.NodeID]*Session),
+		}
+		defer withTCPDialer()()
+
+		// setup server
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatal(err)
+		}
+		server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+		server.SetListener(l)
+		go server.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
+
+		wg := &sync.WaitGroup{}
+		wg.Add(concurrency)
+		for i := 0; i < concurrency; i++ {
+			go func(c2 C, n int) {
+				defer wg.Done()
+				client, err := p.Get(proto.NodeID(l.Addr().String()))
+				defer func() { _ = client.Close() }()
+				if err != nil {
+					log.Errorf("get session failed: %s", err)
+					return
+				}
+				c2.So(err, ShouldBeNil)
+				err = client.Call("Test.IncCounter", &TestReq{Step: 1}, &TestRep{})
+				c2.So(err, ShouldBeNil)
+			}(c, packetCount)
+		}
+
+		wg.Wait()
+		So(p.Len(), ShouldEqual, conf.MaxRPCMuxPoolPhysicalConnection)
+
+		// setup server
+		l2, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatal(err)
+		}
+		server2, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
+		server2.SetListener(l2)
+		go server2.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
+
+		_, err = p.Get(proto.NodeID(l2.Addr().String()))
+		So(err, ShouldBeNil)
+		So(p.Len(), ShouldEqual, conf.MaxRPCMuxPoolPhysicalConnection+1)
+
+		wg2 := &sync.WaitGroup{}
+		wg2.Add(concurrency)
+		for i := 0; i < concurrency; i++ {
+			go func(c2 C, n int) {
+				// Open a new stream
+				// Stream implements net.Conn
+				defer wg2.Done()
+				client, err := p.Get(proto.NodeID(l2.Addr().String()))
+				defer func() { _ = client.Close() }()
+				if err != nil {
+					log.Errorf("get session failed: %s", err)
+					return
+				}
+				c2.So(err, ShouldBeNil)
+				err = client.Call("Test.IncCounter", &TestReq{Step: 1}, &TestRep{})
+				c2.So(err, ShouldBeNil)
+			}(c, packetCount)
+		}
+
+		wg2.Wait()
+		So(p.Len(), ShouldEqual, conf.MaxRPCMuxPoolPhysicalConnection*2)
+
+		p.Remove(proto.NodeID(l.Addr().String()))
+		So(p.Len(), ShouldEqual, conf.MaxRPCMuxPoolPhysicalConnection)
+
+		_ = p.Close()
+		So(p.Len(), ShouldEqual, 0)
+	})
+
+	Convey("session pool get instance", t, func(c C) {
+		So(GetSessionPoolInstance(), ShouldNotBeNil)
+		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
+	})
+}

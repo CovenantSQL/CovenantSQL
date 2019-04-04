@@ -96,13 +96,13 @@ func TestCaller_CallNode(t *testing.T) {
 	}
 	log.Debugf("respA: %v", respA)
 
-	node1addr, err := GetNodeAddr(node1.ID.ToRawNodeID())
+	node1addr, err := GetNodeAddr(node1.ID.ToRawNodeID(), false)
 	Convey("test GetNodeAddr", t, func() {
 		So(err, ShouldBeNil)
 		So(node1addr, ShouldEqual, node1.Addr)
 	})
 
-	node2, err := GetNodeInfo(node1.ID.ToRawNodeID())
+	node2, err := GetNodeInfo(node1.ID.ToRawNodeID(), false)
 	Convey("test GetNodeInfo", t, func() {
 		So(err, ShouldBeNil)
 		So(node2.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)
@@ -110,7 +110,7 @@ func TestCaller_CallNode(t *testing.T) {
 	})
 
 	_ = kms.DelNode(node2.ID)
-	node2, err = GetNodeInfo(node1.ID.ToRawNodeID())
+	node2, err = GetNodeInfo(node1.ID.ToRawNodeID(), false)
 	Convey("test GetNodeInfo", t, func() {
 		So(err, ShouldBeNil)
 		So(node2.PublicKey.IsEqual(node1.PublicKey), ShouldBeTrue)

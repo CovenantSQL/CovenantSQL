@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 
@@ -238,19 +237,6 @@ func setup() {
 	noconn.RegisterResolver(defaultResolver)
 	if node := thisNode(); node != nil {
 		defaultResolver.registerNode(node)
-	}
-
-	const minNoFile = 10240
-	var lmt syscall.Rlimit
-	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
-	}
-	if lmt.Max < minNoFile {
-		panic("insufficient max RLIMIT_NOFILE")
-	}
-	lmt.Cur = lmt.Max
-	if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
 	}
 
 	log.SetLevel(log.DebugLevel)

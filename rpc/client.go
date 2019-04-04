@@ -30,7 +30,7 @@ type Client interface {
 	Close() error
 }
 
-// Client defines the extend method to set client last error.
+// LastErrSetter defines the extend method to set client last error.
 type LastErrSetter interface {
 	SetLastErr(error)
 }

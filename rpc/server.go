@@ -48,7 +48,6 @@ type Server struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	rpcServer   *rpc.Server
-	serviceMap  ServiceMap
 	acceptConn  AcceptConn
 	serveStream ServeStream
 	Listener    net.Listener
@@ -61,7 +60,6 @@ func NewServerWithServeFunc(f ServeStream) *Server {
 		ctx:         ctx,
 		cancel:      cancel,
 		rpcServer:   rpc.NewServer(),
-		serviceMap:  make(ServiceMap),
 		acceptConn:  AcceptNOConn,
 		serveStream: f,
 	}

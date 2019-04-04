@@ -295,10 +295,6 @@ func TestNewPersistentCaller(t *testing.T) {
 	client2.Close()
 
 	wg.Wait()
-	//pool, ok := client2.pool.(*SessionPool)
-	//if !ok {
-	//	t.Fatal("pool is not mux session pool")
-	//}
 	sess, ok := defaultPool.getSession(conf.GConf.BP.NodeID)
 	if !ok {
 		t.Fatalf("can not find session for %s", conf.GConf.BP.NodeID)
@@ -542,29 +538,4 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	}
 
 	server.Stop()
-}
-
-func TestRecordRPCCost(t *testing.T) {
-	Convey("Bug: bad critical section for multiple values", t, func(c C) {
-		var (
-			//start      = time.Now()
-			rounds     = 1000
-			concurrent = 10
-			wg         = &sync.WaitGroup{}
-			body       = func(i int) {
-				defer func() {
-					c.So(recover(), ShouldBeNil)
-					wg.Done()
-				}()
-				//recordRPCCost(start, fmt.Sprintf("M%d", i), nil)
-			}
-		)
-		for i := 0; i < rounds; i++ {
-			for j := 0; j < concurrent; j++ {
-				wg.Add(1)
-				go body(i)
-			}
-			wg.Wait()
-		}
-	})
 }

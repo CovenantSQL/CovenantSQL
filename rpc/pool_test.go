@@ -17,10 +17,12 @@
 package rpc
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -215,5 +217,30 @@ func TestRPCComponents(t *testing.T) {
 			wg.Wait()
 			So(pool.Len(), ShouldBeGreaterThan, 0)
 		})
+	})
+}
+
+func TestRecordRPCCost(t *testing.T) {
+	Convey("Bug: bad critical section for multiple values", t, func(c C) {
+		var (
+			start      = time.Now()
+			rounds     = 1000
+			concurrent = 10
+			wg         = &sync.WaitGroup{}
+			body       = func(i int) {
+				defer func() {
+					c.So(recover(), ShouldBeNil)
+					wg.Done()
+				}()
+				recordRPCCost(start, fmt.Sprintf("M%d", i), nil)
+			}
+		)
+		for i := 0; i < rounds; i++ {
+			for j := 0; j < concurrent; j++ {
+				wg.Add(1)
+				go body(i)
+			}
+			wg.Wait()
+		}
 	})
 }

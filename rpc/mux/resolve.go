@@ -65,7 +65,10 @@ func (r *Resolver) Resolve(id *proto.RawNodeID) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return node.DirectAddr, nil
+		if node.Role == proto.Miner {
+			return node.DirectAddr, nil
+		}
+		return node.Addr, nil
 	}
 	return GetNodeAddr(id)
 }

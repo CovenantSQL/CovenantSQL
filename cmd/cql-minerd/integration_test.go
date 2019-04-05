@@ -868,6 +868,13 @@ func benchMiner(b *testing.B, minerCount uint16) {
 		dsn = os.Getenv("DSN")
 	}
 
+	if benchMinerDirectRPC {
+		dsnCfg, err := client.ParseDSN(dsn)
+		So(err, ShouldBeNil)
+		dsnCfg.UseDirectRPC = true
+		dsn = dsnCfg.FormatDSN()
+	}
+
 	db, err := sql.Open("covenantsql", dsn)
 	So(err, ShouldBeNil)
 

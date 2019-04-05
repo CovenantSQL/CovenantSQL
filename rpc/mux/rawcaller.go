@@ -28,14 +28,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
-// PCaller defines generic interface shared with PersistentCaller and RawCaller.
-type PCaller interface {
-	Call(method string, request interface{}, reply interface{}) (err error)
-	Close()
-	Target() string
-	New() PCaller // returns new instance of current caller
-}
-
 // RawCaller defines a raw rpc caller without any encryption.
 type RawCaller struct {
 	targetAddr string
@@ -125,6 +117,6 @@ func (c *RawCaller) Target() string {
 }
 
 // New returns brand new caller.
-func (c *RawCaller) New() PCaller {
+func (c *RawCaller) New() rpc.PCaller {
 	return NewRawCaller(c.targetAddr)
 }

@@ -60,13 +60,20 @@ func NewDirectResolver() noconn.Resolver {
 
 // Resolve implements the node ID resolver using the BP network with mux-RPC protocol.
 func (r *Resolver) Resolve(id *proto.RawNodeID) (string, error) {
-	return GetNodeAddr(id, r.direct)
+	if r.direct {
+		node, err := GetNodeInfo(id)
+		if err != nil {
+			return "", err
+		}
+		return node.DirectAddr, nil
+	}
+	return GetNodeAddr(id)
 }
 
 // ResolveEx implements the node ID resolver extended method using the BP network
 // with mux-RPC protocol.
 func (r *Resolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
-	return GetNodeInfo(id, r.direct)
+	return GetNodeInfo(id)
 }
 
 func init() {
@@ -74,7 +81,7 @@ func init() {
 }
 
 // GetNodeAddr tries best to get node addr.
-func GetNodeAddr(id *proto.RawNodeID, direct bool) (addr string, err error) {
+func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 	addr, err = route.GetNodeAddrCache(id)
 	if err != nil {
 		//log.WithField("target", id.String()).WithError(err).Debug("get node addr from cache failed")
@@ -84,19 +91,15 @@ func GetNodeAddr(id *proto.RawNodeID, direct bool) (addr string, err error) {
 			if err != nil {
 				return
 			}
-			if direct {
-				addr = node.DirectAddr
-			} else {
-				addr = node.Addr
-			}
-			_ = route.SetNodeAddrCache(id, addr)
+			_ = route.SetNodeAddrCache(id, node.Addr)
+			addr = node.Addr
 		}
 	}
 	return
 }
 
 // GetNodeInfo tries best to get node info.
-func GetNodeInfo(id *proto.RawNodeID, direct bool) (nodeInfo *proto.Node, err error) {
+func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
 	if err != nil {
 		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
@@ -105,13 +108,7 @@ func GetNodeInfo(id *proto.RawNodeID, direct bool) (nodeInfo *proto.Node, err er
 			if err != nil {
 				return
 			}
-			var addr string
-			if direct {
-				addr = nodeInfo.DirectAddr
-			} else {
-				addr = nodeInfo.Addr
-			}
-			errSet := route.SetNodeAddrCache(id, addr)
+			errSet := route.SetNodeAddrCache(id, nodeInfo.Addr)
 			if errSet != nil {
 				log.WithError(errSet).Warning("set node addr cache failed")
 			}

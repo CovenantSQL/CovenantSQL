@@ -44,6 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -71,6 +72,7 @@ var (
 	benchMinerCount          int
 	benchBypassSignature     bool
 	benchEventualConsistency bool
+	benchMinerDirectRPC      bool
 	benchMinerConfigDir      string
 )
 
@@ -81,8 +83,18 @@ func init() {
 		"Benchmark bypassing signature.")
 	flag.BoolVar(&benchEventualConsistency, "bench-eventual-consistency", false,
 		"Benchmark with eventaul consistency.")
+	flag.BoolVar(&benchMinerDirectRPC, "bench-direct-rpc", false,
+		"Benchmark with with direct RPC protocol.")
 	flag.StringVar(&benchMinerConfigDir, "bench-miner-config-dir", "",
 		"Benchmark custome miner config directory.")
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if benchMinerDirectRPC {
+		noconn.RegisterResolver(rpc.NewDirectResolver())
+	}
+	os.Exit(m.Run())
 }
 
 func startNodes() {

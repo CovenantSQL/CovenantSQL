@@ -1,0 +1,190 @@
+version: '3'
+
+services:
+  covenantsql_bp_0:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_bp_0
+    restart: "no"
+    ports:
+      - '11099:4661'
+      - '12099:4665'
+    environment:
+      COVENANT_ROLE: blockproducer
+      COVENANT_CONF: ./node_0/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - ./test/stable/node_0/:/app/node_0/
+    networks:
+      default:
+        ipv4_address: 172.254.1.2
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+  covenantsql_bp_1:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_bp_1
+    restart: "no"
+    ports:
+      - '11100:4661'
+      - '12100:4665'
+    environment:
+      COVENANT_ROLE: blockproducer
+      COVENANT_CONF: ./node_1/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - ./test/stable/node_1/:/app/node_1/
+    networks:
+      default:
+        ipv4_address: 172.254.1.3
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+  covenantsql_bp_2:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_bp_2
+    restart: "no"
+    ports:
+      - '11101:4661'
+      - '12101:4665'
+    environment:
+      COVENANT_ROLE: blockproducer
+      COVENANT_CONF: ./node_2/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - ./test/stable/node_2/:/app/node_2/
+    networks:
+      default:
+        ipv4_address: 172.254.1.4
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+  covenantsql_miner_0:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_miner_0
+    restart: "no"
+    ports:
+      - '11102:4661'
+      - '12102:4665'
+      - '11112:6060'
+    command:
+      [
+        "-mem-profile",
+        "./node_miner_0/mem.pprof",
+        "-log-level",
+        "debug",
+      ]
+    environment:
+      COVENANT_ROLE: miner
+      COVENANT_CONF: ./node_miner_0/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - /data/node_miner_0/:/app/node_miner_0/
+    networks:
+      default:
+        ipv4_address: 172.254.1.5
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+  covenantsql_miner_1:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_miner_1
+    restart: "no"
+    ports:
+      - '11103:4661'
+      - '12103:4665'
+      - '11113:6060'
+    command:
+      [
+        "-mem-profile",
+        "./node_miner_1/mem.pprof",
+        "-log-level",
+        "debug",
+      ]
+    environment:
+      COVENANT_ROLE: miner
+      COVENANT_CONF: ./node_miner_1/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - /data/node_miner_1/:/app/node_miner_1/
+    networks:
+      default:
+        ipv4_address: 172.254.1.6
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+  covenantsql_miner_2:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_miner_2
+    restart: "no"
+    ports:
+      - '11104:4661'
+      - '12104:4665'
+      - '11114:6060'
+    command:
+      [
+        "-mem-profile",
+        "./node_miner_2/mem.pprof",
+        "-log-level",
+        "debug",
+      ]
+    environment:
+      COVENANT_ROLE: miner
+      COVENANT_CONF: ./node_miner_2/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - /data/node_miner_2/:/app/node_miner_2/
+    networks:
+      default:
+        ipv4_address: 172.254.1.7
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+  covenantsql_miner_3:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_miner_3
+    restart: "no"
+    ports:
+      - '11105:4661'
+      - '12105:4665'
+      - '11115:6060'
+    command:
+      [
+        "-mem-profile",
+        "./node_miner_3/mem.pprof",
+        "-log-level",
+        "debug",
+      ]
+    environment:
+      COVENANT_ROLE: miner
+      COVENANT_CONF: ./node_miner_3/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
+    volumes:
+      - /data/node_miner_3/:/app/node_miner_3/
+    networks:
+      default:
+        ipv4_address: 172.254.1.8
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "1g"
+        max-file: "10"
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.254.1.0/24

@@ -136,7 +136,17 @@ func readMasterKey(skip bool) string {
 	return string(bytePwd)
 }
 
-func getPublic() *asymmetric.PublicKey {
+func getPublicFromConfig() *asymmetric.PublicKey {
+	configFile = utils.HomeDirExpand(configFile)
+
+	var err error
+	// load config
+	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
+		ConsoleLog.WithError(err).Error("load config file failed")
+		SetExitStatus(1)
+		ExitIfErrors()
+	}
+
 	//if config has public, use it
 	for _, node := range conf.GConf.KnownNodes {
 		if node.ID == conf.GConf.ThisNodeID {

@@ -117,14 +117,6 @@
   revision = "ab6388e0c60ae4834a1f57511e20c17b5f78be4b"
 
 [[projects]]
-  digest = "1:c28625428387b63dd7154eb857f51e700465cfbf7c06f619e71f2da33cefe47e"
-  name = "github.com/coreos/bbolt"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
-  version = "v1.3.0"
-
-[[projects]]
   branch = "master"
   digest = "1:7b274cc72af687fe6eb618acd83b9601c4317fbe5ac1dfb41cc116e3495f68b0"
   name = "github.com/cyberdelia/go-metrics-graphite"
@@ -664,7 +656,6 @@
     "github.com/CovenantSQL/sqlparser",
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
-    "github.com/coreos/bbolt",
     "github.com/cyberdelia/go-metrics-graphite",
     "github.com/davecgh/go-spew/spew",
     "github.com/fortytw2/leaktest",

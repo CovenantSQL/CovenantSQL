@@ -17,14 +17,12 @@
 package observer
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
+	"database/sql"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 
-	bolt "github.com/coreos/bbolt"
+	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -36,10 +34,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 )
 
 const (
-	dbFileName = "observer.db"
+	dbFileName = "observer.db3"
 )
 
 // Bucket stores transaction/block information as follows
@@ -82,15 +81,57 @@ var (
 	// ErrInconsistentData represents corrupted observation data.
 	ErrInconsistentData = errors.New("inconsistent data")
 
-	// bolt db buckets
-	blockBucket             = []byte("block")
-	blockCount2HeightBucket = []byte("block-count-to-height")
-	ackBucket               = []byte("ack")
-	requestBucket           = []byte("request")
-	responseBucket          = []byte("response")
-	subscriptionBucket      = []byte("subscription")
-
-	blockHeightBucket = []byte("height")
+	// observer init table sql
+	initTableSQL = []string{
+		`CREATE TABLE IF NOT EXISTS "block" (
+			"db"		TEXT,
+			"height" 	INTEGER,
+			"count" 	INTEGER,
+			"hash"		TEXT,
+			"block"		BLOB,
+			UNIQUE("db", "hash")
+		)`,
+		`CREATE INDEX IF NOT EXISTS "idx_block_db_height" ON "block" ("db", "height")`,
+		`CREATE INDEX IF NOT EXISTS "idx_block_db_count" ON "block" ("db", "count")`,
+		`CREATE TABLE IF NOT EXISTS "ack" (
+			"db"		TEXT,
+			"hash"		TEXT,
+			"height"	INTEGER,
+			"offset"	INTEGER,
+			UNIQUE("db", "hash")
+		)`,
+		`CREATE TABLE IF NOT EXISTS "request" (
+			"db"		TEXT,
+			"hash"		TEXT,
+			"height"	INTEGER,
+			"offset"	INTEGER,
+			UNIQUE("db", "hash")
+		)`,
+		`CREATE TABLE IF NOT EXISTS "response" (
+			"db"		TEXT,
+			"hash"		TEXT,
+			"height"	INTEGER,
+			"offset"	INTEGER,
+			UNIQUE("db", "hash")
+		)`,
+		`CREATE TABLE IF NOT EXISTS "subscription" (
+			"db"		TEXT,
+			"count"	INTEGER
+		)`,
+	}
+	getAllSubscriptionsSQL = `SELECT "db", "count" FROM "subscription"`
+	saveSubscriptionSQL    = `INSERT OR REPLACE INTO "subscription" ("db", "count") VALUES(?, ?)`
+	saveAckSQL             = `INSERT OR REPLACE INTO "ack" ("db", "hash", "height", "offset") VALUES(?, ?, ?, ?)`
+	saveRequestSQL         = `INSERT OR REPLACE INTO "request" ("db", "hash", "height", "offset") VALUES(?, ?, ?, ?)`
+	saveResponseSQL        = `INSERT OR REPLACE INTO "response" ("db", "hash", "height", "offset") VALUES(?, ?, ?, ?)`
+	saveBlockSQL           = `INSERT OR REPLACE INTO "block" ("db", "height", "count", "hash", "block") VALUES(?, ?, ?, ?, ?)`
+	getAckByHashSQL        = `SELECT "height", "offset" FROM "ack" WHERE "db" = ? AND "hash" = ? LIMIT 1`
+	getRequestByHashSQL    = `SELECT "height", "offset" FROM "request" WHERE "db" = ? AND "hash" = ? LIMIT 1`
+	getResponseByHashSQL   = `SELECT "height", "offset" FROM "response" WHERE "db" = ? AND "hash" = ? LIMIT 1`
+	getHighestBlockSQL     = `SELECT "height", "count", "block" FROM "block" WHERE "db" = ? ORDER BY "count" DESC LIMIT 1`
+	getBlockByHeightSQL    = `SELECT "count", "block" FROM "block" WHERE "db" = ? AND "height" = ? LIMIT 1`
+	getBlockByCountSQL     = `SELECT "height", "block" FROM "block" WHERE "db" = ? AND "count" = ? LIMIT 1`
+	getBlockByHashSQL      = `SELECT "height", "count", "block" FROM "block" WHERE "db" = ? AND "hash" = ? LIMIT 1`
 )
 
 // Service defines the observer service structure.
@@ -98,7 +139,7 @@ type Service struct {
 	subscription    sync.Map // map[proto.DatabaseID]*subscribeWorker
 	upstreamServers sync.Map // map[proto.DatabaseID]*types.ServiceInstance
 
-	db      *bolt.DB
+	db      *xs.SQLite3
 	caller  *rpc.Caller
 	stopped int32
 }
@@ -108,40 +149,22 @@ func NewService() (service *Service, err error) {
 	// open observer database
 	dbFile := filepath.Join(conf.GConf.WorkingRoot, dbFileName)
 
-	db, err := bolt.Open(dbFile, 0600, nil)
+	db, err := xs.NewSqlite(dbFile)
 	if err != nil {
 		return
 	}
 
 	defer func() {
 		if err != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	}()
 
-	if err = db.Update(func(tx *bolt.Tx) (err error) {
-		if _, err = tx.CreateBucketIfNotExists(blockBucket); err != nil {
+	for _, q := range initTableSQL {
+		if _, err = db.Writer().Exec(q); err != nil {
+			err = errors.Wrap(err, "init table failed")
 			return
 		}
-		if _, err = tx.CreateBucketIfNotExists(blockCount2HeightBucket); err != nil {
-			return
-		}
-		if _, err = tx.CreateBucketIfNotExists(ackBucket); err != nil {
-			return
-		}
-		if _, err = tx.CreateBucketIfNotExists(requestBucket); err != nil {
-			return
-		}
-		if _, err = tx.CreateBucketIfNotExists(subscriptionBucket); err != nil {
-			return
-		}
-		if _, err = tx.CreateBucketIfNotExists(blockHeightBucket); err != nil {
-			return
-		}
-		_, err = tx.CreateBucketIfNotExists(responseBucket)
-		return
-	}); err != nil {
-		return
 	}
 
 	// init service
@@ -151,28 +174,31 @@ func NewService() (service *Service, err error) {
 	}
 
 	// load previous subscriptions
-	if err = db.View(func(tx *bolt.Tx) error {
-		return tx.Bucket(subscriptionBucket).ForEach(func(rawDBID, rawCount []byte) (err error) {
-			dbID := proto.DatabaseID(string(rawDBID))
-			count := bytesToInt32(rawCount)
-			service.subscription.Store(dbID, newSubscribeWorker(dbID, count, service))
-			return
-		})
-	}); err != nil {
+	rows, err := db.Writer().Query(getAllSubscriptionsSQL)
+	if err != nil {
+		err = errors.Wrap(err, "query previous subscriptions failed")
 		return
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+	for rows.Next() {
+		var (
+			rawDBID string
+			count   int32
+		)
+
+		if err = rows.Scan(&rawDBID, &count); err != nil {
+			err = errors.Wrap(err, "scan subscriptions failed")
+			return
+		}
+
+		dbID := proto.DatabaseID(rawDBID)
+
+		service.subscription.Store(dbID, newSubscribeWorker(dbID, count, service))
 	}
 
 	return
-}
-
-func int32ToBytes(h int32) (data []byte) {
-	data = make([]byte, 4)
-	binary.BigEndian.PutUint32(data, uint32(h))
-	return
-}
-
-func bytesToInt32(data []byte) int32 {
-	return int32(binary.BigEndian.Uint32(data))
 }
 
 func (s *Service) subscribe(dbID proto.DatabaseID, resetSubscribePosition string) (err error) {
@@ -235,9 +261,9 @@ func (s *Service) saveSubscriptionStatus(dbID proto.DatabaseID, count int32) (er
 		return ErrStopped
 	}
 
-	return s.db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(subscriptionBucket).Put([]byte(dbID), int32ToBytes(count))
-	})
+	_, err = s.db.Writer().Exec(saveSubscriptionSQL, string(dbID), count)
+	err = errors.Wrapf(err, "save subscription failed: %s, %d", dbID, count)
+	return
 }
 
 func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack *types.SignedAckHeader) (err error) {
@@ -257,14 +283,9 @@ func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack 
 	}
 
 	// store ack
-	return s.db.Update(func(tx *bolt.Tx) (err error) {
-		ab, err := tx.Bucket(ackBucket).CreateBucketIfNotExists([]byte(dbID))
-		if err != nil {
-			return
-		}
-		err = ab.Put(ack.Hash().AsBytes(), utils.ConcatAll(int32ToBytes(height), int32ToBytes(offset)))
-		return
-	})
+	_, err = s.db.Writer().Exec(saveAckSQL, string(dbID), ack.Hash().String(), height, offset)
+	err = errors.Wrapf(err, "save ack failed: %s, %s, %d", dbID, ack.Hash().String(), height)
+	return
 }
 
 func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset int32, qt *types.QueryAsTx) (err error) {
@@ -285,24 +306,14 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 		return
 	}
 
-	dataBytes := utils.ConcatAll(int32ToBytes(height), int32ToBytes(offset))
-
-	// store request and response
-	return s.db.Update(func(tx *bolt.Tx) (err error) {
-		reqb, err := tx.Bucket(requestBucket).CreateBucketIfNotExists([]byte(dbID))
-		if err != nil {
-			return
-		}
-		resb, err := tx.Bucket(responseBucket).CreateBucketIfNotExists([]byte(dbID))
-		if err != nil {
-			return
-		}
-		if err = reqb.Put(qt.Request.Header.Hash().AsBytes(), dataBytes); err != nil {
-			return
-		}
-		err = resb.Put(qt.Response.Hash().AsBytes(), dataBytes)
+	_, err = s.db.Writer().Exec(saveRequestSQL, string(dbID), qt.Request.Header.Hash().String(), height, offset)
+	if err != nil {
+		err = errors.Wrapf(err, "save request failed: %s, %s, %d", dbID, qt.Request.Header.Hash().String(), height)
 		return
-	})
+	}
+	_, err = s.db.Writer().Exec(saveResponseSQL, string(dbID), qt.Response.Hash().String(), height, offset)
+	err = errors.Wrapf(err, "save response failed: %s, %s, %d", dbID, qt.Response.Hash().String(), height)
+	return
 }
 
 func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (err error) {
@@ -315,9 +326,6 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (
 	}
 
 	h := int32(b.Timestamp().Sub(instance.GenesisBlock.Timestamp()) / conf.GConf.SQLChainPeriod)
-	key := utils.ConcatAll(int32ToBytes(h), b.BlockHash().AsBytes(), int32ToBytes(count))
-	// It's actually `countToBytes`
-	ckey := int32ToBytes(count)
 	blockBytes, err := utils.EncodeMsgPack(b)
 	if err != nil {
 		return
@@ -330,30 +338,9 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (
 		"block":    b,
 	}).Debugf("add new block %v -> %v", b.BlockHash(), b.ParentHash())
 
-	if err = s.db.Update(func(tx *bolt.Tx) (err error) {
-		bb, err := tx.Bucket(blockBucket).CreateBucketIfNotExists([]byte(dbID))
-		if err != nil {
-			return
-		}
-		if err = bb.Put(key, blockBytes.Bytes()); err != nil {
-			return
-		}
-		cb, err := tx.Bucket(blockCount2HeightBucket).CreateBucketIfNotExists([]byte(dbID))
-		if err != nil {
-			return
-		}
-		if count >= 0 {
-			if err = cb.Put(ckey, int32ToBytes(h)); err != nil {
-				return
-			}
-		}
-		hb, err := tx.Bucket(blockHeightBucket).CreateBucketIfNotExists([]byte(dbID))
-		if err != nil {
-			return
-		}
-		err = hb.Put(b.BlockHash()[:], int32ToBytes(h))
-		return
-	}); err != nil {
+	_, err = s.db.Writer().Exec(saveBlockSQL, string(dbID), h, count, b.BlockHash().String(), blockBytes.Bytes())
+	if err != nil {
+		err = errors.Wrapf(err, "save block failed: %s, %s, %d", dbID, b.BlockHash().String(), count)
 		return
 	}
 
@@ -389,7 +376,7 @@ func (s *Service) stop() (err error) {
 	})
 
 	// close the subscription database
-	s.db.Close()
+	_ = s.db.Close()
 
 	return
 }
@@ -473,29 +460,14 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Signed
 		dataOffset  int32
 	)
 
-	if err = s.db.View(func(tx *bolt.Tx) (err error) {
-		bucket := tx.Bucket(ackBucket).Bucket([]byte(dbID))
-
-		if bucket == nil {
-			return ErrNotFound
+	err = s.db.Writer().QueryRow(getAckByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
 
-		ackBytes := bucket.Get(h.AsBytes())
-		if ackBytes == nil {
-			return ErrNotFound
-		}
-
-		// get block height and object offset in block
-		if len(ackBytes) != 8 {
-			// invalid data payload
-			return ErrInconsistentData
-		}
-
-		blockHeight = bytesToInt32(ackBytes[:4])
-		dataOffset = bytesToInt32(ackBytes[4:])
-
-		return
-	}); err != nil {
+		err = errors.Wrapf(err, "query ack failed: %s, %s", dbID, h.String())
 		return
 	}
 
@@ -527,28 +499,14 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *type
 		dataOffset  int32
 	)
 
-	if err = s.db.View(func(tx *bolt.Tx) (err error) {
-		bucket := tx.Bucket(requestBucket).Bucket([]byte(dbID))
-		if bucket == nil {
-			return ErrNotFound
+	err = s.db.Writer().QueryRow(getRequestByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
 
-		reqBytes := bucket.Get(h.AsBytes())
-		if reqBytes == nil {
-			return ErrNotFound
-		}
-
-		// get block height and object offset in block
-		if len(reqBytes) != 8 {
-			// invalid data payload
-			return ErrInconsistentData
-		}
-
-		blockHeight = bytesToInt32(reqBytes[:4])
-		dataOffset = bytesToInt32(reqBytes[4:])
-
-		return
-	}); err != nil {
+		err = errors.Wrapf(err, "query request failed: %s, %s", dbID, h.String())
 		return
 	}
 
@@ -580,28 +538,14 @@ func (s *Service) getResponseHeader(dbID proto.DatabaseID, h *hash.Hash) (respon
 		dataOffset  int32
 	)
 
-	if err = s.db.View(func(tx *bolt.Tx) (err error) {
-		bucket := tx.Bucket(requestBucket).Bucket([]byte(dbID))
-		if bucket == nil {
-			return ErrNotFound
+	err = s.db.Writer().QueryRow(getResponseByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
 
-		respBytes := bucket.Get(h.AsBytes())
-		if respBytes == nil {
-			return ErrNotFound
-		}
-
-		// get block height and object offset in block
-		if len(respBytes) != 8 {
-			// invalid data payload
-			return ErrInconsistentData
-		}
-
-		blockHeight = bytesToInt32(respBytes[:4])
-		dataOffset = bytesToInt32(respBytes[4:])
-
-		return
-	}); err != nil {
+		err = errors.Wrapf(err, "query response failed: %s, %s", dbID, h.String())
 		return
 	}
 
@@ -628,22 +572,23 @@ func (s *Service) getResponseHeader(dbID proto.DatabaseID, h *hash.Hash) (respon
 }
 
 func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *types.Block, err error) {
-	err = s.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))
-
-		if bucket == nil {
-			return ErrNotFound
+	var (
+		blockData []byte
+		count     int32
+	)
+	err = s.db.Writer().QueryRow(getHighestBlockSQL, string(dbID)).Scan(&height, &count, &blockData)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
 
-		cur := bucket.Cursor()
-		if last, blockData := cur.Last(); last != nil {
-			// decode bytes
-			height = bytesToInt32(last[:4])
-			return utils.DecodeMsgPack(blockData, &b)
-		}
+		err = errors.Wrapf(err, "query highest block failed: %s", dbID)
+		return
+	}
 
-		return ErrNotFound
-	})
+	err = utils.DecodeMsgPack(blockData, &b)
+	err = errors.Wrapf(err, "decode block failed: %s", dbID)
 
 	return
 }
@@ -651,61 +596,39 @@ func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *types
 func (s *Service) getHighestBlockV2(
 	dbID proto.DatabaseID) (count, height int32, b *types.Block, err error,
 ) {
-	err = s.db.View(func(tx *bolt.Tx) (err error) {
-		var (
-			bk         *bolt.Bucket
-			cur        *bolt.Cursor
-			c, h, k, v []byte
-		)
-		// Get last count and height
-		if bk = tx.Bucket(blockCount2HeightBucket).Bucket([]byte(dbID)); bk == nil {
-			return ErrNotFound
+	var blockData []byte
+	err = s.db.Writer().QueryRow(getHighestBlockSQL, string(dbID)).Scan(&height, &count, &blockData)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
-		if c, h = bk.Cursor().Last(); c == nil || h == nil {
-			return ErrNotFound
-		}
-		// Get block by height prefix
-		if bk = tx.Bucket(blockBucket).Bucket([]byte(dbID)); bk == nil {
-			return ErrNotFound
-		}
-		cur = bk.Cursor()
-		for k, v = cur.Seek(h); k != nil && v != nil && bytes.HasPrefix(k, h); k, v = cur.Next() {
-			if v != nil {
-				if err = utils.DecodeMsgPack(v, &b); err == nil {
-					count = bytesToInt32(c[:4])
-					height = bytesToInt32(h[:4])
-				}
-				return
-			}
-		}
+
+		err = errors.Wrapf(err, "query highest block failed: %s", dbID)
 		return
-	})
+	}
+
+	err = utils.DecodeMsgPack(blockData, &b)
+	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+
 	return
 }
 
 func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (count int32, b *types.Block, err error) {
-	err = s.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(blockBucket).Bucket([]byte(dbID))
-
-		if bucket == nil {
-			return ErrNotFound
+	var blockData []byte
+	err = s.db.Writer().QueryRow(getBlockByHeightSQL, string(dbID), height).Scan(&count, &blockData)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
 
-		keyPrefix := int32ToBytes(height)
+		err = errors.Wrapf(err, "query block by height failed: %s, %d", dbID, height)
+		return
+	}
 
-		cur := bucket.Cursor()
-		for k, v := cur.Seek(keyPrefix); k != nil && bytes.HasPrefix(k, keyPrefix); k, v = cur.Next() {
-			if v != nil {
-				if len(k) < 4+hash.HashSize+4 {
-					return ErrInconsistentData
-				}
-				count = bytesToInt32(k[4+hash.HashSize:])
-				return utils.DecodeMsgPack(v, &b)
-			}
-		}
-
-		return ErrNotFound
-	})
+	err = utils.DecodeMsgPack(blockData, &b)
+	err = errors.Wrapf(err, "decode block failed: %s", dbID)
 
 	return
 }
@@ -713,85 +636,39 @@ func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (count i
 func (s *Service) getBlockByCount(
 	dbID proto.DatabaseID, count int32) (height int32, b *types.Block, err error,
 ) {
-	err = s.db.View(func(tx *bolt.Tx) (err error) {
-		var (
-			bk      *bolt.Bucket
-			cur     *bolt.Cursor
-			c       = int32ToBytes(count)
-			h, k, v []byte
-		)
-		// Get height by count
-		if bk = tx.Bucket(blockCount2HeightBucket).Bucket([]byte(dbID)); bk == nil {
-			return ErrNotFound
+	var blockData []byte
+	err = s.db.Writer().QueryRow(getBlockByCountSQL, string(dbID), count).Scan(&height, &blockData)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
-		if h = bk.Get(c); h == nil {
-			return ErrNotFound
-		}
-		// Get block by height prefix
-		if bk = tx.Bucket(blockBucket).Bucket([]byte(dbID)); bk == nil {
-			return ErrNotFound
-		}
-		cur = bk.Cursor()
-		for k, v = cur.Seek(h); k != nil && v != nil && bytes.HasPrefix(k, h); k, v = cur.Next() {
-			if v != nil {
-				if err = utils.DecodeMsgPack(v, &b); err == nil {
-					height = bytesToInt32(h[:4])
-				}
-				return
-			}
-		}
+
+		err = errors.Wrapf(err, "query block by count failed: %s, %d", dbID, count)
 		return
-	})
+	}
+
+	err = utils.DecodeMsgPack(blockData, &b)
+	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+
 	return
 }
 
 func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (count int32, height int32, b *types.Block, err error) {
-	err = s.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(blockHeightBucket).Bucket([]byte(dbID))
-
-		if bucket == nil {
-			return ErrNotFound
+	var blockData []byte
+	err = s.db.Writer().QueryRow(getBlockByHashSQL, string(dbID), h.String()).Scan(&height, &count, &blockData)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			err = ErrNotFound
+			return
 		}
 
-		blockKeyPrefix := bucket.Get(h.AsBytes())
-		if blockKeyPrefix == nil {
-			return ErrNotFound
-		}
+		err = errors.Wrapf(err, "query block by hash failed: %s, %s", dbID, h.String())
+		return
+	}
 
-		blockKeyPrefix = append([]byte{}, blockKeyPrefix...)
-		blockKeyPrefix = append(blockKeyPrefix, h.AsBytes()...)
-
-		bucket = tx.Bucket(blockBucket).Bucket([]byte(dbID))
-		if bucket == nil {
-			return ErrNotFound
-		}
-
-		var (
-			blockKey   []byte
-			blockBytes []byte
-		)
-
-		cur := bucket.Cursor()
-		for blockKey, blockBytes = cur.Seek(blockKeyPrefix); blockKey != nil && bytes.HasPrefix(blockKey, blockKeyPrefix); blockKey, blockBytes = cur.Next() {
-			if blockBytes != nil {
-				break
-			}
-		}
-
-		if blockBytes == nil {
-			return ErrNotFound
-		}
-
-		// decode count from block key
-		if len(blockKey) < 4+hash.HashSize+4 {
-			return ErrInconsistentData
-		}
-
-		height = bytesToInt32(blockKey[:4])
-		count = bytesToInt32(blockKey[4+hash.HashSize:])
-
-		return utils.DecodeMsgPack(blockBytes, &b)
-	})
+	err = utils.DecodeMsgPack(blockData, &b)
+	err = errors.Wrapf(err, "decode block failed: %s", dbID)
 
 	return
 }

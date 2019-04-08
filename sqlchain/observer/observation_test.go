@@ -481,7 +481,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		// remove previous observation result
-		os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
+		_ = os.Remove(FJ(testWorkingDir, "./observation/node_observer/observer.db"))
 
 		var observerCmd *utils.CMD
 		observerCmd, err = utils.RunCommandNB(
@@ -498,8 +498,8 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		defer func() {
-			observerCmd.Cmd.Process.Signal(syscall.SIGTERM)
-			observerCmd.Cmd.Wait()
+			_ = observerCmd.Cmd.Process.Signal(syscall.SIGTERM)
+			_ = observerCmd.Cmd.Wait()
 		}()
 
 		err = utils.WaitToConnect(context.Background(), "127.0.0.1", []int{4663}, time.Millisecond*200)
@@ -508,8 +508,7 @@ func TestFullProcess(t *testing.T) {
 		time.Sleep(time.Second)
 		// trigger the db subscription
 		res, err := getJSON("v1/head/%v", dbID)
-		So(err, ShouldNotBeNil)
-		log.Debug(err)
+		So(err, ShouldBeNil)
 
 		// wait for the observer to collect blocks
 		time.Sleep(conf.GConf.SQLChainPeriod * 5)
@@ -713,8 +712,8 @@ func TestFullProcess(t *testing.T) {
 		_, err = client.Drop(dsn2)
 		So(err, ShouldBeNil)
 
-		observerCmd.Cmd.Process.Signal(syscall.SIGTERM)
-		observerCmd.Cmd.Wait()
+		_ = observerCmd.Cmd.Process.Signal(syscall.SIGTERM)
+		_ = observerCmd.Cmd.Wait()
 
 		// start observer again
 		observerCmd, err = utils.RunCommandNB(

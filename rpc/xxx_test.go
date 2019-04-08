@@ -95,8 +95,8 @@ func (p *nilPool) Close() error { return nil }
 
 // CountService is a simple count service for testing.
 type CountService struct {
-	host   proto.NodeID
-	Counrt int32
+	host  proto.NodeID
+	Count int32
 }
 
 type AddReq struct {
@@ -111,7 +111,7 @@ type AddResp struct {
 
 func (s *CountService) Add(req *AddReq, resp *AddResp) error {
 	resp.SetNodeID(req.NodeID)
-	resp.Count = atomic.AddInt32(&s.Counrt, req.Delta)
+	resp.Count = atomic.AddInt32(&s.Count, req.Delta)
 	return nil
 }
 

@@ -56,13 +56,6 @@ do
             docker logs miner10.250.100.${ip} 2> $WORKSPACE/miner10.250.100.${ip}.txt
         done
         exit 1
-    else
-        for ip in "${ips[@]}"; do
-            go tool pprof -png -inuse_objects http://10.250.100.${ip}:6060/debug/pprof/heap \
-                > ${WORKSPACE}/${gnte_yaml}_minor_${ip}_objectinuse.png
-            go tool pprof -png http://10.250.100.${ip}:6060/debug/pprof/heap \
-                > ${WORKSPACE}/${gnte_yaml}_minor_${ip}_heapinuse.png
-        done
     fi
     echo "${gnte_yaml}" >> ${tmp_file}
     grep BenchmarkMinerGNTE gnte.log >> ${tmp_file}

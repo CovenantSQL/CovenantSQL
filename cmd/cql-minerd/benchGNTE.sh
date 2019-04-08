@@ -17,7 +17,7 @@ fast() {
 
 full() {
     echo "Full benchmarking with flags: $@"
-    local cpus=("" 4 1) counts=(1 2 3 4 8)
+    local cpus=("" 4 1) counts=(1 2 4 8)
     local cpu count caseflags
     for cpu in "${cpus[@]}"; do
         if [[ -z $cpu ]]; then
@@ -27,16 +27,15 @@ full() {
         fi
         for count in "${counts[@]}"; do
             go test "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log
-            if [[ ${cpu} -eq 4 && ${count} -eq 4 ]]; then
-                ips=(2 3 4 5 6 7 8 9)
-                cur_sec=`date '+%s'`
-                for ip in "${ips[@]}"; do
-                    go tool pprof -png -inuse_objects http://10.250.100.${ip}:6060/debug/pprof/heap \
-                            > ${WORKSPACE}/${cur_sec}_minor_${ip}_objectinuse.png
-                    go tool pprof -png http://10.250.100.${ip}:6060/debug/pprof/heap \
-                            > ${WORKSPACE}/${cur_sec}_minor_${ip}_heapinuse.png
-                done
-            fi
+
+            ips=(2 3 4 5 6 7 8 9)
+            cur_sec=`date '+%s'`
+            for ip in "${ips[@]}"; do
+                go tool pprof -png -inuse_objects http://10.250.100.${ip}:6060/debug/pprof/heap \
+                        > ${WORKSPACE}/${cur_sec}_minor_${ip}_objectinuse.png
+                go tool pprof -png http://10.250.100.${ip}:6060/debug/pprof/heap \
+                        > ${WORKSPACE}/${cur_sec}_minor_${ip}_heapinuse.png
+            done
         done
     done
 }

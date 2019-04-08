@@ -28,7 +28,7 @@
 
 [中文简介](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README-zh.md)
 
-CovenantSQL is a GDPR-compliant SQL database running on Open Internet without central coordination:
+CovenantSQL(CQL) is a GDPR-compliant SQL database running on Open Internet without central coordination:
 
 - **GDPR-compliant**: Zero pain to be GDPR-compliant.
 - **SQL**: most SQL-92 support.
@@ -38,12 +38,41 @@ CovenantSQL is a GDPR-compliant SQL database running on Open Internet without ce
 
 We believe [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
-#### One Line Makes Data on Blockchain
+**One Line Makes Data on Blockchain**
+
 ```go
 sql.Open("CovenantSQL", dbURI)
 ```
 
+
+
+## Key faetures
+
+
+
+
+
+## Comparison
+
+|                          | Ethereum            | IBM Hyperledger Fabric   | Amazon QLDB   | CovenantSQL                                                  |
+| ------------------------ | ------------------- | ------------------------ | ------------- | ------------------------------------------------------------ |
+| Dev language             | Solidity            | Chaincode   (Go, NodeJS) | ?             | Python,   Go, Java, PHP, NodeJS, MatLab                      |
+| Dev Pattern              | Smart   Contract    | Chaincode                | SQL           | SQL                                                          |
+| Open Source              | Y                   | Y                        | N             | Y                                                            |
+| Nodes for HA             | 3                   | 15*                      | 1             | 3                                                            |
+| Column Level ACL         | N                   | Y                        | ?             | Y                                                            |
+| Data Format              | File                | Key-value                | Documents     | File,   Key-value, Structured                                |
+| Storage Encryption       | N                   | API                      | Y             | Y                                                            |
+| Data Desensitization     | N                   | N                        | N             | Y                                                            |
+| Multi-tenant             | N                   | by   Chaincode           | N             | Y                                                            |
+| Throughput (1s delay)    | 15~10   tx/s        | 3500   tx/s              | ?             | 12000   tx/s                                                 |
+| Consistency Delay        | 2~6   min           | <   1 s                  | ?             | <   10 ms                                                    |
+| Secure for Open Internet | Y                   | N                        | Only   in AWS | Y                                                            |
+| Consensus                | PoW   + PoS(Casper) | CFT                      | ?             | DPoS (Eventually consistent mode),       BFT-Raft (Strong consistency mode) |
+
 ## 
+
+## How CQL works
 
 ![CovenantSQL 3 Layer design](logo/arch.png)
 
@@ -57,7 +86,15 @@ sql.Open("CovenantSQL", dbURI)
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
-## How it works
+### Consensus Algorithm
+
+CQL supports 2 kinds of consensus algorithm:
+
+1. DPoS (Delegated Proof-of-Stake) is applied in `Eventually consistency mode` database and also `Layer 1 (Global Consensus Layer)` in BlockProducer. CQL miners pack all SQL queries and its signatures by the client into blocks thus form a blockchain. We named the algorithm [`Xenomint`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/xenomint). 
+2. BFT-Raft (Byzantine Fault-Toleranted Raft) is applied in `Strong consistency mode` database. We named our implementation `Kayak`.  The voted CQL miner leader does a `Two-Phase Commit` with `Kayak` to support `Transaction`.
+
+CQL database consistency mode and node count can be selected in datebase creation with command  `cql create '{"UseEventualConsistency": true, "Node": 3}'`
+
 [How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
 
 ## Demos
@@ -81,6 +118,19 @@ that inspired us:
 - [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
     - [S/Kademlia: A practicable approach towards secure key-based routing](https://ieeexplore.ieee.org/document/4447808/)
 - [vSQL: Verifying arbitrary SQL queries over dynamic outsourced databases](https://ieeexplore.ieee.org/abstract/document/7958614/)
+
+## Use cases
+
+<details>
+  <summary>Click to expand!</summary>
+   
+  ## Heading
+  1. A numbered
+  2. list
+     * With some
+     * Sub bullets
+</details>
+
 
 ## Libs
 

@@ -508,7 +508,6 @@ func TestFullProcess(t *testing.T) {
 		time.Sleep(time.Second)
 		// trigger the db subscription
 		res, err := getJSON("v1/head/%v", dbID)
-		So(err, ShouldBeNil)
 
 		// wait for the observer to collect blocks
 		time.Sleep(conf.GConf.SQLChainPeriod * 5)

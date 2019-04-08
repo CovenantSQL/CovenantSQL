@@ -41,38 +41,6 @@ const (
 	dbFileName = "observer.db3"
 )
 
-// Bucket stores transaction/block information as follows
-/*
-[root]
-  |
-  |--[height]-->[`dbID`]
-  |    |          |---> [hash] => height
-  |    |           \--> [hash] => height
-  |    |
-  |  [count2height]-->[`dbID`]
-  |    |                 |---> [count] => height
-  |    |                  \--> [count] => height
-  |    |
-  |  [block]-->[`dbID`]
-  |    |          |---> [height+hash+count] => block
-  |    |           \--> [height+hash+count] => block
-  |    |
-  |  [ack]-->[`dbID`]
-  |    |	    |---> [hash] => height+offset
-  |    |         \--> [hash] => height+offset
-  |    |
-  |  [request]-->[`dbID`]
-  |    |            |---> [hash] => height+offset
-  |    |             \--> [hash] => height+offset
-  |    |
-  |  [response]-->[`dbID`]
-  |                 |---> [hash] => height+offset
-  |                  \--> [hash] => height+offset
-  |
-   \-> [subscription]
-             \---> [`dbID`] => height
-*/
-
 var (
 	// ErrStopped defines error on observer service has already stopped
 	ErrStopped = errors.New("observer service has stopped")
@@ -179,9 +147,11 @@ func NewService() (service *Service, err error) {
 		err = errors.Wrap(err, "query previous subscriptions failed")
 		return
 	}
+
 	defer func() {
 		_ = rows.Close()
 	}()
+
 	for rows.Next() {
 		var (
 			rawDBID string
@@ -262,7 +232,9 @@ func (s *Service) saveSubscriptionStatus(dbID proto.DatabaseID, count int32) (er
 	}
 
 	_, err = s.db.Writer().Exec(saveSubscriptionSQL, string(dbID), count)
-	err = errors.Wrapf(err, "save subscription failed: %s, %d", dbID, count)
+	if err != nil {
+		err = errors.Wrapf(err, "save subscription failed: %s, %d", dbID, count)
+	}
 	return
 }
 
@@ -284,7 +256,9 @@ func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack 
 
 	// store ack
 	_, err = s.db.Writer().Exec(saveAckSQL, string(dbID), ack.Hash().String(), height, offset)
-	err = errors.Wrapf(err, "save ack failed: %s, %s, %d", dbID, ack.Hash().String(), height)
+	if err != nil {
+		err = errors.Wrapf(err, "save ack failed: %s, %s, %d", dbID, ack.Hash().String(), height)
+	}
 	return
 }
 
@@ -312,7 +286,9 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 		return
 	}
 	_, err = s.db.Writer().Exec(saveResponseSQL, string(dbID), qt.Response.Hash().String(), height, offset)
-	err = errors.Wrapf(err, "save response failed: %s, %s, %d", dbID, qt.Response.Hash().String(), height)
+	if err != nil {
+		err = errors.Wrapf(err, "save response failed: %s, %s, %d", dbID, qt.Response.Hash().String(), height)
+	}
 	return
 }
 
@@ -588,7 +564,9 @@ func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *types
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
-	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	if err != nil {
+		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	}
 
 	return
 }
@@ -609,7 +587,9 @@ func (s *Service) getHighestBlockV2(
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
-	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	if err != nil {
+		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	}
 
 	return
 }
@@ -628,7 +608,9 @@ func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (count i
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
-	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	if err != nil {
+		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	}
 
 	return
 }
@@ -649,7 +631,9 @@ func (s *Service) getBlockByCount(
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
-	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	if err != nil {
+		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	}
 
 	return
 }
@@ -668,7 +652,9 @@ func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (count int32, he
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
-	err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	if err != nil {
+		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+	}
 
 	return
 }

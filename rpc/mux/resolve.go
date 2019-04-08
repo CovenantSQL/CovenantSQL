@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -48,13 +48,13 @@ type Resolver struct {
 
 // NewResolver returns a Resolver which resolves the mux-RPC server address of the
 // target node ID.
-func NewResolver() noconn.Resolver {
+func NewResolver() naconn.Resolver {
 	return &Resolver{}
 }
 
 // NewDirectResolver returns a Resolver which resolves the direct RPC server address of the
 // target node ID.
-func NewDirectResolver() noconn.Resolver {
+func NewDirectResolver() naconn.Resolver {
 	return &Resolver{direct: true}
 }
 
@@ -80,7 +80,7 @@ func (r *Resolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 }
 
 func init() {
-	noconn.RegisterResolver(&Resolver{})
+	naconn.RegisterResolver(&Resolver{})
 }
 
 // GetNodeAddr tries best to get node addr.

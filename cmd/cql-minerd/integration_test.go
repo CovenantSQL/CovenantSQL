@@ -44,7 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -92,7 +92,7 @@ func init() {
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if benchMinerDirectRPC {
-		noconn.RegisterResolver(rpc.NewDirectResolver())
+		naconn.RegisterResolver(rpc.NewDirectResolver())
 	}
 	os.Exit(m.Run())
 }

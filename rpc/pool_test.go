@@ -95,7 +95,7 @@ func BenchmarkRPCComponents(b *testing.B) {
 	originLevel := log.GetLevel()
 	defer log.SetLevel(originLevel)
 	log.SetLevel(log.FatalLevel)
-	nodes, stop, err := setupEnvironment(1, AcceptNOConn)
+	nodes, stop, err := setupEnvironment(1, AcceptNAConn)
 	if err != nil {
 		b.Fatal("failed to setup servers")
 	}
@@ -118,7 +118,7 @@ func BenchmarkRPCComponents(b *testing.B) {
 
 func TestRPCComponents(t *testing.T) {
 	Convey("Setup a single server for pool test", t, func(c C) {
-		nodes, stop, err := setupEnvironment(1, AcceptNOConn)
+		nodes, stop, err := setupEnvironment(1, AcceptNAConn)
 		So(err, ShouldBeNil)
 		defer stop()
 
@@ -170,7 +170,7 @@ func TestRPCComponents(t *testing.T) {
 	})
 
 	Convey("Setup servers", t, func(c C) {
-		nodes, stop, err := setupEnvironment(10, AcceptNOConn)
+		nodes, stop, err := setupEnvironment(10, AcceptNAConn)
 		So(err, ShouldBeNil)
 		defer stop()
 

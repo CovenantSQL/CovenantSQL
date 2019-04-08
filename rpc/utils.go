@@ -17,7 +17,7 @@
 package rpc
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
@@ -26,9 +26,9 @@ import (
 //
 // TODO(leventeliu): allow to config other node-oriented connection dialer/accepter.
 var (
-	Dial   = noconn.Dial
-	DialEx = noconn.DialEx
-	Accept = noconn.Accept
+	Dial   = naconn.Dial
+	DialEx = naconn.DialEx
+	Accept = naconn.Accept
 )
 
 // NOClientPool defines the node-oriented client pool interface.

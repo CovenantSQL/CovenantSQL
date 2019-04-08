@@ -29,7 +29,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -234,7 +234,7 @@ func setup() {
 		panic(err)
 	}
 	route.InitKMS(filepath.Join(tempDir, "public.keystore"))
-	noconn.RegisterResolver(defaultResolver)
+	naconn.RegisterResolver(defaultResolver)
 	if node := thisNode(); node != nil {
 		defaultResolver.registerNode(node)
 	}

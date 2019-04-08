@@ -88,9 +88,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 			reconnectErr := c.initClient(isAnonymous)
 			if reconnectErr != nil {
 				err = errors.Wrap(reconnectErr, "reconnect failed")
-				return
 			}
-			return c.client.Call(method, args, reply)
 		}
 		err = errors.Wrapf(err, "call %s failed", method)
 		return

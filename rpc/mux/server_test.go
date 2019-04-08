@@ -14,43 +14,71 @@
  * limitations under the License.
  */
 
-package rpc
+package mux
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const PubKeyStorePath = "./public.keystore"
 
+type nilSessionPool struct{}
+
+func (p *nilSessionPool) Get(id proto.NodeID) (rpc.Client, error) {
+	return p.GetEx(id, false)
+}
+
+func (p *nilSessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn rpc.Client, err error) {
+	var (
+		sess   *mux.Session
+		stream *mux.Stream
+	)
+	if sess, err = newSession(id, isAnonymous); err != nil {
+		return
+	}
+	if stream, err = sess.OpenStream(); err != nil {
+		return
+	}
+	return rpc.NewClient(&oneOffMuxConn{
+		sess:   sess,
+		Stream: stream,
+	}), nil
+}
+
+func (p *nilSessionPool) Close() error { return nil }
+
 // CheckNum make int assertion.
-func CheckNum(num, expected int, t *testing.T) {
+func CheckNum(num, expected int32, t *testing.T) {
 	if num != expected {
 		t.Errorf("got %d, expected %d", num, expected)
 	}
 }
 
 type TestService struct {
-	counter int
+	counter int32
 }
 
 type TestReq struct {
-	Step int
+	Step int32
 }
 
 type TestRep struct {
-	Ret int
+	Ret int32
 }
 
 func NewTestService() *TestService {
@@ -64,18 +92,17 @@ func (s *TestService) IncCounter(req *TestReq, rep *TestRep) error {
 		"req":   *req,
 		"reply": *rep,
 	}).Debug("calling IncCounter")
-	s.counter += req.Step
-	rep.Ret = s.counter
+	rep.Ret = atomic.AddInt32(&s.counter, req.Step)
 	return nil
 }
 
-func (s *TestService) IncCounterSimpleArgs(step int, ret *int) error {
+func (s *TestService) IncCounterSimpleArgs(step int32, ret *int32) error {
 	log.WithFields(log.Fields{
 		"req":   step,
 		"reply": ret,
 	}).Debug("calling IncCounter")
-	s.counter += step
-	*ret = s.counter
+	*ret = atomic.AddInt32(&s.counter, step)
+
 	return nil
 }
 
@@ -89,14 +116,19 @@ func TestIncCounter(t *testing.T) {
 
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
 	server.SetListener(l)
-	go server.Serve()
+	go server.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
 
-	rep := new(TestRep)
-	client, err := initClient(l.Addr().String())
+	conn, err := net.Dial("tcp", l.Addr().String())
 	if err != nil {
 		log.Fatal(err)
 	}
+	stream, err := NewOneOffMuxConn(conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := rpc.NewClient(stream)
 
+	rep := new(TestRep)
 	err = client.Call("Test.IncCounter", &TestReq{Step: 10}, rep)
 	if err != nil {
 		log.Fatal(err)
@@ -109,14 +141,14 @@ func TestIncCounter(t *testing.T) {
 	}
 	CheckNum(rep.Ret, 20, t)
 
-	repSimple := new(int)
+	repSimple := new(int32)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)
 	}
 	CheckNum(*repSimple, 30, t)
 
-	client.Close()
+	_ = client.Close()
 	server.Stop()
 }
 
@@ -130,21 +162,26 @@ func TestIncCounterSimpleArgs(t *testing.T) {
 
 	server, err := NewServerWithService(ServiceMap{"Test": NewTestService()})
 	server.SetListener(l)
-	go server.Serve()
+	go server.WithAcceptConnFunc(rpc.AcceptRawConn).Serve()
 
-	client, err := initClient(l.Addr().String())
+	conn, err := net.Dial("tcp", l.Addr().String())
 	if err != nil {
 		log.Fatal(err)
 	}
+	stream, err := NewOneOffMuxConn(conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := rpc.NewClient(stream)
 
-	repSimple := new(int)
+	repSimple := new(int32)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)
 	}
 	CheckNum(*repSimple, 10, t)
 
-	client.Close()
+	_ = client.Close()
 	server.Stop()
 }
 
@@ -158,31 +195,27 @@ func TestEncryptIncCounterSimpleArgs(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	_, _ = route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	_ = server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	_ = kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil, false)
-	client, err := InitClientConn(cryptoConn)
-	if err != nil {
-		log.Fatal(err)
-	}
+	client, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 
-	repSimple := new(int)
+	repSimple := new(int32)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)
 	}
 	CheckNum(*repSimple, 10, t)
 
-	client.Close()
+	_ = client.Close()
 	server.Stop()
 }
 
@@ -196,8 +229,8 @@ func TestETLSBug(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	_, _ = route.NewDHTService(PubKeyStorePath, new(consistent.KMSStorage), true)
+	_ = server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 	defer server.Stop()
 
@@ -207,24 +240,28 @@ func TestETLSBug(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rawConn.Close()
+	defer func() { _ = rawConn.Close() }()
 
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	_ = kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil, false)
-	cryptoConn.SetDeadline(time.Now().Add(3 * time.Second))
-	client, err := InitClientConn(cryptoConn)
+	cryptoConn, err := rpc.Dial(serverNodeID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer client.Close()
+	stream, err := NewOneOffMuxConn(cryptoConn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = stream.SetDeadline(time.Now().Add(3 * time.Second))
+	client := rpc.NewClient(stream)
+	defer func() { _ = client.Close() }()
 
-	repSimple := new(int)
+	repSimple := new(int32)
 	err = client.Call("Test.IncCounterSimpleArgs", 10, repSimple)
 	if err != nil {
 		log.Fatal(err)
@@ -245,25 +282,24 @@ func TestEncPingFindNeighbor(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	server.InitRPCServer(addr, "../keys/test.key", masterKey)
+	_ = server.InitRPCServer(addr, "../keys/test.key", masterKey)
 	go server.Serve()
 
 	publicKey, err := kms.GetLocalPublicKey()
 	nonce := asymmetric.GetPubKeyNonce(publicKey, 10, 100*time.Millisecond, nil)
 	serverNodeID := proto.NodeID(nonce.Hash.String())
-	kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
+	_ = kms.SetPublicKey(serverNodeID, nonce.Nonce, publicKey)
 
 	kms.SetLocalNodeIDNonce(nonce.Hash.CloneBytes(), &nonce.Nonce)
-	route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
+	_ = route.SetNodeAddrCache(&proto.RawNodeID{Hash: nonce.Hash}, server.Listener.Addr().String())
 
-	cryptoConn, err := DialToNode(serverNodeID, nil, false)
-	client, err := InitClientConn(cryptoConn)
+	client, err := rpc.DialToNodeWithPool(&nilSessionPool{}, serverNodeID, false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	node1 := proto.NewNode()
-	node1.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node1.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqA := &proto.PingReq{
 		Node: *node1,
@@ -277,7 +313,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 	log.Debugf("respA: %v", respA)
 
 	node2 := proto.NewNode()
-	node2.InitNodeCryptoInfo(100 * time.Millisecond)
+	_ = node2.InitNodeCryptoInfo(100 * time.Millisecond)
 
 	reqB := &proto.PingReq{
 		Node: *node2,
@@ -311,7 +347,7 @@ func TestEncPingFindNeighbor(t *testing.T) {
 		So(nodeIDList, ShouldContain, string(node2.ID))
 		So(nodeIDList, ShouldContain, string(kms.BP.NodeID))
 	})
-	client.Close()
+	_ = client.Close()
 	server.Stop()
 }
 

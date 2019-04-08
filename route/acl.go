@@ -200,12 +200,10 @@ func IsPermitted(callerEnvelope *proto.Envelope, funcName RemoteFunc) (ok bool) 
 	// strict anonymous ETLS only used for Ping
 	// the envelope node id is set at NodeAwareServerCodec and CryptoListener.CHandler
 	// if callerETLSNodeID == nil here indicates that ETLS is not used, just ignore it
-	if callerETLSNodeID != nil {
-		if callerETLSNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash) {
-			if funcName != DHTPing {
-				log.WithField("field", funcName).Warning("anonymous ETLS connection can not used")
-				return false
-			}
+	if callerETLSNodeID == nil || callerETLSNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash) {
+		if funcName != DHTPing {
+			log.WithField("field", funcName).Warning("anonymous ETLS connection can not used")
+			return false
 		}
 	}
 

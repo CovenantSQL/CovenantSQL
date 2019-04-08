@@ -24,7 +24,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
 
 const (

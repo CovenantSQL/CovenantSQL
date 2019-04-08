@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,34 +23,45 @@ import (
 	"net/rpc"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
+// AcceptConn defines the function type which accepts a raw connetion as a specific type
+// of connection.
+type AcceptConn func(ctx context.Context, conn net.Conn) (net.Conn, error)
+
+// ServeStream defines the data stream serving function type which serves RPC at the given
+// io.ReadWriteCloser.
+type ServeStream func(
+	ctx context.Context, server *rpc.Server, stream io.ReadWriteCloser, remote *proto.RawNodeID,
+)
+
 // Server is the RPC server struct.
 type Server struct {
-	rpcServer  *rpc.Server
-	stopCh     chan interface{}
-	serviceMap ServiceMap
-	Listener   net.Listener
+	ctx         context.Context
+	cancel      context.CancelFunc
+	rpcServer   *rpc.Server
+	acceptConn  AcceptConn
+	serveStream ServeStream
+	Listener    net.Listener
 }
 
-// NewServer return a new Server.
-func NewServer() *Server {
+// NewServerWithServeFunc return a new Server.
+func NewServerWithServeFunc(f ServeStream) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		rpcServer:  rpc.NewServer(),
-		stopCh:     make(chan interface{}),
-		serviceMap: make(ServiceMap),
+		ctx:         ctx,
+		cancel:      cancel,
+		rpcServer:   rpc.NewServer(),
+		acceptConn:  AcceptNOConn,
+		serveStream: f,
 	}
 }
 
@@ -70,7 +81,7 @@ func (s *Server) InitRPCServer(
 		return
 	}
 
-	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		err = errors.Wrap(err, "create crypto listener failed")
 		return
@@ -79,19 +90,6 @@ func (s *Server) InitRPCServer(
 	s.SetListener(l)
 
 	return
-}
-
-// NewServerWithService also return a new Server, and also register the Server.ServiceMap.
-func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
-	server = NewServer()
-	for k, v := range serviceMap {
-		err = server.RegisterService(k, v)
-		if err != nil {
-			log.Fatal(err)
-			return nil, err
-		}
-	}
-	return server, nil
 }
 
 // SetListener set the service loop listener, used by func Serve main loop.
@@ -104,7 +102,7 @@ func (s *Server) Serve() {
 serverLoop:
 	for {
 		select {
-		case <-s.stopCh:
+		case <-s.ctx.Done():
 			log.Info("stopping Server Loop")
 			break serverLoop
 		default:
@@ -113,64 +111,32 @@ serverLoop:
 				continue
 			}
 			log.WithField("remote", conn.RemoteAddr().String()).Info("accept")
-			go s.handleConn(conn)
+			go s.serveConn(conn)
 		}
 	}
 }
 
-// handleConn do all the work.
-func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
-
-	// remote remoteNodeID connection awareness
-	var remoteNodeID *proto.RawNodeID
-	var err error
-
-	if c, ok := conn.(*etls.CryptoConn); ok {
-		conn, err = s.Listener.(*etls.CryptoListener).CHandler(c.Conn)
-		if err != nil {
-			err = errors.Wrap(err, "handle ETLS handler failed")
-			return
-		}
-		// set node id
-		remoteNodeID = conn.(*etls.CryptoConn).NodeID
-	}
-
-	sess, err := mux.Server(conn, MuxConfig)
+func (s *Server) serveConn(conn net.Conn) {
+	le := log.WithField("remote_addr", conn.RemoteAddr())
+	stream, err := s.acceptConn(s.ctx, conn)
 	if err != nil {
-		err = errors.Wrap(err, "create mux server failed")
+		le.WithError(err).Error("failed to accept conn")
 		return
 	}
-	defer sess.Close()
-
-sessionLoop:
-	for {
-		select {
-		case <-s.stopCh:
-			log.Info("stopping Session Loop")
-			break sessionLoop
-		default:
-			muxConn, err := sess.AcceptStream()
-			if err != nil {
-				if err == io.EOF {
-					//log.WithField("remote", remoteNodeID).Debug("session connection closed")
-				} else {
-					err = errors.Wrapf(err, "session accept failed, remote: %s", remoteNodeID)
-				}
-				break sessionLoop
-			}
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			go func() {
-				<-muxConn.GetDieCh()
-				cancelFunc()
-			}()
-			nodeAwareCodec := NewNodeAwareServerCodec(ctx, utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
-			go s.rpcServer.ServeCodec(nodeAwareCodec)
-		}
+	defer func() { _ = stream.Close() }()
+	// Acquire remote node id if it's a noconn.Remoter conn
+	var remote *proto.RawNodeID
+	if remoter, ok := stream.(noconn.Remoter); ok {
+		id := remoter.Remote()
+		remote = &id
+		le = le.WithField("remote_node", id)
 	}
+	le.Debug("accept server conn")
+	// Serve data stream
+	s.serveStream(s.ctx, s.rpcServer, stream, remote)
 }
 
-// RegisterService with a Service name, used by Client RPC.
+// RegisterService registers service with a Service name, used by Client RPC.
 func (s *Server) RegisterService(name string, service interface{}) error {
 	return s.rpcServer.RegisterName(name, service)
 }
@@ -178,46 +144,7 @@ func (s *Server) RegisterService(name string, service interface{}) error {
 // Stop Server main loop.
 func (s *Server) Stop() {
 	if s.Listener != nil {
-		s.Listener.Close()
+		_ = s.Listener.Close()
 	}
-	close(s.stopCh)
-}
-
-func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
-	// NodeID + Uint256 Nonce
-	headerBuf := make([]byte, ETLSHeaderSize)
-	rCount, err := conn.Read(headerBuf)
-	if err != nil {
-		err = errors.Wrap(err, "read node header error")
-		return
-	}
-
-	if rCount != ETLSHeaderSize {
-		err = errors.New("invalid ETLS header size")
-		return
-	}
-
-	if headerBuf[0] != etls.ETLSMagicBytes[0] || headerBuf[1] != etls.ETLSMagicBytes[1] {
-		err = errors.New("bad ETLS header")
-		return
-	}
-
-	// headerBuf len is hash.HashBSize, so there won't be any error
-	idHash, _ := hash.NewHash(headerBuf[2 : 2+hash.HashBSize])
-	rawNodeID := &proto.RawNodeID{Hash: *idHash}
-	// TODO(auxten): compute the nonce and check difficulty
-	cpuminer.Uint256FromBytes(headerBuf[2+hash.HashBSize:])
-
-	symmetricKey, err := GetSharedSecretWith(
-		rawNodeID,
-		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
-	)
-	if err != nil {
-		err = errors.Wrapf(err, "get shared secret, target: %s", rawNodeID.String())
-		return
-	}
-	cipher := etls.NewCipher(symmetricKey)
-	cryptoConn = etls.NewConn(conn, cipher, rawNodeID)
-
-	return
+	s.cancel()
 }

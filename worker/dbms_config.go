@@ -19,7 +19,7 @@ package worker
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
 
 var (

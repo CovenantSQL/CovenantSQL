@@ -31,6 +31,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -59,7 +60,7 @@ var (
 type RaftTxID uint64
 
 type RaftNodeRPCServer struct {
-	server *rpc.Server
+	server *mux.Server
 	addr   string
 
 	mu    sync.Mutex // Protects following fields
@@ -120,7 +121,7 @@ func NewRaftNode() (r *RaftNode, err error) {
 
 var simpleCipherHandler etls.CipherHandler = func(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
 	cipher := etls.NewCipher([]byte(pass))
-	cryptoConn = etls.NewConn(conn, cipher, nil)
+	cryptoConn = etls.NewConn(conn, cipher)
 	return
 }
 
@@ -128,20 +129,21 @@ func (r *RaftNode) start() (err error) {
 	// Start a local RPC server to simulate a Raft node
 	addr := "127.0.0.1:0"
 
-	l, err := etls.NewCryptoListener("tcp", addr, simpleCipherHandler)
+	l, err := net.Listen("tcp", addr)
 	r.addr = l.Addr().String()
 
 	if err != nil {
 		return err
 	}
 
-	r.server, err = rpc.NewServerWithService(rpc.ServiceMap{"Raft": &r.RaftNodeRPCServer})
+	r.server, err = mux.NewServerWithService(mux.ServiceMap{"Raft": &r.RaftNodeRPCServer})
 
 	if err != nil {
 		return err
 	}
 
 	r.server.SetListener(l)
+	r.server.WithAcceptConnFunc(rpc.NewAcceptCryptoConnFunc(simpleCipherHandler))
 	go r.server.Serve()
 
 	return nil
@@ -241,16 +243,16 @@ func (r *RaftNode) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error)
 		return err
 	}
 
-	client, err := rpc.InitClientConn(conn)
-
+	muxconn, err := mux.NewOneOffMuxConn(conn)
 	if err != nil {
-		return err
+		return
 	}
 
+	client := rpc.NewClient(muxconn)
 	d, ok := ctx.Deadline()
 
 	if ok {
-		err = conn.SetDeadline(d)
+		err = muxconn.SetDeadline(d)
 
 		if err != nil {
 			return err
@@ -289,16 +291,16 @@ func (r *RaftNode) Commit(ctx context.Context, wb twopc.WriteBatch) (result inte
 		return
 	}
 
-	client, err := rpc.InitClientConn(conn)
-
+	muxconn, err := mux.NewOneOffMuxConn(conn)
 	if err != nil {
 		return
 	}
 
+	client := rpc.NewClient(muxconn)
 	d, ok := ctx.Deadline()
 
 	if ok {
-		err = conn.SetDeadline(d)
+		err = muxconn.SetDeadline(d)
 
 		if err != nil {
 			return
@@ -338,16 +340,16 @@ func (r *RaftNode) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error
 		return err
 	}
 
-	client, err := rpc.InitClientConn(conn)
-
+	muxconn, err := mux.NewOneOffMuxConn(conn)
 	if err != nil {
-		return err
+		return
 	}
 
+	client := rpc.NewClient(muxconn)
 	d, ok := ctx.Deadline()
 
 	if ok {
-		err = conn.SetDeadline(d)
+		err = muxconn.SetDeadline(d)
 
 		if err != nil {
 			return err

@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-package rpc
+package mux
 
 import (
 	"io"
 	"net"
-	"net/rpc"
+	nrpc "net/rpc"
 	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
 // PCaller defines generic interface shared with PersistentCaller and RawCaller.
@@ -37,7 +39,7 @@ type PCaller interface {
 // RawCaller defines a raw rpc caller without any encryption.
 type RawCaller struct {
 	targetAddr string
-	client     *Client
+	client     *nrpc.Client
 	sync.RWMutex
 }
 
@@ -60,7 +62,7 @@ func (c *RawCaller) resetClient() (err error) {
 	defer c.Unlock()
 
 	if c.client != nil {
-		c.client.Close()
+		_ = c.client.Close()
 		c.client = nil
 	}
 
@@ -69,13 +71,11 @@ func (c *RawCaller) resetClient() (err error) {
 		err = errors.Wrapf(err, "dial to target %s failed", c.targetAddr)
 		return
 	}
-
-	if c.client, err = InitClientConn(conn); err != nil {
-		c.client = nil
-		err = errors.Wrapf(err, "init client to target %s failed", c.targetAddr)
+	stream, err := NewOneOffMuxConn(conn)
+	if err != nil {
 		return
 	}
-
+	c.client = rpc.NewClient(stream)
 	return
 }
 
@@ -95,7 +95,7 @@ func (c *RawCaller) Call(method string, args interface{}, reply interface{}) (er
 		if err == io.EOF ||
 			err == io.ErrUnexpectedEOF ||
 			err == io.ErrClosedPipe ||
-			err == rpc.ErrShutdown ||
+			err == nrpc.ErrShutdown ||
 			strings.Contains(strings.ToLower(err.Error()), "shut down") ||
 			strings.Contains(strings.ToLower(err.Error()), "broken pipe") {
 			// if got EOF, retry once
@@ -114,7 +114,7 @@ func (c *RawCaller) Close() {
 	c.Lock()
 	defer c.Unlock()
 	if c.client != nil {
-		c.client.Close()
+		_ = c.client.Close()
 		c.client = nil
 	}
 }

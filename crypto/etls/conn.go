@@ -20,34 +20,37 @@
 package etls
 
 import (
+	"bytes"
 	"io"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+const (
+	// MagicSize is the ETLS magic header size.
+	MagicSize = 2
+)
+
 var (
-	// ETLSMagicBytes is the ETLS connection magic header
-	ETLSMagicBytes = []byte{0xC0, 0x4E}
+	// MagicBytes is the ETLS connection magic header.
+	MagicBytes = [MagicSize]byte{0xC0, 0x4E}
 )
 
 // CryptoConn implements net.Conn and Cipher interface.
 type CryptoConn struct {
 	net.Conn
 	*Cipher
-	NodeID *proto.RawNodeID
 }
 
 // NewConn returns a new CryptoConn.
-func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
+func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 	return &CryptoConn{
 		Conn:   c,
 		Cipher: cipher,
-		NodeID: nodeID,
 	}
 }
 
@@ -59,15 +62,14 @@ func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
 		log.WithField("addr", address).WithError(err).Error("connect failed")
 		return
 	}
-
-	c = NewConn(conn, cipher, nil)
+	c = NewConn(conn, cipher)
 	return
 }
 
 // Read iv and Encrypted data.
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
-		buf := make([]byte, c.info.ivLen+len(ETLSMagicBytes))
+		buf := make([]byte, c.info.ivLen+MagicSize)
 		if _, err = io.ReadFull(c.Conn, buf); err != nil {
 			log.WithError(err).Info("read full failed")
 			return
@@ -78,7 +80,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 			return
 		}
 		c.decrypt(header, header)
-		if header[0] != ETLSMagicBytes[0] || header[1] != ETLSMagicBytes[1] {
+		if !bytes.Equal(header[:MagicSize], MagicBytes[:]) {
 			err = errors.New("bad stream ETLS header")
 			return
 		}
@@ -107,11 +109,11 @@ func (c *CryptoConn) Write(b []byte) (n int, err error) {
 	}
 
 	if iv != nil {
-		ivHeader := make([]byte, len(iv)+len(ETLSMagicBytes))
+		ivHeader := make([]byte, len(iv)+MagicSize)
 		// Put initialization vector in buffer, do a single write to send both
 		// iv and data.
 		copy(ivHeader, iv)
-		c.encrypt(ivHeader[len(iv):], ETLSMagicBytes)
+		c.encrypt(ivHeader[len(iv):], MagicBytes[:])
 		_, err = c.Conn.Write(ivHeader)
 		if err != nil {
 			return

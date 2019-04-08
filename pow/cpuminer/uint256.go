@@ -24,6 +24,11 @@ import (
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 )
 
+const (
+	// Uint256Size is the Uint256 byte size.
+	Uint256Size = 8 * 4
+)
+
 var (
 	// ErrBytesLen is an error type
 	ErrBytesLen = errors.New("byte length should be 32 for Uint256")

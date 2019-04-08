@@ -17,183 +17,230 @@
 package rpc
 
 import (
+	"fmt"
 	"net"
-	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	mux "github.com/xtaci/smux"
 
-	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const (
-	localAddr   = "127.0.0.1:4444"
-	localAddr2  = "127.0.0.1:4445"
-	concurrency = conf.MaxRPCPoolPhysicalConnection + 1
-	packetCount = 100
-)
-
-var (
-	baseDir        = utils.GetProjectSrcDir()
-	testWorkingDir = FJ(baseDir, "./test/")
-	logDir         = FJ(testWorkingDir, "./log/")
-)
-
-var FJ = filepath.Join
-
-func server(c C, localAddr string, n int) error {
-	// Accept a TCP connection
-	listener, err := net.Listen("tcp", localAddr)
-	go func() {
-		for i := 0; i < concurrency; i++ {
-			go func() {
-				conn, err := listener.Accept()
-				c.So(err, ShouldBeNil)
-
-				// Setup server side of mux
-				log.Println("creating server session")
-				session, err := mux.Server(conn, nil)
-				c.So(err, ShouldBeNil)
-
-				for i := 0; i < concurrency; i++ {
-					// Accept a stream
-					//c.So(err, ShouldBeNil)
-					// Stream implements net.Conn
-					// Listen for a message
-					//c.So(string(buf1), ShouldEqual, "ping")
-					log.Println("accepting stream")
-					stream, err := session.AcceptStream()
-					if err == nil {
-						buf1 := make([]byte, 4)
-						for i := 0; i < n; {
-							n, err := stream.Read(buf1)
-							if n == 4 && err == nil {
-								i++
-								c.So(string(buf1), ShouldEqual, "ping")
-							}
-						}
-						log.Debugf("buf#%d read done", i)
-					}
-				}
-			}()
+func benchCaller(b *testing.B, caller *Caller, remote proto.NodeID) {
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			err := caller.CallNode(remote, "Count.Add", &AddReq{Delta: 1}, &AddResp{})
+			if err != nil {
+				b.Error("call node failed: ", err)
+			}
 		}
-	}()
-	return err
-}
-
-func BenchmarkSessionPool_Get(b *testing.B) {
-	Convey("session pool", b, func(c C) {
-		log.SetLevel(log.FatalLevel)
-		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
-			log.Debugf("creating new connection to %s", nodeID)
-			return net.Dial("tcp", string(nodeID))
-		})
-
-		wg := &sync.WaitGroup{}
-
-		server(c, localAddr, b.N)
-		b.ResetTimer()
-		wg.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
-			go func(c2 C, n int) {
-				// Open a new stream
-				// Stream implements net.Conn
-				defer wg.Done()
-				stream, err := p.Get(proto.NodeID(localAddr))
-				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; {
-					n, err := stream.Write([]byte("ping"))
-					if n == 4 && err == nil {
-						i++
-					}
-				}
-			}(c, b.N)
-		}
-		wg.Wait()
 	})
 }
 
-func TestNewSessionPool(t *testing.T) {
-	Convey("session pool", t, func(c C) {
-		log.SetLevel(log.FatalLevel)
-		p := newSessionPool(func(nodeID proto.NodeID) (net.Conn, error) {
-			log.Debugf("creating new connection to %s", nodeID)
-			return net.Dial("tcp", string(nodeID))
-		})
-
-		wg := &sync.WaitGroup{}
-
-		server(c, localAddr, packetCount)
-		p.Get(proto.NodeID(localAddr))
-
-		wg.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
-			go func(c2 C, n int) {
-				// Open a new stream
-				// Stream implements net.Conn
-				defer wg.Done()
-				stream, err := p.Get(proto.NodeID(localAddr))
-				if err != nil {
-					log.Errorf("get session failed: %s", err)
-					return
-				}
-				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; {
-					n, err := stream.Write([]byte("ping"))
-					if n == 4 && err == nil {
-						i++
-					}
-				}
-			}(c, packetCount)
+func benchPCaller(b *testing.B, caller *PersistentCaller) {
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			err := caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
+			if err != nil {
+				b.Error("call node failed: ", err)
+			}
 		}
+	})
+}
 
-		wg.Wait()
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
+func testCaller(c C, wg *sync.WaitGroup, pool NOClientPool, remote proto.NodeID, con int, quest int) {
+	defer wg.Done()
+	var finished int32
+	caller := NewCallerWithPool(pool)
+	iwg := &sync.WaitGroup{}
+	defer iwg.Wait()
+	for i := 0; i < con; i++ {
+		iwg.Add(1)
+		go func(c C) {
+			defer iwg.Done()
+			for atomic.AddInt32(&finished, 1) < int32(quest) {
+				err := caller.CallNode(remote, "Count.Add", &AddReq{Delta: 1}, &AddResp{})
+				c.So(err, ShouldBeNil)
+			}
+		}(c)
+	}
+}
 
-		server(c, localAddr2, packetCount)
-		_, err := p.Get(proto.NodeID(localAddr2))
+func testPCaller(c C, wg *sync.WaitGroup, pool NOClientPool, remote proto.NodeID, con int, quest int) {
+	defer wg.Done()
+	var finished int32
+	caller := NewPersistentCallerWithPool(pool, remote)
+	defer caller.Close()
+	iwg := &sync.WaitGroup{}
+	defer iwg.Wait()
+	for i := 0; i < con; i++ {
+		iwg.Add(1)
+		go func(c C) {
+			defer iwg.Done()
+			for atomic.AddInt32(&finished, 1) < int32(quest) {
+				err := caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
+				c.So(err, ShouldBeNil)
+			}
+		}(c)
+	}
+}
+
+func BenchmarkRPCComponents(b *testing.B) {
+	originLevel := log.GetLevel()
+	defer log.SetLevel(originLevel)
+	log.SetLevel(log.FatalLevel)
+	nodes, stop, err := setupEnvironment(1, AcceptNOConn)
+	if err != nil {
+		b.Fatal("failed to setup servers")
+	}
+	defer stop()
+
+	b.Run("CallerWithPool", func(b *testing.B) {
+		pool := &ClientPool{}
+		defer func() { _ = pool.Close() }()
+		benchCaller(b, NewCallerWithPool(pool), nodes[0].ID)
+	})
+	b.Run("CallerWithoutPool", func(b *testing.B) {
+		benchCaller(b, NewCallerWithPool(&nilPool{}), nodes[0].ID)
+	})
+	b.Run("PCaller", func(b *testing.B) {
+		pool := &ClientPool{}
+		defer func() { _ = pool.Close() }()
+		benchPCaller(b, NewPersistentCallerWithPool(pool, nodes[0].ID))
+	})
+}
+
+func TestRPCComponents(t *testing.T) {
+	Convey("Setup a single server for pool test", t, func(c C) {
+		nodes, stop, err := setupEnvironment(1, AcceptNOConn)
 		So(err, ShouldBeNil)
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection+1)
+		defer stop()
 
-		wg2 := &sync.WaitGroup{}
-		wg2.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
-			go func(c2 C, n int) {
-				// Open a new stream
-				// Stream implements net.Conn
-				defer wg2.Done()
-				stream, err := p.Get(proto.NodeID(localAddr2))
-				if err != nil {
-					log.Errorf("get session failed: %s", err)
-					return
-				}
-				c2.So(err, ShouldBeNil)
-				for i := 0; i < n; {
-					n, err := stream.Write([]byte("ping"))
-					if n == 4 && err == nil {
-						i++
-					}
-				}
-			}(c, packetCount)
-		}
+		target := nodes[0].ID
+		pool := &ClientPool{}
+		defer func() { _ = pool.Close() }()
 
-		wg2.Wait()
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection*2)
+		So(pool.Len(), ShouldEqual, 0)
+		cli1, err := pool.GetEx(target, true)
+		So(err, ShouldBeNil)
+		_ = cli1.Close()
+		So(pool.Len(), ShouldEqual, 0)
 
-		p.Remove(proto.NodeID(localAddr2))
-		So(p.Len(), ShouldEqual, conf.MaxRPCPoolPhysicalConnection)
+		cli2, err := pool.GetEx(target, false)
+		So(err, ShouldBeNil)
+		_ = cli2.Close()
+		So(pool.Len(), ShouldEqual, 1)
 
-		p.Close()
-		So(p.Len(), ShouldEqual, 0)
+		So(pool.Len(), ShouldEqual, 1)
+		pool.Remove(target)
+		So(pool.Len(), ShouldEqual, 0)
+
+		Convey("Test pool functionality", func() {
+			// Test broken pipe
+			cli3, err := pool.GetEx(target, false)
+			So(err, ShouldBeNil)
+			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
+			So(err, ShouldBeNil)
+			_ = cli3.(*pooledClient).Client.Close() // close underlying client, should produce an error upon any following Call
+			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
+			So(err, ShouldNotBeNil)
+			_ = cli3.Close() // should not return a broken client to pool
+			So(pool.Len(), ShouldEqual, 0)
+		})
+
+		Convey("Test caller functionality", func() {
+			pool := &ClientPool{}
+			defer func() { _ = pool.Close() }()
+			caller := NewPersistentCallerWithPool(pool, target)
+			defer caller.Close()
+
+			// Set a bad client with raw tcp
+			rawconn, err := net.Dial("tcp", nodes[0].Addr)
+			So(err, ShouldBeNil)
+			caller.client = NewClient(rawconn)
+			err = caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{}) // should try reconnect
+			So(err, ShouldBeNil)
+		})
 	})
 
-	Convey("session pool get instance", t, func(c C) {
-		So(GetSessionPoolInstance(), ShouldNotBeNil)
-		So(GetSessionPoolInstance() == GetSessionPoolInstance(), ShouldBeTrue)
+	Convey("Setup servers", t, func(c C) {
+		nodes, stop, err := setupEnvironment(10, AcceptNOConn)
+		So(err, ShouldBeNil)
+		defer stop()
+
+		var (
+			totalQuest    = 1000 // of each server
+			callerCount   = 10   // of each server
+			callerConcurr = 10   // of each caller
+		)
+
+		Convey("Test RCP call with Caller", func(c C) {
+			pool := &ClientPool{}
+			defer func() {
+				_ = pool.Close()
+				So(pool.Len(), ShouldEqual, 0)
+			}()
+
+			wg := &sync.WaitGroup{}
+			for _, v := range nodes {
+				for i := 0; i < callerCount; i++ {
+					wg.Add(1)
+					go testCaller(
+						c, wg, pool, v.ID, callerConcurr, totalQuest/(callerCount*callerConcurr))
+				}
+			}
+			wg.Wait()
+			So(pool.Len(), ShouldBeGreaterThan, 0)
+		})
+
+		Convey("Test RCP call with PCaller", func(c C) {
+			pool := &ClientPool{}
+			defer func() {
+				_ = pool.Close()
+				So(pool.Len(), ShouldEqual, 0)
+			}()
+
+			wg := &sync.WaitGroup{}
+			for _, v := range nodes {
+				for i := 0; i < callerCount; i++ {
+					wg.Add(1)
+					go testPCaller(
+						c, wg, pool, v.ID, callerConcurr, totalQuest/(callerCount*callerConcurr))
+				}
+			}
+			wg.Wait()
+			So(pool.Len(), ShouldBeGreaterThan, 0)
+		})
+	})
+}
+
+func TestRecordRPCCost(t *testing.T) {
+	Convey("Bug: bad critical section for multiple values", t, func(c C) {
+		var (
+			start      = time.Now()
+			rounds     = 1000
+			concurrent = 10
+			wg         = &sync.WaitGroup{}
+			body       = func(i int) {
+				defer func() {
+					c.So(recover(), ShouldBeNil)
+					wg.Done()
+				}()
+				recordRPCCost(start, fmt.Sprintf("M%d", i), nil)
+			}
+		)
+		for i := 0; i < rounds; i++ {
+			for j := 0; j < concurrent; j++ {
+				wg.Add(1)
+				go body(i)
+			}
+			wg.Wait()
+		}
 	})
 }

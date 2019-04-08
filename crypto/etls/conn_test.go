@@ -37,7 +37,7 @@ const pass = "123"
 
 var simpleCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
 	cipher := NewCipher([]byte(pass))
-	cryptoConn = NewConn(conn, cipher, nil)
+	cryptoConn = NewConn(conn, cipher)
 	return
 }
 
@@ -114,7 +114,7 @@ func client(pass string) (ret int, err error) {
 		log.Errorf("client: dial: %s", err)
 		return 0, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	//conn.SetDeadline(time.Time{})
 	//conn.SetReadDeadline(time.Time{})
 	//conn.SetWriteDeadline(time.Time{})
@@ -164,7 +164,7 @@ func clientComplex(pass string, args *QueryComplex) (ret *ResultComplex, err err
 		log.Errorf("client: dial: %s", err)
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	log.Debugln("client: connected to: ", conn.RemoteAddr())
 	log.Debugln("client: LocalAddr: ", conn.LocalAddr())
@@ -179,7 +179,7 @@ func clientComplex(pass string, args *QueryComplex) (ret *ResultComplex, err err
 }
 
 func handleClient(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	var err error
 
 	if c, ok := conn.(*CryptoConn); ok {
@@ -272,7 +272,7 @@ func TestComplexRPC(t *testing.T) {
 func TestCryptoConn_RW(t *testing.T) {
 	cipher := NewCipher([]byte(pass))
 	var nilCipherHandler CipherHandler = func(conn net.Conn) (cryptoConn *CryptoConn, err error) {
-		cryptoConn = NewConn(conn, cipher, nil)
+		cryptoConn = NewConn(conn, cipher)
 		return
 	}
 

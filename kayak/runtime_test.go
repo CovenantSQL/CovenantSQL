@@ -195,8 +195,8 @@ func newFakeCaller(m *fakeMux, nodeID proto.NodeID) (c *fakeCaller) {
 	fakeConn := mock_conn.NewConn()
 	cipher1 := etls.NewCipher([]byte("123"))
 	cipher2 := etls.NewCipher([]byte("123"))
-	serverConn := etls.NewConn(fakeConn.Server, cipher1, nil)
-	clientConn := etls.NewConn(fakeConn.Client, cipher2, nil)
+	serverConn := etls.NewConn(fakeConn.Server, cipher1)
+	clientConn := etls.NewConn(fakeConn.Client, cipher2)
 
 	muxSess, _ := smux.Server(serverConn, smux.DefaultConfig())
 	go func() {

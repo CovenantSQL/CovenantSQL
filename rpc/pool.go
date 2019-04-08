@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,191 +17,204 @@
 package rpc
 
 import (
-	"net"
+	"net/rpc"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// SessPool is the session pool interface.
-type SessPool interface {
-	Get(proto.NodeID) (net.Conn, error)
-	Close()
-	Len() int
+type pooledClient struct {
+	*rpc.Client
+
+	// Fields for pooling
+	sync.Mutex
+	freelist *freelist
+	lastErr  error
 }
 
-// NodeDialer is the dialer handler.
-type NodeDialer func(nodeID proto.NodeID) (net.Conn, error)
-
-// SessionMap is the map from node id to session.
-type SessionMap map[proto.NodeID]*Session
-
-// Session is the Session type of SessionPool.
-type Session struct {
-	sync.RWMutex
-	nodeDialer NodeDialer
-	target     proto.NodeID
-	sess       []*mux.Session
-	offset     int
+func (c *pooledClient) SetLastErr(err error) {
+	c.Lock()
+	defer c.Unlock()
+	if err != nil {
+		c.lastErr = err
+	}
 }
 
-// SessionPool is the struct type of session pool.
-type SessionPool struct {
+// Call overwrites the Close method of client.
+func (c *pooledClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+	err := c.Client.Call(serviceMethod, args, reply)
+	if err != nil { // TODO(leventeliu): check recoverable errors
+		c.SetLastErr(err)
+	}
+	return err
+}
+
+// TODO(leventeliu): call with Client.Go still needs to explicitly set last error.
+
+// Close overwrites the Close method of client.
+func (c *pooledClient) Close() error {
+	c.Lock()
+	if c.freelist != nil && c.lastErr == nil {
+		err := c.freelist.put(c.Client) // unwrap
+		c.freelist = nil
+		c.Unlock()
+		return err
+	}
+	c.Unlock()
+	return c.Client.Close()
+}
+
+type freelist struct {
 	sync.RWMutex
-	sessions   SessionMap
-	nodeDialer NodeDialer
+	target proto.NodeID
+	freeCh chan *rpc.Client
+}
+
+func (l *freelist) close() error {
+	l.Lock()
+	defer l.Unlock()
+	close(l.freeCh)
+	var errmsgs []string
+	for s := range l.freeCh {
+		if err := s.Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
+	}
+	l.freeCh = nil // set to nil explicitly to force close in freelist.put
+	if len(errmsgs) > 0 {
+		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close free list %s", l.target)
+	}
+	return nil
+}
+
+func (l *freelist) put(cli *rpc.Client) (err error) {
+	l.RLock() // note that this is read op on the freelist aspect
+	defer l.RUnlock()
+	select {
+	case l.freeCh <- cli:
+	default:
+		err = cli.Close()
+	}
+	return
+}
+
+func (l *freelist) getFree() (cli *rpc.Client, ok bool) {
+	l.RLock()
+	defer l.RUnlock()
+	select {
+	case cli, ok = <-l.freeCh:
+	default:
+	}
+	return
+}
+
+func (l *freelist) get() (cli Client, err error) {
+	var (
+		raw *rpc.Client
+		ok  bool
+	)
+	if raw, ok = l.getFree(); !ok {
+		if raw, err = l.newClient(); err != nil {
+			return
+		}
+	}
+	return &pooledClient{
+		Client:   raw, // wrap
+		freelist: l,
+	}, nil
+}
+
+// len returns physical connection count.
+func (l *freelist) len() int {
+	l.RLock()
+	defer l.RUnlock()
+	return len(l.freeCh)
+}
+
+func (l *freelist) newClient() (*rpc.Client, error) {
+	conn, err := Dial(l.target)
+	if err != nil {
+		return nil, errors.Wrap(err, "dialing new connection failed")
+	}
+	return NewClient(conn), err
+}
+
+// ClientPool is the struct type of connection pool.
+type ClientPool struct {
+	nodeFreeLists sync.Map // proto.NodeID -> freelist
+}
+
+func (p *ClientPool) loadFreeList(id proto.NodeID) (list *freelist, ok bool) {
+	var v interface{}
+	if v, ok = p.nodeFreeLists.Load(id); ok {
+		list = v.(*freelist)
+		return
+	}
+	v, ok = p.nodeFreeLists.LoadOrStore(id, &freelist{
+		target: id,
+		freeCh: make(chan *rpc.Client, conf.MaxRPCPoolPhysicalConnection),
+	})
+	list = v.(*freelist)
+	return
+}
+
+// Get returns existing freelist to the node, if not exist try best to create one.
+func (p *ClientPool) Get(id proto.NodeID) (cli Client, err error) {
+	list, _ := p.loadFreeList(id)
+	return list.get()
+}
+
+// GetEx returns a client with an one-off connection if it's anonymous,
+// otherwise returns existing freelist with Get.
+func (p *ClientPool) GetEx(id proto.NodeID, isAnonymous bool) (cli Client, err error) {
+	if isAnonymous {
+		conn, err := DialEx(id, true)
+		if err != nil {
+			return nil, err
+		}
+		return NewClient(conn), nil
+	}
+	return p.Get(id)
+}
+
+// Remove the node freelist in the pool.
+func (p *ClientPool) Remove(id proto.NodeID) {
+	v, ok := p.nodeFreeLists.Load(id)
+	if ok {
+		_ = v.(*freelist).close()
+		p.nodeFreeLists.Delete(id)
+	}
+	return
+}
+
+// Close closes all FreeLists in the pool.
+func (p *ClientPool) Close() error {
+	var errmsgs []string
+	p.nodeFreeLists.Range(func(k, v interface{}) bool {
+		if err := v.(*freelist).close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
+		return true
+	})
+	if len(errmsgs) > 0 {
+		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close connection pool")
+	}
+	return nil
+}
+
+// Len returns the connection count in the pool.
+func (p *ClientPool) Len() (total int) {
+	p.nodeFreeLists.Range(func(k, v interface{}) bool {
+		total += v.(*freelist).len()
+		return true
+	})
+	return
 }
 
 var (
-	instance *SessionPool
-	once     sync.Once
+	defaultPool = &ClientPool{}
 )
-
-// Close closes the session.
-func (s *Session) Close() {
-	s.Lock()
-	defer s.Unlock()
-	for _, s := range s.sess {
-		_ = s.Close()
-	}
-	s.sess = s.sess[:0]
-}
-
-// Get returns new connection from session.
-func (s *Session) Get() (conn net.Conn, err error) {
-	s.Lock()
-	defer s.Unlock()
-	s.offset++
-	s.offset %= conf.MaxRPCPoolPhysicalConnection
-
-	var (
-		sess     *mux.Session
-		stream   *mux.Stream
-		sessions []*mux.Session
-	)
-
-	for {
-		if len(s.sess) <= s.offset {
-			// open new session
-			sess, err = s.newSession()
-			if err != nil {
-				return
-			}
-			s.sess = append(s.sess, sess)
-			s.offset = len(s.sess) - 1
-		} else {
-			sess = s.sess[s.offset]
-		}
-
-		// open connection
-		stream, err = sess.OpenStream()
-		if err != nil {
-			// invalidate session
-			sessions = nil
-			sessions = append(sessions, s.sess[0:s.offset]...)
-			sessions = append(sessions, s.sess[s.offset+1:]...)
-			s.sess = sessions
-			continue
-		}
-
-		conn = stream
-		return
-	}
-}
-
-// Len returns physical connection count.
-func (s *Session) Len() int {
-	s.RLock()
-	defer s.RUnlock()
-	return len(s.sess)
-}
-
-func (s *Session) newSession() (sess *mux.Session, err error) {
-	var conn net.Conn
-	conn, err = s.nodeDialer(s.target)
-	if err != nil {
-		err = errors.Wrap(err, "dialing new session connection failed")
-		return
-	}
-
-	return mux.Client(conn, MuxConfig)
-}
-
-// newSessionPool creates a new SessionPool.
-func newSessionPool(nd NodeDialer) *SessionPool {
-	return &SessionPool{
-		sessions:   make(SessionMap),
-		nodeDialer: nd,
-	}
-}
-
-// GetSessionPoolInstance return default SessionPool instance with rpc.DefaultDialer.
-func GetSessionPoolInstance() *SessionPool {
-	once.Do(func() {
-		instance = newSessionPool(DefaultDialer)
-	})
-	return instance
-}
-
-func (p *SessionPool) getSession(id proto.NodeID) (sess *Session, loaded bool) {
-	// NO Blocking operation in this function
-	p.Lock()
-	defer p.Unlock()
-	sess, exist := p.sessions[id]
-	if exist {
-		//log.WithField("node", id).Debug("load session for target node")
-		loaded = true
-	} else {
-		// new session
-		sess = &Session{
-			nodeDialer: p.nodeDialer,
-			target:     id,
-		}
-		p.sessions[id] = sess
-	}
-	return
-}
-
-// Get returns existing session to the node, if not exist try best to create one.
-func (p *SessionPool) Get(id proto.NodeID) (conn net.Conn, err error) {
-	var sess *Session
-	sess, _ = p.getSession(id)
-	return sess.Get()
-}
-
-// Remove the node sessions in the pool.
-func (p *SessionPool) Remove(id proto.NodeID) {
-	p.Lock()
-	defer p.Unlock()
-	sess, exist := p.sessions[id]
-	if exist {
-		sess.Close()
-		delete(p.sessions, id)
-	}
-	return
-}
-
-// Close closes all sessions in the pool.
-func (p *SessionPool) Close() {
-	p.Lock()
-	defer p.Unlock()
-	for _, s := range p.sessions {
-		s.Close()
-	}
-	p.sessions = make(SessionMap)
-}
-
-// Len returns the session counts in the pool.
-func (p *SessionPool) Len() (total int) {
-	p.RLock()
-	defer p.RUnlock()
-
-	for _, s := range p.sessions {
-		total += s.Len()
-	}
-	return
-}

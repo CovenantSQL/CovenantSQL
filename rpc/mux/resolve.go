@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-package rpc
+package mux
 
 import (
-	"context"
-	"expvar"
-	"io"
 	"math/rand"
-	"net"
-	"net/rpc"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
-	mux "github.com/xtaci/smux"
-	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/noconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -46,214 +39,23 @@ var (
 	currentBP proto.NodeID
 	// currentBPLock represents the chief block producer access lock.
 	currentBPLock sync.Mutex
-
-	// callRPCExpvarLock is the lock of RPC Call Publish lock
-	callRPCExpvarLock sync.Mutex
 )
 
-// PersistentCaller is a wrapper for session pooling and RPC calling.
-type PersistentCaller struct {
-	pool       *SessionPool
-	client     *Client
-	TargetAddr string
-	TargetID   proto.NodeID
-	sync.Mutex
+type muxRPCResolver struct{}
+
+// Resolve implements the node ID resolver using the BP network with mux-RPC protocol.
+func (r *muxRPCResolver) Resolve(id *proto.RawNodeID) (string, error) {
+	return GetNodeAddr(id)
 }
 
-// NewPersistentCaller returns a persistent RPCCaller.
-//  IMPORTANT: If a PersistentCaller is firstly used by a DHT.Ping, which is an anonymous
-//  ETLS connection. It should not be used by any other RPC except DHT.Ping.
-func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
-	return &PersistentCaller{
-		pool:     GetSessionPoolInstance(),
-		TargetID: target,
-	}
+// Resolve implements the node ID resolver extended method using the BP network
+// with mux-RPC protocol.
+func (r *muxRPCResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
+	return GetNodeInfo(id)
 }
 
-// Target returns the request target for logging purpose.
-func (c *PersistentCaller) Target() string {
-	return string(c.TargetID)
-}
-
-// New returns brand new persistent caller.
-func (c *PersistentCaller) New() PCaller {
-	return NewPersistentCaller(c.TargetID)
-}
-
-func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
-	c.Lock()
-	defer c.Unlock()
-	if c.client == nil {
-		var conn net.Conn
-		conn, err = DialToNode(c.TargetID, c.pool, isAnonymous)
-		if err != nil {
-			err = errors.Wrap(err, "dial to node failed")
-			return
-		}
-		//conn.SetDeadline(time.Time{})
-		c.client, err = InitClientConn(conn)
-		if err != nil {
-			err = errors.Wrap(err, "init RPC client failed")
-			return
-		}
-	}
-	return
-}
-
-// Call invokes the named function, waits for it to complete, and returns its error status.
-func (c *PersistentCaller) Call(method string, args interface{}, reply interface{}) (err error) {
-	startTime := time.Now()
-	defer func() {
-		recordRPCCost(startTime, method, err)
-	}()
-
-	err = c.initClient(method == route.DHTPing.String())
-	if err != nil {
-		err = errors.Wrap(err, "init PersistentCaller client failed")
-		return
-	}
-	err = c.client.Call(method, args, reply)
-	if err != nil {
-		if err == io.EOF ||
-			err == io.ErrUnexpectedEOF ||
-			err == io.ErrClosedPipe ||
-			err == rpc.ErrShutdown ||
-			strings.Contains(strings.ToLower(err.Error()), "shut down") ||
-			strings.Contains(strings.ToLower(err.Error()), "broken pipe") {
-			// if got EOF, retry once
-			reconnectErr := c.ResetClient(method)
-			if reconnectErr != nil {
-				err = errors.Wrap(reconnectErr, "reconnect failed")
-			}
-		}
-		err = errors.Wrapf(err, "call %s failed", method)
-		return
-	}
-	return
-}
-
-// ResetClient resets client.
-func (c *PersistentCaller) ResetClient(method string) (err error) {
-	c.Lock()
-	c.Close()
-	c.client = nil
-	c.Unlock()
-	return
-}
-
-// CloseStream closes the stream and RPC client.
-func (c *PersistentCaller) CloseStream() {
-	if c.client != nil {
-		if c.client.Conn != nil {
-			stream, ok := c.client.Conn.(*mux.Stream)
-			if ok {
-				_ = stream.Close()
-			}
-		}
-		c.client.Close()
-	}
-}
-
-// Close closes the stream and RPC client.
-func (c *PersistentCaller) Close() {
-	c.CloseStream()
-	//c.pool.Remove(c.TargetID)
-}
-
-// Caller is a wrapper for session pooling and RPC calling.
-type Caller struct {
-	pool *SessionPool
-}
-
-// NewCaller returns a new RPCCaller.
-func NewCaller() *Caller {
-	return &Caller{
-		pool: GetSessionPoolInstance(),
-	}
-}
-
-// CallNode invokes the named function, waits for it to complete, and returns its error status.
-func (c *Caller) CallNode(
-	node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
-	return c.CallNodeWithContext(context.Background(), node, method, args, reply)
-}
-
-func recordRPCCost(startTime time.Time, method string, err error) {
-	var (
-		name, nameC string
-		val, valC   expvar.Var
-	)
-	costTime := time.Since(startTime)
-	if err == nil {
-		name = "t_succ:" + method
-		nameC = "c_succ:" + method
-	} else {
-		name = "t_fail:" + method
-		nameC = "c_fail:" + method
-	}
-	// Optimistically, val will not be nil except the first Call of method
-	// expvar uses sync.Map
-	// So, we try it first without lock
-	val = expvar.Get(name)
-	valC = expvar.Get(nameC)
-	if val == nil || valC == nil {
-		callRPCExpvarLock.Lock()
-		val = expvar.Get(name)
-		if val == nil {
-			expvar.Publish(name, mw.NewHistogram("10s1s", "1m5s", "1h1m"))
-			expvar.Publish(nameC, mw.NewCounter("10s1s", "1h1m"))
-		}
-		callRPCExpvarLock.Unlock()
-		val = expvar.Get(name)
-		valC = expvar.Get(nameC)
-	}
-	val.(mw.Metric).Add(costTime.Seconds())
-	valC.(mw.Metric).Add(1)
-	return
-}
-
-// CallNodeWithContext invokes the named function, waits for it to complete or context timeout, and returns its error status.
-func (c *Caller) CallNodeWithContext(
-	ctx context.Context, node proto.NodeID, method string, args interface{}, reply interface{}) (err error) {
-	startTime := time.Now()
-	defer func() {
-		recordRPCCost(startTime, method, err)
-	}()
-
-	conn, err := DialToNode(node, c.pool, method == route.DHTPing.String())
-	if err != nil {
-		err = errors.Wrapf(err, "dial to node %s failed", node)
-		return
-	}
-
-	defer func() {
-		// call the mux stream Close explicitly
-		//TODO(auxten) maybe a rpc client pool will gain much more performance
-		stream, ok := conn.(*mux.Stream)
-		if ok {
-			stream.Close()
-		}
-	}()
-
-	client, err := InitClientConn(conn)
-	if err != nil {
-		err = errors.Wrap(err, "init RPC client failed")
-		return
-	}
-
-	defer client.Close()
-
-	// TODO(xq262144): golang net/rpc does not support cancel in progress calls
-	ch := client.Go(method, args, reply, make(chan *rpc.Call, 1))
-
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	case call := <-ch.Done:
-		err = call.Error
-	}
-
-	return
+func init() {
+	noconn.RegisterResolver(&muxRPCResolver{})
 }
 
 // GetNodeAddr tries best to get node addr.
@@ -267,7 +69,7 @@ func GetNodeAddr(id *proto.RawNodeID) (addr string, err error) {
 			if err != nil {
 				return
 			}
-			route.SetNodeAddrCache(id, node.Addr)
+			_ = route.SetNodeAddrCache(id, node.Addr)
 			addr = node.Addr
 		}
 	}

@@ -715,6 +715,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 
 	var i int64
 	i = -1
+	db.SetMaxIdleConns(256)
 
 	b.Run(makeBenchName("INSERT"), func(b *testing.B) {
 		b.ResetTimer()
@@ -846,6 +847,7 @@ func benchMiner(b *testing.B, minerCount uint16) {
 			ResourceMeta: types.ResourceMeta{
 				Node:                   minerCount,
 				UseEventualConsistency: benchEventualConsistency,
+				IsolationLevel:         int(sql.LevelReadUncommitted),
 			},
 		}
 		// wait for chain service
@@ -961,8 +963,9 @@ func benchOutsideMinerWithTargetMinerList(
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				TargetMiners: targetMiners,
-				Node:         minerCount,
+				TargetMiners:   targetMiners,
+				Node:           minerCount,
+				IsolationLevel: int(sql.LevelReadUncommitted),
 			},
 			AdvancePayment: 1000000000,
 		}

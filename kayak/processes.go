@@ -185,7 +185,7 @@ func (r *Runtime) followerRollback(ctx context.Context, tm *timer.Timer, l *kt.L
 	}
 	tm.Add("write_wal")
 
-	r.markPrepareFinished(ctx, l.Index)
+	r.markPrepareFinished(ctx, prepareLog.Index)
 	tm.Add("mark")
 
 	return
@@ -220,7 +220,7 @@ func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log
 		err = cResult.err
 	}
 
-	r.markPrepareFinished(ctx, l.Index)
+	r.markPrepareFinished(ctx, prepareLog.Index)
 	tm.Add("mark")
 
 	return

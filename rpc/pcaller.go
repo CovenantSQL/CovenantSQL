@@ -101,7 +101,9 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 // ResetClient resets client.
 func (c *PersistentCaller) ResetClient() (err error) {
 	c.Lock()
-	c.Close()
+	if c.client != nil {
+		_ = c.client.Close()
+	}
 	c.client = nil
 	c.Unlock()
 	return
@@ -109,5 +111,9 @@ func (c *PersistentCaller) ResetClient() (err error) {
 
 // Close closes the stream and RPC client.
 func (c *PersistentCaller) Close() {
-	_ = c.client.Close()
+	c.Lock()
+	defer c.Unlock()
+	if c.client != nil {
+		_ = c.client.Close()
+	}
 }

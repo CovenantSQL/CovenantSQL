@@ -85,7 +85,7 @@ Tracker stuff can refer to the Example section below
     - Private key protected by master key
     - Annoymous connection is also supported
 - DHT persistence layer has 2 implementations:
-    - BoltDB based simple traditional DHT
+    - SQLite3 based simple traditional DHT
     - [Kayak](https://godoc.org/github.com/CovenantSQL/CovenantSQL/kayak) based 2PC strong consistent DHT
 - Connection pool based on [Yamux](https://github.com/hashicorp/yamux), make thousands of connections multiplexed over **One TCP connection**.
 
@@ -157,7 +157,7 @@ func main() {
 	// Init Key Management System
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
-	// Creating DHT RPC with simple BoltDB persistence layer
+	// Creating DHT RPC with simple persistence layer
 	dht, err := route.NewDHTService(conf.GConf.DHTFileName, new(consistent.KMSStorage), true)
 	if err != nil {
 		log.Fatalf("init dht failed: %v", err)

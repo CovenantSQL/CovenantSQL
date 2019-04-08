@@ -29,7 +29,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -95,8 +95,8 @@ func (p *nilPool) Close() error { return nil }
 
 // CountService is a simple count service for testing.
 type CountService struct {
-	host   proto.NodeID
-	Counrt int32
+	host  proto.NodeID
+	Count int32
 }
 
 type AddReq struct {
@@ -111,7 +111,7 @@ type AddResp struct {
 
 func (s *CountService) Add(req *AddReq, resp *AddResp) error {
 	resp.SetNodeID(req.NodeID)
-	resp.Count = atomic.AddInt32(&s.Counrt, req.Delta)
+	resp.Count = atomic.AddInt32(&s.Count, req.Delta)
 	return nil
 }
 
@@ -234,7 +234,7 @@ func setup() {
 		panic(err)
 	}
 	route.InitKMS(filepath.Join(tempDir, "public.keystore"))
-	noconn.RegisterResolver(defaultResolver)
+	naconn.RegisterResolver(defaultResolver)
 	if node := thisNode(); node != nil {
 		defaultResolver.registerNode(node)
 	}

@@ -25,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -60,7 +60,7 @@ func NewServerWithServeFunc(f ServeStream) *Server {
 		ctx:         ctx,
 		cancel:      cancel,
 		rpcServer:   rpc.NewServer(),
-		acceptConn:  AcceptNOConn,
+		acceptConn:  AcceptNAConn,
 		serveStream: f,
 	}
 }
@@ -124,9 +124,9 @@ func (s *Server) serveConn(conn net.Conn) {
 		return
 	}
 	defer func() { _ = stream.Close() }()
-	// Acquire remote node id if it's a noconn.Remoter conn
+	// Acquire remote node id if it's a naconn.Remoter conn
 	var remote *proto.RawNodeID
-	if remoter, ok := stream.(noconn.Remoter); ok {
+	if remoter, ok := stream.(naconn.Remoter); ok {
 		id := remoter.Remote()
 		remote = &id
 		le = le.WithField("remote_node", id)

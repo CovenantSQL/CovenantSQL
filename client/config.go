@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	paramUseLeader   = "use_leader"
-	paramUseFollower = "use_follower"
-	paramMirror      = "mirror"
+	paramUseLeader    = "use_leader"
+	paramUseFollower  = "use_follower"
+	paramUseDirectRPC = "use_direct_rpc"
+	paramMirror       = "mirror"
 )
 
 // Config is a configuration parsed from a DSN string.
@@ -41,6 +42,9 @@ type Config struct {
 
 	// UseFollower use follower nodes to do queries
 	UseFollower bool
+
+	// UseDirectRPC use direct RPC to access the miner
+	UseDirectRPC bool
 
 	// Mirror option forces client to query from mirror server
 	Mirror string
@@ -71,6 +75,9 @@ func (cfg *Config) FormatDSN() string {
 	if cfg.Mirror != "" {
 		newQuery.Add(paramMirror, cfg.Mirror)
 	}
+	if cfg.UseDirectRPC {
+		newQuery.Add(paramUseDirectRPC, strconv.FormatBool(cfg.UseDirectRPC))
+	}
 	u.RawQuery = newQuery.Encode()
 
 	return u.String()
@@ -98,6 +105,7 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 		cfg.UseLeader = true
 	}
 	cfg.Mirror = q.Get(paramMirror)
+	cfg.UseDirectRPC, _ = strconv.ParseBool(q.Get(paramUseDirectRPC))
 
 	return cfg, nil
 }

@@ -109,7 +109,7 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 	}
 
 	// init service
-	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, dbms)
+	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, cfg.DirectServer, dbms)
 	return
 }
 

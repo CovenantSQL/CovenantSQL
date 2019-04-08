@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/noconn"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -41,21 +41,46 @@ var (
 	currentBPLock sync.Mutex
 )
 
-type muxRPCResolver struct{}
+// Resolver implements the node ID resolver using BP network with mux-RPC protocol.
+type Resolver struct {
+	direct bool
+}
+
+// NewResolver returns a Resolver which resolves the mux-RPC server address of the
+// target node ID.
+func NewResolver() naconn.Resolver {
+	return &Resolver{}
+}
+
+// NewDirectResolver returns a Resolver which resolves the direct RPC server address of the
+// target node ID.
+func NewDirectResolver() naconn.Resolver {
+	return &Resolver{direct: true}
+}
 
 // Resolve implements the node ID resolver using the BP network with mux-RPC protocol.
-func (r *muxRPCResolver) Resolve(id *proto.RawNodeID) (string, error) {
+func (r *Resolver) Resolve(id *proto.RawNodeID) (string, error) {
+	if r.direct {
+		node, err := GetNodeInfo(id)
+		if err != nil {
+			return "", err
+		}
+		if node.Role == proto.Miner {
+			return node.DirectAddr, nil
+		}
+		return node.Addr, nil
+	}
 	return GetNodeAddr(id)
 }
 
-// Resolve implements the node ID resolver extended method using the BP network
+// ResolveEx implements the node ID resolver extended method using the BP network
 // with mux-RPC protocol.
-func (r *muxRPCResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
+func (r *Resolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 	return GetNodeInfo(id)
 }
 
 func init() {
-	noconn.RegisterResolver(&muxRPCResolver{})
+	naconn.RegisterResolver(&Resolver{})
 }
 
 // GetNodeAddr tries best to get node addr.

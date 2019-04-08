@@ -43,6 +43,14 @@ func (s *Server) WithAcceptConnFunc(f AcceptConn) *Server {
 	return s
 }
 
+// PCaller defines generic interface shared with PersistentCaller and RawCaller.
+type PCaller interface {
+	Call(method string, request interface{}, reply interface{}) (err error)
+	Close()
+	Target() string
+	New() PCaller // returns new instance of current caller
+}
+
 // NewCaller returns a new RPCCaller.
 func NewCaller() *Caller {
 	return NewCallerWithPool(defaultPool)

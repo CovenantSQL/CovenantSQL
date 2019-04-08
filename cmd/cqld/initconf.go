@@ -75,11 +75,12 @@ func initNodePeers(nodeID proto.NodeID, publicKeystorePath string) (nodes *[]pro
 			rawNodeID := &proto.RawNodeID{Hash: *rawNodeIDHash}
 			route.SetNodeAddrCache(rawNodeID, p.Addr)
 			node := &proto.Node{
-				ID:        p.ID,
-				Addr:      p.Addr,
-				PublicKey: p.PublicKey,
-				Nonce:     p.Nonce,
-				Role:      p.Role,
+				ID:         p.ID,
+				Addr:       p.Addr,
+				DirectAddr: p.DirectAddr,
+				PublicKey:  p.PublicKey,
+				Nonce:      p.Nonce,
+				Role:       p.Role,
 			}
 			err = kms.SetNode(node)
 			if err != nil {

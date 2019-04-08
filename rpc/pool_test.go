@@ -95,7 +95,7 @@ func BenchmarkRPCComponents(b *testing.B) {
 	originLevel := log.GetLevel()
 	defer log.SetLevel(originLevel)
 	log.SetLevel(log.FatalLevel)
-	nodes, stop, err := setupEnvironment(1, AcceptNOConn)
+	nodes, stop, err := setupEnvironment(1, AcceptNAConn)
 	if err != nil {
 		b.Fatal("failed to setup servers")
 	}
@@ -118,7 +118,7 @@ func BenchmarkRPCComponents(b *testing.B) {
 
 func TestRPCComponents(t *testing.T) {
 	Convey("Setup a single server for pool test", t, func(c C) {
-		nodes, stop, err := setupEnvironment(1, AcceptNOConn)
+		nodes, stop, err := setupEnvironment(1, AcceptNAConn)
 		So(err, ShouldBeNil)
 		defer stop()
 
@@ -142,13 +142,14 @@ func TestRPCComponents(t *testing.T) {
 		So(pool.Len(), ShouldEqual, 0)
 
 		Convey("Test pool functionality", func() {
+			var resp AddResp
 			// Test broken pipe
 			cli3, err := pool.GetEx(target, false)
 			So(err, ShouldBeNil)
-			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
+			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &resp)
 			So(err, ShouldBeNil)
 			_ = cli3.(*pooledClient).Client.Close() // close underlying client, should produce an error upon any following Call
-			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
+			err = cli3.Call("Count.Add", &AddReq{Delta: 1}, &resp)
 			So(err, ShouldNotBeNil)
 			_ = cli3.Close() // should not return a broken client to pool
 			So(pool.Len(), ShouldEqual, 0)
@@ -164,13 +165,15 @@ func TestRPCComponents(t *testing.T) {
 			rawconn, err := net.Dial("tcp", nodes[0].Addr)
 			So(err, ShouldBeNil)
 			caller.client = NewClient(rawconn)
-			err = caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{}) // should try reconnect
+			err = caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{}) // should try reconnect, and return err
+			So(err, ShouldNotBeNil)
+			err = caller.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{}) // should be no err
 			So(err, ShouldBeNil)
 		})
 	})
 
 	Convey("Setup servers", t, func(c C) {
-		nodes, stop, err := setupEnvironment(10, AcceptNOConn)
+		nodes, stop, err := setupEnvironment(10, AcceptNAConn)
 		So(err, ShouldBeNil)
 		defer stop()
 

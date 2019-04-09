@@ -26,14 +26,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-var (
-	// Global atomic counters for stats
-	multiIndexCount int32
-	responseCount   int32
-	ackCount        int32
-)
-
 type multiAckIndex struct {
+	owner *ackIndex // for atomic counter access only
+
 	sync.RWMutex
 	// respIndex is the index of query responses without acks
 	respIndex map[types.QueryKey]*types.SignedResponseHeader
@@ -54,7 +49,7 @@ func (i *multiAckIndex) addResponse(resp *types.SignedResponseHeader) (err error
 		return
 	}
 	i.respIndex[key] = resp
-	atomic.AddInt32(&responseCount, 1)
+	atomic.AddInt32(&i.owner.responseCount, 1)
 	return
 }
 
@@ -77,8 +72,8 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 	}
 	delete(i.respIndex, key)
 	i.ackIndex[key] = ack
-	atomic.AddInt32(&responseCount, -1)
-	atomic.AddInt32(&ackCount, 1)
+	atomic.AddInt32(&i.owner.responseCount, -1)
+	atomic.AddInt32(&i.owner.ackCount, 1)
 	return
 }
 
@@ -89,7 +84,7 @@ func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 	defer i.Unlock()
 	if _, ok := i.respIndex[key]; ok {
 		delete(i.respIndex, key)
-		atomic.AddInt32(&responseCount, -1)
+		atomic.AddInt32(&i.owner.responseCount, -1)
 		return
 	}
 	if oack, ok := i.ackIndex[key]; ok {
@@ -99,7 +94,7 @@ func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 			return
 		}
 		delete(i.ackIndex, key)
-		atomic.AddInt32(&ackCount, -1)
+		atomic.AddInt32(&i.owner.ackCount, -1)
 		return
 	}
 	err = errors.Wrapf(ErrQueryNotFound, "remove key %s -x- ack %s", &key, ack.Hash())
@@ -151,6 +146,11 @@ type ackIndex struct {
 
 	sync.RWMutex
 	barrier int32
+
+	// Atomic counters for stats
+	multiIndexCount int32
+	responseCount   int32
+	ackCount        int32
 }
 
 func newAckIndex() *ackIndex {
@@ -169,11 +169,12 @@ func (i *ackIndex) load(h int32) (mi *multiAckIndex, err error) {
 	}
 	if mi, ok = i.hi[h]; !ok {
 		mi = &multiAckIndex{
+			owner:     i,
 			respIndex: make(map[types.QueryKey]*types.SignedResponseHeader),
 			ackIndex:  make(map[types.QueryKey]*types.SignedAckHeader),
 		}
 		i.hi[h] = mi
-		atomic.AddInt32(&multiIndexCount, 1)
+		atomic.AddInt32(&i.multiIndexCount, 1)
 	}
 	return
 }
@@ -192,10 +193,10 @@ func (i *ackIndex) advance(h int32) {
 	// Record expired and not acknowledged queries
 	for _, v := range dl {
 		v.expire()
-		atomic.AddInt32(&responseCount, int32(-len(v.respIndex)))
-		atomic.AddInt32(&ackCount, int32(-len(v.ackIndex)))
+		atomic.AddInt32(&i.responseCount, int32(-len(v.respIndex)))
+		atomic.AddInt32(&i.ackCount, int32(-len(v.ackIndex)))
 	}
-	atomic.AddInt32(&multiIndexCount, int32(-len(dl)))
+	atomic.AddInt32(&i.multiIndexCount, int32(-len(dl)))
 }
 
 func (i *ackIndex) addResponse(h int32, resp *types.SignedResponseHeader) (err error) {

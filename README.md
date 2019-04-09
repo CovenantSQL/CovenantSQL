@@ -50,7 +50,7 @@ sql.Open("cql", dbURI)
 ## What is CQL?
 
 - Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
-- Just like [filecoin](https://filecoin.io/) is the decentralized file system, CQL is the decentralized database
+- Just like [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) is the decentralized file system, CQL is the decentralized database
 
 ## How CQL works
 

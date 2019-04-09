@@ -79,8 +79,6 @@ CQL supports 2 kinds of consensus algorithm:
 
 CQL database consistency mode and node count can be selected in datebase creation with command  `cql create '{"UseEventualConsistency": true, "Node": 3}'`
 
-
-
 ## Comparison
 
 |                          | Ethereum            | IBM Hyperledger Fabric   | Amazon QLDB   | CovenantSQL                                                  |
@@ -88,7 +86,7 @@ CQL database consistency mode and node count can be selected in datebase creatio
 | Dev language             | Solidity            | Chaincode   (Go, NodeJS) | ?             | Python, Golang, Java, PHP, NodeJS, MatLab                    |
 | Dev Pattern              | Smart   Contract    | Chaincode                | SQL           | SQL                                                          |
 | Open Source              | Y                   | Y                        | N             | Y                                                            |
-| Nodes for HA             | 3                   | 15*                      | 1             | 3                                                            |
+| Nodes for HA             | 3                   | 15                       | 1             | 3                                                            |
 | Column Level ACL         | N                   | Y                        | ?             | Y                                                            |
 | Data Format              | File                | Key-value                | Documents     | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
 | Storage Encryption       | N                   | API                      | Y             | Y                                                            |
@@ -99,7 +97,11 @@ CQL database consistency mode and node count can be selected in datebase creatio
 | Secure for Open Internet | Y                   | N                        | Only   in AWS | Y                                                            |
 | Consensus                | PoW   + PoS(Casper) | CFT                      | ?             | DPoS (Eventually consistent mode),       BFT-Raft (Strong consistency mode) |
 
+#### FootNotes
 
+- <a name="bft-raft">bft-raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
+- <a name="transaction">transaction</a>: Talking about `ACID`, CQL has full "Consistency, Isolation, Durability" and a limited `Atomicity` support. That is even under strong consistency mode, CQL transaction is only supported on the leader node. If you want to do "read `v`, `v++`, write `v` back" parallelly and atomically, then the only way is "read `v` from the leader, `v++`, write `v` back to leader"
+- <a name="fuse">fuse</a>: CQL has a [simple FUSE](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse) support adopted from CockroachDB. The performance is not very ideal and still has some issues. But it can pass fio test like `fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1   --name=Seqread --bs=128k --rw=read   --name=Seqwrite --bs=128k --rw=write   --name=4krandread --bs=4k --rw=randread   --name=4krandwrite --bs=4k --rw=randwrite`
 
 ## Demos
 
@@ -194,13 +196,6 @@ CovenantSQL is still under construction and Testnet is already released, [have a
 - [Microsoft Excel (by community)](https://github.com/melancholiaforever/CQL_Excel)
 - Coding for more……
 
-## FootNotes
-
-<a name="bft-raft">bft-raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
-
-<a name="transaction">transaction</a>:Talking about `ACID`, CQL has full "Consistency, Isolation, Durability" and a limited `Atomicity` support. That is even under strong consistency mode, CQL transaction is only supported on the leader node. If you want to do "read `v`, `v++`, write `v` back" parallelly and atomically, then the only way is "read `v` from the leader, `v++`, write `v` back to leader"
-
-<a name="fuse">fuse</a>: CQL has a [simple FUSE](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse) support adopted from CockroachDB. The performance is not very ideal and still has some issues. But it can pass fio test like `fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1   --name=Seqread --bs=128k --rw=read   --name=Seqwrite --bs=128k --rw=write   --name=4krandread --bs=4k --rw=randread   --name=4krandwrite --bs=4k --rw=randwrite`
 
 ## TestNet
 
@@ -216,5 +211,3 @@ CovenantSQL is still under construction and Testnet is already released, [have a
 - [Mail](mailto:webmaster@covenantsql.io)
 - [Forum](https://demo.covenantsql.io/forum/)
 - <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs"><img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs" alt="follow on Twitter"></a>
-
- 
